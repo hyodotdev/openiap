@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
  * Render hand-crafted HTML mockups of the authed dashboard screens
- * and write them as PNGs under `public/docs/screenshots/`. We can't
+ * and write them as WebPs under `public/docs/screenshots/`. We can't
  * capture the real dashboard from an automated agent (no OAuth
  * session), so these mockups stand in until someone runs the proper
  * `capture.ts` pipeline against a signed-in dev deployment.
@@ -9,17 +9,26 @@
  * The mockups are deliberately close to the real UI (Tailwind
  * classes copied over, matching dark theme) so readers see an
  * accurate visual of each screen. When the live capture lands, this
- * script becomes a no-op — the live PNGs overwrite the mockups.
+ * script becomes a no-op — the live WebPs overwrite the mockups.
  */
 
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
+import sharp from "sharp";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { chromium } =
   require("@playwright/test") as typeof import("@playwright/test");
 
 const OUT = resolve(__dirname, "..", "..", "public", "docs", "screenshots");
+
+async function screenshotWebp(
+  page: import("@playwright/test").Page,
+  filename: string,
+) {
+  const buffer = await page.screenshot({ fullPage: false });
+  await sharp(buffer).webp({ quality: 90 }).toFile(resolve(OUT, filename));
+}
 
 // Shared Tailwind-ish inline style for every mockup. Mirrors the
 // dashboard's dark theme token values so the mockup and the real
@@ -63,7 +72,7 @@ interface Mockup {
 
 const MOCKUPS: Mockup[] = [
   {
-    filename: "project-new.png",
+    filename: "project-new.webp",
     width: 1200,
     height: 700,
     body: `
@@ -104,7 +113,7 @@ const MOCKUPS: Mockup[] = [
     `,
   },
   {
-    filename: "project-create.png",
+    filename: "project-create.webp",
     width: 1200,
     height: 700,
     body: `
@@ -133,7 +142,7 @@ const MOCKUPS: Mockup[] = [
     `,
   },
   {
-    filename: "api-keys.png",
+    filename: "api-keys.webp",
     width: 1200,
     height: 700,
     body: `
@@ -186,7 +195,7 @@ const MOCKUPS: Mockup[] = [
     `,
   },
   {
-    filename: "ios-config.png",
+    filename: "ios-config.webp",
     width: 1000,
     height: 760,
     body: `
@@ -235,7 +244,7 @@ const MOCKUPS: Mockup[] = [
     `,
   },
   {
-    filename: "android-config.png",
+    filename: "android-config.webp",
     width: 1000,
     height: 820,
     body: `
@@ -296,7 +305,7 @@ const MOCKUPS: Mockup[] = [
     `,
   },
   {
-    filename: "horizon-config.png",
+    filename: "horizon-config.webp",
     width: 1000,
     height: 620,
     body: `
@@ -358,10 +367,7 @@ async function main() {
     // explicitly — `waitUntil: 'load'` doesn't include the FontFace
     // promise resolution, and a fixed 100ms hedge was racy under load.
     await page.evaluate(() => document.fonts.ready);
-    await page.screenshot({
-      path: resolve(OUT, m.filename),
-      fullPage: false,
-    });
+    await screenshotWebp(page, m.filename);
     await context.close();
     console.log(`→ ${m.filename}`);
   }

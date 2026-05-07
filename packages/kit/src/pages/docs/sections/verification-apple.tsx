@@ -67,18 +67,18 @@ export default function VerificationApplePage() {
 
       <h3 className="mt-8 text-lg font-semibold">Visual walkthrough</h3>
       <DocsScreenshot
-        src="/guides/%5BIOS%5D%201.%20In-App%20Purchase%20Key.png"
+        src="/guides/%5BIOS%5D%201.%20In-App%20Purchase%20Key.webp"
         alt="App Store Connect — Users and Access → Integrations → In-App Purchase"
         caption="1. In App Store Connect: Users and Access → Integrations → In-App Purchase. Keys created here are scoped specifically to in-app purchase verification."
       />
       <DocsScreenshot
-        src="/guides/%5BIOS%5D%202.%20Download%20In-App%20Purchase%20Key.png"
+        src="/guides/%5BIOS%5D%202.%20Download%20In-App%20Purchase%20Key.webp"
         alt="Download the newly generated .p8 key"
         caption="2. Generate the key, give it a descriptive name, then download the .p8. Apple only lets you download once — if you lose the file, revoke the key and generate a new one."
       />
 
       <DocsScreenshot
-        src="/docs/screenshots/ios-config.png"
+        src="/docs/screenshots/ios-config.webp"
         alt="iOS Configuration card"
         caption="The iOS Configuration card shows the .p8 file status — filename and size once uploaded, an upload dropzone when empty."
       />

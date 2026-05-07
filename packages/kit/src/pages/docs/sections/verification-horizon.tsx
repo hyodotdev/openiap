@@ -67,7 +67,7 @@ export default function VerificationHorizonPage() {
       </ol>
 
       <DocsScreenshot
-        src="/docs/screenshots/horizon-config.png"
+        src="/docs/screenshots/horizon-config.webp"
         alt="Meta Horizon sub-section inside Android Configuration"
         caption="Once saved, the App Secret is shown as 'Configured ✓' — IAPKit never echoes the plaintext back to the dashboard. Use Replace to rotate."
       />

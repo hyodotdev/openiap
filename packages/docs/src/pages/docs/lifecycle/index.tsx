@@ -23,7 +23,7 @@ function LifeCycle() {
 
       <section>
         <img
-          src="/purchase-flow.png"
+          src="/purchase-flow.webp"
           alt="IAP Lifecycle"
           style={{ width: '100%', maxWidth: '900px', margin: '2rem 0' }}
         />

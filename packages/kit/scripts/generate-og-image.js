@@ -57,11 +57,11 @@ async function generateOGImage() {
     // Create the base image from SVG
     const baseImage = await sharp(svgBuffer)
       .resize(width, height)
-      .png()
+      .webp()
       .toBuffer();
 
     // Read and resize logo
-    const logoPath = join(projectRoot, "public", "logo.png");
+    const logoPath = join(projectRoot, "public", "logo.webp");
     const logo = await sharp(logoPath)
       .resize(120, 120, {
         fit: "contain",
@@ -78,9 +78,9 @@ async function generateOGImage() {
           left: Math.floor(width / 2 - 60),
         },
       ])
-      .toFile(join(projectRoot, "public", "og-preview.png"));
+      .toFile(join(projectRoot, "public", "og-preview.webp"));
 
-    console.log("✓ Generated og-preview.png");
+    console.log("✓ Generated og-preview.webp");
   } catch (error) {
     console.error("Error generating OG image:", error);
     process.exit(1);

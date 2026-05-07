@@ -134,7 +134,7 @@ function DocsNavHeader({ onNavigate }: { onNavigate?: () => void }) {
         title="Back to IAPKit"
       >
         <img
-          src="/logo.png"
+          src="/logo.webp"
           alt=""
           className="h-6 w-6 rounded"
           aria-hidden="true"

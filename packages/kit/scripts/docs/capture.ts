@@ -2,7 +2,7 @@
 /**
  * Docs screenshot driver.
  *
- * Walks the IAPKit dashboard via Playwright and writes PNGs into
+ * Walks the IAPKit dashboard via Playwright and writes WebPs into
  * `public/docs/screenshots/`. Intended to be run locally, by hand,
  * when a UI change lands — CI does NOT run this (see
  * scripts/docs/README.md for the rationale).
@@ -20,6 +20,7 @@
 import { mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
+import sharp from "sharp";
 
 // Playwright is a dev-only dependency; import lazily so `bun install`
 // on a CI image without the dep doesn't fail the script's type check.
@@ -33,6 +34,14 @@ const PROJECT_SLUG = process.env.DOCS_PROJECT_SLUG ?? "testapp";
 const AUTH_STATE = resolve(__dirname, ".auth", "state.json");
 const OUT_DIR = resolve(__dirname, "..", "..", "public", "docs", "screenshots");
 
+async function screenshotWebp(
+  page: import("@playwright/test").Page,
+  filename: string,
+) {
+  const buffer = await page.screenshot({ fullPage: false });
+  await sharp(buffer).webp({ quality: 90 }).toFile(resolve(OUT_DIR, filename));
+}
+
 async function main() {
   await mkdir(resolve(__dirname, ".auth"), { recursive: true });
   await mkdir(OUT_DIR, { recursive: true });
@@ -40,7 +49,7 @@ async function main() {
   const browser = await chromium.launch({ headless: false });
   const context = await browser.newContext({
     viewport: { width: 1440, height: 900 },
-    deviceScaleFactor: 2, // retina PNGs
+    deviceScaleFactor: 2, // retina WebPs
     storageState: existsSync(AUTH_STATE) ? AUTH_STATE : undefined,
     // Pin locale so the dashboard's i18n always resolves to English
     // for screenshots — host `LANG=ko_KR` etc. would otherwise produce
@@ -65,11 +74,11 @@ async function main() {
 
   const shots: Array<[string, string]> = [
     // [relative path, output filename]
-    ["/", "dashboard.png"],
-    [`/${ORG_SLUG}/projects`, "project-list.png"],
-    [`/${ORG_SLUG}/project/${PROJECT_SLUG}/purchases`, "purchases.png"],
-    [`/${ORG_SLUG}/project/${PROJECT_SLUG}/apikeys`, "api-keys.png"],
-    [`/${ORG_SLUG}/project/${PROJECT_SLUG}/settings`, "project-settings.png"],
+    ["/", "dashboard.webp"],
+    [`/${ORG_SLUG}/projects`, "project-list.webp"],
+    [`/${ORG_SLUG}/project/${PROJECT_SLUG}/purchases`, "purchases.webp"],
+    [`/${ORG_SLUG}/project/${PROJECT_SLUG}/apikeys`, "api-keys.webp"],
+    [`/${ORG_SLUG}/project/${PROJECT_SLUG}/settings`, "project-settings.webp"],
   ];
 
   for (const [path, filename] of shots) {
@@ -78,13 +87,10 @@ async function main() {
     // Wait for a stable render. `networkidle` covers Convex query
     // settle; `document.fonts.ready` covers font swap (which fires
     // after networkidle and used to leave glyphs unstyled in the
-    // PNG). Both are deterministic — no fixed-time hedge.
+    // screenshot). Both are deterministic — no fixed-time hedge.
     await page.waitForLoadState("networkidle");
     await page.evaluate(() => document.fonts.ready);
-    await page.screenshot({
-      path: resolve(OUT_DIR, filename),
-      fullPage: false,
-    });
+    await screenshotWebp(page, filename);
   }
 
   await browser.close();

@@ -337,7 +337,7 @@ function Sponsors() {
                 }}
               >
                 <img
-                  src="/paypal.png"
+                  src="/paypal.webp"
                   alt="PayPal"
                   style={{
                     height: '24px',
@@ -478,7 +478,7 @@ function Sponsors() {
                   }}
                 >
                   <img
-                    src="/sponsors/nami.png"
+                    src="/sponsors/nami.webp"
                     alt="Namiml Logo"
                     style={{ height: '35px', objectFit: 'contain' }}
                   />
@@ -495,7 +495,7 @@ function Sponsors() {
                   }}
                 >
                   <img
-                    src="/sponsors/courier.png"
+                    src="/sponsors/courier.webp"
                     alt="Courier Logo"
                     style={{ height: '28px', objectFit: 'contain' }}
                   />

@@ -12,7 +12,7 @@ export default function BlogLayout() {
             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
           >
             <img
-              src="/logo.png"
+              src="/logo.webp"
               alt=""
               className="h-6 w-6 rounded"
               aria-hidden="true"

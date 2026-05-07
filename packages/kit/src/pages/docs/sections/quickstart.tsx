@@ -27,7 +27,7 @@ export default function QuickstartPage() {
         (Developer is free and gives you 250 verifications / month).
       </p>
       <DocsScreenshot
-        src="/docs/screenshots/signup.png"
+        src="/docs/screenshots/signup.webp"
         alt="IAPKit sign-in page"
         caption="Sign in with GitHub or email OTP. New accounts land in the onboarding flow."
       />
@@ -39,7 +39,7 @@ export default function QuickstartPage() {
         backend will authenticate with.
       </p>
       <DocsScreenshot
-        src="/docs/screenshots/project-new.png"
+        src="/docs/screenshots/project-new.webp"
         alt="Create project dialog"
         caption="The Projects tab in each organization holds one row per app. Each row has its own API keys, store credentials, and purchase log."
       />
@@ -86,7 +86,7 @@ export default function QuickstartPage() {
         CI environments.
       </p>
       <DocsScreenshot
-        src="/docs/screenshots/api-keys.png"
+        src="/docs/screenshots/api-keys.webp"
         alt="API Keys tab"
         caption="Issued keys start with openiap-kit_. Store them as secrets — anyone with the key can hit /v1/purchase/verify against your project's quota."
       />

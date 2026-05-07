@@ -43,7 +43,7 @@ export default function ProjectsPage() {
         the verify API itself.
       </p>
       <DocsScreenshot
-        src="/docs/screenshots/project-create.png"
+        src="/docs/screenshots/project-create.webp"
         alt="New project dialog"
         caption="Slugs are generated from the project name and have to be unique within the organization. They appear in dashboard URLs (/:orgSlug/project/:projectSlug) and in log lines."
       />
@@ -84,7 +84,7 @@ export default function ProjectsPage() {
         (staging vs. production) so rotation doesn't cause outages.
       </p>
       <DocsScreenshot
-        src="/docs/screenshots/api-keys.png"
+        src="/docs/screenshots/api-keys.webp"
         alt="API Keys tab"
         caption="Each row shows last-used timestamp and total call count, so stale keys stand out before you revoke."
       />

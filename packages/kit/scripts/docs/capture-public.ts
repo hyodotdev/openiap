@@ -3,7 +3,7 @@
  * Capture the unauthenticated-accessible pages of kit.openiap.dev.
  * The dashboard screens (project settings, API keys, …) need a real
  * login session, so they're produced by `render-mockups.ts` —
- * Playwright renders hand-authored HTML mockups to PNG and writes
+ * Playwright renders hand-authored HTML mockups to WebP and writes
  * them next to the public captures under `public/docs/screenshots/`.
  * This script handles only what Playwright can grab against the
  * running app without signing in.
@@ -14,6 +14,7 @@
 
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
+import sharp from "sharp";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { chromium } =
@@ -25,6 +26,14 @@ const { chromium } =
 // when you explicitly want prod screenshots.
 const BASE = process.env.DOCS_CAPTURE_BASE ?? "http://localhost:5173";
 const OUT = resolve(__dirname, "..", "..", "public", "docs", "screenshots");
+
+async function screenshotWebp(
+  page: import("@playwright/test").Page,
+  filename: string,
+) {
+  const buffer = await page.screenshot({ fullPage: false });
+  await sharp(buffer).webp({ quality: 90 }).toFile(resolve(OUT, filename));
+}
 
 async function main() {
   await mkdir(OUT, { recursive: true });
@@ -50,10 +59,7 @@ async function main() {
   console.log(`→ landing ${BASE}/`);
   await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
   await settle();
-  await page.screenshot({
-    path: resolve(OUT, "landing.png"),
-    fullPage: false,
-  });
+  await screenshotWebp(page, "landing.webp");
 
   // Sign-in modal — the landing CTA opens the Auth modal via a
   // global Preact signal; the most reliable trigger is the header
@@ -72,10 +78,7 @@ async function main() {
         .first()
         .waitFor({ state: "visible", timeout: 3_000 });
       await settle();
-      await page.screenshot({
-        path: resolve(OUT, "signup.png"),
-        fullPage: false,
-      });
+      await screenshotWebp(page, "signup.webp");
     }
   } catch (error) {
     console.warn("  could not capture sign-in modal:", error);
@@ -84,10 +87,7 @@ async function main() {
   console.log(`→ docs ${BASE}/docs`);
   await page.goto(`${BASE}/docs`, { waitUntil: "networkidle" });
   await settle();
-  await page.screenshot({
-    path: resolve(OUT, "docs-home.png"),
-    fullPage: false,
-  });
+  await screenshotWebp(page, "docs-home.webp");
 
   await browser.close();
   console.log(`\n✅ Wrote captures to ${OUT}`);

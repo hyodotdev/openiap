@@ -65,7 +65,7 @@ function Example() {
                 </h2>
                 <div className="screenshot-card">
                   <img
-                    src="/examples/1. [IOS] Example.png"
+                    src="/examples/1. [IOS] Example.webp"
                     alt="iOS Example App Main Screen"
                   />
                   <div className="screenshot-card-content">
@@ -156,7 +156,7 @@ xcodebuild -project Martie.xcodeproj \\
                 </h2>
                 <div className="screenshot-card">
                   <img
-                    src="/examples/2. [IOS] Purchase Flow.png"
+                    src="/examples/2. [IOS] Purchase Flow.webp"
                     alt="iOS Purchase Flow Screen"
                   />
                   <div className="screenshot-card-content">
@@ -323,7 +323,7 @@ cp OpenIapExample/Info.plist.example OpenIapExample/Info.plist
                 </h2>
                 <div className="screenshot-card">
                   <img
-                    src="/examples/3. [IOS] Subscription Flow Upgrade.png"
+                    src="/examples/3. [IOS] Subscription Flow Upgrade.webp"
                     alt="iOS Subscription Flow Upgrade Screen"
                   />
                   <div className="screenshot-card-content">
@@ -346,7 +346,7 @@ cp OpenIapExample/Info.plist.example OpenIapExample/Info.plist
                 </h2>
                 <div className="screenshot-card">
                   <img
-                    src="/examples/4. [IOS] Available Purchases.png"
+                    src="/examples/4. [IOS] Available Purchases.webp"
                     alt="iOS Available Purchases Screen"
                   />
                   <div className="screenshot-card-content">
@@ -369,7 +369,7 @@ cp OpenIapExample/Info.plist.example OpenIapExample/Info.plist
                 </h2>
                 <div className="screenshot-card">
                   <img
-                    src="/examples/5. [IOS] Offer Code.png"
+                    src="/examples/5. [IOS] Offer Code.webp"
                     alt="iOS Offer Code Screen"
                   />
                   <div className="screenshot-card-content">
@@ -392,7 +392,7 @@ cp OpenIapExample/Info.plist.example OpenIapExample/Info.plist
                 </h2>
                 <div className="screenshot-card">
                   <img
-                    src="/examples/6. [IOS] Alternative Billing.png"
+                    src="/examples/6. [IOS] Alternative Billing.webp"
                     alt="iOS Alternative Billing Screen"
                   />
                   <div className="screenshot-card-content">
@@ -438,7 +438,7 @@ cp OpenIapExample/Info.plist.example OpenIapExample/Info.plist
                 </h2>
                 <div className="screenshot-card">
                   <img
-                    src="/examples/1. [Android] Example.png"
+                    src="/examples/1. [Android] Example.webp"
                     alt="Android Example App Main Screen"
                   />
                   <div className="screenshot-card-content">
@@ -531,7 +531,7 @@ adb install Example/build/outputs/apk/debug/Example-debug.apk`}</pre>
                 </h2>
                 <div className="screenshot-card">
                   <img
-                    src="/examples/2. [Android] Purchase Flow.png"
+                    src="/examples/2. [Android] Purchase Flow.webp"
                     alt="Android Purchase Flow Screen"
                   />
                   <div className="screenshot-card-content">
@@ -732,7 +732,7 @@ android {
                 </h2>
                 <div className="screenshot-card">
                   <img
-                    src="/examples/3. [Android] Subscription Flow.png"
+                    src="/examples/3. [Android] Subscription Flow.webp"
                     alt="Android Subscription Flow Screen"
                   />
                   <div className="screenshot-card-content">
@@ -761,7 +761,7 @@ android {
                 </h2>
                 <div className="screenshot-card">
                   <img
-                    src="/examples/4. [Android] Subscription Flow Upgrade.png"
+                    src="/examples/4. [Android] Subscription Flow Upgrade.webp"
                     alt="Android Subscription Flow Upgrade Screen"
                   />
                   <div className="screenshot-card-content">
@@ -784,7 +784,7 @@ android {
                 </h2>
                 <div className="screenshot-card">
                   <img
-                    src="/examples/5. [Android] Available Purchases.png"
+                    src="/examples/5. [Android] Available Purchases.webp"
                     alt="Android Available Purchases Screen"
                   />
                   <div className="screenshot-card-content">
@@ -807,7 +807,7 @@ android {
                 </h2>
                 <div className="screenshot-card">
                   <img
-                    src="/examples/6. [Android] Redeem Offer Code.png"
+                    src="/examples/6. [Android] Redeem Offer Code.webp"
                     alt="Android Redeem Offer Code Screen"
                   />
                   <div className="screenshot-card-content">

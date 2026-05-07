@@ -1,7 +1,7 @@
 # IAPKit
 
 <p align="center">
-  <img src="./public/logo.png" alt="IAPKit" width="120" height="120" />
+  <img src="./public/logo.webp" alt="IAPKit" width="120" height="120" />
 </p>
 
 Hosted receipt-validation SaaS and dashboard managed by [OpenIAP](https://openiap.dev). Validates App Store and Google Play receipts on your backend so one-time in-app purchases cannot be faked, replayed, or tampered with.

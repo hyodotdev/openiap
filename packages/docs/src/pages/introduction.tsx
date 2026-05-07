@@ -139,7 +139,7 @@ function Introduction() {
           <div className="intro-image-container">
             <Link to="/docs/ecosystem">
               <img
-                src="/ecosystem.png"
+                src="/ecosystem.webp"
                 alt="OpenIAP Architecture - GraphQL schema generates native modules"
                 width={800}
                 height={450}

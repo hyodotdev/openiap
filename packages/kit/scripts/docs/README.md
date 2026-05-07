@@ -28,7 +28,7 @@ instead of inserting a duplicate.
 ## Capturing screenshots
 
 `capture.ts` drives Chromium through the real SPA (Vite dev server)
-and writes PNGs to `public/docs/screenshots/`. Run this by hand on a
+and writes WebPs to `public/docs/screenshots/`. Run this by hand on a
 local dev environment — it needs interactive auth the first time.
 
 ```bash
@@ -49,5 +49,5 @@ object-store dependency.
 ## Keeping images fresh
 
 When a dashboard flow changes (new field, renamed tab, etc.),
-re-run the capture script and commit the updated PNGs with the PR
+re-run the capture script and commit the updated WebPs with the PR
 that changed the UI. Don't let docs screenshots drift.

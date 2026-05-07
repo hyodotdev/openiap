@@ -50,3 +50,12 @@ Do not hand-edit generated files such as:
 
 When reviewing generated handler wiring, require the hand-written module to
 implement the generated contract rather than renaming generated fields.
+
+## Image Assets In `packages/docs` And `packages/kit`
+
+Do not add PNG image assets or PNG image references in `packages/docs` or
+`packages/kit`. Convert new or updated bitmap images to WebP before committing,
+and update every site path that points at the image, including React `src`
+attributes, HTML meta tags, manifests, README snippets, and screenshot/OG image
+generation scripts. This applies to docs screenshots, announcement art, favicons,
+logos, guide images, and embedded bitmap data inside SVG files.

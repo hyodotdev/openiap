@@ -63,7 +63,7 @@ export default function IapkitJoinsOpenIap() {
           url: "https://www.openiap.dev",
           logo: {
             "@type": "ImageObject",
-            url: `${SITE_ORIGIN}/logo.png`,
+            url: `${SITE_ORIGIN}/logo.webp`,
           },
         },
         isPartOf: {
