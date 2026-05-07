@@ -131,13 +131,12 @@ final class OpenIapConnectionLifecycle {
                 throw CancellationError()
             }
 
-            if productManager == nil {
-                productManager = ProductManager()
+            if let productManager {
+                return productManager
             }
 
-            guard let productManager else {
-                throw CancellationError()
-            }
+            let productManager = ProductManager()
+            self.productManager = productManager
             return productManager
         }
     }
