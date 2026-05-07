@@ -88,17 +88,15 @@ export function selectReportingMrr(
   mrrMicros: number;
   excludedMrrByCurrency: MrrCurrencyEntry[];
 } {
-  const normalizedReportingCurrency =
-    reportingCurrency.trim().toUpperCase() || DEFAULT_REPORTING_CURRENCY;
   const reportingEntry = entries.find(
-    (entry) => entry.currency === normalizedReportingCurrency,
+    (entry) => entry.currency === reportingCurrency,
   );
 
   return {
-    currency: normalizedReportingCurrency,
+    currency: reportingCurrency,
     mrrMicros: reportingEntry?.mrrMicros ?? 0,
     excludedMrrByCurrency: entries.filter(
-      (entry) => entry.currency !== normalizedReportingCurrency,
+      (entry) => entry.currency !== reportingCurrency,
     ),
   };
 }

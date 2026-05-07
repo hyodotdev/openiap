@@ -7,7 +7,7 @@ export function cn(...inputs: ClassValue[]) {
 
 export const DEFAULT_REPORTING_CURRENCY = "USD";
 
-const currencyCodePattern = /^[A-Z]{3}$/;
+export const currencyCodePattern = /^[A-Z]{3}$/;
 
 export function normalizeCurrencyCode(
   input: string | null | undefined,

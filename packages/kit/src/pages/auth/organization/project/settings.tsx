@@ -19,6 +19,7 @@ import {
 import { GuideModal } from "../../../../components/GuideModal";
 import { PageLoading } from "@/components/LoadingSpinner";
 import { ButtonPrimary } from "@/components/ButtonPrimary";
+import { DEFAULT_REPORTING_CURRENCY, currencyCodePattern } from "@/lib/utils";
 
 const androidPackagePattern =
   /^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$/;
@@ -26,8 +27,6 @@ const iosBundlePattern = /^[A-Za-z][A-Za-z0-9-]*(\.[A-Za-z0-9-]+)+$/;
 const appStoreIssuerPattern =
   /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i;
 const appStoreKeyPattern = /^[A-Z0-9]{10}$/;
-const currencyCodePattern = /^[A-Z]{3}$/;
-const DEFAULT_REPORTING_CURRENCY = "USD";
 
 interface ProjectData {
   _id: Id<"projects">;
