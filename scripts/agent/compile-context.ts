@@ -164,12 +164,18 @@ Requires .NET 9+, the MAUI workload, iOS 15.0+, and Android API 24+.
 
 ### maui-iap
 - Package: \`Hyo.OpenIap.Maui\` on NuGet.
+- Distribution: single public NuGet package. The Android/iOS binding projects
+  are private implementation details and are flattened into \`Hyo.OpenIap.Maui\`
+  instead of being published as separate package dependencies.
 - Implementation: .NET MAUI projection with generated \`Types.cs\`, a static
   \`Iap.Instance\` facade, \`IOpenIap\` observables, and per-platform resolvers.
 - iOS/macCatalyst bridge: .NET-for-iOS binding over
-  \`OpenIAP.xcframework\` and \`OpenIapModule+ObjC.swift\`.
+  \`OpenIAP.xcframework\` and \`OpenIapModule+ObjC.swift\`; NuGet consumers get
+  the official \`Hyo.OpenIap.Maui.Bindings.iOS.resources.zip\` sidecar so no
+  app-level \`NativeReference\` is required.
 - Android bridge: Xamarin.Android binding over \`openiap-play-release.aar\`
-  through \`OpenIapMauiShim\`.
+  through \`OpenIapMauiShim\`; resolved BillingClient / Play Services AARs are
+  included in the main nupkg for app packaging.
 - Public surface: \`QueryResolver\`, \`MutationResolver\`, and \`IOpenIap\`
   implemented by \`OpenIapIOS\`, \`OpenIapAndroid\`, and \`OpenIapMacCatalyst\`.
 - Example app: \`libraries/maui-iap/example/OpenIap.Maui.Example\`, mirroring
@@ -340,8 +346,8 @@ implementation("io.github.hyochan.kmpiap:library:1.3.8")
 - \`godot-iap\`: Godot 4.x plugin with GDScript functions and signals.
 - \`kmp-iap\`: Kotlin Multiplatform API with Flow-based purchase events.
 - \`maui-iap\`: \`Hyo.OpenIap.Maui\` package with \`Iap.Instance\`,
-  generated \`Types.cs\`, iOS xcframework binding, Android AAR binding, and
-  MAUI example flows matching \`expo-iap\`.
+  generated \`Types.cs\`, flattened iOS xcframework / Android AAR bindings in
+  one NuGet package, and MAUI example flows matching \`expo-iap\`.
 
 ## Core APIs
 

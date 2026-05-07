@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-05-06T21:57:05.491Z
+> Generated: 2026-05-07T03:07:05.443Z
 
 ## Table of Contents
 1. Installation
@@ -110,12 +110,18 @@ Requires .NET 9+, the MAUI workload, iOS 15.0+, and Android API 24+.
 
 ### maui-iap
 - Package: `Hyo.OpenIap.Maui` on NuGet.
+- Distribution: single public NuGet package. The Android/iOS binding projects
+  are private implementation details and are flattened into `Hyo.OpenIap.Maui`
+  instead of being published as separate package dependencies.
 - Implementation: .NET MAUI projection with generated `Types.cs`, a static
   `Iap.Instance` facade, `IOpenIap` observables, and per-platform resolvers.
 - iOS/macCatalyst bridge: .NET-for-iOS binding over
-  `OpenIAP.xcframework` and `OpenIapModule+ObjC.swift`.
+  `OpenIAP.xcframework` and `OpenIapModule+ObjC.swift`; NuGet consumers get
+  the official `Hyo.OpenIap.Maui.Bindings.iOS.resources.zip` sidecar so no
+  app-level `NativeReference` is required.
 - Android bridge: Xamarin.Android binding over `openiap-play-release.aar`
-  through `OpenIapMauiShim`.
+  through `OpenIapMauiShim`; resolved BillingClient / Play Services AARs are
+  included in the main nupkg for app packaging.
 - Public surface: `QueryResolver`, `MutationResolver`, and `IOpenIap`
   implemented by `OpenIapIOS`, `OpenIapAndroid`, and `OpenIapMacCatalyst`.
 - Example app: `libraries/maui-iap/example/OpenIap.Maui.Example`, mirroring
