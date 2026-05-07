@@ -21,37 +21,14 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// aren't @objc-bridged automatically.
     @objc public class func sharedInstance() -> OpenIapModule { shared }
 
-    private var updateListenerTask: Task<Void, Error>?
-    private var messageListenerTask: Task<Void, Never>?
-    private var unfinishedTransactionTask: Task<Void, Never>?
-    private var productManager: ProductManager?
     private let state = IapState()
-    private var initTask: Task<Bool, Error>?
-    private var initTaskGeneration: UInt64?
-    private var endTask: Task<Void, Never>?
-    private var endTaskGeneration: UInt64?
-    private var connectionGeneration: UInt64 = 0
-    private let connectionLock = NSLock()
+    private let connection = OpenIapConnectionLifecycle()
     private static let subscriptionPreflightTimeoutNanoseconds: UInt64 = 750_000_000
 
     private enum SubscriptionPreflightOutcome {
         case completed
         case timedOut
     }
-
-    private typealias ConnectionCleanupResources = (
-        updateListenerTask: Task<Void, Error>?,
-        messageListenerTask: Task<Void, Never>?,
-        unfinishedTransactionTask: Task<Void, Never>?,
-        productManager: ProductManager?,
-        didRegisterPaymentQueueObserver: Bool
-    )
-
-    // iOS-only: SKPaymentQueue observer for promoted in-app purchases
-    // Reference: https://developer.apple.com/documentation/storekit/promoting-in-app-purchases
-    #if os(iOS)
-    private var didRegisterPaymentQueueObserver = false
-    #endif
 
     private override init() {
         super.init()
@@ -73,7 +50,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// See: https://www.openiap.dev/docs/apis/init-connection
     public func initConnection() async throws -> Bool {
         while true {
-            if let endTask = currentEndConnectionTask() {
+            if let endTask = connection.currentEndTask() {
                 await endTask.value
                 continue
             }
@@ -82,20 +59,23 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                 return true
             }
 
-            guard let (task, generation) = makeInitConnectionTask() else {
+            guard let initWork = connection.makeInitTask(operation: { [weak self] generation in
+                guard let self else { return false }
+                return try await self.performInitConnection(generation: generation)
+            }) else {
                 await Task.yield()
                 continue
             }
 
             do {
-                let value = try await task.value
-                clearInitConnectionTask(generation: generation)
+                let value = try await initWork.task.value
+                connection.clearInitTask(generation: initWork.generation)
                 return value
             } catch is CancellationError {
-                clearInitConnectionTask(generation: generation)
+                connection.clearInitTask(generation: initWork.generation)
                 return false
             } catch {
-                clearInitConnectionTask(generation: generation)
+                connection.clearInitTask(generation: initWork.generation)
                 throw error
             }
         }
@@ -104,7 +84,10 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// Close the store connection and release resources.
     /// See: https://www.openiap.dev/docs/apis/end-connection
     public func endConnection() async throws -> Bool {
-        let task = makeEndConnectionTask()
+        let task = connection.makeEndTask { [weak self] in
+            guard let self else { return }
+            await self.cleanupExistingState()
+        }
         await task.value
         return true
     }
@@ -131,7 +114,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         }
 
         try await ensureConnection()
-        guard let productManager = currentProductManager() else {
+        guard let productManager = connection.currentProductManager() else {
             let error = makePurchaseError(code: .notPrepared)
             emitPurchaseError(error)
             throw error
@@ -1409,54 +1392,20 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
     // MARK: - Private Helpers
 
-    private func withConnectionLock<T>(_ body: () throws -> T) rethrows -> T {
-        connectionLock.lock()
-        defer { connectionLock.unlock() }
-        return try body()
-    }
-
-    private func currentEndConnectionTask() -> Task<Void, Never>? {
-        withConnectionLock {
-            endTask
-        }
-    }
-
-    private func makeInitConnectionTask() -> (task: Task<Bool, Error>, generation: UInt64)? {
-        withConnectionLock {
-            guard endTask == nil else {
-                return nil
-            }
-
-            if let initTask, initTaskGeneration == connectionGeneration {
-                return (initTask, connectionGeneration)
-            }
-
-            connectionGeneration += 1
-            let generation = connectionGeneration
-            let task = Task<Bool, Error> { [weak self] in
-                guard let self else { return false }
-                return try await self.performInitConnection(generation: generation)
-            }
-            initTask = task
-            initTaskGeneration = generation
-            return (task, generation)
-        }
-    }
-
     private func performInitConnection(generation: UInt64) async throws -> Bool {
         try Task.checkCancellation()
-        try ensureCurrentConnectionGeneration(generation)
+        try connection.ensureCurrent(generation)
 
         if await state.isInitialized {
             return true
         }
 
-        _ = try getOrCreateProductManager(generation: generation)
+        _ = try connection.getOrCreateProductManager(generation: generation)
 
         // iOS-only: Register SKPaymentQueue observer for promoted in-app purchases
         // Reference: https://developer.apple.com/documentation/storekit/promoting-in-app-purchases
         #if os(iOS)
-        if try markPaymentQueueObserverRegisteredIfNeeded(generation: generation) {
+        if try connection.markPaymentQueueObserverRegisteredIfNeeded(generation: generation) {
             try Task.checkCancellation()
             await MainActor.run {
                 SKPaymentQueue.default().add(self)
@@ -1465,7 +1414,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         #endif // os(iOS)
 
         try Task.checkCancellation()
-        try ensureCurrentConnectionGeneration(generation)
+        try connection.ensureCurrent(generation)
 
         guard AppStore.canMakePayments else {
             emitPurchaseError(makePurchaseError(code: .iapNotAvailable))
@@ -1474,167 +1423,24 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         }
 
         try Task.checkCancellation()
-        try ensureCurrentConnectionGeneration(generation)
+        try connection.ensureCurrent(generation)
 
         await state.setInitialized(true)
         try startTransactionListener(generation: generation)
         try startUnfinishedTransactionProcessing(generation: generation)
         let hasSubscriptionBillingIssueListeners = await state.hasSubscriptionBillingIssueListeners()
         try Task.checkCancellation()
-        try ensureCurrentConnectionGeneration(generation)
+        try connection.ensureCurrent(generation)
         if hasSubscriptionBillingIssueListeners {
             try startMessageListener(generation: generation)
         }
         try Task.checkCancellation()
-        try ensureCurrentConnectionGeneration(generation)
+        try connection.ensureCurrent(generation)
         return true
     }
 
-    private func makeEndConnectionTask() -> Task<Void, Never> {
-        withConnectionLock {
-            if let endTask {
-                return endTask
-            }
-
-            connectionGeneration += 1
-            let generation = connectionGeneration
-            let taskToCancel = initTask
-            initTask = nil
-            initTaskGeneration = nil
-            let task = Task { [weak self] in
-                taskToCancel?.cancel()
-                if let taskToCancel {
-                    _ = try? await taskToCancel.value
-                }
-
-                guard let self else { return }
-                await self.cleanupExistingState()
-                self.clearEndConnectionTask(generation: generation)
-            }
-            endTask = task
-            endTaskGeneration = generation
-            return task
-        }
-    }
-
-    private func clearInitConnectionTask(generation: UInt64) {
-        withConnectionLock {
-            if initTaskGeneration == generation {
-                initTask = nil
-                initTaskGeneration = nil
-            }
-        }
-    }
-
-    private func clearEndConnectionTask(generation: UInt64) {
-        withConnectionLock {
-            if endTaskGeneration == generation {
-                endTask = nil
-                endTaskGeneration = nil
-            }
-        }
-    }
-
-    private func clearUnfinishedTransactionTask(generation: UInt64) {
-        withConnectionLock {
-            if connectionGeneration == generation {
-                unfinishedTransactionTask = nil
-            }
-        }
-    }
-
-    private func ensureCurrentConnectionGeneration(_ generation: UInt64) throws {
-        try withConnectionLock {
-            guard connectionGeneration == generation else {
-                throw CancellationError()
-            }
-        }
-    }
-
-    private func getOrCreateProductManager(generation: UInt64) throws -> ProductManager {
-        try withConnectionLock {
-            guard connectionGeneration == generation else {
-                throw CancellationError()
-            }
-
-            if productManager == nil {
-                productManager = ProductManager()
-            }
-
-            guard let productManager else {
-                throw CancellationError()
-            }
-            return productManager
-        }
-    }
-
-    private func currentProductManager() -> ProductManager? {
-        withConnectionLock {
-            productManager
-        }
-    }
-
-    #if os(iOS)
-    private func markPaymentQueueObserverRegisteredIfNeeded(generation: UInt64) throws -> Bool {
-        try withConnectionLock {
-            guard connectionGeneration == generation else {
-                throw CancellationError()
-            }
-
-            if didRegisterPaymentQueueObserver {
-                return false
-            }
-
-            didRegisterPaymentQueueObserver = true
-            return true
-        }
-    }
-    #endif
-
-    private func detachConnectionResourcesForCleanup() -> ConnectionCleanupResources {
-        withConnectionLock {
-            #if os(iOS)
-            let wasRegistered = self.didRegisterPaymentQueueObserver
-            self.didRegisterPaymentQueueObserver = false
-            #else
-            let wasRegistered = false
-            #endif
-
-            let resources = ConnectionCleanupResources(
-                updateListenerTask: updateListenerTask,
-                messageListenerTask: messageListenerTask,
-                unfinishedTransactionTask: unfinishedTransactionTask,
-                productManager: productManager,
-                didRegisterPaymentQueueObserver: wasRegistered
-            )
-
-            updateListenerTask = nil
-            messageListenerTask = nil
-            unfinishedTransactionTask = nil
-            productManager = nil
-            return resources
-        }
-    }
-
     private func cancelConnectionTasksForDeinit() {
-        let resources = withConnectionLock {
-            let resources = (
-                initTask: initTask,
-                endTask: endTask,
-                updateListenerTask: updateListenerTask,
-                messageListenerTask: messageListenerTask,
-                unfinishedTransactionTask: unfinishedTransactionTask
-            )
-            initTask = nil
-            initTaskGeneration = nil
-            endTask = nil
-            endTaskGeneration = nil
-            updateListenerTask = nil
-            messageListenerTask = nil
-            unfinishedTransactionTask = nil
-            return resources
-        }
-
+        let resources = connection.detachTasksForDeinit()
         resources.initTask?.cancel()
         resources.endTask?.cancel()
         resources.updateListenerTask?.cancel()
@@ -1643,7 +1449,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     private func ensureConnection() async throws {
-        if let endTask = currentEndConnectionTask() {
+        if let endTask = connection.currentEndTask() {
             await endTask.value
         }
 
@@ -1665,7 +1471,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     private func cleanupExistingState() async {
-        let resources = detachConnectionResourcesForCleanup()
+        let resources = connection.detachResourcesForCleanup()
         resources.updateListenerTask?.cancel()
         resources.messageListenerTask?.cancel()
         resources.unfinishedTransactionTask?.cancel()
@@ -1683,7 +1489,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     private func storeProduct(for sku: String) async throws -> StoreKit.Product {
-        guard let productManager = currentProductManager() else {
+        guard let productManager = connection.currentProductManager() else {
             let error = makePurchaseError(code: .notPrepared)
             emitPurchaseError(error)
             throw error
@@ -1720,17 +1526,9 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     private func startTransactionListener(generation: UInt64) throws {
-        try withConnectionLock {
-            guard connectionGeneration == generation else {
-                throw CancellationError()
-            }
-
-            if updateListenerTask != nil {
-                return
-            }
-
+        try connection.startTransactionListenerTask(generation: generation) {
             OpenIapLog.debug("🎧 [TransactionListener] Starting Transaction.updates listener...")
-            updateListenerTask = Task<Void, Error> { [weak self] in
+            return Task<Void, Error> { [weak self] in
                 guard let self else {
                     OpenIapLog.debug("⚠️ [TransactionListener] Self is nil, exiting listener")
                     return
@@ -1794,18 +1592,10 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     private func startUnfinishedTransactionProcessing(generation: UInt64) throws {
-        try withConnectionLock {
-            guard connectionGeneration == generation else {
-                throw CancellationError()
-            }
-
-            if unfinishedTransactionTask != nil {
-                return
-            }
-
-            unfinishedTransactionTask = Task { [weak self] in
+        try connection.startUnfinishedTransactionTask(generation: generation) {
+            Task { [weak self] in
                 guard let self else { return }
-                defer { self.clearUnfinishedTransactionTask(generation: generation) }
+                defer { self.connection.clearUnfinishedTransactionTask(generation: generation) }
                 await self.processUnfinishedTransactions()
             }
         }
@@ -1966,26 +1756,19 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// - https://developer.apple.com/documentation/storekit/message
     /// - https://developer.apple.com/documentation/storekit/message/reason-swift.struct/billingissue
     private func startMessageListener() {
-        try? startMessageListener(requiringGeneration: nil)
+        try? startMessageListener(generation: nil)
     }
 
     private func startMessageListener(generation: UInt64) throws {
-        try startMessageListener(requiringGeneration: generation)
+        try startMessageListener(generation: Optional(generation))
     }
 
-    private func startMessageListener(requiringGeneration generation: UInt64?) throws {
+    private func startMessageListener(generation: UInt64?) throws {
         #if os(iOS) || targetEnvironment(macCatalyst)
         if #available(iOS 18.0, macCatalyst 18.0, *) {
-            try withConnectionLock {
-                if let generation, connectionGeneration != generation {
-                    throw CancellationError()
-                }
-                if endTask != nil || messageListenerTask != nil {
-                    return
-                }
-
+            try connection.startMessageListenerTask(generation: generation) {
                 OpenIapLog.debug("🔔 [MessageListener] Starting Message.messages listener (iOS 18+)")
-                messageListenerTask = Task { [weak self] in
+                return Task { [weak self] in
                     guard let self else { return }
                     for await message in StoreKit.Message.messages {
                         if Task.isCancelled { return }
