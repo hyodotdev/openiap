@@ -815,9 +815,11 @@ async function verifyPubSubOidcToken(
   audience: string | string[],
 ): Promise<boolean> {
   if (!authHeader?.startsWith("Bearer ")) {
+    console.warn("[webhooks/google] OIDC verification failed: missing bearer");
     return false;
   }
   const token = authHeader.slice(7);
+  const expectedAudiences = Array.isArray(audience) ? audience : [audience];
   try {
     const ticket = await oauth2Client.verifyIdToken({
       idToken: token,
@@ -825,30 +827,57 @@ async function verifyPubSubOidcToken(
     });
     const payload = ticket.getPayload();
     if (!payload) {
+      console.warn("[webhooks/google] OIDC verification failed: empty payload");
       return false;
     }
     const email = payload.email;
     if (!email || payload.email_verified !== true) {
+      console.warn("[webhooks/google] OIDC verification failed: email", {
+        audience: sanitizePubSubAudienceForLog(payload.aud),
+        email,
+        emailVerified: payload.email_verified,
+        issuer: payload.iss,
+      });
       return false;
     }
     // Bind to a specific service-account principal when configured.
-    // Without GOOGLE_PUBSUB_PUSH_PRINCIPAL set we still enforce the
-    // gcp-sa-pubsub namespace so any project's Pub/Sub push could in
-    // theory hit our endpoint — operators in shared GCP orgs should
-    // pin GOOGLE_PUBSUB_PUSH_PRINCIPAL to their dedicated push SA.
-    const principal = process.env.GOOGLE_PUBSUB_PUSH_PRINCIPAL;
-    if (principal) {
-      return email === principal;
+    // Without GOOGLE_PUBSUB_PUSH_PRINCIPAL set, accept verified Google
+    // service-account identities. Pub/Sub signs push OIDC tokens as the
+    // subscription's configured service account (for example
+    // `pubsub-rtdn-push@project.iam.gserviceaccount.com`), not the
+    // Google-managed Pub/Sub service agent that has Token Creator access.
+    const configuredPrincipal = process.env.GOOGLE_PUBSUB_PUSH_PRINCIPAL;
+    if (!isAllowedPubSubServiceAccount(email, configuredPrincipal)) {
+      console.warn("[webhooks/google] OIDC principal rejected", {
+        audience: sanitizePubSubAudienceForLog(payload.aud),
+        configuredPrincipal: configuredPrincipal ?? "(any service account)",
+        email,
+        expectedAudiences: expectedAudiences.map(sanitizePubSubAudienceForLog),
+        issuer: payload.iss,
+      });
+      return false;
     }
-    return email.endsWith("@gcp-sa-pubsub.iam.gserviceaccount.com");
+    return true;
   } catch (error) {
     const sanitized =
       error instanceof Error
         ? `${error.name}: ${error.message}`
         : "(unknown error type)";
-    console.warn("[webhooks/google] OIDC verification error", sanitized);
+    console.warn("[webhooks/google] OIDC verification error", {
+      error: sanitized,
+      expectedAudiences: expectedAudiences.map(sanitizePubSubAudienceForLog),
+      tokenClaims: decodeJwtPayloadForLog(token),
+    });
     return false;
   }
+}
+
+export function isAllowedPubSubServiceAccount(
+  email: string,
+  configuredPrincipal?: string,
+): boolean {
+  if (configuredPrincipal) return email === configuredPrincipal;
+  return email.endsWith(".gserviceaccount.com");
 }
 
 export function pubSubOidcAudiences(
@@ -884,6 +913,50 @@ function safeUrl(value: string): URL | null {
   } catch {
     return null;
   }
+}
+
+type JwtClaimsForLog = {
+  aud?: string | string[];
+  email?: string;
+  emailVerified?: boolean;
+  issuer?: string;
+};
+
+function decodeJwtPayloadForLog(token: string): JwtClaimsForLog | null {
+  const [, payload] = token.split(".");
+  if (!payload) return null;
+  try {
+    const decoded = JSON.parse(Buffer.from(payload, "base64url").toString());
+    return {
+      aud: sanitizePubSubAudienceForLog(decoded.aud),
+      email: typeof decoded.email === "string" ? decoded.email : undefined,
+      emailVerified:
+        typeof decoded.email_verified === "boolean"
+          ? decoded.email_verified
+          : undefined,
+      issuer: typeof decoded.iss === "string" ? decoded.iss : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function sanitizePubSubAudienceForLog(
+  audience: unknown,
+): string | string[] | undefined {
+  if (Array.isArray(audience)) {
+    return audience
+      .map((value) => sanitizePubSubAudienceForLog(value))
+      .filter((value): value is string => typeof value === "string");
+  }
+  if (typeof audience !== "string") return undefined;
+  const parsed = safeUrl(audience);
+  if (!parsed) return audience;
+  const path = parsed.pathname.replace(
+    /^(\/v1\/webhooks\/)[^/]+$/,
+    "$1<api-key-redacted>",
+  );
+  return `${parsed.origin}${path}${parsed.search}`;
 }
 
 function mapWebhookError(
