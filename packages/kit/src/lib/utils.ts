@@ -20,17 +20,19 @@ export function normalizeCurrencyCode(
   return fallback;
 }
 
+export interface FormatMicrosOptions {
+  currency?: string | null;
+  compact?: boolean;
+  emptyWhenZero?: boolean;
+}
+
 export function formatMicros(
   micros: number,
   {
     currency,
     compact = false,
     emptyWhenZero = false,
-  }: {
-    currency?: string | null;
-    compact?: boolean;
-    emptyWhenZero?: boolean;
-  } = {},
+  }: FormatMicrosOptions = {},
 ): string {
   if (!micros) {
     if (emptyWhenZero) return "—";

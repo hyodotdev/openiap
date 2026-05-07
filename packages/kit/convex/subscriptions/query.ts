@@ -73,15 +73,26 @@ async function projectByApiKey(
     .unique();
 }
 
-function reportingCurrencyForProject(project: Doc<"projects">): string {
-  return normalizeReportingCurrencyOrDefault(project.reportingCurrency);
+export interface MrrCurrencyEntry {
+  currency: string;
+  mrrMicros: number;
 }
 
-export type MrrCurrencyEntry = { currency: string; mrrMicros: number };
-
+/**
+ * Selects the headline MRR entry for a project's reporting currency.
+ *
+ * `reportingCurrency` is normalized via `normalizeReportingCurrencyOrDefault`,
+ * so unknown or invalid input falls back to `DEFAULT_REPORTING_CURRENCY`.
+ * If no entry matches the normalized currency, returned `mrrMicros` is `0`.
+ * Returned `excludedMrrByCurrency` contains every non-reporting-currency entry.
+ *
+ * @param entries Per-currency MRR rows already summed for the project.
+ * @param reportingCurrency Project-configured reporting currency, raw or normalized.
+ * @returns The normalized `currency`, selected `mrrMicros`, and excluded rows.
+ */
 export function selectReportingMrr(
   entries: MrrCurrencyEntry[],
-  reportingCurrency: string,
+  reportingCurrency: string | null | undefined,
 ): {
   currency: string;
   mrrMicros: number;
@@ -332,8 +343,6 @@ export const metricsSummary = query({
         excludedMrrByCurrency: [],
       };
     }
-    const reportingCurrency = reportingCurrencyForProject(project);
-
     const now = Date.now();
     const cutoff = now - 30 * 24 * 60 * 60 * 1000;
 
@@ -463,7 +472,10 @@ export const metricsSummary = query({
       currency,
       mrrMicros,
     }));
-    const reportingMrr = selectReportingMrr(mrrByCurrency, reportingCurrency);
+    const reportingMrr = selectReportingMrr(
+      mrrByCurrency,
+      project.reportingCurrency,
+    );
 
     return {
       activeSubs,

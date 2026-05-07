@@ -340,6 +340,7 @@ export default function ProjectSettings() {
   const isReportingCurrencyValid = currencyCodePattern.test(
     trimmedReportingCurrency,
   );
+  const reportingCurrencyErrorId = "reporting-currency-error";
   const reportingCurrencyHasChanges =
     trimmedReportingCurrency !== originalReportingCurrency;
   const disableSaveReportingCurrency =
@@ -726,9 +727,15 @@ export default function ProjectSettings() {
               maxLength={3}
               spellCheck={false}
               aria-invalid={!isReportingCurrencyValid}
+              aria-describedby={
+                !isReportingCurrencyValid ? reportingCurrencyErrorId : undefined
+              }
             />
             {!isReportingCurrencyValid && (
-              <p className="text-sm text-destructive mt-1">
+              <p
+                id={reportingCurrencyErrorId}
+                className="text-sm text-destructive mt-1"
+              >
                 Enter a 3-letter ISO 4217 code.
               </p>
             )}

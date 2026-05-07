@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { formatMicros, normalizeCurrencyCode } from "./utils";
+import {
+  DEFAULT_REPORTING_CURRENCY,
+  formatMicros,
+  normalizeCurrencyCode,
+} from "./utils";
 
 describe("normalizeCurrencyCode", () => {
   it("trims and uppercases valid ISO currency codes", () => {
@@ -9,6 +13,15 @@ describe("normalizeCurrencyCode", () => {
 
   it("falls back when the currency code is invalid", () => {
     expect(normalizeCurrencyCode("usdollar", "EUR")).toBe("EUR");
+  });
+
+  it("falls back to DEFAULT_REPORTING_CURRENCY for nullish input", () => {
+    expect(normalizeCurrencyCode(null)).toBe(DEFAULT_REPORTING_CURRENCY);
+    expect(normalizeCurrencyCode(undefined)).toBe(DEFAULT_REPORTING_CURRENCY);
+  });
+
+  it("uses the explicit fallback for undefined input", () => {
+    expect(normalizeCurrencyCode(undefined, "GBP")).toBe("GBP");
   });
 });
 

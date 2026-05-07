@@ -220,6 +220,11 @@ export default function ProjectAnalytics() {
       metricsCurrencies.filter((candidate) => candidate !== reportingCurrency),
     [metricsCurrencies, reportingCurrency],
   );
+  const calloutExcludedCurrencies = useMemo(
+    () =>
+      excludedReportingCurrencies.filter((candidate) => candidate !== currency),
+    [excludedReportingCurrencies, currency],
+  );
 
   // Client-side filtering. Range is also a client filter now (we
   // fetched the max range above), so flipping range chiclets stays
@@ -555,7 +560,7 @@ export default function ProjectAnalytics() {
                 reporting currency is the default; other currencies
                 are visible here for chart exploration only. */}
             <Select
-              value={currency || undefined}
+              value={currency}
               onChange={(v) => setSelectedCurrency(v ?? null)}
               className="min-w-[100px]"
               options={currencyOptions.map((c) => ({
@@ -569,12 +574,15 @@ export default function ProjectAnalytics() {
 
       {excludedReportingCurrencies.length > 0 && (
         <div className="border border-border bg-muted/20 rounded-lg p-4 text-sm text-muted-foreground">
-          Headline revenue totals are pinned to {reportingCurrency}.{" "}
+          Headline revenue totals only include {reportingCurrency}.{" "}
           {currency !== reportingCurrency &&
             `The revenue chart is showing ${currency}. `}
-          {excludedReportingCurrencies.join(", ")}{" "}
-          {excludedReportingCurrencies.length === 1 ? "is" : "are"} excluded
-          from headline totals because IAPKit does not convert currencies.
+          {calloutExcludedCurrencies.length > 0
+            ? `${calloutExcludedCurrencies.join(", ")} ${
+                calloutExcludedCurrencies.length === 1 ? "is" : "are"
+              } also kept separate. `
+            : "Other currency slices are kept separate. "}
+          IAPKit does not convert currencies.
         </div>
       )}
 
@@ -614,7 +622,7 @@ export default function ProjectAnalytics() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <ChartCard
             title="Revenue"
-            subtitle={`Initial purchases + renewals${currency ? ` · ${currency}` : ""}`}
+            subtitle={`Initial purchases + renewals · ${currency}`}
           >
             <ResponsiveContainer width="100%" height={240}>
               <BarChart
