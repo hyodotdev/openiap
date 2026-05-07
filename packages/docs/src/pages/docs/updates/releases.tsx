@@ -26,6 +26,127 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // May 7, 2026 — non-Godot SDK parity + native API wiring guardrails
+    {
+      id: 'apple-2-1-6-google-2-1-3-sdk-parity',
+      date: new Date('2026-05-07'),
+      element: (
+        <div key="apple-2-1-6-google-2-1-3-sdk-parity" style={noteCardStyle}>
+          <AnchorLink id="apple-2-1-6-google-2-1-3-sdk-parity" level="h4">
+            openiap-apple v2.1.6 / openiap-google v2.1.3 - SDK parity guardrails
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Tightens the non-Godot SDK surface around the{' '}
+            <Link to="/docs/setup/expo">expo-iap</Link> example SSOT. Apple and
+            Google now expose the native wiring needed by the framework
+            examples, while CI gains a parity audit that fails when a new
+            library, route, product id, generated operation, or shared generated
+            helper drifts from the SSOT. See{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/134"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #134
+            </a>
+            .
+          </p>
+
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>openiap-apple 2.1.6</strong> — adds the cross-platform{' '}
+              <code>getStorefront()</code> protocol/store/module path and ObjC
+              bridge wrappers, with <code>getStorefrontIOS()</code> delegating
+              to the unified method for backward compatibility.
+            </li>
+            <li>
+              <strong>openiap-google 2.1.3</strong> — wires Play and Horizon
+              handler bundles for <code>getStorefront</code>, legacy alternative
+              billing helpers, and Billing Programs APIs such as{' '}
+              <code>isBillingProgramAvailableAndroid</code>,{' '}
+              <code>launchExternalLinkAndroid</code>, and{' '}
+              <code>createBillingProgramReportingDetailsAndroid</code>.
+            </li>
+            <li>
+              <strong>Example parity</strong> — Expo, React Native classic,
+              React Native Expo, Flutter, KMP, MAUI, Apple, and Google examples
+              now share the same product ids, route set, storefront usage,
+              alternative billing flow, and webhook stream demo coverage.
+            </li>
+            <li>
+              <strong>SSOT enforcement</strong> — new{' '}
+              <code>bun run audit:parity</code> check compares the Expo example,
+              generated GraphQL operations, generated type copies, and non-Godot
+              library registry; the root CI workflow runs it on SDK/API/example
+              changes.
+            </li>
+          </ul>
+
+          <p
+            style={{
+              marginBottom: 0,
+              fontSize: '0.9rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Godot remains intentionally excluded from this parity gate until its
+            example parity and automated verification are brought into the same
+            release lane.
+          </p>
+
+          {/* Package Releases */}
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+              marginTop: '1rem',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/2.1.6"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-apple 2.1.6
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/google-2.1.3"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-google 2.1.3
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // May 7, 2026 — maui-iap 1.0.0 published
     {
       id: 'maui-iap-1-0-0',
