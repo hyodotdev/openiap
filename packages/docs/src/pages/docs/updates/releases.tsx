@@ -44,7 +44,8 @@ function Releases() {
             }}
           >
             Published <code>openiap-google</code> <strong>2.1.3</strong> to
-            Maven Central and shipped the first official{' '}
+            Maven Central with the Android MAUI shim required by the new C#
+            binding, then shipped the first official{' '}
             <Link to="/docs/setup/maui">maui-iap</Link> <strong>1.0.0</strong>{' '}
             package on NuGet. This gives .NET MAUI apps the same OpenIAP
             product, purchase, subscription, listener, and verification model
@@ -60,10 +61,10 @@ function Releases() {
             }}
           >
             <li>
-              <strong>openiap-google 2.1.3</strong> — Play flavor publishes
-              against Google Play Billing <code>8.3.0</code>, while the Horizon
-              flavor remains available as <code>openiap-google-horizon</code>{' '}
-              for Meta Quest / Horizon Store builds.
+              <strong>openiap-google 2.1.3</strong> — adds the Java-friendly{' '}
+              <code>OpenIapMauiShim</code> facade used by the .NET Android
+              binding, and publishes the Play flavor against Google Play Billing{' '}
+              <code>8.3.0</code>.
             </li>
             <li>
               <strong>maui-iap 1.0.0</strong> — new NuGet package{' '}
