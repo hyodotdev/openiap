@@ -41,6 +41,7 @@ export function formatMicros(
   const value = micros / 1_000_000;
   if (compact) {
     if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
+    if (value < 10) return value.toFixed(2);
     return value.toFixed(0);
   }
 

@@ -311,29 +311,38 @@ export default function ProjectAnalytics() {
     [lifecycleDaily, periodId],
   );
 
+  const revenueByBucket = useMemo(
+    () => new Map(revenueSeries.map((row) => [row.dayKey, row.revenueMicros])),
+    [revenueSeries],
+  );
+  const reportingRevenueByBucket = useMemo(
+    () =>
+      new Map(
+        reportingRevenueSeries.map((row) => [row.dayKey, row.revenueMicros]),
+      ),
+    [reportingRevenueSeries],
+  );
+
   // Final chart series merges the lifecycle counters (cross-currency)
-  // with the revenue total (currency-pinned) per bucket. Same
-  // bucket-period axis on both sides means we can join positionally
-  // since `bucketByPeriod` produces deterministic output for a
-  // given `periodId` / `range`.
+  // with the revenue total (currency-pinned) by bucket key.
   const series = useMemo(
     () =>
-      lifecycleSeries.map((row, i) => ({
+      lifecycleSeries.map((row) => ({
         ...row,
-        revenueMicros: revenueSeries[i]?.revenueMicros ?? 0,
+        revenueMicros: revenueByBucket.get(row.dayKey) ?? 0,
       })),
-    [lifecycleSeries, revenueSeries],
+    [lifecycleSeries, revenueByBucket],
   );
 
   const totals = useMemo(
     () =>
       lifecycleSeries.reduce(
-        (acc, row, i) => {
+        (acc, row) => {
           acc.newSubs += row.newSubs;
           acc.renewals += row.renewals;
           acc.cancellations += row.cancellations;
           acc.refunds += row.refunds;
-          acc.revenueMicros += reportingRevenueSeries[i]?.revenueMicros ?? 0;
+          acc.revenueMicros += reportingRevenueByBucket.get(row.dayKey) ?? 0;
           acc.activeSubsLast = row.activeSubs;
           return acc;
         },
@@ -346,7 +355,7 @@ export default function ProjectAnalytics() {
           activeSubsLast: 0,
         },
       ),
-    [lifecycleSeries, reportingRevenueSeries],
+    [lifecycleSeries, reportingRevenueByBucket],
   );
 
   // Churn = (cancellations + refunds) / activeSubs at end of window.
@@ -968,7 +977,7 @@ function aggregateByDay(
 function bucketByPeriod(
   daily: Array<DailyRow & { dayKey: string }>,
   period: PeriodId,
-): Array<DailyRow & { label: string; churnPct: number }> {
+): Array<DailyRow & { dayKey: string; label: string; churnPct: number }> {
   if (period === "daily") {
     return daily.map((row) => ({
       ...row,

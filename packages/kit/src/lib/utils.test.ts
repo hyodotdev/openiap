@@ -24,4 +24,8 @@ describe("formatMicros", () => {
   it("keeps compact formatting for chart axes", () => {
     expect(formatMicros(1_200_000_000, { compact: true })).toBe("1.2k");
   });
+
+  it("preserves cents for compact values below ten", () => {
+    expect(formatMicros(500_000, { compact: true })).toBe("0.50");
+  });
 });
