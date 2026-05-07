@@ -160,63 +160,44 @@ sealed class OpenIapError : Exception() {
         const val MESSAGE = "Failed to initialize billing connection"
     }
 
-    object QueryProduct : OpenIapError() {
-        private data class Diagnostics(
-            val responseCode: Int? = null,
-            val debugMessage: String? = null,
-            val productIds: List<String> = emptyList(),
-            val productType: String? = null,
-            val isEmptyProductList: Boolean? = null,
-        )
-
-        // Keep QueryProduct as the existing singleton for patch-level API compatibility.
-        @Volatile
-        private var diagnostics: Diagnostics? = null
-
-        val CODE = ErrorCode.QueryProduct.rawValue
-        override val code = CODE
+    open class QueryProduct(
+        val responseCode: Int? = null,
+        override val debugMessage: String? = null,
+        val productIds: List<String> = emptyList(),
+        val productType: String? = null,
+        val isEmptyProductList: Boolean? = null,
+    ) : OpenIapError() {
+        override val code = ErrorCode.QueryProduct.rawValue
         override val message = MESSAGE
-        override val debugMessage: String?
-            get() = diagnostics?.debugMessage
 
-        val responseCode: Int?
-            get() = diagnostics?.responseCode
+        companion object : QueryProduct() {
+            val CODE = ErrorCode.QueryProduct.rawValue
+            const val MESSAGE = "Failed to query product"
 
-        val productIds: List<String>
-            get() = diagnostics?.productIds ?: emptyList()
-
-        val productType: String?
-            get() = diagnostics?.productType
-
-        val isEmptyProductList: Boolean?
-            get() = diagnostics?.isEmptyProductList
-
-        const val MESSAGE = "Failed to query product"
-
-        fun withDiagnostics(
-            responseCode: Int? = null,
-            debugMessage: String? = null,
-            productIds: List<String> = emptyList(),
-            productType: String? = null,
-            isEmptyProductList: Boolean? = null,
-        ): QueryProduct {
-            diagnostics = Diagnostics(
+            fun withDiagnostics(
+                responseCode: Int? = null,
+                debugMessage: String? = null,
+                productIds: List<String> = emptyList(),
+                productType: String? = null,
+                isEmptyProductList: Boolean? = null,
+            ): QueryProduct = QueryProduct(
                 responseCode = responseCode,
                 debugMessage = debugMessage,
                 productIds = productIds,
                 productType = productType,
                 isEmptyProductList = isEmptyProductList,
             )
-            return this
         }
 
         override fun toJSON(): Map<String, Any?> {
-            val current = diagnostics ?: return super.toJSON()
+            if (responseCode == null && productIds.isEmpty() && productType == null && isEmptyProductList == null) {
+                return super.toJSON()
+            }
             return super.toJSON() + mapOf(
-                "responseCode" to current.responseCode,
-                "productIds" to current.productIds,
-                "productType" to current.productType,
-                "isEmptyProductList" to current.isEmptyProductList,
+                "responseCode" to responseCode,
+                "productIds" to productIds,
+                "productType" to productType,
+                "isEmptyProductList" to isEmptyProductList,
             )
         }
     }

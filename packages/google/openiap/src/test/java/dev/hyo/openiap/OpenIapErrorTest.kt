@@ -3,7 +3,6 @@ package dev.hyo.openiap
 import com.android.billingclient.api.BillingClient
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -119,7 +118,7 @@ class OpenIapErrorTest {
 
     @Test
     fun `QueryProduct carries billing diagnostics when provided`() {
-        val error = OpenIapError.QueryProduct.withDiagnostics(
+        val error: OpenIapError = OpenIapError.QueryProduct.withDiagnostics(
             responseCode = BillingClient.BillingResponseCode.DEVELOPER_ERROR,
             debugMessage = "Invalid product ID",
             productIds = listOf("premium_monthly", "lifetime"),
@@ -128,14 +127,16 @@ class OpenIapErrorTest {
         )
         val json = error.toJSON()
 
-        assertSame(OpenIapError.QueryProduct, error)
+        assertTrue(error is OpenIapError.QueryProduct)
+        assertFalse(error === OpenIapError.QueryProduct)
         assertEquals(ErrorCode.QueryProduct.rawValue, error.code)
         assertEquals("Failed to query product", error.message)
-        assertEquals(BillingClient.BillingResponseCode.DEVELOPER_ERROR, error.responseCode)
+        val queryError = error as OpenIapError.QueryProduct
+        assertEquals(BillingClient.BillingResponseCode.DEVELOPER_ERROR, queryError.responseCode)
         assertEquals("Invalid product ID", error.debugMessage)
-        assertEquals(listOf("premium_monthly", "lifetime"), error.productIds)
-        assertEquals(BillingClient.ProductType.SUBS, error.productType)
-        assertEquals(true, error.isEmptyProductList)
+        assertEquals(listOf("premium_monthly", "lifetime"), queryError.productIds)
+        assertEquals(BillingClient.ProductType.SUBS, queryError.productType)
+        assertEquals(true, queryError.isEmptyProductList)
         assertEquals(BillingClient.BillingResponseCode.DEVELOPER_ERROR, json["responseCode"])
         assertEquals("Invalid product ID", json["debugMessage"])
         assertEquals(listOf("premium_monthly", "lifetime"), json["productIds"])
