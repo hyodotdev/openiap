@@ -85,9 +85,13 @@ jobs:
       - name: Build OpenIAP.xcframework (Apple)
         run: bash packages/apple/scripts/build-xcframework.sh
 
-      - name: Build Play AAR (Google) with OpenIapMauiShim
+      - name: Build Play AAR (Google)
         working-directory: packages/google
         run: ./gradlew :openiap:assemblePlayRelease
+
+      - name: Build MAUI Android shim AAR
+        working-directory: libraries/maui-iap/android
+        run: ../../../packages/google/gradlew :openiap-maui-shim:assembleRelease
 
       - name: Build all target frameworks
         run: dotnet build libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj
@@ -275,9 +279,13 @@ jobs:
       - name: Build OpenIAP.xcframework (Apple)
         run: bash packages/apple/scripts/build-xcframework.sh
 
-      - name: Build Play AAR (Google) with OpenIapMauiShim
+      - name: Build Play AAR (Google)
         working-directory: packages/google
         run: ./gradlew :openiap:assemblePlayRelease
+
+      - name: Build MAUI Android shim AAR
+        working-directory: libraries/maui-iap/android
+        run: ../../../packages/google/gradlew :openiap-maui-shim:assembleRelease
 
       - name: Pack NuGet package
         env:

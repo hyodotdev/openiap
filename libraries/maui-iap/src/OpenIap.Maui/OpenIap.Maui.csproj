@@ -93,6 +93,7 @@
   <Target Name="IncludeBindingsInNuPkg" DependsOnTargets="ResolveReferences">
     <ItemGroup>
       <BuildOutputInPackage Include="@(ReferenceCopyLocalPaths)" Condition="'%(ReferenceCopyLocalPaths.Filename)' == 'Hyo.OpenIap.Maui.Bindings.Android' or '%(ReferenceCopyLocalPaths.Filename)' == 'Hyo.OpenIap.Maui.Bindings.iOS'" />
+      <BuildOutputInPackage Include="..\OpenIap.Maui.Bindings.Android\bin\$(Configuration)\$(TargetFramework)\Hyo.OpenIap.Maui.Bindings.Android.aar" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' and Exists('..\OpenIap.Maui.Bindings.Android\bin\$(Configuration)\$(TargetFramework)\Hyo.OpenIap.Maui.Bindings.Android.aar')" />
       <BuildOutputInPackage Include="$(OutputPath)*.aar" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'" />
       <BuildOutputInPackage Include="$(OutputPath)Hyo.OpenIap.Maui.Bindings.iOS.resources.zip" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'" />
     </ItemGroup>

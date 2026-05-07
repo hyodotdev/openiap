@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package dev.hyo.openiap.maui
 
 import android.app.Activity
@@ -75,10 +77,10 @@ class OpenIapMauiShim(context: Context) {
     fun interface ResultCallback {
         /**
          * Exactly one of the arguments is non-null on every invocation.
-         * @param json   Operation result encoded as JSON, or `null` for void/no-result ops.
-         * @param error  Native error, or `null` on success.
+         * @param json       Operation result encoded as JSON, or `null` for void/no-result ops.
+         * @param errorJson  Canonical `PurchaseError` JSON payload, or `null` on success.
          */
-        fun onResult(json: String?, error: Throwable?)
+        fun onResult(json: String?, errorJson: String?)
     }
 
     fun interface EventCallback {
@@ -317,7 +319,7 @@ class OpenIapMauiShim(context: Context) {
             try {
                 callback.onResult(block(), null)
             } catch (e: Throwable) {
-                callback.onResult(null, e)
+                callback.onResult(null, encodeThrowable(e))
             }
         }
     }
@@ -410,6 +412,18 @@ class OpenIapMauiShim(context: Context) {
             "productId" to productId,
             "debugMessage" to e.debugMessage,
         )
+    }
+
+    private fun encodeThrowable(e: Throwable): String {
+        val payload = when (e) {
+            is OpenIapError -> encodeError(e)
+            else -> mapOf(
+                "code" to "unknown",
+                "message" to (e.message ?: e.javaClass.simpleName),
+                "debugMessage" to e.javaClass.name,
+            )
+        }
+        return gson.toJson(payload)
     }
 
     private fun badInput(typeName: String, json: String): IllegalArgumentException {

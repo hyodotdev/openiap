@@ -1,6 +1,6 @@
 // Android resolver — delegates every QueryResolver / MutationResolver call to
-// the OpenIapMauiShim Java/Kotlin facade in `packages/google` (which itself
-// wraps `OpenIapModule`). All inputs are JSON-encoded via the same
+// the OpenIapMauiShim Java/Kotlin facade owned by `libraries/maui-iap`
+// (which itself wraps `OpenIapModule`). All inputs are JSON-encoded via the same
 // JsonOptions used elsewhere; outputs are JSON-decoded to typed records.
 //
 // iOS-only methods (suffix `IOS`) throw OpenIapException with
@@ -123,12 +123,13 @@ internal sealed partial class OpenIapAndroid : IOpenIap, QueryResolver, Mutation
     private Task<string> Invoke(Action<OpenIapMauiShim.IResultCallback> dispatch)
     {
         var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var cb = new ResultBridge((json, error) =>
+        var cb = new ResultBridge((json, errorJson) =>
         {
-            if (error is not null)
+            if (!string.IsNullOrEmpty(errorJson))
             {
-                Console.WriteLine($"[OpenIapAndroid] shim callback error: {error.GetType().Name}: {error.Message}");
-                tcs.TrySetException(MapThrowable(error));
+                var mapped = OpenIapErrorMapper.FromJson(errorJson);
+                Console.WriteLine($"[OpenIapAndroid] shim callback error: {mapped.Code}: {mapped.Message}");
+                tcs.TrySetException(new OpenIapException(mapped));
             }
             else
             {
@@ -146,18 +147,6 @@ internal sealed partial class OpenIapAndroid : IOpenIap, QueryResolver, Mutation
 
     private static OpenIapException MapThrowable(Exception e)
     {
-        if (e is global::Dev.Hyo.Openiap.OpenIapError iapErr)
-        {
-            var productId = iapErr is global::Dev.Hyo.Openiap.OpenIapError.ProductNotFound notFound
-                ? notFound.ProductId
-                : null;
-            return OpenIapErrorMapper.Wrap(
-                iapErr.Code,
-                iapErr.Message ?? iapErr.Code,
-                productId,
-                iapErr.DebugMessage);
-        }
-
         var raw = e.Message ?? e.GetType().Name;
         var code = raw.Contains("not-prepared", StringComparison.OrdinalIgnoreCase)
             ? ErrorCode.NotPrepared
@@ -173,9 +162,9 @@ internal sealed partial class OpenIapAndroid : IOpenIap, QueryResolver, Mutation
 
     private sealed class ResultBridge : Java.Lang.Object, OpenIapMauiShim.IResultCallback
     {
-        private readonly Action<string?, Java.Lang.Throwable?> _on;
-        public ResultBridge(Action<string?, Java.Lang.Throwable?> on) { _on = on; }
-        public void OnResult(string? json, Java.Lang.Throwable? error) => _on(json, error);
+        private readonly Action<string?, string?> _on;
+        public ResultBridge(Action<string?, string?> on) { _on = on; }
+        public void OnResult(string? json, string? errorJson) => _on(json, errorJson);
     }
 
     private sealed class EventBridge : Java.Lang.Object, OpenIapMauiShim.IEventCallback

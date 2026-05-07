@@ -332,7 +332,11 @@ await mutate.EndConnectionAsync();`}
           Billing, and Webhook Stream.
         </p>
         <CodeBlock language="bash">
-          {`cd libraries/maui-iap/example/OpenIap.Maui.Example
+          {`# From the OpenIAP repo root:
+(cd packages/google && ./gradlew :openiap:assemblePlayRelease)
+(cd libraries/maui-iap/android && ../../../packages/google/gradlew :openiap-maui-shim:assembleRelease)
+
+cd libraries/maui-iap/example/OpenIap.Maui.Example
 
 # Android device or emulator
 adb uninstall dev.hyo.martie || true
@@ -348,8 +352,9 @@ dotnet build -t:Run -f net9.0-maccatalyst`}
           VS Code launch configurations are available in{' '}
           <code>libraries/maui-iap/.vscode/launch.json</code>. The iOS device
           launcher auto-selects a connected USB device when one is available,
-          and the Android launcher uninstalls the example app before rebuilding
-          so stale APKs do not keep old BillingClient code.
+          and the Android launcher builds both Android AARs before uninstalling
+          and rebuilding the example app so stale APKs do not keep old
+          BillingClient code.
         </p>
       </section>
 

@@ -606,12 +606,12 @@ function Docs() {
               title="Framework Setup"
               titleTo="/docs/setup"
               items={[
-                { to: '/docs/setup/react-native', label: 'React Native' },
                 { to: '/docs/setup/expo', label: 'Expo' },
+                { to: '/docs/setup/react-native', label: 'React Native' },
                 { to: '/docs/setup/flutter', label: 'Flutter' },
-                { to: '/docs/setup/godot', label: 'Godot' },
                 { to: '/docs/setup/kmp', label: 'Kotlin Multiplatform' },
                 { to: '/docs/setup/maui', label: '.NET MAUI' },
+                { to: '/docs/setup/godot', label: 'Godot' },
               ]}
               onItemClick={closeSidebar}
             />

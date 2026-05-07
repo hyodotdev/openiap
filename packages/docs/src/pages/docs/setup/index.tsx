@@ -12,13 +12,6 @@ interface FrameworkRow {
 
 const FRAMEWORKS: FrameworkRow[] = [
   {
-    to: '/docs/setup/react-native',
-    name: 'React Native',
-    language: 'TypeScript',
-    description:
-      'Bare React Native CLI projects (RN 0.79+). Built on Nitro Modules with the `useIAP` hook, error normalization, and full StoreKit 2 / Play Billing 8 coverage.',
-  },
-  {
     to: '/docs/setup/expo',
     name: 'Expo',
     language: 'TypeScript',
@@ -26,18 +19,18 @@ const FRAMEWORKS: FrameworkRow[] = [
       'Expo SDK projects via Expo Modules. Same API surface as react-native-iap, including the `useIAP` hook, with managed-workflow-friendly install. Recommended for any Expo app.',
   },
   {
+    to: '/docs/setup/react-native',
+    name: 'React Native',
+    language: 'TypeScript',
+    description:
+      'Bare React Native CLI projects (RN 0.79+). Built on Nitro Modules with the `useIAP` hook, error normalization, and full StoreKit 2 / Play Billing 8 coverage.',
+  },
+  {
     to: '/docs/setup/flutter',
     name: 'Flutter',
     language: 'Dart',
     description:
       'Flutter apps via the `flutter_inapp_purchase` package. Generated `types.dart`, sealed-class results, and a Stream-based event API that mirrors the OpenIAP schema.',
-  },
-  {
-    to: '/docs/setup/godot',
-    name: 'Godot',
-    language: 'GDScript',
-    description:
-      'Godot 4.x via the `godot-iap` plugin (iOS GDExtension + Android AAR). Exposes the same OpenIAP function set so the same purchase flow can ship across mobile + console targets.',
   },
   {
     to: '/docs/setup/kmp',
@@ -53,6 +46,13 @@ const FRAMEWORKS: FrameworkRow[] = [
     description:
       '.NET MAUI / C# 12 via the `maui-iap` library (Hyo.OpenIap.Maui). Ships as one NuGet package with generated `Types.cs`, flattened Android AAR bindings, and StoreKit xcframework resources for iOS / macCatalyst.',
   },
+  {
+    to: '/docs/setup/godot',
+    name: 'Godot',
+    language: 'GDScript',
+    description:
+      'Godot 4.x via the `godot-iap` plugin (iOS GDExtension + Android AAR). Exposes the same OpenIAP function set so the same purchase flow can ship across mobile + console targets.',
+  },
 ];
 
 function SetupIndex() {
@@ -62,9 +62,9 @@ function SetupIndex() {
     <div className="doc-page">
       <SEO
         title="Framework Setup"
-        description="Choose an OpenIAP-powered framework — React Native, Expo, Flutter, Godot, or Kotlin Multiplatform — and follow the install guide."
+        description="Choose an OpenIAP-powered framework — Expo, React Native, Flutter, Kotlin Multiplatform, .NET MAUI, or Godot — and follow the install guide."
         path="/docs/setup"
-        keywords="OpenIAP, Framework Setup, react-native-iap, expo-iap, flutter_inapp_purchase, godot-iap, kmp-iap"
+        keywords="OpenIAP, Framework Setup, expo-iap, react-native-iap, flutter_inapp_purchase, kmp-iap, maui-iap, godot-iap"
       />
       <h1>Framework Setup</h1>
       <p>

@@ -318,12 +318,12 @@ function IOSSetup() {
 
         <ul>
           <li>
-            <a href="/docs/setup/react-native">react-native-iap</a> - For React
-            Native projects (Nitro Modules)
-          </li>
-          <li>
             <a href="/docs/setup/expo">expo-iap</a> - For Expo projects (Expo
             Modules)
+          </li>
+          <li>
+            <a href="/docs/setup/react-native">react-native-iap</a> - For React
+            Native projects (Nitro Modules)
           </li>
           <li>
             <a href="/docs/setup/flutter">flutter_inapp_purchase</a> - For
@@ -332,6 +332,9 @@ function IOSSetup() {
           <li>
             <a href="/docs/setup/kmp">kmp-iap</a> - For Kotlin Multiplatform
             projects
+          </li>
+          <li>
+            <a href="/docs/setup/maui">maui-iap</a> - For .NET MAUI projects
           </li>
           <li>
             <a href="/docs/setup/godot">godot-iap</a> - For Godot 4.x projects

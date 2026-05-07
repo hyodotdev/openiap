@@ -5,6 +5,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 APP_DIR="$LIB_DIR/example/OpenIap.Maui.Example"
 PROJECT="$APP_DIR/OpenIap.Maui.Example.csproj"
+GOOGLE_DIR="$(cd "$LIB_DIR/../../packages/google" && pwd)"
+MAUI_ANDROID_DIR="$LIB_DIR/android"
 APP_ID="dev.hyo.martie"
 OLD_APP_ID="dev.hyo.openiap.maui.example"
 
@@ -17,6 +19,7 @@ require_command() {
 
 require_command adb
 require_command dotnet
+require_command java
 
 LOCK_ROOT="$APP_DIR/obj"
 LOCK_DIR="$LOCK_ROOT/.maui-android-launch.lock"
@@ -91,6 +94,12 @@ dotnet build-server shutdown >/dev/null 2>&1 || true
 rm -rf "$APP_DIR/obj/Debug/net9.0-android/$RID/$RID/wrapped"
 rm -f "$APP_DIR/bin/Debug/net9.0-android/$RID/$APP_ID.apk"
 rm -f "$APP_DIR/bin/Debug/net9.0-android/$RID/$APP_ID-Signed.apk"
+
+echo "Building OpenIAP Google Play AAR..."
+(cd "$GOOGLE_DIR" && ./gradlew :openiap:assemblePlayRelease)
+
+echo "Building MAUI Android shim AAR..."
+(cd "$MAUI_ANDROID_DIR" && "$GOOGLE_DIR/gradlew" :openiap-maui-shim:assembleRelease)
 
 dotnet build "$PROJECT" \
   -f net9.0-android \

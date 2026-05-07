@@ -26,15 +26,14 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
-    // May 7, 2026 — openiap-google 2.1.3 + maui-iap 1.0.0 published
+    // May 7, 2026 — maui-iap 1.0.0 published
     {
-      id: 'google-2-1-3-maui-iap-1-0-0',
+      id: 'maui-iap-1-0-0',
       date: new Date('2026-05-07'),
       element: (
-        <div key="google-2-1-3-maui-iap-1-0-0" style={noteCardStyle}>
-          <AnchorLink id="google-2-1-3-maui-iap-1-0-0" level="h4">
-            openiap-google v2.1.3 / maui-iap v1.0.0 - Android update + .NET MAUI
-            release
+        <div key="maui-iap-1-0-0" style={noteCardStyle}>
+          <AnchorLink id="maui-iap-1-0-0" level="h4">
+            maui-iap v1.0.0 - .NET MAUI release
           </AnchorLink>
 
           <p
@@ -43,9 +42,7 @@ function Releases() {
               color: 'var(--text-secondary)',
             }}
           >
-            Published <code>openiap-google</code> <strong>2.1.3</strong> to
-            Maven Central with the Android MAUI shim required by the new C#
-            binding, then shipped the first official{' '}
+            Published the first official{' '}
             <Link to="/docs/setup/maui">maui-iap</Link> <strong>1.0.0</strong>{' '}
             package on NuGet. This gives .NET MAUI apps the same OpenIAP
             product, purchase, subscription, listener, and verification model
@@ -61,15 +58,15 @@ function Releases() {
             }}
           >
             <li>
-              <strong>openiap-google 2.1.3</strong> — adds the Java-friendly{' '}
-              <code>OpenIapMauiShim</code> facade used by the .NET Android
-              binding, and publishes the Play flavor against Google Play Billing{' '}
-              <code>8.3.0</code>.
-            </li>
-            <li>
               <strong>maui-iap 1.0.0</strong> — new NuGet package{' '}
               <code>Hyo.OpenIap.Maui</code> for iOS, Android, and macCatalyst
               apps using .NET MAUI / C# 12.
+            </li>
+            <li>
+              <strong>MAUI-owned Android shim</strong> — the Java-friendly{' '}
+              <code>OpenIapMauiShim</code> facade is bundled inside the MAUI
+              NuGet, so adapter-only changes do not require a new{' '}
+              <code>openiap-google</code> release.
             </li>
             <li>
               <strong>Single-package MAUI install</strong> — Android and iOS
@@ -99,25 +96,6 @@ function Releases() {
                 fontSize: '0.9rem',
               }}
             >
-              <li>
-                <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/google-2.1.3"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  openiap-google 2.1.3
-                </a>{' '}
-                (
-                <a
-                  href="https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google/2.1.3"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="external-link"
-                >
-                  Maven Central
-                </a>
-                )
-              </li>
               <li>
                 <a
                   href="https://github.com/hyodotdev/openiap/releases/tag/maui-iap-1.0.0"

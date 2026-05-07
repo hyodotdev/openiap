@@ -6,7 +6,10 @@ on:
     paths:
       - 'libraries/maui-iap/**'
       - 'packages/gql/**'
-      - 'packages/google/openiap/src/main/java/dev/hyo/openiap/maui/**'
+      - 'packages/google/openiap/**'
+      - 'packages/google/build.gradle.kts'
+      - 'packages/google/settings.gradle.kts'
+      - 'packages/google/gradle.properties'
       - 'packages/apple/Sources/OpenIapModule+ObjC.swift'
       - 'packages/apple/wrapper/**'
       - 'packages/apple/scripts/build-xcframework.sh'
@@ -17,7 +20,10 @@ on:
     paths:
       - 'libraries/maui-iap/**'
       - 'packages/gql/**'
-      - 'packages/google/openiap/src/main/java/dev/hyo/openiap/maui/**'
+      - 'packages/google/openiap/**'
+      - 'packages/google/build.gradle.kts'
+      - 'packages/google/settings.gradle.kts'
+      - 'packages/google/gradle.properties'
       - 'packages/apple/Sources/OpenIapModule+ObjC.swift'
       - 'packages/apple/wrapper/**'
       - 'packages/apple/scripts/build-xcframework.sh'
@@ -84,11 +90,15 @@ jobs:
       - name: Install MAUI workload
         run: dotnet workload install maui-android --skip-sign-check
 
-      # The Android binding consumes packages/google/openiap/build/outputs/aar/openiap-play-release.aar
-      # which includes the OpenIapMauiShim facade. Rebuild it before the binding csproj.
-      - name: Build Play AAR (with OpenIapMauiShim)
+      # The Android binding consumes the Google Play AAR as an unbound runtime
+      # dependency, plus the MAUI-owned OpenIapMauiShim AAR as the bound facade.
+      - name: Build Play AAR (Google)
         working-directory: packages/google
         run: ./gradlew :openiap:assemblePlayRelease
+
+      - name: Build MAUI Android shim AAR
+        working-directory: libraries/maui-iap/android
+        run: ../../../packages/google/gradlew :openiap-maui-shim:assembleRelease
 
       # `-p:TargetFrameworks=net9.0-android` (PLURAL) is required for the
       # second build — the singular `-f net9.0-android` filters the inner

@@ -83,8 +83,13 @@ automatically after 3 days.
 ## Example app
 
 ```bash
-cd libraries/maui-iap/example/OpenIap.Maui.Example
+cd /path/to/openiap
 
+# Android source runs need the native Google AAR plus the MAUI-owned shim AAR.
+(cd packages/google && ./gradlew :openiap:assemblePlayRelease)
+(cd libraries/maui-iap/android && ../../../packages/google/gradlew :openiap-maui-shim:assembleRelease)
+
+cd libraries/maui-iap/example/OpenIap.Maui.Example
 adb uninstall dev.hyo.martie || true
 dotnet build -t:Run -f net9.0-android
 
@@ -93,6 +98,7 @@ dotnet build -t:Run -f net9.0-maccatalyst
 ```
 
 VS Code launch configurations are in `libraries/maui-iap/.vscode/launch.json`.
+The Android launcher builds both AARs before compiling the example app.
 
 ## What's generated vs. hand-written
 

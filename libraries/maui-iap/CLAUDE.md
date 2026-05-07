@@ -78,14 +78,16 @@ src/
 └── OpenIap.Maui.Bindings.iOS/       — .NET-for-iOS binding (xcframework)
 ```
 
-Both bindings target a **JSON-shaped facade** in the native packages,
-not the raw module surface. This is the same pattern kmp-iap uses on
-iOS via [`OpenIapModule+ObjC.swift`](../../packages/apple/Sources/OpenIapModule+ObjC.swift).
+Both bindings target a **JSON-shaped facade**, not the raw module surface.
+Android owns that facade inside `libraries/maui-iap`; iOS uses the same
+pattern kmp-iap uses through
+[`OpenIapModule+ObjC.swift`](../../packages/apple/Sources/OpenIapModule+ObjC.swift).
 
 ### Android — `OpenIapMauiShim.kt`
 
-[`packages/google/openiap/src/main/java/dev/hyo/openiap/maui/OpenIapMauiShim.kt`](../../packages/google/openiap/src/main/java/dev/hyo/openiap/maui/OpenIapMauiShim.kt)
-wraps `OpenIapModule` and exposes ~25 Java-friendly methods:
+[`android/openiap-maui-shim/src/main/java/dev/hyo/openiap/maui/OpenIapMauiShim.kt`](android/openiap-maui-shim/src/main/java/dev/hyo/openiap/maui/OpenIapMauiShim.kt)
+wraps `OpenIapModule` from `packages/google` and exposes ~25 Java-friendly
+methods:
 
 - Inputs: JSON strings (parsed via `Type.fromJson(Map)` companion methods).
 - Outputs: JSON strings via `OpenIapMauiShim.ResultCallback`.
@@ -110,12 +112,13 @@ ObjC entry points.
 
 ### Build artifacts
 
-Both native artifacts must be present **before** `dotnet build` on the
+Native artifacts must be present **before** `dotnet build` on the
 binding csprojs:
 
 | Artifact | Built by | Path |
 |----------|----------|------|
 | `openiap-play-release.aar` | `./gradlew :openiap:assemblePlayRelease` (in `packages/google`) | `packages/google/openiap/build/outputs/aar/` |
+| `openiap-maui-shim-release.aar` | `../../../packages/google/gradlew :openiap-maui-shim:assembleRelease` (in `libraries/maui-iap/android`) | `libraries/maui-iap/android/openiap-maui-shim/build/outputs/aar/` |
 | `OpenIAP.xcframework` | `bash packages/apple/scripts/build-xcframework.sh` (uses xcodegen + the wrapper at `packages/apple/wrapper/`) | `packages/apple/.build/xcframework/` |
 
 CI runs both before invoking the .NET binding builds — see
@@ -132,7 +135,9 @@ so the main package flattens their outputs instead of declaring unpublished
 The package includes:
 
 - binding DLLs in `lib/<tfm>/`
-- Android AARs in `lib/net9.0-android35.0/`
+- Android AARs in `lib/net9.0-android35.0/`, including the binding support AAR
+  with Maven-resolved jars, the MAUI-owned shim AAR, and the unbound
+  `openiap-play-release.aar` runtime dependency
 - iOS / macCatalyst `Hyo.OpenIap.Maui.Bindings.iOS.resources.zip` sidecars
   next to the iOS binding DLLs
 
