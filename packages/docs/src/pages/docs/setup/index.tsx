@@ -51,7 +51,7 @@ const FRAMEWORKS: FrameworkRow[] = [
     name: '.NET MAUI',
     language: 'C#',
     description:
-      '.NET MAUI / C# 12 via the `maui-iap` library (Hyo.OpenIap.Maui). Shares the same OpenIAP API surface as the other libraries; ships generated `Types.cs` from `packages/gql` and binds to packages/google (AAR) on Android and packages/apple (xcframework) on iOS.',
+      '.NET MAUI / C# 12 via the `maui-iap` library (Hyo.OpenIap.Maui). Ships as one NuGet package with generated `Types.cs`, flattened Android AAR bindings, and StoreKit xcframework resources for iOS / macCatalyst.',
   },
 ];
 
