@@ -195,6 +195,102 @@ function Releases() {
       ),
     },
 
+    // May 8, 2026 — maui-iap 1.0.1 namespace corrective release
+    {
+      id: 'maui-iap-1-0-1-openiap-namespace',
+      date: new Date('2026-05-08'),
+      element: (
+        <div key="maui-iap-1-0-1-openiap-namespace" style={noteCardStyle}>
+          <AnchorLink id="maui-iap-1-0-1-openiap-namespace" level="h4">
+            May 8, 2026 — maui-iap v1.0.1 OpenIap namespace update
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes a corrective <strong>maui-iap 1.0.1</strong> patch so the
+            public C# namespace matches the package name and documentation.
+            Generated OpenIAP types now live under <code>OpenIap</code>, while
+            the MAUI facade remains <code>OpenIap.Maui.Iap</code>. See{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/141"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #141
+            </a>
+            .
+          </p>
+
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>Namespace cleanup</strong> — C# apps should import{' '}
+              <code>using OpenIap;</code> for generated records, enums, and
+              resolver interfaces, plus <code>using OpenIap.Maui;</code> for the
+              MAUI facade.
+            </li>
+            <li>
+              <strong>Generated type sync</strong> — the C# generator now emits{' '}
+              <code>namespace OpenIap;</code>, and the MAUI package copy of{' '}
+              <code>Types.cs</code> stays byte-for-byte synced from GQL.
+            </li>
+            <li>
+              <strong>Docs and examples</strong> — MAUI setup, API examples,
+              event examples, README snippets, and LLM reference files now show
+              the same <code>OpenIap</code> imports users receive from NuGet.
+            </li>
+          </ul>
+
+          {/* Package Releases */}
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/maui-iap-1.0.1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  maui-iap 1.0.1
+                </a>{' '}
+                (
+                <a
+                  href="https://www.nuget.org/packages/OpenIap.Maui/1.0.1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="external-link"
+                >
+                  NuGet
+                </a>
+                )
+              </li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // May 6, 2026 — maui-iap 1.0.0 published
     {
       id: 'maui-iap-1-0-0',
