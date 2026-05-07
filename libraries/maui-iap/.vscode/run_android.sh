@@ -100,8 +100,8 @@ rm -f "$APP_DIR/bin/Debug/net9.0-android/$RID/$APP_ID-Signed.apk"
 echo "Building OpenIAP Google Play AAR..."
 (cd "$GOOGLE_DIR" && ./gradlew :openiap:assemblePlayRelease)
 
-echo "Building MAUI Android shim AAR..."
-(cd "$MAUI_ANDROID_DIR" && "$GOOGLE_DIR/gradlew" :openiap-maui-shim:assembleRelease)
+echo "Building MAUI Android module AAR..."
+(cd "$MAUI_ANDROID_DIR" && "$GOOGLE_DIR/gradlew" :openiap:assembleRelease)
 
 echo "Building and packaging MAUI Android APK. This can take 1-2 minutes after DLL output..."
 dotnet build "$PROJECT" \

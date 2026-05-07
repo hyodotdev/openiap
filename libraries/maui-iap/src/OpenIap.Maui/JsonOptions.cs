@@ -2,7 +2,7 @@
 // The codegen plugin emits per-enum JsonConverters and [JsonPolymorphic]
 // discriminators on every union, so the only options we need to set globally
 // are case-insensitive matching (the wire is camelCase but C# ignores case
-// anyway via [JsonPropertyName]) and to NOT write nulls (matches the shim
+// anyway via [JsonPropertyName]) and to NOT write nulls (matches the module
 // shape that omits null fields).
 
 #nullable enable

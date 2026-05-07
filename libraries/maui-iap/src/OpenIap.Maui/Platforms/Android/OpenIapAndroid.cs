@@ -1,5 +1,5 @@
 // Android resolver — delegates every QueryResolver / MutationResolver call to
-// the OpenIapMauiShim Java/Kotlin facade owned by `libraries/maui-iap`
+// the OpenIapMauiModule Java/Kotlin facade owned by `libraries/maui-iap`
 // (which itself wraps `OpenIapModule`). All inputs are JSON-encoded via the same
 // JsonOptions used elsewhere; outputs are JSON-decoded to typed records.
 //
@@ -15,15 +15,15 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Hyo.OpenIap;
-// The AAR binding emits `Dev.Hyo.Openiap.Maui.OpenIapMauiShim` from the
+// The AAR binding emits `Dev.Hyo.Openiap.Maui.OpenIapMauiModule` from the
 // Java package dev.hyo.openiap.maui — alias for ergonomics.
-using OpenIapMauiShim = global::Dev.Hyo.Openiap.Maui.OpenIapMauiShim;
+using OpenIapMauiModule = global::Dev.Hyo.Openiap.Maui.OpenIapMauiModule;
 
 namespace Hyo.OpenIap.Maui.Platforms.Android;
 
 internal sealed partial class OpenIapAndroid : IOpenIap, QueryResolver, MutationResolver
 {
-    private readonly OpenIapMauiShim _shim;
+    private readonly OpenIapMauiModule _module;
     private readonly Subject<Purchase> _purchaseUpdated = new();
     private readonly Subject<PurchaseError> _purchaseError = new();
     private readonly Subject<string> _promotedProductIOS = new();
@@ -41,7 +41,7 @@ internal sealed partial class OpenIapAndroid : IOpenIap, QueryResolver, Mutation
         // Context but no Activity-bound APIs.
         var ctx = global::Android.App.Application.Context
             ?? throw new InvalidOperationException("Android.App.Application.Context is null; OpenIapAndroid requires an initialised app context.");
-        _shim = new OpenIapMauiShim(ctx);
+        _module = new OpenIapMauiModule(ctx);
         WireListeners();
     }
 
@@ -50,7 +50,7 @@ internal sealed partial class OpenIapAndroid : IOpenIap, QueryResolver, Mutation
     /// implementation also refreshes MAUI's current Activity before operations
     /// that require it, so the common case works without app-level wiring.
     /// </summary>
-    public void SetActivity(global::Android.App.Activity? activity) => _shim.SetActivity(activity);
+    public void SetActivity(global::Android.App.Activity? activity) => _module.SetActivity(activity);
 
     private void RefreshCurrentActivity()
     {
@@ -70,7 +70,7 @@ internal sealed partial class OpenIapAndroid : IOpenIap, QueryResolver, Mutation
 
     private void WireListeners()
     {
-        _shim.AddPurchaseUpdatedListener(new EventBridge(json =>
+        _module.AddPurchaseUpdatedListener(new EventBridge(json =>
         {
             try
             {
@@ -80,12 +80,12 @@ internal sealed partial class OpenIapAndroid : IOpenIap, QueryResolver, Mutation
             catch (JsonException) { /* malformed payload — ignore */ }
         }));
 
-        _shim.AddPurchaseErrorListener(new EventBridge(json =>
+        _module.AddPurchaseErrorListener(new EventBridge(json =>
         {
             _purchaseError.OnNext(OpenIapErrorMapper.FromJson(json));
         }));
 
-        _shim.AddSubscriptionBillingIssueListener(new EventBridge(json =>
+        _module.AddSubscriptionBillingIssueListener(new EventBridge(json =>
         {
             try
             {
@@ -95,7 +95,7 @@ internal sealed partial class OpenIapAndroid : IOpenIap, QueryResolver, Mutation
             catch (JsonException) { }
         }));
 
-        _shim.AddUserChoiceBillingAndroidListener(new EventBridge(json =>
+        _module.AddUserChoiceBillingAndroidListener(new EventBridge(json =>
         {
             try
             {
@@ -105,7 +105,7 @@ internal sealed partial class OpenIapAndroid : IOpenIap, QueryResolver, Mutation
             catch (JsonException) { }
         }));
 
-        _shim.AddDeveloperProvidedBillingAndroidListener(new EventBridge(json =>
+        _module.AddDeveloperProvidedBillingAndroidListener(new EventBridge(json =>
         {
             try
             {
@@ -117,10 +117,10 @@ internal sealed partial class OpenIapAndroid : IOpenIap, QueryResolver, Mutation
     }
 
     // -------------------------------------------------------------------
-    // Generic shim → Task adapter
+    // Generic module → Task adapter
     // -------------------------------------------------------------------
 
-    private Task<string> Invoke(Action<OpenIapMauiShim.IResultCallback> dispatch)
+    private Task<string> Invoke(Action<OpenIapMauiModule.IResultCallback> dispatch)
     {
         var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         var cb = new ResultBridge((json, errorJson) =>
@@ -128,7 +128,7 @@ internal sealed partial class OpenIapAndroid : IOpenIap, QueryResolver, Mutation
             if (!string.IsNullOrEmpty(errorJson))
             {
                 var mapped = OpenIapErrorMapper.FromJson(errorJson);
-                Console.WriteLine($"[OpenIapAndroid] shim callback error: {mapped.Code}: {mapped.Message}");
+                Console.WriteLine($"[OpenIapAndroid] module callback error: {mapped.Code}: {mapped.Message}");
                 tcs.TrySetException(new OpenIapException(mapped));
             }
             else
@@ -139,7 +139,7 @@ internal sealed partial class OpenIapAndroid : IOpenIap, QueryResolver, Mutation
         try { dispatch(cb); }
         catch (Exception e)
         {
-            Console.WriteLine($"[OpenIapAndroid] shim dispatch threw: {e.GetType().Name}: {e.Message}");
+            Console.WriteLine($"[OpenIapAndroid] module dispatch threw: {e.GetType().Name}: {e.Message}");
             tcs.TrySetException(MapThrowable(e));
         }
         return tcs.Task;
@@ -160,14 +160,14 @@ internal sealed partial class OpenIapAndroid : IOpenIap, QueryResolver, Mutation
     // Listener / callback bridges (Java SAM interfaces -> C# delegates)
     // -------------------------------------------------------------------
 
-    private sealed class ResultBridge : Java.Lang.Object, OpenIapMauiShim.IResultCallback
+    private sealed class ResultBridge : Java.Lang.Object, OpenIapMauiModule.IResultCallback
     {
         private readonly Action<string?, string?> _on;
         public ResultBridge(Action<string?, string?> on) { _on = on; }
         public void OnResult(string? json, string? errorJson) => _on(json, errorJson);
     }
 
-    private sealed class EventBridge : Java.Lang.Object, OpenIapMauiShim.IEventCallback
+    private sealed class EventBridge : Java.Lang.Object, OpenIapMauiModule.IEventCallback
     {
         private readonly Action<string> _on;
         public EventBridge(Action<string> on) { _on = on; }

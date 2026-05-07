@@ -334,7 +334,7 @@ await mutate.EndConnectionAsync();`}
         <CodeBlock language="bash">
           {`# From the OpenIAP repo root:
 (cd packages/google && ./gradlew :openiap:assemblePlayRelease)
-(cd libraries/maui-iap/android && ../../../packages/google/gradlew :openiap-maui-shim:assembleRelease)
+(cd libraries/maui-iap/android && ../../../packages/google/gradlew :openiap:assembleRelease)
 
 cd libraries/maui-iap/example/OpenIap.Maui.Example
 

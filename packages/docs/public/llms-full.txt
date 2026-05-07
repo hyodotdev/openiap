@@ -120,7 +120,7 @@ Requires .NET 9+, the MAUI workload, iOS 15.0+, and Android API 24+.
   the official `Hyo.OpenIap.Maui.Bindings.iOS.resources.zip` sidecar so no
   app-level `NativeReference` is required.
 - Android bridge: Xamarin.Android binding over the MAUI-owned
-  `openiap-maui-shim-release.aar`, which wraps the unbound
+  `openiap-release.aar`, which wraps the unbound
   `openiap-play-release.aar` runtime dependency; the binding support AAR and
   resolved BillingClient / Play Services AARs are included in the main nupkg
   for app packaging.

@@ -85,9 +85,9 @@ automatically after 3 days.
 ```bash
 cd /path/to/openiap
 
-# Android source runs need the native Google AAR plus the MAUI-owned shim AAR.
+# Android source runs need the native Google AAR plus the MAUI-owned module AAR.
 (cd packages/google && ./gradlew :openiap:assemblePlayRelease)
-(cd libraries/maui-iap/android && ../../../packages/google/gradlew :openiap-maui-shim:assembleRelease)
+(cd libraries/maui-iap/android && ../../../packages/google/gradlew :openiap:assembleRelease)
 
 cd libraries/maui-iap/example/OpenIap.Maui.Example
 adb uninstall dev.hyo.martie || true

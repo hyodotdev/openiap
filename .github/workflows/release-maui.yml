@@ -89,9 +89,9 @@ jobs:
         working-directory: packages/google
         run: ./gradlew :openiap:assemblePlayRelease
 
-      - name: Build MAUI Android shim AAR
+      - name: Build MAUI Android module AAR
         working-directory: libraries/maui-iap/android
-        run: ../../../packages/google/gradlew :openiap-maui-shim:assembleRelease
+        run: ../../../packages/google/gradlew :openiap:assembleRelease
 
       - name: Build all target frameworks
         run: dotnet build libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj
@@ -283,9 +283,9 @@ jobs:
         working-directory: packages/google
         run: ./gradlew :openiap:assemblePlayRelease
 
-      - name: Build MAUI Android shim AAR
+      - name: Build MAUI Android module AAR
         working-directory: libraries/maui-iap/android
-        run: ../../../packages/google/gradlew :openiap-maui-shim:assembleRelease
+        run: ../../../packages/google/gradlew :openiap:assembleRelease
 
       - name: Pack NuGet package
         env:

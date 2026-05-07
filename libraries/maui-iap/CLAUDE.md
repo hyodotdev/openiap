@@ -83,15 +83,15 @@ Android owns that facade inside `libraries/maui-iap`; iOS uses the same
 pattern kmp-iap uses through
 [`OpenIapModule+ObjC.swift`](../../packages/apple/Sources/OpenIapModule+ObjC.swift).
 
-### Android — `OpenIapMauiShim.kt`
+### Android — `OpenIapMauiModule.kt`
 
-[`android/openiap-maui-shim/src/main/java/dev/hyo/openiap/maui/OpenIapMauiShim.kt`](android/openiap-maui-shim/src/main/java/dev/hyo/openiap/maui/OpenIapMauiShim.kt)
+[`android/openiap/src/main/java/dev/hyo/openiap/maui/OpenIapMauiModule.kt`](android/openiap/src/main/java/dev/hyo/openiap/maui/OpenIapMauiModule.kt)
 wraps `OpenIapModule` from `packages/google` and exposes ~25 Java-friendly
 methods:
 
 - Inputs: JSON strings (parsed via `Type.fromJson(Map)` companion methods).
-- Outputs: JSON strings via `OpenIapMauiShim.ResultCallback`.
-- Listeners: `OpenIapMauiShim.EventCallback` registered with a long token; the C# side stores tokens, not listener instances.
+- Outputs: JSON strings via `OpenIapMauiModule.ResultCallback`.
+- Listeners: `OpenIapMauiModule.EventCallback` registered with a long token; the C# side stores tokens, not listener instances.
 
 This keeps the Xamarin.Android binding free of Kotlin-specific surface
 (`suspend`, `Function1`, `*$default`, transitive `kotlinx.coroutines`).
@@ -118,7 +118,7 @@ binding csprojs:
 | Artifact | Built by | Path |
 |----------|----------|------|
 | `openiap-play-release.aar` | `./gradlew :openiap:assemblePlayRelease` (in `packages/google`) | `packages/google/openiap/build/outputs/aar/` |
-| `openiap-maui-shim-release.aar` | `../../../packages/google/gradlew :openiap-maui-shim:assembleRelease` (in `libraries/maui-iap/android`) | `libraries/maui-iap/android/openiap-maui-shim/build/outputs/aar/` |
+| `openiap-release.aar` | `../../../packages/google/gradlew :openiap:assembleRelease` (in `libraries/maui-iap/android`) | `libraries/maui-iap/android/openiap/build/outputs/aar/` |
 | `OpenIAP.xcframework` | `bash packages/apple/scripts/build-xcframework.sh` (uses xcodegen + the wrapper at `packages/apple/wrapper/`) | `packages/apple/.build/xcframework/` |
 
 CI runs both before invoking the .NET binding builds — see
@@ -136,7 +136,7 @@ The package includes:
 
 - binding DLLs in `lib/<tfm>/`
 - Android AARs in `lib/net9.0-android35.0/`, including the binding support AAR
-  with Maven-resolved jars, the MAUI-owned shim AAR, and the unbound
+  with Maven-resolved jars, the MAUI-owned module AAR, and the unbound
   `openiap-play-release.aar` runtime dependency
 - iOS / macCatalyst `Hyo.OpenIap.Maui.Bindings.iOS.resources.zip` sidecars
   next to the iOS binding DLLs

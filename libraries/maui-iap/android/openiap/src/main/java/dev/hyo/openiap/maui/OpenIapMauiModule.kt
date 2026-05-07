@@ -50,7 +50,7 @@ import java.util.concurrent.atomic.AtomicLong
  *
  * Mirrors the role of `packages/apple/Sources/OpenIapModule+ObjC.swift` on iOS.
  */
-class OpenIapMauiShim(context: Context) {
+class OpenIapMauiModule(context: Context) {
 
     private val module = OpenIapModule(context)
     private val gson = Gson()

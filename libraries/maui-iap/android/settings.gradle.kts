@@ -16,7 +16,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "openiap-maui-android"
 
-include(":openiap-maui-shim")
+include(":openiap")
 
 includeBuild("../../../packages/google") {
     dependencySubstitution {

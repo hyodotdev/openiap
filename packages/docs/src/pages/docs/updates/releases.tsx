@@ -63,8 +63,8 @@ function Releases() {
               apps using .NET MAUI / C# 12.
             </li>
             <li>
-              <strong>MAUI-owned Android shim</strong> — the Java-friendly{' '}
-              <code>OpenIapMauiShim</code> facade is bundled inside the MAUI
+              <strong>MAUI-owned Android module</strong> — the Java-friendly{' '}
+              <code>OpenIapMauiModule</code> facade is bundled inside the MAUI
               NuGet, so adapter-only changes do not require a new{' '}
               <code>openiap-google</code> release.
             </li>

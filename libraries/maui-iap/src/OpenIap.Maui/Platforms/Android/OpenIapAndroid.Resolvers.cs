@@ -10,7 +10,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Hyo.OpenIap;
-using OpenIapMauiShim = global::Dev.Hyo.Openiap.Maui.OpenIapMauiShim;
+using OpenIapMauiModule = global::Dev.Hyo.Openiap.Maui.OpenIapMauiModule;
 
 namespace Hyo.OpenIap.Maui.Platforms.Android;
 
@@ -24,66 +24,66 @@ internal sealed partial class OpenIapAndroid
     {
         RefreshCurrentActivity();
         var json = config is null ? null : JsonSerializer.Serialize(config, JsonOptions.Default);
-        return InvokeBool(cb => _shim.InitConnection(json, cb));
+        return InvokeBool(cb => _module.InitConnection(json, cb));
     }
 
     public Task<bool> EndConnectionAsync()
-        => InvokeBool(cb => _shim.EndConnection(cb));
+        => InvokeBool(cb => _module.EndConnection(cb));
 
     // NOTE: Every async wrapper uses `await Invoke(...)` rather than
     // ContinueWith(.., OnlyOnRanToCompletion) because the latter swallows
     // antecedent exceptions and produces a *canceled* continuation task —
     // callers then surface the misleading "A task was canceled." message
-    // instead of the real BillingClient / Kotlin error from the shim.
+    // instead of the real BillingClient / Kotlin error from the module.
     public async Task<RequestPurchaseResult?> RequestPurchaseAsync(RequestPurchaseProps @params)
     {
         RefreshCurrentActivity();
         var json = JsonSerializer.Serialize(@params, JsonOptions.Default);
-        var result = await Invoke(cb => _shim.RequestPurchase(json, cb));
+        var result = await Invoke(cb => _module.RequestPurchase(json, cb));
         return DecodeRequestPurchaseResult(result);
     }
 
     public async Task<string> FinishTransactionAsync(PurchaseInput purchase, bool? isConsumable = null)
     {
         // PurchaseInput wraps Purchase; serialize the inner record so the wire
-        // shape stays a flat Purchase JSON object (matches what the shim expects).
+        // shape stays a flat Purchase JSON object (matches what the module expects).
         var json = JsonSerializer.Serialize(purchase.Value, JsonOptions.Default);
         var consumable = isConsumable.HasValue ? Java.Lang.Boolean.ValueOf(isConsumable.Value) : null;
-        var result = await Invoke(cb => _shim.FinishTransaction(json, consumable, cb));
+        var result = await Invoke(cb => _module.FinishTransaction(json, consumable, cb));
         return DecodeStringValue(result);
     }
 
     public async Task<string> RestorePurchasesAsync()
     {
-        var result = await Invoke(cb => _shim.RestorePurchases(cb));
+        var result = await Invoke(cb => _module.RestorePurchases(cb));
         return DecodeStringValue(result);
     }
 
     public async Task<string> DeepLinkToSubscriptionsAsync(DeepLinkOptions? options = null)
     {
         var json = options is null ? null : JsonSerializer.Serialize(options, JsonOptions.Default);
-        var result = await Invoke(cb => _shim.DeepLinkToSubscriptions(json, cb));
+        var result = await Invoke(cb => _module.DeepLinkToSubscriptions(json, cb));
         return DecodeStringValue(result);
     }
 
     public async Task<VerifyPurchaseResult> ValidateReceiptAsync(VerifyPurchaseProps options)
     {
         var json = JsonSerializer.Serialize(options, JsonOptions.Default);
-        var result = await Invoke(cb => _shim.ValidateReceipt(json, cb));
+        var result = await Invoke(cb => _module.ValidateReceipt(json, cb));
         return DecodeVerifyPurchaseResult(result);
     }
 
     public async Task<VerifyPurchaseResult> VerifyPurchaseAsync(VerifyPurchaseProps options)
     {
         var json = JsonSerializer.Serialize(options, JsonOptions.Default);
-        var result = await Invoke(cb => _shim.VerifyPurchase(json, cb));
+        var result = await Invoke(cb => _module.VerifyPurchase(json, cb));
         return DecodeVerifyPurchaseResult(result);
     }
 
     public async Task<VerifyPurchaseWithProviderResult> VerifyPurchaseWithProviderAsync(VerifyPurchaseWithProviderProps options)
     {
         var json = JsonSerializer.Serialize(options, JsonOptions.Default);
-        var result = await Invoke(cb => _shim.VerifyPurchaseWithProvider(json, cb));
+        var result = await Invoke(cb => _module.VerifyPurchaseWithProvider(json, cb));
         return JsonSerializer.Deserialize<VerifyPurchaseWithProviderResult>(result, JsonOptions.Default)
             ?? throw OpenIapErrorMapper.Wrap(ErrorCode.Unknown, "Empty verifyPurchaseWithProvider result");
     }
@@ -91,30 +91,30 @@ internal sealed partial class OpenIapAndroid
     // ---- Android-only mutations -----------------------------------------
 
     public Task<bool> AcknowledgePurchaseAndroidAsync(string purchaseToken)
-        => InvokeBool(cb => _shim.AcknowledgePurchaseAndroid(purchaseToken, cb));
+        => InvokeBool(cb => _module.AcknowledgePurchaseAndroid(purchaseToken, cb));
 
     public Task<bool> ConsumePurchaseAndroidAsync(string purchaseToken)
-        => InvokeBool(cb => _shim.ConsumePurchaseAndroid(purchaseToken, cb));
+        => InvokeBool(cb => _module.ConsumePurchaseAndroid(purchaseToken, cb));
 
     public Task<bool> CheckAlternativeBillingAvailabilityAndroidAsync()
-        => InvokeBool(cb => _shim.CheckAlternativeBillingAvailabilityAndroid(cb));
+        => InvokeBool(cb => _module.CheckAlternativeBillingAvailabilityAndroid(cb));
 
     public async Task<string?> CreateAlternativeBillingTokenAndroidAsync()
     {
-        var result = await Invoke(cb => _shim.CreateAlternativeBillingTokenAndroid(cb));
+        var result = await Invoke(cb => _module.CreateAlternativeBillingTokenAndroid(cb));
         return DecodeNullableString(result);
     }
 
     public Task<bool> ShowAlternativeBillingDialogAndroidAsync()
     {
         RefreshCurrentActivity();
-        return InvokeBool(cb => _shim.ShowAlternativeBillingDialogAndroid(cb));
+        return InvokeBool(cb => _module.ShowAlternativeBillingDialogAndroid(cb));
     }
 
     public async Task<BillingProgramAvailabilityResultAndroid> IsBillingProgramAvailableAndroidAsync(BillingProgramAndroid program)
     {
         var json = JsonSerializer.Serialize(program, JsonOptions.Default);
-        var result = await Invoke(cb => _shim.IsBillingProgramAvailableAndroid(json, cb));
+        var result = await Invoke(cb => _module.IsBillingProgramAvailableAndroid(json, cb));
         return JsonSerializer.Deserialize<BillingProgramAvailabilityResultAndroid>(result, JsonOptions.Default)
             ?? throw OpenIapErrorMapper.Wrap(ErrorCode.Unknown, "Empty isBillingProgramAvailable result");
     }
@@ -122,7 +122,7 @@ internal sealed partial class OpenIapAndroid
     public async Task<BillingProgramReportingDetailsAndroid> CreateBillingProgramReportingDetailsAndroidAsync(BillingProgramAndroid program)
     {
         var json = JsonSerializer.Serialize(program, JsonOptions.Default);
-        var result = await Invoke(cb => _shim.CreateBillingProgramReportingDetailsAndroid(json, cb));
+        var result = await Invoke(cb => _module.CreateBillingProgramReportingDetailsAndroid(json, cb));
         return JsonSerializer.Deserialize<BillingProgramReportingDetailsAndroid>(result, JsonOptions.Default)
             ?? throw OpenIapErrorMapper.Wrap(ErrorCode.Unknown, "Empty createBillingProgramReportingDetails result");
     }
@@ -131,7 +131,7 @@ internal sealed partial class OpenIapAndroid
     {
         RefreshCurrentActivity();
         var json = JsonSerializer.Serialize(@params, JsonOptions.Default);
-        return InvokeBool(cb => _shim.LaunchExternalLinkAndroid(json, cb));
+        return InvokeBool(cb => _module.LaunchExternalLinkAndroid(json, cb));
     }
 
     // ---- iOS-only mutations (return defaults / throw not-supported) -----
@@ -153,33 +153,33 @@ internal sealed partial class OpenIapAndroid
     public async Task<FetchProductsResult> FetchProductsAsync(ProductRequest @params)
     {
         var json = JsonSerializer.Serialize(@params, JsonOptions.Default);
-        var result = await Invoke(cb => _shim.FetchProducts(json, cb));
+        var result = await Invoke(cb => _module.FetchProducts(json, cb));
         return DecodeFetchProductsResult(result);
     }
 
     public async Task<IReadOnlyList<Purchase>> GetAvailablePurchasesAsync(PurchaseOptions? options = null)
     {
         var json = options is null ? null : JsonSerializer.Serialize(options, JsonOptions.Default);
-        var result = await Invoke(cb => _shim.GetAvailablePurchases(json, cb));
+        var result = await Invoke(cb => _module.GetAvailablePurchases(json, cb));
         return DecodeItems<Purchase>(result);
     }
 
     public async Task<IReadOnlyList<ActiveSubscription>> GetActiveSubscriptionsAsync(IReadOnlyList<string>? subscriptionIds = null)
     {
         var json = subscriptionIds is null ? null : JsonSerializer.Serialize(subscriptionIds, JsonOptions.Default);
-        var result = await Invoke(cb => _shim.GetActiveSubscriptions(json, cb));
+        var result = await Invoke(cb => _module.GetActiveSubscriptions(json, cb));
         return DecodeItems<ActiveSubscription>(result);
     }
 
     public Task<bool> HasActiveSubscriptionsAsync(IReadOnlyList<string>? subscriptionIds = null)
     {
         var json = subscriptionIds is null ? null : JsonSerializer.Serialize(subscriptionIds, JsonOptions.Default);
-        return InvokeBool(cb => _shim.HasActiveSubscriptions(json, cb));
+        return InvokeBool(cb => _module.HasActiveSubscriptions(json, cb));
     }
 
     public async Task<string> GetStorefrontAsync()
     {
-        var result = await Invoke(cb => _shim.GetStorefront(cb));
+        var result = await Invoke(cb => _module.GetStorefront(cb));
         return DecodeStringValue(result);
     }
 
@@ -209,7 +209,7 @@ internal sealed partial class OpenIapAndroid
     private static Task<T> NotSupportedIOS<T>(string api)
         => Task.FromException<T>(OpenIapErrorMapper.Wrap(ErrorCode.FeatureNotSupported, $"{api} is iOS-only"));
 
-    private async Task<bool> InvokeBool(Action<OpenIapMauiShim.IResultCallback> dispatch)
+    private async Task<bool> InvokeBool(Action<OpenIapMauiModule.IResultCallback> dispatch)
     {
         var json = await Invoke(dispatch);
         return DecodeBoolValue(json);

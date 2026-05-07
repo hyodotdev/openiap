@@ -1,5 +1,5 @@
 // Wrapper records that match the JSON envelopes emitted by:
-//   • OpenIapMauiShim (Android)
+//   • OpenIapMauiModule (Android)
 //   • the C# resolver code on iOS, which builds the same shape from
 //     NSDictionary results returned by the OpenIapModule ObjC bridge.
 //

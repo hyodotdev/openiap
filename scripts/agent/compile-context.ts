@@ -173,9 +173,10 @@ Requires .NET 9+, the MAUI workload, iOS 15.0+, and Android API 24+.
   \`OpenIAP.xcframework\` and \`OpenIapModule+ObjC.swift\`; NuGet consumers get
   the official \`Hyo.OpenIap.Maui.Bindings.iOS.resources.zip\` sidecar so no
   app-level \`NativeReference\` is required.
-- Android bridge: Xamarin.Android binding over \`openiap-play-release.aar\`
-  through \`OpenIapMauiShim\`; resolved BillingClient / Play Services AARs are
-  included in the main nupkg for app packaging.
+- Android bridge: Xamarin.Android binding over the MAUI-owned
+  \`openiap-release.aar\`, which wraps the unbound
+  \`openiap-play-release.aar\` runtime dependency; resolved BillingClient /
+  Play Services AARs are included in the main nupkg for app packaging.
 - Public surface: \`QueryResolver\`, \`MutationResolver\`, and \`IOpenIap\`
   implemented by \`OpenIapIOS\`, \`OpenIapAndroid\`, and \`OpenIapMacCatalyst\`.
 - Example app: \`libraries/maui-iap/example/OpenIap.Maui.Example\`, mirroring

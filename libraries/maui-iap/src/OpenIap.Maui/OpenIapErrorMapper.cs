@@ -28,7 +28,7 @@ internal static class OpenIapErrorMapper
 {
     /// <summary>
     /// Build a typed <see cref="PurchaseError"/> from the JSON payload that
-    /// the OpenIapMauiShim's purchase-error listener emits.
+    /// the OpenIapMauiModule's purchase-error listener emits.
     /// </summary>
     public static PurchaseError FromJson(string json)
     {

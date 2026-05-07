@@ -23,7 +23,7 @@
          on every JNI call site. They are safe at our minimum API 24. -->
     <!--
       BG8605: kotlinx.coroutines.flow.StateFlow types from OpenIapStore — not on
-              the binding's classpath; the OpenIapMauiShim facade doesn't expose them.
+              the binding's classpath; the OpenIapMauiModule facade doesn't expose them.
       BG8A04: stale Metadata.xml hint paths (kept for forward-compat in case the
               AAR re-introduces those packages).
     -->
@@ -34,8 +34,8 @@
   <ItemGroup>
     <!-- Bind only the MAUI-owned Java facade. The underlying OpenIAP Google
          AAR is included as a runtime library but not bound into C#, keeping
-         Hyo.OpenIap.Maui's public Android surface centered on OpenIapMauiShim. -->
-    <AndroidLibrary Include="..\..\android\openiap-maui-shim\build\outputs\aar\openiap-maui-shim-release.aar" Bind="true" />
+         Hyo.OpenIap.Maui's public Android surface centered on OpenIapMauiModule. -->
+    <AndroidLibrary Include="..\..\android\openiap\build\outputs\aar\openiap-release.aar" Bind="true" />
     <AndroidLibrary Include="..\..\..\..\packages\google\openiap\build\outputs\aar\openiap-play-release.aar" Bind="false" />
   </ItemGroup>
 

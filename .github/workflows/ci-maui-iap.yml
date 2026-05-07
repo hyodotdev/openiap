@@ -91,14 +91,14 @@ jobs:
         run: dotnet workload install maui-android --skip-sign-check
 
       # The Android binding consumes the Google Play AAR as an unbound runtime
-      # dependency, plus the MAUI-owned OpenIapMauiShim AAR as the bound facade.
+      # dependency, plus the MAUI-owned OpenIapMauiModule AAR as the bound facade.
       - name: Build Play AAR (Google)
         working-directory: packages/google
         run: ./gradlew :openiap:assemblePlayRelease
 
-      - name: Build MAUI Android shim AAR
+      - name: Build MAUI Android module AAR
         working-directory: libraries/maui-iap/android
-        run: ../../../packages/google/gradlew :openiap-maui-shim:assembleRelease
+        run: ../../../packages/google/gradlew :openiap:assembleRelease
 
       # `-p:TargetFrameworks=net9.0-android` (PLURAL) is required for the
       # second build — the singular `-f net9.0-android` filters the inner
