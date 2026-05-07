@@ -102,6 +102,23 @@ final class OpenIapProviderTests: XCTestCase {
         // All listeners should have been cleaned up automatically
     }
 
+    func testConcurrentInitAndEndConnectionDoesNotCrash() async throws {
+        let module = OpenIapModule.shared
+
+        await withTaskGroup(of: Void.self) { group in
+            for _ in 0..<20 {
+                group.addTask {
+                    _ = try? await module.initConnection()
+                }
+                group.addTask {
+                    _ = try? await module.endConnection()
+                }
+            }
+        }
+
+        _ = try? await module.endConnection()
+    }
+
     // MARK: - Introductory Offer Eligibility Tests
 
     @MainActor
