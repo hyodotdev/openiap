@@ -80,13 +80,13 @@ final class OpenIapConnectionLifecycle {
             initTaskGeneration = nil
 
             let task = Task { [weak self] in
+                defer { self?.clearEndTask(generation: generation) }
                 taskToCancel?.cancel()
                 if let taskToCancel {
                     await Self.awaitCancelledInitTask(taskToCancel)
                 }
 
                 await cleanup()
-                self?.clearEndTask(generation: generation)
             }
             endTask = task
             endTaskGeneration = generation
