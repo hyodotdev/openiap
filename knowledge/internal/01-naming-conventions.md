@@ -52,7 +52,17 @@ fun consumePurchaseAndroid()
 fun buildModuleAndroid()
 ```
 
-**Exception**: Only use `Android` suffix for types that are part of a cross-platform API (e.g., `ProductAndroid`, `PurchaseAndroid` that contrast with iOS types).
+**Exception**: Generated GraphQL operation names and generated handler fields keep
+the schema name exactly, including `Android` when the operation is Android-only.
+For example, `MutationHandlers.checkAlternativeBillingAvailabilityAndroid` must
+be wired in `packages/google` because it is generated from
+`packages/gql/src/api-android.graphql`; the hand-written implementation it
+delegates to should still be suffix-free, such as
+`checkAlternativeBillingAvailability()`.
+
+Only use `Android` suffix for types that are part of a cross-platform API (e.g.,
+`ProductAndroid`, `PurchaseAndroid` that contrast with iOS types), or for
+generated GraphQL operation/handler identifiers that must match the schema.
 
 ## Platform-Specific Field Naming (CRITICAL)
 
