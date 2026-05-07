@@ -26,14 +26,14 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
-    // May 7, 2026 — maui-iap 1.0.0 published
+    // May 6, 2026 — maui-iap 1.0.0 published
     {
       id: 'maui-iap-1-0-0',
-      date: new Date('2026-05-07'),
+      date: new Date('2026-05-06'),
       element: (
         <div key="maui-iap-1-0-0" style={noteCardStyle}>
           <AnchorLink id="maui-iap-1-0-0" level="h4">
-            maui-iap v1.0.0 - .NET MAUI release
+            May 6, 2026 — maui-iap v1.0.0 .NET MAUI release
           </AnchorLink>
 
           <p
@@ -128,7 +128,7 @@ function Releases() {
       element: (
         <div key="apple-2-1-6-google-2-1-3-sdk-parity" style={noteCardStyle}>
           <AnchorLink id="apple-2-1-6-google-2-1-3-sdk-parity" level="h4">
-            Non-Godot SDK parity patch releases
+            May 7, 2026 — Non-Godot SDK parity patch releases
           </AnchorLink>
 
           <p
