@@ -68,7 +68,7 @@ function kotlinToCSharp(kotlin) {
   // one-line method signature).
   const trimmed = s.trim();
   const isSignature =
-    /^(?:(?:public|protected|internal|private|static|async|virtual|override|sealed)\s+)*Task(?:<[^>\n]+>)?\s+[A-Za-z_][A-Za-z0-9_]*\s*\([^)]*\)\s*;?$/.test(
+    /^(?:(?:public|protected|internal|private|static|async|virtual|override|sealed)\s+)*Task(?:<.*>)?\s+[A-Za-z_][A-Za-z0-9_]*\s*\([^)]*\)\s*;?$/.test(
       trimmed
     );
   if (!isSignature) {

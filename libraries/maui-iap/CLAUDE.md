@@ -154,6 +154,13 @@ For local development via `<ProjectReference>`, the example app at
 the `<NativeReference>` to the xcframework — `<NativeReference>` items
 don't propagate transitively through `<ProjectReference>`.
 
+### Release workflow
+
+The MAUI release workflow reads `PackageVersion` from `OpenIap.Maui.csproj`.
+Use the `current` workflow input when a PR has already committed the intended
+package version. Use `patch`, `minor`, or `major` only when the workflow should
+calculate and commit the next version on `main`.
+
 ## SDK parity checklist (C# specifics)
 
 When the GraphQL schema in `packages/gql` adds or changes an API, follow

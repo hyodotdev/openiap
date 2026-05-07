@@ -145,10 +145,16 @@ if (status.active) {
             csharp: (
               <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
+using System;
 
-var api = KitApi(apiKey = System.getenv("OPENIAP_API_KEY")!!)
-var status = api.status("user-1")
-if (status.active) unlockPremium(status.subscription?.productId)`}</CodeBlock>
+var apiKey = Environment.GetEnvironmentVariable("OPENIAP_API_KEY")
+    ?? throw new InvalidOperationException("OPENIAP_API_KEY is required");
+var api = Iap.KitApi(new KitApiOptions { ApiKey = apiKey });
+var status = await api.StatusAsync("user-1");
+if (status.Active)
+{
+    UnlockPremium(status.Subscription?.ProductId);
+}`}</CodeBlock>
             ),
             kotlin: (
               <CodeBlock language="kotlin">{`val api = KitApi(apiKey = System.getenv("OPENIAP_API_KEY")!!)

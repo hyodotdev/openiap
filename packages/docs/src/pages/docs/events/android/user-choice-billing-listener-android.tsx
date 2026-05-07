@@ -172,31 +172,17 @@ subscription.cancel();`}</CodeBlock>
           csharp: (
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
+using System;
 
-// Using Flow
-lifecycleScope.launch {
-    openIapStore.userChoiceBillingEvents.collect { details ->
-        println("User chose alternative billing")
-        println("Products: \${details.products}")
-        println("Token: \${details.externalTransactionToken}")
+using var subscription = Iap.Instance.UserChoiceBillingAndroid.Subscribe(details =>
+{
+    Console.WriteLine("User chose alternative billing");
+    Console.WriteLine($"Products: {string.Join(", ", details.Products)}");
+    Console.WriteLine($"Token: {details.ExternalTransactionToken}");
 
-        // Process payment with your backend
-        var paymentResult = processPaymentWithBackend(
-            products = details.products,
-            token = details.externalTransactionToken
-        )
-
-        if (paymentResult.success) {
-            // Backend should report token to Google Play within 24 hours
-            grantUserAccess(details.products)
-        }
-    }
-}
-
-// Or with callback
-openIapStore.setUserChoiceBillingListener { details ->
-    println("User chose alternative billing for: \${details.products}")
-}`}</CodeBlock>
+    // Process payment with your backend.
+    _ = ProcessUserChoiceBillingAsync(details);
+});`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
@@ -234,11 +220,13 @@ openIapStore.setUserChoiceBillingListener { details ->
           csharp: (
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
+using System.Collections.Generic;
 
-data class UserChoiceBillingDetails(
-    var externalTransactionToken: String,
-    var products: List<String>
-)`}</CodeBlock>
+public sealed record UserChoiceBillingDetails
+{
+    public required string ExternalTransactionToken { get; init; }
+    public required IReadOnlyList<string> Products { get; init; }
+}`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

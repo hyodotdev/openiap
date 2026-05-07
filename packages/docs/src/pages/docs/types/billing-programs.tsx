@@ -579,44 +579,45 @@ if (result.isAvailable) {
             csharp: (
               <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
+using System;
 
-var iapStore = OpenIapStore(context)
+// Enable External Payments via InitConnectionConfig.
+await ((MutationResolver)Iap.Instance).InitConnectionAsync(new InitConnectionConfig
+{
+    EnableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments,
+});
 
-// Enable External Payments via InitConnectionConfig
-iapStore.initConnection(
-    InitConnectionConfig(
-        enableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments
-    )
-)
+// Listen for developer billing selection.
+using var subscription = Iap.Instance.DeveloperProvidedBillingAndroid.Subscribe(details =>
+{
+    Console.WriteLine($"Token: {details.ExternalTransactionToken}");
+    // Report token to Google via your backend within 24 hours.
+});
 
-// Listen for developer billing selection
-iapStore.addDeveloperProvidedBillingListener { details ->
-    Log.d("IAP", "Token: \${details.externalTransactionToken}")
-    // Report token to Google via your backend within 24 hours
-}
-
-// Check availability (Japan only)
-var result = iapStore.isBillingProgramAvailable(
-    BillingProgramAndroid.ExternalPayments
-)
-if (result.isAvailable) {
+// Check availability (Japan only).
+var result = await ((MutationResolver)Iap.Instance)
+    .IsBillingProgramAvailableAndroidAsync(BillingProgramAndroid.ExternalPayments);
+if (result.IsAvailable)
+{
     // Purchase with developer billing option
-    var props = RequestPurchaseProps(
-        request = RequestPurchaseProps.Request.Purchase(
-            RequestPurchasePropsByPlatforms(
-                google = RequestPurchaseAndroidProps(
-                    skus = new[] { "product_id" },
-                    developerBillingOption = DeveloperBillingOptionParamsAndroid(
-                        billingProgram = BillingProgramAndroid.ExternalPayments,
-                        linkUri = "https://your-site.com/checkout",
-                        launchMode = DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp
-                    )
-                )
-            )
-        ),
-        type = ProductQueryType.InApp
-    )
-    iapStore.requestPurchase(props)
+    var props = new RequestPurchaseProps
+    {
+        RequestPurchase = new RequestPurchasePropsByPlatforms
+        {
+            Google = new RequestPurchaseAndroidProps
+            {
+                Skus = new[] { "product_id" },
+                DeveloperBillingOption = new DeveloperBillingOptionParamsAndroid
+                {
+                    BillingProgram = BillingProgramAndroid.ExternalPayments,
+                    LinkUri = "https://your-site.com/checkout",
+                    LaunchMode = DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+                },
+            },
+        },
+        Type = ProductQueryType.InApp,
+    };
+    await ((MutationResolver)Iap.Instance).RequestPurchaseAsync(props);
 }`}</CodeBlock>
             ),
             gdscript: (

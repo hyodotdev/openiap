@@ -88,7 +88,8 @@ function Events() {
               <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-enum class IapEvent {
+public enum IapEvent
+{
     PurchaseUpdated,
     PurchaseError,
     SubscriptionBillingIssue,
