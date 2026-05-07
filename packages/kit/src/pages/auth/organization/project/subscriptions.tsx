@@ -110,8 +110,7 @@ export default function ProjectSubscriptions() {
               </p>
               <p className="text-sm text-muted-foreground mb-3">
                 The main MRR card only includes {reportingCurrency}. Other
-                currencies are not converted or summed without explicit FX
-                conversion.
+                currencies are shown separately and are not converted or summed.
               </p>
               <div className="flex flex-wrap gap-2">
                 {metrics.mrrByCurrency.map((entry) => (

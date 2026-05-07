@@ -536,7 +536,7 @@ export default function ProjectAnalytics() {
           Revenue totals are pinned to {currency}.{" "}
           {excludedCurrencies.join(", ")}{" "}
           {excludedCurrencies.length === 1 ? "is" : "are"} excluded from this
-          total because FX conversion is not enabled.
+          total because IAPKit does not convert currencies.
         </div>
       )}
 

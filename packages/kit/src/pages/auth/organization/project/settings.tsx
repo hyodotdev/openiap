@@ -708,8 +708,8 @@ export default function ProjectSettings() {
         </div>
         <p className="text-sm text-muted-foreground mb-4">
           Main MRR and revenue totals only include rows already stored in this
-          currency. Other currencies stay visible separately until explicit FX
-          conversion is added.
+          currency. IAPKit keeps other currencies visible separately and does
+          not convert them.
         </p>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
           <div className="sm:w-40">

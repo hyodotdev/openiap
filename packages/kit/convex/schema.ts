@@ -221,7 +221,7 @@ const schema = defineSchema({
 
     // Stable presentation currency for dashboard analytics. Raw
     // purchases/subscriptions keep their original store currency;
-    // without explicit FX conversion, reporting totals only include
+    // IAPKit does not do FX conversion; reporting totals only include
     // rows that already match this code.
     reportingCurrency: v.optional(v.string()),
 
@@ -685,9 +685,9 @@ const schema = defineSchema({
   // budget, which silently undercounted projects above that
   // threshold.
   //
-  // Keyed by currency because MRR can't be summed across
-  // currencies without a presentation-layer FX conversion (matches
-  // the same reasoning on `revenueMetricsDaily`).
+  // Keyed by currency because IAPKit deliberately does not sum MRR
+  // across currencies (matches the same reasoning on
+  // `revenueMetricsDaily`).
   //
   // 30-day rolling counters (refunded, canceled) are NOT stored
   // here — those are bounded-size by definition (limited by 30 days
@@ -720,9 +720,8 @@ const schema = defineSchema({
   // by (projectId, day, productId) would either mix incompatible
   // `revenueMicros` totals or have one currency overwrite another,
   // both of which produce wrong dashboard numbers for multi-region
-  // apps. Aggregating across currencies is a presentation-layer
-  // concern (FX conversion happens in the UI, with whatever rates the
-  // operator picks).
+  // apps. IAPKit does not convert or aggregate those currencies; any
+  // accounting-grade conversion belongs outside the dashboard.
   revenueMetricsDaily: defineTable({
     projectId: v.id("projects"),
     day: v.string(), // ISO date (YYYY-MM-DD), UTC

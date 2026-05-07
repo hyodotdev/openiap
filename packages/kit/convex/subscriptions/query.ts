@@ -456,7 +456,7 @@ export const metricsSummary = query({
     // headline `mrrMicros` below intentionally uses only the
     // project's reporting currency; other currencies remain visible
     // in `excludedMrrByCurrency` instead of being silently summed
-    // without FX conversion.
+    // by IAPKit.
     const sorted = Array.from(mrrAccumulators.entries()).sort(
       ([a, av], [b, bv]) => (bv !== av ? bv - av : a.localeCompare(b)),
     );
