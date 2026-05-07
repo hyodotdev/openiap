@@ -14,10 +14,12 @@ import {
   Trash2,
   HelpCircle,
   Download,
+  CircleDollarSign,
 } from "lucide-react";
 import { GuideModal } from "../../../../components/GuideModal";
 import { PageLoading } from "@/components/LoadingSpinner";
 import { ButtonPrimary } from "@/components/ButtonPrimary";
+import { DEFAULT_REPORTING_CURRENCY, currencyCodePattern } from "@/lib/utils";
 
 const androidPackagePattern =
   /^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$/;
@@ -39,6 +41,7 @@ interface ProjectData {
   iosAppStoreIssuerId?: string;
   iosAppStoreKeyId?: string;
   iosAscKeyId?: string;
+  reportingCurrency?: string;
   horizonEnabled?: boolean;
   horizonAppId?: string | null;
   // The Meta App Secret is never returned by
@@ -94,6 +97,9 @@ export default function ProjectSettings() {
   // `convex/products/asc.ts` (asc.ts falls back to
   // `iosAppStoreIssuerId` when `iosAscIssuerId` is unset).
   const [iosAscKeyId, setIosAscKeyId] = useState(project?.iosAscKeyId ?? "");
+  const [reportingCurrency, setReportingCurrency] = useState(
+    project?.reportingCurrency ?? DEFAULT_REPORTING_CURRENCY,
+  );
   // Meta Horizon — gated by a checkbox inside the Android card.
   // The enabled flag is the single source of truth: toggling off
   // clears the credential fields on save so stale secrets can't
@@ -111,6 +117,7 @@ export default function ProjectSettings() {
   const [isReplacingHorizonAppSecret, setIsReplacingHorizonAppSecret] =
     useState(false);
   const [savingMetadata, setSavingMetadata] = useState(false);
+  const [savingReportingCurrency, setSavingReportingCurrency] = useState(false);
   const [savingHorizon, setSavingHorizon] = useState(false);
 
   // Convex mutations for file upload
@@ -157,6 +164,8 @@ export default function ProjectSettings() {
   const originalIosIssuerId = project?.iosAppStoreIssuerId ?? "";
   const originalIosKeyId = project?.iosAppStoreKeyId ?? "";
   const originalIosAscKeyId = project?.iosAscKeyId ?? "";
+  const originalReportingCurrency =
+    project?.reportingCurrency ?? DEFAULT_REPORTING_CURRENCY;
   const originalHorizonEnabled = Boolean(project?.horizonEnabled);
   const originalHorizonAppId = project?.horizonAppId ?? "";
   const hasHorizonAppSecretConfigured = Boolean(project?.hasHorizonAppSecret);
@@ -171,6 +180,7 @@ export default function ProjectSettings() {
     setIosAppStoreIssuerId(originalIosIssuerId);
     setIosAppStoreKeyId(originalIosKeyId);
     setIosAscKeyId(originalIosAscKeyId);
+    setReportingCurrency(originalReportingCurrency);
     setHorizonEnabled(originalHorizonEnabled);
     setHorizonAppId(originalHorizonAppId);
     // Secret is write-only; we never receive the existing value, so
@@ -186,6 +196,7 @@ export default function ProjectSettings() {
     originalIosIssuerId,
     originalIosKeyId,
     originalIosAscKeyId,
+    originalReportingCurrency,
     originalHorizonEnabled,
     originalHorizonAppId,
     hasHorizonAppSecretConfigured,
@@ -197,6 +208,7 @@ export default function ProjectSettings() {
   const trimmedIosIssuerId = iosAppStoreIssuerId.trim();
   const trimmedIosKeyId = iosAppStoreKeyId.trim().toUpperCase();
   const trimmedIosAscKeyId = iosAscKeyId.trim().toUpperCase();
+  const trimmedReportingCurrency = reportingCurrency.trim().toUpperCase();
   const trimmedHorizonAppId = horizonAppId.trim();
   const trimmedHorizonAppSecret = horizonAppSecret.trim();
 
@@ -325,6 +337,16 @@ export default function ProjectSettings() {
     !isIosCredentialPairValid ||
     !isIosAscKeyIdValid ||
     savingMetadata;
+  const isReportingCurrencyValid = currencyCodePattern.test(
+    trimmedReportingCurrency,
+  );
+  const reportingCurrencyErrorId = "reporting-currency-error";
+  const reportingCurrencyHasChanges =
+    trimmedReportingCurrency !== originalReportingCurrency;
+  const disableSaveReportingCurrency =
+    !reportingCurrencyHasChanges ||
+    !isReportingCurrencyValid ||
+    savingReportingCurrency;
 
   // Horizon (inside the Android card) has its own save flow rather
   // than piggybacking on the identifiers form above — the form lives
@@ -452,6 +474,29 @@ export default function ProjectSettings() {
       toast.error(error.message || "Failed to save Horizon configuration.");
     } finally {
       setSavingHorizon(false);
+    }
+  };
+
+  const handleReportingCurrencySubmit = async (
+    event: FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+    if (!project || disableSaveReportingCurrency) {
+      return;
+    }
+
+    setSavingReportingCurrency(true);
+    try {
+      await updateProject({
+        projectId: project._id,
+        reportingCurrency: trimmedReportingCurrency,
+      });
+      toast.success("Reporting currency saved.");
+    } catch (error: any) {
+      console.error("Reporting currency update error:", error);
+      toast.error(error.message || "Failed to save reporting currency.");
+    } finally {
+      setSavingReportingCurrency(false);
     }
   };
 
@@ -650,6 +695,62 @@ export default function ProjectSettings() {
           <span className="font-mono text-foreground">{project._id}</span>
         </p>
       </div>
+
+      <form
+        onSubmit={(event) => {
+          void handleReportingCurrencySubmit(event);
+        }}
+        className="bg-card rounded-lg border border-border p-6 mb-6"
+      >
+        <div className="flex items-center gap-2 mb-2">
+          <CircleDollarSign className="w-5 h-5" />
+          <h3 className="font-semibold text-lg">Reporting currency</h3>
+        </div>
+        <p className="text-sm text-muted-foreground mb-4">
+          Main MRR and revenue totals only include rows already stored in this
+          currency. IAPKit keeps other currencies visible separately and does
+          not convert them.
+        </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+          <div className="sm:w-40">
+            <label className="block text-sm font-medium mb-2">
+              Currency code
+            </label>
+            <input
+              type="text"
+              value={reportingCurrency}
+              onChange={(event) =>
+                setReportingCurrency(event.target.value.toUpperCase())
+              }
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm uppercase tracking-normal focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="USD"
+              maxLength={3}
+              spellCheck={false}
+              aria-invalid={!isReportingCurrencyValid}
+              aria-describedby={
+                !isReportingCurrencyValid ? reportingCurrencyErrorId : undefined
+              }
+            />
+            {!isReportingCurrencyValid && (
+              <p
+                id={reportingCurrencyErrorId}
+                className="text-sm text-destructive mt-1"
+              >
+                Enter a 3-letter ISO 4217 code.
+              </p>
+            )}
+          </div>
+          <div className="flex-1 sm:pt-7">
+            <ButtonPrimary
+              type="submit"
+              size="sm"
+              disabled={disableSaveReportingCurrency}
+            >
+              {savingReportingCurrency ? "Saving..." : "Save currency"}
+            </ButtonPrimary>
+          </div>
+        </div>
+      </form>
 
       {/* Supported platforms — gates which configuration cards render
           below. Identifiers + credentials live INSIDE each platform's

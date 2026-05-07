@@ -4,6 +4,10 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { deleteProjectWithData } from "./helpers";
 import { generateApiKey } from "../utils/helpers";
 import { createError, ErrorCode } from "../utils/errors";
+import {
+  DEFAULT_REPORTING_CURRENCY,
+  normalizeReportingCurrency,
+} from "../utils/currency";
 
 const projectPlatformValidator = v.union(
   v.literal("react-native"),
@@ -225,6 +229,7 @@ export const createProject = mutation({
       name: args.name,
       slug: finalSlug,
       apiKey, // Keep for backward compatibility, will be deprecated
+      reportingCurrency: DEFAULT_REPORTING_CURRENCY,
       createdAt: now,
       updatedAt: now,
       ...(args.platform ? { platform: args.platform } : {}),
@@ -275,6 +280,7 @@ export const updateProject = mutation({
     horizonEnabled: v.optional(v.boolean()),
     horizonAppId: v.optional(v.string()),
     horizonAppSecret: v.optional(v.string()),
+    reportingCurrency: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -329,6 +335,11 @@ export const updateProject = mutation({
     }
     if (args.iosAscKeyId !== undefined) {
       updates.iosAscKeyId = normalizeAppStoreKeyId(args.iosAscKeyId);
+    }
+    if (args.reportingCurrency !== undefined) {
+      updates.reportingCurrency = normalizeReportingCurrency(
+        args.reportingCurrency,
+      );
     }
 
     // Horizon fields: validated only when the feature is being

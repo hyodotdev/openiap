@@ -125,10 +125,12 @@ export default function AnalyticsPage() {
       <p>
         Rollup rows are keyed by currency: the same SKU sold in USD and EUR on
         the same day produces two rows. The dashboard never sums revenue across
-        currencies (no built-in FX conversion). When a project has multiple
-        currencies, the Analytics tab surfaces a currency selector; each chart
-        renders for one currency at a time. If you need a unified revenue view,
-        apply your own FX rates downstream.
+        currencies. Each project has a reporting currency setting used for the
+        main MRR and revenue views; rows in other currencies stay visible as
+        separate currency slices and are excluded from the reporting-currency
+        total. IAPKit does not do FX conversion or payout reconciliation; use
+        your store financial reports or accounting system for currency
+        conversion.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Churn definition</h2>
