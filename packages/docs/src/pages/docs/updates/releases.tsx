@@ -26,6 +26,122 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // May 7, 2026 — openiap-google 2.1.2 + maui-iap 1.0.0 published
+    {
+      id: 'google-2-1-2-maui-iap-1-0-0',
+      date: new Date('2026-05-07'),
+      element: (
+        <div key="google-2-1-2-maui-iap-1-0-0" style={noteCardStyle}>
+          <AnchorLink id="google-2-1-2-maui-iap-1-0-0" level="h4">
+            openiap-google v2.1.2 / maui-iap v1.0.0 - Android update + .NET MAUI
+            release
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Published <code>openiap-google</code> <strong>2.1.2</strong> to
+            Maven Central and shipped the first official{' '}
+            <Link to="/docs/setup/maui">maui-iap</Link> <strong>1.0.0</strong>{' '}
+            package on NuGet. This gives .NET MAUI apps the same OpenIAP
+            product, purchase, subscription, listener, and verification model
+            used by the existing framework SDKs, backed by the current native
+            Apple and Google packages.
+          </p>
+
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>openiap-google 2.1.2</strong> — Play flavor publishes
+              against Google Play Billing <code>8.3.0</code>, while the Horizon
+              flavor remains available as <code>openiap-google-horizon</code>{' '}
+              for Meta Quest / Horizon Store builds.
+            </li>
+            <li>
+              <strong>maui-iap 1.0.0</strong> — new NuGet package{' '}
+              <code>Hyo.OpenIap.Maui</code> for iOS, Android, and macCatalyst
+              apps using .NET MAUI / C# 12.
+            </li>
+            <li>
+              <strong>Single-package MAUI install</strong> — Android and iOS
+              native bindings are private implementation details packed into the
+              main NuGet, so apps only reference <code>Hyo.OpenIap.Maui</code>.
+            </li>
+            <li>
+              <strong>Example parity</strong> — the MAUI example mirrors the
+              Expo sample flows for all products, purchase flow, subscription
+              flow, available purchases, alternative billing, offer codes, and
+              webhook stream demos.
+            </li>
+          </ul>
+
+          {/* Package Releases */}
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/google-2.1.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-google 2.1.2
+                </a>{' '}
+                (
+                <a
+                  href="https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google/2.1.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="external-link"
+                >
+                  Maven Central
+                </a>
+                )
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/maui-iap-1.0.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  maui-iap 1.0.0
+                </a>{' '}
+                (
+                <a
+                  href="https://www.nuget.org/packages/Hyo.OpenIap.Maui/1.0.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="external-link"
+                >
+                  NuGet
+                </a>
+                )
+              </li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // May 5, 2026 — Webhook event streaming + IAPKit kit-api shipped to all SDKs
     {
       id: 'releases-2026-05-05',
