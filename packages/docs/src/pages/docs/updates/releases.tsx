@@ -26,6 +26,175 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // May 8, 2026 — openiap-apple + framework SDK iOS connection teardown patches
+    {
+      id: 'apple-2-1-7-framework-ios-connection-teardown-patches',
+      date: new Date('2026-05-08'),
+      element: (
+        <div
+          key="apple-2-1-7-framework-ios-connection-teardown-patches"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="apple-2-1-7-framework-ios-connection-teardown-patches"
+            level="h4"
+          >
+            May 8, 2026 — openiap-apple + framework SDK iOS connection teardown
+            patches
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes <strong>openiap-apple 2.1.7</strong> and framework-library
+            patch releases for an iOS lifecycle race where{' '}
+            <Link to="/docs/apis/end-connection">endConnection()</Link> could
+            run while{' '}
+            <Link to="/docs/apis/init-connection">initConnection()</Link> was
+            still preparing StoreKit resources. The crash was reported from an{' '}
+            <Link to="/docs/setup/expo">expo-iap</Link> unmount path, but the
+            shared Apple runtime is consumed by all framework SDKs, so the
+            native Apple patch and six framework patches are released together.
+            See{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/issues/140"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              issue #140
+            </a>{' '}
+            and{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/142"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #142
+            </a>
+            .
+          </p>
+
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>iOS lifecycle fix</strong> — connection teardown now
+              cancels and waits for in-flight initialization before clearing
+              listener tasks, pending StoreKit work, product cache state, and
+              promoted-purchase observer registration.
+            </li>
+            <li>
+              <strong>Unmount-safe cleanup</strong> — duplicate cleanup calls
+              from JS hooks and native module destruction share the same
+              teardown path, reducing the crash window on physical iOS devices.
+            </li>
+            <li>
+              <strong>Listener stability</strong> — subscription billing issue
+              listeners restore the StoreKit message stream after reconnects
+              while avoiding duplicate stream tasks when one is already active.
+            </li>
+            <li>
+              <strong>No API changes</strong> — app code can keep calling{' '}
+              <code>initConnection()</code> and <code>endConnection()</code> the
+              same way; direct SPM/CocoaPods consumers should upgrade
+              openiap-apple, and framework consumers should upgrade their
+              wrapper package.
+            </li>
+          </ul>
+
+          {/* Package Releases */}
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/2.1.7"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-apple 2.1.7
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/react-native-iap-15.2.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  react-native-iap 15.2.2
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/expo-iap-4.2.6"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  expo-iap 4.2.6
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.2.6"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  flutter_inapp_purchase 9.2.6
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/godot-iap-2.2.5"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  godot-iap 2.2.5
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/kmp-iap-2.2.6"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  kmp-iap 2.2.6
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/maui-iap-1.0.1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  maui-iap 1.0.1
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // May 6, 2026 — maui-iap 1.0.0 published
     {
       id: 'maui-iap-1-0-0',
