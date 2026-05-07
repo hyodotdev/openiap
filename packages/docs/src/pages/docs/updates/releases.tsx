@@ -63,12 +63,6 @@ function Releases() {
               apps using .NET MAUI / C# 12.
             </li>
             <li>
-              <strong>MAUI-owned Android module</strong> — the Java-friendly{' '}
-              <code>OpenIapMauiModule</code> facade is bundled inside the MAUI
-              NuGet, so adapter-only changes do not require a new{' '}
-              <code>openiap-google</code> release.
-            </li>
-            <li>
               <strong>Single-package MAUI install</strong> — Android and iOS
               native bindings are private implementation details packed into the
               main NuGet, so apps only reference <code>Hyo.OpenIap.Maui</code>.
