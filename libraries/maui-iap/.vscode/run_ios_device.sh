@@ -59,6 +59,7 @@ build_device() {
 }
 
 BUILD_LOG="$(mktemp "${TMPDIR:-/tmp}/maui-ios-build.XXXXXX")"
+trap 'rm -f "$BUILD_LOG"' EXIT
 if ! build_device 2>&1 | tee "$BUILD_LOG"; then
   if grep -Eq 'AssetCatalogSimulatorAgent|MPSNeuralNetwork|actool exited' "$BUILD_LOG"; then
     echo "Retrying once after transient Xcode asset catalog failure..."
