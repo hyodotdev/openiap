@@ -320,6 +320,7 @@ const baseRtdnSubscription: GoogleRtdnPayload = {
   packageName: "com.example.app",
   eventTimeMillis: 1_711_000_000_000,
   subscriptionNotification: {
+    version: "1.0",
     notificationType: 2,
     purchaseToken: "play-token-abc",
     subscriptionId: "premium_monthly",
@@ -423,6 +424,7 @@ describe("normalizeGoogleRtdn", () => {
         packageName: "com.example.app",
         eventTimeMillis: 1_711_111_111_000,
         oneTimeProductNotification: {
+          version: "1.0",
           notificationType: 2,
           purchaseToken: "otp-token-xyz",
           sku: "coin_pack_100",
@@ -443,6 +445,7 @@ describe("normalizeGoogleRtdn", () => {
         packageName: "com.example.app",
         eventTimeMillis: 1_711_222_222_000,
         voidedPurchaseNotification: {
+          version: "1.0",
           purchaseToken: "void-token-1",
           orderId: "GPA.1234-5678-9012-34567",
           productType: 1,

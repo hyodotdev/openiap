@@ -83,6 +83,7 @@ export const ingestGoogleRtdn = action({
       eventTimeMillis: v.number(),
       subscriptionNotification: v.optional(
         v.object({
+          version: v.optional(v.string()),
           notificationType: v.number(),
           purchaseToken: v.string(),
           subscriptionId: v.string(),
@@ -90,6 +91,7 @@ export const ingestGoogleRtdn = action({
       ),
       oneTimeProductNotification: v.optional(
         v.object({
+          version: v.optional(v.string()),
           notificationType: v.number(),
           purchaseToken: v.string(),
           sku: v.string(),
@@ -97,6 +99,7 @@ export const ingestGoogleRtdn = action({
       ),
       voidedPurchaseNotification: v.optional(
         v.object({
+          version: v.optional(v.string()),
           purchaseToken: v.string(),
           orderId: v.optional(v.string()),
           productType: v.optional(v.number()),

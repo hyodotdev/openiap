@@ -287,16 +287,23 @@ async function handleGoogleNotification(
     subscriptionNotification: decoded.subscriptionNotification as
       | undefined
       | {
+          version?: string;
           notificationType: number;
           purchaseToken: string;
           subscriptionId: string;
         },
     oneTimeProductNotification: decoded.oneTimeProductNotification as
       | undefined
-      | { notificationType: number; purchaseToken: string; sku: string },
+      | {
+          version?: string;
+          notificationType: number;
+          purchaseToken: string;
+          sku: string;
+        },
     voidedPurchaseNotification: decoded.voidedPurchaseNotification as
       | undefined
       | {
+          version?: string;
           purchaseToken: string;
           orderId?: string;
           productType?: number;

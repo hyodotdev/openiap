@@ -341,6 +341,7 @@ function googleSubPayload(
     eventTimeMillis: 1_711_000_000_000,
     packageName: "com.example.app",
     subscriptionNotification: {
+      version: "1.0",
       notificationType,
       purchaseToken,
       subscriptionId: "premium_monthly",

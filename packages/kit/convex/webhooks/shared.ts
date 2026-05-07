@@ -398,6 +398,7 @@ export type GoogleRtdnPayload = {
 };
 
 export type GoogleSubscriptionNotification = {
+  version?: string;
   // RTDN numeric type — see SUBSCRIPTION_NOTIFICATION_TYPE in the
   // mapping doc.
   notificationType: number;
@@ -406,12 +407,14 @@ export type GoogleSubscriptionNotification = {
 };
 
 export type GoogleOneTimeProductNotification = {
+  version?: string;
   notificationType: number;
   purchaseToken: string;
   sku: string;
 };
 
 export type GoogleVoidedPurchaseNotification = {
+  version?: string;
   purchaseToken: string;
   orderId?: string;
   productType?: number;
