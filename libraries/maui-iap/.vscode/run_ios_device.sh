@@ -6,6 +6,8 @@ LIB_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 APP_DIR="$LIB_DIR/example/OpenIap.Maui.Example"
 PROJECT="$APP_DIR/OpenIap.Maui.Example.csproj"
 APP_ID="dev.hyo.martie"
+APP_BUILD_DIR="$APP_DIR/bin/Debug/net9.0-ios/ios-arm64"
+APP_OBJ_DIR="$APP_DIR/obj/Debug/net9.0-ios/ios-arm64"
 
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -44,15 +46,30 @@ if [ -z "$DEVICE" ]; then
 fi
 
 echo "Using USB iOS device: $DEVICE"
+echo "Cleaning previous iOS device build output..."
+rm -rf "$APP_BUILD_DIR" "$APP_OBJ_DIR"
 
-dotnet build "$PROJECT" \
-  -f net9.0-ios \
-  -p:RuntimeIdentifier=ios-arm64 \
-  -p:_DeviceName="$DEVICE" \
-  -tl:off \
-  -v:minimal
+build_device() {
+  dotnet build "$PROJECT" \
+    -f net9.0-ios \
+    -p:RuntimeIdentifier=ios-arm64 \
+    -p:_DeviceName="$DEVICE" \
+    -tl:off \
+    -v:minimal
+}
 
-APP_BUNDLE="$APP_DIR/bin/Debug/net9.0-ios/ios-arm64/OpenIap.Maui.Example.app"
+BUILD_LOG="$(mktemp "${TMPDIR:-/tmp}/maui-ios-build.XXXXXX")"
+if ! build_device 2>&1 | tee "$BUILD_LOG"; then
+  if grep -Eq 'AssetCatalogSimulatorAgent|MPSNeuralNetwork|actool exited' "$BUILD_LOG"; then
+    echo "Retrying once after transient Xcode asset catalog failure..."
+    rm -rf "$APP_OBJ_DIR/actool"
+    build_device
+  else
+    exit 1
+  fi
+fi
+
+APP_BUNDLE="$APP_BUILD_DIR/OpenIap.Maui.Example.app"
 if [ ! -d "$APP_BUNDLE" ]; then
   echo "iOS app bundle was not produced: $APP_BUNDLE" >&2
   exit 1
@@ -65,6 +82,7 @@ echo "Installing $APP_BUNDLE..."
 ios-deploy \
   --id "$DEVICE" \
   --bundle "$APP_BUNDLE" \
+  --uninstall \
   --nostart \
   --timeout 30
 
