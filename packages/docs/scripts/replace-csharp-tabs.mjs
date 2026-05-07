@@ -38,13 +38,13 @@ function kotlinToCSharp(kotlin) {
   );
 
   // Call sites: `openIapStore.x(`, `kmpIAP.x(`, `kmpIapInstance.x(`, `iap.x(` →
-  // `await ((QueryResolver)OpenIap.Instance).XAsync(` (best-effort; reader can
+  // `await ((QueryResolver)Iap.Instance).XAsync(` (best-effort; reader can
   // swap to MutationResolver where appropriate).
   s = s.replace(
     /\b(openIapStore|kmpIAP|kmpIapInstance|iap)\.([a-z][A-Za-z0-9]*)\(/g,
     (_m, _recv, method) => {
       const csName = method[0].toUpperCase() + method.slice(1) + 'Async';
-      return `await ((QueryResolver)OpenIap.Instance).${csName}(`;
+      return `await ((QueryResolver)Iap.Instance).${csName}(`;
     }
   );
 
@@ -65,12 +65,16 @@ function kotlinToCSharp(kotlin) {
   s = s.replace(/^\s*\n/, '');
 
   // Prepend MAUI usings on example-style snippets (anything that isn't a bare
-  // signature). Signatures are detected by a leading `Task...` line.
-  const isSignature = /^\s*Task[<\s]/m.test(s);
+  // one-line method signature).
+  const trimmed = s.trim();
+  const isSignature =
+    /^Task(?:<[^>\n]+>)?\s+[A-Za-z_][A-Za-z0-9_]*\s*\([^)]*\)\s*$/.test(
+      trimmed
+    );
   if (!isSignature) {
-    s = `using OpenIap;\nusing OpenIap.Maui;\n\n${s.trim()}`;
+    s = `using OpenIap;\nusing OpenIap.Maui;\n\n${trimmed}`;
   } else {
-    s = s.trim();
+    s = trimmed;
   }
 
   return s;

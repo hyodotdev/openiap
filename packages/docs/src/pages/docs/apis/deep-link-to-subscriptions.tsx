@@ -195,7 +195,7 @@ function ManageSubscriptionsButton() {
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-await ((QueryResolver)OpenIap.Instance).DeepLinkToSubscriptionsAsync(
+await ((QueryResolver)Iap.Instance).DeepLinkToSubscriptionsAsync(
     DeepLinkOptions(
         skuAndroid = "com.app.premium",
         packageNameAndroid = "com.yourcompany.app"

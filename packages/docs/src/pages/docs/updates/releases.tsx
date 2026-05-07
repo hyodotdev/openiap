@@ -213,8 +213,9 @@ function Releases() {
           >
             Publishes a corrective <strong>maui-iap 1.0.1</strong> patch so the
             public C# namespace matches the package name and documentation.
-            Generated OpenIAP types now live under <code>OpenIap</code>, while
-            the MAUI facade remains <code>OpenIap.Maui.Iap</code>. See{' '}
+            Generated OpenIAP types now live under <code>OpenIap</code>. Apps
+            import <code>OpenIap.Maui</code> and access the MAUI facade as{' '}
+            <code>Iap.Instance</code>. See{' '}
             <a
               href="https://github.com/hyodotdev/openiap/pull/141"
               target="_blank"

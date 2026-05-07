@@ -227,7 +227,7 @@ await FlutterInappPurchase.instance.requestPurchase(
 using OpenIap.Maui;
 
 // Standard in-app purchase
-await ((QueryResolver)OpenIap.Instance).RequestPurchaseAsync(
+await ((QueryResolver)Iap.Instance).RequestPurchaseAsync(
     RequestPurchaseProps(
         request = RequestPurchasePropsByPlatforms(
             google = RequestPurchaseAndroidProps(skus = new[] { "premium" })
@@ -237,7 +237,7 @@ await ((QueryResolver)OpenIap.Instance).RequestPurchaseAsync(
 )
 
 // Subscription purchase
-await ((QueryResolver)OpenIap.Instance).RequestPurchaseAsync(
+await ((QueryResolver)Iap.Instance).RequestPurchaseAsync(
     RequestPurchaseProps(
         request = RequestPurchasePropsByPlatforms(
             google = RequestPurchaseAndroidProps(skus = new[] { "monthly_sub" })

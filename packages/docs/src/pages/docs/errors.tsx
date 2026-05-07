@@ -873,9 +873,9 @@ var is_empty_product_list: Variant = null # Android returned no products`}</Code
             ),
             csharp: (
               <CodeBlock language="csharp">{`using OpenIap;
-using OpenIap.Maui;
 
-enum class OpenIapError {
+public enum ErrorCode
+{
     Unknown,
     UserCancelled,
     UserError,
@@ -883,11 +883,11 @@ enum class OpenIapError {
     RemoteError,
     NetworkError,
     ServiceError,
-    // @deprecated Use PurchaseVerificationFailed instead
+    // Deprecated: use PurchaseVerificationFailed instead.
     ReceiptFailed,
-    // @deprecated Use PurchaseVerificationFinished instead
+    // Deprecated: use PurchaseVerificationFinished instead.
     ReceiptFinished,
-    // @deprecated Use PurchaseVerificationFinishFailed instead
+    // Deprecated: use PurchaseVerificationFinishFailed instead.
     ReceiptFinishedFailed,
     PurchaseVerificationFailed,
     PurchaseVerificationFinished,

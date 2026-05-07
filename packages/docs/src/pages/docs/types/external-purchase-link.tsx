@@ -380,26 +380,25 @@ enum ExternalPurchaseNoticeAction {
             ),
             csharp: (
               <CodeBlock language="csharp">{`using OpenIap;
-using OpenIap.Maui;
 
-// Result from presenting external purchase link (iOS-only via KMP)
-data class ExternalPurchaseLinkResultIOS(
-    var success: Boolean,
-    var error = null
-)
+public sealed record ExternalPurchaseLinkResultIOS
+{
+    public required bool Success { get; init; }
+    public string? Error { get; init; }
+}
 
-// Result from presenting notice sheet (iOS 17.4+)
-data class ExternalPurchaseNoticeResultIOS(
-    var result: ExternalPurchaseNoticeAction,
-    var error = null,
-    // External purchase token returned when result == Continue
-    var externalPurchaseToken = null
-)
+public sealed record ExternalPurchaseNoticeResultIOS
+{
+    public required ExternalPurchaseNoticeAction Result { get; init; }
+    public string? Error { get; init; }
+    // External purchase token returned when Result == Continue.
+    public string? ExternalPurchaseToken { get; init; }
+}
 
-// User action on notice sheet
-enum class ExternalPurchaseNoticeAction(var rawValue: String) {
-    Continue("continue"),
-    Dismissed("dismissed")
+public enum ExternalPurchaseNoticeAction
+{
+    Continue,
+    Dismissed,
 }`}</CodeBlock>
             ),
             gdscript: (
@@ -575,34 +574,44 @@ Future<void> handleExternalPurchase(String externalUrl) async {
 }`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`// External purchase is iOS-only. For iOS targets in KMP:
-Task HandleExternalPurchaseAsync(String ExternalUrl) {
-    // Step 1: Check if external purchase is available
-    var canPresent = await ((QueryResolver)OpenIap.Instance).CanPresentExternalPurchaseNoticeIOSAsync()
-    if (!canPresent) {
-        println("External purchase not available on this device")
-        return
+              <CodeBlock language="csharp">{`using OpenIap;
+using OpenIap.Maui;
+
+async Task HandleExternalPurchaseAsync(string externalUrl)
+{
+    // Step 1: Check if external purchase is available.
+    var canPresent =
+        await ((QueryResolver)Iap.Instance).CanPresentExternalPurchaseNoticeIOSAsync();
+    if (!canPresent)
+    {
+        Console.WriteLine("External purchase not available on this device");
+        return;
     }
 
-    // Step 2: Present Apple's compliance notice sheet
-    var noticeResult = await ((QueryResolver)OpenIap.Instance).PresentExternalPurchaseNoticeSheetIOSAsync()
-    if (noticeResult.result == ExternalPurchaseNoticeAction.Dismissed) {
-        println("User dismissed the notice sheet")
-        return
+    // Step 2: Present Apple's compliance notice sheet.
+    var noticeResult =
+        await ((MutationResolver)Iap.Instance).PresentExternalPurchaseNoticeSheetIOSAsync();
+    if (noticeResult.Result == ExternalPurchaseNoticeAction.Dismissed)
+    {
+        Console.WriteLine("User dismissed the notice sheet");
+        return;
     }
 
-    // Step 3: Open external purchase link
-    var linkResult = await ((QueryResolver)OpenIap.Instance).PresentExternalPurchaseLinkIOSAsync(externalUrl)
-    if (linkResult.success) {
-        println("User redirected to external payment")
-        // Implement deep linking to handle return from payment
-    } else {
-        println("Failed: \${linkResult.error}")
+    // Step 3: Open external purchase link.
+    var linkResult =
+        await ((MutationResolver)Iap.Instance).PresentExternalPurchaseLinkIOSAsync(externalUrl);
+    if (linkResult.Success)
+    {
+        Console.WriteLine("User redirected to external payment");
+        // Implement deep linking to handle return from payment.
+    }
+    else
+    {
+        Console.WriteLine($"Failed: {linkResult.Error}");
     }
 }
 
-// For Android: Use alternative billing APIs instead
-// See: checkAlternativeBillingAvailability, showAlternativeBillingDialog`}</CodeBlock>
+// For Android, use alternative billing APIs instead.`}</CodeBlock>
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`func handle_external_purchase(external_url: String):

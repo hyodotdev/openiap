@@ -205,13 +205,20 @@ switch (status) {
                       <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// KMP iOS target
-var status = await ((QueryResolver)OpenIap.Instance).BeginRefundRequestIOSAsync(sku = purchase.productId)
+var status = await ((MutationResolver)Iap.Instance)
+    .BeginRefundRequestIOSAsync(purchase.ProductId);
 
-when (status) {
-    "success" -> println("Refund request submitted")
-    "userCancelled" -> println("User cancelled refund flow")
-    else -> println("Refund request status: \$status")
+switch (status)
+{
+    case "success":
+        Console.WriteLine("Refund request submitted");
+        break;
+    case "userCancelled":
+        Console.WriteLine("User cancelled refund flow");
+        break;
+    default:
+        Console.WriteLine($"Refund request status: {status}");
+        break;
 }`}</CodeBlock>
                     ),
                     gdscript: (

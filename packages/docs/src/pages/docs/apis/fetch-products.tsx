@@ -304,7 +304,7 @@ var products = await iap.fetch_products(request)`}</CodeBlock>
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var iap = (QueryResolver)OpenIap.Instance;
+var iap = (QueryResolver)Iap.Instance;
 
 var result = await iap.FetchProductsAsync(new ProductRequest {
     Skus = new[] { "com.app.coins_100", "com.app.premium" },

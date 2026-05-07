@@ -112,7 +112,7 @@ if (Platform.OS === 'ios') {
 using OpenIap.Maui;
 
 // kmp-iap (iOS targets only — no-op on Android)
-var status = await ((QueryResolver)OpenIap.Instance).BeginRefundRequestIOSAsync(sku = "com.app.premium")`}</CodeBlock>
+var status = await ((QueryResolver)Iap.Instance).BeginRefundRequestIOSAsync(sku = "com.app.premium")`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

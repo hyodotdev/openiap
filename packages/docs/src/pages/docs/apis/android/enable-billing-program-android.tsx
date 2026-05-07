@@ -81,13 +81,13 @@ class InitConnectionConfig {
           ),
           csharp: (
             <CodeBlock language="csharp">{`using OpenIap;
-using OpenIap.Maui;
 
-// Config field on InitConnectionConfig — wired via initConnection()
-data class InitConnectionConfig(
-    var enableBillingProgramAndroid = null,
+// Config field on InitConnectionConfig, wired via InitConnectionAsync.
+public sealed record InitConnectionConfig
+{
+    public BillingProgramAndroid? EnableBillingProgramAndroid { get; init; }
     // ...other fields
-)`}</CodeBlock>
+}`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`# InitConnectionConfig.enable_billing_program_android: BillingProgramAndroid
@@ -171,7 +171,7 @@ function App() {
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-await ((QueryResolver)OpenIap.Instance).InitConnectionAsync(
+await ((QueryResolver)Iap.Instance).InitConnectionAsync(
     InitConnectionConfig(
         enableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer
     )

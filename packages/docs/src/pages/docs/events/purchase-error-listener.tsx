@@ -47,9 +47,9 @@ val purchaseErrors: Flow<PurchaseError>`}</CodeBlock>
           csharp: (
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
+using System;
 
-// Flow approach
-var purchaseErrors: Flow<PurchaseError>`}</CodeBlock>
+IObservable<PurchaseError> purchaseErrors = Iap.Instance.PurchaseError;`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
@@ -211,33 +211,30 @@ subscription.cancel();`}</CodeBlock>
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// Using Flow
-lifecycleScope.launch {
-    openIapStore.purchaseErrors.collect { error ->
-        println("Purchase error: \${error.code} - \${error.message}")
+var subscription = Iap.Instance.PurchaseError.Subscribe(async error =>
+{
+    Console.WriteLine($"Purchase error: {error.Code} - {error.Message}");
 
-        when (error.code) {
-            OpenIapError.UserCancelled -> {
-                // User cancelled - no action needed
-            }
-            OpenIapError.AlreadyOwned -> {
-                // Restore purchases instead
-                await ((QueryResolver)OpenIap.Instance).RestorePurchasesAsync()
-            }
-            OpenIapError.NetworkError -> {
-                showRetryDialog()
-            }
-            else -> {
-                showErrorMessage(error.message)
-            }
-        }
+    switch (error.Code)
+    {
+        case ErrorCode.UserCancelled:
+            // User cancelled - no action needed.
+            break;
+        case ErrorCode.AlreadyOwned:
+            // Restore purchases instead.
+            await ((MutationResolver)Iap.Instance).RestorePurchasesAsync();
+            break;
+        case ErrorCode.NetworkError:
+            ShowRetryDialog();
+            break;
+        default:
+            ShowErrorMessage(error.Message);
+            break;
     }
-}
+});
 
-// Or with callback
-openIapStore.setPurchaseErrorListener { error ->
-    println("Purchase error: \${error.code}")
-}`}</CodeBlock>
+// Cleanup when done.
+subscription.Dispose();`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

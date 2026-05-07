@@ -358,17 +358,19 @@ for (final sub in subscriptions) {
                         <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// Detecting upgrades with pendingUpgradeProductId (KMP)
-var subscriptions = await ((QueryResolver)OpenIap.Instance).GetActiveSubscriptionsAsync()
+// Detecting upgrades with pendingUpgradeProductId.
+var subscriptions = await ((QueryResolver)Iap.Instance).GetActiveSubscriptionsAsync();
 
-for (sub in subscriptions) {
-    var renewalInfo = sub.renewalInfoIOS
-    var pendingUpgrade = renewalInfo?.pendingUpgradeProductId
+foreach (var subscription in subscriptions)
+{
+    var renewalInfo = subscription.RenewalInfoIOS;
+    var pendingUpgrade = renewalInfo?.PendingUpgradeProductId;
 
-    if (pendingUpgrade != null && pendingUpgrade != sub.productId) {
-        println("⚠️ UPGRADE IN PROGRESS")
-        println("  Current: \${sub.productId}")
-        println("  Upgrading to: $pendingUpgrade")
+    if (pendingUpgrade is not null && pendingUpgrade != subscription.ProductId)
+    {
+        Console.WriteLine("Upgrade in progress");
+        Console.WriteLine($"Current: {subscription.ProductId}");
+        Console.WriteLine($"Upgrading to: {pendingUpgrade}");
 
         // Show UI: "Upgrade processing..."
     }
@@ -529,17 +531,21 @@ for (final sub in subscriptions) {
                         <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// Detecting downgrades (KMP)
-var subscriptions = await ((QueryResolver)OpenIap.Instance).GetActiveSubscriptionsAsync()
+// Detecting downgrades.
+var subscriptions = await ((QueryResolver)Iap.Instance).GetActiveSubscriptionsAsync();
 
-for (sub in subscriptions) {
-    var renewalInfo = sub.renewalInfoIOS
-    var autoRenewPref = renewalInfo?.autoRenewPreference
+foreach (var subscription in subscriptions)
+{
+    var renewalInfo = subscription.RenewalInfoIOS;
+    var autoRenewPref = renewalInfo?.AutoRenewPreference;
 
-    if (autoRenewPref != null && autoRenewPref != sub.productId && renewalInfo?.willAutoRenew == true) {
-        println("⚠️ DOWNGRADE SCHEDULED")
-        println("  Current (until \${sub.expirationDateIOS}): \${sub.productId}")
-        println("  Next: $autoRenewPref")
+    if (autoRenewPref is not null &&
+        autoRenewPref != subscription.ProductId &&
+        renewalInfo?.WillAutoRenew == true)
+    {
+        Console.WriteLine("Downgrade scheduled");
+        Console.WriteLine($"Current until {subscription.ExpirationDateIOS}: {subscription.ProductId}");
+        Console.WriteLine($"Next: {autoRenewPref}");
 
         // Show UI: "Your plan will change to [tier] on [date]"
     }
@@ -688,16 +694,18 @@ for (final sub in subscriptions) {
                         <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var subscriptions = await ((QueryResolver)OpenIap.Instance).GetActiveSubscriptionsAsync()
+var subscriptions = await ((QueryResolver)Iap.Instance).GetActiveSubscriptionsAsync();
 
-for (sub in subscriptions) {
-    sub.renewalInfoIOS?.pendingUpgradeProductId?.let { pending ->
-        var current = sub.productId
+foreach (var subscription in subscriptions)
+{
+    if (subscription.RenewalInfoIOS?.PendingUpgradeProductId is string pending)
+    {
+        var current = subscription.ProductId;
 
-        println("Upgrading from $current to $pending")
+        Console.WriteLine($"Upgrading from {current} to {pending}");
 
         // Show upgrade-in-progress UI
-        showUpgradeInProgressUI(current, pending)
+        ShowUpgradeInProgressUI(current, pending);
     }
 }`}</CodeBlock>
                       ),
@@ -790,10 +798,10 @@ final currentTier = subscription.productId;`}</CodeBlock>
 using OpenIap.Maui;
 
 // ✅ Correct approach
-var effectiveTier = renewalInfo?.pendingUpgradeProductId ?: subscription.productId
+var effectiveTier = renewalInfo?.PendingUpgradeProductId ?? subscription.ProductId;
 
 // ❌ Wrong - may show outdated tier immediately after upgrade
-var currentTier = subscription.productId`}</CodeBlock>
+var currentTier = subscription.ProductId;`}</CodeBlock>
                       ),
                       gdscript: (
                         <CodeBlock language="gdscript">{`# Correct approach
@@ -1108,46 +1116,43 @@ class _SubscriptionStatusState extends State<SubscriptionStatus> {
                         <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// Complete example: Subscription status (Compose Multiplatform)
-@Composable
-fun SubscriptionStatus() {
-    var subscription by remember { mutableStateOf<ActiveSubscription?>(null) }
+// Complete example: build a subscription status message.
+async Task<string> GetSubscriptionStatusMessageAsync()
+{
+    var subscriptions = await ((QueryResolver)Iap.Instance).GetActiveSubscriptionsAsync();
+    var subscription = subscriptions.FirstOrDefault();
 
-    LaunchedEffect(Unit) {
-        var subs = await ((QueryResolver)OpenIap.Instance).GetActiveSubscriptionsAsync()
-        subscription = subs.firstOrNull()
+    if (subscription is null)
+    {
+        return "Loading...";
     }
 
-    subscription?.let { sub ->
-        var renewalInfo = sub.renewalInfoIOS
-        var pending = renewalInfo?.pendingUpgradeProductId
+    var renewalInfo = subscription.RenewalInfoIOS;
+    var pending = renewalInfo?.PendingUpgradeProductId;
 
-        when {
-            pending != null && pending != sub.productId -> {
-                // Upgrade in progress
-                Column {
-                    Text("⏳ Upgrading to $pending...")
-                    Text("Current: \${sub.productId}")
-                }
-            }
-            renewalInfo?.autoRenewPreference != sub.productId &&
-            renewalInfo?.willAutoRenew == true -> {
-                // Downgrade scheduled
-                Column {
-                    Text("Current: \${sub.productId}")
-                    Text("Will change to \${renewalInfo.autoRenewPreference} on \${formatDate(sub.expirationDateIOS)}")
-                }
-            }
-            else -> {
-                // Normal active subscription
-                Column {
-                    Text("Active: \${sub.productId}")
-                    Text("Renews: \${formatDate(renewalInfo?.renewalDate)}")
-                }
-            }
-        }
-    } ?: Text("Loading...")
-}`}</CodeBlock>
+    if (pending is not null && pending != subscription.ProductId)
+    {
+        return $"Upgrading to {pending}. Current: {subscription.ProductId}";
+    }
+
+    if (renewalInfo?.AutoRenewPreference != subscription.ProductId &&
+        renewalInfo?.WillAutoRenew == true)
+    {
+        return $"Current: {subscription.ProductId}. " +
+            $"Will change to {renewalInfo.AutoRenewPreference} on " +
+            $"{FormatDate(subscription.ExpirationDateIOS)}";
+    }
+
+    return $"Active: {subscription.ProductId}. " +
+        $"Renews: {FormatDate(renewalInfo?.RenewalDate)}";
+}
+
+static string FormatDate(double? timestamp) =>
+    timestamp is null
+        ? "N/A"
+        : DateTimeOffset.FromUnixTimeMilliseconds((long)timestamp.Value)
+            .ToLocalTime()
+            .ToString("d");`}</CodeBlock>
                       ),
                       gdscript: (
                         <CodeBlock language="gdscript">{`# Complete example: Subscription status (Godot)
@@ -1650,24 +1655,34 @@ if (currentSub != null) {
                       csharp: (
                         <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
+using System.Linq;
 
 // Android upgrade with proration
 
 // Get current subscription
-var purchases = await ((QueryResolver)OpenIap.Instance).GetAvailablePurchasesAsync()
-var currentSub = purchases.find { it.productId == "basic_monthly" }
+var purchases = await ((QueryResolver)Iap.Instance).GetAvailablePurchasesAsync();
+var currentSub = purchases
+    .OfType<PurchaseCommon>()
+    .FirstOrDefault(purchase => purchase.ProductId == "basic_monthly");
 
-currentSub?.let { sub ->
+if (currentSub is not null)
+{
     // Upgrade to premium with time proration
-    kmpIapInstance.requestPurchase {
-        android {
-            skus = new[] { "premium_monthly" }
-            purchaseToken = sub.purchaseToken
-            replacementMode = 1 // WITH_TIME_PRORATION
-        }
-    }
+    await ((MutationResolver)Iap.Instance).RequestPurchaseAsync(new RequestPurchaseProps
+    {
+        Type = ProductQueryType.Subs,
+        RequestSubscription = new RequestSubscriptionPropsByPlatforms
+        {
+            Google = new RequestSubscriptionAndroidProps
+            {
+                Skus = new[] { "premium_monthly" },
+                PurchaseToken = currentSub.PurchaseToken,
+                ReplacementMode = 1, // WITH_TIME_PRORATION
+            },
+        },
+    });
 
-    println("✅ Upgrade initiated")
+    Console.WriteLine("Upgrade initiated");
 }`}</CodeBlock>
                       ),
                       gdscript: (
@@ -1863,24 +1878,34 @@ if (premiumPurchase != null) {
                       csharp: (
                         <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
+using System.Linq;
 
 // Android downgrade with deferred replacement
 
 // Get current subscription
-var purchases = await ((QueryResolver)OpenIap.Instance).GetAvailablePurchasesAsync()
-var premiumPurchase = purchases.find { it.productId == "premium_monthly" }
+var purchases = await ((QueryResolver)Iap.Instance).GetAvailablePurchasesAsync();
+var premiumPurchase = purchases
+    .OfType<PurchaseCommon>()
+    .FirstOrDefault(purchase => purchase.ProductId == "premium_monthly");
 
-premiumPurchase?.let { purchase ->
+if (premiumPurchase is not null)
+{
     // Downgrade - takes effect at next billing cycle
-    kmpIapInstance.requestPurchase {
-        android {
-            skus = new[] { "basic_monthly" }
-            purchaseToken = purchase.purchaseToken
-            replacementMode = 6 // DEFERRED (Legacy API value) - Change at renewal
-        }
-    }
+    await ((MutationResolver)Iap.Instance).RequestPurchaseAsync(new RequestPurchaseProps
+    {
+        Type = ProductQueryType.Subs,
+        RequestSubscription = new RequestSubscriptionPropsByPlatforms
+        {
+            Google = new RequestSubscriptionAndroidProps
+            {
+                Skus = new[] { "basic_monthly" },
+                PurchaseToken = premiumPurchase.PurchaseToken,
+                ReplacementMode = 6, // DEFERRED - change at renewal
+            },
+        },
+    });
 
-    println("✅ Downgrade scheduled for next billing cycle")
+    Console.WriteLine("Downgrade scheduled for next billing cycle");
     // Note: Purchase callback will complete with empty list - this is expected!
 }`}</CodeBlock>
                       ),
@@ -2044,34 +2069,39 @@ if (currentSub != null) {
                       csharp: (
                         <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
+using System.Linq;
 
 // Android subscription replacement with 8.1.0+ API
 
 // Get current subscription
-var purchases = openIapModule.getAvailablePurchases()
-var currentSub = purchases.find { it.productId == "premium_monthly" }
+var purchases = await ((QueryResolver)Iap.Instance).GetAvailablePurchasesAsync();
+var currentSub = purchases
+    .OfType<PurchaseCommon>()
+    .FirstOrDefault(purchase => purchase.ProductId == "premium_monthly");
 
-currentSub?.let { sub ->
+if (currentSub is not null)
+{
     // Upgrade using the new per-product replacement params
-    openIapModule.requestSubscription(
-        RequestPurchaseProps(
-            type = ProductQueryType.Subs,
-            request = RequestPurchaseProps.Request.Subscription(
-                RequestSubscriptionProps(
-                    android = RequestSubscriptionAndroidProps(
-                        skus = new[] { "premium_yearly" },
-                        subscriptionProductReplacementParams = SubscriptionProductReplacementParamsAndroid(
-                            oldProductId = sub.productId,
-                            replacementMode = SubscriptionReplacementModeAndroid.WithTimeProration
-                            // or SubscriptionReplacementModeAndroid.KeepExisting (8.1.0+ only)
-                        )
-                    )
-                )
-            )
-        )
-    )
+    await ((MutationResolver)Iap.Instance).RequestPurchaseAsync(new RequestPurchaseProps
+    {
+        Type = ProductQueryType.Subs,
+        RequestSubscription = new RequestSubscriptionPropsByPlatforms
+        {
+            Google = new RequestSubscriptionAndroidProps
+            {
+                Skus = new[] { "premium_yearly" },
+                SubscriptionProductReplacementParams =
+                    new SubscriptionProductReplacementParamsAndroid
+                    {
+                        OldProductId = currentSub.ProductId,
+                        ReplacementMode = SubscriptionReplacementModeAndroid.WithTimeProration,
+                        // or SubscriptionReplacementModeAndroid.KeepExisting (8.1.0+ only)
+                    },
+            },
+        },
+    });
 
-    println("✅ Upgrade initiated with per-product replacement")
+    Console.WriteLine("Upgrade initiated with per-product replacement");
 }`}</CodeBlock>
                       ),
                       gdscript: (
@@ -2183,14 +2213,16 @@ for (final purchase in purchases) {
                       csharp: (
                         <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
+using System.Linq;
 
 // Android - check if subscription will change
 
-var purchases = await ((QueryResolver)OpenIap.Instance).GetAvailablePurchasesAsync()
+var purchases = await ((QueryResolver)Iap.Instance).GetAvailablePurchasesAsync();
 
-for (purchase in purchases) {
+foreach (var purchase in purchases.OfType<PurchaseCommon>())
+{
     // On Android, the current purchase reflects the active subscription
-    println("Active subscription: \${purchase.productId}")
+    Console.WriteLine($"Active subscription: {purchase.ProductId}");
 
     // If using DEFERRED mode, the change is scheduled but not yet reflected
     // You'll need to track this in your backend or check purchase history
@@ -2491,45 +2523,59 @@ Future<void> changeSubscription(
 }`}</CodeBlock>
                       ),
                       csharp: (
-                        <CodeBlock language="csharp">{`// Complete Android example: Subscription change
+                        <CodeBlock language="csharp">{`using OpenIap;
+using OpenIap.Maui;
+using System.Linq;
 
-Task ChangeSubscriptionAsync(String NewSku, Boolean IsUpgrade) {
+// Complete Android example: Subscription change.
+async Task ChangeSubscriptionAsync(string newSku, bool isUpgrade)
+{
     // Get current subscription
-    var purchases = await ((QueryResolver)OpenIap.Instance).GetAvailablePurchasesAsync()
-    var currentSub = purchases.find { it.productId.contains("subscription") }
+    var purchases = await ((QueryResolver)Iap.Instance).GetAvailablePurchasesAsync();
+    var currentSub = purchases
+        .OfType<PurchaseCommon>()
+        .FirstOrDefault(purchase =>
+            purchase.ProductId.Contains("subscription", StringComparison.OrdinalIgnoreCase));
 
-    if (currentSub == null) {
-        println("No active subscription found")
-        return
+    if (currentSub is null)
+    {
+        Console.WriteLine("No active subscription found");
+        return;
     }
 
     // Choose appropriate replacement mode
-    var replacementMode = if (isUpgrade) {
-        1  // WITH_TIME_PRORATION - Upgrade: give credit
-    } else {
-        6  // DEFERRED (Legacy API value) - Downgrade: change at renewal
+    var replacementMode = isUpgrade
+        ? 1  // WITH_TIME_PRORATION - upgrade with credit
+        : 6; // DEFERRED - downgrade at renewal
+
+    try
+    {
+        await ((MutationResolver)Iap.Instance).RequestPurchaseAsync(new RequestPurchaseProps
+        {
+            Type = ProductQueryType.Subs,
+            RequestSubscription = new RequestSubscriptionPropsByPlatforms
+            {
+                Google = new RequestSubscriptionAndroidProps
+                {
+                    Skus = new[] { newSku },
+                    PurchaseToken = currentSub.PurchaseToken,
+                    ReplacementMode = replacementMode,
+                },
+            },
+        });
+
+        // If DEFERRED, store pending change in your backend.
+        if (!isUpgrade)
+        {
+            await SendPendingChangeToBackendAsync(
+                userId: "user123",
+                currentSku: currentSub.ProductId,
+                newSku: newSku);
+        }
     }
-
-    try {
-        kmpIapInstance.requestPurchase {
-            android {
-                skus = new[] { newSku }
-                purchaseToken = currentSub.purchaseToken
-                this.replacementMode = replacementMode
-            }
-        }
-
-        // If DEFERRED, store pending change in your backend
-        if (!isUpgrade) {
-            sendPendingChangeToBackend(
-                userId = "user123",
-                currentSku = currentSub.productId,
-                newSku = newSku,
-                effectiveDate = currentSub.expirationDate
-            )
-        }
-    } catch (e: PurchaseException) {
-        println("Subscription change failed: \${e.message}")
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Subscription change failed: {ex.Message}");
     }
 }`}</CodeBlock>
                       ),

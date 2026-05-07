@@ -105,7 +105,7 @@ if (Platform.OS === 'android') {
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var token = await ((QueryResolver)OpenIap.Instance).CreateAlternativeBillingTokenAsync()`}</CodeBlock>
+var token = await ((QueryResolver)Iap.Instance).CreateAlternativeBillingTokenAsync()`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":

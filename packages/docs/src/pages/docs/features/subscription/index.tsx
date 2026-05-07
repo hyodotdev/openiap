@@ -252,30 +252,33 @@ if (subscription.discountsIOS != null) {
                     csharp: (
                       <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
-
-// KMP iOS target
-var iapStore = OpenIapStore.shared
+using System;
+using System.Linq;
 
 // Fetch subscription products
-iapStore.fetchProducts(
-    skus = new[] { "premium_monthly" },
-    type = ProductQueryType.Subs
-)
+var result = await ((QueryResolver)Iap.Instance).FetchProductsAsync(new ProductRequest
+{
+    Skus = new[] { "premium_monthly" },
+    Type = ProductQueryType.Subs,
+});
 
-var subscription = iapStore.iosProducts
-    .filterIsInstance<ProductIOS>()
-    .find { it.id == "premium_monthly" }
+var subscription = result is FetchProductsResultSubscriptions subscriptions
+    ? subscriptions.Value?.OfType<ProductSubscriptionIOS>()
+        .FirstOrDefault(product => product.Id == "premium_monthly")
+    : null;
 
 // Check for introductory offer
-subscription?.subscriptionInfoIOS?.introductoryOffer?.let { introOffer ->
-    println("Intro offer: \${introOffer.displayPrice}")
-    println("Payment mode: \${introOffer.paymentMode}")
-    println("Period: \${introOffer.period.unit} x \${introOffer.periodCount}")
+if (subscription?.SubscriptionInfoIOS?.IntroductoryOffer is { } introOffer)
+{
+    Console.WriteLine($"Intro offer: {introOffer.DisplayPrice}");
+    Console.WriteLine($"Payment mode: {introOffer.PaymentMode}");
+    Console.WriteLine($"Period: {introOffer.Period.Unit} x {introOffer.PeriodCount}");
 }
 
 // Check for promotional offers
-subscription?.discountsIOS?.forEach { discount ->
-    println("Promo: \${discount.identifier} - \${discount.localizedPrice}")
+foreach (var discount in subscription?.DiscountsIOS ?? Array.Empty<DiscountIOS>())
+{
+    Console.WriteLine($"Promo: {discount.Identifier} - {discount.LocalizedPrice}");
 }`}</CodeBlock>
                     ),
                     gdscript: (
@@ -428,23 +431,38 @@ if (isEligible) {
                       <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// KMP iOS target
-fun displayIntroOffer(subscription: ProductIOS): String? {
-    var offer = subscription.subscriptionInfoIOS?.introductoryOffer
-        ?: return null
-
-    return when (offer.paymentMode) {
-        "free-trial" -> "\${offer.periodCount} \${offer.period.unit.lowercase()}(s) free trial"
-        "pay-as-you-go" -> "\${offer.displayPrice} for \${offer.periodCount} \${offer.period.unit.lowercase()}(s)"
-        "pay-up-front" -> "\${offer.displayPrice} for first \${offer.periodCount} \${offer.period.unit.lowercase()}(s)"
-        else -> null
+string? DisplayIntroOffer(ProductSubscriptionIOS subscription)
+{
+    var offer = subscription.SubscriptionInfoIOS?.IntroductoryOffer;
+    if (offer is null)
+    {
+        return null;
     }
+
+    var unit = offer.Period.Unit.ToString().ToLowerInvariant();
+    return offer.PaymentMode switch
+    {
+        PaymentModeIOS.FreeTrial =>
+            $"{offer.PeriodCount} {unit}(s) free trial",
+        PaymentModeIOS.PayAsYouGo =>
+            $"{offer.DisplayPrice} for {offer.PeriodCount} {unit}(s)",
+        PaymentModeIOS.PayUpFront =>
+            $"{offer.DisplayPrice} for first {offer.PeriodCount} {unit}(s)",
+        _ => null,
+    };
 }
 
 // Check eligibility
-var isEligible = iapStore.isEligibleForIntroOfferIOS(sku = "premium_monthly")
-if (isEligible) {
-    subscription?.let { displayIntroOffer(it)?.let(::println) }
+var isEligible = await ((QueryResolver)Iap.Instance)
+    .IsEligibleForIntroOfferIOSAsync("premium_monthly");
+
+if (isEligible && subscription is not null)
+{
+    var message = DisplayIntroOffer(subscription);
+    if (message is not null)
+    {
+        Console.WriteLine(message);
+    }
 }`}</CodeBlock>
                     ),
                     gdscript: (
@@ -660,32 +678,41 @@ suspend fun purchaseWithPromoOffer(
 }`}</CodeBlock>
                     ),
                     csharp: (
-                      <CodeBlock language="csharp">{`// KMP iOS target
-Task PurchaseWithPromoOfferAsync(String SubscriptionId, String OfferId) {
-    // 1. Generate signature on your backend
-    var nonce = java.util.UUID.randomUUID().toString()
-    var timestamp = System.currentTimeMillis()
+                      <CodeBlock language="csharp">{`using OpenIap;
+using OpenIap.Maui;
 
-    var signatureResponse = generateSignatureOnServer(
-        productId = subscriptionId,
-        offerId = offerId,
-        nonce = nonce,
-        timestamp = timestamp
-    )
+async Task PurchaseWithPromoOfferAsync(string subscriptionId, string offerId)
+{
+    // 1. Generate signature on your backend
+    var nonce = Guid.NewGuid().ToString();
+    var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+    var signatureResponse = await GenerateSignatureOnServerAsync(
+        productId: subscriptionId,
+        offerId: offerId,
+        nonce: nonce,
+        timestamp: timestamp);
 
     // 2. Purchase with the promotional offer
-    iapStore.requestPurchase(
-        sku = subscriptionId,
-        type = ProductQueryType.Subs,
-        withOffer = DiscountOfferInputIOS(
-            identifier = offerId,
-            keyIdentifier = signatureResponse.keyIdentifier,
-            nonce = nonce,
-            signature = signatureResponse.signature,
-            timestamp = timestamp
-        ),
-        autoFinish = false
-    )
+    await ((MutationResolver)Iap.Instance).RequestPurchaseAsync(new RequestPurchaseProps
+    {
+        Type = ProductQueryType.Subs,
+        RequestSubscription = new RequestSubscriptionPropsByPlatforms
+        {
+            Apple = new RequestSubscriptionIosProps
+            {
+                Sku = subscriptionId,
+                WithOffer = new DiscountOfferInputIOS
+                {
+                    Identifier = offerId,
+                    KeyIdentifier = signatureResponse.KeyIdentifier,
+                    Nonce = nonce,
+                    Signature = signatureResponse.Signature,
+                    Timestamp = timestamp,
+                },
+                AndDangerouslyFinishTransactionAutomatically = false,
+            },
+        },
+    });
 }`}</CodeBlock>
                     ),
                     gdscript: (
@@ -802,15 +829,24 @@ suspend fun purchaseSubscription(subscriptionId: String) {
 }`}</CodeBlock>
                     ),
                     csharp: (
-                      <CodeBlock language="csharp">{`// KMP iOS target
-Task PurchaseSubscriptionAsync(String SubscriptionId) {
-    // Simply request purchase
-    // Intro offer is applied automatically when eligible
-    iapStore.requestPurchase(
-        sku = subscriptionId,
-        type = ProductQueryType.Subs,
-        autoFinish = false
-    )
+                      <CodeBlock language="csharp">{`using OpenIap;
+using OpenIap.Maui;
+
+async Task PurchaseSubscriptionAsync(string subscriptionId)
+{
+    // Intro offer is applied automatically when eligible.
+    await ((MutationResolver)Iap.Instance).RequestPurchaseAsync(new RequestPurchaseProps
+    {
+        Type = ProductQueryType.Subs,
+        RequestSubscription = new RequestSubscriptionPropsByPlatforms
+        {
+            Apple = new RequestSubscriptionIosProps
+            {
+                Sku = subscriptionId,
+                AndDangerouslyFinishTransactionAutomatically = false,
+            },
+        },
+    });
 }`}</CodeBlock>
                     ),
                     gdscript: (
@@ -933,24 +969,25 @@ data class PricingPhaseAndroid(
                     ),
                     csharp: (
                       <CodeBlock language="csharp">{`using OpenIap;
-using OpenIap.Maui;
 
-data class SubscriptionOfferDetailsAndroid(
-    var basePlanId: String,       // Base plan identifier
-    var offerId = null,  // Offer ID (null for base plan)
-    var offerTags: List<String>,  // Tags for categorization
-    var offerToken: String,       // Required for purchase
-    var pricingPhases: PricingPhasesAndroid
-)
+public sealed record ProductSubscriptionAndroidOfferDetails
+{
+    public required string BasePlanId { get; init; }       // Base plan identifier
+    public string? OfferId { get; init; }                  // Null for base plan
+    public required IReadOnlyList<string> OfferTags { get; init; }
+    public required string OfferToken { get; init; }       // Required for purchase
+    public required PricingPhasesAndroid PricingPhases { get; init; }
+}
 
-data class PricingPhaseAndroid(
-    var formattedPrice: String,      // e.g., "$9.99"
-    var priceAmountMicros: Long,     // Price in micros
-    var priceCurrencyCode: String,   // e.g., "USD"
-    var billingPeriod: String,       // e.g., "P1M" (1 month)
-    var billingCycleCount: Int,      // Number of cycles
-    var recurrenceMode: Int          // 1=infinite, 2=finite, 3=non-recurring
-)`}</CodeBlock>
+public sealed record PricingPhaseAndroid
+{
+    public required string FormattedPrice { get; init; }   // e.g., "$9.99"
+    public required string PriceAmountMicros { get; init; }// Price in micros
+    public required string PriceCurrencyCode { get; init; }// e.g., "USD"
+    public required string BillingPeriod { get; init; }    // e.g., "P1M"
+    public required int BillingCycleCount { get; init; }
+    public required int RecurrenceMode { get; init; }      // 1=infinite, 2=finite
+}`}</CodeBlock>
                     ),
                     gdscript: (
                       <CodeBlock language="gdscript">{`class_name SubscriptionOfferDetailsAndroid
@@ -1119,36 +1156,41 @@ if (subscription.subscriptionOfferDetailsAndroid != null) {
                     csharp: (
                       <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
-
-var iapStore = OpenIapStore.getInstance(context)
+using System.Linq;
 
 // Fetch subscription products
-var request = ProductRequest(
-    skus = new[] { "premium_monthly" },
-    type = ProductQueryType.Subs
-)
-iapStore.fetchProducts(request)
+var result = await ((QueryResolver)Iap.Instance).FetchProductsAsync(new ProductRequest
+{
+    Skus = new[] { "premium_monthly" },
+    Type = ProductQueryType.Subs,
+});
 
-// Access Android offer details
-var subscriptions = iapStore.subscriptions.value
-    .filterIsInstance<ProductSubscriptionAndroid>()
+var subscription = result is FetchProductsResultSubscriptions subscriptions
+    ? subscriptions.Value?.OfType<ProductSubscriptionAndroid>()
+        .FirstOrDefault(product => product.Id == "premium_monthly")
+    : null;
 
-var subscription = subscriptions.find { it.id == "premium_monthly" }
-
-subscription?.subscriptionOfferDetailsAndroid?.forEach { offer ->
-    println("Base Plan: \${offer.basePlanId}")
-    println("Offer ID: \${offer.offerId ?: "Base plan"}")
-    println("Offer Token: \${offer.offerToken}")
+foreach (var offer in subscription?.SubscriptionOfferDetailsAndroid
+    ?? Array.Empty<ProductSubscriptionAndroidOfferDetails>())
+{
+    Console.WriteLine($"Base Plan: {offer.BasePlanId}");
+    Console.WriteLine($"Offer ID: {offer.OfferId ?? "Base plan"}");
+    Console.WriteLine($"Offer Token: {offer.OfferToken}");
 
     // Check pricing phases
-    offer.pricingPhases.pricingPhaseList.forEach { phase ->
-        when {
-            phase.priceAmountMicros == 0L ->
-                println("Free trial: \${phase.billingPeriod}")
-            phase.recurrenceMode == 2 ->
-                println("Intro: \${phase.formattedPrice} for \${phase.billingPeriod}")
-            else ->
-                println("Regular: \${phase.formattedPrice} per \${phase.billingPeriod}")
+    foreach (var phase in offer.PricingPhases.PricingPhaseList)
+    {
+        if (phase.PriceAmountMicros == "0")
+        {
+            Console.WriteLine($"Free trial: {phase.BillingPeriod}");
+        }
+        else if (phase.RecurrenceMode == 2)
+        {
+            Console.WriteLine($"Intro: {phase.FormattedPrice} for {phase.BillingPeriod}");
+        }
+        else
+        {
+            Console.WriteLine($"Regular: {phase.FormattedPrice} per {phase.BillingPeriod}");
         }
     }
 }`}</CodeBlock>
@@ -1335,41 +1377,39 @@ suspend fun purchaseSubscription(subscriptionId: String) {
 }`}</CodeBlock>
                     ),
                     csharp: (
-                      <CodeBlock language="csharp">{`Task PurchaseSubscriptionAsync(String SubscriptionId) {
-    var subscription = iapStore.subscriptions.value
-        .filterIsInstance<ProductSubscriptionAndroid>()
-        .find { it.id == subscriptionId }
-        ?: return
+                      <CodeBlock language="csharp">{`using OpenIap;
+using OpenIap.Maui;
+using System.Linq;
 
-    // Build subscriptionOffers from fetched data
-    var subscriptionOffers = subscription.subscriptionOfferDetailsAndroid
-        ?.mapNotNull { offer ->
-            offer.offerToken?.let { token ->
-                AndroidSubscriptionOfferInput(
-                    sku = subscriptionId,
-                    offerToken = token
-                )
-            }
-        } ?: emptyList()
+async Task PurchaseSubscriptionAsync(string subscriptionId, ProductSubscriptionAndroid subscription)
+{
+    // Build subscriptionOffers from fetched data.
+    var subscriptionOffers = subscription.SubscriptionOfferDetailsAndroid
+        .Select(offer => new AndroidSubscriptionOfferInput
+        {
+            Sku = subscriptionId,
+            OfferToken = offer.OfferToken,
+        })
+        .ToArray();
 
-    if (subscriptionOffers.isEmpty()) {
-        println("No subscription offers available")
-        return
+    if (subscriptionOffers.Length == 0)
+    {
+        Console.WriteLine("No subscription offers available");
+        return;
     }
 
-    var props = RequestPurchaseProps(
-        request = RequestPurchaseProps.Request.Subscription(
-            RequestSubscriptionPropsByPlatforms(
-                android = RequestSubscriptionAndroidProps(
-                    skus = new[] { subscriptionId },
-                    subscriptionOffers = subscriptionOffers // Required
-                )
-            )
-        ),
-        type = ProductQueryType.Subs
-    )
-
-    iapStore.requestPurchase(props)
+    await ((MutationResolver)Iap.Instance).RequestPurchaseAsync(new RequestPurchaseProps
+    {
+        Type = ProductQueryType.Subs,
+        RequestSubscription = new RequestSubscriptionPropsByPlatforms
+        {
+            Google = new RequestSubscriptionAndroidProps
+            {
+                Skus = new[] { subscriptionId },
+                SubscriptionOffers = subscriptionOffers, // Required
+            },
+        },
+    });
 }`}</CodeBlock>
                     ),
                     gdscript: (
@@ -1683,47 +1723,57 @@ void onPurchaseSuccess(PurchasedItem purchase) {
 }`}</CodeBlock>
                     ),
                     csharp: (
-                      <CodeBlock language="csharp">{`// 1. Store basePlanId BEFORE calling requestPurchase
-var purchasedBasePlanId = null
+                      <CodeBlock language="csharp">{`using OpenIap;
+using OpenIap.Maui;
+using System.Linq;
 
-Task HandlePurchaseAsync(String BasePlanId) {
-    var offers = subscription.subscriptionOfferDetailsAndroid ?: return
-    var offer = offers.find { it.basePlanId == basePlanId && it.offerId == null }
+// 1. Store basePlanId BEFORE calling requestPurchase.
+string? purchasedBasePlanId = null;
 
-    // Store it before purchase
-    purchasedBasePlanId = basePlanId
+async Task HandlePurchaseAsync(
+    ProductSubscriptionAndroid subscription,
+    string subscriptionGroupId,
+    string basePlanId)
+{
+    var offer = subscription.SubscriptionOfferDetailsAndroid
+        .FirstOrDefault(offer =>
+            offer.BasePlanId == basePlanId && offer.OfferId is null);
 
-    iapStore.requestPurchase(
-        RequestPurchaseProps(
-            request = RequestPurchaseProps.Request.Subscription(
-                RequestSubscriptionPropsByPlatforms(
-                    android = RequestSubscriptionAndroidProps(
-                        skus = new[] { subscriptionGroupId },
-                        subscriptionOffers = new[] { 
-                            AndroidSubscriptionOfferInput(
-                                sku = subscriptionGroupId,
-                                offerToken = offer?.offerToken ?: ""
-                             }
-                        )
-                    )
-                )
-            ),
-            type = ProductQueryType.Subs
-        )
-    )
+    // Store it before purchase.
+    purchasedBasePlanId = basePlanId;
+
+    await ((MutationResolver)Iap.Instance).RequestPurchaseAsync(new RequestPurchaseProps
+    {
+        Type = ProductQueryType.Subs,
+        RequestSubscription = new RequestSubscriptionPropsByPlatforms
+        {
+            Google = new RequestSubscriptionAndroidProps
+            {
+                Skus = new[] { subscriptionGroupId },
+                SubscriptionOffers = new[]
+                {
+                    new AndroidSubscriptionOfferInput
+                    {
+                        Sku = subscriptionGroupId,
+                        OfferToken = offer?.OfferToken ?? "",
+                    },
+                },
+            },
+        },
+    });
 }
 
-// 2. Use YOUR tracked value in purchase callback
-fun onPurchaseSuccess(purchase: PurchaseAndroid) {
-    // DON'T use purchase.currentPlanId - it may be wrong!
-    var actualBasePlanId = purchasedBasePlanId
+// 2. Use YOUR tracked value in purchase callback.
+void OnPurchaseSuccess(PurchaseAndroid purchase)
+{
+    // DON'T use purchase.CurrentPlanId - it may be wrong.
+    var actualBasePlanId = purchasedBasePlanId;
 
-    // Save to your backend
-    saveToBackend(
-        purchaseToken = purchase.purchaseToken,
-        basePlanId = actualBasePlanId,
-        productId = purchase.productId
-    )
+    // Save to your backend.
+    SaveToBackend(
+        purchaseToken: purchase.PurchaseToken,
+        basePlanId: actualBasePlanId,
+        productId: purchase.ProductId);
 }`}</CodeBlock>
                     ),
                     gdscript: (
@@ -2088,58 +2138,71 @@ Future<void> purchaseWithOffer(
 }`}</CodeBlock>
                     ),
                     csharp: (
-                      <CodeBlock language="csharp">{`enum class OfferType { Base, Introductory, Promotional }
+                      <CodeBlock language="csharp">{`using OpenIap;
+using OpenIap.Maui;
+using System.Linq;
 
-fun selectOffer(
-    subscription: ProductSubscriptionAndroid,
-    offerType: OfferType
-): SubscriptionOfferDetailsAndroid? {
-    var offers = subscription.subscriptionOfferDetailsAndroid ?: return null
-
-    return when (offerType) {
-        OfferType.Base -> offers.find { it.offerId == null }
-        OfferType.Introductory -> offers.find { offer ->
-            offer.pricingPhases.pricingPhaseList.any { phase ->
-                phase.priceAmountMicros == 0L || phase.recurrenceMode == 2
-            }
-        }
-        OfferType.Promotional -> offers.find { offer ->
-            offer.offerTags.any { it.contains("promo", true) }
-        }
-    }
+public enum OfferType
+{
+    Base,
+    Introductory,
+    Promotional,
 }
 
-// Purchase with selected offer
-Task PurchaseWithOfferAsync(String SubscriptionId, OfferType OfferType) {
-    var subscription = iapStore.subscriptions.value
-        .filterIsInstance<ProductSubscriptionAndroid>()
-        .find { it.id == subscriptionId }
-        ?: return
+ProductSubscriptionAndroidOfferDetails? SelectOffer(
+    ProductSubscriptionAndroid subscription,
+    OfferType offerType)
+{
+    var offers = subscription.SubscriptionOfferDetailsAndroid;
 
-    var selectedOffer = selectOffer(subscription, offerType)
-        ?: run {
-            println("Selected offer not found")
-            return
-        }
+    return offerType switch
+    {
+        OfferType.Base =>
+            offers.FirstOrDefault(offer => offer.OfferId is null),
+        OfferType.Introductory =>
+            offers.FirstOrDefault(offer =>
+                offer.PricingPhases.PricingPhaseList.Any(phase =>
+                    phase.PriceAmountMicros == "0" || phase.RecurrenceMode == 2)),
+        OfferType.Promotional =>
+            offers.FirstOrDefault(offer =>
+                offer.OfferTags.Any(tag =>
+                    tag.Contains("promo", StringComparison.OrdinalIgnoreCase))),
+        _ => null,
+    };
+}
 
-    var props = RequestPurchaseProps(
-        request = RequestPurchaseProps.Request.Subscription(
-            RequestSubscriptionPropsByPlatforms(
-                android = RequestSubscriptionAndroidProps(
-                    skus = new[] { subscriptionId },
-                    subscriptionOffers = new[] { 
-                        AndroidSubscriptionOfferInput(
-                            sku = subscriptionId,
-                            offerToken = selectedOffer.offerToken
-                         }
-                    )
-                )
-            )
-        ),
-        type = ProductQueryType.Subs
-    )
+// Purchase with selected offer.
+async Task PurchaseWithOfferAsync(
+    string subscriptionId,
+    ProductSubscriptionAndroid subscription,
+    OfferType offerType)
+{
+    var selectedOffer = SelectOffer(subscription, offerType);
+    if (selectedOffer is null)
+    {
+        Console.WriteLine("Selected offer not found");
+        return;
+    }
 
-    iapStore.requestPurchase(props)
+    await ((MutationResolver)Iap.Instance).RequestPurchaseAsync(new RequestPurchaseProps
+    {
+        Type = ProductQueryType.Subs,
+        RequestSubscription = new RequestSubscriptionPropsByPlatforms
+        {
+            Google = new RequestSubscriptionAndroidProps
+            {
+                Skus = new[] { subscriptionId },
+                SubscriptionOffers = new[]
+                {
+                    new AndroidSubscriptionOfferInput
+                    {
+                        Sku = subscriptionId,
+                        OfferToken = selectedOffer.OfferToken,
+                    },
+                },
+            },
+        },
+    });
 }`}</CodeBlock>
                     ),
                     gdscript: (
@@ -2525,16 +2588,20 @@ Future<bool> verifySubscription(ProductPurchase purchase) async {
 }`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`Task<Boolean> VerifySubscriptionAsync(PurchaseAndroid Purchase){
-    return try {
-        var result = iapStore.verifyPurchase(
-            purchase = purchase,
-            serverUrl = "https://your-server.com/api/verify-android"
-        )
-        result.isValid
-    } catch (e: Exception) {
-        println("Verification error: \${e.message}")
-        false
+              <CodeBlock language="csharp">{`using OpenIap;
+
+async Task<bool> VerifySubscriptionAsync(PurchaseAndroid purchase)
+{
+    try
+    {
+        return await VerifyOnServerAsync(
+            purchaseToken: purchase.PurchaseToken ?? "",
+            productId: purchase.ProductId);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Verification error: {ex.Message}");
+        return false;
     }
 }`}</CodeBlock>
             ),
@@ -2663,17 +2730,22 @@ for (final subscription in activeSubscriptions) {
 using OpenIap.Maui;
 
 // Check if user has any active subscription
-var hasActive = iapStore.hasActiveSubscriptions()
-if (hasActive) {
-    println("User has premium access")
+var hasActive = await ((QueryResolver)Iap.Instance).HasActiveSubscriptionsAsync();
+if (hasActive)
+{
+    Console.WriteLine("User has premium access");
 }
 
 // Get all active subscriptions
-var activeSubscriptions = iapStore.getActiveSubscriptions()
-activeSubscriptions.forEach { subscription ->
-    println("Active subscription: \${subscription.productId}")
-    subscription.expirationDate?.let { expiration ->
-        println("Expires: $expiration")
+var activeSubscriptions =
+    await ((QueryResolver)Iap.Instance).GetActiveSubscriptionsAsync();
+
+foreach (var subscription in activeSubscriptions)
+{
+    Console.WriteLine($"Active subscription: {subscription.ProductId}");
+    if (subscription.ExpirationDateIOS is double expiration)
+    {
+        Console.WriteLine($"Expires: {expiration}");
     }
 }`}</CodeBlock>
             ),
@@ -3094,63 +3166,61 @@ Future<void> checkFromActiveSubscriptions() async {
 }`}</CodeBlock>
                     ),
                     csharp: (
-                      <CodeBlock language="csharp">{`// Note: subscriptionStatusIOS is iOS-only
-// For KMP iOS target:
-Task<Pair<Boolean, String>> CheckSubscriptionStatusAsync(String Sku){
-    var statuses = iapStore.subscriptionStatusIOS(sku = sku)
+                      <CodeBlock language="csharp">{`using OpenIap;
+using OpenIap.Maui;
 
-    for (status in statuses) {
-        return when (status.state) {
-            "subscribed" -> {
-                println("✅ Active subscription")
-                true to "active"
-            }
-            "expired" -> {
-                println("❌ Subscription expired")
-                false to "expired"
-            }
-            "revoked" -> {
-                println("💰 Subscription was refunded")
-                false to "refunded"
-            }
-            "inGracePeriod" -> {
-                println("⚠️ Billing issue - grace period active")
-                true to "grace_period"
-            }
-            "inBillingRetryPeriod" -> {
-                println("🔄 Billing retry in progress")
-                true to "billing_retry"
-            }
-            else -> continue
+// Note: subscriptionStatusIOS is iOS-only.
+async Task<(bool IsActive, string Status)> CheckSubscriptionStatusAsync(string sku)
+{
+    var statuses = await ((QueryResolver)Iap.Instance).SubscriptionStatusIOSAsync(sku);
+
+    foreach (var status in statuses)
+    {
+        switch (status.State)
+        {
+            case "subscribed":
+                Console.WriteLine("Active subscription");
+                return (true, "active");
+            case "expired":
+                Console.WriteLine("Subscription expired");
+                return (false, "expired");
+            case "revoked":
+                Console.WriteLine("Subscription was refunded");
+                return (false, "refunded");
+            case "inGracePeriod":
+                Console.WriteLine("Billing issue - grace period active");
+                return (true, "grace_period");
+            case "inBillingRetryPeriod":
+                Console.WriteLine("Billing retry in progress");
+                return (true, "billing_retry");
         }
     }
 
-    return false to "unknown"
+    return (false, "unknown");
 }
 
-// Using ActiveSubscription for quick checks (works on iOS)
-Task CheckFromActiveSubscriptionsAsync() {
-    var subs = iapStore.getActiveSubscriptions()
+// Using ActiveSubscription for quick checks.
+async Task CheckFromActiveSubscriptionsAsync()
+{
+    var subscriptions = await ((QueryResolver)Iap.Instance).GetActiveSubscriptionsAsync();
+    var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
-    for (sub in subs) {
-        var renewalInfo = sub.renewalInfoIOS
+    foreach (var subscription in subscriptions)
+    {
+        var renewalInfo = subscription.RenewalInfoIOS;
+        var isCancelled = renewalInfo?.WillAutoRenew == false;
+        var expirationReason = renewalInfo?.ExpirationReason;
+        var isExpired = subscription.ExpirationDateIOS is double expiration &&
+            expiration < now;
 
-        // Check if cancelled
-        var isCancelled = renewalInfo?.willAutoRenew == false
-
-        // Check expiration reason
-        var expirationReason = renewalInfo?.expirationReason
-
-        // Check if expired
-        var isExpired = sub.expirationDateIOS?.let {
-            it < System.currentTimeMillis()
-        } ?: false
-
-        println("Product: \${sub.productId}")
-        println("  Active: \${sub.isActive}")
-        println("  Cancelled: $isCancelled")
-        println("  Expired: $isExpired")
-        expirationReason?.let { println("  Expiration Reason: $it") }
+        Console.WriteLine($"Product: {subscription.ProductId}");
+        Console.WriteLine($"  Active: {subscription.IsActive}");
+        Console.WriteLine($"  Cancelled: {isCancelled}");
+        Console.WriteLine($"  Expired: {isExpired}");
+        if (expirationReason is not null)
+        {
+            Console.WriteLine($"  Expiration Reason: {expirationReason}");
+        }
     }
 }`}</CodeBlock>
                     ),
@@ -3460,49 +3530,46 @@ Future<Map<String, dynamic>> checkAndroidSubscription() async {
 }`}</CodeBlock>
                     ),
                     csharp: (
-                      <CodeBlock language="csharp">{`// Client-side: Can only check if purchase exists
-Task<Map<String, Any>> CheckAndroidSubscriptionAsync(){
-    var purchases = iapStore.getAvailablePurchases()
+                      <CodeBlock language="csharp">{`using OpenIap;
+using OpenIap.Maui;
+using System.Linq;
 
-    var subscriptionPurchases = purchases.filter {
-        it.productId.contains("subscription")
+public sealed record SubscriptionAccessResult(
+    bool HasAccess,
+    string? Status = null,
+    double? ExpiresAt = null);
+
+// Client-side: Can only check if purchase exists.
+async Task<SubscriptionAccessResult> CheckAndroidSubscriptionAsync()
+{
+    var purchases = await ((QueryResolver)Iap.Instance).GetAvailablePurchasesAsync();
+    var purchase = purchases
+        .OfType<PurchaseAndroid>()
+        .FirstOrDefault(purchase =>
+            purchase.ProductId.Contains("subscription", StringComparison.OrdinalIgnoreCase));
+
+    if (purchase is null)
+    {
+        Console.WriteLine("No subscription purchases found");
+        return new SubscriptionAccessResult(false);
     }
 
-    if (subscriptionPurchases.isEmpty()) {
-        println("No subscription purchases found")
-        return mapOf("hasAccess" to false)
-    }
+    // Purchase exists, but the client cannot determine expiry/refund/cancel state.
+    Console.WriteLine($"Purchase found: {purchase.ProductId}");
+    Console.WriteLine($"Purchase token: {purchase.PurchaseToken}");
 
-    // ⚠️ Purchase exists, but client cannot determine:
-    // - If it's expired
-    // - If it's been refunded
-    // - If it's cancelled
-    // Must verify on server for accurate status
+    // Send to server for verification.
+    var serverResult = await VerifyOnServerAsync(
+        purchaseToken: purchase.PurchaseToken ?? "",
+        productId: purchase.ProductId,
+        packageName: purchase.PackageNameAndroid ?? "");
 
-    var purchase = subscriptionPurchases.first()
-    println("Purchase found: \${purchase.productId}")
-    println("Purchase token: \${purchase.purchaseToken}")
-
-    // Send to server for verification
-    var serverResult = withContext(Dispatchers.IO) {
-        verifyOnServer(
-            purchaseToken = purchase.purchaseToken ?: "",
-            productId = purchase.productId,
-            packageName = purchase.packageNameAndroid ?: ""
-        )
-    }
-
-    // Server uses Google Play Developer API to get:
-    // - expiryTimeMillis
-    // - cancelReason (0=user, 1=system, 2=replaced, 3=developer)
-    // - paymentState
-    // - acknowledgementState
-
-    return mapOf(
-        "hasAccess" to serverResult.isActive,
-        "status" to serverResult.status,
-        "expiresAt" to serverResult.expiryTimeMillis
-    )
+    // Server uses Google Play Developer API to get expiryTimeMillis,
+    // cancelReason, paymentState, and acknowledgementState.
+    return new SubscriptionAccessResult(
+        HasAccess: serverResult.IsActive,
+        Status: serverResult.Status,
+        ExpiresAt: serverResult.ExpiryTimeMillis);
 }`}</CodeBlock>
                     ),
                     gdscript: (
@@ -3739,10 +3806,8 @@ Future<void> manageSubscriptions() async {
               <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// Open subscription management page
-fun manageSubscriptions() {
-    iapStore.deepLinkToSubscriptions()
-}`}</CodeBlock>
+// Open subscription management page.
+await ((MutationResolver)Iap.Instance).DeepLinkToSubscriptionsAsync();`}</CodeBlock>
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`# Open subscription management page

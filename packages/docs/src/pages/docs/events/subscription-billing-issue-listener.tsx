@@ -60,10 +60,11 @@ val subscriptionBillingIssueListener: Flow<Purchase>`}</CodeBlock>
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// Callback approach (Play Billing 8.1+)
-fun addSubscriptionBillingIssueListener(
-    listener: OpenIapSubscriptionBillingIssueListener
-)`}</CodeBlock>
+// Observable callback approach (Play Billing 8.1+).
+IDisposable subscription = Iap.Instance.SubscriptionBillingIssue.Subscribe(purchase =>
+{
+    Console.WriteLine("Subscription billing issue received");
+});`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`signal subscription_billing_issue(purchase: Purchase)`}</CodeBlock>
@@ -170,17 +171,19 @@ subscription.cancel();`}</CodeBlock>
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var openIapStore = OpenIapStore(context)
-
 // Play Billing Library 8.1+
-var listener: (Purchase) -> Unit = { purchase ->
-    println("Billing issue on \${purchase.productId}")
-    showBillingIssueBanner(purchase)
-}
-await ((QueryResolver)OpenIap.Instance).AddSubscriptionBillingIssueListenerAsync(listener)
+var subscription = Iap.Instance.SubscriptionBillingIssue.Subscribe(purchase =>
+{
+    if (purchase is PurchaseCommon purchaseInfo)
+    {
+        Console.WriteLine($"Billing issue on {purchaseInfo.ProductId}");
+    }
 
-// Cleanup when the view disappears
-await ((QueryResolver)OpenIap.Instance).RemoveSubscriptionBillingIssueListenerAsync(listener)`}</CodeBlock>
+    ShowBillingIssueBanner(purchase);
+});
+
+// Cleanup when the view disappears.
+subscription.Dispose();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`iap.subscription_billing_issue.connect(_on_billing_issue)

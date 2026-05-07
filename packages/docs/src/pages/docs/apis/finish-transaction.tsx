@@ -193,7 +193,7 @@ kmpIAP.finishTransaction(
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-await ((MutationResolver)OpenIap.Instance).FinishTransactionAsync(
+await ((MutationResolver)Iap.Instance).FinishTransactionAsync(
     purchase: new PurchaseInput(purchase),
     isConsumable: true);`}</CodeBlock>
           ),

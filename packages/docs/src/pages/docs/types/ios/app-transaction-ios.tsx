@@ -241,24 +241,24 @@ function AppTransactionIos() {
             ),
             csharp: (
               <CodeBlock language="csharp">{`using OpenIap;
-using OpenIap.Maui;
 
-data class AppTransaction(
-    var bundleId: String,
-    var appVersion: String,
-    var originalAppVersion: String,
-    var originalPurchaseDate: Long,  // epoch ms
-    var deviceVerification: String,
-    var deviceVerificationNonce: String,
-    var environment: String,  // "Sandbox" | "Production"
-    var signedDate: Long,  // epoch ms
-    var appId: Long,
-    var appVersionId: Long,
-    var preorderDate = null,
+public sealed record AppTransaction
+{
+    public required string BundleId { get; init; }
+    public required string AppVersion { get; init; }
+    public required string OriginalAppVersion { get; init; }
+    public required double OriginalPurchaseDate { get; init; } // epoch ms
+    public required string DeviceVerification { get; init; }
+    public required string DeviceVerificationNonce { get; init; }
+    public required string Environment { get; init; } // "Sandbox" | "Production"
+    public required double SignedDate { get; init; } // epoch ms
+    public required double AppId { get; init; }
+    public required double AppVersionId { get; init; }
+    public double? PreorderDate { get; init; }
     // iOS 18.4+ properties
-    var appTransactionId = null,
-    var originalPlatform = null
-)`}</CodeBlock>
+    public string? AppTransactionId { get; init; }
+    public string? OriginalPlatform { get; init; }
+}`}</CodeBlock>
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`class_name AppTransaction
@@ -358,17 +358,18 @@ if (appTransaction != null) {
               <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// Get app transaction (iOS only via KMP)
-var appTransaction = await ((QueryResolver)OpenIap.Instance).GetAppTransactionIOSAsync()
+var appTransaction =
+    await ((QueryResolver)Iap.Instance).GetAppTransactionIOSAsync();
 
-appTransaction?.let { transaction ->
-    println("Bundle ID: \${transaction.bundleId}")
-    println("Original version: \${transaction.originalAppVersion}")
-    println("Environment: \${transaction.environment}")
+if (appTransaction is not null)
+{
+    Console.WriteLine($"Bundle ID: {appTransaction.BundleId}");
+    Console.WriteLine($"Original version: {appTransaction.OriginalAppVersion}");
+    Console.WriteLine($"Environment: {appTransaction.Environment}");
 
-    // Check if user originally purchased on a different platform (iOS 18.4+)
-    transaction.originalPlatform?.let { platform ->
-        println("Originally purchased on: $platform")
+    if (appTransaction.OriginalPlatform is string platform)
+    {
+        Console.WriteLine($"Originally purchased on: {platform}");
     }
 }`}</CodeBlock>
             ),

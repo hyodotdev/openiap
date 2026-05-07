@@ -175,7 +175,7 @@ function RestoreButton() {
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-await ((QueryResolver)OpenIap.Instance).RestorePurchasesAsync()`}</CodeBlock>
+await ((QueryResolver)Iap.Instance).RestorePurchasesAsync()`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`await iap.restore_purchases()`}</CodeBlock>

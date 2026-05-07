@@ -196,10 +196,10 @@ kmpIAP.initConnection(
 using OpenIap.Maui;
 
 // Standard connection
-await ((QueryResolver)OpenIap.Instance).InitConnectionAsync()
+await ((QueryResolver)Iap.Instance).InitConnectionAsync()
 
 // With alternative billing
-await ((QueryResolver)OpenIap.Instance).InitConnectionAsync(
+await ((QueryResolver)Iap.Instance).InitConnectionAsync(
     InitConnectionConfig(
         alternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice
     )

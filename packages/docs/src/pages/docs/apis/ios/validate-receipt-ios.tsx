@@ -133,7 +133,7 @@ using OpenIap.Maui;
 
 // kmp-iap (iOS targets only — no-op on Android)
 // Deprecated — prefer verifyPurchase().
-await ((QueryResolver)OpenIap.Instance).ValidateReceiptIOSAsync(options = VerifyPurchaseProps(sku = "com.app.premium"))`}</CodeBlock>
+await ((QueryResolver)Iap.Instance).ValidateReceiptIOSAsync(options = VerifyPurchaseProps(sku = "com.app.premium"))`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

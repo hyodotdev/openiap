@@ -124,7 +124,7 @@ function StorefrontBadge() {
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var countryCode = await ((QueryResolver)OpenIap.Instance).GetStorefrontAsync()`}</CodeBlock>
+var countryCode = await ((QueryResolver)Iap.Instance).GetStorefrontAsync()`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`var country_code = await iap.get_storefront()`}</CodeBlock>

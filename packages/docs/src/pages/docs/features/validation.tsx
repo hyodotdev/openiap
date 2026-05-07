@@ -132,7 +132,7 @@ if (result.isValid) {
               <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var result = await ((QueryResolver)OpenIap.Instance).VerifyPurchaseAsync(
+var result = await ((QueryResolver)Iap.Instance).VerifyPurchaseAsync(
     VerifyPurchaseProps(purchase = purchase, serverUrl = "https://your-server.com/api/verify")
 )`}</CodeBlock>
             ),

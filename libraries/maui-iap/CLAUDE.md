@@ -164,7 +164,7 @@ For maui-iap specifically:
 | Layer                 | Where                                                                |
 | --------------------- | -------------------------------------------------------------------- |
 | 1. Type declared      | `src/OpenIap.Maui/Types.cs` (generated)                              |
-| 2. Public API exposed | `OpenIap.QueryResolver` / `MutationResolver` (in `Types.cs`)     |
+| 2. Public API exposed | `OpenIap.QueryResolver` / `OpenIap.MutationResolver` (in `Types.cs`) |
 | 3. Platform bridge    | `Platforms/Android/OpenIapAndroid.cs`, `Platforms/iOS/OpenIapIOS.cs` |
 | 4. Handlers wired     | Concrete platform classes implement the resolver interfaces          |
 | 5. Test coverage      | TBD — example app + unit tests pending                               |
