@@ -61,32 +61,40 @@
     <Compile Include="Platforms/MacCatalyst/**/*.cs" />
   </ItemGroup>
 
-  <!-- Native bindings: wire each per its supported TFMs.
-       PrivateAssets=none ⇒ the binding DLL flows transitively to consumers
-       at runtime; combined with the IncludeBindingsInNuPkg target below it
-       also lands in the .nupkg under lib/<tfm>/. -->
+  <!-- Native bindings: wire each per its supported TFMs. PrivateAssets=all keeps
+       the binding projects out of the generated nuspec dependencies; this package
+       intentionally ships as the single public NuGet ID, Hyo.OpenIap.Maui. -->
   <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
-    <ProjectReference Include="..\OpenIap.Maui.Bindings.Android\OpenIap.Maui.Bindings.Android.csproj" PrivateAssets="none" />
+    <ProjectReference Include="..\OpenIap.Maui.Bindings.Android\OpenIap.Maui.Bindings.Android.csproj" PrivateAssets="all" />
+    <PackageReference Include="Xamarin.Kotlin.StdLib" Version="2.2.10" Condition="'$(TargetFramework)' == 'net9.0-android'" />
+    <PackageReference Include="Xamarin.KotlinX.Coroutines.Core" Version="1.9.0.3" Condition="'$(TargetFramework)' == 'net9.0-android'" />
+    <PackageReference Include="Xamarin.KotlinX.Coroutines.Core.Jvm" Version="1.9.0.3" Condition="'$(TargetFramework)' == 'net9.0-android'" />
+    <PackageReference Include="Xamarin.KotlinX.Coroutines.Android" Version="1.9.0.3" Condition="'$(TargetFramework)' == 'net9.0-android'" />
   </ItemGroup>
 
   <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
-    <ProjectReference Include="..\OpenIap.Maui.Bindings.iOS\OpenIap.Maui.Bindings.iOS.csproj" PrivateAssets="none" />
+    <ProjectReference Include="..\OpenIap.Maui.Bindings.iOS\OpenIap.Maui.Bindings.iOS.csproj" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
-  <!-- Ship the binding DLL alongside Hyo.OpenIap.Maui.dll in lib/<tfm>/.
+  <!-- Ship the binding outputs alongside Hyo.OpenIap.Maui.dll in lib/<tfm>/.
        Without this, ProjectReference outputs are NOT copied into the nupkg
-       and consumers would get NotImplementedException at runtime. -->
+       and consumers would get NotImplementedException at runtime. Android also
+       needs the resolved AARs from the binding project, otherwise restore works
+       but app packaging has no BillingClient/OpenIAP Java classes. -->
   <PropertyGroup>
     <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);IncludeBindingsInNuPkg</TargetsForTfmSpecificBuildOutput>
+    <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.aar;.zip</AllowedOutputExtensionsInPackageBuildOutputFolder>
   </PropertyGroup>
 
   <Target Name="IncludeBindingsInNuPkg" DependsOnTargets="ResolveReferences">
     <ItemGroup>
       <BuildOutputInPackage Include="@(ReferenceCopyLocalPaths)" Condition="'%(ReferenceCopyLocalPaths.Filename)' == 'Hyo.OpenIap.Maui.Bindings.Android' or '%(ReferenceCopyLocalPaths.Filename)' == 'Hyo.OpenIap.Maui.Bindings.iOS'" />
+      <BuildOutputInPackage Include="$(OutputPath)*.aar" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'" />
+      <BuildOutputInPackage Include="$(OutputPath)Hyo.OpenIap.Maui.Bindings.iOS.resources.zip" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'" />
     </ItemGroup>
   </Target>
 

@@ -124,12 +124,22 @@ and [`release-maui.yml`](../../.github/workflows/release-maui.yml).
 
 ### NuGet packing
 
-`OpenIap.Maui.csproj` includes a `TargetsForTfmSpecificBuildOutput` target
-that copies the binding DLLs into `lib/<tfm>/` of the .nupkg. The iOS
-binding sets `<NoBindingEmbedding>false</NoBindingEmbedding>` so the
-xcframework is embedded as a manifest resource (and auto-extracted by
-`.NET-for-iOS` at the consuming app's link time). The Android binding
-embeds the AAR the same way by default.
+`OpenIap.Maui.csproj` produces the single public NuGet package:
+`Hyo.OpenIap.Maui`. The binding projects are private implementation details,
+so the main package flattens their outputs instead of declaring unpublished
+`Hyo.OpenIap.Maui.Bindings.*` package dependencies.
+
+The package includes:
+
+- binding DLLs in `lib/<tfm>/`
+- Android AARs in `lib/net9.0-android35.0/`
+- iOS / macCatalyst `Hyo.OpenIap.Maui.Bindings.iOS.resources.zip` sidecars
+  next to the iOS binding DLLs
+
+The iOS binding sets `<NoBindingEmbedding>true</NoBindingEmbedding>` so
+`.NET-for-iOS` creates the official sidecar binding resource package with a
+`manifest` file. NuGet consumers do not need to add their own
+`<NativeReference>` when they reference `Hyo.OpenIap.Maui`.
 
 For local development via `<ProjectReference>`, the example app at
 [`example/OpenIap.Maui.Example/`](example/OpenIap.Maui.Example/) re-declares

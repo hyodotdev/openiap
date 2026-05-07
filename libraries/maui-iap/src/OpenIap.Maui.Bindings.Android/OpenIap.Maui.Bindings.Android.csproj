@@ -64,9 +64,9 @@
     <AndroidMavenLibrary Include="com.google.android.gms:play-services-tasks" Version="18.2.0" Repository="Google" Bind="false" />
 
     <PackageReference Include="Xamarin.Kotlin.StdLib" Version="2.2.10" />
-    <PackageReference Include="Xamarin.KotlinX.Coroutines.Core" Version="1.9.0" />
-    <PackageReference Include="Xamarin.KotlinX.Coroutines.Core.Jvm" Version="1.9.0" />
-    <PackageReference Include="Xamarin.KotlinX.Coroutines.Android" Version="1.9.0" />
+    <PackageReference Include="Xamarin.KotlinX.Coroutines.Core" Version="1.9.0.3" />
+    <PackageReference Include="Xamarin.KotlinX.Coroutines.Core.Jvm" Version="1.9.0.3" />
+    <PackageReference Include="Xamarin.KotlinX.Coroutines.Android" Version="1.9.0.3" />
   </ItemGroup>
 
   <!-- gson is already embedded inside openiap-play-release.aar's libs/ via

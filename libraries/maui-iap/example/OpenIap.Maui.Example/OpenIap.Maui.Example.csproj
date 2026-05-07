@@ -41,8 +41,8 @@
        ProjectReference. Until that ships, every consumer (this example, or
        any host MAUI app pulling Hyo.OpenIap.Maui via path-reference) must
        declare the xcframework themselves. NuGet consumers don't need this —
-       NoBindingEmbedding=false in the binding csproj embeds it as a
-       manifest resource that's auto-extracted at build. -->
+       the package ships the official binding resource zip sidecar that
+       .NET-for-iOS resolves at build time. -->
   <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
     <NativeReference Include="..\..\..\..\packages\apple\.build\xcframework\OpenIAP.xcframework"
                      Kind="Framework"

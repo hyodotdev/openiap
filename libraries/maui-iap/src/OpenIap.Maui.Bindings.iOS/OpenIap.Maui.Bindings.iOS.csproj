@@ -9,11 +9,10 @@
     <Nullable>enable</Nullable>
     <LangVersion>12.0</LangVersion>
     <IsBindingProject>true</IsBindingProject>
-    <!-- Embed the xcframework into the binding assembly's manifest. .NET-for-iOS
-         extracts and links it at the consuming app's build time. Required for
-         both ProjectReference consumers AND published NuGet — without it, the
-         consuming app's clang++ can't find _OBJC_CLASS_$_OpenIapModule. -->
-    <NoBindingEmbedding>false</NoBindingEmbedding>
+    <!-- Create Hyo.OpenIap.Maui.Bindings.iOS.resources.zip next to the binding
+         DLL. NuGet consumers need that sidecar package so .NET-for-iOS can
+         resolve and link OpenIAP.xcframework from a PackageReference. -->
+    <NoBindingEmbedding>true</NoBindingEmbedding>
     <NoWarn>$(NoWarn);CS1591;CS1573</NoWarn>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
