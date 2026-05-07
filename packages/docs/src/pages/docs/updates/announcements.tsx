@@ -52,7 +52,7 @@ function Announcements() {
   useScrollToHash();
 
   const announcements: Announcement[] = [
-    // 2026-05-07: .NET MAUI
+    // 2026-05-07: maui-iap
     {
       id: '2026-05-07',
       date: new Date('2026-05-07'),
@@ -61,11 +61,11 @@ function Announcements() {
           <div style={headerStyle}>
             <img
               src="/logo.webp"
-              alt="OpenIAP"
+              alt="maui-iap"
               style={{ width: '48px', height: '48px', borderRadius: '10px' }}
             />
             <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
-              OpenIAP Meets .NET MAUI
+              maui-iap is Now Available!
             </h2>
             <a
               href="#2026-05-07"
@@ -77,11 +77,12 @@ function Announcements() {
           </div>
           <p style={dateStyle}>May 7, 2026 - maui-iap v1.0.0</p>
           <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
-            OpenIAP now has an official .NET MAUI implementation:{' '}
-            <a href="/docs/setup/maui">maui-iap</a>. C# apps can use the same
-            OpenIAP product, purchase, subscription, and listener model already
-            used by the React Native, Expo, Flutter, Godot, and Kotlin
-            Multiplatform libraries.
+            We're excited to announce <a href="/docs/setup/maui">maui-iap</a>,
+            an official OpenIAP implementation for .NET MAUI! Starting from{' '}
+            <strong>maui-iap v1.0.0</strong>, C# apps can use the same OpenIAP
+            product, purchase, subscription, and listener model already used by
+            the React Native, Expo, Flutter, Godot, and Kotlin Multiplatform
+            libraries.
           </p>
           <ul
             style={{
@@ -91,20 +92,16 @@ function Announcements() {
             }}
           >
             <li>
-              <strong>Single NuGet package</strong> - install{' '}
-              <code>Hyo.OpenIap.Maui</code> and get the public API, Android
-              bindings, and iOS / macCatalyst binding resources together.
+              <strong>Native C# API</strong> - MAUI-friendly interface following
+              the OpenIAP specification
             </li>
             <li>
-              <strong>Native store engines</strong> - delegates to OpenIAP's
-              StoreKit 2 bridge on Apple platforms and Google Play Billing 8 on
-              Android.
+              <strong>Cross-platform</strong> - Supports iOS, Android, and
+              macCatalyst from a single codebase
             </li>
             <li>
-              <strong>Expo example parity</strong> - the MAUI example mirrors
-              the same All Products, Purchase Flow, Subscription Flow, Available
-              Purchases, Offer Code, Alternative Billing, and Webhook Stream
-              screens.
+              <strong>Type-safe</strong> - Generated C# records and enums for
+              better IDE support and fewer runtime errors
             </li>
           </ul>
           <a
@@ -112,7 +109,7 @@ function Announcements() {
             style={{
               display: 'block',
               width: '100%',
-              maxWidth: '720px',
+              maxWidth: '400px',
               borderRadius: '0.75rem',
               margin: '1.5rem auto 0',
               border: '1px solid var(--border-color)',
@@ -131,8 +128,8 @@ function Announcements() {
             />
           </a>
           <div style={calloutStyle}>
-            <strong>Getting Started:</strong> Read the{' '}
-            <a href="/docs/setup/maui">.NET MAUI setup guide</a> or open the{' '}
+            <strong>Getting Started:</strong> Install{' '}
+            <code>Hyo.OpenIap.Maui</code> from NuGet or open the{' '}
             <a
               href="https://github.com/hyodotdev/openiap/tree/main/libraries/maui-iap"
               target="_blank"
@@ -140,8 +137,9 @@ function Announcements() {
               className="external-link"
             >
               maui-iap source
-            </a>{' '}
-            to try the example app on iOS, Android, or macCatalyst.
+            </a>
+            . See the <a href="/docs/setup/maui">.NET MAUI setup guide</a> for
+            full documentation.
           </div>
         </div>
       ),
