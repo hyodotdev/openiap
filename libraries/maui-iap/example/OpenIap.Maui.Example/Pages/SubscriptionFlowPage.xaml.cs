@@ -722,11 +722,7 @@ public partial class SubscriptionFlowPage : ContentPage
                 var result = await mutate.VerifyPurchaseWithProviderAsync(new VerifyPurchaseWithProviderProps
                 {
                     Provider = PurchaseVerificationProvider.Iapkit,
-                    Iapkit = new RequestVerifyPurchaseWithIapkitProps
-                    {
-                        Apple = new RequestVerifyPurchaseWithIapkitAppleProps { Jws = token },
-                        Google = new RequestVerifyPurchaseWithIapkitGoogleProps { PurchaseToken = token },
-                    },
+                    Iapkit = IapKitSettings.CreateVerifyProps(token),
                 });
 
                 if (result.Iapkit is { } ik)

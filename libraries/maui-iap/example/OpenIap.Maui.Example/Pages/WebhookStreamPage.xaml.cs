@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using OpenIap.Maui.Example.Utils;
 
 namespace OpenIap.Maui.Example.Pages;
 
@@ -15,12 +16,8 @@ public partial class WebhookStreamPage : ContentPage
     public WebhookStreamPage()
     {
         InitializeComponent();
-        BaseUrlEntry.Text = Environment.GetEnvironmentVariable("EXPO_PUBLIC_IAPKIT_BASE_URL")
-            ?? Environment.GetEnvironmentVariable("IAPKIT_BASE_URL")
-            ?? "https://kit.openiap.dev";
-        ApiKeyEntry.Text = Environment.GetEnvironmentVariable("EXPO_PUBLIC_IAPKIT_API_KEY")
-            ?? Environment.GetEnvironmentVariable("IAPKIT_API_KEY")
-            ?? string.Empty;
+        BaseUrlEntry.Text = IapKitSettings.BaseUrl;
+        ApiKeyEntry.Text = IapKitSettings.ApiKey ?? string.Empty;
         UpdateEndpointHint();
     }
 
@@ -42,6 +39,7 @@ public partial class WebhookStreamPage : ContentPage
         }
 
         var url = GetStreamUrl(apiKey);
+        IapKitSettings.Save(apiKey, BaseUrlEntry.Text);
         _cts = new CancellationTokenSource();
         SetStatus("connecting", null);
         ResetEmptyLog();
@@ -111,6 +109,7 @@ public partial class WebhookStreamPage : ContentPage
         }
 
         _testing = true;
+        IapKitSettings.Save(apiKey, BaseUrlEntry.Text);
         TriggerButton.Text = "Testing...";
         TriggerButton.IsEnabled = false;
 
