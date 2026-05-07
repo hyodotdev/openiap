@@ -105,14 +105,14 @@ function MauiSetup() {
         </h2>
         <p>Add the package to your MAUI app project:</p>
         <CodeBlock language="bash">
-          {`dotnet add package OpenIap.Maui --version 1.0.0`}
+          {`dotnet add package OpenIap.Maui --version 1.0.1`}
         </CodeBlock>
         <p>
           Or add it directly to your app's <code>.csproj</code>:
         </p>
         <CodeBlock language="xml">
           {`<ItemGroup>
-  <PackageReference Include="OpenIap.Maui" Version="1.0.0" />
+  <PackageReference Include="OpenIap.Maui" Version="1.0.1" />
 </ItemGroup>`}
         </CodeBlock>
 

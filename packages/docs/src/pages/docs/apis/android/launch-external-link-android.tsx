@@ -77,11 +77,13 @@ suspend fun launchExternalLink(
           csharp: (
             <CodeBlock language="csharp">{`// Returns true if launched successfully
 // Throws OpenIapError.NotPrepared if billing client not ready
-Task<Boolean> LaunchExternalLinkAsync(Activity Activity, LaunchExternalLinkParamsAndroid Params)// LaunchExternalLinkParamsAndroid:
+Task<bool> LaunchExternalLinkAndroidAsync(LaunchExternalLinkParamsAndroid @params);
+
+// LaunchExternalLinkParamsAndroid:
 // - billingProgram: BillingProgramAndroid
 // - launchMode: ExternalLinkLaunchModeAndroid
 // - linkType: ExternalLinkTypeAndroid
-// - linkUri: String`}</CodeBlock>
+// - linkUri: string`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func launch_external_link_android(
@@ -199,15 +201,14 @@ if (Platform.OS === 'android') {
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-await ((QueryResolver)Iap.Instance).LaunchExternalLinkAsync(
-    activity,
-    LaunchExternalLinkParamsAndroid(
-        billingProgram = BillingProgramAndroid.ExternalOffer,
-        launchMode = ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
-        linkType = ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
-        linkUri = "https://example.com/offer"
-    )
-)`}</CodeBlock>
+await ((MutationResolver)Iap.Instance).LaunchExternalLinkAndroidAsync(
+    new LaunchExternalLinkParamsAndroid
+    {
+        BillingProgram = BillingProgramAndroid.ExternalOffer,
+        LaunchMode = ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+        LinkType = ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
+        LinkUri = "https://example.com/offer",
+    });`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":

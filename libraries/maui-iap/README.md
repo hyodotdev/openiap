@@ -19,13 +19,13 @@ Requires .NET 9 SDK and the MAUI workload:
 
 ```bash
 dotnet workload install maui
-dotnet add package OpenIap.Maui --version 1.0.0
+dotnet add package OpenIap.Maui --version 1.0.1
 ```
 
 Or add the package directly:
 
 ```xml
-<PackageReference Include="OpenIap.Maui" Version="1.0.0" />
+<PackageReference Include="OpenIap.Maui" Version="1.0.1" />
 ```
 
 `OpenIap.Maui` is the only NuGet package apps reference. The Android binding,

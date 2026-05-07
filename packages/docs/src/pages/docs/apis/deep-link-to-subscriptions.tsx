@@ -73,7 +73,7 @@ interface DeepLinkOptions {
             <CodeBlock language="dart">{`Future<void> deepLinkToSubscriptions({String? skuAndroid, String? packageNameAndroid});`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task DeepLinkToSubscriptionsAsync(DeepLinkOptions? Options = null)`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<string> DeepLinkToSubscriptionsAsync(DeepLinkOptions? options = null);`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func deep_link_to_subscriptions(options: DeepLinkOptions) -> void`}</CodeBlock>
@@ -195,12 +195,12 @@ function ManageSubscriptionsButton() {
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-await ((QueryResolver)Iap.Instance).DeepLinkToSubscriptionsAsync(
-    DeepLinkOptions(
-        skuAndroid = "com.app.premium",
-        packageNameAndroid = "com.yourcompany.app"
-    )
-)`}</CodeBlock>
+await ((MutationResolver)Iap.Instance).DeepLinkToSubscriptionsAsync(
+    new DeepLinkOptions
+    {
+        SkuAndroid = "com.app.premium",
+        PackageNameAndroid = "com.yourcompany.app",
+    });`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`var options = DeepLinkOptions.new()

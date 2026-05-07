@@ -72,7 +72,7 @@ suspend fun createBillingProgramReportingDetails(
             <CodeBlock language="csharp">{`// Returns BillingProgramReportingDetailsAndroid with externalTransactionToken
 // Token must be reported to Google Play backend within 24 hours
 // Throws OpenIapError.NotPrepared if billing client not ready
-Task<BillingProgramReportingDetailsAndroid> CreateBillingProgramReportingDetailsAsync(BillingProgramAndroid Program)`}</CodeBlock>
+Task<BillingProgramReportingDetailsAndroid> CreateBillingProgramReportingDetailsAndroidAsync(BillingProgramAndroid program);`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func create_billing_program_reporting_details_android(
@@ -168,9 +168,9 @@ if (Platform.OS === 'android') {
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var details = await ((QueryResolver)Iap.Instance).CreateBillingProgramReportingDetailsAsync(
+var details = await ((MutationResolver)Iap.Instance).CreateBillingProgramReportingDetailsAndroidAsync(
     BillingProgramAndroid.ExternalOffer
-)`}</CodeBlock>
+);`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":

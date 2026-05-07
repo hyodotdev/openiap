@@ -61,7 +61,7 @@ suspend fun showAlternativeBillingDialog(): Boolean`}</CodeBlock>
           csharp: (
             <CodeBlock language="csharp">{`// Returns true if user accepted, false if user canceled
 // Throws OpenIapError.NotPrepared if billing client not ready
-Task<Boolean> ShowAlternativeBillingDialogAsync()`}</CodeBlock>
+Task<bool> ShowAlternativeBillingDialogAndroidAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func show_alternative_billing_dialog_android() -> bool`}</CodeBlock>
@@ -106,7 +106,7 @@ if (Platform.OS === 'android') {
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var accepted = await ((QueryResolver)Iap.Instance).ShowAlternativeBillingDialogAsync()`}</CodeBlock>
+var accepted = await ((MutationResolver)Iap.Instance).ShowAlternativeBillingDialogAndroidAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":

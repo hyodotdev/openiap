@@ -65,7 +65,7 @@ function InitConnection() {
             <CodeBlock language="dart">{`Future<bool> initConnection({InitConnectionConfig? config});`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task<Boolean> InitConnectionAsync(InitConnectionConfig? Config = null)`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<bool> InitConnectionAsync(InitConnectionConfig? config = null);`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func init_connection(config: InitConnectionConfig = null) -> bool`}</CodeBlock>
@@ -196,14 +196,14 @@ kmpIAP.initConnection(
 using OpenIap.Maui;
 
 // Standard connection
-await ((QueryResolver)Iap.Instance).InitConnectionAsync()
+await ((MutationResolver)Iap.Instance).InitConnectionAsync();
 
 // With alternative billing
-await ((QueryResolver)Iap.Instance).InitConnectionAsync(
-    InitConnectionConfig(
-        alternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice
-    )
-)`}</CodeBlock>
+await ((MutationResolver)Iap.Instance).InitConnectionAsync(
+    new InitConnectionConfig
+    {
+        AlternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice,
+    });`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`# Standard connection

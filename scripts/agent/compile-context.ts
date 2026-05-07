@@ -119,7 +119,7 @@ dependencies {
 
 ### .NET MAUI
 \`\`\`xml
-<PackageReference Include="OpenIap.Maui" Version="1.0.0" />
+<PackageReference Include="OpenIap.Maui" Version="1.0.1" />
 \`\`\`
 
 Requires .NET 9+, the MAUI workload, iOS 15.0+, and Android API 24+.
@@ -339,7 +339,7 @@ implementation("io.github.hyochan.kmpiap:library:1.3.8")
 
 \`\`\`xml
 <!-- .NET MAUI -->
-<PackageReference Include="OpenIap.Maui" Version="1.0.0" />
+<PackageReference Include="OpenIap.Maui" Version="1.0.1" />
 \`\`\`
 
 ## Framework Libraries

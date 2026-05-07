@@ -58,7 +58,7 @@ suspend fun checkAlternativeBillingAvailability(): Boolean`}</CodeBlock>
           csharp: (
             <CodeBlock language="csharp">{`// Returns true if available, false otherwise
 // Throws OpenIapError.NotPrepared if billing client not ready
-Task<Boolean> CheckAlternativeBillingAvailabilityAsync()`}</CodeBlock>
+Task<bool> CheckAlternativeBillingAvailabilityAndroidAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func check_alternative_billing_availability_android() -> bool`}</CodeBlock>
@@ -102,7 +102,7 @@ if (Platform.OS === 'android') {
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var ok = await ((QueryResolver)Iap.Instance).CheckAlternativeBillingAvailabilityAsync()`}</CodeBlock>
+var ok = await ((MutationResolver)Iap.Instance).CheckAlternativeBillingAvailabilityAndroidAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":

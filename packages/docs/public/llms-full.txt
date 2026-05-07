@@ -65,7 +65,7 @@ dependencies {
 
 ### .NET MAUI
 ```xml
-<PackageReference Include="OpenIap.Maui" Version="1.0.0" />
+<PackageReference Include="OpenIap.Maui" Version="1.0.1" />
 ```
 
 Requires .NET 9+, the MAUI workload, iOS 15.0+, and Android API 24+.

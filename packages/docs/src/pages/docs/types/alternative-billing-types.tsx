@@ -261,28 +261,28 @@ await FlutterInappPurchase.instance.initConnection();`}</CodeBlock>
 using OpenIap.Maui;
 
 // Initialize with user choice billing (7.0+)
-await ((QueryResolver)Iap.Instance).InitConnectionAsync(
-    InitConnectionConfig(
-        enableBillingProgramAndroid = BillingProgramAndroid.UserChoiceBilling
-    )
-)
+await ((MutationResolver)Iap.Instance).InitConnectionAsync(
+    new InitConnectionConfig
+    {
+        EnableBillingProgramAndroid = BillingProgramAndroid.UserChoiceBilling,
+    });
 
 // Initialize with external offer (alternative only)
-await ((QueryResolver)Iap.Instance).InitConnectionAsync(
-    InitConnectionConfig(
-        enableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer
-    )
-)
+await ((MutationResolver)Iap.Instance).InitConnectionAsync(
+    new InitConnectionConfig
+    {
+        EnableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer,
+    });
 
 // Initialize with external payments (Japan only, 8.3.0+)
-await ((QueryResolver)Iap.Instance).InitConnectionAsync(
-    InitConnectionConfig(
-        enableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments
-    )
-)
+await ((MutationResolver)Iap.Instance).InitConnectionAsync(
+    new InitConnectionConfig
+    {
+        EnableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments,
+    });
 
 // Standard billing (default)
-await ((QueryResolver)Iap.Instance).InitConnectionAsync()`}</CodeBlock>
+await ((MutationResolver)Iap.Instance).InitConnectionAsync();`}</CodeBlock>
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`# Initialize with user choice billing (7.0+)

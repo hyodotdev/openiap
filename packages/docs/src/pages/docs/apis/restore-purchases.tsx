@@ -68,7 +68,7 @@ function RestorePurchases() {
             <CodeBlock language="dart">{`Future<void> restorePurchases();`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task RestorePurchasesAsync()`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<string> RestorePurchasesAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func restore_purchases() -> void`}</CodeBlock>
@@ -175,7 +175,7 @@ function RestoreButton() {
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-await ((QueryResolver)Iap.Instance).RestorePurchasesAsync()`}</CodeBlock>
+await ((MutationResolver)Iap.Instance).RestorePurchasesAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`await iap.restore_purchases()`}</CodeBlock>

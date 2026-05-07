@@ -70,7 +70,7 @@ function AcknowledgePurchaseAndroid() {
             <CodeBlock language="dart">{`Future<bool> acknowledgePurchaseAndroid(String purchaseToken);`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task<Boolean> AcknowledgePurchaseAsync(String PurchaseToken)`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<bool> AcknowledgePurchaseAndroidAsync(string purchaseToken);`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func acknowledge_purchase_android(purchase_token: String) -> bool`}</CodeBlock>
@@ -128,7 +128,7 @@ if (Platform.OS === 'android') {
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-await ((QueryResolver)Iap.Instance).AcknowledgePurchaseAsync(purchase.purchaseToken)`}</CodeBlock>
+await ((MutationResolver)Iap.Instance).AcknowledgePurchaseAndroidAsync(purchase.PurchaseToken);`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":

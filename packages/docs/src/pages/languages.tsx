@@ -209,7 +209,7 @@ function Languages() {
             />
             <h3>maui-iap</h3>
             <p>.NET MAUI / C# implementation of OpenIAP specification</p>
-            <pre className="code-snippet">{`dotnet add package OpenIap.Maui --version 1.0.0`}</pre>
+            <pre className="code-snippet">{`dotnet add package OpenIap.Maui --version 1.0.1`}</pre>
             <div className="language-links">
               <a
                 href="https://github.com/hyodotdev/openiap/tree/main/libraries/maui-iap"

@@ -65,8 +65,8 @@ suspend fun validateReceiptIOS(options: VerifyPurchaseProps): VerifyPurchaseResu
 Future<VerifyPurchaseResultIOS> validateReceiptIOS(VerifyPurchaseProps options);`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`@Deprecated("Use verifyPurchase()")
-Task<VerifyPurchaseResultIOS> ValidateReceiptIOSAsync(VerifyPurchaseProps Options)`}</CodeBlock>
+            <CodeBlock language="csharp">{`[System.Obsolete("Use VerifyPurchaseAsync instead.")]
+Task<VerifyPurchaseResultIOS> ValidateReceiptIOSAsync(VerifyPurchaseProps options);`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func validate_receipt_ios(options: Dictionary) -> Variant`}</CodeBlock>
@@ -133,7 +133,14 @@ using OpenIap.Maui;
 
 // kmp-iap (iOS targets only — no-op on Android)
 // Deprecated — prefer verifyPurchase().
-await ((QueryResolver)Iap.Instance).ValidateReceiptIOSAsync(options = VerifyPurchaseProps(sku = "com.app.premium"))`}</CodeBlock>
+await ((MutationResolver)Iap.Instance).ValidateReceiptIOSAsync(
+    new VerifyPurchaseProps
+    {
+        Apple = new VerifyPurchaseAppleOptions
+        {
+            Sku = "com.app.premium",
+        },
+    });`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":
