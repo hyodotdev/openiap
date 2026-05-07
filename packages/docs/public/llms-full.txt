@@ -185,7 +185,7 @@ iap.purchaseUpdatedListener.collect { purchase ->
 
 ### .NET MAUI
 ```csharp
-using Hyo.OpenIap;
+using OpenIap;
 using OpenIap.Maui;
 
 var iap = Iap.Instance;

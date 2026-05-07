@@ -128,7 +128,7 @@ if (Platform.isIOS) {
 }`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 // kmp-iap (iOS targets only — no-op on Android)

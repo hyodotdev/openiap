@@ -245,7 +245,7 @@ data class LimitedQuantityInfoAndroid(
 }`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+              <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 data class ProductAndroidOneTimePurchaseOfferDetail(
@@ -454,7 +454,7 @@ for (final product in products) {
 }`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+              <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 var iapStore = OpenIapStore.shared
@@ -821,7 +821,7 @@ fun ProductCard(
 }`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+              <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 @Composable
@@ -1087,7 +1087,7 @@ fun checkOfferValidity(offer: ProductAndroidOneTimePurchaseOfferDetail): OfferVa
 }`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+              <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 data class OfferValidity(
@@ -1248,7 +1248,7 @@ fun checkQuantityAvailability(offer: ProductAndroidOneTimePurchaseOfferDetail): 
 }`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+              <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 data class QuantityAvailability(

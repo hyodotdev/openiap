@@ -45,7 +45,7 @@ val purchaseErrors: Flow<PurchaseError>`}</CodeBlock>
             <CodeBlock language="dart">{`Stream<PurchaseError> get purchaseErrorStream;`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 // Flow approach
@@ -208,7 +208,7 @@ final subscription = FlutterInappPurchase.purchaseError.listen((error) {
 subscription.cancel();`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 // Using Flow

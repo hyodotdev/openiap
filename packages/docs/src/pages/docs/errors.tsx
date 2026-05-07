@@ -87,7 +87,7 @@ function Errors() {
 }`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+              <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 public sealed record PurchaseError
@@ -872,7 +872,7 @@ var is_empty_product_list: Variant = null # Android returned no products`}</Code
 }`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+              <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 enum class OpenIapError {

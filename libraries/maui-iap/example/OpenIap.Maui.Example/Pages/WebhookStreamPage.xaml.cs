@@ -1,6 +1,6 @@
 using System.Text;
 using System.Text.Json;
-using Hyo.OpenIap;
+using OpenIap;
 using OpenIap.Maui;
 using OpenIap.Maui.Example.Utils;
 

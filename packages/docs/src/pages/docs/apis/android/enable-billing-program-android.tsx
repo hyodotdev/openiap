@@ -80,7 +80,7 @@ class InitConnectionConfig {
 }`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 // Config field on InitConnectionConfig — wired via initConnection()
@@ -168,7 +168,7 @@ function App() {
 }`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 await ((QueryResolver)OpenIap.Instance).InitConnectionAsync(

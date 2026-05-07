@@ -119,7 +119,7 @@ dependencies {
 
 ### .NET MAUI
 \`\`\`xml
-<PackageReference Include="Hyo.OpenIap.Maui" Version="1.0.0" />
+<PackageReference Include="OpenIap.Maui" Version="1.0.0" />
 \`\`\`
 
 Requires .NET 9+, the MAUI workload, iOS 15.0+, and Android API 24+.
@@ -163,15 +163,15 @@ Requires .NET 9+, the MAUI workload, iOS 15.0+, and Android API 24+.
 - Public surface: \`KmpIAP\` / shared instance resolver methods and flows.
 
 ### maui-iap
-- Package: \`Hyo.OpenIap.Maui\` on NuGet.
+- Package: \`OpenIap.Maui\` on NuGet.
 - Distribution: single public NuGet package. The Android/iOS binding projects
-  are private implementation details and are flattened into \`Hyo.OpenIap.Maui\`
+  are private implementation details and are flattened into \`OpenIap.Maui\`
   instead of being published as separate package dependencies.
 - Implementation: .NET MAUI projection with generated \`Types.cs\`, a static
   \`Iap.Instance\` facade, \`IOpenIap\` observables, and per-platform resolvers.
 - iOS/macCatalyst bridge: .NET-for-iOS binding over
   \`OpenIAP.xcframework\` and \`OpenIapModule+ObjC.swift\`; NuGet consumers get
-  the official \`Hyo.OpenIap.Maui.Bindings.iOS.resources.zip\` sidecar so no
+  the official \`OpenIap.Maui.Bindings.iOS.resources.zip\` sidecar so no
   app-level \`NativeReference\` is required.
 - Android bridge: Xamarin.Android binding over the MAUI-owned
   \`openiap-release.aar\`, which wraps the unbound
@@ -239,8 +239,8 @@ iap.purchaseUpdatedListener.collect { purchase ->
 
 ### .NET MAUI
 \`\`\`csharp
-using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap;
+using OpenIap.Maui;
 
 var iap = Iap.Instance;
 await ((MutationResolver)iap).InitConnectionAsync();
@@ -339,7 +339,7 @@ implementation("io.github.hyochan.kmpiap:library:1.3.8")
 
 \`\`\`xml
 <!-- .NET MAUI -->
-<PackageReference Include="Hyo.OpenIap.Maui" Version="1.0.0" />
+<PackageReference Include="OpenIap.Maui" Version="1.0.0" />
 \`\`\`
 
 ## Framework Libraries
@@ -349,7 +349,7 @@ implementation("io.github.hyochan.kmpiap:library:1.3.8")
 - \`flutter_inapp_purchase\`: Dart API with generated OpenIAP types and streams.
 - \`godot-iap\`: Godot 4.x plugin with GDScript functions and signals.
 - \`kmp-iap\`: Kotlin Multiplatform API with Flow-based purchase events.
-- \`maui-iap\`: \`Hyo.OpenIap.Maui\` package with \`Iap.Instance\`,
+- \`maui-iap\`: \`OpenIap.Maui\` package with \`Iap.Instance\`,
   generated \`Types.cs\`, IAPKit helpers (\`Iap.KitApi\`,
   \`Iap.ConnectWebhookStream\`, \`Iap.ParseWebhookEventData\`), flattened iOS
   xcframework / Android AAR bindings in one NuGet package, and MAUI example

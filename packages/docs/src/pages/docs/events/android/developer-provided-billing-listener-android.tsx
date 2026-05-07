@@ -56,7 +56,7 @@ fun addDeveloperProvidedBillingListener(
 // Android only (8.3.0+)`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 // Callback approach
@@ -168,7 +168,7 @@ final subscription = FlutterInappPurchase.developerProvidedBillingStream
 subscription.cancel();`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 // Using callback
@@ -220,7 +220,7 @@ openIapStore.addDeveloperProvidedBillingListener { details ->
 }`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 data class DeveloperProvidedBillingDetailsAndroid(

@@ -54,7 +54,7 @@ this example project.
 
 ## Status
 
-This is a scaffold. Pages compile against the generated `Hyo.OpenIap`
+This is a scaffold. Pages compile against the generated `OpenIap`
 contract from `packages/gql`, but the underlying platform bridges in
 [`libraries/maui-iap/src/OpenIap.Maui/Platforms/`](../src/OpenIap.Maui/Platforms)
 are not yet wired to the native packages — once the Xamarin.Android

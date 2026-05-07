@@ -240,7 +240,7 @@ function AppTransactionIos() {
 }`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+              <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 data class AppTransaction(
@@ -355,7 +355,7 @@ if (appTransaction != null) {
 }`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+              <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 // Get app transaction (iOS only via KMP)

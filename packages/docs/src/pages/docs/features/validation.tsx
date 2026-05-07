@@ -129,7 +129,7 @@ if (result.isValid) {
 );`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+              <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 var result = await ((QueryResolver)OpenIap.Instance).VerifyPurchaseAsync(
@@ -342,7 +342,7 @@ if (result.iapkit?.isValid && result.iapkit?.state === 'entitled') {
 );`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+              <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 var result = module.verifyPurchaseWithProvider(

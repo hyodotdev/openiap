@@ -170,7 +170,7 @@ final allProducts = await FlutterInappPurchase.instance.fetchProducts(
 );`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+              <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 // Fetch in-app purchases (default)

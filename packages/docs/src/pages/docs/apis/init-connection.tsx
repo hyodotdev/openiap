@@ -192,7 +192,7 @@ kmpIAP.initConnection(
             <CodeBlock language="dart">{`await FlutterInappPurchase.instance.initConnection();`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 // Standard connection

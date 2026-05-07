@@ -35,7 +35,7 @@ flattened into the main NuGet package.
 ## Usage
 
 ```csharp
-using Hyo.OpenIap;
+using OpenIap;
 using OpenIap.Maui;
 
 var iap = Iap.Instance;
@@ -86,7 +86,7 @@ MAUI exposes the same kit helper surface as `expo-iap` and
 `react-native-iap`, with C# naming conventions:
 
 ```csharp
-using Hyo.OpenIap;
+using OpenIap;
 using OpenIap.Maui;
 
 var kit = Iap.KitApi(new KitApiOptions

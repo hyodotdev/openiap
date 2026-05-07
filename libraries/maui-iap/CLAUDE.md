@@ -106,7 +106,7 @@ JSON-shaped facade (NSDictionary in/out). The iOS binding's
 [`ApiDefinition.cs`](src/OpenIap.Maui.Bindings.iOS/ApiDefinition.cs)
 mirrors that header 1:1; the resolver in
 [`Platforms/iOS/OpenIapIOS.cs`](src/OpenIap.Maui/Platforms/iOS/OpenIapIOS.cs)
-converts NSDictionary → JsonNode → typed `Hyo.OpenIap` records via
+converts NSDictionary → JsonNode → typed `OpenIap` records via
 `System.Text.Json`.
 
 `OpenIapMacCatalyst` subclasses `OpenIapIOS` — Mac Catalyst uses the same
@@ -164,7 +164,7 @@ For maui-iap specifically:
 | Layer                 | Where                                                                |
 | --------------------- | -------------------------------------------------------------------- |
 | 1. Type declared      | `src/OpenIap.Maui/Types.cs` (generated)                              |
-| 2. Public API exposed | `Hyo.OpenIap.QueryResolver` / `MutationResolver` (in `Types.cs`)     |
+| 2. Public API exposed | `OpenIap.QueryResolver` / `MutationResolver` (in `Types.cs`)     |
 | 3. Platform bridge    | `Platforms/Android/OpenIapAndroid.cs`, `Platforms/iOS/OpenIapIOS.cs` |
 | 4. Handlers wired     | Concrete platform classes implement the resolver interfaces          |
 | 5. Test coverage      | TBD — example app + unit tests pending                               |

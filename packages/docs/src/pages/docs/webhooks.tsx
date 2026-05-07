@@ -243,7 +243,7 @@ listener.events.listen((event) {
 });`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+              <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 // Pure parser + types live in commonMain. Wire your platform's HTTP

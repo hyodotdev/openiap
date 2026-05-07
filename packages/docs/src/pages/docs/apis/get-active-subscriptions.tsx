@@ -204,7 +204,7 @@ function SubscriptionStatus() {
             <CodeBlock language="dart">{`final subscriptions = await FlutterInappPurchase.instance.getActiveSubscriptions();`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 var subscriptions = await ((QueryResolver)OpenIap.Instance).GetActiveSubscriptionsAsync()`}</CodeBlock>

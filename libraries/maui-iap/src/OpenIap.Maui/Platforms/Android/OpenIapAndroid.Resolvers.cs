@@ -9,7 +9,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
-using Hyo.OpenIap;
+using OpenIap;
 using OpenIapMauiModule = global::Dev.Hyo.Openiap.Maui.OpenIapMauiModule;
 
 namespace OpenIap.Maui.Platforms.Android;

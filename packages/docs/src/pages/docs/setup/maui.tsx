@@ -223,7 +223,7 @@ function MauiSetup() {
           generated resolver interfaces when calling query or mutation APIs.
         </p>
         <CodeBlock language="csharp">
-          {`using Hyo.OpenIap;
+          {`using OpenIap;
 using OpenIap.Maui;
 
 var iap = Iap.Instance;
@@ -312,7 +312,7 @@ await mutate.RequestPurchaseAsync(new RequestPurchaseProps
           instead of hand-rolling the HTTP stream in the app.
         </p>
         <CodeBlock language="csharp">
-          {`using Hyo.OpenIap;
+          {`using OpenIap;
 using OpenIap.Maui;
 
 var kit = Iap.KitApi(new KitApiOptions

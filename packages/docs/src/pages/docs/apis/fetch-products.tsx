@@ -301,7 +301,7 @@ request.type = ProductQueryType.IN_APP
 var products = await iap.fetch_products(request)`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 var iap = (QueryResolver)OpenIap.Instance;

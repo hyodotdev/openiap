@@ -370,7 +370,7 @@ props.type = ProductQueryType.IN_APP
 await iap.request_purchase(props)`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 // Subscribe to results FIRST — requestPurchase is event-based.

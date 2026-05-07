@@ -189,7 +189,7 @@ function PendingPurchases() {
             <CodeBlock language="dart">{`final purchases = await FlutterInappPurchase.instance.getAvailablePurchases();`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 var purchases = await ((QueryResolver)OpenIap.Instance).GetAvailablePurchasesAsync()`}</CodeBlock>

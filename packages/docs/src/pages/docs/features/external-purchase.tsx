@@ -2675,7 +2675,7 @@ await FlutterInappPurchase.instance.initConnection(
 );`}</CodeBlock>
                     ),
                     csharp: (
-                      <CodeBlock language="csharp">{`using Hyo.OpenIap;
+                      <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 // Method 1: Set mode during initialization

@@ -6,13 +6,13 @@
 
 using System;
 using System.Text.Json;
-using Hyo.OpenIap;
+using OpenIap;
 
 namespace OpenIap.Maui;
 
 /// <summary>
 /// Exception type thrown by every resolver method. Carries the typed
-/// <see cref="Hyo.OpenIap.PurchaseError"/> as <see cref="Error"/>.
+/// <see cref="OpenIap.PurchaseError"/> as <see cref="Error"/>.
 /// </summary>
 public sealed class OpenIapException : Exception
 {

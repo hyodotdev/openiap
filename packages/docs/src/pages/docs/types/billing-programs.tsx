@@ -577,7 +577,7 @@ if (result.isAvailable) {
 }`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+              <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 var iapStore = OpenIapStore(context)

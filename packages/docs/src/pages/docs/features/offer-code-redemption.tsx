@@ -584,7 +584,7 @@ Future<void> redeemWithCode(String code) async {
 }`}</CodeBlock>
                     ),
                     csharp: (
-                      <CodeBlock language="csharp">{`using Hyo.OpenIap;
+                      <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 // Open Play Store redemption page

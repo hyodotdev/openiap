@@ -103,7 +103,7 @@ if (Platform.OS === 'android') {
 }`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 var accepted = await ((QueryResolver)OpenIap.Instance).ShowAlternativeBillingDialogAsync()`}</CodeBlock>

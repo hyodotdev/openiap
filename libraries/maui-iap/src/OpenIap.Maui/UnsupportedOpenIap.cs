@@ -6,7 +6,7 @@
 #nullable enable
 
 using System;
-using Hyo.OpenIap;
+using OpenIap;
 
 namespace OpenIap.Maui;
 

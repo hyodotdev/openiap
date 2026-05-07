@@ -404,7 +404,7 @@ if (iapkit != null && iapkit.isValid && iapkit.state == IapkitPurchaseState.enti
 }`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+              <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 // Create verification props for Android

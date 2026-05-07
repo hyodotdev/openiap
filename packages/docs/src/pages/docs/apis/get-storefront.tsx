@@ -121,7 +121,7 @@ function StorefrontBadge() {
             <CodeBlock language="dart">{`final countryCode = await FlutterInappPurchase.instance.getStorefront();`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 var countryCode = await ((QueryResolver)OpenIap.Instance).GetStorefrontAsync()`}</CodeBlock>

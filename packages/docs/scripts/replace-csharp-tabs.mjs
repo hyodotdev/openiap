@@ -68,7 +68,7 @@ function kotlinToCSharp(kotlin) {
   // signature). Signatures are detected by a leading `Task...` line.
   const isSignature = /^\s*Task[<\s]/m.test(s);
   if (!isSignature) {
-    s = `using Hyo.OpenIap;\nusing OpenIap.Maui;\n\n${s.trim()}`;
+    s = `using OpenIap;\nusing OpenIap.Maui;\n\n${s.trim()}`;
   } else {
     s = s.trim();
   }

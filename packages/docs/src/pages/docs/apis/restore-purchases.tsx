@@ -172,7 +172,7 @@ function RestoreButton() {
             <CodeBlock language="dart">{`await FlutterInappPurchase.instance.restorePurchases();`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 await ((QueryResolver)OpenIap.Instance).RestorePurchasesAsync()`}</CodeBlock>

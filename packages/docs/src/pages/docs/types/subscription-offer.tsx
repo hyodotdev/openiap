@@ -530,7 +530,7 @@ enum SubscriptionPeriodUnit { day, week, month, year, unknown }
 enum PaymentMode { freeTrial, payAsYouGo, payUpFront, unknown }`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+              <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 data class SubscriptionOffer(
