@@ -2961,21 +2961,33 @@ class PurchaseError {
   const PurchaseError({
     required this.code,
     this.debugMessage,
+    this.isEmptyProductList,
     required this.message,
     this.productId,
+    this.productIds,
+    this.productType,
+    this.responseCode,
   });
 
   final ErrorCode code;
   final String? debugMessage;
+  final bool? isEmptyProductList;
   final String message;
   final String? productId;
+  final List<String>? productIds;
+  final String? productType;
+  final int? responseCode;
 
   factory PurchaseError.fromJson(Map<String, dynamic> json) {
     return PurchaseError(
       code: ErrorCode.fromJson(json['code'] as String),
       debugMessage: json['debugMessage'] as String?,
+      isEmptyProductList: json['isEmptyProductList'] as bool?,
       message: json['message'] as String,
       productId: json['productId'] as String?,
+      productIds: (json['productIds'] as List<dynamic>?) == null ? null : (json['productIds'] as List<dynamic>?)!.map((e) => e as String).toList(),
+      productType: json['productType'] as String?,
+      responseCode: json['responseCode'] as int?,
     );
   }
 
@@ -2984,8 +2996,12 @@ class PurchaseError {
       '__typename': 'PurchaseError',
       'code': code.toJson(),
       'debugMessage': debugMessage,
+      'isEmptyProductList': isEmptyProductList,
       'message': message,
       'productId': productId,
+      'productIds': productIds,
+      'productType': productType,
+      'responseCode': responseCode,
     };
   }
 }

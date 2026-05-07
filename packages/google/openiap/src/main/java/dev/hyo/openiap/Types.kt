@@ -2953,8 +2953,12 @@ public data class PurchaseAndroid(
 public data class PurchaseError(
     val code: ErrorCode,
     val debugMessage: String? = null,
+    val isEmptyProductList: Boolean? = null,
     val message: String,
-    val productId: String? = null
+    val productId: String? = null,
+    val productIds: List<String>? = null,
+    val productType: String? = null,
+    val responseCode: Int? = null
 ) {
 
     companion object {
@@ -2962,8 +2966,12 @@ public data class PurchaseError(
             return PurchaseError(
                 code = (json["code"] as? String)?.let { ErrorCode.fromJson(it) } ?: ErrorCode.Unknown,
                 debugMessage = json["debugMessage"] as? String,
+                isEmptyProductList = json["isEmptyProductList"] as? Boolean,
                 message = json["message"] as? String ?: "",
                 productId = json["productId"] as? String,
+                productIds = (json["productIds"] as? List<*>)?.mapNotNull { it as? String },
+                productType = json["productType"] as? String,
+                responseCode = (json["responseCode"] as? Number)?.toInt(),
             )
         }
     }
@@ -2972,8 +2980,12 @@ public data class PurchaseError(
         "__typename" to "PurchaseError",
         "code" to code.toJson(),
         "debugMessage" to debugMessage,
+        "isEmptyProductList" to isEmptyProductList,
         "message" to message,
         "productId" to productId,
+        "productIds" to productIds,
+        "productType" to productType,
+        "responseCode" to responseCode,
     )
 }
 

@@ -70,6 +70,7 @@ import type * as userProfiles_query from "../userProfiles/query.js";
 import type * as users_internal from "../users/internal.js";
 import type * as users_query from "../users/query.js";
 import type * as utils_concurrency from "../utils/concurrency.js";
+import type * as utils_currency from "../utils/currency.js";
 import type * as utils_errors from "../utils/errors.js";
 import type * as utils_helpers from "../utils/helpers.js";
 import type * as utils_validation from "../utils/validation.js";
@@ -149,6 +150,7 @@ declare const fullApi: ApiFromModules<{
   "users/internal": typeof users_internal;
   "users/query": typeof users_query;
   "utils/concurrency": typeof utils_concurrency;
+  "utils/currency": typeof utils_currency;
   "utils/errors": typeof utils_errors;
   "utils/helpers": typeof utils_helpers;
   "utils/validation": typeof utils_validation;

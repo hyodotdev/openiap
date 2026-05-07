@@ -29,8 +29,9 @@ Version is managed in `openiap-versions.json`:
 
 ```json
 {
-  "apple": "1.2.5",
-  "gql": "1.0.10"
+  "spec": "2.0.1",
+  "google": "2.1.3",
+  "apple": "2.1.6"
 }
 ```
 

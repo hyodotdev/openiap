@@ -3121,10 +3121,18 @@ public sealed record PurchaseError
     public required ErrorCode Code { get; init; }
     [JsonPropertyName("debugMessage")]
     public string? DebugMessage { get; init; }
+    [JsonPropertyName("isEmptyProductList")]
+    public bool? IsEmptyProductList { get; init; }
     [JsonPropertyName("message")]
     public required string Message { get; init; }
     [JsonPropertyName("productId")]
     public string? ProductId { get; init; }
+    [JsonPropertyName("productIds")]
+    public IReadOnlyList<string>? ProductIds { get; init; }
+    [JsonPropertyName("productType")]
+    public string? ProductType { get; init; }
+    [JsonPropertyName("responseCode")]
+    public int? ResponseCode { get; init; }
 }
 
 public sealed record PurchaseIOS : Purchase, PurchaseCommon

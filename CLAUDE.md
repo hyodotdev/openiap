@@ -78,7 +78,11 @@ openiap/
 - `libraries/flutter_inapp_purchase/lib/types.dart` - Synced from GQL
 - `libraries/godot-iap/addons/godot-iap/types.gd` - Synced from GQL
 - `libraries/maui-iap/src/OpenIap.Maui/Types.cs` - Synced from GQL
-- `openiap-versions.json` - Managed by CI/CD workflows only
+- `openiap-versions.json` - Managed by CI/CD workflows only; tracks only `spec`, `google`, and `apple`
+
+Framework library package versions (React Native, Expo, Flutter, Godot, KMP,
+MAUI) live in their own package metadata / release workflows. Do not add
+framework-library version keys to `openiap-versions.json`.
 
 Regenerate and sync types:
 

@@ -174,6 +174,12 @@ This file is automatically managed by CI/CD workflows during releases:
 - GQL releases update `spec` version
 - Deploy script (`npm run deploy`) updates `spec` version
 
+The manifest is only for the shared spec and native platform packages:
+`spec`, `google`, and `apple`. Framework library package versions
+(`react-native-iap`, `expo-iap`, `flutter_inapp_purchase`, `godot-iap`,
+`kmp-iap`, `maui-iap`) must stay in each library's own package metadata and
+release workflow, not as extra keys in `openiap-versions.json`.
+
 Manual edits will cause version conflicts and deployment issues. Always use the GitHub Actions workflows or deploy script to update versions.
 
 **Why this matters:** If a feature PR sets `apple: "2.1.1"` manually, and then CI auto-bumps on release, CI sees "current is 2.1.1" and bumps to 2.1.2 — skipping 2.1.1 entirely. The published tag becomes 2.1.2 with no 2.1.1 ever existing.

@@ -1215,8 +1215,12 @@ export interface PurchaseCommon {
 export interface PurchaseError {
   code: ErrorCode;
   debugMessage?: (string | null);
+  isEmptyProductList?: (boolean | null);
   message: string;
   productId?: (string | null);
+  productIds?: (string[] | null);
+  productType?: (string | null);
+  responseCode?: (number | null);
 }
 
 export interface PurchaseIOS extends PurchaseCommon {

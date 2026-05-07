@@ -1139,7 +1139,13 @@ class OpenIapModule(
                             }
                             buildAndLaunch(ordered)
                         } else {
-                            val err = OpenIapError.QueryProduct
+                            val err = OpenIapError.QueryProduct.withDiagnostics(
+                                responseCode = billingResult.responseCode,
+                                debugMessage = billingResult.debugMessage,
+                                productIds = missing,
+                                productType = desiredType,
+                                isEmptyProductList = productDetailsList.isNullOrEmpty()
+                            )
                             for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
                             consumePurchaseCallback(Result.success(emptyList()))
                         }

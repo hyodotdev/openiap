@@ -5,7 +5,6 @@ import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.ProductDetails
 import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapLog
-import dev.hyo.openiap.fromBillingResponseCode
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -102,9 +101,12 @@ internal class ProductManager {
 
                 if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
                     cont.resumeWithException(
-                        OpenIapError.fromBillingResponseCode(
-                            billingResult.responseCode,
-                            billingResult.debugMessage
+                        OpenIapError.QueryProduct.withDiagnostics(
+                            responseCode = billingResult.responseCode,
+                            debugMessage = billingResult.debugMessage,
+                            productIds = needsQuery.toList(),
+                            productType = productType,
+                            isEmptyProductList = result.productDetailsList.isNullOrEmpty()
                         )
                     )
                     return@queryProductDetailsAsync

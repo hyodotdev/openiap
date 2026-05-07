@@ -10,7 +10,7 @@ import dev.hyo.openiap.FetchProductsResult
 import dev.hyo.openiap.FetchProductsResultAll
 import dev.hyo.openiap.FetchProductsResultProducts
 import dev.hyo.openiap.FetchProductsResultSubscriptions
-import dev.hyo.openiap.OpenIapError as OpenIAPError
+import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapModule
 import dev.hyo.openiap.ProductAndroid
 import dev.hyo.openiap.ProductQueryType
@@ -134,7 +134,7 @@ class HybridRnIap : HybridRnIapSpec() {
             } catch (err: CancellationException) {
                 throw err
             } catch (err: Throwable) {
-                val error = OpenIAPError.InitConnection
+                val error = OpenIapError.InitConnection
                 val errorMessage = err.message ?: err.javaClass.name
                 RnIapLog.failure("initConnection.setActivity", err)
                 throw OpenIapException(
@@ -173,22 +173,14 @@ class HybridRnIap : HybridRnIapSpec() {
                         }.onFailure { RnIapLog.failure("purchaseUpdatedListener", it) }
                     })
                     openIap.addPurchaseErrorListener(OpenIapPurchaseErrorListener { e ->
-                        val code = OpenIAPError.toCode(e)
-                        val message = e.message ?: OpenIAPError.defaultMessage(code)
+                        val code = OpenIapError.toCode(e)
+                        val message = e.message ?: OpenIapError.defaultMessage(code)
                         runCatching {
                             RnIapLog.result(
                                 "purchaseErrorListener",
                                 mapOf("code" to code, "message" to message)
                             )
-                            sendPurchaseError(
-                                NitroPurchaseResult(
-                                    responseCode = -1.0,
-                                    debugMessage = null,
-                                    code = code,
-                                    message = message,
-                                    purchaseToken = null
-                                )
-                            )
+                            sendPurchaseError(toErrorResult(e))
                         }.onFailure { RnIapLog.failure("purchaseErrorListener", it) }
                     })
                     openIap.addUserChoiceBillingListener(OpenIapUserChoiceBillingListener { details ->
@@ -223,7 +215,7 @@ class HybridRnIap : HybridRnIapSpec() {
                 throw err
             } catch (err: Throwable) {
                 listenersAttached = false
-                val error = OpenIAPError.InitConnection
+                val error = OpenIapError.InitConnection
                 val errorMessage = err.message ?: err.javaClass.name
                 RnIapLog.failure("initConnection.listeners", err)
                 val wrapped = OpenIapException(
@@ -267,7 +259,7 @@ class HybridRnIap : HybridRnIapSpec() {
                         openIap.initConnection(openIapConfig)
                     }
                 } catch (err: Throwable) {
-                    val error = OpenIAPError.InitConnection
+                    val error = OpenIapError.InitConnection
                     RnIapLog.failure("initConnection.native", err)
                     throw OpenIapException(
                         toErrorJson(
@@ -278,7 +270,7 @@ class HybridRnIap : HybridRnIapSpec() {
                     )
                 }
                 if (!ok) {
-                    val error = OpenIAPError.InitConnection
+                    val error = OpenIapError.InitConnection
                     RnIapLog.failure("initConnection.native", Exception(error.message))
                     throw OpenIapException(
                         toErrorJson(
@@ -335,7 +327,7 @@ class HybridRnIap : HybridRnIapSpec() {
             )
 
             if (skus.isEmpty()) {
-                throw OpenIapException(toErrorJson(OpenIAPError.EmptySkuList))
+                throw OpenIapException(toErrorJson(OpenIapError.EmptySkuList))
             }
 
             ensureConnection()
@@ -343,46 +335,46 @@ class HybridRnIap : HybridRnIapSpec() {
             val queryType = parseProductQueryType(type)
             val skusList = skus.toList()
 
-            val products: List<ProductCommon> = when (queryType) {
-                ProductQueryType.All -> {
-                    // Fetch both InApp and Subs products
-                    val byId = mutableMapOf<String, ProductCommon>()
-
-                    listOf(ProductQueryType.InApp, ProductQueryType.Subs).forEach { kind ->
+            val products: List<ProductCommon> = try {
+                when (queryType) {
+                    ProductQueryType.All -> {
+                        collectAllQueryProducts(
+                            skusList = skusList,
+                            fetchKind = { kind ->
+                                RnIapLog.payload(
+                                    "fetchProducts.native",
+                                    mapOf("skus" to skusList, "type" to kind.rawValue)
+                                )
+                                val fetched = openIap.fetchProducts(ProductRequest(skusList, kind)).productsOrEmpty()
+                                RnIapLog.result(
+                                    "fetchProducts.native",
+                                    fetched.map { mapOf("id" to it.id, "type" to it.type.rawValue) }
+                                )
+                                fetched
+                            },
+                            onFailure = { kind, error ->
+                                RnIapLog.failure("fetchProducts.native[${kind.rawValue}]", error)
+                            },
+                        )
+                    }
+                    else -> {
                         RnIapLog.payload(
                             "fetchProducts.native",
-                            mapOf("skus" to skusList, "type" to kind.rawValue)
+                            mapOf("skus" to skusList, "type" to queryType.rawValue)
                         )
-                        val fetched = openIap.fetchProducts(ProductRequest(skusList, kind)).productsOrEmpty()
+                        val fetched = openIap.fetchProducts(ProductRequest(skusList, queryType)).productsOrEmpty()
                         RnIapLog.result(
                             "fetchProducts.native",
                             fetched.map { mapOf("id" to it.id, "type" to it.type.rawValue) }
                         )
 
-                        // Collect products by ID (no duplicates possible in Play Billing)
-                        fetched.forEach { product ->
-                            byId.putIfAbsent(product.id, product)
-                        }
+                        // Preserve input order for non-All queries
+                        val byId = fetched.associateBy { it.id }
+                        skusList.mapNotNull { byId[it] }
                     }
-
-                    // Return products in the same order as input skusList
-                    skusList.mapNotNull { byId[it] }
                 }
-                else -> {
-                    RnIapLog.payload(
-                        "fetchProducts.native",
-                        mapOf("skus" to skusList, "type" to queryType.rawValue)
-                    )
-                    val fetched = openIap.fetchProducts(ProductRequest(skusList, queryType)).productsOrEmpty()
-                    RnIapLog.result(
-                        "fetchProducts.native",
-                        fetched.map { mapOf("id" to it.id, "type" to it.type.rawValue) }
-                    )
-
-                    // Preserve input order for non-All queries
-                    val byId = fetched.associateBy { it.id }
-                    skusList.mapNotNull { byId[it] }
-                }
+            } catch (e: OpenIapError) {
+                throw OpenIapException(toErrorJson(e))
             }
 
             products.forEach { p -> productTypeBySku[p.id] = p.type.rawValue }
@@ -414,13 +406,13 @@ class HybridRnIap : HybridRnIapSpec() {
 
             if (androidRequest == null) {
                 RnIapLog.warn("requestPurchase called without android payload")
-                sendPurchaseError(toErrorResult(OpenIAPError.DeveloperError()))
+                sendPurchaseError(toErrorResult(OpenIapError.DeveloperError()))
                 return@async defaultResult
             }
 
             if (androidRequest.skus.isEmpty()) {
                 RnIapLog.warn("requestPurchase received empty SKU list")
-                sendPurchaseError(toErrorResult(OpenIAPError.EmptySkuList))
+                sendPurchaseError(toErrorResult(OpenIapError.EmptySkuList))
                 return@async defaultResult
             }
 
@@ -435,7 +427,7 @@ class HybridRnIap : HybridRnIapSpec() {
 
                 if (activity == null) {
                     RnIapLog.warn("requestPurchase: Activity is null - cannot start purchase flow")
-                    sendPurchaseError(toErrorResult(OpenIAPError.MissingCurrentActivity))
+                    sendPurchaseError(toErrorResult(OpenIapError.MissingCurrentActivity))
                     return@async defaultResult
                 }
 
@@ -457,7 +449,7 @@ class HybridRnIap : HybridRnIapSpec() {
                         }
                         fetched.firstOrNull()?.let { productTypeBySku[it.id] = it.type.rawValue }
                         if (!productTypeBySku.containsKey(sku)) {
-                            sendPurchaseError(toErrorResult(OpenIAPError.SkuNotFound(sku)))
+                            sendPurchaseError(toErrorResult(OpenIapError.SkuNotFound(sku)))
                             return@async defaultResult
                         }
                     }
@@ -552,7 +544,7 @@ class HybridRnIap : HybridRnIapSpec() {
                 RnIapLog.failure("requestPurchase", e)
                 sendPurchaseError(
                     toErrorResult(
-                        error = OpenIAPError.PurchaseFailed(),
+                        error = OpenIapError.PurchaseFailed(),
                         debugMessage = e.message,
                         messageOverride = e.message
                     )
@@ -654,7 +646,7 @@ class HybridRnIap : HybridRnIapSpec() {
                 nitroSubscriptions.toTypedArray()
             } catch (e: Exception) {
                 RnIapLog.failure("getActiveSubscriptions", e)
-                val error = OpenIAPError.ServiceUnavailable()
+                val error = OpenIapError.ServiceUnavailable()
                 throw OpenIapException(
                     toErrorJson(
                         error = error,
@@ -681,7 +673,7 @@ class HybridRnIap : HybridRnIapSpec() {
                 hasActive
             } catch (e: Exception) {
                 RnIapLog.failure("hasActiveSubscriptions", e)
-                val error = OpenIAPError.ServiceUnavailable()
+                val error = OpenIapError.ServiceUnavailable()
                 throw OpenIapException(
                     toErrorJson(
                         error = error,
@@ -716,7 +708,7 @@ class HybridRnIap : HybridRnIapSpec() {
                     NitroPurchaseResult(
                         responseCode = -1.0,
                         debugMessage = "Missing purchaseToken",
-                        code = OpenIAPError.toCode(OpenIAPError.DeveloperError()),
+                        code = OpenIapError.toCode(OpenIapError.DeveloperError()),
                         message = "Missing purchaseToken",
                         purchaseToken = null
                     )
@@ -727,12 +719,12 @@ class HybridRnIap : HybridRnIapSpec() {
             try {
                 ensureConnection()
             } catch (e: Exception) {
-                val err = OpenIAPError.InitConnection
+                val err = OpenIapError.InitConnection
                 return@async Variant_Boolean_NitroPurchaseResult.Second(
                     NitroPurchaseResult(
                         responseCode = -1.0,
                         debugMessage = e.message,
-                        code = OpenIAPError.toCode(err),
+                        code = OpenIapError.toCode(err),
                         message = e.message?.takeIf { it.isNotBlank() } ?: err.message,
                         purchaseToken = purchaseToken
                     )
@@ -757,13 +749,13 @@ class HybridRnIap : HybridRnIapSpec() {
                 RnIapLog.result("finishTransaction", mapOf("success" to true))
                 result
             } catch (e: Exception) {
-                val err = OpenIAPError.BillingError()
+                val err = OpenIapError.BillingError()
                 RnIapLog.failure("finishTransaction", e)
                 Variant_Boolean_NitroPurchaseResult.Second(
                     NitroPurchaseResult(
                         responseCode = -1.0,
                         debugMessage = e.message,
-                        code = OpenIAPError.toCode(err),
+                        code = OpenIapError.toCode(err),
                         message = e.message?.takeIf { it.isNotBlank() } ?: err.message,
                         purchaseToken = null
                     )
@@ -1279,14 +1271,14 @@ class HybridRnIap : HybridRnIapSpec() {
     // iOS-specific method - not supported on Android
     override fun getStorefrontIOS(): Promise<String> {
         return Promise.async {
-            throw OpenIapException(toErrorJson(OpenIAPError.FeatureNotSupported()))
+            throw OpenIapException(toErrorJson(OpenIapError.FeatureNotSupported()))
         }
     }
 
     // iOS-specific method - not supported on Android
     override fun getAppTransactionIOS(): Promise<Variant_NullType_String> {
         return Promise.async {
-            throw OpenIapException(toErrorJson(OpenIAPError.FeatureNotSupported()))
+            throw OpenIapException(toErrorJson(OpenIapError.FeatureNotSupported()))
         }
     }
 
@@ -1373,7 +1365,7 @@ class HybridRnIap : HybridRnIapSpec() {
             try {
                 // For Android, we need the google options to be provided (new platform-specific structure)
                 val nitroGoogleOptions = (params.google as? Variant_NullType_NitroReceiptValidationGoogleOptions.Second)?.value
-                    ?: throw OpenIapException(toErrorJson(OpenIAPError.DeveloperError(), debugMessage = "Missing required parameter: google options"))
+                    ?: throw OpenIapException(toErrorJson(OpenIapError.DeveloperError(), debugMessage = "Missing required parameter: google options"))
 
                 // Validate required google fields
                 val validations = mapOf(
@@ -1384,7 +1376,7 @@ class HybridRnIap : HybridRnIapSpec() {
                 )
                 for ((name, value) in validations) {
                     if (value.isEmpty()) {
-                        throw OpenIapException(toErrorJson(OpenIAPError.DeveloperError(), debugMessage = "Missing or empty required parameter: $name"))
+                        throw OpenIapException(toErrorJson(OpenIapError.DeveloperError(), debugMessage = "Missing or empty required parameter: $name"))
                     }
                 }
 
@@ -1412,7 +1404,7 @@ class HybridRnIap : HybridRnIapSpec() {
 
                 // Cast to Android result type (on Android, verifyPurchase returns VerifyPurchaseResultAndroid)
                 val androidResult = verifyResult as? VerifyPurchaseResultAndroid
-                    ?: throw OpenIapException(toErrorJson(OpenIAPError.InvalidPurchaseVerification, debugMessage = "Unexpected result type from verifyPurchase"))
+                    ?: throw OpenIapException(toErrorJson(OpenIapError.InvalidPurchaseVerification, debugMessage = "Unexpected result type from verifyPurchase"))
 
                 // Convert OpenIAP result to Nitro result
                 val result = NitroReceiptValidationResultAndroid(
@@ -1444,7 +1436,7 @@ class HybridRnIap : HybridRnIapSpec() {
             } catch (e: Exception) {
                 RnIapLog.failure("validateReceipt", e)
                 val debugMessage = e.message
-                val error = OpenIAPError.InvalidPurchaseVerification
+                val error = OpenIapError.InvalidPurchaseVerification
                 throw OpenIapException(
                     toErrorJson(
                         error = error,
@@ -1509,7 +1501,7 @@ class HybridRnIap : HybridRnIapSpec() {
                 )
             } catch (e: Exception) {
                 RnIapLog.failure("verifyPurchaseWithProvider", e)
-                val error = OpenIAPError.VerificationFailed
+                val error = OpenIapError.VerificationFailed
                 throw OpenIapException(
                     toErrorJson(
                         error = error,
@@ -1524,37 +1516,37 @@ class HybridRnIap : HybridRnIapSpec() {
     // iOS-specific methods - Not applicable on Android, return appropriate defaults
     override fun subscriptionStatusIOS(sku: String): Promise<Variant_NullType_Array_NitroSubscriptionStatus_> {
         return Promise.async {
-            throw OpenIapException(toErrorJson(OpenIAPError.FeatureNotSupported()))
+            throw OpenIapException(toErrorJson(OpenIapError.FeatureNotSupported()))
         }
     }
     
     override fun currentEntitlementIOS(sku: String): Promise<Variant_NullType_NitroPurchase> {
         return Promise.async {
-            throw OpenIapException(toErrorJson(OpenIAPError.FeatureNotSupported()))
+            throw OpenIapException(toErrorJson(OpenIapError.FeatureNotSupported()))
         }
     }
     
     override fun latestTransactionIOS(sku: String): Promise<Variant_NullType_NitroPurchase> {
         return Promise.async {
-            throw OpenIapException(toErrorJson(OpenIAPError.FeatureNotSupported()))
+            throw OpenIapException(toErrorJson(OpenIapError.FeatureNotSupported()))
         }
     }
     
     override fun getPendingTransactionsIOS(): Promise<Array<NitroPurchase>> {
         return Promise.async {
-            throw OpenIapException(toErrorJson(OpenIAPError.FeatureNotSupported()))
+            throw OpenIapException(toErrorJson(OpenIapError.FeatureNotSupported()))
         }
     }
     
     override fun getAllTransactionsIOS(): Promise<Array<NitroPurchase>> {
         return Promise.async {
-            throw OpenIapException(toErrorJson(OpenIAPError.FeatureNotSupported()))
+            throw OpenIapException(toErrorJson(OpenIapError.FeatureNotSupported()))
         }
     }
 
     override fun syncIOS(): Promise<Boolean> {
         return Promise.async {
-            throw OpenIapException(toErrorJson(OpenIAPError.FeatureNotSupported()))
+            throw OpenIapException(toErrorJson(OpenIapError.FeatureNotSupported()))
         }
     }
     
@@ -1562,37 +1554,37 @@ class HybridRnIap : HybridRnIapSpec() {
     
     override fun isEligibleForIntroOfferIOS(groupID: String): Promise<Boolean> {
         return Promise.async {
-            throw OpenIapException(toErrorJson(OpenIAPError.FeatureNotSupported()))
+            throw OpenIapException(toErrorJson(OpenIapError.FeatureNotSupported()))
         }
     }
     
     override fun getReceiptDataIOS(): Promise<String> {
         return Promise.async {
-            throw OpenIapException(toErrorJson(OpenIAPError.FeatureNotSupported()))
+            throw OpenIapException(toErrorJson(OpenIapError.FeatureNotSupported()))
         }
     }
 
     override fun getReceiptIOS(): Promise<String> {
         return Promise.async {
-            throw OpenIapException(toErrorJson(OpenIAPError.FeatureNotSupported()))
+            throw OpenIapException(toErrorJson(OpenIapError.FeatureNotSupported()))
         }
     }
 
     override fun requestReceiptRefreshIOS(): Promise<String> {
         return Promise.async {
-            throw OpenIapException(toErrorJson(OpenIAPError.FeatureNotSupported()))
+            throw OpenIapException(toErrorJson(OpenIapError.FeatureNotSupported()))
         }
     }
 
     override fun isTransactionVerifiedIOS(sku: String): Promise<Boolean> {
         return Promise.async {
-            throw OpenIapException(toErrorJson(OpenIAPError.FeatureNotSupported()))
+            throw OpenIapException(toErrorJson(OpenIapError.FeatureNotSupported()))
         }
     }
     
     override fun getTransactionJwsIOS(sku: String): Promise<Variant_NullType_String> {
         return Promise.async {
-            throw OpenIapException(toErrorJson(OpenIAPError.FeatureNotSupported()))
+            throw OpenIapException(toErrorJson(OpenIapError.FeatureNotSupported()))
         }
     }
 
@@ -1622,7 +1614,7 @@ class HybridRnIap : HybridRnIapSpec() {
             RnIapLog.payload("showAlternativeBillingDialogAndroid", null)
             try {
                 val activity = context.currentActivity
-                    ?: throw OpenIapException(toErrorJson(OpenIAPError.DeveloperError(), debugMessage = "Activity not available"))
+                    ?: throw OpenIapException(toErrorJson(OpenIapError.DeveloperError(), debugMessage = "Activity not available"))
 
                 val userAccepted = withContext(Dispatchers.Main) {
                     openIap.setActivity(activity)
@@ -1819,7 +1811,7 @@ class HybridRnIap : HybridRnIapSpec() {
 
                 val activity = withContext(Dispatchers.Main) {
                     runCatching { context.currentActivity }.getOrNull()
-                } ?: throw OpenIapException(toErrorJson(OpenIAPError.DeveloperError(), debugMessage = "Activity not available"))
+                } ?: throw OpenIapException(toErrorJson(OpenIapError.DeveloperError(), debugMessage = "Activity not available"))
 
                 val openIapParams = OpenIapLaunchExternalLinkParams(
                     billingProgram = mapBillingProgram(params.billingProgram),
@@ -1874,96 +1866,98 @@ class HybridRnIap : HybridRnIapSpec() {
 
     override fun canPresentExternalPurchaseNoticeIOS(): Promise<Boolean> {
         return Promise.async {
-            throw OpenIapException(toErrorJson(OpenIAPError.FeatureNotSupported()))
+            throw OpenIapException(toErrorJson(OpenIapError.FeatureNotSupported()))
         }
     }
 
     override fun presentExternalPurchaseNoticeSheetIOS(): Promise<ExternalPurchaseNoticeResultIOS> {
         return Promise.async {
-            throw OpenIapException(toErrorJson(OpenIAPError.FeatureNotSupported()))
+            throw OpenIapException(toErrorJson(OpenIapError.FeatureNotSupported()))
         }
     }
 
     override fun presentExternalPurchaseLinkIOS(url: String): Promise<ExternalPurchaseLinkResultIOS> {
         return Promise.async {
-            throw OpenIapException(toErrorJson(OpenIAPError.FeatureNotSupported()))
+            throw OpenIapException(toErrorJson(OpenIapError.FeatureNotSupported()))
         }
     }
 
     // ExternalPurchaseCustomLink (iOS 18.1+) - iOS only stubs
     override fun isEligibleForExternalPurchaseCustomLinkIOS(): Promise<Boolean> {
         return Promise.async {
-            throw OpenIapException(toErrorJson(OpenIAPError.FeatureNotSupported()))
+            throw OpenIapException(toErrorJson(OpenIapError.FeatureNotSupported()))
         }
     }
 
     override fun getExternalPurchaseCustomLinkTokenIOS(tokenType: ExternalPurchaseCustomLinkTokenTypeIOS): Promise<ExternalPurchaseCustomLinkTokenResultIOS> {
         return Promise.async {
-            throw OpenIapException(toErrorJson(OpenIAPError.FeatureNotSupported()))
+            throw OpenIapException(toErrorJson(OpenIapError.FeatureNotSupported()))
         }
     }
 
     override fun showExternalPurchaseCustomLinkNoticeIOS(noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS): Promise<ExternalPurchaseCustomLinkNoticeResultIOS> {
         return Promise.async {
-            throw OpenIapException(toErrorJson(OpenIAPError.FeatureNotSupported()))
+            throw OpenIapException(toErrorJson(OpenIapError.FeatureNotSupported()))
         }
     }
 
     // ---------------------------------------------------------------------
     // OpenIAP error helpers: unify error codes/messages from library
     // ---------------------------------------------------------------------
-    private fun parseOpenIapError(err: Throwable): OpenIAPError {
-        // Try to extract OpenIAPError from the exception chain
+    private fun parseOpenIapError(err: Throwable): OpenIapError {
+        // Try to extract OpenIapError from the exception chain
         var cause: Throwable? = err
         while (cause != null) {
             val message = cause.message ?: ""
             // Check if message contains OpenIAP error patterns
             when {
                 message.contains("not prepared", ignoreCase = true) ||
-                message.contains("not initialized", ignoreCase = true) -> return OpenIAPError.NotPrepared
+                message.contains("not initialized", ignoreCase = true) -> return OpenIapError.NotPrepared
                 message.contains("developer error", ignoreCase = true) ||
-                message.contains("activity not available", ignoreCase = true) -> return OpenIAPError.DeveloperError()
-                message.contains("network", ignoreCase = true) -> return OpenIAPError.NetworkError
+                message.contains("activity not available", ignoreCase = true) -> return OpenIapError.DeveloperError()
+                message.contains("network", ignoreCase = true) -> return OpenIapError.NetworkError
                 message.contains("service unavailable", ignoreCase = true) ||
-                message.contains("billing unavailable", ignoreCase = true) -> return OpenIAPError.ServiceUnavailable()
+                message.contains("billing unavailable", ignoreCase = true) -> return OpenIapError.ServiceUnavailable()
             }
             cause = cause.cause
         }
         // Default to ServiceUnavailable if we can't determine the error type
-        return OpenIAPError.ServiceUnavailable()
+        return OpenIapError.ServiceUnavailable()
     }
 
     private fun toErrorJson(
-        error: OpenIAPError,
+        error: OpenIapError,
         productId: String? = null,
         debugMessage: String? = null,
         messageOverride: String? = null
     ): String {
-        val code = OpenIAPError.Companion.toCode(error)
+        val code = OpenIapError.Companion.toCode(error)
         val message = messageOverride?.takeIf { it.isNotBlank() }
             ?: error.message?.takeIf { it.isNotBlank() }
-            ?: OpenIAPError.Companion.defaultMessage(code)
+            ?: OpenIapError.Companion.defaultMessage(code)
+        val diagnostics = error.toJSON()
+        val responseCode = (diagnostics["responseCode"] as? Number)?.toInt()
+        val productIds = diagnostics["productIds"] as? List<*>
+        val productType = diagnostics["productType"] as? String
+        val isEmptyProductList = diagnostics["isEmptyProductList"] as? Boolean
 
-        val errorMap = mutableMapOf<String, Any>(
+        val errorMap = mutableMapOf<String, Any?>(
             "code" to code,
             "message" to message
         )
 
-        errorMap["responseCode"] = -1
-        debugMessage?.let { errorMap["debugMessage"] = it } ?: error.message?.let { errorMap["debugMessage"] = it }
+        errorMap["responseCode"] = responseCode ?: -1
+        debugMessage
+            ?.let { errorMap["debugMessage"] = it }
+            ?: (diagnostics["debugMessage"] as? String)?.let { errorMap["debugMessage"] = it }
+            ?: error.message?.let { errorMap["debugMessage"] = it }
         productId?.let { errorMap["productId"] = it }
+        if (!productIds.isNullOrEmpty()) errorMap["productIds"] = productIds
+        productType?.let { errorMap["productType"] = it }
+        isEmptyProductList?.let { errorMap["isEmptyProductList"] = it }
 
         return try {
-            val jsonPairs = errorMap.map { (key, value) ->
-                val valueStr = when (value) {
-                    is String -> "\"${value.replace("\"", "\\\"")}\""
-                    is Number -> value.toString()
-                    is Boolean -> value.toString()
-                    else -> "\"$value\""
-                }
-                "\"$key\":$valueStr"
-            }
-            "{${jsonPairs.joinToString(",")}}"
+            JSONObject(errorMap).toString()
         } catch (e: Exception) {
             "$code: $message"
         }
@@ -2017,18 +2011,21 @@ class HybridRnIap : HybridRnIapSpec() {
     }
 
     private fun toErrorResult(
-        error: OpenIAPError,
+        error: OpenIapError,
         productId: String? = null,
         debugMessage: String? = null,
         messageOverride: String? = null
     ): NitroPurchaseResult {
-        val code = OpenIAPError.Companion.toCode(error)
+        val code = OpenIapError.Companion.toCode(error)
         val message = messageOverride?.takeIf { it.isNotBlank() }
             ?: error.message?.takeIf { it.isNotBlank() }
-            ?: OpenIAPError.Companion.defaultMessage(code)
+            ?: OpenIapError.Companion.defaultMessage(code)
+        val diagnostics = error.toJSON()
+        val responseCode = (diagnostics["responseCode"] as? Number)?.toDouble()
+        val diagnosticMessage = diagnostics["debugMessage"] as? String
         return NitroPurchaseResult(
-            responseCode = -1.0,
-            debugMessage = debugMessage ?: error.message,
+            responseCode = responseCode ?: -1.0,
+            debugMessage = debugMessage ?: diagnosticMessage ?: error.message,
             code = code,
             message = message,
             purchaseToken = null
