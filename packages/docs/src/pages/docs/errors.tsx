@@ -110,7 +110,7 @@ var message: String              # Human-readable message
 var product_id: Variant = null   # Related product SKU (if applicable)
 var debug_message: Variant = null # Raw diagnostic from the billing layer
 var response_code: Variant = null # Android QueryProduct BillingResult.responseCode
-var product_ids: Variant = null   # Android QueryProduct requested IDs
+var product_ids: Array[String] = [] # Android QueryProduct requested IDs
 var product_type: Variant = null  # Android BillingClient product type
 var is_empty_product_list: Variant = null # Android returned no products`}</CodeBlock>
             ),
