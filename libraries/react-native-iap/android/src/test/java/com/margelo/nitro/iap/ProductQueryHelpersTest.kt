@@ -5,12 +5,53 @@ import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.ProductCommon
 import dev.hyo.openiap.ProductQueryType
 import dev.hyo.openiap.ProductType
+import java.util.Collections
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Test
 
 class ProductQueryHelpersTest {
+    @Test
+    fun `all query starts in-app and subs fetches concurrently`() = runBlocking {
+        val startedKinds = Collections.synchronizedSet(mutableSetOf<ProductQueryType>())
+        val bothStarted = CompletableDeferred<Unit>()
+
+        val products = withTimeout(1000) {
+            collectAllQueryProducts(
+                skusList = listOf("monthly", "lifetime"),
+                fetchKind = { kind ->
+                    when (kind) {
+                        ProductQueryType.InApp,
+                        ProductQueryType.Subs -> {
+                            startedKinds.add(kind)
+                            if (startedKinds.size == 2) {
+                                bothStarted.complete(Unit)
+                            }
+                            bothStarted.await()
+
+                            when (kind) {
+                                ProductQueryType.InApp -> listOf(
+                                    fakeProduct("lifetime", ProductType.InApp),
+                                )
+                                ProductQueryType.Subs -> listOf(
+                                    fakeProduct("monthly", ProductType.Subs),
+                                )
+                                ProductQueryType.All -> error("All should be expanded by the helper")
+                            }
+                        }
+                        ProductQueryType.All -> error("All should be expanded by the helper")
+                    }
+                },
+            )
+        }
+
+        assertEquals(setOf(ProductQueryType.InApp, ProductQueryType.Subs), startedKinds.toSet())
+        assertEquals(listOf("monthly", "lifetime"), products.map { it.id })
+    }
+
     @Test
     fun `all query returns partial success when one product kind fails`() = runBlocking {
         val queryError = OpenIapError.BillingError("Invalid subscriptions")
