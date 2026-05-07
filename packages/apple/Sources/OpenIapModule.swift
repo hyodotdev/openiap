@@ -28,7 +28,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     private let state = IapState()
     private var initTask: Task<Bool, Error>?
     private var initTaskGeneration: UInt64?
-    private var cancellingInitTask: Task<Bool, Error>?
+    private var endTask: Task<Void, Never>?
+    private var endTaskGeneration: UInt64?
     private var connectionGeneration: UInt64 = 0
     private let connectionLock = NSLock()
     private static let subscriptionPreflightTimeoutNanoseconds: UInt64 = 750_000_000
@@ -71,27 +72,37 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     ///
     /// See: https://www.openiap.dev/docs/apis/init-connection
     public func initConnection() async throws -> Bool {
-        let (task, generation) = makeInitConnectionTask()
+        while true {
+            if let endTask = currentEndConnectionTask() {
+                await endTask.value
+                continue
+            }
 
-        do {
-            let value = try await task.value
-            clearInitConnectionTask(generation: generation)
-            return value
-        } catch {
-            clearInitConnectionTask(generation: generation)
-            throw error
+            if await state.isInitialized {
+                return true
+            }
+
+            guard let (task, generation) = makeInitConnectionTask() else {
+                await Task.yield()
+                continue
+            }
+
+            do {
+                let value = try await task.value
+                clearInitConnectionTask(generation: generation)
+                return value
+            } catch {
+                clearInitConnectionTask(generation: generation)
+                throw error
+            }
         }
     }
 
     /// Close the store connection and release resources.
     /// See: https://www.openiap.dev/docs/apis/end-connection
     public func endConnection() async throws -> Bool {
-        let (task, generation) = cancelInitConnectionTaskForEnd()
-        task?.cancel()
-        if let task {
-            _ = try? await task.value
-        }
-        await cleanupExistingState(generation: generation)
+        let task = makeEndConnectionTask()
+        await task.value
         return true
     }
 
@@ -1401,8 +1412,18 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         return try body()
     }
 
-    private func makeInitConnectionTask() -> (task: Task<Bool, Error>, generation: UInt64) {
+    private func currentEndConnectionTask() -> Task<Void, Never>? {
         withConnectionLock {
+            endTask
+        }
+    }
+
+    private func makeInitConnectionTask() -> (task: Task<Bool, Error>, generation: UInt64)? {
+        withConnectionLock {
+            guard endTask == nil else {
+                return nil
+            }
+
             if let initTask, initTaskGeneration == connectionGeneration {
                 return (initTask, connectionGeneration)
             }
@@ -1415,7 +1436,6 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             }
             initTask = task
             initTaskGeneration = generation
-            cancellingInitTask = nil
             return (task, generation)
         }
     }
@@ -1459,17 +1479,30 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         return true
     }
 
-    private func cancelInitConnectionTaskForEnd() -> (task: Task<Bool, Error>?, generation: UInt64) {
+    private func makeEndConnectionTask() -> Task<Void, Never> {
         withConnectionLock {
+            if let endTask {
+                return endTask
+            }
+
             connectionGeneration += 1
             let generation = connectionGeneration
-            let task = initTask ?? cancellingInitTask
-            if let initTask {
-                cancellingInitTask = initTask
-            }
+            let taskToCancel = initTask
             initTask = nil
             initTaskGeneration = nil
-            return (task, generation)
+            let task = Task { [weak self] in
+                taskToCancel?.cancel()
+                if let taskToCancel {
+                    _ = try? await taskToCancel.value
+                }
+
+                guard let self else { return }
+                await self.cleanupExistingState()
+                self.clearEndConnectionTask(generation: generation)
+            }
+            endTask = task
+            endTaskGeneration = generation
+            return task
         }
     }
 
@@ -1478,6 +1511,15 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             if initTaskGeneration == generation {
                 initTask = nil
                 initTaskGeneration = nil
+            }
+        }
+    }
+
+    private func clearEndConnectionTask(generation: UInt64) {
+        withConnectionLock {
+            if endTaskGeneration == generation {
+                endTask = nil
+                endTaskGeneration = nil
             }
         }
     }
@@ -1530,12 +1572,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
     #endif
 
-    private func detachConnectionResourcesForCleanup(generation: UInt64) -> ConnectionCleanupResources? {
+    private func detachConnectionResourcesForCleanup() -> ConnectionCleanupResources {
         withConnectionLock {
-            guard connectionGeneration == generation else {
-                return nil
-            }
-
             #if os(iOS)
             let wasRegistered = self.didRegisterPaymentQueueObserver
             self.didRegisterPaymentQueueObserver = false
@@ -1563,14 +1601,15 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         let resources = withConnectionLock {
             let resources = (
                 initTask: initTask,
-                cancellingInitTask: cancellingInitTask,
+                endTask: endTask,
                 updateListenerTask: updateListenerTask,
                 messageListenerTask: messageListenerTask,
                 unfinishedTransactionTask: unfinishedTransactionTask
             )
             initTask = nil
             initTaskGeneration = nil
-            cancellingInitTask = nil
+            endTask = nil
+            endTaskGeneration = nil
             updateListenerTask = nil
             messageListenerTask = nil
             unfinishedTransactionTask = nil
@@ -1578,7 +1617,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         }
 
         resources.initTask?.cancel()
-        resources.cancellingInitTask?.cancel()
+        resources.endTask?.cancel()
         resources.updateListenerTask?.cancel()
         resources.messageListenerTask?.cancel()
         resources.unfinishedTransactionTask?.cancel()
@@ -1602,11 +1641,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         }
     }
 
-    private func cleanupExistingState(generation: UInt64) async {
-        guard let resources = detachConnectionResourcesForCleanup(generation: generation) else {
-            return
-        }
-
+    private func cleanupExistingState() async {
+        let resources = detachConnectionResourcesForCleanup()
         resources.updateListenerTask?.cancel()
         resources.messageListenerTask?.cancel()
         resources.unfinishedTransactionTask?.cancel()
@@ -1908,9 +1944,12 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     private func startMessageListener() {
         #if os(iOS) || targetEnvironment(macCatalyst)
         if #available(iOS 18.0, macCatalyst 18.0, *) {
-            OpenIapLog.debug("🔔 [MessageListener] Starting Message.messages listener (iOS 18+)")
             withConnectionLock {
-                messageListenerTask?.cancel()
+                if messageListenerTask != nil {
+                    return
+                }
+
+                OpenIapLog.debug("🔔 [MessageListener] Starting Message.messages listener (iOS 18+)")
                 messageListenerTask = Task { [weak self] in
                     guard let self else { return }
                     for await message in StoreKit.Message.messages {
