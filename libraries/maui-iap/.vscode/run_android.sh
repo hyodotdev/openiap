@@ -92,6 +92,8 @@ adb -s "$DEVICE" uninstall "$OLD_APP_ID" >/dev/null 2>&1 || true
 echo "Resetting stale Android build server and wrapped assemblies..."
 dotnet build-server shutdown >/dev/null 2>&1 || true
 rm -rf "$APP_DIR/obj/Debug/net9.0-android/$RID/$RID/wrapped"
+rm -f "$APP_DIR/bin/Debug/net9.0-android/$APP_ID.apk"
+rm -f "$APP_DIR/bin/Debug/net9.0-android/$APP_ID-Signed.apk"
 rm -f "$APP_DIR/bin/Debug/net9.0-android/$RID/$APP_ID.apk"
 rm -f "$APP_DIR/bin/Debug/net9.0-android/$RID/$APP_ID-Signed.apk"
 
@@ -101,6 +103,7 @@ echo "Building OpenIAP Google Play AAR..."
 echo "Building MAUI Android shim AAR..."
 (cd "$MAUI_ANDROID_DIR" && "$GOOGLE_DIR/gradlew" :openiap-maui-shim:assembleRelease)
 
+echo "Building and packaging MAUI Android APK. This can take 1-2 minutes after DLL output..."
 dotnet build "$PROJECT" \
   -f net9.0-android \
   -p:RuntimeIdentifier="$RID" \
@@ -109,13 +112,23 @@ dotnet build "$PROJECT" \
   -tl:off \
   -v:minimal
 
-APK="$APP_DIR/bin/Debug/net9.0-android/$RID/$APP_ID-Signed.apk"
-if [ ! -f "$APK" ]; then
-  APK="$APP_DIR/bin/Debug/net9.0-android/$RID/$APP_ID.apk"
-fi
+echo "Build completed. Locating APK..."
+APK=""
+for candidate in \
+  "$APP_DIR/bin/Debug/net9.0-android/$RID/$APP_ID-Signed.apk" \
+  "$APP_DIR/bin/Debug/net9.0-android/$RID/$APP_ID.apk" \
+  "$APP_DIR/bin/Debug/net9.0-android/$APP_ID-Signed.apk" \
+  "$APP_DIR/bin/Debug/net9.0-android/$APP_ID.apk" \
+  "$APP_DIR/obj/Debug/net9.0-android/$RID/android/bin/$APP_ID.apk" \
+  "$APP_DIR/obj/Debug/net9.0-android/android/bin/$APP_ID.apk"; do
+  if [ -f "$candidate" ]; then
+    APK="$candidate"
+    break
+  fi
+done
 
 if [ ! -f "$APK" ]; then
-  echo "Android APK was not produced under $APP_DIR/bin/Debug/net9.0-android/$RID." >&2
+  echo "Android APK was not produced under $APP_DIR/bin/Debug/net9.0-android." >&2
   exit 1
 fi
 
