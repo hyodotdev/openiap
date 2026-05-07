@@ -17,10 +17,10 @@ import {IAPKIT_API_KEY} from '@env';
 
 const IAPKIT_BASE_URL = 'https://kit.openiap.dev';
 
-function base64EncodeUtf8(input: string): string {
+export function base64EncodeUtf8(input: string): string {
   const btoaFn = (globalThis as {btoa?: (value: string) => string}).btoa;
   if (!btoaFn) {
-    return input;
+    throw new Error('btoa is not available in this environment');
   }
   return btoaFn(unescape(encodeURIComponent(input)));
 }

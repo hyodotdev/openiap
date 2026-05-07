@@ -1,5 +1,5 @@
 import {fireEvent, render, waitFor} from '@testing-library/react-native';
-import WebhookStream from '../../screens/WebhookStream';
+import WebhookStream, {base64EncodeUtf8} from '../../screens/WebhookStream';
 
 describe('WebhookStream Screen', () => {
   beforeEach(() => {
@@ -43,5 +43,22 @@ describe('WebhookStream Screen', () => {
         getByText('Cannot trigger test: IAPKIT_API_KEY is missing.'),
       ).toBeTruthy();
     });
+  });
+
+  it('fails explicitly when base64 encoding support is missing', () => {
+    const globalWithBtoa = globalThis as {btoa?: (value: string) => string};
+    const originalBtoa = globalWithBtoa.btoa;
+
+    try {
+      delete globalWithBtoa.btoa;
+
+      expect(() => base64EncodeUtf8('{"type":"test-notification"}')).toThrow(
+        'btoa is not available in this environment',
+      );
+    } finally {
+      if (originalBtoa) {
+        globalWithBtoa.btoa = originalBtoa;
+      }
+    }
   });
 });

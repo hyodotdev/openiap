@@ -360,45 +360,6 @@ fun AlternativeBillingScreen(navController: NavController) {
         }
     }
 
-    // Handle Android External Payments dialog (Billing Library 8.3.0+ - Japan only)
-    fun handleAndroidExternalPaymentsDialog(product: ProductCommon) {
-        scope.launch {
-            isProcessing = true
-            purchaseResult = "Showing side-by-side choice dialog..."
-
-            try {
-                kmpIapInstance.requestPurchase {
-                    type = ProductType.InApp
-                    android {
-                        skus = listOf(product.id)
-                        developerBillingOption = DeveloperBillingOptionParamsAndroid(
-                            billingProgram = BillingProgramAndroid.ExternalPayments,
-                            launchMode = DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp,
-                            linkUri = externalUrl
-                        )
-                    }
-                }
-
-                purchaseResult = """
-                    🔄 External Payments dialog shown
-
-                    Product: ${product.id}
-                    External URL: $externalUrl
-
-                    If user selects:
-                    - Google Play: onPurchaseUpdated callback
-                    - Developer billing: developerProvidedBillingListener callback
-
-                    ⚠️ Japan users only
-                    ⚠️ Billing Library 8.3.0+ required
-                """.trimIndent()
-            } catch (e: Exception) {
-                purchaseResult = "❌ Error: ${e.message}"
-                isProcessing = false
-            }
-        }
-    }
-
     // Handle purchase based on platform and billing program
     fun handlePurchase(product: ProductCommon) {
         if (currentPlatform == "iOS") {
