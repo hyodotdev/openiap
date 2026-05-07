@@ -5,6 +5,7 @@ import {
   applyEventToBucket,
   bucketKey,
   isActiveAt,
+  pickRevenueMetricsProjects,
   runRecompute,
   startOfUtcDay,
   utcDayKey,
@@ -372,28 +373,36 @@ class IndexBuilder {
 }
 
 class MemQuery {
-  constructor(private rows: Row[]) {}
+  constructor(
+    private rows: Row[],
+    private indexName?: string,
+  ) {}
 
   withIndex(_name: string, cb?: (q: IndexBuilder) => IndexBuilder): MemQuery {
-    if (!cb) return this;
+    if (!cb) return new MemQuery(this.rows, _name);
     const builder = new IndexBuilder();
     cb(builder);
     return new MemQuery(
       this.rows.filter((row) => builder.predicates.every((p) => p(row))),
+      _name,
     );
   }
 
   order(direction: "asc" | "desc"): MemQuery {
-    // Approximate Convex's index-order behaviour for our scans:
-    // sort by `_creationTime` ascending or descending. The
-    // production code never depends on a more specific tiebreak, so
-    // this is sufficient for round-trip correctness.
+    const orderField =
+      this.indexName === "by_received_at"
+        ? "receivedAt"
+        : this.indexName === "by_updated_at"
+          ? "updatedAt"
+          : this.indexName === "by_run"
+            ? "lastRunAt"
+            : "_creationTime";
     const sorted = [...this.rows].sort((a, b) =>
       direction === "asc"
-        ? a._creationTime - b._creationTime
-        : b._creationTime - a._creationTime,
+        ? (a[orderField] as number) - (b[orderField] as number)
+        : (b[orderField] as number) - (a[orderField] as number),
     );
-    return new MemQuery(sorted);
+    return new MemQuery(sorted, this.indexName);
   }
 
   filter(_cb: unknown): MemQuery {
@@ -522,6 +531,10 @@ function makeCtx(db: MemDb) {
   return { db } as unknown as Parameters<typeof runRecompute>[0];
 }
 
+function makePickerCtx(db: MemDb) {
+  return { db } as unknown as Parameters<typeof pickRevenueMetricsProjects>[0];
+}
+
 async function seedEvent(
   db: MemDb,
   partial: Partial<Doc<"webhookEvents">> & Pick<Doc<"webhookEvents">, "type">,
@@ -567,6 +580,90 @@ async function seedSub(
 async function rollupRows(db: MemDb): Promise<Row[]> {
   return await db.query("revenueMetricsDaily").collect();
 }
+
+describe("pickRevenueMetricsProjects", () => {
+  let db: MemDb;
+  let ctx: ReturnType<typeof makePickerCtx>;
+
+  beforeEach(() => {
+    db = new MemDb();
+    ctx = makePickerCtx(db);
+  });
+
+  it("discovers projects with recent webhooks even when stale status rows fill the batch", async () => {
+    await db.insert("revenueMetricsRunStatus", {
+      projectId: "p_old_1",
+      lastRunAt: 1,
+    });
+    await db.insert("revenueMetricsRunStatus", {
+      projectId: "p_old_2",
+      lastRunAt: 2,
+    });
+    await seedEvent(db, {
+      type: "SubscriptionRenewed",
+      projectId: PROJECT_ID,
+      receivedAt: NOW,
+    });
+
+    const projects = await pickRevenueMetricsProjects(ctx, 2);
+
+    expect(projects[0]).toBe(PROJECT_ID);
+    expect(projects).toContain("p_old_1");
+  });
+
+  it("discovers subscriptionStats projects that do not have run status yet", async () => {
+    await db.insert("revenueMetricsRunStatus", {
+      projectId: "p_seeded",
+      lastRunAt: 1,
+    });
+    await db.insert("subscriptionStats", {
+      projectId: "p_seeded",
+      currency: "USD",
+      activeSubs: 1,
+      inGracePeriod: 0,
+      inBillingRetry: 0,
+      mrrMicros: 9_990_000,
+      updatedAt: NOW + 1,
+    });
+    await db.insert("subscriptionStats", {
+      projectId: PROJECT_ID,
+      currency: "USD",
+      activeSubs: 1,
+      inGracePeriod: 0,
+      inBillingRetry: 0,
+      mrrMicros: 9_990_000,
+      updatedAt: NOW,
+    });
+
+    const projects = await pickRevenueMetricsProjects(ctx, 2);
+
+    expect(projects).toContain(PROJECT_ID);
+    expect(projects).toContain("p_seeded");
+  });
+
+  it("dedupes projects seen through both webhook and stats bootstrap sources", async () => {
+    await seedEvent(db, {
+      type: "SubscriptionRenewed",
+      projectId: PROJECT_ID,
+      receivedAt: NOW,
+    });
+    await db.insert("subscriptionStats", {
+      projectId: PROJECT_ID,
+      currency: "USD",
+      activeSubs: 1,
+      inGracePeriod: 0,
+      inBillingRetry: 0,
+      mrrMicros: 9_990_000,
+      updatedAt: NOW,
+    });
+
+    const projects = await pickRevenueMetricsProjects(ctx, 10);
+
+    expect(
+      projects.filter((projectId) => projectId === PROJECT_ID),
+    ).toHaveLength(1);
+  });
+});
 
 describe("runRecompute — round-trip integration", () => {
   let db: MemDb;

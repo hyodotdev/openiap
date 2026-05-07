@@ -117,19 +117,21 @@ const COUNTED_STATES_ORDERED = [
 ] as const;
 type CountedState = (typeof COUNTED_STATES_ORDERED)[number];
 
-// Cron picker entry. Walks `revenueMetricsRunStatus.by_run` ascending
-// so the least-recently-processed projects surface first. Each
-// successful per-project recompute upserts its own
-// `revenueMetricsRunStatus` row with `lastRunAt = now`, so the
-// picker self-rotates without piggybacking on the subscription-stats
-// drift cron's freshness signal.
+// Cron picker entry. New / never-rolled-up projects are discovered
+// from recent webhook activity and subscriptionStats before stale
+// run-status rows are filled in. This matters after deploys and for
+// fresh projects: once `revenueMetricsRunStatus` contains at least
+// `batchSize` projects, a picker that only pads from subscriptionStats
+// after stale rows would keep rotating the original cohort forever
+// and projects with working webhooks would still see an empty
+// Analytics tab.
 //
 // Bootstrap: a brand-new project has no `revenueMetricsRunStatus`
-// row yet. Pad the picker from `subscriptionStats` (any project
-// with at least one stats row has had a counted-state sub at some
-// point) so first-time analytics processing happens on the next
-// tick after a project's first sub instead of waiting for some
-// other code path to seed the status table.
+// row yet. Recent `webhookEvents` are the strongest signal that the
+// user expects Analytics to populate soon; `subscriptionStats` covers
+// projects that already have counted-state subscriptions. Stale
+// statuses fill the remaining batch so already-seeded projects keep
+// rotating normally.
 export const recomputeAllRevenueMetrics = internalMutation({
   args: {
     batchSize: v.optional(v.number()),
@@ -137,35 +139,7 @@ export const recomputeAllRevenueMetrics = internalMutation({
   returns: v.object({ scheduled: v.number() }),
   handler: async (ctx, args) => {
     const limit = args.batchSize ?? 100;
-    const SCAN_CAP = Math.max(limit * 3, 300);
-
-    const stale = await ctx.db
-      .query("revenueMetricsRunStatus")
-      .withIndex("by_run")
-      .order("asc")
-      .take(SCAN_CAP);
-
-    const seen = new Set<string>();
-    const projects: Id<"projects">[] = [];
-    for (const row of stale) {
-      if (seen.has(row.projectId)) continue;
-      seen.add(row.projectId);
-      projects.push(row.projectId);
-      if (projects.length >= limit) break;
-    }
-
-    if (projects.length < limit) {
-      const fresh = await ctx.db
-        .query("subscriptionStats")
-        .withIndex("by_updated_at")
-        .take(SCAN_CAP);
-      for (const row of fresh) {
-        if (seen.has(row.projectId)) continue;
-        seen.add(row.projectId);
-        projects.push(row.projectId);
-        if (projects.length >= limit) break;
-      }
-    }
+    const projects = await pickRevenueMetricsProjects(ctx, limit);
 
     let scheduled = 0;
     for (const projectId of projects) {
@@ -179,6 +153,109 @@ export const recomputeAllRevenueMetrics = internalMutation({
     return { scheduled };
   },
 });
+
+type RevenueMetricsPickerCtx = Pick<MutationCtx, "db">;
+
+function pickerScanCap(limit: number): number {
+  return Math.max(limit * 3, 300);
+}
+
+async function hasRevenueMetricsRunStatus(
+  ctx: RevenueMetricsPickerCtx,
+  projectId: Id<"projects">,
+): Promise<boolean> {
+  const existing = await ctx.db
+    .query("revenueMetricsRunStatus")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .unique();
+  return existing !== null;
+}
+
+function addProjectOnce(
+  projects: Id<"projects">[],
+  seen: Set<string>,
+  projectId: Id<"projects">,
+  limit: number,
+): void {
+  if (projects.length >= limit) return;
+  if (seen.has(projectId)) return;
+  seen.add(projectId);
+  projects.push(projectId);
+}
+
+async function addUnseededProjectOnce(
+  ctx: RevenueMetricsPickerCtx,
+  projects: Id<"projects">[],
+  seen: Set<string>,
+  checkedUnseeded: Set<string>,
+  projectId: Id<"projects">,
+  limit: number,
+): Promise<void> {
+  if (projects.length >= limit) return;
+  if (seen.has(projectId)) return;
+  if (checkedUnseeded.has(projectId)) return;
+  checkedUnseeded.add(projectId);
+  if (await hasRevenueMetricsRunStatus(ctx, projectId)) return;
+  addProjectOnce(projects, seen, projectId, limit);
+}
+
+export async function pickRevenueMetricsProjects(
+  ctx: RevenueMetricsPickerCtx,
+  limit: number,
+): Promise<Id<"projects">[]> {
+  if (limit <= 0) return [];
+
+  const scanCap = pickerScanCap(limit);
+  const seen = new Set<string>();
+  const checkedUnseeded = new Set<string>();
+  const projects: Id<"projects">[] = [];
+
+  const recentEvents = await ctx.db
+    .query("webhookEvents")
+    .withIndex("by_received_at")
+    .order("desc")
+    .take(scanCap);
+  for (const row of recentEvents) {
+    await addUnseededProjectOnce(
+      ctx,
+      projects,
+      seen,
+      checkedUnseeded,
+      row.projectId,
+      limit,
+    );
+    if (projects.length >= limit) return projects;
+  }
+
+  const recentStats = await ctx.db
+    .query("subscriptionStats")
+    .withIndex("by_updated_at")
+    .order("desc")
+    .take(scanCap);
+  for (const row of recentStats) {
+    await addUnseededProjectOnce(
+      ctx,
+      projects,
+      seen,
+      checkedUnseeded,
+      row.projectId,
+      limit,
+    );
+    if (projects.length >= limit) return projects;
+  }
+
+  const stale = await ctx.db
+    .query("revenueMetricsRunStatus")
+    .withIndex("by_run")
+    .order("asc")
+    .take(scanCap);
+  for (const row of stale) {
+    addProjectOnce(projects, seen, row.projectId, limit);
+    if (projects.length >= limit) return projects;
+  }
+
+  return projects;
+}
 
 // Per-project kickoff. Schedules itself by chaining
 // `recomputeRevenueMetricsPage` mutations, each with its own 40k
