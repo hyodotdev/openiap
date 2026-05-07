@@ -146,6 +146,14 @@ text = "30 Bulbs"
 text_overrun_behavior = 3
 clip_text = true
 
+[node name="BuyCertifiedButton" type="Button" parent="UI/StorePanel/VBoxContainer"]
+custom_minimum_size = Vector2(0, 70)
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "Certified"
+text_overrun_behavior = 3
+clip_text = true
+
 [node name="BuyPremiumButton" type="Button" parent="UI/StorePanel/VBoxContainer"]
 custom_minimum_size = Vector2(0, 70)
 layout_mode = 2
