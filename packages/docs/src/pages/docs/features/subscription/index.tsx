@@ -264,7 +264,7 @@ var result = await ((QueryResolver)Iap.Instance).FetchProductsAsync(new ProductR
 
 var subscription = result is FetchProductsResultSubscriptions subscriptions
     ? subscriptions.Value?.OfType<ProductSubscriptionIOS>()
-        .FirstOrDefault(product => product.Id == "premium_monthly")
+        ?.FirstOrDefault(product => product.Id == "premium_monthly")
     : null;
 
 // Check for introductory offer
@@ -1171,7 +1171,7 @@ var result = await ((QueryResolver)Iap.Instance).FetchProductsAsync(new ProductR
 
 var subscription = result is FetchProductsResultSubscriptions subscriptions
     ? subscriptions.Value?.OfType<ProductSubscriptionAndroid>()
-        .FirstOrDefault(product => product.Id == "premium_monthly")
+        ?.FirstOrDefault(product => product.Id == "premium_monthly")
     : null;
 
 foreach (var offer in subscription?.SubscriptionOfferDetailsAndroid

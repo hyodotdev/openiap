@@ -749,7 +749,7 @@ var result = await ((QueryResolver)Iap.Instance).FetchProductsAsync(new ProductR
     Type = ProductQueryType.Subs,
 });
 var product = result is FetchProductsResultSubscriptions subscriptions
-    ? subscriptions.Value?.OfType<ProductSubscriptionAndroid>().FirstOrDefault()
+    ? subscriptions.Value?.OfType<ProductSubscriptionAndroid>()?.FirstOrDefault()
     : null;
 
 // Step 4: Show required Google Play disclosure dialog.

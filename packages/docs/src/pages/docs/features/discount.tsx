@@ -830,8 +830,9 @@ ProductCardViewModel BuildProductCard(ProductAndroid product)
     var discountInfo = firstOffer?.DiscountDisplayInfo;
     var hasDiscount = discountInfo is not null;
 
-    var originalPrice = firstOffer?.FullPriceMicros is { } fullPriceMicros
-        ? $"{firstOffer.PriceCurrencyCode} {long.Parse(fullPriceMicros) / 1_000_000.0:F2}"
+    var originalPrice = firstOffer is { FullPriceMicros: { } fullPriceMicros }
+        && long.TryParse(fullPriceMicros, out var micros)
+        ? $"{firstOffer.PriceCurrencyCode} {micros / 1_000_000.0:F2}"
         : null;
 
     var badge = discountInfo?.PercentageDiscount is { } percent
