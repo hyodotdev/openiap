@@ -41,4 +41,20 @@ describe("selectReportingMrr", () => {
       ],
     });
   });
+
+  it("falls back to USD for invalid reporting currency input", () => {
+    const result = selectReportingMrr(
+      [
+        { currency: "USD", mrrMicros: 9_990_000 },
+        { currency: "EUR", mrrMicros: 8_500_000 },
+      ],
+      "US",
+    );
+
+    expect(result).toEqual({
+      currency: "USD",
+      mrrMicros: 9_990_000,
+      excludedMrrByCurrency: [{ currency: "EUR", mrrMicros: 8_500_000 }],
+    });
+  });
 });

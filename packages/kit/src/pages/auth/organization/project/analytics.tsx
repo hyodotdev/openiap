@@ -205,14 +205,20 @@ export default function ProjectAnalytics() {
   // Empty-project case (no rollup rows yet) still resolves to the
   // project reporting currency so the UI does not drift based on
   // whichever store event arrives first.
-  const currency = selectedCurrency ?? reportingCurrency;
   const currencyOptions = useMemo(
     () => Array.from(new Set([reportingCurrency, ...metricsCurrencies])).sort(),
     [reportingCurrency, metricsCurrencies],
   );
-  const excludedCurrencies = useMemo(
-    () => metricsCurrencies.filter((candidate) => candidate !== currency),
-    [metricsCurrencies, currency],
+  const currency = useMemo(() => {
+    if (selectedCurrency && currencyOptions.includes(selectedCurrency)) {
+      return selectedCurrency;
+    }
+    return reportingCurrency;
+  }, [selectedCurrency, currencyOptions, reportingCurrency]);
+  const excludedReportingCurrencies = useMemo(
+    () =>
+      metricsCurrencies.filter((candidate) => candidate !== reportingCurrency),
+    [metricsCurrencies, reportingCurrency],
   );
 
   // Client-side filtering. Range is also a client filter now (we
@@ -230,8 +236,9 @@ export default function ProjectAnalytics() {
   // visually to zero on the first day.
   //
   // Two parallel pipelines:
-  //   - `revenueRows`: pinned to `currency` because `revenueMicros`
-  //     can't be summed across currencies without an FX rate.
+  //   - `revenueRows`: pinned to the selected chart currency.
+  //   - `reportingRevenueRows`: pinned to the project reporting
+  //     currency for headline totals.
   //   - `lifecycleRows`: NOT pinned to currency. activeSubs / new /
   //     renewals / cancellations / refunds are counts, not money,
   //     and aggregating them across currencies gives the correct
@@ -255,6 +262,18 @@ export default function ProjectAnalytics() {
       }),
     [metricsDays, currency, selectedProduct, platformFilter],
   );
+  const reportingRevenueRows = useMemo(
+    () =>
+      metricsDays.filter((row) => {
+        if (row.currency !== reportingCurrency) return false;
+        if (selectedProduct && row.productId !== selectedProduct) return false;
+        if (platformFilter !== "all" && row.platform !== platformFilter) {
+          return false;
+        }
+        return true;
+      }),
+    [metricsDays, reportingCurrency, selectedProduct, platformFilter],
+  );
   const lifecycleRows = useMemo(
     () =>
       metricsDays.filter((row) => {
@@ -271,6 +290,10 @@ export default function ProjectAnalytics() {
     () => aggregateByDay(revenueRows, range.days, fromDay),
     [revenueRows, range.days, fromDay],
   );
+  const reportingRevenueDaily = useMemo(
+    () => aggregateByDay(reportingRevenueRows, range.days, fromDay),
+    [reportingRevenueRows, range.days, fromDay],
+  );
   const lifecycleDaily = useMemo(
     () => aggregateByDay(lifecycleRows, range.days, fromDay),
     [lifecycleRows, range.days, fromDay],
@@ -278,6 +301,10 @@ export default function ProjectAnalytics() {
   const revenueSeries = useMemo(
     () => bucketByPeriod(revenueDaily, periodId),
     [revenueDaily, periodId],
+  );
+  const reportingRevenueSeries = useMemo(
+    () => bucketByPeriod(reportingRevenueDaily, periodId),
+    [reportingRevenueDaily, periodId],
   );
   const lifecycleSeries = useMemo(
     () => bucketByPeriod(lifecycleDaily, periodId),
@@ -300,13 +327,13 @@ export default function ProjectAnalytics() {
 
   const totals = useMemo(
     () =>
-      series.reduce(
-        (acc, row) => {
+      lifecycleSeries.reduce(
+        (acc, row, i) => {
           acc.newSubs += row.newSubs;
           acc.renewals += row.renewals;
           acc.cancellations += row.cancellations;
           acc.refunds += row.refunds;
-          acc.revenueMicros += row.revenueMicros;
+          acc.revenueMicros += reportingRevenueSeries[i]?.revenueMicros ?? 0;
           acc.activeSubsLast = row.activeSubs;
           return acc;
         },
@@ -319,7 +346,7 @@ export default function ProjectAnalytics() {
           activeSubsLast: 0,
         },
       ),
-    [series],
+    [lifecycleSeries, reportingRevenueSeries],
   );
 
   // Churn = (cancellations + refunds) / activeSubs at end of window.
@@ -343,7 +370,7 @@ export default function ProjectAnalytics() {
     });
     const revenueBaseRows = metricsDays.filter((row) => {
       if (row.day < fromDay) return false;
-      if (currency && row.currency !== currency) return false;
+      if (row.currency !== reportingCurrency) return false;
       if (selectedProduct && row.productId !== selectedProduct) return false;
       return true;
     });
@@ -361,7 +388,7 @@ export default function ProjectAnalytics() {
       });
     }
     return byFilter;
-  }, [metricsDays, fromDay, currency, selectedProduct]);
+  }, [metricsDays, fromDay, reportingCurrency, selectedProduct]);
 
   if (metrics === undefined) {
     return <PageLoading />;
@@ -470,7 +497,9 @@ export default function ProjectAnalytics() {
               <div className="relative">
                 <p className="text-sm text-muted-foreground">{card.label}</p>
                 <p className="text-3xl font-semibold mt-2 tabular-nums">
-                  {formatMicros(cardTotals.revenueMicros, { currency })}
+                  {formatMicros(cardTotals.revenueMicros, {
+                    currency: reportingCurrency,
+                  })}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {cardTotals.activeSubs} active · {cardTotals.newSubs} new
@@ -515,7 +544,7 @@ export default function ProjectAnalytics() {
                 currencies without an FX rate, so the chart must
                 always be pinned to exactly one. The project
                 reporting currency is the default; other currencies
-                are visible here but excluded from current totals. */}
+                are visible here for chart exploration only. */}
             <Select
               value={currency || undefined}
               onChange={(v) => setSelectedCurrency(v ?? null)}
@@ -529,12 +558,14 @@ export default function ProjectAnalytics() {
         )}
       </div>
 
-      {excludedCurrencies.length > 0 && (
+      {excludedReportingCurrencies.length > 0 && (
         <div className="border border-border bg-muted/20 rounded-lg p-4 text-sm text-muted-foreground">
-          Revenue totals are pinned to {currency}.{" "}
-          {excludedCurrencies.join(", ")}{" "}
-          {excludedCurrencies.length === 1 ? "is" : "are"} excluded from this
-          total because IAPKit does not convert currencies.
+          Headline revenue totals are pinned to {reportingCurrency}.{" "}
+          {currency !== reportingCurrency &&
+            `The revenue chart is showing ${currency}. `}
+          {excludedReportingCurrencies.join(", ")}{" "}
+          {excludedReportingCurrencies.length === 1 ? "is" : "are"} excluded
+          from headline totals because IAPKit does not convert currencies.
         </div>
       )}
 
@@ -542,7 +573,9 @@ export default function ProjectAnalytics() {
         <SummaryCard
           icon={TrendingUp}
           label="Revenue"
-          value={formatMicros(totals.revenueMicros, { currency })}
+          value={formatMicros(totals.revenueMicros, {
+            currency: reportingCurrency,
+          })}
         />
         <SummaryCard
           icon={Users}

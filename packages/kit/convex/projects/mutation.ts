@@ -4,6 +4,10 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { deleteProjectWithData } from "./helpers";
 import { generateApiKey } from "../utils/helpers";
 import { createError, ErrorCode } from "../utils/errors";
+import {
+  DEFAULT_REPORTING_CURRENCY,
+  normalizeReportingCurrency,
+} from "../utils/currency";
 
 const projectPlatformValidator = v.union(
   v.literal("react-native"),
@@ -151,17 +155,6 @@ function normalizeHorizonAppSecret(input: string): string {
   return normalized;
 }
 
-function normalizeReportingCurrency(input: string): string {
-  const normalized = input.trim().toUpperCase();
-  if (!/^[A-Z]{3}$/.test(normalized)) {
-    throw createError(
-      ErrorCode.INVALID_INPUT,
-      "Reporting currency must be a 3-letter ISO 4217 code (e.g. USD, EUR, GBP).",
-    );
-  }
-  return normalized;
-}
-
 // Helper to generate URL-friendly slug
 function generateSlug(name: string): string {
   return name
@@ -236,7 +229,7 @@ export const createProject = mutation({
       name: args.name,
       slug: finalSlug,
       apiKey, // Keep for backward compatibility, will be deprecated
-      reportingCurrency: "USD",
+      reportingCurrency: DEFAULT_REPORTING_CURRENCY,
       createdAt: now,
       updatedAt: now,
       ...(args.platform ? { platform: args.platform } : {}),

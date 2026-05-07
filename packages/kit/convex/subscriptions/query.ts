@@ -4,8 +4,10 @@ import type { Doc, Id } from "../_generated/dataModel";
 
 import { monthlyMicrosForSub } from "./monthlyMicros";
 import { selectMostRecentlyUpdatedSubscription } from "./selectLatest";
-
-const DEFAULT_REPORTING_CURRENCY = "USD";
+import {
+  DEFAULT_REPORTING_CURRENCY,
+  normalizeReportingCurrencyOrDefault,
+} from "../utils/currency";
 
 const subscriptionStateValidator = v.union(
   v.literal("Active"),
@@ -72,10 +74,7 @@ async function projectByApiKey(
 }
 
 function reportingCurrencyForProject(project: Doc<"projects">): string {
-  const candidate = project.reportingCurrency?.trim().toUpperCase();
-  return candidate && /^[A-Z]{3}$/.test(candidate)
-    ? candidate
-    : DEFAULT_REPORTING_CURRENCY;
+  return normalizeReportingCurrencyOrDefault(project.reportingCurrency);
 }
 
 export type MrrCurrencyEntry = { currency: string; mrrMicros: number };
@@ -88,15 +87,17 @@ export function selectReportingMrr(
   mrrMicros: number;
   excludedMrrByCurrency: MrrCurrencyEntry[];
 } {
+  const normalizedReportingCurrency =
+    normalizeReportingCurrencyOrDefault(reportingCurrency);
   const reportingEntry = entries.find(
-    (entry) => entry.currency === reportingCurrency,
+    (entry) => entry.currency === normalizedReportingCurrency,
   );
 
   return {
-    currency: reportingCurrency,
+    currency: normalizedReportingCurrency,
     mrrMicros: reportingEntry?.mrrMicros ?? 0,
     excludedMrrByCurrency: entries.filter(
-      (entry) => entry.currency !== reportingCurrency,
+      (entry) => entry.currency !== normalizedReportingCurrency,
     ),
   };
 }
