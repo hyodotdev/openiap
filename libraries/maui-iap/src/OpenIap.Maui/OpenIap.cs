@@ -109,7 +109,13 @@ public static class Iap
     /// </summary>
     public static void OverrideInstance(IOpenIap instance)
     {
-        _instance = instance ?? throw new ArgumentNullException(nameof(instance));
+        var next = instance ?? throw new ArgumentNullException(nameof(instance));
+        var previous = _instance;
+        if (!ReferenceEquals(previous, next) && previous is IDisposable disposable)
+        {
+            disposable.Dispose();
+        }
+        _instance = next;
     }
 }
 

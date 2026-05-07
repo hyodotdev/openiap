@@ -34,7 +34,7 @@ namespace Hyo.OpenIap.Maui.Platforms.iOS;
     "Interoperability",
     "CA1416",
     Justification = "Each iOS-16+/17.4+/18.1+ entry method has an explicit OperatingSystem.IsIOSVersionAtLeast guard; CA1416 cannot follow the binding's lambda-callback pattern through to those guards.")]
-internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver
+internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposable
 {
     private readonly OpenIapModule _module = OpenIapModule.SharedInstance();
 
@@ -51,6 +51,8 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver
     private readonly Action<NSDictionary> _purchaseErrorCallback;
     private readonly Action<NSString?> _promotedProductCallback;
     private readonly Action<NSDictionary> _billingIssueCallback;
+    private readonly object _listenerLock = new();
+    private bool _disposed;
 
     public OpenIapIOS()
     {
@@ -122,14 +124,67 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver
 
     private void WireListeners()
     {
-        // Each listener body is wrapped in catch (Exception) so a managed
-        // exception thrown from a Swift block trampoline (libdispatch worker)
-        // can never escape into mono's native unwind path — that path has no
-        // managed handler and aborts the process with SIGABRT.
-        _purchaseUpdatedToken = _module.AddPurchaseUpdatedListener(_purchaseUpdatedCallback);
-        _purchaseErrorToken = _module.AddPurchaseErrorListener(_purchaseErrorCallback);
-        _promotedProductToken = _module.AddPromotedProductListener(_promotedProductCallback);
-        _billingIssueToken = _module.AddSubscriptionBillingIssueListener(_billingIssueCallback);
+        lock (_listenerLock)
+        {
+            if (_disposed) throw new ObjectDisposedException(nameof(OpenIapIOS));
+            if (_purchaseUpdatedToken is not null) return;
+
+            // Each listener body is wrapped in catch (Exception) so a managed
+            // exception thrown from a Swift block trampoline (libdispatch worker)
+            // can never escape into mono's native unwind path — that path has no
+            // managed handler and aborts the process with SIGABRT.
+            _purchaseUpdatedToken = _module.AddPurchaseUpdatedListener(_purchaseUpdatedCallback);
+            _purchaseErrorToken = _module.AddPurchaseErrorListener(_purchaseErrorCallback);
+            _promotedProductToken = _module.AddPromotedProductListener(_promotedProductCallback);
+            _billingIssueToken = _module.AddSubscriptionBillingIssueListener(_billingIssueCallback);
+        }
+    }
+
+    public void Dispose()
+    {
+        NSObject? purchaseUpdatedToken;
+        NSObject? purchaseErrorToken;
+        NSObject? promotedProductToken;
+        NSObject? billingIssueToken;
+
+        lock (_listenerLock)
+        {
+            if (_disposed) return;
+            _disposed = true;
+
+            purchaseUpdatedToken = _purchaseUpdatedToken;
+            purchaseErrorToken = _purchaseErrorToken;
+            promotedProductToken = _promotedProductToken;
+            billingIssueToken = _billingIssueToken;
+
+            _purchaseUpdatedToken = null;
+            _purchaseErrorToken = null;
+            _promotedProductToken = null;
+            _billingIssueToken = null;
+        }
+
+        RemoveListener(purchaseUpdatedToken, nameof(_purchaseUpdatedToken));
+        RemoveListener(purchaseErrorToken, nameof(_purchaseErrorToken));
+        RemoveListener(promotedProductToken, nameof(_promotedProductToken));
+        RemoveListener(billingIssueToken, nameof(_billingIssueToken));
+        GC.SuppressFinalize(this);
+    }
+
+    private void RemoveListener(NSObject? token, string name)
+    {
+        if (token is null) return;
+        try
+        {
+            _module.RemoveListener(token);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[OpenIapIOS] failed to remove {name}: {ex.Message}");
+        }
+        finally
+        {
+            token.Dispose();
+        }
     }
 
     // ====================================================================
@@ -466,21 +521,22 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver
     public Task<IReadOnlyList<Purchase>> GetAvailablePurchasesAsync(PurchaseOptions? options = null)
         => InvokeArray<Purchase>(cb => _module.GetAvailablePurchasesWithOptions(ToPurchaseOptionsDictionary(options), cb));
 
-    public Task<IReadOnlyList<ActiveSubscription>> GetActiveSubscriptionsAsync(IReadOnlyList<string>? subscriptionIds = null)
-        => InvokeArray<ActiveSubscription>(cb => _module.GetActiveSubscriptions(cb))
-            .ContinueWith(t =>
-            {
-                if (subscriptionIds is null || subscriptionIds.Count == 0) return t.Result;
-                var filter = new HashSet<string>(subscriptionIds);
-                return (IReadOnlyList<ActiveSubscription>)t.Result.Where(a => filter.Contains(a.ProductId)).ToList();
-            }, TaskContinuationOptions.OnlyOnRanToCompletion);
+    public async Task<IReadOnlyList<ActiveSubscription>> GetActiveSubscriptionsAsync(IReadOnlyList<string>? subscriptionIds = null)
+    {
+        var result = await InvokeArray<ActiveSubscription>(cb => _module.GetActiveSubscriptions(cb));
+        if (subscriptionIds is null || subscriptionIds.Count == 0) return result;
+        var filter = new HashSet<string>(subscriptionIds);
+        return result.Where(a => filter.Contains(a.ProductId)).ToList();
+    }
 
     public Task<bool> HasActiveSubscriptionsAsync(IReadOnlyList<string>? subscriptionIds = null)
         => InvokeBool(cb => _module.HasActiveSubscriptions(cb));
 
-    public Task<string> GetStorefrontAsync()
-        => InvokeNullableString(cb => _module.GetStorefrontIOS(cb))
-            .ContinueWith(t => t.Result ?? string.Empty, TaskContinuationOptions.OnlyOnRanToCompletion);
+    public async Task<string> GetStorefrontAsync()
+    {
+        var storefront = await InvokeNullableString(cb => _module.GetStorefrontIOS(cb));
+        return storefront ?? string.Empty;
+    }
 
     public Task<bool> CanPresentExternalPurchaseNoticeIOSAsync()
     {
@@ -523,8 +579,8 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver
     public Task<PurchaseIOS?> LatestTransactionIOSAsync(string sku) => InvokeDict<PurchaseIOS>(cb => _module.LatestTransactionIOS(sku, cb));
     public Task<IReadOnlyList<SubscriptionStatusIOS>> SubscriptionStatusIOSAsync(string sku) => InvokeArray<SubscriptionStatusIOS>(cb => _module.SubscriptionStatusIOS(sku, cb));
 
-    public Task<VerifyPurchaseResultIOS> ValidateReceiptIOSAsync(VerifyPurchaseProps options)
-        => VerifyPurchaseAsync(options).ContinueWith(t => (VerifyPurchaseResultIOS)t.Result, TaskContinuationOptions.OnlyOnRanToCompletion);
+    public async Task<VerifyPurchaseResultIOS> ValidateReceiptIOSAsync(VerifyPurchaseProps options)
+        => (VerifyPurchaseResultIOS)await VerifyPurchaseAsync(options);
 
     // ====================================================================
     // Helpers

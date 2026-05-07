@@ -539,6 +539,19 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             throw error
         }
 
+        for await result in Transaction.unfinished {
+            do {
+                let transaction = try checkVerified(result)
+                if transaction.id == numericId {
+                    await transaction.finish()
+                    await state.removePending(id: identifier)
+                    return
+                }
+            } catch {
+                OpenIapLog.debug("⚠️ finishTransaction unfinished lookup failed: \(error.localizedDescription)")
+            }
+        }
+
         if let result = await Transaction.latest(for: purchase.productId) {
             do {
                 let transaction = try checkVerified(result)
@@ -552,7 +565,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             }
         }
 
-        OpenIapLog.debug("ℹ️ finishTransaction skipped: transaction \(identifier) is not pending/latest; treating as already finished")
+        OpenIapLog.debug("ℹ️ finishTransaction skipped: transaction \(identifier) is not pending/unfinished/latest; treating as already finished")
     }
 
     /// List unfinished StoreKit transactions.
