@@ -66,6 +66,17 @@ function Errors() {
   final String? debugMessage; // Raw BillingResult.debugMessage on Android
 }`}</CodeBlock>
             ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+data class PurchaseError(
+    var code: String,               // Error code constant
+    var message: String,            // Human-readable message
+    var productId = null,  // Related product SKU (if applicable)
+    var debugMessage = null // Raw BillingResult.debugMessage from Google Play
+)`}</CodeBlock>
+            ),
             gdscript: (
               <CodeBlock language="gdscript">{`class_name PurchaseError
 
@@ -819,6 +830,55 @@ var debug_message: Variant = null # Raw diagnostic from the billing layer`}</Cod
   featureNotSupported,
   emptySkuList,
   duplicatePurchase,
+}`}</CodeBlock>
+            ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+enum class OpenIapError {
+    Unknown,
+    UserCancelled,
+    UserError,
+    ItemUnavailable,
+    RemoteError,
+    NetworkError,
+    ServiceError,
+    // @deprecated Use PurchaseVerificationFailed instead
+    ReceiptFailed,
+    // @deprecated Use PurchaseVerificationFinished instead
+    ReceiptFinished,
+    // @deprecated Use PurchaseVerificationFinishFailed instead
+    ReceiptFinishedFailed,
+    PurchaseVerificationFailed,
+    PurchaseVerificationFinished,
+    PurchaseVerificationFinishFailed,
+    NotPrepared,
+    NotEnded,
+    AlreadyOwned,
+    DeveloperError,
+    BillingResponseJsonParseError,
+    DeferredPayment,
+    Interrupted,
+    IapNotAvailable,
+    PurchaseError,
+    SyncError,
+    TransactionValidationFailed,
+    ActivityUnavailable,
+    AlreadyPrepared,
+    Pending,
+    ConnectionClosed,
+    InitConnection,
+    ServiceDisconnected,
+    ServiceTimeout,
+    QueryProduct,
+    SkuNotFound,
+    SkuOfferMismatch,
+    ItemNotOwned,
+    BillingUnavailable,
+    FeatureNotSupported,
+    EmptySkuList,
+    DuplicatePurchase,
 }`}</CodeBlock>
             ),
             gdscript: (

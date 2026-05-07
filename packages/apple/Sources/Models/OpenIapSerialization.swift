@@ -21,13 +21,20 @@ public enum OpenIapSerialization {
 
     /// Encodes any encodable value into a `[String: Any]` dictionary (non-nullable).
     /// Filters out nil values to ensure compatibility with JSONSerialization.
+    ///
+    /// Tags every emitted dictionary with `__typename = String(describing: T.self)`
+    /// so cross-language consumers (Dart, Kotlin, C#) that drive polymorphic
+    /// dispatch off a leaf-level discriminator can decode the union variants
+    /// emitted by the ObjC bridge. The field is harmless extra data for
+    /// consumers that read fields directly (kmp-iap, flutter's iOS plugin).
     public static func encode<T: Encodable>(_ value: T) -> [String: Any] {
         do {
             let data = try encoder.encode(value)
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            guard var json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                 OpenIapLog.warn("⚠️ [OpenIapSerialization] Failed to deserialize JSON to dictionary for type: \(T.self)")
                 return [:]
             }
+            json["__typename"] = String(describing: T.self)
             return json
         } catch {
             OpenIapLog.error("⚠️ [OpenIapSerialization] Encoding failed for type \(T.self): \(error)")

@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:components="clr-namespace:OpenIap.Maui.Example.Components"
+             x:Class="OpenIap.Maui.Example.Pages.SubscriptionFlowPage"
+             Title="Subscription Flow"
+             BackgroundColor="White">
+
+    <Grid>
+        <ScrollView x:Name="ContentScroll" IsVisible="False">
+            <VerticalStackLayout Padding="20" Spacing="16">
+
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="Subscription Flow"
+                           FontSize="22"
+                           FontAttributes="Bold"
+                           TextColor="#1A1A1A" />
+                    <Label Text="Recurring subscriptions with offer details and active-status checks"
+                           FontSize="14"
+                           TextColor="#5F6470" />
+                </VerticalStackLayout>
+
+                <Border Stroke="#E1E7EF" StrokeShape="RoundRectangle 12" Padding="14" BackgroundColor="#F7F9FC">
+                    <Label x:Name="ConnectionLabel"
+                           Text="❌ Disconnected"
+                           HorizontalOptions="Center"
+                           HorizontalTextAlignment="Center"
+                           VerticalOptions="Center" />
+                </Border>
+
+                <Border x:Name="TapStatusPanel"
+                        IsVisible="False"
+                        Stroke="#B6D7FF"
+                        StrokeShape="RoundRectangle 12"
+                        Padding="12"
+                        BackgroundColor="#EAF4FF">
+                    <Label x:Name="TapStatusLabel"
+                           TextColor="#135EA8"
+                           FontSize="13"
+                           FontAttributes="Bold"
+                           HorizontalTextAlignment="Center" />
+                </Border>
+
+                <!-- Verification method picker -->
+                <Border Stroke="#E1E7EF" StrokeShape="RoundRectangle 12" Padding="14" BackgroundColor="#F7F9FC">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Purchase Verification:" FontAttributes="Bold" TextColor="#1A1A1A" />
+                        <Button x:Name="VerificationButton"
+                                Text="❌ None (Skip)"
+                                BackgroundColor="#1A1A1A"
+                                TextColor="White"
+                                CornerRadius="8"
+                                HorizontalOptions="Start"
+                                Padding="14,8"
+                                Clicked="OnChangeVerificationClicked" />
+                        <Label Text="Tap to change"
+                               FontSize="11"
+                               TextColor="#888" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Subscriptions list -->
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="Available Subscriptions" FontSize="18" FontAttributes="Bold" TextColor="#1A1A1A" />
+                    <Label x:Name="SubsCountLabel" FontSize="13" TextColor="#5F6470" />
+                </VerticalStackLayout>
+                <VerticalStackLayout x:Name="SubsContainer" Spacing="12" />
+
+                <!-- Active subscriptions -->
+                <VerticalStackLayout Spacing="6" Margin="0,8,0,0">
+                    <Label Text="Current Subscription Status" FontSize="18" FontAttributes="Bold" TextColor="#1A1A1A" />
+                    <Label x:Name="ActiveCountLabel" FontSize="13" TextColor="#5F6470" />
+                </VerticalStackLayout>
+                <VerticalStackLayout x:Name="ActiveContainer" Spacing="8" />
+                <Button x:Name="RefreshActiveButton"
+                        Text="Refresh active subscriptions"
+                        BackgroundColor="#E5EAF1"
+                        TextColor="#1A1A1A"
+                        CornerRadius="8"
+                        Padding="12,8"
+                        HorizontalOptions="Start"
+                        Clicked="OnRefreshActiveClicked" />
+                <Button Text="🔧 Manage Subscriptions"
+                        BackgroundColor="#1A1A1A"
+                        TextColor="White"
+                        CornerRadius="8"
+                        Padding="14,10"
+                        HorizontalOptions="Start"
+                        Clicked="OnManageClicked" />
+
+                <!-- Latest result -->
+                <Border x:Name="ResultPanel" IsVisible="False" Stroke="#E1E7EF" StrokeShape="RoundRectangle 12" Padding="14" BackgroundColor="#FFFBE6">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Latest Activity" FontAttributes="Bold" TextColor="#1A1A1A" />
+                        <Label x:Name="ResultLabel" TextColor="#1A1A1A" />
+                        <Label x:Name="LatestPurchaseHeader" Text="Latest Purchase" FontAttributes="Bold" TextColor="#1A1A1A" Margin="0,8,0,0" IsVisible="False" />
+                        <components:PurchaseSummaryRow x:Name="LatestPurchaseRow" IsVisible="False" />
+                        <Button Text="📋 Copy Message"
+                                BackgroundColor="#1A1A1A"
+                                TextColor="White"
+                                CornerRadius="8"
+                                HorizontalOptions="Start"
+                                Padding="12,6"
+                                Clicked="OnCopyResultClicked" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Instructions -->
+                <Border Stroke="#E1E7EF" StrokeShape="RoundRectangle 12" Padding="14" BackgroundColor="#F7F9FC" Margin="0,8,0,0">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="How to test:" FontAttributes="Bold" TextColor="#1A1A1A" />
+                        <Label Text="1. Make sure you're signed in with a Sandbox / license tester account" TextColor="#5F6470" />
+                        <Label Text="2. Subscription products must be configured in App Store Connect / Play Console" TextColor="#5F6470" />
+                        <Label Text="3. Android subscription purchases require an offerToken from subscriptionOffers" TextColor="#5F6470" />
+                        <Label Text="4. The transaction is processed via the PurchaseUpdated stream" TextColor="#5F6470" />
+                        <Label Text="5. Server-side receipt validation is recommended for production" TextColor="#5F6470" />
+                    </VerticalStackLayout>
+                </Border>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <components:Loading x:Name="LoadingView" Message="Connecting to Store..." />
+
+        <Grid x:Name="DetailsOverlay" IsVisible="False" BackgroundColor="#80000000">
+            <Border Margin="20" StrokeShape="RoundRectangle 16" BackgroundColor="White" Padding="0">
+                <Grid RowDefinitions="Auto,*">
+                    <Grid Grid.Row="0" Padding="20,16" ColumnDefinitions="*,Auto" BackgroundColor="#F7F9FC">
+                        <Label Grid.Column="0" Text="Subscription Details" FontAttributes="Bold" FontSize="18" />
+                        <Button Grid.Column="1" Text="✕" BackgroundColor="Transparent" TextColor="#666" Clicked="OnCloseDetailsClicked" />
+                    </Grid>
+                    <ScrollView Grid.Row="1" Padding="20">
+                        <VerticalStackLayout x:Name="DetailsContent" Spacing="6" />
+                    </ScrollView>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+
+</ContentPage>

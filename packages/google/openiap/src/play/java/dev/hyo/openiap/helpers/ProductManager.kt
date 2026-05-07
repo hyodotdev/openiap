@@ -5,6 +5,7 @@ import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.ProductDetails
 import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapLog
+import dev.hyo.openiap.fromBillingResponseCode
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -100,7 +101,12 @@ internal class ProductManager {
                 if (!cont.isActive) return@queryProductDetailsAsync
 
                 if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
-                    cont.resumeWithException(OpenIapError.QueryProduct)
+                    cont.resumeWithException(
+                        OpenIapError.fromBillingResponseCode(
+                            billingResult.responseCode,
+                            billingResult.debugMessage
+                        )
+                    )
                     return@queryProductDetailsAsync
                 }
                 // Preserve requested order and include cached + newly-fetched

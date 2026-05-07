@@ -244,6 +244,54 @@ data class LimitedQuantityInfoAndroid(
   final LimitedQuantityInfoAndroid? limitedQuantityInfo;
 }`}</CodeBlock>
             ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+data class ProductAndroidOneTimePurchaseOfferDetail(
+    // Offer identification
+    var offerId: String?,
+    var offerToken: String,
+    var offerTags: List<String>,
+
+    // Pricing
+    var formattedPrice: String,      // "$4.99"
+    var priceCurrencyCode: String,   // "USD"
+    var priceAmountMicros: String,   // "4990000"
+
+    // Discount information (only for discounted offers)
+    var fullPriceMicros: String?,           // Original price: "9990000"
+    var discountDisplayInfo: DiscountDisplayInfoAndroid?,
+
+    // Time and quantity limits
+    var validTimeWindow: ValidTimeWindowAndroid?,
+    var limitedQuantityInfo: LimitedQuantityInfoAndroid?,
+
+    // Special offer types
+    var preorderDetailsAndroid: PreorderDetailsAndroid?,
+    var rentalDetailsAndroid: RentalDetailsAndroid?
+)
+
+data class DiscountDisplayInfoAndroid(
+    var percentageDiscount: Int?,  // 50 for 50% off
+    var discountAmount: DiscountAmountAndroid?
+)
+
+data class DiscountAmountAndroid(
+    var discountAmountMicros: String,       // "5000000"
+    var formattedDiscountAmount: String     // "$5.00"
+)
+
+data class ValidTimeWindowAndroid(
+    var startTimeMillis: String,
+    var endTimeMillis: String
+)
+
+data class LimitedQuantityInfoAndroid(
+    var maximumQuantity: Int,
+    var remainingQuantity: Int
+)`}</CodeBlock>
+            ),
             gdscript: (
               <CodeBlock language="gdscript">{`class_name ProductAndroidOneTimePurchaseOfferDetail
 
@@ -403,6 +451,40 @@ for (final product in products) {
       print('Discount: \${discount.percentageDiscount}% OFF');
     }
   }
+}`}</CodeBlock>
+            ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+var iapStore = OpenIapStore.shared
+
+var products = iapStore.fetchProducts(
+    ProductRequest(
+        skus = new[] { "premium_feature", "coins_100" },
+        type = ProductQueryType.InApp
+    )
+)
+
+products.forEach { product ->
+    var offers = product.oneTimePurchaseOfferDetailsAndroid
+
+    if (!offers.isNullOrEmpty()) {
+        var firstOffer = offers.first()
+        var hasDiscount = firstOffer.discountDisplayInfo != null
+
+        println("Product: \${product.id}")
+        println("Display Price: \${product.displayPrice}")
+
+        if (hasDiscount) {
+            var discount = firstOffer.discountDisplayInfo
+            var fullPriceMicros = firstOffer.fullPriceMicros?.toLongOrNull() ?: 0L
+            var fullPrice = fullPriceMicros.toDouble() / 1_000_000.0
+
+            println("Original Price: $fullPrice")
+            println("Discount: \${discount?.percentageDiscount}% OFF")
+        }
+    }
 }`}</CodeBlock>
             ),
             gdscript: (
@@ -738,6 +820,102 @@ fun ProductCard(
     }
 }`}</CodeBlock>
             ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+@Composable
+fun ProductCard(
+    product: ProductAndroid,
+    onPurchase: () -> Unit
+) {
+    var firstOffer = product.oneTimePurchaseOfferDetailsAndroid?.firstOrNull()
+    var discountInfo = firstOffer?.discountDisplayInfo
+    var hasDiscount = discountInfo != null
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(
+                text = product.title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Text(
+                text = product.description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Original price with strikethrough
+                if (hasDiscount && firstOffer?.fullPriceMicros != null) {
+                    var fullPriceMicros = firstOffer.fullPriceMicros?.toLongOrNull() ?: 0L
+                    var fullPrice = fullPriceMicros.toDouble() / 1_000_000.0
+                    Text(
+                        text = "\${firstOffer.priceCurrencyCode} \${String.format("%.2f", fullPrice)}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textDecoration = TextDecoration.LineThrough
+                    )
+                }
+
+                // Current (discounted) price
+                Text(
+                    text = product.displayPrice,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = if (hasDiscount) Color(0xFF34C759) else MaterialTheme.colorScheme.primary
+                )
+
+                // Discount badge
+                if (hasDiscount) {
+                    var discountText = when {
+                        discountInfo?.percentageDiscount != null ->
+                            "\${discountInfo.percentageDiscount}% OFF"
+                        discountInfo?.discountAmount != null ->
+                            "\${discountInfo.discountAmount?.formattedDiscountAmount} OFF"
+                        else -> "SALE"
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = Color(0xFFFF3B30).copy(alpha = 0.1f)
+                    ) {
+                        Text(
+                            text = discountText,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFFF3B30)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(
+                onClick = onPurchase,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Buy Now")
+            }
+        }
+    }
+}`}</CodeBlock>
+            ),
             gdscript: (
               <CodeBlock language="gdscript">{`# Product card with discount display (Godot Control)
 extends PanelContainer
@@ -908,6 +1086,43 @@ fun checkOfferValidity(offer: ProductAndroidOneTimePurchaseOfferDetail): OfferVa
     }
 }`}</CodeBlock>
             ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+data class OfferValidity(
+    var isValid: Boolean,
+    var message: String
+)
+
+fun checkOfferValidity(offer: ProductAndroidOneTimePurchaseOfferDetail): OfferValidity {
+    var timeWindow = offer.validTimeWindow
+        ?: return OfferValidity(true, "Always available")
+
+    var now = System.currentTimeMillis()
+    var startTime = timeWindow.startTimeMillis.toLongOrNull() ?: 0L
+    var endTime = timeWindow.endTimeMillis.toLongOrNull() ?: 0L
+
+    if (now < startTime) {
+        var startsIn = java.util.Date(startTime)
+        return OfferValidity(false, "Starts on \${startsIn}")
+    }
+
+    if (now > endTime) {
+        return OfferValidity(false, "Offer expired")
+    }
+
+    var endsIn = endTime - now
+    var hoursLeft = (endsIn / (1000 * 60 * 60)).toInt()
+    var daysLeft = hoursLeft / 24
+
+    return if (daysLeft > 0) {
+        OfferValidity(true, "Ends in $daysLeft days")
+    } else {
+        OfferValidity(true, "Ends in $hoursLeft hours")
+    }
+}`}</CodeBlock>
+            ),
             gdscript: (
               <CodeBlock language="gdscript">{`func check_offer_validity(offer: ProductAndroidOneTimePurchaseOfferDetail) -> Dictionary:
     var time_window = offer.valid_time_window
@@ -1020,6 +1235,32 @@ fun checkQuantityAvailability(offer: ProductAndroidOneTimePurchaseOfferDetail): 
         ?: return QuantityAvailability(true, null)
 
     val (maximumQuantity, remainingQuantity) = quantityInfo
+
+    if (remainingQuantity <= 0) {
+        return QuantityAvailability(false, "Sold out - limit reached")
+    }
+
+    if (remainingQuantity <= 3) {
+        return QuantityAvailability(true, "Only $remainingQuantity left!")
+    }
+
+    return QuantityAvailability(true, "$remainingQuantity of $maximumQuantity available")
+}`}</CodeBlock>
+            ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+data class QuantityAvailability(
+    var isAvailable: Boolean,
+    var message: String?
+)
+
+fun checkQuantityAvailability(offer: ProductAndroidOneTimePurchaseOfferDetail): QuantityAvailability {
+    var quantityInfo = offer.limitedQuantityInfo
+        ?: return QuantityAvailability(true, null)
+
+    var (maximumQuantity, remainingQuantity) = quantityInfo
 
     if (remainingQuantity <= 0) {
         return QuantityAvailability(false, "Sold out - limit reached")
@@ -1145,6 +1386,31 @@ async function purchaseWithOffer(
                 RequestPurchasePropsByPlatforms(
                     google = RequestPurchaseAndroidProps(
                         skus = listOf(product.id),
+                        // Include offerTokenAndroid for discounted purchases (Android 7.0+)
+                        offerToken = selectedOffer.offerToken
+                    )
+                )
+            )
+        )
+    )
+}`}</CodeBlock>
+            ),
+            csharp: (
+              <CodeBlock language="csharp">{`Task PurchaseWithOfferAsync(Activity Activity, ProductAndroid Product, Int OfferIndex = 0) {
+    var offers = product.oneTimePurchaseOfferDetailsAndroid
+        ?: throw IllegalStateException("No offers available")
+
+    var selectedOffer = offers.getOrNull(offerIndex)
+        ?: throw IllegalStateException("Invalid offer index")
+
+    iapStore.requestPurchase(
+        activity = activity,
+        props = RequestPurchaseProps(
+            type = ProductQueryType.InApp,
+            request = RequestPurchaseProps.Request.Purchase(
+                RequestPurchasePropsByPlatforms(
+                    google = RequestPurchaseAndroidProps(
+                        skus = new[] { product.id },
                         // Include offerTokenAndroid for discounted purchases (Android 7.0+)
                         offerToken = selectedOffer.offerToken
                     )

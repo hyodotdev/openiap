@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<enum-field-mappings>
+  <!-- Map Java integer-constant fields to C# enums when needed. Empty for now. -->
+</enum-field-mappings>

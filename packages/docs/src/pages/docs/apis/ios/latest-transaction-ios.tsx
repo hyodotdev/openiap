@@ -49,6 +49,9 @@ function LatestTransactionIOS() {
           dart: (
             <CodeBlock language="dart">{`Future<PurchaseIOS?> latestTransactionIOS(String sku);`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`Task<PurchaseIOS?> LatestTransactionIOSAsync(String Sku)`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func latest_transaction_ios(sku: String) -> Variant`}</CodeBlock>
           ),
@@ -102,6 +105,13 @@ if (Platform.OS === 'ios') {
   final tx = await FlutterInappPurchase.instance
       .latestTransactionIOS('com.app.premium');
 }`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// kmp-iap (iOS targets only — no-op on Android)
+var tx = await ((QueryResolver)OpenIap.Instance).LatestTransactionIOSAsync(sku = "com.app.premium")`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

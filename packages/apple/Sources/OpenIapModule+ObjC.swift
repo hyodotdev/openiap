@@ -292,6 +292,22 @@ import StoreKit
         }
     }
 
+    @objc func getAvailablePurchasesWithOptions(
+        _ options: [String: Any]?,
+        completion: @escaping ([Any]?, Error?) -> Void
+    ) {
+        Task {
+            do {
+                let purchaseOptions = try options.map { try OpenIapSerialization.purchaseOptions(from: $0) }
+                let purchases = try await getAvailablePurchases(purchaseOptions)
+                let dictionaries = OpenIapSerialization.purchases(purchases)
+                completion(dictionaries, nil)
+            } catch {
+                completion(nil, error)
+            }
+        }
+    }
+
     @objc func getAllTransactionsIOSWithCompletion(_ completion: @escaping ([Any]?, Error?) -> Void) {
         Task {
             do {
@@ -348,21 +364,7 @@ import StoreKit
     ) {
         Task {
             do {
-                // Try to find the actual transaction from pending transactions
-                let pendingTransactions = try await getPendingTransactionsIOS()
-
-                // Use full transaction data if available in pending
-                if let purchaseIOS = pendingTransactions.first(where: {
-                    $0.transactionId == purchaseId || $0.id == purchaseId
-                }) {
-                    let purchaseInput = Purchase.purchaseIos(purchaseIOS)
-                    try await finishTransaction(purchase: purchaseInput, isConsumable: isConsumable)
-                    completion(nil)
-                    return
-                }
-
-                // Not in pending - finishTransaction will search currentEntitlements
-                // Create minimal PurchaseIOS (only purchase.id is used by finishTransaction)
+                print("[OpenIAP] finishTransaction bridge start id=\(purchaseId) product=\(productId)")
                 let minimalPurchase = PurchaseIOS(
                     appAccountToken: nil,
                     appBundleIdIOS: nil,
@@ -400,8 +402,10 @@ import StoreKit
                 )
                 let purchaseInput = Purchase.purchaseIos(minimalPurchase)
                 try await finishTransaction(purchase: purchaseInput, isConsumable: isConsumable)
+                print("[OpenIAP] finishTransaction bridge complete id=\(purchaseId)")
                 completion(nil)
             } catch {
+                print("[OpenIAP] finishTransaction bridge error id=\(purchaseId): \(error.localizedDescription)")
                 completion(error)
             }
         }

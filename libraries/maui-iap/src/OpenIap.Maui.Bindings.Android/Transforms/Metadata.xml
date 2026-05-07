@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<metadata>
+  <!-- Hide kotlinx.coroutines internals so they don't pollute the public C# surface. -->
+  <attr path="/api/package[@name='kotlinx.coroutines']" name="visibility">private</attr>
+
+  <!-- Disambiguate duplicate C# events on OpenIapStore. The store exposes two
+       legacy listener interfaces (IOpenIapUserChoiceBillingListener / IOpenIapDeveloperProvidedBillingListener)
+       AND two newer single-listener replacements (IUserChoiceBillingListener / IDeveloperProvidedBillingListener).
+       The codegen produces a `UserChoiceBilling` event for both, which collides;
+       rename the legacy add/remove pair so the new replaceable one keeps the
+       canonical name. -->
+  <attr path="/api/package[@name='dev.hyo.openiap.store']/class[@name='OpenIapStore']/method[@name='addUserChoiceBillingListener']" name="eventName">LegacyUserChoiceBillingAdded</attr>
+  <attr path="/api/package[@name='dev.hyo.openiap.store']/class[@name='OpenIapStore']/method[@name='removeUserChoiceBillingListener']" name="eventName">LegacyUserChoiceBillingRemoved</attr>
+  <attr path="/api/package[@name='dev.hyo.openiap.store']/class[@name='OpenIapStore']/method[@name='addDeveloperProvidedBillingListener']" name="eventName">LegacyDeveloperProvidedBillingAdded</attr>
+  <attr path="/api/package[@name='dev.hyo.openiap.store']/class[@name='OpenIapStore']/method[@name='removeDeveloperProvidedBillingListener']" name="eventName">LegacyDeveloperProvidedBillingRemoved</attr>
+
+  <!-- OpenIapModule has the same duplicate-event problem: addX/removeX (legacy
+       multi-listener API) AND setX (single-listener replacement) both reduce
+       to the same event name in the binding generator. Rename the legacy
+       multi-listener pair so the single-listener `set` keeps the canonical
+       UserChoiceBilling / DeveloperProvidedBilling event name. -->
+  <attr path="/api/package[@name='dev.hyo.openiap']/class[@name='OpenIapModule']/method[@name='addUserChoiceBillingListener']" name="eventName">LegacyUserChoiceBillingAdded</attr>
+  <attr path="/api/package[@name='dev.hyo.openiap']/class[@name='OpenIapModule']/method[@name='removeUserChoiceBillingListener']" name="eventName">LegacyUserChoiceBillingRemoved</attr>
+  <attr path="/api/package[@name='dev.hyo.openiap']/class[@name='OpenIapModule']/method[@name='addDeveloperProvidedBillingListener']" name="eventName">LegacyDeveloperProvidedBillingAdded</attr>
+  <attr path="/api/package[@name='dev.hyo.openiap']/class[@name='OpenIapModule']/method[@name='removeDeveloperProvidedBillingListener']" name="eventName">LegacyDeveloperProvidedBillingRemoved</attr>
+</metadata>

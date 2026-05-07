@@ -58,6 +58,11 @@ suspend fun showAlternativeBillingDialog(): Boolean`}</CodeBlock>
           dart: (
             <CodeBlock language="dart">{`Future<bool> showAlternativeBillingDialogAndroid();`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`// Returns true if user accepted, false if user canceled
+// Throws OpenIapError.NotPrepared if billing client not ready
+Task<Boolean> ShowAlternativeBillingDialogAsync()`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func show_alternative_billing_dialog_android() -> bool`}</CodeBlock>
           ),
@@ -96,6 +101,12 @@ if (Platform.OS === 'android') {
   final accepted = await FlutterInappPurchase.instance
       .showAlternativeBillingDialogAndroid();
 }`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+var accepted = await ((QueryResolver)OpenIap.Instance).ShowAlternativeBillingDialogAsync()`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":

@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="OpenIap.Maui.Example.Pages.WebhookStreamPage"
+             Title="Webhook Stream"
+             BackgroundColor="White">
+
+    <Grid RowDefinitions="Auto,Auto,Auto,*">
+        <VerticalStackLayout Grid.Row="0" Padding="20" Spacing="6">
+            <Label Text="Webhook Stream" FontSize="22" FontAttributes="Bold" TextColor="#000" />
+            <Label Text="SSE → /v1/webhooks/stream/{apiKey}"
+                   FontSize="13"
+                   FontFamily="Menlo"
+                   TextColor="#444" />
+        </VerticalStackLayout>
+
+        <VerticalStackLayout Grid.Row="1" Padding="20,0,20,8" Spacing="6">
+            <Label Text="Base URL" FontAttributes="Bold" />
+            <Entry x:Name="BaseUrlEntry"
+                   Text="https://kit.openiap.dev"
+                   FontSize="14" />
+            <Label Text="IAPKit API Key" FontAttributes="Bold" Margin="0,6,0,0" />
+            <Entry x:Name="ApiKeyEntry" Placeholder="iapkit_*" FontSize="14" />
+            <Label x:Name="EndpointLabel"
+                   Text="api key: MISSING"
+                   FontSize="12"
+                   TextColor="#888" />
+        </VerticalStackLayout>
+
+        <HorizontalStackLayout Grid.Row="2" Spacing="8" Padding="20,4,20,8">
+                <Button Text="Connect"
+                        BackgroundColor="#0EA5E9"
+                        TextColor="White"
+                        CornerRadius="10"
+                        Padding="14,10"
+                        Clicked="OnConnectClicked" />
+                <Button Text="Disconnect"
+                        BackgroundColor="#6C757D"
+                        TextColor="White"
+                        CornerRadius="10"
+                        Padding="14,10"
+                        Clicked="OnDisconnectClicked" />
+                <Button Text="Clear"
+                        BackgroundColor="#E5EAF1"
+                        TextColor="#1A1A1A"
+                        CornerRadius="10"
+                        Padding="14,10"
+                        Clicked="OnClearClicked" />
+                <Button x:Name="TriggerButton"
+                        Text="Trigger test notification"
+                        BackgroundColor="#34C759"
+                        TextColor="White"
+                        CornerRadius="10"
+                        Padding="14,10"
+                        Clicked="OnTriggerTestClicked" />
+        </HorizontalStackLayout>
+
+        <Grid Grid.Row="3" RowDefinitions="Auto,*" Padding="20,0,20,20">
+            <Border x:Name="StatusPanel" StrokeShape="RoundRectangle 8" Padding="12" BackgroundColor="#F0F0F0" Margin="0,0,0,8">
+                <VerticalStackLayout Spacing="4">
+                    <Label x:Name="StatusLabel" Text="Status: idle" FontAttributes="Bold" TextColor="#222" />
+                    <Label x:Name="StatusMessageLabel" FontSize="12" TextColor="#444" IsVisible="False" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Grid.Row="1" Stroke="#E1E7EF" StrokeShape="RoundRectangle 10" Padding="0" BackgroundColor="#F7F8FA">
+                <Editor x:Name="LogEditor"
+                        IsReadOnly="True"
+                        BackgroundColor="Transparent"
+                        TextColor="#444"
+                        FontFamily="Menlo"
+                        FontSize="12"
+                        Text="No events yet. Connect, then trigger a test notification or wait for a real Apple / Google webhook." />
+            </Border>
+        </Grid>
+    </Grid>
+
+</ContentPage>

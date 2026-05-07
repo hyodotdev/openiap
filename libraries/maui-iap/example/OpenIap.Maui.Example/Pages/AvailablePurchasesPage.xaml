@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:components="clr-namespace:OpenIap.Maui.Example.Components"
+             x:Class="OpenIap.Maui.Example.Pages.AvailablePurchasesPage"
+             Title="Available Purchases"
+             BackgroundColor="White">
+
+    <Grid>
+        <ScrollView x:Name="ContentScroll" IsVisible="False">
+            <VerticalStackLayout Padding="20" Spacing="16">
+
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="Available Purchases" FontSize="22" FontAttributes="Bold" TextColor="#1A1A1A" />
+                    <Label Text="Restore prior purchases and inspect their full details"
+                           FontSize="14" TextColor="#5F6470" />
+                </VerticalStackLayout>
+
+                <Border Stroke="#E1E7EF" StrokeShape="RoundRectangle 12" Padding="14" BackgroundColor="#F7F9FC">
+                    <VerticalStackLayout Spacing="6" HorizontalOptions="Center">
+                        <Label x:Name="ConnectionLabel"
+                               Text="❌ Disconnected"
+                               HorizontalOptions="Center"
+                               HorizontalTextAlignment="Center"
+                               VerticalOptions="Center" />
+                        <Label x:Name="StorefrontLabel"
+                               FontSize="13"
+                               TextColor="#5F6470"
+                               HorizontalTextAlignment="Center"
+                               IsVisible="False" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="🔄 Active Subscriptions" FontSize="18" FontAttributes="Bold" TextColor="#1A1A1A" />
+                    <Label Text="Currently active subscription services" FontSize="13" TextColor="#5F6470" FontAttributes="Italic" />
+                    <Label x:Name="ActiveCountLabel" FontSize="13" TextColor="#5F6470" />
+                </VerticalStackLayout>
+                <VerticalStackLayout x:Name="ActiveContainer" Spacing="8" />
+
+                <VerticalStackLayout Spacing="6" Margin="0,8,0,0">
+                    <Label Text="💰 Available Purchases" FontSize="18" FontAttributes="Bold" TextColor="#1A1A1A" />
+                    <Label Text="Non-consumed purchases and active transactions (deduplicated)" FontSize="13" TextColor="#5F6470" FontAttributes="Italic" />
+                    <Label x:Name="PurchasesCountLabel" FontSize="13" TextColor="#5F6470" />
+                </VerticalStackLayout>
+                <VerticalStackLayout x:Name="PurchasesContainer" Spacing="0" />
+
+                <Border x:Name="EmptyStatusPanel" Stroke="#E1E7EF" StrokeShape="RoundRectangle 12" Padding="14" BackgroundColor="White" IsVisible="False">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="📋 Purchase Status" FontSize="18" FontAttributes="Bold" TextColor="#1A1A1A" />
+                        <Label Text="No purchases or active subscriptions found" FontSize="14" TextColor="#5F6470" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Button x:Name="RefreshButton"
+                        Text="🔄 Refresh Purchases"
+                        BackgroundColor="#9C27B0"
+                        TextColor="White"
+                        CornerRadius="10"
+                        Padding="14,10"
+                        HorizontalOptions="Start"
+                        Clicked="OnRefreshClicked" />
+
+                <Border Stroke="#E1E7EF" StrokeShape="RoundRectangle 12" Padding="14" BackgroundColor="White" Margin="0,8,0,0">
+                    <VerticalStackLayout Spacing="12">
+                        <Label Text="🛠️ Tools" FontSize="18" FontAttributes="Bold" TextColor="#1A1A1A" />
+                        <Button Text="🌐 Get Storefront"
+                                BackgroundColor="#9C27B0"
+                                TextColor="White"
+                                CornerRadius="10"
+                                Padding="14,10"
+                                Clicked="OnGetStorefrontClicked" />
+                        <Button Text="🔗 Manage Subscriptions"
+                                BackgroundColor="#9C27B0"
+                                TextColor="White"
+                                CornerRadius="10"
+                                Padding="14,10"
+                                Clicked="OnDeepLinkClicked" />
+                    </VerticalStackLayout>
+                </Border>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <components:Loading x:Name="LoadingView" Message="Connecting to Store..." />
+
+        <Grid x:Name="DetailsOverlay" IsVisible="False" BackgroundColor="#80000000">
+            <Border Margin="20" StrokeShape="RoundRectangle 16" BackgroundColor="White" Padding="0">
+                <Grid RowDefinitions="Auto,*">
+                    <Grid Grid.Row="0" Padding="20,16" ColumnDefinitions="*,Auto" BackgroundColor="#F7F9FC">
+                        <Label Grid.Column="0" Text="Purchase Details" FontAttributes="Bold" FontSize="18" />
+                        <Button Grid.Column="1" Text="✕" BackgroundColor="Transparent" TextColor="#666" Clicked="OnCloseDetailsClicked" />
+                    </Grid>
+                    <ScrollView Grid.Row="1" Padding="20">
+                        <components:PurchaseDetailsView x:Name="PurchaseDetailsView" />
+                    </ScrollView>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Grid x:Name="SubscriptionDetailsOverlay" IsVisible="False" BackgroundColor="#80000000">
+            <Border Margin="20" StrokeShape="RoundRectangle 16" BackgroundColor="White" Padding="0">
+                <Grid RowDefinitions="Auto,*">
+                    <Grid Grid.Row="0" Padding="20,16" ColumnDefinitions="*,Auto" BackgroundColor="#F7F9FC">
+                        <Label Grid.Column="0" Text="Subscription Details" FontAttributes="Bold" FontSize="18" />
+                        <Button Grid.Column="1" Text="✕" BackgroundColor="Transparent" TextColor="#666" Clicked="OnCloseSubscriptionDetailsClicked" />
+                    </Grid>
+                    <ScrollView Grid.Row="1" Padding="20">
+                        <VerticalStackLayout x:Name="SubscriptionDetailsContent" Spacing="6" />
+                    </ScrollView>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+
+</ContentPage>

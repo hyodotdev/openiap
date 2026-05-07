@@ -403,6 +403,33 @@ if (iapkit != null && iapkit.isValid && iapkit.state == IapkitPurchaseState.enti
   print('Valid purchase from \${iapkit.store}');
 }`}</CodeBlock>
             ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// Create verification props for Android
+var props = VerifyPurchaseWithProviderProps(
+    iapkit = RequestVerifyPurchaseWithIapkitProps(
+        apiKey = "your-iapkit-api-key",
+        apple = null,
+        google = RequestVerifyPurchaseWithIapkitGoogleProps(
+            purchaseToken = purchase.purchaseToken
+        )
+    ),
+    provider = PurchaseVerificationProvider.Iapkit
+)
+
+// Verify purchase
+var result = module.verifyPurchaseWithProvider(props)
+
+// Check result
+result.iapkit?.let { iapkit ->
+    if (iapkit.isValid && iapkit.state == IapkitPurchaseState.Entitled) {
+        // Grant entitlement to user
+        println("Valid purchase from \${iapkit.store}")
+    }
+}`}</CodeBlock>
+            ),
             gdscript: (
               <CodeBlock language="gdscript">{`# Create verification props for iOS
 var props = VerifyPurchaseWithProviderProps.new()

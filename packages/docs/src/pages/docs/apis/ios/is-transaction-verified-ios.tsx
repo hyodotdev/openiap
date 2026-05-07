@@ -50,6 +50,9 @@ function IsTransactionVerifiedIOS() {
           dart: (
             <CodeBlock language="dart">{`Future<bool> isTransactionVerifiedIOS(String sku);`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`Task<Boolean> IsTransactionVerifiedIOSAsync(String Sku)`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func is_transaction_verified_ios(sku: String) -> bool`}</CodeBlock>
           ),
@@ -100,6 +103,13 @@ if (Platform.OS === 'ios') {
   final ok = await FlutterInappPurchase.instance
       .isTransactionVerifiedIOS('com.app.premium');
 }`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// kmp-iap (iOS targets only — no-op on Android)
+var ok = await ((QueryResolver)OpenIap.Instance).IsTransactionVerifiedIOSAsync(sku = "com.app.premium")`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

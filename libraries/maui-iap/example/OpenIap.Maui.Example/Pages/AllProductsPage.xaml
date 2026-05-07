@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:components="clr-namespace:OpenIap.Maui.Example.Components"
+             x:Class="OpenIap.Maui.Example.Pages.AllProductsPage"
+             Title="All Products"
+             BackgroundColor="White">
+
+    <Grid>
+        <ScrollView x:Name="ContentScroll" IsVisible="False">
+            <VerticalStackLayout Padding="20" Spacing="16">
+
+                <!-- Header -->
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="All Products"
+                           FontSize="22"
+                           FontAttributes="Bold"
+                           TextColor="#1A1A1A" />
+                    <Label Text="In-App Purchases and Subscriptions"
+                           FontSize="14"
+                           TextColor="#5F6470" />
+                </VerticalStackLayout>
+
+                <!-- Connection status -->
+                <Border Stroke="#E1E7EF"
+                        StrokeShape="RoundRectangle 12"
+                        Padding="14"
+                        BackgroundColor="#F7F9FC">
+                    <Label x:Name="ConnectionLabel"
+                           Text="❌ Disconnected"
+                           HorizontalOptions="Center"
+                           HorizontalTextAlignment="Center"
+                           VerticalOptions="Center" />
+                </Border>
+
+                <!-- In-App products -->
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="Products (In-App)" FontSize="18" FontAttributes="Bold" TextColor="#1A1A1A" />
+                    <Label x:Name="ProductsCountLabel" FontSize="13" TextColor="#5F6470" />
+                </VerticalStackLayout>
+                <VerticalStackLayout x:Name="ProductsContainer" Spacing="12" />
+
+                <!-- Subscriptions -->
+                <VerticalStackLayout Spacing="6" Margin="0,12,0,0">
+                    <Label Text="Subscriptions" FontSize="18" FontAttributes="Bold" TextColor="#1A1A1A" />
+                    <Label x:Name="SubsCountLabel" FontSize="13" TextColor="#5F6470" />
+                </VerticalStackLayout>
+                <VerticalStackLayout x:Name="SubsContainer" Spacing="12" />
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <components:Loading x:Name="LoadingView" Message="Connecting to Store..." />
+
+        <!-- Product details overlay (mirrors the Modal in app/all-products.tsx) -->
+        <Grid x:Name="DetailsOverlay"
+              IsVisible="False"
+              BackgroundColor="#80000000">
+            <Border Margin="20"
+                    StrokeShape="RoundRectangle 16"
+                    BackgroundColor="White"
+                    Padding="0">
+                <Grid RowDefinitions="Auto,*">
+                    <Grid Grid.Row="0" Padding="20,16" ColumnDefinitions="*,Auto" BackgroundColor="#F7F9FC">
+                        <Label Grid.Column="0" Text="Product Details" FontAttributes="Bold" FontSize="18" />
+                        <Button Grid.Column="1"
+                                Text="✕"
+                                BackgroundColor="Transparent"
+                                TextColor="#666"
+                                Clicked="OnCloseDetailsClicked" />
+                    </Grid>
+                    <ScrollView Grid.Row="1" Padding="20">
+                        <VerticalStackLayout x:Name="DetailsContent" Spacing="6" />
+                    </ScrollView>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+
+</ContentPage>

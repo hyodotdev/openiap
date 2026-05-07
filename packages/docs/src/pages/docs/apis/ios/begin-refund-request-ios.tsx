@@ -52,6 +52,9 @@ function BeginRefundRequestIOS() {
           dart: (
             <CodeBlock language="dart">{`Future<String?> beginRefundRequestIOS(String sku);`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`Task<String?> BeginRefundRequestIOSAsync(String Sku)`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func begin_refund_request_ios(product_id: String) -> Types.RefundResultIOS`}</CodeBlock>
           ),
@@ -103,6 +106,13 @@ if (Platform.OS === 'ios') {
   final status = await FlutterInappPurchase.instance
       .beginRefundRequestIOS('com.app.premium');
 }`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// kmp-iap (iOS targets only — no-op on Android)
+var status = await ((QueryResolver)OpenIap.Instance).BeginRefundRequestIOSAsync(sku = "com.app.premium")`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

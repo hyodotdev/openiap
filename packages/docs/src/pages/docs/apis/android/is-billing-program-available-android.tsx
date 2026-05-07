@@ -65,6 +65,11 @@ suspend fun isBillingProgramAvailable(
             <CodeBlock language="dart">{`Future<BillingProgramAvailabilityResultAndroid>
     isBillingProgramAvailableAndroid(BillingProgramAndroid program);`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`// Returns BillingProgramAvailabilityResultAndroid with isAvailable flag
+// Throws OpenIapError.NotPrepared if billing client not ready
+Task<BillingProgramAvailabilityResultAndroid> IsBillingProgramAvailableAsync(BillingProgramAndroid Program)`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func is_billing_program_available_android(
     program: int
@@ -147,6 +152,14 @@ if (Platform.OS === 'android') {
   final result = await FlutterInappPurchase.instance
       .isBillingProgramAvailableAndroid(BillingProgramAndroid.externalOffer);
 }`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+var result = await ((QueryResolver)OpenIap.Instance).IsBillingProgramAvailableAsync(
+    BillingProgramAndroid.ExternalOffer
+)`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":

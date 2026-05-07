@@ -71,6 +71,9 @@ interface PurchaseOptions {
           dart: (
             <CodeBlock language="dart">{`Future<List<Purchase>> getAvailablePurchases({PurchaseOptions? options});`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`Task<List<Purchase>> GetAvailablePurchasesAsync()`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func get_available_purchases(options: PurchaseOptions = null) -> Array[Purchase]`}</CodeBlock>
           ),
@@ -184,6 +187,12 @@ function PendingPurchases() {
           ),
           dart: (
             <CodeBlock language="dart">{`final purchases = await FlutterInappPurchase.instance.getAvailablePurchases();`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+var purchases = await ((QueryResolver)OpenIap.Instance).GetAvailablePurchasesAsync()`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`var purchases = await iap.get_available_purchases()`}</CodeBlock>

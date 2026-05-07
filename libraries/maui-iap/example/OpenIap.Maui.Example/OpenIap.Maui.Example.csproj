@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net9.0-android;net9.0-ios;net9.0-maccatalyst</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>OpenIap.Maui.Example</RootNamespace>
+    <UseMaui>true</UseMaui>
+    <SingleProject>true</SingleProject>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>12.0</LangVersion>
+
+    <ApplicationTitle>OpenIAP MAUI Example</ApplicationTitle>
+    <!-- Match the App Store Connect / Play Console record that owns the
+         dev.hyo.martie.* SKUs (same bundle ID used by expo-iap, react-native-iap,
+         flutter_inapp_purchase, kmp-iap example apps). StoreKit / Billing only
+         resolve products owned by the running app's bundle ID. -->
+    <ApplicationId>dev.hyo.martie</ApplicationId>
+    <ApplicationIdGuid>4F8D0D6E-1F8F-4D7C-9A1A-9A1A9A1A9A1A</ApplicationIdGuid>
+    <ApplicationDisplayVersion>1.0.0</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
+
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">24.0</SupportedOSPlatformVersion>
+    <AppIcon Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">appicon</AppIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <MauiIcon Include="Resources\AppIcon\appicon.png" Color="#000000" />
+
+    <PackageReference Include="Microsoft.Maui.Controls" Version="9.0.*" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\OpenIap.Maui\OpenIap.Maui.csproj" />
+  </ItemGroup>
+
+  <!-- .NET-for-iOS does NOT propagate <NativeReference> items through
+       ProjectReference. Until that ships, every consumer (this example, or
+       any host MAUI app pulling Hyo.OpenIap.Maui via path-reference) must
+       declare the xcframework themselves. NuGet consumers don't need this —
+       the package ships the official binding resource zip sidecar that
+       .NET-for-iOS resolves at build time. -->
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
+    <NativeReference Include="..\..\..\..\packages\apple\.build\xcframework\OpenIAP.xcframework"
+                     Kind="Framework"
+                     SmartLink="True"
+                     ForceLoad="True" />
+  </ItemGroup>
+
+</Project>

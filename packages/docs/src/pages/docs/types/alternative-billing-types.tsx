@@ -256,6 +256,34 @@ await FlutterInappPurchase.instance.initConnection(
 // Standard billing (default)
 await FlutterInappPurchase.instance.initConnection();`}</CodeBlock>
             ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// Initialize with user choice billing (7.0+)
+await ((QueryResolver)OpenIap.Instance).InitConnectionAsync(
+    InitConnectionConfig(
+        enableBillingProgramAndroid = BillingProgramAndroid.UserChoiceBilling
+    )
+)
+
+// Initialize with external offer (alternative only)
+await ((QueryResolver)OpenIap.Instance).InitConnectionAsync(
+    InitConnectionConfig(
+        enableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer
+    )
+)
+
+// Initialize with external payments (Japan only, 8.3.0+)
+await ((QueryResolver)OpenIap.Instance).InitConnectionAsync(
+    InitConnectionConfig(
+        enableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments
+    )
+)
+
+// Standard billing (default)
+await ((QueryResolver)OpenIap.Instance).InitConnectionAsync()`}</CodeBlock>
+            ),
             gdscript: (
               <CodeBlock language="gdscript">{`# Initialize with user choice billing (7.0+)
 var config = InitConnectionConfig.new()
@@ -436,6 +464,64 @@ await FlutterInappPurchase.instance.requestSubscription(
 
 // Cleanup
 userChoiceSubscription.cancel();`}</CodeBlock>
+            ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+var iapStore = OpenIapStore(context)
+
+// Step 1: Set up listener for when user selects alternative billing
+iapStore.addUserChoiceBillingListener(object : OpenIapUserChoiceBillingListener {
+    override fun onUserChoiceBilling(details: UserChoiceBillingDetails) {
+        Log.d("IAP", "User chose alternative billing")
+        Log.d("IAP", "Products: \${details.products.map { it.productId }}")
+        Log.d("IAP", "Token: \${details.externalTransactionToken}")
+
+        // Process payment with your backend using the token
+        lifecycleScope.launch {
+            var paymentResult = yourBackend.processPayment(
+                products = details.products,
+                token = details.externalTransactionToken
+            )
+
+            if (paymentResult.success) {
+                grantUserAccess()
+            }
+        }
+    }
+})
+
+// Step 2: Initialize with user choice billing (recommended)
+iapStore.initConnection(
+    InitConnectionConfig(
+        enableBillingProgramAndroid = BillingProgramAndroid.UserChoiceBilling
+    )
+)
+
+// Step 3: Fetch products and purchase as normal
+var products = iapStore.fetchProducts(
+    skus = new[] { "premium_subscription" },
+    type = ProductQueryType.Subs
+)
+
+// Step 4: Request purchase - dialog will show both options
+iapStore.setActivity(activity)
+iapStore.requestPurchase(
+    RequestPurchaseProps(
+        request = RequestPurchaseProps.Request.Subscription(
+            RequestSubscriptionPropsByPlatforms(
+                google = RequestSubscriptionAndroidProps(
+                    skus = new[] { "premium_subscription" }
+                )
+            )
+        ),
+        type = ProductQueryType.Subs
+    )
+)
+
+// If user selects Google Play → onPurchaseSuccess fires
+// If user selects alternative → OpenIapUserChoiceBillingListener fires`}</CodeBlock>
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`# Step 1: Set up listener for when user selects alternative billing
@@ -642,6 +728,60 @@ if (paymentResult.success) {
   // Report transaction to Google (required)
   await yourBackend.reportExternalTransaction(token, paymentResult.orderId);
   grantUserAccess();
+}`}</CodeBlock>
+            ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+var iapStore = OpenIapStore(context)
+
+// Step 1: Initialize with external offer (recommended)
+iapStore.initConnection(
+    InitConnectionConfig(
+        enableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer
+    )
+)
+
+// Step 2: Check if alternative billing is available
+var availability = iapStore.checkAlternativeBillingAvailability()
+if (!availability.isAvailable) {
+    Log.w("IAP", "Alternative billing not available in this region")
+    // Fall back to standard Google Play billing
+    return
+}
+
+// Step 3: Fetch products (still needed to show prices)
+var products = iapStore.fetchProducts(
+    skus = new[] { "premium_subscription" },
+    type = ProductQueryType.Subs
+)
+
+// Step 4: Show required Google Play disclosure dialog
+iapStore.setActivity(activity)
+var dialogResult = iapStore.showAlternativeBillingDialog()
+if (dialogResult.responseCode != 0) {
+    Log.d("IAP", "User did not accept alternative billing")
+    return
+}
+
+// Step 5: Create token for this transaction
+var token = iapStore.createAlternativeBillingToken(products.first().id)
+
+// Step 6: Process purchase with your backend
+lifecycleScope.launch {
+    var paymentResult = yourBackend.processAlternativePurchase(
+        productId = products.first().id,
+        price = products.first().price,
+        token = token,
+        userId = currentUserId
+    )
+
+    if (paymentResult.success) {
+        // Report transaction to Google (required)
+        yourBackend.reportExternalTransaction(token, paymentResult.orderId)
+        grantUserAccess()
+    }
 }`}</CodeBlock>
             ),
             gdscript: (

@@ -1,135 +1,228 @@
 # OpenIAP Quick Reference
 
-> OpenIAP: Unified cross-platform in-app purchase SDK
+> OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Full Reference: https://openiap.dev/llms-full.txt
-> GitHub: https://github.com/hyodotdev/openiap
-
-## Overview
-
-OpenIAP provides a standardized protocol for implementing in-app purchases across all platforms. One spec, consistent APIs, platform-specific optimizations.
+> Generated: 2026-05-07T06:54:51.692Z
 
 ## Installation
 
-### React Native (react-native-iap)
+### React Native / Expo
 ```bash
+# expo-iap (Expo projects)
+npx expo install expo-iap
+
+# react-native-iap (React Native CLI)
 npm install react-native-iap
 ```
-Requires: iOS 15.0+ / Android compileSdk 34+
 
-### Expo (expo-iap)
-```bash
-npx expo install expo-iap
+### Native
+```swift
+// Swift Package Manager
+.package(url: "https://github.com/hyodotdev/openiap.git", from: "1.0.0")
 ```
-Requires: iOS 15.0+ / Android compileSdk 34+
 
-### Flutter (flutter_inapp_purchase)
-```bash
-flutter pub add flutter_inapp_purchase
-```
-Requires: iOS 15.0+ / Android minSdk 21+
-
-### Godot (godot-iap)
-Download from Godot Asset Library → extract to `addons/godot-iap/`
-Requires: Godot 4.x
-
-### Kotlin Multiplatform (kmp-iap)
 ```kotlin
+// Gradle
+implementation("io.github.hyochan.openiap:openiap-google:1.0.0")
+```
+
+```yaml
+# Flutter
+dependencies:
+  flutter_inapp_purchase: ^5.0.0
+```
+
+```gdscript
+# Godot
+# Install godot-iap to addons/godot-iap and enable the plugin
+```
+
+```kotlin
+// Kotlin Multiplatform
 implementation("io.github.hyochan.kmpiap:library:1.3.8")
 ```
 
-### iOS Native (Swift Package Manager)
-```
-https://github.com/hyodotdev/openiap (openiap-apple)
-```
-
-### Android Native (Gradle)
-```kotlin
-implementation("io.github.hyochan.openiap:openiap-google:1.3.28")
+```xml
+<!-- .NET MAUI -->
+<PackageReference Include="Hyo.OpenIap.Maui" Version="1.0.0" />
 ```
 
-## Core APIs (All Platforms)
+## Framework Libraries
 
-```
-initConnection(config?)        → boolean       Initialize store connection
-endConnection()                → boolean       Close store connection
-fetchProducts(skus, type?)     → Product[]     Get product details
-requestPurchase(props)         → void          Start purchase (event-based)
-finishTransaction(purchase)    → void          Complete transaction
-restorePurchases()             → void          Restore completed purchases
-getAvailablePurchases()        → Purchase[]    Get unfinished purchases
-getStorefront()                → string        Get storefront country code
-getActiveSubscriptions(ids?)   → ActiveSub[]   Get active subscriptions
-hasActiveSubscriptions(ids?)   → boolean       Check active subscription
-deepLinkToSubscriptions()      → void          Open subscription management
-```
+- `expo-iap`: Expo Modules wrapper, same OpenIAP API as React Native.
+- `react-native-iap`: Nitro Modules wrapper for React Native CLI apps.
+- `flutter_inapp_purchase`: Dart API with generated OpenIAP types and streams.
+- `godot-iap`: Godot 4.x plugin with GDScript functions and signals.
+- `kmp-iap`: Kotlin Multiplatform API with Flow-based purchase events.
+- `maui-iap`: `Hyo.OpenIap.Maui` package with `Iap.Instance`,
+  generated `Types.cs`, IAPKit helpers (`Iap.KitApi`,
+  `Iap.ConnectWebhookStream`, `Iap.ParseWebhookEventData`), flattened iOS
+  xcframework / Android AAR bindings in one NuGet package, and MAUI example
+  flows matching `expo-iap`.
 
-## Usage
+## Core APIs
 
-### TypeScript (React Native / Expo)
+### Connection
 ```typescript
-import { initConnection, fetchProducts, requestPurchase, finishTransaction } from 'react-native-iap';
-
+// Initialize (required before any operation)
 await initConnection();
-const products = await fetchProducts({ skus: ['premium'] });
-await requestPurchase({ request: { apple: { sku: 'premium' } } });
+
+// With alternative billing (Android)
+await initConnection({ alternativeBillingModeAndroid: 'user-choice' });
+
+// Cleanup on unmount
+await endConnection();
 ```
 
-### Dart (Flutter)
-```dart
-final iap = FlutterInappPurchase.instance;
-await iap.initConnection();
-final products = await iap.fetchProducts<Product>(skus: ['premium']);
-await iap.requestPurchase(sku: 'premium');
+### Fetch Products
+```typescript
+const products = await fetchProducts({
+  products: [
+    { id: 'com.app.premium', type: 'inapp' },
+    { id: 'com.app.monthly', type: 'subs' },
+  ],
+});
 ```
 
-### GDScript (Godot)
-```gdscript
-var result = GodotIapPlugin.init_connection()
-var products = GodotIapPlugin.fetch_products(request)
-var purchase = GodotIapPlugin.request_purchase(props)
+### Request Purchase
+```typescript
+// IMPORTANT: requestPurchase is event-based, not promise-based
+// Set up purchaseUpdatedListener before calling
+await requestPurchase({
+  request: {
+    apple: { sku: 'com.app.premium' },
+    google: { skus: ['com.app.premium'] },
+  },
+  type: 'inapp', // 'inapp' | 'subs'
+});
 ```
 
-### Kotlin (KMP)
-```kotlin
-val kmpIAP = KmpIAP()
-kmpIAP.initConnection()
-val products = kmpIAP.fetchProducts(skus = listOf("premium"))
-kmpIAP.requestPurchase(sku = "premium")
+### Finish Transaction
+```typescript
+// CRITICAL: Must call after verification
+// Android: purchases auto-refund after 3 days if not acknowledged
+await finishTransaction(purchase, isConsumable);
 ```
 
-## Events
-
+### Get Available Purchases
+```typescript
+const purchases = await getAvailablePurchases();
+// Returns user's current entitlements
 ```
-purchaseUpdated  → Purchase      Fires on successful purchase
-purchaseError    → PurchaseError Fires on purchase failure
+
+### Restore Purchases
+```typescript
+await restorePurchases();
+const purchases = await getAvailablePurchases();
 ```
 
-## Error Codes
+## Events (React Native/Expo)
 
-All errors use kebab-case `ErrorCode` enum:
-- `user-cancelled` — User cancelled purchase
-- `item-unavailable` — Product not in store
-- `network-error` — No network connection
-- `service-error` — Store service error
-- `already-owned` — Item already owned
-- `not-prepared` — Store not initialized
-- `duplicate-purchase` — Duplicate purchase detected
+```typescript
+import { purchaseUpdatedListener, purchaseErrorListener } from 'expo-iap';
 
-## Purchase Flow
+// Set up before any purchase request
+const purchaseUpdateSubscription = purchaseUpdatedListener(async (purchase) => {
+  // 1. Verify purchase on server
+  // 2. Grant entitlement
+  // 3. Finish transaction
+  await finishTransaction(purchase);
+});
 
-1. `initConnection()` — Initialize
-2. `fetchProducts()` — Load products
-3. `requestPurchase()` — Start purchase
-4. Listen for `purchaseUpdated` event
-5. Validate receipt on your server
-6. `finishTransaction()` — Complete (critical: Android auto-refunds after 3 days if not called)
+const purchaseErrorSubscription = purchaseErrorListener((error) => {
+  if (error.code === 'UserCancelled') return; // Normal flow
+  console.error('Purchase error:', error.message);
+});
+
+// Cleanup
+purchaseUpdateSubscription.remove();
+purchaseErrorSubscription.remove();
+```
+
+## Core Types
+
+### Product
+```typescript
+interface Product {
+  id: string;           // Product identifier (SKU)
+  title: string;        // Display name
+  description: string;  // Product description
+  price: string;        // Formatted price string
+  priceAmount: number;  // Price as number
+  currency: string;     // ISO 4217 currency code
+  type: 'inapp' | 'subs';
+}
+```
+
+### Purchase
+```typescript
+interface Purchase {
+  productId: string;         // Purchased product ID
+  transactionId: string;     // Platform transaction ID
+  transactionDate: number;   // Purchase timestamp
+  purchaseState: PurchaseState;
+  // iOS specific
+  originalTransactionId?: string;
+  // Android specific
+  purchaseToken?: string;
+  orderId?: string;
+}
+
+type PurchaseState = 'purchased' | 'pending' | 'restored';
+```
+
+### PurchaseError
+```typescript
+interface PurchaseError {
+  code: string;       // Error code
+  message: string;    // Human-readable message
+  productId?: string; // Related SKU
+}
+```
+
+## Common Error Codes
+
+| Code | Description | Action |
+|------|-------------|--------|
+| UserCancelled | User cancelled purchase | No action needed |
+| ItemUnavailable | Product not in store | Check store config |
+| AlreadyOwned | Already purchased | Restore purchases |
+| NetworkError | Network issue | Retry with backoff |
+| ServiceError | Store service error | Retry later |
+| NotPrepared | initConnection not called | Call initConnection first |
+
+## API Naming Convention
+
+- **Cross-platform**: No suffix (fetchProducts, requestPurchase)
+- **iOS-only**: `IOS` suffix (syncIOS, getStorefrontIOS)
+- **Android-only**: `Android` suffix (acknowledgePurchaseAndroid)
+
+## Platform-Specific APIs
+
+### iOS
+- syncIOS() - Sync with App Store
+- presentCodeRedemptionSheetIOS() - Show offer code UI
+- showManageSubscriptionsIOS() - Open subscription management
+- beginRefundRequestIOS() - Start refund flow
+
+### Android
+- acknowledgePurchaseAndroid() - Acknowledge purchase
+- consumePurchaseAndroid() - Consume for re-purchase
+
+## Purchase Flow Summary
+
+1. initConnection()
+2. fetchProducts([...skus])
+3. Set up purchaseUpdatedListener
+4. requestPurchase({ sku })
+5. In listener: verify -> grant -> finishTransaction()
+6. endConnection() on cleanup
 
 ## Links
 
-- Docs: https://openiap.dev
-- GitHub: https://github.com/hyodotdev/openiap
-- APIs: https://openiap.dev/docs/apis
+- Docs: https://openiap.dev/docs
 - Types: https://openiap.dev/docs/types
+- APIs: https://openiap.dev/docs/apis
 - Errors: https://openiap.dev/docs/errors
-- Webhooks (lifecycle URL setup + SSE consumption): https://openiap.dev/docs/webhooks
+- GitHub: https://github.com/hyodotdev/openiap

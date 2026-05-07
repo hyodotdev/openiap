@@ -1,0 +1,137 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug iOS Simulator (MAUI)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/example/OpenIap.Maui.Example",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "\"${workspaceFolder}/.vscode/run_ios_simulator.sh\""
+      ],
+      "console": "integratedTerminal",
+      "env": {
+        "DOTNET_CLI_TELEMETRY_OPTOUT": "1"
+      }
+    },
+    {
+      "name": "Debug iOS Device (MAUI)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/example/OpenIap.Maui.Example",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "\"${workspaceFolder}/.vscode/run_ios_device.sh\""
+      ],
+      "console": "integratedTerminal",
+      "env": {
+        "DOTNET_CLI_TELEMETRY_OPTOUT": "1"
+      }
+    },
+    {
+      "name": "Debug Android (MAUI)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/example/OpenIap.Maui.Example",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "\"${workspaceFolder}/.vscode/run_android.sh\""
+      ],
+      "console": "integratedTerminal",
+      "env": {
+        "DOTNET_CLI_TELEMETRY_OPTOUT": "1"
+      }
+    },
+    {
+      "name": "Debug macCatalyst (MAUI)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/example/OpenIap.Maui.Example",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "dotnet workload list | grep -q '^maui' || { echo '❌ MAUI workload missing. Run: sudo dotnet workload install maui (or use the \"Install MAUI Workload (sudo)\" launch entry).'; exit 1; } && dotnet build -t:Run -f net9.0-maccatalyst"
+      ],
+      "console": "integratedTerminal",
+      "env": {
+        "DOTNET_CLI_TELEMETRY_OPTOUT": "1"
+      }
+    },
+    {
+      "name": "Build Library (net9.0)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/src/OpenIap.Maui",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "dotnet build -f net9.0"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Build Library (all targets)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/src/OpenIap.Maui",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "dotnet workload list | grep -q '^maui' || { echo '❌ MAUI workload missing. Run: sudo dotnet workload install maui (or use the \"Install MAUI Workload (sudo)\" launch entry).'; exit 1; } && dotnet build"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Sync Types (gql → maui)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/../../packages/gql",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "bun run generate"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Install MAUI Workload (sudo)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "sudo dotnet workload install maui"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Update MAUI Workload (sudo) — fixes Xcode mismatch",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "sudo dotnet workload update"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Clean (bin + obj)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "find . -type d \\( -name bin -o -name obj \\) -prune -exec rm -rf {} + && echo '✅ cleaned'"
+      ],
+      "console": "integratedTerminal"
+    }
+  ]
+}

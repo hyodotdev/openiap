@@ -55,6 +55,11 @@ suspend fun checkAlternativeBillingAvailability(): Boolean`}</CodeBlock>
           dart: (
             <CodeBlock language="dart">{`Future<bool> checkAlternativeBillingAvailabilityAndroid();`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`// Returns true if available, false otherwise
+// Throws OpenIapError.NotPrepared if billing client not ready
+Task<Boolean> CheckAlternativeBillingAvailabilityAsync()`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func check_alternative_billing_availability_android() -> bool`}</CodeBlock>
           ),
@@ -92,6 +97,12 @@ if (Platform.OS === 'android') {
   final ok = await FlutterInappPurchase.instance
       .checkAlternativeBillingAvailabilityAndroid();
 }`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+var ok = await ((QueryResolver)OpenIap.Instance).CheckAlternativeBillingAvailabilityAsync()`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":

@@ -201,6 +201,19 @@ switch (status) {
     print('Refund request status: \$status');
 }`}</CodeBlock>
                     ),
+                    csharp: (
+                      <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// KMP iOS target
+var status = await ((QueryResolver)OpenIap.Instance).BeginRefundRequestIOSAsync(sku = purchase.productId)
+
+when (status) {
+    "success" -> println("Refund request submitted")
+    "userCancelled" -> println("User cancelled refund flow")
+    else -> println("Refund request status: \$status")
+}`}</CodeBlock>
+                    ),
                     gdscript: (
                       <CodeBlock language="gdscript">{`var status = await iap.begin_refund_request_ios(purchase.product_id)
 

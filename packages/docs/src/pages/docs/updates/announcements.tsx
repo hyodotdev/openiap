@@ -52,6 +52,99 @@ function Announcements() {
   useScrollToHash();
 
   const announcements: Announcement[] = [
+    // 2026-05-07: maui-iap
+    {
+      id: '2026-05-07',
+      date: new Date('2026-05-07'),
+      element: (
+        <div key="2026-05-07" style={cardStyle}>
+          <div style={headerStyle}>
+            <img
+              src="/logo.webp"
+              alt="maui-iap"
+              style={{ width: '48px', height: '48px', borderRadius: '10px' }}
+            />
+            <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
+              maui-iap is Now Available!
+            </h2>
+            <a
+              href="#2026-05-07"
+              style={linkIconStyle}
+              title="Link to this announcement"
+            >
+              🔗
+            </a>
+          </div>
+          <p style={dateStyle}>May 7, 2026 - maui-iap v1.0.0</p>
+          <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
+            We're excited to announce <a href="/docs/setup/maui">maui-iap</a>,
+            an official OpenIAP implementation for .NET MAUI! Starting from{' '}
+            <strong>maui-iap v1.0.0</strong>, C# apps can use the same OpenIAP
+            product, purchase, subscription, and listener model already used by
+            the React Native, Expo, Flutter, Godot, and Kotlin Multiplatform
+            libraries.
+          </p>
+          <ul
+            style={{
+              paddingLeft: '1.5rem',
+              marginBottom: '1rem',
+              lineHeight: '1.7',
+            }}
+          >
+            <li>
+              <strong>Native C# API</strong> - MAUI-friendly interface following
+              the OpenIAP specification
+            </li>
+            <li>
+              <strong>Cross-platform</strong> - Supports iOS, Android, and
+              macCatalyst from a single codebase
+            </li>
+            <li>
+              <strong>Type-safe</strong> - Generated C# records and enums for
+              better IDE support and fewer runtime errors
+            </li>
+          </ul>
+          <a
+            href="/docs/setup/maui"
+            style={{
+              display: 'block',
+              width: '100%',
+              maxWidth: '400px',
+              borderRadius: '0.75rem',
+              margin: '1.5rem auto 0',
+              border: '1px solid var(--border-color)',
+              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.25)',
+              overflow: 'hidden',
+            }}
+          >
+            <img
+              src="/announcements/maui.webp"
+              alt="OpenIAP meets MAUI"
+              style={{
+                width: '100%',
+                height: 'auto',
+                display: 'block',
+              }}
+            />
+          </a>
+          <div style={calloutStyle}>
+            <strong>Getting Started:</strong> Install{' '}
+            <code>Hyo.OpenIap.Maui</code> from NuGet or open the{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/tree/main/libraries/maui-iap"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              maui-iap source
+            </a>
+            . See the <a href="/docs/setup/maui">.NET MAUI setup guide</a> for
+            full documentation.
+          </div>
+        </div>
+      ),
+    },
+
     // 2026-04-06: Monorepo consolidation
     {
       id: '2026-04-06',

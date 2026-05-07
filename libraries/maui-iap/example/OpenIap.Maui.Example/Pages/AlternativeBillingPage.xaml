@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:components="clr-namespace:OpenIap.Maui.Example.Components"
+             x:Class="OpenIap.Maui.Example.Pages.AlternativeBillingPage"
+             Title="Alternative Billing"
+             BackgroundColor="White">
+
+    <Grid>
+        <ScrollView x:Name="ContentScroll" IsVisible="False">
+            <VerticalStackLayout Spacing="0">
+
+                <VerticalStackLayout Padding="20,40,20,20" Spacing="5" BackgroundColor="#FF9800">
+                    <Label Text="Alternative Billing" FontSize="24" FontAttributes="Bold" TextColor="White" />
+                    <Label x:Name="SubtitleLabel"
+                           Text="Google Play alternative billing"
+                           FontSize="14"
+                           TextColor="#FFFFFF" />
+                </VerticalStackLayout>
+
+                <VerticalStackLayout Padding="15" Spacing="15">
+                    <Border Stroke="#FFE0B2" StrokeShape="RoundRectangle 8" Padding="15" BackgroundColor="#FFF3E0">
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="ℹ️ How It Works" FontSize="16" FontAttributes="Bold" TextColor="#E65100" />
+                            <Label x:Name="InfoLabel" FontSize="13" LineHeight="1.35" TextColor="#5F3700" />
+                            <Label x:Name="WarningLabel" FontSize="13" LineHeight="1.35" TextColor="#B45309" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border x:Name="AndroidFlowSection" Stroke="#E1E7EF" StrokeShape="RoundRectangle 8" Padding="15" BackgroundColor="White">
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="Billing Flow" FontSize="18" FontAttributes="Bold" TextColor="#1A1A1A" />
+                            <Button x:Name="FlowButton"
+                                    BackgroundColor="#F7F9FC"
+                                    TextColor="#1A1A1A"
+                                    CornerRadius="8"
+                                    Padding="14,10"
+                                    Clicked="OnSelectFlowClicked" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border x:Name="BillingProgramSection" Stroke="#E1E7EF" StrokeShape="RoundRectangle 8" Padding="15" BackgroundColor="White">
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="Billing Program" FontSize="18" FontAttributes="Bold" TextColor="#1A1A1A" />
+                            <Button x:Name="ProgramButton"
+                                    BackgroundColor="#F7F9FC"
+                                    TextColor="#1A1A1A"
+                                    CornerRadius="8"
+                                    Padding="14,10"
+                                    Clicked="OnSelectProgramClicked" />
+                            <Label Text="Select the billing program to use for external purchases"
+                                   FontSize="12"
+                                   TextColor="#666" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border x:Name="IosUrlSection" Stroke="#E1E7EF" StrokeShape="RoundRectangle 8" Padding="15" BackgroundColor="White">
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="External Purchase URL" FontSize="18" FontAttributes="Bold" TextColor="#1A1A1A" />
+                            <Entry x:Name="ExternalUrlEntry"
+                                   Text="https://openiap.dev"
+                                   Placeholder="https://your-payment-site.com/checkout"
+                                   Keyboard="Url"
+                                   FontSize="14" />
+                            <Label Text="This URL will be opened when a user taps Purchase"
+                                   FontSize="12"
+                                   TextColor="#666" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border x:Name="ReconnectBanner" StrokeShape="RoundRectangle 8" Padding="12" BackgroundColor="#FFF6E0" IsVisible="False">
+                        <Label Text="🔄 Reconnecting with new billing mode..." TextColor="#7A4B00" />
+                    </Border>
+
+                    <Border Stroke="#E1E7EF" StrokeShape="RoundRectangle 8" Padding="15" BackgroundColor="White">
+                        <VerticalStackLayout Spacing="6">
+                            <HorizontalStackLayout Spacing="8">
+                                <Label Text="Store Connection:" FontAttributes="Bold" TextColor="#666" VerticalOptions="Center" />
+                                <Label x:Name="ConnectionLabel" Text="❌ Disconnected" FontAttributes="Bold" VerticalOptions="Center" />
+                            </HorizontalStackLayout>
+                            <Label x:Name="CurrentProgramLabel" FontSize="12" TextColor="#666" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border Stroke="#E1E7EF" StrokeShape="RoundRectangle 8" Padding="15" BackgroundColor="White">
+                        <VerticalStackLayout Spacing="12">
+                            <Label Text="Select Product" FontSize="18" FontAttributes="Bold" TextColor="#1A1A1A" />
+                            <VerticalStackLayout x:Name="ProductsContainer" Spacing="10" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border x:Name="SelectedProductPanel" Stroke="#E1E7EF" StrokeShape="RoundRectangle 8" Padding="15" BackgroundColor="White" IsVisible="False">
+                        <VerticalStackLayout Spacing="12">
+                            <Label Text="Product Details" FontSize="18" FontAttributes="Bold" TextColor="#1A1A1A" />
+                            <Label x:Name="SelectedProductDetailsLabel" FontSize="13" LineHeight="1.35" TextColor="#333" />
+                            <Button x:Name="PurchaseButton"
+                                    BackgroundColor="#007AFF"
+                                    TextColor="White"
+                                    CornerRadius="10"
+                                    Padding="14,12"
+                                    FontAttributes="Bold"
+                                    Clicked="OnPurchaseSelectedClicked" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border x:Name="ResultPanel" Stroke="#E1E7EF" StrokeShape="RoundRectangle 8" Padding="15" BackgroundColor="#F7F9FC" IsVisible="False">
+                        <VerticalStackLayout Spacing="8">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label Grid.Column="0" Text="Purchase Result" FontSize="18" FontAttributes="Bold" TextColor="#1A1A1A" />
+                                <Button Grid.Column="1" Text="Dismiss" BackgroundColor="Transparent" TextColor="#007AFF" Clicked="OnDismissResultClicked" />
+                            </Grid>
+                            <Label x:Name="ResultLabel" FontSize="13" LineHeight="1.35" TextColor="#333" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border x:Name="LastPurchasePanel" Stroke="#E1E7EF" StrokeShape="RoundRectangle 8" Padding="15" BackgroundColor="White" IsVisible="False">
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="Last Purchase" FontSize="18" FontAttributes="Bold" TextColor="#1A1A1A" />
+                            <Label x:Name="LastPurchaseLabel" FontSize="13" LineHeight="1.35" TextColor="#333" />
+                            <Label Text="ℹ️ Transaction auto-finished for testing. PRODUCTION: Validate on backend first!"
+                                   FontSize="12"
+                                   TextColor="#856404" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border Stroke="#D7E8FF" StrokeShape="RoundRectangle 8" Padding="15" BackgroundColor="#E7F3FF">
+                        <VerticalStackLayout Spacing="6">
+                            <Label Text="Testing Instructions:" FontSize="16" FontAttributes="Bold" TextColor="#004085" />
+                            <Label Text="1. Select a product from the list&#10;2. Tap the purchase button&#10;3. Follow the platform-specific flow&#10;4. Check the purchase result&#10;5. Verify token/URL behavior"
+                                   FontSize="13"
+                                   LineHeight="1.35"
+                                   TextColor="#004085" />
+                        </VerticalStackLayout>
+                    </Border>
+                </VerticalStackLayout>
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <components:Loading x:Name="LoadingView" Message="Connecting to Store..." />
+    </Grid>
+
+</ContentPage>

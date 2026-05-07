@@ -64,6 +64,9 @@ function InitConnection() {
           dart: (
             <CodeBlock language="dart">{`Future<bool> initConnection({InitConnectionConfig? config});`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`Task<Boolean> InitConnectionAsync(InitConnectionConfig? Config = null)`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func init_connection(config: InitConnectionConfig = null) -> bool`}</CodeBlock>
           ),
@@ -187,6 +190,20 @@ kmpIAP.initConnection(
           ),
           dart: (
             <CodeBlock language="dart">{`await FlutterInappPurchase.instance.initConnection();`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// Standard connection
+await ((QueryResolver)OpenIap.Instance).InitConnectionAsync()
+
+// With alternative billing
+await ((QueryResolver)OpenIap.Instance).InitConnectionAsync(
+    InitConnectionConfig(
+        alternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice
+    )
+)`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`# Standard connection

@@ -73,6 +73,12 @@ const kmpTarget = resolve(
   'libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt',
 );
 
+const csharpSource = resolve(gqlRoot, 'src/generated/Types.cs');
+const mauiTarget = resolve(
+  monorepoRoot,
+  'libraries/maui-iap/src/OpenIap.Maui/Types.cs',
+);
+
 console.log('📦 Syncing generated types to platforms...\n');
 
 // Sync Kotlin to Google (Android)
@@ -205,6 +211,18 @@ if (existsSync(kmpSource)) {
   writeFileSync(kmpTarget, text);
   console.log('✅ Kotlin → kmp-iap (with package + enum-semicolon post-process)');
   console.log(`   ${kmpTarget}\n`);
+}
+
+// Sync C# to maui-iap. The generator already emits the
+// `Hyo.OpenIap` namespace declaration that the MAUI library imports via
+// `using Hyo.OpenIap;`, so the file is copied verbatim — no per-library
+// post-processing is needed (unlike the kmp-iap Kotlin path, which has to
+// inject a different package declaration).
+if (existsSync(csharpSource)) {
+  mkdirSync(dirname(mauiTarget), { recursive: true });
+  copyFileSync(csharpSource, mauiTarget);
+  console.log('✅ C# → maui-iap');
+  console.log(`   ${mauiTarget}\n`);
 }
 
 console.log('🎉 Platform sync complete!\n');

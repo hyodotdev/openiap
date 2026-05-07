@@ -58,27 +58,30 @@ function GettingStarted() {
           2. Pick a framework
         </AnchorLink>
         <p>
-          OpenIAP ships official SDKs for five frameworks. Pick the one your app
+          OpenIAP ships official SDKs for six frameworks. Pick the one your app
           uses — the API surface is identical across all of them.
         </p>
         <ul>
           <li>
-            <Link to="/docs/setup/react-native">react-native-iap</Link> — bare
-            React Native CLI projects (RN 0.79+)
+            <Link to="/docs/setup/expo">expo-iap</Link> — Expo SDK projects
           </li>
           <li>
-            <Link to="/docs/setup/expo">expo-iap</Link> — Expo SDK projects
+            <Link to="/docs/setup/react-native">react-native-iap</Link> — bare
+            React Native CLI projects (RN 0.79+)
           </li>
           <li>
             <Link to="/docs/setup/flutter">flutter_inapp_purchase</Link> —
             Flutter / Dart
           </li>
           <li>
-            <Link to="/docs/setup/godot">godot-iap</Link> — Godot 4.x
-          </li>
-          <li>
             <Link to="/docs/setup/kmp">kmp-iap</Link> — Kotlin Multiplatform /
             Compose Multiplatform
+          </li>
+          <li>
+            <Link to="/docs/setup/maui">maui-iap</Link> — .NET MAUI / C#
+          </li>
+          <li>
+            <Link to="/docs/setup/godot">godot-iap</Link> — Godot 4.x
           </li>
         </ul>
       </section>
@@ -300,6 +303,41 @@ await iap.requestPurchaseWithBuilder(
   },
 );`}</CodeBlock>
             ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+var store = OpenIapStore(context)
+
+// 1. Open the store connection on app start.
+store.initConnection(null)
+
+// 2. Fetch products by SKU.
+var products = store.fetchProducts(
+    ProductRequest(
+        skus = new[] { "com.app.premium" },
+        type = ProductQueryType.InApp
+    )
+)
+
+// 3. Listen for purchase results.
+scope.launch {
+    store.purchaseUpdates.collect { purchase ->
+        // Verify on your backend, grant entitlement, then finish.
+        store.finishTransaction(purchase, isConsumable = false)
+    }
+}
+
+// 4. Initiate a purchase.
+store.requestPurchase(
+    RequestPurchaseProps(
+        request = RequestPurchasePropsByPlatforms(
+            google = RequestPurchaseAndroidProps(skus = new[] { "com.app.premium" })
+        ),
+        type = ProductQueryType.InApp
+    )
+)`}</CodeBlock>
+            ),
             gdscript: (
               <CodeBlock language="gdscript">{`# 1. Open the store connection on app start.
 await iap.init_connection()
@@ -367,12 +405,13 @@ await iap.request_purchase(props)`}</CodeBlock>
               <Link to="/docs/setup">Setup Guide</Link>
             </strong>{' '}
             — install + native config per framework (
-            <Link to="/docs/setup/react-native">React Native</Link>,{' '}
             <Link to="/docs/setup/expo">Expo</Link>,{' '}
+            <Link to="/docs/setup/react-native">React Native</Link>,{' '}
             <Link to="/docs/setup/flutter">Flutter</Link>,{' '}
-            <Link to="/docs/setup/godot">Godot</Link>,{' '}
-            <Link to="/docs/setup/kmp">Kotlin Multiplatform</Link>) plus the
-            store-side configuration (<Link to="/docs/ios-setup">iOS</Link>,{' '}
+            <Link to="/docs/setup/kmp">Kotlin Multiplatform</Link>,{' '}
+            <Link to="/docs/setup/maui">.NET MAUI</Link>,{' '}
+            <Link to="/docs/setup/godot">Godot</Link>) plus the store-side
+            configuration (<Link to="/docs/ios-setup">iOS</Link>,{' '}
             <Link to="/docs/android-setup">Android</Link>,{' '}
             <Link to="/docs/horizon-setup">Horizon OS</Link>).
           </li>

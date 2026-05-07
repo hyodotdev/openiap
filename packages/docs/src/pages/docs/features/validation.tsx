@@ -82,6 +82,9 @@ function Validation() {
             dart: (
               <CodeBlock language="dart">{`Future<VerifyPurchaseResult> verifyPurchase(VerifyPurchaseProps options);`}</CodeBlock>
             ),
+            csharp: (
+              <CodeBlock language="csharp">{`Task<VerifyPurchaseResult> VerifyPurchaseAsync(VerifyPurchaseProps Options)`}</CodeBlock>
+            ),
             gdscript: (
               <CodeBlock language="gdscript">{`func verify_purchase(options: VerifyPurchaseProps) -> VerifyPurchaseResult`}</CodeBlock>
             ),
@@ -124,6 +127,14 @@ if (result.isValid) {
   purchase: purchase,
   serverUrl: 'https://your-server.com/api/verify',
 );`}</CodeBlock>
+            ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+var result = await ((QueryResolver)OpenIap.Instance).VerifyPurchaseAsync(
+    VerifyPurchaseProps(purchase = purchase, serverUrl = "https://your-server.com/api/verify")
+)`}</CodeBlock>
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`var options = VerifyPurchaseProps.new()
@@ -329,6 +340,22 @@ if (result.iapkit?.isValid && result.iapkit?.state === 'entitled') {
     ),
   ),
 );`}</CodeBlock>
+            ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+var result = module.verifyPurchaseWithProvider(
+    VerifyPurchaseWithProviderProps(
+        iapkit = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = "your-api-key",
+            google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                purchaseToken = purchase.purchaseToken
+            )
+        ),
+        provider = PurchaseVerificationProvider.Iapkit
+    )
+)`}</CodeBlock>
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`var iapkit_props = RequestVerifyPurchaseWithIapkitProps.new()

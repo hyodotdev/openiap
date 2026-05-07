@@ -1,0 +1,154 @@
+name: CI - maui-iap
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'libraries/maui-iap/**'
+      - 'packages/gql/**'
+      - 'packages/google/openiap/**'
+      - 'packages/google/build.gradle.kts'
+      - 'packages/google/settings.gradle.kts'
+      - 'packages/google/gradle.properties'
+      - 'packages/apple/Sources/OpenIapModule+ObjC.swift'
+      - 'packages/apple/wrapper/**'
+      - 'packages/apple/scripts/build-xcframework.sh'
+      - 'openiap-versions.json'
+      - '.github/workflows/ci-maui-iap.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'libraries/maui-iap/**'
+      - 'packages/gql/**'
+      - 'packages/google/openiap/**'
+      - 'packages/google/build.gradle.kts'
+      - 'packages/google/settings.gradle.kts'
+      - 'packages/google/gradle.properties'
+      - 'packages/apple/Sources/OpenIapModule+ObjC.swift'
+      - 'packages/apple/wrapper/**'
+      - 'packages/apple/scripts/build-xcframework.sh'
+      - 'openiap-versions.json'
+      - '.github/workflows/ci-maui-iap.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile-check:
+    name: Compile Check (net9.0 shared)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: libraries/maui-iap
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup .NET 9 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      # The shared `net9.0` build is the fast lane — no AAR / xcframework, no
+      # MAUI workload, no native binding csprojs in the project graph. Two
+      # things make this work:
+      #   1. `<UseMaui>` is conditional on having a platform identifier in
+      #      OpenIap.Maui.csproj, so the net9.0 TFM doesn't activate MAUI.
+      #   2. `-p:TargetFrameworks=net9.0` (PLURAL — overrides the project's
+      #      `<TargetFrameworks>` list to a single TFM). This must be plural,
+      #      not `-p:TargetFramework=net9.0` (singular) or `-f net9.0`: those
+      #      filter the inner BUILD but leave the implicit RESTORE walking
+      #      all 4 TFMs in the multi-target list, which loads the conditional
+      #      ProjectReferences to Bindings.Android / Bindings.iOS for
+      #      restore-time evaluation and triggers NETSDK1147 / NETSDK1178.
+      - name: Build library (net9.0)
+        run: dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0 --nologo
+
+  android-binding:
+    name: Android binding (net9.0-android)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup .NET 9 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Install MAUI workload
+        run: dotnet workload install maui-android --skip-sign-check
+
+      # The Android binding consumes the Google Play AAR as an unbound runtime
+      # dependency, plus the MAUI-owned OpenIapMauiModule AAR as the bound facade.
+      - name: Build Play AAR (Google)
+        working-directory: packages/google
+        run: ./gradlew :openiap:assemblePlayRelease
+
+      - name: Build MAUI Android module AAR
+        working-directory: libraries/maui-iap/android
+        run: ../../../packages/google/gradlew :openiap:assembleRelease
+
+      # `-p:TargetFrameworks=net9.0-android` (PLURAL) is required for the
+      # second build — the singular `-f net9.0-android` filters the inner
+      # build but leaves the implicit restore walking ALL 4 TFMs in the
+      # project's multi-target list. That makes restore load the
+      # Bindings.iOS conditional ProjectReference for net9.0-ios, which
+      # needs `Microsoft.iOS.Sdk.net9.0_X.Y` packs that aren't part of
+      # the `maui-android` workload installed above.
+      - name: Build Android binding + library
+        working-directory: libraries/maui-iap
+        run: |
+          dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj --nologo
+          dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0-android --nologo
+
+  ios-binding:
+    name: iOS binding (net9.0-ios + maccatalyst)
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup .NET 9 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Install MAUI workload
+        run: dotnet workload install maui --skip-sign-check
+
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      # The iOS binding csproj consumes packages/apple/.build/xcframework/OpenIAP.xcframework.
+      # Build it via the wrapper Xcode project produced from packages/apple/wrapper/project.yml.
+      - name: Build OpenIAP.xcframework
+        run: bash packages/apple/scripts/build-xcframework.sh
+
+      # `-p:TargetFrameworks=...` (PLURAL) — see the android-binding job
+      # comment for the rationale. Cross-TFM restore-walk is the same
+      # gotcha here even though the iOS runner has more workloads installed.
+      - name: Build iOS binding (ios + maccatalyst)
+        working-directory: libraries/maui-iap/src/OpenIap.Maui.Bindings.iOS
+        run: |
+          dotnet build -p:TargetFrameworks=net9.0-ios --nologo
+          dotnet build -p:TargetFrameworks=net9.0-maccatalyst --nologo
+
+      - name: Build library (ios + maccatalyst)
+        working-directory: libraries/maui-iap/src/OpenIap.Maui
+        run: |
+          dotnet build -p:TargetFrameworks=net9.0-ios --nologo
+          dotnet build -p:TargetFrameworks=net9.0-maccatalyst --nologo

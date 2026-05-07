@@ -60,6 +60,9 @@ function HasActiveSubscriptions() {
           dart: (
             <CodeBlock language="dart">{`Future<bool> hasActiveSubscriptions({List<String>? subscriptionIds});`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`Task<Boolean> HasActiveSubscriptionsAsync(List<String>? SubscriptionIds = null)`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func has_active_subscriptions(subscription_ids: Array[String] = []) -> bool`}</CodeBlock>
           ),
@@ -129,6 +132,12 @@ function PremiumGate({ children }: { children: React.ReactNode }) {
           ),
           dart: (
             <CodeBlock language="dart">{`final isPremium = await FlutterInappPurchase.instance.hasActiveSubscriptions();`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+var isPremium = await ((QueryResolver)OpenIap.Instance).HasActiveSubscriptionsAsync()`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`var is_premium = await iap.has_active_subscriptions()`}</CodeBlock>

@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Full Reference: https://openiap.dev/llms-full.txt
-> Generated: 2026-04-28T02:30:03.230Z
+> Generated: 2026-05-07T06:54:51.692Z
 
 ## Installation
 
@@ -32,6 +32,34 @@ implementation("io.github.hyochan.openiap:openiap-google:1.0.0")
 dependencies:
   flutter_inapp_purchase: ^5.0.0
 ```
+
+```gdscript
+# Godot
+# Install godot-iap to addons/godot-iap and enable the plugin
+```
+
+```kotlin
+// Kotlin Multiplatform
+implementation("io.github.hyochan.kmpiap:library:1.3.8")
+```
+
+```xml
+<!-- .NET MAUI -->
+<PackageReference Include="Hyo.OpenIap.Maui" Version="1.0.0" />
+```
+
+## Framework Libraries
+
+- `expo-iap`: Expo Modules wrapper, same OpenIAP API as React Native.
+- `react-native-iap`: Nitro Modules wrapper for React Native CLI apps.
+- `flutter_inapp_purchase`: Dart API with generated OpenIAP types and streams.
+- `godot-iap`: Godot 4.x plugin with GDScript functions and signals.
+- `kmp-iap`: Kotlin Multiplatform API with Flow-based purchase events.
+- `maui-iap`: `Hyo.OpenIap.Maui` package with `Iap.Instance`,
+  generated `Types.cs`, IAPKit helpers (`Iap.KitApi`,
+  `Iap.ConnectWebhookStream`, `Iap.ParseWebhookEventData`), flattened iOS
+  xcframework / Android AAR bindings in one NuGet package, and MAUI example
+  flows matching `expo-iap`.
 
 ## Core APIs
 
@@ -197,5 +225,4 @@ interface PurchaseError {
 - Types: https://openiap.dev/docs/types
 - APIs: https://openiap.dev/docs/apis
 - Errors: https://openiap.dev/docs/errors
-- Webhooks (lifecycle URL setup + SSE consumption): https://openiap.dev/docs/webhooks
 - GitHub: https://github.com/hyodotdev/openiap

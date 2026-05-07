@@ -35,6 +35,7 @@ const CONFIG = {
   outputFile: "context.md",
   // LLMs.txt output (for AI assistants on web)
   llmsOutputDir: path.resolve(scriptDir, "../../packages/docs/public"),
+  rootLlmsOutputDir: path.resolve(scriptDir, "../.."),
 };
 
 // ============================================================================
@@ -105,6 +106,160 @@ dependencies:
   flutter_inapp_purchase: ^5.0.0
 \`\`\`
 
+### Godot
+Download \`godot-iap\` from the Godot Asset Library or GitHub Releases, extract
+it to \`addons/godot-iap/\`, then enable the plugin in Project Settings.
+
+### Kotlin Multiplatform
+\`\`\`kotlin
+dependencies {
+    implementation("io.github.hyochan.kmpiap:library:1.3.8")
+}
+\`\`\`
+
+### .NET MAUI
+\`\`\`xml
+<PackageReference Include="Hyo.OpenIap.Maui" Version="1.0.0" />
+\`\`\`
+
+Requires .NET 9+, the MAUI workload, iOS 15.0+, and Android API 24+.
+
+---
+
+## Framework SDK Implementations
+
+### react-native-iap
+- Package: \`react-native-iap\` on npm.
+- Implementation: Nitro Modules wrapper over \`packages/apple\` and
+  \`packages/google\`.
+- Public surface: generated OpenIAP types plus \`useIAP\`, listener helpers,
+  and platform-suffixed iOS/Android APIs.
+- Example app: \`libraries/react-native-iap/example\`.
+
+### expo-iap
+- Package: \`expo-iap\` on npm.
+- Implementation: Expo Modules wrapper over the same native OpenIAP packages.
+- Public surface: same hook, listener, query, mutation, and platform API
+  shape as \`react-native-iap\`, adapted for Expo managed/bare workflows.
+- Example app: \`libraries/expo-iap/example\`.
+
+### flutter_inapp_purchase
+- Package: \`flutter_inapp_purchase\` on pub.dev.
+- Implementation: Dart API plus generated \`types.dart\`, bridged to native
+  iOS and Android method channels.
+- Public surface: singleton \`FlutterInappPurchase.instance\`, typed
+  \`fetchProducts<T>\`, purchase streams, and resolver-style methods.
+
+### godot-iap
+- Package: \`godot-iap\` for Godot 4.x.
+- Implementation: GDScript API with generated \`types.gd\`, plus native iOS
+  GDExtension and Android AAR plugin.
+- Public surface: snake_case functions and Godot signals matching OpenIAP.
+
+### kmp-iap
+- Package: \`io.github.hyochan.kmpiap:library\`.
+- Implementation: Kotlin Multiplatform common API with Flow-based events,
+  Android implementation, and iOS cinterop through the OpenIAP ObjC facade.
+- Public surface: \`KmpIAP\` / shared instance resolver methods and flows.
+
+### maui-iap
+- Package: \`Hyo.OpenIap.Maui\` on NuGet.
+- Distribution: single public NuGet package. The Android/iOS binding projects
+  are private implementation details and are flattened into \`Hyo.OpenIap.Maui\`
+  instead of being published as separate package dependencies.
+- Implementation: .NET MAUI projection with generated \`Types.cs\`, a static
+  \`Iap.Instance\` facade, \`IOpenIap\` observables, and per-platform resolvers.
+- iOS/macCatalyst bridge: .NET-for-iOS binding over
+  \`OpenIAP.xcframework\` and \`OpenIapModule+ObjC.swift\`; NuGet consumers get
+  the official \`Hyo.OpenIap.Maui.Bindings.iOS.resources.zip\` sidecar so no
+  app-level \`NativeReference\` is required.
+- Android bridge: Xamarin.Android binding over the MAUI-owned
+  \`openiap-release.aar\`, which wraps the unbound
+  \`openiap-play-release.aar\` runtime dependency; resolved BillingClient /
+  Play Services AARs are included in the main nupkg for app packaging.
+- Public surface: \`QueryResolver\`, \`MutationResolver\`, and \`IOpenIap\`
+  implemented by \`OpenIapIOS\`, \`OpenIapAndroid\`, and \`OpenIapMacCatalyst\`;
+  IAPKit helpers mirror the TypeScript SDKs via \`Iap.KitApi(...)\`,
+  \`Iap.ConnectWebhookStream(...)\`, \`Iap.ParseWebhookEventData(...)\`, and
+  \`Iap.WebhookEventTypes\`.
+- Example app: \`libraries/maui-iap/example/OpenIap.Maui.Example\`, mirroring
+  the \`expo-iap\` example flows.
+
+---
+
+## Minimal Usage by Framework
+
+### React Native / Expo
+\`\`\`typescript
+import { useIAP } from 'expo-iap'; // or 'react-native-iap'
+
+const { connected, fetchProducts, requestPurchase, finishTransaction } = useIAP({
+  onPurchaseSuccess: async (purchase) => {
+    await finishTransaction({ purchase, isConsumable: true });
+  },
+});
+
+await fetchProducts({ skus: ['premium'], type: 'in-app' });
+await requestPurchase({
+  request: { ios: { sku: 'premium' }, android: { skus: ['premium'] } },
+  type: 'in-app',
+});
+\`\`\`
+
+### Flutter
+\`\`\`dart
+final iap = FlutterInappPurchase.instance;
+await iap.initConnection();
+final products = await iap.fetchProducts<Product>(
+  skus: ['premium'],
+  type: ProductQueryType.inApp,
+);
+iap.purchaseUpdated.listen((purchase) async {
+  await iap.finishTransaction(purchase, isConsumable: true);
+});
+\`\`\`
+
+### Godot
+\`\`\`gdscript
+GodotIapPlugin.purchase_updated.connect(_on_purchase_updated)
+GodotIapPlugin.init_connection()
+GodotIapPlugin.fetch_products(request)
+GodotIapPlugin.request_purchase(props)
+\`\`\`
+
+### Kotlin Multiplatform
+\`\`\`kotlin
+val iap = KmpIAP()
+iap.initConnection()
+val products = iap.fetchProducts(skus = listOf("premium"))
+iap.purchaseUpdatedListener.collect { purchase ->
+    iap.finishTransaction(purchase = purchase, isConsumable = true)
+}
+\`\`\`
+
+### .NET MAUI
+\`\`\`csharp
+using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+var iap = Iap.Instance;
+await ((MutationResolver)iap).InitConnectionAsync();
+
+await ((QueryResolver)iap).FetchProductsAsync(new ProductRequest
+{
+    Skus = ["premium"],
+    Type = ProductQueryType.InApp,
+});
+
+((IOpenIap)iap).PurchaseUpdated.Subscribe(async purchase =>
+{
+    await ((MutationResolver)iap).FinishTransactionAsync(
+        new PurchaseInput(purchase),
+        isConsumable: true
+    );
+});
+\`\`\`
+
 ---
 
 `;
@@ -133,6 +288,7 @@ dependencies:
 - flutter_inapp_purchase: https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase
 - godot-iap: https://github.com/hyodotdev/openiap/tree/main/libraries/godot-iap
 - kmp-iap: https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap
+- maui-iap: https://github.com/hyodotdev/openiap/tree/main/libraries/maui-iap
 `;
 
   // Generate llms.txt (quick reference - condensed version)
@@ -170,6 +326,34 @@ implementation("io.github.hyochan.openiap:openiap-google:1.0.0")
 dependencies:
   flutter_inapp_purchase: ^5.0.0
 \`\`\`
+
+\`\`\`gdscript
+# Godot
+# Install godot-iap to addons/godot-iap and enable the plugin
+\`\`\`
+
+\`\`\`kotlin
+// Kotlin Multiplatform
+implementation("io.github.hyochan.kmpiap:library:1.3.8")
+\`\`\`
+
+\`\`\`xml
+<!-- .NET MAUI -->
+<PackageReference Include="Hyo.OpenIap.Maui" Version="1.0.0" />
+\`\`\`
+
+## Framework Libraries
+
+- \`expo-iap\`: Expo Modules wrapper, same OpenIAP API as React Native.
+- \`react-native-iap\`: Nitro Modules wrapper for React Native CLI apps.
+- \`flutter_inapp_purchase\`: Dart API with generated OpenIAP types and streams.
+- \`godot-iap\`: Godot 4.x plugin with GDScript functions and signals.
+- \`kmp-iap\`: Kotlin Multiplatform API with Flow-based purchase events.
+- \`maui-iap\`: \`Hyo.OpenIap.Maui\` package with \`Iap.Instance\`,
+  generated \`Types.cs\`, IAPKit helpers (\`Iap.KitApi\`,
+  \`Iap.ConnectWebhookStream\`, \`Iap.ParseWebhookEventData\`), flattened iOS
+  xcframework / Android AAR bindings in one NuGet package, and MAUI example
+  flows matching \`expo-iap\`.
 
 ## Core APIs
 
@@ -338,12 +522,15 @@ interface PurchaseError {
 - GitHub: https://github.com/hyodotdev/openiap
 `;
 
-  // Write files
-  const llmsPath = path.join(CONFIG.llmsOutputDir, "llms.txt");
-  const llmsFullPath = path.join(CONFIG.llmsOutputDir, "llms-full.txt");
-
-  fs.writeFileSync(llmsPath, quickContent);
-  fs.writeFileSync(llmsFullPath, fullContent);
+  // Write files to the deployed docs public directory and the repository root.
+  // The website serves packages/docs/public, while the root copies keep local
+  // repository consumers from reading stale LLM context.
+  const outputDirs = [CONFIG.llmsOutputDir, CONFIG.rootLlmsOutputDir];
+  for (const outputDir of outputDirs) {
+    fs.mkdirSync(outputDir, { recursive: true });
+    fs.writeFileSync(path.join(outputDir, "llms.txt"), quickContent);
+    fs.writeFileSync(path.join(outputDir, "llms-full.txt"), fullContent);
+  }
 
   console.log(
     chalk.green(`  ✓ llms.txt: ${(quickContent.length / 1024).toFixed(1)} KB`),
@@ -525,6 +712,14 @@ openiap/
   console.log(
     chalk.green(
       `  ✓ Output: ${path.join(CONFIG.llmsOutputDir, "llms-full.txt")}`,
+    ),
+  );
+  console.log(
+    chalk.green(`  ✓ Output: ${path.join(CONFIG.rootLlmsOutputDir, "llms.txt")}`),
+  );
+  console.log(
+    chalk.green(
+      `  ✓ Output: ${path.join(CONFIG.rootLlmsOutputDir, "llms-full.txt")}`,
     ),
   );
 

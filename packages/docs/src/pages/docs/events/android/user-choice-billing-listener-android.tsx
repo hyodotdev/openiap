@@ -47,6 +47,13 @@ val userChoiceBillingEvents: Flow<UserChoiceBillingDetails>`}</CodeBlock>
             <CodeBlock language="dart">{`Stream<UserChoiceBillingDetails> get userChoiceBillingStream;
 // Android only`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// Flow approach
+var userChoiceBillingEvents: Flow<UserChoiceBillingDetails>`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
       <p>
@@ -162,6 +169,35 @@ final subscription = FlutterInappPurchase.userChoiceBillingAndroid.listen((detai
 // Cleanup when done
 subscription.cancel();`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// Using Flow
+lifecycleScope.launch {
+    openIapStore.userChoiceBillingEvents.collect { details ->
+        println("User chose alternative billing")
+        println("Products: \${details.products}")
+        println("Token: \${details.externalTransactionToken}")
+
+        // Process payment with your backend
+        var paymentResult = processPaymentWithBackend(
+            products = details.products,
+            token = details.externalTransactionToken
+        )
+
+        if (paymentResult.success) {
+            // Backend should report token to Google Play within 24 hours
+            grantUserAccess(details.products)
+        }
+    }
+}
+
+// Or with callback
+openIapStore.setUserChoiceBillingListener { details ->
+    println("User chose alternative billing for: \${details.products}")
+}`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
 
@@ -194,6 +230,15 @@ subscription.cancel();`}</CodeBlock>
   final String externalTransactionToken;
   final List<String> products;
 }`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+data class UserChoiceBillingDetails(
+    var externalTransactionToken: String,
+    var products: List<String>
+)`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

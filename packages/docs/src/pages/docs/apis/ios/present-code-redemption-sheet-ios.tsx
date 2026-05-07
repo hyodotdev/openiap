@@ -51,6 +51,9 @@ function PresentCodeRedemptionSheetIOS() {
           dart: (
             <CodeBlock language="dart">{`Future<bool> presentCodeRedemptionSheetIOS();`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`Task<Boolean> PresentCodeRedemptionSheetIOSAsync()`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func present_code_redemption_sheet_ios() -> Types.VoidResult`}</CodeBlock>
           ),
@@ -87,6 +90,13 @@ if (Platform.OS === 'ios') {
             <CodeBlock language="dart">{`if (Platform.isIOS) {
   await FlutterInappPurchase.instance.presentCodeRedemptionSheetIOS();
 }`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// kmp-iap (iOS targets only — no-op on Android)
+await ((QueryResolver)OpenIap.Instance).PresentCodeRedemptionSheetIOSAsync()`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

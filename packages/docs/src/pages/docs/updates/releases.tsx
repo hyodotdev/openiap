@@ -26,6 +26,101 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // May 7, 2026 — maui-iap 1.0.0 published
+    {
+      id: 'maui-iap-1-0-0',
+      date: new Date('2026-05-07'),
+      element: (
+        <div key="maui-iap-1-0-0" style={noteCardStyle}>
+          <AnchorLink id="maui-iap-1-0-0" level="h4">
+            maui-iap v1.0.0 - .NET MAUI release
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Published the first official{' '}
+            <Link to="/docs/setup/maui">maui-iap</Link> <strong>1.0.0</strong>{' '}
+            package on NuGet. This gives .NET MAUI apps the same OpenIAP
+            product, purchase, subscription, listener, and verification model
+            used by the existing framework SDKs, backed by the current native
+            Apple and Google packages.
+          </p>
+
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>maui-iap 1.0.0</strong> — new NuGet package{' '}
+              <code>Hyo.OpenIap.Maui</code> for iOS, Android, and macCatalyst
+              apps using .NET MAUI / C# 12.
+            </li>
+            <li>
+              <strong>Single-package MAUI install</strong> — Android and iOS
+              native bindings are private implementation details packed into the
+              main NuGet, so apps only reference <code>Hyo.OpenIap.Maui</code>.
+            </li>
+            <li>
+              <strong>Example parity</strong> — the MAUI example mirrors the
+              Expo sample flows for all products, purchase flow, subscription
+              flow, available purchases, alternative billing, offer codes, and
+              webhook stream demos.
+            </li>
+            <li>
+              <strong>IAPKit helper parity</strong> — MAUI exposes{' '}
+              <code>Iap.KitApi</code> and <code>Iap.ConnectWebhookStream</code>,
+              plus the webhook parser helper, so apps can use the same status,
+              entitlements, bind-user, and webhook flow as the TypeScript SDKs.
+            </li>
+          </ul>
+
+          {/* Package Releases */}
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/maui-iap-1.0.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  maui-iap 1.0.0
+                </a>{' '}
+                (
+                <a
+                  href="https://www.nuget.org/packages/Hyo.OpenIap.Maui/1.0.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="external-link"
+                >
+                  NuGet
+                </a>
+                )
+              </li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // May 5, 2026 — Webhook event streaming + IAPKit kit-api shipped to all SDKs
     {
       id: 'releases-2026-05-05',

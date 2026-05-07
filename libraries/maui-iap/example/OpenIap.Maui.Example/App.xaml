@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Application xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="OpenIap.Maui.Example.App">
+    <Application.Resources>
+        <ResourceDictionary>
+            <Color x:Key="Primary">#007AFF</Color>
+            <Color x:Key="Secondary">#28a745</Color>
+            <Color x:Key="Tertiary">#6c757d</Color>
+            <Color x:Key="Quaternary">#9c27b0</Color>
+            <Color x:Key="AllProducts">#FF6B6B</Color>
+            <Color x:Key="AlternativeBilling">#FF9800</Color>
+            <Color x:Key="WebhookStream">#0EA5E9</Color>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

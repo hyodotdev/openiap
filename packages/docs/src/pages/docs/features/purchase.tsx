@@ -332,6 +332,55 @@ class PurchaseManager {
   }
 }`}</CodeBlock>
             ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+class PurchaseManager(
+    private var context: Context,
+    private var lifecycleScope: CoroutineScope
+) {
+    private var iapStore = OpenIapStore.getInstance(context)
+
+    init {
+        setupListeners()
+    }
+
+    private fun setupListeners() {
+        // 1. Collect purchase updates using Flow
+        lifecycleScope.launch {
+            iapStore.currentPurchase.collect { purchase ->
+                if (purchase != null) {
+                    println("Purchase received: \${purchase.productId}")
+                    handlePurchase(purchase)
+                }
+            }
+        }
+
+        // 2. Collect error updates
+        lifecycleScope.launch {
+            iapStore.purchaseError.collect { error ->
+                if (error != null) {
+                    println("Purchase error: \${error.message}")
+                    handlePurchaseError(error)
+                }
+            }
+        }
+
+        // 3. Initialize connection
+        lifecycleScope.launch {
+            try {
+                var connected = iapStore.initConnection()
+                if (connected) {
+                    println("Store connection established")
+                }
+            } catch (e: Exception) {
+                println("Failed to connect: \${e.message}")
+            }
+        }
+    }
+}`}</CodeBlock>
+            ),
             gdscript: (
               <CodeBlock language="gdscript">{`extends Node
 
@@ -541,6 +590,30 @@ Future<void> purchaseProduct(String productId) async {
 // Example usage
 await purchaseProduct('com.app.coins_100');`}</CodeBlock>
             ),
+            csharp: (
+              <CodeBlock language="csharp">{`Task PurchaseProductAsync(String ProductId) {
+    try {
+        var props = RequestPurchaseProps(
+            request = RequestPurchaseProps.Request.InApp(
+                RequestInAppPropsByPlatforms(
+                    android = RequestInAppAndroidProps(
+                        skus = new[] { productId }
+                    )
+                )
+            ),
+            type = ProductQueryType.InApp  // InApp for consumables/non-consumables
+        )
+
+        // Request purchase - result delivered to currentPurchase flow
+        iapStore.requestPurchase(props)
+    } catch (e: Exception) {
+        println("Purchase request failed: \${e.message}")
+    }
+}
+
+// Example usage
+purchaseProduct("com.app.coins_100")`}</CodeBlock>
+            ),
             gdscript: (
               <CodeBlock language="gdscript">{`# Purchase a one-time product (consumable or non-consumable)
 func purchase_product(product_id: String) -> void:
@@ -718,6 +791,27 @@ Future<bool> verifyOnServer(ProductPurchase purchase) async {
     print('Verification error: $e');
     return false;
   }
+}`}</CodeBlock>
+            ),
+            csharp: (
+              <CodeBlock language="csharp">{`Task<Boolean> VerifyOnServerAsync(PurchaseAndroid Purchase){
+    return try {
+        var result = iapStore.verifyPurchase(
+            purchase = purchase,
+            serverUrl = "https://your-server.com/api/verify-android"
+        )
+
+        if (result.isValid) {
+            println("Purchase verified!")
+            true
+        } else {
+            println("Verification failed")
+            false
+        }
+    } catch (e: Exception) {
+        println("Verification error: \${e.message}")
+        false
+    }
 }`}</CodeBlock>
             ),
             gdscript: (
@@ -998,6 +1092,35 @@ Future<bool> verifyWithIapkit(ProductPurchase purchase) async {
   }
 }`}</CodeBlock>
             ),
+            csharp: (
+              <CodeBlock language="csharp">{`Task<Boolean> VerifyWithIapkitAsync(PurchaseAndroid Purchase){
+    return try {
+        var result = iapStore.verifyPurchaseWithProvider(
+            VerifyPurchaseWithProviderProps(
+                provider = PurchaseVerificationProvider.Iapkit,
+                iapkit = RequestVerifyPurchaseWithIapkitProps(
+                    // apiKey is optional when configured via AndroidManifest meta-data
+                    apiKey = BuildConfig.IAPKIT_API_KEY,
+                    google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                        purchaseToken = purchase.purchaseToken.orEmpty()
+                    )
+                )
+            )
+        )
+
+        if (result.iapkit?.isValid == true) {
+            println("IAPKit verified: \${result.iapkit?.state}")
+            true
+        } else {
+            println("IAPKit verification failed")
+            false
+        }
+    } catch (e: Exception) {
+        println("IAPKit verification error: \${e.message}")
+        false
+    }
+}`}</CodeBlock>
+            ),
             gdscript: (
               <CodeBlock language="gdscript">{`func verify_with_iapkit(purchase: Purchase) -> bool:
     var props = VerifyPurchaseWithProviderProps.new()
@@ -1228,6 +1351,28 @@ Future<void> handlePurchase(ProductPurchase purchase) async {
   await iap.finishTransaction(purchase, isConsumable: isConsumable);
 
   print('Transaction finished successfully');
+}`}</CodeBlock>
+            ),
+            csharp: (
+              <CodeBlock language="csharp">{`// Complete purchase flow
+Task HandlePurchaseAsync(PurchaseAndroid Purchase) {
+    // 1. Verify on server
+    var isValid = verifyAndroidPurchase(purchase)
+    if (!isValid) {
+        println("Invalid purchase")
+        return
+    }
+
+    // 2. Grant the product to user
+    grantProductToUser(purchase.productId)
+
+    // 3. Finish the transaction (CRITICAL: Android auto-refunds after 3 days!)
+    // - isConsumable: true = consume (can buy again)
+    // - isConsumable: false = acknowledge only
+    var isConsumable = purchase.productId.contains("consumable", true)
+    iapStore.finishTransaction(purchase, isConsumable)
+
+    println("Transaction finished successfully")
 }`}</CodeBlock>
             ),
             gdscript: (
@@ -1766,6 +1911,100 @@ class PurchaseManager extends ChangeNotifier {
   }
 }`}</CodeBlock>
             ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+class PurchaseManager(
+    private var context: Context,
+    private var scope: CoroutineScope
+) {
+    private var iapStore = OpenIapStore.getInstance(context)
+
+    private var _products = MutableStateFlow<List<ProductAndroid>>(emptyList())
+    var products = _products.asStateFlow()
+
+    private var _isProcessing = MutableStateFlow(false)
+    var isProcessing = _isProcessing.asStateFlow()
+
+    init {
+        setupListeners()
+        scope.launch {
+            try {
+                iapStore.initConnection()
+                var request = ProductRequest(
+                    skus = new[] { "com.app.premium", "com.app.coins_100" },
+                    type = ProductQueryType.InApp
+                )
+                _products.value = iapStore.fetchProducts(request)
+                    .filterIsInstance<ProductAndroid>()
+            } catch (e: Exception) {
+                println("Failed to fetch products: \${e.message}")
+            }
+        }
+    }
+
+    private fun setupListeners() {
+        scope.launch {
+            iapStore.currentPurchase.collect { purchase ->
+                if (purchase != null) {
+                    handlePurchase(purchase as PurchaseAndroid)
+                }
+            }
+        }
+
+        scope.launch {
+            iapStore.purchaseError.collect { error ->
+                if (error != null) {
+                    _isProcessing.value = false
+                    println("Purchase error: \${error.message}")
+                }
+            }
+        }
+    }
+
+    fun purchase(productId: String) {
+        _isProcessing.value = true
+        scope.launch {
+            try {
+                var props = RequestPurchaseProps(
+                    request = RequestPurchaseProps.Request.InApp(
+                        RequestInAppPropsByPlatforms(
+                            android = RequestInAppAndroidProps(skus = new[] { productId })
+                        )
+                    ),
+                    type = ProductQueryType.InApp
+                )
+                iapStore.requestPurchase(props)
+            } catch (e: Exception) {
+                _isProcessing.value = false
+                println("Purchase request failed: \${e.message}")
+            }
+        }
+    }
+
+    private Task HandlePurchaseAsync(PurchaseAndroid Purchase) {
+        try {
+            // Step 1: Verify
+            var isValid = verifyAndroidPurchase(purchase)
+            if (!isValid) {
+                println("Verification failed")
+                return
+            }
+
+            // Step 2: Grant product
+            grantProductToUser(purchase.productId)
+
+            // Step 3: Finish
+            var isConsumable = purchase.productId.contains("coins", true)
+            iapStore.finishTransaction(purchase, isConsumable)
+            println("Purchase completed!")
+        } finally {
+            _isProcessing.value = false
+        }
+    }
+}`}</CodeBlock>
+            ),
             gdscript: (
               <CodeBlock language="gdscript">{`# Complete example: Purchase Manager (Godot)
 extends Node
@@ -2009,6 +2248,22 @@ function PendingPurchaseHandler() {
     // Process each pending purchase
     await _handlePurchase(purchase);
   }
+}`}</CodeBlock>
+            ),
+            csharp: (
+              <CodeBlock language="csharp">{`Task CheckPendingPurchasesAsync() {
+    try {
+        var purchases = iapStore.getAvailablePurchases()
+
+        for (purchase in purchases) {
+            // Process each pending purchase
+            if (purchase is PurchaseAndroid) {
+                handlePurchase(purchase)
+            }
+        }
+    } catch (e: Exception) {
+        println("Failed to get pending purchases: \${e.message}")
+    }
 }`}</CodeBlock>
             ),
             gdscript: (

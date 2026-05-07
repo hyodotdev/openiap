@@ -13,6 +13,7 @@ import { SwiftPlugin } from './plugins/swift.js';
 import { KotlinPlugin } from './plugins/kotlin.js';
 import { DartPlugin } from './plugins/dart.js';
 import { GDScriptPlugin } from './plugins/gdscript.js';
+import { CSharpPlugin } from './plugins/csharp.js';
 import type { CodegenPlugin } from './plugins/base-plugin.js';
 import type { IRSchema } from './core/types.js';
 import { lintSchema, formatLintResults } from './core/schema-linter.js';
@@ -26,7 +27,7 @@ const __dirname = dirname(__filename);
 
 export interface GenerateConfig {
   /** Languages to generate (default: all) */
-  languages?: Array<'swift' | 'kotlin' | 'dart' | 'gdscript'>;
+  languages?: Array<'swift' | 'kotlin' | 'dart' | 'gdscript' | 'csharp'>;
   /** Output directory (default: packages/gql/src/generated) */
   outputDir?: string;
   /** Whether to log progress */
@@ -124,6 +125,10 @@ export class CodeGenerator {
         return new GDScriptPlugin({
           outputPath: 'types.gd',
         });
+      case 'csharp':
+        return new CSharpPlugin({
+          outputPath: 'Types.cs',
+        });
       default:
         return null;
     }
@@ -147,8 +152,8 @@ export class CodeGenerator {
 async function main() {
   const args = process.argv.slice(2);
   const languages = args.length > 0
-    ? args as Array<'swift' | 'kotlin' | 'dart' | 'gdscript'>
-    : ['swift', 'kotlin', 'dart', 'gdscript'];
+    ? args as Array<'swift' | 'kotlin' | 'dart' | 'gdscript' | 'csharp'>
+    : ['swift', 'kotlin', 'dart', 'gdscript', 'csharp'];
 
   const generator = new CodeGenerator({ languages });
   await generator.generate();
@@ -186,6 +191,7 @@ export { SwiftPlugin } from './plugins/swift.js';
 export { KotlinPlugin } from './plugins/kotlin.js';
 export { DartPlugin } from './plugins/dart.js';
 export { GDScriptPlugin } from './plugins/gdscript.js';
+export { CSharpPlugin } from './plugins/csharp.js';
 export type { IRSchema, IREnum, IRObject, IRUnion, IRType } from './core/types.js';
 export { lintSchema, formatLintResults } from './core/schema-linter.js';
 export type { LintResult, LintOptions } from './core/schema-linter.js';

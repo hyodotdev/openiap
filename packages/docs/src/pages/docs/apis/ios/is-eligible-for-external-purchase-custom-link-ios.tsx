@@ -60,6 +60,9 @@ function IsEligibleForExternalPurchaseCustomLinkIOS() {
           dart: (
             <CodeBlock language="dart">{`Future<bool> isEligibleForExternalPurchaseCustomLinkIOS();`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`Task<Boolean> IsEligibleForExternalPurchaseCustomLinkIOSAsync()`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func is_eligible_for_external_purchase_custom_link_ios() -> Variant`}</CodeBlock>
           ),
@@ -97,6 +100,13 @@ if (Platform.OS === 'ios') {
   final ok = await FlutterInappPurchase.instance
       .isEligibleForExternalPurchaseCustomLinkIOS();
 }`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// kmp-iap (iOS targets only — no-op on Android)
+var ok = await ((QueryResolver)OpenIap.Instance).IsEligibleForExternalPurchaseCustomLinkIOSAsync()`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

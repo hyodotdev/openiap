@@ -48,6 +48,9 @@ function SyncIOS() {
           dart: (
             <CodeBlock language="dart">{`Future<bool> syncIOS();`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`Task<Boolean> SyncIOSAsync()`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func sync_ios() -> Types.VoidResult`}</CodeBlock>
           ),
@@ -84,6 +87,13 @@ if (Platform.OS === 'ios') {
             <CodeBlock language="dart">{`if (Platform.isIOS) {
   await FlutterInappPurchase.instance.syncIOS();
 }`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// kmp-iap (iOS targets only — no-op on Android)
+await ((QueryResolver)OpenIap.Instance).SyncIOSAsync()`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

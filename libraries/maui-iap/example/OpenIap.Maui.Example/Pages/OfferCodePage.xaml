@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="OpenIap.Maui.Example.Pages.OfferCodePage"
+             Title="Offer Code Redemption"
+             BackgroundColor="White">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="16">
+
+            <Label Text="Offer Code Redemption"
+                   FontSize="24"
+                   FontAttributes="Bold"
+                   TextColor="#333"
+                   HorizontalTextAlignment="Center" />
+
+            <Border Stroke="#E1E7EF" StrokeShape="RoundRectangle 12" Padding="16" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="How it works:" FontSize="18" FontAttributes="Bold" TextColor="#333" />
+                    <Label x:Name="HowItWorksLabel"
+                           FontSize="16"
+                           LineHeight="1.35"
+                           TextColor="#555" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Button x:Name="RedeemButton"
+                    Text="🎁 Redeem Offer Code"
+                    BackgroundColor="#6C757D"
+                    TextColor="White"
+                    CornerRadius="10"
+                    Padding="14,14"
+                    FontAttributes="Bold"
+                    Clicked="OnPresentClicked" />
+
+            <Border Stroke="#E1E7EF" StrokeShape="RoundRectangle 12" Padding="16" BackgroundColor="#E9ECEF">
+                <VerticalStackLayout Spacing="6">
+                    <Label x:Name="PlatformTitleLabel" Text="Platform:" FontSize="16" FontAttributes="Bold" TextColor="#495057" />
+                    <Label x:Name="PlatformLabel" FontSize="14" TextColor="#6C757D" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Stroke="#E1E7EF" StrokeShape="RoundRectangle 12" Padding="16" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Testing Offer Codes" FontSize="18" FontAttributes="Bold" TextColor="#333" />
+                    <Label x:Name="TestingLabel"
+                           FontSize="14"
+                           LineHeight="1.35"
+                           TextColor="#555" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Stroke="#E1E7EF" StrokeShape="RoundRectangle 12" Padding="16" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Connection Status" FontSize="16" FontAttributes="Bold" TextColor="#333" />
+                    <HorizontalStackLayout Spacing="8">
+                        <BoxView x:Name="StatusDot" WidthRequest="12" HeightRequest="12" Color="#DC3545" VerticalOptions="Center" />
+                        <Label x:Name="StatusLabel" Text="Connecting..." FontSize="14" TextColor="#555" VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Stroke="#E1E7EF" StrokeShape="RoundRectangle 12" Padding="14" BackgroundColor="#FFFBE6" IsVisible="False" x:Name="ResultPanel">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="Result" FontAttributes="Bold" />
+                    <Label x:Name="ResultLabel" />
+                </VerticalStackLayout>
+            </Border>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

@@ -58,6 +58,9 @@ struct ExternalPurchaseLinkResultIOS {
           dart: (
             <CodeBlock language="dart">{`Future<ExternalPurchaseLinkResultIOS> presentExternalPurchaseLinkIOS(String url);`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`Task<ExternalPurchaseLinkResultIOS> PresentExternalPurchaseLinkIOSAsync(String Url)`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func present_external_purchase_link_ios(url: String) -> Variant`}</CodeBlock>
           ),
@@ -111,6 +114,13 @@ if (Platform.OS === 'ios') {
   await FlutterInappPurchase.instance
       .presentExternalPurchaseLinkIOS('https://yourstore.com/checkout');
 }`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// kmp-iap (iOS targets only — no-op on Android)
+var result = await ((QueryResolver)OpenIap.Instance).PresentExternalPurchaseLinkIOSAsync(url = "https://yourstore.com/checkout")`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

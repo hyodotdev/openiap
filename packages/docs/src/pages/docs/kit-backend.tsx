@@ -142,6 +142,14 @@ if (status.active) {
   unlockPremium(status.subscription?.productId);
 }`}</CodeBlock>
             ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+var api = KitApi(apiKey = System.getenv("OPENIAP_API_KEY")!!)
+var status = api.status("user-1")
+if (status.active) unlockPremium(status.subscription?.productId)`}</CodeBlock>
+            ),
             kotlin: (
               <CodeBlock language="kotlin">{`val api = KitApi(apiKey = System.getenv("OPENIAP_API_KEY")!!)
 val status = api.status("user-1")

@@ -1,0 +1,102 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net9.0;net9.0-android;net9.0-ios;net9.0-maccatalyst</TargetFrameworks>
+    <!-- UseMaui only activates on platform TFMs (android/ios/maccatalyst).
+         The shared `net9.0` build is contract-only — IOpenIap, generated
+         Types, factory dispatch — and references no MAUI Controls types,
+         so it doesn't need the MAUI workload at restore/build time.
+         Keeping UseMaui unconditional makes the shared TFM require
+         `maui-android` (and the multi-target restore also walks into
+         Bindings.iOS, requiring iOS workload packs) — which defeats the
+         purpose of having a workload-free fast lane in CI. -->
+    <UseMaui Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) != ''">true</UseMaui>
+    <!-- Library — apps using us bring their own Maui.Controls reference. -->
+    <SkipValidateMauiImplicitPackageReferences>true</SkipValidateMauiImplicitPackageReferences>
+    <!-- SingleProject auto-includes only the matching Platforms/<TFM>/ folder.
+         We need iOS sources to also compile under macCatalyst, so opt out and
+         manage Compile globs ourselves below. -->
+    <SingleProject>false</SingleProject>
+    <EnableDefaultMauiItems>false</EnableDefaultMauiItems>
+    <RootNamespace>Hyo.OpenIap.Maui</RootNamespace>
+    <AssemblyName>Hyo.OpenIap.Maui</AssemblyName>
+    <PackageId>Hyo.OpenIap.Maui</PackageId>
+    <PackageVersion>1.0.0</PackageVersion>
+    <Title>OpenIAP for .NET MAUI</Title>
+    <Description>OpenIAP — unified in-app purchases for .NET MAUI (iOS / Android). Mirrors the OpenIAP GraphQL schema and shares the same API surface as react-native-iap, expo-iap, flutter_inapp_purchase, and kmp-iap.</Description>
+    <Authors>hyodotdev</Authors>
+    <RepositoryUrl>https://github.com/hyodotdev/openiap</RepositoryUrl>
+    <PackageProjectUrl>https://www.openiap.dev</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>iap;in-app-purchase;maui;dotnet;android;ios;openiap</PackageTags>
+    <Nullable>enable</Nullable>
+    <LangVersion>12.0</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>CS1591;CS1573</NoWarn>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">24.0</SupportedOSPlatformVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Hide platform-specific source from non-platform builds so the .NET-only
+         contract (interfaces + types) compiles cleanly without referencing
+         StoreKit / BillingClient APIs. -->
+    <Compile Remove="Platforms/**/*.cs" />
+    <None Include="Platforms/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+    <Compile Include="Platforms/Android/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
+    <!-- iOS resolver compiles for macCatalyst too — same xcframework, same StoreKit surface. -->
+    <Compile Include="Platforms/iOS/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
+    <Compile Include="Platforms/MacCatalyst/**/*.cs" />
+  </ItemGroup>
+
+  <!-- Native bindings: wire each per its supported TFMs. PrivateAssets=all keeps
+       the binding projects out of the generated nuspec dependencies; this package
+       intentionally ships as the single public NuGet ID, Hyo.OpenIap.Maui. -->
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+    <ProjectReference Include="..\OpenIap.Maui.Bindings.Android\OpenIap.Maui.Bindings.Android.csproj" PrivateAssets="all" />
+    <PackageReference Include="Xamarin.Kotlin.StdLib" Version="2.2.10" Condition="'$(TargetFramework)' == 'net9.0-android'" />
+    <PackageReference Include="Xamarin.KotlinX.Coroutines.Core" Version="1.9.0.3" Condition="'$(TargetFramework)' == 'net9.0-android'" />
+    <PackageReference Include="Xamarin.KotlinX.Coroutines.Core.Jvm" Version="1.9.0.3" Condition="'$(TargetFramework)' == 'net9.0-android'" />
+    <PackageReference Include="Xamarin.KotlinX.Coroutines.Android" Version="1.9.0.3" Condition="'$(TargetFramework)' == 'net9.0-android'" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
+    <ProjectReference Include="..\OpenIap.Maui.Bindings.iOS\OpenIap.Maui.Bindings.iOS.csproj" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <!-- Ship the binding outputs alongside Hyo.OpenIap.Maui.dll in lib/<tfm>/.
+       Without this, ProjectReference outputs are NOT copied into the nupkg
+       and consumers would get NotImplementedException at runtime. Android also
+       needs the resolved AARs from the binding project, otherwise restore works
+       but app packaging has no BillingClient/OpenIAP Java classes. -->
+  <PropertyGroup>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);IncludeBindingsInNuPkg</TargetsForTfmSpecificBuildOutput>
+    <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.aar;.zip</AllowedOutputExtensionsInPackageBuildOutputFolder>
+  </PropertyGroup>
+
+  <Target Name="IncludeBindingsInNuPkg" DependsOnTargets="ResolveReferences">
+    <ItemGroup>
+      <BuildOutputInPackage Include="@(ReferenceCopyLocalPaths)" Condition="'%(ReferenceCopyLocalPaths.Filename)' == 'Hyo.OpenIap.Maui.Bindings.Android' or '%(ReferenceCopyLocalPaths.Filename)' == 'Hyo.OpenIap.Maui.Bindings.iOS'" />
+      <BuildOutputInPackage Include="..\OpenIap.Maui.Bindings.Android\bin\$(Configuration)\$(TargetFramework)\Hyo.OpenIap.Maui.Bindings.Android.aar" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' and Exists('..\OpenIap.Maui.Bindings.Android\bin\$(Configuration)\$(TargetFramework)\Hyo.OpenIap.Maui.Bindings.Android.aar')" />
+      <BuildOutputInPackage Include="$(OutputPath)*.aar" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'" />
+      <BuildOutputInPackage Include="$(OutputPath)Hyo.OpenIap.Maui.Bindings.iOS.resources.zip" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'" />
+    </ItemGroup>
+  </Target>
+
+</Project>

@@ -50,6 +50,9 @@ function CanPresentExternalPurchaseNoticeIOS() {
           dart: (
             <CodeBlock language="dart">{`Future<bool> canPresentExternalPurchaseNoticeIOS();`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`Task<Boolean> CanPresentExternalPurchaseNoticeIOSAsync()`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func can_present_external_purchase_notice_ios() -> bool`}</CodeBlock>
           ),
@@ -87,6 +90,13 @@ if (Platform.OS === 'ios') {
   final can = await FlutterInappPurchase.instance
       .canPresentExternalPurchaseNoticeIOS();
 }`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// kmp-iap (iOS targets only — no-op on Android)
+var can = await ((QueryResolver)OpenIap.Instance).CanPresentExternalPurchaseNoticeIOSAsync()`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":
