@@ -26,14 +26,14 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
-    // May 7, 2026 — openiap-google 2.1.2 + maui-iap 1.0.0 published
+    // May 7, 2026 — openiap-google 2.1.3 + maui-iap 1.0.0 published
     {
-      id: 'google-2-1-2-maui-iap-1-0-0',
+      id: 'google-2-1-3-maui-iap-1-0-0',
       date: new Date('2026-05-07'),
       element: (
-        <div key="google-2-1-2-maui-iap-1-0-0" style={noteCardStyle}>
-          <AnchorLink id="google-2-1-2-maui-iap-1-0-0" level="h4">
-            openiap-google v2.1.2 / maui-iap v1.0.0 - Android update + .NET MAUI
+        <div key="google-2-1-3-maui-iap-1-0-0" style={noteCardStyle}>
+          <AnchorLink id="google-2-1-3-maui-iap-1-0-0" level="h4">
+            openiap-google v2.1.3 / maui-iap v1.0.0 - Android update + .NET MAUI
             release
           </AnchorLink>
 
@@ -43,7 +43,7 @@ function Releases() {
               color: 'var(--text-secondary)',
             }}
           >
-            Published <code>openiap-google</code> <strong>2.1.2</strong> to
+            Published <code>openiap-google</code> <strong>2.1.3</strong> to
             Maven Central and shipped the first official{' '}
             <Link to="/docs/setup/maui">maui-iap</Link> <strong>1.0.0</strong>{' '}
             package on NuGet. This gives .NET MAUI apps the same OpenIAP
@@ -60,7 +60,7 @@ function Releases() {
             }}
           >
             <li>
-              <strong>openiap-google 2.1.2</strong> — Play flavor publishes
+              <strong>openiap-google 2.1.3</strong> — Play flavor publishes
               against Google Play Billing <code>8.3.0</code>, while the Horizon
               flavor remains available as <code>openiap-google-horizon</code>{' '}
               for Meta Quest / Horizon Store builds.
@@ -100,15 +100,15 @@ function Releases() {
             >
               <li>
                 <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/google-2.1.2"
+                  href="https://github.com/hyodotdev/openiap/releases/tag/google-2.1.3"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  openiap-google 2.1.2
+                  openiap-google 2.1.3
                 </a>{' '}
                 (
                 <a
-                  href="https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google/2.1.2"
+                  href="https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google/2.1.3"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="external-link"
