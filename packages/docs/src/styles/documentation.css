@@ -21,10 +21,12 @@
   align-self: flex-start;
   position: sticky;
   top: 56px;
+  height: calc(100vh - 56px);
   max-height: calc(100vh - 56px);
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
+  scroll-padding-top: var(--spacing-md);
   background: var(--bg-secondary);
   border-right: 1px solid var(--border-color);
   padding: var(--spacing-sm) 0 var(--spacing-lg);
@@ -33,7 +35,7 @@
      visually shove the sidebar to the right of the viewport (the
      tablet-range bug); clamp to 0 so it stays put. */
   margin-left: min(0px, calc((var(--max-width) - 100vw) / 2));
-  box-sizing: content-box;
+  box-sizing: border-box;
 }
 
 /* Sidebar items: truncate long identifiers with an ellipsis so the

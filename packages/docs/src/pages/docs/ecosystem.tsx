@@ -10,7 +10,7 @@ function Ecosystem() {
     <div className="doc-page">
       <SEO
         title="Ecosystem"
-        description="OpenIAP ecosystem overview. Native modules (openiap-apple, openiap-google) power framework implementations for React Native, Flutter, Kotlin Multiplatform, and Godot."
+        description="OpenIAP ecosystem overview. Native modules (openiap-apple, openiap-google) power framework implementations for Expo, React Native, Flutter, Kotlin Multiplatform, .NET MAUI, and Godot."
         path="/docs/ecosystem"
         keywords="OpenIAP ecosystem, openiap-apple, openiap-google, IAP architecture, native modules, cross-platform IAP"
       />
@@ -123,18 +123,6 @@ function Ecosystem() {
         <ul style={{ listStyle: 'none', padding: 0 }}>
           <li style={{ marginBottom: '1rem' }}>
             <a
-              href="https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <strong>react-native-iap</strong>
-            </a>
-            : React Native library for in-app purchases. Can be installed
-            directly without Expo modules. Also provides an Expo plugin for Expo
-            projects. <a href="/docs/setup/react-native">Setup Guide</a>
-          </li>
-          <li style={{ marginBottom: '1rem' }}>
-            <a
               href="https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap"
               target="_blank"
               rel="noopener noreferrer"
@@ -144,6 +132,18 @@ function Ecosystem() {
             : Expo module for in-app purchases. Requires expo-modules-core to be
             installed in React Native CLI projects. Offers better integration
             with Expo ecosystem. <a href="/docs/setup/expo">Setup Guide</a>
+          </li>
+          <li style={{ marginBottom: '1rem' }}>
+            <a
+              href="https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <strong>react-native-iap</strong>
+            </a>
+            : React Native library for in-app purchases. Can be installed
+            directly without Expo modules. Also provides an Expo plugin for Expo
+            projects. <a href="/docs/setup/react-native">Setup Guide</a>
           </li>
           <li style={{ marginBottom: '1rem' }}>
             <a
@@ -166,6 +166,17 @@ function Ecosystem() {
             </a>
             : Kotlin Multiplatform library for in-app purchases.{' '}
             <a href="/docs/setup/kmp">Setup Guide</a>
+          </li>
+          <li style={{ marginBottom: '1rem' }}>
+            <a
+              href="https://github.com/hyodotdev/openiap/tree/main/libraries/maui-iap"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <strong>maui-iap</strong>
+            </a>
+            : .NET MAUI / C# library for in-app purchases.{' '}
+            <a href="/docs/setup/maui">Setup Guide</a>
           </li>
           <li style={{ marginBottom: '1rem' }}>
             <a

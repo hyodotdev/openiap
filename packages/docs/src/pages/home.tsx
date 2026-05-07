@@ -223,7 +223,7 @@ function Home() {
               }}
             >
               <img
-                src="/frameworks/flutter.webp"
+                src="/frameworks/flutter.svg"
                 alt="Flutter"
                 style={{ width: '48px', height: '48px', objectFit: 'contain' }}
               />

@@ -7,10 +7,11 @@
 export const LIBRARY_IMAGES = {
   'openiap-apple': '/frameworks/apple.svg',
   'openiap-google': '/frameworks/google.svg',
-  'react-native-iap': '/frameworks/react-native.webp',
   'expo-iap': '/frameworks/expo.svg',
-  flutter_inapp_purchase: '/frameworks/flutter.webp',
+  'react-native-iap': '/frameworks/react-native.webp',
+  flutter_inapp_purchase: '/frameworks/flutter.svg',
   'kmp-iap': '/frameworks/kmp.svg',
+  'maui-iap': '/frameworks/maui.webp',
   'godot-iap': '/frameworks/godot.webp',
 } as const;
 
@@ -30,18 +31,18 @@ export interface LibraryInfo {
 
 export const LIBRARIES: LibraryInfo[] = [
   {
-    name: 'react-native-iap',
-    displayName: 'react-native-iap',
-    description: 'React Native & Expo (Nitro Modules)',
-    url: 'https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap',
-    image: LIBRARY_IMAGES['react-native-iap'],
-  },
-  {
     name: 'expo-iap',
     displayName: 'expo-iap',
     description: 'React Native & Expo (Expo Modules)',
     url: 'https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap',
     image: LIBRARY_IMAGES['expo-iap'],
+  },
+  {
+    name: 'react-native-iap',
+    displayName: 'react-native-iap',
+    description: 'React Native & Expo (Nitro Modules)',
+    url: 'https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap',
+    image: LIBRARY_IMAGES['react-native-iap'],
   },
   {
     name: 'flutter_inapp_purchase',
@@ -56,6 +57,13 @@ export const LIBRARIES: LibraryInfo[] = [
     description: 'Kotlin Multiplatform',
     url: 'https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap',
     image: LIBRARY_IMAGES['kmp-iap'],
+  },
+  {
+    name: 'maui-iap',
+    displayName: 'maui-iap',
+    description: '.NET MAUI / C#',
+    url: 'https://github.com/hyodotdev/openiap/tree/main/libraries/maui-iap',
+    image: LIBRARY_IMAGES['maui-iap'],
   },
   {
     name: 'godot-iap',

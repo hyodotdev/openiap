@@ -7,7 +7,7 @@ function Introduction() {
     <div className="page-container">
       <SEO
         title="Why OpenIAP"
-        description="OpenIAP is a unified specification for in-app purchases across iOS, Android, and XR platforms. One GraphQL schema generates type-safe code for Swift, Kotlin, TypeScript, Dart, and GDScript."
+        description="OpenIAP is a unified specification for in-app purchases across iOS, Android, and XR platforms. One GraphQL schema generates type-safe code for Swift, Kotlin, TypeScript, Dart, C#, and GDScript."
         path="/introduction"
         keywords="OpenIAP, in-app purchase specification, StoreKit 2, Google Play Billing, cross-platform IAP, type-safe IAP, GraphQL schema"
         includeAppSchema
@@ -18,7 +18,7 @@ function Introduction() {
         <p className="intro-lead">
           OpenIAP is a unified specification for in-app purchases across iOS,
           Android, and XR platforms. One GraphQL schema generates type-safe
-          native code for Swift, Kotlin, TypeScript, Dart, and GDScript.
+          native code for Swift, Kotlin, TypeScript, Dart, C#, and GDScript.
         </p>
 
         {/* The Problem */}
@@ -451,27 +451,6 @@ await endConnection();`}
                 <tr>
                   <td>
                     <a
-                      href="https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      react-native-iap
-                    </a>
-                  </td>
-                  <td>React Native</td>
-                  <td>
-                    <a
-                      href="https://github.com/margelo/nitro"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Nitro Modules
-                    </a>
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <a
                       href="https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap"
                       target="_blank"
                       rel="noopener noreferrer"
@@ -487,6 +466,27 @@ await endConnection();`}
                       rel="noopener noreferrer"
                     >
                       Expo Modules
+                    </a>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <a
+                      href="https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      react-native-iap
+                    </a>
+                  </td>
+                  <td>React Native</td>
+                  <td>
+                    <a
+                      href="https://github.com/margelo/nitro"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Nitro Modules
                     </a>
                   </td>
                 </tr>
@@ -529,6 +529,27 @@ await endConnection();`}
                       rel="noopener noreferrer"
                     >
                       K/N Interop
+                    </a>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <a
+                      href="https://github.com/hyodotdev/openiap/tree/main/libraries/maui-iap"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      maui-iap
+                    </a>
+                  </td>
+                  <td>.NET MAUI</td>
+                  <td>
+                    <a
+                      href="https://learn.microsoft.com/dotnet/maui/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      .NET MAUI
                     </a>
                   </td>
                 </tr>
