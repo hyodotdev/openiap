@@ -3,6 +3,7 @@ package dev.hyo.openiap
 import com.android.billingclient.api.BillingClient
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -118,7 +119,7 @@ class OpenIapErrorTest {
 
     @Test
     fun `QueryProduct carries billing diagnostics when provided`() {
-        val error = OpenIapError.QueryProduct(
+        val error = OpenIapError.QueryProduct.withDiagnostics(
             responseCode = BillingClient.BillingResponseCode.DEVELOPER_ERROR,
             debugMessage = "Invalid product ID",
             productIds = listOf("premium_monthly", "lifetime"),
@@ -127,6 +128,7 @@ class OpenIapErrorTest {
         )
         val json = error.toJSON()
 
+        assertSame(OpenIapError.QueryProduct, error)
         assertEquals(ErrorCode.QueryProduct.rawValue, error.code)
         assertEquals("Failed to query product", error.message)
         assertEquals(BillingClient.BillingResponseCode.DEVELOPER_ERROR, error.responseCode)

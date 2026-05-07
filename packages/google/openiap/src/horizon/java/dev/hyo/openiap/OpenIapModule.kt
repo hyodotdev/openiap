@@ -574,7 +574,7 @@ class OpenIapModule(
 
                     client.queryProductDetailsAsync(params) { billingResult, productDetailsList ->
                         if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
-                            val err = OpenIapError.QueryProduct(
+                            val err = OpenIapError.QueryProduct.withDiagnostics(
                                 responseCode = billingResult.responseCode,
                                 debugMessage = billingResult.debugMessage,
                                 productIds = missing,

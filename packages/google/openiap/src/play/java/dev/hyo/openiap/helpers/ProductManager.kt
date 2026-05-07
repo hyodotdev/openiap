@@ -101,7 +101,7 @@ internal class ProductManager {
 
                 if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
                     cont.resumeWithException(
-                        OpenIapError.QueryProduct(
+                        OpenIapError.QueryProduct.withDiagnostics(
                             responseCode = billingResult.responseCode,
                             debugMessage = billingResult.debugMessage,
                             productIds = needsQuery.toList(),

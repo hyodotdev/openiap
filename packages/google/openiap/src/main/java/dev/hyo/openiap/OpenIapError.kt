@@ -161,43 +161,64 @@ sealed class OpenIapError : Exception() {
     }
 
     object QueryProduct : OpenIapError() {
+        private data class Diagnostics(
+            val responseCode: Int? = null,
+            val debugMessage: String? = null,
+            val productIds: List<String> = emptyList(),
+            val productType: String? = null,
+            val isEmptyProductList: Boolean? = null,
+        )
+
+        // Keep QueryProduct as the existing singleton for patch-level API compatibility.
+        @Volatile
+        private var diagnostics: Diagnostics? = null
+
         val CODE = ErrorCode.QueryProduct.rawValue
         override val code = CODE
         override val message = MESSAGE
+        override val debugMessage: String?
+            get() = diagnostics?.debugMessage
+
+        val responseCode: Int?
+            get() = diagnostics?.responseCode
+
+        val productIds: List<String>
+            get() = diagnostics?.productIds ?: emptyList()
+
+        val productType: String?
+            get() = diagnostics?.productType
+
+        val isEmptyProductList: Boolean?
+            get() = diagnostics?.isEmptyProductList
 
         const val MESSAGE = "Failed to query product"
 
-        operator fun invoke(
+        fun withDiagnostics(
             responseCode: Int? = null,
             debugMessage: String? = null,
             productIds: List<String> = emptyList(),
             productType: String? = null,
             isEmptyProductList: Boolean? = null,
-        ): QueryProductFailure = QueryProductFailure(
-            responseCode = responseCode,
-            debugMessage = debugMessage,
-            productIds = productIds,
-            productType = productType,
-            isEmptyProductList = isEmptyProductList,
-        )
-    }
+        ): QueryProduct {
+            diagnostics = Diagnostics(
+                responseCode = responseCode,
+                debugMessage = debugMessage,
+                productIds = productIds,
+                productType = productType,
+                isEmptyProductList = isEmptyProductList,
+            )
+            return this
+        }
 
-    data class QueryProductFailure(
-        val responseCode: Int? = null,
-        override val debugMessage: String? = null,
-        val productIds: List<String> = emptyList(),
-        val productType: String? = null,
-        val isEmptyProductList: Boolean? = null,
-    ) : OpenIapError() {
-        override val code: String = QueryProduct.CODE
-        override val message: String = QueryProduct.MESSAGE
-
-        override fun toJSON(): Map<String, Any?> = super.toJSON() + mapOf(
-            "responseCode" to responseCode,
-            "productIds" to productIds,
-            "productType" to productType,
-            "isEmptyProductList" to isEmptyProductList,
-        )
+        override fun toJSON(): Map<String, Any?> {
+            val current = diagnostics ?: return super.toJSON()
+            return super.toJSON() + mapOf(
+                "responseCode" to current.responseCode,
+                "productIds" to current.productIds,
+                "productType" to current.productType,
+                "isEmptyProductList" to current.isEmptyProductList,
+            )
+        }
     }
 
     object EmptySkuList : OpenIapError() {

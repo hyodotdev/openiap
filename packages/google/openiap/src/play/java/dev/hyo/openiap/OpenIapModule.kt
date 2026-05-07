@@ -1139,7 +1139,7 @@ class OpenIapModule(
                             }
                             buildAndLaunch(ordered)
                         } else {
-                            val err = OpenIapError.QueryProduct(
+                            val err = OpenIapError.QueryProduct.withDiagnostics(
                                 responseCode = billingResult.responseCode,
                                 debugMessage = billingResult.debugMessage,
                                 productIds = missing,
