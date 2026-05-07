@@ -1479,9 +1479,14 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         await state.setInitialized(true)
         try startTransactionListener(generation: generation)
         try startUnfinishedTransactionProcessing(generation: generation)
-        if await state.hasSubscriptionBillingIssueListeners() {
-            startMessageListener()
+        let hasSubscriptionBillingIssueListeners = await state.hasSubscriptionBillingIssueListeners()
+        try Task.checkCancellation()
+        try ensureCurrentConnectionGeneration(generation)
+        if hasSubscriptionBillingIssueListeners {
+            try startMessageListener(generation: generation)
         }
+        try Task.checkCancellation()
+        try ensureCurrentConnectionGeneration(generation)
         return true
     }
 
@@ -1526,6 +1531,14 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             if endTaskGeneration == generation {
                 endTask = nil
                 endTaskGeneration = nil
+            }
+        }
+    }
+
+    private func clearUnfinishedTransactionTask(generation: UInt64) {
+        withConnectionLock {
+            if connectionGeneration == generation {
+                unfinishedTransactionTask = nil
             }
         }
     }
@@ -1792,6 +1805,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
             unfinishedTransactionTask = Task { [weak self] in
                 guard let self else { return }
+                defer { self.clearUnfinishedTransactionTask(generation: generation) }
                 await self.processUnfinishedTransactions()
             }
         }
@@ -1952,9 +1966,20 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// - https://developer.apple.com/documentation/storekit/message
     /// - https://developer.apple.com/documentation/storekit/message/reason-swift.struct/billingissue
     private func startMessageListener() {
+        try? startMessageListener(requiringGeneration: nil)
+    }
+
+    private func startMessageListener(generation: UInt64) throws {
+        try startMessageListener(requiringGeneration: generation)
+    }
+
+    private func startMessageListener(requiringGeneration generation: UInt64?) throws {
         #if os(iOS) || targetEnvironment(macCatalyst)
         if #available(iOS 18.0, macCatalyst 18.0, *) {
-            withConnectionLock {
+            try withConnectionLock {
+                if let generation, connectionGeneration != generation {
+                    throw CancellationError()
+                }
                 if endTask != nil || messageListenerTask != nil {
                     return
                 }
