@@ -26,6 +26,13 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     private var productManager: ProductManager?
     private let state = IapState()
     private var initTask: Task<Bool, Error>?
+    private static let subscriptionPreflightTimeoutNanoseconds: UInt64 = 750_000_000
+
+    private enum SubscriptionPreflightOutcome {
+        case completed
+        case timedOut
+    }
+
     // iOS-only: SKPaymentQueue observer for promoted in-app purchases
     // Reference: https://developer.apple.com/documentation/storekit/promoting-in-app-purchases
     #if os(iOS)
@@ -1595,13 +1602,33 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     private func preflightInactiveUnfinishedSubscriptions(productId: String) async {
-        let cleanupTask = Task { [weak self] in
-            guard let self else { return }
-            await self.finishInactiveUnfinishedSubscriptions(productId: productId)
+        let outcome = await withTaskGroup(
+            of: SubscriptionPreflightOutcome.self,
+            returning: SubscriptionPreflightOutcome.self
+        ) { group in
+            group.addTask { [weak self] in
+                guard let self else { return .completed }
+                await self.finishInactiveUnfinishedSubscriptions(productId: productId)
+                return .completed
+            }
+
+            group.addTask {
+                do {
+                    try await Task.sleep(nanoseconds: Self.subscriptionPreflightTimeoutNanoseconds)
+                    return .timedOut
+                } catch {
+                    return .completed
+                }
+            }
+
+            let outcome = await group.next() ?? .completed
+            group.cancelAll()
+            return outcome
         }
 
-        try? await Task.sleep(nanoseconds: 750_000_000)
-        cleanupTask.cancel()
+        if case .timedOut = outcome {
+            OpenIapLog.debug("⚠️ [requestPurchase] Inactive subscription cleanup timed out; continuing purchase flow")
+        }
     }
 
     private func isInactiveSubscriptionTransaction(_ transaction: StoreKit.Transaction) -> Bool {
