@@ -72,6 +72,7 @@ public protocol OpenIapModuleProtocol {
     func verifyPurchaseWithProvider(_ props: VerifyPurchaseWithProviderProps) async throws -> VerifyPurchaseWithProviderResult
 
     // Store Information
+    func getStorefront() async throws -> String
     func getStorefrontIOS() async throws -> String
     @available(iOS 16.0, macOS 14.0, tvOS 16.0, watchOS 9.0, *)
     func getAppTransactionIOS() async throws -> AppTransaction?

@@ -13,30 +13,37 @@ import {router} from 'expo-router';
 import {
   useIAP,
   requestPurchase,
+  initConnection,
+  endConnection,
   presentExternalPurchaseLinkIOS,
+  isBillingProgramAvailableAndroid,
+  createBillingProgramReportingDetailsAndroid,
+  launchExternalLinkAndroid,
   type Product,
   type Purchase,
-  type AlternativeBillingModeAndroid,
+  type BillingProgramAndroid,
 } from 'react-native-iap';
-import {PRODUCT_IDS} from '../constants/products';
+import {CONSUMABLE_PRODUCT_IDS} from '../constants/products';
+
+type AndroidBillingMode = 'billing-programs' | 'external-payments';
 
 export default function AlternativeBillingScreen() {
   const [externalUrl, setExternalUrl] = useState('https://openiap.dev');
   const [billingMode, setBillingMode] =
-    useState<AlternativeBillingModeAndroid>('alternative-only');
+    useState<AndroidBillingMode>('billing-programs');
+  const [billingProgram, setBillingProgram] =
+    useState<BillingProgramAndroid>('external-offer');
   const [purchaseResult, setPurchaseResult] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
 
   const {
     connected,
     products,
     fetchProducts,
-    checkAlternativeBillingAvailabilityAndroid,
-    showAlternativeBillingDialogAndroid,
-    createAlternativeBillingTokenAndroid,
   } = useIAP({
-    alternativeBillingModeAndroid:
-      Platform.OS === 'android' ? billingMode : undefined,
+    enableBillingProgramAndroid:
+      Platform.OS === 'android' ? billingProgram : undefined,
     onPurchaseSuccess: async (purchase: Purchase) => {
       console.log('Purchase successful:', purchase);
       setIsProcessing(false);
@@ -52,8 +59,11 @@ export default function AlternativeBillingScreen() {
 
   const handleFetchProducts = useCallback(async () => {
     try {
-      console.log('[AlternativeBilling] Fetching products:', PRODUCT_IDS);
-      await fetchProducts({skus: PRODUCT_IDS, type: 'in-app'});
+      console.log(
+        '[AlternativeBilling] Fetching products:',
+        CONSUMABLE_PRODUCT_IDS,
+      );
+      await fetchProducts({skus: CONSUMABLE_PRODUCT_IDS, type: 'in-app'});
       console.log('[AlternativeBilling] Products fetched successfully');
     } catch (error) {
       console.error('[AlternativeBilling] Failed to fetch products:', error);
@@ -80,6 +90,32 @@ export default function AlternativeBillingScreen() {
   useEffect(() => {
     console.log('[AlternativeBilling] Connected:', connected);
   }, [connected]);
+
+  const reconnectWithBillingProgram = useCallback(
+    async (newProgram: BillingProgramAndroid) => {
+      try {
+        setIsReconnecting(true);
+        setPurchaseResult('Reconnecting with new billing program...');
+        await endConnection();
+        await new Promise<void>((resolve) => {
+          setTimeout(() => resolve(), 500);
+        });
+        await initConnection(
+          Platform.OS === 'android'
+            ? {enableBillingProgramAndroid: newProgram}
+            : undefined,
+        );
+        setPurchaseResult(`✅ Reconnected with ${newProgram} program`);
+        await fetchProducts({skus: CONSUMABLE_PRODUCT_IDS, type: 'in-app'});
+      } catch (error: any) {
+        console.error('[AlternativeBilling] Reconnection error:', error);
+        setPurchaseResult(`❌ Reconnection failed: ${error.message}`);
+      } finally {
+        setIsReconnecting(false);
+      }
+    },
+    [fetchProducts],
+  );
 
   const handleIOSPurchase = useCallback(
     async (product: Product) => {
@@ -122,92 +158,96 @@ export default function AlternativeBillingScreen() {
     [externalUrl],
   );
 
-  const handleAndroidAlternativeBilling = useCallback(
+  const handleAndroidBillingPrograms = useCallback(async () => {
+    setIsProcessing(true);
+    setPurchaseResult('Checking billing program availability...');
+
+    try {
+      const result = await isBillingProgramAvailableAndroid(billingProgram);
+
+      if (!result.isAvailable) {
+        setPurchaseResult(
+          `❌ Billing program "${billingProgram}" not available`,
+        );
+        Alert.alert('Not Available', `${billingProgram} is not available`);
+        setIsProcessing(false);
+        return;
+      }
+
+      setPurchaseResult('Launching external link...');
+      const success = await launchExternalLinkAndroid({
+        billingProgram,
+        launchMode: 'launch-in-external-browser-or-app',
+        linkType: 'link-to-digital-content-offer',
+        linkUri: externalUrl,
+      });
+
+      if (!success) {
+        setPurchaseResult('❌ Failed to launch external link');
+        Alert.alert('Error', 'Failed to launch external link');
+        return;
+      }
+
+      setPurchaseResult('Creating reporting token...');
+      const details =
+        await createBillingProgramReportingDetailsAndroid(billingProgram);
+
+      setPurchaseResult(
+        `✅ Billing Programs API completed\n\nProgram: ${billingProgram}\nURL: ${externalUrl}\nToken: ${details.externalTransactionToken.substring(0, 30)}...\n\n⚠️ Report token to Google Play within 24h`,
+      );
+      Alert.alert(
+        'Success',
+        'External link launched and reporting token created.',
+      );
+    } catch (error: any) {
+      console.error('[Android] Billing Programs error:', error);
+      setPurchaseResult(`❌ Error: ${error.message}`);
+      Alert.alert('Error', error.message);
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [billingProgram, externalUrl]);
+
+  const handleAndroidExternalPayments = useCallback(
     async (product: Product) => {
       setIsProcessing(true);
-      setPurchaseResult('Checking availability...');
+      setPurchaseResult('Starting External Payments purchase...');
 
       try {
-        const isAvailable = await checkAlternativeBillingAvailabilityAndroid!();
-
-        if (!isAvailable) {
-          setPurchaseResult('❌ Alternative billing not available');
-          Alert.alert('Error', 'Alternative billing not available');
-          setIsProcessing(false);
-          return;
-        }
-
-        await new Promise<void>((resolve) => {
-          setTimeout(() => resolve(), 500);
+        await requestPurchase({
+          request: {
+            android: {
+              skus: [product.id],
+              developerBillingOption: {
+                billingProgram: 'external-payments',
+                linkUri: externalUrl,
+                launchMode: 'launch-in-external-browser-or-app',
+              },
+            },
+          },
+          type: 'in-app',
         });
-
-        setPurchaseResult('Showing dialog...');
-        const userAccepted = await showAlternativeBillingDialogAndroid!();
-
-        if (!userAccepted) {
-          setPurchaseResult('ℹ️ User cancelled');
-          setIsProcessing(false);
-          return;
-        }
-
-        await new Promise<void>((resolve) => {
-          setTimeout(() => resolve(), 500);
-        });
-
-        setPurchaseResult('Creating token...');
-        const token = await createAlternativeBillingTokenAndroid!(product.id);
-
-        if (token) {
-          setPurchaseResult(
-            `✅ Complete (DEMO)\n\nToken: ${token.substring(0, 20)}...\n\n⚠️ Report to Google within 24h`,
-          );
-          Alert.alert('Demo Complete', 'Alternative billing flow completed');
-        }
+        setPurchaseResult(
+          `🔄 External Payments dialog shown\n\nProduct: ${product.id}\n\nGoogle Play purchases use purchase callbacks; developer billing uses an external transaction token.`,
+        );
       } catch (error: any) {
-        console.error('Error:', error);
+        console.error('[Android] External Payments error:', error);
         setPurchaseResult(`❌ Error: ${error.message}`);
         Alert.alert('Error', error.message);
       } finally {
         setIsProcessing(false);
       }
     },
-    [
-      checkAlternativeBillingAvailabilityAndroid,
-      showAlternativeBillingDialogAndroid,
-      createAlternativeBillingTokenAndroid,
-    ],
+    [externalUrl],
   );
 
   const handlePurchase = (product: Product) => {
     if (Platform.OS === 'ios') {
       handleIOSPurchase(product);
-    } else if (billingMode === 'alternative-only') {
-      handleAndroidAlternativeBilling(product);
+    } else if (billingMode === 'billing-programs') {
+      handleAndroidBillingPrograms();
     } else {
-      // User choice billing
-      setIsProcessing(true);
-      setPurchaseResult('Showing user choice dialog...');
-      requestPurchase({
-        request: {
-          android: {
-            skus: [product.id],
-          },
-        },
-        type: 'in-app',
-        useAlternativeBilling: true,
-      })
-        .then(() => {
-          setPurchaseResult(
-            `🔄 User choice dialog shown\n\nProduct: ${product.id}\n\nIf user selects:\n- Google Play: onPurchaseUpdated callback\n- Alternative: Manual flow required`,
-          );
-          setIsProcessing(false);
-        })
-        .catch((error) => {
-          console.error('[Android] User choice billing error:', error);
-          setPurchaseResult(`❌ Error: ${error.message}`);
-          Alert.alert('Error', error.message);
-          setIsProcessing(false);
-        });
+      handleAndroidExternalPayments(product);
     }
   };
 
@@ -227,14 +267,14 @@ export default function AlternativeBillingScreen() {
         <Text style={styles.infoTitle}>
           {Platform.OS === 'ios'
             ? 'iOS External Purchase'
-            : 'Android Alternative Billing'}
+            : 'Android Billing Programs'}
         </Text>
         <Text style={styles.infoText}>
           {Platform.OS === 'ios'
             ? 'Redirects to external website for payment'
-            : billingMode === 'alternative-only'
-              ? '3-step flow: check → dialog → token'
-              : 'User chooses between Google Play and alternative'}
+            : billingMode === 'billing-programs'
+              ? '3-step flow: availability → external link → reporting token'
+              : 'External Payments developer billing option'}
         </Text>
       </View>
 
@@ -252,33 +292,53 @@ export default function AlternativeBillingScreen() {
             style={styles.modeButton}
             onPress={() =>
               setBillingMode(
-                billingMode === 'alternative-only'
-                  ? 'user-choice'
-                  : 'alternative-only',
+                billingMode === 'billing-programs'
+                  ? 'external-payments'
+                  : 'billing-programs',
               )
             }
           >
             <Text style={styles.modeButtonText}>
-              {billingMode === 'alternative-only'
-                ? '🔒 Alternative Only'
-                : '🔀 User Choice'}
+              {billingMode === 'billing-programs'
+                ? 'Billing Programs'
+                : 'External Payments'}
             </Text>
           </TouchableOpacity>
         </View>
       )}
 
-      {Platform.OS === 'ios' && (
-        <View style={styles.urlInput}>
-          <Text style={styles.label}>External URL:</Text>
-          <TextInput
-            style={styles.input}
-            value={externalUrl}
-            onChangeText={setExternalUrl}
-            placeholder="https://your-site.com"
-            autoCapitalize="none"
-          />
+      {Platform.OS === 'android' && billingMode === 'billing-programs' && (
+        <View style={styles.modeSelector}>
+          <Text style={styles.label}>Billing Program:</Text>
+          <TouchableOpacity
+            style={styles.modeButton}
+            onPress={() => {
+              const nextProgram: BillingProgramAndroid =
+                billingProgram === 'external-offer'
+                  ? 'user-choice-billing'
+                  : billingProgram === 'user-choice-billing'
+                    ? 'external-payments'
+                    : 'external-offer';
+              setBillingProgram(nextProgram);
+              reconnectWithBillingProgram(nextProgram);
+            }}
+            disabled={isReconnecting}
+          >
+            <Text style={styles.modeButtonText}>{billingProgram}</Text>
+          </TouchableOpacity>
         </View>
       )}
+
+      <View style={styles.urlInput}>
+        <Text style={styles.label}>External URL:</Text>
+        <TextInput
+          style={styles.input}
+          value={externalUrl}
+          onChangeText={setExternalUrl}
+          placeholder="https://your-site.com"
+          autoCapitalize="none"
+        />
+      </View>
 
       <TouchableOpacity
         style={[styles.button, !connected && styles.buttonDisabled]}
@@ -295,7 +355,7 @@ export default function AlternativeBillingScreen() {
             key={product.id}
             style={styles.productCard}
             onPress={() => handlePurchase(product)}
-            disabled={isProcessing || !connected}
+            disabled={isProcessing || isReconnecting || !connected}
           >
             <View style={styles.productInfo}>
               <Text style={styles.productTitle}>{product.title}</Text>

@@ -25,6 +25,7 @@ jest.mock('react-native-nitro-modules', () => ({
       removePurchaseErrorListener: jest.fn(),
       addPromotedProductListenerIOS: jest.fn(),
       removePromotedProductListenerIOS: jest.fn(),
+      getStorefront: jest.fn().mockResolvedValue('US'),
       getStorefrontIOS: jest.fn().mockResolvedValue('USA'),
       getAppTransactionIOS: jest.fn().mockResolvedValue(null),
       requestPromotedProductIOS: jest.fn().mockResolvedValue(null),
@@ -33,6 +34,21 @@ jest.mock('react-native-nitro-modules', () => ({
       beginRefundRequestIOS: jest.fn().mockResolvedValue(null),
       acknowledgePurchaseAndroid: jest.fn().mockResolvedValue(true),
       consumePurchaseAndroid: jest.fn().mockResolvedValue(true),
+      checkAlternativeBillingAvailabilityAndroid: jest
+        .fn()
+        .mockResolvedValue(true),
+      createAlternativeBillingTokenAndroid: jest
+        .fn()
+        .mockResolvedValue('external-token'),
+      isBillingProgramAvailableAndroid: jest.fn().mockResolvedValue({
+        billingProgram: 'external-offer',
+        isAvailable: true,
+      }),
+      createBillingProgramReportingDetailsAndroid: jest.fn().mockResolvedValue({
+        billingProgram: 'external-offer',
+        externalTransactionToken: 'external-transaction-token',
+      }),
+      launchExternalLinkAndroid: jest.fn().mockResolvedValue(true),
       validateReceipt: jest.fn().mockResolvedValue({
         isValid: true,
         receiptData: 'mock-receipt',
@@ -109,6 +125,10 @@ describe('RnIap Complete Test Suite', () => {
 
     it('should get available purchases', async () => {
       await expect(RNIap.getAvailablePurchases()).resolves.toBeDefined();
+    });
+
+    it('should get storefront through the unified API', async () => {
+      await expect(RNIap.getStorefront()).resolves.toBe('US');
     });
   });
 
@@ -195,6 +215,51 @@ describe('RnIap Complete Test Suite', () => {
     it('should export consumePurchaseAndroid', () => {
       expect(RNIap.consumePurchaseAndroid).toBeDefined();
       expect(typeof RNIap.consumePurchaseAndroid).toBe('function');
+    });
+
+    it('should export legacy alternative billing Android functions', () => {
+      expect(RNIap.checkAlternativeBillingAvailabilityAndroid).toBeDefined();
+      expect(typeof RNIap.checkAlternativeBillingAvailabilityAndroid).toBe(
+        'function',
+      );
+      expect(RNIap.createAlternativeBillingTokenAndroid).toBeDefined();
+      expect(typeof RNIap.createAlternativeBillingTokenAndroid).toBe(
+        'function',
+      );
+    });
+
+    it('should export Billing Programs Android functions', () => {
+      expect(RNIap.isBillingProgramAvailableAndroid).toBeDefined();
+      expect(typeof RNIap.isBillingProgramAvailableAndroid).toBe('function');
+      expect(RNIap.launchExternalLinkAndroid).toBeDefined();
+      expect(typeof RNIap.launchExternalLinkAndroid).toBe('function');
+      expect(RNIap.createBillingProgramReportingDetailsAndroid).toBeDefined();
+      expect(typeof RNIap.createBillingProgramReportingDetailsAndroid).toBe(
+        'function',
+      );
+    });
+
+    it('should call Billing Programs Android APIs', async () => {
+      await expect(
+        RNIap.isBillingProgramAvailableAndroid('external-offer'),
+      ).resolves.toEqual({
+        billingProgram: 'external-offer',
+        isAvailable: true,
+      });
+      await expect(
+        RNIap.launchExternalLinkAndroid({
+          billingProgram: 'external-offer',
+          launchMode: 'launch-in-external-browser-or-app',
+          linkType: 'link-to-digital-content-offer',
+          linkUri: 'https://openiap.dev',
+        }),
+      ).resolves.toBe(true);
+      await expect(
+        RNIap.createBillingProgramReportingDetailsAndroid('external-offer'),
+      ).resolves.toEqual({
+        billingProgram: 'external-offer',
+        externalTransactionToken: 'external-transaction-token',
+      });
     });
   });
 

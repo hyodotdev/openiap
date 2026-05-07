@@ -1276,6 +1276,7 @@ class OpenIapModule(
         fetchProducts = fetchProducts,
         getActiveSubscriptions = getActiveSubscriptions,
         getAvailablePurchases = getAvailablePurchases,
+        getStorefront = { getStorefront() },
         getStorefrontIOS = { getStorefront() },
         hasActiveSubscriptions = hasActiveSubscriptions
     )
@@ -1283,13 +1284,35 @@ class OpenIapModule(
     @Suppress("DEPRECATION")
     override val mutationHandlers: MutationHandlers = MutationHandlers(
         acknowledgePurchaseAndroid = acknowledgePurchaseAndroid,
+        checkAlternativeBillingAvailabilityAndroid = {
+            checkAlternativeBillingAvailability()
+        },
         consumePurchaseAndroid = consumePurchaseAndroid,
+        createAlternativeBillingTokenAndroid = {
+            createAlternativeBillingReportingToken()
+        },
+        createBillingProgramReportingDetailsAndroid = { program ->
+            createBillingProgramReportingDetails(program)
+        },
         deepLinkToSubscriptions = deepLinkToSubscriptions,
         endConnection = endConnection,
         finishTransaction = finishTransaction,
         initConnection = initConnection,
+        isBillingProgramAvailableAndroid = { program ->
+            isBillingProgramAvailable(program)
+        },
+        launchExternalLinkAndroid = { params ->
+            val activity = currentActivityRef?.get() ?: fallbackActivity
+                ?: throw OpenIapError.MissingCurrentActivity
+            launchExternalLink(activity, params)
+        },
         requestPurchase = requestPurchase,
         restorePurchases = restorePurchases,
+        showAlternativeBillingDialogAndroid = {
+            val activity = currentActivityRef?.get() ?: fallbackActivity
+                ?: throw OpenIapError.MissingCurrentActivity
+            showAlternativeBillingInformationDialog(activity)
+        },
         validateReceipt = validateReceipt,
         verifyPurchase = verifyPurchase,
         verifyPurchaseWithProvider = verifyPurchaseWithProvider

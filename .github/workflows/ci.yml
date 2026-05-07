@@ -19,6 +19,7 @@ jobs:
       ios: ${{ steps.filter.outputs.ios }}
       docs: ${{ steps.filter.outputs.docs }}
       agent: ${{ steps.filter.outputs.agent }}
+      parity: ${{ steps.filter.outputs.parity }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -52,6 +53,32 @@ jobs:
             agent:
               - 'scripts/agent/**'
               - '.github/workflows/ci.yml'
+            parity:
+              - 'libraries/**'
+              - 'packages/apple/**'
+              - 'packages/google/**'
+              - 'packages/gql/**'
+              - 'scripts/audit-non-godot-parity.mjs'
+              - 'package.json'
+              - 'knowledge/internal/04-platform-packages.md'
+              - '.github/workflows/ci.yml'
+
+  audit-parity:
+    name: Audit SDK Parity
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.parity == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+
+      - name: Run non-Godot SDK parity audit
+        run: node scripts/audit-non-godot-parity.mjs
 
   test-gql:
     name: Test GQL Types

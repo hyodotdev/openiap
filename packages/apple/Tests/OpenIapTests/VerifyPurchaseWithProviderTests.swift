@@ -135,6 +135,7 @@ private final class FakeVerifyPurchaseModule: OpenIapModuleProtocol {
     }
 
     // MARK: - Store Information
+    func getStorefront() async throws -> String { try await getStorefrontIOS() }
     func getStorefrontIOS() async throws -> String { "US" }
     func getAppTransactionIOS() async throws -> AppTransaction? { nil }
 

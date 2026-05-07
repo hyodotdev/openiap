@@ -123,6 +123,16 @@ class HomeScreen extends StatelessWidget {
                         onTap: () => Navigator.pushNamed(
                             context, '/alternative-billing'),
                       ),
+                      const Divider(height: 1),
+                      _buildMenuItem(
+                        context,
+                        icon: CupertinoIcons.dot_radiowaves_left_right,
+                        title: 'Webhook Stream',
+                        subtitle: 'IAPKit SSE + test notification',
+                        color: const Color(0xFF0EA5E9),
+                        onTap: () =>
+                            Navigator.pushNamed(context, '/webhook-stream'),
+                      ),
                     ],
                   ),
                 ),

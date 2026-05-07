@@ -56,6 +56,12 @@ const Home: React.FC<Props> = ({navigation}) => {
       route: 'AlternativeBilling' as keyof RootStackParamList,
       enabled: true,
     },
+    {
+      title: 'Webhook Stream',
+      subtitle: 'IAPKit SSE + test notification',
+      route: 'WebhookStream' as keyof RootStackParamList,
+      enabled: true,
+    },
   ];
 
   return (

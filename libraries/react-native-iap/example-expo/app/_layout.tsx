@@ -27,6 +27,10 @@ export default function RootLayout() {
           options={{title: 'Alternative Billing'}}
         />
         <Stack.Screen name="all-products" options={{title: 'All Products'}} />
+        <Stack.Screen
+          name="webhook-stream"
+          options={{title: 'Webhook Stream'}}
+        />
       </Stack>
     </DataModalProvider>
   );

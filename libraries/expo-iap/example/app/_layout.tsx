@@ -24,6 +24,10 @@ export default function RootLayout() {
           options={{title: 'Offer Code Redemption'}}
         />
         <Stack.Screen
+          name="alternative-billing"
+          options={{title: 'Alternative Billing'}}
+        />
+        <Stack.Screen
           name="webhook-stream"
           options={{title: 'Webhook Stream'}}
         />

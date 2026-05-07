@@ -56,12 +56,36 @@ final class VerifyPurchaseTests: XCTestCase {
             XCTFail("Unexpected error type: \(error)")
         }
     }
+
+    @MainActor
+    func testStorefrontUsesUnifiedProtocolMethod() async throws {
+        let iosResult = VerifyPurchaseResultIOS(
+            isValid: true,
+            jwsRepresentation: "jws-token",
+            latestTransaction: nil,
+            receiptData: "base64-receipt"
+        )
+        let module = FakeOpenIapModule(validateResult: .verifyPurchaseResultIos(iosResult))
+        let store = OpenIapStore(module: module)
+
+        let storefront = try await store.getStorefront()
+        XCTAssertEqual("US", storefront)
+        XCTAssertEqual(1, module.getStorefrontCallCount)
+        XCTAssertEqual(0, module.getStorefrontIOSCallCount)
+
+        let storefrontIOS = try await store.getStorefrontIOS()
+        XCTAssertEqual("US", storefrontIOS)
+        XCTAssertEqual(2, module.getStorefrontCallCount)
+        XCTAssertEqual(0, module.getStorefrontIOSCallCount)
+    }
 }
 
 @available(iOS 15.0, macOS 14.0, *)
 private final class FakeOpenIapModule: OpenIapModuleProtocol {
     private let validateResult: VerifyPurchaseResult
     private let providerResult: VerifyPurchaseWithProviderResult
+    private(set) var getStorefrontCallCount = 0
+    private(set) var getStorefrontIOSCallCount = 0
 
     init(
         validateResult: VerifyPurchaseResult,
@@ -120,7 +144,14 @@ private final class FakeOpenIapModule: OpenIapModuleProtocol {
     }
 
     // MARK: - Store Information
-    func getStorefrontIOS() async throws -> String { "US" }
+    func getStorefront() async throws -> String {
+        getStorefrontCallCount += 1
+        return "US"
+    }
+    func getStorefrontIOS() async throws -> String {
+        getStorefrontIOSCallCount += 1
+        return "US-iOS"
+    }
     func getAppTransactionIOS() async throws -> AppTransaction? { nil }
 
     // MARK: - Subscription Management

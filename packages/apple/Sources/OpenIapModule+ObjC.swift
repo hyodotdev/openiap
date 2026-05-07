@@ -518,10 +518,21 @@ import StoreKit
 
     // MARK: - Store Information
 
+    @objc func getStorefrontWithCompletion(_ completion: @escaping (String?, Error?) -> Void) {
+        Task {
+            do {
+                let storefront = try await getStorefront()
+                completion(storefront, nil)
+            } catch {
+                completion(nil, error)
+            }
+        }
+    }
+
     @objc func getStorefrontIOSWithCompletion(_ completion: @escaping (String?, Error?) -> Void) {
         Task {
             do {
-                let storefront = try await getStorefrontIOS()
+                let storefront = try await getStorefront()
                 completion(storefront, nil)
             } catch {
                 completion(nil, error)

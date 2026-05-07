@@ -64,6 +64,10 @@ jest.mock('../src/index', () => {
     getAvailablePurchases: mockGetAvailablePurchases,
     getPurchaseHistory: jest.fn(() => Promise.resolve([])),
     getActiveSubscriptions: mockGetActiveSubscriptions,
+    getStorefront: jest.fn(() => Promise.resolve('US')),
+    connectWebhookStream: jest.fn(() => ({
+      close: jest.fn(),
+    })),
 
     // Android specific
     acknowledgePurchaseAndroid: jest.fn(() => Promise.resolve(true)),
@@ -71,6 +75,25 @@ jest.mock('../src/index', () => {
     deepLinkingGetPendingPurchases: jest.fn(() => Promise.resolve()),
     validateReceiptAndroid: jest.fn(() => Promise.resolve()),
     deepLinkToSubscriptions: jest.fn(() => Promise.resolve(true)),
+    checkAlternativeBillingAvailabilityAndroid: jest.fn(() =>
+      Promise.resolve(true),
+    ),
+    createAlternativeBillingTokenAndroid: jest.fn(() =>
+      Promise.resolve('external-token'),
+    ),
+    isBillingProgramAvailableAndroid: jest.fn(() =>
+      Promise.resolve({
+        billingProgram: 'external-offer',
+        isAvailable: true,
+      }),
+    ),
+    launchExternalLinkAndroid: jest.fn(() => Promise.resolve(true)),
+    createBillingProgramReportingDetailsAndroid: jest.fn(() =>
+      Promise.resolve({
+        billingProgram: 'external-offer',
+        externalTransactionToken: 'external-transaction-token',
+      }),
+    ),
 
     // iOS specific
     clearTransactionIOS: jest.fn(() => Promise.resolve(true)),

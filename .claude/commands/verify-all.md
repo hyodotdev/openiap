@@ -4,6 +4,15 @@ Run this before committing or creating a PR to verify the entire monorepo is hea
 
 ## Checks
 
+### 0. SDK SSOT Parity
+```bash
+# Godot is intentionally excluded until its example parity is automated.
+bun run audit:parity
+```
+
+This fails if a new non-Godot library, Expo example route/product ID, generated
+type sync target, or GQL root operation is not covered by the parity audit.
+
 ### 1. Build Verification
 ```bash
 # Docs typecheck
@@ -86,6 +95,7 @@ ls .github/workflows/release-{apple,google,react-native,expo,flutter,godot,kmp}.
 ## Quick One-Liner
 ```bash
 cd packages/docs && npx tsc --noEmit && cd ../apple && swift build && cd ../.. && echo "BUILD OK" && \
+bun run audit:parity && \
 grep -rn "openiap-apple.png\|openiap-google.png\|getProducts\b\|buyProduct\|completePurchase" --include="*.tsx" packages/docs/src/ | grep -v node_modules | wc -l | xargs -I {} sh -c '[ {} -eq 0 ] && echo "REFS OK" || echo "REFS BROKEN: {} issues"' && \
 diff llms-full.txt packages/docs/public/llms-full.txt > /dev/null 2>&1 && echo "LLMS SYNCED" || echo "LLMS OUT OF SYNC"
 ```

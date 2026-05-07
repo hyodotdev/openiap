@@ -411,8 +411,12 @@ public final class OpenIapStore: ObservableObject {
         try await module.getTransactionJwsIOS(sku: sku)
     }
 
+    public func getStorefront() async throws -> String {
+        try await module.getStorefront()
+    }
+
     public func getStorefrontIOS() async throws -> String {
-        try await module.getStorefrontIOS()
+        try await getStorefront()
     }
 
     @available(iOS 16.0, macOS 14.0, tvOS 16.0, watchOS 9.0, *)

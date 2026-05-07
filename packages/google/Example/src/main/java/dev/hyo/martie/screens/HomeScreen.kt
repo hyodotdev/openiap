@@ -109,7 +109,7 @@ fun HomeScreen(navController: NavController) {
                 columns = GridCells.Fixed(2),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(600.dp)
+                    .height(720.dp)
                     .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -171,6 +171,18 @@ fun HomeScreen(navController: NavController) {
                         color = AppColors.info,
                         onClick = {
                             navController.navigate("alternative_billing")
+                        }
+                    )
+                }
+
+                item {
+                    FeatureCard(
+                        title = "Webhook\nStream",
+                        subtitle = "IAPKit SSE events",
+                        icon = Icons.Default.Notifications,
+                        color = AppColors.info,
+                        onClick = {
+                            navController.navigate("webhook_stream")
                         }
                     )
                 }
