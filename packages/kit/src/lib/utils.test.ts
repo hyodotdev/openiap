@@ -38,6 +38,11 @@ describe("formatMicros", () => {
     expect(formatMicros(1_200_000_000, { compact: true })).toBe("1.2k");
   });
 
+  it("formats compact values between ten and one thousand without decimals", () => {
+    expect(formatMicros(10_500_000, { compact: true })).toBe("11");
+    expect(formatMicros(999_400_000, { compact: true })).toBe("999");
+  });
+
   it("preserves cents for compact values below ten", () => {
     expect(formatMicros(500_000, { compact: true })).toBe("0.50");
   });
