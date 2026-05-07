@@ -52,6 +52,101 @@ function Announcements() {
   useScrollToHash();
 
   const announcements: Announcement[] = [
+    // 2026-05-07: .NET MAUI
+    {
+      id: '2026-05-07',
+      date: new Date('2026-05-07'),
+      element: (
+        <div key="2026-05-07" style={cardStyle}>
+          <div style={headerStyle}>
+            <img
+              src="/logo.webp"
+              alt="OpenIAP"
+              style={{ width: '48px', height: '48px', borderRadius: '10px' }}
+            />
+            <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
+              OpenIAP Meets .NET MAUI
+            </h2>
+            <a
+              href="#2026-05-07"
+              style={linkIconStyle}
+              title="Link to this announcement"
+            >
+              🔗
+            </a>
+          </div>
+          <p style={dateStyle}>May 7, 2026 - maui-iap v1.0.0</p>
+          <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
+            OpenIAP now has an official .NET MAUI implementation:{' '}
+            <a href="/docs/setup/maui">maui-iap</a>. C# apps can use the same
+            OpenIAP product, purchase, subscription, and listener model already
+            used by the React Native, Expo, Flutter, Godot, and Kotlin
+            Multiplatform libraries.
+          </p>
+          <ul
+            style={{
+              paddingLeft: '1.5rem',
+              marginBottom: '1rem',
+              lineHeight: '1.7',
+            }}
+          >
+            <li>
+              <strong>Single NuGet package</strong> - install{' '}
+              <code>Hyo.OpenIap.Maui</code> and get the public API, Android
+              bindings, and iOS / macCatalyst binding resources together.
+            </li>
+            <li>
+              <strong>Native store engines</strong> - delegates to OpenIAP's
+              StoreKit 2 bridge on Apple platforms and Google Play Billing 8 on
+              Android.
+            </li>
+            <li>
+              <strong>Expo example parity</strong> - the MAUI example mirrors
+              the same All Products, Purchase Flow, Subscription Flow, Available
+              Purchases, Offer Code, Alternative Billing, and Webhook Stream
+              screens.
+            </li>
+          </ul>
+          <a
+            href="/docs/setup/maui"
+            style={{
+              display: 'block',
+              width: '100%',
+              maxWidth: '720px',
+              borderRadius: '0.75rem',
+              margin: '1.5rem auto 0',
+              border: '1px solid var(--border-color)',
+              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.25)',
+              overflow: 'hidden',
+            }}
+          >
+            <img
+              src="/announcements/maui.webp"
+              alt="OpenIAP meets MAUI"
+              style={{
+                width: '100%',
+                height: 'auto',
+                display: 'block',
+              }}
+            />
+          </a>
+          <div style={calloutStyle}>
+            <strong>Getting Started:</strong> Read the{' '}
+            <a href="/docs/setup/maui">.NET MAUI setup guide</a> or open the{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/tree/main/libraries/maui-iap"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              maui-iap source
+            </a>{' '}
+            to try the example app on iOS, Android, or macCatalyst.
+          </div>
+        </div>
+      ),
+    },
+
     // 2026-04-06: Monorepo consolidation
     {
       id: '2026-04-06',
