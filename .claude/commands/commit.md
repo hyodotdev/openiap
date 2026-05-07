@@ -185,7 +185,6 @@ gh pr edit <PR_NUMBER> --add-label "<label1>,<label2>"
 - Changes across multiple platforms → `cross-platform`
 - New features → `🎯 feature`
 - PR bug fixes → `🛠 bugfix`
-- Issue bug reports → `🐛 bug`
 - Breaking changes → `⚡️ breaking`
 - Documentation only → `📖 documentation`
 - CI/CD changes → `💨 ci`
