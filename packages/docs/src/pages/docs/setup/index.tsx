@@ -44,7 +44,7 @@ const FRAMEWORKS: FrameworkRow[] = [
     name: '.NET MAUI',
     language: 'C#',
     description:
-      '.NET MAUI / C# 12 via the `maui-iap` library (Hyo.OpenIap.Maui). Ships as one NuGet package with generated `Types.cs`, flattened Android AAR bindings, and StoreKit xcframework resources for iOS / macCatalyst.',
+      '.NET MAUI / C# 12 via the `maui-iap` library (OpenIap.Maui on NuGet). Ships as one NuGet package with generated `Types.cs`, flattened Android AAR bindings, and StoreKit xcframework resources for iOS / macCatalyst.',
   },
   {
     to: '/docs/setup/godot',

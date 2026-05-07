@@ -128,8 +128,8 @@ function Announcements() {
             />
           </a>
           <div style={calloutStyle}>
-            <strong>Getting Started:</strong> Install{' '}
-            <code>Hyo.OpenIap.Maui</code> from NuGet or open the{' '}
+            <strong>Getting Started:</strong> Install <code>OpenIap.Maui</code>{' '}
+            from NuGet or open the{' '}
             <a
               href="https://github.com/hyodotdev/openiap/tree/main/libraries/maui-iap"
               target="_blank"

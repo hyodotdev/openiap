@@ -275,7 +275,7 @@ jobs:
           fi
 
       # Re-build native artifacts on the publish runner; the validate-multitarget
-       # job runs in a separate workspace.
+      # job runs in a separate workspace.
       - name: Build OpenIAP.xcframework (Apple)
         run: bash packages/apple/scripts/build-xcframework.sh
 
@@ -335,14 +335,14 @@ jobs:
 
           \`\`\`xml
           <ItemGroup>
-            <PackageReference Include="Hyo.OpenIap.Maui" Version="$VERSION" />
+            <PackageReference Include="OpenIap.Maui" Version="$VERSION" />
           </ItemGroup>
           \`\`\`
 
           Or via the .NET CLI:
 
           \`\`\`bash
-          dotnet add package Hyo.OpenIap.Maui --version $VERSION
+          dotnet add package OpenIap.Maui --version $VERSION
           \`\`\`
 
           ### Documentation
@@ -353,7 +353,7 @@ jobs:
 
           ### Links
 
-          - [NuGet](https://www.nuget.org/packages/Hyo.OpenIap.Maui/$VERSION)
+          - [NuGet](https://www.nuget.org/packages/OpenIap.Maui/$VERSION)
           - [GitHub (monorepo)](https://github.com/hyodotdev/openiap/tree/main/libraries/maui-iap)
           EOF
 

@@ -39,7 +39,7 @@
 
   <!-- .NET-for-iOS does NOT propagate <NativeReference> items through
        ProjectReference. Until that ships, every consumer (this example, or
-       any host MAUI app pulling Hyo.OpenIap.Maui via path-reference) must
+       any host MAUI app pulling OpenIap.Maui via path-reference) must
        declare the xcframework themselves. NuGet consumers don't need this —
        the package ships the official binding resource zip sidecar that
        .NET-for-iOS resolves at build time. -->

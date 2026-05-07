@@ -59,13 +59,13 @@ function Releases() {
           >
             <li>
               <strong>maui-iap 1.0.0</strong> — new NuGet package{' '}
-              <code>Hyo.OpenIap.Maui</code> for iOS, Android, and macCatalyst
-              apps using .NET MAUI / C# 12.
+              <code>OpenIap.Maui</code> for iOS, Android, and macCatalyst apps
+              using .NET MAUI / C# 12.
             </li>
             <li>
               <strong>Single-package MAUI install</strong> — Android and iOS
               native bindings are private implementation details packed into the
-              main NuGet, so apps only reference <code>Hyo.OpenIap.Maui</code>.
+              main NuGet, so apps only reference <code>OpenIap.Maui</code>.
             </li>
             <li>
               <strong>Example parity</strong> — the MAUI example mirrors the
@@ -106,7 +106,7 @@ function Releases() {
                 </a>{' '}
                 (
                 <a
-                  href="https://www.nuget.org/packages/Hyo.OpenIap.Maui/1.0.0"
+                  href="https://www.nuget.org/packages/OpenIap.Maui/1.0.0"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="external-link"

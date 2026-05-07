@@ -19,16 +19,16 @@ Requires .NET 9 SDK and the MAUI workload:
 
 ```bash
 dotnet workload install maui
-dotnet add package Hyo.OpenIap.Maui --version 1.0.0
+dotnet add package OpenIap.Maui --version 1.0.0
 ```
 
 Or add the package directly:
 
 ```xml
-<PackageReference Include="Hyo.OpenIap.Maui" Version="1.0.0" />
+<PackageReference Include="OpenIap.Maui" Version="1.0.0" />
 ```
 
-`Hyo.OpenIap.Maui` is the only package apps reference. The Android binding,
+`OpenIap.Maui` is the only NuGet package apps reference. The Android binding,
 iOS binding, Google Play Billing AARs, and StoreKit xcframework resources are
 flattened into the main NuGet package.
 

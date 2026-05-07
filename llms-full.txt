@@ -65,7 +65,7 @@ dependencies {
 
 ### .NET MAUI
 ```xml
-<PackageReference Include="Hyo.OpenIap.Maui" Version="1.0.0" />
+<PackageReference Include="OpenIap.Maui" Version="1.0.0" />
 ```
 
 Requires .NET 9+, the MAUI workload, iOS 15.0+, and Android API 24+.
@@ -109,9 +109,9 @@ Requires .NET 9+, the MAUI workload, iOS 15.0+, and Android API 24+.
 - Public surface: `KmpIAP` / shared instance resolver methods and flows.
 
 ### maui-iap
-- Package: `Hyo.OpenIap.Maui` on NuGet.
+- Package: `OpenIap.Maui` on NuGet.
 - Distribution: single public NuGet package. The Android/iOS binding projects
-  are private implementation details and are flattened into `Hyo.OpenIap.Maui`
+  are private implementation details and are flattened into `OpenIap.Maui`
   instead of being published as separate package dependencies.
 - Implementation: .NET MAUI projection with generated `Types.cs`, a static
   `Iap.Instance` facade, `IOpenIap` observables, and per-platform resolvers.

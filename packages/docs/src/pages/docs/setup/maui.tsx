@@ -8,7 +8,7 @@ function MauiSetup() {
         title=".NET MAUI Setup"
         description="Install and configure maui-iap for in-app purchases in .NET MAUI / C# 12 projects."
         path="/docs/setup/maui"
-        keywords="maui-iap, .NET MAUI, C#, dotnet, in-app purchase, NuGet, Hyo.OpenIap.Maui"
+        keywords="maui-iap, .NET MAUI, C#, dotnet, in-app purchase, NuGet, OpenIap.Maui"
       />
       <h1>.NET MAUI Setup</h1>
       <p>
@@ -21,10 +21,10 @@ function MauiSetup() {
       <div className="alert-card alert-card--info">
         <p>
           <strong>Package shape:</strong> apps reference only{' '}
-          <code>Hyo.OpenIap.Maui</code>. The Android binding, iOS binding,
-          Google Play Billing AARs, and StoreKit xcframework resources are
-          flattened into that package, so NuGet consumers do not add separate
-          binding packages or <code>NativeReference</code> entries.
+          <code>OpenIap.Maui</code>. The Android binding, iOS binding, Google
+          Play Billing AARs, and StoreKit xcframework resources are flattened
+          into that package, so NuGet consumers do not add separate binding
+          packages or <code>NativeReference</code> entries.
         </p>
       </div>
 
@@ -105,14 +105,14 @@ function MauiSetup() {
         </h2>
         <p>Add the package to your MAUI app project:</p>
         <CodeBlock language="bash">
-          {`dotnet add package Hyo.OpenIap.Maui --version 1.0.0`}
+          {`dotnet add package OpenIap.Maui --version 1.0.0`}
         </CodeBlock>
         <p>
           Or add it directly to your app's <code>.csproj</code>:
         </p>
         <CodeBlock language="xml">
           {`<ItemGroup>
-  <PackageReference Include="Hyo.OpenIap.Maui" Version="1.0.0" />
+  <PackageReference Include="OpenIap.Maui" Version="1.0.0" />
 </ItemGroup>`}
         </CodeBlock>
 

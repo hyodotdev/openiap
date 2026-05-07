@@ -1,6 +1,7 @@
 # maui-iap — Agent Guidelines
 
-`maui-iap` (`Hyo.OpenIap.Maui`) is the .NET MAUI projection of OpenIAP. It
+`maui-iap` (`OpenIap.Maui` on NuGet, `Hyo.OpenIap.Maui` namespace) is the
+.NET MAUI projection of OpenIAP. It
 imports the generated [`Types.cs`](src/OpenIap.Maui/Types.cs) from
 [`packages/gql`](../../packages/gql), exposes a thin listener contract
 (`IOpenIap`), and delegates the actual purchase work to the OpenIAP
@@ -117,11 +118,11 @@ ObjC entry points.
 Native artifacts must be present **before** `dotnet build` on the
 binding csprojs:
 
-| Artifact | Built by | Path |
-|----------|----------|------|
-| `openiap-play-release.aar` | `./gradlew :openiap:assemblePlayRelease` (in `packages/google`) | `packages/google/openiap/build/outputs/aar/` |
-| `openiap-release.aar` | `../../../packages/google/gradlew :openiap:assembleRelease` (in `libraries/maui-iap/android`) | `libraries/maui-iap/android/openiap/build/outputs/aar/` |
-| `OpenIAP.xcframework` | `bash packages/apple/scripts/build-xcframework.sh` (uses xcodegen + the wrapper at `packages/apple/wrapper/`) | `packages/apple/.build/xcframework/` |
+| Artifact                   | Built by                                                                                                      | Path                                                    |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `openiap-play-release.aar` | `./gradlew :openiap:assemblePlayRelease` (in `packages/google`)                                               | `packages/google/openiap/build/outputs/aar/`            |
+| `openiap-release.aar`      | `../../../packages/google/gradlew :openiap:assembleRelease` (in `libraries/maui-iap/android`)                 | `libraries/maui-iap/android/openiap/build/outputs/aar/` |
+| `OpenIAP.xcframework`      | `bash packages/apple/scripts/build-xcframework.sh` (uses xcodegen + the wrapper at `packages/apple/wrapper/`) | `packages/apple/.build/xcframework/`                    |
 
 CI runs both before invoking the .NET binding builds — see
 [`.github/workflows/ci-maui-iap.yml`](../../.github/workflows/ci-maui-iap.yml)
@@ -130,7 +131,7 @@ and [`release-maui.yml`](../../.github/workflows/release-maui.yml).
 ### NuGet packing
 
 `OpenIap.Maui.csproj` produces the single public NuGet package:
-`Hyo.OpenIap.Maui`. The binding projects are private implementation details,
+`OpenIap.Maui`. The binding projects are private implementation details,
 so the main package flattens their outputs instead of declaring unpublished
 `Hyo.OpenIap.Maui.Bindings.*` package dependencies.
 
@@ -146,7 +147,7 @@ The package includes:
 The iOS binding sets `<NoBindingEmbedding>true</NoBindingEmbedding>` so
 `.NET-for-iOS` creates the official sidecar binding resource package with a
 `manifest` file. NuGet consumers do not need to add their own
-`<NativeReference>` when they reference `Hyo.OpenIap.Maui`.
+`<NativeReference>` when they reference `OpenIap.Maui`.
 
 For local development via `<ProjectReference>`, the example app at
 [`example/OpenIap.Maui.Example/`](example/OpenIap.Maui.Example/) re-declares
@@ -161,12 +162,12 @@ the **SDK Parity Checklist** in
 For maui-iap specifically:
 
 | Layer                 | Where                                                                |
-|-----------------------|----------------------------------------------------------------------|
+| --------------------- | -------------------------------------------------------------------- |
 | 1. Type declared      | `src/OpenIap.Maui/Types.cs` (generated)                              |
 | 2. Public API exposed | `Hyo.OpenIap.QueryResolver` / `MutationResolver` (in `Types.cs`)     |
 | 3. Platform bridge    | `Platforms/Android/OpenIapAndroid.cs`, `Platforms/iOS/OpenIapIOS.cs` |
-| 4. Handlers wired     | Concrete platform classes implement the resolver interfaces         |
-| 5. Test coverage      | TBD — example app + unit tests pending                              |
+| 4. Handlers wired     | Concrete platform classes implement the resolver interfaces          |
+| 5. Test coverage      | TBD — example app + unit tests pending                               |
 
 ## Build & test
 
