@@ -193,7 +193,7 @@ kmpIAP.initConnection(
           ),
           csharp: (
             <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // Standard connection
 await ((QueryResolver)OpenIap.Instance).InitConnectionAsync()

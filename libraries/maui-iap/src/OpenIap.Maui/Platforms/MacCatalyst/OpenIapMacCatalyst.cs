@@ -6,8 +6,8 @@
 
 #nullable enable
 
-using Hyo.OpenIap.Maui.Platforms.iOS;
+using OpenIap.Maui.Platforms.iOS;
 
-namespace Hyo.OpenIap.Maui.Platforms.MacCatalyst;
+namespace OpenIap.Maui.Platforms.MacCatalyst;
 
 internal sealed class OpenIapMacCatalyst : OpenIapIOS;

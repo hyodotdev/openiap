@@ -380,7 +380,7 @@ enum ExternalPurchaseNoticeAction {
             ),
             csharp: (
               <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // Result from presenting external purchase link (iOS-only via KMP)
 data class ExternalPurchaseLinkResultIOS(

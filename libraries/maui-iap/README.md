@@ -36,7 +36,7 @@ flattened into the main NuGet package.
 
 ```csharp
 using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 var iap = Iap.Instance;
 var query = (QueryResolver)iap;
@@ -87,7 +87,7 @@ MAUI exposes the same kit helper surface as `expo-iap` and
 
 ```csharp
 using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 var kit = Iap.KitApi(new KitApiOptions
 {

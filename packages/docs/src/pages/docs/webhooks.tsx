@@ -244,7 +244,7 @@ listener.events.listen((event) {
             ),
             csharp: (
               <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // Pure parser + types live in commonMain. Wire your platform's HTTP
 // client to webhookStreamUrl(apiKey = "...") and feed each SSE

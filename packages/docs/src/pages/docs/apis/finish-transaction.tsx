@@ -191,7 +191,7 @@ kmpIAP.finishTransaction(
           ),
           csharp: (
             <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 await ((MutationResolver)OpenIap.Instance).FinishTransactionAsync(
     purchase: new PurchaseInput(purchase),

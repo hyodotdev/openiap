@@ -49,7 +49,7 @@ val userChoiceBillingEvents: Flow<UserChoiceBillingDetails>`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // Flow approach
 var userChoiceBillingEvents: Flow<UserChoiceBillingDetails>`}</CodeBlock>
@@ -171,7 +171,7 @@ subscription.cancel();`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // Using Flow
 lifecycleScope.launch {
@@ -233,7 +233,7 @@ openIapStore.setUserChoiceBillingListener { details ->
           ),
           csharp: (
             <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 data class UserChoiceBillingDetails(
     var externalTransactionToken: String,

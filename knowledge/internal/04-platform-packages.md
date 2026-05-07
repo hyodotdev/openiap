@@ -8,6 +8,7 @@
 ### Required Pre-Work (Apple)
 
 Before writing or editing anything, **ALWAYS** review:
+
 - [`packages/apple/CONVENTION.md`](../../packages/apple/CONVENTION.md)
 
 ### Type Generation
@@ -34,6 +35,7 @@ Version is managed in `openiap-versions.json`:
 ```
 
 **To update GQL types:**
+
 1. Edit `openiap-versions.json` - change `"gql"` version
 2. Run `./scripts/generate-types.sh`
 3. Run `swift test` to verify compatibility
@@ -56,12 +58,14 @@ swift build  # Build package
 **IMPORTANT**: When updating iOS functions in `OpenIapModule.swift`, you **MUST** also update `OpenIapModule+ObjC.swift`.
 
 The Objective-C bridge (`OpenIapModule+ObjC.swift`) exposes Swift async functions to Objective-C/Kotlin for:
+
 - **kmp-iap** (Kotlin Multiplatform via cinterop)
 - Any other platform that requires Objective-C interoperability
 
 #### When to Update ObjC Bridge
 
 Update `OpenIapModule+ObjC.swift` when:
+
 - [ ] Adding new public functions to `OpenIapModule.swift`
 - [ ] Changing function signatures (parameters, return types)
 - [ ] Adding new input options or parameters
@@ -96,11 +100,12 @@ public func newFeatureIOS(param: String) async throws -> ResultType {
 
 #### Files to Update Together
 
-| Swift Function Changed | ObjC Bridge Required |
-|------------------------|----------------------|
-| `OpenIapModule.swift` | `OpenIapModule+ObjC.swift` |
+| Swift Function Changed | ObjC Bridge Required       |
+| ---------------------- | -------------------------- |
+| `OpenIapModule.swift`  | `OpenIapModule+ObjC.swift` |
 
 **Verification**: After updating, run:
+
 ```bash
 swift build  # Verifies ObjC bridge compiles
 ```
@@ -127,14 +132,14 @@ GraphQL schema ─► generated types ─► public API ─► native bridge ─
 
 For every new/changed handler in the generated types, verify **all five** of these per target library before considering the change shippable:
 
-| Library | 1. Type declared | 2. Public API exposed | 3. Platform bridge | 4. Wired into handlers bundle | 5. Test coverage |
-|---------|------------------|-----------------------|--------------------|-------------------------------|------------------|
-| **react-native-iap** | `src/types.ts` (generated) | `src/index.ts` export (Nitro or composed TS) | `ios/HybridRnIap.swift` (iOS), `android/.../HybridRnIap.kt` (Android) | Not required (flat exports) | Mock stub in all 4 `mockIap` objects in `__tests__/` (per memory) |
-| **expo-iap** | `src/types.ts` (generated) | `src/modules/ios.ts` / `android.ts` export, re-exported from `src/index.ts` | `ios/ExpoIapModule.swift` `AsyncFunction`, `android/.../ExpoIapModule.kt` | Not required (flat exports) | `src/modules/__tests__/*.test.ts` |
-| **flutter_inapp_purchase** | `lib/types.dart` (generated) | getter on `FlutterInappPurchase` in `lib/flutter_inapp_purchase.dart` | `case "<name>":` in `ios/Classes/FlutterInappPurchasePlugin.swift`, Android plugin `onMethodCall` | `queryHandlers` / `mutationHandlers` / `subscriptionHandlers` bundles near the bottom of `flutter_inapp_purchase.dart` | Mock + test in `test/ios_methods_test.dart` (and the `errors_unit_test.dart` error-mapping test) |
-| **kmp-iap** | `library/src/commonMain/.../openiap/Types.kt` (generated interface) | exposed via `KmpInAppPurchase` / `kmpIapInstance` | `library/src/iosMain/.../InAppPurchaseIOS.kt` — must call `openIapModule.<name>WithCompletion { ... }`, **never** `throw UnsupportedOperationException` | Not required (interface dispatch) | `library/src/commonTest/` if testable cross-platform |
-| **godot-iap** | `addons/godot-iap/types.gd` (generated) | public `snake_case` function in `addons/godot-iap/godot_iap.gd` | `ios-gdextension/Sources/GodotIap/GodotIap.swift` (iOS), `android/src/main/java/.../GodotIap.java` (Android) | Not required | Manual testing — no automated test suite yet |
-| **maui-iap** | `src/OpenIap.Maui/Types.cs` (generated) | `Hyo.OpenIap.QueryResolver` / `MutationResolver` interfaces in `Types.cs`; `IOpenIap` adds the listener-stream contract; static facade is `Hyo.OpenIap.Maui.Iap`; IAPKit helpers mirror TypeScript via `Iap.KitApi(...)`, `Iap.ConnectWebhookStream(...)`, `Iap.ParseWebhookEventData(...)`, and `Iap.WebhookEventTypes` | Android: `OpenIapMauiModule.kt` in `libraries/maui-iap/android/openiap/` (JSON-shaped Java facade over `packages/google`), bound by `OpenIap.Maui.Bindings.Android.csproj`, consumed by `Platforms/Android/OpenIapAndroid.cs`. iOS / macCatalyst: existing `OpenIapModule+ObjC.swift` bridge in `packages/apple`, bound by hand-written `OpenIap.Maui.Bindings.iOS/ApiDefinition.cs`, consumed by `Platforms/iOS/OpenIapIOS.cs` (+ subclass `OpenIapMacCatalyst`). | Not required (interface dispatch) | Example app `libraries/maui-iap/example/OpenIap.Maui.Example` builds for net9.0-android / net9.0-ios / net9.0-maccatalyst (manual device testing for purchase flow); no xUnit tests yet |
+| Library                    | 1. Type declared                                                    | 2. Public API exposed                                                                                                                                                                                                                                                                                                | 3. Platform bridge                                                                                                                                                                                                                                                                                                                                                                                                                                                 | 4. Wired into handlers bundle                                                                                          | 5. Test coverage                                                                                                                                                                        |
+| -------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **react-native-iap**       | `src/types.ts` (generated)                                          | `src/index.ts` export (Nitro or composed TS)                                                                                                                                                                                                                                                                         | `ios/HybridRnIap.swift` (iOS), `android/.../HybridRnIap.kt` (Android)                                                                                                                                                                                                                                                                                                                                                                                              | Not required (flat exports)                                                                                            | Mock stub in all 4 `mockIap` objects in `__tests__/` (per memory)                                                                                                                       |
+| **expo-iap**               | `src/types.ts` (generated)                                          | `src/modules/ios.ts` / `android.ts` export, re-exported from `src/index.ts`                                                                                                                                                                                                                                          | `ios/ExpoIapModule.swift` `AsyncFunction`, `android/.../ExpoIapModule.kt`                                                                                                                                                                                                                                                                                                                                                                                          | Not required (flat exports)                                                                                            | `src/modules/__tests__/*.test.ts`                                                                                                                                                       |
+| **flutter_inapp_purchase** | `lib/types.dart` (generated)                                        | getter on `FlutterInappPurchase` in `lib/flutter_inapp_purchase.dart`                                                                                                                                                                                                                                                | `case "<name>":` in `ios/Classes/FlutterInappPurchasePlugin.swift`, Android plugin `onMethodCall`                                                                                                                                                                                                                                                                                                                                                                  | `queryHandlers` / `mutationHandlers` / `subscriptionHandlers` bundles near the bottom of `flutter_inapp_purchase.dart` | Mock + test in `test/ios_methods_test.dart` (and the `errors_unit_test.dart` error-mapping test)                                                                                        |
+| **kmp-iap**                | `library/src/commonMain/.../openiap/Types.kt` (generated interface) | exposed via `KmpInAppPurchase` / `kmpIapInstance`                                                                                                                                                                                                                                                                    | `library/src/iosMain/.../InAppPurchaseIOS.kt` — must call `openIapModule.<name>WithCompletion { ... }`, **never** `throw UnsupportedOperationException`                                                                                                                                                                                                                                                                                                            | Not required (interface dispatch)                                                                                      | `library/src/commonTest/` if testable cross-platform                                                                                                                                    |
+| **godot-iap**              | `addons/godot-iap/types.gd` (generated)                             | public `snake_case` function in `addons/godot-iap/godot_iap.gd`                                                                                                                                                                                                                                                      | `ios-gdextension/Sources/GodotIap/GodotIap.swift` (iOS), `android/src/main/java/.../GodotIap.java` (Android)                                                                                                                                                                                                                                                                                                                                                       | Not required                                                                                                           | Manual testing — no automated test suite yet                                                                                                                                            |
+| **maui-iap**               | `src/OpenIap.Maui/Types.cs` (generated)                             | `Hyo.OpenIap.QueryResolver` / `MutationResolver` interfaces in `Types.cs`; `IOpenIap` adds the listener-stream contract; static facade is `OpenIap.Maui.Iap`; IAPKit helpers mirror TypeScript via `Iap.KitApi(...)`, `Iap.ConnectWebhookStream(...)`, `Iap.ParseWebhookEventData(...)`, and `Iap.WebhookEventTypes` | Android: `OpenIapMauiModule.kt` in `libraries/maui-iap/android/openiap/` (JSON-shaped Java facade over `packages/google`), bound by `OpenIap.Maui.Bindings.Android.csproj`, consumed by `Platforms/Android/OpenIapAndroid.cs`. iOS / macCatalyst: existing `OpenIapModule+ObjC.swift` bridge in `packages/apple`, bound by hand-written `OpenIap.Maui.Bindings.iOS/ApiDefinition.cs`, consumed by `Platforms/iOS/OpenIapIOS.cs` (+ subclass `OpenIapMacCatalyst`). | Not required (interface dispatch)                                                                                      | Example app `libraries/maui-iap/example/OpenIap.Maui.Example` builds for net9.0-android / net9.0-ios / net9.0-maccatalyst (manual device testing for purchase flow); no xUnit tests yet |
 
 ### Platform suffix rule (who needs what)
 
@@ -181,7 +186,7 @@ echo "=== Throws stub? ==="
 rg -n "UnsupportedOperationException.*$NAME" libraries/
 ```
 
-Any empty result for a layer that *should* have the handler (per the suffix rule) is a gap that must be filled before merging.
+Any empty result for a layer that _should_ have the handler (per the suffix rule) is a gap that must be filled before merging.
 
 ---
 
@@ -190,6 +195,7 @@ Any empty result for a layer that *should* have the handler (per the suffix rule
 ### Required Pre-Work (Google)
 
 Before writing or editing anything, **ALWAYS** review:
+
 - [`packages/google/CONVENTION.md`](../../packages/google/CONVENTION.md)
 
 ### Project Layout
@@ -208,12 +214,13 @@ openiap/
 
 The Google package supports **two build flavors**:
 
-| Flavor | Store | API | Description |
-|--------|-------|-----|-------------|
+| Flavor           | Store             | API                         | Description              |
+| ---------------- | ----------------- | --------------------------- | ------------------------ |
 | `play` (default) | Google Play Store | Google Play Billing Library | Standard Android billing |
-| `horizon` | Meta Quest Store | Meta Horizon API | VR/Quest billing |
+| `horizon`        | Meta Quest Store  | Meta Horizon API            | VR/Quest billing         |
 
 **Flavor-specific source directories:**
+
 - `src/main/` - Shared code for both flavors
 - `src/play/` - Play Store specific implementations
 - `src/horizon/` - Meta Horizon specific implementations
@@ -242,18 +249,20 @@ The Google package supports **two build flavors**:
 
 ### Version Compatibility
 
-| Flavor | Billing Library | Version |
-|--------|-----------------|---------|
-| Play | Google Play Billing | 8.3.0 |
+| Flavor  | Billing Library               | Version                    |
+| ------- | ----------------------------- | -------------------------- |
+| Play    | Google Play Billing           | 8.3.0                      |
 | Horizon | horizon-billing-compatibility | 1.1.1 (GPB 7.0 compatible) |
 
 **CRITICAL**: Horizon SDK implements **Billing 7.0 API**, not 8.x. When writing shared code in `src/main/`:
 
 **Safe APIs (exist in both 7.0 and 8.x):**
+
 - `queryProductDetailsAsync()`, `launchBillingFlow()`
 - `acknowledgePurchase()`, `consumeAsync()`, `queryPurchasesAsync()`
 
 **DO NOT use in shared code (8.x only):**
+
 - `enableAutoServiceReconnection()`
 - Product-level status codes
 - One-time products with multiple offers
@@ -262,13 +271,14 @@ The Google package supports **two build flavors**:
 
 Meta Horizon has different APIs from Google Play:
 
-| OpenIAP API | Play Implementation | Horizon Implementation |
-|-------------|---------------------|------------------------|
-| `verifyPurchase` | Play Developer API | Meta S2S `verify_entitlement` |
-| `getAvailableItems` | N/A | Horizon catalog API |
-| `IapStore` | `IapStore.Play` | `IapStore.Horizon` |
+| OpenIAP API         | Play Implementation | Horizon Implementation        |
+| ------------------- | ------------------- | ----------------------------- |
+| `verifyPurchase`    | Play Developer API  | Meta S2S `verify_entitlement` |
+| `getAvailableItems` | N/A                 | Horizon catalog API           |
+| `IapStore`          | `IapStore.Play`     | `IapStore.Horizon`            |
 
 **Horizon-specific types in GraphQL:**
+
 - `VerifyPurchaseHorizonOptions` - Horizon verification parameters
 - `VerifyPurchaseResultHorizon` - Horizon verification result
 
@@ -344,11 +354,11 @@ Breaking a shared-package API (e.g. `object → data class` on
 `OpenIapError`) forces a **major** bump on that package (2.0.0) and
 cascades into downstream libraries:
 
-| Change in shared package                  | Google/Apple bump                              | Downstream bump                                              |
-| ----------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------ |
-| Add optional field to a type              | minor                                          | minor                                                        |
-| Add a new enum case                       | major (Swift/Kotlin exhaustive switches break) | minor                                                        |
-| `object` → `data class` / renamed method  | major                                          | minor (downstream pins to new major; own API unchanged)      |
+| Change in shared package                 | Google/Apple bump                              | Downstream bump                                         |
+| ---------------------------------------- | ---------------------------------------------- | ------------------------------------------------------- |
+| Add optional field to a type             | minor                                          | minor                                                   |
+| Add a new enum case                      | major (Swift/Kotlin exhaustive switches break) | minor                                                   |
+| `object` → `data class` / renamed method | major                                          | minor (downstream pins to new major; own API unchanged) |
 
 Release order MUST be: shared packages first (so downstream libraries
 can depend on the new version), then framework libraries in any order.
@@ -360,6 +370,7 @@ can depend on the new version), then framework libraries in any order.
 ### Required Pre-Work
 
 Before writing or editing anything, **ALWAYS** review:
+
 - [`packages/gql/CONVENTION.md`](../../packages/gql/CONVENTION.md)
 
 ### Code Generation Architecture
@@ -401,37 +412,37 @@ packages/gql/codegen/
 
 The IR is a language-agnostic representation of the GraphQL schema:
 
-| IR Type | Description |
-|---------|-------------|
-| `IREnum` | Enum with values, raw values, legacy aliases |
-| `IRInterface` | Protocol/Interface with fields |
-| `IRObject` | Struct/Class with fields, implements, unions |
-| `IRInput` | Input type with fields, required field tracking |
-| `IRUnion` | Union with members, nested union handling |
-| `IROperation` | Query/Mutation/Subscription with fields |
+| IR Type       | Description                                     |
+| ------------- | ----------------------------------------------- |
+| `IREnum`      | Enum with values, raw values, legacy aliases    |
+| `IRInterface` | Protocol/Interface with fields                  |
+| `IRObject`    | Struct/Class with fields, implements, unions    |
+| `IRInput`     | Input type with fields, required field tracking |
+| `IRUnion`     | Union with members, nested union handling       |
+| `IROperation` | Query/Mutation/Subscription with fields         |
 
 #### Language Plugins
 
 Each plugin handles language-specific requirements:
 
-| Plugin | Features |
-|--------|----------|
-| **Swift** | Codable protocol, ErrorCode custom initializer, platform defaults |
-| **Kotlin** | sealed interface, fromJson/toJson with nullable patterns |
-| **Dart** | extends/implements, factory constructors, sealed class |
-| **GDScript** | _init(), from_json/to_json, Variant type |
+| Plugin       | Features                                                          |
+| ------------ | ----------------------------------------------------------------- |
+| **Swift**    | Codable protocol, ErrorCode custom initializer, platform defaults |
+| **Kotlin**   | sealed interface, fromJson/toJson with nullable patterns          |
+| **Dart**     | extends/implements, factory constructors, sealed class            |
+| **GDScript** | \_init(), from_json/to_json, Variant type                         |
 
 ### Scripts
 
-| Script | Description |
-|--------|-------------|
-| `generate:ts` | Generate TypeScript types (graphql-codegen) |
-| `generate:swift` | Generate Swift types (IR-based plugin) |
-| `generate:kotlin` | Generate Kotlin types (IR-based plugin) |
-| `generate:dart` | Generate Dart types (IR-based plugin) |
-| `generate:gdscript` | Generate GDScript types (IR-based plugin) |
-| `generate` | Generate all types + sync to platforms |
-| `sync` | Sync generated types to platform packages |
+| Script              | Description                                 |
+| ------------------- | ------------------------------------------- |
+| `generate:ts`       | Generate TypeScript types (graphql-codegen) |
+| `generate:swift`    | Generate Swift types (IR-based plugin)      |
+| `generate:kotlin`   | Generate Kotlin types (IR-based plugin)     |
+| `generate:dart`     | Generate Dart types (IR-based plugin)       |
+| `generate:gdscript` | Generate GDScript types (IR-based plugin)   |
+| `generate`          | Generate all types + sync to platforms      |
+| `sync`              | Sync generated types to platform packages   |
 
 ### Generating Types
 
@@ -450,13 +461,13 @@ bun run generate:gdscript
 
 ### Generated Files
 
-| File | Platform | Description |
-|------|----------|-------------|
-| `src/generated/types.ts` | TypeScript | Type definitions |
-| `src/generated/Types.swift` | iOS/macOS | Codable structs & enums |
-| `src/generated/Types.kt` | Android | Data classes & sealed interfaces |
-| `src/generated/types.dart` | Flutter | Classes & sealed classes |
-| `src/generated/types.gd` | Godot | GDScript classes |
+| File                        | Platform   | Description                      |
+| --------------------------- | ---------- | -------------------------------- |
+| `src/generated/types.ts`    | TypeScript | Type definitions                 |
+| `src/generated/Types.swift` | iOS/macOS  | Codable structs & enums          |
+| `src/generated/Types.kt`    | Android    | Data classes & sealed interfaces |
+| `src/generated/types.dart`  | Flutter    | Classes & sealed classes         |
+| `src/generated/types.gd`    | Godot      | GDScript classes                 |
 
 ### Adding a New Language
 
@@ -472,12 +483,13 @@ bun run generate:gdscript
 
 Special comments in GraphQL SDL trigger codegen behavior:
 
-| Marker | Effect |
-|--------|--------|
+| Marker       | Effect                                                       |
+| ------------ | ------------------------------------------------------------ |
 | `# => Union` | Generates result union wrapper (e.g., `FetchProductsResult`) |
-| `# Future` | Wraps return type in Promise/async |
+| `# Future`   | Wraps return type in Promise/async                           |
 
 Example:
+
 ```graphql
 # => Union
 type RequestPurchaseResult {

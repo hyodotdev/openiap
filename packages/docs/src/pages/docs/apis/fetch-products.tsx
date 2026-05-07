@@ -302,7 +302,7 @@ var products = await iap.fetch_products(request)`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 var iap = (QueryResolver)OpenIap.Instance;
 

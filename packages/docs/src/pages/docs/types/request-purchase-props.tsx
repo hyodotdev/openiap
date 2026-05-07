@@ -224,7 +224,7 @@ await FlutterInappPurchase.instance.requestPurchase(
             ),
             csharp: (
               <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // Standard in-app purchase
 await ((QueryResolver)OpenIap.Instance).RequestPurchaseAsync(

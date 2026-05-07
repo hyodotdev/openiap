@@ -1,5 +1,5 @@
 using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 using Microsoft.Maui.ApplicationModel;
 using OpenIap.Maui.Example.Utils;
 

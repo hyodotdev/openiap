@@ -193,7 +193,7 @@ function ManageSubscriptionsButton() {
           ),
           csharp: (
             <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 await ((QueryResolver)OpenIap.Instance).DeepLinkToSubscriptionsAsync(
     DeepLinkOptions(

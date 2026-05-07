@@ -57,7 +57,7 @@ fun addDeveloperProvidedBillingListener(
           ),
           csharp: (
             <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // Callback approach
 fun addDeveloperProvidedBillingListener(
@@ -169,7 +169,7 @@ subscription.cancel();`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // Using callback
 openIapStore.addDeveloperProvidedBillingListener { details ->
@@ -221,7 +221,7 @@ openIapStore.addDeveloperProvidedBillingListener { details ->
           ),
           csharp: (
             <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 data class DeveloperProvidedBillingDetailsAndroid(
     var externalTransactionToken: String

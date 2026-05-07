@@ -104,7 +104,7 @@ if (Platform.OS === 'ios') {
           ),
           csharp: (
             <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // kmp-iap (iOS targets only — no-op on Android)
 var changed = await ((QueryResolver)OpenIap.Instance).ShowManageSubscriptionsIOSAsync()`}</CodeBlock>

@@ -10,7 +10,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Hyo.OpenIap.Maui;
+namespace OpenIap.Maui;
 
 internal static class JsonOptions
 {

@@ -1,5 +1,5 @@
 using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 using OpenIap.Maui.Example.Utils;
 
 namespace OpenIap.Maui.Example.Pages;

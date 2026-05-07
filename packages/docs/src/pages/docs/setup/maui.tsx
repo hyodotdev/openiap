@@ -224,7 +224,7 @@ function MauiSetup() {
         </p>
         <CodeBlock language="csharp">
           {`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 var iap = Iap.Instance;
 var query = (QueryResolver)iap;
@@ -313,7 +313,7 @@ await mutate.RequestPurchaseAsync(new RequestPurchaseProps
         </p>
         <CodeBlock language="csharp">
           {`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 var kit = Iap.KitApi(new KitApiOptions
 {

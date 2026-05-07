@@ -1,13 +1,13 @@
 using System.Text;
 using System.Text.Json;
 using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 using OpenIap.Maui.Example.Utils;
 
 namespace OpenIap.Maui.Example.Pages;
 
 // Mirrors libraries/expo-iap/example/app/webhook-stream.tsx — connects to the
-// IAPKit SSE webhook stream through Hyo.OpenIap.Maui.ConnectWebhookStream and
+// IAPKit SSE webhook stream through OpenIap.Maui.ConnectWebhookStream and
 // renders incoming events.
 public partial class WebhookStreamPage : ContentPage
 {

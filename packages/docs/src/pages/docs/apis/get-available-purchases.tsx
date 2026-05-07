@@ -190,7 +190,7 @@ function PendingPurchases() {
           ),
           csharp: (
             <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 var purchases = await ((QueryResolver)OpenIap.Instance).GetAvailablePurchasesAsync()`}</CodeBlock>
           ),

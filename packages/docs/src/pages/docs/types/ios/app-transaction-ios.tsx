@@ -241,7 +241,7 @@ function AppTransactionIos() {
             ),
             csharp: (
               <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 data class AppTransaction(
     var bundleId: String,
@@ -356,7 +356,7 @@ if (appTransaction != null) {
             ),
             csharp: (
               <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // Get app transaction (iOS only via KMP)
 var appTransaction = await ((QueryResolver)OpenIap.Instance).GetAppTransactionIOSAsync()

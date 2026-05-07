@@ -49,7 +49,7 @@ var promotedProductPublisher: AnyPublisher<String, Never>`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // iOS only - not available on Android`}</CodeBlock>
           ),
@@ -163,7 +163,7 @@ final subscription = FlutterInappPurchase.promotedProductIOS.listen((productId) 
 subscription.cancel();`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`// .NET MAUI — see Hyo.OpenIap.Maui.OpenIap.Instance.
+            <CodeBlock language="csharp">{`// .NET MAUI — see OpenIap.Maui.OpenIap.Instance.
 // The full operation surface lives on Hyo.OpenIap.QueryResolver /
 // MutationResolver / SubscriptionResolver (auto-generated from the schema).`}</CodeBlock>
           ),

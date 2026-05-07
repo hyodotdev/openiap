@@ -6,4 +6,4 @@
 
 using System;
 
-namespace Hyo.OpenIap.Maui.Bindings.iOS;
+namespace OpenIap.Maui.Bindings.iOS;

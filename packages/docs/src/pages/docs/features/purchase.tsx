@@ -334,7 +334,7 @@ class PurchaseManager {
             ),
             csharp: (
               <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 class PurchaseManager(
     private var context: Context,
@@ -1913,7 +1913,7 @@ class PurchaseManager extends ChangeNotifier {
             ),
             csharp: (
               <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 class PurchaseManager(
     private var context: Context,

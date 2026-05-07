@@ -19,7 +19,7 @@ using Hyo.OpenIap;
 // Java package dev.hyo.openiap.maui — alias for ergonomics.
 using OpenIapMauiModule = global::Dev.Hyo.Openiap.Maui.OpenIapMauiModule;
 
-namespace Hyo.OpenIap.Maui.Platforms.Android;
+namespace OpenIap.Maui.Platforms.Android;
 
 internal sealed partial class OpenIapAndroid : IOpenIap, QueryResolver, MutationResolver
 {

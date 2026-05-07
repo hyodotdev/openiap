@@ -9,7 +9,9 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 
 const root = new URL('../src/pages/docs', import.meta.url).pathname;
-const files = execSync(`grep -lr "LanguageTabs" "${root}"`, { encoding: 'utf8' })
+const files = execSync(`grep -lr "LanguageTabs" "${root}"`, {
+  encoding: 'utf8',
+})
   .trim()
   .split('\n')
   .filter(Boolean);
@@ -23,7 +25,7 @@ function kotlinToCSharp(kotlin) {
     (_m, name, args, ret) => {
       const csName = name[0].toUpperCase() + name.slice(1) + 'Async';
       return `Task<${ret.trim()}> ${csName}(${convertArgs(args)})`;
-    },
+    }
   );
 
   // Signature with no return: `suspend fun name(args)` → `Task NameAsync(args)`
@@ -32,7 +34,7 @@ function kotlinToCSharp(kotlin) {
     (_m, name, args) => {
       const csName = name[0].toUpperCase() + name.slice(1) + 'Async';
       return `Task ${csName}(${convertArgs(args)})`;
-    },
+    }
   );
 
   // Call sites: `openIapStore.x(`, `kmpIAP.x(`, `kmpIapInstance.x(`, `iap.x(` →
@@ -43,7 +45,7 @@ function kotlinToCSharp(kotlin) {
     (_m, _recv, method) => {
       const csName = method[0].toUpperCase() + method.slice(1) + 'Async';
       return `await ((QueryResolver)OpenIap.Instance).${csName}(`;
-    },
+    }
   );
 
   // Strip imports — replaced by usings below.
@@ -53,7 +55,7 @@ function kotlinToCSharp(kotlin) {
   s = s.replace(/\bval\s+/g, 'var ');
   s = s.replace(
     /\bvar\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*([A-Za-z0-9_<>\?,\.\s]+?)\s*=/g,
-    'var $1 =',
+    'var $1 ='
   );
 
   // `listOf("a", "b")` → `new[] { "a", "b" }`
@@ -66,7 +68,7 @@ function kotlinToCSharp(kotlin) {
   // signature). Signatures are detected by a leading `Task...` line.
   const isSignature = /^\s*Task[<\s]/m.test(s);
   if (!isSignature) {
-    s = `using Hyo.OpenIap;\nusing Hyo.OpenIap.Maui;\n\n${s.trim()}`;
+    s = `using Hyo.OpenIap;\nusing OpenIap.Maui;\n\n${s.trim()}`;
   } else {
     s = s.trim();
   }
@@ -81,7 +83,7 @@ function convertArgs(args) {
       const trimmed = part.trim();
       if (!trimmed) return '';
       const m = trimmed.match(
-        /^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*([^=]+?)(?:\s*=\s*([\s\S]+))?$/,
+        /^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*([^=]+?)(?:\s*=\s*([\s\S]+))?$/
       );
       if (!m) return trimmed;
       const [, n, t, d] = m;
@@ -138,7 +140,7 @@ for (const file of files) {
     let block = original.slice(openIdx, closeIdx + '</LanguageTabs>'.length);
 
     const kotlinMatch = block.match(
-      /kotlin:\s*\(\s*<CodeBlock language="kotlin">\{`([\s\S]*?)`\}<\/CodeBlock>\s*\)/,
+      /kotlin:\s*\(\s*<CodeBlock language="kotlin">\{`([\s\S]*?)`\}<\/CodeBlock>\s*\)/
     );
 
     const placeholderRegex =
@@ -148,7 +150,7 @@ for (const file of files) {
       const csharpBody = escapeBacktick(kotlinToCSharp(kotlinMatch[1]));
       block = block.replace(
         placeholderRegex,
-        `csharp: (\n            <CodeBlock language="csharp">{\`${csharpBody}\`}</CodeBlock>\n          )`,
+        `csharp: (\n            <CodeBlock language="csharp">{\`${csharpBody}\`}</CodeBlock>\n          )`
       );
       replaced++;
     }

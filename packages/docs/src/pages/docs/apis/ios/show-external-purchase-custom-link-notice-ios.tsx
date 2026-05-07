@@ -150,7 +150,7 @@ if (Platform.OS === 'ios') {
           ),
           csharp: (
             <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // kmp-iap (iOS targets only — no-op on Android)
 var result = await ((QueryResolver)OpenIap.Instance).ShowExternalPurchaseCustomLinkNoticeIOSAsync(

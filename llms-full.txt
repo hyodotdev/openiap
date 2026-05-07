@@ -117,7 +117,7 @@ Requires .NET 9+, the MAUI workload, iOS 15.0+, and Android API 24+.
   `Iap.Instance` facade, `IOpenIap` observables, and per-platform resolvers.
 - iOS/macCatalyst bridge: .NET-for-iOS binding over
   `OpenIAP.xcframework` and `OpenIapModule+ObjC.swift`; NuGet consumers get
-  the official `Hyo.OpenIap.Maui.Bindings.iOS.resources.zip` sidecar so no
+  the official `OpenIap.Maui.Bindings.iOS.resources.zip` sidecar so no
   app-level `NativeReference` is required.
 - Android bridge: Xamarin.Android binding over the MAUI-owned
   `openiap-release.aar`, which wraps the unbound
@@ -186,7 +186,7 @@ iap.purchaseUpdatedListener.collect { purchase ->
 ### .NET MAUI
 ```csharp
 using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 var iap = Iap.Instance;
 await ((MutationResolver)iap).InitConnectionAsync();

@@ -144,7 +144,7 @@ if (status.active) {
             ),
             csharp: (
               <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 var api = KitApi(apiKey = System.getenv("OPENIAP_API_KEY")!!)
 var status = api.status("user-1")

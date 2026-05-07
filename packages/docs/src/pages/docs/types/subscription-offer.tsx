@@ -531,7 +531,7 @@ enum PaymentMode { freeTrial, payAsYouGo, payUpFront, unknown }`}</CodeBlock>
             ),
             csharp: (
               <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 data class SubscriptionOffer(
     // Common fields

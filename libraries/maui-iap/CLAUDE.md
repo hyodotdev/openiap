@@ -1,6 +1,6 @@
 # maui-iap — Agent Guidelines
 
-`maui-iap` (`OpenIap.Maui` on NuGet, `Hyo.OpenIap.Maui` namespace) is the
+`maui-iap` (`OpenIap.Maui` on NuGet, `OpenIap.Maui` namespace) is the
 .NET MAUI projection of OpenIAP. It
 imports the generated [`Types.cs`](src/OpenIap.Maui/Types.cs) from
 [`packages/gql`](../../packages/gql), exposes a thin listener contract
@@ -133,7 +133,7 @@ and [`release-maui.yml`](../../.github/workflows/release-maui.yml).
 `OpenIap.Maui.csproj` produces the single public NuGet package:
 `OpenIap.Maui`. The binding projects are private implementation details,
 so the main package flattens their outputs instead of declaring unpublished
-`Hyo.OpenIap.Maui.Bindings.*` package dependencies.
+`OpenIap.Maui.Bindings.*` package dependencies.
 
 The package includes:
 
@@ -141,7 +141,7 @@ The package includes:
 - Android AARs in `lib/net9.0-android35.0/`, including the binding support AAR
   with Maven-resolved jars, the MAUI-owned module AAR, and the unbound
   `openiap-play-release.aar` runtime dependency
-- iOS / macCatalyst `Hyo.OpenIap.Maui.Bindings.iOS.resources.zip` sidecars
+- iOS / macCatalyst `OpenIap.Maui.Bindings.iOS.resources.zip` sidecars
   next to the iOS binding DLLs
 
 The iOS binding sets `<NoBindingEmbedding>true</NoBindingEmbedding>` so

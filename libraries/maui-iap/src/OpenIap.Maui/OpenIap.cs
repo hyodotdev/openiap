@@ -6,7 +6,7 @@
 // platform implementation that is selected at compile time (see the
 // Platforms/ folder). The class is named `Iap` (not `OpenIap`) to avoid
 // shadowing the `Hyo.OpenIap` namespace when consumers `using` both
-// `Hyo.OpenIap` and `Hyo.OpenIap.Maui`. Mirrors the API surface of:
+// `Hyo.OpenIap` and `OpenIap.Maui`. Mirrors the API surface of:
 //   - react-native-iap / expo-iap (TypeScript)
 //   - flutter_inapp_purchase (Dart)
 //   - kmp-iap (Kotlin)
@@ -28,7 +28,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Hyo.OpenIap;
 
-namespace Hyo.OpenIap.Maui;
+namespace OpenIap.Maui;
 
 /// <summary>
 /// The unified OpenIAP listener contract. Subscription-style events

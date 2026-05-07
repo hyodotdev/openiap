@@ -4,12 +4,12 @@
     <TargetFrameworks>net9.0-ios;net9.0-maccatalyst</TargetFrameworks>
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
-    <RootNamespace>Hyo.OpenIap.Maui.Bindings.iOS</RootNamespace>
-    <AssemblyName>Hyo.OpenIap.Maui.Bindings.iOS</AssemblyName>
+    <RootNamespace>OpenIap.Maui.Bindings.iOS</RootNamespace>
+    <AssemblyName>OpenIap.Maui.Bindings.iOS</AssemblyName>
     <Nullable>enable</Nullable>
     <LangVersion>12.0</LangVersion>
     <IsBindingProject>true</IsBindingProject>
-    <!-- Create Hyo.OpenIap.Maui.Bindings.iOS.resources.zip next to the binding
+    <!-- Create OpenIap.Maui.Bindings.iOS.resources.zip next to the binding
          DLL. NuGet consumers need that sidecar package so .NET-for-iOS can
          resolve and link OpenIAP.xcframework from a PackageReference. -->
     <NoBindingEmbedding>true</NoBindingEmbedding>

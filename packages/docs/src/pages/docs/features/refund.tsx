@@ -203,7 +203,7 @@ switch (status) {
                     ),
                     csharp: (
                       <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // KMP iOS target
 var status = await ((QueryResolver)OpenIap.Instance).BeginRefundRequestIOSAsync(sku = purchase.productId)

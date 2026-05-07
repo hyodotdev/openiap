@@ -258,7 +258,7 @@ await FlutterInappPurchase.instance.initConnection();`}</CodeBlock>
             ),
             csharp: (
               <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // Initialize with user choice billing (7.0+)
 await ((QueryResolver)OpenIap.Instance).InitConnectionAsync(
@@ -467,7 +467,7 @@ userChoiceSubscription.cancel();`}</CodeBlock>
             ),
             csharp: (
               <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 var iapStore = OpenIapStore(context)
 
@@ -732,7 +732,7 @@ if (paymentResult.success) {
             ),
             csharp: (
               <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 var iapStore = OpenIapStore(context)
 

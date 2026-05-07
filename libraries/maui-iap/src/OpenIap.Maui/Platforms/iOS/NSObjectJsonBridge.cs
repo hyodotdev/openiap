@@ -8,7 +8,7 @@ using System;
 using System.Text.Json.Nodes;
 using Foundation;
 
-namespace Hyo.OpenIap.Maui.Platforms.iOS;
+namespace OpenIap.Maui.Platforms.iOS;
 
 internal static class NSObjectJsonBridge
 {

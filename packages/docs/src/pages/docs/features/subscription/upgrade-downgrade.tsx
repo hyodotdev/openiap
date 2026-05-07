@@ -356,7 +356,7 @@ for (final sub in subscriptions) {
                       ),
                       csharp: (
                         <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // Detecting upgrades with pendingUpgradeProductId (KMP)
 var subscriptions = await ((QueryResolver)OpenIap.Instance).GetActiveSubscriptionsAsync()
@@ -527,7 +527,7 @@ for (final sub in subscriptions) {
                       ),
                       csharp: (
                         <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // Detecting downgrades (KMP)
 var subscriptions = await ((QueryResolver)OpenIap.Instance).GetActiveSubscriptionsAsync()
@@ -686,7 +686,7 @@ for (final sub in subscriptions) {
                       ),
                       csharp: (
                         <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 var subscriptions = await ((QueryResolver)OpenIap.Instance).GetActiveSubscriptionsAsync()
 
@@ -787,7 +787,7 @@ final currentTier = subscription.productId;`}</CodeBlock>
                       ),
                       csharp: (
                         <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // ✅ Correct approach
 var effectiveTier = renewalInfo?.pendingUpgradeProductId ?: subscription.productId
@@ -1106,7 +1106,7 @@ class _SubscriptionStatusState extends State<SubscriptionStatus> {
                       ),
                       csharp: (
                         <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // Complete example: Subscription status (Compose Multiplatform)
 @Composable
@@ -1649,7 +1649,7 @@ if (currentSub != null) {
                       ),
                       csharp: (
                         <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // Android upgrade with proration
 
@@ -1862,7 +1862,7 @@ if (premiumPurchase != null) {
                       ),
                       csharp: (
                         <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // Android downgrade with deferred replacement
 
@@ -2043,7 +2043,7 @@ if (currentSub != null) {
                       ),
                       csharp: (
                         <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // Android subscription replacement with 8.1.0+ API
 
@@ -2182,7 +2182,7 @@ for (final purchase in purchases) {
                       ),
                       csharp: (
                         <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // Android - check if subscription will change
 

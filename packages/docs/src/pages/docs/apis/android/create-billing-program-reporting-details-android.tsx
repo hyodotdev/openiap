@@ -166,7 +166,7 @@ if (Platform.OS === 'android') {
           ),
           csharp: (
             <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 var details = await ((QueryResolver)OpenIap.Instance).CreateBillingProgramReportingDetailsAsync(
     BillingProgramAndroid.ExternalOffer

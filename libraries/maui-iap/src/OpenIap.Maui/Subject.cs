@@ -8,7 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 
-namespace Hyo.OpenIap.Maui;
+namespace OpenIap.Maui;
 
 internal sealed class Subject<T> : IObservable<T>
 {

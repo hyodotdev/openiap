@@ -8,7 +8,7 @@ using System;
 using System.Text.Json;
 using Hyo.OpenIap;
 
-namespace Hyo.OpenIap.Maui;
+namespace OpenIap.Maui;
 
 /// <summary>
 /// Exception type thrown by every resolver method. Carries the typed

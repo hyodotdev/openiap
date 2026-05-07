@@ -12,7 +12,7 @@ using System.Collections.Generic;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
-namespace Hyo.OpenIap.Maui;
+namespace OpenIap.Maui;
 
 /// <summary>{ "value": T } envelope for primitives.</summary>
 internal sealed class ValueEnvelope<T>

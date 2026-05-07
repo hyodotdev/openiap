@@ -10,7 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Hyo.OpenIap;
 
-namespace Hyo.OpenIap.Maui;
+namespace OpenIap.Maui;
 
 public sealed record WebhookListenerOptions
 {

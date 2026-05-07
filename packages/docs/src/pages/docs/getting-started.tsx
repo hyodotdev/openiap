@@ -305,7 +305,7 @@ await iap.requestPurchaseWithBuilder(
             ),
             csharp: (
               <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 var store = OpenIapStore(context)
 

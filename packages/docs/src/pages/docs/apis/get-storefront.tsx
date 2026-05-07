@@ -122,7 +122,7 @@ function StorefrontBadge() {
           ),
           csharp: (
             <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 var countryCode = await ((QueryResolver)OpenIap.Instance).GetStorefrontAsync()`}</CodeBlock>
           ),

@@ -123,7 +123,7 @@ if (Platform.OS === 'android') {
           ),
           csharp: (
             <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 await ((QueryResolver)OpenIap.Instance).ConsumePurchaseAsync(purchase.purchaseToken)`}</CodeBlock>
           ),

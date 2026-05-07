@@ -12,7 +12,7 @@ using System;
 using Foundation;
 using ObjCRuntime;
 
-namespace Hyo.OpenIap.Maui.Bindings.iOS;
+namespace OpenIap.Maui.Bindings.iOS;
 
 [BaseType(typeof(NSObject), Name = "OpenIapModule")]
 [DisableDefaultCtor]

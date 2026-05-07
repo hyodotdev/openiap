@@ -58,7 +58,7 @@ val subscriptionBillingIssueListener: Flow<Purchase>`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // Callback approach (Play Billing 8.1+)
 fun addSubscriptionBillingIssueListener(
@@ -168,7 +168,7 @@ subscription.cancel();`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 var openIapStore = OpenIapStore(context)
 

@@ -46,7 +46,7 @@ val purchaseErrors: Flow<PurchaseError>`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // Flow approach
 var purchaseErrors: Flow<PurchaseError>`}</CodeBlock>
@@ -209,7 +209,7 @@ subscription.cancel();`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // Using Flow
 lifecycleScope.launch {

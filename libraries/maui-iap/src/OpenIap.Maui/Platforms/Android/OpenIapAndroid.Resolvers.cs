@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 using Hyo.OpenIap;
 using OpenIapMauiModule = global::Dev.Hyo.Openiap.Maui.OpenIapMauiModule;
 
-namespace Hyo.OpenIap.Maui.Platforms.Android;
+namespace OpenIap.Maui.Platforms.Android;
 
 internal sealed partial class OpenIapAndroid
 {

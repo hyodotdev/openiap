@@ -18,8 +18,8 @@
          manage Compile globs ourselves below. -->
     <SingleProject>false</SingleProject>
     <EnableDefaultMauiItems>false</EnableDefaultMauiItems>
-    <RootNamespace>Hyo.OpenIap.Maui</RootNamespace>
-    <AssemblyName>Hyo.OpenIap.Maui</AssemblyName>
+    <RootNamespace>OpenIap.Maui</RootNamespace>
+    <AssemblyName>OpenIap.Maui</AssemblyName>
     <PackageId>OpenIap.Maui</PackageId>
     <PackageVersion>1.0.0</PackageVersion>
     <Title>OpenIAP for .NET MAUI</Title>
@@ -80,7 +80,7 @@
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
-  <!-- Ship the binding outputs alongside Hyo.OpenIap.Maui.dll in lib/<tfm>/.
+  <!-- Ship the binding outputs alongside OpenIap.Maui.dll in lib/<tfm>/.
        Without this, ProjectReference outputs are NOT copied into the nupkg
        and consumers would get NotImplementedException at runtime. Android also
        needs the resolved AARs from the binding project, otherwise restore works
@@ -92,10 +92,10 @@
 
   <Target Name="IncludeBindingsInNuPkg" DependsOnTargets="ResolveReferences">
     <ItemGroup>
-      <BuildOutputInPackage Include="@(ReferenceCopyLocalPaths)" Condition="'%(ReferenceCopyLocalPaths.Filename)' == 'Hyo.OpenIap.Maui.Bindings.Android' or '%(ReferenceCopyLocalPaths.Filename)' == 'Hyo.OpenIap.Maui.Bindings.iOS'" />
-      <BuildOutputInPackage Include="..\OpenIap.Maui.Bindings.Android\bin\$(Configuration)\$(TargetFramework)\Hyo.OpenIap.Maui.Bindings.Android.aar" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' and Exists('..\OpenIap.Maui.Bindings.Android\bin\$(Configuration)\$(TargetFramework)\Hyo.OpenIap.Maui.Bindings.Android.aar')" />
+      <BuildOutputInPackage Include="@(ReferenceCopyLocalPaths)" Condition="'%(ReferenceCopyLocalPaths.Filename)' == 'OpenIap.Maui.Bindings.Android' or '%(ReferenceCopyLocalPaths.Filename)' == 'OpenIap.Maui.Bindings.iOS'" />
+      <BuildOutputInPackage Include="..\OpenIap.Maui.Bindings.Android\bin\$(Configuration)\$(TargetFramework)\OpenIap.Maui.Bindings.Android.aar" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' and Exists('..\OpenIap.Maui.Bindings.Android\bin\$(Configuration)\$(TargetFramework)\OpenIap.Maui.Bindings.Android.aar')" />
       <BuildOutputInPackage Include="$(OutputPath)*.aar" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'" />
-      <BuildOutputInPackage Include="$(OutputPath)Hyo.OpenIap.Maui.Bindings.iOS.resources.zip" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'" />
+      <BuildOutputInPackage Include="$(OutputPath)OpenIap.Maui.Bindings.iOS.resources.zip" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'" />
     </ItemGroup>
   </Target>
 

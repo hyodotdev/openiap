@@ -15,13 +15,13 @@ C# / .NET MAUI specifics on top of the monorepo-wide rules in
 
 ## Namespaces
 
-| Namespace              | Owns                                                |
-|------------------------|-----------------------------------------------------|
-| `Hyo.OpenIap`          | Generated types, enums, resolver interfaces.        |
-| `Hyo.OpenIap.Maui`     | `IOpenIap` contract, static `OpenIap` facade.       |
-| `Hyo.OpenIap.Maui.Platforms.Android` | Android bridge implementation.        |
-| `Hyo.OpenIap.Maui.Platforms.iOS`     | iOS bridge implementation.            |
-| `Hyo.OpenIap.Maui.Platforms.MacCatalyst` | macCatalyst bridge implementation. |
+| Namespace                            | Owns                                          |
+| ------------------------------------ | --------------------------------------------- |
+| `Hyo.OpenIap`                        | Generated types, enums, resolver interfaces.  |
+| `OpenIap.Maui`                       | `IOpenIap` contract, static `OpenIap` facade. |
+| `OpenIap.Maui.Platforms.Android`     | Android bridge implementation.                |
+| `OpenIap.Maui.Platforms.iOS`         | iOS bridge implementation.                    |
+| `OpenIap.Maui.Platforms.MacCatalyst` | macCatalyst bridge implementation.            |
 
 The `Hyo.OpenIap` namespace is shared with the generated `Types.cs` so
 consumers can `using Hyo.OpenIap;` and pull in `Product`, `Purchase`,

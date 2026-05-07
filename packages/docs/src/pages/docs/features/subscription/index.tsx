@@ -251,7 +251,7 @@ if (subscription.discountsIOS != null) {
                     ),
                     csharp: (
                       <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // KMP iOS target
 var iapStore = OpenIapStore.shared
@@ -426,7 +426,7 @@ if (isEligible) {
                     ),
                     csharp: (
                       <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // KMP iOS target
 fun displayIntroOffer(subscription: ProductIOS): String? {
@@ -933,7 +933,7 @@ data class PricingPhaseAndroid(
                     ),
                     csharp: (
                       <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 data class SubscriptionOfferDetailsAndroid(
     var basePlanId: String,       // Base plan identifier
@@ -1118,7 +1118,7 @@ if (subscription.subscriptionOfferDetailsAndroid != null) {
                     ),
                     csharp: (
                       <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 var iapStore = OpenIapStore.getInstance(context)
 
@@ -2660,7 +2660,7 @@ for (final subscription in activeSubscriptions) {
             ),
             csharp: (
               <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // Check if user has any active subscription
 var hasActive = iapStore.hasActiveSubscriptions()
@@ -3737,7 +3737,7 @@ Future<void> manageSubscriptions() async {
             ),
             csharp: (
               <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // Open subscription management page
 fun manageSubscriptions() {

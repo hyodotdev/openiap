@@ -86,7 +86,7 @@ function Events() {
             ),
             csharp: (
               <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 enum class IapEvent {
     PurchaseUpdated,

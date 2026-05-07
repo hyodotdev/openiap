@@ -339,7 +339,7 @@ if (subscription.renewalInfoIOS?.willAutoRenew == false) {
             ),
             csharp: (
               <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // Android: read auto-renew status straight off the active subscription.
 // (renewalInfoIOS is iOS-only — see the Swift / KMP tabs for that flow.)

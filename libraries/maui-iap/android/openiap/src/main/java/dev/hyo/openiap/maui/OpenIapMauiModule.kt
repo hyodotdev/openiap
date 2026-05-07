@@ -38,7 +38,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * Java-friendly facade over [OpenIapModule] for the .NET MAUI binding (`Hyo.OpenIap.Maui`).
+ * Java-friendly facade over [OpenIapModule] for the .NET MAUI binding (`OpenIap.Maui`).
  *
  * The C# Xamarin.Android binding generator chokes on Kotlin `suspend` functions,
  * Kotlin lambda types (`Function1`/`Function2`), default-arg synthetic methods (`*$default`),

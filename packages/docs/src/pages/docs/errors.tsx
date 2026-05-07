@@ -68,7 +68,7 @@ function Errors() {
             ),
             csharp: (
               <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 data class PurchaseError(
     var code: String,               // Error code constant
@@ -834,7 +834,7 @@ var debug_message: Variant = null # Raw diagnostic from the billing layer`}</Cod
             ),
             csharp: (
               <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 enum class OpenIapError {
     Unknown,

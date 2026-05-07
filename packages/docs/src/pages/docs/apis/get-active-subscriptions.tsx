@@ -205,7 +205,7 @@ function SubscriptionStatus() {
           ),
           csharp: (
             <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 var subscriptions = await ((QueryResolver)OpenIap.Instance).GetActiveSubscriptionsAsync()`}</CodeBlock>
           ),

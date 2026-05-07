@@ -11,7 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Hyo.OpenIap;
 
-namespace Hyo.OpenIap.Maui;
+namespace OpenIap.Maui;
 
 /// <summary>
 /// Options for the OpenIAP kit HTTP API. Mirrors the JavaScript

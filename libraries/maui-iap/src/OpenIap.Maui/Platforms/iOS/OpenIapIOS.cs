@@ -15,9 +15,9 @@ using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Foundation;
 using Hyo.OpenIap;
-using Hyo.OpenIap.Maui.Bindings.iOS;
+using OpenIap.Maui.Bindings.iOS;
 
-namespace Hyo.OpenIap.Maui.Platforms.iOS;
+namespace OpenIap.Maui.Platforms.iOS;
 
 // Class is constructed only under #if IOS / MACCATALYST and the project's
 // SupportedOSPlatformVersion is 15.0 — declare that floor explicitly so the

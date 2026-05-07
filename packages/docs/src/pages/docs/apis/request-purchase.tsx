@@ -371,7 +371,7 @@ await iap.request_purchase(props)`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using Hyo.OpenIap.Maui;
+using OpenIap.Maui;
 
 // Subscribe to results FIRST — requestPurchase is event-based.
 OpenIap.Instance.PurchaseUpdated.Subscribe(async purchase => {

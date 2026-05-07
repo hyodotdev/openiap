@@ -6,8 +6,9 @@
 #nullable enable
 
 using System;
+using Hyo.OpenIap;
 
-namespace Hyo.OpenIap.Maui;
+namespace OpenIap.Maui;
 
 internal sealed class UnsupportedOpenIap : IOpenIap
 {

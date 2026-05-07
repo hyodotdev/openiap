@@ -6,7 +6,7 @@
 
 using System;
 
-namespace Hyo.OpenIap.Maui;
+namespace OpenIap.Maui;
 
 public static class ObservableExtensions
 {

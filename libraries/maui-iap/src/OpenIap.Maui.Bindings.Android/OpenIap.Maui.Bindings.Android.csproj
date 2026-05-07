@@ -3,8 +3,8 @@
   <PropertyGroup>
     <TargetFramework>net9.0-android</TargetFramework>
     <SupportedOSPlatformVersion>24.0</SupportedOSPlatformVersion>
-    <RootNamespace>Hyo.OpenIap.Maui.Bindings.Android</RootNamespace>
-    <AssemblyName>Hyo.OpenIap.Maui.Bindings.Android</AssemblyName>
+    <RootNamespace>OpenIap.Maui.Bindings.Android</RootNamespace>
+    <AssemblyName>OpenIap.Maui.Bindings.Android</AssemblyName>
     <Nullable>enable</Nullable>
     <LangVersion>12.0</LangVersion>
     <IsBindingProject>true</IsBindingProject>
@@ -34,7 +34,7 @@
   <ItemGroup>
     <!-- Bind only the MAUI-owned Java facade. The underlying OpenIAP Google
          AAR is included as a runtime library but not bound into C#, keeping
-         Hyo.OpenIap.Maui's public Android surface centered on OpenIapMauiModule. -->
+         OpenIap.Maui's public Android surface centered on OpenIapMauiModule. -->
     <AndroidLibrary Include="..\..\android\openiap\build\outputs\aar\openiap-release.aar" Bind="true" />
     <AndroidLibrary Include="..\..\..\..\packages\google\openiap\build\outputs\aar\openiap-play-release.aar" Bind="false" />
   </ItemGroup>
