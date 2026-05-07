@@ -15,10 +15,13 @@ import type { Doc } from "@/convex";
 import { api } from "@/convex";
 import { PageLoading } from "@/components/LoadingSpinner";
 import { Badge } from "../../../../components/Badge";
+import {
+  DEFAULT_REPORTING_CURRENCY,
+  formatMicros,
+  normalizeCurrencyCode,
+} from "@/lib/utils";
 
 type ProjectContext = { project: Doc<"projects"> };
-
-const DEFAULT_REPORTING_CURRENCY = "USD";
 
 const STATE_FILTERS = [
   { id: "all", label: "All" },
@@ -46,18 +49,17 @@ export default function ProjectSubscriptions() {
     limit: 200,
   });
 
+  const reportingCurrency = normalizeCurrencyCode(
+    metrics?.reportingCurrency ?? project.reportingCurrency,
+    DEFAULT_REPORTING_CURRENCY,
+  );
   const formattedMrr = useMemo(() => {
     if (!metrics) return "—";
-    return formatMicros(
-      metrics.mrrMicros,
-      metrics.reportingCurrency ?? metrics.currency,
-      metrics.mrrByCurrency.length === 0,
-    );
-  }, [metrics]);
-  const reportingCurrency =
-    metrics?.reportingCurrency ??
-    project.reportingCurrency ??
-    DEFAULT_REPORTING_CURRENCY;
+    return formatMicros(metrics.mrrMicros, {
+      currency: reportingCurrency,
+      emptyWhenZero: metrics.mrrByCurrency.length === 0,
+    });
+  }, [metrics, reportingCurrency]);
 
   if (subscriptions === undefined || metrics === undefined) {
     return <PageLoading />;
@@ -122,7 +124,9 @@ export default function ProjectSubscriptions() {
                         : "border-border bg-muted/30 text-muted-foreground"
                     }`}
                   >
-                    {formatMicros(entry.mrrMicros, entry.currency)}
+                    {formatMicros(entry.mrrMicros, {
+                      currency: entry.currency,
+                    })}
                     {entry.currency === reportingCurrency ? " included" : ""}
                   </span>
                 ))}
@@ -250,14 +254,4 @@ function StateBadge({ state }: { state: string }) {
 
 function formatDate(epoch: number): string {
   return new Date(epoch).toISOString().slice(0, 16).replace("T", " ");
-}
-
-function formatMicros(
-  micros: number,
-  currency?: string,
-  emptyWhenZero = true,
-): string {
-  if (!micros && emptyWhenZero) return "—";
-  const value = micros / 1_000_000;
-  return `${currency ?? ""} ${value.toFixed(2)}`.trim();
 }

@@ -28,7 +28,7 @@ import {
 import type { Doc } from "@/convex";
 import { api } from "@/convex";
 import { PageLoading } from "@/components/LoadingSpinner";
-import { cn } from "@/lib/utils";
+import { cn, formatMicros, normalizeCurrencyCode } from "@/lib/utils";
 
 type ProjectContext = { project: Doc<"projects"> };
 
@@ -36,7 +36,6 @@ type Platform = "IOS" | "Android";
 type PlatformFilter = "all" | Platform;
 
 const DAY_MS = 86_400_000;
-const DEFAULT_REPORTING_CURRENCY = "USD";
 
 // Stable empty defaults. The kickoff render before `useQuery`
 // returns has `metrics === undefined`; we still need to invoke
@@ -191,8 +190,7 @@ export default function ProjectAnalytics() {
   // bail to `<PageLoading />` after the hooks have been registered.
   const metricsDays = metrics?.days ?? EMPTY_DAYS;
   const metricsCurrencies = metrics?.currencies ?? EMPTY_STRINGS;
-  const reportingCurrency =
-    project.reportingCurrency ?? DEFAULT_REPORTING_CURRENCY;
+  const reportingCurrency = normalizeCurrencyCode(project.reportingCurrency);
 
   // Multi-currency projects: we always pin to a single currency for
   // chart rendering because revenueMicros can't be summed across
@@ -472,7 +470,7 @@ export default function ProjectAnalytics() {
               <div className="relative">
                 <p className="text-sm text-muted-foreground">{card.label}</p>
                 <p className="text-3xl font-semibold mt-2 tabular-nums">
-                  {formatMicros(cardTotals.revenueMicros, currency)}
+                  {formatMicros(cardTotals.revenueMicros, { currency })}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {cardTotals.activeSubs} active · {cardTotals.newSubs} new
@@ -544,7 +542,7 @@ export default function ProjectAnalytics() {
         <SummaryCard
           icon={TrendingUp}
           label="Revenue"
-          value={formatMicros(totals.revenueMicros, currency)}
+          value={formatMicros(totals.revenueMicros, { currency })}
         />
         <SummaryCard
           icon={Users}
@@ -590,10 +588,14 @@ export default function ProjectAnalytics() {
                 <YAxis
                   tick={{ fontSize: 11 }}
                   stroke="var(--muted-foreground)"
-                  tickFormatter={(v) => formatMicros(v, currency, true)}
+                  tickFormatter={(v) =>
+                    formatMicros(v, { currency, compact: true })
+                  }
                 />
                 <Tooltip
-                  formatter={(value: number) => formatMicros(value, currency)}
+                  formatter={(value: number) =>
+                    formatMicros(value, { currency })
+                  }
                   contentStyle={tooltipStyle}
                 />
                 <Bar
@@ -1091,18 +1093,4 @@ function revenueForPlatform(
 
 function utcDayKey(ts: number): string {
   return new Date(ts).toISOString().slice(0, 10);
-}
-
-function formatMicros(
-  micros: number,
-  currency: string,
-  compact = false,
-): string {
-  if (!micros) return compact ? "0" : `${currency} 0`.trim();
-  const value = micros / 1_000_000;
-  if (compact) {
-    if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
-    return value.toFixed(0);
-  }
-  return `${currency} ${value.toFixed(2)}`.trim();
 }
