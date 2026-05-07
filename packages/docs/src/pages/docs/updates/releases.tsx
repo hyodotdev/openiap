@@ -163,20 +163,37 @@ function Releases() {
           >
             <li>
               <strong>openiap-apple 2.1.6</strong> — adds the cross-platform{' '}
-              <code>getStorefront()</code> protocol/store/module path and ObjC
-              bridge wrappers, with <code>getStorefrontIOS()</code> delegating
-              to the unified method for backward compatibility.
+              <Link to="/docs/apis/get-storefront">
+                <code>getStorefront()</code>
+              </Link>{' '}
+              protocol/store/module path and ObjC bridge wrappers, with{' '}
+              <Link to="/docs/apis/ios/get-storefront-ios">
+                <code>getStorefrontIOS()</code>
+              </Link>{' '}
+              delegating to the unified method for backward compatibility.
             </li>
             <li>
               <strong>openiap-google 2.1.4</strong> — wires Play and Horizon
-              handler bundles for <code>getStorefront</code>, legacy alternative
-              billing helpers, and Billing Programs APIs such as{' '}
-              <code>isBillingProgramAvailableAndroid</code>,{' '}
-              <code>launchExternalLinkAndroid</code>, and{' '}
-              <code>createBillingProgramReportingDetailsAndroid</code>. This
-              release also improves Android <code>QueryProduct</code> failures
-              with Billing response code, debug message, queried product IDs,
-              product type, and empty-result diagnostics.
+              handler bundles for{' '}
+              <Link to="/docs/apis/get-storefront">
+                <code>getStorefront</code>
+              </Link>
+              , legacy alternative billing helpers, and Billing Programs APIs
+              such as{' '}
+              <Link to="/docs/apis/android/is-billing-program-available-android">
+                <code>isBillingProgramAvailableAndroid</code>
+              </Link>
+              ,{' '}
+              <Link to="/docs/apis/android/launch-external-link-android">
+                <code>launchExternalLinkAndroid</code>
+              </Link>
+              , and{' '}
+              <Link to="/docs/apis/android/create-billing-program-reporting-details-android">
+                <code>createBillingProgramReportingDetailsAndroid</code>
+              </Link>
+              . This release also improves Android <code>QueryProduct</code>{' '}
+              failures with Billing response code, debug message, queried
+              product IDs, product type, and empty-result diagnostics.
             </li>
             <li>
               <strong>Example parity</strong> — Expo, React Native classic,
@@ -186,10 +203,11 @@ function Releases() {
             </li>
             <li>
               <strong>Framework SDK patches</strong> — Expo, React Native,
-              Flutter, KMP, and MAUI patch releases pick up the new native
+              Flutter, and KMP patch releases pick up the new native
               Apple/Google versions and ship the synchronized examples and
-              tests. No breaking JS, Dart, Kotlin, or C# API changes are
-              required for this parity patch.
+              tests. React Native's latest published patch for this rollout is
+              <code>15.2.1</code>. No breaking JS, Dart, or Kotlin API changes
+              are required for this parity patch.
             </li>
             <li>
               <strong>SSOT enforcement</strong> — new{' '}
@@ -248,11 +266,11 @@ function Releases() {
               </li>
               <li>
                 <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/react-native-iap-15.2.5"
+                  href="https://github.com/hyodotdev/openiap/releases/tag/react-native-iap-15.2.1"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  react-native-iap 15.2.5
+                  react-native-iap 15.2.1
                 </a>
               </li>
               <li>
@@ -280,15 +298,6 @@ function Releases() {
                   rel="noopener noreferrer"
                 >
                   kmp-iap 2.2.5
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/maui-iap-1.0.1"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  maui-iap 1.0.1
                 </a>
               </li>
             </ul>
@@ -434,15 +443,6 @@ function Releases() {
                   rel="noopener noreferrer"
                 >
                   openiap-google 2.1.2
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/react-native-iap-15.2.4"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  react-native-iap 15.2.4
                 </a>
               </li>
               <li>
@@ -754,15 +754,6 @@ function Releases() {
               </li>
               <li>
                 <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/react-native-iap-15.2.3"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  react-native-iap 15.2.3
-                </a>
-              </li>
-              <li>
-                <a
                   href="https://github.com/hyodotdev/openiap/releases/tag/expo-iap-4.2.3"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -904,15 +895,6 @@ function Releases() {
                   rel="noopener noreferrer"
                 >
                   openiap-google 2.1.1
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/react-native-iap-15.2.2"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  react-native-iap 15.2.2
                 </a>
               </li>
               <li>
@@ -1093,15 +1075,6 @@ function Releases() {
                   rel="noopener noreferrer"
                 >
                   openiap-apple 2.1.2
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/react-native-iap-15.2.1"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  react-native-iap 15.2.1
                 </a>
               </li>
               <li>
