@@ -389,8 +389,8 @@ Iap.Instance.PurchaseError.Subscribe(error => {
 // Then request the purchase
 await ((MutationResolver)Iap.Instance).RequestPurchaseAsync(new RequestPurchaseProps {
     RequestPurchase = new RequestPurchasePropsByPlatforms {
-        Ios = new RequestPurchaseIosProps { Sku = "com.app.premium" },
-        Android = new RequestPurchaseAndroidProps { Skus = new[] { "com.app.premium" } },
+        Apple = new RequestPurchaseIosProps { Sku = "com.app.premium" },
+        Google = new RequestPurchaseAndroidProps { Skus = new[] { "com.app.premium" } },
     },
     Type = ProductQueryType.InApp,
 });`}</CodeBlock>

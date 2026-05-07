@@ -1677,7 +1677,11 @@ if (currentSub is not null)
             {
                 Skus = new[] { "premium_monthly" },
                 PurchaseToken = currentSub.PurchaseToken,
-                ReplacementMode = 1, // WITH_TIME_PRORATION
+                SubscriptionProductReplacementParams = new SubscriptionProductReplacementParamsAndroid
+                {
+                    OldProductId = currentSub.ProductId,
+                    ReplacementMode = SubscriptionReplacementModeAndroid.WithTimeProration,
+                },
             },
         },
     });
@@ -1900,7 +1904,11 @@ if (premiumPurchase is not null)
             {
                 Skus = new[] { "basic_monthly" },
                 PurchaseToken = premiumPurchase.PurchaseToken,
-                ReplacementMode = 6, // DEFERRED - change at renewal
+                SubscriptionProductReplacementParams = new SubscriptionProductReplacementParamsAndroid
+                {
+                    OldProductId = premiumPurchase.ProductId,
+                    ReplacementMode = SubscriptionReplacementModeAndroid.Deferred,
+                },
             },
         },
     });
@@ -2545,8 +2553,8 @@ async Task ChangeSubscriptionAsync(string newSku, bool isUpgrade)
 
     // Choose appropriate replacement mode
     var replacementMode = isUpgrade
-        ? 1  // WITH_TIME_PRORATION - upgrade with credit
-        : 6; // DEFERRED - downgrade at renewal
+        ? SubscriptionReplacementModeAndroid.WithTimeProration
+        : SubscriptionReplacementModeAndroid.Deferred;
 
     try
     {
@@ -2559,7 +2567,11 @@ async Task ChangeSubscriptionAsync(string newSku, bool isUpgrade)
                 {
                     Skus = new[] { newSku },
                     PurchaseToken = currentSub.PurchaseToken,
-                    ReplacementMode = replacementMode,
+                    SubscriptionProductReplacementParams = new SubscriptionProductReplacementParamsAndroid
+                    {
+                        OldProductId = currentSub.ProductId,
+                        ReplacementMode = replacementMode,
+                    },
                 },
             },
         });
