@@ -88,4 +88,7 @@ actor IapState {
     func snapshotSubscriptionBillingIssue() -> [SubscriptionBillingIssueListener] {
         subscriptionBillingIssueListeners.map { $0.listener }
     }
+    func hasSubscriptionBillingIssueListeners() -> Bool {
+        !subscriptionBillingIssueListeners.isEmpty
+    }
 }

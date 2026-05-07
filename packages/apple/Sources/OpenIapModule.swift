@@ -91,6 +91,9 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                 let value = try await task.value
                 clearInitConnectionTask(generation: generation)
                 return value
+            } catch is CancellationError {
+                clearInitConnectionTask(generation: generation)
+                return false
             } catch {
                 clearInitConnectionTask(generation: generation)
                 throw error
@@ -1476,6 +1479,9 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         await state.setInitialized(true)
         try startTransactionListener(generation: generation)
         try startUnfinishedTransactionProcessing(generation: generation)
+        if await state.hasSubscriptionBillingIssueListeners() {
+            startMessageListener()
+        }
         return true
     }
 
@@ -1624,6 +1630,10 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     private func ensureConnection() async throws {
+        if let endTask = currentEndConnectionTask() {
+            await endTask.value
+        }
+
         if await state.isInitialized == false {
             _ = try await initConnection()
         }
@@ -1945,7 +1955,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         #if os(iOS) || targetEnvironment(macCatalyst)
         if #available(iOS 18.0, macCatalyst 18.0, *) {
             withConnectionLock {
-                if messageListenerTask != nil {
+                if endTask != nil || messageListenerTask != nil {
                     return
                 }
 
