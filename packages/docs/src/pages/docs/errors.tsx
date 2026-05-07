@@ -32,6 +32,10 @@ function Errors() {
   message: string;        // Human-readable message
   productId?: string;     // Related product SKU (if applicable)
   debugMessage?: string;  // Raw diagnostic from the billing layer (e.g. Play's BillingResult.debugMessage)
+  responseCode?: number;  // Android QueryProduct BillingResult.responseCode
+  productIds?: string[];  // Android QueryProduct requested IDs
+  productType?: string;   // Android BillingClient product type
+  isEmptyProductList?: boolean; // Android QueryProduct returned no products
 }`}</CodeBlock>
             ),
             swift: (
@@ -40,6 +44,10 @@ function Errors() {
     let message: String    // Human-readable message
     let productId: String? // Related product SKU (if applicable)
     let debugMessage: String? // Raw diagnostic (e.g. StoreKit error.localizedDescription)
+    let responseCode: Int? // Android QueryProduct BillingResult.responseCode
+    let productIds: [String]? // Android QueryProduct requested IDs
+    let productType: String? // Android BillingClient product type
+    let isEmptyProductList: Bool? // Android QueryProduct returned no products
 }`}</CodeBlock>
             ),
             kotlin: (
@@ -47,7 +55,11 @@ function Errors() {
     val code: String,               // Error code constant
     val message: String,            // Human-readable message
     val productId: String? = null,  // Related product SKU (if applicable)
-    val debugMessage: String? = null // Raw BillingResult.debugMessage from Google Play
+    val debugMessage: String? = null, // Raw BillingResult.debugMessage from Google Play
+    val responseCode: Int? = null,   // Android QueryProduct BillingResult.responseCode
+    val productIds: List<String>? = null, // Android QueryProduct requested IDs
+    val productType: String? = null, // Android BillingClient product type
+    val isEmptyProductList: Boolean? = null // Android returned no products
 )`}</CodeBlock>
             ),
             kmp: (
@@ -55,7 +67,11 @@ function Errors() {
     val code: String,               // Error code constant
     val message: String,            // Human-readable message
     val productId: String? = null,  // Related product SKU (if applicable)
-    val debugMessage: String? = null // Raw diagnostic from the underlying billing layer
+    val debugMessage: String? = null, // Raw diagnostic from the underlying billing layer
+    val responseCode: Int? = null,   // Android QueryProduct BillingResult.responseCode
+    val productIds: List<String>? = null, // Android QueryProduct requested IDs
+    val productType: String? = null, // Android BillingClient product type
+    val isEmptyProductList: Boolean? = null // Android returned no products
 )`}</CodeBlock>
             ),
             dart: (
@@ -64,18 +80,27 @@ function Errors() {
   final String message;     // Human-readable message
   final String? productId;  // Related product SKU (if applicable)
   final String? debugMessage; // Raw BillingResult.debugMessage on Android
+  final int? responseCode;  // Android QueryProduct BillingResult.responseCode
+  final List<String>? productIds; // Android QueryProduct requested IDs
+  final String? productType; // Android BillingClient product type
+  final bool? isEmptyProductList; // Android returned no products
 }`}</CodeBlock>
             ),
             csharp: (
               <CodeBlock language="csharp">{`using Hyo.OpenIap;
 using OpenIap.Maui;
 
-data class PurchaseError(
-    var code: String,               // Error code constant
-    var message: String,            // Human-readable message
-    var productId = null,  // Related product SKU (if applicable)
-    var debugMessage = null // Raw BillingResult.debugMessage from Google Play
-)`}</CodeBlock>
+public sealed record PurchaseError
+{
+    public required ErrorCode Code { get; init; } // Error code constant
+    public required string Message { get; init; } // Human-readable message
+    public string? ProductId { get; init; } // Related product SKU
+    public string? DebugMessage { get; init; } // Raw billing diagnostic
+    public int? ResponseCode { get; init; } // Android QueryProduct responseCode
+    public IReadOnlyList<string>? ProductIds { get; init; } // Android requested IDs
+    public string? ProductType { get; init; } // Android BillingClient product type
+    public bool? IsEmptyProductList { get; init; } // Android returned no products
+}`}</CodeBlock>
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`class_name PurchaseError
@@ -83,7 +108,11 @@ data class PurchaseError(
 var code: String                 # Error code constant
 var message: String              # Human-readable message
 var product_id: Variant = null   # Related product SKU (if applicable)
-var debug_message: Variant = null # Raw diagnostic from the billing layer`}</CodeBlock>
+var debug_message: Variant = null # Raw diagnostic from the billing layer
+var response_code: Variant = null # Android QueryProduct BillingResult.responseCode
+var product_ids: Variant = null   # Android QueryProduct requested IDs
+var product_type: Variant = null  # Android BillingClient product type
+var is_empty_product_list: Variant = null # Android returned no products`}</CodeBlock>
             ),
           }}
         </LanguageTabs>

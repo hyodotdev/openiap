@@ -1143,8 +1143,12 @@ public struct PurchaseAndroid: Codable, PurchaseCommon {
 public struct PurchaseError: Codable {
     public var code: ErrorCode
     public var debugMessage: String? = nil
+    public var isEmptyProductList: Bool? = nil
     public var message: String
     public var productId: String? = nil
+    public var productIds: [String]? = nil
+    public var productType: String? = nil
+    public var responseCode: Int? = nil
 }
 
 public struct PurchaseIOS: Codable, PurchaseCommon {

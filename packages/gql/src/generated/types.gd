@@ -2287,6 +2287,10 @@ class PurchaseError:
 	var message: String = ""
 	var product_id: Variant = null
 	var debug_message: Variant = null
+	var response_code: Variant = null
+	var product_ids: Array[String] = []
+	var product_type: Variant = null
+	var is_empty_product_list: Variant = null
 
 	static func from_dict(data: Dictionary) -> PurchaseError:
 		var obj = PurchaseError.new()
@@ -2302,6 +2306,14 @@ class PurchaseError:
 			obj.product_id = data["productId"]
 		if data.has("debugMessage") and data["debugMessage"] != null:
 			obj.debug_message = data["debugMessage"]
+		if data.has("responseCode") and data["responseCode"] != null:
+			obj.response_code = data["responseCode"]
+		if data.has("productIds") and data["productIds"] != null:
+			obj.product_ids = data["productIds"]
+		if data.has("productType") and data["productType"] != null:
+			obj.product_type = data["productType"]
+		if data.has("isEmptyProductList") and data["isEmptyProductList"] != null:
+			obj.is_empty_product_list = data["isEmptyProductList"]
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -2315,6 +2327,13 @@ class PurchaseError:
 			dict["productId"] = product_id
 		if debug_message != null:
 			dict["debugMessage"] = debug_message
+		if response_code != null:
+			dict["responseCode"] = response_code
+		dict["productIds"] = product_ids
+		if product_type != null:
+			dict["productType"] = product_type
+		if is_empty_product_list != null:
+			dict["isEmptyProductList"] = is_empty_product_list
 		return dict
 
 class PurchaseIOS:

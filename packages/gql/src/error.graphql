@@ -55,4 +55,10 @@ type PurchaseError {
   # On Android this mirrors BillingResult.debugMessage; on iOS this is the
   # StoreKit error's localizedDescription (or equivalent). May be null.
   debugMessage: String
+  # Android QueryProduct diagnostics. Present for openiap-google QueryProduct
+  # failures when the native billing layer exposes the values.
+  responseCode: Int
+  productIds: [String!]
+  productType: String
+  isEmptyProductList: Boolean
 }
