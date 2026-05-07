@@ -342,6 +342,22 @@ const cursorValidator = v.union(
   }),
 );
 
+type RecomputeRevenueMetricsCursor =
+  | { phase: "events"; paginationCursor: string | null }
+  | {
+      phase: "subs";
+      stateIdx: number;
+      paginationCursor: string | null;
+    };
+
+export type RecomputeRevenueMetricsPageArgs = {
+  projectId: Id<"projects">;
+  days: string[];
+  buckets: RollupBucket[];
+  cursor: RecomputeRevenueMetricsCursor;
+  runStartedAt: number;
+};
+
 async function markRevenueMetricsRun(
   ctx: MutationCtx,
   projectId: Id<"projects">,
@@ -411,7 +427,9 @@ export async function runRecompute(
 // driven counters (newSubs / renewals / cancellations / refunds /
 // revenueMicros) from `occurredAt`; `activeSubs` lands later in
 // `processSubsPage`. When the events scan finishes, transitions
-// to the subscriptions phase by calling `processSubsPage` directly.
+// to the subscriptions phase by scheduling a fresh mutation. Convex
+// only permits one paginated query per mutation, so the events pass
+// and the first subscriptions pass cannot run back-to-back inline.
 //
 // Scan by `receivedAt` (the index we have on webhookEvents) but
 // bucket by `occurredAt` (the store-side event time). A renewal
@@ -483,13 +501,14 @@ async function processEventsPage(
   }
 
   if (result.isDone) {
-    // Events exhausted — transition to the subscriptions phase.
-    await processSubsPage(ctx, {
+    // Events exhausted — transition to the subscriptions phase in
+    // a new mutation. Calling processSubsPage inline would perform
+    // a second `.paginate(...)` in the same Convex mutation.
+    await scheduleRecomputePage(ctx, {
       projectId,
       days,
-      windowStart,
-      buckets,
-      cursor: { stateIdx: 0, paginationCursor: null },
+      buckets: Array.from(buckets.values()),
+      cursor: { phase: "subs", stateIdx: 0, paginationCursor: null },
       runStartedAt,
     });
     return;
@@ -497,22 +516,20 @@ async function processEventsPage(
 
   // More events to read. Serialize the accumulator + cursor and
   // chain a fresh events page.
-  await ctx.scheduler.runAfter(
-    0,
-    internal.subscriptions.revenueMetrics.recomputeRevenueMetricsPage,
-    {
-      projectId,
-      days,
-      buckets: Array.from(buckets.values()),
-      cursor: { phase: "events", paginationCursor: result.continueCursor },
-      runStartedAt,
-    },
-  );
+  await scheduleRecomputePage(ctx, {
+    projectId,
+    days,
+    buckets: Array.from(buckets.values()),
+    cursor: { phase: "events", paginationCursor: result.continueCursor },
+    runStartedAt,
+  });
 }
 
 // Process one page of counted-state subscriptions. Greedily
-// advances through states until either the page fills (chain
-// continuation) or every counted state is exhausted (commit).
+// advances through exactly one counted state per mutation. Even
+// an empty state must chain to the next state instead of looping
+// inline, because each `.paginate(...)` consumes Convex's single
+// paginated-query allowance for the current mutation.
 //
 // `buckets` is the live accumulator: pass-1 (events) populated it
 // in the kickoff, this function adds activeSubs contributions and
@@ -530,75 +547,86 @@ async function processSubsPage(
 ): Promise<void> {
   const { projectId, days, buckets, runStartedAt } = args;
   const dayEnds = days.map((day) => Date.parse(`${day}T23:59:59.999Z`));
+  const { stateIdx, paginationCursor } = args.cursor;
 
-  let { stateIdx, paginationCursor } = args.cursor;
-  let pageRemaining = SUBS_PAGE_SIZE;
-  let chainContinuation = false;
-
-  while (stateIdx < COUNTED_STATES_ORDERED.length && pageRemaining > 0) {
-    const state: CountedState = COUNTED_STATES_ORDERED[stateIdx];
-    const result = await ctx.db
-      .query("subscriptions")
-      .withIndex("by_project_and_state_and_updated", (q) =>
-        q.eq("projectId", projectId).eq("state", state),
-      )
-      .order("desc")
-      .paginate({ numItems: pageRemaining, cursor: paginationCursor });
-
-    for (const sub of result.page) {
-      for (let i = 0; i < days.length; i++) {
-        if (!isActiveAt(sub, dayEnds[i])) continue;
-        const currency = sub.currency ?? "";
-        const platform = sub.platform;
-        const key = bucketKey(days[i], sub.productId, currency, platform);
-        const bucket = getOrCreateBucket(
-          buckets,
-          key,
-          days[i],
-          sub.productId,
-          currency,
-          platform,
-        );
-        bucket.activeSubs += 1;
-      }
-    }
-
-    pageRemaining -= result.page.length;
-    if (result.isDone) {
-      // State exhausted, advance to next state with a fresh cursor.
-      stateIdx += 1;
-      paginationCursor = null;
-    } else {
-      // Convex's `continueCursor` is opaque and includes a stable
-      // tiebreaker (the row `_id`), so subsequent pages won't drop
-      // rows that share an `updatedAt` with the page boundary.
-      paginationCursor = result.continueCursor;
-      if (pageRemaining <= 0) {
-        chainContinuation = true;
-        break;
-      }
-    }
-  }
-
-  if (!chainContinuation && stateIdx >= COUNTED_STATES_ORDERED.length) {
+  if (stateIdx >= COUNTED_STATES_ORDERED.length) {
     // All counted states processed — commit.
     await commitOrSchedulePerDay(ctx, projectId, days, buckets, runStartedAt);
     return;
   }
 
-  // More work to do. Serialize the accumulator + cursor and chain
-  // a fresh mutation so the next page gets its own 32k read budget.
-  const serialized = Array.from(buckets.values());
+  const state: CountedState = COUNTED_STATES_ORDERED[stateIdx];
+  const result = await ctx.db
+    .query("subscriptions")
+    .withIndex("by_project_and_state_and_updated", (q) =>
+      q.eq("projectId", projectId).eq("state", state),
+    )
+    .order("desc")
+    .paginate({ numItems: SUBS_PAGE_SIZE, cursor: paginationCursor });
+
+  for (const sub of result.page) {
+    for (let i = 0; i < days.length; i++) {
+      if (!isActiveAt(sub, dayEnds[i])) continue;
+      const currency = sub.currency ?? "";
+      const platform = sub.platform;
+      const key = bucketKey(days[i], sub.productId, currency, platform);
+      const bucket = getOrCreateBucket(
+        buckets,
+        key,
+        days[i],
+        sub.productId,
+        currency,
+        platform,
+      );
+      bucket.activeSubs += 1;
+    }
+  }
+
+  if (!result.isDone) {
+    // Convex's `continueCursor` is opaque and includes a stable
+    // tiebreaker (the row `_id`), so subsequent pages won't drop
+    // rows that share an `updatedAt` with the page boundary.
+    await scheduleRecomputePage(ctx, {
+      projectId,
+      days,
+      buckets: Array.from(buckets.values()),
+      cursor: {
+        phase: "subs",
+        stateIdx,
+        paginationCursor: result.continueCursor,
+      },
+      runStartedAt,
+    });
+    return;
+  }
+
+  const nextStateIdx = stateIdx + 1;
+  if (nextStateIdx >= COUNTED_STATES_ORDERED.length) {
+    await commitOrSchedulePerDay(ctx, projectId, days, buckets, runStartedAt);
+    return;
+  }
+
+  await scheduleRecomputePage(ctx, {
+    projectId,
+    days,
+    buckets: Array.from(buckets.values()),
+    cursor: {
+      phase: "subs",
+      stateIdx: nextStateIdx,
+      paginationCursor: null,
+    },
+    runStartedAt,
+  });
+}
+
+async function scheduleRecomputePage(
+  ctx: MutationCtx,
+  args: RecomputeRevenueMetricsPageArgs,
+): Promise<void> {
   await ctx.scheduler.runAfter(
     0,
     internal.subscriptions.revenueMetrics.recomputeRevenueMetricsPage,
-    {
-      projectId,
-      days,
-      buckets: serialized,
-      cursor: { phase: "subs", stateIdx, paginationCursor },
-      runStartedAt,
-    },
+    args,
   );
 }
 
@@ -615,39 +643,46 @@ export const recomputeRevenueMetricsPage = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const buckets = new Map<BucketKey, RollupBucket>();
-    for (const row of args.buckets) {
-      const key = bucketKey(row.day, row.productId, row.currency, row.platform);
-      buckets.set(key, { ...row });
-    }
-    const todayStart = startOfUtcDay(args.runStartedAt);
-    const windowStart = todayStart - (TRAILING_DAYS - 1) * DAY_MS;
-    if (args.cursor.phase === "events") {
-      await processEventsPage(ctx, {
-        projectId: args.projectId,
-        days: args.days,
-        windowStart,
-        windowEnd: args.runStartedAt,
-        buckets,
-        paginationCursor: args.cursor.paginationCursor,
-        runStartedAt: args.runStartedAt,
-      });
-      return null;
-    }
-    await processSubsPage(ctx, {
-      projectId: args.projectId,
-      days: args.days,
-      windowStart,
-      buckets,
-      cursor: {
-        stateIdx: args.cursor.stateIdx,
-        paginationCursor: args.cursor.paginationCursor,
-      },
-      runStartedAt: args.runStartedAt,
-    });
+    await runRecomputePage(ctx, args);
     return null;
   },
 });
+
+export async function runRecomputePage(
+  ctx: MutationCtx,
+  args: RecomputeRevenueMetricsPageArgs,
+): Promise<void> {
+  const buckets = new Map<BucketKey, RollupBucket>();
+  for (const row of args.buckets) {
+    const key = bucketKey(row.day, row.productId, row.currency, row.platform);
+    buckets.set(key, { ...row });
+  }
+  const todayStart = startOfUtcDay(args.runStartedAt);
+  const windowStart = todayStart - (TRAILING_DAYS - 1) * DAY_MS;
+  if (args.cursor.phase === "events") {
+    await processEventsPage(ctx, {
+      projectId: args.projectId,
+      days: args.days,
+      windowStart,
+      windowEnd: args.runStartedAt,
+      buckets,
+      paginationCursor: args.cursor.paginationCursor,
+      runStartedAt: args.runStartedAt,
+    });
+    return;
+  }
+  await processSubsPage(ctx, {
+    projectId: args.projectId,
+    days: args.days,
+    windowStart,
+    buckets,
+    cursor: {
+      stateIdx: args.cursor.stateIdx,
+      paginationCursor: args.cursor.paginationCursor,
+    },
+    runStartedAt: args.runStartedAt,
+  });
+}
 
 // Commit one day's worth of recomputed buckets. Used by the
 // scheduler-chained commit path for projects whose total bucket

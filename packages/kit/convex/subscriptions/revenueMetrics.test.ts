@@ -7,8 +7,10 @@ import {
   isActiveAt,
   pickRevenueMetricsProjects,
   runRecompute,
+  runRecomputePage,
   startOfUtcDay,
   utcDayKey,
+  type RecomputeRevenueMetricsPageArgs,
   type RollupBucket,
 } from "./revenueMetrics";
 
@@ -528,7 +530,27 @@ const OUT_OF_WINDOW = "2026-03-12";
 const PROJECT_ID = "p_test" as never;
 
 function makeCtx(db: MemDb) {
-  return { db } as unknown as Parameters<typeof runRecompute>[0];
+  const ctx = {
+    db,
+    scheduler: {
+      runAfter: async (
+        _delayMs: number,
+        _fn: unknown,
+        args: RecomputeRevenueMetricsPageArgs,
+      ) => {
+        if (!("cursor" in args)) {
+          throw new Error(
+            "unexpected scheduled function in revenueMetrics test",
+          );
+        }
+        await runRecomputePage(
+          ctx as unknown as Parameters<typeof runRecomputePage>[0],
+          args,
+        );
+      },
+    },
+  };
+  return ctx as unknown as Parameters<typeof runRecompute>[0];
 }
 
 function makePickerCtx(db: MemDb) {

@@ -230,7 +230,10 @@ async function handleGoogleNotification(
       "[webhooks/google] GOOGLE_PUBSUB_PUSH_AUDIENCE unset and KIT_ALLOW_UNAUTHENTICATED_PUBSUB=1 — accepting unauthenticated Pub/Sub body (dev mode only).",
     );
   } else {
-    const ok = await verifyPubSubOidcToken(authHeader, audience);
+    const ok = await verifyPubSubOidcToken(
+      authHeader,
+      pubSubOidcAudiences(c.req.url, audience),
+    );
     if (!ok) {
       return c.json(
         {
@@ -809,7 +812,7 @@ const oauth2Client = new OAuth2Client();
 
 async function verifyPubSubOidcToken(
   authHeader: string | undefined,
-  audience: string,
+  audience: string | string[],
 ): Promise<boolean> {
   if (!authHeader?.startsWith("Bearer ")) {
     return false;
@@ -845,6 +848,41 @@ async function verifyPubSubOidcToken(
         : "(unknown error type)";
     console.warn("[webhooks/google] OIDC verification error", sanitized);
     return false;
+  }
+}
+
+export function pubSubOidcAudiences(
+  requestUrl: string,
+  configuredAudience: string,
+): string[] {
+  const audiences = new Set(
+    configuredAudience
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
+  );
+  const request = safeUrl(requestUrl);
+  if (!request) return Array.from(audiences);
+
+  for (const raw of Array.from(audiences)) {
+    const configured = safeUrl(raw);
+    if (!configured) continue;
+    const configuredIsOriginOnly =
+      configured.pathname === "/" && !configured.search && !configured.hash;
+    if (!configuredIsOriginOnly || configured.host !== request.host) continue;
+
+    audiences.add(configured.origin);
+    audiences.add(`${configured.origin}/`);
+    audiences.add(`${configured.origin}${request.pathname}${request.search}`);
+  }
+  return Array.from(audiences);
+}
+
+function safeUrl(value: string): URL | null {
+  try {
+    return new URL(value);
+  } catch {
+    return null;
   }
 }
 
