@@ -82,7 +82,7 @@ final class OpenIapConnectionLifecycle {
             let task = Task { [weak self] in
                 taskToCancel?.cancel()
                 if let taskToCancel {
-                    _ = try? await taskToCancel.value
+                    await Self.awaitCancelledInitTask(taskToCancel)
                 }
 
                 await cleanup()
@@ -271,5 +271,15 @@ final class OpenIapConnectionLifecycle {
         lock.lock()
         defer { lock.unlock() }
         return try body()
+    }
+
+    private static func awaitCancelledInitTask(_ task: Task<Bool, Error>) async {
+        do {
+            _ = try await task.value
+        } catch is CancellationError {
+            // Expected when endConnection cancels an in-flight initConnection.
+        } catch {
+            OpenIapLog.warn("initConnection failed while endConnection was cancelling it: \(error)")
+        }
     }
 }

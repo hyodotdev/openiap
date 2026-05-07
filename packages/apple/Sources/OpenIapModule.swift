@@ -23,6 +23,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
     private let state = IapState()
     private let connection = OpenIapConnectionLifecycle()
+    private static let initRetryDelayNanoseconds: UInt64 = 1_000_000
     private static let subscriptionPreflightTimeoutNanoseconds: UInt64 = 750_000_000
 
     private enum SubscriptionPreflightOutcome {
@@ -63,7 +64,11 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                 guard let self else { return false }
                 return try await self.performInitConnection(generation: generation)
             }) else {
-                await Task.yield()
+                if let endTask = connection.currentEndTask() {
+                    await endTask.value
+                } else {
+                    try await Task.sleep(nanoseconds: Self.initRetryDelayNanoseconds)
+                }
                 continue
             }
 
@@ -1415,6 +1420,9 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
         try Task.checkCancellation()
         try connection.ensureCurrent(generation)
+        if await state.isInitialized {
+            return true
+        }
 
         guard AppStore.canMakePayments else {
             emitPurchaseError(makePurchaseError(code: .iapNotAvailable))
