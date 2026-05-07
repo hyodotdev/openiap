@@ -5,6 +5,8 @@ import type { Doc, Id } from "../_generated/dataModel";
 import { monthlyMicrosForSub } from "./monthlyMicros";
 import { selectMostRecentlyUpdatedSubscription } from "./selectLatest";
 
+const DEFAULT_REPORTING_CURRENCY = "USD";
+
 const subscriptionStateValidator = v.union(
   v.literal("Active"),
   v.literal("InGracePeriod"),
@@ -67,6 +69,38 @@ async function projectByApiKey(
     .query("projects")
     .withIndex("by_api_key", (q: any) => q.eq("apiKey", apiKey))
     .unique();
+}
+
+function reportingCurrencyForProject(project: Doc<"projects">): string {
+  const candidate = project.reportingCurrency?.trim().toUpperCase();
+  return candidate && /^[A-Z]{3}$/.test(candidate)
+    ? candidate
+    : DEFAULT_REPORTING_CURRENCY;
+}
+
+export type MrrCurrencyEntry = { currency: string; mrrMicros: number };
+
+export function selectReportingMrr(
+  entries: MrrCurrencyEntry[],
+  reportingCurrency: string,
+): {
+  currency: string;
+  mrrMicros: number;
+  excludedMrrByCurrency: MrrCurrencyEntry[];
+} {
+  const normalizedReportingCurrency =
+    reportingCurrency.trim().toUpperCase() || DEFAULT_REPORTING_CURRENCY;
+  const reportingEntry = entries.find(
+    (entry) => entry.currency === normalizedReportingCurrency,
+  );
+
+  return {
+    currency: normalizedReportingCurrency,
+    mrrMicros: reportingEntry?.mrrMicros ?? 0,
+    excludedMrrByCurrency: entries.filter(
+      (entry) => entry.currency !== normalizedReportingCurrency,
+    ),
+  };
 }
 
 // Match onesub's `/onesub/status?userId=` — returns the most-recently-
@@ -265,16 +299,21 @@ export const metricsSummary = query({
     inBillingRetry: v.number(),
     refunded30d: v.number(),
     canceled30d: v.number(),
-    // Headline MRR in the project's most-popular currency, normalized
-    // to monthly. Historical field name kept for backward compat with
-    // dashboard / MCP consumers.
+    // Headline MRR in the project's reporting currency, normalized
+    // to monthly. Historical field name kept for dashboard / MCP
+    // consumers, but the value is no longer a cross-currency or
+    // "most popular currency" total.
     mrrMicros: v.number(),
     currency: v.optional(v.string()),
+    reportingCurrency: v.string(),
     // Full per-currency breakdown so consumers that care about
     // multi-currency aren't left guessing. Each entry's `mrrMicros`
     // is summed only over subscriptions in that currency, normalized
     // to monthly via the product's billingPeriod.
     mrrByCurrency: v.array(
+      v.object({ currency: v.string(), mrrMicros: v.number() }),
+    ),
+    excludedMrrByCurrency: v.array(
       v.object({ currency: v.string(), mrrMicros: v.number() }),
     ),
   }),
@@ -288,10 +327,13 @@ export const metricsSummary = query({
         refunded30d: 0,
         canceled30d: 0,
         mrrMicros: 0,
-        currency: undefined,
+        currency: DEFAULT_REPORTING_CURRENCY,
+        reportingCurrency: DEFAULT_REPORTING_CURRENCY,
         mrrByCurrency: [],
+        excludedMrrByCurrency: [],
       };
     }
+    const reportingCurrency = reportingCurrencyForProject(project);
 
     const now = Date.now();
     const cutoff = now - 30 * 24 * 60 * 60 * 1000;
@@ -410,14 +452,19 @@ export const metricsSummary = query({
       }
     }
 
-    // Pick the most-popular currency (largest accumulator) as the
-    // headline `currency` + `mrrMicros` so dashboards / MCP consumers
-    // that don't yet read the multi-currency breakdown still show a
-    // sensible single value. Stable tie-break via alphabetical sort.
+    // Sort per-currency MRR for deterministic UI rendering. The
+    // headline `mrrMicros` below intentionally uses only the
+    // project's reporting currency; other currencies remain visible
+    // in `excludedMrrByCurrency` instead of being silently summed
+    // without FX conversion.
     const sorted = Array.from(mrrAccumulators.entries()).sort(
       ([a, av], [b, bv]) => (bv !== av ? bv - av : a.localeCompare(b)),
     );
-    const headline = sorted[0];
+    const mrrByCurrency = sorted.map(([currency, mrrMicros]) => ({
+      currency,
+      mrrMicros,
+    }));
+    const reportingMrr = selectReportingMrr(mrrByCurrency, reportingCurrency);
 
     return {
       activeSubs,
@@ -425,12 +472,11 @@ export const metricsSummary = query({
       inBillingRetry,
       refunded30d,
       canceled30d,
-      mrrMicros: headline ? headline[1] : 0,
-      currency: headline ? headline[0] : undefined,
-      mrrByCurrency: sorted.map(([currency, mrrMicros]) => ({
-        currency,
-        mrrMicros,
-      })),
+      mrrMicros: reportingMrr.mrrMicros,
+      currency: reportingMrr.currency,
+      reportingCurrency: reportingMrr.currency,
+      mrrByCurrency,
+      excludedMrrByCurrency: reportingMrr.excludedMrrByCurrency,
     };
   },
 });

@@ -219,6 +219,12 @@ const schema = defineSchema({
     horizonAppId: v.optional(v.union(v.string(), v.null())),
     horizonAppSecret: v.optional(v.union(v.string(), v.null())),
 
+    // Stable presentation currency for dashboard analytics. Raw
+    // purchases/subscriptions keep their original store currency;
+    // without explicit FX conversion, reporting totals only include
+    // rows that already match this code.
+    reportingCurrency: v.optional(v.string()),
+
     // Per-platform "active product-sync job" lock. Read-and-patched
     // inside `enqueueProductSync` so Convex's optimistic concurrency
     // control collapses two concurrent enqueue mutations onto the

@@ -151,6 +151,17 @@ function normalizeHorizonAppSecret(input: string): string {
   return normalized;
 }
 
+function normalizeReportingCurrency(input: string): string {
+  const normalized = input.trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(normalized)) {
+    throw createError(
+      ErrorCode.INVALID_INPUT,
+      "Reporting currency must be a 3-letter ISO 4217 code (e.g. USD, EUR, GBP).",
+    );
+  }
+  return normalized;
+}
+
 // Helper to generate URL-friendly slug
 function generateSlug(name: string): string {
   return name
@@ -225,6 +236,7 @@ export const createProject = mutation({
       name: args.name,
       slug: finalSlug,
       apiKey, // Keep for backward compatibility, will be deprecated
+      reportingCurrency: "USD",
       createdAt: now,
       updatedAt: now,
       ...(args.platform ? { platform: args.platform } : {}),
@@ -275,6 +287,7 @@ export const updateProject = mutation({
     horizonEnabled: v.optional(v.boolean()),
     horizonAppId: v.optional(v.string()),
     horizonAppSecret: v.optional(v.string()),
+    reportingCurrency: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -329,6 +342,11 @@ export const updateProject = mutation({
     }
     if (args.iosAscKeyId !== undefined) {
       updates.iosAscKeyId = normalizeAppStoreKeyId(args.iosAscKeyId);
+    }
+    if (args.reportingCurrency !== undefined) {
+      updates.reportingCurrency = normalizeReportingCurrency(
+        args.reportingCurrency,
+      );
     }
 
     // Horizon fields: validated only when the feature is being

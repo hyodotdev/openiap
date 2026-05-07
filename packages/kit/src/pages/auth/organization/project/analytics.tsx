@@ -36,6 +36,7 @@ type Platform = "IOS" | "Android";
 type PlatformFilter = "all" | Platform;
 
 const DAY_MS = 86_400_000;
+const DEFAULT_REPORTING_CURRENCY = "USD";
 
 // Stable empty defaults. The kickoff render before `useQuery`
 // returns has `metrics === undefined`; we still need to invoke
@@ -190,26 +191,31 @@ export default function ProjectAnalytics() {
   // bail to `<PageLoading />` after the hooks have been registered.
   const metricsDays = metrics?.days ?? EMPTY_DAYS;
   const metricsCurrencies = metrics?.currencies ?? EMPTY_STRINGS;
+  const reportingCurrency =
+    project.reportingCurrency ?? DEFAULT_REPORTING_CURRENCY;
 
   // Multi-currency projects: we always pin to a single currency for
   // chart rendering because revenueMicros can't be summed across
   // currencies without an FX rate. `selectedCurrency` resolves to
-  // the explicit user choice, falling back to the first available
+  // the explicit user choice, falling back to the project reporting
   // currency. The currency selector below is REQUIRED (not
   // clearable) when multiple currencies exist so a user can never
   // end up in the broken "no currency selected, sum across all"
   // state — otherwise the totals would mix USD + EUR + JPY into a
   // single number labeled with one currency code.
   //
-  // Empty-project case (no rollup rows yet) leaves both
-  // `selectedCurrency` and `metricsCurrencies[0]` undefined; we
-  // resolve to "" deliberately and let the `EmptyState` below take
-  // over rendering — the chart subtree is gated on
-  // `metricsDays.length > 0` so a "" currency never reaches the
-  // axis labels.
-  const currency =
-    selectedCurrency ??
-    (metricsCurrencies.length > 0 ? metricsCurrencies[0] : "");
+  // Empty-project case (no rollup rows yet) still resolves to the
+  // project reporting currency so the UI does not drift based on
+  // whichever store event arrives first.
+  const currency = selectedCurrency ?? reportingCurrency;
+  const currencyOptions = useMemo(
+    () => Array.from(new Set([reportingCurrency, ...metricsCurrencies])).sort(),
+    [reportingCurrency, metricsCurrencies],
+  );
+  const excludedCurrencies = useMemo(
+    () => metricsCurrencies.filter((candidate) => candidate !== currency),
+    [metricsCurrencies, currency],
+  );
 
   // Client-side filtering. Range is also a client filter now (we
   // fetched the max range above), so flipping range chiclets stays
@@ -504,24 +510,35 @@ export default function ProjectAnalytics() {
             />
           </div>
         )}
-        {metrics.currencies.length > 1 && (
+        {currencyOptions.length > 1 && (
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Currency:</span>
             {/* No allowClear: revenue can't be summed across
                 currencies without an FX rate, so the chart must
-                always be pinned to exactly one. We surface the
-                first available currency as the default rather
-                than letting the user end up in a "no currency,
-                sum across" state where amounts would be wrong. */}
+                always be pinned to exactly one. The project
+                reporting currency is the default; other currencies
+                are visible here but excluded from current totals. */}
             <Select
               value={currency || undefined}
               onChange={(v) => setSelectedCurrency(v ?? null)}
               className="min-w-[100px]"
-              options={metrics.currencies.map((c) => ({ value: c, label: c }))}
+              options={currencyOptions.map((c) => ({
+                value: c,
+                label: c === reportingCurrency ? `${c} (reporting)` : c,
+              }))}
             />
           </div>
         )}
       </div>
+
+      {excludedCurrencies.length > 0 && (
+        <div className="border border-border bg-muted/20 rounded-lg p-4 text-sm text-muted-foreground">
+          Revenue totals are pinned to {currency}.{" "}
+          {excludedCurrencies.join(", ")}{" "}
+          {excludedCurrencies.length === 1 ? "is" : "are"} excluded from this
+          total because FX conversion is not enabled.
+        </div>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <SummaryCard

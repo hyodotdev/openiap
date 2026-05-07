@@ -18,6 +18,8 @@ import { Badge } from "../../../../components/Badge";
 
 type ProjectContext = { project: Doc<"projects"> };
 
+const DEFAULT_REPORTING_CURRENCY = "USD";
+
 const STATE_FILTERS = [
   { id: "all", label: "All" },
   { id: "Active", label: "Active" },
@@ -46,8 +48,16 @@ export default function ProjectSubscriptions() {
 
   const formattedMrr = useMemo(() => {
     if (!metrics) return "—";
-    return formatMicros(metrics.mrrMicros, metrics.currency);
+    return formatMicros(
+      metrics.mrrMicros,
+      metrics.reportingCurrency ?? metrics.currency,
+      metrics.mrrByCurrency.length === 0,
+    );
   }, [metrics]);
+  const reportingCurrency =
+    metrics?.reportingCurrency ??
+    project.reportingCurrency ??
+    DEFAULT_REPORTING_CURRENCY;
 
   if (subscriptions === undefined || metrics === undefined) {
     return <PageLoading />;
@@ -83,8 +93,45 @@ export default function ProjectSubscriptions() {
           label="Billing retry"
           value={metrics.inBillingRetry}
         />
-        <MetricCard icon={Calendar} label="MRR" value={formattedMrr} />
+        <MetricCard
+          icon={Calendar}
+          label={`MRR (${reportingCurrency})`}
+          value={formattedMrr}
+        />
       </div>
+
+      {metrics.excludedMrrByCurrency.length > 0 && (
+        <div className="border border-border rounded-lg bg-card p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium mb-2">
+                MRR excludes non-reporting currencies
+              </p>
+              <p className="text-sm text-muted-foreground mb-3">
+                The main MRR card only includes {reportingCurrency}. Other
+                currencies are not converted or summed without explicit FX
+                conversion.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {metrics.mrrByCurrency.map((entry) => (
+                  <span
+                    key={entry.currency}
+                    className={`rounded-md border px-2.5 py-1 text-xs tabular-nums ${
+                      entry.currency === reportingCurrency
+                        ? "border-primary/40 bg-primary/10 text-foreground"
+                        : "border-border bg-muted/30 text-muted-foreground"
+                    }`}
+                  >
+                    {formatMicros(entry.mrrMicros, entry.currency)}
+                    {entry.currency === reportingCurrency ? " included" : ""}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-3">
         <MetricCard
@@ -206,8 +253,12 @@ function formatDate(epoch: number): string {
   return new Date(epoch).toISOString().slice(0, 16).replace("T", " ");
 }
 
-function formatMicros(micros: number, currency?: string): string {
-  if (!micros) return "—";
+function formatMicros(
+  micros: number,
+  currency?: string,
+  emptyWhenZero = true,
+): string {
+  if (!micros && emptyWhenZero) return "—";
   const value = micros / 1_000_000;
   return `${currency ?? ""} ${value.toFixed(2)}`.trim();
 }
