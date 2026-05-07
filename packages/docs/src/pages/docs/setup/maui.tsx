@@ -299,6 +299,42 @@ await mutate.RequestPurchaseAsync(new RequestPurchaseProps
           </p>
         </div>
 
+        <h3 id="iapkit-api-webhooks" className="anchor-heading">
+          IAPKit API and Webhooks
+          <a href="#iapkit-api-webhooks" className="anchor-link">
+            #
+          </a>
+        </h3>
+        <p>
+          The MAUI package exposes the same IAPKit helper surface as the
+          JavaScript SDKs: create a kit client for status, entitlements, and
+          bind-user calls, and open the webhook SSE stream from the library
+          instead of hand-rolling the HTTP stream in the app.
+        </p>
+        <CodeBlock language="csharp">
+          {`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+var kit = Iap.KitApi(new KitApiOptions
+{
+    ApiKey = "<iapkit-api-key>",
+    BaseUrl = "https://kit.openiap.dev",
+});
+
+StatusResponse status = await kit.StatusAsync("user_123");
+EntitlementsResponse entitlements = await kit.EntitlementsAsync("user_123");
+BindUserResponse bind = await kit.BindUserAsync(purchase.PurchaseToken!, "user_123");
+
+using WebhookListener listener = Iap.ConnectWebhookStream(new WebhookListenerOptions
+{
+    ApiKey = "<iapkit-api-key>",
+    OnEvent = webhookEvent => Console.WriteLine(webhookEvent.Type),
+    OnError = error => Console.WriteLine($"{error.Code}: {error.Message}"),
+});
+
+ParsedWebhookEventResult parsed = Iap.ParseWebhookEventData(rawSseData);`}
+        </CodeBlock>
+
         <h3 id="cleanup" className="anchor-heading">
           Cleanup
           <a href="#cleanup" className="anchor-link">

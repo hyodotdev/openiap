@@ -117,6 +117,32 @@ public static class Iap
         }
         _instance = next;
     }
+
+    /// <summary>
+    /// Create a client for OpenIAP kit's HTTP API. Mirrors the JavaScript
+    /// <c>kitApi(...)</c> helper.
+    /// </summary>
+    public static KitApiClient KitApi(KitApiOptions options) => new(options);
+
+    /// <summary>
+    /// Connect to OpenIAP kit's SSE webhook stream. Mirrors the JavaScript
+    /// <c>connectWebhookStream(...)</c> helper.
+    /// </summary>
+    public static WebhookListener ConnectWebhookStream(WebhookListenerOptions options)
+        => WebhookClient.ConnectWebhookStream(options);
+
+    /// <summary>
+    /// Known OpenIAP kit webhook event types. Mirrors the JavaScript
+    /// <c>WEBHOOK_EVENT_TYPES</c> export.
+    /// </summary>
+    public static IReadOnlyList<WebhookEventType> WebhookEventTypes => WebhookClient.WebhookEventTypes;
+
+    /// <summary>
+    /// Parse a raw SSE <c>data:</c> payload into a typed webhook event. Mirrors
+    /// the JavaScript <c>parseWebhookEventData(...)</c> helper.
+    /// </summary>
+    public static ParsedWebhookEventResult ParseWebhookEventData(string raw)
+        => WebhookClient.ParseWebhookEventData(raw);
 }
 
 /// <summary>

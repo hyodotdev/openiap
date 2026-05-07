@@ -1,15 +1,17 @@
 using System.Text;
 using System.Text.Json;
+using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
 using OpenIap.Maui.Example.Utils;
 
 namespace OpenIap.Maui.Example.Pages;
 
 // Mirrors libraries/expo-iap/example/app/webhook-stream.tsx — connects to the
-// IAPKit SSE webhook stream and renders incoming events. Uses an explicit
-// HttpClient because MAUI's HttpClient defaults to buffered responses.
+// IAPKit SSE webhook stream through Hyo.OpenIap.Maui.ConnectWebhookStream and
+// renders incoming events.
 public partial class WebhookStreamPage : ContentPage
 {
-    private CancellationTokenSource? _cts;
+    private WebhookListener? _listener;
     private readonly HttpClient _http = new() { Timeout = Timeout.InfiniteTimeSpan };
     private bool _testing;
 
@@ -24,11 +26,11 @@ public partial class WebhookStreamPage : ContentPage
     protected override void OnDisappearing()
     {
         base.OnDisappearing();
-        _cts?.Cancel();
-        _cts = null;
+        _listener?.Close();
+        _listener = null;
     }
 
-    private async void OnConnectClicked(object sender, EventArgs e)
+    private void OnConnectClicked(object sender, EventArgs e)
     {
         OnDisconnectClicked(this, EventArgs.Empty);
         var apiKey = ApiKeyEntry.Text?.Trim();
@@ -40,55 +42,34 @@ public partial class WebhookStreamPage : ContentPage
 
         var url = GetStreamUrl(apiKey);
         IapKitSettings.Save(apiKey, BaseUrlEntry.Text);
-        _cts = new CancellationTokenSource();
         SetStatus("connecting", null);
         ResetEmptyLog();
         Append($"→ Connecting {url}");
 
-        try
+        _listener = Iap.ConnectWebhookStream(new WebhookListenerOptions
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.Accept.ParseAdd("text/event-stream");
-
-            using var response = await _http.SendAsync(
-                request,
-                HttpCompletionOption.ResponseHeadersRead,
-                _cts.Token);
-            response.EnsureSuccessStatusCode();
-            SetStatus("connected", null);
-
-            using var stream = await response.Content.ReadAsStreamAsync(_cts.Token);
-            using var reader = new StreamReader(stream, Encoding.UTF8);
-
-            Append("✔ Connected. Waiting for events...");
-
-            while (!_cts.Token.IsCancellationRequested)
+            ApiKey = apiKey,
+            BaseUrl = BaseUrlEntry.Text,
+            OnEvent = webhookEvent =>
             {
-                var line = await reader.ReadLineAsync(_cts.Token);
-                if (line is null) break;
-                if (line.StartsWith("data:", StringComparison.Ordinal))
-                {
-                    Append(FormatEventData(line[5..].Trim()));
-                }
-                else if (line.StartsWith("event:", StringComparison.Ordinal))
-                {
-                    Append($"[event] {line[6..].Trim()}");
-                }
-            }
-        }
-        catch (OperationCanceledException) { /* expected on disconnect */ }
-        catch (Exception ex)
-        {
-            SetStatus("error", ex.Message);
-            Append($"⚠ {ex.Message}");
-        }
+                SetStatus("connected", null);
+                Append(FormatEventData(webhookEvent));
+            },
+            OnError = error =>
+            {
+                SetStatus("error", $"{error.Code}: {error.Message}");
+                Append($"⚠ {error.Code}: {error.Message}");
+            },
+        });
+        SetStatus("connected", null);
+        Append("✔ Connected. Waiting for events...");
     }
 
     private void OnDisconnectClicked(object sender, EventArgs e)
     {
-        if (_cts is null) return;
-        _cts.Cancel();
-        _cts = null;
+        if (_listener is null) return;
+        _listener.Close();
+        _listener = null;
         SetStatus("idle", null);
         Append("→ Disconnected");
     }
@@ -214,30 +195,12 @@ public partial class WebhookStreamPage : ContentPage
         }
     }
 
-    private static string FormatEventData(string raw)
+    private static string FormatEventData(WebhookEvent webhookEvent)
     {
-        try
-        {
-            using var doc = JsonDocument.Parse(raw);
-            var root = doc.RootElement;
-            var type = GetString(root, "type") ?? "webhook-event";
-            var source = GetString(root, "source") ?? "-";
-            var platform = GetString(root, "platform") ?? "-";
-            var environment = GetString(root, "environment") ?? "-";
-            var productId = GetString(root, "productId") ?? "-";
-            var state = GetString(root, "subscriptionState") ?? "-";
-            var receivedAt = GetString(root, "receivedAt") ?? "-";
-            return $"{type}\nsource: {source} · platform: {platform} · env: {environment}\nproductId: {productId}\nsubscriptionState: {state}\nreceivedAt: {receivedAt}";
-        }
-        catch
-        {
-            return raw;
-        }
-    }
-
-    private static string? GetString(JsonElement element, string propertyName)
-    {
-        if (!element.TryGetProperty(propertyName, out var property)) return null;
-        return property.ValueKind == JsonValueKind.String ? property.GetString() : property.ToString();
+        return $"{webhookEvent.Type.ToJson()}\n" +
+               $"source: {webhookEvent.Source.ToJson()} · platform: {webhookEvent.Platform.ToJson()} · env: {webhookEvent.Environment.ToJson()}\n" +
+               $"productId: {webhookEvent.ProductId ?? "-"}\n" +
+               $"subscriptionState: {webhookEvent.SubscriptionState?.ToJson() ?? "-"}\n" +
+               $"receivedAt: {webhookEvent.ReceivedAt}";
     }
 }

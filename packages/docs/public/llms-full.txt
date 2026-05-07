@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-05-07T03:07:05.443Z
+> Generated: 2026-05-07T06:54:51.692Z
 
 ## Table of Contents
 1. Installation
@@ -121,11 +121,13 @@ Requires .NET 9+, the MAUI workload, iOS 15.0+, and Android API 24+.
   app-level `NativeReference` is required.
 - Android bridge: Xamarin.Android binding over the MAUI-owned
   `openiap-release.aar`, which wraps the unbound
-  `openiap-play-release.aar` runtime dependency; the binding support AAR and
-  resolved BillingClient / Play Services AARs are included in the main nupkg
-  for app packaging.
+  `openiap-play-release.aar` runtime dependency; resolved BillingClient /
+  Play Services AARs are included in the main nupkg for app packaging.
 - Public surface: `QueryResolver`, `MutationResolver`, and `IOpenIap`
-  implemented by `OpenIapIOS`, `OpenIapAndroid`, and `OpenIapMacCatalyst`.
+  implemented by `OpenIapIOS`, `OpenIapAndroid`, and `OpenIapMacCatalyst`;
+  IAPKit helpers mirror the TypeScript SDKs via `Iap.KitApi(...)`,
+  `Iap.ConnectWebhookStream(...)`, `Iap.ParseWebhookEventData(...)`, and
+  `Iap.WebhookEventTypes`.
 - Example app: `libraries/maui-iap/example/OpenIap.Maui.Example`, mirroring
   the `expo-iap` example flows.
 

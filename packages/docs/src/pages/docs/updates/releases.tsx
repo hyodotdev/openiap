@@ -73,6 +73,12 @@ function Releases() {
               flow, available purchases, alternative billing, offer codes, and
               webhook stream demos.
             </li>
+            <li>
+              <strong>IAPKit helper parity</strong> — MAUI exposes{' '}
+              <code>Iap.KitApi</code> and <code>Iap.ConnectWebhookStream</code>,
+              plus the webhook parser helper, so apps can use the same status,
+              entitlements, bind-user, and webhook flow as the TypeScript SDKs.
+            </li>
           </ul>
 
           {/* Package Releases */}

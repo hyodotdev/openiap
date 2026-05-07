@@ -178,7 +178,10 @@ Requires .NET 9+, the MAUI workload, iOS 15.0+, and Android API 24+.
   \`openiap-play-release.aar\` runtime dependency; resolved BillingClient /
   Play Services AARs are included in the main nupkg for app packaging.
 - Public surface: \`QueryResolver\`, \`MutationResolver\`, and \`IOpenIap\`
-  implemented by \`OpenIapIOS\`, \`OpenIapAndroid\`, and \`OpenIapMacCatalyst\`.
+  implemented by \`OpenIapIOS\`, \`OpenIapAndroid\`, and \`OpenIapMacCatalyst\`;
+  IAPKit helpers mirror the TypeScript SDKs via \`Iap.KitApi(...)\`,
+  \`Iap.ConnectWebhookStream(...)\`, \`Iap.ParseWebhookEventData(...)\`, and
+  \`Iap.WebhookEventTypes\`.
 - Example app: \`libraries/maui-iap/example/OpenIap.Maui.Example\`, mirroring
   the \`expo-iap\` example flows.
 
@@ -347,8 +350,10 @@ implementation("io.github.hyochan.kmpiap:library:1.3.8")
 - \`godot-iap\`: Godot 4.x plugin with GDScript functions and signals.
 - \`kmp-iap\`: Kotlin Multiplatform API with Flow-based purchase events.
 - \`maui-iap\`: \`Hyo.OpenIap.Maui\` package with \`Iap.Instance\`,
-  generated \`Types.cs\`, flattened iOS xcframework / Android AAR bindings in
-  one NuGet package, and MAUI example flows matching \`expo-iap\`.
+  generated \`Types.cs\`, IAPKit helpers (\`Iap.KitApi\`,
+  \`Iap.ConnectWebhookStream\`, \`Iap.ParseWebhookEventData\`), flattened iOS
+  xcframework / Android AAR bindings in one NuGet package, and MAUI example
+  flows matching \`expo-iap\`.
 
 ## Core APIs
 

@@ -80,6 +80,41 @@ Always validate purchases on your server before granting entitlement, then call
 `FinishTransactionAsync`. On Android, unfinished purchases are refunded
 automatically after 3 days.
 
+## IAPKit API and webhooks
+
+MAUI exposes the same kit helper surface as `expo-iap` and
+`react-native-iap`, with C# naming conventions:
+
+```csharp
+using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+var kit = Iap.KitApi(new KitApiOptions
+{
+    ApiKey = "iapkit_...",
+    BaseUrl = "https://kit.openiap.dev",
+});
+
+var status = await kit.StatusAsync("user-123");
+var entitlements = await kit.EntitlementsAsync("user-123");
+await kit.BindUserAsync(purchaseToken: "token", userId: "user-123");
+
+using var listener = Iap.ConnectWebhookStream(new WebhookListenerOptions
+{
+    ApiKey = "iapkit_...",
+    OnEvent = webhookEvent =>
+    {
+        Console.WriteLine($"{webhookEvent.Type.ToJson()}: {webhookEvent.ProductId}");
+    },
+    OnError = error =>
+    {
+        Console.WriteLine($"{error.Code}: {error.Message}");
+    },
+});
+
+ParsedWebhookEventResult parsed = Iap.ParseWebhookEventData(rawSseData);
+```
+
 ## Example app
 
 ```bash

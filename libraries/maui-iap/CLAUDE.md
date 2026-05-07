@@ -5,7 +5,9 @@ imports the generated [`Types.cs`](src/OpenIap.Maui/Types.cs) from
 [`packages/gql`](../../packages/gql), exposes a thin listener contract
 (`IOpenIap`), and delegates the actual purchase work to the OpenIAP
 native packages — `packages/apple` on iOS / macCatalyst, `packages/google`
-on Android.
+on Android. It also exposes the same IAPKit HTTP/webhook helper surface as the
+TypeScript SDKs through `Iap.KitApi(...)`, `Iap.ConnectWebhookStream(...)`, and
+`Iap.ParseWebhookEventData(...)`.
 
 ## Required pre-work
 
