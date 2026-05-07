@@ -742,10 +742,10 @@ class HybridRnIap: HybridRnIapSpec {
                 return payloads.map { RnIapHelper.convertPurchaseDictionary($0) }
             } catch let purchaseError as PurchaseError {
                 RnIapLog.failure("getAllTransactionsIOS", error: purchaseError)
-                throw OpenIapException(purchaseError.toJsonString())
+                throw OpenIapException.from(purchaseError)
             } catch {
                 RnIapLog.failure("getAllTransactionsIOS", error: error)
-                throw OpenIapException(toErrorJson(OpenIAPError.ServiceError(debugMessage: error.localizedDescription)))
+                throw OpenIapException.make(code: .serviceError, message: error.localizedDescription)
             }
         }
     }
