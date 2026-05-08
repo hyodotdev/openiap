@@ -380,6 +380,13 @@ async function main() {
     'purchase',
     'product',
     'subscription',
+    // Top-level scalar/list function parameters. These legitimately appear
+    // in API parameter lists but are not generated object fields.
+    'program',
+    'subscriptionIds',
+    'tokenType',
+    'groupId',
+    'noticeType',
     'continued',
     'reconnect',
     'cancel',
