@@ -15,15 +15,20 @@ NC='\033[0m' # No Color
 echo -e "${BLUE}🚀 OpenIAP Deployment Script${NC}"
 echo ""
 
-# Check if version is provided
-if [ -z "$1" ]; then
-    echo -e "${RED}❌ Error: Version number is required${NC}"
-    echo -e "${YELLOW}Usage: npm run deploy <version>${NC}"
-    echo -e "${YELLOW}Example: npm run deploy 1.3.8${NC}"
+# Read current version from openiap-versions.json. If no explicit version is
+# supplied, deploy the spec version already recorded there.
+CURRENT_VERSION=$(jq -r '.spec // empty' openiap-versions.json)
+if [ -z "$CURRENT_VERSION" ]; then
+    echo -e "${RED}❌ Error: Could not read .spec from openiap-versions.json${NC}"
     exit 1
 fi
 
-VERSION=$1
+if [ -z "$1" ]; then
+    VERSION=$CURRENT_VERSION
+    echo -e "${BLUE}📦 No version supplied; using openiap-versions.json spec: $VERSION${NC}"
+else
+    VERSION=$1
+fi
 
 # Validate version format
 if [[ "$VERSION" == v* ]] || [[ "$VERSION" == gql-* ]]; then
@@ -38,8 +43,6 @@ if [[ ! "$VERSION" =~ ^[0-9]+(\.[0-9]+){2}(-[0-9A-Za-z.-]+)?$ ]]; then
     exit 1
 fi
 
-# Read current version from openiap-versions.json
-CURRENT_VERSION=$(jq -r '.spec' openiap-versions.json)
 echo -e "${BLUE}📍 Current spec version: $CURRENT_VERSION${NC}"
 echo -e "${GREEN}✅ Target version: $VERSION${NC}"
 echo ""
@@ -91,13 +94,16 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
 fi
 
 echo ""
-echo -e "${BLUE}📦 Step 1: Updating version in openiap-versions.json...${NC}"
+echo -e "${BLUE}📦 Step 1: Preparing version files...${NC}"
 
 # Update gql and docs versions in openiap-versions.json
-jq --arg version "$VERSION" '.spec = $version' openiap-versions.json > openiap-versions.tmp
-mv openiap-versions.tmp openiap-versions.json
-
-echo -e "${GREEN}✅ Updated openiap-versions.json${NC}"
+if [ "$VERSION" != "$CURRENT_VERSION" ]; then
+    jq --arg version "$VERSION" '.spec = $version' openiap-versions.json > openiap-versions.tmp
+    mv openiap-versions.tmp openiap-versions.json
+    echo -e "${GREEN}✅ Updated openiap-versions.json${NC}"
+else
+    echo -e "${GREEN}✅ openiap-versions.json already uses spec $VERSION${NC}"
+fi
 
 # Sync version files from root to packages
 echo -e "${BLUE}📦 Syncing version files to packages...${NC}"

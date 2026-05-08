@@ -124,7 +124,7 @@ Fix purchase validation error
 
 ```bash
 # From monorepo root
-npm run deploy 1.2.0
+npm run deploy
 ```
 
 This will:
@@ -133,8 +133,16 @@ This will:
 2. Trigger GitHub Actions workflow to:
    - Regenerate types for all platforms
    - Create release artifacts (TypeScript, Dart, Kotlin, Swift)
-   - Create Git tag `v1.2.0`
+   - Create Git tag `v<spec>`
    - Create GitHub Release with artifacts
+
+`npm run deploy` uses the current `spec` value from
+`openiap-versions.json`. To deploy a different spec version, pass it
+explicitly:
+
+```bash
+npm run deploy 1.2.0
+```
 
 ---
 
@@ -202,7 +210,8 @@ This file is automatically managed by CI/CD workflows during releases:
 - Apple releases update `apple` version
 - Google releases update `google` version
 - GQL releases update `spec` version
-- Deploy script (`npm run deploy`) updates `spec` version
+- Deploy script (`npm run deploy`) uses the current `spec` version by default,
+  and updates `spec` only when an explicit version is passed
 
 The manifest is only for the shared spec and native platform packages:
 `spec`, `google`, and `apple`. Framework library package versions
@@ -217,5 +226,5 @@ Manual edits will cause version conflicts and deployment issues. Always use the 
 **Rule:** Feature PRs must NEVER touch version fields in `openiap-versions.json`. Version bumps happen only via:
 
 1. Release workflows (Apple Release, Google Release)
-2. Deploy script (`npm run deploy <version>`)
+2. Deploy script (`npm run deploy`, optionally `npm run deploy <version>`)
 3. CI auto-bump after merge
