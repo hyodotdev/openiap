@@ -101,8 +101,11 @@ copy:
 
 ```bash
 gv ssh --env agent-sandbox -- \
-  'docker run --rm \
-    -v /home/hyo/workspace/openiap:/src:ro \
+  'set -eu
+  OPENIAP_PATH="${OPENIAP_PATH:-$HOME/workspace/openiap}"
+  test -d "$OPENIAP_PATH"
+  docker run --rm \
+    -v "$OPENIAP_PATH:/src:ro" \
     -w /work \
     oven/bun:1.3.13 \
     bash -lc "cp -a /src/. /work && bun install --frozen-lockfile && bun run audit:docs"'
