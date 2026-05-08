@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import {useEffect, useState} from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -109,7 +109,7 @@ export default function Home() {
 
   const renderItem = (item: MenuItem) => {
     return (
-      <Link href={item.href as any} asChild>
+      <Link key={item.id} href={item.href as any} asChild>
         <TouchableOpacity style={styles.menuItem}>
           <View
             style={[styles.iconContainer, {backgroundColor: item.accentColor}]}
@@ -131,9 +131,7 @@ export default function Home() {
       <View style={styles.contentInner}>
         {renderHeader()}
         <View style={styles.menuGrid}>
-          {MENU_ITEMS.map((item) => (
-            <React.Fragment key={item.id}>{renderItem(item)}</React.Fragment>
-          ))}
+          {MENU_ITEMS.map(renderItem)}
         </View>
       </View>
     </ScrollView>

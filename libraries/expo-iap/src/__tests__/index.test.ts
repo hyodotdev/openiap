@@ -53,6 +53,7 @@ afterAll(() => {
 describe('Public API (index.ts)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (ExpoIapModule.getPromotedProductIOS as jest.Mock).mockResolvedValue(null);
   });
 
   describe('listeners', () => {
@@ -128,10 +129,28 @@ describe('Public API (index.ts)', () => {
 
       promotedProductListenerIOS(listener);
       const nativeListener = addListener.mock.calls[0][1];
-      nativeListener(product);
+      nativeListener('promoted-product');
       await Promise.resolve();
 
       expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it('promotedProductListenerIOS resolves native SKU payloads', async () => {
+      (Platform as any).OS = 'ios';
+      const product = {id: 'promoted-product', platform: 'ios'} as any;
+      (ExpoIapModule.getPromotedProductIOS as jest.Mock)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(product);
+      const addListener = (ExpoIapModule as any).addListener as jest.Mock;
+      const listener = jest.fn();
+
+      promotedProductListenerIOS(listener);
+      const nativeListener = addListener.mock.calls[0][1];
+      nativeListener('promoted-product');
+      await Promise.resolve();
+
+      expect(listener).toHaveBeenCalledWith(product);
+      expect(listener).not.toHaveBeenCalledWith('promoted-product');
     });
 
     it('userChoiceBillingListenerAndroid warns on non‑Android, adds on Android', () => {

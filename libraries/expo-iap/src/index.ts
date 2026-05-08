@@ -70,7 +70,10 @@ export enum OpenIapEvent {
 type ExpoIapEventPayloads = {
   [OpenIapEvent.PurchaseUpdated]: Purchase;
   [OpenIapEvent.PurchaseError]: PurchaseError;
-  [OpenIapEvent.PromotedProductIOS]: Product;
+  [OpenIapEvent.PromotedProductIOS]:
+    | Product
+    | string
+    | {id?: string; productId?: string};
   [OpenIapEvent.UserChoiceBillingAndroid]: UserChoiceBillingDetails;
   [OpenIapEvent.DeveloperProvidedBillingAndroid]: DeveloperProvidedBillingDetailsAndroid;
   [OpenIapEvent.SubscriptionBillingIssue]: Purchase;
@@ -222,18 +225,28 @@ export const promotedProductListenerIOS = (
     listener(product);
   };
 
+  const replayPendingProduct = () =>
+    ExpoIapModule.getPromotedProductIOS()
+      .then((product: Product | null) => {
+        if (product) {
+          deliver(product);
+        }
+      })
+      .catch(() => {});
+
   const subscription = emitter.addListener(
     OpenIapEvent.PromotedProductIOS,
-    deliver,
+    (payload) => {
+      if (typeof payload === 'string') {
+        void replayPendingProduct();
+        return;
+      }
+
+      deliver(payload as Product);
+    },
   );
 
-  void Promise.resolve(ExpoIapModule.getPromotedProductIOS())
-    .then((product: Product | null) => {
-      if (product) {
-        deliver(product);
-      }
-    })
-    .catch(() => {});
+  void replayPendingProduct();
 
   return subscription;
 };
