@@ -225,14 +225,28 @@ export const promotedProductListenerIOS = (
     listener(product);
   };
 
-  const replayPendingProduct = () =>
-    ExpoIapModule.getPromotedProductIOS()
+  const replayPendingProduct = () => {
+    let pendingProduct: Promise<Product | null> | undefined;
+    try {
+      pendingProduct = ExpoIapModule.getPromotedProductIOS() as
+        | Promise<Product | null>
+        | undefined;
+    } catch {
+      return Promise.resolve();
+    }
+
+    if (!pendingProduct || typeof pendingProduct.then !== 'function') {
+      return Promise.resolve();
+    }
+
+    return pendingProduct
       .then((product: Product | null) => {
         if (product) {
           deliver(product);
         }
       })
       .catch(() => {});
+  };
 
   const subscription = emitter.addListener(
     OpenIapEvent.PromotedProductIOS,

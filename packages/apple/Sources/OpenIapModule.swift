@@ -29,6 +29,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     #if os(iOS)
     private let promotedPurchaseObserverLock = NSLock()
     private var didRegisterPromotedPurchaseObserver = false
+    private var isPromotedPurchaseObserverTransitionInFlight = false
     #endif
 
     private enum SubscriptionPreflightOutcome {
@@ -1463,48 +1464,58 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     private func registerPromotedPurchaseObserverIfNeeded() {
         #if os(iOS)
         promotedPurchaseObserverLock.lock()
-        let shouldRegister = !didRegisterPromotedPurchaseObserver
+        let shouldRegister = !didRegisterPromotedPurchaseObserver &&
+            !isPromotedPurchaseObserverTransitionInFlight
         if shouldRegister {
-            didRegisterPromotedPurchaseObserver = true
+            isPromotedPurchaseObserverTransitionInFlight = true
         }
         promotedPurchaseObserverLock.unlock()
 
         guard shouldRegister else { return }
 
-        let addObserver = { [weak self] in
-            guard let self else { return }
+        let addObserver = {
             SKPaymentQueue.default().add(self)
         }
 
         if Thread.isMainThread {
             addObserver()
         } else {
-            DispatchQueue.main.async(execute: addObserver)
+            DispatchQueue.main.sync(execute: addObserver)
         }
+
+        promotedPurchaseObserverLock.lock()
+        didRegisterPromotedPurchaseObserver = true
+        isPromotedPurchaseObserverTransitionInFlight = false
+        promotedPurchaseObserverLock.unlock()
         #endif // os(iOS)
     }
 
     private func unregisterPromotedPurchaseObserverIfNeeded() {
         #if os(iOS)
         promotedPurchaseObserverLock.lock()
-        let shouldUnregister = didRegisterPromotedPurchaseObserver
+        let shouldUnregister = didRegisterPromotedPurchaseObserver &&
+            !isPromotedPurchaseObserverTransitionInFlight
         if shouldUnregister {
-            didRegisterPromotedPurchaseObserver = false
+            isPromotedPurchaseObserverTransitionInFlight = true
         }
         promotedPurchaseObserverLock.unlock()
 
         guard shouldUnregister else { return }
 
-        let removeObserver = { [weak self] in
-            guard let self else { return }
+        let removeObserver = {
             SKPaymentQueue.default().remove(self)
         }
 
         if Thread.isMainThread {
             removeObserver()
         } else {
-            DispatchQueue.main.async(execute: removeObserver)
+            DispatchQueue.main.sync(execute: removeObserver)
         }
+
+        promotedPurchaseObserverLock.lock()
+        didRegisterPromotedPurchaseObserver = false
+        isPromotedPurchaseObserverTransitionInFlight = false
+        promotedPurchaseObserverLock.unlock()
         #endif // os(iOS)
     }
 
@@ -1780,7 +1791,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
     private func emitPromotedProduct(_ sku: String) {
         Task { [state] in
-            let listeners = await state.snapshotPromoted()
+            let listeners = await state.recordPromotedProductAndSnapshotListeners(sku)
             await MainActor.run {
                 listeners.forEach { $0(sku) }
             }
@@ -2045,7 +2056,6 @@ extension OpenIapModule: SKPaymentTransactionObserver {
     public func paymentQueue(_ queue: SKPaymentQueue, shouldAddStorePayment payment: SKPayment, for product: SKProduct) -> Bool {
         Task { [weak self] in
             guard let self else { return }
-            await self.state.setPromotedProductId(product.productIdentifier)
             self.emitPromotedProduct(product.productIdentifier)
         }
         return false

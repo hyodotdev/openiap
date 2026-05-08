@@ -26,14 +26,15 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
-    // May 8, 2026 — openiap-apple 2.1.8 promoted IAP cold-start fix
+    // May 8, 2026 — planned openiap-apple 2.1.8 promoted IAP cold-start fix
     {
       id: 'apple-2-1-8-promoted-iap-cold-start',
       date: new Date('2026-05-08'),
       element: (
         <div key="apple-2-1-8-promoted-iap-cold-start" style={noteCardStyle}>
           <AnchorLink id="apple-2-1-8-promoted-iap-cold-start" level="h4">
-            May 8, 2026 — openiap-apple 2.1.8 promoted IAP cold-start fix
+            May 8, 2026 — planned openiap-apple 2.1.8 promoted IAP cold-start
+            fix
           </AnchorLink>
 
           <p
@@ -42,11 +43,11 @@ function Releases() {
               color: 'var(--text-secondary)',
             }}
           >
-            Publishes <strong>openiap-apple 2.1.8</strong> and framework-library
+            Plans <strong>openiap-apple 2.1.8</strong> and framework-library
             patch releases for an iOS launch race where App Store promoted
-            purchase intents could arrive before JavaScript called{' '}
+            purchase intents can arrive before JavaScript calls{' '}
             <Link to="/docs/apis/init-connection">initConnection()</Link>. The
-            Apple runtime now registers its StoreKit payment-queue observer at
+            Apple runtime will register its StoreKit payment-queue observer at
             native module launch, keeps promoted-purchase observation
             independent from connection teardown, and replays pending products
             to{' '}
@@ -57,7 +58,7 @@ function Releases() {
             <Link to="/docs/apis/ios/get-promoted-product-ios">
               getPromotedProductIOS()
             </Link>
-            . See{' '}
+            . Track the fix in{' '}
             <a
               href="https://github.com/hyodotdev/openiap/issues/143"
               target="_blank"
@@ -65,6 +66,15 @@ function Releases() {
               className="external-link"
             >
               issue #143
+            </a>{' '}
+            and{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/144"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #144
             </a>
             .
           </p>
@@ -100,14 +110,14 @@ function Releases() {
             </li>
           </ul>
 
-          {/* Package Releases */}
+          {/* Planned Package Releases */}
           <div
             style={{
               paddingTop: '1rem',
               borderTop: '1px solid var(--border-color)',
             }}
           >
-            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Planned Package Releases</h5>
             <ul
               style={{
                 margin: 0,
@@ -115,69 +125,13 @@ function Releases() {
                 fontSize: '0.9rem',
               }}
             >
-              <li>
-                <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/2.1.8"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  openiap-apple 2.1.8
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/react-native-iap-15.2.3"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  react-native-iap 15.2.3
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/expo-iap-4.2.7"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  expo-iap 4.2.7
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.2.7"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  flutter_inapp_purchase 9.2.7
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/godot-iap-2.2.7"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  godot-iap 2.2.7
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/kmp-iap-2.2.7"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  kmp-iap 2.2.7
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/maui-iap-1.0.3"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  maui-iap 1.0.3
-                </a>
-              </li>
+              <li>openiap-apple 2.1.8</li>
+              <li>react-native-iap 15.2.3</li>
+              <li>expo-iap 4.2.7</li>
+              <li>flutter_inapp_purchase 9.2.7</li>
+              <li>godot-iap 2.2.7</li>
+              <li>kmp-iap 2.2.7</li>
+              <li>maui-iap 1.0.3</li>
             </ul>
           </div>
         </div>

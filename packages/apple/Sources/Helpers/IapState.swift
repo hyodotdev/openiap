@@ -9,6 +9,7 @@ actor IapState {
     private(set) var isInitialized: Bool = false
     private var pendingTransactions: [String: Transaction] = [:]
     private var promotedProductId: String?
+    private var pendingPromotedProductReplayId: String?
 
     // Event listeners
     private var purchaseUpdatedListeners: [(id: UUID, listener: PurchaseUpdatedListener)] = []
@@ -22,6 +23,7 @@ actor IapState {
         pendingTransactions.removeAll()
         isInitialized = false
         promotedProductId = nil
+        pendingPromotedProductReplayId = nil
     }
 
     // MARK: - Pending Transactions
@@ -31,8 +33,19 @@ actor IapState {
     func pendingSnapshot() -> [Transaction] { Array(pendingTransactions.values) }
 
     // MARK: - Promoted Products
-    func setPromotedProductId(_ id: String?) { promotedProductId = id }
+    func setPromotedProductId(_ id: String?) {
+        promotedProductId = id
+        if id == nil {
+            pendingPromotedProductReplayId = nil
+        }
+    }
     func promotedProductIdentifier() -> String? { promotedProductId }
+    func recordPromotedProductAndSnapshotListeners(_ id: String) -> [PromotedProductListener] {
+        promotedProductId = id
+        let listeners = promotedProductListeners.map { $0.listener }
+        pendingPromotedProductReplayId = listeners.isEmpty ? id : nil
+        return listeners
+    }
 
     // MARK: - Listeners
     func addPurchaseUpdatedListener(_ pair: (UUID, PurchaseUpdatedListener)) {
@@ -43,7 +56,9 @@ actor IapState {
     }
     func addPromotedProductListener(_ pair: (UUID, PromotedProductListener)) -> String? {
         promotedProductListeners.append((id: pair.0, listener: pair.1))
-        return promotedProductId
+        let pendingProductId = pendingPromotedProductReplayId
+        pendingPromotedProductReplayId = nil
+        return pendingProductId
     }
     func addSubscriptionBillingIssueListener(_ pair: (UUID, SubscriptionBillingIssueListener)) {
         subscriptionBillingIssueListeners.append((id: pair.0, listener: pair.1))
