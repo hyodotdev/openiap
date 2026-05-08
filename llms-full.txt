@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-05-07T06:54:51.692Z
+> Generated: 2026-05-08T10:48:46.777Z
 
 ## Table of Contents
 1. Installation
@@ -65,7 +65,7 @@ dependencies {
 
 ### .NET MAUI
 ```xml
-<PackageReference Include="OpenIap.Maui" Version="1.0.0" />
+<PackageReference Include="OpenIap.Maui" Version="1.0.1" />
 ```
 
 Requires .NET 9+, the MAUI workload, iOS 15.0+, and Android API 24+.

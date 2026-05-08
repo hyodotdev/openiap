@@ -35,16 +35,19 @@ cd scripts/agent && bun run compile:ai
 Use WebSearch to get the latest platform API information:
 
 **Google Play Billing Library:**
+
 - Search: "Google Play Billing Library release notes site:developer.android.com"
 - Check for new features in latest version (currently 8.x)
 - Key areas: one-time products, subscription offers, billing programs
 
 **Apple StoreKit 2:**
+
 - Search: "StoreKit 2 updates site:developer.apple.com"
 - Check WWDC announcements for new features
 - Key areas: win-back offers, advanced commerce, offer codes
 
 **Meta Horizon Billing:**
+
 - Search: "Meta Horizon Billing Compatibility SDK release notes site:developers.meta.com"
 - Check compatibility with Google Play Billing Library version
 - Key areas: billing compatibility SDK version, API parity with Play flavor
@@ -54,11 +57,13 @@ Use WebSearch to get the latest platform API information:
 Check each package against internal rules AND latest API capabilities:
 
 **Packages to analyze:**
+
 - `packages/apple/Sources/` - iOS/macOS Swift code
 - `packages/google/openiap/src/main/` - Android Kotlin code
 - `packages/gql/src/` - GraphQL schema (API definitions)
 
 **Rules to check (from knowledge/internal/):**
+
 - `01-naming-conventions.md` - Function naming (IOS suffix, no Android suffix in google package)
 - `02-architecture.md` - Code organization, file structure
 - `03-coding-style.md` - Explicit return types, error handling
@@ -70,55 +75,57 @@ Compare current implementation against latest platform APIs:
 
 **Google Play Billing (check packages/gql/src/api-android.graphql):**
 
-| Feature | Version | Check |
-|---------|---------|-------|
-| One-time products with multiple offers | 8.0 | Is it in schema? |
-| Product-level status codes | 8.0 | Returned in fetchProducts? |
-| Suspended subscriptions (isSuspended) | 8.1 | Purchase type has it? |
-| includeSuspended parameter | 8.1 | getAvailablePurchases supports it? |
-| Billing Programs API | 8.2 | isBillingProgramAvailable implemented? |
+| Feature                                | Version | Check                                  |
+| -------------------------------------- | ------- | -------------------------------------- |
+| One-time products with multiple offers | 8.0     | Is it in schema?                       |
+| Product-level status codes             | 8.0     | Returned in fetchProducts?             |
+| Suspended subscriptions (isSuspended)  | 8.1     | Purchase type has it?                  |
+| includeSuspended parameter             | 8.1     | getAvailablePurchases supports it?     |
+| Billing Programs API                   | 8.2     | isBillingProgramAvailable implemented? |
 
 **StoreKit 2 (check packages/gql/src/api-ios.graphql):**
 
-| Feature | Version | Check |
-|---------|---------|-------|
-| Win-back offers | iOS 18 | Supported in schema? |
-| Consumable transaction history | iOS 18 | getPendingTransactionsIOS returns them? |
-| Billing issue messages | iOS 18 | Event listener exists? |
-| Advanced Commerce API | iOS 18.4 | AdvancedCommerceProduct type? |
-| appTransactionID | iOS 18.4 | In AppTransaction type? |
-| Expanded offer codes | iOS 18.4 | For consumables/non-consumables? |
+| Feature                        | Version  | Check                                   |
+| ------------------------------ | -------- | --------------------------------------- |
+| Win-back offers                | iOS 18   | Supported in schema?                    |
+| Consumable transaction history | iOS 18   | getPendingTransactionsIOS returns them? |
+| Billing issue messages         | iOS 18   | Event listener exists?                  |
+| Advanced Commerce API          | iOS 18.4 | AdvancedCommerceProduct type?           |
+| appTransactionID               | iOS 18.4 | In AppTransaction type?                 |
+| Expanded offer codes           | iOS 18.4 | For consumables/non-consumables?        |
 
 **Meta Horizon (check packages/google/openiap/src/horizon/):**
 
-| Feature | Check |
-|---------|-------|
+| Feature                               | Check                           |
+| ------------------------------------- | ------------------------------- |
 | horizon-billing-compatibility version | Is it latest? (currently 1.1.1) |
-| API parity with Play flavor | Same APIs available in both? |
-| Shared code compatibility | Uses only Billing 7.0 APIs? |
-| getAvailableItems (Horizon-only) | Implemented? |
-| verifyPurchase S2S | verify_entitlement endpoint? |
+| API parity with Play flavor           | Same APIs available in both?    |
+| Shared code compatibility             | Uses only Billing 7.0 APIs?     |
+| getAvailableItems (Horizon-only)      | Implemented?                    |
+| verifyPurchase S2S                    | verify_entitlement endpoint?    |
 
 **Version Compatibility (CRITICAL):**
 
-| Check | Expected |
-|-------|----------|
-| Play flavor Billing version | 8.x |
-| Horizon SDK compatible with | Billing 7.0 API |
-| Shared code uses | Only 7.0-compatible APIs |
-| react-native-iap requires | v14+, RN 0.79+, Kotlin 2.0+ |
+| Check                       | Expected                    |
+| --------------------------- | --------------------------- |
+| Play flavor Billing version | 8.x                         |
+| Horizon SDK compatible with | Billing 7.0 API             |
+| Shared code uses            | Only 7.0-compatible APIs    |
+| react-native-iap requires   | v14+, RN 0.79+, Kotlin 2.0+ |
 
 ### 5. Analysis Checklist
 
 **Internal Rules Compliance:**
 
 packages/apple (Swift):
+
 - [ ] iOS-specific functions end with `IOS` suffix
 - [ ] Cross-platform functions have NO suffix
 - [ ] Acronyms follow Swift conventions (IapManager, not IAPManager)
 - [ ] Types match OpenIAP specification
 
 packages/google (Kotlin):
+
 - [ ] Functions do NOT have `Android` suffix (it's Android-only package)
 - [ ] Cross-platform functions have NO suffix
 - [ ] Types.kt is not manually edited (auto-generated)
@@ -126,17 +133,20 @@ packages/google (Kotlin):
 - [ ] Shared code uses only Billing 7.0 APIs
 
 packages/gql (GraphQL):
+
 - [ ] Async operations have `# Future` comment
 - [ ] Generated types are not manually edited
 - [ ] Platform-specific APIs have correct suffix
 
 **Latest API Coverage:**
+
 - [ ] Google Play Billing 8.x features implemented
 - [ ] StoreKit 2 iOS 18+ features implemented
 - [ ] Meta Horizon Billing SDK up to date
 - [ ] External API docs updated with new features
 
 **Version Compatibility:**
+
 - [ ] horizon-billing-compatibility matches latest
 - [ ] Shared code avoids Billing 8.x-only APIs
 - [ ] react-native-iap/expo-iap compatible versions documented
@@ -144,6 +154,7 @@ packages/gql (GraphQL):
 ### 6. Fix Issues
 
 After identifying issues:
+
 1. Read the relevant knowledge file for the rule
 2. Read the violating code file
 3. Fix the code to comply with the rule
@@ -156,6 +167,7 @@ When new features are implemented or APIs change, update ALL relevant documentat
 #### 7a. Knowledge Base (knowledge/external/)
 
 Update external API reference docs:
+
 - `google-billing-api.md` - Add new Google Play Billing features
 - `storekit2-api.md` - Add new StoreKit 2 features
 - `horizon-api.md` - Add new Meta Horizon Billing features, version compatibility
@@ -165,15 +177,21 @@ Update external API reference docs:
 Update the documentation site for users:
 
 **Release Notes (REQUIRED):**
-- `src/pages/docs/updates/notes.tsx` - Add release notes for next patch version
-- Check current version in `openiap-versions.json` and increment patch
+
+- `src/pages/docs/updates/releases.tsx` - Add release notes for the affected release
+- Verify every package version from its real metadata before writing the release list:
+  `openiap-versions.json` only for `spec`, `google`, and `apple`;
+  framework versions come from each library's package metadata
+- For planned framework patch releases, increment only the affected package's
+  own metadata version by one patch and use plain text planned wording
+- Add GitHub Release links only after `gh release view <tag>` confirms the tag exists
 - Document ALL changes: new features, bug fixes, breaking changes
 - Add entry at the TOP of `allNotes` array (newest first)
 
-Example notes.tsx entry:
+Example releases.tsx entry:
 
 ```typescript
-// Add to TOP of allNotes array in notes.tsx
+// Add to TOP of allNotes array in releases.tsx
 {
   id: 'gql-1-3-13-google-1-3-24-apple-1-3-11',  // kebab-case id
   date: new Date('2026-01-20'),
@@ -205,17 +223,20 @@ Example notes.tsx entry:
 ```
 
 **API Reference Pages:**
+
 - `src/pages/docs/apis/*.tsx` - Update function signatures, parameters, return types
 - Add new functions to appropriate API pages (index.tsx, ios.tsx, android.tsx, etc.)
 - Update deprecated function notices
 
 **Type Documentation:**
+
 - `src/pages/docs/types/*.tsx` - Update type definitions
 - Add new types (enums, interfaces, input types)
 - Document new fields on existing types
 - Key files: product.tsx, purchase.tsx, offer.tsx, alternative.tsx, etc.
 
 **Feature Documentation:**
+
 - `src/pages/docs/features/*.tsx` - Add new feature pages if implementing major functionality
 - Update existing feature pages with new options/parameters
 - Include code examples for new features
@@ -225,6 +246,7 @@ Example notes.tsx entry:
 Update example apps to demonstrate new features:
 
 **iOS Example** (`packages/apple/Example/OpenIapExample/`):
+
 - `Screens/` - Add new screens or update existing ones
 - `Screens/uis/` - Add UI components for new features
 - Key files:
@@ -234,6 +256,7 @@ Update example apps to demonstrate new features:
   - `AvailablePurchasesScreen.swift` - Purchase history examples
 
 **Android Example** (`packages/google/Example/src/main/java/dev/hyo/martie/`):
+
 - `screens/` - Add new screens or update existing ones
 - `screens/uis/` - Add UI components for new features
 - Key files:
@@ -243,6 +266,7 @@ Update example apps to demonstrate new features:
   - `AvailablePurchasesScreen.kt` - Purchase history examples
 
 **Example Code Guidelines:**
+
 - Demonstrate ALL new API features with working code
 - Show both success and error handling
 - Include comments explaining the feature
@@ -282,7 +306,8 @@ product.productStatusAndroid?.let { status ->
 
 For each new feature implemented:
 
-- [ ] **Release notes** - Entry added to `notes.tsx` with next patch version
+- [ ] **Release notes** - Entry added to `releases.tsx` with package versions
+      verified from package metadata / release tags
 - [ ] **API docs** - Function added to correct API page with signature, params, return type
 - [ ] **Type docs** - New types documented with all fields explained
 - [ ] **Example apps** - Working examples in iOS and Android example apps
@@ -295,27 +320,27 @@ For each new feature implemented:
 
 **New Function (e.g., win-back offer):**
 
-```mdx
+````mdx
 ## requestSubscription
 
 ### Parameters
 
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| sku | string | ✅ | Product SKU |
-| winBackOffer | WinBackOfferInputIOS | ❌ | Win-back offer (iOS 18+) |
+| Name         | Type                 | Required | Description              |
+| ------------ | -------------------- | -------- | ------------------------ |
+| sku          | string               | ✅       | Product SKU              |
+| winBackOffer | WinBackOfferInputIOS | ❌       | Win-back offer (iOS 18+) |
 
 ### Win-Back Offers (iOS 18+)
 
 Win-back offers re-engage churned subscribers:
 
-~~~typescript
+```typescript
 await requestSubscription({
-  sku: 'premium_monthly',
-  winBackOffer: { offerId: 'winback_50_off' }
+  sku: "premium_monthly",
+  winBackOffer: { offerId: "winback_50_off" },
 });
-~~~
 ```
+````
 
 **New Type:**
 
@@ -324,11 +349,11 @@ await requestSubscription({
 
 Product fetch status codes (Billing 8.0+).
 
-| Value | Description |
-|-------|-------------|
-| OK | Product fetched successfully |
-| NOT_FOUND | SKU doesn't exist |
-| NO_OFFERS_AVAILABLE | User not eligible |
+| Value               | Description                  |
+| ------------------- | ---------------------------- |
+| OK                  | Product fetched successfully |
+| NOT_FOUND           | SKU doesn't exist            |
+| NO_OFFERS_AVAILABLE | User not eligible            |
 ```
 
 ### 8. Final Verification
@@ -350,6 +375,7 @@ cd scripts/agent && bun run compile:ai
 ```
 
 Then ask Claude to:
+
 - "Search for latest Google Play Billing Library features and compare with our implementation"
 - "Search for latest StoreKit 2 iOS 18 features and identify gaps"
 - "Analyze packages/apple for naming convention violations and fix them"
@@ -358,6 +384,7 @@ Then ask Claude to:
 ## Example Usage
 
 Ask Claude Code:
+
 > "Run /audit-code with latest API check"
 > "Audit the codebase including latest Google Play Billing 8.x features"
 > "Check implementation against latest StoreKit 2 iOS 18.4 APIs"
@@ -370,10 +397,10 @@ After running audit, you should have:
 2. **Feature Gap Report** - Missing platform features with implementation status
 3. **Updated Knowledge Base** - knowledge/external/ updated with latest API info
 4. **Updated User Docs** - packages/docs/ updated:
-   - `notes.tsx` - Release notes for next version
+   - `releases.tsx` - Release notes for next version, with package versions verified from metadata / release tags
    - API reference pages updated
    - Type documentation updated
-5. **Updated Example Apps** - packages/*/Example/ updated:
+5. **Updated Example Apps** - packages/\*/Example/ updated:
    - iOS example demonstrating new features
    - Android example demonstrating new features
 6. **Roadmap Items** - New features to implement (if any)

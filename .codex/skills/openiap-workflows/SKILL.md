@@ -54,6 +54,9 @@ instruction narrows the scope.
 - For Android package work, compile both Play and Horizon variants when relevant.
 - For docs/API/type docs changes, run `bun audit:docs` or the documented audit
   command before pushing.
+- For release-note package lists, verify versions from package metadata and
+  GitHub release tags; never infer framework versions from `openiap-versions.json`
+  or from a nearby release block.
 - Keep commits in Angular Conventional Commits format:
   `<type>(<scope>): <subject>`.
 

@@ -47,29 +47,29 @@ Fix purchase validation error
 
 ### Scope Reference
 
-| Scope | Package/Library |
-|-------|----------------|
-| `apple` | `packages/apple` |
-| `google` | `packages/google` |
-| `spec` | `packages/gql` |
-| `docs` | `packages/docs` |
-| `rn` | `libraries/react-native-iap` |
-| `expo` | `libraries/expo-iap` |
+| Scope     | Package/Library                    |
+| --------- | ---------------------------------- |
+| `apple`   | `packages/apple`                   |
+| `google`  | `packages/google`                  |
+| `spec`    | `packages/gql`                     |
+| `docs`    | `packages/docs`                    |
+| `rn`      | `libraries/react-native-iap`       |
+| `expo`    | `libraries/expo-iap`               |
 | `flutter` | `libraries/flutter_inapp_purchase` |
-| `kmp` | `libraries/kmp-iap` |
-| `godot` | `libraries/godot-iap` |
+| `kmp`     | `libraries/kmp-iap`                |
+| `godot`   | `libraries/godot-iap`              |
 
 ### Common Tags
 
-| Tag | Usage |
-|-----|-------|
-| `feat:` | New feature |
-| `fix:` | Bug fix |
-| `docs:` | Documentation changes |
-| `style:` | Code style changes (formatting) |
-| `refactor:` | Code refactoring |
-| `test:` | Adding or updating tests |
-| `chore:` | Maintenance tasks |
+| Tag         | Usage                           |
+| ----------- | ------------------------------- |
+| `feat:`     | New feature                     |
+| `fix:`      | Bug fix                         |
+| `docs:`     | Documentation changes           |
+| `style:`    | Code style changes (formatting) |
+| `refactor:` | Code refactoring                |
+| `test:`     | Adding or updating tests        |
+| `chore:`    | Maintenance tasks               |
 
 ---
 
@@ -85,6 +85,7 @@ Fix purchase validation error
 4. Click "Run workflow"
 
 **What happens:**
+
 1. Updates `openiap-versions.json`
 2. Commits version change to main
 3. Creates Git tag `apple-v1.2.24`
@@ -93,6 +94,7 @@ Fix purchase validation error
 6. Creates GitHub Release
 
 **Result:**
+
 - CocoaPods: `pod 'openiap', '~> 1.2.24'`
 - Swift Package Manager: `.package(url: "https://github.com/hyodotdev/openiap.git", from: "1.2.24")`
 
@@ -106,6 +108,7 @@ Fix purchase validation error
 4. Click "Run workflow"
 
 **What happens:**
+
 1. Updates `openiap-versions.json`
 2. Commits version change to main
 3. Creates Git tag `google-v1.2.14`
@@ -114,6 +117,7 @@ Fix purchase validation error
 6. Creates GitHub Release with artifacts (AAR, JAR)
 
 **Result:**
+
 - Maven Central: `implementation("io.github.hyochan.openiap:openiap-google:1.2.14")`
 
 ### Deploying Documentation
@@ -124,6 +128,7 @@ npm run deploy 1.2.0
 ```
 
 This will:
+
 1. Build and deploy documentation to Vercel
 2. Trigger GitHub Actions workflow to:
    - Regenerate types for all platforms
@@ -137,19 +142,43 @@ This will:
 
 Each package uses a different tag format for GitHub Releases:
 
-| Package | Tag Format | Example |
-|---------|-----------|---------|
-| Apple | `{version}` (no prefix) | `2.1.0` |
-| Google | `google-{version}` | `google-2.1.0` |
+| Package      | Tag Format                   | Example                   |
+| ------------ | ---------------------------- | ------------------------- |
+| Apple        | `{version}` (no prefix)      | `2.1.0`                   |
+| Google       | `google-{version}`           | `google-2.1.0`            |
 | React Native | `react-native-iap-{version}` | `react-native-iap-15.2.0` |
-| Expo | `expo-iap-{version}` | `expo-iap-4.1.0` |
-| Flutter | `flutter-iap-{version}` | `flutter-iap-9.2.0` |
-| KMP | `kmp-iap-{version}` | `kmp-iap-2.2.0` |
-| Godot | `godot-iap-{version}` | `godot-iap-2.2.0` |
-| Docs | `docs-{version}` | `docs-1.2.0` |
+| Expo         | `expo-iap-{version}`         | `expo-iap-4.1.0`          |
+| Flutter      | `flutter-iap-{version}`      | `flutter-iap-9.2.0`       |
+| KMP          | `kmp-iap-{version}`          | `kmp-iap-2.2.0`           |
+| Godot        | `godot-iap-{version}`        | `godot-iap-2.2.0`         |
+| Docs         | `docs-{version}`             | `docs-1.2.0`              |
 
 > **Apple is the exception** — it tags with the bare semver version because
 > CocoaPods and Swift Package Manager resolve directly from the Git tag.
+
+### Release Docs Version Guard
+
+When documenting release package versions in
+`packages/docs/src/pages/docs/updates/releases.tsx`, do not infer versions from
+adjacent release notes or assume every package moved in lockstep.
+
+Use these checks before writing a release list:
+
+| Package      | Metadata / Tag Check                                                                                              |
+| ------------ | ----------------------------------------------------------------------------------------------------------------- |
+| Apple        | `jq -r '.apple' openiap-versions.json`; tag `{version}`                                                           |
+| Google       | `jq -r '.google' openiap-versions.json`; tag `google-{version}`                                                   |
+| React Native | `jq -r '.version' libraries/react-native-iap/package.json`; tag `react-native-iap-{version}`                      |
+| Expo         | `jq -r '.version' libraries/expo-iap/package.json`; tag `expo-iap-{version}`                                      |
+| Flutter      | `awk '/^version:/{print $2}' libraries/flutter_inapp_purchase/pubspec.yaml`; tag `flutter-iap-{version}`          |
+| Godot        | `sed -n 's/^version="\\(.*\\)"/\\1/p' libraries/godot-iap/addons/godot-iap/plugin.cfg`; tag `godot-iap-{version}` |
+| KMP          | `sed -n 's/^libraryVersion=//p' libraries/kmp-iap/gradle.properties`; tag `kmp-iap-{version}`                     |
+| MAUI         | read `<PackageVersion>` from `libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj`; tag `maui-iap-{version}`  |
+
+If the release is not published yet, use planned wording and plain text. If the
+release is published, verify the tag exists with `gh release view <tag>` before
+linking it. This prevents stale Package Releases tables such as documenting
+`maui-iap 1.0.1` when the actual release tag is `maui-iap-1.0.2`.
 
 ---
 
@@ -169,6 +198,7 @@ Each package uses a different tag format for GitHub Releases:
 **CRITICAL: NEVER manually edit `openiap-versions.json`**
 
 This file is automatically managed by CI/CD workflows during releases:
+
 - Apple releases update `apple` version
 - Google releases update `google` version
 - GQL releases update `spec` version

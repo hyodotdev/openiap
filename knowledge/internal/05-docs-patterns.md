@@ -12,7 +12,7 @@
 #### 1. Signal Definition (`src/lib/signals.ts`)
 
 ```typescript
-import { signal } from '@preact/signals-react';
+import { signal } from "@preact/signals-react";
 
 // Modal state signal
 export const authModalSignal = signal({
@@ -101,7 +101,10 @@ Use `MenuDropdown` for collapsible parent-child navigation:
   title="Subscription"
   titleTo="/docs/features/subscription"
   items={[
-    { to: '/docs/features/subscription/upgrade-downgrade', label: 'Upgrade/Downgrade' },
+    {
+      to: "/docs/features/subscription/upgrade-downgrade",
+      label: "Upgrade/Downgrade",
+    },
   ]}
   onItemClick={closeSidebar}
 />
@@ -190,13 +193,15 @@ Release notes are located at `packages/docs/src/pages/docs/updates/releases.tsx`
 1. Add new entry at the **top** of the `allNotes` array
 2. Follow the existing pattern with `id`, `date`, and `element`
 3. Use semantic IDs like `gql-1-3-16-apple-1-3-14`
+4. Verify every package version against its source of truth before writing it
+   (see "Release package version verification" below)
 
 ```tsx
 const allNotes: Note[] = [
   // GQL 1.3.16 / Apple 1.3.14 - Jan 26, 2026
   {
-    id: 'gql-1-3-16-apple-1-3-14',
-    date: new Date('2026-01-26'),
+    id: "gql-1-3-16-apple-1-3-14",
+    date: new Date("2026-01-26"),
     element: (
       <div key="gql-1-3-16-apple-1-3-14" style={noteCardStyle}>
         <AnchorLink id="gql-1-3-16-apple-1-3-14" level="h4">
@@ -217,3 +222,35 @@ const allNotes: Note[] = [
 - **Date**: In format `new Date('YYYY-MM-DD')`
 - **References**: Links to Apple/Google documentation when applicable
 - **Issue links**: Reference GitHub issues when fixing bugs
+
+### Release Package Version Verification
+
+Release note package lists must never be guessed from memory or inferred from a
+previous block. Verify each version from the package's real source of truth:
+
+| Package                | Source of Truth                                                                  |
+| ---------------------- | -------------------------------------------------------------------------------- |
+| openiap-apple          | `openiap-versions.json` field `apple`, or GitHub release tag `{version}`         |
+| openiap-google         | `openiap-versions.json` field `google`, or GitHub release tag `google-{version}` |
+| react-native-iap       | `libraries/react-native-iap/package.json`                                        |
+| expo-iap               | `libraries/expo-iap/package.json`                                                |
+| flutter_inapp_purchase | `libraries/flutter_inapp_purchase/pubspec.yaml`                                  |
+| godot-iap              | `libraries/godot-iap/addons/godot-iap/plugin.cfg`                                |
+| kmp-iap                | `libraries/kmp-iap/gradle.properties` field `libraryVersion`                     |
+| maui-iap               | `libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj` field `PackageVersion` |
+
+Before adding or editing a `Package Releases` list:
+
+1. `git fetch origin main --tags` (or `git fetch --no-tags origin main` if
+   local stale tags would fail).
+2. Read the current package metadata from `origin/main`, not from memory.
+3. For planned patch releases, add exactly one patch version to each affected
+   framework package and label the block `Planned Package Releases`.
+4. For published release links, confirm each tag exists with
+   `gh release view <tag> --repo hyodotdev/openiap` before adding an `<a href>`.
+5. If a release workflow is still running, keep the entry as plain text with
+   planned wording. Add links only after the GitHub Release exists.
+
+Do not use `openiap-versions.json` to derive React Native, Expo, Flutter,
+Godot, KMP, or MAUI versions; that manifest tracks only `spec`, `google`, and
+`apple`.

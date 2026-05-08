@@ -6,14 +6,14 @@ This document provides an overview for AI agents working across the OpenIAP mono
 
 ## Quick Reference
 
-| Topic | File |
-|-------|------|
-| Naming Conventions | [`knowledge/internal/01-naming-conventions.md`](knowledge/internal/01-naming-conventions.md) |
-| Architecture | [`knowledge/internal/02-architecture.md`](knowledge/internal/02-architecture.md) |
-| Coding Style | [`knowledge/internal/03-coding-style.md`](knowledge/internal/03-coding-style.md) |
-| Platform Packages | [`knowledge/internal/04-platform-packages.md`](knowledge/internal/04-platform-packages.md) |
-| Docs Patterns | [`knowledge/internal/05-docs-patterns.md`](knowledge/internal/05-docs-patterns.md) |
-| Git & Deployment | [`knowledge/internal/06-git-deployment.md`](knowledge/internal/06-git-deployment.md) |
+| Topic                   | File                                                                                                                                              |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Naming Conventions      | [`knowledge/internal/01-naming-conventions.md`](knowledge/internal/01-naming-conventions.md)                                                      |
+| Architecture            | [`knowledge/internal/02-architecture.md`](knowledge/internal/02-architecture.md)                                                                  |
+| Coding Style            | [`knowledge/internal/03-coding-style.md`](knowledge/internal/03-coding-style.md)                                                                  |
+| Platform Packages       | [`knowledge/internal/04-platform-packages.md`](knowledge/internal/04-platform-packages.md)                                                        |
+| Docs Patterns           | [`knowledge/internal/05-docs-patterns.md`](knowledge/internal/05-docs-patterns.md)                                                                |
+| Git & Deployment        | [`knowledge/internal/06-git-deployment.md`](knowledge/internal/06-git-deployment.md)                                                              |
 | Docs Consistency / SSOT | [`knowledge/internal/07-docs-consistency.md`](knowledge/internal/07-docs-consistency.md) (run `bun audit:docs` before pushing API/Type doc edits) |
 
 ## Monorepo Structure
@@ -84,6 +84,11 @@ Framework library package versions (React Native, Expo, Flutter, Godot, KMP,
 MAUI) live in their own package metadata / release workflows. Do not add
 framework-library version keys to `openiap-versions.json`.
 
+When writing release notes or `Package Releases` lists, verify framework
+versions from each library's metadata and verify published links with GitHub
+release tags. Do not infer framework versions from `openiap-versions.json` or
+copy nearby release blocks without checking the actual package/tag.
+
 Regenerate and sync types:
 
 ```bash
@@ -107,10 +112,11 @@ GraphQL Schema → Parser → IR → Language Plugins → Generated Code
 ```
 
 **Language plugins handle:**
+
 - **Swift**: Codable protocol, ErrorCode custom initializer, platform defaults
 - **Kotlin**: sealed interface, fromJson/toJson with nullable patterns
 - **Dart**: sealed class, factory constructors, extends/implements
-- **GDScript**: _init() pattern, Variant type for unions
+- **GDScript**: \_init() pattern, Variant type for unions
 - **C#**: sealed records, per-enum JsonConverter, [JsonPolymorphic] unions
 
 ### Git Commit Format
@@ -154,14 +160,14 @@ After installation, ask Codex normally (for example, "review PR 65" or
 
 ## Available Skills (Slash Commands / Codex Workflows)
 
-| Skill | Description | Usage |
-|-------|-------------|-------|
-| `/review-pr` | Review PR comments, fix issues, resolve threads | `/review-pr 65` or `/review-pr <url>` |
-| `/audit-code` | Audit code against knowledge rules and latest APIs | `/audit-code` |
-| `/compile-knowledge` | Compile knowledge base for Claude context | `/compile-knowledge` |
-| `/resolve-issue` | Analyze an issue, label it, and fix/comment | `/resolve-issue 88` |
-| `/verify-all` | Run the full monorepo health check | `/verify-all` |
-| `/commit` | Branch, commit, push, and optionally create PR | `/commit --all --pr` |
+| Skill                | Description                                        | Usage                                 |
+| -------------------- | -------------------------------------------------- | ------------------------------------- |
+| `/review-pr`         | Review PR comments, fix issues, resolve threads    | `/review-pr 65` or `/review-pr <url>` |
+| `/audit-code`        | Audit code against knowledge rules and latest APIs | `/audit-code`                         |
+| `/compile-knowledge` | Compile knowledge base for Claude context          | `/compile-knowledge`                  |
+| `/resolve-issue`     | Analyze an issue, label it, and fix/comment        | `/resolve-issue 88`                   |
+| `/verify-all`        | Run the full monorepo health check                 | `/verify-all`                         |
+| `/commit`            | Branch, commit, push, and optionally create PR     | `/commit --all --pr`                  |
 
 ### /review-pr Workflow
 

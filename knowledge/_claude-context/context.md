@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-05-07T06:54:51.681Z
+> Last updated: 2026-05-08T10:48:46.765Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -70,7 +70,17 @@ fun consumePurchaseAndroid()
 fun buildModuleAndroid()
 ```
 
-**Exception**: Only use `Android` suffix for types that are part of a cross-platform API (e.g., `ProductAndroid`, `PurchaseAndroid` that contrast with iOS types).
+**Exception**: Generated GraphQL operation names and generated handler fields keep
+the schema name exactly, including `Android` when the operation is Android-only.
+For example, `MutationHandlers.checkAlternativeBillingAvailabilityAndroid` must
+be wired in `packages/google` because it is generated from
+`packages/gql/src/api-android.graphql`; the hand-written implementation it
+delegates to should still be suffix-free, such as
+`checkAlternativeBillingAvailability()`.
+
+Only use `Android` suffix for types that are part of a cross-platform API (e.g.,
+`ProductAndroid`, `PurchaseAndroid` that contrast with iOS types), or for
+generated GraphQL operation/handler identifiers that must match the schema.
 
 ## Platform-Specific Field Naming (CRITICAL)
 
@@ -729,6 +739,7 @@ async function fetchProducts(productIds: string[]): Promise<Product[]> {
 ### Required Pre-Work (Apple)
 
 Before writing or editing anything, **ALWAYS** review:
+
 - [`packages/apple/CONVENTION.md`](../../packages/apple/CONVENTION.md)
 
 ### Type Generation
@@ -749,12 +760,14 @@ Version is managed in `openiap-versions.json`:
 
 ```json
 {
-  "apple": "1.2.5",
-  "gql": "1.0.10"
+  "spec": "2.0.1",
+  "google": "2.1.3",
+  "apple": "2.1.6"
 }
 ```
 
 **To update GQL types:**
+
 1. Edit `openiap-versions.json` - change `"gql"` version
 2. Run `./scripts/generate-types.sh`
 3. Run `swift test` to verify compatibility
@@ -777,12 +790,14 @@ swift build  # Build package
 **IMPORTANT**: When updating iOS functions in `OpenIapModule.swift`, you **MUST** also update `OpenIapModule+ObjC.swift`.
 
 The Objective-C bridge (`OpenIapModule+ObjC.swift`) exposes Swift async functions to Objective-C/Kotlin for:
+
 - **kmp-iap** (Kotlin Multiplatform via cinterop)
 - Any other platform that requires Objective-C interoperability
 
 #### When to Update ObjC Bridge
 
 Update `OpenIapModule+ObjC.swift` when:
+
 - [ ] Adding new public functions to `OpenIapModule.swift`
 - [ ] Changing function signatures (parameters, return types)
 - [ ] Adding new input options or parameters
@@ -817,11 +832,12 @@ public func newFeatureIOS(param: String) async throws -> ResultType {
 
 #### Files to Update Together
 
-| Swift Function Changed | ObjC Bridge Required |
-|------------------------|----------------------|
-| `OpenIapModule.swift` | `OpenIapModule+ObjC.swift` |
+| Swift Function Changed | ObjC Bridge Required       |
+| ---------------------- | -------------------------- |
+| `OpenIapModule.swift`  | `OpenIapModule+ObjC.swift` |
 
 **Verification**: After updating, run:
+
 ```bash
 swift build  # Verifies ObjC bridge compiles
 ```
@@ -831,6 +847,28 @@ swift build  # Verifies ObjC bridge compiles
 ## SDK Parity Checklist (CRITICAL — prevents "declared but not implemented")
 
 When the GraphQL schema in [`packages/gql`](../../packages/gql) adds or changes an API, the regenerated `types.*` files **declare** the handler but do not **implement** it. Every wrapper library must wire the new API end-to-end or users will see silent nulls, phantom interfaces (GitHub issue #104), or `UnsupportedOperationException` at runtime.
+
+The mechanical guardrail for this checklist is:
+
+```bash
+bun run audit:parity
+```
+
+This audit treats `libraries/expo-iap/example` as the non-Godot example SSOT
+and fails when:
+
+- a new non-Godot library appears under `libraries/` without explicit parity
+  coverage or exclusion
+- an Expo example route or product ID is not represented by the other SDK
+  examples and native Apple/Google examples
+- a GraphQL Query/Mutation/Subscription operation is added or removed without
+  updating the operation parity registry
+- generated types or shared TS runtime helpers drift from `packages/gql`
+
+Run it after type generation and before opening a PR for SDK/API/example
+changes. If it fails for a newly introduced operation or feature, update the
+missing SDK bridge/example/test coverage first, then update the parity registry
+in [`scripts/audit-non-godot-parity.mjs`](../../scripts/audit-non-godot-parity.mjs).
 
 ### The bug pattern
 
@@ -848,14 +886,14 @@ GraphQL schema ─► generated types ─► public API ─► native bridge ─
 
 For every new/changed handler in the generated types, verify **all five** of these per target library before considering the change shippable:
 
-| Library | 1. Type declared | 2. Public API exposed | 3. Platform bridge | 4. Wired into handlers bundle | 5. Test coverage |
-|---------|------------------|-----------------------|--------------------|-------------------------------|------------------|
-| **react-native-iap** | `src/types.ts` (generated) | `src/index.ts` export (Nitro or composed TS) | `ios/HybridRnIap.swift` (iOS), `android/.../HybridRnIap.kt` (Android) | Not required (flat exports) | Mock stub in all 4 `mockIap` objects in `__tests__/` (per memory) |
-| **expo-iap** | `src/types.ts` (generated) | `src/modules/ios.ts` / `android.ts` export, re-exported from `src/index.ts` | `ios/ExpoIapModule.swift` `AsyncFunction`, `android/.../ExpoIapModule.kt` | Not required (flat exports) | `src/modules/__tests__/*.test.ts` |
-| **flutter_inapp_purchase** | `lib/types.dart` (generated) | getter on `FlutterInappPurchase` in `lib/flutter_inapp_purchase.dart` | `case "<name>":` in `ios/Classes/FlutterInappPurchasePlugin.swift`, Android plugin `onMethodCall` | `queryHandlers` / `mutationHandlers` / `subscriptionHandlers` bundles near the bottom of `flutter_inapp_purchase.dart` | Mock + test in `test/ios_methods_test.dart` (and the `errors_unit_test.dart` error-mapping test) |
-| **kmp-iap** | `library/src/commonMain/.../openiap/Types.kt` (generated interface) | exposed via `KmpInAppPurchase` / `kmpIapInstance` | `library/src/iosMain/.../InAppPurchaseIOS.kt` — must call `openIapModule.<name>WithCompletion { ... }`, **never** `throw UnsupportedOperationException` | Not required (interface dispatch) | `library/src/commonTest/` if testable cross-platform |
-| **godot-iap** | `addons/godot-iap/types.gd` (generated) | public `snake_case` function in `addons/godot-iap/godot_iap.gd` | `ios-gdextension/Sources/GodotIap/GodotIap.swift` (iOS), `android/src/main/java/.../GodotIap.java` (Android) | Not required | Manual testing — no automated test suite yet |
-| **maui-iap** | `src/OpenIap.Maui/Types.cs` (generated) | `OpenIap.QueryResolver` / `MutationResolver` interfaces in `Types.cs`; `IOpenIap` adds the listener-stream contract; static facade is `OpenIap.Maui.Iap`; IAPKit helpers mirror TypeScript via `Iap.KitApi(...)`, `Iap.ConnectWebhookStream(...)`, `Iap.ParseWebhookEventData(...)`, and `Iap.WebhookEventTypes` | Android: `OpenIapMauiModule.kt` in `libraries/maui-iap/android/openiap/` (JSON-shaped Java facade over `packages/google`), bound by `OpenIap.Maui.Bindings.Android.csproj`, consumed by `Platforms/Android/OpenIapAndroid.cs`. iOS / macCatalyst: existing `OpenIapModule+ObjC.swift` bridge in `packages/apple`, bound by hand-written `OpenIap.Maui.Bindings.iOS/ApiDefinition.cs`, consumed by `Platforms/iOS/OpenIapIOS.cs` (+ subclass `OpenIapMacCatalyst`). | Not required (interface dispatch) | Example app `libraries/maui-iap/example/OpenIap.Maui.Example` builds for net9.0-android / net9.0-ios / net9.0-maccatalyst (manual device testing for purchase flow); no xUnit tests yet |
+| Library                    | 1. Type declared                                                    | 2. Public API exposed                                                                                                                                                                                                                                                                                                | 3. Platform bridge                                                                                                                                                                                                                                                                                                                                                                                                                                                 | 4. Wired into handlers bundle                                                                                          | 5. Test coverage                                                                                                                                                                        |
+| -------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **react-native-iap**       | `src/types.ts` (generated)                                          | `src/index.ts` export (Nitro or composed TS)                                                                                                                                                                                                                                                                         | `ios/HybridRnIap.swift` (iOS), `android/.../HybridRnIap.kt` (Android)                                                                                                                                                                                                                                                                                                                                                                                              | Not required (flat exports)                                                                                            | Mock stub in all 4 `mockIap` objects in `__tests__/` (per memory)                                                                                                                       |
+| **expo-iap**               | `src/types.ts` (generated)                                          | `src/modules/ios.ts` / `android.ts` export, re-exported from `src/index.ts`                                                                                                                                                                                                                                          | `ios/ExpoIapModule.swift` `AsyncFunction`, `android/.../ExpoIapModule.kt`                                                                                                                                                                                                                                                                                                                                                                                          | Not required (flat exports)                                                                                            | `src/modules/__tests__/*.test.ts`                                                                                                                                                       |
+| **flutter_inapp_purchase** | `lib/types.dart` (generated)                                        | getter on `FlutterInappPurchase` in `lib/flutter_inapp_purchase.dart`                                                                                                                                                                                                                                                | `case "<name>":` in `ios/Classes/FlutterInappPurchasePlugin.swift`, Android plugin `onMethodCall`                                                                                                                                                                                                                                                                                                                                                                  | `queryHandlers` / `mutationHandlers` / `subscriptionHandlers` bundles near the bottom of `flutter_inapp_purchase.dart` | Mock + test in `test/ios_methods_test.dart` (and the `errors_unit_test.dart` error-mapping test)                                                                                        |
+| **kmp-iap**                | `library/src/commonMain/.../openiap/Types.kt` (generated interface) | exposed via `KmpInAppPurchase` / `kmpIapInstance`                                                                                                                                                                                                                                                                    | `library/src/iosMain/.../InAppPurchaseIOS.kt` — must call `openIapModule.<name>WithCompletion { ... }`, **never** `throw UnsupportedOperationException`                                                                                                                                                                                                                                                                                                            | Not required (interface dispatch)                                                                                      | `library/src/commonTest/` if testable cross-platform                                                                                                                                    |
+| **godot-iap**              | `addons/godot-iap/types.gd` (generated)                             | public `snake_case` function in `addons/godot-iap/godot_iap.gd`                                                                                                                                                                                                                                                      | `ios-gdextension/Sources/GodotIap/GodotIap.swift` (iOS), `android/src/main/java/.../GodotIap.java` (Android)                                                                                                                                                                                                                                                                                                                                                       | Not required                                                                                                           | Manual testing — no automated test suite yet                                                                                                                                            |
+| **maui-iap**               | `src/OpenIap.Maui/Types.cs` (generated)                             | `OpenIap.QueryResolver` / `MutationResolver` interfaces in `Types.cs`; `IOpenIap` adds the listener-stream contract; static facade is `OpenIap.Maui.Iap`; IAPKit helpers mirror TypeScript via `Iap.KitApi(...)`, `Iap.ConnectWebhookStream(...)`, `Iap.ParseWebhookEventData(...)`, and `Iap.WebhookEventTypes` | Android: `OpenIapMauiModule.kt` in `libraries/maui-iap/android/openiap/` (JSON-shaped Java facade over `packages/google`), bound by `OpenIap.Maui.Bindings.Android.csproj`, consumed by `Platforms/Android/OpenIapAndroid.cs`. iOS / macCatalyst: existing `OpenIapModule+ObjC.swift` bridge in `packages/apple`, bound by hand-written `OpenIap.Maui.Bindings.iOS/ApiDefinition.cs`, consumed by `Platforms/iOS/OpenIapIOS.cs` (+ subclass `OpenIapMacCatalyst`). | Not required (interface dispatch)                                                                                      | Example app `libraries/maui-iap/example/OpenIap.Maui.Example` builds for net9.0-android / net9.0-ios / net9.0-maccatalyst (manual device testing for purchase flow); no xUnit tests yet |
 
 ### Platform suffix rule (who needs what)
 
@@ -902,7 +940,7 @@ echo "=== Throws stub? ==="
 rg -n "UnsupportedOperationException.*$NAME" libraries/
 ```
 
-Any empty result for a layer that *should* have the handler (per the suffix rule) is a gap that must be filled before merging.
+Any empty result for a layer that _should_ have the handler (per the suffix rule) is a gap that must be filled before merging.
 
 ---
 
@@ -911,6 +949,7 @@ Any empty result for a layer that *should* have the handler (per the suffix rule
 ### Required Pre-Work (Google)
 
 Before writing or editing anything, **ALWAYS** review:
+
 - [`packages/google/CONVENTION.md`](../../packages/google/CONVENTION.md)
 
 ### Project Layout
@@ -929,12 +968,13 @@ openiap/
 
 The Google package supports **two build flavors**:
 
-| Flavor | Store | API | Description |
-|--------|-------|-----|-------------|
+| Flavor           | Store             | API                         | Description              |
+| ---------------- | ----------------- | --------------------------- | ------------------------ |
 | `play` (default) | Google Play Store | Google Play Billing Library | Standard Android billing |
-| `horizon` | Meta Quest Store | Meta Horizon API | VR/Quest billing |
+| `horizon`        | Meta Quest Store  | Meta Horizon API            | VR/Quest billing         |
 
 **Flavor-specific source directories:**
+
 - `src/main/` - Shared code for both flavors
 - `src/play/` - Play Store specific implementations
 - `src/horizon/` - Meta Horizon specific implementations
@@ -963,18 +1003,20 @@ The Google package supports **two build flavors**:
 
 ### Version Compatibility
 
-| Flavor | Billing Library | Version |
-|--------|-----------------|---------|
-| Play | Google Play Billing | 8.3.0 |
+| Flavor  | Billing Library               | Version                    |
+| ------- | ----------------------------- | -------------------------- |
+| Play    | Google Play Billing           | 8.3.0                      |
 | Horizon | horizon-billing-compatibility | 1.1.1 (GPB 7.0 compatible) |
 
 **CRITICAL**: Horizon SDK implements **Billing 7.0 API**, not 8.x. When writing shared code in `src/main/`:
 
 **Safe APIs (exist in both 7.0 and 8.x):**
+
 - `queryProductDetailsAsync()`, `launchBillingFlow()`
 - `acknowledgePurchase()`, `consumeAsync()`, `queryPurchasesAsync()`
 
 **DO NOT use in shared code (8.x only):**
+
 - `enableAutoServiceReconnection()`
 - Product-level status codes
 - One-time products with multiple offers
@@ -983,13 +1025,14 @@ The Google package supports **two build flavors**:
 
 Meta Horizon has different APIs from Google Play:
 
-| OpenIAP API | Play Implementation | Horizon Implementation |
-|-------------|---------------------|------------------------|
-| `verifyPurchase` | Play Developer API | Meta S2S `verify_entitlement` |
-| `getAvailableItems` | N/A | Horizon catalog API |
-| `IapStore` | `IapStore.Play` | `IapStore.Horizon` |
+| OpenIAP API         | Play Implementation | Horizon Implementation        |
+| ------------------- | ------------------- | ----------------------------- |
+| `verifyPurchase`    | Play Developer API  | Meta S2S `verify_entitlement` |
+| `getAvailableItems` | N/A                 | Horizon catalog API           |
+| `IapStore`          | `IapStore.Play`     | `IapStore.Horizon`            |
 
 **Horizon-specific types in GraphQL:**
+
 - `VerifyPurchaseHorizonOptions` - Horizon verification parameters
 - `VerifyPurchaseResultHorizon` - Horizon verification result
 
@@ -1065,11 +1108,11 @@ Breaking a shared-package API (e.g. `object → data class` on
 `OpenIapError`) forces a **major** bump on that package (2.0.0) and
 cascades into downstream libraries:
 
-| Change in shared package                  | Google/Apple bump                              | Downstream bump                                              |
-| ----------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------ |
-| Add optional field to a type              | minor                                          | minor                                                        |
-| Add a new enum case                       | major (Swift/Kotlin exhaustive switches break) | minor                                                        |
-| `object` → `data class` / renamed method  | major                                          | minor (downstream pins to new major; own API unchanged)      |
+| Change in shared package                 | Google/Apple bump                              | Downstream bump                                         |
+| ---------------------------------------- | ---------------------------------------------- | ------------------------------------------------------- |
+| Add optional field to a type             | minor                                          | minor                                                   |
+| Add a new enum case                      | major (Swift/Kotlin exhaustive switches break) | minor                                                   |
+| `object` → `data class` / renamed method | major                                          | minor (downstream pins to new major; own API unchanged) |
 
 Release order MUST be: shared packages first (so downstream libraries
 can depend on the new version), then framework libraries in any order.
@@ -1081,6 +1124,7 @@ can depend on the new version), then framework libraries in any order.
 ### Required Pre-Work
 
 Before writing or editing anything, **ALWAYS** review:
+
 - [`packages/gql/CONVENTION.md`](../../packages/gql/CONVENTION.md)
 
 ### Code Generation Architecture
@@ -1122,37 +1166,37 @@ packages/gql/codegen/
 
 The IR is a language-agnostic representation of the GraphQL schema:
 
-| IR Type | Description |
-|---------|-------------|
-| `IREnum` | Enum with values, raw values, legacy aliases |
-| `IRInterface` | Protocol/Interface with fields |
-| `IRObject` | Struct/Class with fields, implements, unions |
-| `IRInput` | Input type with fields, required field tracking |
-| `IRUnion` | Union with members, nested union handling |
-| `IROperation` | Query/Mutation/Subscription with fields |
+| IR Type       | Description                                     |
+| ------------- | ----------------------------------------------- |
+| `IREnum`      | Enum with values, raw values, legacy aliases    |
+| `IRInterface` | Protocol/Interface with fields                  |
+| `IRObject`    | Struct/Class with fields, implements, unions    |
+| `IRInput`     | Input type with fields, required field tracking |
+| `IRUnion`     | Union with members, nested union handling       |
+| `IROperation` | Query/Mutation/Subscription with fields         |
 
 #### Language Plugins
 
 Each plugin handles language-specific requirements:
 
-| Plugin | Features |
-|--------|----------|
-| **Swift** | Codable protocol, ErrorCode custom initializer, platform defaults |
-| **Kotlin** | sealed interface, fromJson/toJson with nullable patterns |
-| **Dart** | extends/implements, factory constructors, sealed class |
-| **GDScript** | _init(), from_json/to_json, Variant type |
+| Plugin       | Features                                                          |
+| ------------ | ----------------------------------------------------------------- |
+| **Swift**    | Codable protocol, ErrorCode custom initializer, platform defaults |
+| **Kotlin**   | sealed interface, fromJson/toJson with nullable patterns          |
+| **Dart**     | extends/implements, factory constructors, sealed class            |
+| **GDScript** | \_init(), from_json/to_json, Variant type                         |
 
 ### Scripts
 
-| Script | Description |
-|--------|-------------|
-| `generate:ts` | Generate TypeScript types (graphql-codegen) |
-| `generate:swift` | Generate Swift types (IR-based plugin) |
-| `generate:kotlin` | Generate Kotlin types (IR-based plugin) |
-| `generate:dart` | Generate Dart types (IR-based plugin) |
-| `generate:gdscript` | Generate GDScript types (IR-based plugin) |
-| `generate` | Generate all types + sync to platforms |
-| `sync` | Sync generated types to platform packages |
+| Script              | Description                                 |
+| ------------------- | ------------------------------------------- |
+| `generate:ts`       | Generate TypeScript types (graphql-codegen) |
+| `generate:swift`    | Generate Swift types (IR-based plugin)      |
+| `generate:kotlin`   | Generate Kotlin types (IR-based plugin)     |
+| `generate:dart`     | Generate Dart types (IR-based plugin)       |
+| `generate:gdscript` | Generate GDScript types (IR-based plugin)   |
+| `generate`          | Generate all types + sync to platforms      |
+| `sync`              | Sync generated types to platform packages   |
 
 ### Generating Types
 
@@ -1171,13 +1215,13 @@ bun run generate:gdscript
 
 ### Generated Files
 
-| File | Platform | Description |
-|------|----------|-------------|
-| `src/generated/types.ts` | TypeScript | Type definitions |
-| `src/generated/Types.swift` | iOS/macOS | Codable structs & enums |
-| `src/generated/Types.kt` | Android | Data classes & sealed interfaces |
-| `src/generated/types.dart` | Flutter | Classes & sealed classes |
-| `src/generated/types.gd` | Godot | GDScript classes |
+| File                        | Platform   | Description                      |
+| --------------------------- | ---------- | -------------------------------- |
+| `src/generated/types.ts`    | TypeScript | Type definitions                 |
+| `src/generated/Types.swift` | iOS/macOS  | Codable structs & enums          |
+| `src/generated/Types.kt`    | Android    | Data classes & sealed interfaces |
+| `src/generated/types.dart`  | Flutter    | Classes & sealed classes         |
+| `src/generated/types.gd`    | Godot      | GDScript classes                 |
 
 ### Adding a New Language
 
@@ -1193,12 +1237,13 @@ bun run generate:gdscript
 
 Special comments in GraphQL SDL trigger codegen behavior:
 
-| Marker | Effect |
-|--------|--------|
+| Marker       | Effect                                                       |
+| ------------ | ------------------------------------------------------------ |
 | `# => Union` | Generates result union wrapper (e.g., `FetchProductsResult`) |
-| `# Future` | Wraps return type in Promise/async |
+| `# Future`   | Wraps return type in Promise/async                           |
 
 Example:
+
 ```graphql
 # => Union
 type RequestPurchaseResult {
@@ -1254,7 +1299,7 @@ Before committing any changes:
 #### 1. Signal Definition (`src/lib/signals.ts`)
 
 ```typescript
-import { signal } from '@preact/signals-react';
+import { signal } from "@preact/signals-react";
 
 // Modal state signal
 export const authModalSignal = signal({
@@ -1343,7 +1388,10 @@ Use `MenuDropdown` for collapsible parent-child navigation:
   title="Subscription"
   titleTo="/docs/features/subscription"
   items={[
-    { to: '/docs/features/subscription/upgrade-downgrade', label: 'Upgrade/Downgrade' },
+    {
+      to: "/docs/features/subscription/upgrade-downgrade",
+      label: "Upgrade/Downgrade",
+    },
   ]}
   onItemClick={closeSidebar}
 />
@@ -1404,6 +1452,23 @@ src/components/
 
 ---
 
+## Framework Library Listing SSOT
+
+Framework implementation listings must be derived from
+`packages/docs/src/lib/images.ts`:
+
+- `LIBRARIES` is the canonical order and membership for framework libraries
+  (Expo, React Native, Flutter, KMP, MAUI, Godot).
+- Pages that show framework lists, setup links, sponsor links, or home-page
+  icons must map over `LIBRARIES` instead of hand-writing their own arrays.
+- When adding, removing, renaming, or reordering a framework, update
+  `LIBRARIES` first and let pages derive labels, images, setup paths,
+  install commands, and documentation links from that metadata.
+- If a page needs new per-framework copy, add a typed field to `LibraryInfo`
+  instead of creating another local list with duplicated order.
+
+---
+
 ## Release Notes Pattern
 
 ### Location
@@ -1415,13 +1480,15 @@ Release notes are located at `packages/docs/src/pages/docs/updates/releases.tsx`
 1. Add new entry at the **top** of the `allNotes` array
 2. Follow the existing pattern with `id`, `date`, and `element`
 3. Use semantic IDs like `gql-1-3-16-apple-1-3-14`
+4. Verify every package version against its source of truth before writing it
+   (see "Release package version verification" below)
 
 ```tsx
 const allNotes: Note[] = [
   // GQL 1.3.16 / Apple 1.3.14 - Jan 26, 2026
   {
-    id: 'gql-1-3-16-apple-1-3-14',
-    date: new Date('2026-01-26'),
+    id: "gql-1-3-16-apple-1-3-14",
+    date: new Date("2026-01-26"),
     element: (
       <div key="gql-1-3-16-apple-1-3-14" style={noteCardStyle}>
         <AnchorLink id="gql-1-3-16-apple-1-3-14" level="h4">
@@ -1442,6 +1509,38 @@ const allNotes: Note[] = [
 - **Date**: In format `new Date('YYYY-MM-DD')`
 - **References**: Links to Apple/Google documentation when applicable
 - **Issue links**: Reference GitHub issues when fixing bugs
+
+### Release Package Version Verification
+
+Release note package lists must never be guessed from memory or inferred from a
+previous block. Verify each version from the package's real source of truth:
+
+| Package                | Source of Truth                                                                  |
+| ---------------------- | -------------------------------------------------------------------------------- |
+| openiap-apple          | `openiap-versions.json` field `apple`, or GitHub release tag `{version}`         |
+| openiap-google         | `openiap-versions.json` field `google`, or GitHub release tag `google-{version}` |
+| react-native-iap       | `libraries/react-native-iap/package.json`                                        |
+| expo-iap               | `libraries/expo-iap/package.json`                                                |
+| flutter_inapp_purchase | `libraries/flutter_inapp_purchase/pubspec.yaml`                                  |
+| godot-iap              | `libraries/godot-iap/addons/godot-iap/plugin.cfg`                                |
+| kmp-iap                | `libraries/kmp-iap/gradle.properties` field `libraryVersion`                     |
+| maui-iap               | `libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj` field `PackageVersion` |
+
+Before adding or editing a `Package Releases` list:
+
+1. `git fetch origin main --tags` (or `git fetch --no-tags origin main` if
+   local stale tags would fail).
+2. Read the current package metadata from `origin/main`, not from memory.
+3. For planned patch releases, add exactly one patch version to each affected
+   framework package and label the block `Planned Package Releases`.
+4. For published release links, confirm each tag exists with
+   `gh release view <tag> --repo hyodotdev/openiap` before adding an `<a href>`.
+5. If a release workflow is still running, keep the entry as plain text with
+   planned wording. Add links only after the GitHub Release exists.
+
+Do not use `openiap-versions.json` to derive React Native, Expo, Flutter,
+Godot, KMP, or MAUI versions; that manifest tracks only `spec`, `google`, and
+`apple`.
 
 
 ---
@@ -1497,29 +1596,29 @@ Fix purchase validation error
 
 ### Scope Reference
 
-| Scope | Package/Library |
-|-------|----------------|
-| `apple` | `packages/apple` |
-| `google` | `packages/google` |
-| `spec` | `packages/gql` |
-| `docs` | `packages/docs` |
-| `rn` | `libraries/react-native-iap` |
-| `expo` | `libraries/expo-iap` |
+| Scope     | Package/Library                    |
+| --------- | ---------------------------------- |
+| `apple`   | `packages/apple`                   |
+| `google`  | `packages/google`                  |
+| `spec`    | `packages/gql`                     |
+| `docs`    | `packages/docs`                    |
+| `rn`      | `libraries/react-native-iap`       |
+| `expo`    | `libraries/expo-iap`               |
 | `flutter` | `libraries/flutter_inapp_purchase` |
-| `kmp` | `libraries/kmp-iap` |
-| `godot` | `libraries/godot-iap` |
+| `kmp`     | `libraries/kmp-iap`                |
+| `godot`   | `libraries/godot-iap`              |
 
 ### Common Tags
 
-| Tag | Usage |
-|-----|-------|
-| `feat:` | New feature |
-| `fix:` | Bug fix |
-| `docs:` | Documentation changes |
-| `style:` | Code style changes (formatting) |
-| `refactor:` | Code refactoring |
-| `test:` | Adding or updating tests |
-| `chore:` | Maintenance tasks |
+| Tag         | Usage                           |
+| ----------- | ------------------------------- |
+| `feat:`     | New feature                     |
+| `fix:`      | Bug fix                         |
+| `docs:`     | Documentation changes           |
+| `style:`    | Code style changes (formatting) |
+| `refactor:` | Code refactoring                |
+| `test:`     | Adding or updating tests        |
+| `chore:`    | Maintenance tasks               |
 
 ---
 
@@ -1535,6 +1634,7 @@ Fix purchase validation error
 4. Click "Run workflow"
 
 **What happens:**
+
 1. Updates `openiap-versions.json`
 2. Commits version change to main
 3. Creates Git tag `apple-v1.2.24`
@@ -1543,6 +1643,7 @@ Fix purchase validation error
 6. Creates GitHub Release
 
 **Result:**
+
 - CocoaPods: `pod 'openiap', '~> 1.2.24'`
 - Swift Package Manager: `.package(url: "https://github.com/hyodotdev/openiap.git", from: "1.2.24")`
 
@@ -1556,6 +1657,7 @@ Fix purchase validation error
 4. Click "Run workflow"
 
 **What happens:**
+
 1. Updates `openiap-versions.json`
 2. Commits version change to main
 3. Creates Git tag `google-v1.2.14`
@@ -1564,6 +1666,7 @@ Fix purchase validation error
 6. Creates GitHub Release with artifacts (AAR, JAR)
 
 **Result:**
+
 - Maven Central: `implementation("io.github.hyochan.openiap:openiap-google:1.2.14")`
 
 ### Deploying Documentation
@@ -1574,6 +1677,7 @@ npm run deploy 1.2.0
 ```
 
 This will:
+
 1. Build and deploy documentation to Vercel
 2. Trigger GitHub Actions workflow to:
    - Regenerate types for all platforms
@@ -1587,19 +1691,43 @@ This will:
 
 Each package uses a different tag format for GitHub Releases:
 
-| Package | Tag Format | Example |
-|---------|-----------|---------|
-| Apple | `{version}` (no prefix) | `2.1.0` |
-| Google | `google-{version}` | `google-2.1.0` |
+| Package      | Tag Format                   | Example                   |
+| ------------ | ---------------------------- | ------------------------- |
+| Apple        | `{version}` (no prefix)      | `2.1.0`                   |
+| Google       | `google-{version}`           | `google-2.1.0`            |
 | React Native | `react-native-iap-{version}` | `react-native-iap-15.2.0` |
-| Expo | `expo-iap-{version}` | `expo-iap-4.1.0` |
-| Flutter | `flutter-iap-{version}` | `flutter-iap-9.2.0` |
-| KMP | `kmp-iap-{version}` | `kmp-iap-2.2.0` |
-| Godot | `godot-iap-{version}` | `godot-iap-2.2.0` |
-| Docs | `docs-{version}` | `docs-1.2.0` |
+| Expo         | `expo-iap-{version}`         | `expo-iap-4.1.0`          |
+| Flutter      | `flutter-iap-{version}`      | `flutter-iap-9.2.0`       |
+| KMP          | `kmp-iap-{version}`          | `kmp-iap-2.2.0`           |
+| Godot        | `godot-iap-{version}`        | `godot-iap-2.2.0`         |
+| Docs         | `docs-{version}`             | `docs-1.2.0`              |
 
 > **Apple is the exception** — it tags with the bare semver version because
 > CocoaPods and Swift Package Manager resolve directly from the Git tag.
+
+### Release Docs Version Guard
+
+When documenting release package versions in
+`packages/docs/src/pages/docs/updates/releases.tsx`, do not infer versions from
+adjacent release notes or assume every package moved in lockstep.
+
+Use these checks before writing a release list:
+
+| Package      | Metadata / Tag Check                                                                                              |
+| ------------ | ----------------------------------------------------------------------------------------------------------------- |
+| Apple        | `jq -r '.apple' openiap-versions.json`; tag `{version}`                                                           |
+| Google       | `jq -r '.google' openiap-versions.json`; tag `google-{version}`                                                   |
+| React Native | `jq -r '.version' libraries/react-native-iap/package.json`; tag `react-native-iap-{version}`                      |
+| Expo         | `jq -r '.version' libraries/expo-iap/package.json`; tag `expo-iap-{version}`                                      |
+| Flutter      | `awk '/^version:/{print $2}' libraries/flutter_inapp_purchase/pubspec.yaml`; tag `flutter-iap-{version}`          |
+| Godot        | `sed -n 's/^version="\\(.*\\)"/\\1/p' libraries/godot-iap/addons/godot-iap/plugin.cfg`; tag `godot-iap-{version}` |
+| KMP          | `sed -n 's/^libraryVersion=//p' libraries/kmp-iap/gradle.properties`; tag `kmp-iap-{version}`                     |
+| MAUI         | read `<PackageVersion>` from `libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj`; tag `maui-iap-{version}`  |
+
+If the release is not published yet, use planned wording and plain text. If the
+release is published, verify the tag exists with `gh release view <tag>` before
+linking it. This prevents stale Package Releases tables such as documenting
+`maui-iap 1.0.1` when the actual release tag is `maui-iap-1.0.2`.
 
 ---
 
@@ -1619,10 +1747,17 @@ Each package uses a different tag format for GitHub Releases:
 **CRITICAL: NEVER manually edit `openiap-versions.json`**
 
 This file is automatically managed by CI/CD workflows during releases:
+
 - Apple releases update `apple` version
 - Google releases update `google` version
 - GQL releases update `spec` version
 - Deploy script (`npm run deploy`) updates `spec` version
+
+The manifest is only for the shared spec and native platform packages:
+`spec`, `google`, and `apple`. Framework library package versions
+(`react-native-iap`, `expo-iap`, `flutter_inapp_purchase`, `godot-iap`,
+`kmp-iap`, `maui-iap`) must stay in each library's own package metadata and
+release workflow, not as extra keys in `openiap-versions.json`.
 
 Manual edits will cause version conflicts and deployment issues. Always use the GitHub Actions workflows or deploy script to update versions.
 
