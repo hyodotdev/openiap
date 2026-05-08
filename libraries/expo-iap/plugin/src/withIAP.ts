@@ -368,21 +368,56 @@ const syncAutolinking = (state: AutolinkState) => {
     )
       ? iosConfig.appDelegateSubscribers
       : [];
-    const onsideSubscriberName = 'OnsideAppDelegateSubscriber';
-    const hasSubscriber = existingSubscribers.includes(onsideSubscriberName);
-    let nextSubscribers = existingSubscribers;
-    if (state.onside && !hasSubscriber) {
-      nextSubscribers = [...existingSubscribers, onsideSubscriberName];
-      logOnce('🔗 expo-iap: Enabled OnsideAppDelegateSubscriber');
-    } else if (!state.onside && hasSubscriber) {
-      nextSubscribers = existingSubscribers.filter(
-        (s: string) => s !== onsideSubscriberName,
+    const desiredSubscribers: {
+      name: string;
+      enable: boolean;
+      addLog: string;
+      removeLog: string;
+    }[] = [
+      {
+        name: 'ExpoIapAppDelegateSubscriber',
+        enable: state.expoIap,
+        addLog: '🔗 expo-iap: Enabled ExpoIapAppDelegateSubscriber',
+        removeLog: '🧹 expo-iap: Disabled ExpoIapAppDelegateSubscriber',
+      },
+      {
+        name: 'OnsideAppDelegateSubscriber',
+        enable: state.onside,
+        addLog: '🔗 expo-iap: Enabled OnsideAppDelegateSubscriber',
+        removeLog: '🧹 expo-iap: Disabled OnsideAppDelegateSubscriber',
+      },
+    ];
+
+    const {
+      modules: nextSubscribers,
+      added: addedSubscribers,
+      removed: removedSubscribers,
+    } = computeAutolinkModules(
+      existingSubscribers,
+      desiredSubscribers.map(({name, enable}) => ({name, enable})),
+    );
+
+    for (const name of addedSubscribers) {
+      const entry = desiredSubscribers.find(
+        (candidate) => candidate.name === name,
       );
-      logOnce('🧹 expo-iap: Disabled OnsideAppDelegateSubscriber');
+      if (entry) {
+        logOnce(entry.addLog);
+      }
+    }
+
+    for (const name of removedSubscribers) {
+      const entry = desiredSubscribers.find(
+        (candidate) => candidate.name === name,
+      );
+      if (entry) {
+        logOnce(entry.removeLog);
+      }
     }
 
     const modulesChanged = added.length > 0 || removed.length > 0;
-    const subscribersChanged = nextSubscribers !== existingSubscribers;
+    const subscribersChanged =
+      addedSubscribers.length > 0 || removedSubscribers.length > 0;
 
     if (modulesChanged || subscribersChanged) {
       iosConfig.modules = nextModules;

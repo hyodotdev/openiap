@@ -53,6 +53,7 @@ afterAll(() => {
 describe('Public API (index.ts)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (ExpoIapModule.getPromotedProductIOS as jest.Mock).mockResolvedValue(null);
   });
 
   describe('listeners', () => {
@@ -100,6 +101,56 @@ describe('Public API (index.ts)', () => {
         'promoted-product-ios',
         expect.any(Function),
       );
+    });
+
+    it('promotedProductListenerIOS replays pending promoted product on iOS', async () => {
+      (Platform as any).OS = 'ios';
+      const product = {id: 'promoted-product', platform: 'ios'} as any;
+      (ExpoIapModule.getPromotedProductIOS as jest.Mock).mockResolvedValue(
+        product,
+      );
+      const listener = jest.fn();
+
+      promotedProductListenerIOS(listener);
+      await Promise.resolve();
+
+      expect(ExpoIapModule.getPromotedProductIOS).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledWith(product);
+    });
+
+    it('promotedProductListenerIOS dedupes replayed promoted product', async () => {
+      (Platform as any).OS = 'ios';
+      const product = {id: 'promoted-product', platform: 'ios'} as any;
+      (ExpoIapModule.getPromotedProductIOS as jest.Mock).mockResolvedValue(
+        product,
+      );
+      const addListener = (ExpoIapModule as any).addListener as jest.Mock;
+      const listener = jest.fn();
+
+      promotedProductListenerIOS(listener);
+      const nativeListener = addListener.mock.calls[0][1];
+      nativeListener('promoted-product');
+      await Promise.resolve();
+
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it('promotedProductListenerIOS resolves native SKU payloads', async () => {
+      (Platform as any).OS = 'ios';
+      const product = {id: 'promoted-product', platform: 'ios'} as any;
+      (ExpoIapModule.getPromotedProductIOS as jest.Mock)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(product);
+      const addListener = (ExpoIapModule as any).addListener as jest.Mock;
+      const listener = jest.fn();
+
+      promotedProductListenerIOS(listener);
+      const nativeListener = addListener.mock.calls[0][1];
+      nativeListener('promoted-product');
+      await Promise.resolve();
+
+      expect(listener).toHaveBeenCalledWith(product);
+      expect(listener).not.toHaveBeenCalledWith('promoted-product');
     });
 
     it('userChoiceBillingListenerAndroid warns on non‑Android, adds on Android', () => {

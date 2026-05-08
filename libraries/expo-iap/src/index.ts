@@ -70,7 +70,10 @@ export enum OpenIapEvent {
 type ExpoIapEventPayloads = {
   [OpenIapEvent.PurchaseUpdated]: Purchase;
   [OpenIapEvent.PurchaseError]: PurchaseError;
-  [OpenIapEvent.PromotedProductIOS]: Product;
+  [OpenIapEvent.PromotedProductIOS]:
+    | Product
+    | string
+    | {id?: string; productId?: string};
   [OpenIapEvent.UserChoiceBillingAndroid]: UserChoiceBillingDetails;
   [OpenIapEvent.DeveloperProvidedBillingAndroid]: DeveloperProvidedBillingDetailsAndroid;
   [OpenIapEvent.SubscriptionBillingIssue]: Purchase;
@@ -210,7 +213,56 @@ export const promotedProductListenerIOS = (
     );
     return {remove: () => {}};
   }
-  return emitter.addListener(OpenIapEvent.PromotedProductIOS, listener);
+
+  let deliveredProductId: string | undefined;
+  const deliver = (product: Product) => {
+    const productId =
+      product.id ?? (product as Product & {productId?: string}).productId;
+    if (productId && productId === deliveredProductId) {
+      return;
+    }
+    deliveredProductId = productId;
+    listener(product);
+  };
+
+  const replayPendingProduct = () => {
+    let pendingProduct: Promise<Product | null> | undefined;
+    try {
+      pendingProduct = ExpoIapModule.getPromotedProductIOS() as
+        | Promise<Product | null>
+        | undefined;
+    } catch {
+      return Promise.resolve();
+    }
+
+    if (!pendingProduct || typeof pendingProduct.then !== 'function') {
+      return Promise.resolve();
+    }
+
+    return pendingProduct
+      .then((product: Product | null) => {
+        if (product) {
+          deliver(product);
+        }
+      })
+      .catch(() => {});
+  };
+
+  const subscription = emitter.addListener(
+    OpenIapEvent.PromotedProductIOS,
+    (payload) => {
+      if (typeof payload === 'string') {
+        void replayPendingProduct();
+        return;
+      }
+
+      deliver(payload as Product);
+    },
+  );
+
+  void replayPendingProduct();
+
+  return subscription;
 };
 
 /**

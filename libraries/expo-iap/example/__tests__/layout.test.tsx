@@ -17,7 +17,6 @@ jest.mock('expo-router', () => {
   Stack.Screen = function MockScreen({name}: {name: string; options?: object}) {
     return ReactMock.createElement('View', {testID: name});
   };
-  Stack.Screen.displayName = 'MockScreen';
   return {
     Stack,
   };
@@ -25,13 +24,12 @@ jest.mock('expo-router', () => {
 
 describe('RootLayout', () => {
   it('should render without crashing', () => {
-    // Just call the function to ensure it executes without errors
-    const component = RootLayout();
-    expect(component).toBeDefined();
+    const {toJSON} = render(<RootLayout />);
+    expect(toJSON()).toBeDefined();
   });
 
   it('should return a valid React element', () => {
-    const component = RootLayout();
+    const component = <RootLayout />;
     expect(React.isValidElement(component)).toBe(true);
   });
 

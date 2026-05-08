@@ -26,6 +26,12 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     private static let initRetryDelayNanoseconds: UInt64 = 1_000_000
     private static let subscriptionPreflightTimeoutNanoseconds: UInt64 = 750_000_000
 
+    #if os(iOS)
+    private let promotedPurchaseObserverLock = NSLock()
+    private var didRegisterPromotedPurchaseObserver = false
+    private var isPromotedPurchaseObserverTransitionInFlight = false
+    #endif
+
     private enum SubscriptionPreflightOutcome {
         case completed
         case timedOut
@@ -33,9 +39,11 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
     private override init() {
         super.init()
+        registerPromotedPurchaseObserverIfNeeded()
     }
 
     deinit {
+        unregisterPromotedPurchaseObserverIfNeeded()
         cancelConnectionTasksForDeinit()
     }
 
@@ -1375,7 +1383,13 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
     public func promotedProductListenerIOS(_ listener: @escaping PromotedProductListener) -> Subscription {
         let subscription = Subscription(eventType: .promotedProductIos)
-        Task { await state.addPromotedProductListener((subscription.id, listener)) }
+        Task { [state] in
+            let pendingSku = await state.addPromotedProductListener((subscription.id, listener))
+            guard let pendingSku else { return }
+            await MainActor.run {
+                listener(pendingSku)
+            }
+        }
         return subscription
     }
 
@@ -1407,16 +1421,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
         _ = try connection.getOrCreateProductManager(generation: generation)
 
-        // iOS-only: Register SKPaymentQueue observer for promoted in-app purchases
-        // Reference: https://developer.apple.com/documentation/storekit/promoting-in-app-purchases
-        #if os(iOS)
-        if try connection.markPaymentQueueObserverRegisteredIfNeeded(generation: generation) {
-            try Task.checkCancellation()
-            await MainActor.run {
-                SKPaymentQueue.default().add(self)
-            }
-        }
-        #endif // os(iOS)
+        registerPromotedPurchaseObserverIfNeeded()
 
         try Task.checkCancellation()
         try connection.ensureCurrent(generation)
@@ -1456,6 +1461,64 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         resources.unfinishedTransactionTask?.cancel()
     }
 
+    private func registerPromotedPurchaseObserverIfNeeded() {
+        #if os(iOS)
+        promotedPurchaseObserverLock.lock()
+        let shouldRegister = !didRegisterPromotedPurchaseObserver &&
+            !isPromotedPurchaseObserverTransitionInFlight
+        if shouldRegister {
+            isPromotedPurchaseObserverTransitionInFlight = true
+        }
+        promotedPurchaseObserverLock.unlock()
+
+        guard shouldRegister else { return }
+
+        let addObserver = {
+            SKPaymentQueue.default().add(self)
+        }
+
+        if Thread.isMainThread {
+            addObserver()
+        } else {
+            DispatchQueue.main.sync(execute: addObserver)
+        }
+
+        promotedPurchaseObserverLock.lock()
+        didRegisterPromotedPurchaseObserver = true
+        isPromotedPurchaseObserverTransitionInFlight = false
+        promotedPurchaseObserverLock.unlock()
+        #endif // os(iOS)
+    }
+
+    private func unregisterPromotedPurchaseObserverIfNeeded() {
+        #if os(iOS)
+        promotedPurchaseObserverLock.lock()
+        let shouldUnregister = didRegisterPromotedPurchaseObserver &&
+            !isPromotedPurchaseObserverTransitionInFlight
+        if shouldUnregister {
+            isPromotedPurchaseObserverTransitionInFlight = true
+        }
+        promotedPurchaseObserverLock.unlock()
+
+        guard shouldUnregister else { return }
+
+        let removeObserver = {
+            SKPaymentQueue.default().remove(self)
+        }
+
+        if Thread.isMainThread {
+            removeObserver()
+        } else {
+            DispatchQueue.main.sync(execute: removeObserver)
+        }
+
+        promotedPurchaseObserverLock.lock()
+        didRegisterPromotedPurchaseObserver = false
+        isPromotedPurchaseObserverTransitionInFlight = false
+        promotedPurchaseObserverLock.unlock()
+        #endif // os(iOS)
+    }
+
     private func ensureConnection() async throws {
         if let endTask = connection.currentEndTask() {
             await endTask.value
@@ -1484,15 +1547,6 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         resources.messageListenerTask?.cancel()
         resources.unfinishedTransactionTask?.cancel()
         await state.reset()
-        // iOS-only: Remove SKPaymentQueue observer for promoted in-app purchases
-        // Reference: https://developer.apple.com/documentation/storekit/promoting-in-app-purchases
-        #if os(iOS)
-        if resources.didRegisterPaymentQueueObserver {
-            await MainActor.run {
-                SKPaymentQueue.default().remove(self)
-            }
-        }
-        #endif // os(iOS)
         if let manager = resources.productManager { await manager.removeAll() }
     }
 
@@ -1737,7 +1791,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
     private func emitPromotedProduct(_ sku: String) {
         Task { [state] in
-            let listeners = await state.snapshotPromoted()
+            let listeners = await state.recordPromotedProductAndSnapshotListeners(sku)
             await MainActor.run {
                 listeners.forEach { $0(sku) }
             }
@@ -2002,7 +2056,6 @@ extension OpenIapModule: SKPaymentTransactionObserver {
     public func paymentQueue(_ queue: SKPaymentQueue, shouldAddStorePayment payment: SKPayment, for product: SKProduct) -> Bool {
         Task { [weak self] in
             guard let self else { return }
-            await self.state.setPromotedProductId(product.productIdentifier)
             self.emitPromotedProduct(product.productIdentifier)
         }
         return false

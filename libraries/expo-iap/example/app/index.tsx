@@ -1,5 +1,11 @@
-import React, {useEffect, useState} from 'react';
-import {View, Text, StyleSheet, TouchableOpacity, FlatList} from 'react-native';
+import {useEffect, useState} from 'react';
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import {Link} from 'expo-router';
 import {getStorefront} from 'expo-iap';
 
@@ -9,7 +15,7 @@ type MenuItem = {
   icon: string;
   title: string;
   subtitle: string;
-  buttonStyle: string;
+  accentColor: string;
 };
 
 const MENU_ITEMS: MenuItem[] = [
@@ -19,7 +25,7 @@ const MENU_ITEMS: MenuItem[] = [
     icon: '📱',
     title: 'All Products',
     subtitle: 'View all items at once',
-    buttonStyle: 'allProductsButton',
+    accentColor: '#EF4444',
   },
   {
     id: 'purchase-flow',
@@ -27,7 +33,7 @@ const MENU_ITEMS: MenuItem[] = [
     icon: '🛒',
     title: 'In-App Purchase Flow',
     subtitle: 'One-time products',
-    buttonStyle: 'primaryButton',
+    accentColor: '#2563EB',
   },
   {
     id: 'subscription-flow',
@@ -35,7 +41,7 @@ const MENU_ITEMS: MenuItem[] = [
     icon: '🔄',
     title: 'Subscription Flow',
     subtitle: 'Recurring subscriptions',
-    buttonStyle: 'secondaryButton',
+    accentColor: '#16A34A',
   },
   {
     id: 'available-purchases',
@@ -43,7 +49,7 @@ const MENU_ITEMS: MenuItem[] = [
     icon: '📦',
     title: 'Available Purchases',
     subtitle: 'View past purchases',
-    buttonStyle: 'quaternaryButton',
+    accentColor: '#7C3AED',
   },
   {
     id: 'offer-code',
@@ -51,7 +57,7 @@ const MENU_ITEMS: MenuItem[] = [
     icon: '🎁',
     title: 'Offer Code Redemption',
     subtitle: 'Redeem promo codes',
-    buttonStyle: 'tertiaryButton',
+    accentColor: '#4B5563',
   },
   {
     id: 'alternative-billing',
@@ -59,7 +65,7 @@ const MENU_ITEMS: MenuItem[] = [
     icon: '🌐',
     title: 'Alternative Billing',
     subtitle: 'External payment links',
-    buttonStyle: 'alternativeBillingButton',
+    accentColor: '#EA580C',
   },
   {
     id: 'webhook-stream',
@@ -67,7 +73,7 @@ const MENU_ITEMS: MenuItem[] = [
     icon: '📡',
     title: 'Webhook Stream',
     subtitle: 'IAPKit SSE + test notification',
-    buttonStyle: 'webhookStreamButton',
+    accentColor: '#0284C7',
   },
 ];
 
@@ -95,137 +101,130 @@ export default function Home() {
     <View style={styles.headerContainer}>
       <Text style={styles.title}>expo-iap Examples</Text>
       <Text style={styles.subtitle}>
-        Best Practice Implementations{' '}
-        {storefront ? `(Store: ${storefront})` : ''}
-      </Text>
-
-      <Text style={styles.description}>
-        These examples demonstrate TypeScript-first approaches to in-app
-        purchases with:
-        {'\n'}• Automatic type inference (no manual casting)
-        {'\n'}• Platform-agnostic property access
-        {'\n'}• Clean error handling with proper types
-        {'\n'}• Focused implementations for each use case
-        {'\n'}• CPK React Native compliant code style
+        Example flows for purchases, subscriptions, restore, offers, and
+        platform-specific APIs{storefront ? ` · Store ${storefront}` : ''}
       </Text>
     </View>
   );
 
-  const renderItem = ({item}: {item: MenuItem}) => {
-    const buttonStyleMap: Record<string, any> = {
-      allProductsButton: styles.allProductsButton,
-      primaryButton: styles.primaryButton,
-      secondaryButton: styles.secondaryButton,
-      tertiaryButton: styles.tertiaryButton,
-      quaternaryButton: styles.quaternaryButton,
-      alternativeBillingButton: styles.alternativeBillingButton,
-      webhookStreamButton: styles.webhookStreamButton,
-    };
-
+  const renderItem = (item: MenuItem) => {
     return (
-      <Link href={item.href as any} asChild>
-        <TouchableOpacity
-          style={[styles.button, buttonStyleMap[item.buttonStyle]]}
-        >
-          <Text style={styles.buttonText}>
-            {item.icon} {item.title}
-          </Text>
-          <Text style={styles.buttonSubtext}>{item.subtitle}</Text>
+      <Link key={item.id} href={item.href as any} asChild>
+        <TouchableOpacity style={styles.menuItem}>
+          <View
+            style={[styles.iconContainer, {backgroundColor: item.accentColor}]}
+          >
+            <Text style={styles.menuIcon}>{item.icon}</Text>
+          </View>
+          <View style={styles.menuLabel}>
+            <Text style={styles.menuTitle}>{item.title}</Text>
+            <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+          </View>
+          <Text style={styles.chevron}>›</Text>
         </TouchableOpacity>
       </Link>
     );
   };
 
   return (
-    <FlatList
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-      data={MENU_ITEMS}
-      renderItem={renderItem}
-      keyExtractor={(item) => item.id}
-      ListHeaderComponent={renderHeader}
-      ItemSeparatorComponent={() => <View style={styles.separator} />}
-    />
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <View style={styles.contentInner}>
+        {renderHeader()}
+        <View style={styles.menuGrid}>
+          {MENU_ITEMS.map(renderItem)}
+        </View>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#F8FAFC',
   },
-  contentContainer: {
-    padding: 20,
+  content: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 24,
     paddingBottom: 40,
   },
+  contentInner: {
+    maxWidth: 430,
+    width: '100%',
+  },
   headerContainer: {
-    alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#000000',
+    fontSize: 30,
+    fontWeight: '700',
+    color: '#0F172A',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 18,
-    color: '#333333',
-    marginBottom: 24,
-  },
-  description: {
     fontSize: 16,
-    color: '#333333',
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 16,
+    lineHeight: 20,
+    color: '#475569',
   },
-  separator: {
-    height: 12,
+  menuGrid: {
+    gap: 12,
   },
-  button: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderRadius: 12,
+  menuItem: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    minHeight: 84,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
     elevation: 3,
+  },
+  iconContainer: {
     alignItems: 'center',
+    borderRadius: 8,
+    height: 44,
+    justifyContent: 'center',
+    marginRight: 14,
+    width: 44,
   },
-  allProductsButton: {
-    backgroundColor: '#FF6B6B',
+  menuIcon: {
+    fontSize: 22,
+    lineHeight: 26,
   },
-  primaryButton: {
-    backgroundColor: '#007AFF',
+  menuLabel: {
+    flex: 1,
+    minWidth: 0,
   },
-  secondaryButton: {
-    backgroundColor: '#28a745',
-  },
-  tertiaryButton: {
-    backgroundColor: '#6c757d',
-  },
-  quaternaryButton: {
-    backgroundColor: '#9c27b0',
-  },
-  alternativeBillingButton: {
-    backgroundColor: '#FF9800',
-  },
-  webhookStreamButton: {
-    backgroundColor: '#0EA5E9',
-  },
-  buttonText: {
-    color: '#ffffff',
+  menuTitle: {
+    color: '#111827',
     fontSize: 16,
-    fontWeight: '600',
+    flexShrink: 1,
+    flexWrap: 'wrap',
+    fontWeight: '700',
+    lineHeight: 20,
     marginBottom: 4,
   },
-  buttonSubtext: {
-    color: 'rgba(255, 255, 255, 0.85)',
+  menuSubtitle: {
+    color: '#64748B',
     fontSize: 14,
+    flexShrink: 1,
+    flexWrap: 'wrap',
+    lineHeight: 18,
+  },
+  chevron: {
+    color: '#94A3B8',
+    fontSize: 24,
+    lineHeight: 26,
+    marginLeft: 8,
   },
 });

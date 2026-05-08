@@ -26,6 +26,118 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // May 8, 2026 — planned openiap-apple 2.1.8 promoted IAP cold-start fix
+    {
+      id: 'apple-2-1-8-promoted-iap-cold-start',
+      date: new Date('2026-05-08'),
+      element: (
+        <div key="apple-2-1-8-promoted-iap-cold-start" style={noteCardStyle}>
+          <AnchorLink id="apple-2-1-8-promoted-iap-cold-start" level="h4">
+            May 8, 2026 — planned openiap-apple 2.1.8 promoted IAP cold-start
+            fix
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Plans <strong>openiap-apple 2.1.8</strong> and framework-library
+            patch releases for an iOS launch race where App Store promoted
+            purchase intents can arrive before JavaScript calls{' '}
+            <Link to="/docs/apis/init-connection">initConnection()</Link>. The
+            Apple runtime will register its StoreKit payment-queue observer at
+            native module launch, keeps promoted-purchase observation
+            independent from connection teardown, and replays pending products
+            to{' '}
+            <Link to="/docs/events/ios/promoted-product-listener-ios">
+              promotedProductListenerIOS
+            </Link>{' '}
+            and{' '}
+            <Link to="/docs/apis/ios/get-promoted-product-ios">
+              getPromotedProductIOS()
+            </Link>
+            . Track the fix in{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/issues/143"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              issue #143
+            </a>{' '}
+            and{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/144"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #144
+            </a>
+            .
+          </p>
+
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>Cold-start delivery</strong> — promoted App Store purchase
+              intents are captured before JS initialization, including when the
+              app is force-quit and relaunched by the purchase intent URL.
+            </li>
+            <li>
+              <strong>Late-listener replay</strong> — JS listeners receive the
+              pending promoted product even when registration happens after the
+              native StoreKit callback.
+            </li>
+            <li>
+              <strong>Expo autolinking support</strong> — expo-iap registers an
+              AppDelegate subscriber so generated Expo projects instantiate the
+              Apple runtime early enough for promoted IAP callbacks.
+            </li>
+            <li>
+              <strong>No API changes</strong> — apps should continue using{' '}
+              <code>promotedProductListenerIOS</code> with{' '}
+              <code>requestPurchase()</code>; only the deprecated{' '}
+              <code>requestPurchaseOnPromotedProductIOS</code> helper remains
+              deprecated.
+            </li>
+          </ul>
+
+          {/* Planned Package Releases */}
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Planned Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>openiap-apple 2.1.8</li>
+              <li>react-native-iap 15.2.3</li>
+              <li>expo-iap 4.2.7</li>
+              <li>flutter_inapp_purchase 9.2.7</li>
+              <li>godot-iap 2.2.7</li>
+              <li>kmp-iap 2.2.7</li>
+              <li>maui-iap 1.0.3</li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // May 8, 2026 — openiap-apple + framework SDK iOS connection teardown patches
     {
       id: 'apple-2-1-7-framework-ios-connection-teardown-patches',
