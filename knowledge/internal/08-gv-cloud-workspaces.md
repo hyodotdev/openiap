@@ -169,7 +169,10 @@ gv repo env list --repo openiap --json
 
 ## Verified safe smoke checks
 
-These checks have run successfully in the GV/Docker read-only pattern:
+These checks have run successfully inside the Docker `/work` copy in the
+GV read-only pattern, not directly in the default GV host shell. Bun is not
+available in the default GV environment unless a future setup script installs
+it.
 
 ```bash
 # GQL tests
