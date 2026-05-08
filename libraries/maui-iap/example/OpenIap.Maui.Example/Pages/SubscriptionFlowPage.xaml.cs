@@ -1,4 +1,4 @@
-using Hyo.OpenIap;
+using OpenIap;
 using OpenIap.Maui;
 using OpenIap.Maui.Example.Components;
 using OpenIap.Maui.Example.Utils;

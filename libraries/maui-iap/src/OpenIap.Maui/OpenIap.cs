@@ -5,8 +5,8 @@
 // The static `Iap` class is the recommended entry point. It delegates to a
 // platform implementation that is selected at compile time (see the
 // Platforms/ folder). The class is named `Iap` (not `OpenIap`) to avoid
-// shadowing the `Hyo.OpenIap` namespace when consumers `using` both
-// `Hyo.OpenIap` and `OpenIap.Maui`. Mirrors the API surface of:
+// shadowing the `OpenIap` namespace when consumers `using` both
+// `OpenIap` and `OpenIap.Maui`. Mirrors the API surface of:
 //   - react-native-iap / expo-iap (TypeScript)
 //   - flutter_inapp_purchase (Dart)
 //   - kmp-iap (Kotlin)
@@ -19,14 +19,14 @@
 // QueryResolver / MutationResolver / SubscriptionResolver in the generated
 // Types.cs declare the full operation surface. Concrete `IOpenIap`
 // implementations should also implement the resolver interfaces from
-// `Hyo.OpenIap` so the entire OpenIAP API is callable through one object.
+// `OpenIap` so the entire OpenIAP API is callable through one object.
 
 #nullable enable
 
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Hyo.OpenIap;
+using OpenIap;
 
 namespace OpenIap.Maui;
 
@@ -36,7 +36,7 @@ namespace OpenIap.Maui;
 /// <see cref="IObservable{T}"/> streams instead of GraphQL subscription
 /// fields. The full operation surface comes from the generated
 /// <c>QueryResolver</c> and <c>MutationResolver</c> interfaces in
-/// <c>Hyo.OpenIap.Types.cs</c> — concrete platform implementations should
+/// <c>OpenIap.Types.cs</c> — concrete platform implementations should
 /// implement those too.
 /// </summary>
 public interface IOpenIap

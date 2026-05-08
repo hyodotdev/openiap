@@ -134,10 +134,10 @@ function PremiumGate({ children }: { children: React.ReactNode }) {
             <CodeBlock language="dart">{`final isPremium = await FlutterInappPurchase.instance.hasActiveSubscriptions();`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var isPremium = await ((QueryResolver)OpenIap.Instance).HasActiveSubscriptionsAsync()`}</CodeBlock>
+var isPremium = await ((QueryResolver)Iap.Instance).HasActiveSubscriptionsAsync()`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`var is_premium = await iap.has_active_subscriptions()`}</CodeBlock>

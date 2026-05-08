@@ -106,7 +106,7 @@ JSON-shaped facade (NSDictionary in/out). The iOS binding's
 [`ApiDefinition.cs`](src/OpenIap.Maui.Bindings.iOS/ApiDefinition.cs)
 mirrors that header 1:1; the resolver in
 [`Platforms/iOS/OpenIapIOS.cs`](src/OpenIap.Maui/Platforms/iOS/OpenIapIOS.cs)
-converts NSDictionary → JsonNode → typed `Hyo.OpenIap` records via
+converts NSDictionary → JsonNode → typed `OpenIap` records via
 `System.Text.Json`.
 
 `OpenIapMacCatalyst` subclasses `OpenIapIOS` — Mac Catalyst uses the same
@@ -154,6 +154,13 @@ For local development via `<ProjectReference>`, the example app at
 the `<NativeReference>` to the xcframework — `<NativeReference>` items
 don't propagate transitively through `<ProjectReference>`.
 
+### Release workflow
+
+The MAUI release workflow reads `PackageVersion` from `OpenIap.Maui.csproj`.
+Use the `current` workflow input when a PR has already committed the intended
+package version. Use `patch`, `minor`, or `major` only when the workflow should
+calculate and commit the next version on `main`.
+
 ## SDK parity checklist (C# specifics)
 
 When the GraphQL schema in `packages/gql` adds or changes an API, follow
@@ -164,7 +171,7 @@ For maui-iap specifically:
 | Layer                 | Where                                                                |
 | --------------------- | -------------------------------------------------------------------- |
 | 1. Type declared      | `src/OpenIap.Maui/Types.cs` (generated)                              |
-| 2. Public API exposed | `Hyo.OpenIap.QueryResolver` / `MutationResolver` (in `Types.cs`)     |
+| 2. Public API exposed | `OpenIap.QueryResolver` / `OpenIap.MutationResolver` (in `Types.cs`) |
 | 3. Platform bridge    | `Platforms/Android/OpenIapAndroid.cs`, `Platforms/iOS/OpenIapIOS.cs` |
 | 4. Handlers wired     | Concrete platform classes implement the resolver interfaces          |
 | 5. Test coverage      | TBD — example app + unit tests pending                               |

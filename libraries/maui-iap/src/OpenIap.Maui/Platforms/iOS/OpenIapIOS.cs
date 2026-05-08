@@ -14,7 +14,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Foundation;
-using Hyo.OpenIap;
+using OpenIap;
 using OpenIap.Maui.Bindings.iOS;
 
 namespace OpenIap.Maui.Platforms.iOS;

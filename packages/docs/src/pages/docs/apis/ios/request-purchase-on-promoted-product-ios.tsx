@@ -66,7 +66,7 @@ Future<bool> requestPurchaseOnPromotedProductIOS();`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`@Deprecated("Use promotedProductListenerIOS + requestPurchase instead")
-Task<Boolean> RequestPurchaseOnPromotedProductIOSAsync()`}</CodeBlock>
+Task<bool> RequestPurchaseOnPromotedProductIOSAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func request_purchase_on_promoted_product_ios() -> Variant`}</CodeBlock>
@@ -110,12 +110,12 @@ if (Platform.isIOS) {
 }`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 // kmp-iap (iOS targets only — no-op on Android)
 // Deprecated — prefer promotedProductListenerIOS + requestPurchase.
-await ((QueryResolver)OpenIap.Instance).RequestPurchaseOnPromotedProductIOSAsync()`}</CodeBlock>
+await ((MutationResolver)Iap.Instance).RequestPurchaseOnPromotedProductIOSAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

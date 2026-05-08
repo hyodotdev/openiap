@@ -190,10 +190,10 @@ kmpIAP.finishTransaction(
             <CodeBlock language="gdscript">{`await iap.finish_transaction(purchase, false)`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-await ((MutationResolver)OpenIap.Instance).FinishTransactionAsync(
+await ((MutationResolver)Iap.Instance).FinishTransactionAsync(
     purchase: new PurchaseInput(purchase),
     isConsumable: true);`}</CodeBlock>
           ),

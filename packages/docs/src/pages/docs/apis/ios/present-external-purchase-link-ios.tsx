@@ -59,7 +59,7 @@ struct ExternalPurchaseLinkResultIOS {
             <CodeBlock language="dart">{`Future<ExternalPurchaseLinkResultIOS> presentExternalPurchaseLinkIOS(String url);`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task<ExternalPurchaseLinkResultIOS> PresentExternalPurchaseLinkIOSAsync(String Url)`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<ExternalPurchaseLinkResultIOS> PresentExternalPurchaseLinkIOSAsync(string url);`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func present_external_purchase_link_ios(url: String) -> Variant`}</CodeBlock>
@@ -116,11 +116,12 @@ if (Platform.OS === 'ios') {
 }`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// kmp-iap (iOS targets only — no-op on Android)
-var result = await ((QueryResolver)OpenIap.Instance).PresentExternalPurchaseLinkIOSAsync(url = "https://yourstore.com/checkout")`}</CodeBlock>
+// iOS targets only — no-op on Android
+var result = await ((MutationResolver)Iap.Instance).PresentExternalPurchaseLinkIOSAsync(
+    "https://yourstore.com/checkout");`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

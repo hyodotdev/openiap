@@ -80,14 +80,14 @@ class InitConnectionConfig {
 }`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using OpenIap.Maui;
+            <CodeBlock language="csharp">{`using OpenIap;
 
-// Config field on InitConnectionConfig — wired via initConnection()
-data class InitConnectionConfig(
-    var enableBillingProgramAndroid = null,
+// Config field on InitConnectionConfig, wired via InitConnectionAsync.
+public sealed record InitConnectionConfig
+{
+    public BillingProgramAndroid? EnableBillingProgramAndroid { get; init; }
     // ...other fields
-)`}</CodeBlock>
+}`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`# InitConnectionConfig.enable_billing_program_android: BillingProgramAndroid
@@ -168,14 +168,14 @@ function App() {
 }`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-await ((QueryResolver)OpenIap.Instance).InitConnectionAsync(
-    InitConnectionConfig(
-        enableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer
-    )
-)`}</CodeBlock>
+await ((MutationResolver)Iap.Instance).InitConnectionAsync(
+    new InitConnectionConfig
+    {
+        EnableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer,
+    });`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":

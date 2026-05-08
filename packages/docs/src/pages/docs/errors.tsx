@@ -87,7 +87,7 @@ function Errors() {
 }`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+              <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 public sealed record PurchaseError
@@ -872,10 +872,10 @@ var is_empty_product_list: Variant = null # Android returned no products`}</Code
 }`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`using Hyo.OpenIap;
-using OpenIap.Maui;
+              <CodeBlock language="csharp">{`using OpenIap;
 
-enum class OpenIapError {
+public enum ErrorCode
+{
     Unknown,
     UserCancelled,
     UserError,
@@ -883,11 +883,11 @@ enum class OpenIapError {
     RemoteError,
     NetworkError,
     ServiceError,
-    // @deprecated Use PurchaseVerificationFailed instead
+    // Deprecated: use PurchaseVerificationFailed instead.
     ReceiptFailed,
-    // @deprecated Use PurchaseVerificationFinished instead
+    // Deprecated: use PurchaseVerificationFinished instead.
     ReceiptFinished,
-    // @deprecated Use PurchaseVerificationFinishFailed instead
+    // Deprecated: use PurchaseVerificationFinishFailed instead.
     ReceiptFinishedFailed,
     PurchaseVerificationFailed,
     PurchaseVerificationFinished,

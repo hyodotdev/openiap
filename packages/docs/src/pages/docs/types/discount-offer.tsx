@@ -407,35 +407,37 @@ enum DiscountOfferType {
 }`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+              <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
+using System.Collections.Generic;
 
-data class DiscountOffer(
+public sealed record DiscountOffer
+{
     // Common fields
-    var id: String?,
-    var displayPrice: String,
-    var price: Double,
-    var currency: String,
-    var type: DiscountOfferType,
+    public string? Id { get; init; }
+    public required string DisplayPrice { get; init; }
+    public required double Price { get; init; }
+    public required string Currency { get; init; }
+    public required DiscountOfferType Type { get; init; }
 
     // Android-specific fields
-    var offerTokenAndroid = null,
-    var offerTagsAndroid = null,
-    var fullPriceMicrosAndroid = null,
-    var percentageDiscountAndroid = null,
-    var discountAmountMicrosAndroid = null,
-    var formattedDiscountAmountAndroid = null,
-    var validTimeWindowAndroid = null,
-    var limitedQuantityInfoAndroid = null,
-    var preorderDetailsAndroid = null,
-    var rentalDetailsAndroid = null,
-    var purchaseOptionIdAndroid = null
-)
+    public string? OfferTokenAndroid { get; init; }
+    public IReadOnlyList<string>? OfferTagsAndroid { get; init; }
+    public string? FullPriceMicrosAndroid { get; init; }
+    public int? PercentageDiscountAndroid { get; init; }
+    public string? DiscountAmountMicrosAndroid { get; init; }
+    public string? FormattedDiscountAmountAndroid { get; init; }
+    public ValidTimeWindowAndroid? ValidTimeWindowAndroid { get; init; }
+    public LimitedQuantityInfoAndroid? LimitedQuantityInfoAndroid { get; init; }
+    public PreorderDetailsAndroid? PreorderDetailsAndroid { get; init; }
+    public RentalDetailsAndroid? RentalDetailsAndroid { get; init; }
+    public string? PurchaseOptionIdAndroid { get; init; }
+}
 
-enum class DiscountOfferType {
+public enum DiscountOfferType
+{
     Introductory,
     Promotional,
-    WinBack,    // iOS 18+
     OneTime
 }`}</CodeBlock>
             ),

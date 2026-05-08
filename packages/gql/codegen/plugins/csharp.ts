@@ -61,7 +61,7 @@ const GRAPHQL_TO_CSHARP: Record<string, string> = {
   Float: 'double',
 };
 
-const NAMESPACE = 'Hyo.OpenIap';
+const NAMESPACE = 'OpenIap';
 
 export class CSharpPlugin extends CodegenPlugin {
   readonly name = 'csharp';

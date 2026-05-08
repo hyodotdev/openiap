@@ -83,7 +83,7 @@ function Validation() {
               <CodeBlock language="dart">{`Future<VerifyPurchaseResult> verifyPurchase(VerifyPurchaseProps options);`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`Task<VerifyPurchaseResult> VerifyPurchaseAsync(VerifyPurchaseProps Options)`}</CodeBlock>
+              <CodeBlock language="csharp">{`Task<VerifyPurchaseResult> VerifyPurchaseAsync(VerifyPurchaseProps options);`}</CodeBlock>
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`func verify_purchase(options: VerifyPurchaseProps) -> VerifyPurchaseResult`}</CodeBlock>
@@ -129,12 +129,20 @@ if (result.isValid) {
 );`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+              <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var result = await ((QueryResolver)OpenIap.Instance).VerifyPurchaseAsync(
-    VerifyPurchaseProps(purchase = purchase, serverUrl = "https://your-server.com/api/verify")
-)`}</CodeBlock>
+var result = await ((MutationResolver)Iap.Instance).VerifyPurchaseAsync(
+    new VerifyPurchaseProps
+    {
+        Google = new VerifyPurchaseGoogleOptions
+        {
+            Sku = "com.app.premium",
+            PackageName = "com.yourcompany.app",
+            PurchaseToken = purchase.PurchaseToken!,
+            AccessToken = accessToken,
+        },
+    });`}</CodeBlock>
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`var options = VerifyPurchaseProps.new()
@@ -342,7 +350,7 @@ if (result.iapkit?.isValid && result.iapkit?.state === 'entitled') {
 );`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+              <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 var result = module.verifyPurchaseWithProvider(

@@ -14,7 +14,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Hyo.OpenIap;
+using OpenIap;
 // The AAR binding emits `Dev.Hyo.Openiap.Maui.OpenIapMauiModule` from the
 // Java package dev.hyo.openiap.maui — alias for ergonomics.
 using OpenIapMauiModule = global::Dev.Hyo.Openiap.Maui.OpenIapMauiModule;

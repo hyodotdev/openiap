@@ -112,7 +112,7 @@ type RequestPurchaseProps =
           csharp: (
             <CodeBlock language="csharp">{`Task<RequestPurchaseResult?> RequestPurchaseAsync(RequestPurchaseProps props);
 
-// Result is event-based — listen via OpenIap.Instance.PurchaseUpdated /
+// Result is event-based — listen via Iap.Instance.PurchaseUpdated /
 // PurchaseError. The returned RequestPurchaseResult is for legacy consumers.`}</CodeBlock>
           ),
         }}
@@ -370,27 +370,27 @@ props.type = ProductQueryType.IN_APP
 await iap.request_purchase(props)`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 // Subscribe to results FIRST — requestPurchase is event-based.
-OpenIap.Instance.PurchaseUpdated.Subscribe(async purchase => {
+Iap.Instance.PurchaseUpdated.Subscribe(async purchase => {
     // 1. Validate on your server, 2. Grant entitlement,
     // 3. Finish transaction (Android auto-refunds after 3 days otherwise!)
-    await ((MutationResolver)OpenIap.Instance).FinishTransactionAsync(
+    await ((MutationResolver)Iap.Instance).FinishTransactionAsync(
         purchase: new PurchaseInput(purchase),
         isConsumable: true);
 });
 
-OpenIap.Instance.PurchaseError.Subscribe(error => {
+Iap.Instance.PurchaseError.Subscribe(error => {
     Console.WriteLine($"{error.Code}: {error.Message}");
 });
 
 // Then request the purchase
-await ((MutationResolver)OpenIap.Instance).RequestPurchaseAsync(new RequestPurchaseProps {
+await ((MutationResolver)Iap.Instance).RequestPurchaseAsync(new RequestPurchaseProps {
     RequestPurchase = new RequestPurchasePropsByPlatforms {
-        Ios = new RequestPurchaseIosProps { Sku = "com.app.premium" },
-        Android = new RequestPurchaseAndroidProps { Skus = new[] { "com.app.premium" } },
+        Apple = new RequestPurchaseIosProps { Sku = "com.app.premium" },
+        Google = new RequestPurchaseAndroidProps { Skus = new[] { "com.app.premium" } },
     },
     Type = ProductQueryType.InApp,
 });`}</CodeBlock>

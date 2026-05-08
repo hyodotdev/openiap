@@ -50,7 +50,7 @@ function ClearTransactionIOS() {
             <CodeBlock language="dart">{`Future<bool> clearTransactionIOS();`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task<Boolean> ClearTransactionIOSAsync()`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<bool> ClearTransactionIOSAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func clear_transaction_ios() -> Variant`}</CodeBlock>
@@ -90,11 +90,11 @@ if (Platform.OS === 'ios') {
 }`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 // kmp-iap (iOS targets only — no-op on Android)
-await ((QueryResolver)OpenIap.Instance).ClearTransactionIOSAsync()`}</CodeBlock>
+await ((MutationResolver)Iap.Instance).ClearTransactionIOSAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

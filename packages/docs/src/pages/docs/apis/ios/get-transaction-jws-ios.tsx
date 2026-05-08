@@ -104,11 +104,11 @@ if (Platform.OS === 'ios') {
 }`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 // kmp-iap (iOS targets only — no-op on Android)
-var jws = await ((QueryResolver)OpenIap.Instance).GetTransactionJwsIOSAsync(sku = "com.app.premium")`}</CodeBlock>
+var jws = await ((QueryResolver)Iap.Instance).GetTransactionJwsIOSAsync(sku: "com.app.premium")`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

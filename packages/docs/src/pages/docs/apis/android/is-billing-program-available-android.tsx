@@ -68,7 +68,7 @@ suspend fun isBillingProgramAvailable(
           csharp: (
             <CodeBlock language="csharp">{`// Returns BillingProgramAvailabilityResultAndroid with isAvailable flag
 // Throws OpenIapError.NotPrepared if billing client not ready
-Task<BillingProgramAvailabilityResultAndroid> IsBillingProgramAvailableAsync(BillingProgramAndroid Program)`}</CodeBlock>
+Task<BillingProgramAvailabilityResultAndroid> IsBillingProgramAvailableAndroidAsync(BillingProgramAndroid program);`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func is_billing_program_available_android(
@@ -154,12 +154,12 @@ if (Platform.OS === 'android') {
 }`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var result = await ((QueryResolver)OpenIap.Instance).IsBillingProgramAvailableAsync(
+var result = await ((MutationResolver)Iap.Instance).IsBillingProgramAvailableAndroidAsync(
     BillingProgramAndroid.ExternalOffer
-)`}</CodeBlock>
+);`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":

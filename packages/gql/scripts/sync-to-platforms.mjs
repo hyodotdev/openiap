@@ -214,8 +214,8 @@ if (existsSync(kmpSource)) {
 }
 
 // Sync C# to maui-iap. The generator already emits the
-// `Hyo.OpenIap` namespace declaration that the MAUI library imports via
-// `using Hyo.OpenIap;`, so the file is copied verbatim — no per-library
+// `OpenIap` namespace declaration that the MAUI library imports via
+// `using OpenIap;`, so the file is copied verbatim — no per-library
 // post-processing is needed (unlike the kmp-iap Kotlin path, which has to
 // inject a different package declaration).
 if (existsSync(csharpSource)) {

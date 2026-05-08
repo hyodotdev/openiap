@@ -3,7 +3,7 @@
 // for the details modal. Walking only the publicly-typed fields keeps the
 // helper deterministic across the platform branches.
 
-using Hyo.OpenIap;
+using OpenIap;
 
 namespace OpenIap.Maui.Example.Utils;
 

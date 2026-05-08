@@ -304,39 +304,46 @@ await iap.requestPurchaseWithBuilder(
 );`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+              <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var store = OpenIapStore(context)
+var query = (QueryResolver)Iap.Instance;
+var mutation = (MutationResolver)Iap.Instance;
 
 // 1. Open the store connection on app start.
-store.initConnection(null)
+await mutation.InitConnectionAsync();
 
 // 2. Fetch products by SKU.
-var products = store.fetchProducts(
-    ProductRequest(
-        skus = new[] { "com.app.premium" },
-        type = ProductQueryType.InApp
-    )
-)
+var products = await query.FetchProductsAsync(new ProductRequest
+{
+    Skus = new[] { "com.app.premium" },
+    Type = ProductQueryType.InApp,
+});
 
 // 3. Listen for purchase results.
-scope.launch {
-    store.purchaseUpdates.collect { purchase ->
-        // Verify on your backend, grant entitlement, then finish.
-        store.finishTransaction(purchase, isConsumable = false)
-    }
-}
+var subscription = Iap.Instance.PurchaseUpdated.Subscribe(async purchase =>
+{
+    // Verify on your backend, grant entitlement, then finish.
+    await mutation.FinishTransactionAsync(
+        new PurchaseInput(purchase),
+        isConsumable: false);
+});
 
 // 4. Initiate a purchase.
-store.requestPurchase(
-    RequestPurchaseProps(
-        request = RequestPurchasePropsByPlatforms(
-            google = RequestPurchaseAndroidProps(skus = new[] { "com.app.premium" })
-        ),
-        type = ProductQueryType.InApp
-    )
-)`}</CodeBlock>
+await mutation.RequestPurchaseAsync(new RequestPurchaseProps
+{
+    RequestPurchase = new RequestPurchasePropsByPlatforms
+    {
+        Google = new RequestPurchaseAndroidProps
+        {
+            Skus = new[] { "com.app.premium" },
+        },
+    },
+    Type = ProductQueryType.InApp,
+});
+
+// Cleanup when the page goes away.
+subscription.Dispose();`}</CodeBlock>
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`# 1. Open the store connection on app start.

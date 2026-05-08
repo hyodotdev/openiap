@@ -223,28 +223,36 @@ await FlutterInappPurchase.instance.requestPurchase(
 );`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+              <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 // Standard in-app purchase
-await ((QueryResolver)OpenIap.Instance).RequestPurchaseAsync(
-    RequestPurchaseProps(
-        request = RequestPurchasePropsByPlatforms(
-            google = RequestPurchaseAndroidProps(skus = new[] { "premium" })
-        ),
-        type = ProductQueryType.InApp
-    )
-)
+await ((MutationResolver)Iap.Instance).RequestPurchaseAsync(
+    new RequestPurchaseProps
+    {
+        RequestPurchase = new RequestPurchasePropsByPlatforms
+        {
+            Google = new RequestPurchaseAndroidProps
+            {
+                Skus = new[] { "premium" },
+            },
+        },
+        Type = ProductQueryType.InApp,
+    });
 
 // Subscription purchase
-await ((QueryResolver)OpenIap.Instance).RequestPurchaseAsync(
-    RequestPurchaseProps(
-        request = RequestPurchasePropsByPlatforms(
-            google = RequestPurchaseAndroidProps(skus = new[] { "monthly_sub" })
-        ),
-        type = ProductQueryType.Subs
-    )
-)`}</CodeBlock>
+await ((MutationResolver)Iap.Instance).RequestPurchaseAsync(
+    new RequestPurchaseProps
+    {
+        RequestPurchase = new RequestPurchasePropsByPlatforms
+        {
+            Google = new RequestPurchaseAndroidProps
+            {
+                Skus = new[] { "monthly_sub" },
+            },
+        },
+        Type = ProductQueryType.Subs,
+    });`}</CodeBlock>
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`# Standard in-app purchase

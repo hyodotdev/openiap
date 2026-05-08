@@ -62,7 +62,7 @@ function EndConnection() {
             <CodeBlock language="dart">{`Future<bool> endConnection();`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task<Boolean> EndConnectionAsync()`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<bool> EndConnectionAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func end_connection() -> bool`}</CodeBlock>
@@ -122,10 +122,10 @@ function PurchaseScreen() {
             <CodeBlock language="dart">{`await FlutterInappPurchase.instance.endConnection();`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-await ((QueryResolver)OpenIap.Instance).EndConnectionAsync()`}</CodeBlock>
+await ((MutationResolver)Iap.Instance).EndConnectionAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`# In _exit_tree or cleanup

@@ -56,13 +56,14 @@ fun addDeveloperProvidedBillingListener(
 // Android only (8.3.0+)`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// Callback approach
-fun addDeveloperProvidedBillingListener(
-    listener: OpenIapDeveloperProvidedBillingListener
-)`}</CodeBlock>
+// Observable callback approach.
+IDisposable subscription = Iap.Instance.DeveloperProvidedBillingAndroid.Subscribe(details =>
+{
+    Console.WriteLine(details.ExternalTransactionToken);
+});`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
@@ -168,27 +169,27 @@ final subscription = FlutterInappPurchase.developerProvidedBillingStream
 subscription.cancel();`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// Using callback
-openIapStore.addDeveloperProvidedBillingListener { details ->
-    println("User selected developer billing")
-    println("Token: \${details.externalTransactionToken}")
+var subscription = Iap.Instance.DeveloperProvidedBillingAndroid.Subscribe(async details =>
+{
+    Console.WriteLine("User selected developer billing");
+    Console.WriteLine($"Token: {details.ExternalTransactionToken}");
 
-    lifecycleScope.launch {
-        // Process payment with your payment system
-        var paymentResult = processPaymentWithYourGateway(
-            token = details.externalTransactionToken
-        )
+    var paymentResult = await ProcessPaymentWithYourGatewayAsync(
+        details.ExternalTransactionToken);
 
-        if (paymentResult.success) {
-            // IMPORTANT: Report the token to Google Play within 24 hours
-            reportExternalTransactionToGoogle(details.externalTransactionToken)
-            grantUserAccess()
-        }
+    if (paymentResult.Success)
+    {
+        // IMPORTANT: Report the token to Google Play within 24 hours.
+        await ReportExternalTransactionToGoogleAsync(details.ExternalTransactionToken);
+        await GrantUserAccessAsync();
     }
-}`}</CodeBlock>
+});
+
+// Cleanup when done.
+subscription.Dispose();`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
@@ -220,12 +221,13 @@ openIapStore.addDeveloperProvidedBillingListener { details ->
 }`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-data class DeveloperProvidedBillingDetailsAndroid(
-    var externalTransactionToken: String
-)`}</CodeBlock>
+public sealed record DeveloperProvidedBillingDetailsAndroid
+{
+    public required string ExternalTransactionToken { get; init; }
+}`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

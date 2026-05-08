@@ -60,7 +60,7 @@ suspend fun createAlternativeBillingToken(): String?`}</CodeBlock>
           csharp: (
             <CodeBlock language="csharp">{`// Token must be reported to Google Play backend within 24 hours
 // Returns token string, or null if creation failed
-Task<String?> CreateAlternativeBillingTokenAsync()`}</CodeBlock>
+Task<string?> CreateAlternativeBillingTokenAndroidAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func create_alternative_billing_token_android() -> String`}</CodeBlock>
@@ -102,10 +102,10 @@ if (Platform.OS === 'android') {
 }`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var token = await ((QueryResolver)OpenIap.Instance).CreateAlternativeBillingTokenAsync()`}</CodeBlock>
+var token = await ((MutationResolver)Iap.Instance).CreateAlternativeBillingTokenAndroidAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":

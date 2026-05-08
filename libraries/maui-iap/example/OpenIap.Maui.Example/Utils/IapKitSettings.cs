@@ -1,4 +1,4 @@
-using Hyo.OpenIap;
+using OpenIap;
 using Microsoft.Maui.Storage;
 
 namespace OpenIap.Maui.Example.Utils;

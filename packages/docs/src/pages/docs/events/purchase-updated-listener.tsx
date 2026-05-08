@@ -48,11 +48,11 @@ val purchaseUpdates: Flow<Purchase>`}</CodeBlock>
             <CodeBlock language="dart">{`Stream<Purchase> get purchaseUpdatedStream;`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
+using System;
 
-// Flow approach
-var purchaseUpdates: Flow<Purchase>`}</CodeBlock>
+IObservable<Purchase> purchaseUpdates = Iap.Instance.PurchaseUpdated;`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`signal purchase_updated(purchase: Purchase)`}</CodeBlock>
@@ -175,26 +175,32 @@ final subscription = FlutterInappPurchase.purchaseUpdated.listen((purchase) asyn
 subscription.cancel();`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// Using Flow
-lifecycleScope.launch {
-    openIapStore.purchaseUpdates.collect { purchase ->
-        println("Purchase updated: \${purchase.productId}")
-
-        // Validate and deliver
-        if (validateReceipt(purchase)) {
-            deliverProduct(purchase.productId)
-            await ((QueryResolver)OpenIap.Instance).FinishTransactionAsync(purchase, isConsumable = false)
-        }
+var subscription = Iap.Instance.PurchaseUpdated.Subscribe(async purchase =>
+{
+    if (purchase is PurchaseCommon purchaseInfo)
+    {
+        Console.WriteLine($"Purchase updated: {purchaseInfo.ProductId}");
     }
-}
 
-// Or with callback
-openIapStore.setPurchaseUpdatedListener { purchase ->
-    println("Purchase updated: \${purchase.productId}")
-}`}</CodeBlock>
+    // Validate and deliver
+    if (await ValidateReceiptAsync(purchase))
+    {
+        if (purchase is PurchaseCommon validPurchase)
+        {
+            await DeliverProductAsync(validPurchase.ProductId);
+        }
+
+        await ((MutationResolver)Iap.Instance).FinishTransactionAsync(
+            new PurchaseInput(purchase),
+            isConsumable: false);
+    }
+});
+
+// Cleanup when done.
+subscription.Dispose();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`# Connect to the signal

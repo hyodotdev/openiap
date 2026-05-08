@@ -404,30 +404,32 @@ if (iapkit != null && iapkit.isValid && iapkit.state == IapkitPurchaseState.enti
 }`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+              <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 // Create verification props for Android
-var props = VerifyPurchaseWithProviderProps(
-    iapkit = RequestVerifyPurchaseWithIapkitProps(
-        apiKey = "your-iapkit-api-key",
-        apple = null,
-        google = RequestVerifyPurchaseWithIapkitGoogleProps(
-            purchaseToken = purchase.purchaseToken
-        )
-    ),
-    provider = PurchaseVerificationProvider.Iapkit
-)
+var props = new VerifyPurchaseWithProviderProps
+{
+    Provider = PurchaseVerificationProvider.Iapkit,
+    Iapkit = new RequestVerifyPurchaseWithIapkitProps
+    {
+        ApiKey = "your-iapkit-api-key",
+        Google = new RequestVerifyPurchaseWithIapkitGoogleProps
+        {
+            PurchaseToken = purchase.PurchaseToken ?? "",
+        },
+    },
+};
 
 // Verify purchase
-var result = module.verifyPurchaseWithProvider(props)
+var result = await ((MutationResolver)Iap.Instance).VerifyPurchaseWithProviderAsync(props);
 
 // Check result
-result.iapkit?.let { iapkit ->
-    if (iapkit.isValid && iapkit.state == IapkitPurchaseState.Entitled) {
-        // Grant entitlement to user
-        println("Valid purchase from \${iapkit.store}")
-    }
+var iapkit = result.Iapkit;
+if (iapkit is { IsValid: true, State: IapkitPurchaseState.Entitled })
+{
+    // Grant entitlement to user
+    Console.WriteLine($"Valid purchase from {iapkit.Store}");
 }`}</CodeBlock>
             ),
             gdscript: (

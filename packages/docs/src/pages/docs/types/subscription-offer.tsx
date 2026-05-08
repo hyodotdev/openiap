@@ -530,51 +530,57 @@ enum SubscriptionPeriodUnit { day, week, month, year, unknown }
 enum PaymentMode { freeTrial, payAsYouGo, payUpFront, unknown }`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+              <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
+using System.Collections.Generic;
 
-data class SubscriptionOffer(
+public sealed record SubscriptionOffer
+{
     // Common fields
-    var id: String,
-    var displayPrice: String,
-    var price: Double,
-    var currency = null,
-    var type: DiscountOfferType,
-    var period = null,
-    var periodCount = null,
-    var paymentMode = null,
+    public required string Id { get; init; }
+    public required string DisplayPrice { get; init; }
+    public required double Price { get; init; }
+    public string? Currency { get; init; }
+    public required DiscountOfferType Type { get; init; }
+    public SubscriptionPeriod? Period { get; init; }
+    public int? PeriodCount { get; init; }
+    public PaymentMode? PaymentMode { get; init; }
 
     // iOS-specific fields
-    var keyIdentifierIOS = null,
-    var nonceIOS = null,
-    var signatureIOS = null,
-    var timestampIOS = null,
-    var numberOfPeriodsIOS = null,
-    var localizedPriceIOS = null,
+    public string? KeyIdentifierIOS { get; init; }
+    public string? NonceIOS { get; init; }
+    public string? SignatureIOS { get; init; }
+    public double? TimestampIOS { get; init; }
+    public int? NumberOfPeriodsIOS { get; init; }
+    public string? LocalizedPriceIOS { get; init; }
 
     // Android-specific fields
-    var basePlanIdAndroid = null,
-    var offerTokenAndroid = null,
-    var offerTagsAndroid = null,
-    var pricingPhasesAndroid = null,
-    var installmentPlanDetailsAndroid = null
-)
+    public string? BasePlanIdAndroid { get; init; }
+    public string? OfferTokenAndroid { get; init; }
+    public IReadOnlyList<string>? OfferTagsAndroid { get; init; }
+    public PricingPhasesAndroid? PricingPhasesAndroid { get; init; }
+    public InstallmentPlanDetailsAndroid? InstallmentPlanDetailsAndroid { get; init; }
+}
 
-data class InstallmentPlanDetailsAndroid(
-    var commitmentPaymentsCount: Int,
-    var subsequentCommitmentPaymentsCount: Int
-)
+public sealed record InstallmentPlanDetailsAndroid
+{
+    public required int CommitmentPaymentsCount { get; init; }
+    public required int SubsequentCommitmentPaymentsCount { get; init; }
+}
 
-data class SubscriptionPeriod(
-    var unit: SubscriptionPeriodUnit,
-    var value: Int
-)
+public sealed record SubscriptionPeriod
+{
+    public required SubscriptionPeriodUnit Unit { get; init; }
+    public required int Value { get; init; }
+}
 
-enum class SubscriptionPeriodUnit {
+public enum SubscriptionPeriodUnit
+{
     Day, Week, Month, Year, Unknown
 }
 
-enum class PaymentMode {
+public enum PaymentMode
+{
     FreeTrial, PayAsYouGo, PayUpFront, Unknown
 }`}</CodeBlock>
             ),

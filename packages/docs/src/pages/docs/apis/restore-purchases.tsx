@@ -68,7 +68,7 @@ function RestorePurchases() {
             <CodeBlock language="dart">{`Future<void> restorePurchases();`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task RestorePurchasesAsync()`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<string> RestorePurchasesAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func restore_purchases() -> void`}</CodeBlock>
@@ -83,7 +83,9 @@ function RestorePurchases() {
         <code>Promise&lt;void&gt;</code> — Resolves once the platform finishes
         the restore. The restored purchases are emitted via{' '}
         <code>purchaseUpdatedListener</code> / surface as{' '}
-        <code>getAvailablePurchases</code> results, depending on platform.
+        <code>getAvailablePurchases</code> results, depending on platform. In
+        MAUI/C#, <code>RestorePurchasesAsync</code> returns{' '}
+        <code>Task&lt;string&gt;</code>.
       </p>
 
       <h2>Example</h2>
@@ -172,10 +174,10 @@ function RestoreButton() {
             <CodeBlock language="dart">{`await FlutterInappPurchase.instance.restorePurchases();`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+            <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-await ((QueryResolver)OpenIap.Instance).RestorePurchasesAsync()`}</CodeBlock>
+await ((MutationResolver)Iap.Instance).RestorePurchasesAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`await iap.restore_purchases()`}</CodeBlock>

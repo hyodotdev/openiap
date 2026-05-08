@@ -19,13 +19,13 @@ Requires .NET 9 SDK and the MAUI workload:
 
 ```bash
 dotnet workload install maui
-dotnet add package OpenIap.Maui --version 1.0.0
+dotnet add package OpenIap.Maui --version 1.0.1
 ```
 
 Or add the package directly:
 
 ```xml
-<PackageReference Include="OpenIap.Maui" Version="1.0.0" />
+<PackageReference Include="OpenIap.Maui" Version="1.0.1" />
 ```
 
 `OpenIap.Maui` is the only NuGet package apps reference. The Android binding,
@@ -35,7 +35,7 @@ flattened into the main NuGet package.
 ## Usage
 
 ```csharp
-using Hyo.OpenIap;
+using OpenIap;
 using OpenIap.Maui;
 
 var iap = Iap.Instance;
@@ -86,7 +86,7 @@ MAUI exposes the same kit helper surface as `expo-iap` and
 `react-native-iap`, with C# naming conventions:
 
 ```csharp
-using Hyo.OpenIap;
+using OpenIap;
 using OpenIap.Maui;
 
 var kit = Iap.KitApi(new KitApiOptions
