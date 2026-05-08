@@ -1,16 +1,35 @@
+import type { CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { OPENIAP_VERSIONS } from '../lib/versioning';
 import { LOGO_PATH } from '../lib/config';
+import { LIBRARIES } from '../lib/images';
 import SEO from '../components/SEO';
+
+const frameworkLinkStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: '0.5rem',
+  textDecoration: 'none',
+  color: 'var(--text-secondary)',
+  opacity: 0.85,
+  transition: 'opacity 0.2s',
+};
+
+const frameworkLogoStyle: CSSProperties = {
+  width: '48px',
+  height: '48px',
+  objectFit: 'contain',
+};
 
 function Home() {
   return (
     <div className="home">
       <SEO
         title="Unified In-App Purchase Specification"
-        description="OpenIAP standardizes in-app purchases across iOS, Android, React Native, Flutter, Kotlin Multiplatform, and Godot. One API, every platform. StoreKit 2, Google Play Billing, Vision Pro, Horizon OS."
+        description="OpenIAP standardizes in-app purchases across iOS, Android, Expo, React Native, Flutter, Kotlin Multiplatform, .NET MAUI, and Godot. One API, every platform. StoreKit 2, Google Play Billing, Vision Pro, Horizon OS."
         path="/"
-        keywords="in-app purchase, IAP, StoreKit 2, Google Play Billing, React Native IAP, Flutter IAP, Kotlin Multiplatform, cross-platform payments, mobile monetization"
+        keywords="in-app purchase, IAP, StoreKit 2, Google Play Billing, Expo IAP, React Native IAP, Flutter IAP, Kotlin Multiplatform, .NET MAUI, cross-platform payments, mobile monetization"
         includeAppSchema
       />
       <section className="hero">
@@ -55,7 +74,7 @@ function Home() {
               <div className="quick-stats-label">Combined Stars</div>
             </Link>
             <div className="quick-stats-item">
-              <div className="quick-stats-value">5+</div>
+              <div className="quick-stats-value">{LIBRARIES.length}</div>
               <div className="quick-stats-label">Framework Libraries</div>
             </div>
           </div>
@@ -166,111 +185,21 @@ function Home() {
               margin: '1.5rem 0',
             }}
           >
-            <a
-              href="/docs/setup/react-native"
-              title="React Native"
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '0.5rem',
-                textDecoration: 'none',
-                color: 'var(--text-secondary)',
-                opacity: 0.85,
-                transition: 'opacity 0.2s',
-              }}
-            >
-              <img
-                src="/frameworks/react-native.webp"
-                alt="React Native"
-                style={{ width: '48px', height: '48px', objectFit: 'contain' }}
-              />
-              <span style={{ fontSize: '0.8rem' }}>React Native</span>
-            </a>
-            <a
-              href="/docs/setup/expo"
-              title="Expo"
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '0.5rem',
-                textDecoration: 'none',
-                color: 'var(--text-secondary)',
-                opacity: 0.85,
-                transition: 'opacity 0.2s',
-              }}
-            >
-              <img
-                src="/frameworks/expo.svg"
-                alt="Expo"
-                style={{ width: '48px', height: '48px', objectFit: 'contain' }}
-              />
-              <span style={{ fontSize: '0.8rem' }}>Expo</span>
-            </a>
-            <a
-              href="/docs/setup/flutter"
-              title="Flutter"
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '0.5rem',
-                textDecoration: 'none',
-                color: 'var(--text-secondary)',
-                opacity: 0.85,
-                transition: 'opacity 0.2s',
-              }}
-            >
-              <img
-                src="/frameworks/flutter.svg"
-                alt="Flutter"
-                style={{ width: '48px', height: '48px', objectFit: 'contain' }}
-              />
-              <span style={{ fontSize: '0.8rem' }}>Flutter</span>
-            </a>
-            <a
-              href="/docs/setup/kmp"
-              title="Kotlin Multiplatform"
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '0.5rem',
-                textDecoration: 'none',
-                color: 'var(--text-secondary)',
-                opacity: 0.85,
-                transition: 'opacity 0.2s',
-              }}
-            >
-              <img
-                src="/frameworks/kmp.svg"
-                alt="Kotlin Multiplatform"
-                style={{ width: '48px', height: '48px', objectFit: 'contain' }}
-              />
-              <span style={{ fontSize: '0.8rem' }}>KMP</span>
-            </a>
-            <a
-              href="/docs/setup/godot"
-              title="Godot"
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '0.5rem',
-                textDecoration: 'none',
-                color: 'var(--text-secondary)',
-                opacity: 0.85,
-                transition: 'opacity 0.2s',
-              }}
-            >
-              <img
-                src="/frameworks/godot.webp"
-                alt="Godot"
-                style={{ width: '48px', height: '48px', objectFit: 'contain' }}
-              />
-              <span style={{ fontSize: '0.8rem' }}>Godot</span>
-            </a>
+            {LIBRARIES.map((library) => (
+              <Link
+                key={library.name}
+                to={library.setupPath}
+                title={library.frameworkName}
+                style={frameworkLinkStyle}
+              >
+                <img
+                  src={library.image}
+                  alt={library.frameworkName}
+                  style={frameworkLogoStyle}
+                />
+                <span style={{ fontSize: '0.8rem' }}>{library.homeLabel}</span>
+              </Link>
+            ))}
           </div>
           <div
             style={{
@@ -585,11 +514,13 @@ function Home() {
             style={{ maxWidth: '880px', margin: '0 auto' }}
           >
             Ship your app with OpenIAP or its libraries (
-            <a href="/docs/setup/react-native">react-native-iap</a>,{' '}
-            <a href="/docs/setup/expo">expo-iap</a>,{' '}
-            <a href="/docs/setup/flutter">flutter_inapp_purchase</a>,{' '}
-            <a href="/docs/setup/kmp">kmp-iap</a>,{' '}
-            <a href="/docs/setup/godot">godot-iap</a>)?
+            {LIBRARIES.map((library, index) => (
+              <span key={library.name}>
+                <Link to={library.setupPath}>{library.displayName}</Link>
+                {index < LIBRARIES.length - 1 ? ', ' : ''}
+              </span>
+            ))}
+            )?
             <br />
             We'd love to showcase it here.
           </p>

@@ -162,6 +162,23 @@ src/components/
 
 ---
 
+## Framework Library Listing SSOT
+
+Framework implementation listings must be derived from
+`packages/docs/src/lib/images.ts`:
+
+- `LIBRARIES` is the canonical order and membership for framework libraries
+  (Expo, React Native, Flutter, KMP, MAUI, Godot).
+- Pages that show framework lists, setup links, sponsor links, or home-page
+  icons must map over `LIBRARIES` instead of hand-writing their own arrays.
+- When adding, removing, renaming, or reordering a framework, update
+  `LIBRARIES` first and let pages derive labels, images, setup paths,
+  install commands, and documentation links from that metadata.
+- If a page needs new per-framework copy, add a typed field to `LibraryInfo`
+  instead of creating another local list with duplicated order.
+
+---
+
 ## Release Notes Pattern
 
 ### Location

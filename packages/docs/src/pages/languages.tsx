@@ -1,5 +1,8 @@
+import { Link } from 'react-router-dom';
 import SEO from '../components/SEO';
-import { LIBRARY_IMAGES } from '../lib/images';
+import { LIBRARIES, LIBRARY_IMAGES } from '../lib/images';
+
+const isExternalUrl = (url: string) => /^https?:\/\//.test(url);
 
 function Languages() {
   return (
@@ -74,196 +77,57 @@ function Languages() {
           These frameworks build on the OpenIAP Modules above
         </p>
         <div className="languages-grid">
-          <div className="language-card">
-            <img
-              src={LIBRARY_IMAGES['expo-iap']}
-              alt="Expo IAP"
-              className="language-logo"
-              style={{ width: '60px', height: '60px', marginBottom: '1rem' }}
-            />
-            <h3>expo-iap</h3>
-            <p>
-              React Native & Expo implementation of OpenIAP specification (Expo
-              Modules)
-            </p>
-            <pre className="code-snippet">{`npm install expo-iap`}</pre>
-            <div className="language-links">
-              <a
-                href="https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap"
-                className="learn-more"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                View on GitHub →
-              </a>
-              <a
-                href="https://hyochan.github.io/expo-iap"
-                className="learn-more"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Documentation →
-              </a>
+          {LIBRARIES.map((library) => (
+            <div className="language-card" key={library.name}>
+              <img
+                src={library.image}
+                alt={library.imageAlt}
+                className="language-logo"
+                style={{ width: '60px', height: '60px', marginBottom: '1rem' }}
+              />
+              <h3>{library.displayName}</h3>
+              <p>{library.languagesDescription}</p>
+              {library.installCommand ? (
+                <pre className="code-snippet">{library.installCommand}</pre>
+              ) : (
+                <pre className="code-snippet">
+                  Download from{' '}
+                  <a
+                    href={library.releaseUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: 'var(--primary-color)' }}
+                  >
+                    GitHub Releases
+                  </a>
+                </pre>
+              )}
+              <div className="language-links">
+                <a
+                  href={library.url}
+                  className="learn-more"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  View on GitHub →
+                </a>
+                {isExternalUrl(library.documentationUrl) ? (
+                  <a
+                    href={library.documentationUrl}
+                    className="learn-more"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Documentation →
+                  </a>
+                ) : (
+                  <Link to={library.documentationUrl} className="learn-more">
+                    Documentation →
+                  </Link>
+                )}
+              </div>
             </div>
-          </div>
-
-          <div className="language-card">
-            <img
-              src={LIBRARY_IMAGES['react-native-iap']}
-              alt="React Native IAP"
-              className="language-logo"
-              style={{ width: '60px', height: '60px', marginBottom: '1rem' }}
-            />
-            <h3>react-native-iap</h3>
-            <p>
-              React Native & Expo implementation of OpenIAP specification (Nitro
-              Modules)
-            </p>
-            <pre className="code-snippet">{`npm install react-native-iap`}</pre>
-            <div className="language-links">
-              <a
-                href="https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap"
-                className="learn-more"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                View on GitHub →
-              </a>
-              <a
-                href="https://hyochan.github.io/react-native-iap"
-                className="learn-more"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Documentation →
-              </a>
-            </div>
-          </div>
-
-          <div className="language-card">
-            <img
-              src={LIBRARY_IMAGES['flutter_inapp_purchase']}
-              alt="Flutter IAP"
-              className="language-logo"
-              style={{ width: '60px', height: '60px', marginBottom: '1rem' }}
-            />
-            <h3>flutter_inapp_purchase</h3>
-            <p>Flutter implementation of OpenIAP specification</p>
-            <pre className="code-snippet">{`flutter pub add flutter_inapp_purchase`}</pre>
-            <div className="language-links">
-              <a
-                href="https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase"
-                className="learn-more"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                View on GitHub →
-              </a>
-              <a
-                href="https://hyochan.github.io/flutter_inapp_purchase"
-                className="learn-more"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Documentation →
-              </a>
-            </div>
-          </div>
-
-          <div className="language-card">
-            <img
-              src={LIBRARY_IMAGES['kmp-iap']}
-              alt="KMP IAP"
-              className="language-logo"
-              style={{ width: '60px', height: '60px', marginBottom: '1rem' }}
-            />
-            <h3>kmp-iap</h3>
-            <p>Kotlin Multiplatform implementation of OpenIAP specification</p>
-            <pre className="code-snippet">{`implementation("io.github.hyochan:kmp-iap:1.0.0-rc.6")`}</pre>
-            <div className="language-links">
-              <a
-                href="https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap"
-                className="learn-more"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                View on GitHub →
-              </a>
-              <a
-                href="https://hyochan.github.io/kmp-iap"
-                className="learn-more"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Documentation →
-              </a>
-            </div>
-          </div>
-
-          <div className="language-card">
-            <img
-              src={LIBRARY_IMAGES['maui-iap']}
-              alt=".NET MAUI IAP"
-              className="language-logo"
-              style={{ width: '60px', height: '60px', marginBottom: '1rem' }}
-            />
-            <h3>maui-iap</h3>
-            <p>.NET MAUI / C# implementation of OpenIAP specification</p>
-            <pre className="code-snippet">{`dotnet add package OpenIap.Maui --version 1.0.1`}</pre>
-            <div className="language-links">
-              <a
-                href="https://github.com/hyodotdev/openiap/tree/main/libraries/maui-iap"
-                className="learn-more"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                View on GitHub →
-              </a>
-              <a href="/docs/setup/maui" className="learn-more">
-                Documentation →
-              </a>
-            </div>
-          </div>
-
-          <div className="language-card">
-            <img
-              src={LIBRARY_IMAGES['godot-iap']}
-              alt="Godot IAP"
-              className="language-logo"
-              style={{ width: '60px', height: '60px', marginBottom: '1rem' }}
-            />
-            <h3>godot-iap</h3>
-            <p>Godot implementation of OpenIAP specification (GDScript)</p>
-            <pre className="code-snippet">
-              Download from{' '}
-              <a
-                href="https://github.com/hyodotdev/openiap/releases"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: 'var(--primary-color)' }}
-              >
-                GitHub Releases
-              </a>
-            </pre>
-            <div className="language-links">
-              <a
-                href="https://github.com/hyodotdev/openiap/tree/main/libraries/godot-iap"
-                className="learn-more"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                View on GitHub →
-              </a>
-              <a
-                href="https://github.com/hyodotdev/openiap/tree/main/libraries/godot-iap"
-                className="learn-more"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Documentation →
-              </a>
-            </div>
-          </div>
+          ))}
         </div>
 
         <div className="contribute-section">

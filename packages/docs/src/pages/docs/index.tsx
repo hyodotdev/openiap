@@ -8,6 +8,7 @@ import {
   useLocation,
 } from 'react-router-dom';
 import { MenuDropdown } from '../../components/MenuDropdown';
+import { LIBRARIES } from '../../lib/images';
 import GettingStarted from './getting-started';
 import Ecosystem from './ecosystem';
 import LifeCycle from './lifecycle';
@@ -605,14 +606,10 @@ function Docs() {
             <MenuDropdown
               title="Framework Setup"
               titleTo="/docs/setup"
-              items={[
-                { to: '/docs/setup/expo', label: 'Expo' },
-                { to: '/docs/setup/react-native', label: 'React Native' },
-                { to: '/docs/setup/flutter', label: 'Flutter' },
-                { to: '/docs/setup/kmp', label: 'Kotlin Multiplatform' },
-                { to: '/docs/setup/maui', label: '.NET MAUI' },
-                { to: '/docs/setup/godot', label: 'Godot' },
-              ]}
+              items={LIBRARIES.map((library) => ({
+                to: library.setupPath,
+                label: library.frameworkName,
+              }))}
               onItemClick={closeSidebar}
             />
             <li>

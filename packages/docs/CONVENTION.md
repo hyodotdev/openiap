@@ -14,3 +14,11 @@
 - Reserve the `Props` suffix for top-level argument objects (e.g., the direct
   parameters passed to public APIs). When defining nested structures inside
   those props, prefer the `Params` suffix if a suffix is needed.
+
+## Framework Listings
+
+- Treat `src/lib/images.ts` `LIBRARIES` as the SSOT for framework library
+  membership and order.
+- Home, `/languages`, setup pages, sidebars, and sponsor lists should derive
+  framework entries from `LIBRARIES`; add metadata fields there instead of
+  duplicating local arrays.

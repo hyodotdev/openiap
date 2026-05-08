@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
 import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
+import { LIBRARIES } from '../../../lib/images';
 
 interface FrameworkRow {
   to: string;
@@ -10,50 +11,12 @@ interface FrameworkRow {
   description: string;
 }
 
-const FRAMEWORKS: FrameworkRow[] = [
-  {
-    to: '/docs/setup/expo',
-    name: 'Expo',
-    language: 'TypeScript',
-    description:
-      'Expo SDK projects via Expo Modules. Same API surface as react-native-iap, including the `useIAP` hook, with managed-workflow-friendly install. Recommended for any Expo app.',
-  },
-  {
-    to: '/docs/setup/react-native',
-    name: 'React Native',
-    language: 'TypeScript',
-    description:
-      'Bare React Native CLI projects (RN 0.79+). Built on Nitro Modules with the `useIAP` hook, error normalization, and full StoreKit 2 / Play Billing 8 coverage.',
-  },
-  {
-    to: '/docs/setup/flutter',
-    name: 'Flutter',
-    language: 'Dart',
-    description:
-      'Flutter apps via the `flutter_inapp_purchase` package. Generated `types.dart`, sealed-class results, and a Stream-based event API that mirrors the OpenIAP schema.',
-  },
-  {
-    to: '/docs/setup/kmp',
-    name: 'Kotlin Multiplatform',
-    language: 'Kotlin',
-    description:
-      'KMP / Compose Multiplatform via the `kmp-iap` library. Flow-based API on top of OpenIAP, with CocoaPods integration for iOS targets and shared business logic across platforms.',
-  },
-  {
-    to: '/docs/setup/maui',
-    name: '.NET MAUI',
-    language: 'C#',
-    description:
-      '.NET MAUI / C# 12 via the `maui-iap` library (OpenIap.Maui on NuGet). Ships as one NuGet package with generated `Types.cs`, flattened Android AAR bindings, and StoreKit xcframework resources for iOS / macCatalyst.',
-  },
-  {
-    to: '/docs/setup/godot',
-    name: 'Godot',
-    language: 'GDScript',
-    description:
-      'Godot 4.x via the `godot-iap` plugin (iOS GDExtension + Android AAR). Exposes the same OpenIAP function set so the same purchase flow can ship across mobile + console targets.',
-  },
-];
+const FRAMEWORKS: FrameworkRow[] = LIBRARIES.map((library) => ({
+  to: library.setupPath,
+  name: library.frameworkName,
+  language: library.language,
+  description: library.setupDescription,
+}));
 
 function SetupIndex() {
   useScrollToHash();
