@@ -12,7 +12,6 @@ final class OpenIapConnectionLifecycle {
         let messageListenerTask: Task<Void, Never>?
         let unfinishedTransactionTask: Task<Void, Never>?
         let productManager: ProductManager?
-        let didRegisterPaymentQueueObserver: Bool
     }
 
     struct DeinitResources {
@@ -33,10 +32,6 @@ final class OpenIapConnectionLifecycle {
     private var messageListenerTask: Task<Void, Never>?
     private var unfinishedTransactionTask: Task<Void, Never>?
     private var productManager: ProductManager?
-
-    #if os(iOS)
-    private var didRegisterPaymentQueueObserver = false
-    #endif
 
     // MARK: - Init / End Tasks
 
@@ -141,23 +136,6 @@ final class OpenIapConnectionLifecycle {
         }
     }
 
-    #if os(iOS)
-    func markPaymentQueueObserverRegisteredIfNeeded(generation: UInt64) throws -> Bool {
-        try withLock {
-            guard connectionGeneration == generation else {
-                throw CancellationError()
-            }
-
-            if didRegisterPaymentQueueObserver {
-                return false
-            }
-
-            didRegisterPaymentQueueObserver = true
-            return true
-        }
-    }
-    #endif
-
     // MARK: - Listener Tasks
 
     func startTransactionListenerTask(
@@ -212,19 +190,11 @@ final class OpenIapConnectionLifecycle {
 
     func detachResourcesForCleanup() -> CleanupResources {
         withLock {
-            #if os(iOS)
-            let wasRegistered = didRegisterPaymentQueueObserver
-            didRegisterPaymentQueueObserver = false
-            #else
-            let wasRegistered = false
-            #endif
-
             let resources = CleanupResources(
                 updateListenerTask: updateListenerTask,
                 messageListenerTask: messageListenerTask,
                 unfinishedTransactionTask: unfinishedTransactionTask,
-                productManager: productManager,
-                didRegisterPaymentQueueObserver: wasRegistered
+                productManager: productManager
             )
 
             updateListenerTask = nil

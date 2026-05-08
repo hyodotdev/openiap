@@ -7,7 +7,9 @@
     "modules": [
       "ExpoIapModule"
     ],
-    "appDelegateSubscribers": []
+    "appDelegateSubscribers": [
+      "ExpoIapAppDelegateSubscriber"
+    ]
   },
   "android": {
     "modules": [

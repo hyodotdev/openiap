@@ -210,7 +210,32 @@ export const promotedProductListenerIOS = (
     );
     return {remove: () => {}};
   }
-  return emitter.addListener(OpenIapEvent.PromotedProductIOS, listener);
+
+  let deliveredProductId: string | undefined;
+  const deliver = (product: Product) => {
+    const productId =
+      product.id ?? (product as Product & {productId?: string}).productId;
+    if (productId && productId === deliveredProductId) {
+      return;
+    }
+    deliveredProductId = productId;
+    listener(product);
+  };
+
+  const subscription = emitter.addListener(
+    OpenIapEvent.PromotedProductIOS,
+    deliver,
+  );
+
+  void Promise.resolve(ExpoIapModule.getPromotedProductIOS())
+    .then((product: Product | null) => {
+      if (product) {
+        deliver(product);
+      }
+    })
+    .catch(() => {});
+
+  return subscription;
 };
 
 /**

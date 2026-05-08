@@ -2,6 +2,10 @@ import React from 'react';
 import {render} from '@testing-library/react-native';
 import RootLayout from '../app/_layout';
 
+jest.mock('../src/promotedIapEvents', () => ({
+  registerPromotedIapEvents: jest.fn(),
+}));
+
 jest.mock('@expo/react-native-action-sheet', () => ({
   ActionSheetProvider: ({children}: {children?: React.ReactNode}) => children,
 }));
@@ -17,7 +21,6 @@ jest.mock('expo-router', () => {
   Stack.Screen = function MockScreen({name}: {name: string; options?: object}) {
     return ReactMock.createElement('View', {testID: name});
   };
-  Stack.Screen.displayName = 'MockScreen';
   return {
     Stack,
   };
@@ -25,13 +28,12 @@ jest.mock('expo-router', () => {
 
 describe('RootLayout', () => {
   it('should render without crashing', () => {
-    // Just call the function to ensure it executes without errors
-    const component = RootLayout();
-    expect(component).toBeDefined();
+    const {toJSON} = render(<RootLayout />);
+    expect(toJSON()).toBeDefined();
   });
 
   it('should return a valid React element', () => {
-    const component = RootLayout();
+    const component = <RootLayout />;
     expect(React.isValidElement(component)).toBe(true);
   });
 
@@ -47,6 +49,7 @@ describe('RootLayout', () => {
       'offer-code',
       'alternative-billing',
       'webhook-stream',
+      'promoted-iap',
     ].forEach((route) => {
       expect(getByTestId(route)).toBeDefined();
     });

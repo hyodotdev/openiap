@@ -28,21 +28,30 @@ describe('Home Component', () => {
     });
   });
 
-  it('should render without crashing', () => {
+  it('should render without crashing', async () => {
     const {getByText} = render(<Home />);
     expect(getByText('expo-iap Examples')).toBeDefined();
+
+    await waitFor(() => {
+      expect(ExpoIap.getStorefront).toHaveBeenCalled();
+    });
   });
 
-  it('should render the full example menu', () => {
+  it('should render the full example menu', async () => {
     const {getByText} = render(<Home />);
 
-    expect(getByText('📱 All Products')).toBeDefined();
-    expect(getByText('🛒 In-App Purchase Flow')).toBeDefined();
-    expect(getByText('🔄 Subscription Flow')).toBeDefined();
-    expect(getByText('📦 Available Purchases')).toBeDefined();
-    expect(getByText('🎁 Offer Code Redemption')).toBeDefined();
-    expect(getByText('🌐 Alternative Billing')).toBeDefined();
-    expect(getByText('📡 Webhook Stream')).toBeDefined();
+    expect(getByText('All Products')).toBeDefined();
+    expect(getByText('In-App Purchase Flow')).toBeDefined();
+    expect(getByText('Subscription Flow')).toBeDefined();
+    expect(getByText('Available Purchases')).toBeDefined();
+    expect(getByText('Offer Code Redemption')).toBeDefined();
+    expect(getByText('Alternative Billing')).toBeDefined();
+    expect(getByText('Webhook Stream')).toBeDefined();
+    expect(getByText('Promoted IAP')).toBeDefined();
+
+    await waitFor(() => {
+      expect(ExpoIap.getStorefront).toHaveBeenCalled();
+    });
   });
 
   it('should render on iOS platform', async () => {
@@ -61,7 +70,7 @@ describe('Home Component', () => {
     });
   });
 
-  it('should render on Android platform', () => {
+  it('should render on Android platform', async () => {
     // Mock Platform.OS to be Android
     Object.defineProperty(Platform, 'OS', {
       get: jest.fn(() => 'android'),
@@ -74,7 +83,9 @@ describe('Home Component', () => {
     expect(getByText('expo-iap Examples')).toBeDefined();
 
     // getStorefront is called but resolves to empty string on unsupported platforms
-    expect(ExpoIap.getStorefront).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(ExpoIap.getStorefront).toHaveBeenCalled();
+    });
 
     consoleLog.mockRestore();
   });

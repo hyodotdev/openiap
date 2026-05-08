@@ -60,6 +60,16 @@ final class OpenIapTests: XCTestCase {
         XCTAssertEqual(error.message, "User cancelled the purchase flow")
     }
 
+    @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
+    func testPromotedProductListenerReceivesPendingIdentifier() async {
+        let state = IapState()
+        await state.setPromotedProductId("dev.hyo.promoted")
+
+        let pendingSku = await state.addPromotedProductListener((UUID(), { _ in }))
+
+        XCTAssertEqual(pendingSku, "dev.hyo.promoted")
+    }
+
     func testPurchaseIOSWithRenewalInfo() {
         let renewalInfo = RenewalInfoIOS(
             autoRenewPreference: "dev.hyo.premium_year",

@@ -1,7 +1,13 @@
+import {useEffect} from 'react';
 import {Stack} from 'expo-router';
 import {ActionSheetProvider} from '@expo/react-native-action-sheet';
+import {registerPromotedIapEvents} from '../src/promotedIapEvents';
 
 export default function RootLayout() {
+  useEffect(() => {
+    registerPromotedIapEvents();
+  }, []);
+
   return (
     <ActionSheetProvider>
       <Stack>
@@ -31,6 +37,7 @@ export default function RootLayout() {
           name="webhook-stream"
           options={{title: 'Webhook Stream'}}
         />
+        <Stack.Screen name="promoted-iap" options={{title: 'Promoted IAP'}} />
       </Stack>
     </ActionSheetProvider>
   );

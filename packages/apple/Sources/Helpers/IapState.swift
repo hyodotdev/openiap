@@ -41,8 +41,9 @@ actor IapState {
     func addPurchaseErrorListener(_ pair: (UUID, PurchaseErrorListener)) {
         purchaseErrorListeners.append((id: pair.0, listener: pair.1))
     }
-    func addPromotedProductListener(_ pair: (UUID, PromotedProductListener)) {
+    func addPromotedProductListener(_ pair: (UUID, PromotedProductListener)) -> String? {
         promotedProductListeners.append((id: pair.0, listener: pair.1))
+        return promotedProductId
     }
     func addSubscriptionBillingIssueListener(_ pair: (UUID, SubscriptionBillingIssueListener)) {
         subscriptionBillingIssueListeners.append((id: pair.0, listener: pair.1))

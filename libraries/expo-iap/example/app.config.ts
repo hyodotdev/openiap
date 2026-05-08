@@ -126,7 +126,7 @@ export default ({config}: ConfigContext): ExpoConfig => {
     userInterfaceStyle: 'automatic',
     ios: {
       ...config.ios,
-      supportsTablet: true,
+      supportsTablet: false,
       bundleIdentifier: 'dev.hyo.martie',
     },
     android: {

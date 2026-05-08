@@ -102,6 +102,38 @@ describe('Public API (index.ts)', () => {
       );
     });
 
+    it('promotedProductListenerIOS replays pending promoted product on iOS', async () => {
+      (Platform as any).OS = 'ios';
+      const product = {id: 'promoted-product', platform: 'ios'} as any;
+      (ExpoIapModule.getPromotedProductIOS as jest.Mock).mockResolvedValue(
+        product,
+      );
+      const listener = jest.fn();
+
+      promotedProductListenerIOS(listener);
+      await Promise.resolve();
+
+      expect(ExpoIapModule.getPromotedProductIOS).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledWith(product);
+    });
+
+    it('promotedProductListenerIOS dedupes replayed promoted product', async () => {
+      (Platform as any).OS = 'ios';
+      const product = {id: 'promoted-product', platform: 'ios'} as any;
+      (ExpoIapModule.getPromotedProductIOS as jest.Mock).mockResolvedValue(
+        product,
+      );
+      const addListener = (ExpoIapModule as any).addListener as jest.Mock;
+      const listener = jest.fn();
+
+      promotedProductListenerIOS(listener);
+      const nativeListener = addListener.mock.calls[0][1];
+      nativeListener(product);
+      await Promise.resolve();
+
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+
     it('userChoiceBillingListenerAndroid warns on non‑Android, adds on Android', () => {
       (Platform as any).OS = 'ios';
       const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});

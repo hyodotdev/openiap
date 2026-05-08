@@ -26,6 +26,11 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     private static let initRetryDelayNanoseconds: UInt64 = 1_000_000
     private static let subscriptionPreflightTimeoutNanoseconds: UInt64 = 750_000_000
 
+    #if os(iOS)
+    private let promotedPurchaseObserverLock = NSLock()
+    private var didRegisterPromotedPurchaseObserver = false
+    #endif
+
     private enum SubscriptionPreflightOutcome {
         case completed
         case timedOut
@@ -33,9 +38,11 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
     private override init() {
         super.init()
+        registerPromotedPurchaseObserverIfNeeded()
     }
 
     deinit {
+        unregisterPromotedPurchaseObserverIfNeeded()
         cancelConnectionTasksForDeinit()
     }
 
@@ -1375,7 +1382,13 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
     public func promotedProductListenerIOS(_ listener: @escaping PromotedProductListener) -> Subscription {
         let subscription = Subscription(eventType: .promotedProductIos)
-        Task { await state.addPromotedProductListener((subscription.id, listener)) }
+        Task { [state] in
+            let pendingSku = await state.addPromotedProductListener((subscription.id, listener))
+            guard let pendingSku else { return }
+            await MainActor.run {
+                listener(pendingSku)
+            }
+        }
         return subscription
     }
 
@@ -1407,16 +1420,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
         _ = try connection.getOrCreateProductManager(generation: generation)
 
-        // iOS-only: Register SKPaymentQueue observer for promoted in-app purchases
-        // Reference: https://developer.apple.com/documentation/storekit/promoting-in-app-purchases
-        #if os(iOS)
-        if try connection.markPaymentQueueObserverRegisteredIfNeeded(generation: generation) {
-            try Task.checkCancellation()
-            await MainActor.run {
-                SKPaymentQueue.default().add(self)
-            }
-        }
-        #endif // os(iOS)
+        registerPromotedPurchaseObserverIfNeeded()
 
         try Task.checkCancellation()
         try connection.ensureCurrent(generation)
@@ -1456,6 +1460,54 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         resources.unfinishedTransactionTask?.cancel()
     }
 
+    private func registerPromotedPurchaseObserverIfNeeded() {
+        #if os(iOS)
+        promotedPurchaseObserverLock.lock()
+        let shouldRegister = !didRegisterPromotedPurchaseObserver
+        if shouldRegister {
+            didRegisterPromotedPurchaseObserver = true
+        }
+        promotedPurchaseObserverLock.unlock()
+
+        guard shouldRegister else { return }
+
+        let addObserver = { [weak self] in
+            guard let self else { return }
+            SKPaymentQueue.default().add(self)
+        }
+
+        if Thread.isMainThread {
+            addObserver()
+        } else {
+            DispatchQueue.main.async(execute: addObserver)
+        }
+        #endif // os(iOS)
+    }
+
+    private func unregisterPromotedPurchaseObserverIfNeeded() {
+        #if os(iOS)
+        promotedPurchaseObserverLock.lock()
+        let shouldUnregister = didRegisterPromotedPurchaseObserver
+        if shouldUnregister {
+            didRegisterPromotedPurchaseObserver = false
+        }
+        promotedPurchaseObserverLock.unlock()
+
+        guard shouldUnregister else { return }
+
+        let removeObserver = { [weak self] in
+            guard let self else { return }
+            SKPaymentQueue.default().remove(self)
+        }
+
+        if Thread.isMainThread {
+            removeObserver()
+        } else {
+            DispatchQueue.main.async(execute: removeObserver)
+        }
+        #endif // os(iOS)
+    }
+
     private func ensureConnection() async throws {
         if let endTask = connection.currentEndTask() {
             await endTask.value
@@ -1484,15 +1536,6 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         resources.messageListenerTask?.cancel()
         resources.unfinishedTransactionTask?.cancel()
         await state.reset()
-        // iOS-only: Remove SKPaymentQueue observer for promoted in-app purchases
-        // Reference: https://developer.apple.com/documentation/storekit/promoting-in-app-purchases
-        #if os(iOS)
-        if resources.didRegisterPaymentQueueObserver {
-            await MainActor.run {
-                SKPaymentQueue.default().remove(self)
-            }
-        }
-        #endif // os(iOS)
         if let manager = resources.productManager { await manager.removeAll() }
     }
 
