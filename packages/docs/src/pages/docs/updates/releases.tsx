@@ -276,11 +276,11 @@ function Releases() {
               </li>
               <li>
                 <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/godot-iap-2.2.5"
+                  href="https://github.com/hyodotdev/openiap/releases/tag/godot-iap-2.2.6"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  godot-iap 2.2.5
+                  godot-iap 2.2.6
                 </a>
               </li>
               <li>
@@ -294,11 +294,11 @@ function Releases() {
               </li>
               <li>
                 <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/maui-iap-1.0.1"
+                  href="https://github.com/hyodotdev/openiap/releases/tag/maui-iap-1.0.2"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  maui-iap 1.0.1
+                  maui-iap 1.0.2
                 </a>
               </li>
             </ul>
