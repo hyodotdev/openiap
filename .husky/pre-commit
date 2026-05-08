@@ -127,14 +127,15 @@ if git diff --cached --name-only --diff-filter=ACMR \
   fi
 fi
 
-# Paths-aware docs typecheck. The kit integration brought React 19 into
+# Paths-aware docs typecheck/audit. The kit integration brought React 19 into
 # the workspace alongside docs's React 18, which previously caused
 # @types/react hoisting to break docs's tsc only in CI. Both are now on
 # React 19, but if either drifts again we want to know on commit.
 if git diff --cached --name-only --diff-filter=ACMR | grep -q '^packages/docs/'; then
-  echo "📘 docs-touched commit — running typecheck + format…"
+  echo "📘 docs-touched commit — running typecheck + audit + format…"
   bun install --frozen-lockfile
   bun run --filter @hyodotdev/openiap-docs typecheck
+  bun run audit:docs
   (
     cd packages/docs && bunx prettier --check "src/**/*.{ts,tsx,css}"
   )

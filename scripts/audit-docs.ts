@@ -16,6 +16,8 @@
  *        - `@see {@link …}` URLs
  *      and cross-checks each against the type index.
  *   4. Reports drift as a punch-list (file:line — what's wrong).
+ *   5. Checks release-note `Package Releases` lists so published package
+ *      entries cannot silently lose their GitHub Release links.
  *
  * Exit code 0 = clean, 1 = at least one drift detected.
  *
@@ -33,6 +35,10 @@ const DOC_ROOTS = [
 ];
 const DOC_PAGES_DIR = resolve(REPO_ROOT, 'packages/docs/src/pages');
 const TYPES_FILE = resolve(REPO_ROOT, 'libraries/expo-iap/src/types.ts');
+const RELEASE_NOTES_FILE = resolve(
+  REPO_ROOT,
+  'packages/docs/src/pages/docs/updates/releases.tsx'
+);
 
 type Drift = {
   file: string;
@@ -86,7 +92,8 @@ function buildTypeIndex(): Map<
   >();
 
   // interface NAME { ... } — capture body via brace matching
-  const interfaceRe = /export\s+interface\s+([A-Za-z_]\w*)\s*(?:extends[^{]+)?\{/g;
+  const interfaceRe =
+    /export\s+interface\s+([A-Za-z_]\w*)\s*(?:extends[^{]+)?\{/g;
   let m: RegExpExecArray | null;
   while ((m = interfaceRe.exec(src)) !== null) {
     const name = m[1];
@@ -225,6 +232,62 @@ function parseDocPage(filePath: string) {
   }
 
   return { linkTargets, seeUrls, fieldMentions };
+}
+
+const PACKAGE_RELEASE_ITEM_RE =
+  /\b(?:openiap-(?:gql|apple|google)|react-native-iap|expo-iap|flutter_inapp_purchase|godot-iap|kmp-iap|maui-iap)\s+v?\d+\.\d+\.\d+(?:[-\w.]+)?\b/;
+const GITHUB_RELEASE_LINK_RE =
+  /href=["']https:\/\/github\.com\/hyodotdev\/openiap\/releases\/tag\/[^"']+["']/;
+
+function lineNumberAt(src: string, index: number): number {
+  let line = 1;
+  for (let i = 0; i < index; i += 1) {
+    if (src.charCodeAt(i) === 10) line += 1;
+  }
+  return line;
+}
+
+/**
+ * Released `Package Releases` blocks should link every package/version item to
+ * the GitHub Release. If a workflow is still publishing, keep the heading as
+ * `Planned Package Releases`; once it is changed to `Package Releases`, bare
+ * package text is a docs regression.
+ */
+function auditReleaseNotePackageLinks(filePath: string): Drift[] {
+  const src = readFileSync(filePath, 'utf8');
+  const drifts: Drift[] = [];
+  const headingRe =
+    /<h5[^>]*>\s*(Planned Package Releases|Package Releases)\s*<\/h5>/g;
+
+  let headingMatch: RegExpExecArray | null;
+  while ((headingMatch = headingRe.exec(src)) !== null) {
+    const heading = headingMatch[1];
+    const ulStart = src.indexOf('<ul', headingRe.lastIndex);
+    if (ulStart === -1) continue;
+    const ulEnd = src.indexOf('</ul>', ulStart);
+    if (ulEnd === -1) continue;
+    const ul = src.slice(ulStart, ulEnd);
+
+    if (heading !== 'Package Releases') continue;
+
+    const liRe = /<li\b[^>]*>([\s\S]*?)<\/li>/g;
+    let liMatch: RegExpExecArray | null;
+    while ((liMatch = liRe.exec(ul)) !== null) {
+      const item = liMatch[1];
+      if (!PACKAGE_RELEASE_ITEM_RE.test(item)) continue;
+      if (GITHUB_RELEASE_LINK_RE.test(item)) continue;
+
+      drifts.push({
+        file: filePath,
+        line: lineNumberAt(src, ulStart + liMatch.index),
+        rule: 'R9',
+        message:
+          '`Package Releases` entries must link package/version items to their GitHub Release URL. Use `Planned Package Releases` only while a release is not published.',
+      });
+    }
+  }
+
+  return drifts;
 }
 
 const RESERVED_WORDS = new Set([
@@ -461,6 +524,8 @@ async function main() {
       });
     }
   }
+
+  drifts.push(...auditReleaseNotePackageLinks(RELEASE_NOTES_FILE));
 
   // R5 (broken /docs links) is a hard failure; R3 (field name not in
   // generated types) is a warning because top-level scalar function

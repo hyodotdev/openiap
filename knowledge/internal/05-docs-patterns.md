@@ -250,6 +250,9 @@ Before adding or editing a `Package Releases` list:
    `gh release view <tag> --repo hyodotdev/openiap` before adding an `<a href>`.
 5. If a release workflow is still running, keep the entry as plain text with
    planned wording. Add links only after the GitHub Release exists.
+6. Run `bun run audit:docs`; the audit fails when a published
+   `Package Releases` block contains a package/version item without a GitHub
+   Release link.
 
 Do not use `openiap-versions.json` to derive React Native, Expo, Flutter,
 Godot, KMP, or MAUI versions; that manifest tracks only `spec`, `google`, and

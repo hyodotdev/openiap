@@ -142,6 +142,16 @@ wrapper tabs use the suffixed name (`syncIOS()`, etc.) — except in
 `packages/google` Kotlin (the Android-only native), where convention
 strips the `Android` suffix from method names.
 
+### R9 — Published package release lists use links
+
+When a release-note block is labeled `Package Releases`, every package/version
+item in that list must link to the corresponding GitHub Release. Use
+`Planned Package Releases` only while the release workflow is still running or
+the GitHub Release does not exist yet.
+
+`bun run audit:docs` fails bare package/version entries under published
+`Package Releases` blocks so link regressions are caught before publishing.
+
 ## Pre-commit checklist
 
 Run before every `git push` on docs / SDK changes:

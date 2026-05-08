@@ -4,7 +4,7 @@ import { describe, expect, test } from "vitest";
 import { applySentryEventFilters } from "./sentryFilters";
 
 describe("applySentryEventFilters", () => {
-  test("keeps Convex reconnect failures on a stable fingerprint", () => {
+  test("drops transient Convex reconnect failures", () => {
     const event: Event = {
       breadcrumbs: [
         {
@@ -22,8 +22,28 @@ describe("applySentryEventFilters", () => {
       originalException: new TypeError("Failed to fetch"),
     });
 
-    expect(result?.tags?.source).toBe("convex-reconnect");
-    expect(result?.fingerprint).toEqual(["convex-reconnect-load-failed"]);
+    expect(result).toBeNull();
+  });
+
+  test("keeps non-Convex network failures", () => {
+    const event: Event = {
+      breadcrumbs: [
+        {
+          category: "fetch",
+          data: {
+            method: "GET",
+            url: "https://api.example.test/status",
+          },
+        },
+      ],
+      request: { url: "https://kit.openiap.dev/intu/project/intu/apikeys" },
+    };
+
+    const result = applySentryEventFilters(event, {
+      originalException: new TypeError("Failed to fetch"),
+    });
+
+    expect(result).toBe(event);
   });
 
   test("fingerprints generic Convex action server errors", () => {

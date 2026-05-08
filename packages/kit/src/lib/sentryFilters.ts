@@ -75,8 +75,7 @@ export function applySentryEventFilters<TEvent extends Event>(
   );
 
   if (isFetchLoadFailed && looksConvex) {
-    event.tags = { ...(event.tags ?? {}), source: "convex-reconnect" };
-    event.fingerprint = ["convex-reconnect-load-failed"];
+    return null;
   }
 
   const isGenericConvexServerError =

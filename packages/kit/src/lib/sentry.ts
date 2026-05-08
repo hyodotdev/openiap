@@ -48,8 +48,8 @@ if (typeof dsn === "string" && dsn.length > 0 && onAllowedHost) {
     // user-facing path catches these inline (toast, retry), but the
     // internal rejection still surfaces to `window.onunhandledrejection`
     // and floods Sentry as `TypeError: Load failed` noise that drowns
-    // out real bugs. Tag those events so triage can filter them out
-    // (or downsample) instead of treating each as a fresh signal.
+    // out real bugs. Drop those transport-only events before they
+    // create issues; actual Convex server errors are still reported.
     beforeSend: applySentryEventFilters,
   });
 }
