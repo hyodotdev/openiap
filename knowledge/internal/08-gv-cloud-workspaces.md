@@ -94,6 +94,46 @@ Because Bun is not available in the default GV environment, the safe current
 pattern is to run Bun checks inside Docker containers with the workspace mounted
 read-only.
 
+## Day-to-day usage
+
+Use GV by opening an agent or editor attached to the cloud environment, then
+give the task prompt there. The prompt is not a shell command.
+
+```bash
+gv env use agent-sandbox
+
+# Open a cloud-attached agent/editor.
+gv open opencode --env agent-sandbox
+gv open codex --env agent-sandbox
+```
+
+Use `gv ssh` for direct terminal checks in the cloud workspace:
+
+```bash
+gv ssh --env agent-sandbox
+cd ~/workspace/openiap
+git status --short --branch
+```
+
+For investigation-only work, make the boundary explicit:
+
+```text
+Investigate issue 104 and the GQL -> SDK sync flow.
+List the affected packages and propose a fix plan.
+Do not change code, commit, push, create PRs, read env files, or run deploy,
+release, signing, publish, or credential-related commands.
+```
+
+For maintenance work that may edit code, require an isolated branch and scoped
+verification:
+
+```text
+Create a branch named codex/<task>.
+Make the smallest safe change for the requested docs/GQL/kit issue.
+Do not touch env, signing, release, deploy, or publish files.
+Run only the relevant secret-free checks, then summarize the diff and results.
+```
+
 ## Safe verification pattern
 
 Prefer an ephemeral Docker container with a read-only repo mount and an internal
