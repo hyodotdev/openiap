@@ -2,10 +2,6 @@ import React from 'react';
 import {render} from '@testing-library/react-native';
 import RootLayout from '../app/_layout';
 
-jest.mock('../src/promotedIapEvents', () => ({
-  registerPromotedIapEvents: jest.fn(),
-}));
-
 jest.mock('@expo/react-native-action-sheet', () => ({
   ActionSheetProvider: ({children}: {children?: React.ReactNode}) => children,
 }));
@@ -49,7 +45,6 @@ describe('RootLayout', () => {
       'offer-code',
       'alternative-billing',
       'webhook-stream',
-      'promoted-iap',
     ].forEach((route) => {
       expect(getByTestId(route)).toBeDefined();
     });

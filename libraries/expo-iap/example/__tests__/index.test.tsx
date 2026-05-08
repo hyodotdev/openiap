@@ -47,7 +47,6 @@ describe('Home Component', () => {
     expect(getByText('Offer Code Redemption')).toBeDefined();
     expect(getByText('Alternative Billing')).toBeDefined();
     expect(getByText('Webhook Stream')).toBeDefined();
-    expect(getByText('Promoted IAP')).toBeDefined();
 
     await waitFor(() => {
       expect(ExpoIap.getStorefront).toHaveBeenCalled();

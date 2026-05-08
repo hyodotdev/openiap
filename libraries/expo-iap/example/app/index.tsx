@@ -75,14 +75,6 @@ const MENU_ITEMS: MenuItem[] = [
     subtitle: 'IAPKit SSE + test notification',
     accentColor: '#0284C7',
   },
-  {
-    id: 'promoted-iap',
-    href: '/promoted-iap',
-    icon: '🔗',
-    title: 'Promoted IAP',
-    subtitle: 'App Store promoted purchases',
-    accentColor: '#111827',
-  },
 ];
 
 /**
