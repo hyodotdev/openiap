@@ -60,7 +60,7 @@ val subscriptionBillingIssueListener: Flow<Purchase>`}</CodeBlock>
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// Observable callback approach (Play Billing 8.1+).
+// Observable callback approach (iOS 18+ / Play Billing 8.1+).
 IDisposable subscription = Iap.Instance.SubscriptionBillingIssue.Subscribe(purchase =>
 {
     Console.WriteLine("Subscription billing issue received");
@@ -171,7 +171,7 @@ subscription.cancel();`}</CodeBlock>
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// Play Billing Library 8.1+
+// iOS 18+ / Play Billing Library 8.1+
 var subscription = Iap.Instance.SubscriptionBillingIssue.Subscribe(purchase =>
 {
     if (purchase is PurchaseCommon purchaseInfo)

@@ -83,7 +83,9 @@ function RestorePurchases() {
         <code>Promise&lt;void&gt;</code> — Resolves once the platform finishes
         the restore. The restored purchases are emitted via{' '}
         <code>purchaseUpdatedListener</code> / surface as{' '}
-        <code>getAvailablePurchases</code> results, depending on platform.
+        <code>getAvailablePurchases</code> results, depending on platform. In
+        MAUI/C#, <code>RestorePurchasesAsync</code> returns{' '}
+        <code>Task&lt;string&gt;</code>.
       </p>
 
       <h2>Example</h2>

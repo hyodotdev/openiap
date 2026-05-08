@@ -202,7 +202,7 @@ await ((MutationResolver)Iap.Instance).InitConnectionAsync();
 await ((MutationResolver)Iap.Instance).InitConnectionAsync(
     new InitConnectionConfig
     {
-        AlternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice,
+        EnableBillingProgramAndroid = BillingProgramAndroid.UserChoiceBilling,
     });`}</CodeBlock>
           ),
           gdscript: (

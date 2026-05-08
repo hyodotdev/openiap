@@ -106,7 +106,7 @@ if (Platform.OS === 'ios') {
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// kmp-iap (iOS targets only — no-op on Android)
+// OpenIap.Maui (iOS targets only — no-op on Android)
 var changed = await ((MutationResolver)Iap.Instance).ShowManageSubscriptionsIOSAsync();`}</CodeBlock>
           ),
           gdscript: (

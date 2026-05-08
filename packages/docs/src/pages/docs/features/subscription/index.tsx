@@ -1389,7 +1389,8 @@ using System.Linq;
 async Task PurchaseSubscriptionAsync(string subscriptionId, ProductSubscriptionAndroid subscription)
 {
     // Build subscriptionOffers from fetched data.
-    var subscriptionOffers = subscription.SubscriptionOfferDetailsAndroid
+    var subscriptionOffers = (subscription.SubscriptionOfferDetailsAndroid
+            ?? Enumerable.Empty<ProductSubscriptionAndroidOfferDetails>())
         .Select(offer => new AndroidSubscriptionOfferInput
         {
             Sku = subscriptionId,
@@ -1741,9 +1742,15 @@ async Task HandlePurchaseAsync(
     string subscriptionGroupId,
     string basePlanId)
 {
-    var offer = subscription.SubscriptionOfferDetailsAndroid
+    var offer = subscription.SubscriptionOfferDetailsAndroid?
         .FirstOrDefault(offer =>
             offer.BasePlanId == basePlanId && offer.OfferId is null);
+
+    if (offer is null)
+    {
+        throw new InvalidOperationException(
+            $"Base plan '{basePlanId}' was not found for '{subscriptionGroupId}'.");
+    }
 
     // Store it before purchase.
     purchasedBasePlanId = basePlanId;
@@ -1761,7 +1768,7 @@ async Task HandlePurchaseAsync(
                     new AndroidSubscriptionOfferInput
                     {
                         Sku = subscriptionGroupId,
-                        OfferToken = offer?.OfferToken ?? "",
+                        OfferToken = offer.OfferToken,
                     },
                 },
             },
@@ -2161,6 +2168,10 @@ ProductSubscriptionAndroidOfferDetails? SelectOffer(
     OfferType offerType)
 {
     var offers = subscription.SubscriptionOfferDetailsAndroid;
+    if (offers is null)
+    {
+        return null;
+    }
 
     return offerType switch
     {
@@ -2168,12 +2179,12 @@ ProductSubscriptionAndroidOfferDetails? SelectOffer(
             offers.FirstOrDefault(offer => offer.OfferId is null),
         OfferType.Introductory =>
             offers.FirstOrDefault(offer =>
-                offer.PricingPhases.PricingPhaseList.Any(phase =>
-                    phase.PriceAmountMicros == "0" || phase.RecurrenceMode == 2)),
+                offer.PricingPhases?.PricingPhaseList?.Any(phase =>
+                    phase.PriceAmountMicros == "0" || phase.RecurrenceMode == 2) == true),
         OfferType.Promotional =>
             offers.FirstOrDefault(offer =>
-                offer.OfferTags.Any(tag =>
-                    tag.Contains("promo", StringComparison.OrdinalIgnoreCase))),
+                offer.OfferTags?.Any(tag =>
+                    tag.Contains("promo", StringComparison.OrdinalIgnoreCase)) == true),
         _ => null,
     };
 }
@@ -3551,13 +3562,12 @@ public sealed record SubscriptionAccessResult(
     double? ExpiresAt = null);
 
 // Client-side: Can only check if purchase exists.
-async Task<SubscriptionAccessResult> CheckAndroidSubscriptionAsync()
+async Task<SubscriptionAccessResult> CheckAndroidSubscriptionAsync(string subscriptionId)
 {
     var purchases = await ((QueryResolver)Iap.Instance).GetAvailablePurchasesAsync();
     var purchase = purchases
         .OfType<PurchaseAndroid>()
-        .FirstOrDefault(purchase =>
-            purchase.ProductId.Contains("subscription", StringComparison.OrdinalIgnoreCase));
+        .FirstOrDefault(purchase => purchase.ProductId == subscriptionId);
 
     if (purchase is null)
     {
