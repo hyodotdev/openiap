@@ -6,6 +6,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 
 import { apiRoutes } from "./api/v1/routes";
+import { shouldReturnNotFoundForMissingStaticPath } from "./staticPaths";
 import { parsePort } from "./utils/env";
 
 const app = new Hono();
@@ -27,21 +28,15 @@ const STATIC_ROOT = process.env.STATIC_ROOT ?? "./dist";
 // Serve the built SPA (hashed assets, favicons, llms.txt, etc.).
 app.use("/*", serveStatic({ root: STATIC_ROOT }));
 
-// If a *root-level* static-document URL (`/llms.txt`, `/robots.txt`,
-// `/manifest.json`, …) reaches this point, `serveStatic` already
+// If a static-looking URL reaches this point, `serveStatic` already
 // couldn't match it, so return 404 instead of falling through to the
-// SPA shell. Otherwise a typo at `/llm.txt` would render `index.html`,
-// React Router's `:orgSlug` route would match the typo as a slug, and
-// the user (or a bot) would see "Organization not found" with a 200
-// status code — wrong for humans and doubly wrong for crawlers.
-//
-// Scope is deliberately narrow: only single-segment paths at the
-// site root. Hashed build assets under `/assets/*.json` (i18n, chunks)
-// and nested paths still fall through to the SPA handler below.
-const ROOT_STATIC_DOC =
-  /^\/[a-z0-9._-]+\.(txt|xml|json|pdf|csv|yaml|yml|md|webmanifest)$/i;
+// SPA shell. This covers root documents (`/llms.txt`), favicons, and
+// hashed Vite assets (`/assets/index-*.js`). Falling back to
+// `index.html` for a missing asset gives browsers the wrong MIME type
+// and makes Sentry source-context fetches display the HTML shell as
+// the suspect source.
 app.get("*", async (c, next) => {
-  if (ROOT_STATIC_DOC.test(c.req.path)) {
+  if (shouldReturnNotFoundForMissingStaticPath(c.req.path)) {
     return c.notFound();
   }
   return next();

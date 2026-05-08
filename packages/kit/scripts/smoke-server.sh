@@ -86,6 +86,9 @@ probe() {
 probe "/health" "200"
 probe "/" "200"
 probe "/api/v1" "200"
+probe "/intu/project/intu/apikeys" "200"
+probe "/assets/missing-build-asset.js" "404"
+probe "/missing-static-doc.json" "404"
 
 if [[ "$fail" -ne 0 ]]; then
   echo "---- server log ----" >&2

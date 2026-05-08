@@ -1,5 +1,7 @@
 import * as Sentry from "@sentry/react";
 
+import { applySentryEventFilters } from "./sentryFilters";
+
 // Client-side Sentry init for the SPA. Kept separate from the server
 // init at `server/sentry.ts` — both point at distinct Sentry projects
 // (openiap-kit-node vs openiap-kit-react) so server bugs and UI bugs
@@ -48,36 +50,7 @@ if (typeof dsn === "string" && dsn.length > 0 && onAllowedHost) {
     // and floods Sentry as `TypeError: Load failed` noise that drowns
     // out real bugs. Tag those events so triage can filter them out
     // (or downsample) instead of treating each as a fresh signal.
-    beforeSend: (event, hint) => {
-      const exception = hint?.originalException;
-      // Sentry events occasionally arrive with no `originalException`
-      // (programmatic captureMessage, late-bound rejections that
-      // lost their cause), only an `event.message` /
-      // `logentry.message`. Build the classifier input from every
-      // available source so reconnect noise gets tagged regardless
-      // of where the message lives (CodeRabbit review on PR #127).
-      const message = [
-        exception instanceof Error
-          ? exception.message
-          : typeof exception === "string"
-            ? exception
-            : "",
-        event.message ?? "",
-        event.logentry?.message ?? "",
-      ]
-        .filter(Boolean)
-        .join(" ");
-      const isFetchLoadFailed =
-        /Load failed|Failed to fetch|NetworkError/i.test(message);
-      const looksConvex = /convex\.cloud|\/api\/(action|query|mutation)/i.test(
-        message + " " + (event.request?.url ?? ""),
-      );
-      if (isFetchLoadFailed && looksConvex) {
-        event.tags = { ...(event.tags ?? {}), source: "convex-reconnect" };
-        event.fingerprint = ["convex-reconnect-load-failed"];
-      }
-      return event;
-    },
+    beforeSend: applySentryEventFilters,
   });
 }
 
