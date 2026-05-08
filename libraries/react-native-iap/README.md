@@ -195,11 +195,11 @@ Quick links:
 React Native IAP conforms to the **[OpenIAP specification](https://openiap.dev)** — an open, vendor-neutral interoperability standard for in-app purchases. OpenIAP provides:
 
 - **Shared specification** — Common types, error codes, and purchase flows across all platforms
-- **Generated type-safe bindings** — Swift, Kotlin, Dart, and GDScript from a single GraphQL schema
+- **Generated type-safe bindings** — Swift, Kotlin, TypeScript, Dart, C#, and GDScript from a single GraphQL schema
 - **Platform implementations** — [openiap-apple](https://github.com/hyodotdev/openiap/tree/main/packages/apple) (StoreKit 2) and [openiap-google](https://github.com/hyodotdev/openiap/tree/main/packages/google) (Play Billing 8.x)
 - **Verification profiles** — Standardized receipt validation and purchase verification patterns
 
-Other libraries built on OpenIAP: [expo-iap](https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap) · [flutter_inapp_purchase](https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase) · [kmp-iap](https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap) · [godot-iap](https://github.com/hyodotdev/openiap/tree/main/libraries/godot-iap)
+Other libraries built on OpenIAP: [expo-iap](https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap) · [flutter_inapp_purchase](https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase) · [kmp-iap](https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap) · [maui-iap](https://github.com/hyodotdev/openiap/tree/main/libraries/maui-iap) · [godot-iap](https://github.com/hyodotdev/openiap/tree/main/libraries/godot-iap)
 
 **[Learn more about the OpenIAP standard →](https://openiap.dev/docs/foundation/about)**
 

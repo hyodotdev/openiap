@@ -232,8 +232,8 @@ function Governance() {
             motivation, and impact on all platforms
           </li>
           <li>
-            <strong>Impact Assessment</strong>: Document effects on Swift,
-            Kotlin, Dart, and GDScript generated types
+            <strong>Impact Assessment</strong>: Document effects on TypeScript,
+            Swift, Kotlin, Dart, C#, and GDScript generated types
           </li>
           <li>
             <strong>Review Period</strong>: Minimum 14-day review period for

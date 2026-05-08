@@ -304,7 +304,7 @@ function Announcements() {
               <strong>AI-friendly codebase</strong> — With all code co-located,
               AI assistants can navigate the full dependency graph, understand
               cross-platform implications, and make consistent changes across
-              Swift, Kotlin, TypeScript, Dart, and GDScript simultaneously.
+              Swift, Kotlin, TypeScript, Dart, C#, and GDScript simultaneously.
             </li>
             <li>
               <strong>Unified CI/CD</strong> — One set of release workflows with

@@ -16,7 +16,8 @@ openiap/
 │   ├── expo-iap/                  # Expo SDK (npm)
 │   ├── flutter_inapp_purchase/    # Flutter SDK (pub.dev)
 │   ├── godot-iap/                 # Godot 4.x plugin (GitHub Release)
-│   └── kmp-iap/                   # Kotlin Multiplatform (Maven Central)
+│   ├── kmp-iap/                   # Kotlin Multiplatform (Maven Central)
+│   └── maui-iap/                  # .NET MAUI / C# (NuGet)
 ├── scripts/
 │   └── sync-versions.sh           # Sync types & versions to all packages
 └── .github/workflows/             # CI/CD
@@ -35,6 +36,7 @@ openiap/
 - For iOS: Xcode, Swift 5.9+
 - For Flutter: Flutter SDK
 - For Godot: Godot 4.x editor
+- For MAUI: .NET 9 SDK + MAUI workload
 
 ### Initial Setup
 
@@ -49,13 +51,14 @@ bun install
 
 Each library uses its own package manager:
 
-| Library | Package Manager |
-|---------|-----------------|
-| react-native-iap | Yarn 3 (Berry) |
-| expo-iap | Bun |
+| Library                | Package Manager              |
+| ---------------------- | ---------------------------- |
+| react-native-iap       | Yarn 3 (Berry)               |
+| expo-iap               | Bun                          |
 | flutter_inapp_purchase | Flutter/Dart (`flutter pub`) |
-| godot-iap | N/A (GDScript) |
-| kmp-iap | Gradle |
+| godot-iap              | N/A (GDScript)               |
+| kmp-iap                | Gradle                       |
+| maui-iap               | .NET CLI / NuGet             |
 
 ## 3. Development Workflows
 
@@ -74,7 +77,8 @@ GraphQL Schema → Parser → IR (Intermediate Representation) → Language Plug
                                                               ├── swift.ts
                                                               ├── kotlin.ts
                                                               ├── dart.ts
-                                                              └── gdscript.ts
+                                                              ├── gdscript.ts
+                                                              └── csharp.ts
 ```
 
 One `bun run generate` command in `packages/gql` produces types for all platforms. Then `sync-versions.sh` copies them to the correct locations in each package and library.
@@ -88,18 +92,20 @@ Each library has its own `CLAUDE.md` with detailed conventions and development i
 - `libraries/flutter_inapp_purchase/CLAUDE.md` -- Generated types.dart, fetchProducts generic API
 - `libraries/godot-iap/CLAUDE.md` -- GDExtension (iOS), AAR plugin (Android)
 - `libraries/kmp-iap/CLAUDE.md` -- Flow-based API, CocoaPods iOS integration
+- `libraries/maui-iap/CLAUDE.md` -- .NET MAUI / C#, generated Types.cs, native bindings
 
 Libraries reference local `packages/apple` and `packages/google` source during development. Published packages use CocoaPods/Maven Central for native dependencies.
 
 ### Running Examples
 
-| Library | Command |
-|---------|---------|
-| react-native-iap | `cd libraries/react-native-iap && yarn install && yarn prepare && cd example && yarn install && yarn ios --device` |
-| expo-iap | `cd libraries/expo-iap && bun install && bun run prepare && cd example && bun install && bunx expo run:ios --device` |
-| flutter | `cd libraries/flutter_inapp_purchase && flutter pub get && cd example && flutter pub get && flutter run` |
-| godot | Open `libraries/godot-iap/Example/project.godot` in Godot editor, export to device |
-| kmp | `cd libraries/kmp-iap && ./gradlew :library:podGenIos && ./gradlew :library:podInstallSyntheticIos && ./gradlew :example:composeApp:linkDebugFrameworkIosArm64`, then open in Xcode |
+| Library          | Command                                                                                                                                                                             |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| react-native-iap | `cd libraries/react-native-iap && yarn install && yarn prepare && cd example && yarn install && yarn ios --device`                                                                  |
+| expo-iap         | `cd libraries/expo-iap && bun install && bun run prepare && cd example && bun install && bunx expo run:ios --device`                                                                |
+| flutter          | `cd libraries/flutter_inapp_purchase && flutter pub get && cd example && flutter pub get && flutter run`                                                                            |
+| godot            | Open `libraries/godot-iap/Example/project.godot` in Godot editor, export to device                                                                                                  |
+| kmp              | `cd libraries/kmp-iap && ./gradlew :library:podGenIos && ./gradlew :library:podInstallSyntheticIos && ./gradlew :example:composeApp:linkDebugFrameworkIosArm64`, then open in Xcode |
+| maui             | `cd libraries/maui-iap && dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -f net9.0`                                                                                              |
 
 ## 4. Release Process
 
@@ -115,6 +121,7 @@ Native modules must be released before framework libraries:
    - `release-flutter.yml` -- pub.dev
    - `release-godot.yml` -- GitHub Release
    - `release-kmp.yml` -- Maven Central
+   - `release-maui.yml` -- NuGet
 
 ### Prerelease
 
@@ -126,20 +133,21 @@ All workflows support version bumps: `patch` / `minor` / `major` / `rc` / `promo
 
 ### Version Management
 
-- `openiap-versions.json` at the monorepo root is the single source of truth for all package versions.
-- It is symlinked into all libraries so they can read version info at build time.
-- `./scripts/sync-versions.sh` syncs both versions and generated types across the entire monorepo.
+- `openiap-versions.json` tracks only `spec`, `google`, and `apple` versions.
+- Framework library versions live in each library's package metadata and release workflow.
+- `./scripts/sync-versions.sh` syncs generated types and native version metadata across the monorepo.
 
 ## 5. CI/CD
 
-| Workflow | Scope |
-|----------|-------|
-| `ci.yml` | Core packages (gql, apple, google, docs) |
-| `ci-react-native-iap.yml` | Lint + test |
-| `ci-expo-iap.yml` | Lint + test |
-| `ci-flutter-iap.yml` | Analyze + test |
-| `ci-godot-iap.yml` | Verify files |
-| `ci-kmp-iap.yml` | Compile check |
+| Workflow                  | Scope                                    |
+| ------------------------- | ---------------------------------------- |
+| `ci.yml`                  | Core packages (gql, apple, google, docs) |
+| `ci-react-native-iap.yml` | Lint + test                              |
+| `ci-expo-iap.yml`         | Lint + test                              |
+| `ci-flutter-iap.yml`      | Analyze + test                           |
+| `ci-godot-iap.yml`        | Verify files                             |
+| `ci-kmp-iap.yml`          | Compile check                            |
+| `ci-maui-iap.yml`         | .NET build                               |
 
 ## 6. Auto-generated Files (DO NOT EDIT)
 
@@ -147,11 +155,12 @@ These files are generated by `bun run generate` in `packages/gql` and synced by 
 
 - `packages/gql/src/generated/*` -- All generated type files (SSOT)
 - `packages/apple/Sources/Models/Types.swift`
-- `packages/google/openiap/src/main/Types.kt`
+- `packages/google/openiap/src/main/java/dev/hyo/openiap/Types.kt`
 - `libraries/react-native-iap/src/types.ts`
 - `libraries/expo-iap/src/types.ts`
 - `libraries/flutter_inapp_purchase/lib/types.dart`
 - `libraries/godot-iap/addons/godot-iap/types.gd`
+- `libraries/maui-iap/src/OpenIap.Maui/Types.cs`
 - `openiap-versions.json` -- Managed by CI/CD workflows only
 
 To regenerate:
@@ -172,14 +181,14 @@ cd ../.. && ./scripts/sync-versions.sh
 
 **Types:**
 
-| Tag | Description |
-|-----|-------------|
-| `feat` | New feature |
-| `fix` | Bug fix |
-| `docs` | Documentation changes |
-| `refactor` | Code refactoring |
-| `test` | Add/modify tests |
-| `chore` | Build/config changes |
+| Tag        | Description           |
+| ---------- | --------------------- |
+| `feat`     | New feature           |
+| `fix`      | Bug fix               |
+| `docs`     | Documentation changes |
+| `refactor` | Code refactoring      |
+| `test`     | Add/modify tests      |
+| `chore`    | Build/config changes  |
 
 ## 8. Links
 

@@ -182,7 +182,7 @@ function OnePager() {
               </td>
               <td>
                 Intermediate Representation system generating type-safe bindings
-                for Swift, Kotlin, Dart, GDScript
+                for Swift, Kotlin, Dart, GDScript, and C#
               </td>
             </tr>
             <tr>
@@ -307,6 +307,20 @@ function OnePager() {
             </tr>
             <tr>
               <td>
+                <strong>.NET MAUI</strong>
+              </td>
+              <td>
+                <a
+                  href="https://github.com/hyodotdev/openiap/tree/main/libraries/maui-iap"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  maui-iap
+                </a>
+              </td>
+            </tr>
+            <tr>
+              <td>
                 <strong>Godot Engine</strong>
               </td>
               <td>
@@ -361,7 +375,8 @@ function OnePager() {
             Quest/Horizon
           </li>
           <li>
-            <strong>Languages Generated</strong>: Swift, Kotlin, Dart, GDScript
+            <strong>Languages Generated</strong>: TypeScript, Swift, Kotlin,
+            Dart, C#, GDScript
           </li>
           <li>
             <strong>Store APIs Supported</strong>: Apple StoreKit 2, Google Play

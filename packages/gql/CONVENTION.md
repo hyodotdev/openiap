@@ -25,8 +25,8 @@ This repo standardizes schema and identifier naming to improve clarity across pl
   (e.g., `displayNameIOS`, `offerTokenAndroid`).
 - Enum values in SDL are written in PascalCase. Generated client libraries map
   these to kebab-case strings (e.g., `PurchaseUpdated` → `purchase-updated`) so
-  the serialized values remain consistent across TypeScript, Swift, Kotlin, and
-  Dart outputs.
+  the serialized values remain consistent across TypeScript, Swift, Kotlin,
+  Dart, GDScript, and C# outputs.
 
 ## Enums
 
@@ -137,28 +137,30 @@ codegen/
     ├── swift.ts          # Swift plugin
     ├── kotlin.ts         # Kotlin plugin
     ├── dart.ts           # Dart plugin
-    └── gdscript.ts       # GDScript plugin
+    ├── gdscript.ts       # GDScript plugin
+    └── csharp.ts         # C# plugin
 ```
 
 ### IR Types
 
-| IR Type | Description |
-|---------|-------------|
-| `IREnum` | Enum with values, raw values (kebab-case), legacy aliases |
-| `IRInterface` | Protocol/Interface with typed fields |
-| `IRObject` | Struct/Class with fields, implements, union membership |
-| `IRInput` | Input type with required field tracking |
-| `IRUnion` | Union with members, nested union support |
-| `IROperation` | Query/Mutation/Subscription definitions |
+| IR Type       | Description                                               |
+| ------------- | --------------------------------------------------------- |
+| `IREnum`      | Enum with values, raw values (kebab-case), legacy aliases |
+| `IRInterface` | Protocol/Interface with typed fields                      |
+| `IRObject`    | Struct/Class with fields, implements, union membership    |
+| `IRInput`     | Input type with required field tracking                   |
+| `IRUnion`     | Union with members, nested union support                  |
+| `IROperation` | Query/Mutation/Subscription definitions                   |
 
 ### Language Plugin Features
 
-| Plugin | Key Features |
-|--------|--------------|
-| **Swift** | Codable protocol, ErrorCode custom initializer, platform defaults |
-| **Kotlin** | sealed interface, fromJson/toJson, nullable patterns |
-| **Dart** | sealed class, factory constructors, extends/implements |
-| **GDScript** | _init() pattern, from_json/to_json, Variant type |
+| Plugin       | Key Features                                                      |
+| ------------ | ----------------------------------------------------------------- |
+| **Swift**    | Codable protocol, ErrorCode custom initializer, platform defaults |
+| **Kotlin**   | sealed interface, fromJson/toJson, nullable patterns              |
+| **Dart**     | sealed class, factory constructors, extends/implements            |
+| **GDScript** | \_init() pattern, from_json/to_json, Variant type                 |
+| **C#**       | records, JsonConverter, [JsonPolymorphic] unions                  |
 
 ### Scripts
 
@@ -171,6 +173,7 @@ bun run generate:swift
 bun run generate:kotlin
 bun run generate:dart
 bun run generate:gdscript
+bun run generate:csharp
 ```
 
 ### Adding a New Language

@@ -19,9 +19,18 @@ taxonomy (`error.graphql`), and platform-specific (`*-ios.graphql`, `*-android.g
 definitions.
 
 To keep every consumer in sync, code generation helpers are provided for
-TypeScript, Dart, Swift, and Kotlin. Each section below explains the tooling,
-commands, and output locations. Update the schema files first, then rerun the
-appropriate generator for your target language.
+TypeScript, Swift, Kotlin, Dart, GDScript, and C#. Each section below explains
+the tooling, commands, and output locations. Update the schema files first, then
+rerun the appropriate generator for your target language.
+
+Generated outputs:
+
+- `src/generated/types.ts` — TypeScript
+- `src/generated/Types.swift` — Swift
+- `src/generated/Types.kt` — Kotlin
+- `src/generated/types.dart` — Dart
+- `src/generated/types.gd` — GDScript
+- `src/generated/Types.cs` — C# / .NET MAUI
 
 ---
 
@@ -31,7 +40,7 @@ Uses [`@graphql-codegen/cli`](https://www.the-guild.dev/graphql/codegen).
 
 1. Ensure Node 18+ is installed.
 2. Install dependencies once: `npm install`
-3. Generate types: `npm run generate`
+3. Generate types: `bun run generate:ts`
 4. Generated output: `src/generated/types.ts`
 
 Configuration lives in `codegen.ts`. The script merges every SDL file and
@@ -125,10 +134,10 @@ dependencies {
 
 - Treat the SDL files in `src/` as the canonical schema. Commit schema updates
   before shipping generated code.
-- Regenerate types whenever you change schema shape or add operations in your
-  client projects.
+- Regenerate types whenever you change schema shape or add operations:
+  `bun run generate` for all languages, or `bun run generate:<language>` for a
+  single target (`ts`, `swift`, `kotlin`, `dart`, `gdscript`, `csharp`).
 - If you introduce custom scalars, make sure to extend the respective generator
-  config (TypeScript `codegen.ts`, Dart `build.yaml`, Kotlin Gradle config,
-  Swift `generate-swift.sh`) so they map to the desired native types.
+  config/plugin so they map to the desired native types.
 - Use version control to keep generated artifacts out of long-lived diffs unless
   they are part of the published SDKs.

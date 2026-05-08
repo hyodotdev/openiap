@@ -52,8 +52,8 @@ function FoundingSupporters() {
             codes, and verification across iOS, Android, and emerging platforms
           </li>
           <li>
-            <strong>Generated, type-safe bindings</strong> for Swift, Kotlin,
-            Dart, GDScript — and more to come
+            <strong>Generated, type-safe bindings</strong> for TypeScript,
+            Swift, Kotlin, Dart, C#, and GDScript
           </li>
           <li>
             <strong>Security-first design</strong> with verification profiles

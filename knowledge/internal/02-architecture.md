@@ -17,7 +17,8 @@ openiap/
 │   ├── expo-iap/          # Expo (npm, Bun, Expo Modules)
 │   ├── flutter_inapp_purchase/  # Flutter (pub.dev, Dart)
 │   ├── godot-iap/         # Godot 4.x (GitHub Release, GDScript)
-│   └── kmp-iap/           # Kotlin Multiplatform (Maven Central)
+│   ├── kmp-iap/           # Kotlin Multiplatform (Maven Central)
+│   └── maui-iap/          # .NET MAUI / C# (NuGet)
 ├── knowledge/         # Shared knowledge base (SSOT)
 │   ├── internal/      # Project philosophy (HIGHEST PRIORITY)
 │   ├── external/      # External API reference
@@ -36,7 +37,7 @@ Libraries reference local `packages/apple` and `packages/google` source directly
 **Purpose:** Single source of truth for type definitions.
 
 - Contains GraphQL schema defining all OpenIAP types
-- Generates types for: TypeScript, Swift, Kotlin, Dart
+- Generates types for: TypeScript, Swift, Kotlin, Dart, GDScript, C#
 - **RULE:** `Types.swift` / `Types.kt` are AUTO-GENERATED. Never edit directly.
 
 ```bash
@@ -45,16 +46,20 @@ cd packages/gql && bun run generate
 ```
 
 Generated files:
+
 - TypeScript: `src/generated/types.ts`
-- Swift: `dist/swift/Types.swift`
-- Kotlin: `dist/kotlin/Types.kt`
-- Dart: `dist/dart/types.dart`
+- Swift: `src/generated/Types.swift`
+- Kotlin: `src/generated/Types.kt`
+- Dart: `src/generated/types.dart`
+- GDScript: `src/generated/types.gd`
+- C#: `src/generated/Types.cs`
 
 ### packages/apple
 
 **Purpose:** iOS/macOS StoreKit 2 implementation.
 
 Directory structure:
+
 ```
 Sources/
 ├── Models/           # Official OpenIAP types (matches openiap.dev/docs/types)
@@ -75,13 +80,14 @@ Sources/
 **Purpose:** Android Google Play Billing implementation.
 
 Directory structure:
+
 ```
 openiap/src/main/
 ├── java/dev/hyo/openiap/
 │   ├── OpenIapModule.kt
 │   ├── Models.kt
+│   ├── Types.kt         # AUTO-GENERATED - DO NOT EDIT
 │   └── utils/           # Internal helpers
-└── Types.kt             # AUTO-GENERATED - DO NOT EDIT
 ```
 
 ### packages/docs
@@ -202,6 +208,7 @@ fun fetchProducts(productIds: List<String>, callback: (List<ProductAndroid>) -> 
 **CRITICAL**: All async/Promise-returning operations in the GraphQL schema MUST include `# Future` comment above the field definition.
 
 The `# Future` comment tells the type generator to wrap the return type appropriately:
+
 - TypeScript: `Promise<T>`
 - Swift: `async`
 - Kotlin: `suspend`

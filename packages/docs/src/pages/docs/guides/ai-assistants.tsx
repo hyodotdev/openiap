@@ -272,8 +272,9 @@ getAvailablePurchases in OpenIAP?"`}</CodeBlock>
             both to get platform-appropriate code
           </li>
           <li>
-            <strong>Specify your framework</strong>: Mention React Native,
-            Flutter, Swift, Kotlin, or Godot for framework-specific examples
+            <strong>Specify your framework</strong>: Mention React Native, Expo,
+            Flutter, Swift, Kotlin, .NET MAUI/C#, or Godot for
+            framework-specific examples
           </li>
           <li>
             <strong>Request code examples</strong>: Ask for working code

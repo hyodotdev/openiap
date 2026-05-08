@@ -284,9 +284,9 @@ function TypesIndex() {
     <div className="doc-page">
       <SEO
         title="Types"
-        description="OpenIAP type definitions for Product, Purchase, SubscriptionOffer, and more — unified across TypeScript, Swift, Kotlin, Dart, and GDScript."
+        description="OpenIAP type definitions for Product, Purchase, SubscriptionOffer, and more — unified across TypeScript, Swift, Kotlin, Dart, C#, and GDScript."
         path="/docs/types"
-        keywords="OpenIAP types, Product type, Purchase type, SubscriptionOffer, IAP TypeScript, IAP Swift, IAP Kotlin, IAP Dart, IAP GDScript, Godot types"
+        keywords="OpenIAP types, Product type, Purchase type, SubscriptionOffer, IAP TypeScript, IAP Swift, IAP Kotlin, IAP Dart, IAP C#, IAP GDScript, Godot types, MAUI types"
       />
       <h1>Types</h1>
       <p>

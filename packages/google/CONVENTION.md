@@ -41,7 +41,7 @@ operation/handler identifier that must match the schema.
 
 ## Generated GraphQL/Kotlin Models
 
-- `openiap/src/main/Types.kt` is auto-generated. Regenerate it with `./scripts/generate-types.sh` after changing any GraphQL schema files.
+- `openiap/src/main/java/dev/hyo/openiap/Types.kt` is auto-generated. Regenerate it with `./scripts/generate-types.sh` after changing any GraphQL schema files.
 - Never edit `Types.kt` manually. Regeneration guarantees consistency across platforms and avoids merge conflicts.
 - When additional parsing or conversion helpers are needed for GraphQL payloads, place them in a utility file (for example `openiap/src/main/java/dev/hyo/openiap/utils/JsonUtils.kt`). Keep all custom helpers outside of generated sources and have the hand-written code call into them.
 

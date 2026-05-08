@@ -20,7 +20,7 @@ function GettingStarted() {
       <p>
         OpenIAP is a unified spec for in-app purchases on Apple, Google, and
         Meta Horizon. One GraphQL schema generates type-safe SDKs for
-        TypeScript, Swift, Kotlin, Dart, and GDScript — so the same purchase
+        TypeScript, Swift, Kotlin, Dart, C#, and GDScript — so the same purchase
         flow works across every framework you ship in.
       </p>
 

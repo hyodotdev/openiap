@@ -73,7 +73,7 @@ openiap/
 
 - `packages/gql/src/generated/*` - All generated type files (SSOT)
 - `packages/apple/Sources/Models/Types.swift` - Synced from GQL
-- `packages/google/openiap/src/main/Types.kt` - Synced from GQL
+- `packages/google/openiap/src/main/java/dev/hyo/openiap/Types.kt` - Synced from GQL
 - `libraries/react-native-iap/src/types.ts` - Synced from GQL
 - `libraries/expo-iap/src/types.ts` - Synced from GQL
 - `libraries/flutter_inapp_purchase/lib/types.dart` - Synced from GQL

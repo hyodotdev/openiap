@@ -168,7 +168,8 @@ function Versions() {
         </div>
         <ul>
           <li>
-            Each release bundles TypeScript, Swift, Kotlin, and Dart bindings.
+            Each release bundles TypeScript, Swift, Kotlin, Dart, GDScript, and
+            C# bindings.
           </li>
           <li>
             Downloads mirror the assets linked from the documentation Types page

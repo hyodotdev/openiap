@@ -3,7 +3,7 @@
  *
  * @deprecated This plugin is not currently registered in the codegen pipeline.
  * It was an experimental approach using Handlebars templates. All active
- * language plugins (Swift, Kotlin, Dart, GDScript) extend CodegenPlugin
+ * language plugins (Swift, Kotlin, Dart, GDScript, C#) extend CodegenPlugin
  * directly. Consider removing this file if not needed, or register it
  * in codegen/index.ts if you plan to use template-based generation.
  *

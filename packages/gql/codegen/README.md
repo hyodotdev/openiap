@@ -17,13 +17,13 @@ codegen/
 │   ├── swift.ts          # Swift plugin (~700 lines)
 │   ├── kotlin.ts         # Kotlin plugin (~850 lines)
 │   ├── dart.ts           # Dart plugin (~870 lines)
-│   └── gdscript.ts       # GDScript plugin (~610 lines)
+│   ├── gdscript.ts       # GDScript plugin (~610 lines)
+│   └── csharp.ts         # C# plugin (.NET MAUI)
 ├── templates/            # Handlebars templates (optional)
 │   ├── swift/
 │   ├── kotlin/
 │   ├── dart/
 │   └── gdscript/
-└── test-output.ts        # Output comparison test
 ```
 
 ## How It Works
@@ -35,6 +35,7 @@ codegen/
 ## IR (Intermediate Representation)
 
 The IR includes:
+
 - `IREnum` - Enum types with values and legacy aliases
 - `IRInterface` - Protocol/Interface definitions
 - `IRObject` - Struct/Class definitions with fields
@@ -45,6 +46,7 @@ The IR includes:
 ## Plugin Structure
 
 Each plugin implements:
+
 - Type mapping (`mapScalar`, `mapType`, `getPropertyType`)
 - Keyword escaping (`keywords`, `escapeKeyword`)
 - Name conversion (`enumValueCase`, `fieldNameCase`)
@@ -61,12 +63,9 @@ bun codegen/index.ts
 bun codegen/index.ts swift
 bun codegen/index.ts kotlin dart
 
-# Test output matches original generators
-bun codegen/test-output.ts
-
-# NPM scripts
-npm run generate:new:all    # Generate all
-npm run test:codegen        # Test comparison
+# Package scripts from packages/gql
+bun run generate            # TypeScript + all IR plugins + sync
+bun run generate:csharp     # Single-language example
 ```
 
 ## Why Not Pure Templates?
@@ -74,26 +73,37 @@ npm run test:codegen        # Test comparison
 Each language has complex, specific requirements:
 
 ### Swift
+
 - Codable protocol conformance
 - Custom initializer for ErrorCode (legacy alias handling)
 - Platform-specific defaults (ProductIOS, ProductAndroid)
 
 ### Kotlin
+
 - Sealed interfaces for unions
 - Complex fromJson/toJson with nullable patterns
 - Type casting for JSON deserialization
 
 ### Dart
+
 - extends/implements clauses
 - Constructor parameter patterns ({required this.field})
 - Union wrapper classes with interface field forwarding
 
 ### GDScript
-- _init() constructor pattern
+
+- \_init() constructor pattern
 - Variant type for union values
 - from_json/to_json static/instance methods
 
+### C#
+
+- C# records and interfaces
+- Per-enum JSON converters
+- [JsonPolymorphic] unions for generated result types
+
 These patterns are difficult to express cleanly in templates. The current plugin-based approach:
+
 - Keeps logic in TypeScript (type-safe, debuggable)
 - Uses IR for shared schema representation
 - Allows language-specific customization
@@ -108,14 +118,9 @@ These patterns are difficult to express cleanly in templates. The current plugin
 ## Testing
 
 ```bash
-# Run comparison test
-npm run test:codegen
-
-# Expected output:
-# ✓ swift: MATCH
-# ✓ kotlin: MATCH
-# ✓ dart: MATCH
-# ✓ gdscript: MATCH
+cd packages/gql
+bun test
 ```
 
-The test compares new plugin output against original generator scripts to ensure 100% compatibility.
+The test suite verifies schema parsing, transformation, and generated type
+fixtures.
