@@ -208,7 +208,7 @@ if build_entries:
     )
 
 if embed_entries:
-    files_match = re.search(r"files\s*=\s*\(\n?(.*?)\n?\t\t\t\);", embed_phase_block, re.DOTALL)
+    files_match = re.search(r"files\s*=\s*\(\n?(.*?)\n?\s*\);", embed_phase_block, re.DOTALL)
     if not files_match:
         print("Error: Could not find files list in Embed Frameworks build phase")
         sys.exit(1)
