@@ -141,47 +141,77 @@ make android
         </ol>
 
         <h3 id="ios-xcode" className="anchor-heading">
-          iOS: Xcode Configuration (Required)
+          iOS: Xcode Framework Embedding
           <a href="#ios-xcode" className="anchor-link">
             #
           </a>
         </h3>
         <p>
-          After exporting from Godot, you <strong>must</strong> configure the
-          frameworks in Xcode:
+          The GodotIap export plugin registers the iOS frameworks during export
+          so they are added to Xcode's <strong>Embed Frameworks</strong> build
+          phase automatically. Before exporting, make sure GodotIap is enabled
+          in the iOS export preset's <strong>Plugins</strong> section.
         </p>
-        <ol>
+        <p>
+          If you exported with an older plugin version, or if Xcode still shows
+          the frameworks as file references instead of framework bundles, run
+          the post-export fixer from your Godot project root:
+        </p>
+        <CodeBlock language="bash">
+          {`IOS_EXPORT_DIR=/path/to/ios-export \\
+  ./addons/godot-iap/scripts/fix_ios_embed.sh`}
+        </CodeBlock>
+        <p>
+          The script finds the exported <code>.xcodeproj</code>, embeds:
+        </p>
+        <ul>
           <li>
-            Open the exported <code>.xcodeproj</code> in Xcode
+            <code>GodotIap.framework</code>
           </li>
           <li>
-            Select your target &gt; <strong>General</strong> tab
+            <code>SwiftGodotRuntime.framework</code>
           </li>
-          <li>
-            Scroll to{' '}
-            <strong>Frameworks, Libraries, and Embedded Content</strong>
-          </li>
-          <li>
-            Click <strong>+</strong> and add:
-            <ul>
-              <li>
-                <code>GodotIap.framework</code>
-              </li>
-              <li>
-                <code>SwiftGodotRuntime.framework</code>
-              </li>
-            </ul>
-          </li>
-          <li>
-            Set both to <strong>"Embed &amp; Sign"</strong>
-          </li>
-        </ol>
+        </ul>
+        <p>
+          It also converts framework file references to framework bundles and
+          restores any missing framework <code>Info.plist</code> files.
+        </p>
+
+        <details>
+          <summary>Manual Xcode fallback</summary>
+          <ol>
+            <li>
+              Open the exported <code>.xcodeproj</code> in Xcode
+            </li>
+            <li>
+              Select your target &gt; <strong>General</strong> tab
+            </li>
+            <li>
+              Scroll to{' '}
+              <strong>Frameworks, Libraries, and Embedded Content</strong>
+            </li>
+            <li>
+              Click <strong>+</strong> and add:
+              <ul>
+                <li>
+                  <code>GodotIap.framework</code>
+                </li>
+                <li>
+                  <code>SwiftGodotRuntime.framework</code>
+                </li>
+              </ul>
+            </li>
+            <li>
+              Set both to <strong>"Embed &amp; Sign"</strong>
+            </li>
+          </ol>
+        </details>
         <p>The frameworks are located at:</p>
         <CodeBlock language="text">
           {`[exported_project]/addons/godot-iap/bin/ios/GodotIap.framework
 [exported_project]/addons/godot-iap/bin/ios/SwiftGodotRuntime.framework`}
         </CodeBlock>
-        <p>Then configure the runpath:</p>
+        <p>Then confirm the runpath:</p>
         <ol>
           <li>
             Go to the <strong>Build Settings</strong> tab
@@ -204,10 +234,10 @@ make android
             margin: '1rem 0',
           }}
         >
-          <strong>Warning:</strong> If you skip embedding the frameworks, the
-          app will crash on launch with:{' '}
+          <strong>Warning:</strong> If the frameworks are not embedded, the app
+          will crash on launch with:{' '}
           <code>Library not loaded: @rpath/GodotIap.framework/GodotIap</code>.
-          If you skip the Runpath setting, it will crash with:{' '}
+          If the runpath is missing, it can crash with:{' '}
           <code>
             Library not loaded:
             @rpath/SwiftGodotRuntime.framework/SwiftGodotRuntime
@@ -216,7 +246,7 @@ make android
         </div>
 
         <h3 id="ios-infoplist" className="anchor-heading">
-          iOS: Fix Missing Info.plist (Required)
+          iOS: Missing Info.plist Fallback
           <a href="#ios-infoplist" className="anchor-link">
             #
           </a>
@@ -230,13 +260,11 @@ make android
           >
             Godot export bug
           </a>
-          , the <code>Info.plist</code> files inside frameworks may not be
-          copied during export. This causes the build to fail with:{' '}
-          <code>Framework did not contain an Info.plist</code>.
+          , some exports may omit <code>Info.plist</code> files inside embedded
+          frameworks. The <code>fix_ios_embed.sh</code> script above copies the
+          missing files automatically.
         </p>
-        <p>
-          <strong>Solution:</strong> Add a build phase script in Xcode:
-        </p>
+        <p>If you still need an Xcode build phase fallback:</p>
         <ol>
           <li>
             Select your target &gt; <strong>Build Phases</strong> tab
@@ -268,7 +296,6 @@ fi`}
             Frameworks" phase
           </li>
         </ol>
-
         <div
           style={{
             padding: '1rem',
@@ -278,9 +305,9 @@ fi`}
             margin: '1rem 0',
           }}
         >
-          <strong>Tip:</strong> This script automatically copies the missing{' '}
-          <code>Info.plist</code> files from the source frameworks to the build
-          output. You only need to set this up once per project.
+          <strong>Tip:</strong> Prefer the post-export fixer when possible; the
+          build phase is only a fallback for projects that cannot run the script
+          after export.
         </div>
       </section>
 
