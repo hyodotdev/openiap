@@ -22,7 +22,19 @@ ADDON_SOURCE_DIR="${GODOT_IAP_ADDON_DIR:-$DEFAULT_ADDON_SOURCE_DIR}"
 XCODEPROJ="${XCODEPROJ:-}"
 
 if [ -z "$XCODEPROJ" ]; then
-    XCODEPROJ="$(find "$IOS_EXPORT_DIR" -maxdepth 1 -name "*.xcodeproj" -type d | sort | head -n 1)"
+    XCODEPROJS=()
+    while IFS= read -r project; do
+        XCODEPROJS+=("$project")
+    done < <(find "$IOS_EXPORT_DIR" -maxdepth 1 -name "*.xcodeproj" -type d | sort)
+
+    if [ "${#XCODEPROJS[@]}" -gt 1 ]; then
+        echo "Error: multiple .xcodeproj files found in $IOS_EXPORT_DIR:" >&2
+        printf '  %s\n' "${XCODEPROJS[@]}" >&2
+        echo "Set XCODEPROJ=/path/to/App.xcodeproj to disambiguate." >&2
+        exit 1
+    fi
+
+    XCODEPROJ="${XCODEPROJS[0]:-}"
 fi
 
 if [ -z "$XCODEPROJ" ] || [ ! -d "$XCODEPROJ" ]; then
@@ -99,16 +111,27 @@ def normalize_framework_reference(text, framework_name):
         text,
     )
     text = re.sub(
-        rf"(lastKnownFileType\s*=\s*)file(\s*;[^}}]*{framework_name}\.framework)",
+        rf"(lastKnownFileType\s*=\s*)file(\s*;[^}}]*{framework_name}\.framework(?=[\"\s;]))",
         r"\1wrapper.framework\2",
         text,
     )
     text = re.sub(
-        rf"(explicitFileType\s*=\s*)file(\s*;[^}}]*{framework_name}\.framework)",
+        rf"(explicitFileType\s*=\s*)file(\s*;[^}}]*{framework_name}\.framework(?=[\"\s;]))",
         r"\1wrapper.framework\2",
         text,
     )
     return text
+
+
+def remove_pbx_list_item(block, item_id):
+    item_pattern = re.compile(
+        rf"^[ \t]*{item_id}(?:\s*/\*[^*]*\*/)?\s*,?\s*$"
+    )
+    return "".join(
+        line
+        for line in block.splitlines(keepends=True)
+        if not item_pattern.match(line.rstrip("\r\n"))
+    )
 
 
 framework_refs = {}
@@ -253,14 +276,9 @@ def remove_duplicate_framework_links(text):
 
     updated_framework_phase_block = framework_phase_block
     for build_id in duplicate_build_ids:
-        updated_framework_phase_block = re.sub(
-            rf"\n[ \t]*{build_id}(?:\s*/\*[^*]*\*/)?\s*,?(?=\s*(?:\n|\)))",
-            "",
-            updated_framework_phase_block,
+        updated_framework_phase_block = remove_pbx_list_item(
+            updated_framework_phase_block, build_id
         )
-    updated_framework_phase_block = re.sub(
-        r",\s*\);", ",\n\t\t\t);", updated_framework_phase_block
-    )
 
     text = text.replace(framework_phase_block, updated_framework_phase_block, 1)
     for build_id in duplicate_build_ids:
@@ -276,12 +294,7 @@ def remove_duplicate_framework_links(text):
             group_block = match.group(0)
             if ref not in group_block:
                 return group_block
-            group_block = re.sub(
-                rf"\n[ \t]*{ref}(?:\s*/\*[^*]*\*/)?\s*,?(?=\s*(?:\n|\)))",
-                "",
-                group_block,
-            )
-            return re.sub(r",\s*\);", ",\n\t\t\t);", group_block)
+            return remove_pbx_list_item(group_block, ref)
 
         return re.sub(
             r"^\s*([A-F0-9]{24}|\w+)\s*(?:/\*[^*]*\*/\s*)?=\s*\{[^}]*isa\s*=\s*PBXGroup;.*?\n\t\t\};",

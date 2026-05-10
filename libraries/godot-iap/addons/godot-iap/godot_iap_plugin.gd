@@ -29,7 +29,7 @@ func _exit_tree() -> void:
 
 class GodotIapExportPlugin extends EditorExportPlugin:
 	const PLUGIN_NAME = "GodotIap"
-	const IOS_FRAMEWORKS = [
+	const IOS_FRAMEWORKS: Array[String] = [
 		"res://addons/godot-iap/bin/ios/GodotIap.framework",
 		"res://addons/godot-iap/bin/ios/SwiftGodotRuntime.framework",
 	]
@@ -65,6 +65,9 @@ class GodotIapExportPlugin extends EditorExportPlugin:
 	func _add_ios_embedded_framework(path: String) -> void:
 		if has_method("add_apple_embedded_platform_embedded_framework"):
 			call("add_apple_embedded_platform_embedded_framework", path)
+			return
+		if has_method("add_apple_embedded_framework"):
+			call("add_apple_embedded_framework", path)
 			return
 
 		# Godot 4.3/4.4 still expose the iOS-specific export API.

@@ -205,25 +205,26 @@ make android
               Set both to <strong>"Embed &amp; Sign"</strong>
             </li>
           </ol>
-        </details>
-        <p>The frameworks are located at:</p>
-        <CodeBlock language="text">
-          {`[exported_project]/addons/godot-iap/bin/ios/GodotIap.framework
+          <p>The frameworks are located at:</p>
+          <CodeBlock language="text">
+            {`[exported_project]/addons/godot-iap/bin/ios/GodotIap.framework
 [exported_project]/addons/godot-iap/bin/ios/SwiftGodotRuntime.framework`}
-        </CodeBlock>
-        <p>Then confirm the runpath:</p>
-        <ol>
-          <li>
-            Go to the <strong>Build Settings</strong> tab
-          </li>
-          <li>
-            Search for <strong>"Runpath Search Paths"</strong> (
-            <code>LD_RUNPATH_SEARCH_PATHS</code>)
-          </li>
-          <li>
-            Add <code>@executable_path/Frameworks</code> if not already present
-          </li>
-        </ol>
+          </CodeBlock>
+          <p>Then confirm the runpath:</p>
+          <ol>
+            <li>
+              Go to the <strong>Build Settings</strong> tab
+            </li>
+            <li>
+              Search for <strong>"Runpath Search Paths"</strong> (
+              <code>LD_RUNPATH_SEARCH_PATHS</code>)
+            </li>
+            <li>
+              Add <code>@executable_path/Frameworks</code> if not already
+              present
+            </li>
+          </ol>
+        </details>
 
         <div
           style={{
