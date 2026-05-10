@@ -246,11 +246,20 @@ Before adding or editing a `Package Releases` list:
 2. Read the current package metadata from `origin/main`, not from memory.
 3. For planned patch releases, add exactly one patch version to each affected
    framework package and label the block `Planned Package Releases`.
-4. For published release links, confirm each tag exists with
-   `gh release view <tag> --repo hyodotdev/openiap` before adding an `<a href>`.
-5. If a release workflow is still running, keep the entry as plain text with
-   planned wording. Add links only after the GitHub Release exists.
-6. Run `bun run audit:docs`; the audit fails when a published
+4. If the user explicitly asks to write the note as already released, says to
+   "assume it will be deployed/published", or asks to follow the existing linked
+   release-note style, do **not** use `Planned Package Releases` or
+   `(planned)`. Write the block as `Package Releases`, add the expected GitHub
+   Release tag link (for example `godot-iap-2.2.8`), and use shipped wording
+   such as "Publishes" / "Ships" instead of "Prepares".
+5. For links to releases that should already exist in GitHub, confirm each tag
+   exists with `gh release view <tag> --repo hyodotdev/openiap` before adding an
+   `<a href>`. This existence check is skipped only when step 4 applies because
+   the user explicitly requested an assumed post-release note.
+6. If a release workflow is still running and the user has not requested an
+   already-released note, keep the entry as plain text with planned wording. Add
+   links only after the GitHub Release exists.
+7. Run `bun run audit:docs`; the audit fails when a published
    `Package Releases` block contains a package/version item without a GitHub
    Release link.
 

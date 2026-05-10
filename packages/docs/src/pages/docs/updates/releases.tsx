@@ -26,7 +26,7 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
-    // May 10, 2026 — godot-iap 2.2.8 planned iOS export embedding patch
+    // May 10, 2026 — godot-iap 2.2.8 iOS export embedding patch
     {
       id: 'godot-iap-2-2-8-ios-export-framework-embedding',
       date: new Date('2026-05-10'),
@@ -48,9 +48,9 @@ function Releases() {
               color: 'var(--text-secondary)',
             }}
           >
-            Prepares a <strong>godot-iap 2.2.8</strong> patch release for the
-            iOS export workflow. GodotIap now registers its iOS frameworks
-            during export so Xcode receives <code>GodotIap.framework</code> and{' '}
+            Publishes <strong>godot-iap 2.2.8</strong> for the iOS export
+            workflow. GodotIap now registers its iOS frameworks during export so
+            Xcode receives <code>GodotIap.framework</code> and{' '}
             <code>SwiftGodotRuntime.framework</code> as embedded framework
             bundles automatically. The release also ships the post-export fixer
             inside the addon package for projects that were exported with an
@@ -109,14 +109,14 @@ function Releases() {
             </li>
           </ul>
 
-          {/* Planned Package Releases */}
+          {/* Package Releases */}
           <div
             style={{
               paddingTop: '1rem',
               borderTop: '1px solid var(--border-color)',
             }}
           >
-            <h5 style={{ margin: '0 0 0.5rem 0' }}>Planned Package Releases</h5>
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
             <ul
               style={{
                 margin: 0,
@@ -124,7 +124,15 @@ function Releases() {
                 fontSize: '0.9rem',
               }}
             >
-              <li>godot-iap 2.2.8 (planned)</li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/godot-iap-2.2.8"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  godot-iap 2.2.8
+                </a>
+              </li>
             </ul>
           </div>
         </div>
