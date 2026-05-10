@@ -996,6 +996,7 @@ func _await_products_fetched_for(method: String, request_id: String = "") -> Dic
 		if payload is Dictionary and payload.get("method", "") == method:
 			if request_id.is_empty() or payload.get("requestId", "") == request_id:
 				return payload as Dictionary
+	return {}
 
 ## Extract the native `requestId` token from the synchronous "pending" JSON
 ## returned by a GDExtension @Callable, or empty string if missing.

@@ -26,6 +26,119 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // May 10, 2026 — godot-iap 2.2.8 iOS export embedding patch
+    {
+      id: 'godot-iap-2-2-8-ios-export-framework-embedding',
+      date: new Date('2026-05-10'),
+      element: (
+        <div
+          key="godot-iap-2-2-8-ios-export-framework-embedding"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="godot-iap-2-2-8-ios-export-framework-embedding"
+            level="h4"
+          >
+            May 10, 2026 — godot-iap 2.2.8 iOS export framework embedding patch
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes <strong>godot-iap 2.2.8</strong> for the iOS export
+            workflow. GodotIap now registers its iOS frameworks during export so
+            Xcode receives <code>GodotIap.framework</code> and{' '}
+            <code>SwiftGodotRuntime.framework</code> as embedded framework
+            bundles automatically. The release also ships the post-export fixer
+            inside the addon package for projects that were exported with an
+            older plugin version. See{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/discussions/146"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              discussion #146
+            </a>{' '}
+            and{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/148"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #148
+            </a>
+            .
+          </p>
+
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>Automatic iOS embedding</strong> — the Godot export plugin
+              now supports iOS export presets and adds both Swift GDExtension
+              frameworks to Xcode&apos;s <strong>Embed Frameworks</strong> build
+              phase when the plugin is enabled.
+            </li>
+            <li>
+              <strong>Post-export fallback</strong> —{' '}
+              <code>fix_ios_embed.sh</code> is included in release artifacts and
+              can repair existing exports by copying missing framework{' '}
+              <code>Info.plist</code> files, normalizing framework bundle
+              references, and avoiding duplicate framework link entries.
+            </li>
+            <li>
+              <strong>Safer Xcode project handling</strong> — the fixer now asks
+              users to set <code>XCODEPROJ</code> when multiple{' '}
+              <code>.xcodeproj</code> files are present, rather than silently
+              patching the first project it finds.
+            </li>
+            <li>
+              <strong>Setup docs</strong> — the{' '}
+              <Link to="/docs/setup/godot">Godot setup guide</Link> now
+              documents automatic framework embedding first and keeps manual
+              Xcode / <code>Info.plist</code> steps as fallback guidance.
+            </li>
+          </ul>
+
+          {/* Package Releases */}
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/godot-iap-2.2.8"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  godot-iap 2.2.8
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // May 8, 2026 — openiap-apple 2.1.8 promoted IAP cold-start fix
     {
       id: 'apple-2-1-8-promoted-iap-cold-start',

@@ -190,9 +190,12 @@ jobs:
         run: |
           mkdir -p dist/addons/godot-iap/android
           mkdir -p dist/addons/godot-iap/bin/ios
+          mkdir -p dist/addons/godot-iap/scripts
 
           cp addons/godot-iap/*.gd dist/addons/godot-iap/
           cp addons/godot-iap/plugin.cfg dist/addons/godot-iap/
+          cp scripts/fix_ios_embed.sh dist/addons/godot-iap/scripts/
+          chmod +x dist/addons/godot-iap/scripts/fix_ios_embed.sh
 
           cp android/build/outputs/aar/godot-iap-release.aar dist/addons/godot-iap/android/GodotIap.release.aar
           cp android/build/outputs/aar/godot-iap-release.aar dist/addons/godot-iap/android/GodotIap.debug.aar
