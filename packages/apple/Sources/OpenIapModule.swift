@@ -376,16 +376,25 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                 - Note: \(isSubscription ? "Subscription transactions will be emitted via Transaction.updates" : "Emitting directly")
                 """)
 
+            let shouldEmit: Bool
             if shouldAutoFinish {
                 await transaction.finish()
+                shouldEmit = await state.recordPurchaseUpdateEmission(id: transactionId)
             } else {
-                await state.storePending(id: transactionId, transaction: transaction)
+                shouldEmit = await state.storePendingAndRecordPurchaseUpdateEmission(
+                    id: transactionId,
+                    transaction: transaction
+                )
             }
 
             // Emit purchase update
-            // Note: Transaction.updates will NOT fire for purchases initiated via product.purchase()
-            // It only fires for background events (renewals, restores, external purchases)
-            emitPurchaseUpdate(purchase)
+            // StoreKit can replay unfinished transactions through multiple paths during a
+            // connection session; only emit each transaction id once.
+            if shouldEmit {
+                emitPurchaseUpdate(purchase)
+            } else {
+                OpenIapLog.debug("⏭️ Skipping duplicate purchase update: \(transactionId)")
+            }
 
             return .purchase(purchase)
 
@@ -1633,8 +1642,16 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                             continue
                         }
 
-                        // Store pending and emit
-                        await self.state.storePending(id: transactionId, transaction: transaction)
+                        // Store pending and emit once per transaction id for this connection session.
+                        let shouldEmit = await self.state.storePendingAndRecordPurchaseUpdateEmission(
+                            id: transactionId,
+                            transaction: transaction
+                        )
+                        guard shouldEmit else {
+                            OpenIapLog.debug("⏭️ [TransactionListener] Skipping duplicate transaction: \(transactionId)")
+                            continue
+                        }
+
                         let purchase = await StoreKitTypesBridge.purchase(from: transaction, jwsRepresentation: verification.jwsRepresentation)
 
                         OpenIapLog.debug("✅ [TransactionListener] Emitting transaction: \(transactionId) for product: \(transaction.productID)")

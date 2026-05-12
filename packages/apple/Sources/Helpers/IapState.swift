@@ -8,8 +8,11 @@ import StoreKit
 actor IapState {
     private(set) var isInitialized: Bool = false
     private var pendingTransactions: [String: Transaction] = [:]
+    private var emittedPurchaseUpdateIds: Set<String> = []
+    private var emittedPurchaseUpdateOrder: [String] = []
     private var promotedProductId: String?
     private var pendingPromotedProductReplayId: String?
+    private let purchaseUpdateEmissionLimit = 512
 
     // Event listeners
     private var purchaseUpdatedListeners: [(id: UUID, listener: PurchaseUpdatedListener)] = []
@@ -21,6 +24,8 @@ actor IapState {
     func setInitialized(_ value: Bool) { isInitialized = value }
     func reset() {
         pendingTransactions.removeAll()
+        emittedPurchaseUpdateIds.removeAll()
+        emittedPurchaseUpdateOrder.removeAll()
         isInitialized = false
         promotedProductId = nil
         pendingPromotedProductReplayId = nil
@@ -31,6 +36,25 @@ actor IapState {
     func getPending(id: String) -> Transaction? { pendingTransactions[id] }
     func removePending(id: String) { pendingTransactions.removeValue(forKey: id) }
     func pendingSnapshot() -> [Transaction] { Array(pendingTransactions.values) }
+    func storePendingAndRecordPurchaseUpdateEmission(id: String, transaction: Transaction) -> Bool {
+        pendingTransactions[id] = transaction
+        return recordPurchaseUpdateEmission(id: id)
+    }
+
+    // MARK: - Purchase Update Emissions
+    func recordPurchaseUpdateEmission(id: String) -> Bool {
+        guard !emittedPurchaseUpdateIds.contains(id) else {
+            return false
+        }
+
+        emittedPurchaseUpdateIds.insert(id)
+        emittedPurchaseUpdateOrder.append(id)
+        if emittedPurchaseUpdateOrder.count > purchaseUpdateEmissionLimit {
+            let removed = emittedPurchaseUpdateOrder.removeFirst()
+            emittedPurchaseUpdateIds.remove(removed)
+        }
+        return true
+    }
 
     // MARK: - Promoted Products
     func setPromotedProductId(_ id: String?) {
