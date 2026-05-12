@@ -124,8 +124,8 @@ macos-build:
 	@echo "$(GREEN)Fixing macOS framework rpaths...$(NC)"
 	@install_name_tool -add_rpath @loader_path/../../../ $(BIN_DIR)/macos/GodotIap.framework/Versions/A/GodotIap
 	@echo "$(GREEN)Signing macOS frameworks...$(NC)"
-	@codesign --force --sign - --timestamp=none $(BIN_DIR)/macos/SwiftGodotRuntime.framework
-	@codesign --force --sign - --timestamp=none $(BIN_DIR)/macos/GodotIap.framework
+	@codesign --force --deep --sign - --timestamp=none $(BIN_DIR)/macos/SwiftGodotRuntime.framework
+	@codesign --force --deep --sign - --timestamp=none $(BIN_DIR)/macos/GodotIap.framework
 	@codesign --verify --deep --strict --verbose=2 $(BIN_DIR)/macos/SwiftGodotRuntime.framework
 	@codesign --verify --deep --strict --verbose=2 $(BIN_DIR)/macos/GodotIap.framework
 	@echo "$(GREEN)✓ macOS frameworks copied$(NC)"

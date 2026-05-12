@@ -107,8 +107,8 @@ function GodotSetup() {
         <CodeBlock language="bash">
           {`# Run from your Godot project root after copying addons/godot-iap
 xattr -dr com.apple.quarantine addons/godot-iap
-codesign --force --sign - --timestamp=none addons/godot-iap/bin/macos/SwiftGodotRuntime.framework
-codesign --force --sign - --timestamp=none addons/godot-iap/bin/macos/GodotIap.framework`}
+codesign --force --deep --sign - --timestamp=none addons/godot-iap/bin/macos/SwiftGodotRuntime.framework
+codesign --force --deep --sign - --timestamp=none addons/godot-iap/bin/macos/GodotIap.framework`}
         </CodeBlock>
         <p>
           The checked-in macOS runtime frameworks are Apple Silicon (

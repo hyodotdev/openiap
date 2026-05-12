@@ -40,8 +40,8 @@ ad-hoc signature from your Godot project root:
 
 ```bash
 xattr -dr com.apple.quarantine addons/godot-iap
-codesign --force --sign - --timestamp=none addons/godot-iap/bin/macos/SwiftGodotRuntime.framework
-codesign --force --sign - --timestamp=none addons/godot-iap/bin/macos/GodotIap.framework
+codesign --force --deep --sign - --timestamp=none addons/godot-iap/bin/macos/SwiftGodotRuntime.framework
+codesign --force --deep --sign - --timestamp=none addons/godot-iap/bin/macos/GodotIap.framework
 ```
 
 The checked-in macOS runtime frameworks are Apple Silicon (`arm64`) only. The

@@ -275,8 +275,8 @@ jobs:
             cp -R addons/godot-iap/bin/macos/SwiftGodotRuntime.framework dist/addons/godot-iap/bin/macos/
             lipo dist/addons/godot-iap/bin/macos/GodotIap.framework/GodotIap -verify_arch arm64
             lipo dist/addons/godot-iap/bin/macos/SwiftGodotRuntime.framework/SwiftGodotRuntime -verify_arch arm64
-            codesign --force --sign "$MACOS_CODESIGN_IDENTITY" --options runtime --timestamp dist/addons/godot-iap/bin/macos/SwiftGodotRuntime.framework
-            codesign --force --sign "$MACOS_CODESIGN_IDENTITY" --options runtime --timestamp dist/addons/godot-iap/bin/macos/GodotIap.framework
+            codesign --force --deep --sign "$MACOS_CODESIGN_IDENTITY" --options runtime --timestamp dist/addons/godot-iap/bin/macos/SwiftGodotRuntime.framework
+            codesign --force --deep --sign "$MACOS_CODESIGN_IDENTITY" --options runtime --timestamp dist/addons/godot-iap/bin/macos/GodotIap.framework
             codesign --verify --deep --strict --verbose=2 dist/addons/godot-iap/bin/macos/SwiftGodotRuntime.framework
             codesign --verify --deep --strict --verbose=2 dist/addons/godot-iap/bin/macos/GodotIap.framework
             xattr -dr com.apple.quarantine dist/addons/godot-iap || true
