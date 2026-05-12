@@ -90,6 +90,27 @@ function GodotSetup() {
         </ol>
         <p>The zip includes pre-built binaries for both iOS and Android.</p>
 
+        <h3 id="macos-gatekeeper" className="anchor-heading">
+          macOS: Damaged Framework Warning
+          <a href="#macos-gatekeeper" className="anchor-link">
+            #
+          </a>
+        </h3>
+        <p>
+          Release zips are intended for iOS export and Android. If you use a
+          release or custom build that includes{' '}
+          <code>addons/godot-iap/bin/macos</code>, and Godot reports that{' '}
+          <code>GodotIap.framework</code> or{' '}
+          <code>SwiftGodotRuntime.framework</code> is damaged on macOS, clear
+          quarantine and repair the local ad-hoc signature:
+        </p>
+        <CodeBlock language="bash">
+          {`# Run from your Godot project root after copying addons/godot-iap
+xattr -dr com.apple.quarantine addons/godot-iap
+codesign --force --sign - --timestamp=none addons/godot-iap/bin/macos/SwiftGodotRuntime.framework
+codesign --force --sign - --timestamp=none addons/godot-iap/bin/macos/GodotIap.framework`}
+        </CodeBlock>
+
         <h3 id="build-from-source" className="anchor-heading">
           Build from Source
           <a href="#build-from-source" className="anchor-link">
@@ -362,9 +383,10 @@ func _on_purchase_error(error: Dictionary):
           }}
         >
           <strong>Note:</strong> The native plugin is only available on iOS and
-          Android. In the editor and on desktop platforms, the plugin runs in{' '}
-          <strong>mock mode</strong> which allows you to test your integration
-          logic without actual store connections.
+          Android in the default release zip. In the editor and on desktop
+          platforms, store calls return fallback values or no-op results so you
+          can test your integration flow without opening a real store
+          connection.
         </div>
       </section>
 

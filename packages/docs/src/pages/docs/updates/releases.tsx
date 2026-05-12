@@ -26,6 +26,107 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // May 13, 2026 — godot-iap 2.2.9 macOS Gatekeeper packaging fix
+    {
+      id: 'godot-iap-2-2-9-macos-gatekeeper-packaging',
+      date: new Date('2026-05-13'),
+      element: (
+        <div
+          key="godot-iap-2-2-9-macos-gatekeeper-packaging"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="godot-iap-2-2-9-macos-gatekeeper-packaging"
+            level="h4"
+          >
+            May 13, 2026 — godot-iap 2.2.9 macOS Gatekeeper packaging fix
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes <strong>godot-iap 2.2.9</strong> with hardened release
+            packaging for Godot projects opened on macOS. The default release
+            zip now ships only the iOS GDExtension frameworks and Android AAR
+            needed for mobile export, so Godot no longer loads unnotarized or
+            invalid-signature macOS runtime frameworks from the addon when users
+            install the package on macOS. See{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/discussions/154"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              discussion #154
+            </a>
+            .
+          </p>
+
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>macOS-safe default artifact</strong> — release zips now
+              exclude <code>addons/godot-iap/bin/macos</code> unless the release
+              workflow is explicitly run with notarized macOS runtime frameworks
+              enabled.
+            </li>
+            <li>
+              <strong>Accurate GDExtension metadata</strong> — the generated
+              default <code>godot_iap.gdextension</code> declares iOS only, and
+              macOS <code>x86_64</code> entries are emitted only when both macOS
+              framework binaries actually contain that architecture.
+            </li>
+            <li>
+              <strong>Signed local macOS builds</strong> — source builds now
+              ad-hoc sign and strict-verify the macOS frameworks, and the
+              checked-in macOS binaries have matching arm64-only declarations.
+            </li>
+            <li>
+              <strong>Notarized macOS path</strong> — maintainers can still
+              publish macOS runtime frameworks by enabling the optional
+              notarization path, which signs, notarizes, staples, and verifies
+              the frameworks before upload.
+            </li>
+          </ul>
+
+          {/* Package Releases */}
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/godot-iap-2.2.9"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  godot-iap 2.2.9
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // May 10, 2026 — godot-iap 2.2.8 iOS export embedding patch
     {
       id: 'godot-iap-2-2-8-ios-export-framework-embedding',

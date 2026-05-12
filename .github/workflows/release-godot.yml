@@ -24,6 +24,11 @@ on:
         required: false
         default: true
         type: boolean
+      notarize_macos:
+        description: "Include notarized macOS runtime frameworks"
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: ${{ github.workflow }}
@@ -77,11 +82,20 @@ jobs:
             echo "Error: iOS frameworks not found"
             exit 1
           fi
+          if [ ! -d "addons/godot-iap/bin/ios/SwiftGodotRuntime.framework" ]; then
+            echo "Error: iOS SwiftGodotRuntime framework not found"
+            exit 1
+          fi
 
       - name: Verify macOS Frameworks
+        if: ${{ inputs.notarize_macos }}
         run: |
           if [ ! -d "addons/godot-iap/bin/macos/GodotIap.framework" ]; then
             echo "Error: macOS frameworks not found"
+            exit 1
+          fi
+          if [ ! -d "addons/godot-iap/bin/macos/SwiftGodotRuntime.framework" ]; then
+            echo "Error: macOS SwiftGodotRuntime framework not found"
             exit 1
           fi
 
@@ -108,6 +122,46 @@ jobs:
           git config user.name "godot-iap bot"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+      - name: Import Developer ID certificate
+        if: ${{ inputs.notarize_macos }}
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+        run: |
+          if [ -z "$CERTIFICATE_BASE64" ] || [ -z "$CERTIFICATE_PASSWORD" ]; then
+            echo "::error::Missing APPLE_DEVELOPER_ID_CERTIFICATE_BASE64 or APPLE_DEVELOPER_ID_CERTIFICATE_PASSWORD."
+            exit 1
+          fi
+
+          KEYCHAIN_PATH="$RUNNER_TEMP/godot-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          CERTIFICATE_PATH="$RUNNER_TEMP/developer-id.p12"
+
+          echo "$CERTIFICATE_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" \
+            -k "$KEYCHAIN_PATH" \
+            -P "$CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+          security set-key-partition-list \
+            -S apple-tool:,apple: \
+            -s \
+            -k "$KEYCHAIN_PASSWORD" \
+            "$KEYCHAIN_PATH"
+
+          IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | awk -F '"' '/Developer ID Application/ {print $2; exit}')"
+          if [ -z "$IDENTITY" ]; then
+            echo "::error::No Developer ID Application identity found in the imported certificate."
+            security find-identity -v -p codesigning "$KEYCHAIN_PATH" || true
+            exit 1
+          fi
+
+          echo "MACOS_CODESIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+
       - name: Calculate version
         id: version
         run: |
@@ -116,7 +170,7 @@ jobs:
           CURRENT_VERSION=$(grep -E '^version=' addons/godot-iap/plugin.cfg | cut -d'"' -f2)
 
           if [ "$VERSION_TYPE" = "current" ]; then
-            echo "VERSION=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+            echo "VERSION=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
             if [[ "$CURRENT_VERSION" == *-* ]]; then
               echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
             else
@@ -157,7 +211,7 @@ jobs:
             fi
           fi
 
-          echo "VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "VERSION=$NEW_VERSION" >> "$GITHUB_OUTPUT"
           if [[ "$NEW_VERSION" == *-* ]]; then
             echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
           else
@@ -215,11 +269,27 @@ jobs:
           cp -R addons/godot-iap/bin/ios/GodotIap.framework dist/addons/godot-iap/bin/ios/
           cp -R addons/godot-iap/bin/ios/SwiftGodotRuntime.framework dist/addons/godot-iap/bin/ios/
 
-          mkdir -p dist/addons/godot-iap/bin/macos
-          cp -R addons/godot-iap/bin/macos/GodotIap.framework dist/addons/godot-iap/bin/macos/
-          cp -R addons/godot-iap/bin/macos/SwiftGodotRuntime.framework dist/addons/godot-iap/bin/macos/
+          if [ "${{ inputs.notarize_macos }}" = "true" ]; then
+            mkdir -p dist/addons/godot-iap/bin/macos
+            cp -R addons/godot-iap/bin/macos/GodotIap.framework dist/addons/godot-iap/bin/macos/
+            cp -R addons/godot-iap/bin/macos/SwiftGodotRuntime.framework dist/addons/godot-iap/bin/macos/
+            lipo dist/addons/godot-iap/bin/macos/GodotIap.framework/GodotIap -verify_arch arm64
+            lipo dist/addons/godot-iap/bin/macos/SwiftGodotRuntime.framework/SwiftGodotRuntime -verify_arch arm64
+            codesign --force --sign "$MACOS_CODESIGN_IDENTITY" --options runtime --timestamp dist/addons/godot-iap/bin/macos/SwiftGodotRuntime.framework
+            codesign --force --sign "$MACOS_CODESIGN_IDENTITY" --options runtime --timestamp dist/addons/godot-iap/bin/macos/GodotIap.framework
+            codesign --verify --deep --strict --verbose=2 dist/addons/godot-iap/bin/macos/SwiftGodotRuntime.framework
+            codesign --verify --deep --strict --verbose=2 dist/addons/godot-iap/bin/macos/GodotIap.framework
+            xattr -dr com.apple.quarantine dist/addons/godot-iap || true
 
-          cat > dist/addons/godot-iap/bin/godot_iap.gdextension << 'EOF'
+            MACOS_X86_LIBRARY=""
+            MACOS_X86_DEPENDENCY=""
+            if lipo dist/addons/godot-iap/bin/macos/GodotIap.framework/GodotIap -verify_arch x86_64 2>/dev/null && \
+               lipo dist/addons/godot-iap/bin/macos/SwiftGodotRuntime.framework/SwiftGodotRuntime -verify_arch x86_64 2>/dev/null; then
+              MACOS_X86_LIBRARY='macos.x86_64 = "macos/GodotIap.framework/GodotIap"'
+              MACOS_X86_DEPENDENCY='macos.x86_64 = {"macos/SwiftGodotRuntime.framework/SwiftGodotRuntime": ""}'
+            fi
+
+            cat > dist/addons/godot-iap/bin/godot_iap.gdextension << EOF
           [configuration]
           entry_symbol = "godot_iap_entry_point"
           compatibility_minimum = "4.3"
@@ -228,18 +298,96 @@ jobs:
           [libraries]
           ios.arm64 = "ios/GodotIap.framework/GodotIap"
           macos.arm64 = "macos/GodotIap.framework/GodotIap"
-          macos.x86_64 = "macos/GodotIap.framework/GodotIap"
+          $MACOS_X86_LIBRARY
 
           [dependencies]
           ios.arm64 = {"ios/SwiftGodotRuntime.framework/SwiftGodotRuntime": ""}
           macos.arm64 = {"macos/SwiftGodotRuntime.framework/SwiftGodotRuntime": ""}
-          macos.x86_64 = {"macos/SwiftGodotRuntime.framework/SwiftGodotRuntime": ""}
+          $MACOS_X86_DEPENDENCY
           EOF
+          else
+            cat > dist/addons/godot-iap/bin/godot_iap.gdextension << 'EOF'
+          [configuration]
+          entry_symbol = "godot_iap_entry_point"
+          compatibility_minimum = "4.3"
+          supported_platforms = ["ios"]
+
+          [libraries]
+          ios.arm64 = "ios/GodotIap.framework/GodotIap"
+
+          [dependencies]
+          ios.arm64 = {"ios/SwiftGodotRuntime.framework/SwiftGodotRuntime": ""}
+          EOF
+          fi
 
       - name: Create release zip
         run: |
           cd dist
-          zip -r ../godot-iap-${{ steps.version.outputs.VERSION }}.zip addons
+          zip -yr ../godot-iap-${{ steps.version.outputs.VERSION }}.zip addons
+
+      - name: Notarize macOS frameworks
+        if: ${{ inputs.notarize_macos }}
+        env:
+          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+        run: |
+          if [ -z "$APP_STORE_CONNECT_API_KEY_BASE64" ] || \
+             [ -z "$APP_STORE_CONNECT_API_KEY_ID" ] || \
+             [ -z "$APP_STORE_CONNECT_API_ISSUER_ID" ]; then
+            echo "::error::Missing App Store Connect API key secrets for notarization."
+            exit 1
+          fi
+
+          API_KEY_PATH="$RUNNER_TEMP/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
+          echo "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 --decode > "$API_KEY_PATH"
+          NOTARY_ZIP="$RUNNER_TEMP/godot-iap-macos-notary.zip"
+
+          cd dist/addons/godot-iap/bin
+          zip -yr "$NOTARY_ZIP" macos
+          cd ../../../..
+
+          xcrun notarytool submit \
+            "$NOTARY_ZIP" \
+            --key "$API_KEY_PATH" \
+            --key-id "$APP_STORE_CONNECT_API_KEY_ID" \
+            --issuer "$APP_STORE_CONNECT_API_ISSUER_ID" \
+            --wait \
+            --timeout 30m
+
+          xcrun stapler staple -v dist/addons/godot-iap/bin/macos/SwiftGodotRuntime.framework
+          xcrun stapler staple -v dist/addons/godot-iap/bin/macos/GodotIap.framework
+          xcrun stapler validate -v dist/addons/godot-iap/bin/macos/SwiftGodotRuntime.framework
+          xcrun stapler validate -v dist/addons/godot-iap/bin/macos/GodotIap.framework
+
+          rm godot-iap-${{ steps.version.outputs.VERSION }}.zip
+          cd dist
+          zip -yr ../godot-iap-${{ steps.version.outputs.VERSION }}.zip addons
+
+      - name: Verify release zip
+        run: |
+          VERIFY_DIR="$(mktemp -d)"
+          unzip -q godot-iap-${{ steps.version.outputs.VERSION }}.zip -d "$VERIFY_DIR"
+          test -x "$VERIFY_DIR/addons/godot-iap/scripts/fix_ios_embed.sh"
+          test -d "$VERIFY_DIR/addons/godot-iap/bin/ios/GodotIap.framework"
+          test -d "$VERIFY_DIR/addons/godot-iap/bin/ios/SwiftGodotRuntime.framework"
+          if [ "${{ inputs.notarize_macos }}" = "true" ]; then
+            grep -q '^supported_platforms = \["ios", "macos"\]' "$VERIFY_DIR/addons/godot-iap/bin/godot_iap.gdextension"
+            grep -q '^macos\.' "$VERIFY_DIR/addons/godot-iap/bin/godot_iap.gdextension"
+            codesign --verify --deep --strict --verbose=2 "$VERIFY_DIR/addons/godot-iap/bin/macos/SwiftGodotRuntime.framework"
+            codesign --verify --deep --strict --verbose=2 "$VERIFY_DIR/addons/godot-iap/bin/macos/GodotIap.framework"
+            xcrun stapler validate -v "$VERIFY_DIR/addons/godot-iap/bin/macos/SwiftGodotRuntime.framework"
+            xcrun stapler validate -v "$VERIFY_DIR/addons/godot-iap/bin/macos/GodotIap.framework"
+            spctl -a -vv --type execute "$VERIFY_DIR/addons/godot-iap/bin/macos/SwiftGodotRuntime.framework"
+            spctl -a -vv --type execute "$VERIFY_DIR/addons/godot-iap/bin/macos/GodotIap.framework"
+          else
+            grep -q '^supported_platforms = \["ios"\]' "$VERIFY_DIR/addons/godot-iap/bin/godot_iap.gdextension"
+            test ! -d "$VERIFY_DIR/addons/godot-iap/bin/macos"
+            if grep -q '^macos\.' "$VERIFY_DIR/addons/godot-iap/bin/godot_iap.gdextension"; then
+              echo "Error: default release zip must not declare macOS libraries"
+              exit 1
+            fi
+          fi
 
       - name: Commit and tag
         if: ${{ inputs.version != 'current' }}
