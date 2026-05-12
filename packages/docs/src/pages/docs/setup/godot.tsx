@@ -112,10 +112,12 @@ codesign --force --deep --sign - --timestamp=none addons/godot-iap/bin/macos/God
         </CodeBlock>
         <p>
           The checked-in macOS runtime frameworks are Apple Silicon (
-          <code>arm64</code>) only, and <code>make macos</code> defaults to{' '}
-          <code>MACOS_ARCHS=arm64</code>. Custom source builds can override{' '}
-          <code>MACOS_ARCHS</code>, but the default release zip does not include
-          macOS runtime frameworks.
+          <code>arm64</code>) only. Custom source builds can override{' '}
+          <code>MACOS_ARCHS</code>; <code>make macos</code> requests{' '}
+          <code>arm64 x86_64</code> by default, and generated metadata should
+          only include architectures that the framework binaries actually
+          contain. The default release zip does not include macOS runtime
+          frameworks.
         </p>
 
         <h3 id="build-from-source" className="anchor-heading">

@@ -44,10 +44,11 @@ codesign --force --deep --sign - --timestamp=none addons/godot-iap/bin/macos/Swi
 codesign --force --deep --sign - --timestamp=none addons/godot-iap/bin/macos/GodotIap.framework
 ```
 
-The checked-in macOS runtime frameworks are Apple Silicon (`arm64`) only, and
-`make macos` defaults to `MACOS_ARCHS=arm64`. Custom source builds can override
-`MACOS_ARCHS`, but the default release zip does not include macOS runtime
-frameworks.
+The checked-in macOS runtime frameworks are Apple Silicon (`arm64`) only. Custom
+source builds can override `MACOS_ARCHS`; `make macos` requests
+`arm64 x86_64` by default, and generated metadata should only include
+architectures that the framework binaries actually contain. The default release
+zip does not include macOS runtime frameworks.
 
 See the [Installation Guide](https://hyochan.github.io/godot-iap/getting-started/installation) for more details.
 
