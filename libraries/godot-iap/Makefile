@@ -24,6 +24,7 @@ IOS_EXPORT_DIR := $(EXAMPLE_DIR)/ios
 
 # Godot executable
 GODOT ?= /Applications/Godot.app/Contents/MacOS/Godot
+MACOS_ARCHS ?= arm64
 
 # Colors for output
 GREEN := \033[0;32m
@@ -65,6 +66,7 @@ help:
 	@echo "Environment variables:"
 	@echo "  GODOT_VERSION  - Godot version to use (default: $(GODOT_VERSION))"
 	@echo "  GODOT          - Path to Godot executable (default: $(GODOT))"
+	@echo "  MACOS_ARCHS    - macOS architectures for source builds (default: $(MACOS_ARCHS))"
 	@echo "  RELEASE_TAG    - GitHub release tag to test (default: latest)"
 
 # Download godot-lib.aar for Android builds
@@ -116,13 +118,25 @@ macos: setup macos-build
 # Build macOS frameworks using xcodebuild
 macos-build:
 	@echo "$(GREEN)Building macOS frameworks...$(NC)"
-	@cd $(IOS_GDEXT_DIR) && xcodebuild -scheme GodotIap -sdk macosx -destination 'platform=macOS' ARCHS="arm64" PRODUCT_BUNDLE_IDENTIFIER="dev.hyo.godot-iap.GodotIap" -configuration Release -derivedDataPath .build-xcode-macos build
+	@cd $(IOS_GDEXT_DIR) && xcodebuild -scheme GodotIap -sdk macosx -destination 'platform=macOS' ARCHS="$(MACOS_ARCHS)" PRODUCT_BUNDLE_IDENTIFIER="dev.hyo.godot-iap.GodotIap" -configuration Release -derivedDataPath .build-xcode-macos build
 	@echo "$(GREEN)Copying frameworks to addon...$(NC)"
 	@rm -rf $(BIN_DIR)/macos/*.framework
 	@cp -R $(IOS_GDEXT_DIR)/.build-xcode-macos/Build/Products/Release/PackageFrameworks/GodotIap.framework $(BIN_DIR)/macos/
 	@cp -R $(IOS_GDEXT_DIR)/.build-xcode-macos/Build/Products/Release/PackageFrameworks/SwiftGodotRuntime.framework $(BIN_DIR)/macos/
 	@echo "$(GREEN)Fixing macOS framework rpaths...$(NC)"
-	@install_name_tool -add_rpath @loader_path/../../../ $(BIN_DIR)/macos/GodotIap.framework/Versions/A/GodotIap
+	@if [ -f "$(BIN_DIR)/macos/GodotIap.framework/Versions/A/GodotIap" ]; then \
+		GODOT_IAP_BINARY="$(BIN_DIR)/macos/GodotIap.framework/Versions/A/GodotIap"; \
+		GODOT_IAP_RPATH="@loader_path/../../../"; \
+	elif [ -f "$(BIN_DIR)/macos/GodotIap.framework/GodotIap" ]; then \
+		GODOT_IAP_BINARY="$(BIN_DIR)/macos/GodotIap.framework/GodotIap"; \
+		GODOT_IAP_RPATH="@loader_path/../"; \
+	else \
+		echo "$(RED)GodotIap macOS framework binary not found.$(NC)"; \
+		exit 1; \
+	fi; \
+	install_name_tool -delete_rpath @loader_path/../../../ "$$GODOT_IAP_BINARY" 2>/dev/null || true; \
+	install_name_tool -delete_rpath @loader_path/../ "$$GODOT_IAP_BINARY" 2>/dev/null || true; \
+	install_name_tool -add_rpath "$$GODOT_IAP_RPATH" "$$GODOT_IAP_BINARY"
 	@echo "$(GREEN)Signing macOS frameworks...$(NC)"
 	@codesign --force --deep --sign - --timestamp=none $(BIN_DIR)/macos/SwiftGodotRuntime.framework
 	@codesign --force --deep --sign - --timestamp=none $(BIN_DIR)/macos/GodotIap.framework
@@ -309,10 +323,18 @@ test-setup: android
 	@echo '[libraries]' >> $(TEST_ADDON_DIR)/bin/godot_iap.gdextension
 	@echo 'ios.arm64 = "ios/GodotIap.framework/GodotIap"' >> $(TEST_ADDON_DIR)/bin/godot_iap.gdextension
 	@echo 'macos.arm64 = "macos/GodotIap.framework/GodotIap"' >> $(TEST_ADDON_DIR)/bin/godot_iap.gdextension
+	@if lipo $(BIN_DIR)/macos/GodotIap.framework/GodotIap -verify_arch x86_64 >/dev/null 2>&1 && \
+		lipo $(BIN_DIR)/macos/SwiftGodotRuntime.framework/SwiftGodotRuntime -verify_arch x86_64 >/dev/null 2>&1; then \
+		echo 'macos.x86_64 = "macos/GodotIap.framework/GodotIap"' >> $(TEST_ADDON_DIR)/bin/godot_iap.gdextension; \
+	fi
 	@echo '' >> $(TEST_ADDON_DIR)/bin/godot_iap.gdextension
 	@echo '[dependencies]' >> $(TEST_ADDON_DIR)/bin/godot_iap.gdextension
 	@echo 'ios.arm64 = {"ios/SwiftGodotRuntime.framework/SwiftGodotRuntime": ""}' >> $(TEST_ADDON_DIR)/bin/godot_iap.gdextension
 	@echo 'macos.arm64 = {"macos/SwiftGodotRuntime.framework/SwiftGodotRuntime": ""}' >> $(TEST_ADDON_DIR)/bin/godot_iap.gdextension
+	@if lipo $(BIN_DIR)/macos/GodotIap.framework/GodotIap -verify_arch x86_64 >/dev/null 2>&1 && \
+		lipo $(BIN_DIR)/macos/SwiftGodotRuntime.framework/SwiftGodotRuntime -verify_arch x86_64 >/dev/null 2>&1; then \
+		echo 'macos.x86_64 = {"macos/SwiftGodotRuntime.framework/SwiftGodotRuntime": ""}' >> $(TEST_ADDON_DIR)/bin/godot_iap.gdextension; \
+	fi
 	@echo "$(GREEN)✓ TestProject ready$(NC)"
 
 # Export TestProject Android APK
