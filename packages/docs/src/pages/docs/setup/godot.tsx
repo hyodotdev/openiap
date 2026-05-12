@@ -110,6 +110,11 @@ xattr -dr com.apple.quarantine addons/godot-iap
 codesign --force --sign - --timestamp=none addons/godot-iap/bin/macos/SwiftGodotRuntime.framework
 codesign --force --sign - --timestamp=none addons/godot-iap/bin/macos/GodotIap.framework`}
         </CodeBlock>
+        <p>
+          The checked-in macOS runtime frameworks are Apple Silicon (
+          <code>arm64</code>) only. The default release zip does not include
+          macOS runtime frameworks.
+        </p>
 
         <h3 id="build-from-source" className="anchor-heading">
           Build from Source

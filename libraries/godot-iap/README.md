@@ -44,6 +44,9 @@ codesign --force --sign - --timestamp=none addons/godot-iap/bin/macos/SwiftGodot
 codesign --force --sign - --timestamp=none addons/godot-iap/bin/macos/GodotIap.framework
 ```
 
+The checked-in macOS runtime frameworks are Apple Silicon (`arm64`) only. The
+default release zip does not include macOS runtime frameworks.
+
 See the [Installation Guide](https://hyochan.github.io/godot-iap/getting-started/installation) for more details.
 
 ## Using with AI Assistants
