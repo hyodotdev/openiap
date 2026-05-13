@@ -173,6 +173,31 @@ describe('Public API (index.ts)', () => {
       expect(listener).toHaveBeenCalledTimes(2);
     });
 
+    it('reapplies non-deduping purchase updated option after reconnect', async () => {
+      (Platform as any).OS = 'ios';
+      (ExpoIapModule.initConnection as jest.Mock).mockResolvedValue(true);
+      (ExpoIapModule.endConnection as jest.Mock).mockResolvedValue(true);
+      const setOptions = (ExpoIapModule as any)
+        .setPurchaseUpdatedListenerOptions as jest.Mock;
+
+      const subscription = purchaseUpdatedListener(jest.fn(), {
+        dedupeTransactionIOS: false,
+      });
+      expect(setOptions).toHaveBeenLastCalledWith({
+        dedupeTransactionIOS: false,
+      });
+
+      setOptions.mockClear();
+      await endConnection();
+      await initConnection();
+
+      expect(setOptions).toHaveBeenCalledTimes(1);
+      expect(setOptions).toHaveBeenCalledWith({
+        dedupeTransactionIOS: false,
+      });
+      subscription.remove();
+    });
+
     it('removes non-deduping purchase updated listeners idempotently', () => {
       const setOptions = (ExpoIapModule as any)
         .setPurchaseUpdatedListenerOptions as jest.Mock;

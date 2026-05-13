@@ -566,8 +566,17 @@ export const subscriptionBillingIssueListener = (
  *
  * @see {@link https://www.openiap.dev/docs/apis/init-connection}
  */
-export const initConnection: MutationField<'initConnection'> = async (config) =>
-  ExpoIapModule.initConnection(config ?? null);
+export const initConnection: MutationField<'initConnection'> = async (config) => {
+  const result = await ExpoIapModule.initConnection(config ?? null);
+  if (
+    result === true &&
+    Platform.OS === 'ios' &&
+    nonDedupingPurchaseUpdatedListenerCountIOS > 0
+  ) {
+    configurePurchaseUpdatedListenerOptionsIOS(false);
+  }
+  return result;
+};
 
 /**
  * Close the store connection and release resources.
