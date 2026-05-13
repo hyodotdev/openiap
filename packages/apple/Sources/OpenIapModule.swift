@@ -380,6 +380,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                 id: transactionId,
                 pendingTransaction: shouldAutoFinish ? nil : transaction
             )
+            // Dedupe only controls listener delivery; auto-finish must still
+            // complete the StoreKit transaction lifecycle for replayed updates.
             if shouldAutoFinish {
                 await transaction.finish()
                 await state.removePending(id: transactionId)
