@@ -57,9 +57,9 @@ function Releases() {
             <code>true</code> to receive one purchase success event per iOS
             transaction ID, or set <code>dedupeTransactionIOS: false</code> when
             you want StoreKit replay events for diagnostics or custom duplicate
-            handling. Android ignores this iOS-only option. The planned patch
-            rollout carries this behavior through openiap-apple, openiap-google,
-            and all six framework SDKs. Track the fix in{' '}
+            handling. Android ignores this iOS-only option. The patch rollout
+            carries this behavior through openiap-apple, openiap-google, and all
+            six framework SDKs. Track the fix in{' '}
             <a
               href="https://github.com/hyodotdev/openiap/issues/152"
               target="_blank"
@@ -127,7 +127,7 @@ function Releases() {
               borderTop: '1px solid var(--border-color)',
             }}
           >
-            <h5 style={{ margin: '0 0 0.5rem 0' }}>Planned Package Releases</h5>
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
             <ul
               style={{
                 margin: 0,
@@ -136,14 +136,78 @@ function Releases() {
               }}
             >
               <li>OpenIAP Spec 2.0.2</li>
-              <li>openiap-apple 2.1.9</li>
-              <li>openiap-google 2.1.5</li>
-              <li>react-native-iap 15.2.4</li>
-              <li>expo-iap 4.2.8</li>
-              <li>flutter_inapp_purchase 9.2.8</li>
-              <li>godot-iap 2.2.10</li>
-              <li>kmp-iap 2.2.8</li>
-              <li>OpenIap.Maui 1.0.4</li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/2.1.9"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-apple 2.1.9
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/google-2.1.5"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-google 2.1.5
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/react-native-iap-15.2.4"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  react-native-iap 15.2.4
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/expo-iap-4.2.8"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  expo-iap 4.2.8
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.2.8"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  flutter_inapp_purchase 9.2.8
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/godot-iap-2.2.10"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  godot-iap 2.2.10
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/kmp-iap-2.2.8"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  kmp-iap 2.2.8
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/maui-iap-1.0.4"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  OpenIap.Maui 1.0.4
+                </a>
+              </li>
             </ul>
           </div>
         </div>
