@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -29,6 +30,37 @@ export 'errors.dart'
 
 typedef PurchaseError = errors.PurchaseError;
 typedef SubscriptionOfferAndroid = gentype.AndroidSubscriptionOfferInput;
+
+class _PurchaseUpdatedDedupeHistoryIOS {
+  static const int limit = 512;
+
+  final Set<String> ids;
+  final Queue<String> order;
+
+  _PurchaseUpdatedDedupeHistoryIOS()
+      : ids = <String>{},
+        order = Queue<String>();
+
+  _PurchaseUpdatedDedupeHistoryIOS.copy(
+    _PurchaseUpdatedDedupeHistoryIOS source,
+  )   : ids = Set<String>.of(source.ids),
+        order = Queue<String>.of(source.order);
+
+  bool contains(String id) => ids.contains(id);
+
+  void record(String id) {
+    if (!ids.add(id)) return;
+    order.addLast(id);
+    if (order.length > limit) {
+      ids.remove(order.removeFirst());
+    }
+  }
+
+  void clear() {
+    ids.clear();
+    order.clear();
+  }
+}
 
 class FlutterInappPurchase with RequestPurchaseBuilderApi {
   // Singleton instance
@@ -99,10 +131,13 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           gentype.DeveloperProvidedBillingDetailsAndroid>.broadcast();
   final StreamController<gentype.Purchase> _subscriptionBillingIssueListener =
       StreamController<gentype.Purchase>.broadcast();
+  final _purchaseUpdatedDedupeHistoryIOS = _PurchaseUpdatedDedupeHistoryIOS();
+  int _purchaseUpdatedDedupeGenerationIOS = 0;
 
   /// Purchase updated event stream
-  Stream<gentype.Purchase> get purchaseUpdatedListener =>
-      _purchaseUpdatedListener.stream;
+  Stream<gentype.Purchase> get purchaseUpdatedListener => isIOS
+      ? _purchaseUpdatedListenerStreamIOS(dedupeTransactionIOS: true)
+      : _purchaseUpdatedListener.stream;
 
   /// Purchase updated event stream with listener options.
   ///
@@ -110,7 +145,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// to false to also receive StoreKit replay events for transaction IDs
   /// already delivered during the current connection session. Android ignores
   /// this flag. On iOS this configures shared native listener state for this
-  /// plugin instance; later option calls replace the previous native setting.
+  /// plugin instance; default streams still filter replayed IDs unless they
+  /// opt out with `dedupeTransactionIOS: false`.
   Stream<gentype.Purchase> purchaseUpdatedListenerWithOptions(
     gentype.PurchaseUpdatedListenerOptions? options,
   ) {
@@ -124,7 +160,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
       onListen: () {
         _setPurchaseUpdatedListenerOptions(options).then((_) {
           if (!controller.hasListener) return;
-          subscription = purchaseUpdatedListener.listen(
+          subscription = _purchaseUpdatedListenerStreamIOS(
+            dedupeTransactionIOS: options?.dedupeTransactionIOS != false,
+          ).listen(
             controller.add,
             onError: controller.addError,
             onDone: controller.close,
@@ -138,6 +176,52 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
       },
     );
     return controller.stream;
+  }
+
+  Stream<gentype.Purchase> _purchaseUpdatedListenerStreamIOS({
+    required bool dedupeTransactionIOS,
+  }) {
+    return Stream<gentype.Purchase>.multi((controller) {
+      final listenerHistory = _PurchaseUpdatedDedupeHistoryIOS.copy(
+        _purchaseUpdatedDedupeHistoryIOS,
+      );
+      var listenerGeneration = _purchaseUpdatedDedupeGenerationIOS;
+      late StreamSubscription<gentype.Purchase> subscription;
+      subscription = _purchaseUpdatedListener.stream.listen(
+        (purchase) {
+          if (listenerGeneration != _purchaseUpdatedDedupeGenerationIOS) {
+            listenerHistory.clear();
+            listenerGeneration = _purchaseUpdatedDedupeGenerationIOS;
+          }
+
+          final transactionId = _purchaseUpdatedTransactionIdIOS(purchase);
+          if (transactionId != null) {
+            final isDuplicateForListener =
+                listenerHistory.contains(transactionId);
+            listenerHistory.record(transactionId);
+            _purchaseUpdatedDedupeHistoryIOS.record(transactionId);
+            if (dedupeTransactionIOS && isDuplicateForListener) {
+              return;
+            }
+          }
+
+          controller.add(purchase);
+        },
+        onError: controller.addError,
+        onDone: controller.close,
+      );
+      controller.onCancel = () => subscription.cancel();
+    }, isBroadcast: true);
+  }
+
+  String? _purchaseUpdatedTransactionIdIOS(gentype.Purchase purchase) {
+    final id = purchase.id;
+    return id.isEmpty ? null : id;
+  }
+
+  void _resetPurchaseUpdatedDedupeHistoryIOS() {
+    _purchaseUpdatedDedupeHistoryIOS.clear();
+    _purchaseUpdatedDedupeGenerationIOS += 1;
   }
 
   Future<void> _setPurchaseUpdatedListenerOptions(
@@ -386,6 +470,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           await _channel.invokeMethod('endConnection');
 
           _isInitialized = false;
+          if (isIOS) {
+            _resetPurchaseUpdatedDedupeHistoryIOS();
+          }
           return true;
         } on PlatformException catch (error) {
           throw _purchaseErrorFromPlatformException(

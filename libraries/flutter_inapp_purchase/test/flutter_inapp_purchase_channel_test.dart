@@ -1224,6 +1224,68 @@ void main() {
       expect(listenerPurchase.productId, 'iap.premium');
     });
 
+    test(
+      'default purchase listener filters replays while non-deduping listener receives them',
+      () async {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (MethodCall call) async {
+          if (call.method == 'initConnection') {
+            return true;
+          }
+          return null;
+        });
+
+        final iap = FlutterInappPurchase.private(
+          FakePlatform(operatingSystem: 'ios'),
+        );
+        final defaultPurchases = <types.Purchase>[];
+        final nonDedupingPurchases = <types.Purchase>[];
+
+        await iap.initConnection();
+        final defaultSub = iap.purchaseUpdatedListener.listen(
+          defaultPurchases.add,
+        );
+        final nonDedupingSub = iap
+            .purchaseUpdatedListenerWithOptions(
+              const types.PurchaseUpdatedListenerOptions(
+                dedupeTransactionIOS: false,
+              ),
+            )
+            .listen(nonDedupingPurchases.add);
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+
+        final purchasePayload = <String, dynamic>{
+          'platform': 'ios',
+          'store': 'apple',
+          'productId': 'iap.premium',
+          'transactionId': 'txn-dedupe-replay',
+          'purchaseState': 'PURCHASED',
+          'transactionReceipt': 'receipt-data',
+          'transactionDate': 1700000000000,
+        };
+
+        for (var i = 0; i < 2; i += 1) {
+          await TestDefaultBinaryMessengerBinding
+              .instance.defaultBinaryMessenger
+              .handlePlatformMessage(
+            channel.name,
+            codec.encodeMethodCall(
+              MethodCall('purchase-updated', jsonEncode(purchasePayload)),
+            ),
+            (_) {},
+          );
+        }
+        await Future<void>.delayed(Duration.zero);
+
+        expect(defaultPurchases, hasLength(1));
+        expect(nonDedupingPurchases, hasLength(2));
+
+        await defaultSub.cancel();
+        await nonDedupingSub.cancel();
+      },
+    );
+
     test('purchase-error emits results to both error streams', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall call) async {

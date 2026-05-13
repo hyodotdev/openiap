@@ -88,6 +88,56 @@ describe('Public API (index.ts)', () => {
       );
     });
 
+    it('filters duplicate replay events for default listeners when a non-deduping listener is active', () => {
+      const addListener = (ExpoIapModule as any).addListener as jest.Mock;
+      const defaultListener = jest.fn();
+      const nonDedupingListener = jest.fn();
+
+      purchaseUpdatedListener(defaultListener);
+      purchaseUpdatedListener(nonDedupingListener, {
+        dedupeTransactionIOS: false,
+      });
+
+      const defaultHandler = addListener.mock.calls[0][1];
+      const nonDedupingHandler = addListener.mock.calls[1][1];
+      const event = {
+        id: 'expo-dedupe-replay',
+        productId: 'p',
+        platform: 'IOS',
+      } as any;
+
+      defaultHandler(event);
+      nonDedupingHandler(event);
+      defaultHandler(event);
+      nonDedupingHandler(event);
+
+      expect(defaultListener).toHaveBeenCalledTimes(1);
+      expect(nonDedupingListener).toHaveBeenCalledTimes(2);
+    });
+
+    it('resets default listener duplicate history after endConnection', async () => {
+      const addListener = (ExpoIapModule as any).addListener as jest.Mock;
+      (ExpoIapModule.endConnection as jest.Mock).mockResolvedValue(true);
+      const listener = jest.fn();
+
+      purchaseUpdatedListener(listener);
+      const handler = addListener.mock.calls[0][1];
+      const event = {
+        id: 'expo-dedupe-after-reconnect',
+        productId: 'p',
+        platform: 'IOS',
+      } as any;
+
+      handler(event);
+      handler(event);
+      expect(listener).toHaveBeenCalledTimes(1);
+
+      await endConnection();
+      handler(event);
+
+      expect(listener).toHaveBeenCalledTimes(2);
+    });
+
     it('registers purchase error listener', () => {
       const addListener = (ExpoIapModule as any).addListener as jest.Mock;
       const fn = jest.fn();

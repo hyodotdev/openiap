@@ -115,6 +115,54 @@ export const emitter: ExpoIapEmitter = {
 };
 
 let nonDedupingPurchaseUpdatedListenerCountIOS = 0;
+const purchaseUpdatedDedupeHistoryLimitIOS = 512;
+const purchaseUpdatedDedupeHistoryIOS = {
+  ids: new Set<string>(),
+  order: [] as string[],
+};
+let purchaseUpdatedDedupeGenerationIOS = 0;
+
+type PurchaseUpdatedDedupeHistoryIOS = {
+  ids: Set<string>;
+  order: string[];
+};
+
+const purchaseUpdatedTransactionIdIOS = (purchase: Purchase) => {
+  if (typeof purchase.id === 'string' && purchase.id.length > 0) {
+    return purchase.id;
+  }
+  return null;
+};
+
+const rememberPurchaseUpdatedTransactionIOS = (
+  transactionId: string,
+  history: PurchaseUpdatedDedupeHistoryIOS,
+) => {
+  if (history.ids.has(transactionId)) {
+    return;
+  }
+
+  history.ids.add(transactionId);
+  history.order.push(transactionId);
+  if (history.order.length > purchaseUpdatedDedupeHistoryLimitIOS) {
+    const evicted = history.order.shift();
+    if (evicted != null) {
+      history.ids.delete(evicted);
+    }
+  }
+};
+
+const clearPurchaseUpdatedDedupeHistoryIOS = (
+  history: PurchaseUpdatedDedupeHistoryIOS,
+) => {
+  history.ids.clear();
+  history.order.length = 0;
+};
+
+const resetPurchaseUpdatedDedupeHistoryIOS = () => {
+  clearPurchaseUpdatedDedupeHistoryIOS(purchaseUpdatedDedupeHistoryIOS);
+  purchaseUpdatedDedupeGenerationIOS += 1;
+};
 
 const configurePurchaseUpdatedListenerOptionsIOS = (
   dedupeTransactionIOS: boolean,
@@ -188,11 +236,37 @@ export const purchaseUpdatedListener = (
   options?: PurchaseUpdatedListenerOptions | null,
 ) => {
   const receiveDuplicateTransactionUpdatesIOS =
-    Platform.OS === 'ios' &&
-    options?.dedupeTransactionIOS === false;
+    Platform.OS === 'ios' && options?.dedupeTransactionIOS === false;
+  const listenerDedupeHistoryIOS: PurchaseUpdatedDedupeHistoryIOS = {
+    ids: new Set(purchaseUpdatedDedupeHistoryIOS.ids),
+    order: [...purchaseUpdatedDedupeHistoryIOS.order],
+  };
+  let listenerDedupeGenerationIOS = purchaseUpdatedDedupeGenerationIOS;
 
   const wrappedListener = (event: Purchase) => {
     const normalized = normalizePurchasePlatform(event);
+    if (Platform.OS === 'ios') {
+      if (listenerDedupeGenerationIOS !== purchaseUpdatedDedupeGenerationIOS) {
+        clearPurchaseUpdatedDedupeHistoryIOS(listenerDedupeHistoryIOS);
+        listenerDedupeGenerationIOS = purchaseUpdatedDedupeGenerationIOS;
+      }
+      const transactionId = purchaseUpdatedTransactionIdIOS(normalized);
+      if (transactionId != null) {
+        const isDuplicateForListener =
+          listenerDedupeHistoryIOS.ids.has(transactionId);
+        rememberPurchaseUpdatedTransactionIOS(
+          transactionId,
+          listenerDedupeHistoryIOS,
+        );
+        rememberPurchaseUpdatedTransactionIOS(
+          transactionId,
+          purchaseUpdatedDedupeHistoryIOS,
+        );
+        if (!receiveDuplicateTransactionUpdatesIOS && isDuplicateForListener) {
+          return;
+        }
+      }
+    }
     listener(normalized);
   };
   const emitterSubscription = emitter.addListener(
@@ -463,8 +537,13 @@ export const initConnection: MutationField<'initConnection'> = async (config) =>
  *
  * @see {@link https://www.openiap.dev/docs/apis/end-connection}
  */
-export const endConnection: MutationField<'endConnection'> = async () =>
-  ExpoIapModule.endConnection();
+export const endConnection: MutationField<'endConnection'> = async () => {
+  const result = await ExpoIapModule.endConnection();
+  if (result === true && Platform.OS === 'ios') {
+    resetPurchaseUpdatedDedupeHistoryIOS();
+  }
+  return result;
+};
 
 /**
  * Retrieve products or subscriptions from the store by SKU.

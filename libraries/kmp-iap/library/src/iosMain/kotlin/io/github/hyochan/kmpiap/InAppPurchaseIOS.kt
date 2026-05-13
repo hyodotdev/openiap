@@ -39,7 +39,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         return callbackFlow {
             val subscription = openIapModule.addPurchaseUpdatedListener(
                 { dictionary ->
-                    println("[KMP-IAP iOS] Purchase updated event received with dedupeTransactionIOS=false")
                     convertAnyToPurchase(dictionary)?.let { trySend(it) }
                 },
                 false

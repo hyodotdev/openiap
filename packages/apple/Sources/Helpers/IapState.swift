@@ -8,10 +8,12 @@ import StoreKit
 private struct PurchaseUpdateEmissionHistory {
     private let limit: Int
     private var ids: Set<String> = []
-    private var order: [String] = []
+    private var ring: [String?]
+    private var nextEvictionIndex = 0
 
     init(limit: Int) {
-        self.limit = limit
+        self.limit = max(1, limit)
+        self.ring = Array(repeating: nil, count: self.limit)
     }
 
     mutating func record(_ id: String) -> Bool {
@@ -19,16 +21,18 @@ private struct PurchaseUpdateEmissionHistory {
             return false
         }
 
-        order.append(id)
-        if order.count > limit {
-            ids.remove(order.removeFirst())
+        if let evicted = ring[nextEvictionIndex] {
+            ids.remove(evicted)
         }
+        ring[nextEvictionIndex] = id
+        nextEvictionIndex = (nextEvictionIndex + 1) % limit
         return true
     }
 
     mutating func removeAll() {
         ids.removeAll()
-        order.removeAll()
+        ring = Array(repeating: nil, count: limit)
+        nextEvictionIndex = 0
     }
 }
 
