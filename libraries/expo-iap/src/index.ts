@@ -137,12 +137,14 @@ const purchaseUpdatedDedupeHistoryLimitIOS = 512;
 const purchaseUpdatedDedupeHistoryIOS = {
   ids: new Set<string>(),
   order: [] as string[],
+  start: 0,
 };
 let purchaseUpdatedDedupeGenerationIOS = 0;
 
 type PurchaseUpdatedDedupeHistoryIOS = {
   ids: Set<string>;
   order: string[];
+  start: number;
 };
 
 const purchaseUpdatedTransactionIdIOS = (purchase: Purchase) => {
@@ -162,10 +164,18 @@ const rememberPurchaseUpdatedTransactionIOS = (
 
   history.ids.add(transactionId);
   history.order.push(transactionId);
-  if (history.order.length > purchaseUpdatedDedupeHistoryLimitIOS) {
-    const evicted = history.order.shift();
+  if (
+    history.order.length - history.start >
+    purchaseUpdatedDedupeHistoryLimitIOS
+  ) {
+    const evicted = history.order[history.start];
+    history.start += 1;
     if (evicted != null) {
       history.ids.delete(evicted);
+    }
+    if (history.start > 128 && history.start * 2 > history.order.length) {
+      history.order = history.order.slice(history.start);
+      history.start = 0;
     }
   }
 };
@@ -175,6 +185,7 @@ const clearPurchaseUpdatedDedupeHistoryIOS = (
 ) => {
   history.ids.clear();
   history.order.length = 0;
+  history.start = 0;
 };
 
 const resetPurchaseUpdatedDedupeHistoryIOS = () => {
@@ -257,7 +268,10 @@ export const purchaseUpdatedListener = (
     Platform.OS === 'ios' && options?.dedupeTransactionIOS === false;
   const listenerDedupeHistoryIOS: PurchaseUpdatedDedupeHistoryIOS = {
     ids: new Set(purchaseUpdatedDedupeHistoryIOS.ids),
-    order: [...purchaseUpdatedDedupeHistoryIOS.order],
+    order: purchaseUpdatedDedupeHistoryIOS.order.slice(
+      purchaseUpdatedDedupeHistoryIOS.start,
+    ),
+    start: 0,
   };
   let listenerDedupeGenerationIOS = purchaseUpdatedDedupeGenerationIOS;
 

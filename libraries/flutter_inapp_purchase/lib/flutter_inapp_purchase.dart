@@ -133,6 +133,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
       StreamController<gentype.Purchase>.broadcast();
   final _purchaseUpdatedDedupeHistoryIOS = _PurchaseUpdatedDedupeHistoryIOS();
   int _purchaseUpdatedDedupeGenerationIOS = 0;
+  int _nonDedupingPurchaseUpdatedListenerCountIOS = 0;
 
   /// Purchase updated event stream
   Stream<gentype.Purchase> get purchaseUpdatedListener => isIOS
@@ -154,25 +155,42 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
       return purchaseUpdatedListener;
     }
 
+    final dedupeTransactionIOS = options?.dedupeTransactionIOS != false;
     StreamSubscription<gentype.Purchase>? subscription;
     late StreamController<gentype.Purchase> controller;
+    var retainedNonDedupingListener = false;
     controller = StreamController<gentype.Purchase>.broadcast(
-      onListen: () {
-        _setPurchaseUpdatedListenerOptions(options).then((_) {
+      onListen: () async {
+        try {
+          if (dedupeTransactionIOS) {
+            await _setDedupingPurchaseUpdatedListenerOptionsIOS(options);
+          } else {
+            retainedNonDedupingListener = true;
+            await _retainNonDedupingPurchaseUpdatedListenerIOS();
+          }
           if (!controller.hasListener) return;
           subscription = _purchaseUpdatedListenerStreamIOS(
-            dedupeTransactionIOS: options?.dedupeTransactionIOS != false,
+            dedupeTransactionIOS: dedupeTransactionIOS,
           ).listen(
             controller.add,
             onError: controller.addError,
             onDone: controller.close,
           );
-        }, onError: controller.addError);
+        } catch (error, stackTrace) {
+          controller.addError(error, stackTrace);
+        }
       },
       onCancel: () async {
         final activeSubscription = subscription;
         subscription = null;
-        await activeSubscription?.cancel();
+        try {
+          await activeSubscription?.cancel();
+        } finally {
+          if (retainedNonDedupingListener) {
+            retainedNonDedupingListener = false;
+            await _releaseNonDedupingPurchaseUpdatedListenerIOS();
+          }
+        }
       },
     );
     return controller.stream;
@@ -234,6 +252,36 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           options?.toJson(),
         );
       });
+
+  Future<void> _setDedupingPurchaseUpdatedListenerOptionsIOS(
+    gentype.PurchaseUpdatedListenerOptions? options,
+  ) async {
+    if (_nonDedupingPurchaseUpdatedListenerCountIOS > 0) return;
+    await _setPurchaseUpdatedListenerOptions(options);
+  }
+
+  Future<void> _retainNonDedupingPurchaseUpdatedListenerIOS() async {
+    _nonDedupingPurchaseUpdatedListenerCountIOS += 1;
+    if (_nonDedupingPurchaseUpdatedListenerCountIOS == 1) {
+      await _setPurchaseUpdatedListenerOptions(
+        const gentype.PurchaseUpdatedListenerOptions(
+          dedupeTransactionIOS: false,
+        ),
+      );
+    }
+  }
+
+  Future<void> _releaseNonDedupingPurchaseUpdatedListenerIOS() async {
+    if (_nonDedupingPurchaseUpdatedListenerCountIOS == 0) return;
+    _nonDedupingPurchaseUpdatedListenerCountIOS -= 1;
+    if (_nonDedupingPurchaseUpdatedListenerCountIOS == 0) {
+      await _setPurchaseUpdatedListenerOptions(
+        const gentype.PurchaseUpdatedListenerOptions(
+          dedupeTransactionIOS: true,
+        ),
+      );
+    }
+  }
 
   /// Purchase error event stream
   Stream<PurchaseError> get purchaseErrorListener =>
@@ -2780,10 +2828,21 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             dedupeTransactionIOS: dedupeTransactionIOS,
           );
           if (isIOS) {
-            await _setPurchaseUpdatedListenerOptions(options);
-            return _purchaseUpdatedListenerStreamIOS(
-              dedupeTransactionIOS: dedupeTransactionIOS != false,
-            ).first;
+            final shouldDedupe = dedupeTransactionIOS != false;
+            if (shouldDedupe) {
+              await _setDedupingPurchaseUpdatedListenerOptionsIOS(options);
+            } else {
+              await _retainNonDedupingPurchaseUpdatedListenerIOS();
+            }
+            try {
+              return await _purchaseUpdatedListenerStreamIOS(
+                dedupeTransactionIOS: shouldDedupe,
+              ).first;
+            } finally {
+              if (!shouldDedupe) {
+                await _releaseNonDedupingPurchaseUpdatedListenerIOS();
+              }
+            }
           }
           return purchaseUpdatedListener.first;
         },

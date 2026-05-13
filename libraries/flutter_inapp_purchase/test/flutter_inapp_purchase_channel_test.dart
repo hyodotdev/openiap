@@ -1227,8 +1227,10 @@ void main() {
     test(
       'default purchase listener filters replays while non-deduping listener receives them',
       () async {
+        final calls = <MethodCall>[];
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(channel, (MethodCall call) async {
+          calls.add(call);
           if (call.method == 'initConnection') {
             return true;
           }
@@ -1283,14 +1285,84 @@ void main() {
 
         await defaultSub.cancel();
         await nonDedupingSub.cancel();
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+
+        final optionCalls = calls
+            .where((call) => call.method == 'setPurchaseUpdatedListenerOptions')
+            .toList();
+        expect(optionCalls.map((call) => call.arguments), <Object?>[
+          <String, dynamic>{'dedupeTransactionIOS': false},
+          <String, dynamic>{'dedupeTransactionIOS': true},
+        ]);
+      },
+    );
+
+    test(
+      'resets native dedupe option after last non-deduping iOS listener cancels',
+      () async {
+        final calls = <MethodCall>[];
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (MethodCall call) async {
+          calls.add(call);
+          if (call.method == 'initConnection') {
+            return true;
+          }
+          return null;
+        });
+
+        final iap = FlutterInappPurchase.private(
+          FakePlatform(operatingSystem: 'ios'),
+        );
+
+        await iap.initConnection();
+        final firstSub = iap
+            .purchaseUpdatedListenerWithOptions(
+              const types.PurchaseUpdatedListenerOptions(
+                dedupeTransactionIOS: false,
+              ),
+            )
+            .listen((_) {});
+        final secondSub = iap
+            .purchaseUpdatedListenerWithOptions(
+              const types.PurchaseUpdatedListenerOptions(
+                dedupeTransactionIOS: false,
+              ),
+            )
+            .listen((_) {});
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+
+        await firstSub.cancel();
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+        var optionCalls = calls
+            .where((call) => call.method == 'setPurchaseUpdatedListenerOptions')
+            .toList();
+        expect(optionCalls.map((call) => call.arguments), <Object?>[
+          <String, dynamic>{'dedupeTransactionIOS': false},
+        ]);
+
+        await secondSub.cancel();
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+        optionCalls = calls
+            .where((call) => call.method == 'setPurchaseUpdatedListenerOptions')
+            .toList();
+        expect(optionCalls.map((call) => call.arguments), <Object?>[
+          <String, dynamic>{'dedupeTransactionIOS': false},
+          <String, dynamic>{'dedupeTransactionIOS': true},
+        ]);
       },
     );
 
     test(
       'subscriptionHandlers.purchaseUpdated honors non-deduping iOS option',
       () async {
+        final calls = <MethodCall>[];
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(channel, (MethodCall call) async {
+          calls.add(call);
           if (call.method == 'initConnection') {
             return true;
           }
@@ -1341,6 +1413,13 @@ void main() {
 
         final purchase = await future.timeout(const Duration(seconds: 1));
         expect(purchase.id, 'txn-handler-dedupe-replay');
+        final optionCalls = calls
+            .where((call) => call.method == 'setPurchaseUpdatedListenerOptions')
+            .toList();
+        expect(optionCalls.map((call) => call.arguments), <Object?>[
+          <String, dynamic>{'dedupeTransactionIOS': false},
+          <String, dynamic>{'dedupeTransactionIOS': true},
+        ]);
 
         await defaultSub.cancel();
       },
