@@ -52,11 +52,12 @@ function Releases() {
             <code>PurchaseUpdatedListenerOptions</code> and an iOS-only{' '}
             <code>dedupeTransactionIOS</code> flag. StoreKit can replay the same
             unfinished transaction through request and transaction-update paths
-            during a single connection session. The default listener behavior
-            remains entitlement-safe: one purchase success event per iOS
-            transaction ID because the flag defaults to true. Diagnostics can
-            opt into StoreKit replay events by setting it to false. Track the
-            fix in{' '}
+            during a single connection session. OpenIAP now gives developers an
+            explicit choice: keep <code>dedupeTransactionIOS</code> omitted or{' '}
+            <code>true</code> to receive one purchase success event per iOS
+            transaction ID, or set <code>dedupeTransactionIOS: false</code> when
+            you want StoreKit replay events for diagnostics or custom duplicate
+            handling. Android ignores this iOS-only option. Track the fix in{' '}
             <a
               href="https://github.com/hyodotdev/openiap/issues/152"
               target="_blank"
@@ -86,16 +87,23 @@ function Releases() {
           >
             <li>
               <strong>Listener-level opt-in</strong> — React Native and Expo
-              accept the flag on <code>purchaseUpdatedListener</code>; Flutter,
-              KMP, MAUI, and Godot expose equivalent stream or signal-level
-              options without changing default purchase success handling.
+              accept <code>dedupeTransactionIOS</code> on{' '}
+              <code>purchaseUpdatedListener</code>; Flutter, KMP, MAUI, and
+              Godot expose equivalent stream or signal-level options without
+              changing default purchase success handling.
             </li>
             <li>
               <strong>Native debugging preserved</strong> — openiap-apple no
               longer drops duplicate StoreKit updates before framework bridges
-              can observe them. Default listeners suppress duplicates, while
-              listeners with <code>dedupeTransactionIOS: false</code> receive
-              the replay.
+              can observe them. Default listeners dedupe duplicate transaction
+              IDs, while listeners with <code>dedupeTransactionIOS: false</code>{' '}
+              receive the replay.
+            </li>
+            <li>
+              <strong>Platform scope</strong> — this option is only meaningful
+              on iOS because Android does not have the same StoreKit replay
+              path; Android SDKs accept the generated field for parity and
+              ignore it at runtime.
             </li>
             <li>
               <strong>Docs and type sync</strong> — the generated GQL types now
