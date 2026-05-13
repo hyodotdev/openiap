@@ -390,7 +390,11 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             if shouldEmit {
                 emitPurchaseUpdate(purchase)
             } else {
-                OpenIapLog.debug("⏭️ Skipping duplicate purchase update: \(transactionId)")
+                logDuplicatePurchaseUpdateSuppressed(
+                    source: "requestPurchase",
+                    transactionId: transactionId,
+                    productId: transaction.productID
+                )
             }
 
             return .purchase(purchase)
@@ -1641,7 +1645,11 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
                         // Emit once per transaction id for this connection session.
                         guard await self.state.recordPurchaseUpdateEmission(id: transactionId) else {
-                            OpenIapLog.debug("⏭️ [TransactionListener] Skipping duplicate transaction: \(transactionId)")
+                            self.logDuplicatePurchaseUpdateSuppressed(
+                                source: "Transaction.updates",
+                                transactionId: transactionId,
+                                productId: transaction.productID
+                            )
                             continue
                         }
                         await self.state.storePending(id: transactionId, transaction: transaction)
@@ -1779,6 +1787,21 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         case .unverified:
             throw makePurchaseError(code: .transactionValidationFailed, message: "Transaction verification failed")
         }
+    }
+
+    private func logDuplicatePurchaseUpdateSuppressed(
+        source: String,
+        transactionId: String,
+        productId: String
+    ) {
+        OpenIapLog.warn("""
+            [PurchaseUpdateDedup] Suppressed duplicate purchase-updated listener emission.
+            - Source: \(source)
+            - Product: \(productId)
+            - Transaction ID: \(transactionId)
+            - Reason: this transaction id was already emitted during the current connection session.
+            - Scope: only identical transaction ids are suppressed; distinct StoreKit transactions still emit.
+            """)
     }
 
     private func emitPurchaseUpdate(_ purchase: Purchase) {
