@@ -68,6 +68,10 @@ class OpenIapException(private val errorJson: String) : Exception() {
 }
 
 class HybridRnIap : HybridRnIapSpec() {
+    private data class PurchaseUpdatedListenerRegistration(
+        val token: Double,
+        val listener: (NitroPurchase) -> Unit
+    )
     
     // Get ReactApplicationContext lazily from NitroModules
     private val context: ReactApplicationContext by lazy {
@@ -79,7 +83,8 @@ class HybridRnIap : HybridRnIapSpec() {
     private val productTypeBySku = mutableMapOf<String, String>()
 
     // Event listeners
-    private val purchaseUpdatedListeners = mutableListOf<(NitroPurchase) -> Unit>()
+    private val purchaseUpdatedListeners = mutableListOf<PurchaseUpdatedListenerRegistration>()
+    private var nextPurchaseUpdatedListenerToken = 1.0
     private val purchaseErrorListeners = mutableListOf<(NitroPurchaseResult) -> Unit>()
     private val promotedProductListenersIOS = mutableListOf<(NitroProduct) -> Unit>()
     private val userChoiceBillingListenersAndroid = mutableListOf<(UserChoiceBillingDetails) -> Unit>()
@@ -302,7 +307,10 @@ class HybridRnIap : HybridRnIapSpec() {
             productTypeBySku.clear()
             isInitialized = false
             listenersAttached = false
-            synchronized(purchaseUpdatedListeners) { purchaseUpdatedListeners.clear() }
+            synchronized(purchaseUpdatedListeners) {
+                purchaseUpdatedListeners.clear()
+                nextPurchaseUpdatedListenerToken = 1.0
+            }
             synchronized(purchaseErrorListeners) { purchaseErrorListeners.clear() }
             promotedProductListenersIOS.clear()
             synchronized(userChoiceBillingListenersAndroid) { userChoiceBillingListenersAndroid.clear() }
@@ -786,9 +794,12 @@ class HybridRnIap : HybridRnIapSpec() {
     override fun addPurchaseUpdatedListener(
         listener: (purchase: NitroPurchase) -> Unit,
         options: NitroPurchaseUpdatedListenerOptions?
-    ) {
-        synchronized(purchaseUpdatedListeners) {
-            purchaseUpdatedListeners.add(listener)
+    ): Double {
+        return synchronized(purchaseUpdatedListeners) {
+            val token = nextPurchaseUpdatedListenerToken
+            nextPurchaseUpdatedListenerToken += 1.0
+            purchaseUpdatedListeners.add(PurchaseUpdatedListenerRegistration(token, listener))
+            token
         }
     }
 
@@ -798,9 +809,9 @@ class HybridRnIap : HybridRnIapSpec() {
         }
     }
 
-    override fun removePurchaseUpdatedListener(listener: (purchase: NitroPurchase) -> Unit) {
+    override fun removePurchaseUpdatedListener(token: Double) {
         synchronized(purchaseUpdatedListeners) {
-            purchaseUpdatedListeners.remove(listener)
+            purchaseUpdatedListeners.removeAll { it.token == token }
         }
     }
 
@@ -835,7 +846,9 @@ class HybridRnIap : HybridRnIapSpec() {
             "sendPurchaseUpdate",
             mapOf("productId" to purchase.productId, "platform" to purchase.platform)
         )
-        val snapshot = synchronized(purchaseUpdatedListeners) { ArrayList(purchaseUpdatedListeners) }
+        val snapshot = synchronized(purchaseUpdatedListeners) {
+            purchaseUpdatedListeners.map { it.listener }
+        }
         snapshot.forEach { it(purchase) }
     }
 

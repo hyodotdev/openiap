@@ -239,6 +239,8 @@ const purchaseUpdateDuplicateJsListeners = new Set<
 >();
 let purchaseUpdateNativeAttached = false;
 let purchaseUpdateDuplicateNativeAttached = false;
+let purchaseUpdateNativeToken: number | null = null;
+let purchaseUpdateDuplicateNativeToken: number | null = null;
 const emitPurchaseUpdateToListeners = (
   nitroPurchase: Parameters<NitroPurchaseListener>[0],
   listeners: Set<(purchase: Purchase) => void>,
@@ -320,6 +322,8 @@ const promotedProductNativeHandler: NitroPromotedProductListener = (
 export const resetListenerState = (): void => {
   purchaseUpdateNativeAttached = false;
   purchaseUpdateDuplicateNativeAttached = false;
+  purchaseUpdateNativeToken = null;
+  purchaseUpdateDuplicateNativeToken = null;
   purchaseErrorNativeAttached = false;
   promotedProductNativeAttached = false;
   userChoiceBillingNativeAttached = false;
@@ -349,7 +353,10 @@ export const purchaseUpdatedListener = (
 
   if (!purchaseUpdateNativeAttached && !receiveDuplicateTransactionUpdatesIOS) {
     try {
-      IAP.instance.addPurchaseUpdatedListener(purchaseUpdateNativeHandler);
+      const token = IAP.instance.addPurchaseUpdatedListener(
+        purchaseUpdateNativeHandler,
+      );
+      purchaseUpdateNativeToken = typeof token === 'number' ? token : null;
       purchaseUpdateNativeAttached = true;
     } catch (e) {
       const msg = toErrorMessage(e);
@@ -372,10 +379,12 @@ export const purchaseUpdatedListener = (
         NitroPurchaseUpdatedListenerOptionsParam = {
         dedupeTransactionIOS: false,
       };
-      IAP.instance.addPurchaseUpdatedListener(
+      const token = IAP.instance.addPurchaseUpdatedListener(
         purchaseUpdateDuplicateNativeHandler,
         nativeOptions,
       );
+      purchaseUpdateDuplicateNativeToken =
+        typeof token === 'number' ? token : null;
       purchaseUpdateDuplicateNativeAttached = true;
     } catch (e) {
       const msg = toErrorMessage(e);
@@ -389,9 +398,37 @@ export const purchaseUpdatedListener = (
     }
   }
 
+  let removed = false;
   return {
     remove: () => {
+      if (removed) {
+        return;
+      }
+      removed = true;
       listeners.delete(listener);
+      if (listeners.size > 0) {
+        return;
+      }
+
+      const token = receiveDuplicateTransactionUpdatesIOS
+        ? purchaseUpdateDuplicateNativeToken
+        : purchaseUpdateNativeToken;
+      if (token == null) {
+        return;
+      }
+
+      try {
+        IAP.instance.removePurchaseUpdatedListener(token);
+        if (receiveDuplicateTransactionUpdatesIOS) {
+          purchaseUpdateDuplicateNativeToken = null;
+          purchaseUpdateDuplicateNativeAttached = false;
+        } else {
+          purchaseUpdateNativeToken = null;
+          purchaseUpdateNativeAttached = false;
+        }
+      } catch (e) {
+        RnIapConsole.warn('[purchaseUpdatedListener] native remove failed:', e);
+      }
     },
   };
 };

@@ -147,7 +147,8 @@ export interface NitroReceiptValidationHorizonOptions {
   userId: VerifyPurchaseHorizonOptions['userId'];
 }
 
-export interface NitroPurchaseUpdatedListenerOptions extends PurchaseUpdatedListenerOptions {}
+export interface NitroPurchaseUpdatedListenerOptions
+  extends PurchaseUpdatedListenerOptions {}
 
 export interface NitroReceiptValidationParams {
   apple?: NitroReceiptValidationAppleOptions | null;
@@ -731,7 +732,7 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
   addPurchaseUpdatedListener(
     listener: (purchase: NitroPurchase) => void,
     options?: NitroPurchaseUpdatedListenerOptions,
-  ): void;
+  ): number;
 
   /**
    * Add a listener for purchase errors
@@ -743,11 +744,9 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
 
   /**
    * Remove a purchase updated listener
-   * @param listener - Function to remove from listeners
+   * @param token - Token returned from addPurchaseUpdatedListener
    */
-  removePurchaseUpdatedListener(
-    listener: (purchase: NitroPurchase) => void,
-  ): void;
+  removePurchaseUpdatedListener(token: number): void;
 
   /**
    * Remove a purchase error listener

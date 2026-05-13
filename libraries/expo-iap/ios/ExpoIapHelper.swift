@@ -21,6 +21,7 @@ final class IapException: GenericException<(code: String, message: String, produ
 
 enum ExpoIapHelper {
     // Disambiguate Subscription type to the one provided by OpenIAP
+    private static let listenerLock = NSRecursiveLock()
     private static var listeners: [OpenIAP.Subscription] = []
     private static var purchaseUpdatedSub: OpenIAP.Subscription?
     private static var purchaseUpdatedHandler: ((Purchase) -> Void)?
@@ -135,11 +136,14 @@ enum ExpoIapHelper {
         promotedProduct: @escaping (String) async -> Void,
         subscriptionBillingIssue: @escaping (Purchase) -> Void
     ) {
+        listenerLock.lock()
+        defer { listenerLock.unlock() }
+
         // Clean up any existing listeners first
-        cleanupListeners()
+        cleanupListenersLocked()
 
         purchaseUpdatedHandler = purchaseUpdated
-        attachPurchaseUpdatedListener()
+        attachPurchaseUpdatedListenerLocked()
 
         let purchaseErrorSub = OpenIapModule.shared.purchaseErrorListener { error in
             Task { @MainActor in
@@ -167,16 +171,19 @@ enum ExpoIapHelper {
     }
 
     static func setPurchaseUpdatedListenerOptions(_ options: PurchaseUpdatedListenerOptions?) {
+        listenerLock.lock()
+        defer { listenerLock.unlock() }
+
         purchaseUpdatedOptions = options ?? PurchaseUpdatedListenerOptions()
         guard purchaseUpdatedHandler != nil else { return }
         if let purchaseUpdatedSub {
             OpenIapModule.shared.removeListener(purchaseUpdatedSub)
             self.purchaseUpdatedSub = nil
         }
-        attachPurchaseUpdatedListener()
+        attachPurchaseUpdatedListenerLocked()
     }
 
-    private static func attachPurchaseUpdatedListener() {
+    private static func attachPurchaseUpdatedListenerLocked() {
         guard let purchaseUpdatedHandler, purchaseUpdatedSub == nil else { return }
 
         purchaseUpdatedSub = OpenIapModule.shared.purchaseUpdatedListener({ purchase in
@@ -187,6 +194,13 @@ enum ExpoIapHelper {
     }
 
     static func cleanupListeners() {
+        listenerLock.lock()
+        defer { listenerLock.unlock() }
+
+        cleanupListenersLocked()
+    }
+
+    private static func cleanupListenersLocked() {
         if let purchaseUpdatedSub {
             OpenIapModule.shared.removeListener(purchaseUpdatedSub)
             self.purchaseUpdatedSub = nil
