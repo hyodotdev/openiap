@@ -60,9 +60,9 @@ public final class OpenIapStore: ObservableObject {
     // MARK: - Listener Management
 
     private func setupListeners() {
-        let purchaseUpdate = module.purchaseUpdatedListener { [weak self] purchase in
+        let purchaseUpdate = module.purchaseUpdatedListener({ [weak self] purchase in
             Task { @MainActor in self?.handlePurchaseUpdate(purchase) }
-        }
+        }, options: nil)
         listenerTokens.append(purchaseUpdate)
 
         let purchaseError = module.purchaseErrorListener { [weak self] error in

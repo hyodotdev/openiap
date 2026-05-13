@@ -62,6 +62,8 @@ internal sealed partial class OpenIapAndroid : IOpenIap, QueryResolver, Mutation
     }
 
     public IObservable<Purchase> PurchaseUpdated => _purchaseUpdated;
+    public IObservable<Purchase> PurchaseUpdatedWithOptions(PurchaseUpdatedListenerOptions? options = null) =>
+        PurchaseUpdated;
     public IObservable<PurchaseError> PurchaseError => _purchaseError;
     public IObservable<string> PromotedProductIOS => _promotedProductIOS;
     public IObservable<Purchase> SubscriptionBillingIssue => _subscriptionBillingIssue;

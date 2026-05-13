@@ -52,6 +52,7 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
     private readonly Action<NSString?> _promotedProductCallback;
     private readonly Action<NSDictionary> _billingIssueCallback;
     private readonly object _listenerLock = new();
+    private readonly HashSet<NSObject> _dynamicPurchaseUpdatedTokens = new();
     private bool _disposed;
 
     public OpenIapIOS()
@@ -116,11 +117,61 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
     }
 
     public IObservable<Purchase> PurchaseUpdated => _purchaseUpdated;
+    public IObservable<Purchase> PurchaseUpdatedWithOptions(PurchaseUpdatedListenerOptions? options = null) =>
+        options?.DedupeTransactionIOS == false
+            ? CreatePurchaseUpdatedObservable(dedupeTransactionIOS: false)
+            : _purchaseUpdated;
     public IObservable<PurchaseError> PurchaseError => _purchaseError;
     public IObservable<string> PromotedProductIOS => _promotedProductIOS;
     public IObservable<Purchase> SubscriptionBillingIssue => _subscriptionBillingIssue;
     public IObservable<UserChoiceBillingDetails> UserChoiceBillingAndroid => EmptyObservable<UserChoiceBillingDetails>.Instance;
     public IObservable<DeveloperProvidedBillingDetailsAndroid> DeveloperProvidedBillingAndroid => EmptyObservable<DeveloperProvidedBillingDetailsAndroid>.Instance;
+
+    private IObservable<Purchase> CreatePurchaseUpdatedObservable(bool dedupeTransactionIOS)
+    {
+        return new DelegateObservable<Purchase>(observer =>
+        {
+            if (observer is null) throw new ArgumentNullException(nameof(observer));
+            Action<NSDictionary> callback = dict =>
+            {
+                try
+                {
+                    var node = NSObjectJsonBridge.DictToObject(dict);
+                    if (node is null) return;
+                    var p = node.Deserialize<Purchase>(JsonOptions.Default);
+                    if (p is not null) observer.OnNext(p);
+                }
+                catch (Exception ex)
+                {
+                    observer.OnError(ex);
+                }
+            };
+
+            NSObject token;
+            lock (_listenerLock)
+            {
+                if (_disposed) throw new ObjectDisposedException(nameof(OpenIapIOS));
+                token = _module.AddPurchaseUpdatedListener(
+                    callback,
+                    dedupeTransactionIOS);
+                _dynamicPurchaseUpdatedTokens.Add(token);
+            }
+
+            return new DisposableAction(() =>
+            {
+                bool shouldRemove;
+                lock (_listenerLock)
+                {
+                    shouldRemove = _dynamicPurchaseUpdatedTokens.Remove(token);
+                }
+                if (shouldRemove)
+                {
+                    RemoveListener(token, nameof(PurchaseUpdatedWithOptions));
+                }
+                GC.KeepAlive(callback);
+            });
+        });
+    }
 
     private void WireListeners()
     {
@@ -146,6 +197,7 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
         NSObject? purchaseErrorToken;
         NSObject? promotedProductToken;
         NSObject? billingIssueToken;
+        List<NSObject> dynamicPurchaseUpdatedTokens;
 
         lock (_listenerLock)
         {
@@ -156,14 +208,20 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
             purchaseErrorToken = _purchaseErrorToken;
             promotedProductToken = _promotedProductToken;
             billingIssueToken = _billingIssueToken;
+            dynamicPurchaseUpdatedTokens = _dynamicPurchaseUpdatedTokens.ToList();
 
             _purchaseUpdatedToken = null;
             _purchaseErrorToken = null;
             _promotedProductToken = null;
             _billingIssueToken = null;
+            _dynamicPurchaseUpdatedTokens.Clear();
         }
 
         RemoveListener(purchaseUpdatedToken, nameof(_purchaseUpdatedToken));
+        foreach (var token in dynamicPurchaseUpdatedTokens)
+        {
+            RemoveListener(token, nameof(PurchaseUpdatedWithOptions));
+        }
         RemoveListener(purchaseErrorToken, nameof(_purchaseErrorToken));
         RemoveListener(promotedProductToken, nameof(_promotedProductToken));
         RemoveListener(billingIssueToken, nameof(_billingIssueToken));

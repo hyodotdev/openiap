@@ -155,7 +155,10 @@ private final class FakeVerifyPurchaseModule: OpenIapModuleProtocol {
     func deepLinkToSubscriptions(_ options: DeepLinkOptions?) async throws -> Void { () }
 
     // MARK: - Event Listeners
-    func purchaseUpdatedListener(_ listener: @escaping PurchaseUpdatedListener) -> Subscription {
+    func purchaseUpdatedListener(
+        _ listener: @escaping PurchaseUpdatedListener,
+        options: PurchaseUpdatedListenerOptions?
+    ) -> Subscription {
         Subscription(eventType: .purchaseUpdated)
     }
 

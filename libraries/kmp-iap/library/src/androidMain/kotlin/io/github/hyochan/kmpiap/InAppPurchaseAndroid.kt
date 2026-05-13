@@ -54,6 +54,7 @@ import io.github.hyochan.kmpiap.openiap.IapPlatform
 import io.github.hyochan.kmpiap.openiap.ProductIOS
 import io.github.hyochan.kmpiap.openiap.PurchaseError
 import io.github.hyochan.kmpiap.openiap.PurchaseOptions
+import io.github.hyochan.kmpiap.openiap.PurchaseUpdatedListenerOptions
 import io.github.hyochan.kmpiap.openiap.QueryFetchProductsHandler
 import io.github.hyochan.kmpiap.openiap.QueryGetActiveSubscriptionsHandler
 import io.github.hyochan.kmpiap.openiap.QueryGetAvailablePurchasesHandler
@@ -125,6 +126,8 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     // ---------------------------------------------------------------------
     private val _purchaseUpdatedListener = MutableSharedFlow<Purchase>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     override val purchaseUpdatedListener: Flow<Purchase> = _purchaseUpdatedListener.asSharedFlow()
+    override fun purchaseUpdatedListener(options: PurchaseUpdatedListenerOptions?): Flow<Purchase> =
+        purchaseUpdatedListener
 
     private val _purchaseErrorListener = MutableSharedFlow<PurchaseError>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     override val purchaseErrorListener: Flow<PurchaseError> = _purchaseErrorListener.asSharedFlow()
@@ -708,7 +711,8 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
 
     override suspend fun purchaseError(): PurchaseError = purchaseErrorListener.first()
 
-    override suspend fun purchaseUpdated(): Purchase = purchaseUpdatedListener.first()
+    override suspend fun purchaseUpdated(options: PurchaseUpdatedListenerOptions?): Purchase =
+        purchaseUpdatedListener(options).first()
 
     override suspend fun subscriptionBillingIssue(): Purchase = subscriptionBillingIssueListener.first()
 

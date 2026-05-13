@@ -93,7 +93,10 @@ public protocol OpenIapModuleProtocol {
     func deepLinkToSubscriptions(_ options: DeepLinkOptions?) async throws -> Void
 
     // Event Listeners
-    func purchaseUpdatedListener(_ listener: @escaping PurchaseUpdatedListener) -> Subscription
+    func purchaseUpdatedListener(
+        _ listener: @escaping PurchaseUpdatedListener,
+        options: PurchaseUpdatedListenerOptions?
+    ) -> Subscription
     func purchaseErrorListener(_ listener: @escaping PurchaseErrorListener) -> Subscription
     func promotedProductListenerIOS(_ listener: @escaping PromotedProductListener) -> Subscription
     /// Listener for subscription billing-issue events (iOS 18+).

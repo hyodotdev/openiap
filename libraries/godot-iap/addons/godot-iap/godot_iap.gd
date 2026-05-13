@@ -36,6 +36,7 @@ signal subscription_billing_issue(purchase: Dictionary)
 var _native_plugin: Object = null
 var _is_connected: bool = false
 static var _is_initialized: bool = false
+var _purchase_updated_listener_options: Dictionary = {}
 
 # Platform detection
 var _platform: String = ""
@@ -225,6 +226,7 @@ func init_connection() -> bool:
 				print("[GodotIap] initConnection result: ", _is_connected)
 		elif _platform == "iOS":
 			print("[GodotIap] Calling iOS initConnection...")
+			_apply_purchase_updated_listener_options_ios()
 			_is_connected = _native_plugin.call("initConnection")
 			if not _is_connected:
 				print("[GodotIap] ERROR: initConnection failed. Check StoreKit configuration.")
@@ -256,6 +258,30 @@ func end_connection() -> bool:
 ## @return bool - true if currently connected
 func is_store_connected() -> bool:
 	return _is_connected
+
+## Configure purchase update listener options.
+##
+## On iOS, set [code]dedupe_transaction_ios[/code] to false to also receive
+## StoreKit replay events for transaction IDs already delivered during the
+## current connection session. Android ignores this flag.
+func set_purchase_updated_listener_options(options = null) -> void:
+	if typeof(options) == TYPE_OBJECT and options.has_method("to_dict"):
+		_purchase_updated_listener_options = options.to_dict()
+	elif options is Dictionary:
+		_purchase_updated_listener_options = options
+	else:
+		_purchase_updated_listener_options = {}
+	_apply_purchase_updated_listener_options_ios()
+
+func _apply_purchase_updated_listener_options_ios() -> void:
+	if _platform != "iOS" or not _native_plugin:
+		return
+	if not _native_plugin.has_method("setPurchaseUpdatedListenerOptions"):
+		return
+	_native_plugin.call(
+		"setPurchaseUpdatedListenerOptions",
+		JSON.stringify(_purchase_updated_listener_options)
+	)
 
 # ==========================================
 # Products (OpenIAP Query)

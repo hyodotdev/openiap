@@ -18,6 +18,8 @@ const LEGACY_ANCHOR_REDIRECTS: Record<string, string> = {
   'active-subscription': '/docs/types/active-subscription',
   'product-request': '/docs/types/product-request',
   'request-purchase-props': '/docs/types/request-purchase-props',
+  'purchase-updated-listener-options':
+    '/docs/types/purchase-updated-listener-options',
   'discount-offer': '/docs/types/discount-offer',
   'subscription-offer': '/docs/types/subscription-offer',
   'verify-purchase': '/docs/types/verify-purchase',
@@ -120,6 +122,11 @@ const COMMON_TYPES: TypeRow[] = [
     to: '/docs/types/request-purchase-props',
     name: 'RequestPurchaseProps',
     description: 'Discriminated union for one-time purchases or subscriptions.',
+  },
+  {
+    to: '/docs/types/purchase-updated-listener-options',
+    name: 'PurchaseUpdatedListenerOptions',
+    description: 'Options for purchase update listener replay behavior.',
   },
   {
     to: '/docs/types/discount-offer',

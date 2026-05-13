@@ -5,14 +5,58 @@ import StoreKit
 /// Thread-safe state manager for IAP transactions
 /// - SeeAlso: https://developer.apple.com/documentation/storekit/transaction
 @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
+private struct PurchaseUpdateEmissionHistory {
+    private let limit: Int
+    private var ids: Set<String> = []
+    private var ring: [String?]
+    private var nextEvictionIndex = 0
+
+    init(limit: Int) {
+        self.limit = max(1, limit)
+        self.ring = Array(repeating: nil, count: self.limit)
+    }
+
+    mutating func record(_ id: String) -> Bool {
+        guard ids.insert(id).inserted else {
+            return false
+        }
+
+        if let evicted = ring[nextEvictionIndex] {
+            ids.remove(evicted)
+        }
+        ring[nextEvictionIndex] = id
+        nextEvictionIndex = (nextEvictionIndex + 1) % limit
+        return true
+    }
+
+    mutating func removeAll() {
+        ids.removeAll()
+        ring = Array(repeating: nil, count: limit)
+        nextEvictionIndex = 0
+    }
+}
+
+@available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
+private struct PurchaseUpdatedListenerRegistration {
+    let id: UUID
+    let listener: PurchaseUpdatedListener
+    let dedupeTransactionIOS: Bool
+}
+
+@available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
 actor IapState {
+    private static let purchaseUpdateEmissionHistoryLimit = 512
+
     private(set) var isInitialized: Bool = false
     private var pendingTransactions: [String: Transaction] = [:]
+    private var purchaseUpdateEmissionHistory = PurchaseUpdateEmissionHistory(
+        limit: purchaseUpdateEmissionHistoryLimit
+    )
     private var promotedProductId: String?
     private var pendingPromotedProductReplayId: String?
 
     // Event listeners
-    private var purchaseUpdatedListeners: [(id: UUID, listener: PurchaseUpdatedListener)] = []
+    private var purchaseUpdatedListeners: [PurchaseUpdatedListenerRegistration] = []
     private var purchaseErrorListeners: [(id: UUID, listener: PurchaseErrorListener)] = []
     private var promotedProductListeners: [(id: UUID, listener: PromotedProductListener)] = []
     private var subscriptionBillingIssueListeners: [(id: UUID, listener: SubscriptionBillingIssueListener)] = []
@@ -21,6 +65,7 @@ actor IapState {
     func setInitialized(_ value: Bool) { isInitialized = value }
     func reset() {
         pendingTransactions.removeAll()
+        purchaseUpdateEmissionHistory.removeAll()
         isInitialized = false
         promotedProductId = nil
         pendingPromotedProductReplayId = nil
@@ -31,6 +76,18 @@ actor IapState {
     func getPending(id: String) -> Transaction? { pendingTransactions[id] }
     func removePending(id: String) { pendingTransactions.removeValue(forKey: id) }
     func pendingSnapshot() -> [Transaction] { Array(pendingTransactions.values) }
+
+    // MARK: - Purchase Update Emissions
+    func recordPurchaseUpdateEmission(
+        id: String,
+        pendingTransaction: Transaction? = nil
+    ) -> Bool {
+        let shouldEmit = purchaseUpdateEmissionHistory.record(id)
+        if shouldEmit, let pendingTransaction {
+            pendingTransactions[id] = pendingTransaction
+        }
+        return shouldEmit
+    }
 
     // MARK: - Promoted Products
     func setPromotedProductId(_ id: String?) {
@@ -48,8 +105,16 @@ actor IapState {
     }
 
     // MARK: - Listeners
-    func addPurchaseUpdatedListener(_ pair: (UUID, PurchaseUpdatedListener)) {
-        purchaseUpdatedListeners.append((id: pair.0, listener: pair.1))
+    func addPurchaseUpdatedListener(
+        id: UUID,
+        listener: @escaping PurchaseUpdatedListener,
+        options: PurchaseUpdatedListenerOptions?
+    ) {
+        purchaseUpdatedListeners.append(PurchaseUpdatedListenerRegistration(
+            id: id,
+            listener: listener,
+            dedupeTransactionIOS: options?.dedupeTransactionIOS ?? true
+        ))
     }
     func addPurchaseErrorListener(_ pair: (UUID, PurchaseErrorListener)) {
         purchaseErrorListeners.append((id: pair.0, listener: pair.1))
@@ -92,8 +157,13 @@ actor IapState {
         subscriptionBillingIssueListeners.removeAll()
     }
 
-    func snapshotPurchaseUpdated() -> [PurchaseUpdatedListener] {
-        purchaseUpdatedListeners.map { $0.listener }
+    func snapshotPurchaseUpdated(isDuplicate: Bool = false) -> [PurchaseUpdatedListener] {
+        purchaseUpdatedListeners.compactMap { registration in
+            guard !isDuplicate || !registration.dedupeTransactionIOS else {
+                return nil
+            }
+            return registration.listener
+        }
     }
     func snapshotPurchaseError() -> [PurchaseErrorListener] {
         purchaseErrorListeners.map { $0.listener }

@@ -65,6 +65,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     private var purchaseErrorSubscription: Subscription?
     private var promotedProductSubscription: Subscription?
     private var subscriptionBillingIssueSubscription: Subscription?
+    private var dedupeTransactionIOS = true
 
     // MARK: - Initialization
     required init(_ context: InitContext) {
@@ -111,6 +112,29 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         }
 
         return true // Return optimistically, actual result via signal
+    }
+
+    @Callable
+    public func setPurchaseUpdatedListenerOptions(optionsJson: String) -> Bool {
+        let data = Data(optionsJson.utf8)
+        guard
+            let decoded = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        else {
+            GodotIapLog.warn("setPurchaseUpdatedListenerOptions: invalid JSON")
+            return false
+        }
+        dedupeTransactionIOS =
+            decoded["dedupeTransactionIOS"] as? Bool ?? true
+
+        if isConnected {
+            if let sub = purchaseUpdateSubscription {
+                openIap.removeListener(sub)
+                purchaseUpdateSubscription = nil
+            }
+            setupPurchaseUpdatedListener()
+        }
+
+        return true
     }
 
     @Callable
@@ -1301,11 +1325,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     // MARK: - Private Helpers
 
     private func setupListeners() {
-        purchaseUpdateSubscription = openIap.purchaseUpdatedListener { [weak self] purchase in
-            Task { @MainActor in
-                self?.emitPurchaseUpdated(purchase: purchase)
-            }
-        }
+        setupPurchaseUpdatedListener()
 
         purchaseErrorSubscription = openIap.purchaseErrorListener { [weak self] error in
             Task { @MainActor in
@@ -1327,6 +1347,17 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 self?.emitSubscriptionBillingIssue(purchase: purchase)
             }
         }
+    }
+
+    private func setupPurchaseUpdatedListener() {
+        let options = PurchaseUpdatedListenerOptions(
+            dedupeTransactionIOS: dedupeTransactionIOS
+        )
+        purchaseUpdateSubscription = openIap.purchaseUpdatedListener({ [weak self] purchase in
+            Task { @MainActor in
+                self?.emitPurchaseUpdated(purchase: purchase)
+            }
+        }, options: options)
     }
 
     private func removeListeners() {

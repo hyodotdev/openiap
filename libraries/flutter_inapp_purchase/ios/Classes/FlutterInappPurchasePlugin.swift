@@ -17,6 +17,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
     private var purchaseErrorToken: OpenIAP.Subscription?
     private var promotedProductToken: OpenIAP.Subscription?
     private var subscriptionBillingIssueToken: OpenIAP.Subscription?
+    private var purchaseUpdatedListenerOptions = PurchaseUpdatedListenerOptions()
     // No local StoreKit caches; OpenIAP handles state internally
     private var processedTransactionIds: Set<String> = []
     
@@ -65,6 +66,9 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
             
         case "endConnection":
             endConnection(result: result)
+
+        case "setPurchaseUpdatedListenerOptions":
+            setPurchaseUpdatedListenerOptions(call: call, result: result)
             
         case "fetchProducts":
             // OpenIAP-compliant: accepts { skus: [String], type: 'inapp'|'subs'|'all' }
@@ -399,59 +403,76 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
     
     // MARK: - OpenIAP Listeners
     private func setupOpenIapListeners() {
-        if purchaseUpdatedToken != nil || purchaseErrorToken != nil { return }
         FlutterIapLog.debug("Setting up OpenIAP listeners")
 
-        purchaseUpdatedToken = OpenIapModule.shared.purchaseUpdatedListener { [weak self] purchase in
-            Task { @MainActor in
-                guard let self else { return }
-                FlutterIapLog.debug("purchaseUpdatedListener fired for \(purchase.productId)")
-                let payload = FlutterIapHelper.sanitizeDictionary(OpenIapSerialization.purchase(purchase))
-                if let jsonString = FlutterIapHelper.jsonString(from: payload) {
-                    self.channel?.invokeMethod("purchase-updated", arguments: jsonString)
-                }
-            }
-        }
+        attachPurchaseUpdatedListener()
 
-        purchaseErrorToken = OpenIapModule.shared.purchaseErrorListener { [weak self] error in
-            Task { @MainActor in
-                guard let self else { return }
-                FlutterIapLog.debug("purchaseErrorListener fired")
-                let _ : [String: Any?] = [
-                    "code": error.code.rawValue,
-                    "message": error.message,
-                    "productId": error.productId
-                ]
-                let compacted = FlutterIapHelper.sanitizeDictionary([
-                    "code": error.code.rawValue,
-                    "message": error.message,
-                    "productId": error.productId
-                ])
-                if let jsonString = FlutterIapHelper.jsonString(from: compacted) {
-                    self.channel?.invokeMethod("purchase-error", arguments: jsonString)
+        if purchaseErrorToken == nil {
+            purchaseErrorToken = OpenIapModule.shared.purchaseErrorListener { [weak self] error in
+                Task { @MainActor in
+                    guard let self else { return }
+                    FlutterIapLog.debug("purchaseErrorListener fired")
+                    let _ : [String: Any?] = [
+                        "code": error.code.rawValue,
+                        "message": error.message,
+                        "productId": error.productId
+                    ]
+                    let compacted = FlutterIapHelper.sanitizeDictionary([
+                        "code": error.code.rawValue,
+                        "message": error.message,
+                        "productId": error.productId
+                    ])
+                    if let jsonString = FlutterIapHelper.jsonString(from: compacted) {
+                        self.channel?.invokeMethod("purchase-error", arguments: jsonString)
+                    }
                 }
             }
         }
         
-        promotedProductToken = OpenIapModule.shared.promotedProductListenerIOS { [weak self] productId in
-            Task { @MainActor in
-                guard let self = self else { return }
-                FlutterIapLog.debug("promotedProductListenerIOS fired for: \(productId)")
-                // Emit event that Dart expects: name 'iap-promoted-product' with String payload
-                self.channel?.invokeMethod("iap-promoted-product", arguments: productId)
-            }
-        }
-
-        subscriptionBillingIssueToken = OpenIapModule.shared.subscriptionBillingIssueListener { [weak self] purchase in
-            Task { @MainActor in
-                guard let self else { return }
-                FlutterIapLog.debug("subscriptionBillingIssueListener fired for \(purchase.productId)")
-                let payload = FlutterIapHelper.sanitizeDictionary(OpenIapSerialization.purchase(purchase))
-                if let jsonString = FlutterIapHelper.jsonString(from: payload) {
-                    self.channel?.invokeMethod("subscription-billing-issue", arguments: jsonString)
+        if promotedProductToken == nil {
+            promotedProductToken = OpenIapModule.shared.promotedProductListenerIOS { [weak self] productId in
+                Task { @MainActor in
+                    guard let self = self else { return }
+                    FlutterIapLog.debug("promotedProductListenerIOS fired for: \(productId)")
+                    // Emit event that Dart expects: name 'iap-promoted-product' with String payload
+                    self.channel?.invokeMethod("iap-promoted-product", arguments: productId)
                 }
             }
         }
+
+        if subscriptionBillingIssueToken == nil {
+            subscriptionBillingIssueToken = OpenIapModule.shared.subscriptionBillingIssueListener { [weak self] purchase in
+                Task { @MainActor in
+                    guard let self else { return }
+                    FlutterIapLog.debug("subscriptionBillingIssueListener fired for \(purchase.productId)")
+                    let payload = FlutterIapHelper.sanitizeDictionary(OpenIapSerialization.purchase(purchase))
+                    if let jsonString = FlutterIapHelper.jsonString(from: payload) {
+                        self.channel?.invokeMethod("subscription-billing-issue", arguments: jsonString)
+                    }
+                }
+            }
+        }
+    }
+
+    private func setPurchaseUpdatedListenerOptions(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        let args = call.arguments as? [String: Any]
+        purchaseUpdatedListenerOptions = PurchaseUpdatedListenerOptions(
+            dedupeTransactionIOS:
+                args?["dedupeTransactionIOS"] as? Bool
+        )
+        if let token = purchaseUpdatedToken {
+            OpenIapModule.shared.removeListener(token)
+            purchaseUpdatedToken = nil
+        }
+        attachPurchaseUpdatedListener()
+        result(nil)
+    }
+
+    private func attachPurchaseUpdatedListener() {
+        guard purchaseUpdatedToken == nil else { return }
+        purchaseUpdatedToken = OpenIapModule.shared.purchaseUpdatedListener({ [weak self] purchase in
+            self?.emitPurchaseUpdated(purchase, method: "purchase-updated")
+        }, options: purchaseUpdatedListenerOptions)
     }
 
     private func removeOpenIapListeners() {
@@ -463,6 +484,16 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         purchaseErrorToken = nil
         promotedProductToken = nil
         subscriptionBillingIssueToken = nil
+    }
+
+    private func emitPurchaseUpdated(_ purchase: Purchase, method: String) {
+        Task { @MainActor in
+            FlutterIapLog.debug("\(method) fired for \(purchase.productId)")
+            let payload = FlutterIapHelper.sanitizeDictionary(OpenIapSerialization.purchase(purchase))
+            if let jsonString = FlutterIapHelper.jsonString(from: payload) {
+                self.channel?.invokeMethod(method, arguments: jsonString)
+            }
+        }
     }
     
     // All transaction event handling is routed via OpenIapModule listeners

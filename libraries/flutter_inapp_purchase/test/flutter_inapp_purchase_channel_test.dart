@@ -1224,6 +1224,207 @@ void main() {
       expect(listenerPurchase.productId, 'iap.premium');
     });
 
+    test(
+      'default purchase listener filters replays while non-deduping listener receives them',
+      () async {
+        final calls = <MethodCall>[];
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (MethodCall call) async {
+          calls.add(call);
+          if (call.method == 'initConnection') {
+            return true;
+          }
+          return null;
+        });
+
+        final iap = FlutterInappPurchase.private(
+          FakePlatform(operatingSystem: 'ios'),
+        );
+        final defaultPurchases = <types.Purchase>[];
+        final nonDedupingPurchases = <types.Purchase>[];
+
+        await iap.initConnection();
+        final defaultSub = iap.purchaseUpdatedListener.listen(
+          defaultPurchases.add,
+        );
+        final nonDedupingSub = iap
+            .purchaseUpdatedListenerWithOptions(
+              const types.PurchaseUpdatedListenerOptions(
+                dedupeTransactionIOS: false,
+              ),
+            )
+            .listen(nonDedupingPurchases.add);
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+
+        final purchasePayload = <String, dynamic>{
+          'platform': 'ios',
+          'store': 'apple',
+          'productId': 'iap.premium',
+          'transactionId': 'txn-dedupe-replay',
+          'purchaseState': 'PURCHASED',
+          'transactionReceipt': 'receipt-data',
+          'transactionDate': 1700000000000,
+        };
+
+        for (var i = 0; i < 2; i += 1) {
+          await TestDefaultBinaryMessengerBinding
+              .instance.defaultBinaryMessenger
+              .handlePlatformMessage(
+            channel.name,
+            codec.encodeMethodCall(
+              MethodCall('purchase-updated', jsonEncode(purchasePayload)),
+            ),
+            (_) {},
+          );
+        }
+        await Future<void>.delayed(Duration.zero);
+
+        expect(defaultPurchases, hasLength(1));
+        expect(nonDedupingPurchases, hasLength(2));
+
+        await defaultSub.cancel();
+        await nonDedupingSub.cancel();
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+
+        final optionCalls = calls
+            .where((call) => call.method == 'setPurchaseUpdatedListenerOptions')
+            .toList();
+        expect(optionCalls.map((call) => call.arguments), <Object?>[
+          <String, dynamic>{'dedupeTransactionIOS': false},
+          <String, dynamic>{'dedupeTransactionIOS': true},
+        ]);
+      },
+    );
+
+    test(
+      'resets native dedupe option after last non-deduping iOS listener cancels',
+      () async {
+        final calls = <MethodCall>[];
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (MethodCall call) async {
+          calls.add(call);
+          if (call.method == 'initConnection') {
+            return true;
+          }
+          return null;
+        });
+
+        final iap = FlutterInappPurchase.private(
+          FakePlatform(operatingSystem: 'ios'),
+        );
+
+        await iap.initConnection();
+        final firstSub = iap
+            .purchaseUpdatedListenerWithOptions(
+              const types.PurchaseUpdatedListenerOptions(
+                dedupeTransactionIOS: false,
+              ),
+            )
+            .listen((_) {});
+        final secondSub = iap
+            .purchaseUpdatedListenerWithOptions(
+              const types.PurchaseUpdatedListenerOptions(
+                dedupeTransactionIOS: false,
+              ),
+            )
+            .listen((_) {});
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+
+        await firstSub.cancel();
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+        var optionCalls = calls
+            .where((call) => call.method == 'setPurchaseUpdatedListenerOptions')
+            .toList();
+        expect(optionCalls.map((call) => call.arguments), <Object?>[
+          <String, dynamic>{'dedupeTransactionIOS': false},
+        ]);
+
+        await secondSub.cancel();
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+        optionCalls = calls
+            .where((call) => call.method == 'setPurchaseUpdatedListenerOptions')
+            .toList();
+        expect(optionCalls.map((call) => call.arguments), <Object?>[
+          <String, dynamic>{'dedupeTransactionIOS': false},
+          <String, dynamic>{'dedupeTransactionIOS': true},
+        ]);
+      },
+    );
+
+    test(
+      'subscriptionHandlers.purchaseUpdated honors non-deduping iOS option',
+      () async {
+        final calls = <MethodCall>[];
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (MethodCall call) async {
+          calls.add(call);
+          if (call.method == 'initConnection') {
+            return true;
+          }
+          return null;
+        });
+
+        final iap = FlutterInappPurchase.private(
+          FakePlatform(operatingSystem: 'ios'),
+        );
+
+        await iap.initConnection();
+        final defaultSub = iap.purchaseUpdatedListener.listen((_) {});
+        await Future<void>.delayed(Duration.zero);
+
+        final purchasePayload = <String, dynamic>{
+          'platform': 'ios',
+          'store': 'apple',
+          'productId': 'iap.premium',
+          'transactionId': 'txn-handler-dedupe-replay',
+          'purchaseState': 'PURCHASED',
+          'transactionReceipt': 'receipt-data',
+          'transactionDate': 1700000000000,
+        };
+
+        await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .handlePlatformMessage(
+          channel.name,
+          codec.encodeMethodCall(
+            MethodCall('purchase-updated', jsonEncode(purchasePayload)),
+          ),
+          (_) {},
+        );
+
+        final future = iap.subscriptionHandlers.purchaseUpdated!(
+          dedupeTransactionIOS: false,
+        );
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+
+        await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .handlePlatformMessage(
+          channel.name,
+          codec.encodeMethodCall(
+            MethodCall('purchase-updated', jsonEncode(purchasePayload)),
+          ),
+          (_) {},
+        );
+
+        final purchase = await future.timeout(const Duration(seconds: 1));
+        expect(purchase.id, 'txn-handler-dedupe-replay');
+        final optionCalls = calls
+            .where((call) => call.method == 'setPurchaseUpdatedListenerOptions')
+            .toList();
+        expect(optionCalls.map((call) => call.arguments), <Object?>[
+          <String, dynamic>{'dedupeTransactionIOS': false},
+          <String, dynamic>{'dedupeTransactionIOS': true},
+        ]);
+
+        await defaultSub.cancel();
+      },
+    );
+
     test('purchase-error emits results to both error streams', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall call) async {

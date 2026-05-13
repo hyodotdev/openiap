@@ -65,6 +65,7 @@ typealias RequestPurchaseIosProps = io.github.hyochan.kmpiap.openiap.RequestPurc
 typealias RequestPurchaseAndroidProps = io.github.hyochan.kmpiap.openiap.RequestPurchaseAndroidProps
 typealias RequestSubscriptionAndroidProps = io.github.hyochan.kmpiap.openiap.RequestSubscriptionAndroidProps
 typealias PurchaseOptions = io.github.hyochan.kmpiap.openiap.PurchaseOptions
+typealias PurchaseUpdatedListenerOptions = io.github.hyochan.kmpiap.openiap.PurchaseUpdatedListenerOptions
 typealias DeepLinkOptions = io.github.hyochan.kmpiap.openiap.DeepLinkOptions
 typealias ValidationOptions = io.github.hyochan.kmpiap.openiap.VerifyPurchaseProps
 typealias ValidationResult = io.github.hyochan.kmpiap.openiap.VerifyPurchaseResult
@@ -104,6 +105,16 @@ interface KmpInAppPurchase : MutationResolver, QueryResolver, SubscriptionResolv
      * Collect this Flow to receive purchase completion events
      */
     val purchaseUpdatedListener: Flow<Purchase>
+
+    /**
+     * Listener for observing purchase updates with subscription options.
+     *
+     * On iOS, set [PurchaseUpdatedListenerOptions.dedupeTransactionIOS]
+     * to false to also receive StoreKit replay events for transaction IDs
+     * already delivered during the current connection session. Android ignores
+     * this flag.
+     */
+    fun purchaseUpdatedListener(options: PurchaseUpdatedListenerOptions? = null): Flow<Purchase>
 
     /**
      * Listener for observing purchase errors

@@ -23,6 +23,7 @@ val googleVersion = if (openIapVersionsFile.exists()) {
 } else {
     "1.2.10"
 }
+val localApplePodspecDir = rootProject.file("../../packages/apple")
 
 println("DEBUG: OpenIAP versions loaded - Apple: $appleVersion, Google: $googleVersion")
 
@@ -149,8 +150,12 @@ kotlin {
 
         pod("openiap") {
             version = appleVersion
-            source = git("https://github.com/hyodotdev/openiap.git") {
-                tag = appleVersion
+            source = if (localApplePodspecDir.resolve("openiap.podspec").exists()) {
+                path(localApplePodspecDir)
+            } else {
+                git("https://github.com/hyodotdev/openiap.git") {
+                    tag = appleVersion
+                }
             }
             moduleName = "OpenIAP"
         }

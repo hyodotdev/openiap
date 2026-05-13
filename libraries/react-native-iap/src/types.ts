@@ -1292,6 +1292,15 @@ export interface PurchaseOptions {
 
 export type PurchaseState = 'pending' | 'purchased' | 'unknown';
 
+export interface PurchaseUpdatedListenerOptions {
+  /**
+   * iOS only. Defaults to true. When false, listener callbacks also receive
+   * StoreKit replay events for a transaction ID that was already emitted during
+   * the current connection session. Android ignores this option.
+   */
+  dedupeTransactionIOS?: (boolean | null);
+}
+
 export type PurchaseVerificationProvider = 'iapkit';
 
 export interface Query {
@@ -1734,7 +1743,12 @@ export interface Subscription {
   promotedProductIOS: string;
   /** Fires when a purchase fails or is cancelled */
   purchaseError: PurchaseError;
-  /** Fires when a purchase completes successfully or a pending purchase resolves */
+  /**
+   * Fires when a purchase completes successfully or a pending purchase resolves
+   * Options can opt iOS listeners into duplicate StoreKit transaction replays
+   * for diagnostics; default listeners receive one event per transaction ID
+   * during a single connection session.
+   */
   purchaseUpdated: Purchase;
   /**
    * Fires when an active subscription enters a billing-issue state that needs user action
@@ -1757,6 +1771,9 @@ export interface Subscription {
   userChoiceBillingAndroid: UserChoiceBillingDetails;
 }
 
+
+
+export type SubscriptionPurchaseUpdatedArgs = (PurchaseUpdatedListenerOptions | null) | undefined;
 
 export interface SubscriptionInfoIOS {
   introductoryOffer?: (SubscriptionOfferIOS | null);
@@ -2218,7 +2235,7 @@ export type SubscriptionArgsMap = {
   developerProvidedBillingAndroid: never;
   promotedProductIOS: never;
   purchaseError: never;
-  purchaseUpdated: never;
+  purchaseUpdated: SubscriptionPurchaseUpdatedArgs;
   subscriptionBillingIssue: never;
   userChoiceBillingAndroid: never;
 };

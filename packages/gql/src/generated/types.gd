@@ -3850,6 +3850,22 @@ class PurchaseOptions:
 			dict["includeSuspendedAndroid"] = include_suspended_android
 		return dict
 
+class PurchaseUpdatedListenerOptions:
+	## iOS only. Defaults to true. When false, listener callbacks also receive
+	var dedupe_transaction_ios: Variant = null
+
+	static func from_dict(data: Dictionary) -> PurchaseUpdatedListenerOptions:
+		var obj = PurchaseUpdatedListenerOptions.new()
+		if data.has("dedupeTransactionIOS") and data["dedupeTransactionIOS"] != null:
+			obj.dedupe_transaction_ios = data["dedupeTransactionIOS"]
+		return obj
+
+	func to_dict() -> Dictionary:
+		var dict = {}
+		if dedupe_transaction_ios != null:
+			dict["dedupeTransactionIOS"] = dedupe_transaction_ios
+		return dict
+
 class RequestPurchaseAndroidProps:
 	## List of product SKUs
 	var skus: Array[String] = []

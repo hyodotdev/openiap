@@ -13,6 +13,7 @@ namespace OpenIap.Maui;
 internal sealed class UnsupportedOpenIap : IOpenIap
 {
     public IObservable<Purchase> PurchaseUpdated => EmptyObservable<Purchase>.Instance;
+    public IObservable<Purchase> PurchaseUpdatedWithOptions(PurchaseUpdatedListenerOptions? options = null) => PurchaseUpdated;
     public IObservable<PurchaseError> PurchaseError => EmptyObservable<PurchaseError>.Instance;
     public IObservable<string> PromotedProductIOS => EmptyObservable<string>.Instance;
     public IObservable<Purchase> SubscriptionBillingIssue => EmptyObservable<Purchase>.Instance;

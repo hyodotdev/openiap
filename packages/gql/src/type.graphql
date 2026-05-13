@@ -151,6 +151,16 @@ input PurchaseOptions {
   includeSuspendedAndroid: Boolean
 }
 
+# Listener registration options for purchase update events
+input PurchaseUpdatedListenerOptions {
+  """
+  iOS only. Defaults to true. When false, listener callbacks also receive
+  StoreKit replay events for a transaction ID that was already emitted during
+  the current connection session. Android ignores this option.
+  """
+  dedupeTransactionIOS: Boolean
+}
+
 # Parameters for requestPurchase
 input RequestPurchaseProps {
   """

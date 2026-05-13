@@ -85,6 +85,58 @@ final class OpenIapTests: XCTestCase {
         XCTAssertNil(pendingSku)
     }
 
+    @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
+    func testPurchaseUpdateEmissionDeduplicatesTransactionIds() async {
+        let state = IapState()
+
+        let firstEmission = await state.recordPurchaseUpdateEmission(id: "txn-1")
+        let duplicateEmission = await state.recordPurchaseUpdateEmission(id: "txn-1")
+        let nextEmission = await state.recordPurchaseUpdateEmission(id: "txn-2")
+
+        XCTAssertTrue(firstEmission)
+        XCTAssertFalse(duplicateEmission)
+        XCTAssertTrue(nextEmission)
+    }
+
+    @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
+    func testPurchaseUpdateEmissionResetAllowsReconnectReplay() async {
+        let state = IapState()
+        let firstEmission = await state.recordPurchaseUpdateEmission(id: "txn-1")
+        let duplicateEmission = await state.recordPurchaseUpdateEmission(id: "txn-1")
+
+        XCTAssertTrue(firstEmission)
+        XCTAssertFalse(duplicateEmission)
+
+        await state.reset()
+
+        let replayEmission = await state.recordPurchaseUpdateEmission(id: "txn-1")
+        XCTAssertTrue(replayEmission)
+    }
+
+    @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
+    func testPurchaseUpdateDuplicateSnapshotOnlyIncludesOptInListeners() async {
+        let state = IapState()
+
+        await state.addPurchaseUpdatedListener(
+            id: UUID(),
+            listener: { _ in },
+            options: nil
+        )
+        await state.addPurchaseUpdatedListener(
+            id: UUID(),
+            listener: { _ in },
+            options: PurchaseUpdatedListenerOptions(
+                dedupeTransactionIOS: false
+            )
+        )
+
+        let normalListeners = await state.snapshotPurchaseUpdated()
+        let duplicateListeners = await state.snapshotPurchaseUpdated(isDuplicate: true)
+
+        XCTAssertEqual(normalListeners.count, 2)
+        XCTAssertEqual(duplicateListeners.count, 1)
+    }
+
     func testPurchaseIOSWithRenewalInfo() {
         let renewalInfo = RenewalInfoIOS(
             autoRenewPreference: "dev.hyo.premium_year",

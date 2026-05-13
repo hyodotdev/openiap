@@ -60,7 +60,7 @@ describe('Public API (index.ts)', () => {
     it('registers purchase updated listener', () => {
       const addListener = (ExpoIapModule as any).addListener as jest.Mock;
       const fn = jest.fn();
-      purchaseUpdatedListener(fn);
+      const subscription = purchaseUpdatedListener(fn);
       expect(addListener).toHaveBeenCalledWith(
         OpenIapEvent.PurchaseUpdated,
         expect.any(Function),
@@ -69,6 +69,156 @@ describe('Public API (index.ts)', () => {
       const event = {id: 't', productId: 'p', platform: 'IOS'} as any;
       passed(event);
       expect(fn).toHaveBeenCalledWith({...event, platform: 'ios'});
+      expect(typeof subscription.remove).toBe('function');
+    });
+
+    it('registers non-deduping purchase updated listener on iOS', () => {
+      const addListener = (ExpoIapModule as any).addListener as jest.Mock;
+      const setOptions = (ExpoIapModule as any)
+        .setPurchaseUpdatedListenerOptions as jest.Mock;
+      const fn = jest.fn();
+      const subscription = purchaseUpdatedListener(fn, {
+        dedupeTransactionIOS: false,
+      });
+      expect(setOptions).toHaveBeenCalledWith({
+        dedupeTransactionIOS: false,
+      });
+      expect(addListener).toHaveBeenCalledWith(
+        OpenIapEvent.PurchaseUpdated,
+        expect.any(Function),
+      );
+      subscription.remove();
+    });
+
+    it('removes listener through native subscription when available', () => {
+      const addListener = (ExpoIapModule as any).addListener as jest.Mock;
+      const nativeRemove = jest.fn();
+      addListener.mockReturnValueOnce({remove: nativeRemove});
+
+      const subscription = purchaseUpdatedListener(jest.fn());
+      subscription.remove();
+      subscription.remove();
+
+      expect(nativeRemove).toHaveBeenCalledTimes(1);
+    });
+
+    it('falls back to native removeListener when addListener returns void', () => {
+      const addListener = (ExpoIapModule as any).addListener as jest.Mock;
+      const removeListener = (ExpoIapModule as any).removeListener as jest.Mock;
+      addListener.mockReturnValueOnce(undefined);
+
+      const subscription = purchaseUpdatedListener(jest.fn());
+      const nativeListener = addListener.mock.calls[0][1];
+      subscription.remove();
+      subscription.remove();
+
+      expect(removeListener).toHaveBeenCalledTimes(1);
+      expect(removeListener).toHaveBeenCalledWith(
+        OpenIapEvent.PurchaseUpdated,
+        nativeListener,
+      );
+    });
+
+    it('filters duplicate replay events for default listeners when a non-deduping listener is active', () => {
+      const addListener = (ExpoIapModule as any).addListener as jest.Mock;
+      const defaultListener = jest.fn();
+      const nonDedupingListener = jest.fn();
+
+      purchaseUpdatedListener(defaultListener);
+      const nonDedupingSubscription = purchaseUpdatedListener(
+        nonDedupingListener,
+        {
+          dedupeTransactionIOS: false,
+        },
+      );
+
+      const defaultHandler = addListener.mock.calls[0][1];
+      const nonDedupingHandler = addListener.mock.calls[1][1];
+      const event = {
+        id: 'expo-dedupe-replay',
+        productId: 'p',
+        platform: 'IOS',
+      } as any;
+
+      defaultHandler(event);
+      nonDedupingHandler(event);
+      defaultHandler(event);
+      nonDedupingHandler(event);
+
+      expect(defaultListener).toHaveBeenCalledTimes(1);
+      expect(nonDedupingListener).toHaveBeenCalledTimes(2);
+      nonDedupingSubscription.remove();
+    });
+
+    it('resets default listener duplicate history after endConnection', async () => {
+      const addListener = (ExpoIapModule as any).addListener as jest.Mock;
+      (ExpoIapModule.endConnection as jest.Mock).mockResolvedValue(true);
+      const listener = jest.fn();
+
+      purchaseUpdatedListener(listener);
+      const handler = addListener.mock.calls[0][1];
+      const event = {
+        id: 'expo-dedupe-after-reconnect',
+        productId: 'p',
+        platform: 'IOS',
+      } as any;
+
+      handler(event);
+      handler(event);
+      expect(listener).toHaveBeenCalledTimes(1);
+
+      await endConnection();
+      handler(event);
+
+      expect(listener).toHaveBeenCalledTimes(2);
+    });
+
+    it('reapplies non-deduping purchase updated option after reconnect', async () => {
+      (Platform as any).OS = 'ios';
+      (ExpoIapModule.initConnection as jest.Mock).mockResolvedValue(true);
+      (ExpoIapModule.endConnection as jest.Mock).mockResolvedValue(true);
+      const setOptions = (ExpoIapModule as any)
+        .setPurchaseUpdatedListenerOptions as jest.Mock;
+
+      const subscription = purchaseUpdatedListener(jest.fn(), {
+        dedupeTransactionIOS: false,
+      });
+      expect(setOptions).toHaveBeenLastCalledWith({
+        dedupeTransactionIOS: false,
+      });
+
+      setOptions.mockClear();
+      await endConnection();
+      await initConnection();
+
+      expect(setOptions).toHaveBeenCalledTimes(1);
+      expect(setOptions).toHaveBeenCalledWith({
+        dedupeTransactionIOS: false,
+      });
+      subscription.remove();
+    });
+
+    it('removes non-deduping purchase updated listeners idempotently', () => {
+      const setOptions = (ExpoIapModule as any)
+        .setPurchaseUpdatedListenerOptions as jest.Mock;
+
+      const firstSubscription = purchaseUpdatedListener(jest.fn(), {
+        dedupeTransactionIOS: false,
+      });
+      const secondSubscription = purchaseUpdatedListener(jest.fn(), {
+        dedupeTransactionIOS: false,
+      });
+
+      firstSubscription.remove();
+      firstSubscription.remove();
+      secondSubscription.remove();
+
+      expect(setOptions.mock.calls).toEqual([
+        [{dedupeTransactionIOS: false}],
+        [{dedupeTransactionIOS: false}],
+        [{dedupeTransactionIOS: false}],
+        [{dedupeTransactionIOS: true}],
+      ]);
     });
 
     it('registers purchase error listener', () => {

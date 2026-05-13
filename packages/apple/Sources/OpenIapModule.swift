@@ -376,16 +376,26 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                 - Note: \(isSubscription ? "Subscription transactions will be emitted via Transaction.updates" : "Emitting directly")
                 """)
 
+            let shouldEmit = await state.recordPurchaseUpdateEmission(
+                id: transactionId,
+                pendingTransaction: shouldAutoFinish ? nil : transaction
+            )
+            // Dedupe only controls listener delivery; auto-finish must still
+            // complete the StoreKit transaction lifecycle for replayed updates.
             if shouldAutoFinish {
                 await transaction.finish()
-            } else {
-                await state.storePending(id: transactionId, transaction: transaction)
+                await state.removePending(id: transactionId)
             }
 
-            // Emit purchase update
-            // Note: Transaction.updates will NOT fire for purchases initiated via product.purchase()
-            // It only fires for background events (renewals, restores, external purchases)
-            emitPurchaseUpdate(purchase)
+            // StoreKit can replay unfinished transactions through multiple paths during a
+            // connection session. Default listeners receive each transaction id once;
+            // non-deduping listeners can opt into the replay for diagnostics.
+            emitPurchaseUpdate(
+                purchase,
+                isDuplicate: !shouldEmit,
+                duplicateSource: "requestPurchase",
+                duplicateTransactionId: transactionId
+            )
 
             return .purchase(purchase)
 
@@ -1369,9 +1379,18 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
     // MARK: - Event Listener Registration
 
-    public func purchaseUpdatedListener(_ listener: @escaping PurchaseUpdatedListener) -> Subscription {
+    public func purchaseUpdatedListener(
+        _ listener: @escaping PurchaseUpdatedListener,
+        options: PurchaseUpdatedListenerOptions? = nil
+    ) -> Subscription {
         let subscription = Subscription(eventType: .purchaseUpdated)
-        Task { await state.addPurchaseUpdatedListener((subscription.id, listener)) }
+        Task {
+            await state.addPurchaseUpdatedListener(
+                id: subscription.id,
+                listener: listener,
+                options: options
+            )
+        }
         return subscription
     }
 
@@ -1633,10 +1652,22 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                             continue
                         }
 
-                        // Store pending and emit
-                        await self.state.storePending(id: transactionId, transaction: transaction)
                         let purchase = await StoreKitTypesBridge.purchase(from: transaction, jwsRepresentation: verification.jwsRepresentation)
 
+                        // Default listeners receive each transaction id once per connection
+                        // session. Non-deduping listeners can opt into StoreKit replays.
+                        guard await self.state.recordPurchaseUpdateEmission(
+                            id: transactionId,
+                            pendingTransaction: transaction
+                        ) else {
+                            self.emitPurchaseUpdate(
+                                purchase,
+                                isDuplicate: true,
+                                duplicateSource: "Transaction.updates",
+                                duplicateTransactionId: transactionId
+                            )
+                            continue
+                        }
                         OpenIapLog.debug("✅ [TransactionListener] Emitting transaction: \(transactionId) for product: \(transaction.productID)")
                         self.emitPurchaseUpdate(purchase)
                     } catch {
@@ -1770,9 +1801,49 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         }
     }
 
-    private func emitPurchaseUpdate(_ purchase: Purchase) {
+    private func logDuplicatePurchaseUpdate(
+        source: String,
+        transactionId: String,
+        productId: String,
+        listenerCount: Int
+    ) {
+        let action = listenerCount > 0
+            ? "Delivered duplicate purchase-updated event to \(listenerCount) non-deduping listener(s)."
+            : "Suppressed duplicate purchase-updated listener emission."
+        let message = """
+            [PurchaseUpdateDedup] \(action)
+            - Source: \(source)
+            - Product: \(productId)
+            - Transaction ID: \(transactionId)
+            - Reason: this transaction id was already emitted during the current connection session.
+            - Scope: listeners dedupe by transaction id by default; listeners registered with dedupeTransactionIOS: false receive StoreKit replays.
+            """
+        if listenerCount > 0 {
+            OpenIapLog.info(message)
+        } else {
+            OpenIapLog.debug(message)
+        }
+    }
+
+    private func emitPurchaseUpdate(
+        _ purchase: Purchase,
+        isDuplicate: Bool = false,
+        duplicateSource: String? = nil,
+        duplicateTransactionId: String? = nil
+    ) {
         Task { [state] in
-            let listeners = await state.snapshotPurchaseUpdated()
+            let listeners = await state.snapshotPurchaseUpdated(isDuplicate: isDuplicate)
+            if isDuplicate {
+                self.logDuplicatePurchaseUpdate(
+                    source: duplicateSource ?? "unknown",
+                    transactionId: duplicateTransactionId ?? purchase.id,
+                    productId: purchase.productId,
+                    listenerCount: listeners.count
+                )
+                if listeners.isEmpty {
+                    return
+                }
+            }
             OpenIapLog.debug("✅ Emitting purchase update: Product=\(purchase.productId), Listeners=\(listeners.count)")
             await MainActor.run {
                 listeners.forEach { $0(purchase) }

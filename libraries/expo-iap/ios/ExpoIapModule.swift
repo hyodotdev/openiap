@@ -51,6 +51,14 @@ public final class ExpoIapModule: Module {
             return succeeded
         }
 
+        AsyncFunction("setPurchaseUpdatedListenerOptions") { (options: [String: Any]?) async throws -> Void in
+            let listenerOptions = PurchaseUpdatedListenerOptions(
+                dedupeTransactionIOS:
+                    options?["dedupeTransactionIOS"] as? Bool
+            )
+            ExpoIapHelper.setPurchaseUpdatedListenerOptions(listenerOptions)
+        }
+
         AsyncFunction("fetchProducts") { (params: [String: Any]) async throws -> [[String: Any]] in
             ExpoIapLog.payload("fetchProducts", payload: params)
             let request = try ExpoIapHelper.decodeProductRequest(from: params)

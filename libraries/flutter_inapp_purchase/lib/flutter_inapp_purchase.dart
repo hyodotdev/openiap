@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -29,6 +30,37 @@ export 'errors.dart'
 
 typedef PurchaseError = errors.PurchaseError;
 typedef SubscriptionOfferAndroid = gentype.AndroidSubscriptionOfferInput;
+
+class _PurchaseUpdatedDedupeHistoryIOS {
+  static const int limit = 512;
+
+  final Set<String> ids;
+  final Queue<String> order;
+
+  _PurchaseUpdatedDedupeHistoryIOS()
+      : ids = <String>{},
+        order = Queue<String>();
+
+  _PurchaseUpdatedDedupeHistoryIOS.copy(
+    _PurchaseUpdatedDedupeHistoryIOS source,
+  )   : ids = Set<String>.of(source.ids),
+        order = Queue<String>.of(source.order);
+
+  bool contains(String id) => ids.contains(id);
+
+  void record(String id) {
+    if (!ids.add(id)) return;
+    order.addLast(id);
+    if (order.length > limit) {
+      ids.remove(order.removeFirst());
+    }
+  }
+
+  void clear() {
+    ids.clear();
+    order.clear();
+  }
+}
 
 class FlutterInappPurchase with RequestPurchaseBuilderApi {
   // Singleton instance
@@ -99,10 +131,157 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           gentype.DeveloperProvidedBillingDetailsAndroid>.broadcast();
   final StreamController<gentype.Purchase> _subscriptionBillingIssueListener =
       StreamController<gentype.Purchase>.broadcast();
+  final _purchaseUpdatedDedupeHistoryIOS = _PurchaseUpdatedDedupeHistoryIOS();
+  int _purchaseUpdatedDedupeGenerationIOS = 0;
+  int _nonDedupingPurchaseUpdatedListenerCountIOS = 0;
 
   /// Purchase updated event stream
-  Stream<gentype.Purchase> get purchaseUpdatedListener =>
-      _purchaseUpdatedListener.stream;
+  Stream<gentype.Purchase> get purchaseUpdatedListener => isIOS
+      ? _purchaseUpdatedListenerStreamIOS(dedupeTransactionIOS: true)
+      : _purchaseUpdatedListener.stream;
+
+  /// Purchase updated event stream with listener options.
+  ///
+  /// On iOS, set [PurchaseUpdatedListenerOptions.dedupeTransactionIOS]
+  /// to false to also receive StoreKit replay events for transaction IDs
+  /// already delivered during the current connection session. Android ignores
+  /// this flag. On iOS this configures shared native listener state for this
+  /// plugin instance; default streams still filter replayed IDs unless they
+  /// opt out with `dedupeTransactionIOS: false`.
+  Stream<gentype.Purchase> purchaseUpdatedListenerWithOptions(
+    gentype.PurchaseUpdatedListenerOptions? options,
+  ) {
+    if (!isIOS) {
+      return purchaseUpdatedListener;
+    }
+
+    final dedupeTransactionIOS = options?.dedupeTransactionIOS != false;
+    StreamSubscription<gentype.Purchase>? subscription;
+    late StreamController<gentype.Purchase> controller;
+    var retainedNonDedupingListener = false;
+    controller = StreamController<gentype.Purchase>.broadcast(
+      onListen: () async {
+        try {
+          if (dedupeTransactionIOS) {
+            await _setDedupingPurchaseUpdatedListenerOptionsIOS(options);
+          } else {
+            retainedNonDedupingListener = true;
+            await _retainNonDedupingPurchaseUpdatedListenerIOS();
+          }
+          if (!controller.hasListener) return;
+          subscription = _purchaseUpdatedListenerStreamIOS(
+            dedupeTransactionIOS: dedupeTransactionIOS,
+          ).listen(
+            controller.add,
+            onError: controller.addError,
+            onDone: controller.close,
+          );
+        } catch (error, stackTrace) {
+          controller.addError(error, stackTrace);
+        }
+      },
+      onCancel: () async {
+        final activeSubscription = subscription;
+        subscription = null;
+        try {
+          await activeSubscription?.cancel();
+        } finally {
+          if (retainedNonDedupingListener) {
+            retainedNonDedupingListener = false;
+            await _releaseNonDedupingPurchaseUpdatedListenerIOS();
+          }
+        }
+      },
+    );
+    return controller.stream;
+  }
+
+  Stream<gentype.Purchase> _purchaseUpdatedListenerStreamIOS({
+    required bool dedupeTransactionIOS,
+  }) {
+    return Stream<gentype.Purchase>.multi((controller) {
+      final listenerHistory = _PurchaseUpdatedDedupeHistoryIOS.copy(
+        _purchaseUpdatedDedupeHistoryIOS,
+      );
+      var listenerGeneration = _purchaseUpdatedDedupeGenerationIOS;
+      late StreamSubscription<gentype.Purchase> subscription;
+      subscription = _purchaseUpdatedListener.stream.listen(
+        (purchase) {
+          if (listenerGeneration != _purchaseUpdatedDedupeGenerationIOS) {
+            listenerHistory.clear();
+            listenerGeneration = _purchaseUpdatedDedupeGenerationIOS;
+          }
+
+          final transactionId = _purchaseUpdatedTransactionIdIOS(purchase);
+          if (transactionId != null) {
+            final isDuplicateForListener =
+                listenerHistory.contains(transactionId);
+            listenerHistory.record(transactionId);
+            _purchaseUpdatedDedupeHistoryIOS.record(transactionId);
+            if (dedupeTransactionIOS && isDuplicateForListener) {
+              return;
+            }
+          }
+
+          controller.add(purchase);
+        },
+        onError: controller.addError,
+        onDone: controller.close,
+      );
+      controller.onCancel = () => subscription.cancel();
+    }, isBroadcast: true);
+  }
+
+  String? _purchaseUpdatedTransactionIdIOS(gentype.Purchase purchase) {
+    final id = purchase.id;
+    return id.isEmpty ? null : id;
+  }
+
+  void _resetPurchaseUpdatedDedupeHistoryIOS() {
+    _purchaseUpdatedDedupeHistoryIOS.clear();
+    _purchaseUpdatedDedupeGenerationIOS += 1;
+  }
+
+  Future<void> _setPurchaseUpdatedListenerOptions(
+    gentype.PurchaseUpdatedListenerOptions? options,
+  ) =>
+      _configurePurchaseListener(() async {
+        await _setPurchaseListener();
+        await _channel.invokeMethod<void>(
+          'setPurchaseUpdatedListenerOptions',
+          options?.toJson(),
+        );
+      });
+
+  Future<void> _setDedupingPurchaseUpdatedListenerOptionsIOS(
+    gentype.PurchaseUpdatedListenerOptions? options,
+  ) async {
+    if (_nonDedupingPurchaseUpdatedListenerCountIOS > 0) return;
+    await _setPurchaseUpdatedListenerOptions(options);
+  }
+
+  Future<void> _retainNonDedupingPurchaseUpdatedListenerIOS() async {
+    _nonDedupingPurchaseUpdatedListenerCountIOS += 1;
+    if (_nonDedupingPurchaseUpdatedListenerCountIOS == 1) {
+      await _setPurchaseUpdatedListenerOptions(
+        const gentype.PurchaseUpdatedListenerOptions(
+          dedupeTransactionIOS: false,
+        ),
+      );
+    }
+  }
+
+  Future<void> _releaseNonDedupingPurchaseUpdatedListenerIOS() async {
+    if (_nonDedupingPurchaseUpdatedListenerCountIOS == 0) return;
+    _nonDedupingPurchaseUpdatedListenerCountIOS -= 1;
+    if (_nonDedupingPurchaseUpdatedListenerCountIOS == 0) {
+      await _setPurchaseUpdatedListenerOptions(
+        const gentype.PurchaseUpdatedListenerOptions(
+          dedupeTransactionIOS: true,
+        ),
+      );
+    }
+  }
 
   /// Purchase error event stream
   Stream<PurchaseError> get purchaseErrorListener =>
@@ -128,6 +307,16 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
       _subscriptionBillingIssueListener.stream;
 
   bool _isInitialized = false;
+  Future<void> _purchaseListenerConfiguration = Future<void>.value();
+
+  Future<void> _configurePurchaseListener(
+    Future<void> Function() configure,
+  ) {
+    final previous = _purchaseListenerConfiguration;
+    final current = previous.catchError((Object _) {}).then((_) => configure());
+    _purchaseListenerConfiguration = current.catchError((Object _) {});
+    return current;
+  }
 
   Future<void> _setPurchaseListener() async {
     _purchaseController ??= StreamController.broadcast();
@@ -138,28 +327,11 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
     _channel.setMethodCallHandler((MethodCall call) async {
       switch (call.method) {
         case 'purchase-updated':
-          try {
-            Map<String, dynamic> result =
-                jsonDecode(call.arguments as String) as Map<String, dynamic>;
-
-            // Convert directly to Purchase without intermediate PurchasedItem
-            final purchase = convertToPurchase(
-              result,
-              originalJson: result,
-              platformIsAndroid: _platform.isAndroid,
-              platformIsIOS: _platform.isIOS || _platform.isMacOS,
-              acknowledgedAndroidPurchaseTokens:
-                  _acknowledgedAndroidPurchaseTokens,
-            );
-
-            _purchaseController!.add(purchase);
-            _purchaseUpdatedListener.add(purchase);
-          } catch (e, stackTrace) {
-            debugPrint(
-              '[flutter_inapp_purchase] ERROR in purchase-updated: $e',
-            );
-            debugPrint('[flutter_inapp_purchase] Stack trace: $stackTrace');
-          }
+          _handlePurchaseUpdatedCall(
+            call,
+            _purchaseUpdatedListener,
+            publishToLegacyStream: true,
+          );
           break;
         case 'purchase-error':
           debugPrint(
@@ -246,6 +418,35 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
     });
   }
 
+  void _handlePurchaseUpdatedCall(
+    MethodCall call,
+    StreamController<gentype.Purchase> controller, {
+    bool publishToLegacyStream = false,
+  }) {
+    try {
+      final result =
+          jsonDecode(call.arguments as String) as Map<String, dynamic>;
+
+      final purchase = convertToPurchase(
+        result,
+        originalJson: result,
+        platformIsAndroid: _platform.isAndroid,
+        platformIsIOS: _platform.isIOS || _platform.isMacOS,
+        acknowledgedAndroidPurchaseTokens: _acknowledgedAndroidPurchaseTokens,
+      );
+
+      if (publishToLegacyStream) {
+        _purchaseController!.add(purchase);
+      }
+      controller.add(purchase);
+    } catch (e, stackTrace) {
+      debugPrint(
+        '[flutter_inapp_purchase] ERROR in ${call.method}: $e',
+      );
+      debugPrint('[flutter_inapp_purchase] Stack trace: $stackTrace');
+    }
+  }
+
   /// Initialize the store connection. Must be called before any other IAP API.
   ///
   /// Parameters:
@@ -271,7 +472,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
 
         try {
-          await _setPurchaseListener();
+          await _configurePurchaseListener(_setPurchaseListener);
 
           // Build config map for alternative billing and billing program
           Map<String, dynamic>? config;
@@ -317,6 +518,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           await _channel.invokeMethod('endConnection');
 
           _isInitialized = false;
+          if (isIOS) {
+            _resetPurchaseUpdatedDedupeHistoryIOS();
+          }
           return true;
         } on PlatformException catch (error) {
           throw _purchaseErrorFromPlatformException(
@@ -2619,7 +2823,29 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         },
         purchaseError: () async =>
             await purchaseErrorListener.first as gentype.PurchaseError,
-        purchaseUpdated: () async => await purchaseUpdatedListener.first,
+        purchaseUpdated: ({bool? dedupeTransactionIOS}) async {
+          final options = gentype.PurchaseUpdatedListenerOptions(
+            dedupeTransactionIOS: dedupeTransactionIOS,
+          );
+          if (isIOS) {
+            final shouldDedupe = dedupeTransactionIOS != false;
+            if (shouldDedupe) {
+              await _setDedupingPurchaseUpdatedListenerOptionsIOS(options);
+            } else {
+              await _retainNonDedupingPurchaseUpdatedListenerIOS();
+            }
+            try {
+              return await _purchaseUpdatedListenerStreamIOS(
+                dedupeTransactionIOS: shouldDedupe,
+              ).first;
+            } finally {
+              if (!shouldDedupe) {
+                await _releaseNonDedupingPurchaseUpdatedListenerIOS();
+              }
+            }
+          }
+          return purchaseUpdatedListener.first;
+        },
         subscriptionBillingIssue: () async =>
             await subscriptionBillingIssueListener.first,
         userChoiceBillingAndroid: () async =>

@@ -657,6 +657,14 @@ export const apiData: ApiItem[] = [
     path: '/docs/types/request-purchase-props',
   },
   {
+    id: 'purchase-updated-listener-options',
+    title: 'PurchaseUpdatedListenerOptions',
+    category: 'Types',
+    description:
+      'Options for purchaseUpdatedListener, including iOS duplicate StoreKit replay delivery',
+    path: '/docs/types/purchase-updated-listener-options',
+  },
+  {
     id: 'types-verification',
     title: 'Verification Types',
     category: 'Types',

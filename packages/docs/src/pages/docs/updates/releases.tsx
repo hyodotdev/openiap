@@ -26,6 +26,130 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // May 13, 2026 — OpenIAP Spec 2.0.2 purchase update replay controls
+    {
+      id: 'openiap-spec-2-0-2-purchase-update-replay-controls',
+      date: new Date('2026-05-13'),
+      element: (
+        <div
+          key="openiap-spec-2-0-2-purchase-update-replay-controls"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="openiap-spec-2-0-2-purchase-update-replay-controls"
+            level="h4"
+          >
+            May 13, 2026 — OpenIAP Spec 2.0.2 purchase update replay controls
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes <strong>OpenIAP Spec 2.0.2</strong> with{' '}
+            <code>PurchaseUpdatedListenerOptions</code> and an iOS-only{' '}
+            <code>dedupeTransactionIOS</code> flag. StoreKit can replay the same
+            unfinished transaction through request and transaction-update paths
+            during a single connection session. OpenIAP now gives developers an
+            explicit choice: keep <code>dedupeTransactionIOS</code> omitted or{' '}
+            <code>true</code> to receive one purchase success event per iOS
+            transaction ID, or set <code>dedupeTransactionIOS: false</code> when
+            you want StoreKit replay events for diagnostics or custom duplicate
+            handling. Android ignores this iOS-only option. The planned patch
+            rollout carries this behavior through openiap-apple, openiap-google,
+            and all six framework SDKs. Track the fix in{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/issues/152"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              issue #152
+            </a>{' '}
+            and{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/153"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #153
+            </a>
+            .
+          </p>
+
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>Listener-level opt-in</strong> — React Native and Expo
+              accept <code>dedupeTransactionIOS</code> on{' '}
+              <code>purchaseUpdatedListener</code>; Flutter, KMP, MAUI, and
+              Godot expose equivalent stream or signal-level options without
+              changing default purchase success handling.
+            </li>
+            <li>
+              <strong>Native debugging preserved</strong> — openiap-apple no
+              longer drops duplicate StoreKit updates before framework bridges
+              can observe them. Default listeners dedupe duplicate transaction
+              IDs, while listeners with <code>dedupeTransactionIOS: false</code>{' '}
+              receive the replay.
+            </li>
+            <li>
+              <strong>Platform scope</strong> — this option is only meaningful
+              on iOS because Android does not have the same StoreKit replay
+              path; Android SDKs accept the generated field for parity and
+              ignore it at runtime.
+            </li>
+            <li>
+              <strong>Docs and type sync</strong> — the generated GQL types now
+              include <code>PurchaseUpdatedListenerOptions</code> across Swift,
+              Kotlin, TypeScript, Dart, GDScript, and C#.
+            </li>
+            <li>
+              <strong>Usage guide</strong> — see{' '}
+              <Link to="/docs/events/purchase-updated-listener">
+                purchaseUpdatedListener
+              </Link>{' '}
+              for the default behavior and opt-in examples.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Planned Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>OpenIAP Spec 2.0.2</li>
+              <li>openiap-apple 2.1.9</li>
+              <li>openiap-google 2.1.5</li>
+              <li>react-native-iap 15.2.4</li>
+              <li>expo-iap 4.2.8</li>
+              <li>flutter_inapp_purchase 9.2.8</li>
+              <li>godot-iap 2.2.10</li>
+              <li>kmp-iap 2.2.8</li>
+              <li>OpenIap.Maui 1.0.4</li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // May 13, 2026 — godot-iap 2.2.9 macOS Gatekeeper packaging fix
     {
       id: 'godot-iap-2-2-9-macos-gatekeeper-packaging',

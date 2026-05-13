@@ -1687,6 +1687,19 @@ public struct PurchaseOptions: Codable {
     }
 }
 
+public struct PurchaseUpdatedListenerOptions: Codable {
+    /// iOS only. Defaults to true. When false, listener callbacks also receive
+    /// StoreKit replay events for a transaction ID that was already emitted during
+    /// the current connection session. Android ignores this option.
+    public var dedupeTransactionIOS: Bool?
+
+    public init(
+        dedupeTransactionIOS: Bool? = nil
+    ) {
+        self.dedupeTransactionIOS = dedupeTransactionIOS
+    }
+}
+
 public struct RequestPurchaseAndroidProps: Codable {
     /// Developer billing option parameters for external payments flow (8.3.0+).
     /// When provided, the purchase flow will show a side-by-side choice between
@@ -2695,7 +2708,10 @@ public protocol SubscriptionResolver {
     /// Fires when a purchase fails or is cancelled
     func purchaseError() async throws -> PurchaseError
     /// Fires when a purchase completes successfully or a pending purchase resolves
-    func purchaseUpdated() async throws -> Purchase
+    /// Options can opt iOS listeners into duplicate StoreKit transaction replays
+    /// for diagnostics; default listeners receive one event per transaction ID
+    /// during a single connection session.
+    func purchaseUpdated(_ options: PurchaseUpdatedListenerOptions?) async throws -> Purchase
     /// Fires when an active subscription enters a billing-issue state that needs user action
     /// (payment method failed, card expired, etc.). Cross-platform unification:
     /// 
@@ -2928,7 +2944,7 @@ public struct QueryHandlers {
 public typealias SubscriptionDeveloperProvidedBillingAndroidHandler = () async throws -> DeveloperProvidedBillingDetailsAndroid
 public typealias SubscriptionPromotedProductIOSHandler = () async throws -> String
 public typealias SubscriptionPurchaseErrorHandler = () async throws -> PurchaseError
-public typealias SubscriptionPurchaseUpdatedHandler = () async throws -> Purchase
+public typealias SubscriptionPurchaseUpdatedHandler = (_ options: PurchaseUpdatedListenerOptions?) async throws -> Purchase
 public typealias SubscriptionSubscriptionBillingIssueHandler = () async throws -> Purchase
 public typealias SubscriptionUserChoiceBillingAndroidHandler = () async throws -> UserChoiceBillingDetails
 

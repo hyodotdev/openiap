@@ -32,6 +32,7 @@ const mockNativeModule = {
   verifyPurchaseWithProvider: jest.fn(),
   initConnection: jest.fn(),
   endConnection: jest.fn(),
+  setPurchaseUpdatedListenerOptions: jest.fn().mockResolvedValue(undefined),
   // Android-specific methods
   acknowledgePurchaseAndroid: jest.fn(),
   consumeProductAndroid: jest.fn(),
@@ -40,6 +41,7 @@ const mockNativeModule = {
   launchExternalLinkAndroid: jest.fn(),
   createBillingProgramReportingDetailsAndroid: jest.fn(),
   addListener: jest.fn(),
+  removeListener: jest.fn(),
   removeListeners: jest.fn(),
 };
 

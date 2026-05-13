@@ -4,6 +4,16 @@ import OpenIAP
 
 @available(iOS 15.0, macOS 14.0, tvOS 15.0, watchOS 8.0, *)
 class HybridRnIap: HybridRnIapSpec {
+    private enum PurchaseUpdatedListenerBucket {
+        case deduping
+        case nonDeduping
+    }
+
+    private struct PurchaseUpdatedListenerRegistration {
+        let token: Double
+        let bucket: PurchaseUpdatedListenerBucket
+    }
+
     // MARK: - Properties
     private var updateListenerTask: Task<Void, Never>?
     private var isInitialized: Bool = false
@@ -11,20 +21,20 @@ class HybridRnIap: HybridRnIapSpec {
     private var productTypeBySku: [String: String] = [:]
     // OpenIAP event subscriptions
     private var purchaseUpdatedSub: Subscription?
+    private var purchaseUpdatedDuplicateSub: Subscription?
     private var purchaseErrorSub: Subscription?
     private var promotedProductSub: Subscription?
     // Event listeners
-    private var purchaseUpdatedListeners: [(NitroPurchase) -> Void] = []
+    private var nextPurchaseUpdatedListenerToken: Double = 1
+    private var purchaseUpdatedListeners: [(token: Double, listener: (NitroPurchase) -> Void)] = []
+    private var purchaseUpdatedDuplicateListeners: [(token: Double, listener: (NitroPurchase) -> Void)] = []
+    private var purchaseUpdatedListenerRegistrations: [PurchaseUpdatedListenerRegistration] = []
     private var purchaseErrorListeners: [(NitroPurchaseResult) -> Void] = []
     private var promotedProductListeners: [(NitroProduct) -> Void] = []
     private var subscriptionBillingIssueListeners: [(NitroPurchase) -> Void] = []
     private var subscriptionBillingIssueSub: Subscription?
     private var lastPurchaseErrorKey: String? = nil
     private var lastPurchaseErrorTimestamp: TimeInterval = 0
-    private var deliveredPurchaseEventKeys: Set<String> = []
-    private var deliveredPurchaseEventOrder: [String] = []
-    private let purchaseEventDedupLimit = 128
-    private static let duplicatePurchaseCode = "duplicate-purchase"
     private var purchasePayloadById: [String: [String: Any]] = [:]
     // Thread safety lock for listener arrays and error dedup state
     private let listenerLock = NSLock()
@@ -942,16 +952,92 @@ class HybridRnIap: HybridRnIapSpec {
 
     // MARK: - Event Listener Methods
 
-    func addPurchaseUpdatedListener(listener: @escaping (NitroPurchase) -> Void) throws {
-        listenerLock.withLock { purchaseUpdatedListeners.append(listener) }
+    func addPurchaseUpdatedListener(
+        listener: @escaping (NitroPurchase) -> Void,
+        options: NitroPurchaseUpdatedListenerOptions?
+    ) throws -> Double {
+        let dedupeTransactionIOS = purchaseUpdatedDedupeTransactionIOS(from: options)
+        let receiveDuplicateTransactionUpdatesIOS = !dedupeTransactionIOS
+        let token = listenerLock.withLock {
+            let token = nextPurchaseUpdatedListenerToken
+            nextPurchaseUpdatedListenerToken += 1
+
+            let registration = PurchaseUpdatedListenerRegistration(
+                token: token,
+                bucket: receiveDuplicateTransactionUpdatesIOS ? .nonDeduping : .deduping
+            )
+            if receiveDuplicateTransactionUpdatesIOS {
+                purchaseUpdatedDuplicateListeners.append((token: token, listener: listener))
+            } else {
+                purchaseUpdatedListeners.append((token: token, listener: listener))
+            }
+            purchaseUpdatedListenerRegistrations.append(registration)
+            return token
+        }
+
+        if receiveDuplicateTransactionUpdatesIOS {
+            attachDuplicatePurchaseUpdatedSubIfNeeded()
+        } else {
+            attachPurchaseUpdatedSubIfNeeded()
+        }
+        return token
+    }
+
+    func removePurchaseUpdatedListener(token: Double) throws {
+        let removedSubscription = listenerLock.withLock {
+            removePurchaseUpdatedListenerRegistration(token: token)
+        }
+        if let removedSubscription {
+            RnIapLog.payload("removeListener", removedSubscription.label)
+            OpenIapModule.shared.removeListener(removedSubscription.subscription)
+        }
     }
 
     func addPurchaseErrorListener(listener: @escaping (NitroPurchaseResult) -> Void) throws {
         listenerLock.withLock { purchaseErrorListeners.append(listener) }
     }
 
-    func removePurchaseUpdatedListener(listener: @escaping (NitroPurchase) -> Void) throws {
-        listenerLock.withLock { purchaseUpdatedListeners.removeAll() }
+    private func purchaseUpdatedDedupeTransactionIOS(
+        from options: NitroPurchaseUpdatedListenerOptions?
+    ) -> Bool {
+        guard let dedupeTransactionIOS = options?.dedupeTransactionIOS else {
+            return true
+        }
+        switch dedupeTransactionIOS {
+        case .second(let enabled):
+            return enabled
+        case .first:
+            return true
+        }
+    }
+
+    private func removePurchaseUpdatedListenerRegistration(token: Double) -> (label: String, subscription: Subscription)? {
+        guard let registrationIndex = purchaseUpdatedListenerRegistrations.lastIndex(where: {
+            $0.token == token
+        }) else {
+            return nil
+        }
+        let registration = purchaseUpdatedListenerRegistrations.remove(at: registrationIndex)
+        switch registration.bucket {
+        case .deduping:
+            if let index = purchaseUpdatedListeners.lastIndex(where: { $0.token == token }) {
+                purchaseUpdatedListeners.remove(at: index)
+            }
+            guard purchaseUpdatedListeners.isEmpty, let sub = purchaseUpdatedSub else {
+                return nil
+            }
+            purchaseUpdatedSub = nil
+            return ("purchaseUpdated", sub)
+        case .nonDeduping:
+            if let index = purchaseUpdatedDuplicateListeners.lastIndex(where: { $0.token == token }) {
+                purchaseUpdatedDuplicateListeners.remove(at: index)
+            }
+            guard purchaseUpdatedDuplicateListeners.isEmpty, let sub = purchaseUpdatedDuplicateSub else {
+                return nil
+            }
+            purchaseUpdatedDuplicateSub = nil
+            return ("purchaseUpdatedDuplicate", sub)
+        }
     }
 
     func removePurchaseErrorListener(listener: @escaping (NitroPurchaseResult) -> Void) throws {
@@ -970,26 +1056,7 @@ class HybridRnIap: HybridRnIapSpec {
     // MARK: - Private Helper Methods
 
     private func attachListenersIfNeeded() {
-        if purchaseUpdatedSub == nil {
-            RnIapLog.payload("purchaseUpdatedListener.register", nil)
-            purchaseUpdatedSub = OpenIapModule.shared.purchaseUpdatedListener { [weak self] openIapPurchase in
-                guard let self else {
-                    RnIapLog.warn("purchaseUpdatedListener: HybridRnIap deallocated, purchase event dropped")
-                    return
-                }
-                Task { @MainActor in
-                    let rawPayload = OpenIapSerialization.purchase(openIapPurchase)
-                    let payload = RnIapHelper.sanitizeDictionary(rawPayload)
-                    RnIapLog.result("purchaseUpdatedListener", payload)
-                    if let identifier = rawPayload["id"] as? String {
-                        self.purchasePayloadById[identifier] = rawPayload
-                    }
-                    let nitro = RnIapHelper.convertPurchaseDictionary(payload)
-                    self.sendPurchaseUpdate(nitro)
-                }
-            }
-            RnIapLog.result("purchaseUpdatedListener.register", "attached")
-        }
+        attachPurchaseUpdatedSubIfNeeded()
 
         if purchaseErrorSub == nil {
             RnIapLog.payload("purchaseErrorListener.register", nil)
@@ -1048,6 +1115,61 @@ class HybridRnIap: HybridRnIapSpec {
         }
     }
 
+    private func attachPurchaseUpdatedSubIfNeeded() {
+        listenerLock.withLock {
+            guard purchaseUpdatedSub == nil else {
+                return
+            }
+            RnIapLog.payload("purchaseUpdatedListener.register", nil)
+            purchaseUpdatedSub = OpenIapModule.shared.purchaseUpdatedListener { [weak self] openIapPurchase in
+                guard let self else {
+                    RnIapLog.warn("purchaseUpdatedListener: HybridRnIap deallocated, purchase event dropped")
+                    return
+                }
+                Task { @MainActor in
+                    let rawPayload = OpenIapSerialization.purchase(openIapPurchase)
+                    let payload = RnIapHelper.sanitizeDictionary(rawPayload)
+                    RnIapLog.result("purchaseUpdatedListener", payload)
+                    if let identifier = rawPayload["id"] as? String {
+                        self.purchasePayloadById[identifier] = rawPayload
+                    }
+                    let nitro = RnIapHelper.convertPurchaseDictionary(payload)
+                    self.sendPurchaseUpdate(nitro, includeDuplicateListeners: false)
+                }
+            }
+            RnIapLog.result("purchaseUpdatedListener.register", "attached")
+        }
+    }
+
+    private func attachDuplicatePurchaseUpdatedSubIfNeeded() {
+        listenerLock.withLock {
+            guard purchaseUpdatedDuplicateSub == nil else {
+                return
+            }
+            RnIapLog.payload("purchaseUpdatedListener.register.duplicates", nil)
+            let options = PurchaseUpdatedListenerOptions(
+                dedupeTransactionIOS: false
+            )
+            purchaseUpdatedDuplicateSub = OpenIapModule.shared.purchaseUpdatedListener({ [weak self] openIapPurchase in
+                guard let self else {
+                    RnIapLog.warn("purchaseUpdatedListener: HybridRnIap deallocated, non-deduping purchase event dropped")
+                    return
+                }
+                Task { @MainActor in
+                    let rawPayload = OpenIapSerialization.purchase(openIapPurchase)
+                    let payload = RnIapHelper.sanitizeDictionary(rawPayload)
+                    RnIapLog.result("purchaseUpdatedListener.duplicates", payload)
+                    if let identifier = rawPayload["id"] as? String {
+                        self.purchasePayloadById[identifier] = rawPayload
+                    }
+                    let nitro = RnIapHelper.convertPurchaseDictionary(payload)
+                    self.sendPurchaseUpdate(nitro, includeDuplicateListeners: true)
+                }
+            }, options: options)
+            RnIapLog.result("purchaseUpdatedListener.register.duplicates", "attached")
+        }
+    }
+
     private func attachSubscriptionBillingIssueSubIfNeeded() {
         guard subscriptionBillingIssueSub == nil else { return }
         RnIapLog.payload("subscriptionBillingIssueListener.register", nil)
@@ -1075,48 +1197,13 @@ class HybridRnIap: HybridRnIapSpec {
         }
     }
     
-    private func sendPurchaseUpdate(_ purchase: NitroPurchase) {
-        let originalTxId: String
-        if case .second(let val) = purchase.originalTransactionIdentifierIOS { originalTxId = val } else { originalTxId = "" }
-        let purchaseTokenStr: String
-        if case .second(let val) = purchase.purchaseToken { purchaseTokenStr = val } else { purchaseTokenStr = "" }
-        let keyComponents: [String] = [
-            purchase.id,
-            purchase.productId,
-            String(purchase.transactionDate),
-            originalTxId,
-            purchaseTokenStr
-        ]
-        let eventKey = keyComponents.joined(separator: "#")
-
-        var isDuplicate = false
+    private func sendPurchaseUpdate(_ purchase: NitroPurchase, includeDuplicateListeners: Bool) {
         let snapshot: [(NitroPurchase) -> Void] = listenerLock.withLock {
-            if deliveredPurchaseEventKeys.contains(eventKey) {
-                isDuplicate = true
-                return []
+            if includeDuplicateListeners {
+                return purchaseUpdatedDuplicateListeners.map(\.listener)
             }
 
-            deliveredPurchaseEventKeys.insert(eventKey)
-            deliveredPurchaseEventOrder.append(eventKey)
-            if deliveredPurchaseEventOrder.count > purchaseEventDedupLimit, let removed = deliveredPurchaseEventOrder.first {
-                deliveredPurchaseEventOrder.removeFirst()
-                deliveredPurchaseEventKeys.remove(removed)
-            }
-
-            return Array(purchaseUpdatedListeners)
-        }
-
-        if isDuplicate {
-            RnIapLog.warn("Duplicate purchase update skipped for \(purchase.productId)")
-            let error = NitroPurchaseResult(
-                responseCode: -1,
-                debugMessage: nil,
-                code: HybridRnIap.duplicatePurchaseCode,
-                message: "Duplicate purchase update skipped for \(purchase.productId). Use restorePurchases or getAvailablePurchases to recover.",
-                purchaseToken: nil
-            )
-            sendPurchaseError(error, productId: purchase.productId)
-            return
+            return purchaseUpdatedListeners.map(\.listener)
         }
 
         for listener in snapshot {
@@ -1178,6 +1265,10 @@ class HybridRnIap: HybridRnIapSpec {
             RnIapLog.payload("removeListener", "purchaseUpdated")
             OpenIapModule.shared.removeListener(sub)
         }
+        if let sub = purchaseUpdatedDuplicateSub {
+            RnIapLog.payload("removeListener", "purchaseUpdatedDuplicate")
+            OpenIapModule.shared.removeListener(sub)
+        }
         if let sub = purchaseErrorSub {
             RnIapLog.payload("removeListener", "purchaseError")
             OpenIapModule.shared.removeListener(sub)
@@ -1191,6 +1282,7 @@ class HybridRnIap: HybridRnIapSpec {
             OpenIapModule.shared.removeListener(sub)
         }
         purchaseUpdatedSub = nil
+        purchaseUpdatedDuplicateSub = nil
         purchaseErrorSub = nil
         promotedProductSub = nil
         subscriptionBillingIssueSub = nil
@@ -1203,13 +1295,14 @@ class HybridRnIap: HybridRnIapSpec {
         // Clear event listeners, error dedup state, and delivery state (thread-safe)
         listenerLock.withLock {
             purchaseUpdatedListeners.removeAll()
+            purchaseUpdatedDuplicateListeners.removeAll()
+            purchaseUpdatedListenerRegistrations.removeAll()
+            nextPurchaseUpdatedListenerToken = 1
             purchaseErrorListeners.removeAll()
             promotedProductListeners.removeAll()
             subscriptionBillingIssueListeners.removeAll()
             lastPurchaseErrorKey = nil
             lastPurchaseErrorTimestamp = 0
-            deliveredPurchaseEventKeys.removeAll()
-            deliveredPurchaseEventOrder.removeAll()
         }
         // Clear purchasePayloadById on MainActor to match its access pattern
         Task { @MainActor in

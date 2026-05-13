@@ -30,6 +30,7 @@ import type {
   ProductSubscription,
   Purchase,
   PurchaseOptions,
+  PurchaseUpdatedListenerOptions,
   QueryField,
   RequestPurchasePropsByPlatforms,
   RequestPurchaseAndroidProps,
@@ -94,17 +95,119 @@ type ExpoIapEmitter = {
   ): void;
 };
 
+type NativePurchaseUpdatedOptionsModule = {
+  setPurchaseUpdatedListenerOptions?: (
+    options?: PurchaseUpdatedListenerOptions | null,
+  ) => Promise<void>;
+};
+
 // Use the raw native module for listener calls — JSI HostObjects require the
 // real native module as `this` when calling addListener. Using a Proxy as
 // `this` triggers "native state unsupported on Proxy" on New Architecture / Hermes.
 // Resolved lazily so importing this module doesn't throw on unsupported platforms.
 export const emitter: ExpoIapEmitter = {
   addListener(eventName, listener) {
-    return getNativeModule().addListener(eventName, listener);
+    const nativeModule = getNativeModule();
+    const nativeSubscription = nativeModule.addListener(eventName, listener);
+    let removed = false;
+
+    return {
+      remove: () => {
+        if (removed) {
+          return;
+        }
+        removed = true;
+
+        if (typeof nativeSubscription?.remove === 'function') {
+          nativeSubscription.remove();
+          return;
+        }
+
+        nativeModule.removeListener?.(eventName, listener);
+      },
+    };
   },
   removeListener(eventName, listener) {
-    return getNativeModule().removeListener(eventName, listener);
+    return getNativeModule().removeListener?.(eventName, listener);
   },
+};
+
+let nonDedupingPurchaseUpdatedListenerCountIOS = 0;
+const purchaseUpdatedDedupeHistoryLimitIOS = 512;
+const purchaseUpdatedDedupeHistoryIOS = {
+  ids: new Set<string>(),
+  order: [] as string[],
+  start: 0,
+};
+let purchaseUpdatedDedupeGenerationIOS = 0;
+
+type PurchaseUpdatedDedupeHistoryIOS = {
+  ids: Set<string>;
+  order: string[];
+  start: number;
+};
+
+const purchaseUpdatedTransactionIdIOS = (purchase: Purchase) => {
+  if (typeof purchase.id === 'string' && purchase.id.length > 0) {
+    return purchase.id;
+  }
+  return null;
+};
+
+const rememberPurchaseUpdatedTransactionIOS = (
+  transactionId: string,
+  history: PurchaseUpdatedDedupeHistoryIOS,
+) => {
+  if (history.ids.has(transactionId)) {
+    return;
+  }
+
+  history.ids.add(transactionId);
+  history.order.push(transactionId);
+  if (
+    history.order.length - history.start >
+    purchaseUpdatedDedupeHistoryLimitIOS
+  ) {
+    const evicted = history.order[history.start];
+    history.start += 1;
+    if (evicted != null) {
+      history.ids.delete(evicted);
+    }
+    if (history.start > 128 && history.start * 2 > history.order.length) {
+      history.order = history.order.slice(history.start);
+      history.start = 0;
+    }
+  }
+};
+
+const clearPurchaseUpdatedDedupeHistoryIOS = (
+  history: PurchaseUpdatedDedupeHistoryIOS,
+) => {
+  history.ids.clear();
+  history.order.length = 0;
+  history.start = 0;
+};
+
+const resetPurchaseUpdatedDedupeHistoryIOS = () => {
+  clearPurchaseUpdatedDedupeHistoryIOS(purchaseUpdatedDedupeHistoryIOS);
+  purchaseUpdatedDedupeGenerationIOS += 1;
+};
+
+const configurePurchaseUpdatedListenerOptionsIOS = (
+  dedupeTransactionIOS: boolean,
+) => {
+  if (Platform.OS !== 'ios') return;
+
+  const nativeModule = getNativeModule() as NativePurchaseUpdatedOptionsModule;
+  const promise = nativeModule.setPurchaseUpdatedListenerOptions?.({
+    dedupeTransactionIOS,
+  });
+  void promise?.catch((error: unknown) => {
+    ExpoIapConsole.warn(
+      'Failed to configure purchase updated listener options:',
+      error,
+    );
+  });
 };
 
 /**
@@ -159,16 +262,77 @@ const normalizePurchaseArray = (purchases: Purchase[]): Purchase[] =>
 
 export const purchaseUpdatedListener = (
   listener: (event: Purchase) => void,
+  options?: PurchaseUpdatedListenerOptions | null,
 ) => {
+  const receiveDuplicateTransactionUpdatesIOS =
+    Platform.OS === 'ios' && options?.dedupeTransactionIOS === false;
+  const listenerDedupeHistoryIOS: PurchaseUpdatedDedupeHistoryIOS = {
+    ids: new Set(purchaseUpdatedDedupeHistoryIOS.ids),
+    order: purchaseUpdatedDedupeHistoryIOS.order.slice(
+      purchaseUpdatedDedupeHistoryIOS.start,
+    ),
+    start: 0,
+  };
+  let listenerDedupeGenerationIOS = purchaseUpdatedDedupeGenerationIOS;
+
   const wrappedListener = (event: Purchase) => {
     const normalized = normalizePurchasePlatform(event);
+    if (Platform.OS === 'ios') {
+      if (listenerDedupeGenerationIOS !== purchaseUpdatedDedupeGenerationIOS) {
+        clearPurchaseUpdatedDedupeHistoryIOS(listenerDedupeHistoryIOS);
+        listenerDedupeGenerationIOS = purchaseUpdatedDedupeGenerationIOS;
+      }
+      const transactionId = purchaseUpdatedTransactionIdIOS(normalized);
+      if (transactionId != null) {
+        const isDuplicateForListener =
+          listenerDedupeHistoryIOS.ids.has(transactionId);
+        rememberPurchaseUpdatedTransactionIOS(
+          transactionId,
+          listenerDedupeHistoryIOS,
+        );
+        rememberPurchaseUpdatedTransactionIOS(
+          transactionId,
+          purchaseUpdatedDedupeHistoryIOS,
+        );
+        if (!receiveDuplicateTransactionUpdatesIOS && isDuplicateForListener) {
+          return;
+        }
+      }
+    }
     listener(normalized);
   };
   const emitterSubscription = emitter.addListener(
     OpenIapEvent.PurchaseUpdated,
     wrappedListener,
   );
-  return emitterSubscription;
+
+  if (!receiveDuplicateTransactionUpdatesIOS) {
+    return emitterSubscription;
+  }
+
+  nonDedupingPurchaseUpdatedListenerCountIOS += 1;
+  configurePurchaseUpdatedListenerOptionsIOS(false);
+  let removed = false;
+
+  return {
+    remove: () => {
+      if (removed) {
+        return;
+      }
+      removed = true;
+      try {
+        emitterSubscription?.remove?.();
+      } finally {
+        nonDedupingPurchaseUpdatedListenerCountIOS = Math.max(
+          0,
+          nonDedupingPurchaseUpdatedListenerCountIOS - 1,
+        );
+        configurePurchaseUpdatedListenerOptionsIOS(
+          nonDedupingPurchaseUpdatedListenerCountIOS === 0,
+        );
+      }
+    },
+  };
 };
 
 export const purchaseErrorListener = (
@@ -402,16 +566,30 @@ export const subscriptionBillingIssueListener = (
  *
  * @see {@link https://www.openiap.dev/docs/apis/init-connection}
  */
-export const initConnection: MutationField<'initConnection'> = async (config) =>
-  ExpoIapModule.initConnection(config ?? null);
+export const initConnection: MutationField<'initConnection'> = async (config) => {
+  const result = await ExpoIapModule.initConnection(config ?? null);
+  if (
+    result === true &&
+    Platform.OS === 'ios' &&
+    nonDedupingPurchaseUpdatedListenerCountIOS > 0
+  ) {
+    configurePurchaseUpdatedListenerOptionsIOS(false);
+  }
+  return result;
+};
 
 /**
  * Close the store connection and release resources.
  *
  * @see {@link https://www.openiap.dev/docs/apis/end-connection}
  */
-export const endConnection: MutationField<'endConnection'> = async () =>
-  ExpoIapModule.endConnection();
+export const endConnection: MutationField<'endConnection'> = async () => {
+  const result = await ExpoIapModule.endConnection();
+  if (result === true && Platform.OS === 'ios') {
+    resetPurchaseUpdatedDedupeHistoryIOS();
+  }
+  return result;
+};
 
 /**
  * Retrieve products or subscriptions from the store by SKU.
@@ -1099,10 +1277,7 @@ export type {
   UseWebhookEventsOptions,
   UseWebhookEventsResult,
 } from './useWebhookEvents';
-export {
-  connectWebhookStream,
-  parseWebhookEventData,
-} from './webhook-client';
+export {connectWebhookStream, parseWebhookEventData} from './webhook-client';
 export type {
   WebhookEventPayload,
   WebhookEventStream,
