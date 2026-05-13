@@ -22,6 +22,9 @@ final class IapException: GenericException<(code: String, message: String, produ
 enum ExpoIapHelper {
     // Disambiguate Subscription type to the one provided by OpenIAP
     private static var listeners: [OpenIAP.Subscription] = []
+    private static var purchaseUpdatedSub: OpenIAP.Subscription?
+    private static var purchaseUpdatedHandler: ((Purchase) -> Void)?
+    private static var purchaseUpdatedOptions = PurchaseUpdatedListenerOptions()
 
     static func sanitizeDictionary(_ dictionary: [String: Any?]) -> [String: Any] {
         var result: [String: Any] = [:]
@@ -128,7 +131,6 @@ enum ExpoIapHelper {
     static func setupListeners(
         module: ExpoIapModule,
         purchaseUpdated: @escaping (Purchase) -> Void,
-        purchaseUpdatedDuplicatesIOS: @escaping (Purchase) -> Void,
         purchaseError: @escaping (PurchaseError) -> Void,
         promotedProduct: @escaping (String) async -> Void,
         subscriptionBillingIssue: @escaping (Purchase) -> Void
@@ -136,20 +138,8 @@ enum ExpoIapHelper {
         // Clean up any existing listeners first
         cleanupListeners()
 
-        let purchaseUpdatedSub = OpenIapModule.shared.purchaseUpdatedListener { purchase in
-            Task { @MainActor in
-                purchaseUpdated(purchase)
-            }
-        }
-
-        let duplicateOptions = PurchaseUpdatedListenerOptions(
-            includeDuplicateTransactionUpdatesIOS: true
-        )
-        let purchaseUpdatedDuplicatesSub = OpenIapModule.shared.purchaseUpdatedListener({ purchase in
-            Task { @MainActor in
-                purchaseUpdatedDuplicatesIOS(purchase)
-            }
-        }, options: duplicateOptions)
+        purchaseUpdatedHandler = purchaseUpdated
+        attachPurchaseUpdatedListener()
 
         let purchaseErrorSub = OpenIapModule.shared.purchaseErrorListener { error in
             Task { @MainActor in
@@ -170,18 +160,43 @@ enum ExpoIapHelper {
         }
 
         listeners = [
-            purchaseUpdatedSub,
-            purchaseUpdatedDuplicatesSub,
             purchaseErrorSub,
             promotedProductSub,
             billingIssueSub,
         ]
     }
 
+    static func setPurchaseUpdatedListenerOptions(_ options: PurchaseUpdatedListenerOptions?) {
+        purchaseUpdatedOptions = options ?? PurchaseUpdatedListenerOptions()
+        guard purchaseUpdatedHandler != nil else { return }
+        if let purchaseUpdatedSub {
+            OpenIapModule.shared.removeListener(purchaseUpdatedSub)
+            self.purchaseUpdatedSub = nil
+        }
+        attachPurchaseUpdatedListener()
+    }
+
+    private static func attachPurchaseUpdatedListener() {
+        guard let purchaseUpdatedHandler, purchaseUpdatedSub == nil else { return }
+
+        purchaseUpdatedSub = OpenIapModule.shared.purchaseUpdatedListener({ purchase in
+            Task { @MainActor in
+                purchaseUpdatedHandler(purchase)
+            }
+        }, options: purchaseUpdatedOptions)
+    }
+
     static func cleanupListeners() {
-        // Clear subscriptions to prevent memory leaks
-        // Subscription deinit will automatically call onRemove closure
+        if let purchaseUpdatedSub {
+            OpenIapModule.shared.removeListener(purchaseUpdatedSub)
+            self.purchaseUpdatedSub = nil
+        }
+        for subscription in listeners {
+            OpenIapModule.shared.removeListener(subscription)
+        }
         listeners.removeAll()
+        purchaseUpdatedHandler = nil
+        purchaseUpdatedOptions = PurchaseUpdatedListenerOptions()
     }
 
     static func setupStore(module: ExpoIapModule) {
@@ -191,11 +206,6 @@ enum ExpoIapHelper {
                 guard let module else { return }
                 let payload = sanitizeDictionary(OpenIapSerialization.purchase(purchase))
                 module.sendEvent(OpenIapEvent.purchaseUpdated.rawValue, payload)
-            },
-            purchaseUpdatedDuplicatesIOS: { [weak module] purchase in
-                guard let module else { return }
-                let payload = sanitizeDictionary(OpenIapSerialization.purchase(purchase))
-                module.sendEvent("purchase-updated-duplicates-ios", payload)
             },
             purchaseError: { [weak module] error in
                 guard let module else { return }

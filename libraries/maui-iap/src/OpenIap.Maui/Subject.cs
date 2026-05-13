@@ -71,3 +71,30 @@ internal sealed class Subject<T> : IObservable<T>
         }
     }
 }
+
+internal sealed class DelegateObservable<T> : IObservable<T>
+{
+    private readonly Func<IObserver<T>, IDisposable> _subscribe;
+
+    public DelegateObservable(Func<IObserver<T>, IDisposable> subscribe)
+    {
+        _subscribe = subscribe ?? throw new ArgumentNullException(nameof(subscribe));
+    }
+
+    public IDisposable Subscribe(IObserver<T> observer) => _subscribe(observer);
+}
+
+internal sealed class DisposableAction : IDisposable
+{
+    private Action? _dispose;
+
+    public DisposableAction(Action dispose)
+    {
+        _dispose = dispose ?? throw new ArgumentNullException(nameof(dispose));
+    }
+
+    public void Dispose()
+    {
+        Interlocked.Exchange(ref _dispose, null)?.Invoke();
+    }
+}

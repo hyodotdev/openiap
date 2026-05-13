@@ -23,10 +23,6 @@ class HybridRnIap: HybridRnIapSpec {
     private var subscriptionBillingIssueSub: Subscription?
     private var lastPurchaseErrorKey: String? = nil
     private var lastPurchaseErrorTimestamp: TimeInterval = 0
-    private var deliveredPurchaseEventKeys: Set<String> = []
-    private var deliveredPurchaseEventOrder: [String] = []
-    private let purchaseEventDedupLimit = 128
-    private static let duplicatePurchaseCode = "duplicate-purchase"
     private var purchasePayloadById: [String: [String: Any]] = [:]
     // Thread safety lock for listener arrays and error dedup state
     private let listenerLock = NSLock()
@@ -1131,51 +1127,12 @@ class HybridRnIap: HybridRnIapSpec {
     }
     
     private func sendPurchaseUpdate(_ purchase: NitroPurchase, includeDuplicateListeners: Bool) {
-        let originalTxId: String
-        if case .second(let val) = purchase.originalTransactionIdentifierIOS { originalTxId = val } else { originalTxId = "" }
-        let purchaseTokenStr: String
-        if case .second(let val) = purchase.purchaseToken { purchaseTokenStr = val } else { purchaseTokenStr = "" }
-        let keyComponents: [String] = [
-            purchase.id,
-            purchase.productId,
-            String(purchase.transactionDate),
-            originalTxId,
-            purchaseTokenStr
-        ]
-        let eventKey = keyComponents.joined(separator: "#")
-
-        var isDuplicate = false
         let snapshot: [(NitroPurchase) -> Void] = listenerLock.withLock {
             if includeDuplicateListeners {
                 return Array(purchaseUpdatedDuplicateListeners)
             }
 
-            if deliveredPurchaseEventKeys.contains(eventKey) {
-                isDuplicate = true
-                return []
-            }
-
-            deliveredPurchaseEventKeys.insert(eventKey)
-            deliveredPurchaseEventOrder.append(eventKey)
-            if deliveredPurchaseEventOrder.count > purchaseEventDedupLimit, let removed = deliveredPurchaseEventOrder.first {
-                deliveredPurchaseEventOrder.removeFirst()
-                deliveredPurchaseEventKeys.remove(removed)
-            }
-
             return Array(purchaseUpdatedListeners)
-        }
-
-        if isDuplicate {
-            RnIapLog.warn("Duplicate purchase update skipped for \(purchase.productId)")
-            let error = NitroPurchaseResult(
-                responseCode: -1,
-                debugMessage: nil,
-                code: HybridRnIap.duplicatePurchaseCode,
-                message: "Duplicate purchase update skipped for \(purchase.productId). Use restorePurchases or getAvailablePurchases to recover.",
-                purchaseToken: nil
-            )
-            sendPurchaseError(error, productId: purchase.productId)
-            return
         }
 
         for listener in snapshot {
@@ -1237,6 +1194,10 @@ class HybridRnIap: HybridRnIapSpec {
             RnIapLog.payload("removeListener", "purchaseUpdated")
             OpenIapModule.shared.removeListener(sub)
         }
+        if let sub = purchaseUpdatedDuplicateSub {
+            RnIapLog.payload("removeListener", "purchaseUpdatedDuplicate")
+            OpenIapModule.shared.removeListener(sub)
+        }
         if let sub = purchaseErrorSub {
             RnIapLog.payload("removeListener", "purchaseError")
             OpenIapModule.shared.removeListener(sub)
@@ -1250,6 +1211,7 @@ class HybridRnIap: HybridRnIapSpec {
             OpenIapModule.shared.removeListener(sub)
         }
         purchaseUpdatedSub = nil
+        purchaseUpdatedDuplicateSub = nil
         purchaseErrorSub = nil
         promotedProductSub = nil
         subscriptionBillingIssueSub = nil
@@ -1268,8 +1230,6 @@ class HybridRnIap: HybridRnIapSpec {
             subscriptionBillingIssueListeners.removeAll()
             lastPurchaseErrorKey = nil
             lastPurchaseErrorTimestamp = 0
-            deliveredPurchaseEventKeys.removeAll()
-            deliveredPurchaseEventOrder.removeAll()
         }
         // Clear purchasePayloadById on MainActor to match its access pattern
         Task { @MainActor in

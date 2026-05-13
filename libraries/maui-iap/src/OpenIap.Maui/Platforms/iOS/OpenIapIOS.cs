@@ -39,18 +39,15 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
     private readonly OpenIapModule _module = OpenIapModule.SharedInstance();
 
     private readonly Subject<Purchase> _purchaseUpdated = new();
-    private readonly Subject<Purchase> _purchaseUpdatedDuplicate = new();
     private readonly Subject<PurchaseError> _purchaseError = new();
     private readonly Subject<string> _promotedProductIOS = new();
     private readonly Subject<Purchase> _subscriptionBillingIssue = new();
 
     private NSObject? _purchaseUpdatedToken;
-    private NSObject? _purchaseUpdatedDuplicateToken;
     private NSObject? _purchaseErrorToken;
     private NSObject? _promotedProductToken;
     private NSObject? _billingIssueToken;
     private readonly Action<NSDictionary> _purchaseUpdatedCallback;
-    private readonly Action<NSDictionary> _purchaseUpdatedDuplicateCallback;
     private readonly Action<NSDictionary> _purchaseErrorCallback;
     private readonly Action<NSString?> _promotedProductCallback;
     private readonly Action<NSDictionary> _billingIssueCallback;
@@ -71,21 +68,6 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
             catch (Exception ex)
             {
                 Console.WriteLine($"[OpenIapIOS] purchaseUpdated listener failed: {ex.Message}");
-            }
-        };
-
-        _purchaseUpdatedDuplicateCallback = dict =>
-        {
-            try
-            {
-                var node = NSObjectJsonBridge.DictToObject(dict);
-                if (node is null) return;
-                var p = node.Deserialize<Purchase>(JsonOptions.Default);
-                if (p is not null) _purchaseUpdatedDuplicate.OnNext(p);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[OpenIapIOS] duplicate purchaseUpdated listener failed: {ex.Message}");
             }
         };
 
@@ -136,13 +118,50 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
     public IObservable<Purchase> PurchaseUpdated => _purchaseUpdated;
     public IObservable<Purchase> PurchaseUpdatedWithOptions(PurchaseUpdatedListenerOptions? options = null) =>
         options?.IncludeDuplicateTransactionUpdatesIOS == true
-            ? _purchaseUpdatedDuplicate
+            ? CreatePurchaseUpdatedObservable(includeDuplicateTransactionUpdatesIOS: true)
             : _purchaseUpdated;
     public IObservable<PurchaseError> PurchaseError => _purchaseError;
     public IObservable<string> PromotedProductIOS => _promotedProductIOS;
     public IObservable<Purchase> SubscriptionBillingIssue => _subscriptionBillingIssue;
     public IObservable<UserChoiceBillingDetails> UserChoiceBillingAndroid => EmptyObservable<UserChoiceBillingDetails>.Instance;
     public IObservable<DeveloperProvidedBillingDetailsAndroid> DeveloperProvidedBillingAndroid => EmptyObservable<DeveloperProvidedBillingDetailsAndroid>.Instance;
+
+    private IObservable<Purchase> CreatePurchaseUpdatedObservable(bool includeDuplicateTransactionUpdatesIOS)
+    {
+        return new DelegateObservable<Purchase>(observer =>
+        {
+            if (observer is null) throw new ArgumentNullException(nameof(observer));
+            Action<NSDictionary> callback = dict =>
+            {
+                try
+                {
+                    var node = NSObjectJsonBridge.DictToObject(dict);
+                    if (node is null) return;
+                    var p = node.Deserialize<Purchase>(JsonOptions.Default);
+                    if (p is not null) observer.OnNext(p);
+                }
+                catch (Exception ex)
+                {
+                    observer.OnError(ex);
+                }
+            };
+
+            NSObject token;
+            lock (_listenerLock)
+            {
+                if (_disposed) throw new ObjectDisposedException(nameof(OpenIapIOS));
+                token = _module.AddPurchaseUpdatedListener(
+                    callback,
+                    includeDuplicateTransactionUpdatesIOS);
+            }
+
+            return new DisposableAction(() =>
+            {
+                RemoveListener(token, nameof(PurchaseUpdatedWithOptions));
+                GC.KeepAlive(callback);
+            });
+        });
+    }
 
     private void WireListeners()
     {
@@ -156,9 +175,6 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
             // can never escape into mono's native unwind path — that path has no
             // managed handler and aborts the process with SIGABRT.
             _purchaseUpdatedToken = _module.AddPurchaseUpdatedListener(_purchaseUpdatedCallback);
-            _purchaseUpdatedDuplicateToken = _module.AddPurchaseUpdatedListener(
-                _purchaseUpdatedDuplicateCallback,
-                includeDuplicateTransactionUpdatesIOS: true);
             _purchaseErrorToken = _module.AddPurchaseErrorListener(_purchaseErrorCallback);
             _promotedProductToken = _module.AddPromotedProductListener(_promotedProductCallback);
             _billingIssueToken = _module.AddSubscriptionBillingIssueListener(_billingIssueCallback);
@@ -168,7 +184,6 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
     public void Dispose()
     {
         NSObject? purchaseUpdatedToken;
-        NSObject? purchaseUpdatedDuplicateToken;
         NSObject? purchaseErrorToken;
         NSObject? promotedProductToken;
         NSObject? billingIssueToken;
@@ -179,20 +194,17 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
             _disposed = true;
 
             purchaseUpdatedToken = _purchaseUpdatedToken;
-            purchaseUpdatedDuplicateToken = _purchaseUpdatedDuplicateToken;
             purchaseErrorToken = _purchaseErrorToken;
             promotedProductToken = _promotedProductToken;
             billingIssueToken = _billingIssueToken;
 
             _purchaseUpdatedToken = null;
-            _purchaseUpdatedDuplicateToken = null;
             _purchaseErrorToken = null;
             _promotedProductToken = null;
             _billingIssueToken = null;
         }
 
         RemoveListener(purchaseUpdatedToken, nameof(_purchaseUpdatedToken));
-        RemoveListener(purchaseUpdatedDuplicateToken, nameof(_purchaseUpdatedDuplicateToken));
         RemoveListener(purchaseErrorToken, nameof(_purchaseErrorToken));
         RemoveListener(promotedProductToken, nameof(_promotedProductToken));
         RemoveListener(billingIssueToken, nameof(_billingIssueToken));

@@ -73,12 +73,17 @@ describe('Public API (index.ts)', () => {
 
     it('registers duplicate-enabled purchase updated listener on iOS', () => {
       const addListener = (ExpoIapModule as any).addListener as jest.Mock;
+      const setOptions = (ExpoIapModule as any)
+        .setPurchaseUpdatedListenerOptions as jest.Mock;
       const fn = jest.fn();
       purchaseUpdatedListener(fn, {
         includeDuplicateTransactionUpdatesIOS: true,
       });
+      expect(setOptions).toHaveBeenCalledWith({
+        includeDuplicateTransactionUpdatesIOS: true,
+      });
       expect(addListener).toHaveBeenCalledWith(
-        OpenIapEvent.PurchaseUpdatedDuplicateIOS,
+        OpenIapEvent.PurchaseUpdated,
         expect.any(Function),
       );
     });

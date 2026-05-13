@@ -54,8 +54,8 @@ function Releases() {
             can replay the same unfinished transaction through request and
             transaction-update paths during a single connection session. The
             default listener behavior remains entitlement-safe: one purchase
-            success event per iOS transaction ID. Diagnostics can opt into the
-            StoreKit replay stream explicitly. Track the fix in{' '}
+            success event per iOS transaction ID. Diagnostics can opt into
+            StoreKit replay events explicitly. Track the fix in{' '}
             <a
               href="https://github.com/hyodotdev/openiap/issues/152"
               target="_blank"

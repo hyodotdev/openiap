@@ -4,10 +4,12 @@ import io.github.hyochan.kmpiap.openiap.*
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.first
 import platform.Foundation.*
 import cocoapods.openiap.*
@@ -29,19 +31,20 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     )
     override val purchaseUpdatedListener: Flow<Purchase> = _purchaseUpdatedFlow.asSharedFlow()
 
-    private val _purchaseUpdatedDuplicateFlow = MutableSharedFlow<Purchase>(
-        replay = 0,
-        extraBufferCapacity = 64,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
-    )
-    private val purchaseUpdatedDuplicateListener: Flow<Purchase> =
-        _purchaseUpdatedDuplicateFlow.asSharedFlow()
-
     override fun purchaseUpdatedListener(options: PurchaseUpdatedListenerOptions?): Flow<Purchase> {
-        return if (options?.includeDuplicateTransactionUpdatesIOS == true) {
-            purchaseUpdatedDuplicateListener
-        } else {
-            purchaseUpdatedListener
+        if (options?.includeDuplicateTransactionUpdatesIOS != true) {
+            return purchaseUpdatedListener
+        }
+
+        return callbackFlow {
+            val subscription = openIapModule.addPurchaseUpdatedListener(
+                { dictionary ->
+                    println("[KMP-IAP iOS] Purchase updated received with options: $dictionary")
+                    convertAnyToPurchase(dictionary)?.let { trySend(it) }
+                },
+                true
+            )
+            awaitClose { openIapModule.removeListener(subscription) }
         }
     }
 
@@ -75,7 +78,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
 
     // Listener subscriptions
     private var purchaseSubscription: NSObject? = null
-    private var purchaseDuplicateSubscription: NSObject? = null
     private var errorSubscription: NSObject? = null
     private var promotedProductSubscription: NSObject? = null
     private var subscriptionBillingIssueSubscription: NSObject? = null
@@ -100,19 +102,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 }
             }
         }
-
-        purchaseDuplicateSubscription = openIapModule.addPurchaseUpdatedListener(
-            { dictionary ->
-                println("[KMP-IAP iOS] Duplicate-enabled purchase updated received: $dictionary")
-                val purchase = convertAnyToPurchase(dictionary)
-                if (purchase != null) {
-                    coroutineScope.launch {
-                        _purchaseUpdatedDuplicateFlow.emit(purchase)
-                    }
-                }
-            },
-            true
-        )
 
         // Purchase error listener
         errorSubscription = openIapModule.addPurchaseErrorListener { dictionary ->
@@ -202,8 +191,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         // can freshly re-register without orphaning the previous subscriptions.
         purchaseSubscription?.let { openIapModule.removeListener(it) }
         purchaseSubscription = null
-        purchaseDuplicateSubscription?.let { openIapModule.removeListener(it) }
-        purchaseDuplicateSubscription = null
         errorSubscription?.let { openIapModule.removeListener(it) }
         errorSubscription = null
         promotedProductSubscription?.let { openIapModule.removeListener(it) }

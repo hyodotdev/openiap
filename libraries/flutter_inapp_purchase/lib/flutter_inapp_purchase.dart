@@ -89,8 +89,6 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   // Purchase event streams
   final StreamController<gentype.Purchase> _purchaseUpdatedListener =
       StreamController<gentype.Purchase>.broadcast();
-  final StreamController<gentype.Purchase> _purchaseUpdatedDuplicateListener =
-      StreamController<gentype.Purchase>.broadcast();
   final StreamController<PurchaseError> _purchaseErrorListener =
       StreamController<PurchaseError>.broadcast();
   final StreamController<gentype.UserChoiceBillingDetails>
@@ -114,10 +112,26 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   Stream<gentype.Purchase> purchaseUpdatedListenerWithOptions(
     gentype.PurchaseUpdatedListenerOptions? options,
   ) {
-    if (isIOS && options?.includeDuplicateTransactionUpdatesIOS == true) {
-      return _purchaseUpdatedDuplicateListener.stream;
+    if (isIOS) {
+      unawaited(
+        _setPurchaseUpdatedListenerOptions(options).catchError((Object error) {
+          debugPrint(
+            '[flutter_inapp_purchase] Failed to configure purchaseUpdatedListener options: $error',
+          );
+        }),
+      );
     }
     return purchaseUpdatedListener;
+  }
+
+  Future<void> _setPurchaseUpdatedListenerOptions(
+    gentype.PurchaseUpdatedListenerOptions? options,
+  ) async {
+    await _setPurchaseListener();
+    await _channel.invokeMethod<void>(
+      'setPurchaseUpdatedListenerOptions',
+      options?.toJson(),
+    );
   }
 
   /// Purchase error event stream
@@ -159,9 +173,6 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             _purchaseUpdatedListener,
             publishToLegacyStream: true,
           );
-          break;
-        case 'purchase-updated-duplicates-ios':
-          _handlePurchaseUpdatedCall(call, _purchaseUpdatedDuplicateListener);
           break;
         case 'purchase-error':
           debugPrint(
@@ -2650,13 +2661,16 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         },
         purchaseError: () async =>
             await purchaseErrorListener.first as gentype.PurchaseError,
-        purchaseUpdated: ({bool? includeDuplicateTransactionUpdatesIOS}) =>
-            purchaseUpdatedListenerWithOptions(
-          gentype.PurchaseUpdatedListenerOptions(
+        purchaseUpdated: ({bool? includeDuplicateTransactionUpdatesIOS}) async {
+          final options = gentype.PurchaseUpdatedListenerOptions(
             includeDuplicateTransactionUpdatesIOS:
                 includeDuplicateTransactionUpdatesIOS,
-          ),
-        ).first,
+          );
+          if (isIOS) {
+            await _setPurchaseUpdatedListenerOptions(options);
+          }
+          return purchaseUpdatedListener.first;
+        },
         subscriptionBillingIssue: () async =>
             await subscriptionBillingIssueListener.first,
         userChoiceBillingAndroid: () async =>

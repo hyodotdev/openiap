@@ -52,7 +52,6 @@ export * from './onside';
 // Get the native constant value
 export enum OpenIapEvent {
   PurchaseUpdated = 'purchase-updated',
-  PurchaseUpdatedDuplicateIOS = 'purchase-updated-duplicates-ios',
   PurchaseError = 'purchase-error',
   PromotedProductIOS = 'promoted-product-ios',
   UserChoiceBillingAndroid = 'user-choice-billing-android',
@@ -71,7 +70,6 @@ export enum OpenIapEvent {
 
 type ExpoIapEventPayloads = {
   [OpenIapEvent.PurchaseUpdated]: Purchase;
-  [OpenIapEvent.PurchaseUpdatedDuplicateIOS]: Purchase;
   [OpenIapEvent.PurchaseError]: PurchaseError;
   [OpenIapEvent.PromotedProductIOS]:
     | Product
@@ -97,6 +95,12 @@ type ExpoIapEmitter = {
   ): void;
 };
 
+type NativePurchaseUpdatedOptionsModule = {
+  setPurchaseUpdatedListenerOptions?: (
+    options?: PurchaseUpdatedListenerOptions | null,
+  ) => Promise<void>;
+};
+
 // Use the raw native module for listener calls — JSI HostObjects require the
 // real native module as `this` when calling addListener. Using a Proxy as
 // `this` triggers "native state unsupported on Proxy" on New Architecture / Hermes.
@@ -108,6 +112,25 @@ export const emitter: ExpoIapEmitter = {
   removeListener(eventName, listener) {
     return getNativeModule().removeListener(eventName, listener);
   },
+};
+
+let duplicatePurchaseUpdatedListenerCountIOS = 0;
+
+const configurePurchaseUpdatedListenerOptionsIOS = (
+  includeDuplicateTransactionUpdatesIOS: boolean,
+) => {
+  if (Platform.OS !== 'ios') return;
+
+  const nativeModule = getNativeModule() as NativePurchaseUpdatedOptionsModule;
+  const promise = nativeModule.setPurchaseUpdatedListenerOptions?.({
+    includeDuplicateTransactionUpdatesIOS,
+  });
+  void promise?.catch((error: unknown) => {
+    ExpoIapConsole.warn(
+      'Failed to configure purchase updated listener options:',
+      error,
+    );
+  });
 };
 
 /**
@@ -164,16 +187,40 @@ export const purchaseUpdatedListener = (
   listener: (event: Purchase) => void,
   options?: PurchaseUpdatedListenerOptions | null,
 ) => {
+  const includeDuplicateTransactionUpdatesIOS =
+    Platform.OS === 'ios' &&
+    options?.includeDuplicateTransactionUpdatesIOS === true;
+
+  if (includeDuplicateTransactionUpdatesIOS) {
+    duplicatePurchaseUpdatedListenerCountIOS += 1;
+    configurePurchaseUpdatedListenerOptionsIOS(true);
+  }
+
   const wrappedListener = (event: Purchase) => {
     const normalized = normalizePurchasePlatform(event);
     listener(normalized);
   };
-  const eventName =
-    Platform.OS === 'ios' && options?.includeDuplicateTransactionUpdatesIOS
-      ? OpenIapEvent.PurchaseUpdatedDuplicateIOS
-      : OpenIapEvent.PurchaseUpdated;
-  const emitterSubscription = emitter.addListener(eventName, wrappedListener);
-  return emitterSubscription;
+  const emitterSubscription = emitter.addListener(
+    OpenIapEvent.PurchaseUpdated,
+    wrappedListener,
+  );
+
+  if (!includeDuplicateTransactionUpdatesIOS) {
+    return emitterSubscription;
+  }
+
+  return {
+    remove: () => {
+      emitterSubscription?.remove?.();
+      duplicatePurchaseUpdatedListenerCountIOS = Math.max(
+        0,
+        duplicatePurchaseUpdatedListenerCountIOS - 1,
+      );
+      configurePurchaseUpdatedListenerOptionsIOS(
+        duplicatePurchaseUpdatedListenerCountIOS > 0,
+      );
+    },
+  };
 };
 
 export const purchaseErrorListener = (

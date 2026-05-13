@@ -20,7 +20,6 @@ public final class ExpoIapModule: Module {
 
         Events(
             OpenIapEvent.purchaseUpdated.rawValue,
-            "purchase-updated-duplicates-ios",
             OpenIapEvent.purchaseError.rawValue,
             OpenIapEvent.promotedProductIos.rawValue,
             OpenIapEvent.subscriptionBillingIssue.rawValue
@@ -50,6 +49,14 @@ public final class ExpoIapModule: Module {
             let succeeded = try await OpenIapModule.shared.endConnection()
             await MainActor.run { self.isInitialized = false }
             return succeeded
+        }
+
+        AsyncFunction("setPurchaseUpdatedListenerOptions") { (options: [String: Any]?) async throws -> Void in
+            let listenerOptions = PurchaseUpdatedListenerOptions(
+                includeDuplicateTransactionUpdatesIOS:
+                    options?["includeDuplicateTransactionUpdatesIOS"] as? Bool
+            )
+            ExpoIapHelper.setPurchaseUpdatedListenerOptions(listenerOptions)
         }
 
         AsyncFunction("fetchProducts") { (params: [String: Any]) async throws -> [[String: Any]] in
