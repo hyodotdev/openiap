@@ -128,6 +128,7 @@ enum ExpoIapHelper {
     static func setupListeners(
         module: ExpoIapModule,
         purchaseUpdated: @escaping (Purchase) -> Void,
+        purchaseUpdatedDuplicatesIOS: @escaping (Purchase) -> Void,
         purchaseError: @escaping (PurchaseError) -> Void,
         promotedProduct: @escaping (String) async -> Void,
         subscriptionBillingIssue: @escaping (Purchase) -> Void
@@ -140,6 +141,15 @@ enum ExpoIapHelper {
                 purchaseUpdated(purchase)
             }
         }
+
+        let duplicateOptions = PurchaseUpdatedListenerOptions(
+            includeDuplicateTransactionUpdatesIOS: true
+        )
+        let purchaseUpdatedDuplicatesSub = OpenIapModule.shared.purchaseUpdatedListener({ purchase in
+            Task { @MainActor in
+                purchaseUpdatedDuplicatesIOS(purchase)
+            }
+        }, options: duplicateOptions)
 
         let purchaseErrorSub = OpenIapModule.shared.purchaseErrorListener { error in
             Task { @MainActor in
@@ -159,7 +169,13 @@ enum ExpoIapHelper {
             }
         }
 
-        listeners = [purchaseUpdatedSub, purchaseErrorSub, promotedProductSub, billingIssueSub]
+        listeners = [
+            purchaseUpdatedSub,
+            purchaseUpdatedDuplicatesSub,
+            purchaseErrorSub,
+            promotedProductSub,
+            billingIssueSub,
+        ]
     }
 
     static func cleanupListeners() {
@@ -175,6 +191,11 @@ enum ExpoIapHelper {
                 guard let module else { return }
                 let payload = sanitizeDictionary(OpenIapSerialization.purchase(purchase))
                 module.sendEvent(OpenIapEvent.purchaseUpdated.rawValue, payload)
+            },
+            purchaseUpdatedDuplicatesIOS: { [weak module] purchase in
+                guard let module else { return }
+                let payload = sanitizeDictionary(OpenIapSerialization.purchase(purchase))
+                module.sendEvent("purchase-updated-duplicates-ios", payload)
             },
             purchaseError: { [weak module] error in
                 guard let module else { return }

@@ -33,15 +33,26 @@ private struct PurchaseUpdateEmissionHistory {
 }
 
 @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
+private struct PurchaseUpdatedListenerRegistration {
+    let id: UUID
+    let listener: PurchaseUpdatedListener
+    let includeDuplicateTransactionUpdatesIOS: Bool
+}
+
+@available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
 actor IapState {
+    private static let purchaseUpdateEmissionHistoryLimit = 512
+
     private(set) var isInitialized: Bool = false
     private var pendingTransactions: [String: Transaction] = [:]
-    private var purchaseUpdateEmissionHistory = PurchaseUpdateEmissionHistory(limit: 512)
+    private var purchaseUpdateEmissionHistory = PurchaseUpdateEmissionHistory(
+        limit: purchaseUpdateEmissionHistoryLimit
+    )
     private var promotedProductId: String?
     private var pendingPromotedProductReplayId: String?
 
     // Event listeners
-    private var purchaseUpdatedListeners: [(id: UUID, listener: PurchaseUpdatedListener)] = []
+    private var purchaseUpdatedListeners: [PurchaseUpdatedListenerRegistration] = []
     private var purchaseErrorListeners: [(id: UUID, listener: PurchaseErrorListener)] = []
     private var promotedProductListeners: [(id: UUID, listener: PromotedProductListener)] = []
     private var subscriptionBillingIssueListeners: [(id: UUID, listener: SubscriptionBillingIssueListener)] = []
@@ -63,8 +74,15 @@ actor IapState {
     func pendingSnapshot() -> [Transaction] { Array(pendingTransactions.values) }
 
     // MARK: - Purchase Update Emissions
-    func recordPurchaseUpdateEmission(id: String) -> Bool {
-        purchaseUpdateEmissionHistory.record(id)
+    func recordPurchaseUpdateEmission(
+        id: String,
+        pendingTransaction: Transaction? = nil
+    ) -> Bool {
+        let shouldEmit = purchaseUpdateEmissionHistory.record(id)
+        if shouldEmit, let pendingTransaction {
+            pendingTransactions[id] = pendingTransaction
+        }
+        return shouldEmit
     }
 
     // MARK: - Promoted Products
@@ -83,8 +101,16 @@ actor IapState {
     }
 
     // MARK: - Listeners
-    func addPurchaseUpdatedListener(_ pair: (UUID, PurchaseUpdatedListener)) {
-        purchaseUpdatedListeners.append((id: pair.0, listener: pair.1))
+    func addPurchaseUpdatedListener(
+        id: UUID,
+        listener: @escaping PurchaseUpdatedListener,
+        options: PurchaseUpdatedListenerOptions?
+    ) {
+        purchaseUpdatedListeners.append(PurchaseUpdatedListenerRegistration(
+            id: id,
+            listener: listener,
+            includeDuplicateTransactionUpdatesIOS: options?.includeDuplicateTransactionUpdatesIOS == true
+        ))
     }
     func addPurchaseErrorListener(_ pair: (UUID, PurchaseErrorListener)) {
         purchaseErrorListeners.append((id: pair.0, listener: pair.1))
@@ -127,8 +153,13 @@ actor IapState {
         subscriptionBillingIssueListeners.removeAll()
     }
 
-    func snapshotPurchaseUpdated() -> [PurchaseUpdatedListener] {
-        purchaseUpdatedListeners.map { $0.listener }
+    func snapshotPurchaseUpdated(isDuplicate: Bool = false) -> [PurchaseUpdatedListener] {
+        purchaseUpdatedListeners.compactMap { registration in
+            guard !isDuplicate || registration.includeDuplicateTransactionUpdatesIOS else {
+                return nil
+            }
+            return registration.listener
+        }
     }
     func snapshotPurchaseError() -> [PurchaseErrorListener] {
         purchaseErrorListeners.map { $0.listener }

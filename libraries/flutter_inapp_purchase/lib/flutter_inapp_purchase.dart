@@ -89,6 +89,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   // Purchase event streams
   final StreamController<gentype.Purchase> _purchaseUpdatedListener =
       StreamController<gentype.Purchase>.broadcast();
+  final StreamController<gentype.Purchase> _purchaseUpdatedDuplicateListener =
+      StreamController<gentype.Purchase>.broadcast();
   final StreamController<PurchaseError> _purchaseErrorListener =
       StreamController<PurchaseError>.broadcast();
   final StreamController<gentype.UserChoiceBillingDetails>
@@ -103,6 +105,20 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// Purchase updated event stream
   Stream<gentype.Purchase> get purchaseUpdatedListener =>
       _purchaseUpdatedListener.stream;
+
+  /// Purchase updated event stream with listener options.
+  ///
+  /// On iOS, set [PurchaseUpdatedListenerOptions.includeDuplicateTransactionUpdatesIOS]
+  /// to true to also receive StoreKit replay events for transaction IDs already
+  /// delivered during the current connection session. Android ignores this flag.
+  Stream<gentype.Purchase> purchaseUpdatedListenerWithOptions(
+    gentype.PurchaseUpdatedListenerOptions? options,
+  ) {
+    if (isIOS && options?.includeDuplicateTransactionUpdatesIOS == true) {
+      return _purchaseUpdatedDuplicateListener.stream;
+    }
+    return purchaseUpdatedListener;
+  }
 
   /// Purchase error event stream
   Stream<PurchaseError> get purchaseErrorListener =>
@@ -138,28 +154,14 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
     _channel.setMethodCallHandler((MethodCall call) async {
       switch (call.method) {
         case 'purchase-updated':
-          try {
-            Map<String, dynamic> result =
-                jsonDecode(call.arguments as String) as Map<String, dynamic>;
-
-            // Convert directly to Purchase without intermediate PurchasedItem
-            final purchase = convertToPurchase(
-              result,
-              originalJson: result,
-              platformIsAndroid: _platform.isAndroid,
-              platformIsIOS: _platform.isIOS || _platform.isMacOS,
-              acknowledgedAndroidPurchaseTokens:
-                  _acknowledgedAndroidPurchaseTokens,
-            );
-
-            _purchaseController!.add(purchase);
-            _purchaseUpdatedListener.add(purchase);
-          } catch (e, stackTrace) {
-            debugPrint(
-              '[flutter_inapp_purchase] ERROR in purchase-updated: $e',
-            );
-            debugPrint('[flutter_inapp_purchase] Stack trace: $stackTrace');
-          }
+          _handlePurchaseUpdatedCall(
+            call,
+            _purchaseUpdatedListener,
+            publishToLegacyStream: true,
+          );
+          break;
+        case 'purchase-updated-duplicates-ios':
+          _handlePurchaseUpdatedCall(call, _purchaseUpdatedDuplicateListener);
           break;
         case 'purchase-error':
           debugPrint(
@@ -244,6 +246,35 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
       }
       return Future.value(null);
     });
+  }
+
+  void _handlePurchaseUpdatedCall(
+    MethodCall call,
+    StreamController<gentype.Purchase> controller, {
+    bool publishToLegacyStream = false,
+  }) {
+    try {
+      final result =
+          jsonDecode(call.arguments as String) as Map<String, dynamic>;
+
+      final purchase = convertToPurchase(
+        result,
+        originalJson: result,
+        platformIsAndroid: _platform.isAndroid,
+        platformIsIOS: _platform.isIOS || _platform.isMacOS,
+        acknowledgedAndroidPurchaseTokens: _acknowledgedAndroidPurchaseTokens,
+      );
+
+      if (publishToLegacyStream) {
+        _purchaseController!.add(purchase);
+      }
+      controller.add(purchase);
+    } catch (e, stackTrace) {
+      debugPrint(
+        '[flutter_inapp_purchase] ERROR in ${call.method}: $e',
+      );
+      debugPrint('[flutter_inapp_purchase] Stack trace: $stackTrace');
+    }
   }
 
   /// Initialize the store connection. Must be called before any other IAP API.
@@ -2619,7 +2650,13 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         },
         purchaseError: () async =>
             await purchaseErrorListener.first as gentype.PurchaseError,
-        purchaseUpdated: () async => await purchaseUpdatedListener.first,
+        purchaseUpdated: ({bool? includeDuplicateTransactionUpdatesIOS}) =>
+            purchaseUpdatedListenerWithOptions(
+          gentype.PurchaseUpdatedListenerOptions(
+            includeDuplicateTransactionUpdatesIOS:
+                includeDuplicateTransactionUpdatesIOS,
+          ),
+        ).first,
         subscriptionBillingIssue: () async =>
             await subscriptionBillingIssueListener.first,
         userChoiceBillingAndroid: () async =>

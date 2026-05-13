@@ -217,6 +217,11 @@ interface OpenIapModule
     [Export("addPurchaseUpdatedListener:")]
     NSObject AddPurchaseUpdatedListener(Action<NSDictionary> callback);
 
+    [Export("addPurchaseUpdatedListener:includeDuplicateTransactionUpdatesIOS:")]
+    NSObject AddPurchaseUpdatedListener(
+        Action<NSDictionary> callback,
+        bool includeDuplicateTransactionUpdatesIOS);
+
     [Export("addPurchaseErrorListener:")]
     NSObject AddPurchaseErrorListener(Action<NSDictionary> callback);
 

@@ -162,6 +162,37 @@ describe('Public API (src/index.ts)', () => {
       expect(listener).not.toHaveBeenCalled();
     });
 
+    it('routes duplicate-enabled purchaseUpdatedListener through opt-in native listener', () => {
+      const defaultListener = jest.fn();
+      const duplicateListener = jest.fn();
+      IAP.purchaseUpdatedListener(defaultListener);
+      IAP.purchaseUpdatedListener(duplicateListener, {
+        includeDuplicateTransactionUpdatesIOS: true,
+      });
+
+      expect(mockIap.addPurchaseUpdatedListener).toHaveBeenCalledTimes(2);
+      expect(mockIap.addPurchaseUpdatedListener.mock.calls[1][1]).toEqual({
+        includeDuplicateTransactionUpdatesIOS: true,
+      });
+
+      const nitroPurchase = {
+        id: 't1',
+        productId: 'p1',
+        transactionDate: Date.now(),
+        platform: 'ios',
+        quantity: 1,
+        purchaseState: 'purchased',
+        isAutoRenewing: false,
+      };
+      mockIap.addPurchaseUpdatedListener.mock.calls[0][0](nitroPurchase);
+      expect(defaultListener).toHaveBeenCalledTimes(1);
+      expect(duplicateListener).not.toHaveBeenCalled();
+
+      mockIap.addPurchaseUpdatedListener.mock.calls[1][0](nitroPurchase);
+      expect(defaultListener).toHaveBeenCalledTimes(1);
+      expect(duplicateListener).toHaveBeenCalledTimes(1);
+    });
+
     it('purchaseErrorListener forwards error objects and supports removal', () => {
       const listener = jest.fn();
       const sub = IAP.purchaseErrorListener(listener);

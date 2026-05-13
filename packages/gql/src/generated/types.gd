@@ -3850,6 +3850,22 @@ class PurchaseOptions:
 			dict["includeSuspendedAndroid"] = include_suspended_android
 		return dict
 
+class PurchaseUpdatedListenerOptions:
+	## iOS only. When true, listener callbacks also receive StoreKit replay events
+	var include_duplicate_transaction_updates_ios: Variant = null
+
+	static func from_dict(data: Dictionary) -> PurchaseUpdatedListenerOptions:
+		var obj = PurchaseUpdatedListenerOptions.new()
+		if data.has("includeDuplicateTransactionUpdatesIOS") and data["includeDuplicateTransactionUpdatesIOS"] != null:
+			obj.include_duplicate_transaction_updates_ios = data["includeDuplicateTransactionUpdatesIOS"]
+		return obj
+
+	func to_dict() -> Dictionary:
+		var dict = {}
+		if include_duplicate_transaction_updates_ios != null:
+			dict["includeDuplicateTransactionUpdatesIOS"] = include_duplicate_transaction_updates_ios
+		return dict
+
 class RequestPurchaseAndroidProps:
 	## List of product SKUs
 	var skus: Array[String] = []

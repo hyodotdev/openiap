@@ -43,6 +43,7 @@ import type {
   Purchase,
   MutationRequestPurchaseArgs,
   PurchaseInput,
+  PurchaseUpdatedListenerOptions,
   VerifyPurchaseProps,
   VerifyPurchaseResult,
   VerifyPurchaseWithProviderProps,
@@ -115,6 +116,12 @@ type UseIap = {
 export interface UseIAPOptions {
   onPurchaseSuccess?: (purchase: Purchase) => void;
   onPurchaseError?: (error: PurchaseError) => void;
+  /**
+   * iOS only. When enabled, the purchase success listener also receives
+   * StoreKit replay events for a transaction ID already delivered during the
+   * current connection session. Defaults to false.
+   */
+  purchaseUpdatedListenerOptions?: PurchaseUpdatedListenerOptions | null;
   /**
    * Callback for general errors from hook methods like fetchProducts,
    * getAvailablePurchases, getActiveSubscriptions, restorePurchases, etc.
@@ -628,6 +635,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
           optionsRef.current.onPurchaseSuccess(purchase);
         }
       },
+      optionsRef.current?.purchaseUpdatedListenerOptions,
     );
 
     // Register purchase error listener EARLY. Ignore init-related errors until connected.
@@ -709,6 +717,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
                 optionsRef.current.onPurchaseSuccess(purchase);
               }
             },
+            optionsRef.current?.purchaseUpdatedListenerOptions,
           );
         }
 

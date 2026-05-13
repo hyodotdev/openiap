@@ -48,6 +48,7 @@ import type {
   Product,
   Purchase,
   PurchaseError,
+  PurchaseUpdatedListenerOptions,
   ProductSubscription,
 } from '../types';
 import type {MutationFinishTransactionArgs} from '../types';
@@ -268,6 +269,12 @@ type UseIap = {
 
 export interface UseIapOptions {
   onPurchaseSuccess?: (purchase: Purchase) => void;
+  /**
+   * Options for the purchase success listener. iOS defaults to suppressing
+   * StoreKit replay events for the same transaction ID; set
+   * `includeDuplicateTransactionUpdatesIOS` to true only for diagnostics.
+   */
+  purchaseUpdatedListenerOptions?: PurchaseUpdatedListenerOptions | null;
   onPurchaseError?: (error: PurchaseError) => void;
   /** Callback for non-purchase errors (fetchProducts, getAvailablePurchases, etc.) */
   onError?: (error: Error) => void;
@@ -593,6 +600,7 @@ export function useIAP(options?: UseIapOptions): UseIap {
             optionsRef.current.onPurchaseSuccess(purchase);
           }
         },
+        optionsRef.current?.purchaseUpdatedListenerOptions,
       );
     }
 

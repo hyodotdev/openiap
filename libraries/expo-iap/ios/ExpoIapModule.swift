@@ -20,6 +20,7 @@ public final class ExpoIapModule: Module {
 
         Events(
             OpenIapEvent.purchaseUpdated.rawValue,
+            "purchase-updated-duplicates-ios",
             OpenIapEvent.purchaseError.rawValue,
             OpenIapEvent.promotedProductIos.rawValue,
             OpenIapEvent.subscriptionBillingIssue.rawValue

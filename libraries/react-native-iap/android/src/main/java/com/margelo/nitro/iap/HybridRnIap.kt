@@ -783,7 +783,10 @@ class HybridRnIap : HybridRnIapSpec() {
         get() = 0L
     
     // Event listener methods
-    override fun addPurchaseUpdatedListener(listener: (purchase: NitroPurchase) -> Unit) {
+    override fun addPurchaseUpdatedListener(
+        listener: (purchase: NitroPurchase) -> Unit,
+        options: NitroPurchaseUpdatedListenerOptions?
+    ) {
         synchronized(purchaseUpdatedListeners) {
             purchaseUpdatedListeners.add(listener)
         }

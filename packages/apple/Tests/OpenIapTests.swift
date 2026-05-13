@@ -113,6 +113,30 @@ final class OpenIapTests: XCTestCase {
         XCTAssertTrue(replayEmission)
     }
 
+    @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
+    func testPurchaseUpdateDuplicateSnapshotOnlyIncludesOptInListeners() async {
+        let state = IapState()
+
+        await state.addPurchaseUpdatedListener(
+            id: UUID(),
+            listener: { _ in },
+            options: nil
+        )
+        await state.addPurchaseUpdatedListener(
+            id: UUID(),
+            listener: { _ in },
+            options: PurchaseUpdatedListenerOptions(
+                includeDuplicateTransactionUpdatesIOS: true
+            )
+        )
+
+        let normalListeners = await state.snapshotPurchaseUpdated()
+        let duplicateListeners = await state.snapshotPurchaseUpdated(isDuplicate: true)
+
+        XCTAssertEqual(normalListeners.count, 2)
+        XCTAssertEqual(duplicateListeners.count, 1)
+    }
+
     func testPurchaseIOSWithRenewalInfo() {
         let renewalInfo = RenewalInfoIOS(
             autoRenewPreference: "dev.hyo.premium_year",

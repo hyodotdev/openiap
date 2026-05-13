@@ -10,6 +10,7 @@ import type {
   NitroReceiptValidationParams,
   NitroReceiptValidationResultIOS,
   NitroReceiptValidationResultAndroid,
+  NitroPurchaseUpdatedListenerOptions,
   NitroSubscriptionStatus,
   RnIap,
 } from './specs/RnIap.nitro';
@@ -30,6 +31,7 @@ import type {
   ProductSubscription,
   Purchase,
   PurchaseError,
+  PurchaseUpdatedListenerOptions,
   PurchaseIOS,
   QueryField,
   AppTransaction,
@@ -97,6 +99,9 @@ type NitroFinishTransactionParamsInternal = Parameters<
   RnIap['finishTransaction']
 >[0];
 type NitroPurchaseListener = Parameters<RnIap['addPurchaseUpdatedListener']>[0];
+type NitroPurchaseUpdatedListenerOptionsParam = NonNullable<
+  Parameters<RnIap['addPurchaseUpdatedListener']>[1]
+>;
 type NitroPurchaseErrorListener = Parameters<
   RnIap['addPurchaseErrorListener']
 >[0];
@@ -129,10 +134,7 @@ export type {
   UseWebhookEventsOptions,
   UseWebhookEventsResult,
 } from './hooks/useWebhookEvents';
-export {
-  connectWebhookStream,
-  parseWebhookEventData,
-} from './webhook-client';
+export {connectWebhookStream, parseWebhookEventData} from './webhook-client';
 export type {
   WebhookEventPayload,
   WebhookEventStream,
@@ -232,11 +234,18 @@ const IAP = {
 // ============================================================================
 
 const purchaseUpdateJsListeners = new Set<(purchase: Purchase) => void>();
+const purchaseUpdateDuplicateJsListeners = new Set<
+  (purchase: Purchase) => void
+>();
 let purchaseUpdateNativeAttached = false;
-const purchaseUpdateNativeHandler: NitroPurchaseListener = (nitroPurchase) => {
+let purchaseUpdateDuplicateNativeAttached = false;
+const emitPurchaseUpdateToListeners = (
+  nitroPurchase: Parameters<NitroPurchaseListener>[0],
+  listeners: Set<(purchase: Purchase) => void>,
+) => {
   if (validateNitroPurchase(nitroPurchase)) {
     const convertedPurchase = convertNitroPurchaseToPurchase(nitroPurchase);
-    for (const listener of purchaseUpdateJsListeners) {
+    for (const listener of listeners) {
       try {
         listener(convertedPurchase);
       } catch (e) {
@@ -249,6 +258,17 @@ const purchaseUpdateNativeHandler: NitroPurchaseListener = (nitroPurchase) => {
       (nitroPurchase as any)?.productId ?? 'unknown',
     );
   }
+};
+const purchaseUpdateNativeHandler: NitroPurchaseListener = (nitroPurchase) => {
+  emitPurchaseUpdateToListeners(nitroPurchase, purchaseUpdateJsListeners);
+};
+const purchaseUpdateDuplicateNativeHandler: NitroPurchaseListener = (
+  nitroPurchase,
+) => {
+  emitPurchaseUpdateToListeners(
+    nitroPurchase,
+    purchaseUpdateDuplicateJsListeners,
+  );
 };
 
 const purchaseErrorJsListeners = new Set<(error: PurchaseError) => void>();
@@ -299,6 +319,7 @@ const promotedProductNativeHandler: NitroPromotedProductListener = (
  */
 export const resetListenerState = (): void => {
   purchaseUpdateNativeAttached = false;
+  purchaseUpdateDuplicateNativeAttached = false;
   purchaseErrorNativeAttached = false;
   promotedProductNativeAttached = false;
   userChoiceBillingNativeAttached = false;
@@ -306,6 +327,7 @@ export const resetListenerState = (): void => {
   subscriptionBillingIssueNativeAttached = false;
   // Clear all JS listeners since native side clears them in endConnection
   purchaseUpdateJsListeners.clear();
+  purchaseUpdateDuplicateJsListeners.clear();
   purchaseErrorJsListeners.clear();
   promotedProductJsListeners.clear();
   userChoiceBillingJsListeners.clear();
@@ -315,10 +337,17 @@ export const resetListenerState = (): void => {
 
 export const purchaseUpdatedListener = (
   listener: (purchase: Purchase) => void,
+  options?: PurchaseUpdatedListenerOptions | null,
 ): EventSubscription => {
-  purchaseUpdateJsListeners.add(listener);
+  const includeDuplicateTransactionUpdatesIOS =
+    options?.includeDuplicateTransactionUpdatesIOS === true;
+  const listeners = includeDuplicateTransactionUpdatesIOS
+    ? purchaseUpdateDuplicateJsListeners
+    : purchaseUpdateJsListeners;
 
-  if (!purchaseUpdateNativeAttached) {
+  listeners.add(listener);
+
+  if (!purchaseUpdateNativeAttached && !includeDuplicateTransactionUpdatesIOS) {
     try {
       IAP.instance.addPurchaseUpdatedListener(purchaseUpdateNativeHandler);
       purchaseUpdateNativeAttached = true;
@@ -334,9 +363,35 @@ export const purchaseUpdatedListener = (
     }
   }
 
+  if (
+    !purchaseUpdateDuplicateNativeAttached &&
+    includeDuplicateTransactionUpdatesIOS
+  ) {
+    try {
+      const nativeOptions: NitroPurchaseUpdatedListenerOptions &
+        NitroPurchaseUpdatedListenerOptionsParam = {
+        includeDuplicateTransactionUpdatesIOS: true,
+      };
+      IAP.instance.addPurchaseUpdatedListener(
+        purchaseUpdateDuplicateNativeHandler,
+        nativeOptions,
+      );
+      purchaseUpdateDuplicateNativeAttached = true;
+    } catch (e) {
+      const msg = toErrorMessage(e);
+      if (msg.includes('Nitro runtime not installed')) {
+        RnIapConsole.warn(
+          '[purchaseUpdatedListener] Nitro not ready yet; listener inert until initConnection()',
+        );
+      } else {
+        throw e;
+      }
+    }
+  }
+
   return {
     remove: () => {
-      purchaseUpdateJsListeners.delete(listener);
+      listeners.delete(listener);
     },
   };
 };
@@ -619,7 +674,9 @@ type NitroSubscriptionBillingIssueListener = Parameters<
   RnIap['addSubscriptionBillingIssueListener']
 >[0];
 
-const subscriptionBillingIssueJsListeners = new Set<(purchase: Purchase) => void>();
+const subscriptionBillingIssueJsListeners = new Set<
+  (purchase: Purchase) => void
+>();
 let subscriptionBillingIssueNativeAttached = false;
 const subscriptionBillingIssueNativeHandler: NitroSubscriptionBillingIssueListener =
   (nitroPurchase) => {

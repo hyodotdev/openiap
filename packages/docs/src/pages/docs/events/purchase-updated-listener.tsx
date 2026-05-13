@@ -21,20 +21,38 @@ function PurchaseUpdatedListener() {
         completed.
       </p>
 
+      <h3>Duplicate Transaction Replays on iOS</h3>
+      <p>
+        StoreKit can replay the same unfinished transaction through more than
+        one native path during a single connection session. By default, OpenIAP
+        delivers one <code>purchaseUpdated</code> event per iOS transaction ID
+        to purchase-success listeners, while still keeping distinct transactions
+        separate. This prevents entitlement delivery from running twice for the
+        same purchase.
+      </p>
+      <p>
+        For diagnostics, register the purchase update listener with{' '}
+        <code>includeDuplicateTransactionUpdatesIOS: true</code>. The flag
+        belongs to the purchase update listener only; purchase error listeners
+        do not receive successful StoreKit transactions.
+      </p>
+
       <h3>Listener Setup</h3>
       <LanguageTabs>
         {{
           typescript: (
             <CodeBlock language="typescript">{`purchaseUpdatedListener(
-  listener: (purchase: Purchase) => void
+  listener: (purchase: Purchase) => void,
+  options?: PurchaseUpdatedListenerOptions | null
 ): Subscription`}</CodeBlock>
           ),
           swift: (
-            <CodeBlock language="swift">{`// AsyncSequence approach
-var purchaseUpdates: AsyncStream<Purchase>
-
-// Combine approach
-var purchaseUpdatedPublisher: AnyPublisher<Purchase, Never>`}</CodeBlock>
+            <CodeBlock language="swift">{`let subscription = OpenIapModule.shared.purchaseUpdatedListener(
+    { purchase in
+        print("Purchase updated: \\(purchase.productId)")
+    },
+    options: nil
+)`}</CodeBlock>
           ),
           kotlin: (
             <CodeBlock language="kotlin">{`// Flow approach
@@ -42,10 +60,10 @@ val purchaseUpdates: Flow<Purchase>`}</CodeBlock>
           ),
           kmp: (
             <CodeBlock language="kotlin">{`// Flow approach
-val purchaseUpdates: Flow<Purchase>`}</CodeBlock>
+val purchaseUpdates: Flow<Purchase> = kmpIAP.purchaseUpdatedListener`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`Stream<Purchase> get purchaseUpdatedStream;`}</CodeBlock>
+            <CodeBlock language="dart">{`Stream<Purchase> get purchaseUpdatedListener;`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`using OpenIap;
@@ -60,6 +78,57 @@ IObservable<Purchase> purchaseUpdates = Iap.Instance.PurchaseUpdated;`}</CodeBlo
         }}
       </LanguageTabs>
       <p>Registers a listener for successful purchase events.</p>
+
+      <h3>Opt In to iOS StoreKit Replays</h3>
+      <LanguageTabs>
+        {{
+          typescript: (
+            <CodeBlock language="typescript">{`const subscription = purchaseUpdatedListener(
+  (purchase) => {
+    console.log('StoreKit replay or first delivery:', purchase.id);
+  },
+  { includeDuplicateTransactionUpdatesIOS: true }
+);`}</CodeBlock>
+          ),
+          swift: (
+            <CodeBlock language="swift">{`let subscription = OpenIapModule.shared.purchaseUpdatedListener(
+    { purchase in
+        print("StoreKit replay or first delivery: \\(purchase.id)")
+    },
+    options: PurchaseUpdatedListenerOptions(
+        includeDuplicateTransactionUpdatesIOS: true
+    )
+)`}</CodeBlock>
+          ),
+          kmp: (
+            <CodeBlock language="kotlin">{`val updates = kmpIAP.purchaseUpdatedListener(
+    PurchaseUpdatedListenerOptions(
+        includeDuplicateTransactionUpdatesIOS = true
+    )
+)`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`final updates = FlutterInappPurchase.instance
+    .purchaseUpdatedListenerWithOptions(
+  const PurchaseUpdatedListenerOptions(
+    includeDuplicateTransactionUpdatesIOS: true,
+  ),
+);`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`var updates = Iap.Instance.PurchaseUpdatedWithOptions(
+    new PurchaseUpdatedListenerOptions
+    {
+        IncludeDuplicateTransactionUpdatesIOS = true,
+    });`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`var options = Types.PurchaseUpdatedListenerOptions.new()
+options.include_duplicate_transaction_updates_ios = true
+iap.set_purchase_updated_listener_options(options)`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
 
       <LanguageTabs>
         {{

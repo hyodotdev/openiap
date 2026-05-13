@@ -20,6 +20,7 @@ import TypesStorefront from './types/storefront';
 import TypesPurchase from './types/purchase';
 import TypesActiveSubscription from './types/active-subscription';
 import TypesProductRequest from './types/product-request';
+import TypesPurchaseUpdatedListenerOptions from './types/purchase-updated-listener-options';
 import TypesRequestPurchaseProps from './types/request-purchase-props';
 import TypesAlternativeBillingTypes from './types/alternative-billing-types';
 import TypesBillingPrograms from './types/billing-programs';
@@ -255,6 +256,10 @@ function Docs() {
                 {
                   to: '/docs/types/request-purchase-props',
                   label: 'RequestPurchaseProps',
+                },
+                {
+                  to: '/docs/types/purchase-updated-listener-options',
+                  label: 'PurchaseUpdatedListenerOptions',
                 },
                 {
                   to: '/docs/types/discount-offer',
@@ -818,6 +823,10 @@ function Docs() {
           <Route
             path="types/request-purchase-props"
             element={<TypesRequestPurchaseProps />}
+          />
+          <Route
+            path="types/purchase-updated-listener-options"
+            element={<TypesPurchaseUpdatedListenerOptions />}
           />
           <Route
             path="types/alternative-billing-types"

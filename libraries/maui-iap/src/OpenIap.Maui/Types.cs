@@ -3762,6 +3762,16 @@ public sealed record PurchaseOptions
     public bool? IncludeSuspendedAndroid { get; init; }
 }
 
+public sealed record PurchaseUpdatedListenerOptions
+{
+    /// <summary>iOS only. When true, listener callbacks also receive StoreKit replay events</summary>
+    /// <summary>for a transaction ID that was already emitted during the current connection</summary>
+    /// <summary>session. Defaults to false so purchase success handlers run once per</summary>
+    /// <summary>transaction ID.</summary>
+    [JsonPropertyName("includeDuplicateTransactionUpdatesIOS")]
+    public bool? IncludeDuplicateTransactionUpdatesIOS { get; init; }
+}
+
 public sealed record RequestPurchaseAndroidProps
 {
     /// <summary>List of product SKUs</summary>
@@ -4347,7 +4357,10 @@ public interface SubscriptionResolver
     Task<PurchaseError> PurchaseErrorAsync();
 
     /// <summary>Fires when a purchase completes successfully or a pending purchase resolves</summary>
-    Task<Purchase> PurchaseUpdatedAsync();
+    /// <summary>Options can opt iOS listeners into duplicate StoreKit transaction replays</summary>
+    /// <summary>for diagnostics; default listeners receive one event per transaction ID</summary>
+    /// <summary>during a single connection session.</summary>
+    Task<Purchase> PurchaseUpdatedAsync(PurchaseUpdatedListenerOptions? options = null);
 
     /// <summary>Fires when an active subscription enters a billing-issue state that needs user action</summary>
     /// <summary>(payment method failed, card expired, etc.). Cross-platform unification:</summary>

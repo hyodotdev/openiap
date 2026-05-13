@@ -4294,6 +4294,28 @@ public data class PurchaseOptions(
     )
 }
 
+public data class PurchaseUpdatedListenerOptions(
+    /**
+     * iOS only. When true, listener callbacks also receive StoreKit replay events
+     * for a transaction ID that was already emitted during the current connection
+     * session. Defaults to false so purchase success handlers run once per
+     * transaction ID.
+     */
+    val includeDuplicateTransactionUpdatesIOS: Boolean? = null
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): PurchaseUpdatedListenerOptions {
+            return PurchaseUpdatedListenerOptions(
+                includeDuplicateTransactionUpdatesIOS = json["includeDuplicateTransactionUpdatesIOS"] as? Boolean,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "includeDuplicateTransactionUpdatesIOS" to includeDuplicateTransactionUpdatesIOS,
+    )
+}
+
 public data class RequestPurchaseAndroidProps(
     /**
      * Developer billing option parameters for external payments flow (8.3.0+).
@@ -5441,8 +5463,11 @@ public interface SubscriptionResolver {
     suspend fun purchaseError(): PurchaseError
     /**
      * Fires when a purchase completes successfully or a pending purchase resolves
+     * Options can opt iOS listeners into duplicate StoreKit transaction replays
+     * for diagnostics; default listeners receive one event per transaction ID
+     * during a single connection session.
      */
-    suspend fun purchaseUpdated(): Purchase
+    suspend fun purchaseUpdated(options: PurchaseUpdatedListenerOptions? = null): Purchase
     /**
      * Fires when an active subscription enters a billing-issue state that needs user action
      * (payment method failed, card expired, etc.). Cross-platform unification:
@@ -5577,7 +5602,7 @@ public data class QueryHandlers(
 public typealias SubscriptionDeveloperProvidedBillingAndroidHandler = suspend () -> DeveloperProvidedBillingDetailsAndroid
 public typealias SubscriptionPromotedProductIOSHandler = suspend () -> String
 public typealias SubscriptionPurchaseErrorHandler = suspend () -> PurchaseError
-public typealias SubscriptionPurchaseUpdatedHandler = suspend () -> Purchase
+public typealias SubscriptionPurchaseUpdatedHandler = suspend (options: PurchaseUpdatedListenerOptions?) -> Purchase
 public typealias SubscriptionSubscriptionBillingIssueHandler = suspend () -> Purchase
 public typealias SubscriptionUserChoiceBillingAndroidHandler = suspend () -> UserChoiceBillingDetails
 

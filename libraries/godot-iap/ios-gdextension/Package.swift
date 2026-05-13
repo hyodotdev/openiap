@@ -27,6 +27,24 @@ let linkerSettings: [LinkerSetting] = [
     .unsafeFlags(["-Xlinker", "-dead_strip"])
 ]
 
+let packageDir = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+let repoRoot = packageDir
+    .deletingLastPathComponent()
+    .deletingLastPathComponent()
+    .deletingLastPathComponent()
+let localOpenIapPackage = repoRoot.appendingPathComponent("packages/apple")
+let openIapDependency: Package.Dependency
+if FileManager.default.fileExists(
+    atPath: localOpenIapPackage.appendingPathComponent("Package.swift").path
+) {
+    openIapDependency = .package(name: "openiap", path: localOpenIapPackage.path)
+} else {
+    openIapDependency = .package(
+        url: "https://github.com/hyodotdev/openiap.git",
+        .upToNextMinor(from: Version(stringLiteral: openIapVersion))
+    )
+}
+
 let package = Package(
     name: "GodotIap",
     platforms: [
@@ -38,7 +56,7 @@ let package = Package(
     ],
     dependencies: [
         .package(name: "SwiftGodot", path: "../SwiftGodot"),
-        .package(url: "https://github.com/hyodotdev/openiap.git", .upToNextMinor(from: Version(stringLiteral: openIapVersion))),
+        openIapDependency,
     ],
     targets: [
         .target(

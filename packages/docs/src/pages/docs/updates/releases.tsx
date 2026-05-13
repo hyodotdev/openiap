@@ -26,6 +26,118 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // May 13, 2026 — OpenIAP Spec 2.0.2 purchase update replay controls
+    {
+      id: 'openiap-spec-2-0-2-purchase-update-replay-controls',
+      date: new Date('2026-05-13'),
+      element: (
+        <div
+          key="openiap-spec-2-0-2-purchase-update-replay-controls"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="openiap-spec-2-0-2-purchase-update-replay-controls"
+            level="h4"
+          >
+            May 13, 2026 — OpenIAP Spec 2.0.2 purchase update replay controls
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes <strong>OpenIAP Spec 2.0.2</strong> with{' '}
+            <code>PurchaseUpdatedListenerOptions</code> and an iOS-only{' '}
+            <code>includeDuplicateTransactionUpdatesIOS</code> flag. StoreKit
+            can replay the same unfinished transaction through request and
+            transaction-update paths during a single connection session. The
+            default listener behavior remains entitlement-safe: one purchase
+            success event per iOS transaction ID. Diagnostics can opt into the
+            StoreKit replay stream explicitly. Track the fix in{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/issues/152"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              issue #152
+            </a>{' '}
+            and{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/153"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #153
+            </a>
+            .
+          </p>
+
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>Listener-level opt-in</strong> — React Native and Expo
+              accept the flag on <code>purchaseUpdatedListener</code>; Flutter,
+              KMP, MAUI, and Godot expose equivalent stream or signal-level
+              options without changing default purchase success handling.
+            </li>
+            <li>
+              <strong>Native debugging preserved</strong> — openiap-apple no
+              longer drops duplicate StoreKit updates before framework bridges
+              can observe them. Default listeners suppress duplicates, while
+              duplicate-enabled listeners receive the replay.
+            </li>
+            <li>
+              <strong>Docs and type sync</strong> — the generated GQL types now
+              include <code>PurchaseUpdatedListenerOptions</code> across Swift,
+              Kotlin, TypeScript, Dart, GDScript, and C#.
+            </li>
+            <li>
+              <strong>Usage guide</strong> — see{' '}
+              <Link to="/docs/events/purchase-updated-listener">
+                purchaseUpdatedListener
+              </Link>{' '}
+              for the default behavior and opt-in examples.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/2.0.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  OpenIAP Spec 2.0.2
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // May 10, 2026 — godot-iap 2.2.8 iOS export embedding patch
     {
       id: 'godot-iap-2-2-8-ios-export-framework-embedding',

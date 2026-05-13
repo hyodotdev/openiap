@@ -3,8 +3,11 @@
 extend type Subscription {
   """
   Fires when a purchase completes successfully or a pending purchase resolves
+  Options can opt iOS listeners into duplicate StoreKit transaction replays
+  for diagnostics; default listeners receive one event per transaction ID
+  during a single connection session.
   """
-  purchaseUpdated: Purchase!
+  purchaseUpdated(options: PurchaseUpdatedListenerOptions): Purchase!
   """
   Fires when a purchase fails or is cancelled
   """

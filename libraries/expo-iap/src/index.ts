@@ -30,6 +30,7 @@ import type {
   ProductSubscription,
   Purchase,
   PurchaseOptions,
+  PurchaseUpdatedListenerOptions,
   QueryField,
   RequestPurchasePropsByPlatforms,
   RequestPurchaseAndroidProps,
@@ -51,6 +52,7 @@ export * from './onside';
 // Get the native constant value
 export enum OpenIapEvent {
   PurchaseUpdated = 'purchase-updated',
+  PurchaseUpdatedDuplicateIOS = 'purchase-updated-duplicates-ios',
   PurchaseError = 'purchase-error',
   PromotedProductIOS = 'promoted-product-ios',
   UserChoiceBillingAndroid = 'user-choice-billing-android',
@@ -69,6 +71,7 @@ export enum OpenIapEvent {
 
 type ExpoIapEventPayloads = {
   [OpenIapEvent.PurchaseUpdated]: Purchase;
+  [OpenIapEvent.PurchaseUpdatedDuplicateIOS]: Purchase;
   [OpenIapEvent.PurchaseError]: PurchaseError;
   [OpenIapEvent.PromotedProductIOS]:
     | Product
@@ -159,15 +162,17 @@ const normalizePurchaseArray = (purchases: Purchase[]): Purchase[] =>
 
 export const purchaseUpdatedListener = (
   listener: (event: Purchase) => void,
+  options?: PurchaseUpdatedListenerOptions | null,
 ) => {
   const wrappedListener = (event: Purchase) => {
     const normalized = normalizePurchasePlatform(event);
     listener(normalized);
   };
-  const emitterSubscription = emitter.addListener(
-    OpenIapEvent.PurchaseUpdated,
-    wrappedListener,
-  );
+  const eventName =
+    Platform.OS === 'ios' && options?.includeDuplicateTransactionUpdatesIOS
+      ? OpenIapEvent.PurchaseUpdatedDuplicateIOS
+      : OpenIapEvent.PurchaseUpdated;
+  const emitterSubscription = emitter.addListener(eventName, wrappedListener);
   return emitterSubscription;
 };
 
@@ -1099,10 +1104,7 @@ export type {
   UseWebhookEventsOptions,
   UseWebhookEventsResult,
 } from './useWebhookEvents';
-export {
-  connectWebhookStream,
-  parseWebhookEventData,
-} from './webhook-client';
+export {connectWebhookStream, parseWebhookEventData} from './webhook-client';
 export type {
   WebhookEventPayload,
   WebhookEventStream,

@@ -14,6 +14,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
     private var updateListenerTask: Task<Void, Never>?
     // OpenIAP listener tokens
     private var purchaseUpdatedToken: OpenIAP.Subscription?
+    private var purchaseUpdatedDuplicateToken: OpenIAP.Subscription?
     private var purchaseErrorToken: OpenIAP.Subscription?
     private var promotedProductToken: OpenIAP.Subscription?
     private var subscriptionBillingIssueToken: OpenIAP.Subscription?
@@ -403,15 +404,15 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         FlutterIapLog.debug("Setting up OpenIAP listeners")
 
         purchaseUpdatedToken = OpenIapModule.shared.purchaseUpdatedListener { [weak self] purchase in
-            Task { @MainActor in
-                guard let self else { return }
-                FlutterIapLog.debug("purchaseUpdatedListener fired for \(purchase.productId)")
-                let payload = FlutterIapHelper.sanitizeDictionary(OpenIapSerialization.purchase(purchase))
-                if let jsonString = FlutterIapHelper.jsonString(from: payload) {
-                    self.channel?.invokeMethod("purchase-updated", arguments: jsonString)
-                }
-            }
+            self?.emitPurchaseUpdated(purchase, method: "purchase-updated")
         }
+
+        let duplicateOptions = PurchaseUpdatedListenerOptions(
+            includeDuplicateTransactionUpdatesIOS: true
+        )
+        purchaseUpdatedDuplicateToken = OpenIapModule.shared.purchaseUpdatedListener({ [weak self] purchase in
+            self?.emitPurchaseUpdated(purchase, method: "purchase-updated-duplicates-ios")
+        }, options: duplicateOptions)
 
         purchaseErrorToken = OpenIapModule.shared.purchaseErrorListener { [weak self] error in
             Task { @MainActor in
@@ -456,13 +457,25 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
 
     private func removeOpenIapListeners() {
         if let token = purchaseUpdatedToken { OpenIapModule.shared.removeListener(token) }
+        if let token = purchaseUpdatedDuplicateToken { OpenIapModule.shared.removeListener(token) }
         if let token = purchaseErrorToken { OpenIapModule.shared.removeListener(token) }
         if let token = promotedProductToken { OpenIapModule.shared.removeListener(token) }
         if let token = subscriptionBillingIssueToken { OpenIapModule.shared.removeListener(token) }
         purchaseUpdatedToken = nil
+        purchaseUpdatedDuplicateToken = nil
         purchaseErrorToken = nil
         promotedProductToken = nil
         subscriptionBillingIssueToken = nil
+    }
+
+    private func emitPurchaseUpdated(_ purchase: Purchase, method: String) {
+        Task { @MainActor in
+            FlutterIapLog.debug("\(method) fired for \(purchase.productId)")
+            let payload = FlutterIapHelper.sanitizeDictionary(OpenIapSerialization.purchase(purchase))
+            if let jsonString = FlutterIapHelper.jsonString(from: payload) {
+                self.channel?.invokeMethod(method, arguments: jsonString)
+            }
+        }
     }
     
     // All transaction event handling is routed via OpenIapModule listeners
