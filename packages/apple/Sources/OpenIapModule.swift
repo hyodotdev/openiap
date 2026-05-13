@@ -376,15 +376,12 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                 - Note: \(isSubscription ? "Subscription transactions will be emitted via Transaction.updates" : "Emitting directly")
                 """)
 
-            let shouldEmit: Bool
+            let shouldEmit = await state.recordPurchaseUpdateEmission(id: transactionId)
             if shouldAutoFinish {
                 await transaction.finish()
-                shouldEmit = await state.recordPurchaseUpdateEmission(id: transactionId)
-            } else {
-                shouldEmit = await state.storePendingAndRecordPurchaseUpdateEmission(
-                    id: transactionId,
-                    transaction: transaction
-                )
+                await state.removePending(id: transactionId)
+            } else if shouldEmit {
+                await state.storePending(id: transactionId, transaction: transaction)
             }
 
             // Emit purchase update
@@ -1642,15 +1639,12 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                             continue
                         }
 
-                        // Store pending and emit once per transaction id for this connection session.
-                        let shouldEmit = await self.state.storePendingAndRecordPurchaseUpdateEmission(
-                            id: transactionId,
-                            transaction: transaction
-                        )
-                        guard shouldEmit else {
+                        // Emit once per transaction id for this connection session.
+                        guard await self.state.recordPurchaseUpdateEmission(id: transactionId) else {
                             OpenIapLog.debug("⏭️ [TransactionListener] Skipping duplicate transaction: \(transactionId)")
                             continue
                         }
+                        await self.state.storePending(id: transactionId, transaction: transaction)
 
                         let purchase = await StoreKitTypesBridge.purchase(from: transaction, jwsRepresentation: verification.jwsRepresentation)
 
