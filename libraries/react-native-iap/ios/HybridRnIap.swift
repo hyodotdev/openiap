@@ -10,7 +10,6 @@ class HybridRnIap: HybridRnIapSpec {
     }
 
     private struct PurchaseUpdatedListenerRegistration {
-        let identity: ObjectIdentifier
         let bucket: PurchaseUpdatedListenerBucket
     }
 
@@ -26,9 +25,7 @@ class HybridRnIap: HybridRnIapSpec {
     private var promotedProductSub: Subscription?
     // Event listeners
     private var purchaseUpdatedListeners: [(NitroPurchase) -> Void] = []
-    private var purchaseUpdatedListenerIdentities: [ObjectIdentifier] = []
     private var purchaseUpdatedDuplicateListeners: [(NitroPurchase) -> Void] = []
-    private var purchaseUpdatedDuplicateListenerIdentities: [ObjectIdentifier] = []
     private var purchaseUpdatedListenerRegistrations: [PurchaseUpdatedListenerRegistration] = []
     private var purchaseErrorListeners: [(NitroPurchaseResult) -> Void] = []
     private var promotedProductListeners: [(NitroProduct) -> Void] = []
@@ -964,20 +961,15 @@ class HybridRnIap: HybridRnIapSpec {
             return true
         }()
         let receiveDuplicateTransactionUpdatesIOS = !dedupeTransactionIOS
-        let identity = purchaseUpdatedListenerIdentity(listener)
         listenerLock.withLock {
             if receiveDuplicateTransactionUpdatesIOS {
                 purchaseUpdatedDuplicateListeners.append(listener)
-                purchaseUpdatedDuplicateListenerIdentities.append(identity)
                 purchaseUpdatedListenerRegistrations.append(PurchaseUpdatedListenerRegistration(
-                    identity: identity,
                     bucket: .nonDeduping
                 ))
             } else {
                 purchaseUpdatedListeners.append(listener)
-                purchaseUpdatedListenerIdentities.append(identity)
                 purchaseUpdatedListenerRegistrations.append(PurchaseUpdatedListenerRegistration(
-                    identity: identity,
                     bucket: .deduping
                 ))
             }
@@ -993,53 +985,12 @@ class HybridRnIap: HybridRnIapSpec {
         listenerLock.withLock { purchaseErrorListeners.append(listener) }
     }
 
-    func removePurchaseUpdatedListener(listener: @escaping (NitroPurchase) -> Void) throws {
-        let identity = purchaseUpdatedListenerIdentity(listener)
+    func removePurchaseUpdatedListener(listener _: @escaping (NitroPurchase) -> Void) throws {
         listenerLock.withLock {
-            if removePurchaseUpdatedListener(identity: identity) {
-                return
-            }
-
-            // Nitro may not preserve a stable Swift closure identity across the bridge.
-            // Fall back to LIFO removal, matching the native subscription lifecycle used
-            // by the JS wrapper's EventSubscription.remove().
             guard let registration = purchaseUpdatedListenerRegistrations.popLast() else {
                 return
             }
             removeLastPurchaseUpdatedListener(from: registration.bucket)
-        }
-    }
-
-    private func purchaseUpdatedListenerIdentity(_ listener: @escaping (NitroPurchase) -> Void) -> ObjectIdentifier {
-        ObjectIdentifier(listener as AnyObject)
-    }
-
-    private func removePurchaseUpdatedListener(identity: ObjectIdentifier) -> Bool {
-        if let index = purchaseUpdatedListenerIdentities.lastIndex(of: identity) {
-            purchaseUpdatedListeners.remove(at: index)
-            purchaseUpdatedListenerIdentities.remove(at: index)
-            removePurchaseUpdatedRegistration(identity: identity, bucket: .deduping)
-            return true
-        }
-
-        if let index = purchaseUpdatedDuplicateListenerIdentities.lastIndex(of: identity) {
-            purchaseUpdatedDuplicateListeners.remove(at: index)
-            purchaseUpdatedDuplicateListenerIdentities.remove(at: index)
-            removePurchaseUpdatedRegistration(identity: identity, bucket: .nonDeduping)
-            return true
-        }
-
-        return false
-    }
-
-    private func removePurchaseUpdatedRegistration(
-        identity: ObjectIdentifier,
-        bucket: PurchaseUpdatedListenerBucket
-    ) {
-        if let index = purchaseUpdatedListenerRegistrations.lastIndex(where: {
-            $0.identity == identity && $0.bucket == bucket
-        }) {
-            purchaseUpdatedListenerRegistrations.remove(at: index)
         }
     }
 
@@ -1049,15 +1000,9 @@ class HybridRnIap: HybridRnIapSpec {
             if !purchaseUpdatedListeners.isEmpty {
                 purchaseUpdatedListeners.removeLast()
             }
-            if !purchaseUpdatedListenerIdentities.isEmpty {
-                purchaseUpdatedListenerIdentities.removeLast()
-            }
         case .nonDeduping:
             if !purchaseUpdatedDuplicateListeners.isEmpty {
                 purchaseUpdatedDuplicateListeners.removeLast()
-            }
-            if !purchaseUpdatedDuplicateListenerIdentities.isEmpty {
-                purchaseUpdatedDuplicateListenerIdentities.removeLast()
             }
         }
     }
@@ -1317,9 +1262,7 @@ class HybridRnIap: HybridRnIapSpec {
         // Clear event listeners, error dedup state, and delivery state (thread-safe)
         listenerLock.withLock {
             purchaseUpdatedListeners.removeAll()
-            purchaseUpdatedListenerIdentities.removeAll()
             purchaseUpdatedDuplicateListeners.removeAll()
-            purchaseUpdatedDuplicateListenerIdentities.removeAll()
             purchaseUpdatedListenerRegistrations.removeAll()
             purchaseErrorListeners.removeAll()
             promotedProductListeners.removeAll()

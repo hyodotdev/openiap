@@ -93,7 +93,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
 
         // Purchase updated listener
         purchaseSubscription = openIapModule.addPurchaseUpdatedListener { dictionary ->
-            println("[KMP-IAP iOS] Purchase updated received: $dictionary")
             val purchase = convertAnyToPurchase(dictionary)
             if (purchase != null) {
                 coroutineScope.launch {
@@ -104,7 +103,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
 
         // Purchase error listener
         errorSubscription = openIapModule.addPurchaseErrorListener { dictionary ->
-            println("[KMP-IAP iOS] Purchase error received: $dictionary")
             val map = (dictionary as? Map<*, *>)?.mapKeys { it.key.toString() } ?: return@addPurchaseErrorListener
             val codeString = map["code"] as? String ?: "unknown"
             val errorCode = ErrorCode.entries.find { it.rawValue == codeString } ?: ErrorCode.Unknown
@@ -120,7 +118,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
 
         // Promoted product listener
         promotedProductSubscription = openIapModule.addPromotedProductListener { sku ->
-            println("[KMP-IAP iOS] Promoted product received: $sku")
             coroutineScope.launch {
                 _promotedProductFlow.emit(sku)
             }
@@ -128,7 +125,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
 
         // Subscription billing-issue listener (iOS 18+ Message.billingIssue via OpenIapModule)
         subscriptionBillingIssueSubscription = openIapModule.addSubscriptionBillingIssueListener { dictionary ->
-            println("[KMP-IAP iOS] subscriptionBillingIssue received: $dictionary")
             val purchase = convertAnyToPurchase(dictionary)
             if (purchase != null) {
                 coroutineScope.launch {
@@ -483,34 +479,22 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             val skus = params.skus
             val type = params.type?.rawValue
 
-            println("[KMP-IAP iOS] Fetching products with skus: $skus, type: $type")
-            println("[KMP-IAP iOS] openIapModule: $openIapModule")
-
             openIapModule.fetchProductsWithSkus(skus, type = type) { result, error ->
-                println("[KMP-IAP iOS] fetchProducts callback - result: $result, error: ${error?.localizedDescription}")
-
                 if (error != null) {
-                    println("[KMP-IAP iOS] Error fetching products: ${error.localizedDescription}")
                     continuation.resumeWithException(Exception(error.localizedDescription))
                 } else if (result != null) {
-                    println("[KMP-IAP iOS] Result type: ${result::class.simpleName}")
-                    println("[KMP-IAP iOS] Result: $result")
-
                     // Convert [Any] to products or subscriptions based on type
                     when (params.type) {
                         ProductQueryType.Subs -> {
                             val subscriptions = convertAnyListToProductSubscriptions(result)
-                            println("[KMP-IAP iOS] Converted to ${subscriptions.size} subscriptions")
                             continuation.resume(FetchProductsResultSubscriptions(subscriptions))
                         }
                         else -> {
                             val products = convertAnyListToProducts(result)
-                            println("[KMP-IAP iOS] Converted to ${products.size} products")
                             continuation.resume(FetchProductsResultProducts(products))
                         }
                     }
                 } else {
-                    println("[KMP-IAP iOS] No result and no error, returning empty list")
                     continuation.resume(FetchProductsResultProducts(emptyList()))
                 }
             }
@@ -654,7 +638,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     try {
                         ActiveSubscription.fromJson(map)
                     } catch (e: Exception) {
-                        println("[KMP-IAP iOS] Failed to parse ActiveSubscription: ${e.message}")
                         null
                     }
                 } ?: emptyList()
@@ -683,7 +666,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     try {
                         AppTransaction.fromJson(it)
                     } catch (e: Exception) {
-                        println("[KMP-IAP iOS] Failed to parse AppTransaction: ${e.message}")
                         null
                     }
                 }
@@ -901,7 +883,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     try {
                         SubscriptionStatusIOS.fromJson(map)
                     } catch (e: Exception) {
-                        println("[KMP-IAP iOS] Failed to parse SubscriptionStatusIOS: ${e.message}")
                         null
                     }
                 } ?: emptyList()
@@ -1106,7 +1087,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 null
             }
         } catch (e: Exception) {
-            println("[KMP-IAP] Error converting to Purchase: ${e.message}")
             null
         }
     }
@@ -1119,7 +1099,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             val list = data as? List<*> ?: return emptyList()
             list.mapNotNull { convertAnyToPurchase(it) }
         } catch (e: Exception) {
-            println("[KMP-IAP] Error converting to Purchase list: ${e.message}")
             emptyList()
         }
     }
@@ -1134,7 +1113,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 convertAnyToPurchaseIOS(item)
             }
         } catch (e: Exception) {
-            println("[KMP-IAP] Error converting to PurchaseIOS list: ${e.message}")
             emptyList()
         }
     }
@@ -1142,32 +1120,22 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     @Suppress("UNCHECKED_CAST")
     private fun convertAnyListToProducts(data: Any?): List<Product> {
         if (data == null) {
-            println("[KMP-IAP] convertAnyListToProducts: data is null")
             return emptyList()
         }
-
-        println("[KMP-IAP] convertAnyListToProducts: data type = ${data::class.simpleName}")
 
         return try {
             val list = data as? List<*>
             if (list == null) {
-                println("[KMP-IAP] convertAnyListToProducts: failed to cast to List, data = $data")
                 return emptyList()
             }
 
-            println("[KMP-IAP] convertAnyListToProducts: list size = ${list.size}")
-
             list.mapNotNull { item ->
-                println("[KMP-IAP] convertAnyListToProducts: processing item type = ${item?.let { it::class.simpleName }}")
-
                 val dict = (item as? Map<*, *>)
                 if (dict == null) {
-                    println("[KMP-IAP] convertAnyListToProducts: item is not a Map, it's $item")
                     return@mapNotNull null
                 }
 
                 val map = dict.mapKeys { it.key.toString() }
-                println("[KMP-IAP] convertAnyListToProducts: map keys = ${map.keys}")
 
                 // Parse subscription offers from the data (if product has subscription info)
                 val subscriptionOffers = convertAnyListToSubscriptionOffers(
@@ -1197,8 +1165,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 )
             }
         } catch (e: Exception) {
-            println("[KMP-IAP] Error converting to Product list: ${e.message}")
-            e.printStackTrace()
             emptyList()
         }
     }
@@ -1246,7 +1212,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 )
             }
         } catch (e: Exception) {
-            println("[KMP-IAP] Error converting to ProductSubscription list: ${e.message}")
             emptyList()
         }
     }
@@ -1280,7 +1245,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 } ?: ProductTypeIOS.Consumable
             )
         } catch (e: Exception) {
-            println("[KMP-IAP] Error converting to ProductIOS: ${e.message}")
             null
         }
     }
@@ -1523,7 +1487,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     ?: (map["timestampIOS"] as? Number)?.toDouble()
             )
         } catch (e: Exception) {
-            println("[KMP-IAP] Error converting to SubscriptionOffer: ${e.message}")
             null
         }
     }
@@ -1539,7 +1502,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             val list = data as? List<*> ?: return emptyList()
             list.mapNotNull { convertAnyToSubscriptionOffer(it) }
         } catch (e: Exception) {
-            println("[KMP-IAP] Error converting to SubscriptionOffer list: ${e.message}")
             emptyList()
         }
     }
