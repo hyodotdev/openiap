@@ -956,12 +956,7 @@ class HybridRnIap: HybridRnIapSpec {
         listener: @escaping (NitroPurchase) -> Void,
         options: NitroPurchaseUpdatedListenerOptions?
     ) throws -> Double {
-        let dedupeTransactionIOS: Bool = {
-            if case .second(let enabled) = options?.dedupeTransactionIOS {
-                return enabled
-            }
-            return true
-        }()
+        let dedupeTransactionIOS = purchaseUpdatedDedupeTransactionIOS(from: options)
         let receiveDuplicateTransactionUpdatesIOS = !dedupeTransactionIOS
         let token = listenerLock.withLock {
             let token = nextPurchaseUpdatedListenerToken
@@ -1000,6 +995,20 @@ class HybridRnIap: HybridRnIapSpec {
 
     func addPurchaseErrorListener(listener: @escaping (NitroPurchaseResult) -> Void) throws {
         listenerLock.withLock { purchaseErrorListeners.append(listener) }
+    }
+
+    private func purchaseUpdatedDedupeTransactionIOS(
+        from options: NitroPurchaseUpdatedListenerOptions?
+    ) -> Bool {
+        guard let dedupeTransactionIOS = options?.dedupeTransactionIOS else {
+            return true
+        }
+        switch dedupeTransactionIOS {
+        case .second(let enabled):
+            return enabled
+        case .first:
+            return true
+        }
     }
 
     private func removePurchaseUpdatedListenerRegistration(token: Double) -> (label: String, subscription: Subscription)? {
