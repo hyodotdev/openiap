@@ -36,7 +36,7 @@ private struct PurchaseUpdateEmissionHistory {
 private struct PurchaseUpdatedListenerRegistration {
     let id: UUID
     let listener: PurchaseUpdatedListener
-    let includeDuplicateTransactionUpdatesIOS: Bool
+    let dedupeTransactionIOS: Bool
 }
 
 @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
@@ -109,7 +109,7 @@ actor IapState {
         purchaseUpdatedListeners.append(PurchaseUpdatedListenerRegistration(
             id: id,
             listener: listener,
-            includeDuplicateTransactionUpdatesIOS: options?.includeDuplicateTransactionUpdatesIOS == true
+            dedupeTransactionIOS: options?.dedupeTransactionIOS ?? true
         ))
     }
     func addPurchaseErrorListener(_ pair: (UUID, PurchaseErrorListener)) {
@@ -155,7 +155,7 @@ actor IapState {
 
     func snapshotPurchaseUpdated(isDuplicate: Bool = false) -> [PurchaseUpdatedListener] {
         purchaseUpdatedListeners.compactMap { registration in
-            guard !isDuplicate || registration.includeDuplicateTransactionUpdatesIOS else {
+            guard !isDuplicate || !registration.dedupeTransactionIOS else {
                 return nil
             }
             return registration.listener

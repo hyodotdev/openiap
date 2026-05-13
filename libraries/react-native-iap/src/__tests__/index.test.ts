@@ -162,17 +162,17 @@ describe('Public API (src/index.ts)', () => {
       expect(listener).not.toHaveBeenCalled();
     });
 
-    it('routes duplicate-enabled purchaseUpdatedListener through opt-in native listener', () => {
+    it('routes non-deduping purchaseUpdatedListener through opt-in native listener', () => {
       const defaultListener = jest.fn();
       const duplicateListener = jest.fn();
       IAP.purchaseUpdatedListener(defaultListener);
       IAP.purchaseUpdatedListener(duplicateListener, {
-        includeDuplicateTransactionUpdatesIOS: true,
+        dedupeTransactionIOS: false,
       });
 
       expect(mockIap.addPurchaseUpdatedListener).toHaveBeenCalledTimes(2);
       expect(mockIap.addPurchaseUpdatedListener.mock.calls[1][1]).toEqual({
-        includeDuplicateTransactionUpdatesIOS: true,
+        dedupeTransactionIOS: false,
       });
 
       const nitroPurchase = {

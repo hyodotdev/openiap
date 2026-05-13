@@ -114,16 +114,16 @@ export const emitter: ExpoIapEmitter = {
   },
 };
 
-let duplicatePurchaseUpdatedListenerCountIOS = 0;
+let nonDedupingPurchaseUpdatedListenerCountIOS = 0;
 
 const configurePurchaseUpdatedListenerOptionsIOS = (
-  includeDuplicateTransactionUpdatesIOS: boolean,
+  dedupeTransactionIOS: boolean,
 ) => {
   if (Platform.OS !== 'ios') return;
 
   const nativeModule = getNativeModule() as NativePurchaseUpdatedOptionsModule;
   const promise = nativeModule.setPurchaseUpdatedListenerOptions?.({
-    includeDuplicateTransactionUpdatesIOS,
+    dedupeTransactionIOS,
   });
   void promise?.catch((error: unknown) => {
     ExpoIapConsole.warn(
@@ -187,14 +187,9 @@ export const purchaseUpdatedListener = (
   listener: (event: Purchase) => void,
   options?: PurchaseUpdatedListenerOptions | null,
 ) => {
-  const includeDuplicateTransactionUpdatesIOS =
+  const receiveDuplicateTransactionUpdatesIOS =
     Platform.OS === 'ios' &&
-    options?.includeDuplicateTransactionUpdatesIOS === true;
-
-  if (includeDuplicateTransactionUpdatesIOS) {
-    duplicatePurchaseUpdatedListenerCountIOS += 1;
-    configurePurchaseUpdatedListenerOptionsIOS(true);
-  }
+    options?.dedupeTransactionIOS === false;
 
   const wrappedListener = (event: Purchase) => {
     const normalized = normalizePurchasePlatform(event);
@@ -205,20 +200,26 @@ export const purchaseUpdatedListener = (
     wrappedListener,
   );
 
-  if (!includeDuplicateTransactionUpdatesIOS) {
+  if (!receiveDuplicateTransactionUpdatesIOS) {
     return emitterSubscription;
   }
 
+  nonDedupingPurchaseUpdatedListenerCountIOS += 1;
+  configurePurchaseUpdatedListenerOptionsIOS(false);
+
   return {
     remove: () => {
-      emitterSubscription?.remove?.();
-      duplicatePurchaseUpdatedListenerCountIOS = Math.max(
-        0,
-        duplicatePurchaseUpdatedListenerCountIOS - 1,
-      );
-      configurePurchaseUpdatedListenerOptionsIOS(
-        duplicatePurchaseUpdatedListenerCountIOS > 0,
-      );
+      try {
+        emitterSubscription?.remove?.();
+      } finally {
+        nonDedupingPurchaseUpdatedListenerCountIOS = Math.max(
+          0,
+          nonDedupingPurchaseUpdatedListenerCountIOS - 1,
+        );
+        configurePurchaseUpdatedListenerOptionsIOS(
+          nonDedupingPurchaseUpdatedListenerCountIOS === 0,
+        );
+      }
     },
   };
 };

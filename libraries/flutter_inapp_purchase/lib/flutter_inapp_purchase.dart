@@ -106,33 +106,50 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
 
   /// Purchase updated event stream with listener options.
   ///
-  /// On iOS, set [PurchaseUpdatedListenerOptions.includeDuplicateTransactionUpdatesIOS]
-  /// to true to also receive StoreKit replay events for transaction IDs already
-  /// delivered during the current connection session. Android ignores this flag.
+  /// On iOS, set [PurchaseUpdatedListenerOptions.dedupeTransactionIOS]
+  /// to false to also receive StoreKit replay events for transaction IDs
+  /// already delivered during the current connection session. Android ignores
+  /// this flag. On iOS this configures shared native listener state for this
+  /// plugin instance; later option calls replace the previous native setting.
   Stream<gentype.Purchase> purchaseUpdatedListenerWithOptions(
     gentype.PurchaseUpdatedListenerOptions? options,
   ) {
-    if (isIOS) {
-      unawaited(
-        _setPurchaseUpdatedListenerOptions(options).catchError((Object error) {
-          debugPrint(
-            '[flutter_inapp_purchase] Failed to configure purchaseUpdatedListener options: $error',
-          );
-        }),
-      );
+    if (!isIOS) {
+      return purchaseUpdatedListener;
     }
-    return purchaseUpdatedListener;
+
+    StreamSubscription<gentype.Purchase>? subscription;
+    late StreamController<gentype.Purchase> controller;
+    controller = StreamController<gentype.Purchase>.broadcast(
+      onListen: () {
+        _setPurchaseUpdatedListenerOptions(options).then((_) {
+          if (!controller.hasListener) return;
+          subscription = purchaseUpdatedListener.listen(
+            controller.add,
+            onError: controller.addError,
+            onDone: controller.close,
+          );
+        }, onError: controller.addError);
+      },
+      onCancel: () async {
+        final activeSubscription = subscription;
+        subscription = null;
+        await activeSubscription?.cancel();
+      },
+    );
+    return controller.stream;
   }
 
   Future<void> _setPurchaseUpdatedListenerOptions(
     gentype.PurchaseUpdatedListenerOptions? options,
-  ) async {
-    await _setPurchaseListener();
-    await _channel.invokeMethod<void>(
-      'setPurchaseUpdatedListenerOptions',
-      options?.toJson(),
-    );
-  }
+  ) =>
+      _configurePurchaseListener(() async {
+        await _setPurchaseListener();
+        await _channel.invokeMethod<void>(
+          'setPurchaseUpdatedListenerOptions',
+          options?.toJson(),
+        );
+      });
 
   /// Purchase error event stream
   Stream<PurchaseError> get purchaseErrorListener =>
@@ -158,6 +175,16 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
       _subscriptionBillingIssueListener.stream;
 
   bool _isInitialized = false;
+  Future<void> _purchaseListenerConfiguration = Future<void>.value();
+
+  Future<void> _configurePurchaseListener(
+    Future<void> Function() configure,
+  ) {
+    final previous = _purchaseListenerConfiguration;
+    final current = previous.catchError((Object _) {}).then((_) => configure());
+    _purchaseListenerConfiguration = current.catchError((Object _) {});
+    return current;
+  }
 
   Future<void> _setPurchaseListener() async {
     _purchaseController ??= StreamController.broadcast();
@@ -313,7 +340,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
 
         try {
-          await _setPurchaseListener();
+          await _configurePurchaseListener(_setPurchaseListener);
 
           // Build config map for alternative billing and billing program
           Map<String, dynamic>? config;
@@ -2661,10 +2688,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         },
         purchaseError: () async =>
             await purchaseErrorListener.first as gentype.PurchaseError,
-        purchaseUpdated: ({bool? includeDuplicateTransactionUpdatesIOS}) async {
+        purchaseUpdated: ({bool? dedupeTransactionIOS}) async {
           final options = gentype.PurchaseUpdatedListenerOptions(
-            includeDuplicateTransactionUpdatesIOS:
-                includeDuplicateTransactionUpdatesIOS,
+            dedupeTransactionIOS: dedupeTransactionIOS,
           );
           if (isIOS) {
             await _setPurchaseUpdatedListenerOptions(options);

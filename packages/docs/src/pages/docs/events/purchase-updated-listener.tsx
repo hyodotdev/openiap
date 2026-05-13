@@ -32,9 +32,9 @@ function PurchaseUpdatedListener() {
       </p>
       <p>
         For diagnostics, register the purchase update listener with{' '}
-        <code>includeDuplicateTransactionUpdatesIOS: true</code>. The flag
-        belongs to the purchase update listener only; purchase error listeners
-        do not receive successful StoreKit transactions.
+        <code>dedupeTransactionIOS: false</code>. The flag belongs to the
+        purchase update listener only; purchase error listeners do not receive
+        successful StoreKit transactions. Android ignores this iOS-only option.
       </p>
 
       <h3>Listener Setup</h3>
@@ -87,7 +87,7 @@ IObservable<Purchase> purchaseUpdates = Iap.Instance.PurchaseUpdated;`}</CodeBlo
   (purchase) => {
     console.log('StoreKit replay or first delivery:', purchase.id);
   },
-  { includeDuplicateTransactionUpdatesIOS: true }
+  { dedupeTransactionIOS: false }
 );`}</CodeBlock>
           ),
           swift: (
@@ -96,14 +96,14 @@ IObservable<Purchase> purchaseUpdates = Iap.Instance.PurchaseUpdated;`}</CodeBlo
         print("StoreKit replay or first delivery: \\(purchase.id)")
     },
     options: PurchaseUpdatedListenerOptions(
-        includeDuplicateTransactionUpdatesIOS: true
+        dedupeTransactionIOS: false
     )
 )`}</CodeBlock>
           ),
           kmp: (
             <CodeBlock language="kotlin">{`val updates = kmpIAP.purchaseUpdatedListener(
     PurchaseUpdatedListenerOptions(
-        includeDuplicateTransactionUpdatesIOS = true
+        dedupeTransactionIOS = false
     )
 )`}</CodeBlock>
           ),
@@ -111,7 +111,7 @@ IObservable<Purchase> purchaseUpdates = Iap.Instance.PurchaseUpdated;`}</CodeBlo
             <CodeBlock language="dart">{`final updates = FlutterInappPurchase.instance
     .purchaseUpdatedListenerWithOptions(
   const PurchaseUpdatedListenerOptions(
-    includeDuplicateTransactionUpdatesIOS: true,
+    dedupeTransactionIOS: false,
   ),
 );`}</CodeBlock>
           ),
@@ -119,12 +119,12 @@ IObservable<Purchase> purchaseUpdates = Iap.Instance.PurchaseUpdated;`}</CodeBlo
             <CodeBlock language="csharp">{`var updates = Iap.Instance.PurchaseUpdatedWithOptions(
     new PurchaseUpdatedListenerOptions
     {
-        IncludeDuplicateTransactionUpdatesIOS = true,
+        DedupeTransactionIOS = false,
     });`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`var options = Types.PurchaseUpdatedListenerOptions.new()
-options.include_duplicate_transaction_updates_ios = true
+options.dedupe_transaction_ios = false
 iap.set_purchase_updated_listener_options(options)`}</CodeBlock>
           ),
         }}

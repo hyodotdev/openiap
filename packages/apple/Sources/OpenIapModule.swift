@@ -387,7 +387,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
             // StoreKit can replay unfinished transactions through multiple paths during a
             // connection session. Default listeners receive each transaction id once;
-            // duplicate-enabled listeners can opt into the replay for diagnostics.
+            // non-deduping listeners can opt into the replay for diagnostics.
             emitPurchaseUpdate(
                 purchase,
                 isDuplicate: !shouldEmit,
@@ -1653,7 +1653,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                         let purchase = await StoreKitTypesBridge.purchase(from: transaction, jwsRepresentation: verification.jwsRepresentation)
 
                         // Default listeners receive each transaction id once per connection
-                        // session. Duplicate-enabled listeners can opt into StoreKit replays.
+                        // session. Non-deduping listeners can opt into StoreKit replays.
                         guard await self.state.recordPurchaseUpdateEmission(
                             id: transactionId,
                             pendingTransaction: transaction
@@ -1806,16 +1806,21 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         listenerCount: Int
     ) {
         let action = listenerCount > 0
-            ? "Delivered duplicate purchase-updated event to \(listenerCount) duplicate-enabled listener(s)."
+            ? "Delivered duplicate purchase-updated event to \(listenerCount) non-deduping listener(s)."
             : "Suppressed duplicate purchase-updated listener emission."
-        OpenIapLog.warn("""
+        let message = """
             [PurchaseUpdateDedup] \(action)
             - Source: \(source)
             - Product: \(productId)
             - Transaction ID: \(transactionId)
             - Reason: this transaction id was already emitted during the current connection session.
-            - Scope: default listeners receive one event per transaction id; listeners registered with includeDuplicateTransactionUpdatesIOS receive StoreKit replays.
-            """)
+            - Scope: listeners dedupe by transaction id by default; listeners registered with dedupeTransactionIOS: false receive StoreKit replays.
+            """
+        if listenerCount > 0 {
+            OpenIapLog.info(message)
+        } else {
+            OpenIapLog.debug(message)
+        }
     }
 
     private func emitPurchaseUpdate(
@@ -1833,6 +1838,9 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                     productId: purchase.productId,
                     listenerCount: listeners.count
                 )
+                if listeners.isEmpty {
+                    return
+                }
             }
             OpenIapLog.debug("✅ Emitting purchase update: Product=\(purchase.productId), Listeners=\(listeners.count)")
             await MainActor.run {

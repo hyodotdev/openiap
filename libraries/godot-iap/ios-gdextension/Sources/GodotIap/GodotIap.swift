@@ -65,7 +65,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     private var purchaseErrorSubscription: Subscription?
     private var promotedProductSubscription: Subscription?
     private var subscriptionBillingIssueSubscription: Subscription?
-    private var includeDuplicatePurchaseUpdatesIOS = false
+    private var dedupeTransactionIOS = true
 
     // MARK: - Initialization
     required init(_ context: InitContext) {
@@ -117,9 +117,14 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     @Callable
     public func setPurchaseUpdatedListenerOptions(optionsJson: String) -> Bool {
         let data = Data(optionsJson.utf8)
-        let decoded = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
-        includeDuplicatePurchaseUpdatesIOS =
-            decoded?["includeDuplicateTransactionUpdatesIOS"] as? Bool == true
+        guard
+            let decoded = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        else {
+            GodotIapLog.warn("setPurchaseUpdatedListenerOptions: invalid JSON")
+            return false
+        }
+        dedupeTransactionIOS =
+            decoded["dedupeTransactionIOS"] as? Bool ?? true
 
         if isConnected {
             if let sub = purchaseUpdateSubscription {
@@ -1346,7 +1351,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     private func setupPurchaseUpdatedListener() {
         let options = PurchaseUpdatedListenerOptions(
-            includeDuplicateTransactionUpdatesIOS: includeDuplicatePurchaseUpdatesIOS
+            dedupeTransactionIOS: dedupeTransactionIOS
         )
         purchaseUpdateSubscription = openIap.purchaseUpdatedListener({ [weak self] purchase in
             Task { @MainActor in

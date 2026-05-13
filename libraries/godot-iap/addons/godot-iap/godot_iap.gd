@@ -261,9 +261,9 @@ func is_store_connected() -> bool:
 
 ## Configure purchase update listener options.
 ##
-## On iOS, set [code]include_duplicate_transaction_updates_ios[/code] to true
-## to also receive StoreKit replay events for transaction IDs already delivered
-## during the current connection session. Android ignores this flag.
+## On iOS, set [code]dedupe_transaction_ios[/code] to false to also receive
+## StoreKit replay events for transaction IDs already delivered during the
+## current connection session. Android ignores this flag.
 func set_purchase_updated_listener_options(options = null) -> void:
 	if typeof(options) == TYPE_OBJECT and options.has_method("to_dict"):
 		_purchase_updated_listener_options = options.to_dict()

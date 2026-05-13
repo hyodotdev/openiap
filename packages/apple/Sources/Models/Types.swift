@@ -1688,16 +1688,15 @@ public struct PurchaseOptions: Codable {
 }
 
 public struct PurchaseUpdatedListenerOptions: Codable {
-    /// iOS only. When true, listener callbacks also receive StoreKit replay events
-    /// for a transaction ID that was already emitted during the current connection
-    /// session. Defaults to false so purchase success handlers run once per
-    /// transaction ID.
-    public var includeDuplicateTransactionUpdatesIOS: Bool?
+    /// iOS only. Defaults to true. When false, listener callbacks also receive
+    /// StoreKit replay events for a transaction ID that was already emitted during
+    /// the current connection session. Android ignores this option.
+    public var dedupeTransactionIOS: Bool?
 
     public init(
-        includeDuplicateTransactionUpdatesIOS: Bool? = nil
+        dedupeTransactionIOS: Bool? = nil
     ) {
-        self.includeDuplicateTransactionUpdatesIOS = includeDuplicateTransactionUpdatesIOS
+        self.dedupeTransactionIOS = dedupeTransactionIOS
     }
 }
 

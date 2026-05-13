@@ -3851,19 +3851,19 @@ class PurchaseOptions:
 		return dict
 
 class PurchaseUpdatedListenerOptions:
-	## iOS only. When true, listener callbacks also receive StoreKit replay events
-	var include_duplicate_transaction_updates_ios: Variant = null
+	## iOS only. Defaults to true. When false, listener callbacks also receive
+	var dedupe_transaction_ios: Variant = null
 
 	static func from_dict(data: Dictionary) -> PurchaseUpdatedListenerOptions:
 		var obj = PurchaseUpdatedListenerOptions.new()
-		if data.has("includeDuplicateTransactionUpdatesIOS") and data["includeDuplicateTransactionUpdatesIOS"] != null:
-			obj.include_duplicate_transaction_updates_ios = data["includeDuplicateTransactionUpdatesIOS"]
+		if data.has("dedupeTransactionIOS") and data["dedupeTransactionIOS"] != null:
+			obj.dedupe_transaction_ios = data["dedupeTransactionIOS"]
 		return obj
 
 	func to_dict() -> Dictionary:
 		var dict = {}
-		if include_duplicate_transaction_updates_ios != null:
-			dict["includeDuplicateTransactionUpdatesIOS"] = include_duplicate_transaction_updates_ios
+		if dedupe_transaction_ios != null:
+			dict["dedupeTransactionIOS"] = dedupe_transaction_ios
 		return dict
 
 class RequestPurchaseAndroidProps:

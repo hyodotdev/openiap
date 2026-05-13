@@ -1294,12 +1294,11 @@ export type PurchaseState = 'pending' | 'purchased' | 'unknown';
 
 export interface PurchaseUpdatedListenerOptions {
   /**
-   * iOS only. When true, listener callbacks also receive StoreKit replay events
-   * for a transaction ID that was already emitted during the current connection
-   * session. Defaults to false so purchase success handlers run once per
-   * transaction ID.
+   * iOS only. Defaults to true. When false, listener callbacks also receive
+   * StoreKit replay events for a transaction ID that was already emitted during
+   * the current connection session. Android ignores this option.
    */
-  includeDuplicateTransactionUpdatesIOS?: (boolean | null);
+  dedupeTransactionIOS?: (boolean | null);
 }
 
 export type PurchaseVerificationProvider = 'iapkit';

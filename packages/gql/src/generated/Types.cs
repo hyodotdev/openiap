@@ -3764,12 +3764,11 @@ public sealed record PurchaseOptions
 
 public sealed record PurchaseUpdatedListenerOptions
 {
-    /// <summary>iOS only. When true, listener callbacks also receive StoreKit replay events</summary>
-    /// <summary>for a transaction ID that was already emitted during the current connection</summary>
-    /// <summary>session. Defaults to false so purchase success handlers run once per</summary>
-    /// <summary>transaction ID.</summary>
-    [JsonPropertyName("includeDuplicateTransactionUpdatesIOS")]
-    public bool? IncludeDuplicateTransactionUpdatesIOS { get; init; }
+    /// <summary>iOS only. Defaults to true. When false, listener callbacks also receive</summary>
+    /// <summary>StoreKit replay events for a transaction ID that was already emitted during</summary>
+    /// <summary>the current connection session. Android ignores this option.</summary>
+    [JsonPropertyName("dedupeTransactionIOS")]
+    public bool? DedupeTransactionIOS { get; init; }
 }
 
 public sealed record RequestPurchaseAndroidProps

@@ -126,7 +126,7 @@ final class OpenIapTests: XCTestCase {
             id: UUID(),
             listener: { _ in },
             options: PurchaseUpdatedListenerOptions(
-                includeDuplicateTransactionUpdatesIOS: true
+                dedupeTransactionIOS: false
             )
         )
 

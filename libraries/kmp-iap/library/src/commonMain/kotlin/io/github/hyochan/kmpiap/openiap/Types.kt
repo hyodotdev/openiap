@@ -4417,23 +4417,22 @@ public data class PurchaseOptions(
 
 public data class PurchaseUpdatedListenerOptions(
     /**
-     * iOS only. When true, listener callbacks also receive StoreKit replay events
-     * for a transaction ID that was already emitted during the current connection
-     * session. Defaults to false so purchase success handlers run once per
-     * transaction ID.
+     * iOS only. Defaults to true. When false, listener callbacks also receive
+     * StoreKit replay events for a transaction ID that was already emitted during
+     * the current connection session. Android ignores this option.
      */
-    val includeDuplicateTransactionUpdatesIOS: Boolean? = null
+    val dedupeTransactionIOS: Boolean? = null
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): PurchaseUpdatedListenerOptions {
             return PurchaseUpdatedListenerOptions(
-                includeDuplicateTransactionUpdatesIOS = json["includeDuplicateTransactionUpdatesIOS"] as? Boolean,
+                dedupeTransactionIOS = json["dedupeTransactionIOS"] as? Boolean,
             )
         }
     }
 
     fun toJson(): Map<String, Any?> = mapOf(
-        "includeDuplicateTransactionUpdatesIOS" to includeDuplicateTransactionUpdatesIOS,
+        "dedupeTransactionIOS" to dedupeTransactionIOS,
     )
 }
 

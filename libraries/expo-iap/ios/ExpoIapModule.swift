@@ -53,8 +53,8 @@ public final class ExpoIapModule: Module {
 
         AsyncFunction("setPurchaseUpdatedListenerOptions") { (options: [String: Any]?) async throws -> Void in
             let listenerOptions = PurchaseUpdatedListenerOptions(
-                includeDuplicateTransactionUpdatesIOS:
-                    options?["includeDuplicateTransactionUpdatesIOS"] as? Bool
+                dedupeTransactionIOS:
+                    options?["dedupeTransactionIOS"] as? Bool
             )
             ExpoIapHelper.setPurchaseUpdatedListenerOptions(listenerOptions)
         }

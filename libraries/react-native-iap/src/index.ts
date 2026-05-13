@@ -339,15 +339,15 @@ export const purchaseUpdatedListener = (
   listener: (purchase: Purchase) => void,
   options?: PurchaseUpdatedListenerOptions | null,
 ): EventSubscription => {
-  const includeDuplicateTransactionUpdatesIOS =
-    options?.includeDuplicateTransactionUpdatesIOS === true;
-  const listeners = includeDuplicateTransactionUpdatesIOS
+  const receiveDuplicateTransactionUpdatesIOS =
+    Platform.OS === 'ios' && options?.dedupeTransactionIOS === false;
+  const listeners = receiveDuplicateTransactionUpdatesIOS
     ? purchaseUpdateDuplicateJsListeners
     : purchaseUpdateJsListeners;
 
   listeners.add(listener);
 
-  if (!purchaseUpdateNativeAttached && !includeDuplicateTransactionUpdatesIOS) {
+  if (!purchaseUpdateNativeAttached && !receiveDuplicateTransactionUpdatesIOS) {
     try {
       IAP.instance.addPurchaseUpdatedListener(purchaseUpdateNativeHandler);
       purchaseUpdateNativeAttached = true;
@@ -365,12 +365,12 @@ export const purchaseUpdatedListener = (
 
   if (
     !purchaseUpdateDuplicateNativeAttached &&
-    includeDuplicateTransactionUpdatesIOS
+    receiveDuplicateTransactionUpdatesIOS
   ) {
     try {
       const nativeOptions: NitroPurchaseUpdatedListenerOptions &
         NitroPurchaseUpdatedListenerOptionsParam = {
-        includeDuplicateTransactionUpdatesIOS: true,
+        dedupeTransactionIOS: false,
       };
       IAP.instance.addPurchaseUpdatedListener(
         purchaseUpdateDuplicateNativeHandler,

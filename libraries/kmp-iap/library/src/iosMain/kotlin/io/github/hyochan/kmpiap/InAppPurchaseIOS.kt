@@ -32,17 +32,17 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     override val purchaseUpdatedListener: Flow<Purchase> = _purchaseUpdatedFlow.asSharedFlow()
 
     override fun purchaseUpdatedListener(options: PurchaseUpdatedListenerOptions?): Flow<Purchase> {
-        if (options?.includeDuplicateTransactionUpdatesIOS != true) {
+        if (options?.dedupeTransactionIOS != false) {
             return purchaseUpdatedListener
         }
 
         return callbackFlow {
             val subscription = openIapModule.addPurchaseUpdatedListener(
                 { dictionary ->
-                    println("[KMP-IAP iOS] Purchase updated received with options: $dictionary")
+                    println("[KMP-IAP iOS] Purchase updated event received with dedupeTransactionIOS=false")
                     convertAnyToPurchase(dictionary)?.let { trySend(it) }
                 },
-                true
+                false
             )
             awaitClose { openIapModule.removeListener(subscription) }
         }

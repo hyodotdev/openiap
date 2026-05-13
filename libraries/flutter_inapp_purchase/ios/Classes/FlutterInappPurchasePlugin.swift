@@ -457,8 +457,8 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
     private func setPurchaseUpdatedListenerOptions(call: FlutterMethodCall, result: @escaping FlutterResult) {
         let args = call.arguments as? [String: Any]
         purchaseUpdatedListenerOptions = PurchaseUpdatedListenerOptions(
-            includeDuplicateTransactionUpdatesIOS:
-                args?["includeDuplicateTransactionUpdatesIOS"] as? Bool
+            dedupeTransactionIOS:
+                args?["dedupeTransactionIOS"] as? Bool
         )
         if let token = purchaseUpdatedToken {
             OpenIapModule.shared.removeListener(token)

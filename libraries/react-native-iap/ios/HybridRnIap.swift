@@ -4,6 +4,11 @@ import OpenIAP
 
 @available(iOS 15.0, macOS 14.0, tvOS 15.0, watchOS 8.0, *)
 class HybridRnIap: HybridRnIapSpec {
+    private enum PurchaseUpdatedListenerBucket {
+        case deduping
+        case nonDeduping
+    }
+
     // MARK: - Properties
     private var updateListenerTask: Task<Void, Never>?
     private var isInitialized: Bool = false
@@ -17,6 +22,7 @@ class HybridRnIap: HybridRnIapSpec {
     // Event listeners
     private var purchaseUpdatedListeners: [(NitroPurchase) -> Void] = []
     private var purchaseUpdatedDuplicateListeners: [(NitroPurchase) -> Void] = []
+    private var purchaseUpdatedListenerBuckets: [PurchaseUpdatedListenerBucket] = []
     private var purchaseErrorListeners: [(NitroPurchaseResult) -> Void] = []
     private var promotedProductListeners: [(NitroProduct) -> Void] = []
     private var subscriptionBillingIssueListeners: [(NitroPurchase) -> Void] = []
@@ -944,20 +950,23 @@ class HybridRnIap: HybridRnIapSpec {
         listener: @escaping (NitroPurchase) -> Void,
         options: NitroPurchaseUpdatedListenerOptions?
     ) throws {
-        let includeDuplicateTransactionUpdatesIOS: Bool = {
-            if case .second(let enabled) = options?.includeDuplicateTransactionUpdatesIOS {
+        let dedupeTransactionIOS: Bool = {
+            if case .second(let enabled) = options?.dedupeTransactionIOS {
                 return enabled
             }
-            return false
+            return true
         }()
+        let receiveDuplicateTransactionUpdatesIOS = !dedupeTransactionIOS
         listenerLock.withLock {
-            if includeDuplicateTransactionUpdatesIOS {
+            if receiveDuplicateTransactionUpdatesIOS {
                 purchaseUpdatedDuplicateListeners.append(listener)
+                purchaseUpdatedListenerBuckets.append(.nonDeduping)
             } else {
                 purchaseUpdatedListeners.append(listener)
+                purchaseUpdatedListenerBuckets.append(.deduping)
             }
         }
-        if includeDuplicateTransactionUpdatesIOS {
+        if receiveDuplicateTransactionUpdatesIOS {
             attachDuplicatePurchaseUpdatedSubIfNeeded()
         } else {
             attachPurchaseUpdatedSubIfNeeded()
@@ -970,8 +979,19 @@ class HybridRnIap: HybridRnIapSpec {
 
     func removePurchaseUpdatedListener(listener: @escaping (NitroPurchase) -> Void) throws {
         listenerLock.withLock {
-            purchaseUpdatedListeners.removeAll()
-            purchaseUpdatedDuplicateListeners.removeAll()
+            guard let bucket = purchaseUpdatedListenerBuckets.popLast() else {
+                return
+            }
+            switch bucket {
+            case .deduping:
+                if !purchaseUpdatedListeners.isEmpty {
+                    purchaseUpdatedListeners.removeLast()
+                }
+            case .nonDeduping:
+                if !purchaseUpdatedDuplicateListeners.isEmpty {
+                    purchaseUpdatedDuplicateListeners.removeLast()
+                }
+            }
         }
     }
 
@@ -1077,11 +1097,11 @@ class HybridRnIap: HybridRnIapSpec {
         if purchaseUpdatedDuplicateSub == nil {
             RnIapLog.payload("purchaseUpdatedListener.register.duplicates", nil)
             let options = PurchaseUpdatedListenerOptions(
-                includeDuplicateTransactionUpdatesIOS: true
+                dedupeTransactionIOS: false
             )
             purchaseUpdatedDuplicateSub = OpenIapModule.shared.purchaseUpdatedListener({ [weak self] openIapPurchase in
                 guard let self else {
-                    RnIapLog.warn("purchaseUpdatedListener: HybridRnIap deallocated, duplicate-enabled purchase event dropped")
+                    RnIapLog.warn("purchaseUpdatedListener: HybridRnIap deallocated, non-deduping purchase event dropped")
                     return
                 }
                 Task { @MainActor in
@@ -1225,6 +1245,7 @@ class HybridRnIap: HybridRnIapSpec {
         listenerLock.withLock {
             purchaseUpdatedListeners.removeAll()
             purchaseUpdatedDuplicateListeners.removeAll()
+            purchaseUpdatedListenerBuckets.removeAll()
             purchaseErrorListeners.removeAll()
             promotedProductListeners.removeAll()
             subscriptionBillingIssueListeners.removeAll()

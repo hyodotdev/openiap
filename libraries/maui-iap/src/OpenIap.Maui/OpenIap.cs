@@ -49,9 +49,9 @@ public interface IOpenIap
 
     /// <summary>
     /// Stream of successful purchase updates with listener options. On iOS,
-    /// <see cref="PurchaseUpdatedListenerOptions.IncludeDuplicateTransactionUpdatesIOS"/>
-    /// also emits StoreKit replay events for transaction IDs already delivered
-    /// during the current connection session. Android ignores this flag.
+    /// set <see cref="PurchaseUpdatedListenerOptions.DedupeTransactionIOS"/>
+    /// to false to also emit StoreKit replay events for transaction IDs already
+    /// delivered during the current connection session. Android ignores this flag.
     /// </summary>
     IObservable<Purchase> PurchaseUpdatedWithOptions(PurchaseUpdatedListenerOptions? options = null);
 

@@ -272,7 +272,7 @@ export interface UseIapOptions {
   /**
    * Options for the purchase success listener. iOS defaults to suppressing
    * StoreKit replay events for the same transaction ID; set
-   * `includeDuplicateTransactionUpdatesIOS` to true only for diagnostics.
+   * `dedupeTransactionIOS` to false only for diagnostics.
    */
   purchaseUpdatedListenerOptions?: PurchaseUpdatedListenerOptions | null;
   onPurchaseError?: (error: PurchaseError) => void;

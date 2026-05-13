@@ -4349,24 +4349,23 @@ class PurchaseOptions {
 
 class PurchaseUpdatedListenerOptions {
   const PurchaseUpdatedListenerOptions({
-    this.includeDuplicateTransactionUpdatesIOS,
+    this.dedupeTransactionIOS,
   });
 
-  /// iOS only. When true, listener callbacks also receive StoreKit replay events
-  /// for a transaction ID that was already emitted during the current connection
-  /// session. Defaults to false so purchase success handlers run once per
-  /// transaction ID.
-  final bool? includeDuplicateTransactionUpdatesIOS;
+  /// iOS only. Defaults to true. When false, listener callbacks also receive
+  /// StoreKit replay events for a transaction ID that was already emitted during
+  /// the current connection session. Android ignores this option.
+  final bool? dedupeTransactionIOS;
 
   factory PurchaseUpdatedListenerOptions.fromJson(Map<String, dynamic> json) {
     return PurchaseUpdatedListenerOptions(
-      includeDuplicateTransactionUpdatesIOS: json['includeDuplicateTransactionUpdatesIOS'] as bool?,
+      dedupeTransactionIOS: json['dedupeTransactionIOS'] as bool?,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'includeDuplicateTransactionUpdatesIOS': includeDuplicateTransactionUpdatesIOS,
+      'dedupeTransactionIOS': dedupeTransactionIOS,
     };
   }
 }
@@ -5480,7 +5479,7 @@ abstract class SubscriptionResolver {
   /// for diagnostics; default listeners receive one event per transaction ID
   /// during a single connection session.
   Future<Purchase> purchaseUpdated({
-    bool? includeDuplicateTransactionUpdatesIOS,
+    bool? dedupeTransactionIOS,
   });
   /// Fires when an active subscription enters a billing-issue state that needs user action
   /// (payment method failed, card expired, etc.). Cross-platform unification:
@@ -5702,7 +5701,7 @@ typedef SubscriptionDeveloperProvidedBillingAndroidHandler = Future<DeveloperPro
 typedef SubscriptionPromotedProductIOSHandler = Future<String> Function();
 typedef SubscriptionPurchaseErrorHandler = Future<PurchaseError> Function();
 typedef SubscriptionPurchaseUpdatedHandler = Future<Purchase> Function({
-  bool? includeDuplicateTransactionUpdatesIOS,
+  bool? dedupeTransactionIOS,
 });
 typedef SubscriptionSubscriptionBillingIssueHandler = Future<Purchase> Function();
 typedef SubscriptionUserChoiceBillingAndroidHandler = Future<UserChoiceBillingDetails> Function();

@@ -109,9 +109,10 @@ interface KmpInAppPurchase : MutationResolver, QueryResolver, SubscriptionResolv
     /**
      * Listener for observing purchase updates with subscription options.
      *
-     * On iOS, set [PurchaseUpdatedListenerOptions.includeDuplicateTransactionUpdatesIOS]
-     * to true to also receive StoreKit replay events for transaction IDs already
-     * delivered during the current connection session. Android ignores this flag.
+     * On iOS, set [PurchaseUpdatedListenerOptions.dedupeTransactionIOS]
+     * to false to also receive StoreKit replay events for transaction IDs
+     * already delivered during the current connection session. Android ignores
+     * this flag.
      */
     fun purchaseUpdatedListener(options: PurchaseUpdatedListenerOptions? = null): Flow<Purchase>
 

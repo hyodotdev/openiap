@@ -50,12 +50,13 @@ function Releases() {
           >
             Publishes <strong>OpenIAP Spec 2.0.2</strong> with{' '}
             <code>PurchaseUpdatedListenerOptions</code> and an iOS-only{' '}
-            <code>includeDuplicateTransactionUpdatesIOS</code> flag. StoreKit
-            can replay the same unfinished transaction through request and
-            transaction-update paths during a single connection session. The
-            default listener behavior remains entitlement-safe: one purchase
-            success event per iOS transaction ID. Diagnostics can opt into
-            StoreKit replay events explicitly. Track the fix in{' '}
+            <code>dedupeTransactionIOS</code> flag. StoreKit can replay the same
+            unfinished transaction through request and transaction-update paths
+            during a single connection session. The default listener behavior
+            remains entitlement-safe: one purchase success event per iOS
+            transaction ID because the flag defaults to true. Diagnostics can
+            opt into StoreKit replay events by setting it to false. Track the
+            fix in{' '}
             <a
               href="https://github.com/hyodotdev/openiap/issues/152"
               target="_blank"
@@ -93,7 +94,8 @@ function Releases() {
               <strong>Native debugging preserved</strong> — openiap-apple no
               longer drops duplicate StoreKit updates before framework bridges
               can observe them. Default listeners suppress duplicates, while
-              duplicate-enabled listeners receive the replay.
+              listeners with <code>dedupeTransactionIOS: false</code> receive
+              the replay.
             </li>
             <li>
               <strong>Docs and type sync</strong> — the generated GQL types now

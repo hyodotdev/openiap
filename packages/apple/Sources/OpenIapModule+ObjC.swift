@@ -801,16 +801,16 @@ import StoreKit
     // MARK: - Event Listeners
 
     @objc func addPurchaseUpdatedListener(_ callback: @escaping (NSDictionary) -> Void) -> NSObject {
-        addPurchaseUpdatedListener(callback, includeDuplicateTransactionUpdatesIOS: false)
+        addPurchaseUpdatedListener(callback, dedupeTransactionIOS: true)
     }
 
-    @objc(addPurchaseUpdatedListener:includeDuplicateTransactionUpdatesIOS:)
+    @objc(addPurchaseUpdatedListener:dedupeTransactionIOS:)
     func addPurchaseUpdatedListener(
         _ callback: @escaping (NSDictionary) -> Void,
-        includeDuplicateTransactionUpdatesIOS: Bool
+        dedupeTransactionIOS: Bool
     ) -> NSObject {
         let options = PurchaseUpdatedListenerOptions(
-            includeDuplicateTransactionUpdatesIOS: includeDuplicateTransactionUpdatesIOS
+            dedupeTransactionIOS: dedupeTransactionIOS
         )
         let subscription = purchaseUpdatedListener({ purchase in
             let dictionary = OpenIapSerialization.purchase(purchase)
