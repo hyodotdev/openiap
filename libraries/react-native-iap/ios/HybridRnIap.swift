@@ -989,8 +989,12 @@ class HybridRnIap: HybridRnIapSpec {
     }
 
     func removePurchaseUpdatedListener(token: Double) throws {
-        listenerLock.withLock {
+        let removedSubscription = listenerLock.withLock {
             removePurchaseUpdatedListenerRegistration(token: token)
+        }
+        if let removedSubscription {
+            RnIapLog.payload("removeListener", removedSubscription.label)
+            OpenIapModule.shared.removeListener(removedSubscription.subscription)
         }
     }
 
@@ -998,11 +1002,11 @@ class HybridRnIap: HybridRnIapSpec {
         listenerLock.withLock { purchaseErrorListeners.append(listener) }
     }
 
-    private func removePurchaseUpdatedListenerRegistration(token: Double) {
+    private func removePurchaseUpdatedListenerRegistration(token: Double) -> (label: String, subscription: Subscription)? {
         guard let registrationIndex = purchaseUpdatedListenerRegistrations.lastIndex(where: {
             $0.token == token
         }) else {
-            return
+            return nil
         }
         let registration = purchaseUpdatedListenerRegistrations.remove(at: registrationIndex)
         switch registration.bucket {
@@ -1010,10 +1014,20 @@ class HybridRnIap: HybridRnIapSpec {
             if let index = purchaseUpdatedListeners.lastIndex(where: { $0.token == token }) {
                 purchaseUpdatedListeners.remove(at: index)
             }
+            guard purchaseUpdatedListeners.isEmpty, let sub = purchaseUpdatedSub else {
+                return nil
+            }
+            purchaseUpdatedSub = nil
+            return ("purchaseUpdated", sub)
         case .nonDeduping:
             if let index = purchaseUpdatedDuplicateListeners.lastIndex(where: { $0.token == token }) {
                 purchaseUpdatedDuplicateListeners.remove(at: index)
             }
+            guard purchaseUpdatedDuplicateListeners.isEmpty, let sub = purchaseUpdatedDuplicateSub else {
+                return nil
+            }
+            purchaseUpdatedDuplicateSub = nil
+            return ("purchaseUpdatedDuplicate", sub)
         }
     }
 

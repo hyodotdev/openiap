@@ -60,7 +60,7 @@ describe('Public API (index.ts)', () => {
     it('registers purchase updated listener', () => {
       const addListener = (ExpoIapModule as any).addListener as jest.Mock;
       const fn = jest.fn();
-      purchaseUpdatedListener(fn);
+      const subscription = purchaseUpdatedListener(fn);
       expect(addListener).toHaveBeenCalledWith(
         OpenIapEvent.PurchaseUpdated,
         expect.any(Function),
@@ -69,6 +69,7 @@ describe('Public API (index.ts)', () => {
       const event = {id: 't', productId: 'p', platform: 'IOS'} as any;
       passed(event);
       expect(fn).toHaveBeenCalledWith({...event, platform: 'ios'});
+      expect(typeof subscription.remove).toBe('function');
     });
 
     it('registers non-deduping purchase updated listener on iOS', () => {
@@ -87,6 +88,35 @@ describe('Public API (index.ts)', () => {
         expect.any(Function),
       );
       subscription.remove();
+    });
+
+    it('removes listener through native subscription when available', () => {
+      const addListener = (ExpoIapModule as any).addListener as jest.Mock;
+      const nativeRemove = jest.fn();
+      addListener.mockReturnValueOnce({remove: nativeRemove});
+
+      const subscription = purchaseUpdatedListener(jest.fn());
+      subscription.remove();
+      subscription.remove();
+
+      expect(nativeRemove).toHaveBeenCalledTimes(1);
+    });
+
+    it('falls back to native removeListener when addListener returns void', () => {
+      const addListener = (ExpoIapModule as any).addListener as jest.Mock;
+      const removeListener = (ExpoIapModule as any).removeListener as jest.Mock;
+      addListener.mockReturnValueOnce(undefined);
+
+      const subscription = purchaseUpdatedListener(jest.fn());
+      const nativeListener = addListener.mock.calls[0][1];
+      subscription.remove();
+      subscription.remove();
+
+      expect(removeListener).toHaveBeenCalledTimes(1);
+      expect(removeListener).toHaveBeenCalledWith(
+        OpenIapEvent.PurchaseUpdated,
+        nativeListener,
+      );
     });
 
     it('filters duplicate replay events for default listeners when a non-deduping listener is active', () => {

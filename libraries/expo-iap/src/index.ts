@@ -107,10 +107,28 @@ type NativePurchaseUpdatedOptionsModule = {
 // Resolved lazily so importing this module doesn't throw on unsupported platforms.
 export const emitter: ExpoIapEmitter = {
   addListener(eventName, listener) {
-    return getNativeModule().addListener(eventName, listener);
+    const nativeModule = getNativeModule();
+    const nativeSubscription = nativeModule.addListener(eventName, listener);
+    let removed = false;
+
+    return {
+      remove: () => {
+        if (removed) {
+          return;
+        }
+        removed = true;
+
+        if (typeof nativeSubscription?.remove === 'function') {
+          nativeSubscription.remove();
+          return;
+        }
+
+        nativeModule.removeListener?.(eventName, listener);
+      },
+    };
   },
   removeListener(eventName, listener) {
-    return getNativeModule().removeListener(eventName, listener);
+    return getNativeModule().removeListener?.(eventName, listener);
   },
 };
 
