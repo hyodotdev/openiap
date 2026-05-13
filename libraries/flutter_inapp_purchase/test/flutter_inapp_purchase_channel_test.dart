@@ -1286,6 +1286,66 @@ void main() {
       },
     );
 
+    test(
+      'subscriptionHandlers.purchaseUpdated honors non-deduping iOS option',
+      () async {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (MethodCall call) async {
+          if (call.method == 'initConnection') {
+            return true;
+          }
+          return null;
+        });
+
+        final iap = FlutterInappPurchase.private(
+          FakePlatform(operatingSystem: 'ios'),
+        );
+
+        await iap.initConnection();
+        final defaultSub = iap.purchaseUpdatedListener.listen((_) {});
+        await Future<void>.delayed(Duration.zero);
+
+        final purchasePayload = <String, dynamic>{
+          'platform': 'ios',
+          'store': 'apple',
+          'productId': 'iap.premium',
+          'transactionId': 'txn-handler-dedupe-replay',
+          'purchaseState': 'PURCHASED',
+          'transactionReceipt': 'receipt-data',
+          'transactionDate': 1700000000000,
+        };
+
+        await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .handlePlatformMessage(
+          channel.name,
+          codec.encodeMethodCall(
+            MethodCall('purchase-updated', jsonEncode(purchasePayload)),
+          ),
+          (_) {},
+        );
+
+        final future = iap.subscriptionHandlers.purchaseUpdated!(
+          dedupeTransactionIOS: false,
+        );
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+
+        await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .handlePlatformMessage(
+          channel.name,
+          codec.encodeMethodCall(
+            MethodCall('purchase-updated', jsonEncode(purchasePayload)),
+          ),
+          (_) {},
+        );
+
+        final purchase = await future.timeout(const Duration(seconds: 1));
+        expect(purchase.id, 'txn-handler-dedupe-replay');
+
+        await defaultSub.cancel();
+      },
+    );
+
     test('purchase-error emits results to both error streams', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall call) async {

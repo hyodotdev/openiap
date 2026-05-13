@@ -2781,6 +2781,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           );
           if (isIOS) {
             await _setPurchaseUpdatedListenerOptions(options);
+            return _purchaseUpdatedListenerStreamIOS(
+              dedupeTransactionIOS: dedupeTransactionIOS != false,
+            ).first;
           }
           return purchaseUpdatedListener.first;
         },

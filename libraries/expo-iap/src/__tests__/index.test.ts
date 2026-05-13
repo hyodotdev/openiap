@@ -76,7 +76,7 @@ describe('Public API (index.ts)', () => {
       const setOptions = (ExpoIapModule as any)
         .setPurchaseUpdatedListenerOptions as jest.Mock;
       const fn = jest.fn();
-      purchaseUpdatedListener(fn, {
+      const subscription = purchaseUpdatedListener(fn, {
         dedupeTransactionIOS: false,
       });
       expect(setOptions).toHaveBeenCalledWith({
@@ -86,6 +86,7 @@ describe('Public API (index.ts)', () => {
         OpenIapEvent.PurchaseUpdated,
         expect.any(Function),
       );
+      subscription.remove();
     });
 
     it('filters duplicate replay events for default listeners when a non-deduping listener is active', () => {
@@ -94,9 +95,12 @@ describe('Public API (index.ts)', () => {
       const nonDedupingListener = jest.fn();
 
       purchaseUpdatedListener(defaultListener);
-      purchaseUpdatedListener(nonDedupingListener, {
-        dedupeTransactionIOS: false,
-      });
+      const nonDedupingSubscription = purchaseUpdatedListener(
+        nonDedupingListener,
+        {
+          dedupeTransactionIOS: false,
+        },
+      );
 
       const defaultHandler = addListener.mock.calls[0][1];
       const nonDedupingHandler = addListener.mock.calls[1][1];
@@ -113,6 +117,7 @@ describe('Public API (index.ts)', () => {
 
       expect(defaultListener).toHaveBeenCalledTimes(1);
       expect(nonDedupingListener).toHaveBeenCalledTimes(2);
+      nonDedupingSubscription.remove();
     });
 
     it('resets default listener duplicate history after endConnection', async () => {
@@ -136,6 +141,29 @@ describe('Public API (index.ts)', () => {
       handler(event);
 
       expect(listener).toHaveBeenCalledTimes(2);
+    });
+
+    it('removes non-deduping purchase updated listeners idempotently', () => {
+      const setOptions = (ExpoIapModule as any)
+        .setPurchaseUpdatedListenerOptions as jest.Mock;
+
+      const firstSubscription = purchaseUpdatedListener(jest.fn(), {
+        dedupeTransactionIOS: false,
+      });
+      const secondSubscription = purchaseUpdatedListener(jest.fn(), {
+        dedupeTransactionIOS: false,
+      });
+
+      firstSubscription.remove();
+      firstSubscription.remove();
+      secondSubscription.remove();
+
+      expect(setOptions.mock.calls).toEqual([
+        [{dedupeTransactionIOS: false}],
+        [{dedupeTransactionIOS: false}],
+        [{dedupeTransactionIOS: false}],
+        [{dedupeTransactionIOS: true}],
+      ]);
     });
 
     it('registers purchase error listener', () => {

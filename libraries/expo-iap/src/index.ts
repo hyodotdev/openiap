@@ -280,9 +280,14 @@ export const purchaseUpdatedListener = (
 
   nonDedupingPurchaseUpdatedListenerCountIOS += 1;
   configurePurchaseUpdatedListenerOptionsIOS(false);
+  let removed = false;
 
   return {
     remove: () => {
+      if (removed) {
+        return;
+      }
+      removed = true;
       try {
         emitterSubscription?.remove?.();
       } finally {
