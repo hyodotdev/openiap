@@ -33,6 +33,23 @@ Visit the [documentation site](https://hyochan.github.io/godot-iap) for [install
 2. Extract and copy `addons/godot-iap/` to your project's `addons/` folder
 3. Enable the plugin in **Project → Project Settings → Plugins**
 
+Release zips are intended for iOS export and Android. If you use a release or
+custom build that includes `addons/godot-iap/bin/macos`, and Godot says
+`GodotIap.framework` is damaged on macOS, clear quarantine and repair the local
+ad-hoc signature from your Godot project root:
+
+```bash
+xattr -dr com.apple.quarantine addons/godot-iap
+codesign --force --deep --sign - --timestamp=none addons/godot-iap/bin/macos/SwiftGodotRuntime.framework
+codesign --force --deep --sign - --timestamp=none addons/godot-iap/bin/macos/GodotIap.framework
+```
+
+The checked-in macOS runtime frameworks are Apple Silicon (`arm64`) only. Custom
+source builds can override `MACOS_ARCHS`; `make macos` requests
+`arm64 x86_64` by default, and generated metadata should only include
+architectures that the framework binaries actually contain. The default release
+zip does not include macOS runtime frameworks.
+
 See the [Installation Guide](https://hyochan.github.io/godot-iap/getting-started/installation) for more details.
 
 ## Using with AI Assistants
@@ -42,6 +59,7 @@ godot-iap provides AI-friendly documentation for Cursor, GitHub Copilot, Claude,
 **[AI Assistants Guide](https://hyochan.github.io/godot-iap/guides/ai-assistants)**
 
 Quick links:
+
 - [llms.txt](https://hyochan.github.io/godot-iap/llms.txt) - Quick reference
 - [llms-full.txt](https://hyochan.github.io/godot-iap/llms-full.txt) - Full API reference
 

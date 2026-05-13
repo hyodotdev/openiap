@@ -24,6 +24,7 @@ IOS_EXPORT_DIR := $(EXAMPLE_DIR)/ios
 
 # Godot executable
 GODOT ?= /Applications/Godot.app/Contents/MacOS/Godot
+MACOS_ARCHS ?= arm64 x86_64
 
 # Colors for output
 GREEN := \033[0;32m
@@ -65,6 +66,7 @@ help:
 	@echo "Environment variables:"
 	@echo "  GODOT_VERSION  - Godot version to use (default: $(GODOT_VERSION))"
 	@echo "  GODOT          - Path to Godot executable (default: $(GODOT))"
+	@echo "  MACOS_ARCHS    - macOS architectures for source builds (default: $(MACOS_ARCHS))"
 	@echo "  RELEASE_TAG    - GitHub release tag to test (default: latest)"
 
 # Download godot-lib.aar for Android builds
@@ -113,16 +115,55 @@ ios-build:
 macos: setup macos-build
 	@echo "$(GREEN)✓ macOS plugin built$(NC)"
 
-# Build macOS frameworks using xcodebuild (universal binary: arm64 + x86_64)
+# Build macOS frameworks using xcodebuild
 macos-build:
-	@echo "$(GREEN)Building macOS frameworks (universal binary)...$(NC)"
-	@cd $(IOS_GDEXT_DIR) && xcodebuild -scheme GodotIap -sdk macosx -destination 'platform=macOS' ARCHS="arm64 x86_64" PRODUCT_BUNDLE_IDENTIFIER="dev.hyo.godot-iap.GodotIap" -configuration Release -derivedDataPath .build-xcode-macos build
+	@echo "$(GREEN)Building macOS frameworks...$(NC)"
+	@cd "$(IOS_GDEXT_DIR)" && xcodebuild -scheme GodotIap -sdk macosx -destination 'platform=macOS' ARCHS="$(MACOS_ARCHS)" PRODUCT_BUNDLE_IDENTIFIER="dev.hyo.godot-iap.GodotIap" -configuration Release -derivedDataPath .build-xcode-macos build
 	@echo "$(GREEN)Copying frameworks to addon...$(NC)"
-	@rm -rf $(BIN_DIR)/macos/*.framework
-	@cp -R $(IOS_GDEXT_DIR)/.build-xcode-macos/Build/Products/Release/PackageFrameworks/GodotIap.framework $(BIN_DIR)/macos/
-	@cp -R $(IOS_GDEXT_DIR)/.build-xcode-macos/Build/Products/Release/PackageFrameworks/SwiftGodotRuntime.framework $(BIN_DIR)/macos/
+	@rm -rf "$(BIN_DIR)/macos/"*.framework
+	@cp -R "$(IOS_GDEXT_DIR)/.build-xcode-macos/Build/Products/Release/PackageFrameworks/GodotIap.framework" "$(BIN_DIR)/macos/"
+	@cp -R "$(IOS_GDEXT_DIR)/.build-xcode-macos/Build/Products/Release/PackageFrameworks/SwiftGodotRuntime.framework" "$(BIN_DIR)/macos/"
 	@echo "$(GREEN)Fixing macOS framework rpaths...$(NC)"
-	@install_name_tool -add_rpath @loader_path/../../../ $(BIN_DIR)/macos/GodotIap.framework/Versions/A/GodotIap
+	@if [ -f "$(BIN_DIR)/macos/GodotIap.framework/Versions/A/GodotIap" ]; then \
+		GODOT_IAP_BINARY="$(BIN_DIR)/macos/GodotIap.framework/Versions/A/GodotIap"; \
+		GODOT_IAP_RPATH="@loader_path/../../../"; \
+	elif [ -f "$(BIN_DIR)/macos/GodotIap.framework/GodotIap" ]; then \
+		GODOT_IAP_BINARY="$(BIN_DIR)/macos/GodotIap.framework/GodotIap"; \
+		GODOT_IAP_RPATH="@loader_path/../"; \
+	else \
+		echo "$(RED)GodotIap macOS framework binary not found.$(NC)"; \
+		exit 1; \
+	fi; \
+	install_name_tool -delete_rpath @loader_path/../../../ "$$GODOT_IAP_BINARY" 2>/dev/null || true; \
+	install_name_tool -delete_rpath @loader_path/../ "$$GODOT_IAP_BINARY" 2>/dev/null || true; \
+	install_name_tool -add_rpath "$$GODOT_IAP_RPATH" "$$GODOT_IAP_BINARY"
+	@echo "$(GREEN)Signing macOS frameworks...$(NC)"
+	@codesign --force --deep --sign - --timestamp=none "$(BIN_DIR)/macos/SwiftGodotRuntime.framework"
+	@codesign --force --deep --sign - --timestamp=none "$(BIN_DIR)/macos/GodotIap.framework"
+	@codesign --verify --deep --strict --verbose=2 "$(BIN_DIR)/macos/SwiftGodotRuntime.framework"
+	@codesign --verify --deep --strict --verbose=2 "$(BIN_DIR)/macos/GodotIap.framework"
+	@echo "$(GREEN)Updating macOS GDExtension metadata...$(NC)"
+	@MACOS_X86_LIBRARY=""; \
+	MACOS_X86_DEPENDENCY=""; \
+	if lipo "$(BIN_DIR)/macos/GodotIap.framework/GodotIap" -verify_arch x86_64 >/dev/null 2>&1 && \
+		lipo "$(BIN_DIR)/macos/SwiftGodotRuntime.framework/SwiftGodotRuntime" -verify_arch x86_64 >/dev/null 2>&1; then \
+		MACOS_X86_LIBRARY='macos.x86_64 = "macos/GodotIap.framework/GodotIap"'; \
+		MACOS_X86_DEPENDENCY='macos.x86_64 = {"macos/SwiftGodotRuntime.framework/SwiftGodotRuntime": ""}'; \
+	fi; \
+	{ \
+		printf '%s\n' '[configuration]'; \
+		printf '%s\n' 'entry_symbol = "godot_iap_entry_point"'; \
+		printf '%s\n' 'compatibility_minimum = "4.3"'; \
+		printf '%s\n' 'supported_platforms = ["ios", "macos"]'; \
+		printf '\n%s\n' '[libraries]'; \
+		printf '%s\n' 'ios.arm64 = "ios/GodotIap.framework/GodotIap"'; \
+		printf '%s\n' 'macos.arm64 = "macos/GodotIap.framework/GodotIap"'; \
+		if [ -n "$$MACOS_X86_LIBRARY" ]; then printf '%s\n' "$$MACOS_X86_LIBRARY"; fi; \
+		printf '\n%s\n' '[dependencies]'; \
+		printf '%s\n' 'ios.arm64 = {"ios/SwiftGodotRuntime.framework/SwiftGodotRuntime": ""}'; \
+		printf '%s\n' 'macos.arm64 = {"macos/SwiftGodotRuntime.framework/SwiftGodotRuntime": ""}'; \
+		if [ -n "$$MACOS_X86_DEPENDENCY" ]; then printf '%s\n' "$$MACOS_X86_DEPENDENCY"; fi; \
+	} > "$(BIN_DIR)/godot_iap.gdextension"
 	@echo "$(GREEN)✓ macOS frameworks copied$(NC)"
 
 # Build Android plugin
@@ -295,21 +336,8 @@ test-setup: android
 	else \
 		echo "$(YELLOW)macOS frameworks not found. Run 'make macos' to build them.$(NC)"; \
 	fi
-	@echo "$(GREEN)Creating GDExtension config...$(NC)"
-	@echo '[configuration]' > $(TEST_ADDON_DIR)/bin/godot_iap.gdextension
-	@echo 'entry_symbol = "godot_iap_entry_point"' >> $(TEST_ADDON_DIR)/bin/godot_iap.gdextension
-	@echo 'compatibility_minimum = "4.3"' >> $(TEST_ADDON_DIR)/bin/godot_iap.gdextension
-	@echo 'supported_platforms = ["ios", "macos"]' >> $(TEST_ADDON_DIR)/bin/godot_iap.gdextension
-	@echo '' >> $(TEST_ADDON_DIR)/bin/godot_iap.gdextension
-	@echo '[libraries]' >> $(TEST_ADDON_DIR)/bin/godot_iap.gdextension
-	@echo 'ios.arm64 = "ios/GodotIap.framework/GodotIap"' >> $(TEST_ADDON_DIR)/bin/godot_iap.gdextension
-	@echo 'macos.arm64 = "macos/GodotIap.framework/GodotIap"' >> $(TEST_ADDON_DIR)/bin/godot_iap.gdextension
-	@echo 'macos.x86_64 = "macos/GodotIap.framework/GodotIap"' >> $(TEST_ADDON_DIR)/bin/godot_iap.gdextension
-	@echo '' >> $(TEST_ADDON_DIR)/bin/godot_iap.gdextension
-	@echo '[dependencies]' >> $(TEST_ADDON_DIR)/bin/godot_iap.gdextension
-	@echo 'ios.arm64 = {"ios/SwiftGodotRuntime.framework/SwiftGodotRuntime": ""}' >> $(TEST_ADDON_DIR)/bin/godot_iap.gdextension
-	@echo 'macos.arm64 = {"macos/SwiftGodotRuntime.framework/SwiftGodotRuntime": ""}' >> $(TEST_ADDON_DIR)/bin/godot_iap.gdextension
-	@echo 'macos.x86_64 = {"macos/SwiftGodotRuntime.framework/SwiftGodotRuntime": ""}' >> $(TEST_ADDON_DIR)/bin/godot_iap.gdextension
+	@echo "$(GREEN)Copying GDExtension config...$(NC)"
+	@cp "$(BIN_DIR)/godot_iap.gdextension" "$(TEST_ADDON_DIR)/bin/godot_iap.gdextension"
 	@echo "$(GREEN)✓ TestProject ready$(NC)"
 
 # Export TestProject Android APK
