@@ -8,7 +8,6 @@ import {
   KitHttpError,
   normalizeKitBaseUrl,
 } from "./kit-client.js";
-import { redactSensitivePayload } from "./redact.js";
 
 // 10-tool MCP server for openiap. Every tool funnels through
 // `withClient` so `OPENIAP_API_KEY` / `OPENIAP_BASE_URL` env config is
@@ -94,7 +93,7 @@ function ok(payload: unknown) {
     content: [
       {
         type: "text" as const,
-        text: JSON.stringify(redactSensitivePayload(payload), null, 2),
+        text: JSON.stringify(payload, null, 2),
       },
     ],
   };
@@ -110,11 +109,7 @@ function err(error: unknown) {
     content: [
       {
         type: "text" as const,
-        text: JSON.stringify(
-          redactSensitivePayload({ ok: false, error: detail }),
-          null,
-          2,
-        ),
+        text: JSON.stringify({ ok: false, error: detail }, null, 2),
       },
     ],
   };

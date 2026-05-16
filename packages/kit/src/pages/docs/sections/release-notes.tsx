@@ -71,7 +71,7 @@ const RELEASES: ReleaseEntry[] = [
       },
       {
         kind: "security",
-        text: "Horizon App Secret is now write-only on the wire. `getProject` redacts it server-side; the dashboard shows 'Configured ✓ / Replace' instead of a prefilled password field.",
+        text: "Horizon App Secret is now write-only on the wire. `getProject` omits it server-side; the dashboard shows 'Configured ✓ / Replace' instead of a prefilled password field.",
       },
       {
         kind: "feature",

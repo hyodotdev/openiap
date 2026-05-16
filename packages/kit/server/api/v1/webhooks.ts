@@ -433,24 +433,6 @@ async function handleGoogleNotification(
 const HEARTBEAT_MS = 25_000;
 const MAX_LAST_EVENT_ID_LENGTH = 512;
 
-// Drop fields the client doesn't need over the wire. `rawSignedPayload`
-// holds the original JWS / Pub/Sub envelope including the upstream
-// signature. Until kit grows per-purchaser SSE auth (tracked as
-// follow-up — see PR #124 (https://github.com/hyodotdev/openiap/pull/124) review), the SSE feed is gated only by the
-// project API key, so any holder of that key would otherwise see
-// every other customer's signed payload. The client doesn't need it
-// for normal reconciliation flows: `purchaseToken` + `productId` are
-// enough to match against local state. Operators that DO need the
-// raw payload can fetch it through an authenticated server-to-server
-// query rather than a long-lived browser-readable stream.
-function redactWebhookEventForStream(
-  event: Record<string, unknown>,
-): Record<string, unknown> {
-  const { rawSignedPayload: _omit, ...rest } = event;
-  void _omit;
-  return rest;
-}
-
 webhooks.get("/stream/:apiKey", async (c) => {
   const apiKey = c.req.param("apiKey");
   const lastEventId = normalizeLastEventId(
@@ -669,7 +651,7 @@ webhooks.get("/stream/:apiKey", async (c) => {
               id,
               event:
                 typeof event.type === "string" ? event.type : "WebhookEvent",
-              data: JSON.stringify(redactWebhookEventForStream(event)),
+              data: JSON.stringify(event),
             })
             .catch((err) => {
               console.error(
@@ -749,7 +731,7 @@ webhooks.get("/stream/:apiKey", async (c) => {
                     typeof event.type === "string"
                       ? event.type
                       : "WebhookEvent",
-                  data: JSON.stringify(redactWebhookEventForStream(event)),
+                  data: JSON.stringify(event),
                 })
                 .catch((err) => {
                   console.error(
@@ -1097,25 +1079,12 @@ export function sanitizePubSubAudienceForLog(
   if (typeof audience !== "string") return undefined;
   const parsed = safeUrl(audience);
   if (!parsed) return audience;
-  const path = parsed.pathname.replace(
-    /^((?:\/api)?\/v1\/webhooks\/(?:apple\/|google\/|stream\/)?)[^/]+$/,
-    "$1<api-key-redacted>",
-  );
-  return `${parsed.origin}${path}${sanitizeAudienceSearch(parsed.search)}`;
-}
-
-function sanitizeAudienceSearch(search: string): string {
-  return search.replace(
-    /([?&](?:access[-_]?token|api[-_]?key|authorization|id[-_]?token|jwt|refresh[-_]?token|token)=)[^&]*/gi,
-    "$1<redacted>",
-  );
+  return `${parsed.origin}${parsed.pathname}${parsed.search}`;
 }
 
 function sanitizeEmailForLog(email: unknown): string | undefined {
   if (typeof email !== "string" || email.length === 0) return undefined;
-  const atIndex = email.lastIndexOf("@");
-  if (atIndex < 1 || atIndex === email.length - 1) return "<redacted>";
-  return `<redacted>@${email.slice(atIndex + 1)}`;
+  return email;
 }
 
 function mapWebhookError(

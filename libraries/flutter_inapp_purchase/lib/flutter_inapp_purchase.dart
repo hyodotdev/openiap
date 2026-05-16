@@ -1682,14 +1682,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             return;
           }
 
-          final maskedToken = purchase.purchaseToken!.replaceAllMapped(
-            RegExp(r'.(?=.{4})'),
-            (m) => '*',
-          );
-
           if (kDebugMode) {
             debugPrint(
-              '[FlutterInappPurchase] Android: Acknowledging purchase with token: $maskedToken',
+              '[FlutterInappPurchase] Android: Acknowledging purchase with token: ${purchase.purchaseToken}',
             );
           }
 
@@ -1760,7 +1755,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             _acknowledgedAndroidPurchaseTokens[purchase.purchaseToken!] = true;
           } else if (kDebugMode) {
             debugPrint(
-              '[FlutterInappPurchase] Android: Acknowledge response indicated failure; will retry later ($maskedToken)',
+              '[FlutterInappPurchase] Android: Acknowledge response indicated failure; will retry later (${purchase.purchaseToken})',
             );
           }
           return;

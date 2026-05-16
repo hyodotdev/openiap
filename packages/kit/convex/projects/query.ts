@@ -8,21 +8,7 @@ import {
   resolveProjectByIdForCurrentUserFromDb,
 } from "./helpers";
 
-/**
- * Strip long-lived server-side secrets from a project document before
- * returning it to the client. The Horizon App Secret is used by the
- * IAPKit server to compose `OC|APP_ID|APP_SECRET` for Meta's Graph
- * API; reading it back into the dashboard would let any org member
- * exfiltrate it through the browser. Apple `.p8` and Google service
- * accounts live in the `files` table and were already safe — Horizon
- * was the only credential stored inline on `projects`, so only it
- * needs redaction here.
- *
- * The client still needs to know whether a secret is configured so
- * the UI can show "Replace" vs. "Enter secret"; expose that as a
- * derived boolean instead.
- */
-function redactProjectSecrets(project: Doc<"projects">): Omit<
+function projectWithSecretState(project: Doc<"projects">): Omit<
   Doc<"projects">,
   "horizonAppSecret"
 > & {
@@ -36,27 +22,27 @@ function redactProjectSecrets(project: Doc<"projects">): Omit<
   };
 }
 
-function redactApiKeyLookupProject(project: Doc<"projects">): Omit<
+function projectForApiKeyLookup(project: Doc<"projects">): Omit<
   Doc<"projects">,
   "apiKey" | "horizonAppSecret"
 > & {
   hasHorizonAppSecret: boolean;
 } {
-  const { apiKey, ...rest } = redactProjectSecrets(project);
+  const { apiKey, ...rest } = projectWithSecretState(project);
   void apiKey;
   return rest;
 }
 
-function redactDashboardProjectSecrets(project: Doc<"projects">): Omit<
+function projectForDashboard(project: Doc<"projects">): Omit<
   Doc<"projects">,
   "apiKey" | "horizonAppSecret"
 > & {
   hasHorizonAppSecret: boolean;
 } {
-  return redactApiKeyLookupProject(project);
+  return projectForApiKeyLookup(project);
 }
 
-function redactProjectListSecrets(
+function projectForList(
   project: Doc<"projects">,
   projectIdsWithAnyKey: Set<string>,
   projectIdsWithActiveKey: Set<string>,
@@ -64,7 +50,7 @@ function redactProjectListSecrets(
   hasApiKey: boolean;
   hasHorizonAppSecret: boolean;
 } {
-  const { apiKey, ...rest } = redactProjectSecrets(project);
+  const { apiKey, ...rest } = projectWithSecretState(project);
   return {
     ...rest,
     // Legacy-only projects predate the apiKeys table, so fall back to
@@ -120,11 +106,7 @@ export const listOrganizationProjects = query({
     );
 
     return projects.map((project) =>
-      redactProjectListSecrets(
-        project,
-        projectIdsWithAnyKey,
-        projectIdsWithActiveKey,
-      ),
+      projectForList(project, projectIdsWithAnyKey, projectIdsWithActiveKey),
     );
   },
 });
@@ -162,7 +144,7 @@ export const getProject = query({
       )
       .first();
 
-    return project ? redactDashboardProjectSecrets(project) : null;
+    return project ? projectForDashboard(project) : null;
   },
 });
 
@@ -194,7 +176,7 @@ export const getProjectById = query({
       return null;
     }
 
-    return redactDashboardProjectSecrets(project);
+    return projectForDashboard(project);
   },
 });
 
@@ -299,11 +281,11 @@ export const hasProjects = query({
 // Public query to find project by API key (used by API verification endpoints).
 // New keys resolve through `apiKeys` first so rotation / revocation semantics
 // match the rest of the v1 surface; legacy project keys still fall back. Do
-// not echo the apiKey back to callers; route code only needs a truthy project.
+// Do not echo the apiKey back to callers; route code only needs a truthy project.
 export const getProjectByApiKey = query({
   args: { apiKey: v.string() },
   handler: async (ctx, args) => {
     const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
-    return resolved ? redactApiKeyLookupProject(resolved.project) : null;
+    return resolved ? projectForApiKeyLookup(resolved.project) : null;
   },
 });

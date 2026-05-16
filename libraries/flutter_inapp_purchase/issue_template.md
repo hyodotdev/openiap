@@ -35,7 +35,7 @@ Optional: Add screenshots to help explain the problem.
 3. See error '...'
 
 ### Logs / Stacktraces
-Optional: Paste relevant logs/stacktraces (redact sensitive data).
+Optional: Paste relevant logs/stacktraces.
 
 ### Additional Context
 Optional: Add any other context about the problem here.

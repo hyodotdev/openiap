@@ -80,7 +80,7 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
       throw new KitHttpError(
         response.status,
         parsed,
-        `kit ${redactKitApiKeyPath(path)} returned ${response.status}`,
+        `kit ${path} returned ${response.status}`,
       );
     }
     return parsed as T;
@@ -158,11 +158,4 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
       ),
     health: () => call<{ ok: boolean }>("/health"),
   };
-}
-
-export function redactKitApiKeyPath(path: string): string {
-  return path.replace(
-    /^((?:\/api)?\/v1\/(?:products|subscriptions\/(?:status|entitlements|list|metrics|bind-user)|webhooks(?:\/(?:apple|google|stream))?)\/)[^\/?#]+/,
-    "$1<api-key-redacted>",
-  );
 }

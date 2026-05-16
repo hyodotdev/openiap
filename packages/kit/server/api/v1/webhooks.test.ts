@@ -235,31 +235,31 @@ describe("resolveGoogleEventTimeMillis", () => {
 });
 
 describe("sanitizePubSubAudienceForLog", () => {
-  it("redacts webhook api keys from all endpoint audience logs", () => {
+  it("preserves webhook endpoint audience logs", () => {
     const cases = [
       [
         "https://kit.openiap.dev/v1/webhooks/openiap-kit_secret",
-        "https://kit.openiap.dev/v1/webhooks/<api-key-redacted>",
+        "https://kit.openiap.dev/v1/webhooks/openiap-kit_secret",
       ],
       [
         "https://kit.openiap.dev/v1/webhooks/apple/openiap-kit_secret",
-        "https://kit.openiap.dev/v1/webhooks/apple/<api-key-redacted>",
+        "https://kit.openiap.dev/v1/webhooks/apple/openiap-kit_secret",
       ],
       [
         "https://kit.openiap.dev/v1/webhooks/google/openiap-kit_secret",
-        "https://kit.openiap.dev/v1/webhooks/google/<api-key-redacted>",
+        "https://kit.openiap.dev/v1/webhooks/google/openiap-kit_secret",
       ],
       [
         "https://kit.openiap.dev/v1/webhooks/stream/openiap-kit_secret?since=1",
-        "https://kit.openiap.dev/v1/webhooks/stream/<api-key-redacted>?since=1",
+        "https://kit.openiap.dev/v1/webhooks/stream/openiap-kit_secret?since=1",
       ],
       [
         "https://kit.openiap.dev/v1/webhooks/openiap-kit_secret?apiKey=openiap-kit_query&token=jwt-token&id_token=id-token&jwt=jwt-token&since=1",
-        "https://kit.openiap.dev/v1/webhooks/<api-key-redacted>?apiKey=<redacted>&token=<redacted>&id_token=<redacted>&jwt=<redacted>&since=1",
+        "https://kit.openiap.dev/v1/webhooks/openiap-kit_secret?apiKey=openiap-kit_query&token=jwt-token&id_token=id-token&jwt=jwt-token&since=1",
       ],
       [
         "https://kit.openiap.dev/api/v1/webhooks/openiap-kit_secret",
-        "https://kit.openiap.dev/api/v1/webhooks/<api-key-redacted>",
+        "https://kit.openiap.dev/api/v1/webhooks/openiap-kit_secret",
       ],
     ];
 

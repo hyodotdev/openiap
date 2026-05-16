@@ -1,39 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  kitClient,
-  normalizeKitBaseUrl,
-  redactKitApiKeyPath,
-} from "../src/kit-client";
+import { kitClient, normalizeKitBaseUrl } from "../src/kit-client";
 
 afterEach(() => {
   vi.unstubAllGlobals();
-});
-
-describe("redactKitApiKeyPath", () => {
-  it("redacts api key path segments from known kit routes", () => {
-    expect(redactKitApiKeyPath("/v1/products/custom-secret?platform=IOS")).toBe(
-      "/v1/products/<api-key-redacted>?platform=IOS",
-    );
-    expect(
-      redactKitApiKeyPath("/v1/subscriptions/status/custom-secret?userId=u1"),
-    ).toBe("/v1/subscriptions/status/<api-key-redacted>?userId=u1");
-    expect(
-      redactKitApiKeyPath("/v1/subscriptions/bind-user/custom-secret"),
-    ).toBe("/v1/subscriptions/bind-user/<api-key-redacted>");
-    expect(redactKitApiKeyPath("/v1/webhooks/google/custom-secret")).toBe(
-      "/v1/webhooks/google/<api-key-redacted>",
-    );
-    expect(redactKitApiKeyPath("/v1/webhooks/custom-secret")).toBe(
-      "/v1/webhooks/<api-key-redacted>",
-    );
-    expect(redactKitApiKeyPath("/api/v1/webhooks/custom-secret")).toBe(
-      "/api/v1/webhooks/<api-key-redacted>",
-    );
-    expect(redactKitApiKeyPath("/v1/products/custom-secret/state")).toBe(
-      "/v1/products/<api-key-redacted>/state",
-    );
-  });
 });
 
 describe("normalizeKitBaseUrl", () => {
@@ -122,7 +92,7 @@ describe("kitClient", () => {
     await expect(client.listProducts()).resolves.toEqual({ products: [] });
   });
 
-  it("does not expose custom api keys in HTTP error messages", async () => {
+  it("includes the full kit path in HTTP error messages", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(JSON.stringify({ errors: [] }), {
         status: 403,
@@ -137,7 +107,7 @@ describe("kitClient", () => {
     });
 
     await expect(client.listProducts()).rejects.toThrow(
-      "kit /v1/products/<api-key-redacted> returned 403",
+      "kit /v1/products/custom-secret returned 403",
     );
   });
 });

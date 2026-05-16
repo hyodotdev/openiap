@@ -752,7 +752,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
         // Log request details for debugging
         OpenIapLog.debug("IAPKit request URL: \(url.absoluteString)")
-        OpenIapLog.debug("IAPKit request body: <redacted>, bytes=\(body.count)")
+        let requestBody = String(data: body, encoding: .utf8) ?? "<\(body.count) non-UTF8 bytes>"
+        OpenIapLog.debug("IAPKit request body: \(requestBody), bytes=\(body.count)")
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {

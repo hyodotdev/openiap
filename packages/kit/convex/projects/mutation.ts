@@ -275,7 +275,7 @@ export const updateProject = mutation({
     // compatible. Validation only runs when horizonEnabled === true.
     // horizonAppSecret intentionally accepts only a fresh value from
     // the client: the UI never prefills the existing secret (the query
-    // redacts it), so an undefined value here means "leave existing
+    // omits it), so an undefined value here means "leave existing
     // untouched". A `null` from the Horizon-off branch clears it.
     horizonEnabled: v.optional(v.boolean()),
     horizonAppId: v.optional(v.string()),
