@@ -1,0 +1,60 @@
+ext.openIapFindGoogleOpenIapBuildFile = {
+    File current = projectDir
+    while (current != null) {
+        File candidate = new File(current, 'packages/google/openiap/build.gradle.kts')
+        if (candidate.isFile()) {
+            return candidate
+        }
+        current = current.parentFile
+    }
+    return null
+}
+
+ext.openIapReadGoogleAndroidSdkVersion = { String propertyName ->
+    File buildFile = openIapFindGoogleOpenIapBuildFile()
+    if (buildFile == null) {
+        return null
+    }
+    def matcher = buildFile.text =~ /(?m)^\s*${propertyName}\s*=\s*(\d+)\s*$/
+    return matcher.find() ? matcher.group(1).toInteger() : null
+}
+
+ext.openIapReadGoogleDependencyVersion = { String coordinate ->
+    File buildFile = openIapFindGoogleOpenIapBuildFile()
+    if (buildFile == null) {
+        return null
+    }
+    def matcher = buildFile.text =~ /${java.util.regex.Pattern.quote(coordinate)}:([^"$)]+)/
+    return matcher.find() ? matcher.group(1) : null
+}
+
+ext.openIapToIntegerVersion = { Object value, String label ->
+    if (value instanceof Number) {
+        return value.toInteger()
+    }
+    if (value instanceof CharSequence && value.toString() ==~ /\d+/) {
+        return value.toString().toInteger()
+    }
+    throw new GradleException("flutter_inapp_purchase: ${label} must be an integer, got ${value}")
+}
+
+ext.openIapResolveAndroidSdkVersion = { String extName, String googlePropertyName, int fallback ->
+    if (rootProject.ext.has(extName)) {
+        return openIapToIntegerVersion(rootProject.ext.get(extName), extName)
+    }
+    def googleValue = openIapReadGoogleAndroidSdkVersion(googlePropertyName)
+    return googleValue ?: fallback
+}
+
+ext.openIapResolveDependencyVersion = { String coordinate, String fallbackPropertyName ->
+    def googleValue = openIapReadGoogleDependencyVersion(coordinate)
+    if (googleValue) {
+        return googleValue
+    }
+
+    def fallbackValue = rootProject.findProperty(fallbackPropertyName) ?: project.findProperty(fallbackPropertyName)
+    if (fallbackValue == null || fallbackValue.toString().trim().isEmpty()) {
+        throw new GradleException("flutter_inapp_purchase: missing ${fallbackPropertyName} in android/gradle.properties")
+    }
+    return fallbackValue.toString().trim()
+}

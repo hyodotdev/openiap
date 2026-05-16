@@ -33,7 +33,9 @@ internal object ExpoIapLog {
     }
 
     fun debug(message: String) {
-        Log.d(TAG, message)
+        if (BuildConfig.DEBUG || Log.isLoggable(TAG, Log.DEBUG)) {
+            Log.d(TAG, message)
+        }
     }
 
     private fun stringify(value: Any?): String {

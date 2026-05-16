@@ -37,15 +37,15 @@ export default function AlternativeBillingScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
 
-  const {
-    connected,
-    products,
-    fetchProducts,
-  } = useIAP({
+  const {connected, products, fetchProducts} = useIAP({
     enableBillingProgramAndroid:
       Platform.OS === 'android' ? billingProgram : undefined,
     onPurchaseSuccess: async (purchase: Purchase) => {
-      console.log('Purchase successful:', purchase);
+      console.log('Purchase successful:', {
+        productId: purchase.productId,
+        transactionId: purchase.id,
+        platform: purchase.platform,
+      });
       setIsProcessing(false);
       setPurchaseResult(`✅ Purchase successful: ${purchase.productId}`);
       Alert.alert('Success', 'Purchase completed!');
@@ -191,9 +191,10 @@ export default function AlternativeBillingScreen() {
       setPurchaseResult('Creating reporting token...');
       const details =
         await createBillingProgramReportingDetailsAndroid(billingProgram);
+      const hasReportingToken = Boolean(details.externalTransactionToken);
 
       setPurchaseResult(
-        `✅ Billing Programs API completed\n\nProgram: ${billingProgram}\nURL: ${externalUrl}\nToken: ${details.externalTransactionToken.substring(0, 30)}...\n\n⚠️ Report token to Google Play within 24h`,
+        `✅ Billing Programs API completed\n\nProgram: ${billingProgram}\nURL: ${externalUrl}\nToken: ${hasReportingToken ? '<redacted>' : 'missing'}\n\n⚠️ Report token to Google Play within 24h`,
       );
       Alert.alert(
         'Success',

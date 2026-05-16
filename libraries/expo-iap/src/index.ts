@@ -101,6 +101,12 @@ type NativePurchaseUpdatedOptionsModule = {
   ) => Promise<void>;
 };
 
+const isStorePlatform = (): boolean =>
+  Platform.OS === 'ios' || Platform.OS === 'android';
+
+const unsupportedPlatformError = (): Error =>
+  new Error(`Unsupported platform: ${Platform.OS}`);
+
 // Use the raw native module for listener calls — JSI HostObjects require the
 // real native module as `this` when calling addListener. Using a Proxy as
 // `this` triggers "native state unsupported on Proxy" on New Architecture / Hermes.
@@ -211,14 +217,14 @@ const configurePurchaseUpdatedListenerOptionsIOS = (
 };
 
 /**
- * TODO(v3.1.0): Remove legacy 'inapp' alias once downstream apps migrate to 'in-app'.
+ * TODO(next-major): Remove legacy 'inapp' alias once downstream apps migrate to 'in-app'.
  */
 export type ProductTypeInput = ProductQueryType | 'inapp';
 
 const normalizeProductType = (type?: ProductTypeInput) => {
   if (type === 'inapp') {
     ExpoIapConsole.warn(
-      "'inapp' product type is deprecated and will be removed in v3.1.0. Use 'in-app' instead.",
+      "'inapp' product type is deprecated and will be removed in a future major version. Use 'in-app' instead.",
     );
   }
 
@@ -441,7 +447,7 @@ export const promotedProductListenerIOS = (
  * ```typescript
  * const subscription = userChoiceBillingListenerAndroid((details) => {
  *   console.log('User selected alternative billing');
- *   console.log('Token:', details.externalTransactionToken);
+ *   console.log('External transaction token received; send it to your backend without logging it.');
  *   console.log('Products:', details.products);
  *
  *   // Process payment in your system, then report token to Google
@@ -480,7 +486,7 @@ export const userChoiceBillingListenerAndroid = (
  * ```typescript
  * const subscription = developerProvidedBillingListenerAndroid(async (details) => {
  *   console.log('User selected developer billing');
- *   console.log('Token:', details.externalTransactionToken);
+ *   console.log('External transaction token received; send it to your backend without logging it.');
  *
  *   // Process payment with your payment gateway
  *   await processPaymentWithYourGateway(details.externalTransactionToken);
@@ -564,7 +570,7 @@ export const subscriptionBillingIssueListener = (
  * @remarks When using `useIAP()`, connection is auto-managed on mount/unmount —
  *   pass options to the hook instead of calling this directly.
  *
- * @see {@link https://www.openiap.dev/docs/apis/init-connection}
+ * @see {@link https://openiap.dev/docs/apis/init-connection}
  */
 export const initConnection: MutationField<'initConnection'> = async (config) => {
   const result = await ExpoIapModule.initConnection(config ?? null);
@@ -581,7 +587,7 @@ export const initConnection: MutationField<'initConnection'> = async (config) =>
 /**
  * Close the store connection and release resources.
  *
- * @see {@link https://www.openiap.dev/docs/apis/end-connection}
+ * @see {@link https://openiap.dev/docs/apis/end-connection}
  */
 export const endConnection: MutationField<'endConnection'> = async () => {
   const result = await ExpoIapModule.endConnection();
@@ -612,7 +618,7 @@ export const endConnection: MutationField<'endConnection'> = async () => {
  * @remarks This is a regular promise-based call. Don't confuse with `request*` APIs
  *   (`requestPurchase`), which are event-based.
  *
- * @see {@link https://www.openiap.dev/docs/apis/fetch-products}
+ * @see {@link https://openiap.dev/docs/apis/fetch-products}
  */
 export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
   ExpoIapConsole.debug('fetchProducts called with:', request);
@@ -680,7 +686,7 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
     return castResult(filterAndroidItems(rawItems));
   }
 
-  throw new Error('Unsupported platform');
+  throw unsupportedPlatformError();
 };
 
 /**
@@ -700,7 +706,7 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
  * }
  * ```
  *
- * @see {@link https://www.openiap.dev/docs/apis/get-available-purchases}
+ * @see {@link https://openiap.dev/docs/apis/get-available-purchases}
  */
 export const getAvailablePurchases: QueryField<
   'getAvailablePurchases'
@@ -712,20 +718,21 @@ export const getAvailablePurchases: QueryField<
     includeSuspendedAndroid: options?.includeSuspendedAndroid ?? false,
   };
 
-  const resolvePurchases: () => Promise<Purchase[]> =
-    Platform.select({
-      ios: () =>
-        ExpoIapModule.getAvailableItems(
-          normalizedOptions.alsoPublishToEventListenerIOS,
-          normalizedOptions.onlyIncludeActiveItemsIOS,
-        ) as Promise<Purchase[]>,
-      android: () =>
-        ExpoIapModule.getAvailableItems(normalizedOptions) as Promise<
-          Purchase[]
-        >,
-    }) ?? (() => Promise.resolve([] as Purchase[]));
+  let purchases: Purchase[];
 
-  const purchases = await resolvePurchases();
+  if (Platform.OS === 'ios') {
+    purchases = (await ExpoIapModule.getAvailableItems(
+      normalizedOptions.alsoPublishToEventListenerIOS,
+      normalizedOptions.onlyIncludeActiveItemsIOS,
+    )) as Purchase[];
+  } else if (Platform.OS === 'android') {
+    purchases = (await ExpoIapModule.getAvailableItems(
+      normalizedOptions,
+    )) as Purchase[];
+  } else {
+    throw unsupportedPlatformError();
+  }
+
   return normalizePurchaseArray(purchases as Purchase[]);
 };
 
@@ -757,11 +764,15 @@ export const getAvailablePurchases: QueryField<
  * });
  * ```
  *
- * @see {@link https://www.openiap.dev/docs/apis/get-active-subscriptions}
+ * @see {@link https://openiap.dev/docs/apis/get-active-subscriptions}
  */
 export const getActiveSubscriptions: QueryField<
   'getActiveSubscriptions'
 > = async (subscriptionIds) => {
+  if (!isStorePlatform()) {
+    throw unsupportedPlatformError();
+  }
+
   const result = await ExpoIapModule.getActiveSubscriptions(
     subscriptionIds ?? null,
   );
@@ -783,11 +794,15 @@ export const getActiveSubscriptions: QueryField<
  * const hasPremium = await hasActiveSubscriptions(['premium', 'premium_year']);
  * ```
  *
- * @see {@link https://www.openiap.dev/docs/apis/has-active-subscriptions}
+ * @see {@link https://openiap.dev/docs/apis/has-active-subscriptions}
  */
 export const hasActiveSubscriptions: QueryField<
   'hasActiveSubscriptions'
 > = async (subscriptionIds) => {
+  if (!isStorePlatform()) {
+    throw unsupportedPlatformError();
+  }
+
   return !!(await ExpoIapModule.hasActiveSubscriptions(
     subscriptionIds ?? null,
   ));
@@ -796,7 +811,7 @@ export const hasActiveSubscriptions: QueryField<
 /**
  * Return the user's storefront country code.
  *
- * @see {@link https://www.openiap.dev/docs/apis/get-storefront}
+ * @see {@link https://openiap.dev/docs/apis/get-storefront}
  */
 export const getStorefront: QueryField<'getStorefront'> = async () => {
   if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
@@ -862,7 +877,7 @@ function normalizeRequestProps(
  * @remarks Event-based. Listen for the result via {@link purchaseUpdatedListener} /
  *   {@link purchaseErrorListener}, or use `useIAP({ onPurchaseSuccess, onPurchaseError })`.
  *
- * @see {@link https://www.openiap.dev/docs/apis/request-purchase}
+ * @see {@link https://openiap.dev/docs/apis/request-purchase}
  */
 export const requestPurchase: MutationField<'requestPurchase'> = async (
   args,
@@ -885,7 +900,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
           '    },\n' +
           '    type: "in-app"\n' +
           '  })\n\n' +
-          'See: https://hyochan.github.io/expo-iap/docs/api/methods/core-methods#requestpurchase',
+          'See: https://openiap.dev/docs/apis/request-purchase',
       );
     }
 
@@ -933,7 +948,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
             '    },\n' +
             '    type: "in-app"\n' +
             '  })\n\n' +
-            'See: https://hyochan.github.io/expo-iap/docs/api/methods/core-methods#requestpurchase',
+            'See: https://openiap.dev/docs/apis/request-purchase',
         );
       }
 
@@ -977,7 +992,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
             '    },\n' +
             '    type: "subs"\n' +
             '  })\n\n' +
-            'See: https://hyochan.github.io/expo-iap/docs/api/methods/core-methods#requestpurchase',
+            'See: https://openiap.dev/docs/apis/request-purchase',
         );
       }
 
@@ -1020,7 +1035,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
     );
   }
 
-  throw new Error('Platform not supported');
+  throw unsupportedPlatformError();
 };
 
 /**
@@ -1044,7 +1059,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
  * @remarks **Critical:** Android purchases must be finalized within 3 days or Google
  *   auto-refunds. iOS unfinished transactions replay on every app launch.
  *
- * @see {@link https://www.openiap.dev/docs/apis/finish-transaction}
+ * @see {@link https://openiap.dev/docs/apis/finish-transaction}
  */
 export const finishTransaction: MutationField<'finishTransaction'> = async ({
   purchase,
@@ -1076,24 +1091,33 @@ export const finishTransaction: MutationField<'finishTransaction'> = async ({
     return;
   }
 
-  throw new Error('Unsupported Platform');
+  throw unsupportedPlatformError();
 };
 
 /**
  * Restore completed transactions (cross-platform behavior)
  *
- * - iOS: perform a lightweight sync to refresh transactions and ignore sync errors,
+ * - iOS: perform a lightweight sync, or Onside restore when OnsideKit is active,
  *   then fetch available purchases to surface restored items to the app.
  * - Android: simply fetch available purchases (restoration happens via query).
  *
  * This helper triggers the refresh flows but does not return the purchases; consumers should
  * call `getAvailablePurchases` or rely on hook state to inspect the latest items.
  *
- * @see {@link https://www.openiap.dev/docs/apis/restore-purchases}
+ * @see {@link https://openiap.dev/docs/apis/restore-purchases}
  */
 export const restorePurchases: MutationField<'restorePurchases'> = async () => {
   if (Platform.OS === 'ios') {
-    await syncIOS().catch(() => undefined);
+    const nativeModule = ExpoIapModule as any;
+
+    if (
+      nativeModule.USING_ONSIDE_SDK &&
+      typeof nativeModule.restorePurchases === 'function'
+    ) {
+      await nativeModule.restorePurchases().catch(() => undefined);
+    } else {
+      await syncIOS().catch(() => undefined);
+    }
   }
 
   await getAvailablePurchases({
@@ -1120,7 +1144,7 @@ export const restorePurchases: MutationField<'restorePurchases'> = async () => {
  *   packageNameAndroid: 'com.example.app'
  * });
  *
- * @see {@link https://www.openiap.dev/docs/apis/deep-link-to-subscriptions}
+ * @see {@link https://openiap.dev/docs/apis/deep-link-to-subscriptions}
  */
 export const deepLinkToSubscriptions: MutationField<
   'deepLinkToSubscriptions'
@@ -1135,7 +1159,7 @@ export const deepLinkToSubscriptions: MutationField<
     return;
   }
 
-  throw new Error(`Unsupported platform: ${Platform.OS}`);
+  throw unsupportedPlatformError();
 };
 
 /**
@@ -1148,7 +1172,7 @@ export const deepLinkToSubscriptions: MutationField<
  *
  * @deprecated Use verifyPurchase instead
  *
- * @see {@link https://www.openiap.dev/docs/apis/validate-receipt}
+ * @see {@link https://openiap.dev/docs/apis/validate-receipt}
  */
 export const validateReceipt: MutationField<'validateReceipt'> = async (
   options,
@@ -1183,7 +1207,7 @@ export const validateReceipt: MutationField<'validateReceipt'> = async (
     });
   }
 
-  throw new Error('Platform not supported');
+  throw unsupportedPlatformError();
 };
 
 /**
@@ -1195,16 +1219,16 @@ export const validateReceipt: MutationField<'validateReceipt'> = async (
  * @param options - Receipt validation options containing the SKU
  * @returns Promise resolving to receipt validation result
  *
- * @see {@link https://www.openiap.dev/docs/features/validation#verify-purchase}
+ * @see {@link https://openiap.dev/docs/features/validation#verify-purchase}
  */
 export const verifyPurchase: MutationField<'verifyPurchase'> = async (
   options,
 ) => {
-  if (Platform.OS === 'ios' || Platform.OS === 'android') {
-    return ExpoIapModule.verifyPurchase(options);
+  if (!isStorePlatform()) {
+    throw unsupportedPlatformError();
   }
 
-  throw new Error(`Unsupported platform: ${Platform.OS}`);
+  return ExpoIapModule.verifyPurchase(options);
 };
 
 /**
@@ -1232,43 +1256,45 @@ export const verifyPurchase: MutationField<'verifyPurchase'> = async (
  * });
  * ```
  *
- * @see {@link https://www.openiap.dev/docs/features/validation#verify-purchase-with-provider}
+ * @see {@link https://openiap.dev/docs/features/validation#verify-purchase-with-provider}
  */
 export const verifyPurchaseWithProvider: MutationField<
   'verifyPurchaseWithProvider'
 > = async (options) => {
-  if (Platform.OS === 'ios' || Platform.OS === 'android') {
-    // Auto-fill apiKey from config if not provided and provider is iapkit
-    if (
-      options.provider === 'iapkit' &&
-      options.iapkit &&
-      !options.iapkit.apiKey
-    ) {
-      try {
-        // Dynamically import expo-constants to avoid hard dependency
-        const {default: Constants} = await import('expo-constants');
-        const configApiKey = Constants.expoConfig?.extra?.iapkitApiKey;
-        if (configApiKey) {
-          options = {
-            ...options,
-            iapkit: {
-              ...options.iapkit,
-              apiKey: configApiKey,
-            },
-          };
-        }
-      } catch {
-        throw new Error(
-          'expo-constants is required for auto-filling iapkitApiKey from config. ' +
-            'Please install it: npx expo install expo-constants\n' +
-            'Or provide apiKey directly in verifyPurchaseWithProvider options.',
-        );
-      }
-    }
-    return ExpoIapModule.verifyPurchaseWithProvider(options);
+  if (!isStorePlatform()) {
+    throw unsupportedPlatformError();
   }
 
-  throw new Error(`Unsupported platform: ${Platform.OS}`);
+  let resolvedOptions = options;
+
+  if (
+    resolvedOptions.provider === 'iapkit' &&
+    resolvedOptions.iapkit &&
+    !resolvedOptions.iapkit.apiKey
+  ) {
+    try {
+      // Dynamically import expo-constants to avoid hard dependency
+      const {default: Constants} = await import('expo-constants');
+      const configApiKey = Constants.expoConfig?.extra?.iapkitApiKey;
+      if (typeof configApiKey === 'string' && configApiKey.length > 0) {
+        resolvedOptions = {
+          ...resolvedOptions,
+          iapkit: {
+            ...resolvedOptions.iapkit,
+            apiKey: configApiKey,
+          },
+        };
+      }
+    } catch {
+      throw new Error(
+        'expo-constants is required for auto-filling iapkitApiKey from config. ' +
+          'Please install it: npx expo install expo-constants\n' +
+          'Or provide apiKey directly in verifyPurchaseWithProvider options.',
+      );
+    }
+  }
+
+  return ExpoIapModule.verifyPurchaseWithProvider(resolvedOptions);
 };
 
 export * from './useIAP';

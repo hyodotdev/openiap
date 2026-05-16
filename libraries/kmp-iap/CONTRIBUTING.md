@@ -6,7 +6,7 @@ Thank you for your interest in contributing to kmp-iap! This guide will help you
 
 ### Prerequisites
 
-- JDK 11 or higher
+- JDK 17 or higher
 - Android Studio (latest stable version)
 - Xcode (for iOS development, Mac only)
 - Android SDK
@@ -16,8 +16,8 @@ Thank you for your interest in contributing to kmp-iap! This guide will help you
 1. Fork and clone the repository
 
    ```bash
-   git clone https://github.com/[your-username]/kmp-iap.git
-   cd kmp-iap
+   git clone https://github.com/[your-username]/openiap.git
+   cd openiap/libraries/kmp-iap
    ```
 
 2. Open the project in Android Studio
@@ -109,55 +109,44 @@ kmp-iap/
 ├── example/          # Example application
 │   ├── composeApp/   # Compose Multiplatform app
 │   └── iosApp/       # iOS app
-├── native/           # Native dependencies (gitignored)
-│   └── openiap-apple/      # Local copy for development
+├── native/           # Native bridge packages
+│   └── InAppPurchaseBridge/ # SwiftPM bridge for OpenIAP Apple
 └── CLAUDE.md         # Coding conventions
 ```
 
 ## OpenIAP Apple Module
 
-The iOS implementation depends on the [openiap-apple](https://github.com/hyodotdev/openiap-apple) library, which is a Swift package that provides StoreKit 2 functionality.
+The iOS implementation depends on the
+[OpenIAP Apple package](https://github.com/hyodotdev/openiap/tree/main/packages/apple),
+which provides StoreKit 2 functionality.
 
 ### How It Works
 
-1. **CocoaPods Integration**: The library uses CocoaPods to integrate openiap-apple via Git tags
+1. **CocoaPods Integration**: The library uses CocoaPods to integrate the
+   `openiap` pod.
    - Configured in `library/build.gradle.kts`
-   - Podspec references: `https://github.com/hyodotdev/openiap-apple.git`
-   - Version managed via Git tags (e.g., `1.2.5`)
+   - Podspec dependency: `spec.dependency 'openiap', openiap_apple_version`
+   - Version read from the root `openiap-versions.json` `apple` field
 
 2. **Build Process**:
    ```bash
    # The Gradle build automatically:
-   # 1. Downloads openiap-apple via CocoaPods
+   # 1. Resolves openiap via CocoaPods
    # 2. Generates Kotlin/Native cinterop bindings
    # 3. Builds the iOS framework
 
    ./gradlew :library:build
    ```
 
-3. **Local Development Copy**:
-   - `native/openiap-apple/` contains a local copy for reference
-   - This directory is in `.gitignore` (line 31)
-   - **Do not commit changes here** - changes should go to the [openiap-apple repository](https://github.com/hyodotdev/openiap-apple)
-
 ### Updating OpenIAP Apple Version
 
-When a new version of openiap-apple is released:
+When a new version of openiap-apple or openiap-google is released:
 
-1. Update the version in `library/build.gradle.kts`:
-   ```kotlin
-   cocoapods {
-       pod("openiap") {
-           version = "1.2.5"  // Update this
-           extraOpts += listOf("-compiler-option", "-fmodules")
-       }
-   }
-   ```
+1. Update `openiap-versions.json` at the repository root.
 
-2. Update `native/InAppPurchaseBridge/Package.swift` if using Swift Package Manager:
-   ```swift
-   .package(url: "https://github.com/hyodotdev/openiap-apple.git", from: "1.2.5")
-   ```
+2. Keep `library/build.gradle.kts`, `library/library.podspec`, and
+   `native/InAppPurchaseBridge/Package.swift` reading from
+   `openiap-versions.json`; do not add hardcoded native dependency versions.
 
 3. Clean and rebuild:
    ```bash
@@ -195,9 +184,9 @@ When a new version of openiap-apple is released:
 
 ## Questions or Problems?
 
-- Check existing [issues](https://github.com/hyochan/kmp-iap/issues)
-- Start a [discussion](https://github.com/hyochan/kmp-iap/discussions)
-- Refer to [OpenIAP discussions](https://github.com/hyochan/openiap.dev/discussions) for specification questions
+- Check existing [issues](https://github.com/hyodotdev/openiap/issues)
+- Start a [discussion](https://github.com/hyodotdev/openiap/discussions/categories/kmp-iap)
+- Refer to [OpenIAP discussions](https://github.com/hyodotdev/openiap/discussions) for specification questions
 
 ## License
 

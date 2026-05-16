@@ -6,16 +6,72 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-val versionsFile = file("../../../../openiap-versions.json")
+val monorepoRoot = projectDir.resolve("../../../..").canonicalFile
+val versionsFile = monorepoRoot.resolve("openiap-versions.json")
+if (!versionsFile.isFile) {
+    error("maui-iap Android: missing openiap-versions.json at ${versionsFile.path}")
+}
 val versionsJson = JsonSlurper().parseText(versionsFile.readText()) as Map<*, *>
-val openIapGoogleVersion = versionsJson["google"]?.toString() ?: "2.1.2"
+val openIapGoogleVersion = versionsJson["google"]?.toString()
+    ?: error("maui-iap Android: 'google' version missing in openiap-versions.json")
+val gsonVersion = providers.gradleProperty("mauiGsonVersion").orNull
+    ?: error("maui-iap Android: missing mauiGsonVersion in gradle.properties")
+val googleOpenIapBuildFile = monorepoRoot.resolve("packages/google/openiap/build.gradle.kts")
+if (!googleOpenIapBuildFile.isFile) {
+    error("maui-iap Android: missing packages/google/openiap/build.gradle.kts")
+}
+val googleOpenIapBuild = googleOpenIapBuildFile.readText()
+
+fun readGoogleAndroidInt(name: String): Int {
+    return Regex("""$name\s*=\s*(\d+)""")
+        .find(googleOpenIapBuild)
+        ?.groupValues
+        ?.get(1)
+        ?.toInt()
+        ?: error("maui-iap Android: missing $name in ${googleOpenIapBuildFile.path}")
+}
+
+fun readGoogleVariable(name: String): String {
+    return Regex("""val\s+$name\s*=\s*"([^"]+)"""")
+        .find(googleOpenIapBuild)
+        ?.groupValues
+        ?.get(1)
+        ?: error("maui-iap Android: missing $name in ${googleOpenIapBuildFile.path}")
+}
+
+fun readGoogleDependencyVersion(coordinate: String): String {
+    return Regex("""${Regex.escape(coordinate)}:([^"$]+)""")
+        .find(googleOpenIapBuild)
+        ?.groupValues
+        ?.get(1)
+        ?: error("maui-iap Android: missing $coordinate in ${googleOpenIapBuildFile.path}")
+}
+
+fun readMauiAndroidMinSdk(): Int {
+    val mauiProjectFile = projectDir.resolve("../../src/OpenIap.Maui/OpenIap.Maui.csproj")
+    if (!mauiProjectFile.isFile) {
+        error("maui-iap Android: missing ${mauiProjectFile.path}")
+    }
+    return Regex("""<SupportedOSPlatformVersion[^>]*android[^>]*>(\d+)(?:\.\d+)?</SupportedOSPlatformVersion>""")
+        .find(mauiProjectFile.readText())
+        ?.groupValues
+        ?.get(1)
+        ?.toInt()
+        ?: error("maui-iap Android: missing Android SupportedOSPlatformVersion")
+}
+
+val googleCompileSdk = readGoogleAndroidInt("compileSdk")
+val googleMinSdk = readGoogleAndroidInt("minSdk")
+val mauiAndroidMinSdk = readMauiAndroidMinSdk()
+val googleCoreKtxVersion = readGoogleDependencyVersion("androidx.core:core-ktx")
+val googleCoroutinesVersion = readGoogleVariable("coroutinesVersion")
 
 android {
     namespace = "dev.hyo.openiap.maui"
-    compileSdk = 35
+    compileSdk = googleCompileSdk
 
     defaultConfig {
-        minSdk = 24
+        minSdk = maxOf(googleMinSdk, mauiAndroidMinSdk)
         missingDimensionStrategy("platform", "play")
     }
 
@@ -41,7 +97,7 @@ kotlin {
 dependencies {
     compileOnly("io.github.hyochan.openiap:openiap-google:$openIapGoogleVersion")
 
-    implementation("androidx.core:core-ktx:1.13.1")
-    implementation("com.google.code.gson:gson:2.10.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation("androidx.core:core-ktx:$googleCoreKtxVersion")
+    implementation("com.google.code.gson:gson:$gsonVersion")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:$googleCoroutinesVersion")
 }

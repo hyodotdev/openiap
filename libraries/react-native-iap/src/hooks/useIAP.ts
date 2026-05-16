@@ -87,7 +87,7 @@ type UseIap = {
    * @remarks **Critical:** Android purchases must be finalized within 3 days or Google
    *   auto-refunds. iOS unfinished transactions replay on every app launch.
    *
-   * @see {@link https://www.openiap.dev/docs/apis/finish-transaction}
+   * @see {@link https://openiap.dev/docs/apis/finish-transaction}
    */
   finishTransaction: (args: MutationFinishTransactionArgs) => Promise<void>;
   /**
@@ -118,7 +118,7 @@ type UseIap = {
    * }, [availablePurchases, finishTransaction]);
    * ```
    *
-   * @see {@link https://www.openiap.dev/docs/apis/get-available-purchases}
+   * @see {@link https://openiap.dev/docs/apis/get-available-purchases}
    */
   getAvailablePurchases: (options?: PurchaseOptions) => Promise<void>;
   /**
@@ -148,7 +148,7 @@ type UseIap = {
    * @remarks This is a regular promise-based call. Don't confuse with `request*` APIs
    *   (`requestPurchase`), which are event-based.
    *
-   * @see {@link https://www.openiap.dev/docs/apis/fetch-products}
+   * @see {@link https://openiap.dev/docs/apis/fetch-products}
    */
   fetchProducts: (params: {
     skus: string[];
@@ -179,13 +179,13 @@ type UseIap = {
    * @remarks Event-based. Listen for the result via {@link purchaseUpdatedListener} /
    *   {@link purchaseErrorListener}, or use `useIAP({ onPurchaseSuccess, onPurchaseError })`.
    *
-   * @see {@link https://www.openiap.dev/docs/apis/request-purchase}
+   * @see {@link https://openiap.dev/docs/apis/request-purchase}
    */
   requestPurchase: (params: RequestPurchaseProps) => Promise<void>;
   /**
    * @deprecated Use `verifyPurchase` instead. This function will be removed in a future version.
    *
-   * @see {@link https://www.openiap.dev/docs/apis/validate-receipt}
+   * @see {@link https://openiap.dev/docs/apis/validate-receipt}
    */
   validateReceipt: (
     options: VerifyPurchaseProps,
@@ -193,7 +193,7 @@ type UseIap = {
   /**
    * Verify a purchase against your own backend (returns isValid + raw store metadata).
    *
-   * @see {@link https://www.openiap.dev/docs/features/validation#verify-purchase}
+   * @see {@link https://openiap.dev/docs/features/validation#verify-purchase}
    */
   verifyPurchase: (
     options: VerifyPurchaseProps,
@@ -201,7 +201,7 @@ type UseIap = {
   /**
    * Verify via a managed provider — currently only `iapkit` (IAPKit). The PurchaseVerificationProvider enum exposes no other provider literal today.
    *
-   * @see {@link https://www.openiap.dev/docs/features/validation#verify-purchase-with-provider}
+   * @see {@link https://openiap.dev/docs/features/validation#verify-purchase-with-provider}
    */
   verifyPurchaseWithProvider: (
     options: VerifyPurchaseWithProviderProps,
@@ -209,25 +209,25 @@ type UseIap = {
   /**
    * Restore non-consumable and active subscription purchases.
    *
-   * @see {@link https://www.openiap.dev/docs/apis/restore-purchases}
+   * @see {@link https://openiap.dev/docs/apis/restore-purchases}
    */
   restorePurchases: (options?: PurchaseOptions) => Promise<void>;
   /**
    * Read the App Store-promoted product, if any.
    *
-   * @see {@link https://www.openiap.dev/docs/apis/ios/get-promoted-product-ios}
+   * @see {@link https://openiap.dev/docs/apis/ios/get-promoted-product-ios}
    */
   getPromotedProductIOS: () => Promise<Product | null>;
   /**
    * Buy the currently promoted product.
    *
-   * @see {@link https://www.openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios}
+   * @see {@link https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios}
    */
   requestPurchaseOnPromotedProductIOS: () => Promise<boolean>;
   /**
    * Get details of all currently active subscriptions.
    *
-   * @see {@link https://www.openiap.dev/docs/apis/get-active-subscriptions}
+   * @see {@link https://openiap.dev/docs/apis/get-active-subscriptions}
    */
   getActiveSubscriptions: (
     subscriptionIds?: string[],
@@ -235,7 +235,7 @@ type UseIap = {
   /**
    * Check whether the user has any active subscription.
    *
-   * @see {@link https://www.openiap.dev/docs/apis/has-active-subscriptions}
+   * @see {@link https://openiap.dev/docs/apis/has-active-subscriptions}
    */
   hasActiveSubscriptions: (subscriptionIds?: string[]) => Promise<boolean>;
   /**
@@ -248,19 +248,19 @@ type UseIap = {
   /**
    * Check whether alternative billing is available for the user.
    *
-   * @see {@link https://www.openiap.dev/docs/apis/android/check-alternative-billing-availability-android}
+   * @see {@link https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android}
    */
   checkAlternativeBillingAvailabilityAndroid?: () => Promise<boolean>;
   /**
    * Display Google's alternative billing information dialog.
    *
-   * @see {@link https://www.openiap.dev/docs/apis/android/show-alternative-billing-dialog-android}
+   * @see {@link https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android}
    */
   showAlternativeBillingDialogAndroid?: () => Promise<boolean>;
   /**
    * Create a reporting token for an alternative billing flow.
    *
-   * @see {@link https://www.openiap.dev/docs/apis/android/create-alternative-billing-token-android}
+   * @see {@link https://openiap.dev/docs/apis/android/create-alternative-billing-token-android}
    */
   createAlternativeBillingTokenAndroid?: (
     sku?: string,

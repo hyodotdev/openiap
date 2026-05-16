@@ -83,7 +83,11 @@ export const buildPurchaseRows = (purchase: Purchase): PurchaseDetailRow[] => {
   if (platform === 'ios') {
     const iosPurchase = purchase as PurchaseIOS;
     pushRow(rows, 'quantityIOS', iosPurchase.quantityIOS);
-    pushRow(rows, 'appAccountToken', iosPurchase.appAccountToken);
+    pushRow(
+      rows,
+      'appAccountToken',
+      iosPurchase.appAccountToken ? '<redacted>' : null,
+    );
     pushRow(rows, 'appBundleIdIOS', iosPurchase.appBundleIdIOS);
     pushRow(rows, 'countryCodeIOS', iosPurchase.countryCodeIOS);
     pushRow(rows, 'currencyCodeIOS', iosPurchase.currencyCodeIOS);
@@ -128,7 +132,11 @@ export const buildPurchaseRows = (purchase: Purchase): PurchaseDetailRow[] => {
     }
   } else if (platform === 'android') {
     const androidPurchase = purchase as PurchaseAndroid;
-    pushRow(rows, 'signatureAndroid', androidPurchase.signatureAndroid);
+    pushRow(
+      rows,
+      'signatureAndroid',
+      androidPurchase.signatureAndroid ? '<redacted>' : null,
+    );
     pushRow(rows, 'packageNameAndroid', androidPurchase.packageNameAndroid);
     pushRow(
       rows,
@@ -155,10 +163,14 @@ export const buildPurchaseRows = (purchase: Purchase): PurchaseDetailRow[] => {
       'autoRenewingAndroid',
       formatBoolean(androidPurchase.autoRenewingAndroid),
     );
-    pushRow(rows, 'dataAndroid', androidPurchase.dataAndroid);
+    pushRow(
+      rows,
+      'dataAndroid',
+      androidPurchase.dataAndroid ? '<redacted>' : null,
+    );
   }
 
-  pushRow(rows, 'purchaseToken', purchase.purchaseToken);
+  pushRow(rows, 'purchaseToken', purchase.purchaseToken ? '<redacted>' : null);
 
   return rows;
 };

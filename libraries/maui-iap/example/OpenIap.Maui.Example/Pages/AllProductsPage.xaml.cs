@@ -2,6 +2,7 @@ using OpenIap;
 using OpenIap.Maui;
 using OpenIap.Maui.Example.Utils;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace OpenIap.Maui.Example.Pages;
 
@@ -13,6 +14,12 @@ public partial class AllProductsPage : ContentPage
     private static readonly JsonSerializerOptions PrettyJson = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true,
+    };
+
+    private static readonly HashSet<string> SensitiveJsonPropertyNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "offerToken",
+        "offerTokenAndroid",
     };
 
     private readonly List<Product> _products = new();
@@ -353,7 +360,10 @@ public partial class AllProductsPage : ContentPage
         foreach (var offer in offers)
         {
             AppendOfferTitle(offer.BasePlanId + (string.IsNullOrEmpty(offer.OfferId) ? string.Empty : $" - {offer.OfferId}"));
-            AppendOfferDetail($"Offer Token: {TrimMiddle(offer.OfferToken)}");
+            var offerTokenStatus = string.IsNullOrEmpty(offer.OfferToken)
+                ? "missing"
+                : "<redacted>";
+            AppendOfferDetail($"Offer Token: {offerTokenStatus}");
             AppendOfferDetail($"Tags: {FormatList(offer.OfferTags)}");
             foreach (var phase in offer.PricingPhases.PricingPhaseList)
             {
@@ -394,11 +404,49 @@ public partial class AllProductsPage : ContentPage
         try
         {
             AppendSection("Raw Product JSON");
-            AppendOfferDetail(JsonSerializer.Serialize(item, item.GetType(), PrettyJson));
+            AppendOfferDetail(SerializeProductPreview(item));
         }
         catch (Exception ex)
         {
             AppendOfferDetail($"Unable to serialize product: {ex.Message}");
+        }
+    }
+
+    private static string SerializeProductPreview(object item)
+    {
+        var node = JsonSerializer.SerializeToNode(item, item.GetType(), PrettyJson);
+        RedactSensitiveProductJson(node);
+        return node?.ToJsonString(PrettyJson) ?? "null";
+    }
+
+    private static void RedactSensitiveProductJson(JsonNode? node)
+    {
+        switch (node)
+        {
+            case JsonObject obj:
+                var keysToRedact = new List<string>();
+                foreach (var property in obj)
+                {
+                    if (SensitiveJsonPropertyNames.Contains(property.Key))
+                    {
+                        keysToRedact.Add(property.Key);
+                    }
+                    else
+                    {
+                        RedactSensitiveProductJson(property.Value);
+                    }
+                }
+                foreach (var key in keysToRedact)
+                {
+                    obj[key] = "<redacted>";
+                }
+                break;
+            case JsonArray array:
+                foreach (var child in array)
+                {
+                    RedactSensitiveProductJson(child);
+                }
+                break;
         }
     }
 

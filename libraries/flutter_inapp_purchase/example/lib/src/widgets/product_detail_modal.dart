@@ -147,9 +147,7 @@ class ProductDetailModal extends StatelessWidget {
             if (offer.offerToken.isNotEmpty)
               _buildDetailRow(
                 'Offer Token',
-                offer.offerToken.length > 30
-                    ? '${offer.offerToken.substring(0, 30)}...'
-                    : offer.offerToken,
+                '<redacted>',
               ),
             if (offer.offerTags.isNotEmpty)
               _buildDetailRow('Tags', offer.offerTags.join(', ')),
@@ -319,7 +317,7 @@ class ProductDetailModal extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      item.title ?? item.id,
+                      item.title,
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -442,9 +440,7 @@ class ProductDetailModal extends StatelessWidget {
                                         ),
                                         _buildDetailRow(
                                           'Offer Token',
-                                          offer.offerToken.length > 20
-                                              ? '${offer.offerToken.substring(0, 20)}...'
-                                              : offer.offerToken,
+                                          '<redacted>',
                                         ),
                                         if (offer.offerTags.isNotEmpty)
                                           _buildDetailRow(

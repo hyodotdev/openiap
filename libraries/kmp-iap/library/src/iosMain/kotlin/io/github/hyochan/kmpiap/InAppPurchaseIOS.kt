@@ -134,7 +134,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         }
     }
 
-    override fun getVersion(): String = "KMP-IAP v1.0.0-rc.2 (iOS)"
+    override fun getVersion(): String = kmpIapVersionString("iOS")
 
     override fun getStore(): Store = Store.APP_STORE
 
@@ -156,7 +156,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @return `true` once the platform billing client is connected.
      * @throws PurchaseException when the billing client fails to initialize.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/init-connection">init-connection</a>
+     * @see <a href="https://openiap.dev/docs/apis/init-connection">init-connection</a>
      */
     override suspend fun initConnection(config: InitConnectionConfig?): Boolean = suspendCoroutine { continuation ->
         // iOS doesn't use alternative billing config, it's Android only
@@ -179,7 +179,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Close the store connection and release resources.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/end-connection">https://www.openiap.dev/docs/apis/end-connection</a>
+     * @see <a href="https://openiap.dev/docs/apis/end-connection">https://openiap.dev/docs/apis/end-connection</a>
      */
     override suspend fun endConnection(): Boolean = suspendCoroutine { continuation ->
         // Remove all listeners and null the subscription tokens so initConnection()
@@ -217,82 +217,62 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * Warning: Event-based. Collect from `purchaseUpdatedListener` / `purchaseErrorListener`
      * (or the equivalent flows on `KmpIAP`) for the final state.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/request-purchase">request-purchase</a>
+     * @see <a href="https://openiap.dev/docs/apis/request-purchase">request-purchase</a>
      */
     override suspend fun requestPurchase(params: RequestPurchaseProps): RequestPurchaseResult? =
         suspendCoroutine { continuation ->
-            when (val request = params.request) {
-                is RequestPurchaseProps.Request.Purchase -> {
-                    val sku = request.value.ios?.sku ?: run {
-                        continuation.resumeWithException(Exception("SKU is required for iOS purchase"))
-                        return@suspendCoroutine
-                    }
-                    val quantity = request.value.ios?.quantity ?: 1
+            requireIosSku(params)?.let { message ->
+                continuation.resumeWithException(Exception(message))
+                return@suspendCoroutine
+            }
 
-                    openIapModule.requestPurchaseWithSku(
-                        sku,
-                        quantity = quantity.toLong(),
-                        type = null
-                    ) { result, error ->
-                        if (error != null) {
-                            continuation.resumeWithException(Exception(error.localizedDescription))
-                        } else if (result != null) {
-                            val purchase = convertAnyToPurchase(result)
-                            if (purchase != null) {
-                                continuation.resume(RequestPurchaseResultPurchase(purchase))
-                            } else {
-                                continuation.resume(null)
-                            }
-                        } else {
-                            continuation.resume(null)
-                        }
-                    }
-                }
-                is RequestPurchaseProps.Request.Subscription -> {
-                    val sku = request.value.ios?.sku ?: run {
-                        continuation.resumeWithException(Exception("SKU is required for iOS subscription"))
-                        return@suspendCoroutine
-                    }
-                    val offer = request.value.ios?.withOffer?.let { discountOffer ->
-                        mapOf<Any?, Any?>(
-                            "identifier" to discountOffer.identifier,
-                            "keyIdentifier" to discountOffer.keyIdentifier,
-                            "nonce" to discountOffer.nonce,
-                            "signature" to discountOffer.signature,
-                            "timestamp" to discountOffer.timestamp
-                        )
-                    }
-
-                    // TODO: iOS 15+/18+ options (introductoryOfferEligibility, promotionalOfferJWS, winBackOffer)
-                    // OpenIAP openiap-apple 1.3.13 now includes the updated ObjC bridge.
-                    // To use these options, update cinterop to call the new ObjC method signature:
-                    // requestSubscriptionWithSku(_:offer:introductoryOfferEligibility:promotionalOfferJWS:winBackOfferId:completion:)
-
-                    openIapModule.requestSubscriptionWithSku(
-                        sku,
-                        offer = offer
-                    ) { result, error ->
-                        if (error != null) {
-                            continuation.resumeWithException(Exception(error.localizedDescription))
-                        } else if (result != null) {
-                            val purchase = convertAnyToPurchase(result)
-                            if (purchase != null) {
-                                continuation.resume(RequestPurchaseResultPurchase(purchase))
-                            } else {
-                                continuation.resume(null)
-                            }
-                        } else {
-                            continuation.resume(null)
-                        }
-                    }
+            openIapModule.requestPurchaseWithPayload(params.toJson().toObjCMap()) { result, error ->
+                if (error != null) {
+                    continuation.resumeWithException(Exception(error.localizedDescription))
+                } else if (result != null) {
+                    val purchase = convertAnyToPurchase(result)
+                    continuation.resume(purchase?.let { RequestPurchaseResultPurchase(it) })
+                } else {
+                    continuation.resume(null)
                 }
             }
         }
 
+    private fun requireIosSku(params: RequestPurchaseProps): String? {
+        val (sku, kind) = when (val request = params.request) {
+            is RequestPurchaseProps.Request.Purchase ->
+                (request.value.apple?.sku ?: request.value.ios?.sku) to "purchase"
+            is RequestPurchaseProps.Request.Subscription ->
+                (request.value.apple?.sku ?: request.value.ios?.sku) to "subscription"
+        }
+
+        return if (sku.isNullOrBlank()) {
+            "SKU is required for iOS $kind"
+        } else {
+            null
+        }
+    }
+
+    private fun Map<String, Any?>.toObjCMap(): Map<Any?, Any?> =
+        entries.mapNotNull { (key, value) ->
+            val converted = value.toObjCValue() ?: return@mapNotNull null
+            key to converted
+        }.toMap()
+
+    private fun Any?.toObjCValue(): Any? = when (this) {
+        null -> null
+        is Map<*, *> -> entries.mapNotNull { (key, value) ->
+            val converted = value.toObjCValue() ?: return@mapNotNull null
+            key to converted
+        }.toMap()
+        is List<*> -> mapNotNull { it.toObjCValue() }
+        else -> this
+    }
+
     /**
      * Buy the currently promoted product.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios">https://www.openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios</a>
+     * @see <a href="https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios">https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios</a>
      */
     override suspend fun requestPurchaseOnPromotedProductIOS(): Boolean =
         suspendCoroutine { continuation ->
@@ -308,7 +288,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Restore non-consumable and active subscription purchases.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/restore-purchases">https://www.openiap.dev/docs/apis/restore-purchases</a>
+     * @see <a href="https://openiap.dev/docs/apis/restore-purchases">https://openiap.dev/docs/apis/restore-purchases</a>
      */
     override suspend fun restorePurchases(): Unit = suspendCoroutine { continuation ->
         openIapModule.restorePurchasesWithCompletion { error ->
@@ -331,7 +311,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * Important: Android auto-refunds purchases NOT acknowledged/consumed within 3 days.
      * iOS unfinished transactions replay on every app launch.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/finish-transaction">finish-transaction</a>
+     * @see <a href="https://openiap.dev/docs/apis/finish-transaction">finish-transaction</a>
      */
     override suspend fun finishTransaction(purchase: PurchaseInput, isConsumable: Boolean?): Unit =
         suspendCoroutine { continuation ->
@@ -354,7 +334,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Open the platform's subscription management UI.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/deep-link-to-subscriptions">https://www.openiap.dev/docs/apis/deep-link-to-subscriptions</a>
+     * @see <a href="https://openiap.dev/docs/apis/deep-link-to-subscriptions">https://openiap.dev/docs/apis/deep-link-to-subscriptions</a>
      */
     override suspend fun deepLinkToSubscriptions(options: DeepLinkOptions?): Unit =
         suspendCoroutine { continuation ->
@@ -370,7 +350,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Show the App Store offer code redemption sheet.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios">https://www.openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios</a>
+     * @see <a href="https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios">https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios</a>
      */
     override suspend fun presentCodeRedemptionSheetIOS(): Boolean =
         suspendCoroutine { continuation ->
@@ -386,7 +366,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Present the refund request sheet (iOS 15+).
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/ios/begin-refund-request-ios">https://www.openiap.dev/docs/apis/ios/begin-refund-request-ios</a>
+     * @see <a href="https://openiap.dev/docs/apis/ios/begin-refund-request-ios">https://openiap.dev/docs/apis/ios/begin-refund-request-ios</a>
      */
     override suspend fun beginRefundRequestIOS(sku: String): String? =
         suspendCoroutine { continuation ->
@@ -402,7 +382,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Clear pending transactions in the queue (sandbox helper).
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/ios/clear-transaction-ios">https://www.openiap.dev/docs/apis/ios/clear-transaction-ios</a>
+     * @see <a href="https://openiap.dev/docs/apis/ios/clear-transaction-ios">https://openiap.dev/docs/apis/ios/clear-transaction-ios</a>
      */
     override suspend fun clearTransactionIOS(): Boolean = suspendCoroutine { continuation ->
         openIapModule.clearTransactionIOSWithCompletion { success, error ->
@@ -417,7 +397,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Present the manage-subscriptions sheet.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/ios/show-manage-subscriptions-ios">https://www.openiap.dev/docs/apis/ios/show-manage-subscriptions-ios</a>
+     * @see <a href="https://openiap.dev/docs/apis/ios/show-manage-subscriptions-ios">https://openiap.dev/docs/apis/ios/show-manage-subscriptions-ios</a>
      */
     override suspend fun showManageSubscriptionsIOS(): List<PurchaseIOS> =
         suspendCoroutine { continuation ->
@@ -436,7 +416,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Force sync transactions with the App Store.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/ios/sync-ios">https://www.openiap.dev/docs/apis/ios/sync-ios</a>
+     * @see <a href="https://openiap.dev/docs/apis/ios/sync-ios">https://openiap.dev/docs/apis/ios/sync-ios</a>
      */
     override suspend fun syncIOS(): Boolean = suspendCoroutine { continuation ->
         openIapModule.syncIOSWithCompletion { success, error ->
@@ -451,7 +431,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Deprecated. Use verifyPurchase instead.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/validate-receipt">https://www.openiap.dev/docs/apis/validate-receipt</a>
+     * @see <a href="https://openiap.dev/docs/apis/validate-receipt">https://openiap.dev/docs/apis/validate-receipt</a>
      */
     override suspend fun validateReceipt(options: VerifyPurchaseProps): VerifyPurchaseResult {
         // Call the iOS-specific version and return the result directly
@@ -472,7 +452,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      *   for Subs, mixed for All.
      * @throws PurchaseException on store rejection (unknown SKU, network, not connected).
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/fetch-products">fetch-products</a>
+     * @see <a href="https://openiap.dev/docs/apis/fetch-products">fetch-products</a>
      */
     override suspend fun fetchProducts(params: ProductRequest): FetchProductsResult =
         suspendCoroutine { continuation ->
@@ -509,7 +489,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @return List of [Purchase] currently held by the platform store.
      * @throws PurchaseException when the platform query fails.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/get-available-purchases">get-available-purchases</a>
+     * @see <a href="https://openiap.dev/docs/apis/get-available-purchases">get-available-purchases</a>
      */
     override suspend fun getAvailablePurchases(options: PurchaseOptions?): List<Purchase> =
         suspendCoroutine { continuation ->
@@ -528,7 +508,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Return the user's storefront country code.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/get-storefront">https://www.openiap.dev/docs/apis/get-storefront</a>
+     * @see <a href="https://openiap.dev/docs/apis/get-storefront">https://openiap.dev/docs/apis/get-storefront</a>
      */
     override suspend fun getStorefront(): String {
         return getStorefrontIOS()
@@ -537,7 +517,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Deprecated. Use cross-platform getStorefront instead.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/ios/get-storefront-ios">https://www.openiap.dev/docs/apis/ios/get-storefront-ios</a>
+     * @see <a href="https://openiap.dev/docs/apis/ios/get-storefront-ios">https://openiap.dev/docs/apis/ios/get-storefront-ios</a>
      */
     override suspend fun getStorefrontIOS(): String = suspendCoroutine { continuation ->
         openIapModule.getStorefrontIOSWithCompletion { result, error ->
@@ -552,7 +532,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * List unfinished StoreKit transactions.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/ios/get-pending-transactions-ios">https://www.openiap.dev/docs/apis/ios/get-pending-transactions-ios</a>
+     * @see <a href="https://openiap.dev/docs/apis/ios/get-pending-transactions-ios">https://openiap.dev/docs/apis/ios/get-pending-transactions-ios</a>
      */
     override suspend fun getPendingTransactionsIOS(): List<PurchaseIOS> =
         suspendCoroutine { continuation ->
@@ -571,7 +551,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * List every StoreKit transaction (finished + unfinished).
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/ios/get-all-transactions-ios">https://www.openiap.dev/docs/apis/ios/get-all-transactions-ios</a>
+     * @see <a href="https://openiap.dev/docs/apis/ios/get-all-transactions-ios">https://openiap.dev/docs/apis/ios/get-all-transactions-ios</a>
      */
     override suspend fun getAllTransactionsIOS(): List<PurchaseIOS> =
         suspendCoroutine { continuation ->
@@ -590,7 +570,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Get base64 receipt data (legacy validation).
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/ios/get-receipt-data-ios">https://www.openiap.dev/docs/apis/ios/get-receipt-data-ios</a>
+     * @see <a href="https://openiap.dev/docs/apis/ios/get-receipt-data-ios">https://openiap.dev/docs/apis/ios/get-receipt-data-ios</a>
      */
     override suspend fun getReceiptDataIOS(): String? = suspendCoroutine { continuation ->
         openIapModule.getReceiptDataIOSWithCompletion { result, error ->
@@ -605,7 +585,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Read the App Store-promoted product, if any.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/ios/get-promoted-product-ios">https://www.openiap.dev/docs/apis/ios/get-promoted-product-ios</a>
+     * @see <a href="https://openiap.dev/docs/apis/ios/get-promoted-product-ios">https://openiap.dev/docs/apis/ios/get-promoted-product-ios</a>
      */
     override suspend fun getPromotedProductIOS(): ProductIOS? = suspendCoroutine { continuation ->
         openIapModule.getPromotedProductIOSWithCompletion { result, error ->
@@ -623,7 +603,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Get details of all currently active subscriptions.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/get-active-subscriptions">https://www.openiap.dev/docs/apis/get-active-subscriptions</a>
+     * @see <a href="https://openiap.dev/docs/apis/get-active-subscriptions">https://openiap.dev/docs/apis/get-active-subscriptions</a>
      */
     override suspend fun getActiveSubscriptions(subscriptionIds: List<String>?): List<ActiveSubscription> =
         suspendCoroutine { continuation ->
@@ -633,23 +613,14 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     return@getActiveSubscriptionsWithCompletion
                 }
 
-                val subscriptions = (result as? List<*>)?.mapNotNull { item ->
-                    val map = (item as? Map<*, *>)?.mapKeys { it.key.toString() } ?: return@mapNotNull null
-                    try {
-                        ActiveSubscription.fromJson(map)
-                    } catch (e: Exception) {
-                        null
-                    }
-                } ?: emptyList()
-
-                continuation.resume(subscriptions)
+                continuation.resume(filterActiveSubscriptions(result, subscriptionIds))
             }
         }
 
     /**
      * Fetch the app transaction (iOS 16+).
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/ios/get-app-transaction-ios">https://www.openiap.dev/docs/apis/ios/get-app-transaction-ios</a>
+     * @see <a href="https://openiap.dev/docs/apis/ios/get-app-transaction-ios">https://openiap.dev/docs/apis/ios/get-app-transaction-ios</a>
      */
     override suspend fun getAppTransactionIOS(): AppTransaction? =
         suspendCoroutine { continuation ->
@@ -677,7 +648,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Get the user's current entitlement for a product.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/ios/current-entitlement-ios">https://www.openiap.dev/docs/apis/ios/current-entitlement-ios</a>
+     * @see <a href="https://openiap.dev/docs/apis/ios/current-entitlement-ios">https://openiap.dev/docs/apis/ios/current-entitlement-ios</a>
      */
     override suspend fun currentEntitlementIOS(sku: String): PurchaseIOS? =
         suspendCoroutine { continuation ->
@@ -695,7 +666,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Return the JWS string for a transaction.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/ios/get-transaction-jws-ios">https://www.openiap.dev/docs/apis/ios/get-transaction-jws-ios</a>
+     * @see <a href="https://openiap.dev/docs/apis/ios/get-transaction-jws-ios">https://openiap.dev/docs/apis/ios/get-transaction-jws-ios</a>
      */
     override suspend fun getTransactionJwsIOS(sku: String): String? =
         suspendCoroutine { continuation ->
@@ -705,31 +676,64 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     return@getTransactionJwsIOSWithSku
                 }
 
-                continuation.resume(result as? String)
+                continuation.resume(result)
             }
         }
 
     /**
      * Check whether the user has any active subscription.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/has-active-subscriptions">https://www.openiap.dev/docs/apis/has-active-subscriptions</a>
+     * @see <a href="https://openiap.dev/docs/apis/has-active-subscriptions">https://openiap.dev/docs/apis/has-active-subscriptions</a>
      */
     override suspend fun hasActiveSubscriptions(subscriptionIds: List<String>?): Boolean =
         suspendCoroutine { continuation ->
-            openIapModule.hasActiveSubscriptionsWithCompletion { hasActive, error ->
+            if (subscriptionIds.isNullOrEmpty()) {
+                openIapModule.hasActiveSubscriptionsWithCompletion { hasActive, error ->
+                    if (error != null) {
+                        continuation.resumeWithException(Exception(error.localizedDescription))
+                        return@hasActiveSubscriptionsWithCompletion
+                    }
+
+                    continuation.resume(hasActive)
+                }
+                return@suspendCoroutine
+            }
+
+            openIapModule.getActiveSubscriptionsWithCompletion { result, error ->
                 if (error != null) {
                     continuation.resumeWithException(Exception(error.localizedDescription))
-                    return@hasActiveSubscriptionsWithCompletion
+                    return@getActiveSubscriptionsWithCompletion
                 }
 
-                continuation.resume(hasActive)
+                continuation.resume(filterActiveSubscriptions(result, subscriptionIds).isNotEmpty())
             }
         }
+
+    private fun filterActiveSubscriptions(
+        result: List<*>?,
+        subscriptionIds: List<String>?
+    ): List<ActiveSubscription> {
+        val subscriptions = result?.mapNotNull { item ->
+            val map = (item as? Map<*, *>)?.mapKeys { it.key.toString() } ?: return@mapNotNull null
+            try {
+                ActiveSubscription.fromJson(map)
+            } catch (e: Exception) {
+                null
+            }
+        } ?: emptyList()
+
+        if (subscriptionIds.isNullOrEmpty()) {
+            return subscriptions
+        }
+
+        val filter = subscriptionIds.toSet()
+        return subscriptions.filter { it.productId in filter }
+    }
 
     /**
      * Check intro-offer eligibility for a subscription group.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios">https://www.openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios</a>
+     * @see <a href="https://openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios">https://openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios</a>
      */
     override suspend fun isEligibleForIntroOfferIOS(groupID: String): Boolean =
         suspendCoroutine { continuation ->
@@ -746,7 +750,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Check eligibility for the custom-link variant of external purchase (iOS 18.1+).
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios">https://www.openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios</a>
+     * @see <a href="https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios">https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios</a>
      */
     override suspend fun isEligibleForExternalPurchaseCustomLinkIOS(): Boolean =
         suspendCoroutine { continuation ->
@@ -763,7 +767,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Present the disclosure sheet required before linking out via ExternalPurchaseCustomLink (iOS 18.1+).
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios">https://www.openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios</a>
+     * @see <a href="https://openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios">https://openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios</a>
      */
     override suspend fun showExternalPurchaseCustomLinkNoticeIOS(
         noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS
@@ -798,7 +802,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Fetch a token for Apple's External Purchase Server reporting API (iOS 18.1+).
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios">https://www.openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios</a>
+     * @see <a href="https://openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios">https://openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios</a>
      */
     override suspend fun getExternalPurchaseCustomLinkTokenIOS(
         tokenType: ExternalPurchaseCustomLinkTokenTypeIOS
@@ -833,7 +837,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Check whether a transaction's JWS verification passed.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/ios/is-transaction-verified-ios">https://www.openiap.dev/docs/apis/ios/is-transaction-verified-ios</a>
+     * @see <a href="https://openiap.dev/docs/apis/ios/is-transaction-verified-ios">https://openiap.dev/docs/apis/ios/is-transaction-verified-ios</a>
      */
     override suspend fun isTransactionVerifiedIOS(sku: String): Boolean =
         suspendCoroutine { continuation ->
@@ -850,7 +854,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Get the latest verified transaction for a product.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/ios/latest-transaction-ios">https://www.openiap.dev/docs/apis/ios/latest-transaction-ios</a>
+     * @see <a href="https://openiap.dev/docs/apis/ios/latest-transaction-ios">https://openiap.dev/docs/apis/ios/latest-transaction-ios</a>
      */
     override suspend fun latestTransactionIOS(sku: String): PurchaseIOS? =
         suspendCoroutine { continuation ->
@@ -868,7 +872,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Get subscription status objects from StoreKit 2.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/ios/subscription-status-ios">https://www.openiap.dev/docs/apis/ios/subscription-status-ios</a>
+     * @see <a href="https://openiap.dev/docs/apis/ios/subscription-status-ios">https://openiap.dev/docs/apis/ios/subscription-status-ios</a>
      */
     override suspend fun subscriptionStatusIOS(sku: String): List<SubscriptionStatusIOS> =
         suspendCoroutine { continuation ->
@@ -878,7 +882,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     return@subscriptionStatusIOSWithSku
                 }
 
-                val statuses = (result as? List<*>)?.mapNotNull { item ->
+                val statuses = result?.mapNotNull { item ->
                     val map = (item as? Map<*, *>)?.mapKeys { it.key.toString() } ?: return@mapNotNull null
                     try {
                         SubscriptionStatusIOS.fromJson(map)
@@ -894,25 +898,59 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Deprecated. Legacy App Store receipt validation.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/ios/validate-receipt-ios">https://www.openiap.dev/docs/apis/ios/validate-receipt-ios</a>
+     * @see <a href="https://openiap.dev/docs/apis/ios/validate-receipt-ios">https://openiap.dev/docs/apis/ios/validate-receipt-ios</a>
      */
     override suspend fun validateReceiptIOS(options: VerifyPurchaseProps): VerifyPurchaseResultIOS {
-        // Get receipt data
-        val receiptData = getReceiptDataIOS() ?: ""
+        val sku = options.apple?.sku?.trim()
+        if (sku.isNullOrEmpty()) {
+            throw PurchaseException(
+                PurchaseError(
+                    code = ErrorCode.DeveloperError,
+                    message = "Apple SKU is required for iOS receipt validation"
+                )
+            )
+        }
 
-        // For now, return a basic result. Full validation requires backend integration
-        return VerifyPurchaseResultIOS(
-            isValid = false,
-            jwsRepresentation = "",
-            latestTransaction = null,
-            receiptData = receiptData
-        )
+        return suspendCoroutine { continuation ->
+            openIapModule.verifyPurchaseWithSku(sku) { result, error ->
+                if (error != null) {
+                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    return@verifyPurchaseWithSku
+                }
+
+                val map = (result as? Map<*, *>)?.mapKeys { it.key.toString() }
+                if (map == null) {
+                    continuation.resumeWithException(
+                        PurchaseException(
+                            PurchaseError(
+                                code = ErrorCode.PurchaseVerificationFailed,
+                                message = "Verification returned no payload"
+                            )
+                        )
+                    )
+                    return@verifyPurchaseWithSku
+                }
+
+                try {
+                    continuation.resume(VerifyPurchaseResultIOS.fromJson(map))
+                } catch (e: Exception) {
+                    continuation.resumeWithException(
+                        PurchaseException(
+                            PurchaseError(
+                                code = ErrorCode.PurchaseVerificationFailed,
+                                message = "Failed to parse verification result: ${e.message}"
+                            )
+                        )
+                    )
+                }
+            }
+        }
     }
 
     /**
      * Verify a purchase against your own backend.
      *
-     * @see <a href="https://www.openiap.dev/docs/features/validation#verify-purchase">https://www.openiap.dev/docs/features/validation#verify-purchase</a>
+     * @see <a href="https://openiap.dev/docs/features/validation#verify-purchase">https://openiap.dev/docs/features/validation#verify-purchase</a>
      */
     override suspend fun verifyPurchase(options: VerifyPurchaseProps): VerifyPurchaseResult {
         // Call the iOS-specific validation method
@@ -922,7 +960,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Verify via a managed provider (currently IAPKit; the PurchaseVerificationProvider enum exposes only Iapkit today).
      *
-     * @see <a href="https://www.openiap.dev/docs/features/validation#verify-purchase-with-provider">https://www.openiap.dev/docs/features/validation#verify-purchase-with-provider</a>
+     * @see <a href="https://openiap.dev/docs/features/validation#verify-purchase-with-provider">https://openiap.dev/docs/features/validation#verify-purchase-with-provider</a>
      */
     override suspend fun verifyPurchaseWithProvider(options: VerifyPurchaseWithProviderProps): VerifyPurchaseWithProviderResult =
         suspendCoroutine { continuation ->
@@ -936,7 +974,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 jws = jws
             ) { result, error ->
                 if (error != null) {
-                    val nsError = error as NSError
+                    val nsError = error
                     continuation.resumeWithException(
                         PurchaseException(
                             PurchaseError(
@@ -1256,7 +1294,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Acknowledge a non-consumable purchase. Required within 3 days or Google auto-refunds.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/android/acknowledge-purchase-android">https://www.openiap.dev/docs/apis/android/acknowledge-purchase-android</a>
+     * @see <a href="https://openiap.dev/docs/apis/android/acknowledge-purchase-android">https://openiap.dev/docs/apis/android/acknowledge-purchase-android</a>
      */
     override suspend fun acknowledgePurchaseAndroid(purchaseToken: String): Boolean {
         throw UnsupportedOperationException("Android method not available on iOS")
@@ -1265,7 +1303,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Consume a consumable purchase so it can be re-bought.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/android/consume-purchase-android">https://www.openiap.dev/docs/apis/android/consume-purchase-android</a>
+     * @see <a href="https://openiap.dev/docs/apis/android/consume-purchase-android">https://openiap.dev/docs/apis/android/consume-purchase-android</a>
      */
     override suspend fun consumePurchaseAndroid(purchaseToken: String): Boolean {
         throw UnsupportedOperationException("Android method not available on iOS")
@@ -1278,7 +1316,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Check whether alternative billing is available for the user.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/android/check-alternative-billing-availability-android">https://www.openiap.dev/docs/apis/android/check-alternative-billing-availability-android</a>
+     * @see <a href="https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android">https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android</a>
      */
     override suspend fun checkAlternativeBillingAvailabilityAndroid(): Boolean {
         return false // Not supported on iOS
@@ -1287,7 +1325,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Display Google's alternative billing information dialog.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/android/show-alternative-billing-dialog-android">https://www.openiap.dev/docs/apis/android/show-alternative-billing-dialog-android</a>
+     * @see <a href="https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android">https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android</a>
      */
     override suspend fun showAlternativeBillingDialogAndroid(): Boolean {
         throw UnsupportedOperationException("Android alternative billing not available on iOS")
@@ -1296,7 +1334,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Create a reporting token for an alternative billing flow.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/android/create-alternative-billing-token-android">https://www.openiap.dev/docs/apis/android/create-alternative-billing-token-android</a>
+     * @see <a href="https://openiap.dev/docs/apis/android/create-alternative-billing-token-android">https://openiap.dev/docs/apis/android/create-alternative-billing-token-android</a>
      */
     override suspend fun createAlternativeBillingTokenAndroid(): String? {
         return null // Not supported on iOS
@@ -1313,7 +1351,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Present an external purchase link (iOS 16+).
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/ios/present-external-purchase-link-ios">https://www.openiap.dev/docs/apis/ios/present-external-purchase-link-ios</a>
+     * @see <a href="https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios">https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios</a>
      */
     override suspend fun presentExternalPurchaseLinkIOS(url: String): ExternalPurchaseLinkResultIOS =
         suspendCoroutine { continuation ->
@@ -1341,7 +1379,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Present the external purchase notice sheet (iOS 17.4+).
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios">https://www.openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios</a>
+     * @see <a href="https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios">https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios</a>
      */
     override suspend fun presentExternalPurchaseNoticeSheetIOS(): ExternalPurchaseNoticeResultIOS =
         suspendCoroutine { continuation ->
@@ -1374,7 +1412,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Check eligibility for the external purchase notice sheet (iOS 17.4+).
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios">https://www.openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios</a>
+     * @see <a href="https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios">https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios</a>
      */
     override suspend fun canPresentExternalPurchaseNoticeIOS(): Boolean =
         suspendCoroutine { continuation ->
@@ -1387,7 +1425,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Check whether a billing program is available.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/android/is-billing-program-available-android">https://www.openiap.dev/docs/apis/android/is-billing-program-available-android</a>
+     * @see <a href="https://openiap.dev/docs/apis/android/is-billing-program-available-android">https://openiap.dev/docs/apis/android/is-billing-program-available-android</a>
      */
     override suspend fun isBillingProgramAvailableAndroid(program: BillingProgramAndroid): BillingProgramAvailabilityResultAndroid {
         throw UnsupportedOperationException("isBillingProgramAvailableAndroid is only available on Android")
@@ -1396,7 +1434,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Create the reporting payload Google requires (Play Billing 8.3.0+).
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/android/create-billing-program-reporting-details-android">https://www.openiap.dev/docs/apis/android/create-billing-program-reporting-details-android</a>
+     * @see <a href="https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android">https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android</a>
      */
     override suspend fun createBillingProgramReportingDetailsAndroid(program: BillingProgramAndroid): BillingProgramReportingDetailsAndroid {
         throw UnsupportedOperationException("createBillingProgramReportingDetailsAndroid is only available on Android")
@@ -1405,7 +1443,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     /**
      * Launch an external content/offer link (Play Billing 8.2.0+).
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/android/launch-external-link-android">https://www.openiap.dev/docs/apis/android/launch-external-link-android</a>
+     * @see <a href="https://openiap.dev/docs/apis/android/launch-external-link-android">https://openiap.dev/docs/apis/android/launch-external-link-android</a>
      */
     override suspend fun launchExternalLinkAndroid(params: LaunchExternalLinkParamsAndroid): Boolean {
         throw UnsupportedOperationException("launchExternalLinkAndroid is only available on Android")

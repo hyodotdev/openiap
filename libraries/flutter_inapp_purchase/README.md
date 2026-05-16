@@ -1,7 +1,7 @@
 # flutter_inapp_purchase
 
 <div align="center">
-  <img src="https://hyochan.github.io/flutter_inapp_purchase/img/logo.png" width="200" alt="flutter_inapp_purchase logo" />
+  <img src="https://openiap.dev/frameworks/flutter.svg" width="200" alt="flutter_inapp_purchase logo" />
   
   [![Pub Version](https://img.shields.io/pub/v/flutter_inapp_purchase.svg?style=flat-square)](https://pub.dartlang.org/packages/flutter_inapp_purchase) [![Flutter CI](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml/badge.svg)](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml) [![OpenIAP](https://img.shields.io/badge/OpenIAP-Compliant-green?style=flat-square)](https://openiap.dev) [![Coverage Status](https://codecov.io/gh/hyodotdev/openiap/branch/main/graph/badge.svg?token=WXBlKvRB2G)](https://codecov.io/gh/hyodotdev/openiap) ![License](https://img.shields.io/badge/license-MIT-blue.svg)
   
@@ -13,14 +13,16 @@
 
 ## 📚 Documentation
 
-**[📖 Visit our comprehensive documentation site →](https://hyochan.github.io/flutter_inapp_purchase)**
+**[📖 Visit our comprehensive documentation site →](https://openiap.dev/docs/setup/flutter)**
 
 ## 📦 Installation
 
-```yaml
-dependencies:
-  flutter_inapp_purchase: ^8.0.0
+```bash
+flutter pub add flutter_inapp_purchase
 ```
+
+For manual `pubspec.yaml` edits, copy the current dependency from the
+[flutter_inapp_purchase pub.dev package page](https://pub.dev/packages/flutter_inapp_purchase).
 
 ## 🔧 Quick Start
 
@@ -56,11 +58,11 @@ await iap.requestPurchaseWithBuilder(
 
 flutter_inapp_purchase provides AI-friendly documentation for Cursor, GitHub Copilot, Claude, and ChatGPT.
 
-**[AI Assistants Guide](https://hyochan.github.io/flutter_inapp_purchase/docs/guides/ai-assistants)**
+**[AI Assistants Guide](https://openiap.dev/docs/guides/ai-assistants)**
 
 Quick links:
-- [llms.txt](https://hyochan.github.io/flutter_inapp_purchase/llms.txt) - Quick reference
-- [llms-full.txt](https://hyochan.github.io/flutter_inapp_purchase/llms-full.txt) - Full API reference
+- [llms.txt](https://openiap.dev/llms.txt) - Quick reference
+- [llms-full.txt](https://openiap.dev/llms-full.txt) - Full API reference
 
 ## Development
 

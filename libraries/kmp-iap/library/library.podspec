@@ -1,24 +1,38 @@
 Pod::Spec.new do |spec|
     spec.name                     = 'library'
-    spec.version                  = '2.2.8'
+    gradle_properties_file = File.join(File.dirname(__FILE__), '..', 'gradle.properties')
+    unless File.exist?(gradle_properties_file)
+        raise 'kmp-iap: missing gradle.properties'
+    end
+    library_version = File.read(gradle_properties_file)
+        .lines
+        .find { |line| line.start_with?('libraryVersion=') }
+        &.split('=', 2)
+        &.last
+        &.strip
+    if library_version.to_s.empty?
+        raise "kmp-iap: 'libraryVersion' missing in gradle.properties"
+    end
+    spec.version                  = library_version
     spec.homepage                 = 'https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap'
-    spec.source                   = { :http=> ''}
-    spec.authors                  = ''
-    spec.license                  = ''
-    spec.summary                  = 'KMP IAP Library'
+    spec.source                   = { :git => 'https://github.com/hyodotdev/openiap.git', :tag => "kmp-iap-#{library_version}" }
+    spec.authors                  = { 'Hyo Chan Jang' => 'hyo@hyo.dev' }
+    spec.license                  = { :type => 'Apache-2.0', :file => '../LICENSE' }
+    spec.summary                  = 'Kotlin Multiplatform OpenIAP library'
     spec.vendored_frameworks      = 'build/cocoapods/framework/library.framework'
     spec.libraries                = 'c++'
     spec.ios.deployment_target    = '15.0'
-    # Read OpenIAP version from openiap-versions.json
     require 'json'
     openiap_versions_file = File.join(File.dirname(__FILE__), '..', 'openiap-versions.json')
-    openiap_apple_version = '1.2.5' # fallback version
-    if File.exist?(openiap_versions_file)
-        openiap_versions = JSON.parse(File.read(openiap_versions_file))
-        openiap_apple_version = openiap_versions['apple'] || openiap_apple_version
+    unless File.exist?(openiap_versions_file)
+        raise 'kmp-iap: missing openiap-versions.json'
+    end
+    openiap_versions = JSON.parse(File.read(openiap_versions_file))
+    openiap_apple_version = openiap_versions['apple']
+    if openiap_apple_version.to_s.empty?
+        raise "kmp-iap: 'apple' version missing in openiap-versions.json"
     end
     spec.dependency 'openiap', openiap_apple_version
-                
     if !Dir.exist?('build/cocoapods/framework/library.framework') || Dir.empty?('build/cocoapods/framework/library.framework')
         raise "
 
@@ -29,16 +43,13 @@ Pod::Spec.new do |spec|
 
         Alternatively, proper pod installation is performed during Gradle sync in the IDE (if Podfile location is set)"
     end
-                
     spec.xcconfig = {
         'ENABLE_USER_SCRIPT_SANDBOXING' => 'NO',
     }
-                
     spec.pod_target_xcconfig = {
         'KOTLIN_PROJECT_PATH' => ':library',
         'PRODUCT_MODULE_NAME' => 'library',
     }
-                
     spec.script_phases = [
         {
             :name => 'Build library',
@@ -58,5 +69,5 @@ Pod::Spec.new do |spec|
             SCRIPT
         }
     ]
-                
+
 end

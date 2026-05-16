@@ -1,19 +1,19 @@
 #!/bin/bash
 
-# Script to update the version in README.md based on local.properties
+# Keep README.md free of release-specific version literals. The published
+# release notes carry the exact version; the source README points users to
+# Maven Central for the current coordinate.
 
-# Get the version from local.properties
-VERSION=$(grep "libraryVersion=" local.properties | cut -d'=' -f2)
+set -euo pipefail
 
-if [ -z "$VERSION" ]; then
-    echo "Error: Could not find libraryVersion in local.properties"
+if ! grep -Fq 'implementation("io.github.hyochan:kmp-iap:<version>")' README.md; then
+    echo "Error: README.md must keep the kmp-iap dependency snippet version-free"
     exit 1
 fi
 
-echo "Updating README.md with version: $VERSION"
+if ! grep -Fq 'https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap' README.md; then
+    echo "Error: README.md must link to the kmp-iap Maven Central page"
+    exit 1
+fi
 
-# Update the version in README.md
-# This will replace the version in the dependency block
-sed -i '' "s/implementation(\"io.github.hyochan:kmp-iap:.*\")/implementation(\"io.github.hyochan:kmp-iap:$VERSION\")/" README.md
-
-echo "README.md updated successfully with version $VERSION"
+echo "README.md keeps kmp-iap version selection delegated to Maven Central"

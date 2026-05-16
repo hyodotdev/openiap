@@ -77,7 +77,7 @@ const result = await requestPurchase({
 if (isAndroidPurchaseArray(result)) {
   // TypeScript knows this is ProductPurchaseAndroid[]
   const purchase = result[0];
-  console.log('Android Token:', purchase.purchaseTokenAndroid);
+  console.log('Android token available:', Boolean(purchase.purchaseTokenAndroid));
 } else if (isIosPurchase(result)) {
   // TypeScript knows this is ProductPurchaseIos
   console.log('iOS Transaction ID:', result.transactionId);

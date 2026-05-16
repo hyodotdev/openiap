@@ -3,9 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
-import 'package:flutter_inapp_purchase/extensions/purchase_helpers.dart';
 import '../widgets/product_detail_modal.dart';
 import '../widgets/purchase_detail_view.dart';
 import '../constants.dart';
@@ -42,6 +40,12 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
       {}; // Track processed error messages
   VerificationMethod _verificationMethod = VerificationMethod.ignore;
 
+  String _maskSensitiveValue(String? value) {
+    if (value == null || value.isEmpty) return 'none';
+    final visible = value.substring(0, value.length > 10 ? 10 : value.length);
+    return '$visible...';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -54,21 +58,6 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
     _purchaseErrorSubscription?.cancel();
     _iap.endConnection();
     super.dispose();
-  }
-
-  /// Convert PlatformException to PurchaseError
-  PurchaseError? _convertPlatformExceptionToPurchaseError(dynamic error) {
-    if (error is! PlatformException) return null;
-
-    final platform = defaultTargetPlatform == TargetPlatform.iOS
-        ? IapPlatform.IOS
-        : IapPlatform.Android;
-
-    return PurchaseError.fromPlatformError({
-      'code': error.code,
-      'message': error.message ?? 'Unknown error',
-      'details': error.details,
-    }, platform);
   }
 
   Future<void> _initConnection() async {
@@ -118,8 +107,11 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
         debugPrint('ID: ${purchase.id}'); // OpenIAP standard
         final txId = purchase.transactionIdFor;
         debugPrint('TransactionId: ${txId ?? 'N/A'}');
-        debugPrint('PurchaseToken: ${purchase.purchaseToken}');
-        debugPrint('Full purchase data: $purchase');
+        debugPrint(
+            'PurchaseToken: ${_maskSensitiveValue(purchase.purchaseToken)}');
+        debugPrint(
+          'Purchase data: productId=${purchase.productId}, platform=${purchase.platform}, state=${purchase.purchaseState}',
+        );
         _handlePurchaseUpdate(purchase);
       },
       onError: (Object error) {
@@ -167,7 +159,8 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
     debugPrint('  Transaction state iOS: $iosTransactionState');
     debugPrint('  Is acknowledged Android: $acknowledgedAndroid');
     debugPrint('  Transaction ID: ${transactionId ?? 'N/A'}');
-    debugPrint('  Purchase token: ${purchase.purchaseToken}');
+    debugPrint(
+        '  Purchase token: ${_maskSensitiveValue(purchase.purchaseToken)}');
     debugPrint('  ID: ${purchase.id} (${purchase.id.runtimeType})');
     debugPrint('  IDs array: ${purchase.ids}');
     if (purchase.platform == IapPlatform.IOS) {
@@ -250,7 +243,8 @@ Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpt
     }
 
     debugPrint('✅ Purchase detected as successful: ${purchase.productId}');
-    debugPrint('Purchase token: ${purchase.purchaseToken}');
+    debugPrint(
+        'Purchase token: ${_maskSensitiveValue(purchase.purchaseToken)}');
     debugPrint('ID: ${purchase.id}'); // OpenIAP standard
     debugPrint('Transaction ID: ${transactionId ?? 'N/A'}');
 
@@ -264,22 +258,9 @@ Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpt
       _isProcessing = false;
       _currentPurchase = purchase;
 
-      final truncatedReceipt = purchase.purchaseToken == null
-          ? 'N/A'
-          : purchase.purchaseToken!.substring(
-              0,
-              purchase.purchaseToken!.length > 50
-                  ? 50
-                  : purchase.purchaseToken!.length,
-            );
-      final truncatedToken = purchase.purchaseToken == null
-          ? 'N/A'
-          : purchase.purchaseToken!.substring(
-              0,
-              purchase.purchaseToken!.length > 30
-                  ? 30
-                  : purchase.purchaseToken!.length,
-            );
+      final receiptStatus =
+          purchase.purchaseToken == null ? 'N/A' : '<redacted>';
+      final tokenStatus = purchase.purchaseToken == null ? 'N/A' : '<redacted>';
 
       // Format purchase result like KMP-IAP
       _purchaseResult = '''
@@ -287,9 +268,9 @@ Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpt
 Product: ${purchase.productId}
 ID: ${purchase.id.isNotEmpty ? purchase.id : "N/A"}
 Transaction ID: ${transactionId ?? "N/A"}
-Date: ${purchase.transactionDate ?? "N/A"}
-Receipt: $truncatedReceipt...
-Purchase Token: $truncatedToken...
+Date: ${purchase.transactionDate}
+Receipt: $receiptStatus
+Purchase Token: $tokenStatus
       '''
           .trim();
     });
@@ -341,7 +322,7 @@ Message: ${error.message}
   /// Verify purchase using local platform verification
   Future<void> _verifyPurchaseLocally(Purchase purchase) async {
     final productId = purchase.productId;
-    if (productId == null || productId.isEmpty) {
+    if (productId.isEmpty) {
       if (!mounted) return;
       setState(() {
         _purchaseResult =
@@ -404,14 +385,11 @@ In production, implement server-side verification using Google Play Developer AP
         return;
       }
 
-      debugPrint('Local verification result: $result');
+      debugPrint('Local verification result received: ${result.runtimeType}');
 
       if (result is VerifyPurchaseResultIOS) {
         final iosResult = result;
         final statusText = iosResult.isValid ? '[Valid]' : '[Invalid]';
-        final jwsPreview = iosResult.jwsRepresentation.length > 50
-            ? iosResult.jwsRepresentation.substring(0, 50)
-            : iosResult.jwsRepresentation;
         if (!mounted) return;
         setState(() {
           _purchaseResult = '''
@@ -419,7 +397,7 @@ $_purchaseResult
 
 $statusText Local Verification (iOS)
 Valid: ${iosResult.isValid}
-JWS: $jwsPreview...
+JWS: <redacted>
           '''
               .trim();
         });
@@ -593,10 +571,10 @@ Store: ${iapkitResult.store.value}
         final productKey = product.id;
         _originalProducts[productKey] = product;
 
-        debugPrint('Product: ${product.id} - ${product.title ?? 'No title'}');
+        debugPrint('Product: ${product.id} - ${product.title}');
         debugPrint('  Price: ${product.price ?? 'No price'}');
-        debugPrint('  Currency: ${product.currency ?? 'No currency'}');
-        debugPrint('  Description: ${product.description ?? 'No description'}');
+        debugPrint('  Currency: ${product.currency}');
+        debugPrint('  Description: ${product.description}');
       }
 
       if (!mounted) return;
@@ -885,7 +863,7 @@ Store: ${iapkitResult.store.value}
                                         setState(() {
                                           _purchaseResult = '''
 📊 Available Purchases: ${purchases.length}
-${purchases.map((p) => '- ${p.productId}: ${p.purchaseToken?.substring(0, 20)}...').join('\n')}
+${purchases.map((p) => '- ${p.productId}: ${p.purchaseToken == null ? 'none' : '<redacted>'}').join('\n')}
                                           '''
                                               .trim();
                                           _isProcessing = false;
@@ -1060,7 +1038,7 @@ ${purchases.map((p) => '- ${p.productId}: ${p.purchaseToken?.substring(0, 20)}..
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  product.title ?? product.id,
+                                  product.title,
                                   style: const TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
@@ -1068,7 +1046,7 @@ ${purchases.map((p) => '- ${p.productId}: ${p.purchaseToken?.substring(0, 20)}..
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  product.description ?? '',
+                                  product.description,
                                   style: TextStyle(color: Colors.grey[600]),
                                 ),
                                 const SizedBox(height: 16),

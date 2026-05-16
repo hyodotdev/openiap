@@ -23,7 +23,10 @@ export default function AndroidOneTimeOfferDetails({
       </Text>
       {offers.map(
         (offer: ProductAndroidOneTimePurchaseOfferDetail, index: number) => (
-          <View key={offer.offerToken} style={styles.offerCard}>
+          <View
+            key={`${offer.offerId ?? 'offer'}-${index}`}
+            style={styles.offerCard}
+          >
             <Text style={styles.offerTitle}>
               Offer {index + 1}
               {offer.offerId ? ` (${offer.offerId})` : ''}
@@ -117,7 +120,7 @@ export default function AndroidOneTimeOfferDetails({
               style={[styles.offerValue, styles.offerToken]}
               numberOfLines={2}
             >
-              {offer.offerToken}
+              {'<redacted>'}
             </Text>
           </View>
         ),

@@ -49,7 +49,11 @@ export const buildPurchaseRows = (purchase: Purchase): PurchaseDetailRow[] => {
 
   if (platform === 'ios') {
     const iosPurchase = purchase as any;
-    pushRow(rows, 'App Account Token', iosPurchase.appAccountToken);
+    pushRow(
+      rows,
+      'App Account Token',
+      iosPurchase.appAccountToken ? '<redacted>' : null,
+    );
     pushRow(rows, 'Expiration Date', formatDate(iosPurchase.expirationDateIOS));
     pushRow(rows, 'Auto Renewing', purchase.isAutoRenewing ? 'Yes' : 'No');
   } else if (platform === 'android') {

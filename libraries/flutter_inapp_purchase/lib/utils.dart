@@ -82,6 +82,26 @@ Map<String, dynamic>? buildIosPurchasePayload(
     payload['advancedCommerceData'] = advancedCommerceData;
   }
 
+  final dynamic introductoryOfferEligibility =
+      propsJson['introductoryOfferEligibility'];
+  if (introductoryOfferEligibility is bool) {
+    payload['introductoryOfferEligibility'] = introductoryOfferEligibility;
+  }
+
+  final dynamic promotionalOfferJWS = propsJson['promotionalOfferJWS'];
+  if (promotionalOfferJWS is Map) {
+    payload['promotionalOfferJWS'] = promotionalOfferJWS.map<String, dynamic>(
+      (key, value) => MapEntry(key.toString(), value),
+    );
+  }
+
+  final dynamic winBackOffer = propsJson['winBackOffer'];
+  if (winBackOffer is Map) {
+    payload['winBackOffer'] = winBackOffer.map<String, dynamic>(
+      (key, value) => MapEntry(key.toString(), value),
+    );
+  }
+
   payload.removeWhere((_, value) => value == null);
   return payload;
 }

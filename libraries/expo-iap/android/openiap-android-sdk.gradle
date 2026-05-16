@@ -1,0 +1,30 @@
+ext.openIapReadGoogleAndroidSdkVersion = { String propertyName ->
+  File current = projectDir
+  while (current != null) {
+    File candidate = new File(current, 'packages/google/openiap/build.gradle.kts')
+    if (candidate.isFile()) {
+      def matcher = candidate.text =~ /(?m)^\s*${propertyName}\s*=\s*(\d+)\s*$/
+      return matcher.find() ? matcher.group(1).toInteger() : null
+    }
+    current = current.parentFile
+  }
+  return null
+}
+
+ext.openIapToIntegerVersion = { Object value, String label ->
+  if (value instanceof Number) {
+    return value.toInteger()
+  }
+  if (value instanceof CharSequence && value.toString() ==~ /\d+/) {
+    return value.toString().toInteger()
+  }
+  throw new GradleException("expo-iap: ${label} must be an integer, got ${value}")
+}
+
+ext.openIapResolveAndroidSdkVersion = { String extName, String googlePropertyName, int fallback ->
+  if (rootProject.ext.has(extName)) {
+    return openIapToIntegerVersion(rootProject.ext.get(extName), extName)
+  }
+  def googleValue = openIapReadGoogleAndroidSdkVersion(googlePropertyName)
+  return googleValue ?: fallback
+}

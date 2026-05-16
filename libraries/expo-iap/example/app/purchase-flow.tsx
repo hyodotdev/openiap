@@ -880,10 +880,10 @@ function PurchaseFlowContainer() {
                   provider: verifyRequest.provider,
                   iapkit: {
                     ...(Platform.OS === 'ios'
-                      ? {apple: {jws: `${jwsOrToken.substring(0, 50)}...`}}
+                      ? {apple: {jws: '<redacted>'}}
                       : {
                           google: {
-                            purchaseToken: `${jwsOrToken.substring(0, 50)}...`,
+                            purchaseToken: '<redacted>',
                           },
                         }),
                   },

@@ -1,6 +1,5 @@
 package expo.modules.iap
 
-import android.util.Log
 import dev.hyo.openiap.OpenIapError
 import expo.modules.kotlin.Promise
 
@@ -54,7 +53,7 @@ fun Promise.safeResolve(value: Any?) {
     try {
         this.resolve(value)
     } catch (e: RuntimeException) {
-        Log.d(PromiseUtils.TAG, "Already consumed ${e.message}")
+        ExpoIapLog.debug("Already consumed ${e.message}")
     }
 }
 
@@ -78,6 +77,6 @@ fun Promise.safeReject(
     try {
         this.reject(code, message, throwable)
     } catch (e: RuntimeException) {
-        Log.d(PromiseUtils.TAG, "Already consumed ${e.message}")
+        ExpoIapLog.debug("Already consumed ${e.message}")
     }
 }

@@ -26,7 +26,7 @@
     <Description>OpenIAP — unified in-app purchases for .NET MAUI (iOS / Android). Mirrors the OpenIAP GraphQL schema and shares the same API surface as react-native-iap, expo-iap, flutter_inapp_purchase, and kmp-iap.</Description>
     <Authors>hyodotdev</Authors>
     <RepositoryUrl>https://github.com/hyodotdev/openiap</RepositoryUrl>
-    <PackageProjectUrl>https://www.openiap.dev</PackageProjectUrl>
+    <PackageProjectUrl>https://openiap.dev</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>iap;in-app-purchase;maui;dotnet;android;ios;openiap</PackageTags>
@@ -66,10 +66,10 @@
        intentionally ships as the single public NuGet ID, OpenIap.Maui. -->
   <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
     <ProjectReference Include="..\OpenIap.Maui.Bindings.Android\OpenIap.Maui.Bindings.Android.csproj" PrivateAssets="all" />
-    <PackageReference Include="Xamarin.Kotlin.StdLib" Version="2.2.10" Condition="'$(TargetFramework)' == 'net9.0-android'" />
-    <PackageReference Include="Xamarin.KotlinX.Coroutines.Core" Version="1.9.0.3" Condition="'$(TargetFramework)' == 'net9.0-android'" />
-    <PackageReference Include="Xamarin.KotlinX.Coroutines.Core.Jvm" Version="1.9.0.3" Condition="'$(TargetFramework)' == 'net9.0-android'" />
-    <PackageReference Include="Xamarin.KotlinX.Coroutines.Android" Version="1.9.0.3" Condition="'$(TargetFramework)' == 'net9.0-android'" />
+    <PackageReference Include="Xamarin.Kotlin.StdLib" Version="$(MauiKotlinStdLibVersion)" Condition="'$(TargetFramework)' == 'net9.0-android'" />
+    <PackageReference Include="Xamarin.KotlinX.Coroutines.Core" Version="$(MauiKotlinCoroutinesVersion)" Condition="'$(TargetFramework)' == 'net9.0-android'" />
+    <PackageReference Include="Xamarin.KotlinX.Coroutines.Core.Jvm" Version="$(MauiKotlinCoroutinesVersion)" Condition="'$(TargetFramework)' == 'net9.0-android'" />
+    <PackageReference Include="Xamarin.KotlinX.Coroutines.Android" Version="$(MauiKotlinCoroutinesVersion)" Condition="'$(TargetFramework)' == 'net9.0-android'" />
   </ItemGroup>
 
   <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">

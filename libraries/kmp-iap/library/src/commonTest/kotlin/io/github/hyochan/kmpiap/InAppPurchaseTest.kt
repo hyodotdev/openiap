@@ -1,3 +1,5 @@
+@file:Suppress("UNNECESSARY_SAFE_CALL")
+
 package io.github.hyochan.kmpiap
 
 import io.github.hyochan.kmpiap.openiap.*

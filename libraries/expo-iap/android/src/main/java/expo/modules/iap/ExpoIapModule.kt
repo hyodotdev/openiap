@@ -1,7 +1,6 @@
 package expo.modules.iap
 
 import android.content.Context
-import android.util.Log
 import dev.hyo.openiap.AndroidSubscriptionOfferInput
 import dev.hyo.openiap.DeepLinkOptions
 import dev.hyo.openiap.FetchProductsResultProducts
@@ -34,12 +33,23 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.security.MessageDigest
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
 import dev.hyo.openiap.BillingProgramAndroid as OpenIapBillingProgram
 import dev.hyo.openiap.ExternalLinkLaunchModeAndroid as OpenIapExternalLinkLaunchMode
 import dev.hyo.openiap.ExternalLinkTypeAndroid as OpenIapExternalLinkType
 import dev.hyo.openiap.LaunchExternalLinkParamsAndroid as OpenIapLaunchExternalLinkParams
+
+private fun redactSensitiveToken(token: String?): String {
+    val value = token?.takeIf { it.isNotBlank() } ?: return "none"
+    val fingerprint = MessageDigest
+        .getInstance("SHA-256")
+        .digest(value.toByteArray(Charsets.UTF_8))
+        .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+        .take(12)
+    return "<redacted len=${value.length} sha256=$fingerprint>"
+}
 
 class ExpoIapModule : Module() {
     companion object {
@@ -143,7 +153,7 @@ class ExpoIapModule : Module() {
                                 val ev = pendingEvents.poll() ?: break
                                 // Already on main dispatcher here; emit directly
                                 runCatching { sendEvent(ev.first, ev.second) }
-                                    .onFailure { Log.e(TAG, "Failed to flush buffered event: ${ev.first}", it) }
+                                    .onFailure { ExpoIapLog.failure("flush buffered event ${ev.first}", it) }
                             }
 
                             ExpoIapLog.result("initConnection", true)
@@ -354,11 +364,7 @@ class ExpoIapModule : Module() {
                                 errorMap,
                             )
                         }.onFailure { ex ->
-                            Log.e(
-                                TAG,
-                                "Failed to send PURCHASE_ERROR event (requestPurchase)",
-                                ex,
-                            )
+                            ExpoIapLog.failure("send PURCHASE_ERROR event requestPurchase", ex)
                         }
                         ExpoIapHelper.rejectPurchasePromises(
                             errorCode,
@@ -370,7 +376,7 @@ class ExpoIapModule : Module() {
             }
 
             AsyncFunction("acknowledgePurchaseAndroid") { token: String, promise: Promise ->
-                ExpoIapLog.payload("acknowledgePurchaseAndroid", mapOf("token" to token))
+                ExpoIapLog.payload("acknowledgePurchaseAndroid", mapOf("token" to redactSensitiveToken(token)))
                 scope.launch {
                     try {
                         openIap.acknowledgePurchaseAndroid(token)
@@ -386,12 +392,15 @@ class ExpoIapModule : Module() {
 
             // New name: consumePurchaseAndroid
             AsyncFunction("consumePurchaseAndroid") { token: String, promise: Promise ->
-                ExpoIapLog.payload("consumePurchaseAndroid", mapOf("token" to token))
+                ExpoIapLog.payload("consumePurchaseAndroid", mapOf("token" to redactSensitiveToken(token)))
                 scope.launch {
                     try {
                         openIap.consumePurchaseAndroid(token)
                         val response = mapOf("responseCode" to 0, "purchaseToken" to token)
-                        ExpoIapLog.result("consumePurchaseAndroid", response)
+                        ExpoIapLog.result(
+                            "consumePurchaseAndroid",
+                            response + ("purchaseToken" to redactSensitiveToken(token)),
+                        )
                         promise.resolve(response)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("consumePurchaseAndroid", e)
@@ -423,7 +432,7 @@ class ExpoIapModule : Module() {
                         val activity =
                             runCatching { currentActivity }
                                 .onFailure {
-                                    Log.e(TAG, "showAlternativeBillingDialogAndroid: Activity missing", it)
+                                    ExpoIapLog.failure("showAlternativeBillingDialogAndroid activity", it)
                                 }.getOrNull() ?: run {
                                 promise.reject(OpenIapError.ServiceUnavailable.CODE, "Activity not available", null)
                                 return@launch
@@ -447,7 +456,7 @@ class ExpoIapModule : Module() {
                         // Note: OpenIapModule.createAlternativeBillingReportingToken() doesn't accept sku parameter
                         // The sku parameter is ignored for now - may be used in future versions
                         val token = openIap.createAlternativeBillingReportingToken()
-                        ExpoIapLog.result("createAlternativeBillingTokenAndroid", token)
+                        ExpoIapLog.result("createAlternativeBillingTokenAndroid", redactSensitiveToken(token))
                         promise.resolve(token)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("createAlternativeBillingTokenAndroid", e)
@@ -587,7 +596,10 @@ class ExpoIapModule : Module() {
                                 "billingProgram" to program,
                                 "externalTransactionToken" to result.externalTransactionToken,
                             )
-                        ExpoIapLog.result("createBillingProgramReportingDetailsAndroid", response)
+                        ExpoIapLog.result(
+                            "createBillingProgramReportingDetailsAndroid",
+                            response + ("externalTransactionToken" to redactSensitiveToken(result.externalTransactionToken)),
+                        )
                         promise.resolve(response)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("createBillingProgramReportingDetailsAndroid", e)
@@ -603,7 +615,7 @@ class ExpoIapModule : Module() {
                         val activity =
                             runCatching { currentActivity }
                                 .onFailure {
-                                    Log.e(TAG, "launchExternalLinkAndroid: Activity missing", it)
+                                    ExpoIapLog.failure("launchExternalLinkAndroid activity", it)
                                 }.getOrNull() ?: run {
                                 promise.reject(OpenIapError.ServiceUnavailable.CODE, "Activity not available", null)
                                 return@launch

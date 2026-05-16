@@ -610,6 +610,16 @@ describe('Public API (src/index.ts)', () => {
       ).rejects.toThrow(/skus/);
     });
 
+    it('throws on unsupported platform', async () => {
+      (Platform as any).OS = 'web';
+      await expect(
+        IAP.requestPurchase({
+          request: {ios: {sku: 'p1'}} as any,
+          type: 'in-app',
+        }),
+      ).rejects.toThrow(/Unsupported platform: web/);
+    });
+
     it('passes unified request to native', async () => {
       (Platform as any).OS = 'android';
       await IAP.requestPurchase({
@@ -843,6 +853,35 @@ describe('Public API (src/index.ts)', () => {
       const passed = mockIap.requestPurchase.mock.calls.pop()?.[0];
       expect(passed.ios.advancedCommerceData).toBe(advancedData);
     });
+
+    it('iOS subs forwards advanced subscription offer fields', async () => {
+      (Platform as any).OS = 'ios';
+      await IAP.requestPurchase({
+        request: {
+          apple: {
+            sku: 'premium_sub',
+            introductoryOfferEligibility: false,
+            promotionalOfferJWS: {
+              offerId: 'promo-offer',
+              jws: 'compact-jws',
+            },
+            winBackOffer: {
+              offerId: 'winback-offer',
+            },
+          },
+        },
+        type: 'subs',
+      });
+      const passed = mockIap.requestPurchase.mock.calls.pop()?.[0];
+      expect(passed.ios.introductoryOfferEligibility).toBe(false);
+      expect(passed.ios.promotionalOfferJWS).toEqual({
+        offerId: 'promo-offer',
+        jws: 'compact-jws',
+      });
+      expect(passed.ios.winBackOffer).toEqual({
+        offerId: 'winback-offer',
+      });
+    });
   });
 
   describe('getAvailablePurchases', () => {
@@ -892,7 +931,7 @@ describe('Public API (src/index.ts)', () => {
     it('throws on unsupported platform', async () => {
       (Platform as any).OS = 'web';
       await expect(IAP.getAvailablePurchases()).rejects.toThrow(
-        /Unsupported platform/,
+        /Unsupported platform: web/,
       );
     });
   });
@@ -939,6 +978,13 @@ describe('Public API (src/index.ts)', () => {
       await expect(
         IAP.finishTransaction({purchase: {id: 'tid'} as any}),
       ).resolves.toBeUndefined();
+    });
+
+    it('throws on unsupported platform', async () => {
+      (Platform as any).OS = 'web';
+      await expect(
+        IAP.finishTransaction({purchase: {id: 'tid'} as any}),
+      ).rejects.toThrow(/Unsupported platform: web/);
     });
   });
 
@@ -1376,6 +1422,23 @@ describe('Public API (src/index.ts)', () => {
       mockIap.showManageSubscriptionsIOS = jest.fn(async () => []);
       await expect(IAP.deepLinkToSubscriptions()).resolves.toBeUndefined();
       expect(mockIap.showManageSubscriptionsIOS).toHaveBeenCalled();
+    });
+
+    it('deepLinkToSubscriptions surfaces iOS native failures', async () => {
+      (Platform as any).OS = 'ios';
+      mockIap.deepLinkToSubscriptionsIOS = jest.fn(async () => {
+        throw new Error('scene missing');
+      });
+      await expect(IAP.deepLinkToSubscriptions()).rejects.toThrow(
+        'scene missing',
+      );
+    });
+
+    it('deepLinkToSubscriptions throws on unsupported platform', async () => {
+      (Platform as any).OS = 'web';
+      await expect(IAP.deepLinkToSubscriptions()).rejects.toThrow(
+        'Unsupported platform: web',
+      );
     });
   });
 

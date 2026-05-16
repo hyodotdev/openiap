@@ -3,7 +3,7 @@
 # KMP IAP Setup Script
 # This script helps set up the development environment
 
-set -e
+set -euo pipefail
 
 echo "🚀 Setting up KMP IAP development environment..."
 
@@ -45,7 +45,7 @@ else
 fi
 
 # Check Android SDK
-if [ -n "$ANDROID_HOME" ] || [ -n "$ANDROID_SDK_ROOT" ]; then
+if [ -n "${ANDROID_HOME:-}" ] || [ -n "${ANDROID_SDK_ROOT:-}" ]; then
     echo "✅ Android SDK found"
 elif [ -d "$HOME/Library/Android/sdk" ]; then
     echo "✅ Android SDK found at default location"

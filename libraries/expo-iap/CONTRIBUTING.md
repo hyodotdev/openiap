@@ -446,8 +446,8 @@ We welcome feature requests! Please:
 
 ## 📚 Additional Resources
 
-- [Documentation Site](https://hyochan.github.io/expo-iap)
-- [API Reference](https://hyochan.github.io/expo-iap/docs/api/use-iap)
+- [Documentation Site](https://openiap.dev/docs/setup/expo)
+- [API Reference](https://openiap.dev/docs/apis)
 - [Example App](./example)
 
 Thank you for contributing to expo-iap! 🎉

@@ -144,14 +144,6 @@ Follow these steps when preparing a new release (e.g., 14.2.0):
    - Create a GitHub Release
    - Publish to npm via the existing workflows
 
-Recent highlights (14.2.0)
-
-- iOS: idempotent, non-blocking init; `initConnection()` now propagates failures.
-- iOS: bump OpenIAP to `~> 1.1.8`.
-- Android: add consumer R8 keep rules to protect Nitro HybridObjects.
-- CI: use vendored Yarn to avoid Corepack 503.
-- Example: stabilized Subscription/Purchase flows; tests improved.
-
 ## Project Structure
 
 - [`android/`](android): All your `android`-specific implementations.
@@ -187,4 +179,4 @@ Recent highlights (14.2.0)
 4. Run tests and linting: `yarn typecheck && yarn lint --fix`
 5. Submit a pull request with a clear description
 
-For detailed usage examples and error handling, see the [documentation](https://hyochan.github.io/react-native-iap).
+For detailed usage examples and error handling, see the [documentation](https://openiap.dev/docs/setup/react-native).

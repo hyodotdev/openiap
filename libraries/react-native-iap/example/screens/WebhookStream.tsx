@@ -119,7 +119,7 @@ export default function WebhookStream() {
         <Text style={styles.subtitle}>IAPKit SSE + test notification</Text>
         <Text style={styles.meta}>
           api key:{' '}
-          {IAPKIT_API_KEY ? `${IAPKIT_API_KEY.slice(0, 8)}...` : 'MISSING'}
+          {IAPKIT_API_KEY ? 'CONFIGURED' : 'MISSING'}
         </Text>
       </View>
 

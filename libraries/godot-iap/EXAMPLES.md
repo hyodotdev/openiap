@@ -411,7 +411,7 @@ func _display_discount_offer(offer: Types.DiscountOffer):
 
     # Android-specific fields
     if OS.get_name() == "Android":
-        print("    Offer Token: %s" % offer.offer_token_android)
+        print("    Offer Token: <redacted>")
         if offer.percentage_discount_android > 0:
             print("    Discount: %d%% off" % offer.percentage_discount_android)
 
@@ -933,6 +933,6 @@ func setup(id: String, title: String, price: String):
 
 ## See Also
 
-- [Full Documentation](https://hyochan.github.io/godot-iap)
-- [API Reference](https://hyochan.github.io/godot-iap/api)
+- [Full Documentation](https://openiap.dev/docs/setup/godot)
+- [API Reference](https://openiap.dev/docs/apis)
 - [OpenIAP Specification](https://openiap.dev)

@@ -217,7 +217,10 @@ public partial class AvailablePurchasesPage : ContentPage
         SubscriptionDetailsContent.Children.Clear();
         AppendSubscriptionRow("Product ID", subscription.ProductId);
         AppendSubscriptionRow("Transaction ID", subscription.TransactionId);
-        AppendSubscriptionRow("Purchase Token", subscription.PurchaseToken ?? subscription.PurchaseTokenAndroid);
+        AppendSubscriptionRow("Purchase Token",
+            string.IsNullOrEmpty(subscription.PurchaseToken ?? subscription.PurchaseTokenAndroid)
+                ? null
+                : "<redacted>");
         AppendSubscriptionRow("Active", subscription.IsActive ? "Yes" : "No");
         AppendSubscriptionRow("Date", FormatDate(subscription.TransactionDate));
         AppendSubscriptionRow("Auto Renew", FormatBool(subscription.AutoRenewingAndroid));

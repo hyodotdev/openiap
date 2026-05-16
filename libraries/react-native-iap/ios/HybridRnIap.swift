@@ -388,7 +388,10 @@ class HybridRnIap: HybridRnIapSpec {
 
                 RnIapLog.payload("validateReceiptIOS", ["sku": sku])
                 let props = try OpenIapSerialization.verifyPurchaseProps(from: ["apple": ["sku": sku]])
-                let result = try await OpenIapModule.shared.validateReceiptIOS(props)
+                let verifyResult = try await OpenIapModule.shared.verifyPurchase(props)
+                guard case let .verifyPurchaseResultIos(result) = verifyResult else {
+                    throw OpenIapException.make(code: .featureNotSupported, message: "Expected iOS validation result")
+                }
                 var encoded = RnIapHelper.sanitizeDictionary(OpenIapSerialization.encode(result))
                 if encoded["receiptData"] != nil {
                     encoded["receiptData"] = "<receipt>"
@@ -488,7 +491,7 @@ class HybridRnIap: HybridRnIapSpec {
         return Promise.async {
             do {
                 RnIapLog.payload("getStorefront", nil)
-                let storefront = try await OpenIapModule.shared.getStorefrontIOS()
+                let storefront = try await OpenIapModule.shared.getStorefront()
                 RnIapLog.result("getStorefront", storefront)
                 return storefront
             } catch let purchaseError as PurchaseError {
@@ -578,9 +581,12 @@ class HybridRnIap: HybridRnIapSpec {
                 RnIapLog.payload("buyPromotedProductIOS", nil)
                 let ok = try await OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()
                 RnIapLog.result("buyPromotedProductIOS", ok)
+            } catch let purchaseError as PurchaseError {
+                RnIapLog.failure("buyPromotedProductIOS", error: purchaseError)
+                throw OpenIapException.from(purchaseError)
             } catch {
-                // Event-only: OpenIAP will emit purchaseError for this flow. Avoid Promise rejection.
                 RnIapLog.failure("buyPromotedProductIOS", error: error)
+                throw OpenIapException.make(code: .featureNotSupported, message: error.localizedDescription)
             }
         }
     }

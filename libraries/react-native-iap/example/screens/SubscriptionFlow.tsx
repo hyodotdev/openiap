@@ -24,7 +24,6 @@ import {
   type SubscriptionOffer,
   ErrorCode,
 } from 'react-native-iap';
-import {IAPKIT_API_KEY} from '@env';
 import Loading from '../src/components/Loading';
 import {SUBSCRIPTION_PRODUCT_IDS} from '../src/utils/constants';
 import {getErrorMessage} from '../src/utils/errorUtils';
@@ -33,6 +32,7 @@ import {
   type VerificationMethod,
 } from '../src/hooks/useVerificationMethod';
 import PurchaseSummaryRow from '../src/components/PurchaseSummaryRow';
+import {IAPKIT_API_KEY} from '@env';
 
 type ExtendedPurchase = Purchase & {
   purchaseTokenAndroid?: string;
@@ -418,13 +418,11 @@ function SubscriptionFlow({
                   targetBasePlanId,
                   offerToken: targetOffer.offerTokenAndroid,
                   replacementMode,
-                  purchaseToken: tokenString
-                    ? `<${tokenString.substring(0, 10)}...>`
-                    : 'missing',
+                  purchaseToken: tokenString ? '<redacted>' : 'missing',
                   allOffers: androidOffers?.map((o) => ({
                     basePlanId: o.basePlanIdAndroid,
                     offerId: o.id,
-                    offerToken: o.offerTokenAndroid?.substring(0, 20) + '...',
+                    offerToken: o.offerTokenAndroid ? '<redacted>' : undefined,
                   })),
                 });
 
@@ -445,8 +443,10 @@ function SubscriptionFlow({
                   },
                   type: 'subs',
                 }).catch((err: PurchaseError) => {
-                  console.error('Plan change failed:', err);
-                  console.error('Full error:', JSON.stringify(err));
+                  console.error('Plan change failed:', {
+                    code: err.code,
+                    message: err.message,
+                  });
 
                   // More helpful error messages
                   let errorMessage = err.message;
@@ -614,7 +614,7 @@ function SubscriptionFlow({
                           style={[styles.offerValue, styles.offerTokenText]}
                           numberOfLines={2}
                         >
-                          {offer.offerTokenAndroid}
+                          {'<redacted>'}
                         </Text>
                       </>
                     )}
@@ -1668,11 +1668,10 @@ function SubscriptionFlowContainer() {
         // Android: Check if we have offerToken or other data to identify the plan
         const purchaseData = purchase as ExtendedPurchase;
 
-        // Log full purchase data to understand what's available
-        console.log(
-          'Full purchase data for plan detection:',
-          JSON.stringify(purchaseData, null, 2),
-        );
+        console.log('Purchase data for plan detection:', {
+          productId: purchase.productId,
+          hasOfferToken: Boolean(purchaseData.offerToken),
+        });
 
         // Map offerToken to basePlanId using fetched subscription data (cross-platform)
         if (purchaseData.offerToken) {
@@ -1690,10 +1689,7 @@ function SubscriptionFlowContainer() {
             );
           } else {
             // Fallback if we can't find the matching offer
-            console.log(
-              'Could not map offerToken to basePlanId:',
-              purchaseData.offerToken,
-            );
+            console.log('Could not map offerToken to basePlanId');
           }
         }
       }
@@ -1804,10 +1800,10 @@ function SubscriptionFlowContainer() {
                   iapkit: {
                     apiKey: '***hidden***',
                     ...(Platform.OS === 'ios'
-                      ? {apple: {jws: `${jwsOrToken.substring(0, 50)}...`}}
+                      ? {apple: {jws: '<redacted>'}}
                       : {
                           google: {
-                            purchaseToken: `${jwsOrToken.substring(0, 50)}...`,
+                            purchaseToken: '<redacted>',
                           },
                         }),
                   },
@@ -1842,7 +1838,10 @@ function SubscriptionFlowContainer() {
             }
           }
         } catch (error) {
-          console.warn('[SubscriptionFlow] Verification failed:', error);
+          console.warn(
+            '[SubscriptionFlow] Verification failed:',
+            getErrorMessage(error),
+          );
           Alert.alert(
             'Verification Failed',
             `Purchase verification failed: ${getErrorMessage(error)}`,
@@ -1855,7 +1854,7 @@ function SubscriptionFlowContainer() {
       // ──────────────────────────────────────────────────────────────────────
       // STEP 4: GRANT ENTITLEMENT
       // ──────────────────────────────────────────────────────────────────────
-      // TODO: In production, update your backend here:
+      // Production integration point:
       // - Save subscription record to database
       // - Unlock premium features for user
       // - Update user's subscription status
@@ -1909,7 +1908,7 @@ function SubscriptionFlowContainer() {
       try {
         await getActiveSubscriptions(SUBSCRIPTION_PRODUCT_IDS);
       } catch (e) {
-        console.warn('Failed to refresh subscriptions:', e);
+        console.warn('Failed to refresh subscriptions:', getErrorMessage(e));
       }
 
       Alert.alert('Success', 'Purchase completed successfully!');
@@ -1919,7 +1918,10 @@ function SubscriptionFlowContainer() {
     // Purchase Error Handler
     // ────────────────────────────────────────────────────────────────────────
     onPurchaseError: (error: PurchaseError) => {
-      console.error('Subscription failed:', error);
+      console.error('Subscription failed:', {
+        code: error.code,
+        message: error.message,
+      });
       setIsProcessing(false);
       const dt = Date.now() - lastSuccessAtRef.current;
       if (error?.code === ErrorCode.ServiceError && dt >= 0 && dt < 1500) {
@@ -2033,7 +2035,15 @@ function SubscriptionFlowContainer() {
       const activeSubs = await getActiveSubscriptions();
       console.log('\n===== Active Subscriptions Check =====');
       console.log('Total subscriptions:', activeSubs.length);
-      console.log('Full data:', JSON.stringify(activeSubs, null, 2));
+      console.log(
+        'Subscription summary:',
+        activeSubs.map((sub) => ({
+          productId: sub.productId,
+          isActive: sub.isActive,
+          expirationDateIOS: sub.expirationDateIOS,
+          environmentIOS: sub.environmentIOS,
+        })),
+      );
 
       // For iOS, check if there's a pending change in renewalInfo
       if (Platform.OS === 'ios') {
@@ -2117,7 +2127,10 @@ function SubscriptionFlowContainer() {
         console.log('===================================\n');
       }
     } catch (error) {
-      console.error('Error checking subscription status:', error);
+      console.error(
+        'Error checking subscription status:',
+        getErrorMessage(error),
+      );
     } finally {
       setIsCheckingStatus(false);
     }
@@ -2176,7 +2189,10 @@ function SubscriptionFlowContainer() {
         },
         type: 'subs',
       }).catch((err: PurchaseError) => {
-        console.warn('requestPurchase failed:', err);
+        console.warn('requestPurchase failed:', {
+          code: err.code,
+          message: err.message,
+        });
         setIsProcessing(false);
         setPurchaseResult(`❌ Subscription failed: ${err.message}`);
         Alert.alert('Subscription Failed', err.message);
@@ -2208,7 +2224,10 @@ function SubscriptionFlowContainer() {
     try {
       await deepLinkToSubscriptions();
     } catch (error) {
-      console.warn('Failed to open subscription management:', error);
+      console.warn(
+        'Failed to open subscription management:',
+        getErrorMessage(error),
+      );
       Alert.alert(
         'Cannot Open',
         'Unable to open the subscription management screen on this device.',

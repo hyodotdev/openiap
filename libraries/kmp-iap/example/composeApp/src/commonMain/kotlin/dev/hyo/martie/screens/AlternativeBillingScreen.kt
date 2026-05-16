@@ -115,10 +115,8 @@ fun AlternativeBillingScreen(navController: NavController) {
                 lastPurchase = purchase
                 isProcessing = false
 
-                val dateText = purchase.transactionDate?.let {
-                    Instant.fromEpochSeconds(it.toLong())
-                        .toLocalDateTime(TimeZone.currentSystemDefault())
-                } ?: "N/A"
+                val dateText = Instant.fromEpochSeconds(purchase.transactionDate.toLong())
+                    .toLocalDateTime(TimeZone.currentSystemDefault())
 
                 purchaseResult = """
                     ✅ Purchase successful
@@ -313,7 +311,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                     Product: ${product.id}
                     Program: ${details.billingProgram.rawValue}
                     URL: $linkUri
-                    Token: ${details.externalTransactionToken.take(30)}...
+                    Token: <redacted>
 
                     ⚠️ Important:
                     1. Process payment on your external site
@@ -987,11 +985,9 @@ private fun LastPurchaseCard(purchase: Purchase) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("Product: ${purchase.productId}", fontSize = 14.sp)
                 Text("Transaction: ${purchase.id}", fontSize = 14.sp)
-                val dateText = purchase.transactionDate?.let {
-                    Instant.fromEpochSeconds(it.toLong())
-                        .toLocalDateTime(TimeZone.currentSystemDefault())
-                        .toString()
-                } ?: "N/A"
+                val dateText = Instant.fromEpochSeconds(purchase.transactionDate.toLong())
+                    .toLocalDateTime(TimeZone.currentSystemDefault())
+                    .toString()
                 Text("Date: $dateText", fontSize = 14.sp)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(

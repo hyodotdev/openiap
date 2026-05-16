@@ -152,7 +152,7 @@ Transaction ID: ${purchase.id}
           _purchaseResult = '''
 User selected alternative billing
 Products: ${details.products.join(', ')}
-Token: ${details.externalTransactionToken.substring(0, 20)}...
+Token: <redacted>
 
 Important:
 - Process payment with your system
@@ -320,7 +320,7 @@ Billing Programs API completed
 
 Program: ${_billingProgram.name}
 URL: ${_urlController.text}
-Token: ${token.substring(0, 20)}...
+Token: <redacted>
 
 Important:
 - User completes purchase externally

@@ -27,6 +27,7 @@ import {
   getAvailablePurchases,
   restorePurchases,
   promotedProductListenerIOS,
+  subscriptionBillingIssueListener,
   userChoiceBillingListenerAndroid,
   developerProvidedBillingListenerAndroid,
   PurchaseInput,
@@ -53,6 +54,8 @@ afterAll(() => {
 describe('Public API (index.ts)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (Platform as any).OS = 'ios';
+    (Platform as any).select = jest.fn((obj) => obj.ios);
     (ExpoIapModule.getPromotedProductIOS as jest.Mock).mockResolvedValue(null);
   });
 
@@ -360,6 +363,29 @@ describe('Public API (index.ts)', () => {
         'ext-txn-token-12345',
       );
     });
+
+    it('subscriptionBillingIssueListener normalizes purchase platform', () => {
+      const addListener = (ExpoIapModule as any).addListener as jest.Mock;
+      const fn = jest.fn();
+      subscriptionBillingIssueListener(fn);
+
+      expect(addListener).toHaveBeenCalledWith(
+        OpenIapEvent.SubscriptionBillingIssue,
+        expect.any(Function),
+      );
+
+      const registeredCallback = addListener.mock.calls.find(
+        (call: any) => call[0] === OpenIapEvent.SubscriptionBillingIssue,
+      )?.[1];
+      const purchase = {
+        id: 'billing-issue',
+        productId: 'sub.monthly',
+        platform: 'IOS',
+      } as any;
+      registeredCallback(purchase);
+
+      expect(fn).toHaveBeenCalledWith({...purchase, platform: 'ios'});
+    });
   });
 
   describe('connection', () => {
@@ -432,7 +458,7 @@ describe('Public API (index.ts)', () => {
 
       expect(warnSpy).toHaveBeenCalledWith(
         '[Expo-IAP]',
-        "'inapp' product type is deprecated and will be removed in v3.1.0. Use 'in-app' instead.",
+        "'inapp' product type is deprecated and will be removed in a future major version. Use 'in-app' instead.",
       );
       warnSpy.mockRestore();
     });
@@ -836,6 +862,48 @@ describe('Public API (index.ts)', () => {
       expect(res).toEqual([{id: 'sub-123', platform: 'ios'}]);
     });
 
+    it('iOS subscription passes advanced offer fields through', async () => {
+      (Platform as any).OS = 'ios';
+      (ExpoIapModule.requestPurchase as jest.Mock) = jest
+        .fn()
+        .mockResolvedValue([{id: 'sub-advanced', platform: 'ios'}]);
+
+      await requestPurchase({
+        request: {
+          apple: {
+            sku: 'com.example.subscription.monthly',
+            introductoryOfferEligibility: true,
+            promotionalOfferJWS: {
+              offerId: 'promo-offer',
+              jws: 'compact-jws',
+            },
+            winBackOffer: {
+              offerId: 'winback-offer',
+            },
+          },
+        },
+        type: 'subs',
+      });
+
+      expect(ExpoIapModule.requestPurchase).toHaveBeenCalledWith({
+        type: 'subs',
+        request: {
+          ios: {
+            sku: 'com.example.subscription.monthly',
+            introductoryOfferEligibility: true,
+            promotionalOfferJWS: {
+              offerId: 'promo-offer',
+              jws: 'compact-jws',
+            },
+            winBackOffer: {
+              offerId: 'winback-offer',
+            },
+          },
+        },
+        useAlternativeBilling: undefined,
+      });
+    });
+
     it('iOS works without advancedCommerceData (optional field)', async () => {
       (Platform as any).OS = 'ios';
       (ExpoIapModule.requestPurchase as jest.Mock) = jest
@@ -923,18 +991,48 @@ describe('Public API (index.ts)', () => {
     it('restorePurchases performs iOS sync then fetches purchases', async () => {
       (Platform as any).OS = 'ios';
       (Platform as any).select = (obj: any) => obj.ios;
-      jest.spyOn(iosMod as any, 'syncIOS').mockResolvedValue(undefined as any);
+      const syncSpy = jest
+        .spyOn(iosMod as any, 'syncIOS')
+        .mockResolvedValue(undefined as any);
       (ExpoIapModule.getAvailableItems as jest.Mock) = jest
         .fn()
         .mockResolvedValue([{id: 'legacy', transactionId: 'txn-restore'}]);
       await restorePurchases();
+      expect(syncSpy).toHaveBeenCalledTimes(1);
       expect(ExpoIapModule.getAvailableItems).toHaveBeenCalledWith(false, true);
     });
 
-    it('getPurchaseHistory placeholder (removed in v3)', () => {
-      // Removed legacy API in v3; keeping placeholder to maintain suite structure
-      expect(true).toBe(true);
+    it('restorePurchases uses native Onside restore when active', async () => {
+      (Platform as any).OS = 'ios';
+      (Platform as any).select = (obj: any) => obj.ios;
+      const syncSpy = jest
+        .spyOn(iosMod as any, 'syncIOS')
+        .mockResolvedValue(undefined as any);
+      Object.defineProperty(ExpoIapModule, 'USING_ONSIDE_SDK', {
+        configurable: true,
+        value: true,
+      });
+      (ExpoIapModule.restorePurchases as jest.Mock) = jest
+        .fn()
+        .mockResolvedValue(true);
+      (ExpoIapModule.getAvailableItems as jest.Mock) = jest
+        .fn()
+        .mockResolvedValue([{id: 'onside', transactionId: 'txn-onside'}]);
+
+      try {
+        await restorePurchases();
+
+        expect(ExpoIapModule.restorePurchases).toHaveBeenCalledTimes(1);
+        expect(syncSpy).not.toHaveBeenCalled();
+        expect(ExpoIapModule.getAvailableItems).toHaveBeenCalledWith(
+          false,
+          true,
+        );
+      } finally {
+        delete (ExpoIapModule as any).USING_ONSIDE_SDK;
+      }
     });
+
   });
 
   describe('finishTransaction', () => {
@@ -1044,7 +1142,7 @@ describe('Public API (index.ts)', () => {
             transactionDate: Date.now(),
           } as any,
         }),
-      ).rejects.toThrow(/Unsupported Platform/);
+      ).rejects.toThrow(/Unsupported platform/);
       (Platform as any).OS = originalOs;
     });
   });
@@ -1115,7 +1213,7 @@ describe('Public API (index.ts)', () => {
     it('validateReceipt throws on unsupported platform', async () => {
       (Platform as any).OS = 'web';
       await expect(validateReceipt({apple: {sku: 'sku'}})).rejects.toThrow(
-        /Platform not supported/,
+        /Unsupported platform/,
       );
     });
 
@@ -1163,17 +1261,17 @@ describe('Public API (index.ts)', () => {
       (Platform as any).OS = 'web';
       await expect(
         requestPurchase({request: {} as any} as any),
-      ).rejects.toThrow(/Platform not supported/);
+      ).rejects.toThrow(/Unsupported platform/);
     });
   });
 
-  describe('getAvailablePurchases fallback', () => {
-    it('returns [] when Platform.select returns undefined', async () => {
-      const originalSelect = (Platform as any).select;
-      (Platform as any).select = () => undefined;
-      const res = await getAvailablePurchases();
-      expect(res).toEqual([]);
-      (Platform as any).select = originalSelect;
+  describe('getAvailablePurchases platform support', () => {
+    it('rejects on unsupported platform', async () => {
+      (Platform as any).OS = 'web';
+
+      await expect(getAvailablePurchases()).rejects.toThrow(
+        /Unsupported platform: web/,
+      );
     });
   });
 
@@ -1289,6 +1387,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('handles Android subscriptions with autoRenewingAndroid', async () => {
+      (Platform as any).OS = 'android';
       const mockAndroidSubscription = [
         {
           productId: 'premium_monthly',
@@ -1308,6 +1407,14 @@ describe('Public API (index.ts)', () => {
 
       expect(result).toEqual(mockAndroidSubscription);
       expect(result[0].autoRenewingAndroid).toBe(false);
+    });
+
+    it('rejects on unsupported platform', async () => {
+      (Platform as any).OS = 'web';
+
+      await expect(getActiveSubscriptions()).rejects.toThrow(
+        /Unsupported platform: web/,
+      );
     });
   });
 
@@ -1404,6 +1511,14 @@ describe('Public API (index.ts)', () => {
       const result = await hasActiveSubscriptions();
 
       expect(result).toBe(false);
+    });
+
+    it('rejects on unsupported platform', async () => {
+      (Platform as any).OS = 'web';
+
+      await expect(hasActiveSubscriptions()).rejects.toThrow(
+        /Unsupported platform: web/,
+      );
     });
   });
 

@@ -115,15 +115,14 @@ fun PurchaseFlowScreen(navController: NavController) {
                         println(jsonString)
                         println("=============================================\n")
 
-                        val dateText = purchase.transactionDate?.let {
-                            Instant.fromEpochSeconds(it.toLong()).toLocalDateTime(TimeZone.currentSystemDefault())
-                        } ?: "N/A"
+                        val dateText = Instant.fromEpochSeconds(purchase.transactionDate.toLong())
+                            .toLocalDateTime(TimeZone.currentSystemDefault())
                         purchaseResult = """
                     ✅ Purchase successful (${purchase.platform})
                     Product: ${purchase.productId}
                     Transaction ID: ${purchase.id.ifEmpty { "N/A" }}
                     Date: $dateText
-                    Receipt: ${purchase.purchaseToken?.take(50) ?: "N/A"}
+                    Receipt: ${purchase.purchaseToken?.let { "<redacted>" } ?: "N/A"}
                 """.trimIndent()
 
                         scope.launch {
@@ -149,7 +148,7 @@ fun PurchaseFlowScreen(navController: NavController) {
                                             verificationResult = when (result) {
                                                 is VerifyPurchaseResultIOS -> "📱 Local Verification (iOS):\n" +
                                                     "Valid: ${result.isValid}\n" +
-                                                    "Receipt: ${result.receiptData.take(50)}..."
+                                                    "Receipt: <redacted>"
                                                 is VerifyPurchaseResultAndroid -> "📱 Local Verification (Android):\n" +
                                                     "Product: ${result.productId}\n" +
                                                     "Receipt ID: ${result.receiptId}"
@@ -261,7 +260,6 @@ fun PurchaseFlowScreen(navController: NavController) {
                         result
                     } catch (e: Exception) {
                         println("[KMP-IAP Example] Error loading products: ${e.message}")
-                        e.printStackTrace()
                         throw e
                     }
                 }
@@ -836,7 +834,7 @@ fun ProductCard(
                                     ProductDetailRow("Currency", offer.priceCurrencyCode)
 
                                     offer.offerId?.let { ProductDetailRow("Offer ID", it) }
-                                    offer.fullPriceMicros?.let { ProductDetailRow("Full Price (micros)", it.toString()) }
+                                    offer.fullPriceMicros?.let { ProductDetailRow("Full Price (micros)", it) }
 
                                     if (offer.offerTags.isNotEmpty()) {
                                         ProductDetailRow("Tags", offer.offerTags.joinToString(", "))
@@ -856,7 +854,7 @@ fun ProductCard(
                                         }
                                         discount.discountAmount?.let { amount ->
                                             ProductDetailRow("  Amount", amount.formattedDiscountAmount)
-                                            ProductDetailRow("  Amount (micros)", amount.discountAmountMicros.toString())
+                                            ProductDetailRow("  Amount (micros)", amount.discountAmountMicros)
                                         }
                                     }
 
@@ -882,8 +880,8 @@ fun ProductCard(
                                             fontSize = 12.sp,
                                             color = AppColors.Secondary
                                         )
-                                        ProductDetailRow("  Start", window.startTimeMillis.toString())
-                                        ProductDetailRow("  End", window.endTimeMillis.toString())
+                                        ProductDetailRow("  Start", window.startTimeMillis)
+                                        ProductDetailRow("  End", window.endTimeMillis)
                                     }
 
                                     // Preorder Details
@@ -895,8 +893,8 @@ fun ProductCard(
                                             fontSize = 12.sp,
                                             color = AppColors.Primary
                                         )
-                                        ProductDetailRow("  Release Time", preorder.preorderReleaseTimeMillis.toString())
-                                        ProductDetailRow("  Presale End", preorder.preorderPresaleEndTimeMillis.toString())
+                                        ProductDetailRow("  Release Time", preorder.preorderReleaseTimeMillis)
+                                        ProductDetailRow("  Presale End", preorder.preorderPresaleEndTimeMillis)
                                     }
 
                                     // Rental Details

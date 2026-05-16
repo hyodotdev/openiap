@@ -2,11 +2,34 @@ import {requireNativeModule, UnavailabilityError} from 'expo-modules-core';
 import {installedFromOnside} from './onside';
 
 type NativeIapModuleName = 'ExpoIapOnside' | 'ExpoIap';
+const ONSIDE_MARKETPLACE_ID = 'com.onside.marketplace-app';
 
 let cached: {module: any; name: NativeIapModuleName} | null = null;
+let expoIapFallback: any | null | undefined;
+let onsideModuleUnavailable = false;
+
+function isOnsideInstallation(): boolean {
+  if (installedFromOnside === true) {
+    return true;
+  }
+
+  if (typeof installedFromOnside !== 'string') {
+    return false;
+  }
+
+  const normalized = installedFromOnside.trim().toLowerCase();
+  return normalized === 'true' || normalized === ONSIDE_MARKETPLACE_ID;
+}
+
+function shouldUseOnsideModule(): boolean {
+  return isOnsideInstallation() && !onsideModuleUnavailable;
+}
 
 function getResolved(): {module: any; name: NativeIapModuleName} {
-  if (!cached) {
+  const expectedName: NativeIapModuleName = shouldUseOnsideModule()
+    ? 'ExpoIapOnside'
+    : 'ExpoIap';
+  if (!cached || cached.name !== expectedName) {
     cached = resolveNativeModule();
   }
   return cached;
@@ -16,28 +39,21 @@ function resolveNativeModule(): {
   module: any;
   name: NativeIapModuleName;
 } {
-  const candidates: NativeIapModuleName[] = ['ExpoIapOnside', 'ExpoIap'];
-
-  for (const name of candidates) {
+  if (isOnsideInstallation()) {
     try {
-      const module = requireNativeModule(name);
-      if (name === 'ExpoIapOnside' && !installedFromOnside) {
-        continue;
-      }
-      return {module, name};
+      return {
+        module: requireNativeModule('ExpoIapOnside'),
+        name: 'ExpoIapOnside',
+      };
     } catch (error) {
-      if (name === 'ExpoIapOnside' && isMissingModuleError(error, name)) {
-        continue;
+      if (!isMissingModuleError(error, 'ExpoIapOnside')) {
+        throw error;
       }
-
-      throw error;
+      onsideModuleUnavailable = true;
     }
   }
 
-  throw new UnavailabilityError(
-    'expo-iap',
-    'ExpoIap native module is unavailable',
-  );
+  return {module: requireNativeModule('ExpoIap'), name: 'ExpoIap'};
 }
 
 function isMissingModuleError(error: unknown, moduleName: string): boolean {
@@ -72,12 +88,37 @@ export function getNativeModule() {
   return getResolved().module;
 }
 
+function getExpoIapFallbackModule(): any | null {
+  if (expoIapFallback !== undefined) {
+    return expoIapFallback;
+  }
+
+  try {
+    expoIapFallback = requireNativeModule('ExpoIap');
+  } catch (error) {
+    if (isMissingModuleError(error, 'ExpoIap')) {
+      expoIapFallback = null;
+    } else {
+      throw error;
+    }
+  }
+
+  return expoIapFallback;
+}
+
 export default new Proxy({} as any, {
   get(target, prop) {
     if (typeof prop === 'symbol') return Reflect.get(target, prop);
+    const resolved = getResolved();
     if (prop === 'USING_ONSIDE_SDK') {
-      return getResolved().name === 'ExpoIapOnside';
+      return resolved.name === 'ExpoIapOnside';
     }
-    return getResolved().module[prop];
+
+    const value = resolved.module[prop];
+    if (value !== undefined || resolved.name !== 'ExpoIapOnside') {
+      return value;
+    }
+
+    return getExpoIapFallbackModule()?.[prop];
   },
 });

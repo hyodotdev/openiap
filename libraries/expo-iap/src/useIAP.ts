@@ -154,7 +154,7 @@ export interface UseIAPOptions {
 
 /**
  * React Hook for managing In-App Purchases.
- * See documentation at https://hyochan.github.io/expo-iap/docs/hooks/useIAP
+ * See documentation at https://openiap.dev/docs/setup/expo#useIAP-hook
  */
 export function useIAP(options?: UseIAPOptions): UseIap {
   const [connected, setConnected] = useState<boolean>(false);
@@ -281,7 +281,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
    * @remarks This is a regular promise-based call. Don't confuse with `request*` APIs
    *   (`requestPurchase`), which are event-based.
    *
-   * @see {@link https://www.openiap.dev/docs/apis/fetch-products}
+   * @see {@link https://openiap.dev/docs/apis/fetch-products}
    */
   const fetchProductsInternal = useCallback(
     async (params: {
@@ -399,7 +399,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
    * }
    * ```
    *
-   * @see {@link https://www.openiap.dev/docs/apis/get-available-purchases}
+   * @see {@link https://openiap.dev/docs/apis/get-available-purchases}
    */
   const getAvailablePurchasesInternal = useCallback(
     async (options?: PurchaseOptions): Promise<void> => {
@@ -423,7 +423,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
   /**
    * Get details of all currently active subscriptions.
    *
-   * @see {@link https://www.openiap.dev/docs/apis/get-active-subscriptions}
+   * @see {@link https://openiap.dev/docs/apis/get-active-subscriptions}
    */
   const getActiveSubscriptionsInternal = useCallback(
     async (subscriptionIds?: string[]): Promise<void> => {
@@ -442,7 +442,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
   /**
    * Check whether the user has any active subscription.
    *
-   * @see {@link https://www.openiap.dev/docs/apis/has-active-subscriptions}
+   * @see {@link https://openiap.dev/docs/apis/has-active-subscriptions}
    */
   const hasActiveSubscriptionsInternal = useCallback(
     async (subscriptionIds?: string[]): Promise<boolean> => {
@@ -477,7 +477,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
    * @remarks **Critical:** Android purchases must be finalized within 3 days or Google
    *   auto-refunds. iOS unfinished transactions replay on every app launch.
    *
-   * @see {@link https://www.openiap.dev/docs/apis/finish-transaction}
+   * @see {@link https://openiap.dev/docs/apis/finish-transaction}
    */
   const finishTransaction = useCallback(
     async ({
@@ -520,7 +520,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
    * @remarks Event-based. Listen for the result via {@link purchaseUpdatedListener} /
    *   {@link purchaseErrorListener}, or use `useIAP({ onPurchaseSuccess, onPurchaseError })`.
    *
-   * @see {@link https://www.openiap.dev/docs/apis/request-purchase}
+   * @see {@link https://openiap.dev/docs/apis/request-purchase}
    */
   const requestPurchaseWithReset = useCallback(
     (requestObj: MutationRequestPurchaseArgs) => {
@@ -551,7 +551,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
   /**
    * Restore non-consumable and active subscription purchases.
    *
-   * @see {@link https://www.openiap.dev/docs/apis/restore-purchases}
+   * @see {@link https://openiap.dev/docs/apis/restore-purchases}
    */
   const restorePurchasesInternal = useCallback(
     async (options?: PurchaseOptions): Promise<void> => {
@@ -580,7 +580,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
   /**
    * Deprecated. Use verifyPurchase instead — same input/output shape.
    *
-   * @see {@link https://www.openiap.dev/docs/apis/validate-receipt}
+   * @see {@link https://openiap.dev/docs/apis/validate-receipt}
    */
   const validateReceipt = useCallback(async (props: VerifyPurchaseProps) => {
     return validateReceiptInternal(props);
@@ -589,7 +589,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
   /**
    * Verify a purchase against your own backend (returns isValid + raw store metadata).
    *
-   * @see {@link https://www.openiap.dev/docs/features/validation#verify-purchase}
+   * @see {@link https://openiap.dev/docs/features/validation#verify-purchase}
    */
   const verifyPurchase = useCallback(async (props: VerifyPurchaseProps) => {
     return verifyPurchaseInternal(props);
@@ -598,7 +598,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
   /**
    * Verify via a managed provider — currently only `iapkit` (IAPKit). The PurchaseVerificationProvider enum exposes no other provider literal today.
    *
-   * @see {@link https://www.openiap.dev/docs/features/validation#verify-purchase-with-provider}
+   * @see {@link https://openiap.dev/docs/features/validation#verify-purchase-with-provider}
    */
   const verifyPurchaseWithProvider = useCallback(
     async (props: VerifyPurchaseWithProviderProps) => {

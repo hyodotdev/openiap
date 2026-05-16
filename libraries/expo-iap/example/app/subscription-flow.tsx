@@ -233,8 +233,8 @@ function SubscriptionFlow({
         message: canUpgrade
           ? 'Upgrade available'
           : isDowngrade
-          ? 'Downgrade option'
-          : undefined,
+            ? 'Downgrade option'
+            : undefined,
       };
     },
     [getCurrentSubscription, isCancelled],
@@ -770,8 +770,8 @@ function SubscriptionFlow({
               {verificationMethod === 'ignore'
                 ? '❌ None (Skip)'
                 : verificationMethod === 'local'
-                ? '📱 Local (Device)'
-                : '☁️ IAPKit (Server)'}
+                  ? '📱 Local (Device)'
+                  : '☁️ IAPKit (Server)'}
             </Text>
             <Text style={styles.verificationButtonIcon}>▼</Text>
           </TouchableOpacity>
@@ -1544,11 +1544,11 @@ function SubscriptionFlowContainer() {
         isPurchased = hasValidToken || hasValidTransactionId;
         isRestoration = Boolean(
           'originalTransactionIdentifierIOS' in purchase &&
-            purchase.originalTransactionIdentifierIOS &&
-            purchase.originalTransactionIdentifierIOS !== purchase.id &&
-            'transactionReasonIOS' in purchase &&
-            purchase.transactionReasonIOS &&
-            purchase.transactionReasonIOS !== 'PURCHASE',
+          purchase.originalTransactionIdentifierIOS &&
+          purchase.originalTransactionIdentifierIOS !== purchase.id &&
+          'transactionReasonIOS' in purchase &&
+          purchase.transactionReasonIOS &&
+          purchase.transactionReasonIOS !== 'PURCHASE',
         );
 
         console.log('iOS Purchase Analysis:');
@@ -1714,10 +1714,10 @@ function SubscriptionFlowContainer() {
                   provider: verifyRequest.provider,
                   iapkit: {
                     ...(Platform.OS === 'ios'
-                      ? {apple: {jws: `${jwsOrToken.substring(0, 50)}...`}}
+                      ? {apple: {jws: '<redacted>'}}
                       : {
                           google: {
-                            purchaseToken: `${jwsOrToken.substring(0, 50)}...`,
+                            purchaseToken: '<redacted>',
                           },
                         }),
                   },
@@ -1888,8 +1888,12 @@ function SubscriptionFlowContainer() {
 
     if (subscriptions.length > 0) {
       console.log(
-        'Full subscription details:',
-        JSON.stringify(subscriptions, null, 2),
+        'Subscription product summary:',
+        subscriptions.map((sub) => ({
+          id: sub.id,
+          title: sub.title,
+          type: sub.type,
+        })),
       );
     }
   }, [subscriptions]);

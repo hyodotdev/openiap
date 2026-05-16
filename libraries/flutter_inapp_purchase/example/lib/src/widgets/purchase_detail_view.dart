@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
-import 'package:flutter_inapp_purchase/extensions/purchase_helpers.dart';
 
 class PurchaseDisplayField {
   const PurchaseDisplayField({required this.label, required this.value});
@@ -31,9 +30,7 @@ extension PurchaseDisplayMapping on Purchase {
       ),
       PurchaseDisplayField(
         label: 'purchaseToken',
-        value: purchaseToken == null || purchaseToken!.isEmpty
-            ? 'null'
-            : purchaseToken!,
+        value: _formatSensitiveString(purchaseToken),
       ),
       PurchaseDisplayField(
         label: 'platform',
@@ -71,7 +68,7 @@ extension PurchaseDisplayMapping on Purchase {
         ),
         PurchaseDisplayField(
           label: 'appAccountToken',
-          value: _formatOptionalString(ios.appAccountToken),
+          value: _formatSensitiveString(ios.appAccountToken),
         ),
         PurchaseDisplayField(
           label: 'expirationDateIOS',
@@ -163,7 +160,7 @@ extension PurchaseDisplayMapping on Purchase {
       final androidFields = <PurchaseDisplayField>[
         PurchaseDisplayField(
           label: 'dataAndroid',
-          value: _formatOptionalString(android.dataAndroid),
+          value: _formatSensitiveString(android.dataAndroid),
         ),
         PurchaseDisplayField(
           label: 'transactionId',
@@ -171,7 +168,7 @@ extension PurchaseDisplayMapping on Purchase {
         ),
         PurchaseDisplayField(
           label: 'signatureAndroid',
-          value: _formatOptionalString(android.signatureAndroid),
+          value: _formatSensitiveString(android.signatureAndroid),
         ),
         PurchaseDisplayField(
           label: 'autoRenewingAndroid',
@@ -266,7 +263,7 @@ class PurchaseDataView extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: (statusColor ?? theme.colorScheme.primary)
-                      .withOpacity(0.1),
+                      .withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
                       color: statusColor ?? theme.colorScheme.primary),
@@ -312,7 +309,7 @@ class PurchaseDataView extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant,
+        color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Text(
@@ -368,7 +365,7 @@ class _FieldRow extends StatelessWidget {
           label,
           style: theme.textTheme.bodySmall?.copyWith(
             fontWeight: FontWeight.w600,
-            color: theme.textTheme.bodySmall?.color?.withOpacity(0.8),
+            color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.8),
           ),
         ),
         const SizedBox(height: 4),
@@ -393,6 +390,12 @@ String _formatOptionalString(String? value) {
   if (value == null) return 'null';
   if (value.isEmpty) return '""';
   return value;
+}
+
+String _formatSensitiveString(String? value) {
+  if (value == null) return 'null';
+  if (value.isEmpty) return '""';
+  return '<redacted>';
 }
 
 String _formatNumericLikeString(String? value) {

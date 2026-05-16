@@ -7,6 +7,7 @@ private enum OnsideEvent: String {
     case purchaseUpdated = "purchase-updated"
     case purchaseError = "purchase-error"
     case promotedProductIOS = "promoted-product-ios"
+    case subscriptionBillingIssue = "subscription-billing-issue"
 }
 
 private enum OnsideBridgeError: Error, LocalizedError {
@@ -39,7 +40,7 @@ private enum OnsideBridgeError: Error, LocalizedError {
 }
 
 #if canImport(OnsideKit)
-import OnsideKit
+@preconcurrency import OnsideKit
 
 @available(iOS 16.0, *)
 @MainActor
@@ -50,18 +51,14 @@ public final class ExpoIapOnsideModule: Module {
     private let productFetcher = OnsideProductFetcher()
     private var productCache: [String: OnsideProduct] = [:]
 
-    private let encoder: JSONEncoder = {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .millisecondsSince1970
-        return encoder
-    }()
-
     nonisolated public func definition() -> ModuleDefinition {
         Name("ExpoIapOnside")
 
         Constants {
             var constants: [String: Any] = [:]
-            OpenIapSerialization.errorCodes().forEach { key, value in
+            let errorCodes = OpenIapSerialization.errorCodes()
+            constants["ERROR_CODES"] = errorCodes
+            errorCodes.forEach { key, value in
                 constants[key] = value
             }
             constants["IS_ONSIDE_KIT_INSTALLED_IOS"] = true
@@ -71,7 +68,8 @@ public final class ExpoIapOnsideModule: Module {
         Events(
             OnsideEvent.purchaseUpdated.rawValue,
             OnsideEvent.purchaseError.rawValue,
-            OnsideEvent.promotedProductIOS.rawValue
+            OnsideEvent.promotedProductIOS.rawValue,
+            OnsideEvent.subscriptionBillingIssue.rawValue
         )
 
         OnCreate {
@@ -96,6 +94,11 @@ public final class ExpoIapOnsideModule: Module {
             ExpoIapLog.payload("endConnectionOnside", payload: nil)
             await cleanup()
             return true
+        }
+
+        AsyncFunction("setPurchaseUpdatedListenerOptions") { (_: [String: Any]?) async throws -> Void in
+            // OnsideKit does not replay StoreKit 2 transactions through OpenIAP,
+            // so the StoreKit dedupe option is intentionally a no-op here.
         }
 
         AsyncFunction("fetchProducts") { (params: [String: Any]) async throws -> [[String: Any]] in
@@ -162,10 +165,6 @@ public final class ExpoIapOnsideModule: Module {
 
             if !response.invalidProductIdentifiers.isEmpty {
                 throw OnsideBridgeError.productNotFound(response.invalidProductIdentifiers.joined(separator: ", "))
-            }
-
-            await MainActor.run {
-                response.products.forEach { productCache[$0.productIdentifier] = $0 }
             }
 
             let payload: [[String: Any]] = try await MainActor.run {
@@ -265,7 +264,11 @@ public final class ExpoIapOnsideModule: Module {
 
             return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, Error>) in
                 Task { @MainActor [weak self] in
-                    self?.restoreContinuation = continuation
+                    guard let self else {
+                        continuation.resume(returning: false)
+                        return
+                    }
+                    self.restoreContinuation = continuation
 
                     Onside.defaultPaymentQueue().restoreCompletedTransactions { result in
                         Task { @MainActor [weak self] in
@@ -286,13 +289,43 @@ public final class ExpoIapOnsideModule: Module {
             }
         }
 
-        AsyncFunction("getStorefrontIOS") { () async throws -> String in
-            ExpoIapLog.payload("getStorefrontOnside", payload: nil)
+        AsyncFunction("getAvailableItems") { (alsoPublish: Bool, onlyIncludeActive: Bool) async throws -> [[String: Any]] in
+            ExpoIapLog.payload(
+                "getAvailableItemsOnside",
+                payload: [
+                    "alsoPublishToEventListenerIOS": alsoPublish,
+                    "onlyIncludeActiveItemsIOS": onlyIncludeActive,
+                ]
+            )
             try await ensureObserverRegistered()
-            let storefront = await Onside.defaultPaymentQueue().storefront?.countryCode ?? ""
-            ExpoIapLog.result("getStorefrontOnside", value: storefront)
-            return storefront
+            let queue = await Onside.defaultPaymentQueue()
+            let payload = try queue.transactions.compactMap { transaction -> [String: Any]? in
+                switch transaction.transactionState {
+                case .purchased, .restored:
+                    return try serialize(transaction: transaction)
+                default:
+                    return nil
+                }
+            }
+            ExpoIapLog.result("getAvailableItemsOnside", value: payload)
+            return payload
         }
+
+        AsyncFunction("getStorefront") { () async throws -> String in
+            try await getOnsideStorefront()
+        }
+
+        AsyncFunction("getStorefrontIOS") { () async throws -> String in
+            try await getOnsideStorefront()
+        }
+    }
+
+    private func getOnsideStorefront() async throws -> String {
+        ExpoIapLog.payload("getStorefrontOnside", payload: nil)
+        try await ensureObserverRegistered()
+        let storefront = await Onside.defaultPaymentQueue().storefront?.countryCode ?? ""
+        ExpoIapLog.result("getStorefrontOnside", value: storefront)
+        return storefront
     }
 
     private func ensureObserverRegistered() async throws {
@@ -315,24 +348,32 @@ public final class ExpoIapOnsideModule: Module {
 
     private func configureObserverCallbacks() {
         transactionObserver.onTransactionsUpdated = { [weak self] transactions in
-            guard let self = self else { return }
-            transactions.forEach { transaction in
-                self.handle(transaction: transaction)
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                transactions.forEach { transaction in
+                    self.handle(transaction: transaction)
+                }
             }
         }
 
         transactionObserver.onRestoreFinished = { [weak self] in
-            guard let self else { return }
-            let cont = self.restoreContinuation
-            self.restoreContinuation = nil
-            cont?.resume(returning: true)
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let cont = self.restoreContinuation
+                self.restoreContinuation = nil
+                cont?.resume(returning: true)
+            }
         }
 
         transactionObserver.onRestoreFailed = { [weak self] error in
-            guard let self else { return }
-            let cont = self.restoreContinuation
-            self.restoreContinuation = nil
-            cont?.resume(throwing: OnsideBridgeError.queueError(error.localizedDescription))
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let cont = self.restoreContinuation
+                self.restoreContinuation = nil
+                cont?.resume(
+                    throwing: OnsideBridgeError.queueError(error.localizedDescription)
+                )
+            }
         }
     }
 
@@ -385,10 +426,11 @@ public final class ExpoIapOnsideModule: Module {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
         formatter.currencyCode = product.price.currencyCode ?? ""
-        let formattedPrice = formatter.string(from: NSDecimalNumber(decimal: product.price.value)) ?? "\(product.price.value)"
+        let priceNumber = NSDecimalNumber(decimal: product.price.value)
+        let formattedPrice = formatter.string(from: priceNumber) ?? "\(product.price.value)"
         dictionary["displayPrice"] = formattedPrice
         dictionary["currency"] = product.price.currencyCode ?? ""
-        dictionary["price"] = product.price.value
+        dictionary["price"] = priceNumber.doubleValue
         dictionary["type"] = "in-app"
         dictionary["typeIOS"] = "non-consumable"
         dictionary["isFamilyShareableIOS"] = false
@@ -430,13 +472,14 @@ public final class ExpoIapOnsideModule: Module {
         let priceFormatter = NumberFormatter()
         priceFormatter.numberStyle = .currency
         priceFormatter.currencyCode = product.price.currencyCode ?? ""
-        let formattedPrice = priceFormatter.string(from: NSDecimalNumber(decimal: product.price.value)) ?? "\(product.price.value)"
+        let priceNumber = NSDecimalNumber(decimal: product.price.value)
+        let formattedPrice = priceFormatter.string(from: priceNumber) ?? "\(product.price.value)"
         let jsonObject: [String: Any] = [
             "id": product.productIdentifier,
             "title": product.localizedTitle,
             "description": product.localizedDescription,
             "price": [
-                "value": product.price.value,
+                "value": priceNumber.doubleValue,
                 "currencyCode": product.price.currencyCode ?? "",
                 "formatted": formattedPrice,
             ],
@@ -552,6 +595,11 @@ private final class OnsideProductFetcher: NSObject, OnsideProductsRequestDelegat
         guard !identifiers.isEmpty else {
             throw OnsideBridgeError.emptySkuList
         }
+        guard continuation == nil else {
+            throw OnsideBridgeError.queueError(
+                "A product request is already in progress."
+            )
+        }
 
         return try await withCheckedThrowingContinuation { continuation in
             let request = Onside.makeProductsRequest(productIdentifiers: identifiers)
@@ -563,28 +611,54 @@ private final class OnsideProductFetcher: NSObject, OnsideProductsRequestDelegat
     }
 
     func onsideProductsRequest(_ request: OnsideProductsRequest, didReceive response: OnsideProductsResponse) {
-        continuation?.resume(returning: response)
-        cleanup()
+        Task { @MainActor [weak self] in
+            self?.complete(.success(response))
+        }
     }
 
     func onsideProductsRequestRequest(
     _ request: OnsideProductsRequest,
     didFailWithError error: OnsideProductsRequestError
     ) {
-        continuation?.resume(throwing: OnsideBridgeError.queueError(error.localizedDescription))
-        cleanup()
+        Task { @MainActor [weak self] in
+            self?.complete(
+                .failure(OnsideBridgeError.queueError(error.localizedDescription))
+            )
+        }
     }
 
     func onsideProductsRequestDidFinish(_ request: OnsideProductsRequest) {
-        cleanup()
+        Task { @MainActor [weak self] in
+            self?.complete(
+                .failure(
+                    OnsideBridgeError.queueError(
+                        "Product request finished without a response."
+                    )
+                )
+            )
+        }
     }
 
     @MainActor
+    private func complete(_ result: Result<OnsideProductsResponse, Error>) {
+        guard let continuation else {
+            cleanup()
+            return
+        }
+        self.continuation = nil
+        cleanup()
+        switch result {
+        case .success(let response):
+            continuation.resume(returning: response)
+        case .failure(let error):
+            continuation.resume(throwing: error)
+        }
+    }
+
     private func cleanup() {
         request?.delegate = nil
         request?.stop()
         request = nil
-        continuation = nil
     }
 }
 
@@ -607,7 +681,8 @@ public final class ExpoIapOnsideModule: Module {
         Events(
             OnsideEvent.purchaseUpdated.rawValue,
             OnsideEvent.purchaseError.rawValue,
-            OnsideEvent.promotedProductIOS.rawValue
+            OnsideEvent.promotedProductIOS.rawValue,
+            OnsideEvent.subscriptionBillingIssue.rawValue
         )
 
         AsyncFunction("initConnection") { (_: [String: Any]?) async throws -> Bool in
@@ -615,6 +690,10 @@ public final class ExpoIapOnsideModule: Module {
         }
 
         AsyncFunction("endConnection") { () async throws -> Bool in
+            throw OnsideBridgeError.sdkUnavailable
+        }
+
+        AsyncFunction("setPurchaseUpdatedListenerOptions") { (_: [String: Any]?) async throws -> Void in
             throw OnsideBridgeError.sdkUnavailable
         }
 
@@ -631,6 +710,14 @@ public final class ExpoIapOnsideModule: Module {
         }
 
         AsyncFunction("restorePurchases") { () async throws -> Bool in
+            throw OnsideBridgeError.sdkUnavailable
+        }
+
+        AsyncFunction("getAvailableItems") { (_: Bool, _: Bool) async throws -> [[String: Any]] in
+            throw OnsideBridgeError.sdkUnavailable
+        }
+
+        AsyncFunction("getStorefront") { () async throws -> String in
             throw OnsideBridgeError.sdkUnavailable
         }
 

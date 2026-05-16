@@ -1,31 +1,79 @@
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.gradle.api.DefaultTask
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.TaskAction
 import java.util.Properties
+
+abstract class GenerateKmpIapVersionTask : DefaultTask() {
+    @get:Input
+    abstract val libraryVersion: Property<String>
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun generate() {
+        val versionFile = outputDir
+            .file("io/github/hyochan/kmpiap/KmpIapVersion.kt")
+            .get()
+            .asFile
+
+        versionFile.parentFile.mkdirs()
+        versionFile.writeText(
+            """
+            package io.github.hyochan.kmpiap
+
+            internal const val KMP_IAP_VERSION = "${libraryVersion.get()}"
+
+            internal fun kmpIapVersionString(platform: String): String =
+                "KMP-IAP v" + KMP_IAP_VERSION + " (" + platform + ")"
+            """.trimIndent() + "\n"
+        )
+    }
+}
+
+val kmpRootDir = projectDir.parentFile
+
+val kmpGradleProperties = Properties()
+val kmpGradlePropertiesFile = kmpRootDir.resolve("gradle.properties")
+if (kmpGradlePropertiesFile.exists()) {
+    kmpGradleProperties.load(kmpGradlePropertiesFile.inputStream())
+}
 
 // Load local.properties
 val localProperties = Properties()
-val localPropertiesFile = rootProject.file("local.properties")
+val localPropertiesFile = kmpRootDir.resolve("local.properties")
 if (localPropertiesFile.exists()) {
     localProperties.load(localPropertiesFile.inputStream())
 }
 
 // Load OpenIAP versions from openiap-versions.json
-val openIapVersionsFile = rootProject.file("openiap-versions.json")
-val appleVersion = if (openIapVersionsFile.exists()) {
-    val jsonContent = openIapVersionsFile.readText()
-    Regex(""""apple":\s*"([^"]+)"""").find(jsonContent)?.groupValues?.get(1) ?: "1.2.5"
-} else {
-    "1.2.5"
+val openIapVersionsFile = kmpRootDir.resolve("openiap-versions.json")
+if (!openIapVersionsFile.isFile) {
+    error("kmp-iap: missing openiap-versions.json at ${openIapVersionsFile.path}")
 }
-val googleVersion = if (openIapVersionsFile.exists()) {
-    val jsonContent = openIapVersionsFile.readText()
-    Regex(""""google":\s*"([^"]+)"""").find(jsonContent)?.groupValues?.get(1) ?: "1.2.10"
-} else {
-    "1.2.10"
-}
-val localApplePodspecDir = rootProject.file("../../packages/apple")
+val openIapVersionsJson = openIapVersionsFile.readText()
+fun openIapVersion(key: String): String =
+    Regex(""""$key":\s*"([^"]+)"""")
+        .find(openIapVersionsJson)
+        ?.groupValues
+        ?.get(1)
+        ?.takeIf { it.isNotBlank() }
+        ?: error("kmp-iap: '$key' version missing in openiap-versions.json")
 
-println("DEBUG: OpenIAP versions loaded - Apple: $appleVersion, Google: $googleVersion")
+val appleVersion = openIapVersion("apple")
+val googleVersion = openIapVersion("google")
+val localApplePodspecDir = kmpRootDir.resolve("../../packages/apple")
+val kmpIapLibraryVersion = (project.findProperty("libraryVersion")?.toString()
+    ?: kmpGradleProperties.getProperty("libraryVersion"))
+    ?.takeIf { it.isNotBlank() }
+    ?: error("kmp-iap: libraryVersion missing in gradle.properties")
+
+println("OpenIAP versions loaded - Apple: $appleVersion, Google: $googleVersion")
 
 // Load environment variables first (for CI)
 System.getenv().forEach { (key, value) ->
@@ -43,22 +91,22 @@ if (envGpgKey != null && envGpgKey.isNotBlank()) {
     val cleanedKey = envGpgKey.trim()
     localProperties.setProperty("signingInMemoryKey", cleanedKey)
     project.extensions.extraProperties.set("signingInMemoryKey", cleanedKey)
-    println("DEBUG: GPG key loaded from environment variable (length: ${cleanedKey.length})")
+    println("GPG signing key loaded from environment")
 } else {
     // Local development: Read GPG key from file if specified
     val keyFile = localProperties.getProperty("signingInMemoryKeyFile")
     if (keyFile != null) {
-        val keyFileHandle = rootProject.file(keyFile)
+        val keyFileHandle = kmpRootDir.resolve(keyFile)
         if (keyFileHandle.exists()) {
             val keyContent = keyFileHandle.readText().trim()
             localProperties.setProperty("signingInMemoryKey", keyContent)
             project.extensions.extraProperties.set("signingInMemoryKey", keyContent)
-            println("DEBUG: GPG key loaded from file: $keyFile (length: ${keyContent.length})")
+            println("GPG signing key loaded from file: $keyFile")
         } else {
-            println("DEBUG: GPG key file not found: $keyFile")
+            println("GPG signing key file not found: $keyFile")
         }
     } else {
-        println("DEBUG: No GPG key configured (for CI, set ORG_GRADLE_PROJECT_signingInMemoryKey)")
+        println("No GPG signing key configured")
     }
 }
 
@@ -78,9 +126,7 @@ localProperties.forEach { key, value ->
 // Ensure critical properties are available as both project and system properties
 val criticalProperties = listOf(
     "mavenCentralUsername",
-    "mavenCentralPassword", 
-    "sonatypeRepositoryId",
-    "sonatypeAutomaticRelease",
+    "mavenCentralPassword",
     "signingInMemoryKeyId",
     "signingInMemoryKey",
     "signingInMemoryKeyPassword",
@@ -94,12 +140,6 @@ criticalProperties.forEach { propName ->
         System.setProperty(propName, value)
         // Also set as gradle property for vanniktech plugin
         project.extensions.extraProperties.set(propName, value)
-        if (propName == "signingInMemoryKey") {
-            println("DEBUG: signingInMemoryKey is set (length: ${value.length})")
-            println("DEBUG: First 50 chars: ${value.take(50)}")
-        }
-    } else if (propName == "signingInMemoryKey") {
-        println("DEBUG: signingInMemoryKey is NOT set!")
     }
 }
 
@@ -114,7 +154,89 @@ plugins {
 }
 
 group = "io.github.hyochan"
-version = project.findProperty("libraryVersion")?.toString() ?: "1.0.0-alpha02"
+version = kmpIapLibraryVersion
+
+val generateKmpIapVersion = tasks.register<GenerateKmpIapVersionTask>("generateKmpIapVersion") {
+    libraryVersion.set(kmpIapLibraryVersion)
+    outputDir.set(layout.buildDirectory.dir("generated/kmpIapVersion/commonMain/kotlin"))
+}
+
+fun dynamicKmpPodspec(): String =
+    """
+    Pod::Spec.new do |spec|
+        spec.name                     = 'library'
+        gradle_properties_file = File.join(File.dirname(__FILE__), '..', 'gradle.properties')
+        unless File.exist?(gradle_properties_file)
+            raise 'kmp-iap: missing gradle.properties'
+        end
+        library_version = File.read(gradle_properties_file)
+            .lines
+            .find { |line| line.start_with?('libraryVersion=') }
+            &.split('=', 2)
+            &.last
+            &.strip
+        if library_version.to_s.empty?
+            raise "kmp-iap: 'libraryVersion' missing in gradle.properties"
+        end
+        spec.version                  = library_version
+        spec.homepage                 = 'https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap'
+        spec.source                   = { :git => 'https://github.com/hyodotdev/openiap.git', :tag => "kmp-iap-#{library_version}" }
+        spec.authors                  = { 'Hyo Chan Jang' => 'hyo@hyo.dev' }
+        spec.license                  = { :type => 'Apache-2.0', :file => '../LICENSE' }
+        spec.summary                  = 'Kotlin Multiplatform OpenIAP library'
+        spec.vendored_frameworks      = 'build/cocoapods/framework/library.framework'
+        spec.libraries                = 'c++'
+        spec.ios.deployment_target    = '15.0'
+        require 'json'
+        openiap_versions_file = File.join(File.dirname(__FILE__), '..', 'openiap-versions.json')
+        unless File.exist?(openiap_versions_file)
+            raise 'kmp-iap: missing openiap-versions.json'
+        end
+        openiap_versions = JSON.parse(File.read(openiap_versions_file))
+        openiap_apple_version = openiap_versions['apple']
+        if openiap_apple_version.to_s.empty?
+            raise "kmp-iap: 'apple' version missing in openiap-versions.json"
+        end
+        spec.dependency 'openiap', openiap_apple_version
+        if !Dir.exist?('build/cocoapods/framework/library.framework') || Dir.empty?('build/cocoapods/framework/library.framework')
+            raise "
+
+            Kotlin framework 'library' doesn't exist yet, so a proper Xcode project can't be generated.
+            'pod install' should be executed after running ':generateDummyFramework' Gradle task:
+
+                ./gradlew :library:generateDummyFramework
+
+            Alternatively, proper pod installation is performed during Gradle sync in the IDE (if Podfile location is set)"
+        end
+        spec.xcconfig = {
+            'ENABLE_USER_SCRIPT_SANDBOXING' => 'NO',
+        }
+        spec.pod_target_xcconfig = {
+            'KOTLIN_PROJECT_PATH' => ':library',
+            'PRODUCT_MODULE_NAME' => 'library',
+        }
+        spec.script_phases = [
+            {
+                :name => 'Build library',
+                :execution_position => :before_compile,
+                :shell_path => '/bin/sh',
+                :script => <<-SCRIPT
+                    if [ "YES" = "${'$'}OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED" ]; then
+                      echo "Skipping Gradle build task invocation due to OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED environment variable set to \"YES\""
+                      exit 0
+                    fi
+                    set -ev
+                    REPO_ROOT="${'$'}PODS_TARGET_SRCROOT"
+                    "${'$'}REPO_ROOT/../gradlew" -p "${'$'}REPO_ROOT" ${'$'}KOTLIN_PROJECT_PATH:syncFramework \
+                        -Pkotlin.native.cocoapods.platform=${'$'}PLATFORM_NAME \
+                        -Pkotlin.native.cocoapods.archs="${'$'}ARCHS" \
+                        -Pkotlin.native.cocoapods.configuration="${'$'}CONFIGURATION"
+                SCRIPT
+            }
+        ]
+
+    end
+    """.trimIndent() + "\n"
 
 kotlin {
     // openiap WebhookTransport is shipped as `expect class` in
@@ -143,7 +265,7 @@ kotlin {
 
     // CocoaPods configuration
     cocoapods {
-        version = project.findProperty("libraryVersion")?.toString() ?: "1.0.0"
+        version = kmpIapLibraryVersion
         summary = "KMP IAP Library"
         homepage = "https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap"
         ios.deploymentTarget = "15.0"
@@ -163,6 +285,7 @@ kotlin {
 
     sourceSets {
         val commonMain by getting {
+            kotlin.srcDir(generateKmpIapVersion)
             dependencies {
                 api(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.datetime)
@@ -183,6 +306,12 @@ kotlin {
     }
 }
 
+tasks.matching { it.name == "podspec" }.configureEach {
+    doLast {
+        projectDir.resolve("library.podspec").writeText(dynamicKmpPodspec())
+    }
+}
+
 android {
     namespace = "io.github.hyochan.kmpiap"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -195,102 +324,20 @@ android {
     }
 }
 
-// Task to update README and docs version
-val updateReadmeVersion = tasks.register("updateReadmeVersion") {
-    doLast {
-        val version = project.findProperty("libraryVersion")?.toString() ?: "1.0.0-alpha04"
-
-        // Update openiap-versions.json with kmp-iap version
-        val versionsFile = rootProject.file("openiap-versions.json")
-        if (versionsFile.exists()) {
-            val versionsContent = versionsFile.readText()
-            val updatedVersions = versionsContent.replace(
-                Regex("\"kmp-iap\":\\s*\"[^\"]+\""),
-                "\"kmp-iap\": \"$version\""
-            )
-            versionsFile.writeText(updatedVersions)
-            println("Updated openiap-versions.json with kmp-iap version: $version")
-        }
-
-        // Files to update
-        val filesToUpdate = listOf(
-            rootProject.file("README.md"),
-            rootProject.file("docs/docs/intro.md"),
-            rootProject.file("docs/docs/getting-started/installation.md")
-        )
-
-        // Version patterns to replace
-        val replacements = listOf(
-            Regex("implementation\\(\"io\\.github\\.hyochan:kmp-iap:[^\"]+\"\\)") to
-                "implementation(\"io.github.hyochan:kmp-iap:$version\")",
-            Regex("io\\.github\\.hyochan:kmp-iap:[^\"]+") to
-                "io.github.hyochan:kmp-iap:$version",
-            Regex("kmp-iap = \"[^\"]+\"") to
-                "kmp-iap = \"$version\""
-        )
-
-        filesToUpdate.forEach { file ->
-            if (file.exists()) {
-                var content = file.readText()
-                replacements.forEach { (pattern, replacement) ->
-                    content = content.replace(pattern, replacement)
-                }
-                file.writeText(content)
-                println("Updated ${file.name} with version: $version")
-            }
-        }
-    }
-}
-
-// Task to make podspec read openiap-versions.json dynamically
-val updatePodspecDependency = tasks.register("updatePodspecDependency") {
-    dependsOn("podspec")
-    doLast {
-        val podspecFile = file("library.podspec")
-        if (!podspecFile.exists()) {
-            println("WARN: library.podspec not found")
-            return@doLast
-        }
-
-        val content = podspecFile.readText()
-        // Replace hardcoded dependency with dynamic version loading from JSON
-        val updatedContent = content.replace(
-            Regex("""spec\.dependency\s+'openiap',\s+'[^']+'"""),
-            """# Read OpenIAP version from openiap-versions.json
-    require 'json'
-    openiap_versions_file = File.join(File.dirname(__FILE__), '..', 'openiap-versions.json')
-    openiap_apple_version = '1.2.5' # fallback version
-    if File.exist?(openiap_versions_file)
-        openiap_versions = JSON.parse(File.read(openiap_versions_file))
-        openiap_apple_version = openiap_versions['apple'] || openiap_apple_version
-    end
-    spec.dependency 'openiap', openiap_apple_version"""
-        )
-
-        podspecFile.writeText(updatedContent)
-        println("Updated library.podspec to read openiap version dynamically from openiap-versions.json")
-    }
-}
-
-// Automatically update README when publishing
-tasks.withType<PublishToMavenRepository> {
-    dependsOn(updateReadmeVersion)
-}
-
 // Only configure publishing when we have signing credentials
 val hasSigningKey = localProperties.getProperty("signingInMemoryKey") != null ||
     System.getenv("ORG_GRADLE_PROJECT_signingInMemoryKey") != null
 
 mavenPublishing {
-    // Explicitly use Central Portal instead of legacy Sonatype
-    publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
+    // Central Portal is the default Maven Central target on Vanniktech 0.33+.
+    publishToMavenCentral()
     
     // Only sign if we have credentials
     if (hasSigningKey) {
         signAllPublications()
     }
     
-    coordinates("io.github.hyochan", "kmp-iap", project.findProperty("libraryVersion")?.toString() ?: "1.0.0-alpha02")
+    coordinates("io.github.hyochan", "kmp-iap", kmpIapLibraryVersion)
     
     // Configure publications with empty Javadoc JAR (Maven Central compatible)
     configure(
@@ -304,12 +351,12 @@ mavenPublishing {
         name.set("KMP IAP")
         description.set("A Kotlin Multiplatform library for in app purchase on Android, iOS, Desktop, and Web platforms")
         inceptionYear.set("2025")
-        url.set("https://github.com/hyochan/kmp-iap")
+        url.set("https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap")
         
         licenses {
             license {
-                name.set("MIT License")
-                url.set("https://opensource.org/licenses/MIT")
+                name.set("Apache License 2.0")
+                url.set("https://www.apache.org/licenses/LICENSE-2.0")
                 distribution.set("repo")
             }
         }
@@ -320,45 +367,21 @@ mavenPublishing {
                 name.set("Hyo Chan Jang")
                 email.set("hyo@hyo.dev")
                 url.set("https://github.com/hyochan/")
-                organization.set("hyochan")
-                organizationUrl.set("https://github.com/hyochan")
+                organization.set("hyodotdev")
+                organizationUrl.set("https://github.com/hyodotdev")
             }
         }
         
         scm {
-            connection.set("scm:git:git://github.com/hyochan/kmp-iap.git")
-            developerConnection.set("scm:git:ssh://git@github.com/hyochan/kmp-iap.git")
-            url.set("https://github.com/hyochan/kmp-iap")
-            tag.set("v${project.findProperty("libraryVersion")?.toString() ?: "1.0.0-alpha02"}")
+            connection.set("scm:git:https://github.com/hyodotdev/openiap.git")
+            developerConnection.set("scm:git:ssh://git@github.com/hyodotdev/openiap.git")
+            url.set("https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap")
+            tag.set("kmp-iap-$kmpIapLibraryVersion")
         }
         
         issueManagement {
             system.set("GitHub")
-            url.set("https://github.com/hyochan/kmp-iap/issues")
+            url.set("https://github.com/hyodotdev/openiap/issues")
         }
     }
 }
-
-// Manual signing configuration (disabled in favor of vanniktech signing)
-/*
-signing {
-    val signingKeyId: String? by project
-    val signingPassword: String? by project
-    
-    // Try to read signing key from file if not available in properties
-    val signingKey: String? = project.findProperty("signingKey") as String? ?: 
-        rootProject.file("temp_private_key.asc").takeIf { it.exists() }?.readText()
-    
-    println("DEBUG: signingKeyId = ${signingKeyId?.substring(0, 8)}...")
-    println("DEBUG: signingKey present = ${signingKey != null}")
-    println("DEBUG: signingPassword present = ${signingPassword != null}")
-    
-    if (signingKeyId != null && signingKey != null) {
-        println("DEBUG: Configuring in-memory PGP keys for signing")
-        useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
-        sign(publishing.publications)
-    } else {
-        println("DEBUG: Signing disabled - missing required properties")
-    }
-}
-*/

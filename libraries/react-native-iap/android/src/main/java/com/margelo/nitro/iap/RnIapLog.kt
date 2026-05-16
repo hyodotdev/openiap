@@ -20,7 +20,9 @@ internal object RnIapLog {
     }
 
     fun debug(message: String) {
-        Log.d(TAG, message)
+        if (BuildConfig.DEBUG || Log.isLoggable(TAG, Log.DEBUG)) {
+            Log.d(TAG, message)
+        }
     }
 
     fun warn(message: String) {

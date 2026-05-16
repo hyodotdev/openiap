@@ -1,7 +1,7 @@
 # React Native IAP
 
 <div align="center">
-  <img src="https://hyochan.github.io/react-native-iap/img/icon.png" alt="React Native IAP Logo" width="150" />
+  <img src="https://openiap.dev/frameworks/react-native.webp" alt="React Native IAP Logo" width="150" />
   
 [![Version](http://img.shields.io/npm/v/react-native-iap.svg?style=flat-square)](https://npmjs.org/package/react-native-iap)
 [![Download](http://img.shields.io/npm/dm/react-native-iap.svg?style=flat-square)](https://npmjs.org/package/react-native-iap)
@@ -33,7 +33,7 @@
 
 ## 📚 Documentation
 
-**[📖 Visit our comprehensive documentation site →](https://hyochan.github.io/react-native-iap)**
+**[📖 Visit our comprehensive documentation site →](https://openiap.dev/docs/setup/react-native)**
 
 ## ⚠️ Notice
 
@@ -46,7 +46,7 @@
 - Seeing Swift 6 C++ interop errors in Nitro (e.g., `AnyMap.swift` with `cppPart.pointee.*`)? Temporarily pin Swift to **5.10** for the `NitroModules` pod (see Installation docs) or upgrade RN and Nitro deps.
 - Recommended: upgrade to RN 0.79+, update `react-native-nitro-modules`/`nitro-codegen`, then `pod install` and clean build.
 
-More details and the Podfile snippet are in the docs: https://hyochan.github.io/react-native-iap/docs/installation#ios
+More details and the Podfile snippet are in the docs: https://openiap.dev/docs/setup/react-native#ios
 
 ## ✨ Features
 
@@ -68,7 +68,7 @@ npm install react-native-iap react-native-nitro-modules
 yarn add react-native-iap react-native-nitro-modules
 ```
 
-**[📖 See the complete installation guide and quick start tutorial →](https://hyochan.github.io/react-native-iap/docs/installation)**
+**[📖 See the complete installation guide and quick start tutorial →](https://openiap.dev/docs/setup/react-native#installation)**
 
 ## 🏗️ Architecture
 
@@ -112,7 +112,7 @@ In your root `android/build.gradle`:
 ```gradle
 buildscript {
     ext {
-        kotlinVersion = "2.1.20"
+        kotlinVersion = "2.2.0"
     }
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
@@ -162,31 +162,31 @@ For Expo projects, add the plugin to your `app.json` or `expo.json`:
 
 React Native IAP is **OpenIAP compliant**. For detailed store configuration:
 
-- **[iOS Setup →](https://www.openiap.dev/docs/ios-setup)** - App Store Connect configuration
-- **[Android Setup →](https://www.openiap.dev/docs/android-setup)** - Google Play Console configuration
+- **[iOS Setup →](https://openiap.dev/docs/ios-setup)** - App Store Connect configuration
+- **[Android Setup →](https://openiap.dev/docs/android-setup)** - Google Play Console configuration
 
 ## 🤖 Using with AI Assistants
 
 React Native IAP provides AI-friendly documentation for Cursor, GitHub Copilot, Claude, and ChatGPT.
 
-**[📖 AI Assistants Guide →](https://hyochan.github.io/react-native-iap/docs/guides/ai-assistants)**
+**[📖 AI Assistants Guide →](https://openiap.dev/docs/guides/ai-assistants)**
 
 Quick links:
 
-- [llms.txt](https://hyochan.github.io/react-native-iap/llms.txt) - Quick reference
-- [llms-full.txt](https://hyochan.github.io/react-native-iap/llms-full.txt) - Full API reference
+- [llms.txt](https://openiap.dev/llms.txt) - Quick reference
+- [llms-full.txt](https://openiap.dev/llms-full.txt) - Full API reference
 
 ## 🎯 What's Next?
 
-**[📖 Visit our comprehensive documentation site →](https://hyochan.github.io/react-native-iap)**
+**[📖 Visit our comprehensive documentation site →](https://openiap.dev/docs/setup/react-native)**
 
 ### Key Resources
 
-- **[Installation & Quick Start](https://hyochan.github.io/react-native-iap/docs/installation)** - Get started in minutes
-- **[API Reference](https://hyochan.github.io/react-native-iap/docs/api)** - Complete useIAP hook documentation
-- **[Examples](https://hyochan.github.io/react-native-iap/docs/examples/basic-store)** - Production-ready implementations
-- **[Error Handling](https://hyochan.github.io/react-native-iap/docs/api/error-codes)** - OpenIAP compliant error codes
-- **[Troubleshooting](https://hyochan.github.io/react-native-iap/docs/guides/troubleshooting)** - Common issues and solutions
+- **[Installation & Quick Start](https://openiap.dev/docs/setup/react-native#installation)** - Get started in minutes
+- **[API Reference](https://openiap.dev/docs/apis)** - Complete useIAP hook documentation
+- **[Examples](https://openiap.dev/docs/example)** - Production-ready implementations
+- **[Error Handling](https://openiap.dev/docs/errors)** - OpenIAP compliant error codes
+- **[Troubleshooting](https://openiap.dev/docs/features/debugging)** - Common issues and solutions
 
 ## Powered by OpenIAP
 
@@ -217,10 +217,10 @@ Other libraries built on OpenIAP: [expo-iap](https://github.com/hyodotdev/openia
 
 <div style="display: flex; align-items:center; gap: 10px;">
   <a href="https://namiml.com" style="opacity: 50%">
-    <img src="https://github.com/hyochan/react-native-iap/assets/27461460/89d71f61-bb73-400a-83bd-fe0f96eb726e" alt="Nami ML" width="140"/>
+    <img src="https://openiap.dev/sponsors/nami.webp" alt="Nami ML" width="140"/>
   </a>
   <a href="https://www.courier.com/?utm_source=react-native-iap&utm_campaign=osssponsors" style="opacity: 50%;">
-    <img width="80" alt="courier_dot_com" src="https://github.com/user-attachments/assets/319d8966-6839-498d-8ead-ce8cc72c3bca" />
+    <img width="80" alt="courier_dot_com" src="https://openiap.dev/sponsors/courier.webp" />
   </a>
 </div>
 

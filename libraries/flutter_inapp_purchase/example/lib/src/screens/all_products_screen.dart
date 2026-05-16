@@ -5,8 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
-import 'package:flutter_inapp_purchase/extensions/purchase_helpers.dart';
-import 'package:flutter_inapp_purchase/helpers.dart';
 import '../widgets/product_detail_modal.dart';
 import '../constants.dart';
 
@@ -23,11 +21,9 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
   // All products fetched from the store
   List<ProductCommon> _allProducts = [];
   final Map<String, ProductCommon> _originalProducts = {};
-  bool _isProcessing = false;
   bool _connected = false;
   bool _loading = false;
   String? _purchaseResult;
-  Purchase? _currentPurchase;
   StreamSubscription<Purchase>? _purchaseUpdatedSubscription;
   StreamSubscription<PurchaseError>? _purchaseErrorSubscription;
   final Set<String> _processedTransactionIds = {};
@@ -110,9 +106,7 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
 
         if (!mounted) return;
         setState(() {
-          _currentPurchase = purchase;
           _purchaseResult = 'Purchase successful!';
-          _isProcessing = false;
         });
 
         if (purchase.purchaseState == PurchaseState.Purchased) {
@@ -128,7 +122,6 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
           if (!mounted) return;
           setState(() {
             _purchaseResult = 'Error: ${error.toString()}';
-            _isProcessing = false;
           });
         }
       },
@@ -152,10 +145,9 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
     if (!mounted) return;
     setState(() {
       _purchaseResult = 'Error (${error.code}): ${error.message}';
-      _isProcessing = false;
     });
 
-    if (error.code == 'E_USER_CANCELLED') {
+    if (error.code == ErrorCode.UserCancelled) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Purchase cancelled'),
@@ -227,78 +219,6 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
     }
   }
 
-  Future<void> _requestPurchase(ProductCommon product) async {
-    if (!mounted) return;
-    setState(() {
-      _isProcessing = true;
-      _purchaseResult = null;
-      _currentPurchase = null;
-      _processedTransactionIds.clear();
-      _processedErrorMessages.clear();
-    });
-
-    try {
-      final RequestPurchaseProps params;
-      if (IapConstants.isSubscription(product.id)) {
-        // Subscription
-        // For Android, convert subscription offer details to SubscriptionOfferAndroid
-        List<SubscriptionOfferAndroid>? androidOffers;
-        if (!kIsWeb &&
-            defaultTargetPlatform == TargetPlatform.android &&
-            product is ProductAndroid) {
-          final details = product.subscriptionOfferDetailsAndroid;
-          if (details != null && details.isNotEmpty) {
-            androidOffers = [
-              for (final offer in details)
-                SubscriptionOfferAndroid(
-                  offerToken: offer.offerToken,
-                  // sku must be the productId (SKU), not the basePlanId.
-                  sku: product.id,
-                ),
-            ];
-          }
-        }
-
-        params = RequestPurchaseProps.subs((
-          apple: !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS
-              ? RequestSubscriptionIosProps(sku: product.id, quantity: 1)
-              : null,
-          google: !kIsWeb && defaultTargetPlatform == TargetPlatform.android
-              ? RequestSubscriptionAndroidProps(
-                  skus: [product.id],
-                )
-              : null,
-          useAlternativeBilling: null,
-        ));
-      } else {
-        // In-app purchase
-        params = RequestPurchaseProps.inApp((
-          apple: !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS
-              ? RequestPurchaseIosProps(sku: product.id, quantity: 1)
-              : null,
-          google: !kIsWeb && defaultTargetPlatform == TargetPlatform.android
-              ? RequestPurchaseAndroidProps(skus: [product.id])
-              : null,
-          useAlternativeBilling: null,
-        ));
-      }
-      await _iap.requestPurchase(params);
-    } catch (e) {
-      debugPrint('Purchase request error: $e');
-      final purchaseError = _convertPlatformExceptionToPurchaseError(e);
-      if (purchaseError != null) {
-        _handlePurchaseError(purchaseError);
-      } else {
-        if (mounted) {
-          setState(() {
-            _purchaseResult = 'Failed to request purchase: $e';
-            _isProcessing = false;
-          });
-        }
-      }
-    }
-  }
-
   Future<void> _finalizePurchase(Purchase purchase) async {
     try {
       final prod = _originalProducts[purchase.productId];
@@ -362,8 +282,6 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
 
   Widget _buildProductCard(ProductCommon product) {
     final productType = IapConstants.getProductTypeLabel(product.id);
-    final isSubscription = IapConstants.isSubscription(product.id);
-
     // Set color based on product type
     Color accentColor;
     IconData icon;
@@ -396,7 +314,7 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
                 width: 60,
                 height: 60,
                 decoration: BoxDecoration(
-                  color: accentColor.withOpacity(0.1),
+                  color: accentColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
@@ -436,7 +354,7 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: accentColor.withOpacity(0.1),
+                            color: accentColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
@@ -455,7 +373,7 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: accentColor.withOpacity(0.1),
+                            color: accentColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
@@ -479,7 +397,7 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
                                 vertical: 1,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.orange.withOpacity(0.1),
+                                color: Colors.orange.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: const Text(
@@ -500,7 +418,7 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
                                 vertical: 1,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.deepPurple.withOpacity(0.1),
+                                color: Colors.deepPurple.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
@@ -604,10 +522,10 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
                           margin: const EdgeInsets.all(16),
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.green.withOpacity(0.1),
+                            color: Colors.green.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: Colors.green.withOpacity(0.3),
+                              color: Colors.green.withValues(alpha: 0.3),
                             ),
                           ),
                           child: Row(
@@ -631,40 +549,8 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
                                 onPressed: () {
                                   setState(() {
                                     _purchaseResult = null;
-                                    _currentPurchase = null;
                                   });
                                 },
-                              ),
-                            ],
-                          ),
-                        ),
-                      if (_isProcessing)
-                        Container(
-                          margin: const EdgeInsets.all(16),
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Colors.blue.withOpacity(0.3),
-                            ),
-                          ),
-                          child: const Row(
-                            children: [
-                              SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              ),
-                              SizedBox(width: 12),
-                              Text(
-                                'Processing purchase...',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                ),
                               ),
                             ],
                           ),

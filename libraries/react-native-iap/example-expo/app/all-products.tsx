@@ -22,7 +22,11 @@ export default function AllProductsScreen() {
     finishTransaction,
   } = useIAP({
     onPurchaseSuccess: async (purchase) => {
-      console.log('Purchase successful:', purchase);
+      console.log('Purchase successful:', {
+        productId: purchase.productId,
+        transactionId: purchase.id,
+        platform: purchase.platform,
+      });
       Alert.alert('Success', `Purchased: ${purchase.productId}`);
 
       try {

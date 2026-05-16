@@ -116,7 +116,7 @@ actual class WebhookTransport actual constructor(
         // `setValue:forHTTPHeaderField:` selector rather than the
         // property-delegate operator.
         val request: NSMutableURLRequest =
-            NSMutableURLRequest.requestWithURL(url) as NSMutableURLRequest
+            NSMutableURLRequest.requestWithURL(url)
         request.setHTTPMethod("GET")
         request.setValue("text/event-stream", forHTTPHeaderField = "Accept")
         request.setValue("no-cache", forHTTPHeaderField = "Cache-Control")

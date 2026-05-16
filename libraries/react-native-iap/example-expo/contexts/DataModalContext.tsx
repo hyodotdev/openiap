@@ -63,9 +63,7 @@ export function DataModalProvider({children}: {children: React.ReactNode}) {
   const handleCopy = useCallback(() => {
     if (!data) return;
 
-    // Remove sensitive fields
-    const {purchaseToken, ...safeData} = data;
-    const jsonString = JSON.stringify(safeData, null, 2);
+    const jsonString = JSON.stringify(data, null, 2);
 
     Clipboard.setString(jsonString);
     Alert.alert('Copied', 'Data copied to clipboard');
@@ -96,8 +94,7 @@ export function DataModalProvider({children}: {children: React.ReactNode}) {
               <Text style={styles.jsonText}>
                 {(() => {
                   if (!data) return '';
-                  const {purchaseToken, ...safeData} = data;
-                  return JSON.stringify(safeData, null, 2);
+                  return JSON.stringify(data, null, 2);
                 })()}
               </Text>
             </ScrollView>

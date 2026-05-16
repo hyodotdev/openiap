@@ -1,4 +1,23 @@
 pluginManagement {
+    val googleRootBuildFile = file("../../../packages/google/build.gradle.kts")
+    if (!googleRootBuildFile.isFile) {
+        error("maui-iap Android: missing packages/google/build.gradle.kts")
+    }
+    val googleRootBuild = googleRootBuildFile.readText()
+
+    fun googlePluginVersion(pluginId: String): String {
+        return Regex("""id\("${Regex.escape(pluginId)}"\) version "([^"]+)"""")
+            .find(googleRootBuild)
+            ?.groupValues
+            ?.get(1)
+            ?: error("maui-iap Android: missing $pluginId version in ${googleRootBuildFile.path}")
+    }
+
+    plugins {
+        id("com.android.library") version googlePluginVersion("com.android.library")
+        id("org.jetbrains.kotlin.android") version googlePluginVersion("org.jetbrains.kotlin.android")
+    }
+
     repositories {
         gradlePluginPortal()
         google()

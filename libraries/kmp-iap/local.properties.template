@@ -2,17 +2,16 @@
 # DO NOT commit local.properties to version control
 
 # Maven Central credentials
-mavenCentralUsername=your-sonatype-username
-mavenCentralPassword=your-sonatype-password
+mavenCentralUsername=your-central-portal-username
+mavenCentralPassword=your-central-portal-password
 
-# GPG signing configuration
-signing.keyId=your-key-id-last-8-chars
-signing.password=your-gpg-passphrase
-signing.secretKeyRingFile=/path/to/your/secring.gpg
+# In-memory signing configuration
+signingInMemoryKeyId=your-key-id-last-8-chars
+signingInMemoryKeyPassword=your-gpg-passphrase
+signingInMemoryKeyFile=gpg_key_content.gpg
 
-# Alternative: In-memory signing (recommended for CI/CD)
-# signing.gnupg.keyName=your-key-id
-# signing.gnupg.passphrase=your-gpg-passphrase
+# Alternatively paste the armored private key directly:
+# signingInMemoryKey=-----BEGIN PGP PRIVATE KEY BLOCK-----...
 
 # Android SDK (if needed for local development)
 # sdk.dir=/path/to/android/sdk

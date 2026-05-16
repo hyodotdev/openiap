@@ -112,45 +112,30 @@ flutter run
 
 ### Android: Use local openiap-google for debugging (optional)
 
-By default, this plugin depends on the published artifact:
+By default, this plugin depends on the published artifact version from
+`openiap-versions.json`:
 
 ```
-implementation "io.github.hyochan.openiap:openiap-google:1.1.12"
+implementation "io.github.hyochan.openiap:openiap-google:${openiapGoogleVersion}"
 ```
 
-If you need to debug against a local checkout of the OpenIAP Android module:
+If you need to debug against the monorepo OpenIAP Android module:
 
-1. Clone the module
-
-   ```
-   git clone https://github.com/hyodotdev/openiap-google
-   ```
-
-2. Point Gradle to the local module (uncomment/edit paths)
+1. Point Gradle to the local module.
 
    Edit `android/settings.gradle` and uncomment the lines, updating the path:
 
    ```
    include ':openiap'
-   project(':openiap').projectDir = new File('/Users/you/path/to/openiap-google/openiap')
+   project(':openiap').projectDir = new File(settingsDir, '../../../packages/google/openiap')
    ```
 
-3. Switch the dependency for debug builds
-
-   Edit `android/build.gradle` dependencies to use the local project in debug only:
-
-   ```
-   // implementation "io.github.hyochan.openiap:openiap-google:1.1.12"
-   debugImplementation project(":openiap")
-   releaseImplementation "io.github.hyochan.openiap:openiap-google:1.1.12"
-   ```
-
-4. Sync and run
+2. Sync and run.
 
    Run a Gradle sync from Android Studio or rebuild the Flutter module.
 
-   To revert, comment out the include lines in `settings.gradle` and restore the single
-   `implementation "io.github.hyochan.openiap:openiap-google:1.1.12"` line in `android/build.gradle`.
+   To revert, comment out the include lines in `settings.gradle`. No
+   `android/build.gradle` dependency changes are needed.
 
 ### 5. Commit Your Changes
 
@@ -206,7 +191,7 @@ Please refer to [CLAUDE.md](./CLAUDE.md) for:
 
 ## Questions or Issues?
 
-- For new feature proposals, start a discussion at: <https://github.com/hyochan/openiap.dev/discussions>
+- For new feature proposals, start a discussion at: <https://github.com/hyodotdev/openiap/discussions>
 - For bugs, open an issue with a clear description and reproduction steps
 - For questions, feel free to open a discussion
 

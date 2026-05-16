@@ -81,7 +81,7 @@ const PRODUCT_PREMIUM := "com.example.premium"
 
 Types are generated from `openiap/packages/gql` and should not be modified manually:
 - `scripts/generate-types.sh` - Downloads latest `types.gd` from openiap releases
-- `Example/addons/godot-iap/types.gd` - Auto-generated type definitions
+- `addons/godot-iap/types.gd` and `Example/addons/godot-iap/types.gd` - Auto-generated type definitions
 
 Key types:
 - `Types.ProductRequest` - Input for `fetch_products()`
@@ -140,12 +140,13 @@ Dependency versions are centralized and synced via `scripts/sync-versions.sh`:
 
 | Dependency | Source | Synced To |
 |------------|--------|-----------|
-| openiap-apple | `openiap-versions.json` | `ios-gdextension/Package.swift` |
-| openiap-google | `openiap-versions.json` | `godot_iap_plugin.gd` |
-| kotlinx-coroutines | `android/gradle.properties` | `godot_iap_plugin.gd`, `build.gradle.kts` |
+| openiap-apple | `openiap-versions.json` | read directly by `ios-gdextension/Package.swift` |
+| openiap-google | `openiap-versions.json` | `addons/godot-iap/android/GodotIap.gdap` via `scripts/write-gdap.sh` |
+| Android SDK / kotlinx-coroutines | `packages/google/openiap/build.gradle.kts` | `android/build.gradle.kts` and `addons/godot-iap/android/GodotIap.gdap` via `scripts/write-gdap.sh` |
+| Standalone Android fallbacks | `android/gradle.properties` | used only when `packages/google/openiap` is not available |
 
 To update versions:
-1. Edit `openiap-versions.json` or `android/gradle.properties`
+1. Edit `openiap-versions.json` or the Android SDK/dependency source in `packages/google/openiap/build.gradle.kts`
 2. Run `./scripts/sync-versions.sh`
 
 ### Android (openiap-google)
@@ -160,9 +161,9 @@ dependencies {
 ### iOS (openiap-apple)
 
 ```swift
-// Package.swift - generated from template by sync script
+// Package.swift - reads openiap-versions.json directly
 dependencies: [
-    .package(url: "https://github.com/hyodotdev/openiap.git", from: "1.3.0")
+    openIapDependency
 ]
 ```
 

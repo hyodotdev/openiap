@@ -122,7 +122,7 @@ export default function WebhookStreamScreen() {
         <Text style={styles.title}>Webhook Stream</Text>
         <Text style={styles.subtitle}>SSE /v1/webhooks/stream/apiKey</Text>
         <Text style={styles.meta}>
-          api key: {apiKey ? `${apiKey.slice(0, 8)}...` : 'MISSING'}
+          api key: {apiKey ? 'CONFIGURED' : 'MISSING'}
         </Text>
       </View>
       <View style={styles.controls}>

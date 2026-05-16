@@ -77,8 +77,6 @@ function AllProducts() {
 
   useEffect(() => {
     console.log('[AllProducts] useEffect - connected:', connected);
-    console.log('[AllProducts] Current products:', products.length);
-    console.log('[AllProducts] Current subscriptions:', subscriptions.length);
 
     if (connected) {
       console.log(
@@ -90,11 +88,6 @@ function AllProducts() {
       fetchProducts({skus: ALL_PRODUCT_IDS, type: 'all'})
         .then(() => {
           console.log('[AllProducts] fetchProducts completed');
-          console.log('[AllProducts] Products after fetch:', products.length);
-          console.log(
-            '[AllProducts] Subscriptions after fetch:',
-            subscriptions.length,
-          );
         })
         .catch((error) => {
           console.error('[AllProducts] fetchProducts error:', error);
@@ -378,7 +371,7 @@ function AllProducts() {
                             index: number,
                           ) => (
                             <View
-                              key={offer.offerToken}
+                              key={`${offer.offerId ?? 'offer'}-${index}`}
                               style={styles.offerCard}
                             >
                               <Text style={styles.offerTitle}>
@@ -436,7 +429,7 @@ function AllProducts() {
                                 style={[styles.offerValue, styles.offerToken]}
                                 numberOfLines={2}
                               >
-                                {offer.offerToken}
+                                {'<redacted>'}
                               </Text>
                             </View>
                           ),
@@ -532,7 +525,7 @@ function AllProducts() {
                                     ]}
                                     numberOfLines={2}
                                   >
-                                    {offer.offerTokenAndroid}
+                                    {'<redacted>'}
                                   </Text>
                                 </>
                               )}

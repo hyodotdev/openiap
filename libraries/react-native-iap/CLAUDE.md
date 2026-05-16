@@ -315,7 +315,7 @@ Both platforms use the OpenIAP library's error handling:
 Both Android and iOS now use **OpenIAP's unified error codes** (kebab-case format):
 
 - Examples: `user-cancelled`, `item-unavailable`, `network-error`, `developer-error`
-- See [OpenIAP Error Handling](https://www.openiap.dev/api/error-handling) for complete list
+- See [OpenIAP Error Handling](https://openiap.dev/api/error-handling) for complete list
 
 **TypeScript Error Format:**
 

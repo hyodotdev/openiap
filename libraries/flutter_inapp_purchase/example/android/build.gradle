@@ -1,11 +1,47 @@
 buildscript {
+    def locateGoogleRootBuildFile = { File startDir ->
+        File current = startDir
+        while (current != null) {
+            File candidate = new File(current, 'packages/google/build.gradle.kts')
+            if (candidate.isFile()) {
+                return candidate
+            }
+            current = current.parentFile
+        }
+        return null
+    }
+
+    def readGradleProperty = { String propertyName ->
+        File propertiesFile = file("gradle.properties")
+        if (!propertiesFile.isFile()) {
+            return null
+        }
+        Properties properties = new Properties()
+        propertiesFile.withInputStream { properties.load(it) }
+        return properties.getProperty(propertyName)
+    }
+
+    def googlePluginVersion = { String pluginId ->
+        File googleRootBuildFile = locateGoogleRootBuildFile(projectDir)
+        if (googleRootBuildFile == null) {
+            return null
+        }
+        String escapedPluginId = java.util.regex.Pattern.quote(pluginId)
+        def matcher = googleRootBuildFile.text =~ /id\("${escapedPluginId}"\) version "([^"]+)"/
+        return matcher.find() ? matcher.group(1) : null
+    }
+
+    def androidGradlePluginVersion = googlePluginVersion('com.android.application')
+        ?: readGradleProperty('openIapAndroidGradlePluginVersion')
+        ?: '8.13.2'
+
     repositories {
         google()
         mavenCentral()
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:7.4.2'
+        classpath "com.android.tools.build:gradle:$androidGradlePluginVersion"
     }
 }
 

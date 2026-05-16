@@ -79,11 +79,11 @@ Before committing any changes:
 
 - **ID fields**: Use `Id` instead of `ID` (e.g., `productId`, `transactionId`, not `productID`, `transactionID`)
 - **Consistent naming**: This applies to functions, types, and file names
-- **Deprecation**: Fields without platform suffixes will be removed in v2.9.0
+- **Deprecation**: Fields without platform suffixes are legacy and should only be removed in a planned major release.
 
 ### Type System
 
-For complete type definitions and documentation, see: <https://www.openiap.dev/docs/types>
+For complete type definitions and documentation, see: <https://openiap.dev/docs/types>
 
 The library follows the OpenIAP type specifications with platform-specific extensions using iOS/Android suffixes.
 
@@ -109,7 +109,7 @@ The library follows the OpenIAP type specifications with platform-specific exten
 ### API Method Naming
 
 - Functions that depend on event results should use `request` prefix (e.g., `requestPurchase`)
-- Follow OpenIAP terminology: <https://www.openiap.dev/docs/apis#terminology>
+- Follow OpenIAP terminology: <https://openiap.dev/docs/apis#terminology>
 - Do not use generic prefixes like `get`, `find` - refer to the official terminology
 
 ## IAP-Specific Guidelines
@@ -118,10 +118,10 @@ The library follows the OpenIAP type specifications with platform-specific exten
 
 All implementations must follow the OpenIAP specification:
 
-- **APIs**: <https://www.openiap.dev/docs/apis>
-- **Types**: <https://www.openiap.dev/docs/types>
-- **Events**: <https://www.openiap.dev/docs/events>
-- **Errors**: <https://www.openiap.dev/docs/errors>
+- **APIs**: <https://openiap.dev/docs/apis>
+- **Types**: <https://openiap.dev/docs/types>
+- **Events**: <https://openiap.dev/docs/events>
+- **Errors**: <https://openiap.dev/docs/errors>
 
 ### Feature Development Process
 
@@ -251,7 +251,7 @@ const {requestPurchase} = useIAP({
 
 For complete error handling documentation, see:
 
-- [Error Codes Reference](https://www.openiap.dev/docs/errors)
+- [Error Codes Reference](https://openiap.dev/docs/errors)
 - [Error Handling Guide](https://docs.expo-iap.dev/docs/guides/error-handling)
 
 ## Documentation Guidelines

@@ -19,14 +19,11 @@ Requires .NET 9 SDK and the MAUI workload:
 
 ```bash
 dotnet workload install maui
-dotnet add package OpenIap.Maui --version 1.0.1
+dotnet add package OpenIap.Maui
 ```
 
-Or add the package directly:
-
-```xml
-<PackageReference Include="OpenIap.Maui" Version="1.0.1" />
-```
+For manual `.csproj` edits, copy the current PackageReference from the
+[OpenIap.Maui NuGet package page](https://www.nuget.org/packages/OpenIap.Maui).
 
 `OpenIap.Maui` is the only NuGet package apps reference. The Android binding,
 iOS binding, Google Play Billing AARs, and StoreKit xcframework resources are
@@ -155,9 +152,9 @@ cd ../.. && bash scripts/sync-versions.sh
 
 ## Links
 
-- OpenIAP docs: https://www.openiap.dev
+- OpenIAP docs: https://openiap.dev
 - Monorepo: https://github.com/hyodotdev/openiap
-- Setup guide: https://www.openiap.dev/docs/setup/maui
+- Setup guide: https://openiap.dev/docs/setup/maui
 
 ## License
 

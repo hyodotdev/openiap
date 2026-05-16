@@ -42,8 +42,6 @@ import dev.hyo.openiap.ExternalLinkLaunchModeAndroid as OpenIapExternalLinkLaunc
 import dev.hyo.openiap.ExternalLinkTypeAndroid as OpenIapExternalLinkType
 import dev.hyo.openiap.LaunchExternalLinkParamsAndroid as OpenIapLaunchExternalLinkParams
 
-internal const val ANDROID_VERSION = "KMP-IAP v1.0.0-alpha02 (Android)"
-
 internal fun emitFailureAndThrow(
     errorFlow: MutableSharedFlow<PurchaseError>,
     error: PurchaseError
@@ -97,17 +95,23 @@ internal fun mapBillingResponseCode(responseCode: Int): ErrorCode = when (respon
 }
 
 /**
- * Maps SubscriptionReplacementModeAndroid enum to BillingFlowParams replacement mode int.
- * Used for setSubscriptionReplacementMode in SubscriptionUpdateParams and SubscriptionProductReplacementParams.
+ * Maps SubscriptionReplacementModeAndroid to BillingFlowParams product-level replacement mode.
  */
 internal fun mapReplacementMode(mode: SubscriptionReplacementModeAndroid): Int? = when (mode) {
-    SubscriptionReplacementModeAndroid.UnknownReplacementMode -> BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.UNKNOWN_REPLACEMENT_MODE
-    SubscriptionReplacementModeAndroid.WithTimeProration -> BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.WITH_TIME_PRORATION
-    SubscriptionReplacementModeAndroid.ChargeProratedPrice -> BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.CHARGE_PRORATED_PRICE
-    SubscriptionReplacementModeAndroid.ChargeFullPrice -> BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.CHARGE_FULL_PRICE
-    SubscriptionReplacementModeAndroid.WithoutProration -> BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.WITHOUT_PRORATION
-    SubscriptionReplacementModeAndroid.Deferred -> BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.DEFERRED
-    SubscriptionReplacementModeAndroid.KeepExisting -> null // KEEP_EXISTING is not a standard replacement mode
+    SubscriptionReplacementModeAndroid.UnknownReplacementMode ->
+        BillingFlowParams.ProductDetailsParams.SubscriptionProductReplacementParams.ReplacementMode.UNKNOWN_REPLACEMENT_MODE
+    SubscriptionReplacementModeAndroid.WithTimeProration ->
+        BillingFlowParams.ProductDetailsParams.SubscriptionProductReplacementParams.ReplacementMode.WITH_TIME_PRORATION
+    SubscriptionReplacementModeAndroid.ChargeProratedPrice ->
+        BillingFlowParams.ProductDetailsParams.SubscriptionProductReplacementParams.ReplacementMode.CHARGE_PRORATED_PRICE
+    SubscriptionReplacementModeAndroid.ChargeFullPrice ->
+        BillingFlowParams.ProductDetailsParams.SubscriptionProductReplacementParams.ReplacementMode.CHARGE_FULL_PRICE
+    SubscriptionReplacementModeAndroid.WithoutProration ->
+        BillingFlowParams.ProductDetailsParams.SubscriptionProductReplacementParams.ReplacementMode.WITHOUT_PRORATION
+    SubscriptionReplacementModeAndroid.Deferred ->
+        BillingFlowParams.ProductDetailsParams.SubscriptionProductReplacementParams.ReplacementMode.DEFERRED
+    SubscriptionReplacementModeAndroid.KeepExisting ->
+        BillingFlowParams.ProductDetailsParams.SubscriptionProductReplacementParams.ReplacementMode.KEEP_EXISTING
 }
 
 internal fun enablePendingPurchasesCompat(builder: BillingClient.Builder): BillingClient.Builder {
@@ -192,7 +196,7 @@ internal suspend fun loadProductDetails(
         val success = suspendCancellableCoroutine<Boolean> { continuation ->
             client.queryProductDetailsAsync(params) { billingResult: BillingResult, queryResult: QueryProductDetailsResult ->
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                    queryResult.productDetailsList?.forEach { detail -> cache[detail.productId] = detail }
+                    queryResult.productDetailsList.forEach { detail -> cache[detail.productId] = detail }
                     continuation.resume(true)
                 } else {
                     continuation.resume(false)

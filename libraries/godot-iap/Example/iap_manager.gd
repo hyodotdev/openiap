@@ -234,7 +234,7 @@ func _purchase(product_id: String, offer_token: String = "") -> void:
 
 		if not offer_token.is_empty():
 			props.request.google.offer_token = offer_token
-			print("[IAPManager] Using offer token: %s" % offer_token.substr(0, 20) + "...")
+			print("[IAPManager] Using offer token: <redacted>")
 		else:
 			push_warning("[IAPManager] No offer token available for subscription")
 
