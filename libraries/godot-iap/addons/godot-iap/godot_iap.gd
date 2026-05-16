@@ -1165,7 +1165,7 @@ func acknowledge_purchase_android(purchase_token: String) -> Variant:
 
 ## Internal: Acknowledge purchase raw
 func _acknowledge_purchase_android_raw(purchase_token: String) -> Dictionary:
-	print("[GodotIap] _acknowledge_purchase_android_raw called with token: <redacted>")
+	print("[GodotIap] _acknowledge_purchase_android_raw called with token: %s" % purchase_token)
 	if _native_plugin and _platform == "Android":
 		print("[GodotIap] Calling acknowledgePurchaseAndroid...")
 		var result_json = _native_plugin.call("acknowledgePurchaseAndroid", purchase_token)
@@ -1186,7 +1186,7 @@ func consume_purchase_android(purchase_token: String) -> Variant:
 
 ## Internal: Consume purchase raw
 func _consume_purchase_android_raw(purchase_token: String) -> Dictionary:
-	print("[GodotIap] _consume_purchase_android_raw called with token: <redacted>")
+	print("[GodotIap] _consume_purchase_android_raw called with token: %s" % purchase_token)
 	if _native_plugin and _platform == "Android":
 		print("[GodotIap] Calling consumePurchaseAndroid...")
 		var result_json = _native_plugin.call("consumePurchaseAndroid", purchase_token)

@@ -411,7 +411,7 @@ func _display_discount_offer(offer: Types.DiscountOffer):
 
     # Android-specific fields
     if OS.get_name() == "Android":
-        print("    Offer Token: <redacted>")
+        print("    Offer Token: %s" % offer.offer_token_android)
         if offer.percentage_discount_android > 0:
             print("    Discount: %d%% off" % offer.percentage_discount_android)
 

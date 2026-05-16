@@ -1033,7 +1033,7 @@ if (subscription?.subscriptionOfferDetailsAndroid) {
   subscription.subscriptionOfferDetailsAndroid.forEach((offer) => {
     console.log('Base Plan:', offer.basePlanId);
     console.log('Offer ID:', offer.offerId ?? 'Base plan');
-    console.log('Offer Token:', '<redacted>');
+    console.log('Offer Token:', offer.offerToken);
 
     // Check pricing phases
     offer.pricingPhases.pricingPhaseList.forEach((phase) => {
@@ -1073,7 +1073,7 @@ val subscription = subscriptions.find { it.id == "premium_monthly" }
 subscription?.subscriptionOfferDetailsAndroid?.forEach { offer ->
     println("Base Plan: \${offer.basePlanId}")
     println("Offer ID: \${offer.offerId ?: "Base plan"}")
-    println("Offer Token: <redacted>")
+    println("Offer Token: \${offer.offerToken}")
 
     // Check pricing phases
     offer.pricingPhases.pricingPhaseList.forEach { phase ->
@@ -1110,7 +1110,7 @@ val subscription = subscriptions.find { it.id == "premium_monthly" }
 subscription?.subscriptionOfferDetailsAndroid?.forEach { offer ->
     println("Base Plan: \${offer.basePlanId}")
     println("Offer ID: \${offer.offerId ?: "Base plan"}")
-    println("Offer Token: <redacted>")
+    println("Offer Token: \${offer.offerToken}")
 
     // Check pricing phases
     offer.pricingPhases.pricingPhaseList.forEach { phase ->
@@ -1141,7 +1141,7 @@ if (subscription.subscriptionOfferDetailsAndroid != null) {
   for (final offer in subscription.subscriptionOfferDetailsAndroid!) {
     print('Base Plan: \${offer.basePlanId}');
     print('Offer ID: \${offer.offerId ?? "Base plan"}');
-    print('Offer Token: <redacted>');
+    print('Offer Token: \${offer.offerToken}');
 
     // Check pricing phases
     for (final phase in offer.pricingPhases?.pricingPhaseList ?? []) {
@@ -1179,7 +1179,7 @@ foreach (var offer in subscription?.SubscriptionOfferDetailsAndroid
 {
     Console.WriteLine($"Base Plan: {offer.BasePlanId}");
     Console.WriteLine($"Offer ID: {offer.OfferId ?? "Base plan"}");
-    Console.WriteLine("Offer Token: <redacted>");
+    Console.WriteLine($"Offer Token: {offer.OfferToken}");
 
     // Check pricing phases
     foreach (var phase in offer.PricingPhases.PricingPhaseList)
@@ -1217,7 +1217,7 @@ if subscription and subscription.subscription_offer_details_android:
     for offer in subscription.subscription_offer_details_android:
         print("Base Plan: %s" % offer.base_plan_id)
         print("Offer ID: %s" % (offer.offer_id if offer.offer_id else "Base plan"))
-        print("Offer Token: <redacted>")
+        print("Offer Token: %s" % offer.offer_token)
 
         # Check pricing phases
         for phase in offer.pricing_phases.pricing_phase_list:
