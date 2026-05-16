@@ -1753,7 +1753,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                                 _developerProvidedBillingListener.tryEmit(billingDetails)
                             }
                         } catch (e: Exception) {
-                            logError("Failed to extract developer billing token: ${e.message}", e)
+                            android.util.Log.e("KmpIAP", "Failed to extract developer billing token: ${e.message}")
                         }
                     }
                 }
