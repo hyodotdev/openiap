@@ -1,5 +1,10 @@
 # Changelog
 
+## 9.3.0 (2026-05-16)
+
+- Initial release
+
+
 ## 9.2.8 (2026-05-13)
 
 - Initial release
