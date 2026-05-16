@@ -70,7 +70,7 @@ var userChoiceBillingEvents: Flow<UserChoiceBillingDetails>`}</CodeBlock>
 const subscription = userChoiceBillingListenerAndroid(async (details) => {
   console.log('User chose alternative billing');
   console.log('Products:', details.products);
-  console.log('Token:', details.externalTransactionToken);
+  console.log('External transaction token received; send it to your backend without logging it.');
 
   // Process payment with your backend
   const paymentResult = await processPaymentWithBackend({
@@ -95,7 +95,7 @@ lifecycleScope.launch {
     openIapStore.userChoiceBillingEvents.collect { details ->
         println("User chose alternative billing")
         println("Products: \${details.products}")
-        println("Token: \${details.externalTransactionToken}")
+        println("External transaction token received; send it to your backend without logging it.")
 
         // Process payment with your backend
         val paymentResult = processPaymentWithBackend(
@@ -125,7 +125,7 @@ lifecycleScope.launch {
     kmpIAP.userChoiceBillingEvents.collect { details ->
         println("User chose alternative billing")
         println("Products: \${details.products}")
-        println("Token: \${details.externalTransactionToken}")
+        println("External transaction token received; send it to your backend without logging it.")
 
         // Process payment with your backend
         val paymentResult = processPaymentWithBackend(
@@ -152,7 +152,7 @@ kmpIAP.setUserChoiceBillingListener { details ->
 final subscription = FlutterInappPurchase.userChoiceBillingAndroid.listen((details) async {
   print('User chose alternative billing');
   print('Products: \${details?.products}');
-  print('Token: \${details?.externalTransactionToken}');
+  print('External transaction token received; send it to your backend without logging it.');
 
   // Process payment with your backend
   final paymentResult = await processPaymentWithBackend(

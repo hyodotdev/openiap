@@ -141,9 +141,10 @@ function Webhooks() {
         <p className="text-sm text-muted-foreground" style={{ marginTop: 12 }}>
           <strong>Tip:</strong> the lifecycle webhook URL is{' '}
           <strong>POST-only</strong>. Opening it in a browser shows a blank /
-          404 page — that's expected. Use the dashboard's <em>Live test</em>{' '}
-          curl recipe (or App Store Connect / Pub/Sub's "Send test notification"
-          buttons) to verify wiring.
+          404 page — that's expected. Use App Store Connect / Pub/Sub's
+          authenticated "Send test notification" buttons to verify production
+          wiring; unauthenticated curl smoke tests are only for local/dev
+          receivers that explicitly allow them.
         </p>
       </section>
 
@@ -235,7 +236,7 @@ const { events, lastError, isConnected } = useWebhookEvents({
             dart: (
               <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/webhook_client.dart';
 
-final listener = connectWebhookStream(apiKey: 'sk_live_...');
+final listener = connectWebhookStream(apiKey: 'openiap-kit_<your-key>');
 listener.events.listen((event) {
   if (event.type == WebhookEventType.SubscriptionRenewed) {
     grantEntitlement(event.purchaseToken);
@@ -274,7 +275,7 @@ when (event.type) {
 @onready var webhook := preload("res://addons/godot-iap/webhook_client.gd").new()
 
 func _ready() -> void:
-    webhook.api_key = "sk_live_..."
+    webhook.api_key = "openiap-kit_<your-key>"
     webhook.event_received.connect(_on_event)
     add_child(webhook)
     webhook.connect_stream()

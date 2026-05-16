@@ -80,7 +80,7 @@ IDisposable subscription = Iap.Instance.DeveloperProvidedBillingAndroid.Subscrib
 
 const subscription = developerProvidedBillingListenerAndroid(async (details) => {
   console.log('User selected developer billing');
-  console.log('Token:', details.externalTransactionToken);
+  console.log('External transaction token received; send it to your backend without logging it.');
 
   // Process payment with your payment system
   const paymentResult = await processPaymentWithYourGateway({
@@ -104,7 +104,7 @@ subscription.remove();`}</CodeBlock>
 // Using callback
 openIapStore.addDeveloperProvidedBillingListener { details ->
     println("User selected developer billing")
-    println("Token: \${details.externalTransactionToken}")
+    println("External transaction token received; send it to your backend without logging it.")
 
     lifecycleScope.launch {
         // Process payment with your payment system
@@ -128,7 +128,7 @@ val kmpIAP = KmpIAP()
 // Using callback
 kmpIAP.addDeveloperProvidedBillingListener { details ->
     println("User selected developer billing")
-    println("Token: \${details.externalTransactionToken}")
+    println("External transaction token received; send it to your backend without logging it.")
 
     lifecycleScope.launch {
         // Process payment with your payment system
@@ -151,7 +151,7 @@ kmpIAP.addDeveloperProvidedBillingListener { details ->
 final subscription = FlutterInappPurchase.developerProvidedBillingStream
     .listen((details) async {
   print('User selected developer billing');
-  print('Token: \${details.externalTransactionToken}');
+  print('External transaction token received; send it to your backend without logging it.');
 
   // Process payment with your payment system
   final paymentResult = await processPaymentWithYourGateway(

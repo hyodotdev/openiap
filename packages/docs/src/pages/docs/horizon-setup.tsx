@@ -1,5 +1,6 @@
 import CodeBlock from '../../components/CodeBlock';
 import SEO from '../../components/SEO';
+import { OPENIAP_VERSIONS } from '../../lib/versioning';
 
 function HorizonSetup() {
   return (
@@ -50,8 +51,8 @@ function HorizonSetup() {
             </a>
           </li>
           <li>
-            <code>openiap-google@1.3.2</code> or later installed (Horizon flavor
-            support added in 1.3.2)
+            <code>openiap-google@{OPENIAP_VERSIONS.google}</code> installed.
+            Current OpenIAP Google releases include Horizon flavor support.
           </li>
           <li>A Meta Quest device for testing (Quest 2, Quest 3, Quest Pro)</li>
         </ul>

@@ -111,7 +111,7 @@ function App() {
 
       // 2. Setup purchase success listener
       purchaseUpdateSubscription = purchaseUpdatedListener((purchase) => {
-        console.log('Purchase received:', purchase);
+        console.log('Purchase received:', purchase.productId);
         // Handle the purchase (verify + finish)
         void handlePurchase(purchase);
       });

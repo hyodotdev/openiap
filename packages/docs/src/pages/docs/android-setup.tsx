@@ -1,4 +1,5 @@
 import SEO from '../../components/SEO';
+import { OPENIAP_VERSIONS } from '../../lib/versioning';
 
 function AndroidSetup() {
   return (
@@ -235,12 +236,12 @@ function AndroidSetup() {
         <p>Add the OpenIAP Android dependency:</p>
         <pre className="code-block">{`// build.gradle.kts
 dependencies {
-    implementation("io.github.hyochan.openiap:openiap-google:${'$'}version")
+    implementation("io.github.hyochan.openiap:openiap-google:${OPENIAP_VERSIONS.google}")
 }
 
 // Or build.gradle (Groovy)
 dependencies {
-    implementation 'io.github.hyochan.openiap:openiap-google:${'$'}version'
+    implementation 'io.github.hyochan.openiap:openiap-google:${OPENIAP_VERSIONS.google}'
 }`}</pre>
         <p
           style={{

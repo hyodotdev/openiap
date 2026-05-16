@@ -22,3 +22,7 @@
 - Home, `/languages`, setup pages, sidebars, and sponsor lists should derive
   framework entries from `LIBRARIES`; add metadata fields there instead of
   duplicating local arrays.
+- Install commands that include package versions should derive from package
+  metadata helpers (for example `FLUTTER_PACKAGE`, `KMP_PACKAGE`, and
+  `MAUI_PACKAGE` in `src/lib/versioning.ts`), not inline version literals in
+  page components.

@@ -3,7 +3,7 @@
 # OpenIAP.dev Vercel Deployment Script
 # This script handles local deployment to Vercel for organization repositories
 
-set -e
+set -euo pipefail
 
 echo "🚀 Starting OpenIAP.dev deployment to Vercel..."
 
@@ -13,11 +13,12 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
+VERCEL_CLI_VERSION="54.0.0"
 
 # Check if Vercel CLI is installed
 if ! command -v vercel &> /dev/null; then
-    echo -e "${YELLOW}⚠️  Vercel CLI not found. Installing globally...${NC}"
-    npm install -g vercel
+    echo -e "${YELLOW}⚠️  Vercel CLI not found. Installing v${VERCEL_CLI_VERSION} globally...${NC}"
+    npm install -g "vercel@$VERCEL_CLI_VERSION"
     echo -e "${GREEN}✅ Vercel CLI installed successfully${NC}"
 fi
 
@@ -30,14 +31,12 @@ fi
 echo -e "${BLUE}📦 Building project...${NC}"
 
 # Run type checking and build
-bun run typecheck
-if [ $? -ne 0 ]; then
+if ! bun run typecheck; then
     echo -e "${RED}❌ TypeScript errors found. Please fix them before deploying.${NC}"
     exit 1
 fi
 
-bun run build
-if [ $? -ne 0 ]; then
+if ! bun run build; then
     echo -e "${RED}❌ Build failed. Please check the errors above.${NC}"
     exit 1
 fi

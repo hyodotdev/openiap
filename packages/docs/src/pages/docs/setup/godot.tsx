@@ -376,7 +376,7 @@ func _on_connected():
     print("Store connected!")
 
 func _on_purchase_updated(purchase: Dictionary):
-    print("Purchase: ", purchase)
+    print("Purchase: %s" % purchase.get("product_id", ""))
 
 func _on_purchase_error(error: Dictionary):
     print("Error: ", error)`}

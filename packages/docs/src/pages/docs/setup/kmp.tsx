@@ -1,5 +1,13 @@
 import CodeBlock from '../../../components/CodeBlock';
 import SEO from '../../../components/SEO';
+import { LIBRARIES } from '../../../lib/images';
+import { KMP_ANDROID_SDK } from '../../../lib/versioning';
+
+const KMP_INSTALL_COMMAND =
+  LIBRARIES.find(({ name }) => name === 'kmp-iap')?.installCommand ??
+  'implementation("io.github.hyochan:kmp-iap")';
+const KMP_VERSION =
+  KMP_INSTALL_COMMAND.match(/kmp-iap:([^")]+)/)?.[1] ?? 'x.y.z';
 
 function KmpSetup() {
   return (
@@ -41,7 +49,8 @@ function KmpSetup() {
         </h2>
         <ul>
           <li>
-            <strong>Kotlin 2.1.10+</strong> and <strong>Gradle 8.0+</strong>
+            <strong>Kotlin 2.3.21+</strong>, <strong>Gradle 8.13+</strong>, and{' '}
+            <strong>JDK 17+</strong>
           </li>
           <li>Active Apple Developer account (for iOS)</li>
           <li>Active Google Play Developer account (for Android)</li>
@@ -64,8 +73,7 @@ function KmpSetup() {
         <CodeBlock language="kotlin">
           {`val commonMain by getting {
     dependencies {
-        // Check Maven Central for the latest version
-        implementation("io.github.hyochan:kmp-iap:<latest-version>")
+        ${KMP_INSTALL_COMMAND}
     }
 }`}
         </CodeBlock>
@@ -73,7 +81,7 @@ function KmpSetup() {
         <CodeBlock language="toml">
           {`# gradle/libs.versions.toml
 [versions]
-kmp-iap = "<latest-version>"
+kmp-iap = "${KMP_VERSION}"
 
 [libraries]
 kmp-iap = { module = "io.github.hyochan:kmp-iap", version.ref = "kmp-iap" }`}
@@ -202,11 +210,11 @@ kotlin {
         </p>
         <CodeBlock language="kotlin">
           {`android {
-    compileSdk = 34
+    compileSdk = ${KMP_ANDROID_SDK.compileSdk}
 
     defaultConfig {
-        minSdk = 24  // Required minimum
-        targetSdk = 34
+        minSdk = ${KMP_ANDROID_SDK.minSdk}  // Required minimum
+        targetSdk = ${KMP_ANDROID_SDK.targetSdk}
     }
 }`}
         </CodeBlock>
@@ -354,7 +362,7 @@ kmpIAP.endConnection()`}
           </li>
           <li>
             <a
-              href="https://central.sonatype.com/artifact/io.github.hyochan.kmpiap/library"
+              href="https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap"
               target="_blank"
               rel="noopener noreferrer"
             >

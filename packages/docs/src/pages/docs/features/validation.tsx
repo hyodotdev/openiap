@@ -287,7 +287,7 @@ if result.is_valid:
 const result = await verifyPurchaseWithProvider({
   provider: 'iapkit',
   iapkit: {
-    apiKey: 'your-iapkit-api-key',
+    apiKey: 'openiap-kit_<your-key>',
     apple: { jws: purchase.purchaseToken },
     google: { purchaseToken: purchase.purchaseToken },
   },
@@ -302,7 +302,7 @@ if (result.iapkit?.isValid && result.iapkit?.state === 'entitled') {
               <CodeBlock language="swift">{`let result = try await store.verifyPurchaseWithProvider(
     VerifyPurchaseWithProviderProps(
         iapkit: RequestVerifyPurchaseWithIapkitProps(
-            apiKey: "your-iapkit-api-key",
+            apiKey: "openiap-kit_<your-key>",
             apple: RequestVerifyPurchaseWithIapkitAppleProps(
                 jws: purchase.purchaseToken ?? ""
             ),
@@ -316,7 +316,7 @@ if (result.iapkit?.isValid && result.iapkit?.state === 'entitled') {
               <CodeBlock language="kotlin">{`val result = module.verifyPurchaseWithProvider(
     VerifyPurchaseWithProviderProps(
         iapkit = RequestVerifyPurchaseWithIapkitProps(
-            apiKey = "your-api-key",
+            apiKey = "openiap-kit_<your-key>",
             google = RequestVerifyPurchaseWithIapkitGoogleProps(
                 purchaseToken = purchase.purchaseToken
             )
@@ -329,7 +329,7 @@ if (result.iapkit?.isValid && result.iapkit?.state === 'entitled') {
               <CodeBlock language="kotlin">{`val result = kmpIAP.verifyPurchaseWithProvider(
     VerifyPurchaseWithProviderProps(
         iapkit = RequestVerifyPurchaseWithIapkitProps(
-            apiKey = "your-api-key",
+            apiKey = "openiap-kit_<your-key>",
             google = RequestVerifyPurchaseWithIapkitGoogleProps(
                 purchaseToken = purchase.purchaseToken
             )
@@ -343,7 +343,7 @@ if (result.iapkit?.isValid && result.iapkit?.state === 'entitled') {
   VerifyPurchaseWithProviderProps(
     provider: PurchaseVerificationProvider.iapkit,
     iapkit: RequestVerifyPurchaseWithIapkitProps(
-      apiKey: 'your-iapkit-api-key',
+      apiKey: 'openiap-kit_<your-key>',
       apple: RequestVerifyPurchaseWithIapkitAppleProps(jws: purchase.purchaseToken ?? ''),
     ),
   ),
@@ -356,7 +356,7 @@ using OpenIap.Maui;
 var result = module.verifyPurchaseWithProvider(
     VerifyPurchaseWithProviderProps(
         iapkit = RequestVerifyPurchaseWithIapkitProps(
-            apiKey = "your-api-key",
+            apiKey = "openiap-kit_<your-key>",
             google = RequestVerifyPurchaseWithIapkitGoogleProps(
                 purchaseToken = purchase.purchaseToken
             )
@@ -367,7 +367,7 @@ var result = module.verifyPurchaseWithProvider(
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`var iapkit_props = RequestVerifyPurchaseWithIapkitProps.new()
-iapkit_props.api_key = "your-iapkit-api-key"
+iapkit_props.api_key = "openiap-kit_<your-key>"
 iapkit_props.google = RequestVerifyPurchaseWithIapkitGoogleProps.new()
 iapkit_props.google.purchase_token = purchase.purchase_token
 

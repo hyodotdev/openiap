@@ -479,7 +479,7 @@ await initConnection({
 
 // Listen for developer billing selection
 developerProvidedBillingListenerAndroid((details) => {
-  console.log('Token:', details.externalTransactionToken);
+  console.log('External transaction token received; send it to your backend without logging it.');
   // Report token to Google via your backend within 24 hours
 });
 
@@ -517,7 +517,7 @@ iapStore.initConnection(
 
 // Listen for developer billing selection
 iapStore.addDeveloperProvidedBillingListener { details ->
-    Log.d("IAP", "Token: \${details.externalTransactionToken}")
+    Log.d("IAP", "External transaction token received; send it to your backend without logging it.")
     // Report token to Google via your backend within 24 hours
 }
 
@@ -557,7 +557,7 @@ await FlutterInappPurchase.instance.initConnection(
 
 // Listen for developer billing selection
 FlutterInappPurchase.developerProvidedBillingStream.listen((details) {
-  print('Token: \${details.externalTransactionToken}');
+  print('External transaction token received; send it to your backend without logging it.');
   // Report token to Google via your backend within 24 hours
 });
 
@@ -628,7 +628,7 @@ await iap.init_connection(config)
 
 # Listen for developer billing selection
 func _on_developer_provided_billing(details: DeveloperProvidedBillingDetailsAndroid):
-    print("Token: %s" % details.external_transaction_token)
+    print("External transaction token received; send it to your backend without logging it.")
     # Report token to Google via your backend within 24 hours
 
 iap.developer_provided_billing.connect(_on_developer_provided_billing)

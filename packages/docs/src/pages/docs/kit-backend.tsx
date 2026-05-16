@@ -22,7 +22,7 @@ function KitBackend() {
         after a user taps "buy" — receipt validation, lifecycle webhooks,
         subscription state, revenue metrics, and App Store Connect / Play
         Console product sync — and exposes everything through one URL surface
-        that all five SDKs and an MCP server speak.
+        that the framework SDKs and MCP server speak.
       </p>
 
       <section>
@@ -30,22 +30,22 @@ function KitBackend() {
           Surface map
         </AnchorLink>
         <p>
-          Every endpoint takes the project's API key as a path segment so the
-          same URL works in App Store Connect, Pub/Sub push subscribers, mobile
-          WebViews, and stdio MCP tools without juggling bearer tokens.
+          Receipt verification uses an <code>Authorization: Bearer</code> API
+          key header. Webhook, subscription, product, and MCP-friendly endpoints
+          carry the project API key as a path segment so store consoles, mobile
+          WebViews, and stdio MCP tools can call them without custom bearer
+          header plumbing.
         </p>
         <ul>
           <li>
             <code>POST /v1/purchase/verify</code> — receipt validation (Apple
-            JWS, Google purchaseToken, Meta Horizon).
+            JWS, Google purchaseToken, Meta Horizon) with a Bearer API key.
           </li>
           <li>
-            <code>POST /v1/webhooks/apple/&#123;apiKey&#125;</code> — App Store
-            Server Notifications v2 receiver.
-          </li>
-          <li>
-            <code>POST /v1/webhooks/google/&#123;apiKey&#125;</code> — Google
-            Pub/Sub RTDN receiver (OIDC verified).
+            <code>POST /v1/webhooks/&#123;apiKey&#125;</code> — unified App
+            Store Server Notifications v2 / Google Pub/Sub RTDN receiver (Google
+            OIDC verified). Platform-specific <code>/apple</code> /{' '}
+            <code>/google</code> aliases remain supported for existing setups.
           </li>
           <li>
             <code>GET /v1/webhooks/stream/&#123;apiKey&#125;</code> — SSE stream
@@ -108,10 +108,9 @@ function KitBackend() {
             or Play Console (via the service-account JSON).
           </li>
           <li>
-            <strong>Webhooks</strong> — copyable Apple ASN v2 / Google RTDN
-            endpoints, the SSE stream URL, and a curl recipe for emitting a
-            synthetic test notification without going through the App Store /
-            Play Console.
+            <strong>Webhooks</strong> — copyable lifecycle webhook URL, the SSE
+            stream URL, and a curl recipe for emitting a synthetic test
+            notification without going through the App Store / Play Console.
           </li>
         </ul>
       </section>
@@ -260,7 +259,7 @@ if status.active:
       "command": "bunx",
       "args": ["@hyodotdev/openiap-mcp-server"],
       "env": {
-        "OPENIAP_API_KEY": "sk_live_...",
+        "OPENIAP_API_KEY": "openiap-kit_<your-key>",
         "OPENIAP_BASE_URL": "https://kit.openiap.dev"
       }
     }

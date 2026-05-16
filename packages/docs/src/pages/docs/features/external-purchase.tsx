@@ -727,7 +727,7 @@ async function handleAlternativeBillingPurchase(productId: string) {
 
     // Step 4: Create reporting token (after successful payment)
     const token = await createAlternativeBillingTokenAndroid();
-    console.log(\`Token created: \${token?.slice(0, 20)}...\`);
+    console.log('Token created; send it to your backend without logging it.');
 
     // Step 5: Send token to your backend server
     // Backend will report token to Google Play within 24 hours
@@ -792,7 +792,7 @@ suspend fun handleAlternativeBillingPurchase(productId: String) {
 
         // Step 4: Create reporting token (after successful payment)
         val token = iapStore.createAlternativeBillingReportingToken()
-        Log.d("IAP", "Token created: \${token?.take(20)}...")
+        Log.d("IAP", "Token created; send it to your backend without logging it.")
 
         // Step 5: Send token to your backend server
         // Backend will report token to Google Play within 24 hours
@@ -854,7 +854,7 @@ suspend fun handleAlternativeBillingPurchase(productId: String) {
 
         // Step 4: Create reporting token (after successful payment)
         val token = kmpIAP.createAlternativeBillingReportingToken()
-        Log.d("IAP", "Token created: \${token?.take(20)}...")
+        Log.d("IAP", "Token created; send it to your backend without logging it.")
 
         // Step 5: Send token to your backend server
         // Backend will report token to Google Play within 24 hours
@@ -912,7 +912,7 @@ Future<void> handleAlternativeBillingPurchase(String productId) async {
     // Step 4: Create reporting token (after successful payment)
     final token = await FlutterInappPurchase.instance
         .createAlternativeBillingTokenAndroid();
-    print('Token created: \${token?.substring(0, 20)}...');
+    print('Token created; send it to your backend without logging it.');
 
     // Step 5: Send token to your backend server
     // Backend will report token to Google Play within 24 hours
@@ -972,7 +972,7 @@ Task HandleAlternativeBillingPurchaseAsync(String ProductId) {
 
         // Step 4: Create reporting token (after successful payment)
         var token = iapStore.createAlternativeBillingReportingToken()
-        Log.d("IAP", "Token created: \${token?.take(20)}...")
+        Log.d("IAP", "Token created; send it to your backend without logging it.")
 
         // Step 5: Send token to your backend server
         // Backend will report token to Google Play within 24 hours
@@ -1023,7 +1023,7 @@ func handle_alternative_billing_purchase(product_id: String) -> void:
     # Step 4: Create reporting token (after successful payment)
     var token = await iap.create_alternative_billing_token_android()
     if token:
-        print("Token created: %s..." % token.substr(0, 20))
+        print("Token created; send it to your backend without logging it.")
 
         # Step 5: Send token to your backend server
         # Backend will report token to Google Play within 24 hours
@@ -1074,7 +1074,7 @@ await initConnection({
 const userChoiceSubscription = userChoiceBillingListenerAndroid(
   async (details: UserChoiceBillingDetails) => {
     console.log('User selected alternative billing');
-    console.log('Token:', details.externalTransactionToken);
+    console.log('External transaction token received; send it to your backend without logging it.');
     console.log('Products:', details.products);
 
     try {
@@ -1142,7 +1142,7 @@ val iapStore = OpenIapStore(
 // Set user choice billing listener (for alternative billing selection)
 iapStore.setUserChoiceBillingListener { details ->
     Log.d("IAP", "User selected alternative billing")
-    Log.d("IAP", "Token: \${details.externalTransactionToken}")
+    Log.d("IAP", "External transaction token received; send it to your backend without logging it.")
     Log.d("IAP", "Products: \${details.products}")
 
     // Process payment with your backend API
@@ -1218,7 +1218,7 @@ val kmpIAP = KmpIAP(
 // Set user choice billing listener (for alternative billing selection)
 kmpIAP.setUserChoiceBillingListener { details ->
     Log.d("IAP", "User selected alternative billing")
-    Log.d("IAP", "Token: \${details.externalTransactionToken}")
+    Log.d("IAP", "External transaction token received; send it to your backend without logging it.")
     Log.d("IAP", "Products: \${details.products}")
 
     // Process payment with your backend API
@@ -1293,7 +1293,7 @@ await FlutterInappPurchase.instance.initConnection(
 // Set user choice billing listener (for alternative billing selection)
 FlutterInappPurchase.userChoiceBillingStream.listen((details) async {
   print('User selected alternative billing');
-  print('Token: \${details.externalTransactionToken}');
+  print('External transaction token received; send it to your backend without logging it.');
   print('Products: \${details.products}');
 
   try {
@@ -1347,7 +1347,7 @@ var iapStore = OpenIapStore(
 // Set user choice billing listener (for alternative billing selection)
 iapStore.setUserChoiceBillingListener { details ->
     Log.d("IAP", "User selected alternative billing")
-    Log.d("IAP", "Token: \${details.externalTransactionToken}")
+    Log.d("IAP", "External transaction token received; send it to your backend without logging it.")
     Log.d("IAP", "Products: \${details.products}")
 
     // Process payment with your backend API
@@ -1424,7 +1424,7 @@ func _ready() -> void:
 
 func _on_user_choice_billing(details: UserChoiceBillingDetails) -> void:
     print("User selected alternative billing")
-    print("Token: %s" % details.external_transaction_token)
+    print("External transaction token received; send it to your backend without logging it.")
     print("Products: %s" % details.products)
 
     var payment_result = await your_backend.create_payment(
@@ -1548,7 +1548,7 @@ async function handleExternalPurchaseWithBillingPrograms(productId: string) {
 
     // Step 4: Create reporting details (replaces createAlternativeBillingToken)
     const reportingDetails = await createBillingProgramReportingDetailsAndroid('EXTERNAL_OFFER');
-    console.log(\`Token created: \${reportingDetails.externalTransactionToken.slice(0, 20)}...\`);
+    console.log('Token created; send it to your backend without logging it.');
 
     // Step 5: Send token to your backend server
     await yourBackend.reportToken({
@@ -1621,7 +1621,7 @@ suspend fun handleExternalPurchaseWithBillingPrograms(productId: String) {
         val reportingDetails = iapStore.createBillingProgramReportingDetails(
             BillingProgramAndroid.ExternalOffer
         )
-        Log.d("IAP", "Token created: \${reportingDetails.externalTransactionToken.take(20)}...")
+        Log.d("IAP", "Token created; send it to your backend without logging it.")
 
         // Step 5: Send token to your backend server
         yourBackend.reportToken(
@@ -1690,7 +1690,7 @@ suspend fun handleExternalPurchaseWithBillingPrograms(productId: String) {
         val reportingDetails = kmpIAP.createBillingProgramReportingDetails(
             BillingProgramAndroid.ExternalOffer
         )
-        Log.d("IAP", "Token created: \${reportingDetails.externalTransactionToken.take(20)}...")
+        Log.d("IAP", "Token created; send it to your backend without logging it.")
 
         // Step 5: Send token to your backend server
         yourBackend.reportToken(
@@ -1757,7 +1757,7 @@ Future<void> handleExternalPurchaseWithBillingPrograms(String productId) async {
     // Step 4: Create reporting details (replaces createAlternativeBillingToken)
     final reportingDetails = await FlutterInappPurchase.instance
         .createBillingProgramReportingDetailsAndroid(BillingProgramAndroid.externalOffer);
-    print('Token created: \${reportingDetails.externalTransactionToken.substring(0, 20)}...');
+    print('Token created; send it to your backend without logging it.');
 
     // Step 5: Send token to your backend server
     await yourBackend.reportToken(
@@ -1824,7 +1824,7 @@ Task HandleExternalPurchaseWithBillingProgramsAsync(String ProductId) {
         var reportingDetails = iapStore.createBillingProgramReportingDetails(
             BillingProgramAndroid.ExternalOffer
         )
-        Log.d("IAP", "Token created: \${reportingDetails.externalTransactionToken.take(20)}...")
+        Log.d("IAP", "Token created; send it to your backend without logging it.")
 
         // Step 5: Send token to your backend server
         yourBackend.reportToken(
@@ -1885,7 +1885,7 @@ func handle_external_purchase_with_billing_programs(product_id: String) -> void:
         BillingProgramAndroid.EXTERNAL_OFFER
     )
     if reporting_details and reporting_details.external_transaction_token:
-        print("Token created: %s..." % reporting_details.external_transaction_token.substr(0, 20))
+        print("Token created; send it to your backend without logging it.")
 
         # Step 5: Send token to your backend server
         await your_backend.report_token(
@@ -2011,7 +2011,7 @@ await initConnection();
 const developerBillingSubscription = developerProvidedBillingListenerAndroid(
   async (details: DeveloperProvidedBillingDetails) => {
     console.log('User selected developer billing');
-    console.log('External transaction token:', details.externalTransactionToken);
+    console.log('External transaction token received; send it to your backend without logging it.');
 
     try {
       // Step 2: Process payment with your backend
@@ -2092,7 +2092,7 @@ iapStore.initConnection(null)
 // Step 1: Set up listener for when user selects developer billing
 iapStore.addDeveloperProvidedBillingListener { details ->
     Log.d("IAP", "User selected developer billing")
-    Log.d("IAP", "External transaction token: \${details.externalTransactionToken}")
+    Log.d("IAP", "External transaction token received; send it to your backend without logging it.")
 
     // Step 2: Process payment with your backend
     lifecycleScope.launch {
@@ -2176,7 +2176,7 @@ kmpIAP.initConnection(null)
 // Step 1: Set up listener for when user selects developer billing
 kmpIAP.addDeveloperProvidedBillingListener { details ->
     Log.d("IAP", "User selected developer billing")
-    Log.d("IAP", "External transaction token: \${details.externalTransactionToken}")
+    Log.d("IAP", "External transaction token received; send it to your backend without logging it.")
 
     // Step 2: Process payment with your backend
     lifecycleScope.launch {
@@ -2259,7 +2259,7 @@ await FlutterInappPurchase.instance.initConnection();
 // Step 1: Set up listener for when user selects developer billing
 FlutterInappPurchase.developerProvidedBillingStream.listen((details) async {
   print('User selected developer billing');
-  print('External transaction token: \${details.externalTransactionToken}');
+  print('External transaction token received; send it to your backend without logging it.');
 
   try {
     // Step 2: Process payment with your backend
@@ -2327,7 +2327,7 @@ iapStore.initConnection(null)
 // Step 1: Set up listener for when user selects developer billing
 iapStore.addDeveloperProvidedBillingListener { details ->
     Log.d("IAP", "User selected developer billing")
-    Log.d("IAP", "External transaction token: \${details.externalTransactionToken}")
+    Log.d("IAP", "External transaction token received; send it to your backend without logging it.")
 
     // Step 2: Process payment with your backend
     lifecycleScope.launch {
@@ -2409,7 +2409,7 @@ func _ready() -> void:
 
 func _on_developer_provided_billing(details: DeveloperProvidedBillingDetails) -> void:
     print("User selected developer billing")
-    print("External transaction token: %s" % details.external_transaction_token)
+    print("External transaction token received; send it to your backend without logging it.")
 
     # Step 2: Process payment with your backend
     var payment_result = await your_backend.create_payment(

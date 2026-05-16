@@ -1033,7 +1033,7 @@ if (subscription?.subscriptionOfferDetailsAndroid) {
   subscription.subscriptionOfferDetailsAndroid.forEach((offer) => {
     console.log('Base Plan:', offer.basePlanId);
     console.log('Offer ID:', offer.offerId ?? 'Base plan');
-    console.log('Offer Token:', offer.offerToken);
+    console.log('Offer Token:', '<redacted>');
 
     // Check pricing phases
     offer.pricingPhases.pricingPhaseList.forEach((phase) => {
@@ -1073,7 +1073,7 @@ val subscription = subscriptions.find { it.id == "premium_monthly" }
 subscription?.subscriptionOfferDetailsAndroid?.forEach { offer ->
     println("Base Plan: \${offer.basePlanId}")
     println("Offer ID: \${offer.offerId ?: "Base plan"}")
-    println("Offer Token: \${offer.offerToken}")
+    println("Offer Token: <redacted>")
 
     // Check pricing phases
     offer.pricingPhases.pricingPhaseList.forEach { phase ->
@@ -1110,7 +1110,7 @@ val subscription = subscriptions.find { it.id == "premium_monthly" }
 subscription?.subscriptionOfferDetailsAndroid?.forEach { offer ->
     println("Base Plan: \${offer.basePlanId}")
     println("Offer ID: \${offer.offerId ?: "Base plan"}")
-    println("Offer Token: \${offer.offerToken}")
+    println("Offer Token: <redacted>")
 
     // Check pricing phases
     offer.pricingPhases.pricingPhaseList.forEach { phase ->
@@ -1141,7 +1141,7 @@ if (subscription.subscriptionOfferDetailsAndroid != null) {
   for (final offer in subscription.subscriptionOfferDetailsAndroid!) {
     print('Base Plan: \${offer.basePlanId}');
     print('Offer ID: \${offer.offerId ?? "Base plan"}');
-    print('Offer Token: \${offer.offerToken}');
+    print('Offer Token: <redacted>');
 
     // Check pricing phases
     for (final phase in offer.pricingPhases?.pricingPhaseList ?? []) {
@@ -1179,7 +1179,7 @@ foreach (var offer in subscription?.SubscriptionOfferDetailsAndroid
 {
     Console.WriteLine($"Base Plan: {offer.BasePlanId}");
     Console.WriteLine($"Offer ID: {offer.OfferId ?? "Base plan"}");
-    Console.WriteLine($"Offer Token: {offer.OfferToken}");
+    Console.WriteLine("Offer Token: <redacted>");
 
     // Check pricing phases
     foreach (var phase in offer.PricingPhases.PricingPhaseList)
@@ -1217,7 +1217,7 @@ if subscription and subscription.subscription_offer_details_android:
     for offer in subscription.subscription_offer_details_android:
         print("Base Plan: %s" % offer.base_plan_id)
         print("Offer ID: %s" % (offer.offer_id if offer.offer_id else "Base plan"))
-        print("Offer Token: %s" % offer.offer_token)
+        print("Offer Token: <redacted>")
 
         # Check pricing phases
         for phase in offer.pricing_phases.pricing_phase_list:
@@ -3366,9 +3366,8 @@ const checkAndroidSubscription = async () => {
 
   const purchase = subscriptionPurchases[0];
   console.log('Purchase found:', purchase.productId);
-  console.log('Purchase token:', purchase.purchaseToken);
 
-  // Send to server for verification
+  // Send purchaseToken to your server for verification; do not log it.
   const serverResult = await fetch('https://your-server.com/api/verify-android', {
     method: 'POST',
     body: JSON.stringify({
@@ -3421,9 +3420,8 @@ suspend fun checkAndroidSubscription(): Map<String, Any> {
 
     val purchase = subscriptionPurchases.first()
     println("Purchase found: \${purchase.productId}")
-    println("Purchase token: \${purchase.purchaseToken}")
 
-    // Send to server for verification
+    // Send purchaseToken to your server for verification; do not log it.
     val serverResult = withContext(Dispatchers.IO) {
         verifyOnServer(
             purchaseToken = purchase.purchaseToken ?: "",
@@ -3472,9 +3470,8 @@ suspend fun checkAndroidSubscription(): Map<String, Any> {
 
     val purchase = subscriptionPurchases.first()
     println("Purchase found: \${purchase.productId}")
-    println("Purchase token: \${purchase.purchaseToken}")
 
-    // Send to server for verification
+    // Send purchaseToken to your server for verification; do not log it.
     val serverResult = withContext(Dispatchers.IO) {
         verifyOnServer(
             purchaseToken = purchase.purchaseToken ?: "",
@@ -3524,9 +3521,8 @@ Future<Map<String, dynamic>> checkAndroidSubscription() async {
 
   final purchase = subscriptionPurchases.first;
   print('Purchase found: \${purchase.productId}');
-  print('Purchase token: \${purchase.purchaseToken}');
 
-  // Send to server for verification
+  // Send purchaseToken to your server for verification; do not log it.
   final response = await http.post(
     Uri.parse('https://your-server.com/api/verify-android'),
     body: jsonEncode({
@@ -3577,9 +3573,8 @@ async Task<SubscriptionAccessResult> CheckAndroidSubscriptionAsync(string subscr
 
     // Purchase exists, but the client cannot determine expiry/refund/cancel state.
     Console.WriteLine($"Purchase found: {purchase.ProductId}");
-    Console.WriteLine($"Purchase token: {purchase.PurchaseToken}");
 
-    // Send to server for verification.
+    // Send purchaseToken to your server for verification; do not log it.
     var serverResult = await VerifyOnServerAsync(
         purchaseToken: purchase.PurchaseToken ?? "",
         productId: purchase.ProductId,
@@ -3615,9 +3610,8 @@ func check_android_subscription() -> Dictionary:
 
     var purchase = subscription_purchases[0]
     print("Purchase found: %s" % purchase.product_id)
-    print("Purchase token: %s" % purchase.purchase_token)
 
-    # Send to server for verification
+    # Send purchaseToken to your server for verification; do not log it.
     var http_request = HTTPRequest.new()
     add_child(http_request)
     http_request.request(

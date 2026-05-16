@@ -1,5 +1,6 @@
 import CodeBlock from '../../../components/CodeBlock';
 import SEO from '../../../components/SEO';
+import { MAUI_PACKAGE } from '../../../lib/versioning';
 
 function MauiSetup() {
   return (
@@ -104,15 +105,15 @@ function MauiSetup() {
           </a>
         </h2>
         <p>Add the package to your MAUI app project:</p>
-        <CodeBlock language="bash">
-          {`dotnet add package OpenIap.Maui --version 1.0.1`}
-        </CodeBlock>
+        <CodeBlock language="bash">{MAUI_PACKAGE.installCommand}</CodeBlock>
         <p>
-          Or add it directly to your app's <code>.csproj</code>:
+          This resolves the latest stable package from NuGet. If your project
+          pins package versions manually, use the current{' '}
+          <a href={MAUI_PACKAGE.versionedNugetUrl}>NuGet package reference</a>:
         </p>
         <CodeBlock language="xml">
           {`<ItemGroup>
-  <PackageReference Include="OpenIap.Maui" Version="1.0.1" />
+  ${MAUI_PACKAGE.packageReference}
 </ItemGroup>`}
         </CodeBlock>
 
@@ -317,7 +318,7 @@ using OpenIap.Maui;
 
 var kit = Iap.KitApi(new KitApiOptions
 {
-    ApiKey = "<iapkit-api-key>",
+    ApiKey = "openiap-kit_<your-key>",
     BaseUrl = "https://kit.openiap.dev",
 });
 
@@ -327,7 +328,7 @@ BindUserResponse bind = await kit.BindUserAsync(purchase.PurchaseToken!, "user_1
 
 using WebhookListener listener = Iap.ConnectWebhookStream(new WebhookListenerOptions
 {
-    ApiKey = "<iapkit-api-key>",
+    ApiKey = "openiap-kit_<your-key>",
     OnEvent = webhookEvent => Console.WriteLine(webhookEvent.Type),
     OnError = error => Console.WriteLine($"{error.Code}: {error.Message}"),
 });

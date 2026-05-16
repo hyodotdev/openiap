@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import CodeBlock from '../../../components/CodeBlock';
 import SEO from '../../../components/SEO';
+import { ANDROID_SDK, GOOGLE_PLAY_BILLING } from '../../../lib/versioning';
 
 function ReactNativeSetup() {
   return (
@@ -15,7 +16,7 @@ function ReactNativeSetup() {
       <p>
         <code>react-native-iap</code> provides in-app purchase support for React
         Native apps using Nitro Modules. It supports StoreKit 2 on iOS and
-        Google Play Billing 8.0+ on Android.
+        Google Play Billing {GOOGLE_PLAY_BILLING.version}+ on Android.
       </p>
 
       <div
@@ -181,12 +182,13 @@ end`}
         </h3>
         <ul>
           <li>
-            Requires <strong>minSdkVersion 24+</strong> and{' '}
-            <strong>compileSdkVersion 34+</strong>
+            Requires <strong>minSdkVersion {ANDROID_SDK.minSdk}+</strong> and{' '}
+            <strong>compileSdkVersion {ANDROID_SDK.compileSdk}+</strong>
           </li>
           <li>No additional native configuration needed</li>
           <li>
-            Uses Google Play Billing 8.0+ with automatic service reconnection
+            Uses Google Play Billing {GOOGLE_PLAY_BILLING.version}+ with
+            automatic service reconnection
           </li>
         </ul>
       </section>
@@ -472,7 +474,8 @@ switch (error.code) {
             iOS: Run <code>cd ios &amp;&amp; bundle exec pod install</code>
           </li>
           <li>
-            Android: Ensure <code>compileSdkVersion 34+</code> in{' '}
+            Android: Ensure{' '}
+            <code>compileSdkVersion {ANDROID_SDK.compileSdk}+</code> in{' '}
             <code>android/build.gradle</code>
           </li>
           <li>
