@@ -1,12 +1,5 @@
 import versionsFile from '../../openiap-versions.json?raw';
-import expoPackageFile from '../../../../libraries/expo-iap/package.json?raw';
-import reactNativePackageFile from '../../../../libraries/react-native-iap/package.json?raw';
-import flutterPubspecFile from '../../../../libraries/flutter_inapp_purchase/pubspec.yaml?raw';
-import godotPluginFile from '../../../../libraries/godot-iap/addons/godot-iap/plugin.cfg?raw';
-import kmpGradlePropertiesFile from '../../../../libraries/kmp-iap/gradle.properties?raw';
-import kmpVersionsCatalogFile from '../../../../libraries/kmp-iap/gradle/libs.versions.toml?raw';
-import mauiProjectFile from '../../../../libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj?raw';
-import googleOpenIapBuildFile from '../../../../packages/google/openiap/build.gradle.kts?raw';
+import * as versionMetadata from '../generated/version-metadata.json';
 
 type VersionKey = 'spec' | 'google' | 'apple';
 
@@ -45,108 +38,70 @@ function ensureVersions(data: Record<string, unknown>): VersionRecord {
   }, {}) as VersionRecord;
 }
 
-function readRequiredXmlValue(
-  xml: string,
-  tagName: string,
-  label: string
-): string {
-  const match = xml.match(new RegExp(`<${tagName}>([^<]+)</${tagName}>`));
-  const value = match?.[1]?.trim();
-
-  if (!value) {
-    throw new Error(`${label} missing <${tagName}>`);
-  }
-
-  return value;
-}
-
-function readRequiredPackageJsonString(
-  json: string,
-  key: string,
-  label: string
-): string {
-  const value = parseJson(json, label)[key];
-
+function readRequiredString(value: unknown, label: string): string {
   if (typeof value !== 'string' || value.trim() === '') {
-    throw new Error(`${label} missing "${key}" string`);
+    throw new Error(`version-metadata.json missing "${label}" string`);
   }
 
   return value;
 }
 
-function readRequiredMatchValue(
-  source: string,
-  pattern: RegExp,
+function readRequiredMetadataString(
+  key: keyof typeof versionMetadata,
   label: string
 ): string {
-  const value = source.match(pattern)?.[1]?.trim();
-
-  if (!value) {
-    throw new Error(`${label} not found`);
-  }
-
-  return value;
+  return readRequiredString(versionMetadata[key], label);
 }
 
 const parsedVersions = parseVersions(versionsFile);
-const EXPO_PACKAGE_VERSION = readRequiredPackageJsonString(
-  expoPackageFile,
-  'version',
-  'expo-iap package.json'
+const EXPO_PACKAGE_VERSION = readRequiredMetadataString(
+  'expoPackageVersion',
+  'expoPackageVersion'
 );
-const REACT_NATIVE_PACKAGE_VERSION = readRequiredPackageJsonString(
-  reactNativePackageFile,
-  'version',
-  'react-native-iap package.json'
+const REACT_NATIVE_PACKAGE_VERSION = readRequiredMetadataString(
+  'reactNativePackageVersion',
+  'reactNativePackageVersion'
 );
-const MAUI_PACKAGE_ID = readRequiredXmlValue(
-  mauiProjectFile,
-  'PackageId',
-  'OpenIap.Maui.csproj'
+const MAUI_PACKAGE_ID = readRequiredString(
+  versionMetadata.mauiPackageId,
+  'mauiPackageId'
 );
-const MAUI_PACKAGE_VERSION = readRequiredXmlValue(
-  mauiProjectFile,
-  'PackageVersion',
-  'OpenIap.Maui.csproj'
+const MAUI_PACKAGE_VERSION = readRequiredString(
+  versionMetadata.mauiPackageVersion,
+  'mauiPackageVersion'
 );
-const FLUTTER_PACKAGE_VERSION = flutterPubspecFile
-  .match(/^version:\s*(.+)$/m)?.[1]
-  ?.trim();
-const GODOT_PACKAGE_VERSION = godotPluginFile
-  .match(/^version="([^"]+)"$/m)?.[1]
-  ?.trim();
-const KMP_PACKAGE_VERSION = kmpGradlePropertiesFile
-  .match(/^libraryVersion=(.+)$/m)?.[1]
-  ?.trim();
-const GOOGLE_COMPILE_SDK = readRequiredMatchValue(
-  googleOpenIapBuildFile,
-  /compileSdk\s*=\s*(\d+)/,
-  'packages/google openiap compileSdk'
+const FLUTTER_PACKAGE_VERSION = readRequiredMetadataString(
+  'flutterPackageVersion',
+  'flutterPackageVersion'
 );
-const GOOGLE_MIN_SDK = readRequiredMatchValue(
-  googleOpenIapBuildFile,
-  /minSdk\s*=\s*(\d+)/,
-  'packages/google openiap minSdk'
+const GODOT_PACKAGE_VERSION = readRequiredMetadataString(
+  'godotPackageVersion',
+  'godotPackageVersion'
 );
-const GOOGLE_PLAY_BILLING_VERSION = readRequiredMatchValue(
-  googleOpenIapBuildFile,
-  /val\s+playBillingVersion\s*=\s*"([^"]+)"/,
-  'packages/google Play Billing version'
+const KMP_PACKAGE_VERSION = readRequiredMetadataString(
+  'kmpPackageVersion',
+  'kmpPackageVersion'
 );
-const KMP_COMPILE_SDK = readRequiredMatchValue(
-  kmpVersionsCatalogFile,
-  /^android-compileSdk = "([^"]+)"/m,
-  'kmp-iap android-compileSdk'
+const GOOGLE_COMPILE_SDK = readRequiredMetadataString(
+  'googleCompileSdk',
+  'googleCompileSdk'
 );
-const KMP_MIN_SDK = readRequiredMatchValue(
-  kmpVersionsCatalogFile,
-  /^android-minSdk = "([^"]+)"/m,
-  'kmp-iap android-minSdk'
+const GOOGLE_MIN_SDK = readRequiredMetadataString(
+  'googleMinSdk',
+  'googleMinSdk'
 );
-const KMP_TARGET_SDK = readRequiredMatchValue(
-  kmpVersionsCatalogFile,
-  /^android-targetSdk = "([^"]+)"/m,
-  'kmp-iap android-targetSdk'
+const GOOGLE_PLAY_BILLING_VERSION = readRequiredMetadataString(
+  'googlePlayBillingVersion',
+  'googlePlayBillingVersion'
+);
+const KMP_COMPILE_SDK = readRequiredMetadataString(
+  'kmpCompileSdk',
+  'kmpCompileSdk'
+);
+const KMP_MIN_SDK = readRequiredMetadataString('kmpMinSdk', 'kmpMinSdk');
+const KMP_TARGET_SDK = readRequiredMetadataString(
+  'kmpTargetSdk',
+  'kmpTargetSdk'
 );
 
 if (!FLUTTER_PACKAGE_VERSION) {

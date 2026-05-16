@@ -79,6 +79,108 @@ copy_file() {
 # Docs needs real file for Vercel deployment
 copy_file "packages/docs/openiap-versions.json"
 
+sync_docs_version_metadata() {
+    python3 <<'PY'
+import json
+import re
+from pathlib import Path
+import xml.etree.ElementTree as ET
+
+def read(path: str) -> str:
+    return Path(path).read_text(encoding="utf-8")
+
+def read_json(path: str) -> dict:
+    return json.loads(read(path))
+
+def required_match(path: str, pattern: str, label: str) -> str:
+    match = re.search(pattern, read(path), flags=re.MULTILINE)
+    if not match:
+        raise SystemExit(f"missing {label}")
+    value = match.group(1).strip()
+    if not value:
+        raise SystemExit(f"empty {label}")
+    return value
+
+def required_xml_text(path: str, tag: str, label: str) -> str:
+    root = ET.fromstring(read(path))
+    node = root.find(f".//{tag}")
+    value = (node.text or "").strip() if node is not None else ""
+    if not value:
+        raise SystemExit(f"missing {label}")
+    return value
+
+metadata = {
+    "_generatedBy": "scripts/sync-versions.sh",
+    "expoPackageVersion": read_json("libraries/expo-iap/package.json")["version"],
+    "reactNativePackageVersion": read_json("libraries/react-native-iap/package.json")["version"],
+    "flutterPackageVersion": required_match(
+        "libraries/flutter_inapp_purchase/pubspec.yaml",
+        r"^version:\s*(.+)$",
+        "Flutter package version",
+    ),
+    "godotPackageVersion": required_match(
+        "libraries/godot-iap/addons/godot-iap/plugin.cfg",
+        r'^version="([^"]+)"$',
+        "Godot package version",
+    ),
+    "kmpPackageVersion": required_match(
+        "libraries/kmp-iap/gradle.properties",
+        r"^libraryVersion=(.+)$",
+        "KMP package version",
+    ),
+    "mauiPackageId": required_xml_text(
+        "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
+        "PackageId",
+        "MAUI PackageId",
+    ),
+    "mauiPackageVersion": required_xml_text(
+        "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
+        "PackageVersion",
+        "MAUI PackageVersion",
+    ),
+    "googleCompileSdk": required_match(
+        "packages/google/openiap/build.gradle.kts",
+        r"compileSdk\s*=\s*(\d+)",
+        "Google compileSdk",
+    ),
+    "googleMinSdk": required_match(
+        "packages/google/openiap/build.gradle.kts",
+        r"minSdk\s*=\s*(\d+)",
+        "Google minSdk",
+    ),
+    "googlePlayBillingVersion": required_match(
+        "packages/google/openiap/build.gradle.kts",
+        r'val\s+playBillingVersion\s*=\s*"([^"]+)"',
+        "Google Play Billing version",
+    ),
+    "kmpCompileSdk": required_match(
+        "libraries/kmp-iap/gradle/libs.versions.toml",
+        r'^android-compileSdk = "([^"]+)"',
+        "KMP android-compileSdk",
+    ),
+    "kmpMinSdk": required_match(
+        "libraries/kmp-iap/gradle/libs.versions.toml",
+        r'^android-minSdk = "([^"]+)"',
+        "KMP android-minSdk",
+    ),
+    "kmpTargetSdk": required_match(
+        "libraries/kmp-iap/gradle/libs.versions.toml",
+        r'^android-targetSdk = "([^"]+)"',
+        "KMP android-targetSdk",
+    ),
+}
+
+target = Path("packages/docs/src/generated/version-metadata.json")
+target.parent.mkdir(parents=True, exist_ok=True)
+target.write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
+PY
+    echo "  ✓ packages/docs/src/generated/version-metadata.json"
+}
+
+# Docs cannot import files outside packages/docs on Vercel. Keep a generated
+# metadata copy inside the docs package, sourced from package/library metadata.
+sync_docs_version_metadata
+
 # Native packages can use symlinks
 create_symlink "packages/apple/Sources/openiap-versions.json" "../../../openiap-versions.json"
 create_symlink "packages/google/openiap-versions.json" "../../openiap-versions.json"

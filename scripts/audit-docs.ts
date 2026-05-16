@@ -18,6 +18,9 @@
  *   4. Reports drift as a punch-list (file:line — what's wrong).
  *   5. Checks release-note `Package Releases` lists so published package
  *      entries cannot silently lose their GitHub Release links.
+ *   6. Checks docs-local version metadata against package/library SSOT files
+ *      so `src/lib/versioning.ts` never drifts or imports outside the docs
+ *      package root used by Vercel.
  *
  * Exit code 0 = clean, 1 = at least one drift detected.
  *
@@ -38,6 +41,19 @@ const TYPES_FILE = resolve(REPO_ROOT, 'libraries/expo-iap/src/types.ts');
 const RELEASE_NOTES_FILE = resolve(
   REPO_ROOT,
   'packages/docs/src/pages/docs/updates/releases.tsx'
+);
+const VERSIONING_FILE = resolve(
+  REPO_ROOT,
+  'packages/docs/src/lib/versioning.ts'
+);
+const DOC_VERSIONS_FILE = resolve(
+  REPO_ROOT,
+  'packages/docs/openiap-versions.json'
+);
+const ROOT_VERSIONS_FILE = resolve(REPO_ROOT, 'openiap-versions.json');
+const DOC_VERSION_METADATA_FILE = resolve(
+  REPO_ROOT,
+  'packages/docs/src/generated/version-metadata.json'
 );
 
 type Drift = {
@@ -290,6 +306,267 @@ function auditReleaseNotePackageLinks(filePath: string): Drift[] {
   return drifts;
 }
 
+function readJsonRecord(
+  filePath: string,
+  drifts: Drift[],
+  rule: string,
+  label: string
+): Record<string, unknown> | null {
+  try {
+    const parsed = JSON.parse(readFileSync(filePath, 'utf8')) as unknown;
+    if (
+      parsed === null ||
+      typeof parsed !== 'object' ||
+      Array.isArray(parsed)
+    ) {
+      drifts.push({
+        file: filePath,
+        line: 1,
+        rule,
+        message: `${label} must contain a JSON object.`,
+      });
+      return null;
+    }
+    return parsed as Record<string, unknown>;
+  } catch (error) {
+    drifts.push({
+      file: filePath,
+      line: 1,
+      rule,
+      message: `${label} could not be parsed as JSON: ${String(error)}`,
+    });
+    return null;
+  }
+}
+
+function requireRegexValue(
+  filePath: string,
+  pattern: RegExp,
+  drifts: Drift[],
+  label: string
+): string | null {
+  if (!statSyncSafe(filePath)) {
+    drifts.push({
+      file: filePath,
+      line: 1,
+      rule: 'R10',
+      message: `${label} source file is missing.`,
+    });
+    return null;
+  }
+  const source = readFileSync(filePath, 'utf8');
+  const value = source.match(pattern)?.[1]?.trim();
+  if (!value) {
+    drifts.push({
+      file: filePath,
+      line: 1,
+      rule: 'R10',
+      message: `${label} source value was not found.`,
+    });
+    return null;
+  }
+  return value;
+}
+
+function requireJsonString(
+  filePath: string,
+  key: string,
+  drifts: Drift[],
+  label: string
+): string | null {
+  const data = readJsonRecord(filePath, drifts, 'R10', label);
+  const value = data?.[key];
+  if (typeof value !== 'string' || value.trim() === '') {
+    drifts.push({
+      file: filePath,
+      line: 1,
+      rule: 'R10',
+      message: `${label} missing "${key}" string.`,
+    });
+    return null;
+  }
+  return value;
+}
+
+function metadataKeyLine(source: string, key: string): number {
+  const index = source.indexOf(`"${key}"`);
+  return index === -1 ? 1 : lineNumberAt(source, index);
+}
+
+function auditVersionMetadata(): Drift[] {
+  const drifts: Drift[] = [];
+
+  const rootVersions = readJsonRecord(
+    ROOT_VERSIONS_FILE,
+    drifts,
+    'R10',
+    'openiap-versions.json'
+  );
+  const docsVersions = readJsonRecord(
+    DOC_VERSIONS_FILE,
+    drifts,
+    'R10',
+    'packages/docs/openiap-versions.json'
+  );
+  if (rootVersions && docsVersions) {
+    const rootJson = JSON.stringify(rootVersions);
+    const docsJson = JSON.stringify(docsVersions);
+    if (rootJson !== docsJson) {
+      drifts.push({
+        file: DOC_VERSIONS_FILE,
+        line: 1,
+        rule: 'R10',
+        message:
+          'Docs openiap-versions.json must be a real synced copy of the root openiap-versions.json for Vercel.',
+      });
+    }
+  }
+
+  const metadata = readJsonRecord(
+    DOC_VERSION_METADATA_FILE,
+    drifts,
+    'R10',
+    'packages/docs/src/generated/version-metadata.json'
+  );
+  if (metadata) {
+    const metadataSource = readFileSync(DOC_VERSION_METADATA_FILE, 'utf8');
+    const expected: Record<string, string | null> = {
+      _generatedBy: 'scripts/sync-versions.sh',
+      expoPackageVersion: requireJsonString(
+        resolve(REPO_ROOT, 'libraries/expo-iap/package.json'),
+        'version',
+        drifts,
+        'expo-iap package.json'
+      ),
+      reactNativePackageVersion: requireJsonString(
+        resolve(REPO_ROOT, 'libraries/react-native-iap/package.json'),
+        'version',
+        drifts,
+        'react-native-iap package.json'
+      ),
+      flutterPackageVersion: requireRegexValue(
+        resolve(REPO_ROOT, 'libraries/flutter_inapp_purchase/pubspec.yaml'),
+        /^version:\s*(.+)$/m,
+        drifts,
+        'flutter_inapp_purchase pubspec.yaml version'
+      ),
+      godotPackageVersion: requireRegexValue(
+        resolve(REPO_ROOT, 'libraries/godot-iap/addons/godot-iap/plugin.cfg'),
+        /^version="([^"]+)"$/m,
+        drifts,
+        'godot-iap plugin.cfg version'
+      ),
+      kmpPackageVersion: requireRegexValue(
+        resolve(REPO_ROOT, 'libraries/kmp-iap/gradle.properties'),
+        /^libraryVersion=(.+)$/m,
+        drifts,
+        'kmp-iap libraryVersion'
+      ),
+      mauiPackageId: requireRegexValue(
+        resolve(
+          REPO_ROOT,
+          'libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj'
+        ),
+        /<PackageId>([^<]+)<\/PackageId>/,
+        drifts,
+        'MAUI PackageId'
+      ),
+      mauiPackageVersion: requireRegexValue(
+        resolve(
+          REPO_ROOT,
+          'libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj'
+        ),
+        /<PackageVersion>([^<]+)<\/PackageVersion>/,
+        drifts,
+        'MAUI PackageVersion'
+      ),
+      googleCompileSdk: requireRegexValue(
+        resolve(REPO_ROOT, 'packages/google/openiap/build.gradle.kts'),
+        /compileSdk\s*=\s*(\d+)/,
+        drifts,
+        'openiap-google compileSdk'
+      ),
+      googleMinSdk: requireRegexValue(
+        resolve(REPO_ROOT, 'packages/google/openiap/build.gradle.kts'),
+        /minSdk\s*=\s*(\d+)/,
+        drifts,
+        'openiap-google minSdk'
+      ),
+      googlePlayBillingVersion: requireRegexValue(
+        resolve(REPO_ROOT, 'packages/google/openiap/build.gradle.kts'),
+        /val\s+playBillingVersion\s*=\s*"([^"]+)"/,
+        drifts,
+        'openiap-google Play Billing version'
+      ),
+      kmpCompileSdk: requireRegexValue(
+        resolve(REPO_ROOT, 'libraries/kmp-iap/gradle/libs.versions.toml'),
+        /^android-compileSdk = "([^"]+)"/m,
+        drifts,
+        'kmp-iap android-compileSdk'
+      ),
+      kmpMinSdk: requireRegexValue(
+        resolve(REPO_ROOT, 'libraries/kmp-iap/gradle/libs.versions.toml'),
+        /^android-minSdk = "([^"]+)"/m,
+        drifts,
+        'kmp-iap android-minSdk'
+      ),
+      kmpTargetSdk: requireRegexValue(
+        resolve(REPO_ROOT, 'libraries/kmp-iap/gradle/libs.versions.toml'),
+        /^android-targetSdk = "([^"]+)"/m,
+        drifts,
+        'kmp-iap android-targetSdk'
+      ),
+    };
+
+    for (const [key, expectedValue] of Object.entries(expected)) {
+      if (expectedValue === null) continue;
+      if (metadata[key] !== expectedValue) {
+        drifts.push({
+          file: DOC_VERSION_METADATA_FILE,
+          line: metadataKeyLine(metadataSource, key),
+          rule: 'R10',
+          message: `${key} must match the package/library SSOT value "${expectedValue}". Run ./scripts/sync-versions.sh.`,
+        });
+      }
+    }
+  }
+
+  if (!statSyncSafe(VERSIONING_FILE)) {
+    drifts.push({
+      file: VERSIONING_FILE,
+      line: 1,
+      rule: 'R10',
+      message: 'versioning.ts is missing.',
+    });
+    return drifts;
+  }
+
+  const source = readFileSync(VERSIONING_FILE, 'utf8');
+  if (!source.includes('../generated/version-metadata.json')) {
+    drifts.push({
+      file: VERSIONING_FILE,
+      line: 1,
+      rule: 'R10',
+      message:
+        'versioning.ts must read framework package versions from generated version-metadata.json.',
+    });
+  }
+  for (const forbidden of ['../../../../libraries/', '../../../../packages/']) {
+    const index = source.indexOf(forbidden);
+    if (index !== -1) {
+      drifts.push({
+        file: VERSIONING_FILE,
+        line: lineNumberAt(source, index),
+        rule: 'R10',
+        message:
+          'versioning.ts must not raw-import files outside packages/docs; Vercel deploys the docs package root.',
+      });
+    }
+  }
+
+  return drifts;
+}
+
 const RESERVED_WORDS = new Set([
   'true',
   'false',
@@ -526,6 +803,7 @@ async function main() {
   }
 
   drifts.push(...auditReleaseNotePackageLinks(RELEASE_NOTES_FILE));
+  drifts.push(...auditVersionMetadata());
 
   // R5 (broken /docs links) is a hard failure; R3 (field name not in
   // generated types) is a warning because top-level scalar function

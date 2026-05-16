@@ -26,3 +26,8 @@
   metadata helpers (for example `FLUTTER_PACKAGE`, `KMP_PACKAGE`, and
   `MAUI_PACKAGE` in `src/lib/versioning.ts`), not inline version literals in
   page components.
+- `src/lib/versioning.ts` must only read framework package versions from
+  `src/generated/version-metadata.json`. That generated file is synced from
+  the real package metadata by `scripts/sync-versions.sh` so Vercel can build
+  from the `packages/docs` root without importing files outside the docs
+  package.

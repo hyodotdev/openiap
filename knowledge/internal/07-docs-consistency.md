@@ -55,6 +55,7 @@ react-native-iap / godot-iap, then the Apple wrapper must also default to
 description is the canonical statement.
 
 When changing a default, update:
+
 1. The GraphQL schema description.
 2. Re-run `bun run generate`.
 3. Every wrapper SDK's `?? <default>` expression and JSDoc / KDoc / etc.
@@ -69,6 +70,7 @@ The audit script greps for fields that don't appear in the type definition
 and flags them.
 
 Example failure modes already encountered:
+
 - `BillingProgramAvailabilityResultAndroid` doc listed
   `responseCode` + `debugMessage` — neither field exists; the type has
   `billingProgram` + `isAvailable`.
@@ -94,6 +96,7 @@ the union is `'browser'` only, but the doc claimed
 
 Anchor links should point to existing pages and section anchors. Common
 recent failures:
+
 - "Use verifyPurchase" link pointed to `/docs/apis/get-active-subscriptions`
   (totally unrelated).
 - `getExternalPurchaseCustomLinkTokenIOS` Returns linked to the
@@ -121,6 +124,7 @@ exactly as Google / Apple states it.
 Code examples in doc pages should at minimum parse / type-check against
 the wrapper they target. The audit script does NOT yet run a full
 TypeScript / Kotlin / Dart parser, but it does:
+
 - Verify imports (`import {…} from 'expo-iap'`) reference symbols that
   expo-iap actually exports.
 - Verify field accesses on shown objects (e.g. `purchase.purchaseToken`)
@@ -152,6 +156,27 @@ the GitHub Release does not exist yet.
 `bun run audit:docs` fails bare package/version entries under published
 `Package Releases` blocks so link regressions are caught before publishing.
 
+### R10 — Docs version metadata stays synced with package metadata
+
+`packages/docs/src/lib/versioning.ts` must not import package metadata from
+outside `packages/docs`. Vercel uploads the docs package root, so imports such
+as `../../../../libraries/expo-iap/package.json?raw` pass locally but fail in
+Vercel builds.
+
+Framework package versions and Android SDK constants used by docs must flow
+through `packages/docs/src/generated/version-metadata.json`, which is generated
+by `scripts/sync-versions.sh` from the real SSOT files:
+
+- Expo / React Native: each library `package.json`
+- Flutter: `libraries/flutter_inapp_purchase/pubspec.yaml`
+- Godot: `libraries/godot-iap/addons/godot-iap/plugin.cfg`
+- KMP: `libraries/kmp-iap/gradle.properties` and `gradle/libs.versions.toml`
+- MAUI: `libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj`
+- Google Android SDK / Play Billing: `packages/google/openiap/build.gradle.kts`
+
+`bun run audit:docs` fails if this generated metadata drifts from the SSOT
+files or if `versioning.ts` reintroduces raw imports outside `packages/docs`.
+
 ## Pre-commit checklist
 
 Run before every `git push` on docs / SDK changes:
@@ -181,6 +206,7 @@ positives in CI.
 
 `scripts/audit-docs.ts` is the executable companion to this guide. It
 parses every `/docs/apis/*.tsx` and `/docs/types/*.tsx` page, extracts:
+
 - `<Link to="/docs/...">` targets
 - `<code>fieldName</code>` mentions inside Returns / Parameters tables
 - String-literal enum values in `<code>'…'</code>` blocks

@@ -981,6 +981,47 @@ function checkFrameworkDependencyHygiene() {
     'packages/docs/openiap-versions.json',
     'Docs package version copy',
   );
+  expectFile('packages/docs/src/generated/version-metadata.json');
+  if (exists('packages/docs/src/generated/version-metadata.json')) {
+    const docsVersionMetadata = readJson('packages/docs/src/generated/version-metadata.json');
+    const expectedDocsVersionMetadata = {
+      _generatedBy: 'scripts/sync-versions.sh',
+      expoPackageVersion: readJson('libraries/expo-iap/package.json').version,
+      reactNativePackageVersion: readJson('libraries/react-native-iap/package.json').version,
+      flutterPackageVersion: read('libraries/flutter_inapp_purchase/pubspec.yaml')
+        .match(/^version:\s*(.+)$/m)?.[1]
+        ?.trim(),
+      godotPackageVersion: read('libraries/godot-iap/addons/godot-iap/plugin.cfg')
+        .match(/^version="([^"]+)"$/m)?.[1]
+        ?.trim(),
+      kmpPackageVersion: read('libraries/kmp-iap/gradle.properties')
+        .match(/^libraryVersion=(.+)$/m)?.[1]
+        ?.trim(),
+      mauiPackageId: read('libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj')
+        .match(/<PackageId>([^<]+)<\/PackageId>/)?.[1]
+        ?.trim(),
+      mauiPackageVersion: read('libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj')
+        .match(/<PackageVersion>([^<]+)<\/PackageVersion>/)?.[1]
+        ?.trim(),
+      googleCompileSdk: read('packages/google/openiap/build.gradle.kts')
+        .match(/compileSdk\s*=\s*(\d+)/)?.[1],
+      googleMinSdk: read('packages/google/openiap/build.gradle.kts')
+        .match(/minSdk\s*=\s*(\d+)/)?.[1],
+      googlePlayBillingVersion: read('packages/google/openiap/build.gradle.kts')
+        .match(/val\s+playBillingVersion\s*=\s*"([^"]+)"/)?.[1],
+      kmpCompileSdk: read('libraries/kmp-iap/gradle/libs.versions.toml')
+        .match(/^android-compileSdk = "([^"]+)"/m)?.[1],
+      kmpMinSdk: read('libraries/kmp-iap/gradle/libs.versions.toml')
+        .match(/^android-minSdk = "([^"]+)"/m)?.[1],
+      kmpTargetSdk: read('libraries/kmp-iap/gradle/libs.versions.toml')
+        .match(/^android-targetSdk = "([^"]+)"/m)?.[1],
+    };
+    for (const [key, expectedValue] of Object.entries(expectedDocsVersionMetadata)) {
+      if (docsVersionMetadata[key] !== expectedValue) {
+        fail(`packages/docs/src/generated/version-metadata.json ${key} must be synced from SSOT metadata`);
+      }
+    }
+  }
   expectIncludes('packages/apple/README.md', [
     '.package(url: "https://github.com/hyodotdev/openiap.git", from: "<version>")',
     "pod 'openiap', '~> <version>'",
@@ -995,14 +1036,19 @@ function checkFrameworkDependencyHygiene() {
     "'spec'",
     "'google'",
     "'apple'",
-    'libraries/expo-iap/package.json?raw',
-    'libraries/react-native-iap/package.json?raw',
-    'libraries/godot-iap/addons/godot-iap/plugin.cfg?raw',
+    "../generated/version-metadata.json",
+    'expoPackageVersion',
+    'reactNativePackageVersion',
+    'godotPackageVersion',
     'EXPO_PACKAGE_VERSION',
     'REACT_NATIVE_PACKAGE_VERSION',
     'GODOT_PACKAGE_VERSION',
     'dependencyLine: `"expo-iap": "^${EXPO_PACKAGE_VERSION}"`',
   ], 'docs versioning keys');
+  expectNotIncludes('packages/docs/src/lib/versioning.ts', [
+    '../../../../libraries/',
+    '../../../../packages/',
+  ], 'docs versioning must not import files outside packages/docs because Vercel uploads the docs package root');
   expectIncludes('packages/docs/src/lib/images.ts', [
     'EXPO_PACKAGE.installCommand',
     'REACT_NATIVE_PACKAGE.installCommand',
@@ -1216,10 +1262,10 @@ function checkFrameworkDependencyHygiene() {
   if (!mauiVersion) fail('OpenIap.Maui.csproj is missing PackageVersion');
   if (flutterVersion) {
     expectIncludes('packages/docs/src/lib/versioning.ts', [
-      'flutter_inapp_purchase/pubspec.yaml?raw',
+      'flutterPackageVersion',
       'FLUTTER_PACKAGE',
       'dependencyLine: `flutter_inapp_purchase: ^${FLUTTER_PACKAGE_VERSION}`',
-    ], 'docs Flutter package metadata must derive from pubspec.yaml');
+    ], 'docs Flutter package metadata must derive from generated docs metadata');
     expectIncludes('packages/docs/src/lib/images.ts', [
       'FLUTTER_PACKAGE.installCommand',
     ], 'docs Flutter library listing install command');
@@ -1261,10 +1307,10 @@ function checkFrameworkDependencyHygiene() {
   }
   if (kmpVersion) {
     expectIncludes('packages/docs/src/lib/versioning.ts', [
-      'kmp-iap/gradle.properties?raw',
+      'kmpPackageVersion',
       'KMP_PACKAGE',
       'installCommand: `implementation("io.github.hyochan:kmp-iap:${KMP_PACKAGE_VERSION}")`',
-    ], 'docs KMP package metadata must derive from gradle.properties');
+    ], 'docs KMP package metadata must derive from generated docs metadata');
     expectIncludes('packages/docs/src/lib/images.ts', [
       'KMP_PACKAGE.installCommand',
     ], 'docs KMP install command');
@@ -1360,9 +1406,11 @@ function checkFrameworkDependencyHygiene() {
     fail('KMP example libs.versions.toml must declare Android SDK versions');
   } else {
     expectIncludes('packages/docs/src/lib/versioning.ts', [
-      'kmp-iap/gradle/libs.versions.toml?raw',
+      'kmpCompileSdk',
+      'kmpMinSdk',
+      'kmpTargetSdk',
       'export const KMP_ANDROID_SDK',
-    ], 'docs KMP Android SDK metadata must derive from libs.versions.toml');
+    ], 'docs KMP Android SDK metadata must derive from generated docs metadata');
     expectIncludes('packages/docs/src/pages/docs/setup/kmp.tsx', [
       'compileSdk = ${KMP_ANDROID_SDK.compileSdk}',
       'minSdk = ${KMP_ANDROID_SDK.minSdk}',
@@ -1398,13 +1446,12 @@ function checkFrameworkDependencyHygiene() {
   ], 'KMP example subscription product handling must not type-check impossible product variants');
   if (mauiVersion) {
     expectIncludes('packages/docs/src/lib/versioning.ts', [
-      'OpenIap.Maui.csproj?raw',
+      'mauiPackageId',
+      'mauiPackageVersion',
       'MAUI_PACKAGE',
-      'PackageId',
-      'PackageVersion',
       'installCommand: `dotnet add package ${MAUI_PACKAGE_ID}`',
       'packageReference: `<PackageReference Include="${MAUI_PACKAGE_ID}" Version="${MAUI_PACKAGE_VERSION}" />`',
-    ], 'docs MAUI package metadata must derive from csproj');
+    ], 'docs MAUI package metadata must derive from generated docs metadata');
     expectIncludes('packages/docs/src/lib/images.ts', [
       'MAUI_PACKAGE',
       'installCommand: MAUI_PACKAGE.installCommand',
@@ -2430,10 +2477,12 @@ function checkFrameworkDependencyHygiene() {
       `NitroIap_minSdkVersion=${googleMinSdk}`,
     ], 'React Native Android minSdk must follow openiap-google');
     expectIncludes('packages/docs/src/lib/versioning.ts', [
-      'packages/google/openiap/build.gradle.kts?raw',
+      'googleCompileSdk',
+      'googleMinSdk',
+      'googlePlayBillingVersion',
       'export const ANDROID_SDK',
       'export const GOOGLE_PLAY_BILLING',
-    ], 'docs Android SDK metadata must derive from packages/google');
+    ], 'docs Android SDK metadata must derive from generated docs metadata');
     expectIncludes('packages/docs/src/pages/docs/setup/expo.tsx', [
       'ANDROID_SDK',
       'GOOGLE_PLAY_BILLING',
