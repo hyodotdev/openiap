@@ -364,13 +364,14 @@ import StoreKit
 
     @available(*, deprecated, message: "Use promotedProductListenerIOS + requestPurchase instead")
     @objc func requestPurchaseOnPromotedProductIOSWithCompletion(_ completion: @escaping (Bool, Error?) -> Void) {
-        completion(
-            false,
-            PurchaseError.make(
-                code: .featureNotSupported,
-                message: "Use promotedProductListenerIOS + requestPurchase instead"
-            )
-        )
+        Task {
+            do {
+                let result = try await requestPurchaseOnPromotedProductIOS()
+                completion(result, nil)
+            } catch {
+                completion(false, error)
+            }
+        }
     }
 
     @objc func deepLinkToSubscriptionsWithCompletion(_ completion: @escaping (Error?) -> Void) {

@@ -83,16 +83,17 @@ jobs:
 
     - name: Calculate new version
       id: version
+      env:
+        TARGET_VERSION: ${{ github.event.inputs.target_version }}
+        VERSION_TYPE: ${{ github.event.inputs.version }}
+        IS_PRERELEASE: ${{ github.event.inputs.prerelease }}
       run: |
         # Read current apple version from openiap-versions.json
         CURRENT_VERSION=$(jq -r '.apple' openiap-versions.json)
         echo "Current version: $CURRENT_VERSION"
         echo "PREVIOUS_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
         echo "previous_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
-        TARGET_VERSION="${{ github.event.inputs.target_version }}"
 
-        VERSION_TYPE="${{ github.event.inputs.version }}"
-        IS_PRERELEASE="${{ github.event.inputs.prerelease }}"
         BASE_VERSION="${CURRENT_VERSION%%-*}"
         IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
 

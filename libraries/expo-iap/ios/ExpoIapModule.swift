@@ -304,12 +304,9 @@ public final class ExpoIapModule: Module {
 
         AsyncFunction("requestPurchaseOnPromotedProductIOS") { () async throws -> Bool in
             ExpoIapLog.payload("requestPurchaseOnPromotedProductIOS", payload: nil)
-            throw IapException.from(
-                PurchaseError.make(
-                    code: .featureNotSupported,
-                    message: "Use promotedProductListenerIOS + requestPurchase instead"
-                )
-            )
+            let result = try await OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()
+            ExpoIapLog.result("requestPurchaseOnPromotedProductIOS", value: result)
+            return result
         }
 
         AsyncFunction("getStorefront") { () async throws -> String in

@@ -14,6 +14,10 @@ on:
           - major
         default: patch
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -28,16 +32,18 @@ jobs:
 
       - name: Calculate new version
         id: version
+        env:
+          VERSION_TYPE: ${{ github.event.inputs.version }}
         run: |
           CURRENT_VERSION=$(jq -r '.spec' openiap-versions.json)
           echo "Current version: $CURRENT_VERSION"
 
-          if [ "${{ github.event.inputs.version }}" = "current" ]; then
+          if [ "$VERSION_TYPE" = "current" ]; then
             NEW_VERSION="$CURRENT_VERSION"
             echo "Using current version (no bump): $NEW_VERSION"
           else
             IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
-            case "${{ github.event.inputs.version }}" in
+            case "$VERSION_TYPE" in
               major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
               minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
               patch) PATCH=$((PATCH + 1)) ;;

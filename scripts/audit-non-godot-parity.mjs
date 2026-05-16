@@ -607,11 +607,16 @@ function checkFlutter() {
     'libraries/flutter_inapp_purchase/macos/Classes/FlutterInappPurchasePlugin.swift',
   ]) {
     expectNotIncludes(nativePlugin, [
-      'OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()',
       'OpenIapModule.shared.validateReceiptIOS',
       'OpenIapModule.shared.getStorefrontIOS()',
     ], 'Flutter deprecated native OpenIAP calls');
   }
+  expectIncludes('libraries/flutter_inapp_purchase/ios/Classes/FlutterInappPurchasePlugin.swift', [
+    'OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()',
+  ], 'Flutter iOS promoted purchase bridge');
+  expectIncludes('libraries/flutter_inapp_purchase/macos/Classes/FlutterInappPurchasePlugin.swift', [
+    'OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()',
+  ], 'Flutter macOS promoted purchase bridge');
   expectIncludes('libraries/react-native-iap/ios/HybridRnIap.swift', [
     'func buyPromotedProductIOS() throws -> Promise<Void>',
     'OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()',
@@ -620,6 +625,7 @@ function checkFlutter() {
   expectIncludes('libraries/expo-iap/ios/ExpoIapModule.swift', [
     'throw IapException.from(error)',
     'code: .purchaseVerificationFailed',
+    'OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()',
     'try await OpenIapModule.shared.getStorefront()',
   ], 'Expo iOS error/storefront bridge');
   expectIncludes('libraries/expo-iap/ios/onside/OnsideIapModule.swift', [
@@ -779,10 +785,8 @@ function checkApple() {
     'func requestPurchaseWithPayload',
     'OpenIapSerialization.requestPurchaseProps(from: payload)',
     'func getStorefrontWithCompletion',
-  ], 'Apple ObjC purchase bridge');
-  expectNotIncludes(rel(base, 'Sources/OpenIapModule+ObjC.swift'), [
     'try await requestPurchaseOnPromotedProductIOS()',
-  ], 'Apple ObjC deprecated bridge');
+  ], 'Apple ObjC purchase bridge');
   expectIncludes(rel(base, 'Tests/OpenIapTests/VerifyPurchaseTests.swift'), [
     'testStorefrontUsesUnifiedProtocolMethod',
     'getStorefrontCallCount',

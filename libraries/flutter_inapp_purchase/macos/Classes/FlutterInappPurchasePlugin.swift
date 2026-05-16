@@ -608,8 +608,24 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
 
     private func requestPurchaseOnPromotedProductIOS(result: @escaping FlutterResult) {
         FlutterIapLog.debug("requestPurchaseOnPromotedProductIOS called")
-        let code: ErrorCode = .featureNotSupported
-        result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: nil))
+        Task { @MainActor in
+            do {
+                let purchased = try await OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()
+                FlutterIapLog.result("requestPurchaseOnPromotedProductIOS", value: purchased)
+                result(purchased)
+            } catch let purchaseError as PurchaseError {
+                FlutterIapLog.failure("requestPurchaseOnPromotedProductIOS", error: purchaseError)
+                result(FlutterError(
+                    code: purchaseError.code.rawValue,
+                    message: purchaseError.message,
+                    details: purchaseError.productId
+                ))
+            } catch {
+                FlutterIapLog.failure("requestPurchaseOnPromotedProductIOS", error: error)
+                let code: ErrorCode = .purchaseError
+                result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
+            }
+        }
     }
 
     private func getPromotedProductIOS(result: @escaping FlutterResult) {

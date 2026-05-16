@@ -420,7 +420,35 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios
     @available(*, deprecated, message: "Use promotedProductListenerIOS + requestPurchase instead")
     public func requestPurchaseOnPromotedProductIOS() async throws -> Bool {
+        #if os(iOS)
+        guard let sku = await state.promotedProductIdentifier() else {
+            return false
+        }
+
+        try await ensureConnection()
+        let product = try await storeProduct(for: sku)
+        let request: RequestPurchaseProps
+
+        switch product.type {
+        case .autoRenewable, .nonRenewable:
+            let iosProps = RequestSubscriptionIosProps(sku: sku)
+            request = RequestPurchaseProps(
+                request: .subscription(RequestSubscriptionPropsByPlatforms(android: nil, ios: iosProps)),
+                type: .subs
+            )
+        default:
+            let iosProps = RequestPurchaseIosProps(sku: sku)
+            request = RequestPurchaseProps(
+                request: .purchase(RequestPurchasePropsByPlatforms(android: nil, ios: iosProps)),
+                type: .inApp
+            )
+        }
+
+        _ = try await requestPurchase(request)
+        return true
+        #else
         throw makePurchaseError(code: .featureNotSupported)
+        #endif
     }
 
     /// Restore non-consumable and active subscription purchases.

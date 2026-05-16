@@ -70,13 +70,14 @@ jobs:
 
     - name: Calculate new version
       id: version
+      env:
+        VERSION_TYPE: ${{ github.event.inputs.version }}
+        IS_PRERELEASE: ${{ github.event.inputs.prerelease }}
       run: |
         # Read current google version from openiap-versions.json
         CURRENT_VERSION=$(jq -r '.google' openiap-versions.json)
         echo "Current version: $CURRENT_VERSION"
 
-        VERSION_TYPE="${{ github.event.inputs.version }}"
-        IS_PRERELEASE="${{ github.event.inputs.prerelease }}"
         BASE_VERSION="${CURRENT_VERSION%%-*}"
         IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
 

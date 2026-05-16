@@ -25,7 +25,6 @@ concurrency:
 
 permissions:
   contents: write
-  id-token: write
 
 jobs:
   validate-android:
@@ -130,6 +129,9 @@ jobs:
 
   deploy:
     needs: [validate-android, validate-ios]
+    permissions:
+      contents: write
+      id-token: write
     runs-on: ubuntu-latest
     defaults:
       run:
