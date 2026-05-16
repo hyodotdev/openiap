@@ -3,13 +3,13 @@
 extend type Mutation {
   """
   Acknowledge a non-consumable purchase. Required within 3 days or Google auto-refunds.
-  See: https://www.openiap.dev/docs/apis/android/acknowledge-purchase-android
+  See: https://openiap.dev/docs/apis/android/acknowledge-purchase-android
   """
   # Future
   acknowledgePurchaseAndroid(purchaseToken: String!): Boolean!
   """
   Consume a consumable purchase so it can be re-bought.
-  See: https://www.openiap.dev/docs/apis/android/consume-purchase-android
+  See: https://openiap.dev/docs/apis/android/consume-purchase-android
   """
   # Future
   consumePurchaseAndroid(purchaseToken: String!): Boolean!
@@ -20,7 +20,7 @@ extend type Mutation {
 
   Returns true if available, false otherwise.
   Throws OpenIapError.NotPrepared if billing client not ready.
-  See: https://www.openiap.dev/docs/apis/android/check-alternative-billing-availability-android
+  See: https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android
   """
   # Future
   checkAlternativeBillingAvailabilityAndroid: Boolean!
@@ -30,7 +30,7 @@ extend type Mutation {
 
   Returns true if user accepted, false if user canceled.
   Throws OpenIapError.NotPrepared if billing client not ready.
-  See: https://www.openiap.dev/docs/apis/android/show-alternative-billing-dialog-android
+  See: https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android
   """
   # Future
   showAlternativeBillingDialogAndroid: Boolean!
@@ -41,7 +41,7 @@ extend type Mutation {
 
   Returns token string, or null if creation failed.
   Throws OpenIapError.NotPrepared if billing client not ready.
-  See: https://www.openiap.dev/docs/apis/android/create-alternative-billing-token-android
+  See: https://openiap.dev/docs/apis/android/create-alternative-billing-token-android
   """
   # Future
   createAlternativeBillingTokenAndroid: String
@@ -54,7 +54,7 @@ extend type Mutation {
   Available in Google Play Billing Library 8.2.0+.
   Returns availability result with isAvailable flag.
   Throws OpenIapError.NotPrepared if billing client not ready.
-  See: https://www.openiap.dev/docs/apis/android/is-billing-program-available-android
+  See: https://openiap.dev/docs/apis/android/is-billing-program-available-android
   """
   # Future
   isBillingProgramAvailableAndroid(program: BillingProgramAndroid!): BillingProgramAvailabilityResultAndroid!
@@ -65,7 +65,7 @@ extend type Mutation {
 
   Returns external transaction token needed for reporting external transactions.
   Throws OpenIapError.NotPrepared if billing client not ready.
-  See: https://www.openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
+  See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
   """
   # Future
   createBillingProgramReportingDetailsAndroid(program: BillingProgramAndroid!): BillingProgramReportingDetailsAndroid!
@@ -76,7 +76,7 @@ extend type Mutation {
 
   Shows Play Store dialog and optionally launches external URL.
   Throws OpenIapError.NotPrepared if billing client not ready.
-  See: https://www.openiap.dev/docs/apis/android/launch-external-link-android
+  See: https://openiap.dev/docs/apis/android/launch-external-link-android
   """
   # Future
   launchExternalLinkAndroid(params: LaunchExternalLinkParamsAndroid!): Boolean!
