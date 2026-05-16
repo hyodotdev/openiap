@@ -256,14 +256,22 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     private fun Map<String, Any?>.toObjCMap(): Map<Any?, Any?> =
         entries.associate { (key, value) -> key to value.toObjCValue() }
 
-    private fun Any?.toObjCValue(): Any = when (this) {
+    private fun Any?.toObjCValue(): Any = when (val value = this) {
         null -> NSNull()
-        is Map<*, *> -> entries.mapNotNull { (key, value) ->
-            key ?: return@mapNotNull null
-            key to value.toObjCValue()
-        }.toMap()
-        is List<*> -> map { it.toObjCValue() }
-        else -> this
+        is Map<*, *> -> NSMutableDictionary().apply {
+            value.forEach { (key, nestedValue) ->
+                if (key != null) {
+                    setObject(
+                        nestedValue.toObjCValue(),
+                        NSString.create(string = key.toString())
+                    )
+                }
+            }
+        }
+        is List<*> -> NSMutableArray().apply {
+            value.forEach { addObject(it.toObjCValue()) }
+        }
+        else -> value
     }
 
     /**
