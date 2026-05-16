@@ -63,15 +63,15 @@ function normalizeIosBundleId(input: string): string {
   return normalized;
 }
 
-function normalizeAppAppleId(input: number): number {
-  if (!Number.isFinite(input) || input <= 0) {
+export function normalizeAppAppleId(input: number): number {
+  if (!Number.isSafeInteger(input) || input <= 0) {
     throw createError(
       ErrorCode.INVALID_INPUT,
-      "App Apple ID must be a positive number.",
+      "App Apple ID must be a positive safe integer.",
     );
   }
 
-  return Math.trunc(input);
+  return input;
 }
 
 function normalizeAppStoreIssuerId(input: string): string {

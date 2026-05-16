@@ -1,6 +1,11 @@
-import { mutation } from "../_generated/server";
+import { mutation, type MutationCtx } from "../_generated/server";
 import { v } from "convex/values";
-import type { Doc } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
+
+import {
+  resolveProjectByApiKeyFromDb,
+  resolveProjectByIdForCurrentUserFromDb,
+} from "../projects/helpers";
 
 const platformValidator = v.union(v.literal("IOS"), v.literal("Android"));
 const typeValidator = v.union(
@@ -15,6 +20,26 @@ const stateValidator = v.union(
   v.literal("Removed"),
 );
 
+async function resolveProjectForMutationArgs(
+  ctx: MutationCtx,
+  args: { apiKey?: string; projectId?: Id<"projects"> },
+): Promise<Doc<"projects"> | null> {
+  if (args.projectId) {
+    const resolved = await resolveProjectByIdForCurrentUserFromDb(
+      ctx,
+      args.projectId,
+    );
+    return resolved?.project ?? null;
+  }
+
+  if (args.apiKey !== undefined) {
+    const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
+    return resolved?.project ?? null;
+  }
+
+  throw new Error("apiKey or projectId is required");
+}
+
 // Public mutation: upsert a product in kit's catalog. Authoritative
 // state lives in App Store Connect / Play Console; this row is a
 // kit-side cache so the dashboard, MCP server, and SDKs share one
@@ -22,7 +47,8 @@ const stateValidator = v.union(
 // — until then, treat this as a hand-managed catalog.
 export const upsertProduct = mutation({
   args: {
-    apiKey: v.string(),
+    apiKey: v.optional(v.string()),
+    projectId: v.optional(v.id("projects")),
     productId: v.string(),
     platform: platformValidator,
     type: typeValidator,
@@ -50,20 +76,19 @@ export const upsertProduct = mutation({
     created: v.boolean(),
   }),
   handler: async (ctx, args) => {
-    const project = await ctx.db
-      .query("projects")
-      .withIndex("by_api_key", (q) => q.eq("apiKey", args.apiKey))
-      .unique();
+    const project = await resolveProjectForMutationArgs(ctx, args);
     if (!project) throw new Error("Invalid API key");
 
-    // Reject negative prices. The catalog row would otherwise round-
-    // trip into push-sync (asc.ts / play.ts) and either crash on
-    // Apple's price-tier lookup or land a negative `priceMicros` on
-    // Play, neither of which the operator can correct from the
-    // dashboard later (PR #124
-    // (https://github.com/hyodotdev/openiap/pull/124) review).
-    if (args.priceAmountMicros !== undefined && args.priceAmountMicros < 0) {
-      throw new Error("priceAmountMicros must be non-negative");
+    // Reject unsafe prices. The catalog row round-trips through JS
+    // numbers into push-sync (asc.ts / play.ts); values beyond the
+    // safe-integer range can already be rounded before they reach the
+    // store API.
+    if (
+      args.priceAmountMicros !== undefined &&
+      (!Number.isSafeInteger(args.priceAmountMicros) ||
+        args.priceAmountMicros < 0)
+    ) {
+      throw new Error("priceAmountMicros must be a non-negative safe integer");
     }
 
     // iOS subscriptions REQUIRE a subscriptionGroupName upstream —
@@ -160,7 +185,8 @@ export const upsertProduct = mutation({
 // drive-by clobber.
 export const setProductState = mutation({
   args: {
-    apiKey: v.string(),
+    apiKey: v.optional(v.string()),
+    projectId: v.optional(v.id("projects")),
     productId: v.string(),
     platform: platformValidator,
     state: stateValidator,
@@ -170,10 +196,7 @@ export const setProductState = mutation({
     state: stateValidator,
   }),
   handler: async (ctx, args) => {
-    const project = await ctx.db
-      .query("projects")
-      .withIndex("by_api_key", (q) => q.eq("apiKey", args.apiKey))
-      .unique();
+    const project = await resolveProjectForMutationArgs(ctx, args);
     if (!project) throw new Error("Invalid API key");
 
     const existing = await ctx.db
@@ -197,16 +220,14 @@ export const setProductState = mutation({
 
 export const removeProduct = mutation({
   args: {
-    apiKey: v.string(),
+    apiKey: v.optional(v.string()),
+    projectId: v.optional(v.id("projects")),
     productId: v.string(),
     platform: platformValidator,
   },
   returns: v.object({ ok: v.boolean() }),
   handler: async (ctx, args) => {
-    const project = await ctx.db
-      .query("projects")
-      .withIndex("by_api_key", (q) => q.eq("apiKey", args.apiKey))
-      .unique();
+    const project = await resolveProjectForMutationArgs(ctx, args);
     if (!project) return { ok: false };
 
     const existing = await ctx.db

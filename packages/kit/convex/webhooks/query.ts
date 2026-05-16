@@ -2,6 +2,7 @@ import { query } from "../_generated/server";
 import type { Doc } from "../_generated/dataModel";
 import { v } from "convex/values";
 
+import { resolveProjectByApiKeyFromDb } from "../projects/helpers";
 import {
   webhookEventTypeValidator,
   webhookEventSourceValidator,
@@ -38,10 +39,8 @@ export const findEventCursor = query({
     }),
   ),
   handler: async (ctx, args) => {
-    const project = await ctx.db
-      .query("projects")
-      .withIndex("by_api_key", (q) => q.eq("apiKey", args.apiKey))
-      .unique();
+    const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
+    const project = resolved?.project ?? null;
     if (!project) return null;
 
     const event = await ctx.db
@@ -87,7 +86,6 @@ const webhookEventStreamShape = v.object({
   cancellationReason: v.optional(webhookCancellationReasonValidator),
   currency: v.optional(v.string()),
   priceAmountMicros: v.optional(v.number()),
-  rawSignedPayload: v.optional(v.string()),
 });
 
 function shapeWebhookEvent(event: Doc<"webhookEvents">) {
@@ -113,7 +111,6 @@ function shapeWebhookEvent(event: Doc<"webhookEvents">) {
     cancellationReason: event.cancellationReason,
     currency: event.currency,
     priceAmountMicros: event.priceAmountMicros,
-    rawSignedPayload: event.rawSignedPayload,
   };
 }
 
@@ -141,10 +138,8 @@ export const webhookEventsSince = query({
   },
   returns: v.array(webhookEventStreamShape),
   handler: async (ctx, args) => {
-    const project = await ctx.db
-      .query("projects")
-      .withIndex("by_api_key", (q) => q.eq("apiKey", args.apiKey))
-      .unique();
+    const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
+    const project = resolved?.project ?? null;
 
     if (!project) {
       // Mirror the convention used by other v1 routes: return empty
@@ -222,10 +217,8 @@ export const latestWebhookEventsSince = query({
   },
   returns: v.array(webhookEventStreamShape),
   handler: async (ctx, args) => {
-    const project = await ctx.db
-      .query("projects")
-      .withIndex("by_api_key", (q) => q.eq("apiKey", args.apiKey))
-      .unique();
+    const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
+    const project = resolved?.project ?? null;
 
     if (!project) {
       return [];

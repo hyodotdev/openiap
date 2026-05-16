@@ -147,7 +147,7 @@ checkouts. If you really need to bypass, fix the underlying issue
 rather than passing `--no-verify`.
 
 `smoke:server` (`scripts/smoke-server.sh`) compiles the Bun binary,
-boots it on port 3100, and probes `/health`, `/`, `/api/v1` — catches
+boots it on port 3100, and probes `/health`, `/`, `/v1`, `/api/v1` — catches
 startup regressions (missing env, bind conflicts, missing
 `dist/index.html`).
 

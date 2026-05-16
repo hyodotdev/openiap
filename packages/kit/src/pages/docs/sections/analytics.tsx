@@ -8,7 +8,7 @@ export default function AnalyticsPage() {
     <DocsPage
       slug="analytics"
       title="Analytics"
-      description="Revenue, MRR, renewals, churn — rolled up daily from ingested webhook events."
+      description="Revenue, MRR, renewals, churn — refreshed from ingested webhook events into daily buckets."
     >
       <p>
         The <strong>Analytics</strong> tab visualizes revenue and subscription
@@ -21,7 +21,7 @@ export default function AnalyticsPage() {
 
       <Callout kind="warning" title="Analytics requires webhook integration">
         <p>
-          The dashboard reads from a daily-rolled-up table populated from
+          The dashboard reads from a daily-bucketed table populated from
           ingested <strong>Apple App Store Server Notifications v2</strong> and{" "}
           <strong>Google Play Real-time Developer Notifications (RTDN)</strong>.
           Without webhooks, the Analytics tab will stay empty regardless of how
@@ -30,9 +30,9 @@ export default function AnalyticsPage() {
         </p>
         <p className="mt-2">
           Open the project's <strong>Webhooks</strong> tab to copy your
-          IAPKit-hosted webhook URLs and register them with the App Store / Play
-          Console. Once notifications start arriving, the next cron tick (within
-          24h) will populate this view.
+          IAPKit-hosted lifecycle webhook URL and register it with the App Store
+          / Play Console. Once notifications start arriving, the next cron tick
+          (within about 10 minutes) will populate this view.
         </p>
       </Callout>
 
@@ -52,18 +52,19 @@ export default function AnalyticsPage() {
         </li>
         <li>
           Open the project's <strong>Webhooks</strong> tab in the dashboard.
-          Copy the per-store URLs (one for Apple ASN v2, one for Google RTDN).
+          Copy the lifecycle webhook URL. The same endpoint accepts Apple ASN v2
+          and Google RTDN payloads.
         </li>
         <li>
           <strong>Apple</strong>: in App Store Connect →{" "}
-          <em>App Store Server Notifications</em>, paste the Apple webhook URL
-          and select <code>Version 2</code> for both Production and Sandbox
+          <em>App Store Server Notifications</em>, paste the lifecycle webhook
+          URL and select <code>Version 2</code> for both Production and Sandbox
           environments.
         </li>
         <li>
           <strong>Google</strong>: in Play Console → <em>Monetization setup</em>
           , point Real-time Developer Notifications to a Pub/Sub topic that fans
-          out to the Google webhook URL (Pub/Sub push subscription with the
+          out to the lifecycle webhook URL (Pub/Sub push subscription with the
           IAPKit URL as endpoint).
         </li>
         <li>
@@ -72,8 +73,8 @@ export default function AnalyticsPage() {
           <strong> Webhooks</strong> tab's event log.
         </li>
         <li>
-          Wait up to 24h for the next analytics rollup tick — or trigger it
-          manually if you have access to the Convex dashboard (
+          Wait up to about 10 minutes for the next analytics rollup tick — or
+          trigger it manually if you have access to the Convex dashboard (
           <code>recomputeRevenueMetricsForProject</code>).
         </li>
       </ol>
@@ -82,7 +83,7 @@ export default function AnalyticsPage() {
       <p>
         Analytics data lives in a separate <code>revenueMetricsDaily</code>{" "}
         table that the Analytics tab reads from directly — the dashboard never
-        scans the raw webhook event log on render. A daily cron walks each
+        scans the raw webhook event log on render. A 10-minute cron walks each
         project's recent <code>webhookEvents</code> and writes one row per{" "}
         <code>(day, productId, currency, platform)</code> bucket.
       </p>

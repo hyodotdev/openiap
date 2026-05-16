@@ -71,7 +71,7 @@ export function PublicNavigation() {
                     {"Docs"}
                   </button>
                   <a
-                    href="https://www.openiap.dev/sponsors"
+                    href="https://openiap.dev/sponsors"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
@@ -139,7 +139,7 @@ export function PublicNavigation() {
                   {"Docs"}
                 </button>
                 <a
-                  href="https://www.openiap.dev/sponsors"
+                  href="https://openiap.dev/sponsors"
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => setIsMobileMenuOpen(false)}

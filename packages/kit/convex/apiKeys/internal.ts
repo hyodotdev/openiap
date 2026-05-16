@@ -2,54 +2,46 @@ import { internalQuery, internalMutation } from "../_generated/server";
 import { v } from "convex/values";
 import { ConvexError } from "convex/values";
 
+import { getApiKeyByKey } from "./helpers";
+
 // Internal query to validate an API key and get the associated project
 export const validateApiKey = internalQuery({
   args: {
     apiKey: v.string(),
   },
   handler: async (ctx, args) => {
-    // First check if it's a legacy API key in the projects table
-    const projectWithLegacyKey = await ctx.db
-      .query("projects")
-      .withIndex("by_api_key", (q) => q.eq("apiKey", args.apiKey))
-      .first();
+    // Check the key table first so inactive rotated keys cannot fall
+    // through to the legacy `projects.apiKey` column.
+    const apiKeyRecord = await getApiKeyByKey(ctx, args.apiKey);
+    if (apiKeyRecord) {
+      if (!apiKeyRecord.isActive) {
+        return { isValid: false, reason: "API key is inactive" };
+      }
 
-    if (projectWithLegacyKey) {
-      // Legacy key found, return project
+      const project = await ctx.db.get(apiKeyRecord.projectId);
+      if (!project) {
+        return { isValid: false, reason: "Associated project not found" };
+      }
+
       return {
         isValid: true,
-        projectId: projectWithLegacyKey._id,
-        organizationId: projectWithLegacyKey.organizationId,
-        keyId: undefined, // No keyId for legacy keys
+        projectId: apiKeyRecord.projectId,
+        organizationId: apiKeyRecord.organizationId,
+        keyId: apiKeyRecord._id,
       };
     }
 
-    // Check the new apiKeys table
-    const apiKeyRecord = await ctx.db
-      .query("apiKeys")
-      .withIndex("by_key", (q) => q.eq("key", args.apiKey))
+    const legacyProject = await ctx.db
+      .query("projects")
+      .withIndex("by_api_key", (q) => q.eq("apiKey", args.apiKey))
       .first();
-
-    if (!apiKeyRecord) {
-      return { isValid: false };
-    }
-
-    // Check if the key is active
-    if (!apiKeyRecord.isActive) {
-      return { isValid: false, reason: "API key is inactive" };
-    }
-
-    // Get the project
-    const project = await ctx.db.get(apiKeyRecord.projectId);
-    if (!project) {
-      return { isValid: false, reason: "Associated project not found" };
-    }
+    if (!legacyProject) return { isValid: false };
 
     return {
       isValid: true,
-      projectId: apiKeyRecord.projectId,
-      organizationId: apiKeyRecord.organizationId,
-      keyId: apiKeyRecord._id,
+      projectId: legacyProject._id,
+      organizationId: legacyProject.organizationId,
+      keyId: undefined,
     };
   },
 });

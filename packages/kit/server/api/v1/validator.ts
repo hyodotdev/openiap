@@ -1,45 +1,123 @@
-import { validator as honoValidator } from "hono-openapi";
+import type { Context, MiddlewareHandler } from "hono";
+import { resolver, uniqueSymbol } from "hono-openapi";
 
-// Hono-openapi's Hook callback signature gets re-derived from a generic
-// chain that resolves slightly differently depending on which hoisted
-// copy of hono-openapi tsc picks up (Bun installs multiple peer-dep
-// variants under node_modules/.bun). Cast to a stable narrow shape so
-// the file typechecks the same on every install layout — without this,
-// tsc reports `result` and `c` as implicit `any` on a fresh install.
+import {
+  isContentLengthOverLimit,
+  JsonBodyTooLargeError,
+  readJsonBodyWithLimit,
+} from "./request-body";
+
+// Keep this JSON validator local instead of delegating to
+// hono-openapi's validator: Hono's built-in JSON parser reads the
+// whole body before schema validation, while verify requests need an
+// edge cap before parsing. We still attach hono-openapi's metadata so
+// generated OpenAPI request schemas keep working.
 type ValidatorIssue = { message: string; path?: ReadonlyArray<unknown> };
-type ValidatorResult =
+type ValidatorSchema = Parameters<typeof resolver>[0];
+type ValidatorResult<Output> =
   | { success: true; data: unknown }
-  | { success: false; error: ReadonlyArray<ValidatorIssue>; data: unknown };
+  | { success: false; error: ReadonlyArray<ValidatorIssue>; data: unknown }
+  | { issues: ReadonlyArray<ValidatorIssue> }
+  | { value: Output };
 
-export function validator<Schema extends Parameters<typeof honoValidator>[1]>(
-  schema: Schema,
-) {
-  return honoValidator(
-    "json",
-    schema,
-    (
-      result: ValidatorResult,
-      // Hono context is typed as `any`-generic here intentionally — see
-      // comment above. We use only `c.json(...)`, which is stable.
-      c: { json: (body: unknown, status: number) => Response },
-    ) => {
-      if (result.success) {
-        return;
+const MAX_VALIDATOR_JSON_BODY_BYTES = 32 * 1024;
+
+export function validator<Schema extends ValidatorSchema>(schema: Schema) {
+  const middleware: MiddlewareHandler = async (c, next) => {
+    let value: unknown = {};
+    const contentType = c.req.header("content-type");
+    if (isJsonContentType(contentType)) {
+      if (
+        isContentLengthOverLimit(
+          c.req.header("content-length"),
+          MAX_VALIDATOR_JSON_BODY_BYTES,
+        )
+      ) {
+        return payloadTooLarge(c, "Request body is too large");
       }
-
-      const errors = [];
-
-      for (const issue of result.error) {
-        errors.push({
-          code: "INVALID_INPUT",
-          message: issue.message,
-          path: issuePathToString(issue.path),
-        });
+      try {
+        value = await readJsonBodyWithLimit(
+          c.req.raw,
+          MAX_VALIDATOR_JSON_BODY_BYTES,
+          "Request body is too large",
+        );
+      } catch (error) {
+        if (error instanceof JsonBodyTooLargeError) {
+          return payloadTooLarge(c, error.message);
+        }
+        return c.json(
+          { errors: [{ code: "INVALID_INPUT", message: "Body is not JSON" }] },
+          400,
+        );
       }
+    }
 
-      return c.json({ errors }, 400);
+    const result = (await schema["~standard"].validate(
+      value,
+    )) as ValidatorResult<unknown>;
+    if ("issues" in result && result.issues) {
+      return validationError(c, value, result.issues);
+    }
+    if ("success" in result && result.success === false) {
+      return validationError(c, result.data, result.error);
+    }
+
+    const data =
+      "success" in result && result.success === true
+        ? result.data
+        : "value" in result
+          ? result.value
+          : value;
+    c.req.addValidatedData("json", data as Record<string, unknown>);
+    return next();
+  };
+
+  return Object.assign(middleware, {
+    [uniqueSymbol]: {
+      target: "json",
+      ...resolver(schema),
     },
+  });
+}
+
+function payloadTooLarge(c: Context, message: string) {
+  return c.json(
+    {
+      errors: [{ code: "PAYLOAD_TOO_LARGE", message }],
+    },
+    413,
   );
+}
+
+function isJsonContentType(contentType: string | undefined): boolean {
+  if (!contentType) {
+    return false;
+  }
+  const mediaType = contentType.split(";")[0]?.trim().toLowerCase();
+  return (
+    mediaType === "application/json" ||
+    Boolean(
+      mediaType?.startsWith("application/") && mediaType.endsWith("+json"),
+    )
+  );
+}
+
+function validationError(
+  c: Context,
+  _data: unknown,
+  issues: ReadonlyArray<ValidatorIssue>,
+) {
+  const errors = [];
+
+  for (const issue of issues) {
+    errors.push({
+      code: "INVALID_INPUT",
+      message: issue.message,
+      path: issuePathToString(issue.path),
+    });
+  }
+
+  return c.json({ errors }, 400);
 }
 
 function issuePathToString(

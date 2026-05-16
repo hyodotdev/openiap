@@ -9,7 +9,7 @@ import { hashApiKey } from "./rate-limit";
 // never log the plaintext API key — only the SHA-256 prefix the rate
 // limiter already uses — so log leaks don't become credential leaks.
 
-export type VerifyStore = "apple" | "google";
+export type VerifyStore = "apple" | "google" | "horizon";
 
 export interface VerifyOutcome {
   isValid: boolean;
@@ -36,6 +36,10 @@ export const defaultVerifyLogger: VerifyLogger = (line) => {
   // Level kept as a top-level string for sinks that key on it.
   console.log(JSON.stringify({ level: "info", ...line }));
 };
+
+function describeErrorForLog(error: unknown): string {
+  return error instanceof Error ? error.name : typeof error;
+}
 
 export interface RequestLoggerConfig {
   logger?: VerifyLogger;
@@ -70,8 +74,12 @@ export function requestLoggerMiddleware(
     // swallow the log line — the 5xx paths are exactly when we most
     // want structured context, and the error itself will re-throw after
     // the finally runs.
+    let nextError: unknown;
     try {
       await next();
+    } catch (error) {
+      nextError = error;
+      throw error;
     } finally {
       const durationMs = clock() - start;
 
@@ -104,7 +112,7 @@ export function requestLoggerMiddleware(
           corrId,
           method: c.req.method,
           path: c.req.path,
-          statusCode: c.res.status,
+          statusCode: nextError && c.res.status < 400 ? 500 : c.res.status,
           durationMs,
           apiKeyHash,
           store,
@@ -112,7 +120,10 @@ export function requestLoggerMiddleware(
           state: outcome?.state,
         });
       } catch (loggerError) {
-        console.error("request-logger failed:", loggerError);
+        console.error(
+          "request-logger failed:",
+          describeErrorForLog(loggerError),
+        );
       }
     }
   });

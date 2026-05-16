@@ -219,8 +219,8 @@ export default function LandingPage() {
                     API request
                   </p>
                   <pre className="text-sm md:text-base w-full min-w-0">
-                    <code className="block w-full min-w-0">{`curl -X POST https://api.openiap-kit.com/v1/purchase/verify \\
--H "Authorization: Bearer YOUR_API_KEY" \\
+                    <code className="block w-full min-w-0">{`curl -X POST https://kit.openiap.dev/v1/purchase/verify \\
+-H "Authorization: Bearer openiap-kit_<your-key>" \\
 -H "Content-Type: application/json" \\
 -d '{
   "store": "google",
@@ -259,7 +259,7 @@ export default function LandingPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 items-center justify-center">
               <a
-                href="https://www.openiap.dev/sponsors"
+                href="https://openiap.dev/sponsors"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center btn-gradient text-lg px-8 py-4"

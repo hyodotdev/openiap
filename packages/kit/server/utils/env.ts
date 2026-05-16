@@ -21,7 +21,9 @@ export function parsePositiveNumber(
   min: number,
 ): number {
   if (raw === undefined || raw === "") return fallback;
-  const n = Number(raw);
+  const value = raw.trim();
+  if (!/^\d+(?:\.\d+)?$/.test(value)) return fallback;
+  const n = Number(value);
   if (!Number.isFinite(n) || n < min) return fallback;
   return n;
 }
@@ -33,7 +35,9 @@ export function parsePositiveNumber(
  */
 export function parsePort(raw: string | undefined, fallback: number): number {
   if (raw === undefined || raw === "") return fallback;
-  const n = Number.parseInt(raw, 10);
+  const value = raw.trim();
+  if (!/^\d+$/.test(value)) return fallback;
+  const n = Number(value);
   if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1 || n > 65_535) {
     return fallback;
   }

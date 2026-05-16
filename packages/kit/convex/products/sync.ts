@@ -62,6 +62,19 @@ export function coerceBillingPeriod(
     : undefined;
 }
 
+export function isSafePriceAmountMicros(value: number | undefined): boolean {
+  return value === undefined || (Number.isSafeInteger(value) && value >= 0);
+}
+
+function assertSafePriceAmountMicros(
+  value: number | undefined,
+  fieldName: string,
+): void {
+  if (!isSafePriceAmountMicros(value)) {
+    throw new Error(`${fieldName} must be a non-negative safe integer`);
+  }
+}
+
 // Internal mutation called by the ASC / Play push-sync actions when a
 // row is mirrored from the upstream store. Distinct from the public
 // `upsertProduct` mutation in mutation.ts so server-driven sync can't
@@ -102,6 +115,14 @@ export const upsertFromStore = internalMutation({
   },
   returns: v.id("products"),
   handler: async (ctx, args) => {
+    assertSafePriceAmountMicros(args.priceAmountMicros, "priceAmountMicros");
+    args.offers?.forEach((offer, index) => {
+      assertSafePriceAmountMicros(
+        offer.priceAmountMicros,
+        `offers[${index}].priceAmountMicros`,
+      );
+    });
+
     // Match by (projectId, platform, productId) — apps commonly use
     // the same productId on both stores, and the older
     // (projectId, productId)-only lookup would collide and silently

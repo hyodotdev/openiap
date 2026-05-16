@@ -81,7 +81,7 @@ export function FreeTransitionNotice({
             {"Read the announcement →"}
           </Link>
           <a
-            href="https://www.openiap.dev/sponsors"
+            href="https://openiap.dev/sponsors"
             target="_blank"
             rel="noopener noreferrer"
             className="text-amber-900/70 underline-offset-4 hover:text-amber-900 hover:underline dark:text-amber-100/70 dark:hover:text-amber-100"

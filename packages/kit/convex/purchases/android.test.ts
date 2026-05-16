@@ -3,11 +3,35 @@ import {
   isProductNotFoundError,
   mapProductResponseToReceiptData,
   mapSubscriptionResponseToReceiptData,
+  parseTimeToMillis,
 } from "./android";
 import { HarmonizedPurchaseState } from "./purchaseState";
 import { mapToGooglePlayReceiptResponse } from "./shared";
 
 const packageName = "com.example.app";
+
+describe("parseTimeToMillis", () => {
+  it("accepts decimal epoch millis and RFC3339 timestamps", () => {
+    expect(parseTimeToMillis("1700000000000")).toBe(1_700_000_000_000);
+    expect(parseTimeToMillis(" 1700000000000 ")).toBe(1_700_000_000_000);
+    expect(parseTimeToMillis("2025-10-13T20:13:42.748Z")).toBe(
+      Date.parse("2025-10-13T20:13:42.748Z"),
+    );
+  });
+
+  it("rejects malformed, numeric-like, and unsafe timestamps", () => {
+    expect(parseTimeToMillis(undefined)).toBeUndefined();
+    expect(parseTimeToMillis("")).toBeUndefined();
+    expect(parseTimeToMillis("0x10")).toBeUndefined();
+    expect(parseTimeToMillis("+1000")).toBeUndefined();
+    expect(parseTimeToMillis("1e3")).toBeUndefined();
+    expect(parseTimeToMillis("123.45")).toBeUndefined();
+    expect(
+      parseTimeToMillis(String(Number.MAX_SAFE_INTEGER + 1)),
+    ).toBeUndefined();
+    expect(parseTimeToMillis("not-a-date")).toBeUndefined();
+  });
+});
 
 describe("Google Play v2 mappings", () => {
   it("maps productsv2.getproductpurchasev2 PURCHASED + acknowledged + not consumed to ENTITLED", () => {

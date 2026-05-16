@@ -1,6 +1,66 @@
-import type { Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
+import { getAuthUserId } from "@convex-dev/auth/server";
+import { getApiKeyByKey } from "../apiKeys/helpers";
 import { deletePurchaseStatsForProject } from "../purchases/stats";
+
+export type ApiKeyProjectResolution = {
+  project: Doc<"projects">;
+  keyId?: Id<"apiKeys">;
+  organizationId: Id<"organizations">;
+};
+
+export async function resolveProjectByApiKeyFromDb(
+  ctx: QueryCtx | MutationCtx,
+  apiKey: string,
+): Promise<ApiKeyProjectResolution | null> {
+  const keyRow = await getApiKeyByKey(ctx, apiKey);
+  if (keyRow !== null) {
+    if (keyRow.isActive === false) return null;
+    const project = await ctx.db.get(keyRow.projectId);
+    if (!project) return null;
+    return {
+      project,
+      keyId: keyRow._id,
+      organizationId: keyRow.organizationId,
+    };
+  }
+
+  const legacyProject = await ctx.db
+    .query("projects")
+    .withIndex("by_api_key", (q) => q.eq("apiKey", apiKey))
+    .first();
+
+  if (!legacyProject) return null;
+  return {
+    project: legacyProject,
+    organizationId: legacyProject.organizationId,
+  };
+}
+
+export async function resolveProjectByIdForCurrentUserFromDb(
+  ctx: QueryCtx | MutationCtx,
+  projectId: Id<"projects">,
+): Promise<{
+  project: Doc<"projects">;
+  userId: Id<"users">;
+  role: "owner" | "admin" | "member";
+} | null> {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) return null;
+
+  const project = await ctx.db.get(projectId);
+  if (!project) return null;
+
+  const membership = await ctx.db
+    .query("organizationMembers")
+    .withIndex("by_org_and_user", (q) =>
+      q.eq("organizationId", project.organizationId).eq("userId", userId),
+    )
+    .first();
+
+  return membership ? { project, userId, role: membership.role } : null;
+}
 
 /**
  * Delete a project and all of its Convex data (API keys, receipts, files).

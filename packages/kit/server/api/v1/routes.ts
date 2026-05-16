@@ -229,9 +229,10 @@ const verifyPurchaseRouteDescription = describeRoute({
     "`X-Correlation-Id`. 401 / 403 responses from the auth layer run " +
     "before the rate-limit middleware and do not include those " +
     "headers.\n\n" +
-    "Input size caps: `jws` ≤ 16 KB, `purchaseToken` ≤ 2 KB, " +
-    "`userId` ≤ 256 chars, `sku` ≤ 256 chars. Oversized payloads return " +
-    "`400 INVALID_INPUT` without hitting the upstream store.",
+    "Input size caps: request body ≤ 32 KB, `jws` ≤ 16 KB, " +
+    "`purchaseToken` ≤ 2 KB, `userId` ≤ 256 chars, `sku` ≤ 256 chars. " +
+    "Oversized fields return `400 INVALID_INPUT`; oversized request " +
+    "bodies return `413 PAYLOAD_TOO_LARGE`. Neither hits the upstream store.",
   security: [{ apiKey: [] }],
   responses: {
     200: {
@@ -246,6 +247,16 @@ const verifyPurchaseRouteDescription = describeRoute({
     400: {
       description:
         "Verification failed — malformed body, unknown store, or input exceeds size cap (`INVALID_INPUT`).",
+      headers: commonResponseHeaders,
+      content: {
+        "application/json": {
+          schema: resolver(apiErrorResponseSchema),
+        },
+      },
+    },
+    413: {
+      description:
+        "Request body exceeds the 32 KB edge cap (`PAYLOAD_TOO_LARGE`).",
       headers: commonResponseHeaders,
       content: {
         "application/json": {
@@ -282,7 +293,7 @@ const verifyPurchaseRouteDescription = describeRoute({
         "  • `REPEATED_FAILURE` — the exact same receipt was just " +
         "rejected as invalid by the upstream store; subsequent " +
         "requests for that payload are short-circuited for a 5-minute " +
-        "cooldown. Apple / Google's verdict for a given receipt rarely " +
+        "cooldown. The store provider's verdict for a given receipt rarely " +
         "changes within seconds, so the cached negative spares both " +
         "your quota and the upstream API. Retry after `Retry-After`.\n\n" +
         "Response body: `{ errors: [{ code, message, path? }] }`.",
@@ -396,10 +407,11 @@ const verifyPurchaseHandler = async (
     }
 
     const errorId = crypto.randomUUID();
+    const errorType = error instanceof Error ? error.name : typeof error;
     console.error(
       "Unexpected error (%s) when verifying purchase: %s",
       errorId,
-      error,
+      errorType,
     );
 
     return c.json(
@@ -422,7 +434,8 @@ const verifyReplayGuard = replayGuardMiddleware();
 
 // Middleware order matters:
 //   1. apiKeyMiddleware — 401/403 before anything expensive.
-//   2. verifyRequestLogger — logs every attempt for audit/debug.
+//   2. verifyRequestLogger — logs every attempt that passed auth-header
+//      shape validation for audit/debug.
 //   3. verifyRateLimit — per-key burst cap; also populates `apiKeyHash`.
 //   4. validator — rejects malformed payloads (400) before the guard
 //      below hashes the body.

@@ -79,7 +79,7 @@ const RELEASES: ReleaseEntry[] = [
       },
       {
         kind: "feature",
-        text: "Per-API-key rate limiting on /v1/purchase/verify (60-request burst, 1 req/sec steady) with X-RateLimit-* headers.",
+        text: "Per-API-key rate limiting on /v1/purchase/verify (600-request burst, 10 req/sec steady) with X-RateLimit-* headers.",
       },
       {
         kind: "feature",
@@ -87,7 +87,7 @@ const RELEASES: ReleaseEntry[] = [
       },
       {
         kind: "feature",
-        text: "Input size limits: jws ≤ 16 KB, purchaseToken ≤ 2 KB, userId/sku ≤ 256 — rejected at the edge before upstream store calls.",
+        text: "Input size limits: request body ≤ 32 KB, jws ≤ 16 KB, purchaseToken ≤ 2 KB, userId/sku ≤ 256 — rejected at the edge before upstream store calls.",
       },
       {
         kind: "feature",

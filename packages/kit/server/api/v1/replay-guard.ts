@@ -48,8 +48,8 @@ export interface ReplayGuardConfig {
   refillPerSecond: number;
   maxStoreSize: number;
   /** Cooldown after a failed verification of the same payload. Defaults
-   * are tuned for the common case where Apple / Google's verdict for a
-   * given receipt is stable for far longer than this window. */
+   * are tuned for the common case where the store provider's verdict for
+   * a given receipt is stable for far longer than this window. */
   failureCooldownMs: number;
   now?: () => number;
   store?: Map<string, ReplayBucket>;
@@ -130,20 +130,19 @@ export function tryConsumeReplay(
   // while the cooldown is active, even if the bucket happens to have
   // tokens. This is the layer that defeats "captured-then-revoked
   // receipt replay": the attacker has a real-shaped receipt that
-  // Apple / Google said no to, and trying again 200 ms later just
+  // the store provider said no to, and trying again 200 ms later just
   // burns our upstream quota for the same answer.
-  if (
-    failureCooldownMs > 0 &&
-    bucket.lastFailureMs !== undefined &&
-    nowMs - bucket.lastFailureMs < failureCooldownMs
-  ) {
-    const remainingMs = failureCooldownMs - (nowMs - bucket.lastFailureMs);
-    return {
-      allowed: false,
-      remaining: 0,
-      retryAfterSec: Math.max(1, Math.ceil(remainingMs / 1000)),
-      reason: "repeated_failure",
-    };
+  if (failureCooldownMs > 0 && bucket.lastFailureMs !== undefined) {
+    const elapsedSinceFailureMs = Math.max(0, nowMs - bucket.lastFailureMs);
+    if (elapsedSinceFailureMs < failureCooldownMs) {
+      const remainingMs = failureCooldownMs - elapsedSinceFailureMs;
+      return {
+        allowed: false,
+        remaining: 0,
+        retryAfterSec: Math.max(1, Math.ceil(remainingMs / 1000)),
+        reason: "repeated_failure",
+      };
+    }
   }
 
   const elapsedSec = Math.max(0, (nowMs - bucket.lastRefillMs) / 1000);
@@ -231,9 +230,9 @@ const DEFAULT_MAX_STORE_SIZE = parsePositiveNumber(
 // Default failure cooldown: 5 minutes. Long enough that "replay the
 // same revoked receipt" attacks see a hard wall well past any
 // reasonable client-side retry-on-transient cadence; short enough
-// that if Apple / Google really did re-validate a previously-failed
-// receipt (rare but possible during outages), the client recovers
-// within one app session.
+// that if the store provider really did re-validate a previously-
+// failed receipt (rare but possible during outages), the client
+// recovers within one app session.
 const DEFAULT_FAILURE_COOLDOWN_MS =
   parsePositiveNumber(process.env.REPLAY_GUARD_FAILURE_COOLDOWN_SEC, 300, 1) *
   1000;
@@ -305,7 +304,7 @@ export function replayGuardMiddleware(
           : "DUPLICATE_PAYLOAD";
       const message =
         result.reason === "repeated_failure"
-          ? `This receipt was just rejected as invalid by the upstream store; the same payload won't be re-verified for ${result.retryAfterSec}s. If you believe this is wrong, wait the cooldown then retry — Apple / Google's verdict for a given receipt almost never changes within seconds.`
+          ? `This receipt was just rejected as invalid by the upstream store; the same payload won't be re-verified for ${result.retryAfterSec}s. If you believe this is wrong, wait the cooldown then retry — the store provider's verdict for a given receipt almost never changes within seconds.`
           : `Too many verifications for the same payload from this API key. Legitimate clients re-verify a receipt at most a handful of times per minute. Retry after ${result.retryAfterSec}s, or cache the previous result on your side.`;
       return c.json(
         {

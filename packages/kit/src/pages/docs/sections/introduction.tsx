@@ -67,7 +67,8 @@ export default function IntroductionPage() {
         One Fly.io machine serves the dashboard, REST API, and the SPA under the
         same origin. Convex holds organizations, projects, API keys, store
         credentials, and persisted purchase rows; the Bun server front-ends{" "}
-        <code>/api/v1/*</code> and the static dashboard build.
+        <code>/v1/*</code> plus the <code>/api/v1/*</code> compatibility alias
+        and the static dashboard build.
       </p>
       <pre className="my-4 overflow-x-auto rounded-lg border border-border bg-muted/30 px-4 py-3 text-xs leading-relaxed">
         <code>{`  your backend / device          IAPKit                         upstream store
@@ -103,8 +104,8 @@ export default function IntroductionPage() {
           <Link to="/docs/api" className="text-primary underline">
             API reference
           </Link>{" "}
-          — the one endpoint you call from your server, with every request shape
-          and error code.
+          — the purchase-verification endpoint you call from your server, with
+          every request shape and error code.
         </li>
         <li>
           <Link to="/docs/operations" className="text-primary underline">

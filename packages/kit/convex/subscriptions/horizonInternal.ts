@@ -2,6 +2,7 @@ import { internalMutation, internalQuery } from "../_generated/server";
 import { v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
 
+import { resolveProjectByApiKeyFromDb } from "../projects/helpers";
 import {
   applySubscriptionTransition,
   type CurrentSubscription,
@@ -51,10 +52,8 @@ export const getProjectByApiKey = internalQuery({
     }),
   ),
   handler: async (ctx, args) => {
-    const project = await ctx.db
-      .query("projects")
-      .withIndex("by_api_key", (q) => q.eq("apiKey", args.apiKey))
-      .unique();
+    const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
+    const project = resolved?.project ?? null;
     if (!project) return null;
     return {
       _id: project._id,

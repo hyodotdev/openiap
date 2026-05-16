@@ -33,7 +33,6 @@ interface ProjectData {
   organizationId: Id<"organizations">;
   name: string;
   slug: string;
-  apiKey: string;
   platform?: string;
   androidPackageName?: string;
   iosBundleId?: string;

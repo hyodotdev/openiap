@@ -1,5 +1,20 @@
 import { createMiddleware } from "hono/factory";
 
+const MAX_API_KEY_LENGTH = 128;
+
+function isValidApiKeyLength(apiKey: string): boolean {
+  return apiKey.length <= MAX_API_KEY_LENGTH;
+}
+
+export function apiKeyValidationError(
+  apiKey: string | undefined,
+): string | null {
+  if (!apiKey?.trim()) return "API key is required";
+  if (/\s/.test(apiKey)) return "API key is malformed";
+  if (!isValidApiKeyLength(apiKey)) return "API key is too long";
+  return null;
+}
+
 export const apiKeyMiddleware = createMiddleware<{
   Variables: {
     apiKey: string;
@@ -38,6 +53,21 @@ export const apiKeyMiddleware = createMiddleware<{
             code: "INVALID_API_KEY",
             message:
               'An API key must be provided in the Authorization header in the format "Bearer api-key"',
+          },
+        ],
+      },
+      403,
+    );
+  }
+
+  const validationError = apiKeyValidationError(parts[1]);
+  if (validationError) {
+    return c.json(
+      {
+        errors: [
+          {
+            code: "INVALID_API_KEY",
+            message: validationError,
           },
         ],
       },

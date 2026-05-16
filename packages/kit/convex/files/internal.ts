@@ -8,6 +8,10 @@ import { v } from "convex/values";
 import { ConvexError } from "convex/values";
 import { internal } from "../_generated/api";
 
+function describeErrorForLog(error: unknown): string {
+  return error instanceof Error ? error.name : typeof error;
+}
+
 // Internal query to get file record
 export const getFileRecord = internalQuery({
   args: {
@@ -404,7 +408,10 @@ export const cleanupOldFiles = internalMutation({
         await ctx.db.delete(file._id);
         deletedCount++;
       } catch (error) {
-        console.error(`Failed to delete file ${file._id}:`, error);
+        console.error("Failed to delete file", {
+          fileId: file._id,
+          error: describeErrorForLog(error),
+        });
       }
     }
 

@@ -2,6 +2,10 @@ import { query, type QueryCtx } from "../_generated/server";
 import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 
+import {
+  resolveProjectByApiKeyFromDb,
+  resolveProjectByIdForCurrentUserFromDb,
+} from "../projects/helpers";
 import { monthlyMicrosForSub } from "./monthlyMicros";
 import { selectMostRecentlyUpdatedSubscription } from "./selectLatest";
 import {
@@ -64,13 +68,39 @@ function shapeRow(sub: Doc<"subscriptions">) {
 }
 
 async function projectByApiKey(
-  ctx: { db: any },
-  apiKey: string,
+  ctx: QueryCtx,
+  apiKey: string | undefined,
 ): Promise<Doc<"projects"> | null> {
-  return await ctx.db
-    .query("projects")
-    .withIndex("by_api_key", (q: any) => q.eq("apiKey", apiKey))
-    .unique();
+  if (!apiKey) return null;
+  const resolved = await resolveProjectByApiKeyFromDb(ctx, apiKey);
+  return resolved?.project ?? null;
+}
+
+async function projectByIdForCurrentUser(
+  ctx: QueryCtx,
+  projectId: Id<"projects"> | undefined,
+): Promise<Doc<"projects"> | null> {
+  if (!projectId) return null;
+  const resolved = await resolveProjectByIdForCurrentUserFromDb(ctx, projectId);
+  return resolved?.project ?? null;
+}
+
+async function projectForReadArgs(
+  ctx: QueryCtx,
+  args: {
+    apiKey?: string;
+    projectId?: Id<"projects">;
+  },
+): Promise<Doc<"projects"> | null> {
+  if (args.projectId) {
+    return projectByIdForCurrentUser(ctx, args.projectId);
+  }
+
+  if (args.apiKey !== undefined) {
+    return projectByApiKey(ctx, args.apiKey);
+  }
+
+  throw new Error("apiKey or projectId is required.");
 }
 
 export interface MrrCurrencyEntry {
@@ -186,7 +216,8 @@ export const entitlements = query({
 // onesub's `SubscriptionStore.listFiltered` API.
 export const listSubscriptions = query({
   args: {
-    apiKey: v.string(),
+    apiKey: v.optional(v.string()),
+    projectId: v.optional(v.id("projects")),
     state: v.optional(subscriptionStateValidator),
     productId: v.optional(v.string()),
     userId: v.optional(v.string()),
@@ -197,7 +228,7 @@ export const listSubscriptions = query({
     total: v.number(),
   }),
   handler: async (ctx, args) => {
-    const project = await projectByApiKey(ctx, args.apiKey);
+    const project = await projectForReadArgs(ctx, args);
     if (!project) return { items: [], total: 0 };
 
     const limit = Math.min(Math.max(args.limit ?? 50, 1), 200);
@@ -302,7 +333,10 @@ export const listSubscriptions = query({
 // `recomputeSubscriptionStats` internal mutation populates rows for
 // future reads.
 export const metricsSummary = query({
-  args: { apiKey: v.string() },
+  args: {
+    apiKey: v.optional(v.string()),
+    projectId: v.optional(v.id("projects")),
+  },
   returns: v.object({
     activeSubs: v.number(),
     inGracePeriod: v.number(),
@@ -328,7 +362,7 @@ export const metricsSummary = query({
     ),
   }),
   handler: async (ctx, args) => {
-    const project = await projectByApiKey(ctx, args.apiKey);
+    const project = await projectForReadArgs(ctx, args);
     if (!project) {
       return {
         activeSubs: 0,
@@ -511,7 +545,8 @@ const platformValidator = v.union(v.literal("IOS"), v.literal("Android"));
 
 export const getRevenueMetrics = query({
   args: {
-    apiKey: v.string(),
+    apiKey: v.optional(v.string()),
+    projectId: v.optional(v.id("projects")),
     fromDay: v.string(),
     toDay: v.string(),
     // Server-side `productId` / `currency` / `platform` filters were
@@ -554,7 +589,7 @@ export const getRevenueMetrics = query({
     truncated: v.boolean(),
   }),
   handler: async (ctx, args) => {
-    const project = await projectByApiKey(ctx, args.apiKey);
+    const project = await projectForReadArgs(ctx, args);
     if (!project) {
       return {
         days: [],

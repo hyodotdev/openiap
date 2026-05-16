@@ -1,7 +1,27 @@
 import { query } from "../_generated/server";
+import type { Doc } from "../_generated/dataModel";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError } from "convex/values";
+
+type SafeApiKey = Omit<Doc<"apiKeys">, "key"> & {
+  keyPreview: string;
+};
+
+function getApiKeyPreview(key: string): string {
+  const suffix = key.slice(-4);
+  if (key.startsWith("openiap-kit_")) {
+    return `openiap-kit_...${suffix}`;
+  }
+  return `...${suffix}`;
+}
+
+function toSafeApiKey({ key, ...apiKey }: Doc<"apiKeys">): SafeApiKey {
+  return {
+    ...apiKey,
+    keyPreview: getApiKeyPreview(key),
+  };
+}
 
 // Get all API keys for a project
 export const listProjectApiKeys = query({
@@ -39,8 +59,8 @@ export const listProjectApiKeys = query({
       .order("desc")
       .collect();
 
-    // Return all keys with full data for the frontend
-    return apiKeys;
+    // Full keys are only returned by create/regenerate mutations.
+    return apiKeys.map(toSafeApiKey);
   },
 });
 
@@ -127,9 +147,7 @@ export const getById = query({
     const creator = await ctx.db.get(apiKey.createdBy);
 
     return {
-      ...apiKey,
-      // Still mask the key for security
-      keyPreview: `${apiKey.key.slice(0, 8)}...${apiKey.key.slice(-4)}`,
+      ...toSafeApiKey(apiKey),
       creatorName: creator?.name || "Unknown",
       creatorEmail: creator?.email || "Unknown",
     };

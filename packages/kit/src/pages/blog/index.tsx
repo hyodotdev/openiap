@@ -18,7 +18,7 @@ export default function BlogIndex() {
       publisher: {
         "@type": "Organization",
         name: "OpenIAP",
-        url: "https://www.openiap.dev",
+        url: "https://openiap.dev",
       },
       blogPost: POSTS.map((post) => ({
         "@type": "BlogPosting",

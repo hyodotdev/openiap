@@ -114,6 +114,10 @@ describe("parsePositiveNumber", () => {
 
   test("returns fallback for NaN, Infinity, non-numeric strings", () => {
     expect(parsePositiveNumber("pineapple", 60, 1)).toBe(60);
+    expect(parsePositiveNumber("120rps", 60, 1)).toBe(60);
+    expect(parsePositiveNumber("0x10", 60, 1)).toBe(60);
+    expect(parsePositiveNumber("1e2", 60, 1)).toBe(60);
+    expect(parsePositiveNumber("+1", 60, 1)).toBe(60);
     expect(parsePositiveNumber("NaN", 60, 1)).toBe(60);
     expect(parsePositiveNumber("Infinity", 60, 1)).toBe(60);
   });
@@ -128,6 +132,7 @@ describe("parsePositiveNumber", () => {
 
   test("returns the parsed value when it is finite and above min", () => {
     expect(parsePositiveNumber("120", 60, 1)).toBe(120);
+    expect(parsePositiveNumber(" 120 ", 60, 1)).toBe(120);
     expect(parsePositiveNumber("0.25", 1, 0.001)).toBe(0.25);
   });
 });

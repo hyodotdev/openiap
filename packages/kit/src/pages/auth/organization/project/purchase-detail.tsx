@@ -37,6 +37,76 @@ type DetailItem = {
   monospace?: boolean;
 };
 
+const sensitiveJsonFieldNames = new Set([
+  "accesstoken",
+  "apikey",
+  "appsecret",
+  "authorization",
+  "cookie",
+  "dataandroid",
+  "externaltoken",
+  "externaltransactiontoken",
+  "horizonappsecret",
+  "idtoken",
+  "jws",
+  "jwsrepresentation",
+  "jwt",
+  "keycontent",
+  "offertoken",
+  "offertokenandroid",
+  "password",
+  "privatekey",
+  "purchasetoken",
+  "purchasetokenandroid",
+  "rawmessage",
+  "rawsignedpayload",
+  "receiptdata",
+  "refreshtoken",
+  "secret",
+  "signatureandroid",
+  "signedpayload",
+  "token",
+]);
+
+function isSensitiveJsonFieldName(key: string): boolean {
+  return sensitiveJsonFieldNames.has(key.replace(/[_-]/g, "").toLowerCase());
+}
+
+function redactSensitiveJson(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(redactSensitiveJson);
+  }
+
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, child]) => [
+      key,
+      isSensitiveJsonFieldName(key) && child
+        ? "<redacted>"
+        : redactSensitiveJson(child),
+    ]),
+  );
+}
+
+function parseJson(value: string): unknown {
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return value;
+  }
+}
+
+function formatRedactedJson(value: unknown): string | null {
+  try {
+    return JSON.stringify(redactSensitiveJson(value), null, 2);
+  } catch {
+    return null;
+  }
+}
+
 function DetailSection({
   title,
   items,
@@ -187,26 +257,18 @@ export default function PurchaseDetail() {
     (purchase as { productId?: string | null }).productId ?? null;
 
   const remoteResponse = purchase.remoteResponse
-    ? (JSON.parse(purchase.remoteResponse) as Record<string, any>)
+    ? parseJson(purchase.remoteResponse)
     : undefined;
 
   const formattedRemoteResponse: string | null = (() => {
     if (!purchase.remoteResponse) {
       return null;
     }
-    try {
-      return JSON.stringify(remoteResponse, null, 2);
-    } catch {
-      return purchase.remoteResponse;
-    }
+    return formatRedactedJson(remoteResponse);
   })();
 
   const requestPayload = (() => {
-    try {
-      return JSON.stringify(purchase.requestData, null, 2);
-    } catch {
-      return null;
-    }
+    return formatRedactedJson(purchase.requestData);
   })();
 
   const requestItems: DetailItem[] = [

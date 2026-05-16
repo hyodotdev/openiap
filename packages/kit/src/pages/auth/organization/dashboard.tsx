@@ -64,7 +64,7 @@ export default function OrganizationDashboard() {
     },
     {
       title: "Active API Keys",
-      value: projects?.reduce((acc, p) => acc + (p.apiKey ? 1 : 0), 0) || 0,
+      value: projects?.reduce((acc, p) => acc + (p.hasApiKey ? 1 : 0), 0) || 0,
       icon: Key,
       color: "text-purple-500",
       bgColor: "bg-purple-500/10",

@@ -1,6 +1,11 @@
 import { query } from "../_generated/server";
 import { v } from "convex/values";
 
+import {
+  resolveProjectByApiKeyFromDb,
+  resolveProjectByIdForCurrentUserFromDb,
+} from "./helpers";
+
 // Public query — surfaces which platforms a project has configured so
 // the dashboard, the SDK, and the MCP server can return a precise
 // "X not configured" error instead of a silent empty response.
@@ -15,7 +20,10 @@ const platformShape = v.object({
 });
 
 export const getSetupStatus = query({
-  args: { apiKey: v.string() },
+  args: {
+    apiKey: v.optional(v.string()),
+    projectId: v.optional(v.id("projects")),
+  },
   returns: v.object({
     found: v.boolean(),
     projectId: v.union(v.id("projects"), v.null()),
@@ -26,10 +34,12 @@ export const getSetupStatus = query({
     googleServiceAccountUploaded: v.boolean(),
   }),
   handler: async (ctx, args) => {
-    const project = await ctx.db
-      .query("projects")
-      .withIndex("by_api_key", (q) => q.eq("apiKey", args.apiKey))
-      .unique();
+    const resolved = args.projectId
+      ? await resolveProjectByIdForCurrentUserFromDb(ctx, args.projectId)
+      : args.apiKey
+        ? await resolveProjectByApiKeyFromDb(ctx, args.apiKey)
+        : null;
+    const project = resolved?.project ?? null;
 
     if (!project) {
       const empty = { configured: false, missing: ["project not found"] };

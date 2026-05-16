@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import {
   Key,
   Plus,
-  Copy,
   Trash2,
   RefreshCw,
   Calendar,
@@ -113,11 +112,6 @@ export default function ApiKeys() {
     } catch {
       toast.error("Failed to regenerate API key");
     }
-  };
-
-  const copyToClipboard = (key: string) => {
-    void navigator.clipboard.writeText(key);
-    toast.success("Copied to clipboard");
   };
 
   if (!project) {
@@ -276,16 +270,8 @@ export default function ApiKeys() {
                       <td className="px-6 py-4 align-top">
                         <div className="flex items-center gap-2">
                           <code className="flex-1 text-xs bg-muted px-2 py-1 rounded font-mono text-muted-foreground break-all">
-                            {apiKey.key}
+                            {apiKey.keyPreview}
                           </code>
-                          <button
-                            onClick={() => copyToClipboard(apiKey.key)}
-                            className="p-1.5 hover:bg-muted rounded transition-colors flex-shrink-0"
-                            title={"Copy key"}
-                            aria-label={"Copy key"}
-                          >
-                            <Copy className="w-4 h-4" />
-                          </button>
                         </div>
                       </td>
                       <td className="px-6 py-4 align-top">
