@@ -3,7 +3,7 @@ ext.openIapReadGoogleAndroidSdkVersion = { String propertyName ->
   while (current != null) {
     File candidate = new File(current, 'packages/google/openiap/build.gradle.kts')
     if (candidate.isFile()) {
-      def matcher = candidate.text =~ /(?m)^\s*${propertyName}\s*=\s*(\d+)\s*$/
+      def matcher = candidate.text =~ /(?m)^\s*${propertyName}\s*=\s*(\d+).*$/
       return matcher.find() ? matcher.group(1).toInteger() : null
     }
     current = current.parentFile

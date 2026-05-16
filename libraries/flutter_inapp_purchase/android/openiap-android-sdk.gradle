@@ -15,7 +15,7 @@ ext.openIapReadGoogleAndroidSdkVersion = { String propertyName ->
     if (buildFile == null) {
         return null
     }
-    def matcher = buildFile.text =~ /(?m)^\s*${propertyName}\s*=\s*(\d+)\s*$/
+    def matcher = buildFile.text =~ /(?m)^\s*${propertyName}\s*=\s*(\d+).*$/
     return matcher.find() ? matcher.group(1).toInteger() : null
 }
 
