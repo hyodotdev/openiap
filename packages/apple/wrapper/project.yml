@@ -20,6 +20,7 @@ settings:
     PRODUCT_BUNDLE_IDENTIFIER: dev.hyo.openiap.OpenIAP
     MARKETING_VERSION: "$(OPENIAP_MARKETING_VERSION)"
     CURRENT_PROJECT_VERSION: "1"
+    SUPPORTED_PLATFORMS: "iphoneos iphonesimulator macosx"
 targets:
   OpenIAP:
     type: framework
@@ -32,6 +33,8 @@ targets:
       base:
         PRODUCT_NAME: OpenIAP
         PRODUCT_BUNDLE_IDENTIFIER: dev.hyo.openiap.OpenIAP
+        SUPPORTED_PLATFORMS: "iphoneos iphonesimulator macosx"
+        TARGETED_DEVICE_FAMILY: "1,2,6"
         SWIFT_INSTALL_OBJC_HEADER: YES
         SWIFT_OBJC_INTERFACE_HEADER_NAME: OpenIAP-Swift.h
         SWIFT_EMIT_MODULE_INTERFACE: YES
