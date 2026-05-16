@@ -59,8 +59,8 @@ function bumpVersion(version, type) {
   }
 }
 
-// Read versions.json
-const versionsPath = resolve(rootDir, 'versions.json');
+// Read OpenIAP package versions from the repository SSOT.
+const versionsPath = resolve(rootDir, 'openiap-versions.json');
 const versions = JSON.parse(readFileSync(versionsPath, 'utf-8'));
 
 console.log('📦 Bumping version...\n');
@@ -72,6 +72,7 @@ console.log('');
 
 // Determine what to bump
 const targets = [target];
+const bumpedVersions = {};
 
 for (const t of targets) {
   if (!versions[t]) {
@@ -79,15 +80,17 @@ for (const t of targets) {
     process.exit(1);
   }
 
-  const newVersion = bumpVersion(versions[t], bumpType);
+  const currentVersion = versions[t];
+  const newVersion = bumpVersion(currentVersion, bumpType);
   versions[t] = newVersion;
-  console.log(`✅ ${t.padEnd(10)} ${versions[t]} → ${newVersion}`);
+  bumpedVersions[t] = newVersion;
+  console.log(`✅ ${t.padEnd(10)} ${currentVersion} → ${newVersion}`);
 }
 
 // Write updated versions
 writeFileSync(versionsPath, JSON.stringify(versions, null, 2) + '\n');
 
-console.log('\n📝 Updated versions.json');
+console.log('\n📝 Updated openiap-versions.json');
 console.log('');
 
 // Sync to package.json files
@@ -98,26 +101,17 @@ try {
   process.exit(1);
 }
 
-// Update iOS OpenIapVersion.swift
-if (targets.includes('apple')) {
-  const iosVersionFile = resolve(rootDir, 'packages/ios/Sources/OpenIapVersion.swift');
-  let iosVersionContent = readFileSync(iosVersionFile, 'utf-8');
-  iosVersionContent = iosVersionContent.replace(
-    /public static let current: String = "[\d.]+"/,
-    `public static let current: String = "${versions.apple}"`
-  );
-  iosVersionContent = iosVersionContent.replace(
-    /public static let gqlVersion: String = "[\d.]+"/,
-    `public static let gqlVersion: String = "${versions.spec}"`
-  );
-  writeFileSync(iosVersionFile, iosVersionContent);
-  console.log('✅ Updated iOS OpenIapVersion.swift');
-}
+// Native runtime versions read openiap-versions.json at build/runtime.
 
-// Android version is read from versions.json at build time, no update needed
+const releaseTag =
+  target === 'apple'
+    ? bumpedVersions.apple
+    : target === 'google'
+      ? `google-${bumpedVersions.google}`
+      : `docs-${bumpedVersions.spec}`;
 
 console.log('\n💡 Next steps:');
 console.log('  1. Review changes: git diff');
-console.log('  2. Commit: git add . && git commit -m "chore: bump version to X.X.X"');
-console.log('  3. Tag: git tag vX.X.X');
+console.log('  2. Commit: git add . && git commit -m "chore(version): bump <target> to X.X.X"');
+console.log(`  3. Tag: git tag ${releaseTag}`);
 console.log('  4. Push: git push && git push --tags');

@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
-import { readFileSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
@@ -8,32 +9,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const rootDir = resolve(__dirname, '..');
 
-// Read versions.json
-const versionsPath = resolve(rootDir, 'versions.json');
+// Read OpenIAP package versions from the repository SSOT.
+const versionsPath = resolve(rootDir, 'openiap-versions.json');
 const versions = JSON.parse(readFileSync(versionsPath, 'utf-8'));
 
-console.log('📦 Syncing versions across packages...\n');
-
-// Update package.json files
-const packages = [
-  { name: 'gql', version: versions.spec },
-  { name: 'docs', version: versions.spec },
-  { name: 'google', version: versions.google },
-  { name: 'apple', version: versions.apple },
-];
-
-for (const pkg of packages) {
-  const pkgPath = resolve(rootDir, `packages/${pkg.name}/package.json`);
-
-  try {
-    const pkgJson = JSON.parse(readFileSync(pkgPath, 'utf-8'));
-    pkgJson.version = pkg.version;
-    writeFileSync(pkgPath, JSON.stringify(pkgJson, null, 2) + '\n');
-    console.log(`✅ ${pkg.name.padEnd(10)} → ${pkg.version}`);
-  } catch (error) {
-    console.warn(`⚠️  ${pkg.name.padEnd(10)} → package.json not found`);
-  }
-}
+console.log('📦 Syncing OpenIAP versions from openiap-versions.json...\n');
+execFileSync('./scripts/sync-versions.sh', { cwd: rootDir, stdio: 'inherit' });
 
 console.log('\n🎉 Version sync complete!\n');
 console.log('Current versions:');

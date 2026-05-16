@@ -32,7 +32,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.1.38"
+          bun-version: 1.3.13
 
       - uses: actions/cache@v5
         with:
@@ -41,7 +41,7 @@ jobs:
           restore-keys: ${{ runner.os }}-bun-
 
       - name: Install dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
 
       - name: Type check
         run: bun run lint:tsc
@@ -57,7 +57,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.1.38"
+          bun-version: 1.3.13
 
       - uses: actions/cache@v5
         with:
@@ -66,7 +66,7 @@ jobs:
           restore-keys: ${{ runner.os }}-bun-
 
       - name: Install dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
 
       - name: Build plugin
         run: bun run build:plugin
@@ -76,4 +76,3 @@ jobs:
 
       - name: Test plugin
         run: bun run test:plugin
-

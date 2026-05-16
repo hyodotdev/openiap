@@ -19,12 +19,6 @@ on:
         required: false
         default: false
         type: boolean
-      create_release:
-        description: "Also create a GitHub Release"
-        required: false
-        default: true
-        type: boolean
-
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
@@ -49,7 +43,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
-          flutter-version: "3.x"
+          flutter-version: "3.41.9"
 
       - name: Install dependencies
         run: flutter pub get
@@ -91,7 +85,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
-          flutter-version: "3.x"
+          flutter-version: "3.41.9"
 
       - name: Set up Xcode
         uses: maxim-lobanov/setup-xcode@v1
@@ -143,10 +137,30 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
-          flutter-version: "3.x"
+          flutter-version: "3.41.9"
+
+      - name: Checkout release tag (current version)
+        if: ${{ inputs.version == 'current' }}
+        id: current_tag
+        run: |
+          NEW_VERSION=$(awk '/^version:/{print $2; exit}' pubspec.yaml)
+          RELEASE_TAG="flutter-iap-${NEW_VERSION}"
+          if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+            git checkout "$RELEASE_TAG"
+            echo "checked_out=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "checked_out=false" >> "$GITHUB_OUTPUT"
+            echo "Tag $RELEASE_TAG does not exist; current mode will use HEAD."
+          fi
 
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Validate checked-out current tag
+        if: ${{ steps.current_tag.outputs.checked_out == 'true' }}
+        run: |
+          flutter analyze
+          flutter test
 
       - name: Configure Git user
         run: |
@@ -214,6 +228,27 @@ jobs:
             echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Check if release tag already exists
+        id: check_tag
+        env:
+          NEW_VERSION: ${{ steps.bump.outputs.version }}
+          VERSION_TYPE: ${{ inputs.version }}
+        run: |
+          RELEASE_TAG="flutter-iap-${NEW_VERSION}"
+          if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+            if [ "$VERSION_TYPE" = "current" ]; then
+              echo "exists=true" >> "$GITHUB_OUTPUT"
+              echo "⚠️ Tag $RELEASE_TAG already exists. Will reuse existing tag (current mode)."
+            else
+              echo "exists=true" >> "$GITHUB_OUTPUT"
+              echo "❌ Tag $RELEASE_TAG already exists. Use 'current' to retry this version."
+              exit 1
+            fi
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "✓ Tag $RELEASE_TAG does not exist"
+          fi
+
       - name: Generate CHANGELOG entry
         if: ${{ inputs.version != 'current' }}
         env:
@@ -246,7 +281,7 @@ jobs:
             printf "%b" "# Changelog\n\n${ENTRY}" > CHANGELOG.md
           fi
 
-      - name: Commit and tag
+      - name: Commit version update
         if: ${{ inputs.version != 'current' }}
         env:
           NEW_VERSION: ${{ steps.bump.outputs.version }}
@@ -254,39 +289,50 @@ jobs:
           git add pubspec.yaml
           [ -f CHANGELOG.md ] && git add CHANGELOG.md
           git commit -m "chore(release): flutter_inapp_purchase ${NEW_VERSION}"
-          git tag -a "flutter-iap-${NEW_VERSION}" -m "Release flutter-iap-${NEW_VERSION}"
 
       - name: Tag only (current version)
-        if: ${{ inputs.version == 'current' }}
+        if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists != 'true' }}
         env:
           NEW_VERSION: ${{ steps.bump.outputs.version }}
         run: |
-          git tag -af "flutter-iap-${NEW_VERSION}" -m "Release flutter-iap-${NEW_VERSION}"
+          git tag -a "flutter-iap-${NEW_VERSION}" -m "Release flutter-iap-${NEW_VERSION}"
 
       - name: Push commit and tags
         if: ${{ inputs.version != 'current' }}
-        run: |
-          git stash --include-untracked || true
-          git pull --rebase origin main
-          git stash pop || true
-          git push --follow-tags
-
-      - name: Push tag (current version)
-        if: ${{ inputs.version == 'current' }}
         env:
           NEW_VERSION: ${{ steps.bump.outputs.version }}
         run: |
-          git push origin "flutter-iap-${NEW_VERSION}" --force
+          STASHED=false
+          if ! git diff --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
+            git stash push --include-untracked -m "release artifacts"
+            STASHED=true
+          fi
+          git pull --rebase origin main
+          if [ "$STASHED" = "true" ]; then
+            git stash pop
+          fi
+          git tag -a "flutter-iap-${NEW_VERSION}" -m "Release flutter-iap-${NEW_VERSION}"
+          git push origin HEAD:main --follow-tags
+
+      - name: Push tag (current version)
+        if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists != 'true' }}
+        env:
+          NEW_VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          git push origin "flutter-iap-${NEW_VERSION}"
 
       - name: Generate release notes
-        if: ${{ inputs.create_release }}
         id: release_notes
         env:
           VERSION: ${{ steps.bump.outputs.version }}
         run: |
+          RELEASE_REF="HEAD"
+          if git rev-parse "flutter-iap-$VERSION" >/dev/null 2>&1; then
+            RELEASE_REF="flutter-iap-$VERSION"
+          fi
           PREV_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' 'refs/tags/flutter-iap-*' | grep -v "$VERSION" | head -n 1)
           if [ -n "$PREV_TAG" ]; then
-            CHANGELOG=$(git log "$PREV_TAG..HEAD" --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- libraries/flutter_inapp_purchase/ packages/google/ packages/apple/)
+            CHANGELOG=$(git log "$PREV_TAG..$RELEASE_REF" --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- libraries/flutter_inapp_purchase/ packages/google/ packages/apple/)
           fi
           if [ -z "$CHANGELOG" ]; then
             CHANGELOG="- No direct code changes — picks up the latest openiap-google / openiap-apple native library updates. See the consolidated release notes for details."
@@ -314,9 +360,9 @@ jobs:
 
           ### Documentation
 
-          - [Setup guide — Flutter](https://www.openiap.dev/docs/setup/flutter)
-          - [API reference](https://www.openiap.dev/docs/apis)
-          - [Release notes](https://www.openiap.dev/docs/updates/releases)
+          - [Setup guide — Flutter](https://openiap.dev/docs/setup/flutter)
+          - [API reference](https://openiap.dev/docs/apis)
+          - [Release notes](https://openiap.dev/docs/updates/releases)
 
           ### Links
 
@@ -325,7 +371,6 @@ jobs:
           EOF
 
       - name: Create GitHub Release
-        if: ${{ inputs.create_release }}
         uses: softprops/action-gh-release@v3
         with:
           tag_name: flutter-iap-${{ steps.bump.outputs.version }}

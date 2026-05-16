@@ -19,11 +19,6 @@ on:
         required: false
         default: false
         type: boolean
-      create_release:
-        description: "Also create a GitHub Release"
-        required: false
-        default: true
-        type: boolean
       notarize_macos:
         description: "Include notarized macOS runtime frameworks"
         required: false
@@ -218,6 +213,35 @@ jobs:
             echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Check if release tag already exists
+        id: check_tag
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+          VERSION_TYPE: ${{ inputs.version }}
+        run: |
+          RELEASE_TAG="godot-iap-${VERSION}"
+          if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+            if [ "$VERSION_TYPE" = "current" ]; then
+              echo "exists=true" >> "$GITHUB_OUTPUT"
+              echo "⚠️ Tag $RELEASE_TAG already exists. Will reuse existing tag (current mode)."
+            else
+              echo "exists=true" >> "$GITHUB_OUTPUT"
+              echo "❌ Tag $RELEASE_TAG already exists. Use 'current' to retry this version."
+              exit 1
+            fi
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "✓ Tag $RELEASE_TAG does not exist"
+          fi
+
+      - name: Checkout release tag (current version)
+        if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists == 'true' }}
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          RELEASE_TAG="godot-iap-${VERSION}"
+          git checkout "$RELEASE_TAG"
+
       - name: Update version in plugin.cfg
         if: ${{ inputs.version != 'current' }}
         run: |
@@ -254,17 +278,7 @@ jobs:
           cp android/build/outputs/aar/godot-iap-release.aar dist/addons/godot-iap/android/GodotIap.release.aar
           cp android/build/outputs/aar/godot-iap-release.aar dist/addons/godot-iap/android/GodotIap.debug.aar
 
-          OPENIAP_GOOGLE_VERSION=$(cat openiap-versions.json | grep '"google"' | cut -d'"' -f4)
-          cat > dist/addons/godot-iap/android/GodotIap.gdap << EOF
-          [config]
-          name="GodotIap"
-          binary_type="local"
-          binary="GodotIap.release.aar"
-
-          [dependencies]
-          local=[]
-          remote=["com.android.billingclient:billing:7.1.1", "io.github.hyochan.openiap:openiap-google:${OPENIAP_GOOGLE_VERSION}"]
-          EOF
+          ./scripts/write-gdap.sh dist/addons/godot-iap/android/GodotIap.gdap
 
           cp -R addons/godot-iap/bin/ios/GodotIap.framework dist/addons/godot-iap/bin/ios/
           cp -R addons/godot-iap/bin/ios/SwiftGodotRuntime.framework dist/addons/godot-iap/bin/ios/
@@ -389,28 +403,43 @@ jobs:
             fi
           fi
 
-      - name: Commit and tag
+      - name: Commit version update and tag
         if: ${{ inputs.version != 'current' }}
         run: |
           git add addons/godot-iap/plugin.cfg
           if ! git diff --cached --quiet; then
             git commit -m "chore(release): godot-iap ${{ steps.version.outputs.VERSION }}"
           fi
-          git tag -af godot-iap-${{ steps.version.outputs.VERSION }} -m "Release godot-iap-${{ steps.version.outputs.VERSION }}"
-          git stash --include-untracked || true
+          STASHED=false
+          if ! git diff --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
+            git stash push --include-untracked -m "release artifacts"
+            STASHED=true
+          fi
           git pull --rebase origin main
-          git stash pop || true
-          git push --follow-tags
+          if [ "$STASHED" = "true" ]; then
+            git stash pop
+          fi
+          git tag -a godot-iap-${{ steps.version.outputs.VERSION }} -m "Release godot-iap-${{ steps.version.outputs.VERSION }}"
+          git push origin HEAD:main --follow-tags
+
+      - name: Create tag (current version)
+        if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists != 'true' }}
+        run: |
+          git tag -a godot-iap-${{ steps.version.outputs.VERSION }} -m "Release godot-iap-${{ steps.version.outputs.VERSION }}"
+          git push origin godot-iap-${{ steps.version.outputs.VERSION }}
 
       - name: Generate release notes
-        if: ${{ inputs.create_release }}
         id: release_notes
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
+          RELEASE_REF="HEAD"
+          if git rev-parse "godot-iap-$VERSION" >/dev/null 2>&1; then
+            RELEASE_REF="godot-iap-$VERSION"
+          fi
           PREV_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' 'refs/tags/godot-iap-*' | grep -v "$VERSION" | head -n 1)
           if [ -n "$PREV_TAG" ]; then
-            CHANGELOG=$(git log "$PREV_TAG..HEAD" --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- libraries/godot-iap/ packages/google/)
+            CHANGELOG=$(git log "$PREV_TAG..$RELEASE_REF" --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- libraries/godot-iap/ packages/google/)
           fi
           if [ -z "$CHANGELOG" ]; then
             CHANGELOG="- No direct code changes — picks up the latest openiap-google native library updates. See the consolidated release notes for details."
@@ -432,9 +461,9 @@ jobs:
 
           ### Documentation
 
-          - [Setup guide — Godot](https://www.openiap.dev/docs/setup/godot)
-          - [API reference](https://www.openiap.dev/docs/apis)
-          - [Release notes](https://www.openiap.dev/docs/updates/releases)
+          - [Setup guide — Godot](https://openiap.dev/docs/setup/godot)
+          - [API reference](https://openiap.dev/docs/apis)
+          - [Release notes](https://openiap.dev/docs/updates/releases)
 
           ### Links
 
@@ -443,7 +472,6 @@ jobs:
           EOF
 
       - name: Create Release
-        if: ${{ inputs.create_release }}
         uses: softprops/action-gh-release@v3
         with:
           tag_name: godot-iap-${{ steps.version.outputs.VERSION }}

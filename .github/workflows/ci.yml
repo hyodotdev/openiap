@@ -8,6 +8,9 @@ on:
     branches:
       - main
 
+env:
+  XCODE_VERSION: 16.4
+
 jobs:
   # Detect which packages have changes
   changes:
@@ -98,7 +101,7 @@ jobs:
         run: |
           # Retry bun install up to 3 times to handle transient registry errors
           for i in 1 2 3; do
-            bun install && break
+            bun install --frozen-lockfile && break
             [ $i -eq 3 ] && exit 1
             echo "Attempt $i failed. Retrying..."
             sleep 5
@@ -169,7 +172,7 @@ jobs:
         run: |
           # Retry bun install up to 3 times to handle transient registry errors
           for i in 1 2 3; do
-            bun install && break
+            bun install --frozen-lockfile && break
             [ $i -eq 3 ] && exit 1
             echo "Attempt $i failed. Retrying..."
             sleep 5
@@ -197,12 +200,17 @@ jobs:
 
   test-ios:
     name: Test iOS
-    runs-on: macos-latest
+    runs-on: macos-15
     needs: changes
     if: needs.changes.outputs.ios == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -213,7 +221,7 @@ jobs:
         run: |
           # Retry bun install up to 3 times to handle transient registry errors
           for i in 1 2 3; do
-            bun install && break
+            bun install --frozen-lockfile && break
             [ $i -eq 3 ] && exit 1
             echo "Attempt $i failed. Retrying..."
             sleep 5
@@ -249,7 +257,7 @@ jobs:
         run: |
           # Retry bun install up to 3 times to handle transient registry errors
           for i in 1 2 3; do
-            bun install && break
+            bun install --frozen-lockfile && break
             [ $i -eq 3 ] && exit 1
             echo "Attempt $i failed. Retrying..."
             sleep 5
@@ -290,7 +298,7 @@ jobs:
         run: |
           # Retry bun install up to 3 times to handle transient registry errors
           for i in 1 2 3; do
-            bun install && break
+            bun install --frozen-lockfile && break
             [ $i -eq 3 ] && exit 1
             echo "Attempt $i failed. Retrying..."
             sleep 5

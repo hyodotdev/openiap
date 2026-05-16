@@ -38,12 +38,64 @@ const CONFIG = {
   rootLlmsOutputDir: path.resolve(scriptDir, "../.."),
 };
 
+function readInstallationVersions(): {
+  apple: string;
+  google: string;
+  godot: string;
+  kmp: string;
+  maui: string;
+  mauiPackageId: string;
+} {
+  const versionsPath = path.join(CONFIG.projectRoot, "openiap-versions.json");
+  const versions = JSON.parse(fs.readFileSync(versionsPath, "utf-8")) as {
+    apple?: string;
+    google?: string;
+  };
+  const kmpProperties = fs.readFileSync(
+    path.join(CONFIG.projectRoot, "libraries/kmp-iap/gradle.properties"),
+    "utf-8",
+  );
+  const godotPlugin = fs.readFileSync(
+    path.join(CONFIG.projectRoot, "libraries/godot-iap/addons/godot-iap/plugin.cfg"),
+    "utf-8",
+  );
+  const mauiProject = fs.readFileSync(
+    path.join(CONFIG.projectRoot, "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj"),
+    "utf-8",
+  );
+  const kmpVersion = kmpProperties.match(/^libraryVersion=(.+)$/m)?.[1]?.trim();
+  const godotVersion = godotPlugin.match(/^version="([^"]+)"$/m)?.[1]?.trim();
+  const mauiPackageId = mauiProject.match(/<PackageId>([^<]+)<\/PackageId>/)?.[1]?.trim();
+  const mauiVersion = mauiProject.match(/<PackageVersion>([^<]+)<\/PackageVersion>/)?.[1]?.trim();
+
+  if (!versions.apple || !versions.google) {
+    throw new Error("openiap-versions.json must include apple and google versions");
+  }
+  if (!godotVersion || !kmpVersion || !mauiPackageId || !mauiVersion) {
+    throw new Error("Framework package metadata is missing godot, kmp, or maui values");
+  }
+
+  return {
+    apple: versions.apple,
+    godot: godotVersion,
+    google: versions.google,
+    kmp: kmpVersion,
+    maui: mauiVersion,
+    mauiPackageId,
+  };
+}
+
+function withSingleTrailingNewline(content: string): string {
+  return `${content.trimEnd()}\n`;
+}
+
 // ============================================================================
 // LLMs.txt Generator
 // ============================================================================
 
 async function generateLlmsTxt(): Promise<{ quick: number; full: number }> {
   console.log(chalk.blue("\n🤖 Generating llms.txt files...\n"));
+  const versions = readInstallationVersions();
 
   // Read all external API docs
   const externalFiles = await glob(
@@ -84,43 +136,46 @@ cd ios && pod install
 ### Swift (iOS/macOS)
 \`\`\`swift
 // Swift Package Manager
-.package(url: "https://github.com/hyodotdev/openiap.git", from: "1.0.0")
+.package(url: "https://github.com/hyodotdev/openiap.git", from: "${versions.apple}")
 
 // CocoaPods
-pod 'openiap', '~> 1.0.0'
+pod 'openiap', '~> ${versions.apple}'
 \`\`\`
 
 ### Kotlin (Android)
 \`\`\`kotlin
 // Gradle (build.gradle.kts)
-implementation("io.github.hyochan.openiap:openiap-google:1.0.0")
+implementation("io.github.hyochan.openiap:openiap-google:${versions.google}")
 
 // For Meta Horizon OS
-implementation("io.github.hyochan.openiap:openiap-google-horizon:1.0.0")
+implementation("io.github.hyochan.openiap:openiap-google-horizon:${versions.google}")
 \`\`\`
 
 ### Flutter
-\`\`\`yaml
-# pubspec.yaml
-dependencies:
-  flutter_inapp_purchase: ^5.0.0
+\`\`\`bash
+flutter pub add flutter_inapp_purchase
 \`\`\`
 
 ### Godot
-Download \`godot-iap\` from the Godot Asset Library or GitHub Releases, extract
-it to \`addons/godot-iap/\`, then enable the plugin in Project Settings.
+Download \`godot-iap-${versions.godot}.zip\` from GitHub Releases, extract it to
+\`addons/godot-iap/\`, then enable the plugin in Project Settings.
 
 ### Kotlin Multiplatform
 \`\`\`kotlin
 dependencies {
-    implementation("io.github.hyochan.kmpiap:library:1.3.8")
+    implementation("io.github.hyochan:kmp-iap:${versions.kmp}")
 }
 \`\`\`
 
+Use the latest version from Maven Central:
+https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap
+
 ### .NET MAUI
-\`\`\`xml
-<PackageReference Include="OpenIap.Maui" Version="1.0.1" />
+\`\`\`bash
+dotnet add package ${versions.mauiPackageId}
 \`\`\`
+
+Current NuGet package version: ${versions.maui}
 
 Requires .NET 9+, the MAUI workload, iOS 15.0+, and Android API 24+.
 
@@ -157,13 +212,13 @@ Requires .NET 9+, the MAUI workload, iOS 15.0+, and Android API 24+.
 - Public surface: snake_case functions and Godot signals matching OpenIAP.
 
 ### kmp-iap
-- Package: \`io.github.hyochan.kmpiap:library\`.
+- Package: \`io.github.hyochan:kmp-iap\`.
 - Implementation: Kotlin Multiplatform common API with Flow-based events,
   Android implementation, and iOS cinterop through the OpenIAP ObjC facade.
 - Public surface: \`KmpIAP\` / shared instance resolver methods and flows.
 
 ### maui-iap
-- Package: \`OpenIap.Maui\` on NuGet.
+- Package: \`${versions.mauiPackageId}\` on NuGet.
 - Distribution: single public NuGet package. The Android/iOS binding projects
   are private implementation details and are flattened into \`OpenIap.Maui\`
   instead of being published as separate package dependencies.
@@ -313,34 +368,35 @@ npm install react-native-iap
 ### Native
 \`\`\`swift
 // Swift Package Manager
-.package(url: "https://github.com/hyodotdev/openiap.git", from: "1.0.0")
+.package(url: "https://github.com/hyodotdev/openiap.git", from: "${versions.apple}")
 \`\`\`
 
 \`\`\`kotlin
 // Gradle
-implementation("io.github.hyochan.openiap:openiap-google:1.0.0")
+implementation("io.github.hyochan.openiap:openiap-google:${versions.google}")
 \`\`\`
 
-\`\`\`yaml
+\`\`\`bash
 # Flutter
-dependencies:
-  flutter_inapp_purchase: ^5.0.0
+flutter pub add flutter_inapp_purchase
 \`\`\`
 
 \`\`\`gdscript
 # Godot
-# Install godot-iap to addons/godot-iap and enable the plugin
+# Install godot-iap ${versions.godot} to addons/godot-iap and enable the plugin
 \`\`\`
 
 \`\`\`kotlin
 // Kotlin Multiplatform
-implementation("io.github.hyochan.kmpiap:library:1.3.8")
+implementation("io.github.hyochan:kmp-iap:${versions.kmp}")
 \`\`\`
 
-\`\`\`xml
-<!-- .NET MAUI -->
-<PackageReference Include="OpenIap.Maui" Version="1.0.1" />
+\`\`\`bash
+# .NET MAUI
+dotnet add package ${versions.mauiPackageId}
 \`\`\`
+
+Current NuGet package version: ${versions.maui}
 
 ## Framework Libraries
 
@@ -528,8 +584,14 @@ interface PurchaseError {
   const outputDirs = [CONFIG.llmsOutputDir, CONFIG.rootLlmsOutputDir];
   for (const outputDir of outputDirs) {
     fs.mkdirSync(outputDir, { recursive: true });
-    fs.writeFileSync(path.join(outputDir, "llms.txt"), quickContent);
-    fs.writeFileSync(path.join(outputDir, "llms-full.txt"), fullContent);
+    fs.writeFileSync(
+      path.join(outputDir, "llms.txt"),
+      withSingleTrailingNewline(quickContent),
+    );
+    fs.writeFileSync(
+      path.join(outputDir, "llms-full.txt"),
+      withSingleTrailingNewline(fullContent),
+    );
   }
 
   console.log(
@@ -679,7 +741,7 @@ openiap/
   // =========================================================================
 
   const outputPath = path.join(CONFIG.outputDir, CONFIG.outputFile);
-  fs.writeFileSync(outputPath, output);
+  fs.writeFileSync(outputPath, withSingleTrailingNewline(output));
 
   // =========================================================================
   // Generate LLMs.txt Files

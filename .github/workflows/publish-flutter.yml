@@ -24,12 +24,34 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
-          flutter-version: "3.x"
+          flutter-version: "3.41.9"
 
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Check if pub.dev package already published
+        id: check_pub
+        run: |
+          VERSION=$(awk '/^version:/{print $2; exit}' pubspec.yaml)
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://pub.dev/api/packages/flutter_inapp_purchase/versions/$VERSION" || true)
+          HTTP_STATUS="${HTTP_STATUS:-000}"
+          case "$HTTP_STATUS" in
+            200)
+              echo "exists=true" >> "$GITHUB_OUTPUT"
+              echo "⚠️ flutter_inapp_purchase $VERSION already exists on pub.dev"
+              ;;
+            404)
+              echo "exists=false" >> "$GITHUB_OUTPUT"
+              echo "✓ flutter_inapp_purchase $VERSION does not exist, will publish"
+              ;;
+            *)
+              echo "❌ Unable to verify flutter_inapp_purchase $VERSION on pub.dev (HTTP $HTTP_STATUS)"
+              exit 1
+              ;;
+          esac
+
       - name: Publish to pub.dev
+        if: steps.check_pub.outputs.exists == 'false'
         run: |
           OIDC_TOKEN=$(curl -sLS "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=https://pub.dev" \
             -H "User-Agent: actions/oidc-client" \

@@ -195,7 +195,7 @@ function parseDocPage(filePath: string) {
     for (const m of line.matchAll(/<Link\s+to="(\/docs\/[^"]+)"/g)) {
       linkTargets.push({ line: lineNo, href: m[1] });
     }
-    // @see {@link https://www.openiap.dev/...}
+    // @see {@link https://openiap.dev/...}
     for (const m of line.matchAll(
       /@see\s*\{@link\s+(https:\/\/www\.openiap\.dev\/[^\s}]+)\}/g
     )) {
