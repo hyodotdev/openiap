@@ -10,6 +10,38 @@ export type KitClientOptions = {
 
 const DEFAULT_BASE_URL = "https://kit.openiap.dev";
 
+export function normalizeKitBaseUrl(baseUrl?: string): string {
+  let url: URL;
+  const raw = baseUrl ?? DEFAULT_BASE_URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error("kit baseUrl must be a valid URL");
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error("kit baseUrl must use http or https");
+  }
+  if (url.username || url.password) {
+    throw new Error("kit baseUrl must not include credentials");
+  }
+  if (url.search || url.hash) {
+    throw new Error("kit baseUrl must not include query or fragment");
+  }
+  return url.href.replace(/\/+$/, "");
+}
+
+function isJsonContentType(contentType: string | null): boolean {
+  if (!contentType) return false;
+
+  const mediaType = contentType.split(";")[0]?.trim().toLowerCase();
+  return (
+    mediaType === "application/json" ||
+    Boolean(
+      mediaType?.startsWith("application/") && mediaType.endsWith("+json"),
+    )
+  );
+}
+
 export class KitHttpError extends Error {
   constructor(
     readonly status: number,
@@ -22,7 +54,7 @@ export class KitHttpError extends Error {
 }
 
 export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
-  const root = (baseUrl ?? DEFAULT_BASE_URL).replace(/\/$/, "");
+  const root = normalizeKitBaseUrl(baseUrl);
 
   async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
     const response = await fetch(`${root}${path}`, {
@@ -37,7 +69,7 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
     // Empty body normalizes to null so callers expecting JSON don't
     // get a truthy "" and crash on property access.
     let parsed: unknown = text === "" ? null : text;
-    if (text && response.headers.get("content-type")?.includes("json")) {
+    if (text && isJsonContentType(response.headers.get("content-type"))) {
       try {
         parsed = JSON.parse(text);
       } catch {
@@ -48,7 +80,7 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
       throw new KitHttpError(
         response.status,
         parsed,
-        `kit ${path} returned ${response.status}`,
+        `kit ${redactKitApiKeyPath(path)} returned ${response.status}`,
       );
     }
     return parsed as T;
@@ -107,6 +139,9 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
       description?: string;
       priceAmountMicros?: number;
       currency?: string;
+      billingPeriod?: "P1W" | "P1M" | "P2M" | "P3M" | "P6M" | "P1Y";
+      subscriptionGroupName?: string;
+      reviewNote?: string;
     }) =>
       call<{ id: string; created: boolean }>(
         `/v1/products/${encodeURIComponent(apiKey)}`,
@@ -123,4 +158,11 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
       ),
     health: () => call<{ ok: boolean }>("/health"),
   };
+}
+
+export function redactKitApiKeyPath(path: string): string {
+  return path.replace(
+    /^((?:\/api)?\/v1\/(?:products|subscriptions\/(?:status|entitlements|list|metrics|bind-user)|webhooks(?:\/(?:apple|google|stream))?)\/)[^\/?#]+/,
+    "$1<api-key-redacted>",
+  );
 }

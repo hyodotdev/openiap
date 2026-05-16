@@ -11,11 +11,11 @@
   "scripts": {
     "build": "tsc -p .",
     "lint": "tsc -p . --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "start": "bun run src/index.ts"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.4",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
