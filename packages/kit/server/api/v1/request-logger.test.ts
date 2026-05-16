@@ -17,6 +17,8 @@ import { verifyPurchaseInputSchema } from "./route-input-schemas";
 // the downstream handler behavior.
 const TEST_APPLE_JWS = `${"a".repeat(42)}.${"b".repeat(42)}.${"c".repeat(42)}`;
 const TEST_GOOGLE_TOKEN = "t".repeat(40);
+const TEST_HORIZON_USER_ID = "user_123";
+const TEST_HORIZON_SKU = "premium.monthly";
 
 type TestVars = {
   apiKey?: string;
@@ -144,6 +146,28 @@ describe("requestLoggerMiddleware", () => {
     expect(logs[0].state).toBe("INAUTHENTIC");
   });
 
+  test("logs Horizon verification store values", async () => {
+    const logs: VerifyLogLine[] = [];
+    const app = buildApp({ logs });
+
+    const res = await app.request("/verify", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer key-horizon",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        store: "horizon",
+        userId: TEST_HORIZON_USER_ID,
+        sku: TEST_HORIZON_SKU,
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(logs).toHaveLength(1);
+    expect(logs[0].store).toBe("horizon");
+  });
+
   test("populates the X-Correlation-Id response header even on validator failure", async () => {
     const logs: VerifyLogLine[] = [];
     const app = buildApp({ logs });
@@ -220,6 +244,7 @@ describe("requestLoggerMiddleware", () => {
     expect(res.status).toBeGreaterThanOrEqual(500);
     expect(logs).toHaveLength(1);
     expect(logs[0].corrId).toBe("corr-fixed");
+    expect(logs[0].statusCode).toBe(500);
     expect(logs[0].apiKeyHash).toBeDefined();
     expect(logs[0].store).toBe("apple");
   });

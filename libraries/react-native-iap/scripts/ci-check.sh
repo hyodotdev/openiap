@@ -15,66 +15,31 @@ NC='\033[0m' # No Color
 # Track if any checks fail
 FAILED=0
 
-# 1. Install dependencies
-echo -e "\n${YELLOW}📦 Installing dependencies...${NC}"
-yarn install --immutable
-if [ $? -ne 0 ]; then
-    echo -e "${RED}❌ Dependency installation failed${NC}"
-    FAILED=1
-else
-    echo -e "${GREEN}✅ Dependencies installed${NC}"
-fi
+run_check() {
+    local title=$1
+    local success_message=$2
+    local failure_message=$3
+    shift 3
 
-# 2. Generate Nitro code
-echo -e "\n${YELLOW}⚙️ Generating Nitro code...${NC}"
-yarn nitrogen
-if [ $? -ne 0 ]; then
-    echo -e "${RED}❌ Nitro code generation failed${NC}"
-    FAILED=1
-else
-    echo -e "${GREEN}✅ Nitro code generated${NC}"
-fi
+    echo -e "\n${YELLOW}${title}${NC}"
+    if "$@"; then
+        echo -e "${GREEN}✅ ${success_message}${NC}"
+    else
+        echo -e "${RED}❌ ${failure_message}${NC}"
+        if [ -n "${CHECK_HINT:-}" ]; then
+            echo -e "${YELLOW}💡 ${CHECK_HINT}${NC}"
+        fi
+        FAILED=1
+    fi
+}
 
-# 3. TypeScript check
-echo -e "\n${YELLOW}🔍 Running TypeScript check...${NC}"
-yarn typecheck
-if [ $? -ne 0 ]; then
-    echo -e "${RED}❌ TypeScript check failed${NC}"
-    FAILED=1
-else
-    echo -e "${GREEN}✅ TypeScript check passed${NC}"
-fi
-
-# 4. ESLint
-echo -e "\n${YELLOW}🔍 Running ESLint...${NC}"
-yarn lint
-if [ $? -ne 0 ]; then
-    echo -e "${RED}❌ ESLint check failed${NC}"
-    FAILED=1
-else
-    echo -e "${GREEN}✅ ESLint check passed${NC}"
-fi
-
-# 5. Prettier format check
-echo -e "\n${YELLOW}💅 Checking code formatting...${NC}"
-yarn prettier --check "src/**/*.{ts,tsx,js,jsx}"
-if [ $? -ne 0 ]; then
-    echo -e "${RED}❌ Code formatting issues found${NC}"
-    echo -e "${YELLOW}💡 Run 'yarn prettier --write \"src/**/*.{ts,tsx,js,jsx}\"' to fix${NC}"
-    FAILED=1
-else
-    echo -e "${GREEN}✅ Code formatting check passed${NC}"
-fi
-
-# 6. Run tests
-echo -e "\n${YELLOW}🧪 Running tests...${NC}"
-yarn test --passWithNoTests
-if [ $? -ne 0 ]; then
-    echo -e "${RED}❌ Tests failed${NC}"
-    FAILED=1
-else
-    echo -e "${GREEN}✅ Tests passed${NC}"
-fi
+run_check "📦 Installing dependencies..." "Dependencies installed" "Dependency installation failed" yarn install --immutable
+run_check "⚙️ Generating Nitro code..." "Nitro code generated" "Nitro code generation failed" yarn nitrogen
+run_check "🔍 Running TypeScript check..." "TypeScript check passed" "TypeScript check failed" yarn typecheck
+run_check "🔍 Running ESLint..." "ESLint check passed" "ESLint check failed" yarn lint
+CHECK_HINT='Run '\''yarn prettier --write "src/**/*.{ts,tsx,js,jsx}"'\'' to fix' \
+    run_check "💅 Checking code formatting..." "Code formatting check passed" "Code formatting issues found" yarn prettier --check "src/**/*.{ts,tsx,js,jsx}"
+run_check "🧪 Running tests..." "Tests passed" "Tests failed" yarn test --passWithNoTests
 
 # Summary
 echo -e "\n================================"

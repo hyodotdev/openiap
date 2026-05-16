@@ -13,15 +13,42 @@ BUILD_DIR="${PACKAGE_DIR}/.build/xcframework"
 DERIVED="${BUILD_DIR}/derived"
 ARCHIVES="${BUILD_DIR}/archives"
 OUT="${BUILD_DIR}/OpenIAP.xcframework"
+VERSIONS_FILE="${PACKAGE_DIR}/Sources/openiap-versions.json"
+if [[ ! -f "${VERSIONS_FILE}" ]]; then
+  VERSIONS_FILE="${PACKAGE_DIR}/../../openiap-versions.json"
+fi
 
 if [[ ! -d "${WRAPPER_DIR}" ]] || [[ ! -f "${WRAPPER_DIR}/project.yml" ]]; then
   echo "error: wrapper project not found at ${WRAPPER_DIR}"
   exit 1
 fi
 
+if [[ ! -f "${VERSIONS_FILE}" ]]; then
+  echo "error: openiap-versions.json not found at ${VERSIONS_FILE}"
+  exit 1
+fi
+
+read_openiap_version() {
+  python3 - "$VERSIONS_FILE" "$1" <<'PY'
+import json
+import sys
+
+path, key = sys.argv[1], sys.argv[2]
+with open(path, encoding="utf-8") as file:
+    value = json.load(file).get(key)
+
+if not isinstance(value, str) or not value.strip():
+    raise SystemExit(f"missing {key} in {path}")
+
+print(value.strip())
+PY
+}
+
+APPLE_VERSION="$(read_openiap_version apple)"
+
 # Regenerate the wrapper Xcode project (xcodegen) so source-file changes are picked up.
 if ! command -v xcodegen >/dev/null 2>&1; then
-  echo "error: xcodegen not installed (brew install xcodegen)"
+  echo "error: xcodegen not installed (run scripts/install-xcodegen.sh <version>)"
   exit 1
 fi
 
@@ -43,6 +70,7 @@ archive() {
     -archivePath "${archive_path}" \
     -derivedDataPath "${DERIVED}" \
     -configuration Release \
+    OPENIAP_MARKETING_VERSION="${APPLE_VERSION}" \
     SKIP_INSTALL=NO \
     BUILD_LIBRARY_FOR_DISTRIBUTION=YES \
     -quiet

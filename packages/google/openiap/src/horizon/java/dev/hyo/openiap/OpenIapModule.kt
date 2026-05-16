@@ -2,7 +2,6 @@ package dev.hyo.openiap
 
 import android.app.Activity
 import android.content.Context
-import android.util.Log
 import com.meta.horizon.billingclient.api.AcknowledgePurchaseParams
 import com.meta.horizon.billingclient.api.AlternativeBillingOnlyInformationDialogListener
 import com.meta.horizon.billingclient.api.AlternativeBillingOnlyReportingDetails
@@ -419,9 +418,9 @@ class OpenIapModule(
 
                         if (androidArgs.type == ProductQueryType.Subs) {
                             val availableOffers = productDetails.subscriptionOfferDetails?.map {
-                                "${it.basePlanId}:${it.offerToken}"
+                                it.basePlanId
                             } ?: emptyList()
-                            OpenIapLog.d("Available offers for ${productDetails.productId}: $availableOffers", TAG)
+                            OpenIapLog.d("Available offer base plans for ${productDetails.productId}: $availableOffers", TAG)
 
                             val availableTokens = productDetails.subscriptionOfferDetails?.map { it.offerToken } ?: emptyList()
                             val fromQueue = requestedOffersBySku[productDetails.productId]?.let { queue ->
@@ -431,10 +430,9 @@ class OpenIapModule(
                             val resolved = fromQueue ?: fromIndex ?: productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken
 
                             OpenIapLog.d("Resolved offer token for ${productDetails.productId}: $resolved", TAG)
-                            android.util.Log.i(TAG, "BILLING_FLOW_PARAM: SKU=${productDetails.productId}, resolvedOfferToken=$resolved")
 
                             if (resolved.isNullOrEmpty() || (availableTokens.isNotEmpty() && !availableTokens.contains(resolved))) {
-                                OpenIapLog.w("Invalid offer token: $resolved not in $availableTokens", TAG)
+                                OpenIapLog.w("Invalid offer token: $resolved not in available offer tokens", TAG)
                                 val err = OpenIapError.SkuOfferMismatch
                                 purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
                                 consumePurchaseCallback(Result.success(emptyList()))
@@ -474,7 +472,7 @@ class OpenIapModule(
                     if (androidArgs.type == ProductQueryType.Subs && !androidArgs.purchaseToken.isNullOrBlank()) {
                         // This is a subscription upgrade/downgrade - do not set obfuscatedProfileId
                         OpenIapLog.d("=== Subscription Upgrade Flow ===", TAG)
-                        OpenIapLog.d("  - Old Token: ${androidArgs.purchaseToken.take(10)}...", TAG)
+                        OpenIapLog.d("  - Old Token: ${androidArgs.purchaseToken}", TAG)
                         OpenIapLog.d("  - Target SKUs: ${androidArgs.skus}", TAG)
                         OpenIapLog.d("  - Replacement mode: ${androidArgs.replacementMode}", TAG)
                         OpenIapLog.d("  - Product Details Count: ${paramsList.size}", TAG)
@@ -843,10 +841,8 @@ class OpenIapModule(
             OpenIapLog.i("Purchases count: ${purchases?.size ?: 0}", TAG)
 
             purchases?.forEachIndexed { index, purchase ->
-                val redactedToken = purchase.purchaseToken?.take(8)?.plus("…")
-                val redactedOrder = purchase.orderId?.take(8)?.plus("…")
                 OpenIapLog.i(
-                    "[HorizonPurchase $index] productIds=${purchase.products} token=$redactedToken orderId=$redactedOrder " +
+                    "[HorizonPurchase $index] productIds=${purchase.products} token=${purchase.purchaseToken} orderId=${purchase.orderId} " +
                     "acknowledged=${purchase.isAcknowledged()} autoRenew=${purchase.isAutoRenewing()}",
                     TAG
                 )
@@ -1005,7 +1001,7 @@ class OpenIapModule(
                     OpenIapLog.w("Alternative Billing not supported by Horizon library", TAG)
                     cont.resumeWithException(Exception("Feature not supported"))
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error checking alternative billing: ${e.message}")
+                    OpenIapLog.e("Error checking alternative billing: ${e.message}", e, TAG)
                     cont.resumeWithException(e)
                 }
             }
@@ -1015,7 +1011,7 @@ class OpenIapModule(
         } catch (e: OpenIapError) {
             throw e
         } catch (e: Exception) {
-            Log.e(TAG, "Error in checkAlternativeBillingAvailability: ${e.message}")
+            OpenIapLog.e("Error in checkAlternativeBillingAvailability: ${e.message}", e, TAG)
             false
         }
     }
@@ -1043,7 +1039,7 @@ class OpenIapModule(
                     OpenIapLog.w("showAlternativeBillingOnlyInformationDialog not supported", TAG)
                     cont.resumeWithException(Exception("Feature not supported"))
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error showing alternative billing dialog: ${e.message}")
+                    OpenIapLog.e("Error showing alternative billing dialog: ${e.message}", e, TAG)
                     cont.resumeWithException(e)
                 }
             }
@@ -1053,7 +1049,7 @@ class OpenIapModule(
         } catch (e: OpenIapError) {
             throw e
         } catch (e: Exception) {
-            Log.e(TAG, "Error in showAlternativeBillingInformationDialog: ${e.message}")
+            OpenIapLog.e("Error in showAlternativeBillingInformationDialog: ${e.message}", e, TAG)
             false
         }
     }
@@ -1072,7 +1068,7 @@ class OpenIapModule(
                     OpenIapLog.w("createAlternativeBillingOnlyReportingDetails not supported", TAG)
                     cont.resumeWithException(Exception("Feature not supported"))
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error creating alternative billing token: ${e.message}")
+                    OpenIapLog.e("Error creating alternative billing token: ${e.message}", e, TAG)
                     cont.resumeWithException(e)
                 }
             }
@@ -1086,57 +1082,57 @@ class OpenIapModule(
         } catch (e: OpenIapError) {
             throw e
         } catch (e: Exception) {
-            Log.e(TAG, "Error in createAlternativeBillingReportingToken: ${e.message}")
+            OpenIapLog.e("Error in createAlternativeBillingReportingToken: ${e.message}", e, TAG)
             null
         }
     }
 
     override fun setUserChoiceBillingListener(listener: dev.hyo.openiap.listener.UserChoiceBillingListener?) {
         // No-op: User Choice Billing is a Google Play feature, not supported on Meta Horizon
-        Log.w(TAG, "setUserChoiceBillingListener is not supported on Meta Horizon (no-op)")
+        OpenIapLog.w("setUserChoiceBillingListener is not supported on Meta Horizon (no-op)", TAG)
     }
 
     override fun setDeveloperProvidedBillingListener(listener: dev.hyo.openiap.listener.DeveloperProvidedBillingListener?) {
         // No-op: External Payments is a Google Play 8.3.0+ feature, not supported on Meta Horizon
-        Log.w(TAG, "setDeveloperProvidedBillingListener is not supported on Meta Horizon (no-op)")
+        OpenIapLog.w("setDeveloperProvidedBillingListener is not supported on Meta Horizon (no-op)", TAG)
     }
 
     override fun addUserChoiceBillingListener(listener: OpenIapUserChoiceBillingListener) {
         // No-op: User Choice Billing is a Google Play feature, not supported on Meta Horizon
-        Log.w(TAG, "addUserChoiceBillingListener is not supported on Meta Horizon (no-op)")
+        OpenIapLog.w("addUserChoiceBillingListener is not supported on Meta Horizon (no-op)", TAG)
     }
 
     override fun removeUserChoiceBillingListener(listener: OpenIapUserChoiceBillingListener) {
         // No-op: User Choice Billing is a Google Play feature, not supported on Meta Horizon
-        Log.w(TAG, "removeUserChoiceBillingListener is not supported on Meta Horizon (no-op)")
+        OpenIapLog.w("removeUserChoiceBillingListener is not supported on Meta Horizon (no-op)", TAG)
     }
 
     override fun addDeveloperProvidedBillingListener(listener: OpenIapDeveloperProvidedBillingListener) {
         // No-op: External Payments is a Google Play 8.3.0+ feature, not supported on Meta Horizon
-        Log.w(TAG, "addDeveloperProvidedBillingListener is not supported on Meta Horizon (no-op)")
+        OpenIapLog.w("addDeveloperProvidedBillingListener is not supported on Meta Horizon (no-op)", TAG)
     }
 
     override fun removeDeveloperProvidedBillingListener(listener: OpenIapDeveloperProvidedBillingListener) {
         // No-op: External Payments is a Google Play 8.3.0+ feature, not supported on Meta Horizon
-        Log.w(TAG, "removeDeveloperProvidedBillingListener is not supported on Meta Horizon (no-op)")
+        OpenIapLog.w("removeDeveloperProvidedBillingListener is not supported on Meta Horizon (no-op)", TAG)
     }
 
     override fun addSubscriptionBillingIssueListener(listener: dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener) {
         // No-op: Suspended-subscription detection (Purchase.isSuspended) requires Google Play
         // Billing Library 8.1+. The Meta Horizon Billing Compatibility SDK targets Play Billing 7.0
         // and does not expose this signal.
-        Log.w(TAG, "addSubscriptionBillingIssueListener is not supported on Meta Horizon (no-op); requires Play Billing 8.1+")
+        OpenIapLog.w("addSubscriptionBillingIssueListener is not supported on Meta Horizon (no-op); requires Play Billing 8.1+", TAG)
     }
 
     override fun removeSubscriptionBillingIssueListener(listener: dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener) {
         // No-op: see addSubscriptionBillingIssueListener
-        Log.w(TAG, "removeSubscriptionBillingIssueListener is not supported on Meta Horizon (no-op)")
+        OpenIapLog.w("removeSubscriptionBillingIssueListener is not supported on Meta Horizon (no-op)", TAG)
     }
 
     // Billing Programs (8.2.0+, EXTERNAL_PAYMENTS 8.3.0+) - Not supported on Horizon
     override suspend fun isBillingProgramAvailable(program: BillingProgramAndroid): BillingProgramAvailabilityResultAndroid {
         // No-op: Billing Programs is a Google Play 8.2.0+ feature, not supported on Meta Horizon
-        Log.w(TAG, "isBillingProgramAvailable is not supported on Meta Horizon (no-op)")
+        OpenIapLog.w("isBillingProgramAvailable is not supported on Meta Horizon (no-op)", TAG)
         return BillingProgramAvailabilityResultAndroid(
             billingProgram = program,
             isAvailable = false
@@ -1145,7 +1141,7 @@ class OpenIapModule(
 
     override suspend fun createBillingProgramReportingDetails(program: BillingProgramAndroid): BillingProgramReportingDetailsAndroid {
         // No-op: Billing Programs is a Google Play 8.2.0+ feature, not supported on Meta Horizon
-        Log.w(TAG, "createBillingProgramReportingDetails is not supported on Meta Horizon (no-op)")
+        OpenIapLog.w("createBillingProgramReportingDetails is not supported on Meta Horizon (no-op)", TAG)
         return BillingProgramReportingDetailsAndroid(
             billingProgram = program,
             externalTransactionToken = ""
@@ -1154,7 +1150,7 @@ class OpenIapModule(
 
     override suspend fun launchExternalLink(activity: Activity, params: LaunchExternalLinkParamsAndroid): Boolean {
         // No-op: Billing Programs is a Google Play 8.2.0+ feature, not supported on Meta Horizon
-        Log.w(TAG, "launchExternalLink is not supported on Meta Horizon (no-op)")
+        OpenIapLog.w("launchExternalLink is not supported on Meta Horizon (no-op)", TAG)
         return false
     }
 }

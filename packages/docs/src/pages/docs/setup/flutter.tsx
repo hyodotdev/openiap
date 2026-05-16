@@ -1,5 +1,6 @@
 import CodeBlock from '../../../components/CodeBlock';
 import SEO from '../../../components/SEO';
+import { ANDROID_SDK, FLUTTER_PACKAGE } from '../../../lib/versioning';
 
 function FlutterSetup() {
   return (
@@ -46,7 +47,7 @@ function FlutterSetup() {
         </p>
         <CodeBlock language="yaml">
           {`dependencies:
-  flutter_inapp_purchase: ^9.0.0`}
+  ${FLUTTER_PACKAGE.dependencyLine}`}
         </CodeBlock>
 
         <h3 id="ios-config" className="anchor-heading">
@@ -87,11 +88,11 @@ function FlutterSetup() {
         </p>
         <CodeBlock language="groovy">
           {`android {
-    compileSdkVersion 34
+    compileSdkVersion ${ANDROID_SDK.compileSdk}
 
     defaultConfig {
-        minSdkVersion 21  // Required minimum
-        targetSdkVersion 34
+        minSdkVersion ${ANDROID_SDK.minSdk}  // Required minimum
+        targetSdkVersion ${ANDROID_SDK.targetSdk}
 
         // Required for v7.1.14+: Select Google Play platform
         missingDimensionStrategy 'platform', 'play'
@@ -103,11 +104,11 @@ function FlutterSetup() {
         </p>
         <CodeBlock language="kotlin">
           {`android {
-    compileSdk = 34
+    compileSdk = ${ANDROID_SDK.compileSdk}
 
     defaultConfig {
-        minSdk = 21  // Required minimum
-        targetSdk = 34
+        minSdk = ${ANDROID_SDK.minSdk}  // Required minimum
+        targetSdk = ${ANDROID_SDK.targetSdk}
 
         // Required for v7.1.14+: Select Google Play platform
         missingDimensionStrategy("platform", "play")
@@ -136,10 +137,8 @@ function FlutterSetup() {
         </p>
         <CodeBlock language="text">
           {`# In-App Purchase
--keep class com.amazon.** {*;}
 -keep class dev.hyo.** { *; }
 -keep class com.android.vending.billing.**
--dontwarn com.amazon.**
 -keepattributes *Annotation*`}
         </CodeBlock>
       </section>

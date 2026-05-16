@@ -162,7 +162,7 @@ class _WebhookStreamScreenState extends State<WebhookStreamScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'api key: ${apiKey.isEmpty ? 'MISSING' : '${apiKey.substring(0, apiKey.length < 8 ? apiKey.length : 8)}...'}',
+                  'api key: ${apiKey.isEmpty ? 'MISSING' : 'CONFIGURED'}',
                 ),
                 const SizedBox(height: 16),
                 Row(

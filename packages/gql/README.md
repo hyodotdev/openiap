@@ -39,7 +39,7 @@ Generated outputs:
 Uses [`@graphql-codegen/cli`](https://www.the-guild.dev/graphql/codegen).
 
 1. Ensure Node 18+ is installed.
-2. Install dependencies once: `npm install`
+2. Install dependencies once from the monorepo root: `bun install --frozen-lockfile`
 3. Generate types: `bun run generate:ts`
 4. Generated output: `src/generated/types.ts`
 

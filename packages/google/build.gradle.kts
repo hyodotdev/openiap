@@ -1,36 +1,29 @@
 plugins {
-    id("com.android.library") version "8.7.3" apply false
-    id("com.android.application") version "8.7.3" apply false
+    id("com.android.library") version "8.13.2" apply false
+    id("com.android.application") version "8.13.2" apply false
     id("org.jetbrains.kotlin.android") version "2.2.0" apply false
     id("org.jetbrains.kotlin.plugin.compose") version "2.2.0" apply false
-    id("com.vanniktech.maven.publish") version "0.29.0" apply false
+    id("com.vanniktech.maven.publish") version "0.35.0" apply false
 }
 
+import groovy.json.JsonSlurper
 import java.io.File
 
 // Read version from monorepo root or environment variable
 val androidVersion = System.getenv("ORG_GRADLE_PROJECT_openIapVersion") ?: run {
-    // Fallback: read from openiap-versions.json
     val versionsFile = File(rootDir.parentFile.parentFile, "openiap-versions.json")
-    val jsonText = versionsFile.readText()
-    jsonText.substringAfter("\"google\": \"").substringBefore("\"")
-}
-
-val gqlVersion = run {
-    val versionsFile = File(rootDir.parentFile.parentFile, "openiap-versions.json")
-    if (versionsFile.exists()) {
-        val jsonText = versionsFile.readText()
-        jsonText.substringAfter("\"gql\": \"").substringBefore("\"")
-    } else {
-        "1.2.2" // Fallback
+    if (!versionsFile.isFile) {
+        error("packages/google: missing openiap-versions.json at ${versionsFile.path}")
     }
+    val versionsJson = JsonSlurper().parseText(versionsFile.readText()) as Map<*, *>
+    versionsJson["google"]?.toString()
+        ?: error("packages/google: 'google' version missing in openiap-versions.json")
 }
 
 extra["OPENIAP_VERSION"] = androidVersion
-extra["GQL_VERSION"] = gqlVersion
 
-// Configure Sonatype (OSSRH) publishing at the root
-// Credentials are sourced from env or gradle.properties (OSSRH_USERNAME/OSSRH_PASSWORD)
+// Configure Maven Central publishing at the root.
+// Credentials are sourced from env or gradle.properties.
 // Maven Central publishing is configured per-module via Vanniktech plugin.
 
 tasks.register("clean", Delete::class) {

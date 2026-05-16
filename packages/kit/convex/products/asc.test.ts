@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ascCustomerPriceToMicros,
   mapAscOfferDurationToIso,
   mapAscOfferKind,
   mapBillingPeriodToAsc,
@@ -8,6 +9,20 @@ import {
   pickActivePriceRow,
   pickPricePointIdMatching,
 } from "./asc";
+
+describe("ascCustomerPriceToMicros", () => {
+  it("converts ASC customerPrice strings to micros", () => {
+    expect(ascCustomerPriceToMicros("0.99")).toBe(990_000);
+    expect(ascCustomerPriceToMicros("9")).toBe(9_000_000);
+  });
+
+  it("returns undefined for malformed or unsafe prices", () => {
+    expect(ascCustomerPriceToMicros(undefined)).toBeUndefined();
+    expect(ascCustomerPriceToMicros("abc")).toBeUndefined();
+    expect(ascCustomerPriceToMicros("-1")).toBeUndefined();
+    expect(ascCustomerPriceToMicros("10000000000")).toBeUndefined();
+  });
+});
 
 describe("pickPricePointIdMatching", () => {
   const list = {
@@ -38,6 +53,11 @@ describe("pickPricePointIdMatching", () => {
         attributes: { customerPrice: "abc" },
       },
       {
+        id: "tier-unsafe",
+        type: "inAppPurchasePricePoints" as const,
+        attributes: { customerPrice: "9007199254.740993" },
+      },
+      {
         id: "tier-empty",
         type: "inAppPurchasePricePoints" as const,
         attributes: {},
@@ -53,6 +73,14 @@ describe("pickPricePointIdMatching", () => {
     expect(pickPricePointIdMatching(list, 1_500_000)).toBeNull();
   });
 
+  it("returns null for invalid requested amounts", () => {
+    expect(pickPricePointIdMatching(list, -1)).toBeNull();
+    expect(pickPricePointIdMatching(list, 1.5)).toBeNull();
+    expect(
+      pickPricePointIdMatching(list, Number.MAX_SAFE_INTEGER + 1),
+    ).toBeNull();
+  });
+
   it("matches an exact tier on the cent boundary", () => {
     expect(pickPricePointIdMatching(list, 9_990_000)).toBe("tier-999");
     expect(pickPricePointIdMatching(list, 290_000)).toBe("tier-29");
@@ -64,8 +92,9 @@ describe("pickPricePointIdMatching", () => {
     expect(pickPricePointIdMatching(list, 9_985_000)).toBe("tier-999");
   });
 
-  it("skips malformed and missing customerPrice rows", () => {
+  it("skips malformed, missing, and unsafe customerPrice rows", () => {
     expect(pickPricePointIdMatching(list, 0)).toBeNull();
+    expect(pickPricePointIdMatching(list, Number.MAX_SAFE_INTEGER)).toBeNull();
   });
 });
 

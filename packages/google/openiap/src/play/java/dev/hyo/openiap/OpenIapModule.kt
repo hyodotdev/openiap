@@ -846,7 +846,7 @@ class OpenIapModule(
                         OpenIapLog.d("", TAG)
                         OpenIapLog.d("Required implementation:", TAG)
                         OpenIapLog.d("1. Process payment through YOUR alternative payment system", TAG)
-                        OpenIapLog.d("2. After successful payment, send this token to your backend:", TAG)
+                        OpenIapLog.d("2. After successful payment, send this token to your backend", TAG)
                         OpenIapLog.d("   Token: $tokenResult", TAG)
                         OpenIapLog.d("3. Backend reports to Google Play Developer API within 24 hours:", TAG)
                         OpenIapLog.d("   POST https://androidpublisher.googleapis.com/androidpublisher/v3/", TAG)
@@ -856,15 +856,6 @@ class OpenIapModule(
                         OpenIapLog.d("See: https://developer.android.com/google/play/billing/alternative/reporting", TAG)
                         OpenIapLog.d("============================================================", TAG)
                         OpenIapLog.d("=== END ALTERNATIVE BILLING ONLY MODE ===", TAG)
-
-                        // TODO: In production, emit this token via callback for payment processing
-                        // alternativeBillingCallback?.onTokenCreated(
-                        //     token = tokenResult,
-                        //     productId = props.skus.first(),
-                        //     onPaymentComplete = { transactionId ->
-                        //         // App reports to backend after payment success
-                        //     }
-                        // )
 
                         // Return empty list - app should handle purchase via alternative billing
                         return@withContext emptyList()
@@ -962,9 +953,9 @@ class OpenIapModule(
 
                         if (androidArgs.type == ProductQueryType.Subs) {
                             val availableOffers = productDetails.subscriptionOfferDetails?.map {
-                                "${it.basePlanId}:${it.offerToken}"
+                                it.basePlanId
                             } ?: emptyList()
-                            OpenIapLog.d("Available offers for ${productDetails.productId}: $availableOffers", TAG)
+                            OpenIapLog.d("Available offer base plans for ${productDetails.productId}: $availableOffers", TAG)
 
                             val availableTokens = productDetails.subscriptionOfferDetails?.map { it.offerToken } ?: emptyList()
                             val fromQueue = requestedOffersBySku[productDetails.productId]?.let { queue ->
@@ -976,7 +967,7 @@ class OpenIapModule(
                             OpenIapLog.d("Resolved offer token for ${productDetails.productId}: $resolved", TAG)
 
                             if (resolved.isNullOrEmpty() || (availableTokens.isNotEmpty() && !availableTokens.contains(resolved))) {
-                                OpenIapLog.w("Invalid offer token: $resolved not in $availableTokens", TAG)
+                                OpenIapLog.w("Invalid offer token: $resolved not in available offer tokens", TAG)
                                 val err = OpenIapError.SkuOfferMismatch
                                 for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
                                 consumePurchaseCallback(Result.success(emptyList()))
@@ -1011,7 +1002,7 @@ class OpenIapModule(
                             }
 
                             if (!availableTokens.contains(androidArgs.offerToken)) {
-                                OpenIapLog.w("Invalid one-time offer token: ${androidArgs.offerToken} not in $availableTokens", TAG)
+                                OpenIapLog.w("Invalid one-time offer token: ${androidArgs.offerToken} not in available offer tokens", TAG)
                                 val err = OpenIapError.SkuOfferMismatch
                                 for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
                                 consumePurchaseCallback(Result.success(emptyList()))
@@ -1050,7 +1041,7 @@ class OpenIapModule(
                     if (androidArgs.type == ProductQueryType.Subs && !androidArgs.purchaseToken.isNullOrBlank()) {
                         // This is a subscription upgrade/downgrade - do not set obfuscatedProfileId
                         OpenIapLog.d("=== Subscription Upgrade Flow ===", TAG)
-                        OpenIapLog.d("  - Old Token: ${androidArgs.purchaseToken.take(10)}...", TAG)
+                        OpenIapLog.d("  - Old Token: ${androidArgs.purchaseToken}", TAG)
                         OpenIapLog.d("  - Target SKUs: ${androidArgs.skus}", TAG)
                         OpenIapLog.d("  - Replacement mode: ${androidArgs.replacementMode}", TAG)
                         OpenIapLog.d("  - Product Details Count: ${paramsList.size}", TAG)
@@ -1462,7 +1453,7 @@ class OpenIapModule(
                     OpenIapLog.d("Mapping purchase products=${purchase.products} to type=$productType basePlanId=$basePlanId (cached=${cached != null})", TAG)
                     purchase.toPurchase(productType, basePlanId)
                 }
-                OpenIapLog.d("Mapped purchases=${gson.toJson(mapped)}", TAG)
+                OpenIapLog.d("Mapped purchases count=${mapped.size}", TAG)
                 notifySuspendedSubscriptions(mapped)
                 for (converted in mapped) {
                     for (listener in purchaseUpdateListeners) {
@@ -1575,8 +1566,7 @@ class OpenIapModule(
                                     OpenIapLog.w("Failed to extract user choice details", TAG)
                                 }
                             } catch (e: Exception) {
-                                OpenIapLog.w("Error processing user choice details: ${e.message}", TAG)
-                                e.printStackTrace()
+                                OpenIapLog.e("Error processing user choice details", e, TAG)
                             }
                             OpenIapLog.d("==========================================", TAG)
                         }
@@ -1862,8 +1852,7 @@ class OpenIapModule(
                         OpenIapLog.w("Failed to extract external transaction token", TAG)
                     }
                 } catch (e: Exception) {
-                    OpenIapLog.w("Error processing developer billing details: ${e.message}", TAG)
-                    e.printStackTrace()
+                    OpenIapLog.e("Error processing developer billing details", e, TAG)
                 }
                 OpenIapLog.d("==========================================", TAG)
             }

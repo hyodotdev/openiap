@@ -27,5 +27,5 @@
     "verbatimModuleSyntax": true,
     "typeRoots": ["./src/types", "./node_modules/@types"]
   },
-  "exclude": ["example-expo", "docs"]
+  "exclude": ["docs"]
 }

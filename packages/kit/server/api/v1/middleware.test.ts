@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { Hono } from "hono";
 
-import { apiKeyMiddleware } from "./middleware";
+import { apiKeyMiddleware, apiKeyValidationError } from "./middleware";
 
 function buildApp() {
   const app = new Hono();
@@ -105,5 +105,32 @@ describe("apiKeyMiddleware", () => {
       errors: Array<{ code: string }>;
     };
     expect(body.errors[0].code).toBe("INVALID_API_KEY");
+  });
+
+  test("returns 403 INVALID_API_KEY when the key is oversized", async () => {
+    const app = buildApp();
+    const response = await app.request("/verify", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${"a".repeat(129)}` },
+    });
+    expect(response.status).toBe(403);
+    const body = (await response.json()) as {
+      errors: Array<{ code: string; message: string }>;
+    };
+    expect(body.errors[0]).toEqual({
+      code: "INVALID_API_KEY",
+      message: "API key is too long",
+    });
+  });
+});
+
+describe("apiKeyValidationError", () => {
+  test("rejects blank, malformed, and oversized keys", () => {
+    expect(apiKeyValidationError("  ")).toBe("API key is required");
+    expect(apiKeyValidationError("openiap-kit_abc 123")).toBe(
+      "API key is malformed",
+    );
+    expect(apiKeyValidationError("a".repeat(129))).toBe("API key is too long");
+    expect(apiKeyValidationError("openiap-kit_abc123")).toBeNull();
   });
 });

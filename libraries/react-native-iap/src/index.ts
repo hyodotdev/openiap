@@ -44,6 +44,8 @@ import type {
   RequestSubscriptionIosProps,
   RequestSubscriptionPropsByPlatforms,
   ActiveSubscription,
+  DeveloperProvidedBillingDetailsAndroid,
+  UserChoiceBillingDetails,
 } from './types';
 import {
   convertNitroProductToProduct,
@@ -72,8 +74,6 @@ import {parseAppTransactionPayload} from './utils';
 // Import them here for use in this file's interfaces and functions.
 import type {
   BillingProgramAndroid,
-  ExternalLinkLaunchModeAndroid,
-  ExternalLinkTypeAndroid,
 } from './types';
 
 // Export all types
@@ -89,7 +89,7 @@ export * from './utils/error';
 export type ProductTypeInput = 'inapp' | 'in-app' | 'subs';
 
 const LEGACY_INAPP_WARNING =
-  "[react-native-iap] `type: 'inapp'` is deprecated and will be removed in v14.4.0. Use 'in-app' instead.";
+  "[react-native-iap] `type: 'inapp'` is deprecated and will be removed in a future major version. Use 'in-app' instead.";
 
 type NitroPurchaseRequest = Parameters<RnIap['requestPurchase']>[0];
 type NitroAvailablePurchasesOptions = NonNullable<
@@ -120,6 +120,9 @@ const toErrorMessage = (error: unknown): string => {
   }
   return String(error ?? '');
 };
+
+const unsupportedPlatformError = (): Error =>
+  new Error(`Unsupported platform: ${Platform.OS}`);
 
 export interface EventSubscription {
   remove(): void;
@@ -517,7 +520,7 @@ export const promotedProductListenerIOS = (
  * const subscription = userChoiceBillingListenerAndroid((details) => {
  *   console.log('User chose alternative billing');
  *   console.log('Products:', details.products);
- *   console.log('Token:', details.externalTransactionToken);
+ *   console.log('External transaction token received; send it to your backend without logging it.');
  *
  *   // Send token to backend for Google Play reporting
  *   await reportToGooglePlay(details.externalTransactionToken);
@@ -531,7 +534,9 @@ type NitroUserChoiceBillingListener = Parameters<
   RnIap['addUserChoiceBillingListenerAndroid']
 >[0];
 
-const userChoiceBillingJsListeners = new Set<(details: any) => void>();
+const userChoiceBillingJsListeners = new Set<
+  (details: UserChoiceBillingDetails) => void
+>();
 let userChoiceBillingNativeAttached = false;
 const userChoiceBillingNativeHandler: NitroUserChoiceBillingListener = (
   details,
@@ -549,7 +554,7 @@ const userChoiceBillingNativeHandler: NitroUserChoiceBillingListener = (
 };
 
 export const userChoiceBillingListenerAndroid = (
-  listener: (details: any) => void,
+  listener: (details: UserChoiceBillingDetails) => void,
 ): EventSubscription => {
   if (Platform.OS !== 'android') {
     RnIapConsole.warn(
@@ -602,7 +607,7 @@ export const userChoiceBillingListenerAndroid = (
  * ```typescript
  * const subscription = developerProvidedBillingListenerAndroid((details) => {
  *   console.log('User chose developer billing');
- *   console.log('Token:', details.externalTransactionToken);
+ *   console.log('External transaction token received; send it to your backend without logging it.');
  *
  *   // Process payment through your external payment system
  *   await processExternalPayment();
@@ -636,15 +641,6 @@ const developerProvidedBillingNativeHandler: NitroDeveloperProvidedBillingListen
       }
     }
   };
-
-export interface DeveloperProvidedBillingDetailsAndroid {
-  /**
-   * External transaction token used to report transactions made through developer billing.
-   * This token must be used when reporting the external transaction to Google Play.
-   * Must be reported within 24 hours of the transaction.
-   */
-  externalTransactionToken: string;
-}
 
 export const developerProvidedBillingListenerAndroid = (
   listener: (details: DeveloperProvidedBillingDetailsAndroid) => void,
@@ -801,7 +797,7 @@ export const subscriptionBillingIssueListener = (
  * @remarks This is a regular promise-based call. Don't confuse with `request*` APIs
  *   (`requestPurchase`), which are event-based.
  *
- * @see {@link https://www.openiap.dev/docs/apis/fetch-products}
+ * @see {@link https://openiap.dev/docs/apis/fetch-products}
  */
 export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
   const {skus, type} = request;
@@ -943,7 +939,7 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
  * }
  * ```
  *
- * @see {@link https://www.openiap.dev/docs/apis/get-available-purchases}
+ * @see {@link https://openiap.dev/docs/apis/get-available-purchases}
  */
 export const getAvailablePurchases: QueryField<
   'getAvailablePurchases'
@@ -998,7 +994,7 @@ export const getAvailablePurchases: QueryField<
 
       return validPurchases.map(convertNitroPurchaseToPurchase);
     } else {
-      throw new Error('Unsupported platform');
+      throw unsupportedPlatformError();
     }
   } catch (error) {
     RnIapConsole.error('Failed to get available purchases:', error);
@@ -1011,7 +1007,7 @@ export const getAvailablePurchases: QueryField<
  * @returns Promise<Product | null> - The promoted product or null if none available
  * @platform iOS
  *
- * @see {@link https://www.openiap.dev/docs/apis/ios/get-promoted-product-ios}
+ * @see {@link https://openiap.dev/docs/apis/ios/get-promoted-product-ios}
  */
 export const getPromotedProductIOS: QueryField<
   'getPromotedProductIOS'
@@ -1055,7 +1051,7 @@ export const requestPromotedProductIOS = getPromotedProductIOS;
  * console.log('User storefront:', storefront); // e.g., 'USA', 'GBR', 'KOR'
  * ```
  *
- * @see {@link https://www.openiap.dev/docs/apis/ios/get-storefront-ios}
+ * @see {@link https://openiap.dev/docs/apis/ios/get-storefront-ios}
  */
 export const getStorefrontIOS: QueryField<'getStorefrontIOS'> = async () => {
   if (Platform.OS !== 'ios') {
@@ -1074,7 +1070,7 @@ export const getStorefrontIOS: QueryField<'getStorefrontIOS'> = async () => {
 /**
  * Return the user's storefront country code.
  *
- * @see {@link https://www.openiap.dev/docs/apis/get-storefront}
+ * @see {@link https://openiap.dev/docs/apis/get-storefront}
  */
 export const getStorefront: QueryField<'getStorefront'> = async () => {
   if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
@@ -1128,7 +1124,7 @@ export const getStorefront: QueryField<'getStorefront'> = async () => {
  * }
  * ```
  *
- * @see {@link https://www.openiap.dev/docs/apis/ios/get-app-transaction-ios}
+ * @see {@link https://openiap.dev/docs/apis/ios/get-app-transaction-ios}
  */
 export const getAppTransactionIOS: QueryField<
   'getAppTransactionIOS'
@@ -1169,7 +1165,7 @@ export const getAppTransactionIOS: QueryField<
  * @throws Error when called on non-iOS platforms or when IAP is not initialized
  * @platform iOS
  *
- * @see {@link https://www.openiap.dev/docs/apis/ios/subscription-status-ios}
+ * @see {@link https://openiap.dev/docs/apis/ios/subscription-status-ios}
  */
 export const subscriptionStatusIOS: QueryField<
   'subscriptionStatusIOS'
@@ -1202,7 +1198,7 @@ export const subscriptionStatusIOS: QueryField<
  * @returns Promise<Purchase | null> - Current entitlement or null
  * @platform iOS
  *
- * @see {@link https://www.openiap.dev/docs/apis/ios/current-entitlement-ios}
+ * @see {@link https://openiap.dev/docs/apis/ios/current-entitlement-ios}
  */
 export const currentEntitlementIOS: QueryField<
   'currentEntitlementIOS'
@@ -1236,7 +1232,7 @@ export const currentEntitlementIOS: QueryField<
  * @returns Promise<Purchase | null> - Latest transaction or null
  * @platform iOS
  *
- * @see {@link https://www.openiap.dev/docs/apis/ios/latest-transaction-ios}
+ * @see {@link https://openiap.dev/docs/apis/ios/latest-transaction-ios}
  */
 export const latestTransactionIOS: QueryField<'latestTransactionIOS'> = async (
   sku,
@@ -1269,7 +1265,7 @@ export const latestTransactionIOS: QueryField<'latestTransactionIOS'> = async (
  * @returns Promise<Purchase[]> - Array of pending transactions
  * @platform iOS
  *
- * @see {@link https://www.openiap.dev/docs/apis/ios/get-pending-transactions-ios}
+ * @see {@link https://openiap.dev/docs/apis/ios/get-pending-transactions-ios}
  */
 export const getPendingTransactionsIOS: QueryField<
   'getPendingTransactionsIOS'
@@ -1300,7 +1296,7 @@ export const getPendingTransactionsIOS: QueryField<
 /**
  * List every StoreKit transaction (finished + unfinished) for the current user.
  *
- * @see {@link https://www.openiap.dev/docs/apis/ios/get-all-transactions-ios}
+ * @see {@link https://openiap.dev/docs/apis/ios/get-all-transactions-ios}
  */
 export const getAllTransactionsIOS: QueryField<
   'getAllTransactionsIOS'
@@ -1333,7 +1329,7 @@ export const getAllTransactionsIOS: QueryField<
  * @returns Promise<Purchase[]> - Subscriptions where auto-renewal status changed
  * @platform iOS
  *
- * @see {@link https://www.openiap.dev/docs/apis/ios/show-manage-subscriptions-ios}
+ * @see {@link https://openiap.dev/docs/apis/ios/show-manage-subscriptions-ios}
  */
 export const showManageSubscriptionsIOS: MutationField<
   'showManageSubscriptionsIOS'
@@ -1367,7 +1363,7 @@ export const showManageSubscriptionsIOS: MutationField<
  * @returns Promise<boolean> - Eligibility status
  * @platform iOS
  *
- * @see {@link https://www.openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios}
+ * @see {@link https://openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios}
  */
 export const isEligibleForIntroOfferIOS: QueryField<
   'isEligibleForIntroOfferIOS'
@@ -1395,7 +1391,7 @@ export const isEligibleForIntroOfferIOS: QueryField<
  * @returns Promise<string> - Base64 encoded receipt data
  * @platform iOS
  *
- * @see {@link https://www.openiap.dev/docs/apis/ios/get-receipt-data-ios}
+ * @see {@link https://openiap.dev/docs/apis/ios/get-receipt-data-ios}
  */
 export const getReceiptDataIOS: QueryField<'getReceiptDataIOS'> = async () => {
   if (Platform.OS !== 'ios') {
@@ -1484,7 +1480,7 @@ export const requestReceiptRefreshIOS = async (): Promise<string> => {
  * @returns Promise<boolean> - Verification status
  * @platform iOS
  *
- * @see {@link https://www.openiap.dev/docs/apis/ios/is-transaction-verified-ios}
+ * @see {@link https://openiap.dev/docs/apis/ios/is-transaction-verified-ios}
  */
 export const isTransactionVerifiedIOS: QueryField<
   'isTransactionVerifiedIOS'
@@ -1513,7 +1509,7 @@ export const isTransactionVerifiedIOS: QueryField<
  * @returns Promise<string | null> - JWS representation or null
  * @platform iOS
  *
- * @see {@link https://www.openiap.dev/docs/apis/ios/get-transaction-jws-ios}
+ * @see {@link https://openiap.dev/docs/apis/ios/get-transaction-jws-ios}
  */
 export const getTransactionJwsIOS: QueryField<'getTransactionJwsIOS'> = async (
   sku,
@@ -1557,7 +1553,7 @@ export const getTransactionJwsIOS: QueryField<'getTransactionJwsIOS'> = async (
  * @remarks When using `useIAP()`, connection is auto-managed on mount/unmount —
  *   pass options to the hook instead of calling this directly.
  *
- * @see {@link https://www.openiap.dev/docs/apis/init-connection}
+ * @see {@link https://openiap.dev/docs/apis/init-connection}
  */
 export const initConnection: MutationField<'initConnection'> = async (
   config,
@@ -1581,7 +1577,7 @@ export const initConnection: MutationField<'initConnection'> = async (
 /**
  * Close the store connection and release resources.
  *
- * @see {@link https://www.openiap.dev/docs/apis/end-connection}
+ * @see {@link https://openiap.dev/docs/apis/end-connection}
  */
 export const endConnection: MutationField<'endConnection'> = async () => {
   try {
@@ -1604,7 +1600,7 @@ export const endConnection: MutationField<'endConnection'> = async () => {
 /**
  * Restore non-consumable and active subscription purchases.
  *
- * @see {@link https://www.openiap.dev/docs/apis/restore-purchases}
+ * @see {@link https://openiap.dev/docs/apis/restore-purchases}
  */
 export const restorePurchases: MutationField<'restorePurchases'> = async () => {
   try {
@@ -1652,7 +1648,7 @@ export const restorePurchases: MutationField<'restorePurchases'> = async () => {
  * @remarks Event-based. Listen for the result via {@link purchaseUpdatedListener} /
  *   {@link purchaseErrorListener}, or use `useIAP({ onPurchaseSuccess, onPurchaseError })`.
  *
- * @see {@link https://www.openiap.dev/docs/apis/request-purchase}
+ * @see {@link https://openiap.dev/docs/apis/request-purchase}
  */
 export const requestPurchase: MutationField<'requestPurchase'> = async (
   request,
@@ -1688,7 +1684,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
         );
       }
     } else {
-      throw new Error('Unsupported platform');
+      throw unsupportedPlatformError();
     }
 
     const unifiedRequest: NitroPurchaseRequest = {};
@@ -1722,6 +1718,22 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
       }
       if (iosRequest.advancedCommerceData) {
         iosPayload.advancedCommerceData = iosRequest.advancedCommerceData;
+      }
+      if (isSubs) {
+        const subscriptionRequest = iosRequest as RequestSubscriptionIosProps;
+        if (
+          subscriptionRequest.introductoryOfferEligibility !== undefined
+        ) {
+          iosPayload.introductoryOfferEligibility =
+            subscriptionRequest.introductoryOfferEligibility;
+        }
+        if (subscriptionRequest.promotionalOfferJWS) {
+          iosPayload.promotionalOfferJWS =
+            subscriptionRequest.promotionalOfferJWS;
+        }
+        if (subscriptionRequest.winBackOffer) {
+          iosPayload.winBackOffer = subscriptionRequest.winBackOffer;
+        }
       }
 
       unifiedRequest.ios = iosPayload;
@@ -1820,7 +1832,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
  * @remarks **Critical:** Android purchases must be finalized within 3 days or Google
  *   auto-refunds. iOS unfinished transactions replay on every app launch.
  *
- * @see {@link https://www.openiap.dev/docs/apis/finish-transaction}
+ * @see {@link https://openiap.dev/docs/apis/finish-transaction}
  */
 export const finishTransaction: MutationField<'finishTransaction'> = async (
   args,
@@ -1851,7 +1863,7 @@ export const finishTransaction: MutationField<'finishTransaction'> = async (
         },
       };
     } else {
-      throw new Error('Unsupported platform');
+      throw unsupportedPlatformError();
     }
 
     const result = await IAP.instance.finishTransaction(params);
@@ -1889,7 +1901,7 @@ export const finishTransaction: MutationField<'finishTransaction'> = async (
  * await acknowledgePurchaseAndroid('purchase_token_here');
  * ```
  *
- * @see {@link https://www.openiap.dev/docs/apis/android/acknowledge-purchase-android}
+ * @see {@link https://openiap.dev/docs/apis/android/acknowledge-purchase-android}
  */
 export const acknowledgePurchaseAndroid: MutationField<
   'acknowledgePurchaseAndroid'
@@ -1930,7 +1942,7 @@ export const acknowledgePurchaseAndroid: MutationField<
  * await consumePurchaseAndroid('purchase_token_here');
  * ```
  *
- * @see {@link https://www.openiap.dev/docs/apis/android/consume-purchase-android}
+ * @see {@link https://openiap.dev/docs/apis/android/consume-purchase-android}
  */
 export const consumePurchaseAndroid: MutationField<
   'consumePurchaseAndroid'
@@ -1987,7 +1999,7 @@ export const consumePurchaseAndroid: MutationField<
  * });
  * ```
  *
- * @see {@link https://www.openiap.dev/docs/apis/validate-receipt}
+ * @see {@link https://openiap.dev/docs/apis/validate-receipt}
  */
 export const validateReceipt: MutationField<'validateReceipt'> = async (
   options,
@@ -2118,7 +2130,7 @@ export const validateReceipt: MutationField<'validateReceipt'> = async (
  * @param options - Receipt validation options containing the SKU
  * @returns Promise resolving to receipt validation result
  *
- * @see {@link https://www.openiap.dev/docs/features/validation#verify-purchase}
+ * @see {@link https://openiap.dev/docs/features/validation#verify-purchase}
  */
 export const verifyPurchase: MutationField<'verifyPurchase'> = validateReceipt;
 
@@ -2129,7 +2141,7 @@ export const verifyPurchase: MutationField<'verifyPurchase'> = validateReceipt;
  * consumers who imported `validateReceiptIOS` — which is still declared on the
  * OpenIAP Query interface — keep working. Throws on non-iOS platforms.
  *
- * @see {@link https://www.openiap.dev/docs/apis/ios/validate-receipt-ios}
+ * @see {@link https://openiap.dev/docs/apis/ios/validate-receipt-ios}
  */
 export const validateReceiptIOS: QueryField<'validateReceiptIOS'> = async (
   options,
@@ -2162,7 +2174,7 @@ export const validateReceiptIOS: QueryField<'validateReceiptIOS'> = async (
  * });
  * ```
  *
- * @see {@link https://www.openiap.dev/docs/features/validation#verify-purchase-with-provider}
+ * @see {@link https://openiap.dev/docs/features/validation#verify-purchase-with-provider}
  */
 export const verifyPurchaseWithProvider: MutationField<
   'verifyPurchaseWithProvider'
@@ -2207,7 +2219,7 @@ export const verifyPurchaseWithProvider: MutationField<
  * @returns Promise<boolean>
  * @platform iOS
  *
- * @see {@link https://www.openiap.dev/docs/apis/ios/sync-ios}
+ * @see {@link https://openiap.dev/docs/apis/ios/sync-ios}
  */
 export const syncIOS: MutationField<'syncIOS'> = async () => {
   if (Platform.OS !== 'ios') {
@@ -2234,7 +2246,7 @@ export const syncIOS: MutationField<'syncIOS'> = async () => {
  * @returns Promise<boolean> - Indicates whether the redemption sheet was presented
  * @platform iOS
  *
- * @see {@link https://www.openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios}
+ * @see {@link https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios}
  */
 export const presentCodeRedemptionSheetIOS: MutationField<
   'presentCodeRedemptionSheetIOS'
@@ -2278,7 +2290,7 @@ export const presentCodeRedemptionSheetIOS: MutationField<
  * @returns Promise<boolean> - true when the request triggers successfully
  * @platform iOS
  *
- * @see {@link https://www.openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios}
+ * @see {@link https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios}
  */
 export const requestPurchaseOnPromotedProductIOS =
   async (): Promise<boolean> => {
@@ -2322,7 +2334,7 @@ export const requestPurchaseOnPromotedProductIOS =
  * @returns Promise<boolean>
  * @platform iOS
  *
- * @see {@link https://www.openiap.dev/docs/apis/ios/clear-transaction-ios}
+ * @see {@link https://openiap.dev/docs/apis/ios/clear-transaction-ios}
  */
 export const clearTransactionIOS: MutationField<
   'clearTransactionIOS'
@@ -2352,7 +2364,7 @@ export const clearTransactionIOS: MutationField<
  * @returns Promise<string | null> - The refund status or null if not available
  * @platform iOS
  *
- * @see {@link https://www.openiap.dev/docs/apis/ios/begin-refund-request-ios}
+ * @see {@link https://openiap.dev/docs/apis/ios/begin-refund-request-ios}
  */
 export const beginRefundRequestIOS: MutationField<
   'beginRefundRequestIOS'
@@ -2380,7 +2392,7 @@ export const beginRefundRequestIOS: MutationField<
  * Deeplinks to native interface that allows users to manage their subscriptions
  * Cross-platform alias aligning with expo-iap
  *
- * @see {@link https://www.openiap.dev/docs/apis/deep-link-to-subscriptions}
+ * @see {@link https://openiap.dev/docs/apis/deep-link-to-subscriptions}
  */
 export const deepLinkToSubscriptions: MutationField<
   'deepLinkToSubscriptions'
@@ -2395,16 +2407,15 @@ export const deepLinkToSubscriptions: MutationField<
     return;
   }
   if (Platform.OS === 'ios') {
-    try {
-      if (typeof IAP.instance.deepLinkToSubscriptionsIOS === 'function') {
-        await IAP.instance.deepLinkToSubscriptionsIOS();
-      } else {
-        await IAP.instance.showManageSubscriptionsIOS();
-      }
-    } catch (error) {
-      RnIapConsole.warn('[deepLinkToSubscriptions] Failed on iOS:', error);
+    if (typeof IAP.instance.deepLinkToSubscriptionsIOS === 'function') {
+      await IAP.instance.deepLinkToSubscriptionsIOS();
+    } else {
+      await IAP.instance.showManageSubscriptionsIOS();
     }
+    return;
   }
+
+  throw unsupportedPlatformError();
 };
 
 export const deepLinkToSubscriptionsIOS = async (): Promise<boolean> => {
@@ -2443,7 +2454,7 @@ export const deepLinkToSubscriptionsIOS = async (): Promise<boolean> => {
  * @param subscriptionIds - Optional array of subscription IDs to filter by
  * @returns Promise<ActiveSubscription[]> - Array of active subscriptions
  *
- * @see {@link https://www.openiap.dev/docs/apis/get-active-subscriptions}
+ * @see {@link https://openiap.dev/docs/apis/get-active-subscriptions}
  */
 export const getActiveSubscriptions: QueryField<
   'getActiveSubscriptions'
@@ -2469,7 +2480,7 @@ export const getActiveSubscriptions: QueryField<
         environmentIOS: sub.environmentIOS ?? null,
         willExpireSoon: sub.willExpireSoon ?? null,
         daysUntilExpirationIOS: sub.daysUntilExpirationIOS ?? null,
-        // 🆕 renewalInfoIOS - subscription lifecycle information (iOS only)
+        // renewalInfoIOS contains subscription lifecycle information on iOS.
         renewalInfoIOS: sub.renewalInfoIOS
           ? {
               willAutoRenew: sub.renewalInfoIOS.willAutoRenew ?? false,
@@ -2512,90 +2523,6 @@ export const getActiveSubscriptions: QueryField<
   }
 };
 
-// OLD IMPLEMENTATION - REPLACED WITH NATIVE CALL
-/*
-export const getActiveSubscriptions_OLD: QueryField<
-  'getActiveSubscriptions'
-> = async (subscriptionIds) => {
-  try {
-    // Get all available purchases first
-    const allPurchases = await getAvailablePurchases();
-
-    // For the critical bug fix: this function was previously returning ALL purchases
-    // Now we properly filter for subscriptions only
-
-    // In production with real data, Android subscription filtering is done via platform-specific calls
-    // But for backward compatibility and test support, we also check platform-specific fields
-
-    // Since expirationDateIOS and subscriptionGroupIdIOS are not available in NitroPurchase,
-    // we need to rely on other indicators or assume all purchases are subscriptions
-    // when called from getActiveSubscriptions
-    const purchases = allPurchases;
-
-    // Filter for subscriptions and map to ActiveSubscription format
-    const subscriptions = purchases
-      .filter((purchase) => {
-        // Filter by subscription IDs if provided
-        if (subscriptionIds && subscriptionIds.length > 0) {
-          return subscriptionIds.includes(purchase.productId);
-        }
-        return true;
-      })
-      .map((purchase): ActiveSubscription => {
-        // Safe access to platform-specific fields with type guards
-        const expirationDateIOS =
-          'expirationDateIOS' in purchase
-            ? ((purchase as PurchaseIOS).expirationDateIOS ?? null)
-            : null;
-
-        const environmentIOS =
-          'environmentIOS' in purchase
-            ? ((purchase as PurchaseIOS).environmentIOS ?? null)
-            : null;
-
-        const autoRenewingAndroid =
-          'autoRenewingAndroid' in purchase || 'isAutoRenewing' in purchase
-            ? ((purchase as PurchaseAndroid).autoRenewingAndroid ??
-              (purchase as PurchaseAndroid).isAutoRenewing) // deprecated - use isAutoRenewing instead
-            : null;
-
-        // 🆕 Extract renewalInfoIOS if available
-        const renewalInfoIOS =
-          'renewalInfoIOS' in purchase
-            ? ((purchase as PurchaseIOS).renewalInfoIOS ?? null)
-            : null;
-
-        return {
-          productId: purchase.productId,
-          isActive: true, // If it's in availablePurchases, it's active
-          // Backend validation fields - use transactionId ?? id for proper field mapping
-          transactionId: purchase.transactionId ?? purchase.id,
-          purchaseToken: purchase.purchaseToken,
-          transactionDate: purchase.transactionDate,
-          // Platform-specific fields
-          expirationDateIOS,
-          autoRenewingAndroid,
-          environmentIOS,
-          renewalInfoIOS,
-          // Convenience fields
-          willExpireSoon: false, // Would need to calculate based on expiration date
-          daysUntilExpirationIOS:
-            expirationDateIOS != null
-              ? Math.ceil(
-                  (expirationDateIOS - Date.now()) / (1000 * 60 * 60 * 24),
-                )
-              : null,
-        };
-      });
-
-    return subscriptions;
-  } catch (error) {
-    RnIapConsole.error('Failed to get active subscriptions:', error);
-    const errorJson = parseErrorStringToJsonObj(error);
-    throw new Error(errorJson.message);
-  }
-};
-
 /**
  * Check if the user has any active subscriptions (OpenIAP compliant)
  * Returns true if the user has at least one active subscription, false otherwise.
@@ -2604,7 +2531,7 @@ export const getActiveSubscriptions_OLD: QueryField<
  * @param subscriptionIds - Optional array of subscription IDs to check
  * @returns Promise<boolean> - True if there are active subscriptions
  *
- * @see {@link https://www.openiap.dev/docs/apis/has-active-subscriptions}
+ * @see {@link https://openiap.dev/docs/apis/has-active-subscriptions}
  */
 export const hasActiveSubscriptions: QueryField<
   'hasActiveSubscriptions'
@@ -2733,7 +2660,7 @@ const normalizeProductQueryType = (
  * }
  * ```
  *
- * @see {@link https://www.openiap.dev/docs/apis/android/check-alternative-billing-availability-android}
+ * @see {@link https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android}
  */
 export const checkAlternativeBillingAvailabilityAndroid: MutationField<
   'checkAlternativeBillingAvailabilityAndroid'
@@ -2775,7 +2702,7 @@ export const checkAlternativeBillingAvailabilityAndroid: MutationField<
  * }
  * ```
  *
- * @see {@link https://www.openiap.dev/docs/apis/android/show-alternative-billing-dialog-android}
+ * @see {@link https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android}
  */
 export const showAlternativeBillingDialogAndroid: MutationField<
   'showAlternativeBillingDialogAndroid'
@@ -2814,7 +2741,7 @@ export const showAlternativeBillingDialogAndroid: MutationField<
  * }
  * ```
  *
- * @see {@link https://www.openiap.dev/docs/apis/android/create-alternative-billing-token-android}
+ * @see {@link https://openiap.dev/docs/apis/android/create-alternative-billing-token-android}
  */
 export const createAlternativeBillingTokenAndroid: MutationField<
   'createAlternativeBillingTokenAndroid'
@@ -2829,40 +2756,6 @@ export const createAlternativeBillingTokenAndroid: MutationField<
     throw error;
   }
 };
-
-/**
- * Parameters for launching an external link (Android 8.2.0+).
- */
-export interface LaunchExternalLinkParamsAndroid {
-  /** The billing program (external-content-link or external-offer) */
-  billingProgram: BillingProgramAndroid;
-  /** The external link launch mode */
-  launchMode: ExternalLinkLaunchModeAndroid;
-  /** The type of the external link */
-  linkType: ExternalLinkTypeAndroid;
-  /** The URI where the content will be accessed from */
-  linkUri: string;
-}
-
-/**
- * Result of checking billing program availability (Android 8.2.0+).
- */
-export interface BillingProgramAvailabilityResultAndroid {
-  /** The billing program that was checked */
-  billingProgram: BillingProgramAndroid;
-  /** Whether the billing program is available for the user */
-  isAvailable: boolean;
-}
-
-/**
- * Reporting details for external transactions (Android 8.2.0+).
- */
-export interface BillingProgramReportingDetailsAndroid {
-  /** The billing program that the reporting details are associated with */
-  billingProgram: BillingProgramAndroid;
-  /** External transaction token used to report transactions to Google */
-  externalTransactionToken: string;
-}
 
 /**
  * Enable a billing program before initConnection (Android only).
@@ -2889,7 +2782,7 @@ export const enableBillingProgramAndroid = (
     return;
   }
   try {
-    IAP.instance.enableBillingProgramAndroid(program as any);
+    IAP.instance.enableBillingProgramAndroid(program);
   } catch (error) {
     RnIapConsole.error('Failed to enable billing program:', error);
   }
@@ -2911,7 +2804,7 @@ export const enableBillingProgramAndroid = (
  * }
  * ```
  *
- * @see {@link https://www.openiap.dev/docs/apis/android/is-billing-program-available-android}
+ * @see {@link https://openiap.dev/docs/apis/android/is-billing-program-available-android}
  */
 export const isBillingProgramAvailableAndroid: MutationField<
   'isBillingProgramAvailableAndroid'
@@ -2920,9 +2813,7 @@ export const isBillingProgramAvailableAndroid: MutationField<
     throw new Error('Billing Programs API is only supported on Android');
   }
   try {
-    const result = await IAP.instance.isBillingProgramAvailableAndroid(
-      program as any,
-    );
+    const result = await IAP.instance.isBillingProgramAvailableAndroid(program);
     return {
       billingProgram: result.billingProgram as unknown as BillingProgramAndroid,
       isAvailable: result.isAvailable,
@@ -2952,7 +2843,7 @@ export const isBillingProgramAvailableAndroid: MutationField<
  * });
  * ```
  *
- * @see {@link https://www.openiap.dev/docs/apis/android/create-billing-program-reporting-details-android}
+ * @see {@link https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android}
  */
 export const createBillingProgramReportingDetailsAndroid: MutationField<
   'createBillingProgramReportingDetailsAndroid'
@@ -2962,9 +2853,7 @@ export const createBillingProgramReportingDetailsAndroid: MutationField<
   }
   try {
     const result =
-      await IAP.instance.createBillingProgramReportingDetailsAndroid(
-        program as any,
-      );
+      await IAP.instance.createBillingProgramReportingDetailsAndroid(program);
     return {
       billingProgram: result.billingProgram as unknown as BillingProgramAndroid,
       externalTransactionToken: result.externalTransactionToken,
@@ -2999,7 +2888,7 @@ export const createBillingProgramReportingDetailsAndroid: MutationField<
  * }
  * ```
  *
- * @see {@link https://www.openiap.dev/docs/apis/android/launch-external-link-android}
+ * @see {@link https://openiap.dev/docs/apis/android/launch-external-link-android}
  */
 export const launchExternalLinkAndroid: MutationField<
   'launchExternalLinkAndroid'
@@ -3009,9 +2898,9 @@ export const launchExternalLinkAndroid: MutationField<
   }
   try {
     return await IAP.instance.launchExternalLinkAndroid({
-      billingProgram: params.billingProgram as any,
-      launchMode: params.launchMode as any,
-      linkType: params.linkType as any,
+      billingProgram: params.billingProgram,
+      launchMode: params.launchMode,
+      linkType: params.linkType,
       linkUri: params.linkUri,
     });
   } catch (error) {
@@ -3043,7 +2932,7 @@ export const launchExternalLinkAndroid: MutationField<
  * }
  * ```
  *
- * @see {@link https://www.openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios}
+ * @see {@link https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios}
  */
 export const canPresentExternalPurchaseNoticeIOS: QueryField<
   'canPresentExternalPurchaseNoticeIOS'
@@ -3078,7 +2967,7 @@ export const canPresentExternalPurchaseNoticeIOS: QueryField<
  * }
  * ```
  *
- * @see {@link https://www.openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios}
+ * @see {@link https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios}
  */
 export const presentExternalPurchaseNoticeSheetIOS =
   async (): Promise<ExternalPurchaseNoticeResultIOS> => {
@@ -3111,7 +3000,7 @@ export const presentExternalPurchaseNoticeSheetIOS =
  * }
  * ```
  *
- * @see {@link https://www.openiap.dev/docs/apis/ios/present-external-purchase-link-ios}
+ * @see {@link https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios}
  */
 export const presentExternalPurchaseLinkIOS: MutationField<
   'presentExternalPurchaseLinkIOS'
@@ -3120,7 +3009,7 @@ export const presentExternalPurchaseLinkIOS: MutationField<
     throw new Error('External purchase is only supported on iOS');
   }
   try {
-    return (await IAP.instance.presentExternalPurchaseLinkIOS(url)) as any;
+    return await IAP.instance.presentExternalPurchaseLinkIOS(url);
   } catch (error) {
     RnIapConsole.error('Failed to present external purchase link:', error);
     throw error;
@@ -3147,7 +3036,7 @@ export const presentExternalPurchaseLinkIOS: MutationField<
  * }
  * ```
  *
- * @see {@link https://www.openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios}
+ * @see {@link https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios}
  */
 export const isEligibleForExternalPurchaseCustomLinkIOS =
   async (): Promise<boolean> => {
@@ -3184,7 +3073,7 @@ export const isEligibleForExternalPurchaseCustomLinkIOS =
  * }
  * ```
  *
- * @see {@link https://www.openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios}
+ * @see {@link https://openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios}
  */
 export const getExternalPurchaseCustomLinkTokenIOS = async (
   tokenType: ExternalPurchaseCustomLinkTokenTypeIOS,
@@ -3224,7 +3113,7 @@ export const getExternalPurchaseCustomLinkTokenIOS = async (
  * }
  * ```
  *
- * @see {@link https://www.openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios}
+ * @see {@link https://openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios}
  */
 export const showExternalPurchaseCustomLinkNoticeIOS = async (
   noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS,

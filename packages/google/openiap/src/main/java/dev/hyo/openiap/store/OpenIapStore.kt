@@ -62,7 +62,7 @@ import kotlinx.coroutines.launch
  */
 class OpenIapStore(private val module: OpenIapProtocol) {
     init {
-        android.util.Log.i("OpenIapStore", "Initialized with module: ${module.javaClass.simpleName}")
+        OpenIapLog.i("Initialized with module: ${module.javaClass.simpleName}", "OpenIapStore")
     }
 
     constructor(context: Context) : this(buildModule(context, null, null))
@@ -116,30 +116,29 @@ class OpenIapStore(private val module: OpenIapProtocol) {
         // This ensures the purchase list reflects the new purchase immediately
         storeScope.launch {
             try {
-                android.util.Log.i("OpenIapStore", "Purchase update received, refreshing available purchases")
+                OpenIapLog.i("Purchase update received, refreshing available purchases", "OpenIapStore")
 
                 // Wait a bit for the purchase to be fully processed by Horizon
                 kotlinx.coroutines.delay(500)
 
                 // Ensure connection is ready
                 if (!isConnected.value) {
-                    android.util.Log.w("OpenIapStore", "Not connected, skipping purchase refresh (connection will be restored on next app start)")
+                    OpenIapLog.w("Not connected, skipping purchase refresh (connection will be restored on next app start)", "OpenIapStore")
                     // Don't attempt to reconnect here as it may cause issues
                     // The purchase will be available on next app launch
                     return@launch
                 }
 
-                android.util.Log.i("OpenIapStore", "About to call module.getAvailablePurchases(null)")
+                OpenIapLog.i("About to call module.getAvailablePurchases(null)", "OpenIapStore")
                 val result = module.getAvailablePurchases(null)
-                android.util.Log.i("OpenIapStore", "module.getAvailablePurchases returned: ${result.size} purchases")
+                OpenIapLog.i("module.getAvailablePurchases returned: ${result.size} purchases", "OpenIapStore")
                 result.forEachIndexed { index, purchase ->
-                    android.util.Log.i("OpenIapStore", "  Purchase[$index]: ${purchase.productId}")
+                    OpenIapLog.i("  Purchase[$index]: ${purchase.productId}", "OpenIapStore")
                 }
                 _availablePurchases.value = result
-                android.util.Log.i("OpenIapStore", "Available purchases updated: ${result.size} purchases")
+                OpenIapLog.i("Available purchases updated: ${result.size} purchases", "OpenIapStore")
             } catch (e: Exception) {
-                android.util.Log.e("OpenIapStore", "Failed to refresh purchases after update", e)
-                e.printStackTrace()
+                OpenIapLog.e("Failed to refresh purchases after update", e, "OpenIapStore")
             }
         }
     }
@@ -228,7 +227,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      * @throws OpenIapError.InitConnection when the billing client fails to initialize
      *   (e.g. Play Store missing, version too old).
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/init-connection">init-connection</a>
+     * @see <a href="https://openiap.dev/docs/apis/init-connection">init-connection</a>
      */
     val initConnection: MutationInitConnectionHandler = { config ->
         setLoading { it.initConnection = true }
@@ -256,7 +255,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      * @throws OpenIapError.InitConnection when the billing client fails to initialize
      *   (e.g. Play Store missing, version too old).
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/init-connection">init-connection</a>
+     * @see <a href="https://openiap.dev/docs/apis/init-connection">init-connection</a>
      */
     suspend fun initConnection(): Boolean {
         OpenIapLog.i("OpenIapStore.initConnection(): Calling initConnection(null)...", "OpenIapStore")
@@ -266,7 +265,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     /**
      * Close the store connection and release resources.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/end-connection">https://www.openiap.dev/docs/apis/end-connection</a>
+     * @see <a href="https://openiap.dev/docs/apis/end-connection">https://openiap.dev/docs/apis/end-connection</a>
      */
     val endConnection: MutationEndConnectionHandler = {
         removePurchaseUpdateListener(purchaseUpdateListener)
@@ -296,15 +295,15 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      *   `Subscriptions` for Subs, mixed list for All.
      * @throws OpenIapError on store rejection (unknown SKU, network failure, not connected).
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/fetch-products">fetch-products</a>
+     * @see <a href="https://openiap.dev/docs/apis/fetch-products">fetch-products</a>
      */
     val fetchProducts: QueryFetchProductsHandler = { request ->
-        android.util.Log.i("OpenIapStore", "fetchProducts called with SKUs: ${request.skus}, type: ${request.type}")
+        OpenIapLog.i("fetchProducts called with SKUs: ${request.skus}, type: ${request.type}", "OpenIapStore")
         setLoading { it.fetchProducts = true }
         try {
-            android.util.Log.i("OpenIapStore", "Calling module.fetchProducts")
+            OpenIapLog.i("Calling module.fetchProducts", "OpenIapStore")
             val result = module.fetchProducts(request)
-            android.util.Log.i("OpenIapStore", "module.fetchProducts returned: $result")
+            OpenIapLog.i("module.fetchProducts returned: $result", "OpenIapStore")
             when (result) {
                 is FetchProductsResultProducts -> {
                     // Merge new products with existing ones
@@ -390,19 +389,19 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      * @return List of [Purchase] currently owned according to Play Billing.
      * @throws OpenIapError when the Play Billing query fails.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/get-available-purchases">get-available-purchases</a>
+     * @see <a href="https://openiap.dev/docs/apis/get-available-purchases">get-available-purchases</a>
      */
     val getAvailablePurchases: QueryGetAvailablePurchasesHandler = { options ->
-        android.util.Log.i("OpenIapStore", "getAvailablePurchases called, module type: ${module.javaClass.simpleName}")
+        OpenIapLog.i("getAvailablePurchases called, module type: ${module.javaClass.simpleName}", "OpenIapStore")
         setLoading { it.restorePurchases = true }
         try {
-            android.util.Log.i("OpenIapStore", "Calling module.getAvailablePurchases(options)")
+            OpenIapLog.i("Calling module.getAvailablePurchases(options)", "OpenIapStore")
             val result = module.getAvailablePurchases(options)
-            android.util.Log.i("OpenIapStore", "module.getAvailablePurchases returned ${result.size} purchases")
+            OpenIapLog.i("module.getAvailablePurchases returned ${result.size} purchases", "OpenIapStore")
             _availablePurchases.value = result
             result
         } catch (e: Exception) {
-            android.util.Log.e("OpenIapStore", "getAvailablePurchases exception: ${e.message}", e)
+            OpenIapLog.e("getAvailablePurchases exception: ${e.message}", e, "OpenIapStore")
             setError(e.message)
             throw e
         } finally {
@@ -428,7 +427,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      * (or `OpenIapStore.currentPurchase` and `OpenIapStore.status.lastError` flows) for the
      * final state — there is no `currentError` field; errors live on `status.lastError`.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/request-purchase">request-purchase</a>
+     * @see <a href="https://openiap.dev/docs/apis/request-purchase">request-purchase</a>
      */
     val requestPurchase: MutationRequestPurchaseHandler = { props ->
         val skuForStatus = when (val request = props.request) {
@@ -460,7 +459,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      *
      * Important: Google auto-refunds Android purchases NOT acknowledged/consumed within 3 days.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/finish-transaction">finish-transaction</a>
+     * @see <a href="https://openiap.dev/docs/apis/finish-transaction">finish-transaction</a>
      */
     val finishTransaction: MutationFinishTransactionHandler = { purchaseInput, isConsumable ->
         val token = purchaseInput.purchaseToken
@@ -483,7 +482,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     /**
      * Get details of all currently active subscriptions.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/get-active-subscriptions">https://www.openiap.dev/docs/apis/get-active-subscriptions</a>
+     * @see <a href="https://openiap.dev/docs/apis/get-active-subscriptions">https://openiap.dev/docs/apis/get-active-subscriptions</a>
      */
     suspend fun getActiveSubscriptions(subscriptionIds: List<String>? = null): List<ActiveSubscription> =
         module.queryHandlers.getActiveSubscriptions?.invoke(subscriptionIds) ?: emptyList()
@@ -491,7 +490,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     /**
      * Check whether the user has any active subscription.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/has-active-subscriptions">https://www.openiap.dev/docs/apis/has-active-subscriptions</a>
+     * @see <a href="https://openiap.dev/docs/apis/has-active-subscriptions">https://openiap.dev/docs/apis/has-active-subscriptions</a>
      */
     suspend fun hasActiveSubscriptions(subscriptionIds: List<String>? = null): Boolean =
         module.queryHandlers.hasActiveSubscriptions?.invoke(subscriptionIds) ?: false
@@ -499,7 +498,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     /**
      * Open the platform's subscription management UI.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/deep-link-to-subscriptions">https://www.openiap.dev/docs/apis/deep-link-to-subscriptions</a>
+     * @see <a href="https://openiap.dev/docs/apis/deep-link-to-subscriptions">https://openiap.dev/docs/apis/deep-link-to-subscriptions</a>
      */
     suspend fun deepLinkToSubscriptions(options: DeepLinkOptions) = module.mutationHandlers.deepLinkToSubscriptions?.invoke(options)
 
@@ -509,7 +508,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     /**
      * Check whether alternative billing is available for the user.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/android/check-alternative-billing-availability-android">https://www.openiap.dev/docs/apis/android/check-alternative-billing-availability-android</a>
+     * @see <a href="https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android">https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android</a>
      */
     @Deprecated("Use isBillingProgramAvailable with BillingProgramAndroid.ExternalOffer instead")
     @Suppress("DEPRECATION")
@@ -518,7 +517,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     /**
      * Display Google's alternative billing information dialog.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/android/show-alternative-billing-dialog-android">https://www.openiap.dev/docs/apis/android/show-alternative-billing-dialog-android</a>
+     * @see <a href="https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android">https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android</a>
      */
     @Deprecated("Use launchExternalLink instead")
     @Suppress("DEPRECATION")
@@ -528,7 +527,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     /**
      * Create a reporting token for an alternative billing flow.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/android/create-alternative-billing-token-android">https://www.openiap.dev/docs/apis/android/create-alternative-billing-token-android</a>
+     * @see <a href="https://openiap.dev/docs/apis/android/create-alternative-billing-token-android">https://openiap.dev/docs/apis/android/create-alternative-billing-token-android</a>
      */
     @Deprecated("Use createBillingProgramReportingDetails with BillingProgramAndroid.ExternalOffer instead")
     @Suppress("DEPRECATION")
@@ -541,7 +540,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     /**
      * Check whether a billing program (e.g., External Payments) is available.
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/android/is-billing-program-available-android">https://www.openiap.dev/docs/apis/android/is-billing-program-available-android</a>
+     * @see <a href="https://openiap.dev/docs/apis/android/is-billing-program-available-android">https://openiap.dev/docs/apis/android/is-billing-program-available-android</a>
      */
     suspend fun isBillingProgramAvailable(program: BillingProgramAndroid): BillingProgramAvailabilityResultAndroid =
         module.isBillingProgramAvailable(program)
@@ -549,7 +548,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     /**
      * Create the reporting payload Google requires after a Developer-Provided Billing transaction (Play Billing 8.3.0+).
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/android/create-billing-program-reporting-details-android">https://www.openiap.dev/docs/apis/android/create-billing-program-reporting-details-android</a>
+     * @see <a href="https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android">https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android</a>
      */
     suspend fun createBillingProgramReportingDetails(program: BillingProgramAndroid): BillingProgramReportingDetailsAndroid =
         module.createBillingProgramReportingDetails(program)
@@ -557,7 +556,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     /**
      * Launch an external content/offer link from inside the Billing Programs flow (Play Billing 8.2.0+).
      *
-     * @see <a href="https://www.openiap.dev/docs/apis/android/launch-external-link-android">https://www.openiap.dev/docs/apis/android/launch-external-link-android</a>
+     * @see <a href="https://openiap.dev/docs/apis/android/launch-external-link-android">https://openiap.dev/docs/apis/android/launch-external-link-android</a>
      */
     suspend fun launchExternalLink(activity: Activity, params: LaunchExternalLinkParamsAndroid): Boolean =
         module.launchExternalLink(activity, params)
@@ -733,16 +732,15 @@ private fun buildModule(context: Context, store: String?, appId: String?): OpenI
     val defaultStore = try {
         val buildConfig = Class.forName("io.github.hyochan.openiap.BuildConfig")
         val storeValue = buildConfig.getField("OPENIAP_STORE").get(null) as? String ?: "play"
-        android.util.Log.i("OpenIapStore", "BuildConfig.OPENIAP_STORE = $storeValue")
+        OpenIapLog.i("BuildConfig.OPENIAP_STORE = $storeValue", "OpenIapStore")
         storeValue
     } catch (e: Throwable) {
-        android.util.Log.w("OpenIapStore", "Failed to read BuildConfig.OPENIAP_STORE: ${e.message}")
+        OpenIapLog.w("Failed to read BuildConfig.OPENIAP_STORE: ${e.message}", "OpenIapStore")
         "play"
     }
 
     val selected = (store ?: defaultStore).lowercase()
 
-    android.util.Log.i("OpenIapStore", "buildModule: selected=$selected, defaultStore=$defaultStore")
     OpenIapLog.d("buildModule: selected=$selected, defaultStore=$defaultStore", "OpenIapStore")
 
     return when (selected) {

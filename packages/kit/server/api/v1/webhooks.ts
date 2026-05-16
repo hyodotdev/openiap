@@ -1,11 +1,17 @@
 import { Hono } from "hono";
-import type { Context } from "hono";
+import type { Context, Next } from "hono";
 import { streamSSE } from "hono/streaming";
 import { OAuth2Client } from "google-auth-library";
 import { ConvexClient } from "convex/browser";
 
 import { api } from "@/convex";
 import { client, convexUrlForRealtime, handleConvexError } from "../../convex";
+import { apiKeyValidationError } from "./middleware";
+import {
+  isContentLengthOverLimit,
+  JsonBodyTooLargeError,
+  readJsonBodyWithLimit,
+} from "./request-body";
 import { drainWebhookEventBatches } from "./webhookStreamDrain";
 
 // Shared reactive client for the SSE webhook stream. We keep a
@@ -28,18 +34,56 @@ function getSharedReactiveClient(): ConvexClient {
   return sharedReactiveClient;
 }
 
+function describeError(error: unknown): string {
+  return error instanceof Error ? error.name : typeof error;
+}
+
+const MAX_WEBHOOK_BODY_BYTES = 256 * 1024;
+
+export function legacyUnsupportedEventReason(error: unknown): string | null {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  return errorMessage.startsWith("UNSUPPORTED_EVENT")
+    ? "Unsupported event"
+    : null;
+}
+
+export function isWebhookBodyTooLarge(contentLengthHeader: string | undefined) {
+  return isContentLengthOverLimit(contentLengthHeader, MAX_WEBHOOK_BODY_BYTES);
+}
+
+export function webhookStreamUnavailableError() {
+  return {
+    errors: [
+      {
+        code: "WEBHOOK_STREAM_UNAVAILABLE",
+        message: "Webhook stream is temporarily unavailable",
+      },
+    ],
+  };
+}
+
+export async function readWebhookJsonBody(request: Request): Promise<unknown> {
+  return readJsonBodyWithLimit(
+    request,
+    MAX_WEBHOOK_BODY_BYTES,
+    "Webhook payload is too large",
+  );
+}
+
 // Inbound webhook receivers for Apple ASN v2 and Google Pub/Sub RTDN.
 //
 // Auth model:
 // - Apple ASN does not support custom Authorization headers, so the
 //   project's API key is encoded in the path: kit gives each project a
 //   webhook URL of the form
-//     https://kit.openiap.dev/v1/webhooks/apple/{apiKey}
-//   to register in App Store Connect. The path segment behaves like a
-//   capability token; rotating the project's API key invalidates the
-//   URL just like it invalidates verifyReceipt callers. The Convex
-//   action verifies the signedPayload signature against Apple's roots,
-//   so even if the URL leaks, only Apple-signed payloads are accepted.
+//     https://kit.openiap.dev/v1/webhooks/{apiKey}
+//   to register in App Store Connect. Platform-specific /apple and
+//   /google aliases remain supported for existing store-console wiring.
+//   The path segment behaves like a capability token; rotating the
+//   project's API key invalidates the URL just like it invalidates
+//   verifyReceipt callers. The Convex action verifies the signedPayload
+//   signature against Apple's roots, so even if the URL leaks, only
+//   Apple-signed payloads are accepted.
 //
 // - Google Pub/Sub push delivers a Bearer JWT from Google in the
 //   Authorization header that we verify against
@@ -48,6 +92,11 @@ function getSharedReactiveClient(): ConvexClient {
 //   project a notification belongs to. Both checks must pass.
 
 const webhooks = new Hono();
+
+webhooks.use("/:apiKey", pathApiKeyGuard);
+webhooks.use("/apple/:apiKey", pathApiKeyGuard);
+webhooks.use("/google/:apiKey", pathApiKeyGuard);
+webhooks.use("/stream/:apiKey", pathApiKeyGuard);
 
 // Unified lifecycle endpoint. The exact same URL works for both Apple
 // App Store Connect and Google Pub/Sub push subscriptions: kit
@@ -83,8 +132,11 @@ const unifiedHandler = async (c: Context) => {
   }
   let body: unknown;
   try {
-    body = await c.req.json();
-  } catch {
+    body = await readWebhookJsonBody(c.req.raw);
+  } catch (error) {
+    if (error instanceof JsonBodyTooLargeError) {
+      return webhookPayloadTooLargeResponse(c);
+    }
     return c.json(
       { errors: [{ code: "INVALID_INPUT", message: "Body is not JSON" }] },
       400,
@@ -159,6 +211,37 @@ function looksLikeGoogle(body: unknown): boolean {
   if (!message || typeof message !== "object") return false;
   const m = message as Record<string, unknown>;
   return typeof m.data === "string" && typeof m.messageId === "string";
+}
+
+async function pathApiKeyGuard(c: Context, next: Next) {
+  const validationError = apiKeyValidationError(c.req.param("apiKey"));
+  if (validationError) {
+    return c.json(
+      { errors: [{ code: "INVALID_API_KEY", message: validationError }] },
+      403,
+    );
+  }
+  if (
+    c.req.method !== "GET" &&
+    isWebhookBodyTooLarge(c.req.header("content-length"))
+  ) {
+    return webhookPayloadTooLargeResponse(c);
+  }
+  await next();
+}
+
+function webhookPayloadTooLargeResponse(c: Context) {
+  return c.json(
+    {
+      errors: [
+        {
+          code: "PAYLOAD_TOO_LARGE",
+          message: "Webhook payload is too large",
+        },
+      ],
+    },
+    413,
+  );
 }
 
 async function handleAppleNotification(
@@ -255,12 +338,8 @@ async function handleGoogleNotification(
   // signature verifiers see exactly what Google sent — JSON.stringify
   // would normalize spacing + key order and break any byte-level
   // verification).
-  let decodedRaw: string;
-  let decoded: Record<string, unknown>;
-  try {
-    decodedRaw = Buffer.from(body.message.data, "base64").toString("utf-8");
-    decoded = JSON.parse(decodedRaw);
-  } catch {
+  const decodedMessage = decodePubSubMessageData(body.message.data);
+  if (!decodedMessage) {
     return c.json(
       {
         errors: [
@@ -273,17 +352,16 @@ async function handleGoogleNotification(
       400,
     );
   }
+  const { decodedRaw, decoded } = decodedMessage;
 
   const payload = {
     messageId: body.message.messageId,
     packageName:
       typeof decoded.packageName === "string" ? decoded.packageName : undefined,
-    eventTimeMillis:
-      typeof decoded.eventTimeMillis === "string"
-        ? Number(decoded.eventTimeMillis)
-        : typeof decoded.eventTimeMillis === "number"
-          ? decoded.eventTimeMillis
-          : Date.parse(body.message.publishTime ?? "") || Date.now(),
+    eventTimeMillis: resolveGoogleEventTimeMillis(
+      decoded.eventTimeMillis,
+      body.message.publishTime,
+    ),
     subscriptionNotification: decoded.subscriptionNotification as
       | undefined
       | {
@@ -353,28 +431,13 @@ async function handleGoogleNotification(
 //   intermediate proxies (Fly edge, Cloudflare, browser fetch) don't
 //   close the idle connection.
 const HEARTBEAT_MS = 25_000;
-
-// Drop fields the client doesn't need over the wire. `rawSignedPayload`
-// holds the original JWS / Pub/Sub envelope including the upstream
-// signature. Until kit grows per-purchaser SSE auth (tracked as
-// follow-up — see PR #124 (https://github.com/hyodotdev/openiap/pull/124) review), the SSE feed is gated only by the
-// project API key, so any holder of that key would otherwise see
-// every other customer's signed payload. The client doesn't need it
-// for normal reconciliation flows: `purchaseToken` + `productId` are
-// enough to match against local state. Operators that DO need the
-// raw payload can fetch it through an authenticated server-to-server
-// query rather than a long-lived browser-readable stream.
-function redactWebhookEventForStream(
-  event: Record<string, unknown>,
-): Record<string, unknown> {
-  const { rawSignedPayload: _omit, ...rest } = event;
-  void _omit;
-  return rest;
-}
+const MAX_LAST_EVENT_ID_LENGTH = 512;
 
 webhooks.get("/stream/:apiKey", async (c) => {
   const apiKey = c.req.param("apiKey");
-  const lastEventId = c.req.header("last-event-id") ?? undefined;
+  const lastEventId = normalizeLastEventId(
+    c.req.header("last-event-id") ?? undefined,
+  );
 
   // Validate the API key BEFORE entering streamSSE. If the key is
   // wrong / rotated, every downstream `webhookEventsSince(apiKey, …)`
@@ -383,9 +446,18 @@ webhooks.get("/stream/:apiKey", async (c) => {
   // never receive lifecycle updates after a key rotation. Returning a
   // 401 surfaces the misconfiguration immediately instead of looking
   // like a healthy idle stream.
-  const project = await client.query(api.projects.query.getProjectByApiKey, {
-    apiKey,
-  });
+  let project: unknown;
+  try {
+    project = await client.query(api.projects.query.getProjectByApiKey, {
+      apiKey,
+    });
+  } catch (error) {
+    console.error(
+      "[webhooks/stream] project lookup failed",
+      describeError(error),
+    );
+    return c.json(webhookStreamUnavailableError(), 503);
+  }
   if (!project) {
     return c.json(
       {
@@ -579,10 +651,13 @@ webhooks.get("/stream/:apiKey", async (c) => {
               id,
               event:
                 typeof event.type === "string" ? event.type : "WebhookEvent",
-              data: JSON.stringify(redactWebhookEventForStream(event)),
+              data: JSON.stringify(event),
             })
             .catch((err) => {
-              console.error("[webhooks/stream] drain write failed", err);
+              console.error(
+                "[webhooks/stream] drain write failed",
+                describeError(err),
+              );
             });
           if (typeof event.receivedAt === "number") {
             lastDeliveredReceivedAt = event.receivedAt;
@@ -592,11 +667,11 @@ webhooks.get("/stream/:apiKey", async (c) => {
         if (batch.length < 500) break;
       }
     } catch (error) {
-      console.error("[webhooks/stream] drain failed", error);
+      console.error("[webhooks/stream] drain failed", describeError(error));
       await stream.writeSSE({
         event: "stream-error",
         data: JSON.stringify({
-          message: error instanceof Error ? error.message : "Drain failed",
+          message: "Drain failed",
         }),
       });
       // No reactive.close() — the client is shared across SSE
@@ -656,10 +731,13 @@ webhooks.get("/stream/:apiKey", async (c) => {
                     typeof event.type === "string"
                       ? event.type
                       : "WebhookEvent",
-                  data: JSON.stringify(redactWebhookEventForStream(event)),
+                  data: JSON.stringify(event),
                 })
                 .catch((err) => {
-                  console.error("[webhooks/stream] live write failed", err);
+                  console.error(
+                    "[webhooks/stream] live write failed",
+                    describeError(err),
+                  );
                 });
             },
             onIterationLimit: ({ iterations, cursor }) => {
@@ -690,12 +768,14 @@ webhooks.get("/stream/:apiKey", async (c) => {
           liveCreationCursor = result.cursor.afterCreationTime;
         } while (liveDrainRequested && !aborted);
       } catch (error) {
-        console.error("[webhooks/stream] live drain failed", error);
+        console.error(
+          "[webhooks/stream] live drain failed",
+          describeError(error),
+        );
         await stream.writeSSE({
           event: "stream-error",
           data: JSON.stringify({
-            message:
-              error instanceof Error ? error.message : "Live drain failed",
+            message: "Live drain failed",
           }),
         });
       } finally {
@@ -722,11 +802,11 @@ webhooks.get("/stream/:apiKey", async (c) => {
         },
       );
     } catch (error) {
-      console.error("[webhooks/stream] subscribe failed", error);
+      console.error("[webhooks/stream] subscribe failed", describeError(error));
       await stream.writeSSE({
         event: "stream-error",
         data: JSON.stringify({
-          message: error instanceof Error ? error.message : "Subscribe failed",
+          message: "Subscribe failed",
         }),
       });
       // unsubscribe() not needed — onUpdate threw before returning a
@@ -807,12 +887,15 @@ async function resolveStreamStartCursor(
     return { sinceMs: Date.now() };
   } catch (error) {
     const sanitized =
-      error instanceof Error
-        ? `${error.name}: ${error.message}`
-        : "(unknown error type)";
+      error instanceof Error ? error.name : "(unknown error type)";
     console.warn("[webhooks/stream] cursor resolution failed", sanitized);
     return { sinceMs: Date.now() };
   }
+}
+
+export function normalizeLastEventId(value: string | undefined) {
+  if (!value) return undefined;
+  return value.length <= MAX_LAST_EVENT_ID_LENGTH ? value : undefined;
 }
 
 const oauth2Client = new OAuth2Client();
@@ -821,11 +904,11 @@ async function verifyPubSubOidcToken(
   authHeader: string | undefined,
   audience: string | string[],
 ): Promise<boolean> {
-  if (!authHeader?.startsWith("Bearer ")) {
+  const token = extractBearerToken(authHeader);
+  if (!token) {
     console.warn("[webhooks/google] OIDC verification failed: missing bearer");
     return false;
   }
-  const token = authHeader.slice(7);
   const expectedAudiences = Array.isArray(audience) ? audience : [audience];
   try {
     const ticket = await oauth2Client.verifyIdToken({
@@ -841,7 +924,7 @@ async function verifyPubSubOidcToken(
     if (!email || payload.email_verified !== true) {
       console.warn("[webhooks/google] OIDC verification failed: email", {
         audience: sanitizePubSubAudienceForLog(payload.aud),
-        email,
+        email: sanitizeEmailForLog(email),
         emailVerified: payload.email_verified,
         issuer: payload.iss,
       });
@@ -857,8 +940,10 @@ async function verifyPubSubOidcToken(
     if (!isAllowedPubSubServiceAccount(email, configuredPrincipal)) {
       console.warn("[webhooks/google] OIDC principal rejected", {
         audience: sanitizePubSubAudienceForLog(payload.aud),
-        configuredPrincipal: configuredPrincipal ?? "(any service account)",
-        email,
+        configuredPrincipal: configuredPrincipal
+          ? sanitizeEmailForLog(configuredPrincipal)
+          : "(any service account)",
+        email: sanitizeEmailForLog(email),
         expectedAudiences: expectedAudiences.map(sanitizePubSubAudienceForLog),
         issuer: payload.iss,
       });
@@ -867,16 +952,25 @@ async function verifyPubSubOidcToken(
     return true;
   } catch (error) {
     const sanitized =
-      error instanceof Error
-        ? `${error.name}: ${error.message}`
-        : "(unknown error type)";
+      error instanceof Error ? error.name : "(unknown error type)";
     console.warn("[webhooks/google] OIDC verification error", {
       error: sanitized,
       expectedAudiences: expectedAudiences.map(sanitizePubSubAudienceForLog),
-      tokenClaims: decodeJwtPayloadForLog(token),
     });
     return false;
   }
+}
+
+export function extractBearerToken(
+  authHeader: string | undefined,
+): string | null {
+  if (!authHeader) return null;
+
+  const parts = authHeader.trim().split(/\s+/);
+  if (parts.length !== 2 || parts[0].toLowerCase() !== "bearer") {
+    return null;
+  }
+  return parts[1] || null;
 }
 
 export function isAllowedPubSubServiceAccount(
@@ -885,6 +979,58 @@ export function isAllowedPubSubServiceAccount(
 ): boolean {
   if (configuredPrincipal) return email === configuredPrincipal;
   return email.endsWith(".gserviceaccount.com");
+}
+
+export function decodePubSubMessageData(
+  data: string,
+): { decodedRaw: string; decoded: Record<string, unknown> } | null {
+  const trimmed = data.trim();
+  if (!isStrictBase64(trimmed)) return null;
+
+  try {
+    const decodedRaw = Buffer.from(trimmed, "base64").toString("utf-8");
+    const decoded: unknown = JSON.parse(decodedRaw);
+    if (!decoded || typeof decoded !== "object" || Array.isArray(decoded)) {
+      return null;
+    }
+    return { decodedRaw, decoded: decoded as Record<string, unknown> };
+  } catch {
+    return null;
+  }
+}
+
+export function resolveGoogleEventTimeMillis(
+  eventTimeMillis: unknown,
+  publishTime: string | undefined,
+  now = Date.now(),
+): number {
+  const parsedEventTime = parseGoogleMillis(eventTimeMillis);
+  if (parsedEventTime !== undefined) return parsedEventTime;
+
+  const parsedPublishTime = Date.parse(publishTime ?? "");
+  return Number.isFinite(parsedPublishTime) ? parsedPublishTime : now;
+}
+
+function parseGoogleMillis(value: unknown): number | undefined {
+  if (typeof value === "number") {
+    return Number.isSafeInteger(value) && value >= 0 ? value : undefined;
+  }
+  if (typeof value !== "string") return undefined;
+
+  const trimmed = value.trim();
+  if (!/^\d+$/.test(trimmed)) return undefined;
+  const parsed = Number(trimmed);
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : undefined;
+}
+
+function isStrictBase64(value: string): boolean {
+  if (value.length === 0 || value.length % 4 === 1) return false;
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(value)) return false;
+
+  const firstPadding = value.indexOf("=");
+  if (firstPadding === -1) return true;
+
+  return value.length % 4 === 0 && /^=+$/.test(value.slice(firstPadding));
 }
 
 export function pubSubOidcAudiences(
@@ -922,32 +1068,6 @@ function safeUrl(value: string): URL | null {
   }
 }
 
-type JwtClaimsForLog = {
-  aud?: string | string[];
-  email?: string;
-  emailVerified?: boolean;
-  issuer?: string;
-};
-
-function decodeJwtPayloadForLog(token: string): JwtClaimsForLog | null {
-  const [, payload] = token.split(".");
-  if (!payload) return null;
-  try {
-    const decoded = JSON.parse(Buffer.from(payload, "base64url").toString());
-    return {
-      aud: sanitizePubSubAudienceForLog(decoded.aud),
-      email: typeof decoded.email === "string" ? decoded.email : undefined,
-      emailVerified:
-        typeof decoded.email_verified === "boolean"
-          ? decoded.email_verified
-          : undefined,
-      issuer: typeof decoded.iss === "string" ? decoded.iss : undefined,
-    };
-  } catch {
-    return null;
-  }
-}
-
 export function sanitizePubSubAudienceForLog(
   audience: unknown,
 ): string | string[] | undefined {
@@ -959,11 +1079,12 @@ export function sanitizePubSubAudienceForLog(
   if (typeof audience !== "string") return undefined;
   const parsed = safeUrl(audience);
   if (!parsed) return audience;
-  const path = parsed.pathname.replace(
-    /^(\/v1\/webhooks\/)[^/]+$/,
-    "$1<api-key-redacted>",
-  );
-  return `${parsed.origin}${path}${parsed.search}`;
+  return `${parsed.origin}${parsed.pathname}${parsed.search}`;
+}
+
+function sanitizeEmailForLog(email: unknown): string | undefined {
+  if (typeof email !== "string" || email.length === 0) return undefined;
+  return email;
 }
 
 function mapWebhookError(
@@ -1002,24 +1123,24 @@ function mapWebhookError(
     return c.json({ errors: [convexError] }, 400);
   }
 
-  const errorMessage = error instanceof Error ? error.message : String(error);
-  if (errorMessage.startsWith("UNSUPPORTED_EVENT")) {
+  const legacyUnsupportedReason = legacyUnsupportedEventReason(error);
+  if (legacyUnsupportedReason !== null) {
     // Legacy fallback — kept until all action paths migrate to the
     // ConvexError shape above.
-    return c.json({ ok: true, dropped: true, reason: errorMessage });
+    return c.json({
+      ok: true,
+      dropped: true,
+      reason: legacyUnsupportedReason,
+    });
   }
 
-  console.error(
-    `[webhooks/${source}] unexpected error`,
-    errorMessage,
-    error instanceof Error ? error.stack : "",
-  );
+  console.error(`[webhooks/${source}] unexpected error`, describeError(error));
   return c.json(
     {
       errors: [
         {
           code: "WEBHOOK_INTERNAL_ERROR",
-          message: errorMessage,
+          message: "Webhook processing failed",
         },
       ],
     },

@@ -92,8 +92,9 @@ export default function ProjectsPage() {
       <p>All keys are:</p>
       <ul className="my-3 list-disc space-y-1 pl-6">
         <li>
-          Sent as <code>Authorization: Bearer openiap-kit_...</code> on every
-          request.
+          Sent as{" "}
+          <code>Authorization: Bearer openiap-kit_&lt;your-key&gt;</code> on
+          every request.
         </li>
         <li>
           Hashed before logging — the server only retains the SHA-256 prefix in

@@ -171,17 +171,7 @@ android: setup gradle-wrapper
 	@echo "$(GREEN)Building Android plugin...$(NC)"
 	@cd $(ANDROID_DIR) && ./gradlew copyReleaseAarToAddons
 	@echo "$(GREEN)Generating GDAP file...$(NC)"
-	@OPENIAP_VERSION=$$(python3 -c "import json; print(json.load(open('$(PROJECT_ROOT)/openiap-versions.json'))['google'])"); \
-	printf '%s\n' \
-		'[config]' \
-		'name="GodotIap"' \
-		'binary_type="local"' \
-		'binary="GodotIap.release.aar"' \
-		'' \
-		'[dependencies]' \
-		'local=[]' \
-		"remote=[\"com.android.billingclient:billing:7.1.1\", \"io.github.hyochan.openiap:openiap-google:$$OPENIAP_VERSION\"]" \
-	> $(ADDON_DIR)/android/GodotIap.gdap
+	@$(PROJECT_ROOT)/scripts/write-gdap.sh "$(ADDON_DIR)/android/GodotIap.gdap"
 	@echo "$(GREEN)✓ Android plugin built$(NC)"
 	@echo "Output: $(ADDON_DIR)/android/"
 	@ls -la $(ADDON_DIR)/android/*.aar 2>/dev/null || echo "  (AAR files will appear after successful build)"
@@ -192,7 +182,7 @@ gradle-wrapper:
 		echo "$(YELLOW)Downloading Gradle wrapper...$(NC)"; \
 		mkdir -p $(ANDROID_DIR)/gradle/wrapper; \
 		curl -L -o $(ANDROID_DIR)/gradle/wrapper/gradle-wrapper.jar \
-			"https://raw.githubusercontent.com/gradle/gradle/v8.5.0/gradle/wrapper/gradle-wrapper.jar"; \
+			"https://raw.githubusercontent.com/gradle/gradle/v8.13.0/gradle/wrapper/gradle-wrapper.jar"; \
 		echo "$(GREEN)✓ Gradle wrapper downloaded$(NC)"; \
 	fi
 
@@ -311,15 +301,7 @@ test-setup: android
 	@cp $(ANDROID_DIR)/build/outputs/aar/godot-iap-debug.aar $(TEST_ADDON_DIR)/android/GodotIap.debug.aar 2>/dev/null || \
 		(cd $(ANDROID_DIR) && ./gradlew assembleDebug && cp build/outputs/aar/godot-iap-debug.aar $(TEST_ADDON_DIR)/android/GodotIap.debug.aar)
 	@echo "$(GREEN)Creating GDAP file...$(NC)"
-	@OPENIAP_VERSION=$$(cat $(PROJECT_ROOT)/openiap-versions.json | grep '"google"' | cut -d'"' -f4); \
-	echo "[config]" > $(TEST_ADDON_DIR)/android/GodotIap.gdap; \
-	echo 'name="GodotIap"' >> $(TEST_ADDON_DIR)/android/GodotIap.gdap; \
-	echo 'binary_type="local"' >> $(TEST_ADDON_DIR)/android/GodotIap.gdap; \
-	echo 'binary="GodotIap.release.aar"' >> $(TEST_ADDON_DIR)/android/GodotIap.gdap; \
-	echo "" >> $(TEST_ADDON_DIR)/android/GodotIap.gdap; \
-	echo "[dependencies]" >> $(TEST_ADDON_DIR)/android/GodotIap.gdap; \
-	echo "local=[]" >> $(TEST_ADDON_DIR)/android/GodotIap.gdap; \
-	echo "remote=[\"com.android.billingclient:billing:7.1.1\", \"io.github.hyochan.openiap:openiap-google:$$OPENIAP_VERSION\"]" >> $(TEST_ADDON_DIR)/android/GodotIap.gdap
+	@$(PROJECT_ROOT)/scripts/write-gdap.sh "$(TEST_ADDON_DIR)/android/GodotIap.gdap"
 	@echo "$(GREEN)Copying iOS frameworks from Example...$(NC)"
 	@if [ -d "$(BIN_DIR)/ios/GodotIap.framework" ]; then \
 		cp -R $(BIN_DIR)/ios/GodotIap.framework $(TEST_ADDON_DIR)/bin/ios/; \
@@ -381,9 +363,12 @@ test-ios: export-test-ios
 # Release Testing (from GitHub Release zip)
 # ============================================
 
-RELEASE_TAG ?= $(shell gh release view --repo hyochan/godot-iap --json tagName -q '.tagName' 2>/dev/null || echo "1.0.0-beta.1")
-RELEASE_ZIP_NAME = godot-iap-$(RELEASE_TAG).zip
-RELEASE_ZIP_URL = https://github.com/hyochan/godot-iap/releases/download/$(RELEASE_TAG)/$(RELEASE_ZIP_NAME)
+GODOT_IAP_VERSION ?= $(shell sed -n 's/^version="\([^"]*\)"/\1/p' $(ADDON_DIR)/plugin.cfg)
+LATEST_GODOT_RELEASE_TAG := $(shell gh release list --repo hyodotdev/openiap --limit 50 --json tagName -q '.[] | select(.tagName | startswith("godot-iap-")) | .tagName' 2>/dev/null | head -n 1)
+RELEASE_TAG ?= $(if $(LATEST_GODOT_RELEASE_TAG),$(LATEST_GODOT_RELEASE_TAG),godot-iap-$(GODOT_IAP_VERSION))
+RELEASE_VERSION = $(patsubst godot-iap-%,%,$(RELEASE_TAG))
+RELEASE_ZIP_NAME = godot-iap-$(RELEASE_VERSION).zip
+RELEASE_ZIP_URL = https://github.com/hyodotdev/openiap/releases/download/$(RELEASE_TAG)/$(RELEASE_ZIP_NAME)
 
 # Download and extract release zip to TestProject (simulates Asset Library install)
 release-setup:

@@ -23,7 +23,7 @@ fun loadEnvProperties(): Properties {
 val envProperties = loadEnvProperties()
 
 // Read library version mode from libraries-versions.jsonc
-val versionsFile = rootProject.file("../../libraries-versions.jsonc")
+val versionsFile = rootProject.file("../../../libraries-versions.jsonc")
 val kmpIapMode: String = if (!versionsFile.exists()) {
     "local"
 } else {
@@ -46,6 +46,11 @@ plugins {
 }
 
 kotlin {
+    @OptIn(ExperimentalKotlinGradlePluginApi::class)
+    compilerOptions {
+        freeCompilerArgs.add("-Xexpect-actual-classes")
+    }
+
     @OptIn(ExperimentalKotlinGradlePluginApi::class)
     androidTarget {
         compilerOptions {
@@ -84,13 +89,14 @@ kotlin {
         val desktopMain by getting
 
         commonMain.dependencies {
-            implementation(compose.runtime)
-            implementation(compose.foundation)
-            implementation(compose.material3)
-            implementation(compose.ui)
-            implementation(compose.components.resources)
-            implementation(compose.components.uiToolingPreview)
-            implementation("org.jetbrains.androidx.navigation:navigation-compose:2.8.0-alpha10")
+            implementation(libs.compose.runtime)
+            implementation(libs.compose.foundation)
+            implementation(libs.compose.material.icons.extended)
+            implementation(libs.compose.material3)
+            implementation(libs.compose.ui)
+            implementation(libs.compose.components.resources)
+            implementation(libs.compose.components.ui.tooling.preview)
+            implementation(libs.navigationCompose)
             implementation(libs.kotlinx.datetime)
             implementation(libs.kotlinx.serialization.json)
         }
@@ -98,7 +104,7 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.androidx.activity.compose)
             implementation(libs.kotlinx.coroutines.android)
-            implementation(compose.preview)
+            implementation(libs.compose.ui.tooling.preview)
             if (useLocalDev) {
                 implementation(project(":library"))
             } else {
@@ -116,7 +122,7 @@ kotlin {
 
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs)
-            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.10.2")
+            implementation(libs.kotlinx.coroutines.swing)
         }
     }
 }

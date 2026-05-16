@@ -325,7 +325,7 @@ await iap.init_connection()`}</CodeBlock>
 const userChoiceSubscription = userChoiceBillingListenerAndroid(async (details) => {
   console.log('User chose alternative billing');
   console.log('Products:', details.products.map(p => p.productId));
-  console.log('External Transaction Token:', details.externalTransactionToken);
+  console.log('External transaction token received; send it to your backend without logging it.');
 
   // Process payment with your backend using the token
   const paymentResult = await yourBackend.processPayment({
@@ -376,7 +376,7 @@ iapStore.addUserChoiceBillingListener(object : OpenIapUserChoiceBillingListener 
     override fun onUserChoiceBilling(details: UserChoiceBillingDetails) {
         Log.d("IAP", "User chose alternative billing")
         Log.d("IAP", "Products: \${details.products.map { it.productId }}")
-        Log.d("IAP", "Token: \${details.externalTransactionToken}")
+        Log.d("IAP", "External transaction token received; send it to your backend without logging it.")
 
         // Process payment with your backend using the token
         lifecycleScope.launch {
@@ -431,7 +431,7 @@ final userChoiceSubscription = FlutterInappPurchase.userChoiceBillingStream
     .listen((details) async {
   print('User chose alternative billing');
   print('Products: \${details.products.map((p) => p.productId).toList()}');
-  print('Token: \${details.externalTransactionToken}');
+  print('External transaction token received; send it to your backend without logging it.');
 
   // Process payment with your backend using the token
   final paymentResult = await yourBackend.processPayment(
@@ -523,7 +523,7 @@ func _on_user_choice_billing(details: UserChoiceBillingDetails):
     for p in details.products:
         product_ids.append(p.product_id)
     print("Products: %s" % str(product_ids))
-    print("Token: %s" % details.external_transaction_token)
+    print("External transaction token received; send it to your backend without logging it.")
 
     # Process payment with your backend using the token
     var payment_result = await your_backend.process_payment(

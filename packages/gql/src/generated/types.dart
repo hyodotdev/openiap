@@ -5233,22 +5233,22 @@ sealed class VerifyPurchaseResult {
 /// GraphQL root mutation operations.
 abstract class MutationResolver {
   /// Acknowledge a non-consumable purchase. Required within 3 days or Google auto-refunds.
-  /// See: https://www.openiap.dev/docs/apis/android/acknowledge-purchase-android
+  /// See: https://openiap.dev/docs/apis/android/acknowledge-purchase-android
   Future<bool> acknowledgePurchaseAndroid(String purchaseToken);
   /// Present the refund request sheet (iOS 15+). See also Features → Refund.
-  /// See: https://www.openiap.dev/docs/apis/ios/begin-refund-request-ios
+  /// See: https://openiap.dev/docs/apis/ios/begin-refund-request-ios
   Future<String?> beginRefundRequestIOS(String sku);
   /// Check whether alternative billing is available for the user. Step 1 of the alternative billing flow.
   /// 
   /// Returns true if available, false otherwise.
   /// Throws OpenIapError.NotPrepared if billing client not ready.
-  /// See: https://www.openiap.dev/docs/apis/android/check-alternative-billing-availability-android
+  /// See: https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android
   Future<bool> checkAlternativeBillingAvailabilityAndroid();
   /// Clear pending transactions in the queue (sandbox helper).
-  /// See: https://www.openiap.dev/docs/apis/ios/clear-transaction-ios
+  /// See: https://openiap.dev/docs/apis/ios/clear-transaction-ios
   Future<bool> clearTransactionIOS();
   /// Consume a consumable purchase so it can be re-bought.
-  /// See: https://www.openiap.dev/docs/apis/android/consume-purchase-android
+  /// See: https://openiap.dev/docs/apis/android/consume-purchase-android
   Future<bool> consumePurchaseAndroid(String purchaseToken);
   /// Create a reporting token for an alternative billing flow. Step 3 of the alternative billing flow.
   /// Must be called AFTER successful payment in your payment system.
@@ -5256,32 +5256,32 @@ abstract class MutationResolver {
   /// 
   /// Returns token string, or null if creation failed.
   /// Throws OpenIapError.NotPrepared if billing client not ready.
-  /// See: https://www.openiap.dev/docs/apis/android/create-alternative-billing-token-android
+  /// See: https://openiap.dev/docs/apis/android/create-alternative-billing-token-android
   Future<String?> createAlternativeBillingTokenAndroid();
   /// Create the reporting payload Google requires after a Developer-Provided Billing transaction (Play Billing 8.3.0+).
   /// Replaces the deprecated createExternalOfferReportingDetailsAsync API.
   /// 
   /// Returns external transaction token needed for reporting external transactions.
   /// Throws OpenIapError.NotPrepared if billing client not ready.
-  /// See: https://www.openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
+  /// See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
   Future<BillingProgramReportingDetailsAndroid> createBillingProgramReportingDetailsAndroid(BillingProgramAndroid program);
   /// Open the platform's subscription management UI.
-  /// See: https://www.openiap.dev/docs/apis/deep-link-to-subscriptions
+  /// See: https://openiap.dev/docs/apis/deep-link-to-subscriptions
   Future<void> deepLinkToSubscriptions({
     String? packageNameAndroid,
     String? skuAndroid,
   });
   /// Close the store connection and release resources.
-  /// See: https://www.openiap.dev/docs/apis/end-connection
+  /// See: https://openiap.dev/docs/apis/end-connection
   Future<bool> endConnection();
   /// Complete a transaction after server-side verification. Required on Android within 3 days.
-  /// See: https://www.openiap.dev/docs/apis/finish-transaction
+  /// See: https://openiap.dev/docs/apis/finish-transaction
   Future<void> finishTransaction({
     required PurchaseInput purchase,
     bool? isConsumable,
   });
   /// Initialize the store connection. Call before any IAP API.
-  /// See: https://www.openiap.dev/docs/apis/init-connection
+  /// See: https://openiap.dev/docs/apis/init-connection
   Future<bool> initConnection({
     AlternativeBillingModeAndroid? alternativeBillingModeAndroid,
     BillingProgramAndroid? enableBillingProgramAndroid,
@@ -5292,14 +5292,14 @@ abstract class MutationResolver {
   /// Available in Google Play Billing Library 8.2.0+.
   /// Returns availability result with isAvailable flag.
   /// Throws OpenIapError.NotPrepared if billing client not ready.
-  /// See: https://www.openiap.dev/docs/apis/android/is-billing-program-available-android
+  /// See: https://openiap.dev/docs/apis/android/is-billing-program-available-android
   Future<BillingProgramAvailabilityResultAndroid> isBillingProgramAvailableAndroid(BillingProgramAndroid program);
   /// Launch an external content/offer link from inside the Billing Programs flow (Play Billing 8.2.0+).
   /// Replaces the deprecated showExternalOfferInformationDialog API.
   /// 
   /// Shows Play Store dialog and optionally launches external URL.
   /// Throws OpenIapError.NotPrepared if billing client not ready.
-  /// See: https://www.openiap.dev/docs/apis/android/launch-external-link-android
+  /// See: https://openiap.dev/docs/apis/android/launch-external-link-android
   Future<bool> launchExternalLinkAndroid({
     required BillingProgramAndroid billingProgram,
     required ExternalLinkLaunchModeAndroid launchMode,
@@ -5307,49 +5307,49 @@ abstract class MutationResolver {
     required String linkUri,
   });
   /// Show the App Store offer code redemption sheet.
-  /// See: https://www.openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
+  /// See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
   Future<bool> presentCodeRedemptionSheetIOS();
   /// Present an external purchase link, StoreKit External (iOS 16+).
-  /// See: https://www.openiap.dev/docs/apis/ios/present-external-purchase-link-ios
+  /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
   Future<ExternalPurchaseLinkResultIOS> presentExternalPurchaseLinkIOS(String url);
   /// Present the external purchase notice sheet (iOS 17.4+).
   /// Uses ExternalPurchase.presentNoticeSheet() which returns a token when the user continues.
   /// Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet()
-  /// See: https://www.openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
+  /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
   Future<ExternalPurchaseNoticeResultIOS> presentExternalPurchaseNoticeSheetIOS();
   /// Initiate a purchase or subscription flow; rely on events for final state.
-  /// See: https://www.openiap.dev/docs/apis/request-purchase
+  /// See: https://openiap.dev/docs/apis/request-purchase
   Future<RequestPurchaseResult?> requestPurchase(RequestPurchaseProps params);
   /// Buy the currently promoted product.
   /// 
   /// @deprecated Use promotedProductListenerIOS to receive the productId,
   /// then call requestPurchase with that SKU instead. In StoreKit 2,
   /// promoted products can be purchased directly via the standard purchase flow.
-  /// See: https://www.openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios
+  /// See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios
   Future<bool> requestPurchaseOnPromotedProductIOS();
   /// Restore non-consumable and active subscription purchases.
-  /// See: https://www.openiap.dev/docs/apis/restore-purchases
+  /// See: https://openiap.dev/docs/apis/restore-purchases
   Future<void> restorePurchases();
   /// Display Google's alternative billing information dialog. Step 2 of the alternative billing flow.
   /// Must be called BEFORE processing payment in your payment system.
   /// 
   /// Returns true if user accepted, false if user canceled.
   /// Throws OpenIapError.NotPrepared if billing client not ready.
-  /// See: https://www.openiap.dev/docs/apis/android/show-alternative-billing-dialog-android
+  /// See: https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android
   Future<bool> showAlternativeBillingDialogAndroid();
   /// Present the disclosure sheet required before linking out via ExternalPurchaseCustomLink (iOS 18.1+).
   /// Call this after a deliberate customer interaction before linking out to external purchases.
   /// Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/shownotice(type:)
-  /// See: https://www.openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios
+  /// See: https://openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios
   Future<ExternalPurchaseCustomLinkNoticeResultIOS> showExternalPurchaseCustomLinkNoticeIOS(ExternalPurchaseCustomLinkNoticeTypeIOS noticeType);
   /// Present the manage-subscriptions sheet and return changed purchases (iOS 15+).
-  /// See: https://www.openiap.dev/docs/apis/ios/show-manage-subscriptions-ios
+  /// See: https://openiap.dev/docs/apis/ios/show-manage-subscriptions-ios
   Future<List<PurchaseIOS>> showManageSubscriptionsIOS();
   /// Force sync transactions with the App Store (iOS 15+).
-  /// See: https://www.openiap.dev/docs/apis/ios/sync-ios
+  /// See: https://openiap.dev/docs/apis/ios/sync-ios
   Future<bool> syncIOS();
   /// Deprecated. Validate purchase receipts with the configured providers — use verifyPurchase instead.
-  /// See: https://www.openiap.dev/docs/features/validation#verify-purchase
+  /// See: https://openiap.dev/docs/features/validation#verify-purchase
   Future<VerifyPurchaseResult> validateReceipt({
     VerifyPurchaseAppleOptions? apple,
     VerifyPurchaseGoogleOptions? google,
@@ -5360,7 +5360,7 @@ abstract class MutationResolver {
   /// + receipt/JWS metadata, VerifyPurchaseResultAndroid carries Play Store
   /// receipt fields (no isValid), and VerifyPurchaseResultHorizon uses success.
   /// Inspect the concrete variant before reading fields.
-  /// See: https://www.openiap.dev/docs/features/validation#verify-purchase
+  /// See: https://openiap.dev/docs/features/validation#verify-purchase
   Future<VerifyPurchaseResult> verifyPurchase({
     VerifyPurchaseAppleOptions? apple,
     VerifyPurchaseGoogleOptions? google,
@@ -5369,7 +5369,7 @@ abstract class MutationResolver {
   /// Verify via a managed provider without standing up your own server. The
   /// PurchaseVerificationProvider enum currently exposes only IAPKit; platform
   /// availability may differ by implementation.
-  /// See: https://www.openiap.dev/docs/features/validation#verify-purchase-with-provider
+  /// See: https://openiap.dev/docs/features/validation#verify-purchase-with-provider
   Future<VerifyPurchaseWithProviderResult> verifyPurchaseWithProvider({
     RequestVerifyPurchaseWithIapkitProps? iapkit,
     required PurchaseVerificationProvider provider,
@@ -5380,31 +5380,31 @@ abstract class MutationResolver {
 abstract class QueryResolver {
   /// Check eligibility for the external purchase notice sheet (iOS 17.4+).
   /// Uses ExternalPurchase.canPresent.
-  /// See: https://www.openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
+  /// See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
   Future<bool> canPresentExternalPurchaseNoticeIOS();
   /// Get the user's current entitlement for a product, using StoreKit 2 (iOS 15+).
-  /// See: https://www.openiap.dev/docs/apis/ios/current-entitlement-ios
+  /// See: https://openiap.dev/docs/apis/ios/current-entitlement-ios
   Future<PurchaseIOS?> currentEntitlementIOS(String sku);
   /// Fetch products or subscriptions from the store.
-  /// See: https://www.openiap.dev/docs/apis/fetch-products
+  /// See: https://openiap.dev/docs/apis/fetch-products
   Future<FetchProductsResult> fetchProducts({
     required List<String> skus,
     ProductQueryType? type,
   });
   /// Get details of all currently active subscriptions (filters by subscriptionIds when provided).
-  /// See: https://www.openiap.dev/docs/apis/get-active-subscriptions
+  /// See: https://openiap.dev/docs/apis/get-active-subscriptions
   Future<List<ActiveSubscription>> getActiveSubscriptions([List<String>? subscriptionIds]);
   /// List every StoreKit transaction (finished + unfinished) for the current user.
   /// Requires the SK2ConsumableTransactionHistory Info.plist key in the host app
   /// for finished consumables to be included (iOS 18+).
   /// Unlike getAvailablePurchases, always returns the iOS-specific PurchaseIOS shape.
-  /// See: https://www.openiap.dev/docs/apis/ios/get-all-transactions-ios
+  /// See: https://openiap.dev/docs/apis/ios/get-all-transactions-ios
   Future<List<PurchaseIOS>> getAllTransactionsIOS();
   /// Fetch the app transaction (iOS 16+).
-  /// See: https://www.openiap.dev/docs/apis/ios/get-app-transaction-ios
+  /// See: https://openiap.dev/docs/apis/ios/get-app-transaction-ios
   Future<AppTransaction?> getAppTransactionIOS();
   /// List active purchases for the current user.
-  /// See: https://www.openiap.dev/docs/apis/get-available-purchases
+  /// See: https://openiap.dev/docs/apis/get-available-purchases
   Future<List<Purchase>> getAvailablePurchases({
     bool? alsoPublishToEventListenerIOS,
     bool? includeSuspendedAndroid,
@@ -5413,48 +5413,48 @@ abstract class QueryResolver {
   /// Fetch a token for Apple's External Purchase Server reporting API (iOS 18.1+).
   /// Use this token to report transactions made through ExternalPurchaseCustomLink.
   /// Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)
-  /// See: https://www.openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios
+  /// See: https://openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios
   Future<ExternalPurchaseCustomLinkTokenResultIOS> getExternalPurchaseCustomLinkTokenIOS(ExternalPurchaseCustomLinkTokenTypeIOS tokenType);
   /// List unfinished StoreKit transactions in the queue.
-  /// See: https://www.openiap.dev/docs/apis/ios/get-pending-transactions-ios
+  /// See: https://openiap.dev/docs/apis/ios/get-pending-transactions-ios
   Future<List<PurchaseIOS>> getPendingTransactionsIOS();
   /// Read the App Store-promoted product, if any (iOS 11+).
-  /// See: https://www.openiap.dev/docs/apis/ios/get-promoted-product-ios
+  /// See: https://openiap.dev/docs/apis/ios/get-promoted-product-ios
   Future<ProductIOS?> getPromotedProductIOS();
   /// Get base64-encoded receipt data (legacy validation).
-  /// See: https://www.openiap.dev/docs/apis/ios/get-receipt-data-ios
+  /// See: https://openiap.dev/docs/apis/ios/get-receipt-data-ios
   Future<String?> getReceiptDataIOS();
   /// Return the user's storefront country code.
-  /// See: https://www.openiap.dev/docs/apis/get-storefront
+  /// See: https://openiap.dev/docs/apis/get-storefront
   Future<String> getStorefront();
   /// Deprecated. Get the current App Store storefront country code — use cross-platform getStorefront instead.
-  /// See: https://www.openiap.dev/docs/apis/ios/get-storefront-ios
+  /// See: https://openiap.dev/docs/apis/ios/get-storefront-ios
   Future<String> getStorefrontIOS();
   /// Return the JWS string for a transaction (StoreKit 2).
-  /// See: https://www.openiap.dev/docs/apis/ios/get-transaction-jws-ios
+  /// See: https://openiap.dev/docs/apis/ios/get-transaction-jws-ios
   Future<String?> getTransactionJwsIOS(String sku);
   /// Check whether the user has any active subscription.
-  /// See: https://www.openiap.dev/docs/apis/has-active-subscriptions
+  /// See: https://openiap.dev/docs/apis/has-active-subscriptions
   Future<bool> hasActiveSubscriptions([List<String>? subscriptionIds]);
   /// Check eligibility for the custom-link variant of external purchase (iOS 18.1+).
   /// Returns true if the app can use custom external purchase links.
   /// Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible
-  /// See: https://www.openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
+  /// See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
   Future<bool> isEligibleForExternalPurchaseCustomLinkIOS();
   /// Check intro-offer eligibility for a subscription group.
-  /// See: https://www.openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios
+  /// See: https://openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios
   Future<bool> isEligibleForIntroOfferIOS(String groupID);
   /// Check whether a transaction's JWS verification passed (StoreKit 2).
-  /// See: https://www.openiap.dev/docs/apis/ios/is-transaction-verified-ios
+  /// See: https://openiap.dev/docs/apis/ios/is-transaction-verified-ios
   Future<bool> isTransactionVerifiedIOS(String sku);
   /// Get the latest verified transaction for a product, using StoreKit 2.
-  /// See: https://www.openiap.dev/docs/apis/ios/latest-transaction-ios
+  /// See: https://openiap.dev/docs/apis/ios/latest-transaction-ios
   Future<PurchaseIOS?> latestTransactionIOS(String sku);
   /// Get subscription status objects from StoreKit 2 (iOS 15+).
-  /// See: https://www.openiap.dev/docs/apis/ios/subscription-status-ios
+  /// See: https://openiap.dev/docs/apis/ios/subscription-status-ios
   Future<List<SubscriptionStatusIOS>> subscriptionStatusIOS(String sku);
   /// Deprecated. Legacy App Store receipt validation — use verifyPurchase instead.
-  /// See: https://www.openiap.dev/docs/apis/ios/validate-receipt-ios
+  /// See: https://openiap.dev/docs/apis/ios/validate-receipt-ios
   Future<VerifyPurchaseResultIOS> validateReceiptIOS({
     VerifyPurchaseAppleOptions? apple,
     VerifyPurchaseGoogleOptions? google,

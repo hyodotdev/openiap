@@ -1,6 +1,5 @@
 package expo.modules.iap
 
-import android.util.Log
 import dev.hyo.openiap.AndroidSubscriptionOfferInput
 import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapModule
@@ -15,7 +14,6 @@ import java.util.Locale
 import java.util.concurrent.ConcurrentLinkedQueue
 
 object ExpoIapHelper {
-    private const val TAG = "ExpoIapHelper"
     private const val MAX_BUFFERED_EVENTS = 200
 
     fun emitOrQueue(
@@ -67,7 +65,7 @@ object ExpoIapHelper {
                     val flat = mutableMapOf<String, Any?>()
                     // Carry over top-level fields like type, useAlternativeBilling
                     for ((k, v) in params) {
-                        if (k is String && k != "request") flat[k] = v
+                        if (k != "request") flat[k] = v
                     }
                     // Overlay platform-specific fields
                     for ((k, v) in nested) {
@@ -205,7 +203,7 @@ object ExpoIapHelper {
         runCatching {
             emitOrQueue(module, scope, connectionReady, pendingEvents, eventName, payload)
         }.onFailure { error ->
-            android.util.Log.e(TAG, "Failed to buffer/send $logTag", error)
+            ExpoIapLog.failure("buffer/send $logTag", error)
             val errorPayload =
                 mapOf(
                     "code" to fallbackErrorCode,
@@ -213,7 +211,7 @@ object ExpoIapHelper {
                 )
             runCatching {
                 emitOrQueue(module, scope, connectionReady, pendingEvents, eventPurchaseError, errorPayload)
-            }.onFailure { android.util.Log.e(TAG, "Failed to send error event", it) }
+            }.onFailure { ExpoIapLog.failure("send error event", it) }
         }
     }
 
@@ -240,7 +238,7 @@ object ExpoIapHelper {
                     p.toJson(),
                 )
             }.onFailure { error ->
-                android.util.Log.e(TAG, "Failed to buffer/send PURCHASE_UPDATED", error)
+                ExpoIapLog.failure("buffer/send PURCHASE_UPDATED", error)
                 // Emit as purchase error so user knows something went wrong
                 val errorPayload =
                     mapOf(
@@ -256,7 +254,7 @@ object ExpoIapHelper {
                         eventPurchaseError,
                         errorPayload,
                     )
-                }.onFailure { android.util.Log.e(TAG, "Failed to send error event", it) }
+                }.onFailure { ExpoIapLog.failure("send error event", it) }
             }
         }
         openIap.addPurchaseErrorListener { e ->
@@ -271,7 +269,7 @@ object ExpoIapHelper {
                     errorJson,
                 )
             }.onFailure { error ->
-                android.util.Log.e(TAG, "Failed to buffer/send PURCHASE_ERROR", error)
+                ExpoIapLog.failure("buffer/send PURCHASE_ERROR", error)
                 // Critical: if we can't emit the original error, at least try to emit a generic one
                 val fallbackPayload =
                     mapOf(
@@ -287,7 +285,7 @@ object ExpoIapHelper {
                         eventPurchaseError,
                         fallbackPayload,
                     )
-                }.onFailure { android.util.Log.e(TAG, "Failed to send fallback error event", it) }
+                }.onFailure { ExpoIapLog.failure("send fallback error event", it) }
             }
             // Also reject any pending purchase promises to match iOS behavior
             val errorCode = errorJson["code"] as? String ?: OpenIapError.PurchaseFailed.CODE

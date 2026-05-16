@@ -65,9 +65,11 @@ export default function AvailablePurchases() {
     finishTransaction,
   } = useIAP({
     onPurchaseSuccess: async (purchase) => {
-      // Avoid logging sensitive token in console output
-      const {purchaseToken: _omit, ...safePurchase} = purchase as any;
-      console.log('[AVAILABLE-PURCHASES] Purchase successful:', safePurchase);
+      console.log('[AVAILABLE-PURCHASES] Purchase successful:', {
+        productId: purchase.productId,
+        transactionId: purchase.id,
+        platform: purchase.platform,
+      });
 
       // Finish transaction like in subscription-flow
       await finishTransaction({
@@ -98,8 +100,9 @@ export default function AvailablePurchases() {
     try {
       await getActiveSubscriptions();
       console.log(
-        '[AVAILABLE-PURCHASES] Active subscriptions result (state):',
-        activeSubscriptions,
+        '[AVAILABLE-PURCHASES] Active subscriptions result:',
+        activeSubscriptions.length,
+        'items',
       );
     } catch (error) {
       console.error(
@@ -232,7 +235,7 @@ export default function AvailablePurchases() {
     console.log(
       '[AVAILABLE-PURCHASES] activeSubscriptions:',
       activeSubscriptions.length,
-      activeSubscriptions,
+      'items',
     );
   }, [activeSubscriptions]);
 
@@ -427,9 +430,7 @@ export default function AvailablePurchases() {
                 {selectedSubscription.purchaseToken && (
                   <View style={styles.purchaseRow}>
                     <Text style={styles.label}>Purchase Token</Text>
-                    <Text style={styles.value}>
-                      {selectedSubscription.purchaseToken}
-                    </Text>
+                    <Text style={styles.value}>{selectedSubscription.purchaseToken}</Text>
                   </View>
                 )}
                 <View style={styles.purchaseRow}>

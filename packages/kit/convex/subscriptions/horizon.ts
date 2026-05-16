@@ -30,6 +30,10 @@ import { mapWithConcurrency } from "../utils/concurrency";
 
 const META_GRAPH_BASE = "https://graph.oculus.com";
 
+function describeErrorForLog(error: unknown): string {
+  return error instanceof Error ? error.name : typeof error;
+}
+
 type HorizonProbe = {
   userId: string;
   sku: string;
@@ -109,12 +113,10 @@ export const reconcileHorizonEntitlements = internalAction({
           // aggregators long-term. The purchaseToken hash is enough
           // to correlate this entry to the row in `subscriptions`
           // when an operator needs to investigate.
-          console.warn(
-            "[horizon-reconciler] check failed",
-            project._id,
-            { tokenHash: hashForLog(probe.purchaseToken) },
-            error instanceof Error ? error.message : error,
-          );
+          console.warn("[horizon-reconciler] check failed", project._id, {
+            tokenHash: hashForLog(probe.purchaseToken),
+            error: describeErrorForLog(error),
+          });
           continue;
         }
         // Meta's response is binary: `granted: true` means the user
@@ -239,7 +241,10 @@ export const reconcileHorizonNow = action({
         }
       } catch (error) {
         failures += 1;
-        console.warn("[horizon-reconciler] check failed", error);
+        console.warn("[horizon-reconciler] check failed", {
+          tokenHash: hashForLog(probe.purchaseToken),
+          error: describeErrorForLog(error),
+        });
       }
     }
     return { checked, transitioned, failures };
@@ -282,8 +287,7 @@ async function checkHorizonEntitlement(args: {
     clearTimeout(timeout);
   }
   if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Meta Graph API ${res.status}: ${text.slice(0, 256)}`);
+    throw new Error(`Meta Graph API ${res.status}`);
   }
   const body = (await res.json()) as { success?: boolean };
   return body.success === true;

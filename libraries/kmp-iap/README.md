@@ -7,7 +7,7 @@
   <a href="https://github.com/hyodotdev/openiap/actions/workflows/gradle.yml"><img src="https://github.com/hyodotdev/openiap/actions/workflows/gradle.yml/badge.svg" alt="Java CI with Gradle" /></a>
   <a href="https://openiap.dev"><img src="https://img.shields.io/badge/OpenIAP-Compliant-green?style=flat-square" alt="OpenIAP Compliant" /></a>
   <a href="https://codecov.io/gh/hyodotdev/openiap"><img src="https://codecov.io/gh/hyodotdev/openiap/branch/main/graph/badge.svg?token=YOUR_TOKEN" alt="Coverage Status" /></a>
-  <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License" />
+  <img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="License" />
   
   A comprehensive Kotlin Multiplatform library for in-app purchases on Android and iOS platforms that conforms to the <a href="https://openiap.dev">Open IAP specification</a>
   
@@ -18,25 +18,28 @@
 
 Visit the documentation site for installation guides, API reference, and examples:
 
-### **[hyochan.github.io/kmp-iap](https://hyochan.github.io/kmp-iap)**
+### **[openiap.dev/docs/setup/kmp](https://openiap.dev/docs/setup/kmp)**
 
 ## Using with AI Assistants
 
 kmp-iap provides AI-friendly documentation for Cursor, GitHub Copilot, Claude, and ChatGPT.
 
-**[📖 AI Assistants Guide →](https://hyochan.github.io/kmp-iap/docs/guides/ai-assistants)**
+**[📖 AI Assistants Guide →](https://openiap.dev/docs/guides/ai-assistants)**
 
 Quick links:
-- [llms.txt](https://hyochan.github.io/kmp-iap/llms.txt) - Quick reference (~300 lines)
-- [llms-full.txt](https://hyochan.github.io/kmp-iap/llms-full.txt) - Full API reference (~1000 lines)
+- [llms.txt](https://openiap.dev/llms.txt) - Quick reference (~300 lines)
+- [llms-full.txt](https://openiap.dev/llms-full.txt) - Full API reference (~1000 lines)
 
 ## 📦 Installation
 
 ```kotlin
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:2.2.8")
+    implementation("io.github.hyochan:kmp-iap:<version>")
 }
 ```
+
+Use the latest version from
+[Maven Central](https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap).
 
 ## 🚀 Quick Start
 
@@ -49,7 +52,7 @@ import io.github.hyochan.kmpiap.*
 // Use the global singleton instance
 kmpIapInstance.initConnection()
 
-// Get products - DSL API in v1.0.0-rc.2
+// Get products with the DSL API
 val products = kmpIapInstance.fetchProducts {
     skus = listOf("product_id")
     type = ProductQueryType.InApp
@@ -92,7 +95,7 @@ val kmpIAP = KmpIAP()
 // Initialize connection
 kmpIAP.initConnection()
 
-// Get products - DSL API in v1.0.0-rc.2
+// Get products with the DSL API
 val products = kmpIAP.fetchProducts {
     skus = listOf("product_id")
     type = ProductQueryType.InApp
@@ -146,4 +149,4 @@ For bug reports, please [open an issue](https://github.com/hyodotdev/openiap/iss
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+Apache License 2.0 - see [LICENSE](LICENSE) file for details.

@@ -7,17 +7,20 @@ require 'pathname'
 podspec_dir = Pathname.new(__dir__).realpath
 versions_path = podspec_dir.join('..', 'openiap-versions.json')
 openiap_versions = JSON.parse(File.read(versions_path))
+pubspec_path = podspec_dir.join('..', 'pubspec.yaml')
+pubspec_version = File.read(pubspec_path).match(/^version:\s*([^\s#]+)/)&.[](1)
+raise 'flutter_inapp_purchase: version missing in pubspec.yaml' if pubspec_version.to_s.empty?
 
 Pod::Spec.new do |s|
   s.name             = 'flutter_inapp_purchase'
-  s.version          = '0.0.1'
+  s.version          = pubspec_version
   s.summary          = 'In App Purchase plugin for flutter. This project has been forked by react-native-iap and we are willing to share same experience with that on react-native.'
   s.description      = <<-DESC
 In App Purchase plugin for flutter. This project has been forked by react-native-iap and we are willing to share same experience with that on react-native.
                        DESC
-  s.homepage         = 'http://example.com'
+  s.homepage         = 'https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase'
   s.license          = { :file => '../LICENSE' }
-  s.author           = { 'Your Company' => 'email@example.com' }
+  s.author           = { 'Hyo Dev' => 'hyo@hyo.dev' }
   s.source           = { :path => '.' }
   s.source_files = 'Classes/**/*.swift'
   s.dependency 'Flutter'

@@ -37,7 +37,7 @@ Version is managed in `openiap-versions.json`:
 
 **To update GQL types:**
 
-1. Edit `openiap-versions.json` - change `"gql"` version
+1. Edit `openiap-versions.json` - change the `"spec"` version
 2. Run `./scripts/generate-types.sh`
 3. Run `swift test` to verify compatibility
 
@@ -307,7 +307,7 @@ Meta Horizon has different APIs from Google Play:
 
 ### Updating openiap-gql Version
 
-1. Edit `openiap-versions.json` and update the `gql` field
+1. Edit `openiap-versions.json` and update the `spec` field
 2. Run `./scripts/generate-types.sh` to download and regenerate Types.kt
 3. Compile BOTH flavors to verify:
    ```bash

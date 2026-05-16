@@ -30,7 +30,7 @@ struct WebhookStreamScreen: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("SSE /v1/webhooks/stream/{apiKey}")
                     .font(.headline)
-                Text("api key: \(apiKey.isEmpty ? "MISSING" : "\(apiKey.prefix(8))...")")
+                Text("api key: \(apiKey.isEmpty ? "MISSING" : "CONFIGURED")")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }

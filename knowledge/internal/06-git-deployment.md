@@ -88,15 +88,15 @@ Fix purchase validation error
 
 1. Updates `openiap-versions.json`
 2. Commits version change to main
-3. Creates Git tag `apple-v1.2.24`
+3. Creates Git tag `<apple-version>` (bare semver)
 4. Builds and tests Swift package
 5. Validates and publishes to CocoaPods
 6. Creates GitHub Release
 
 **Result:**
 
-- CocoaPods: `pod 'openiap', '~> 1.2.24'`
-- Swift Package Manager: `.package(url: "https://github.com/hyodotdev/openiap.git", from: "1.2.24")`
+- CocoaPods: `pod 'openiap', '~> <apple-version>'`
+- Swift Package Manager: `.package(url: "https://github.com/hyodotdev/openiap.git", from: "<apple-version>")`
 
 ### Deploying Google Package (Android)
 
@@ -104,21 +104,21 @@ Fix purchase validation error
 
 1. Go to Actions -> "Google Release"
 2. Click "Run workflow"
-3. Enter version (e.g., `1.2.14`)
+3. Enter version (e.g., `<google-version>`)
 4. Click "Run workflow"
 
 **What happens:**
 
 1. Updates `openiap-versions.json`
 2. Commits version change to main
-3. Creates Git tag `google-v1.2.14`
+3. Creates Git tag `google-<google-version>`
 4. Builds and tests Android library
 5. Publishes to Maven Central
 6. Creates GitHub Release with artifacts (AAR, JAR)
 
 **Result:**
 
-- Maven Central: `implementation("io.github.hyochan.openiap:openiap-google:1.2.14")`
+- Maven Central: `implementation("io.github.hyochan.openiap:openiap-google:<google-version>")`
 
 ### Deploying Documentation
 
@@ -133,7 +133,7 @@ This will:
 2. Trigger GitHub Actions workflow to:
    - Regenerate types for all platforms
    - Create release artifacts (TypeScript, Dart, Kotlin, Swift)
-   - Create Git tag `v<spec>`
+   - Create Git tag `docs-<spec>`
    - Create GitHub Release with artifacts
 
 `npm run deploy` uses the current `spec` value from

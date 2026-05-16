@@ -364,7 +364,7 @@ fun PurchaseDetailModal(
                         }
                         add("id" to purchase.id)
                         add("transactionId" to (purchase.transactionId ?: "-"))
-                        add("purchaseToken" to (purchase.purchaseToken ?: "-"))
+                        add("purchaseToken" to displayIfPresent(purchase.purchaseToken))
                         add("purchaseState" to purchase.purchaseState.rawValue)
                         add("productId" to purchase.productId)
                         add("transactionDate" to purchase.transactionDate.toString())
@@ -412,3 +412,6 @@ private fun DetailRow(label: String, value: String) {
         Text(value, style = MaterialTheme.typography.bodyMedium)
     }
 }
+
+private fun displayIfPresent(value: String?): String =
+    if (value.isNullOrEmpty()) "-" else value

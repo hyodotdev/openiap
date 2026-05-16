@@ -159,6 +159,37 @@ import StoreKit
         }
     }
 
+    @objc func requestPurchaseWithPayload(
+        _ payload: [String: Any],
+        completion: @escaping (Any?, Error?) -> Void
+    ) {
+        Task {
+            do {
+                let props = try OpenIapSerialization.requestPurchaseProps(from: payload)
+                let result = try await requestPurchase(props)
+
+                switch result {
+                case .purchase(let purchase):
+                    if let purchase = purchase {
+                        completion(OpenIapSerialization.purchase(purchase), nil)
+                    } else {
+                        completion(nil, nil)
+                    }
+                case .purchases(let purchases):
+                    if let firstPurchase = purchases?.first {
+                        completion(OpenIapSerialization.purchase(firstPurchase), nil)
+                    } else {
+                        completion(nil, nil)
+                    }
+                case .none:
+                    completion(nil, nil)
+                }
+            } catch {
+                completion(nil, error)
+            }
+        }
+    }
+
     @objc func requestSubscriptionWithSku(
         _ sku: String,
         offer: [String: Any]?,

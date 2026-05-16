@@ -121,7 +121,7 @@ fun WebhookStreamScreen(navController: NavController) {
                 style = MaterialTheme.typography.titleMedium
             )
             Text(
-                text = "api key: ${AppConfig.iapkitApiKey.take(8).ifEmpty { "MISSING" }}",
+                text = "api key: ${if (AppConfig.iapkitApiKey.isBlank()) "MISSING" else "CONFIGURED"}",
                 color = AppColors.Secondary
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

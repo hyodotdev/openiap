@@ -26,6 +26,161 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // May 17, 2026 — SDK minor maintenance release
+    {
+      id: 'sdk-minor-maintenance-2026-05-17',
+      date: new Date('2026-05-17'),
+      element: (
+        <div key="sdk-minor-maintenance-2026-05-17" style={noteCardStyle}>
+          <AnchorLink id="sdk-minor-maintenance-2026-05-17" level="h4">
+            May 17, 2026 — SDK minor maintenance release
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes native and framework SDK minor releases for repository
+            hardening, release automation fixes, and example cleanup. The{' '}
+            <strong>OpenIAP Spec remains 2.0.2</strong>; this rollout does not
+            add GraphQL fields, enum cases, or API operations. The minor version
+            signal covers SDK packaging and support-surface cleanup, including
+            removal of unsupported standalone Amazon and React Native Expo
+            example paths.
+          </p>
+
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>Release automation</strong> — hardens the Apple, Google,
+              docs, and framework release workflows so version commits, tags,
+              artifacts, and generated release notes stay consistent across
+              concurrent package releases.
+            </li>
+            <li>
+              <strong>SDK parity and correctness</strong> — aligns framework
+              bridges with the native Apple and Google packages while tightening
+              platform-specific validation, subscription, webhook, and
+              alternative-billing paths.
+            </li>
+            <li>
+              <strong>Debugging examples</strong> — restores raw purchase,
+              offer, and app-account tokens in example/debug surfaces so
+              developers can inspect store responses during local testing.
+            </li>
+            <li>
+              <strong>Unsupported surfaces removed</strong> — React Native no
+              longer ships the Expo example; Expo users should use{' '}
+              <code>expo-iap</code>. Flutter removes the standalone Amazon
+              plugin path until Amazon support is formalized through the Android
+              flavor plan.
+            </li>
+            <li>
+              <strong>Documentation refresh</strong> — updates setup guides,
+              package ownership metadata, and OpenIAP documentation links
+              without changing the published spec contract.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/2.2.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-apple 2.2.0
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/google-2.2.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-google 2.2.0
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/react-native-iap-15.3.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  react-native-iap 15.3.0
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/expo-iap-4.3.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  expo-iap 4.3.0
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.3.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  flutter_inapp_purchase 9.3.0
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/godot-iap-2.3.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  godot-iap 2.3.0
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/kmp-iap-2.3.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  kmp-iap 2.3.0
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/maui-iap-1.1.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  OpenIap.Maui 1.1.0
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // May 13, 2026 — OpenIAP Spec 2.0.2 purchase update replay controls
     {
       id: 'openiap-spec-2-0-2-purchase-update-replay-controls',

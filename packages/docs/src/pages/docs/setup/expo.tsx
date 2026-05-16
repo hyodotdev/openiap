@@ -1,6 +1,11 @@
 import { Link } from 'react-router-dom';
 import CodeBlock from '../../../components/CodeBlock';
 import SEO from '../../../components/SEO';
+import {
+  ANDROID_SDK,
+  EXPO_PACKAGE,
+  GOOGLE_PLAY_BILLING,
+} from '../../../lib/versioning';
 
 function ExpoSetup() {
   return (
@@ -128,7 +133,8 @@ function ExpoSetup() {
           </a>
         </h3>
         <p>
-          expo-iap uses Google Play Billing Library v8.2, which requires{' '}
+          expo-iap uses Google Play Billing Library v
+          {GOOGLE_PLAY_BILLING.version}, which requires{' '}
           <strong>Kotlin 2.0+</strong>.
         </p>
         <ul>
@@ -240,7 +246,8 @@ export default {
         </h3>
         <ul>
           <li>
-            Requires <strong>compileSdkVersion 34+</strong>
+            Requires <strong>minSdkVersion {ANDROID_SDK.minSdk}+</strong> and{' '}
+            <strong>compileSdkVersion {ANDROID_SDK.compileSdk}+</strong>
           </li>
           <li>No additional configuration needed for Expo managed workflow</li>
         </ul>
@@ -276,7 +283,7 @@ cd ios && pod install`}
       [
         "expo-iap",
         {
-          "iapkitApiKey": "your_api_key",
+          "iapkitApiKey": "openiap-kit_<your-key>",
           "modules": {
             "onside": true,
             "horizon": true
@@ -570,7 +577,7 @@ switch (error.code) {
   "dependencies": {
     "react-native": "npm:react-native-tvos@0.81.5-1",
     "@react-native-tvos/config-tv": "^0.1.4",
-    "expo-iap": "latest"
+    ${EXPO_PACKAGE.dependencyLine}
   }
 }`}
         </CodeBlock>

@@ -174,14 +174,14 @@ public final class ExpoIapModule: Module {
         AsyncFunction("getReceiptIOS") { () async throws -> String in
             ExpoIapLog.payload("getReceiptIOS", payload: nil)
             let receipt = try await OpenIapModule.shared.getReceiptDataIOS() ?? ""
-            ExpoIapLog.result("getReceiptIOS", value: receipt)
+            ExpoIapLog.result("getReceiptIOS", value: "<receipt>")
             return receipt
         }
 
         AsyncFunction("getReceiptDataIOS") { () async throws -> String in
             ExpoIapLog.payload("getReceiptDataIOS", payload: nil)
             let receipt = try await OpenIapModule.shared.getReceiptDataIOS() ?? ""
-            ExpoIapLog.result("getReceiptDataIOS", value: receipt)
+            ExpoIapLog.result("getReceiptDataIOS", value: "<receipt>")
             return receipt
         }
 
@@ -189,7 +189,7 @@ public final class ExpoIapModule: Module {
             ExpoIapLog.payload("requestReceiptRefreshIOS", payload: nil)
             _ = try await OpenIapModule.shared.syncIOS()
             let receipt = try await OpenIapModule.shared.getReceiptDataIOS() ?? ""
-            ExpoIapLog.result("requestReceiptRefreshIOS", value: receipt)
+            ExpoIapLog.result("requestReceiptRefreshIOS", value: "<receipt>")
             return receipt
         }
 
@@ -227,10 +227,15 @@ public final class ExpoIapModule: Module {
                 return sanitized
             } catch let error as PurchaseError {
                 ExpoIapLog.failure("verifyPurchase", error: error)
-                throw error
+                throw IapException.from(error)
             } catch {
                 ExpoIapLog.failure("verifyPurchase", error: error)
-                throw PurchaseError.make(code: .receiptFailed)
+                throw IapException.from(
+                    PurchaseError.make(
+                        code: .purchaseVerificationFailed,
+                        message: error.localizedDescription
+                    )
+                )
             }
         }
 
@@ -245,10 +250,15 @@ public final class ExpoIapModule: Module {
                 return sanitized
             } catch let error as PurchaseError {
                 ExpoIapLog.failure("verifyPurchaseWithProvider", error: error)
-                throw error
+                throw IapException.from(error)
             } catch {
                 ExpoIapLog.failure("verifyPurchaseWithProvider", error: error)
-                throw PurchaseError.make(code: .receiptFailed)
+                throw IapException.from(
+                    PurchaseError.make(
+                        code: .purchaseVerificationFailed,
+                        message: error.localizedDescription
+                    )
+                )
             }
         }
 
@@ -294,14 +304,14 @@ public final class ExpoIapModule: Module {
 
         AsyncFunction("requestPurchaseOnPromotedProductIOS") { () async throws -> Bool in
             ExpoIapLog.payload("requestPurchaseOnPromotedProductIOS", payload: nil)
-            let success = try await OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()
-            ExpoIapLog.result("requestPurchaseOnPromotedProductIOS", value: success)
-            return success
+            let result = try await OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()
+            ExpoIapLog.result("requestPurchaseOnPromotedProductIOS", value: result)
+            return result
         }
 
         AsyncFunction("getStorefront") { () async throws -> String in
             ExpoIapLog.payload("getStorefront", payload: nil)
-            let storefront = try await OpenIapModule.shared.getStorefrontIOS()
+            let storefront = try await OpenIapModule.shared.getStorefront()
             ExpoIapLog.result("getStorefront", value: storefront)
             return storefront
         }
@@ -323,7 +333,7 @@ public final class ExpoIapModule: Module {
         AsyncFunction("getTransactionJwsIOS") { (sku: String) async throws -> String? in
             ExpoIapLog.payload("getTransactionJwsIOS", payload: ["sku": sku])
             let jws = try await OpenIapModule.shared.getTransactionJwsIOS(sku: sku)
-            ExpoIapLog.result("getTransactionJwsIOS", value: jws)
+            ExpoIapLog.result("getTransactionJwsIOS", value: jws == nil ? nil : "<jws>")
             return jws
         }
 

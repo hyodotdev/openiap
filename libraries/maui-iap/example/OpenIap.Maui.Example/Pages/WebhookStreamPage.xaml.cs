@@ -147,7 +147,7 @@ public partial class WebhookStreamPage : ContentPage
     private string GetStreamUrl(string apiKey)
     {
         var url = $"{TrimTrailingSlash(BaseUrlEntry.Text)}/v1/webhooks/stream/{Uri.EscapeDataString(apiKey)}";
-        EndpointLabel.Text = $"base: {TrimTrailingSlash(BaseUrlEntry.Text)}\napi key: {apiKey[..Math.Min(apiKey.Length, 8)]}...";
+        EndpointLabel.Text = $"base: {TrimTrailingSlash(BaseUrlEntry.Text)}\napi key: CONFIGURED";
         return url;
     }
 
@@ -160,7 +160,7 @@ public partial class WebhookStreamPage : ContentPage
     private void UpdateEndpointHint()
     {
         var apiKey = ApiKeyEntry.Text?.Trim();
-        EndpointLabel.Text = $"base: {TrimTrailingSlash(BaseUrlEntry.Text)}\napi key: {(string.IsNullOrWhiteSpace(apiKey) ? "MISSING" : $"{apiKey[..Math.Min(apiKey.Length, 8)]}...")}";
+        EndpointLabel.Text = $"base: {TrimTrailingSlash(BaseUrlEntry.Text)}\napi key: {(string.IsNullOrWhiteSpace(apiKey) ? "MISSING" : "CONFIGURED")}";
     }
 
     private void SetStatus(string status, string? message)

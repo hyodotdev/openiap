@@ -26,6 +26,10 @@ import { internalAction } from "../_generated/server";
  */
 const MIXPANEL_TRACK_ENDPOINT = "https://api-eu.mixpanel.com/track";
 
+function describeErrorForLog(error: unknown): string {
+  return error instanceof Error ? error.name : typeof error;
+}
+
 export const trackFirstReceiptVerified = internalAction({
   args: {
     projectId: v.id("projects"),
@@ -77,15 +81,18 @@ export const trackFirstReceiptVerified = internalAction({
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
-        console.error(
-          `Mixpanel /track returned ${res.status}: ${await res.text()}`,
-        );
+        console.error("Mixpanel /track returned non-ok status", {
+          status: res.status,
+        });
       }
     } catch (error) {
       // Never let analytics failure surface to the customer. Log and
       // move on — we can backfill missed events from `purchases`
       // history if we ever need to.
-      console.error("Mixpanel /track request failed:", error);
+      console.error(
+        "Mixpanel /track request failed:",
+        describeErrorForLog(error),
+      );
     }
   },
 });

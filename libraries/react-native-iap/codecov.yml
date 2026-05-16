@@ -57,7 +57,6 @@ ignore:
   - '**/__mocks__/**'
   - '**/nitrogen/**'
   - '**/node_modules/**'
-  - 'example-expo/**'
   - 'docs/**'
   - 'scripts/**'
   - 'lib/**'

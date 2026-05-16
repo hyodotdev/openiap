@@ -933,6 +933,6 @@ func setup(id: String, title: String, price: String):
 
 ## See Also
 
-- [Full Documentation](https://hyochan.github.io/godot-iap)
-- [API Reference](https://hyochan.github.io/godot-iap/api)
+- [Full Documentation](https://openiap.dev/docs/setup/godot)
+- [API Reference](https://openiap.dev/docs/apis)
 - [OpenIAP Specification](https://openiap.dev)

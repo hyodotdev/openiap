@@ -93,9 +93,9 @@ export default function QuickstartPage() {
 
       <Callout kind="warning" title="API keys are production-sensitive">
         <p>
-          Treat the key like a password. IAPKit hashes it at rest and logs only
-          the hash prefix, but your backend still holds the plaintext in memory
-          to sign the outbound request. Put it in a secret manager, not in a
+          Treat the key like a password. IAPKit request logs include only a hash
+          prefix, but any backend that calls the API still needs the plaintext
+          secret at request time. Put it in a secret manager, not in a
           Git-tracked config file.
         </p>
       </Callout>
@@ -110,7 +110,7 @@ export default function QuickstartPage() {
 
       <CodeBlock title="Apple App Store" language="bash">
         {`curl -X POST https://kit.openiap.dev/v1/purchase/verify \\
-  -H "Authorization: Bearer openiap-kit_..." \\
+  -H "Authorization: Bearer openiap-kit_<your-key>" \\
   -H "Content-Type: application/json" \\
   -d '{
     "store": "apple",
@@ -120,7 +120,7 @@ export default function QuickstartPage() {
 
       <CodeBlock title="Google Play" language="bash">
         {`curl -X POST https://kit.openiap.dev/v1/purchase/verify \\
-  -H "Authorization: Bearer openiap-kit_..." \\
+  -H "Authorization: Bearer openiap-kit_<your-key>" \\
   -H "Content-Type: application/json" \\
   -d '{
     "store": "google",
@@ -130,7 +130,7 @@ export default function QuickstartPage() {
 
       <CodeBlock title="Meta Horizon (Quest)" language="bash">
         {`curl -X POST https://kit.openiap.dev/v1/purchase/verify \\
-  -H "Authorization: Bearer openiap-kit_..." \\
+  -H "Authorization: Bearer openiap-kit_<your-key>" \\
   -H "Content-Type: application/json" \\
   -d '{
     "store": "horizon",

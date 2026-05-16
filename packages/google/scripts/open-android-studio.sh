@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # OpenIAP Google - Open in Android Studio
 # This script opens the Google (Android) package in Android Studio

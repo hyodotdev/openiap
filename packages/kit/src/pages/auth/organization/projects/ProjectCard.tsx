@@ -9,7 +9,6 @@ interface ProjectCardProps {
     _id: Id<"projects">;
     name: string;
     slug: string;
-    apiKey: string;
     platform?: string;
     createdAt: number;
   };

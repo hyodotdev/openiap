@@ -63,15 +63,15 @@ function normalizeIosBundleId(input: string): string {
   return normalized;
 }
 
-function normalizeAppAppleId(input: number): number {
-  if (!Number.isFinite(input) || input <= 0) {
+export function normalizeAppAppleId(input: number): number {
+  if (!Number.isSafeInteger(input) || input <= 0) {
     throw createError(
       ErrorCode.INVALID_INPUT,
-      "App Apple ID must be a positive number.",
+      "App Apple ID must be a positive safe integer.",
     );
   }
 
-  return Math.trunc(input);
+  return input;
 }
 
 function normalizeAppStoreIssuerId(input: string): string {
@@ -275,7 +275,7 @@ export const updateProject = mutation({
     // compatible. Validation only runs when horizonEnabled === true.
     // horizonAppSecret intentionally accepts only a fresh value from
     // the client: the UI never prefills the existing secret (the query
-    // redacts it), so an undefined value here means "leave existing
+    // omits it), so an undefined value here means "leave existing
     // untouched". A `null` from the Horizon-off branch clears it.
     horizonEnabled: v.optional(v.boolean()),
     horizonAppId: v.optional(v.string()),

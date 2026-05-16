@@ -12,8 +12,11 @@ import {
 
 import type { Doc } from "@/convex";
 import { api } from "@/convex";
+import { PageLoading } from "@/components/LoadingSpinner";
 
-type ProjectContext = { project: Doc<"projects"> };
+type ProjectContext = {
+  project: Omit<Doc<"projects">, "apiKey" | "horizonAppSecret">;
+};
 
 export default function ProjectWebhooks() {
   const { project } = useOutletContext<ProjectContext>();
@@ -27,15 +30,24 @@ export default function ProjectWebhooks() {
       : null;
   const baseUrl = window.location.origin;
   const setup = useQuery(api.projects.setupStatus.getSetupStatus, {
-    apiKey: project.apiKey,
+    projectId: project._id,
+  });
+  const endpointPaths = useQuery(api.projects.query.getWebhookEndpointPaths, {
+    projectId: project._id,
   });
 
-  const urls = {
-    unified: `${baseUrl}/v1/webhooks/${encodeURIComponent(project.apiKey)}`,
-    apple: `${baseUrl}/v1/webhooks/apple/${encodeURIComponent(project.apiKey)}`,
-    google: `${baseUrl}/v1/webhooks/google/${encodeURIComponent(project.apiKey)}`,
-    stream: `${baseUrl}/v1/webhooks/stream/${encodeURIComponent(project.apiKey)}`,
-  };
+  if (endpointPaths === undefined) {
+    return <PageLoading />;
+  }
+
+  const urls = endpointPaths
+    ? {
+        unified: `${baseUrl}${endpointPaths.unified}`,
+        apple: `${baseUrl}${endpointPaths.apple}`,
+        google: `${baseUrl}${endpointPaths.google}`,
+        stream: `${baseUrl}${endpointPaths.stream}`,
+      }
+    : null;
 
   return (
     <div className="space-y-6">
@@ -80,109 +92,126 @@ export default function ProjectWebhooks() {
         </div>
       ) : null}
 
-      <UrlCard
-        title="Lifecycle webhook URL (Apple + Google)"
-        description={
-          <>
-            Paste this URL into <strong>both</strong>:
-            <ul className="list-disc pl-5 mt-2 space-y-1">
-              <li>
-                App Store Connect → Apps → Your App → App Information → App
-                Store Server Notifications (Production + Sandbox).
-              </li>
-              <li>
-                Google Cloud Pub/Sub → Subscription → Push endpoint (then point
-                Play Console → Monetization setup → RTDN at the topic).
-              </li>
-            </ul>
-            <span className="block mt-2 text-xs">
-              kit auto-detects the payload shape and dispatches to the right
-              verifier — Apple notifications signed with your{" "}
-              <code className="text-xs">.p8</code> + Google Pub/Sub messages
-              with OIDC bearer.
-            </span>
-            <span className="block mt-2 text-xs text-amber-500">
-              POST-only — opening this URL in a browser returns 404 (that's
-              expected). Verify wiring with the curl recipe below or with App
-              Store Connect's "Send Test Notification" button.{" "}
-              <a
-                href="https://www.openiap.dev/docs/webhooks#setup"
-                target="_blank"
-                rel="noreferrer"
-                className="underline hover:text-foreground"
-              >
-                Full setup guide
-              </a>
-              .
-            </span>
-          </>
-        }
-        url={urls.unified}
-        external="https://developer.apple.com/documentation/appstoreservernotifications"
-      />
-
-      <UrlCard
-        title="Real-time SSE stream"
-        description={
-          <>
-            Open this URL with EventSource (or kit's per-SDK helper) to receive
-            normalized webhook events. Reconnects are handled automatically
-            using <code className="text-xs">Last-Event-ID</code> so events fired
-            during a closed connection are delivered in order on the next
-            connect.
-            <span className="block mt-2 text-xs text-amber-500">
-              Long-lived <code className="text-xs">text/event-stream</code>{" "}
-              response — opening it in a browser shows a blank tab (expected).
-              Test it with{" "}
-              <code className="text-xs">curl -N {urls.stream}</code> or wire one
-              of the per-SDK hooks at{" "}
-              <a
-                href="https://www.openiap.dev/docs/webhooks#consume-stream"
-                target="_blank"
-                rel="noreferrer"
-                className="underline hover:text-foreground"
-              >
-                openiap.dev/docs/webhooks
-              </a>
-              .
-            </span>
-          </>
-        }
-        url={urls.stream}
-      />
-
-      <details className="border border-border rounded-lg bg-card">
-        <summary className="px-4 py-3 cursor-pointer text-sm font-medium">
-          Advanced — platform-specific URLs (legacy)
-        </summary>
-        <div className="border-t border-border p-4 space-y-3">
-          <p className="text-xs text-muted-foreground">
-            These URLs accept only the matching platform's payload. Use the
-            unified URL above unless an upstream tool insists on a
-            store-prefixed path.
+      {urls ? (
+        <UrlCard
+          title="Lifecycle webhook URL (Apple + Google)"
+          description={
+            <>
+              Paste this URL into <strong>both</strong>:
+              <ul className="list-disc pl-5 mt-2 space-y-1">
+                <li>
+                  App Store Connect → Apps → Your App → App Information → App
+                  Store Server Notifications (Production + Sandbox).
+                </li>
+                <li>
+                  Google Cloud Pub/Sub → Subscription → Push endpoint (then
+                  point Play Console → Monetization setup → RTDN at the topic).
+                </li>
+              </ul>
+              <span className="block mt-2 text-xs">
+                kit auto-detects the payload shape and dispatches to the right
+                verifier — Apple notifications signed with your{" "}
+                <code className="text-xs">.p8</code> + Google Pub/Sub messages
+                with OIDC bearer.
+              </span>
+              <span className="block mt-2 text-xs text-amber-500">
+                POST-only — opening this URL in a browser returns 404 (that's
+                expected). Verify production wiring with App Store Connect's
+                "Send Test Notification" or Google Pub/Sub's authenticated push
+                delivery.{" "}
+                <a
+                  href="https://openiap.dev/docs/webhooks#setup"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline hover:text-foreground"
+                >
+                  Full setup guide
+                </a>
+                .
+              </span>
+            </>
+          }
+          url={urls.unified}
+          external="https://developer.apple.com/documentation/appstoreservernotifications"
+        />
+      ) : (
+        <div className="border border-border rounded-lg bg-card p-4 text-sm">
+          <div className="font-medium">Webhook endpoints unavailable</div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Create or activate an API key, or ask an admin to view webhook
+            endpoints.
           </p>
-          <UrlCard
-            title="Apple-only"
-            description="Accepts ASN v2 signedPayload bodies only."
-            url={urls.apple}
-          />
-          <UrlCard
-            title="Google-only"
-            description="Accepts Pub/Sub envelopes only."
-            url={urls.google}
-          />
         </div>
-      </details>
+      )}
 
-      <div className="border border-border rounded-lg bg-card p-4 text-sm space-y-2">
-        <div className="font-medium">Live test</div>
-        <p className="text-xs text-muted-foreground">
-          POST a synthetic Pub/Sub test message to the unified URL to verify
-          wiring without going through the App Store / Play Console. The MCP
-          server's <code className="text-xs">openiap_simulate_webhook</code>{" "}
-          tool runs this same request.
-        </p>
-        <pre className="text-xs bg-muted/50 rounded p-3 overflow-x-auto">{`curl -X POST \\
+      {urls ? (
+        <UrlCard
+          title="Real-time SSE stream"
+          description={
+            <>
+              Open this URL with EventSource (or kit's per-SDK helper) to
+              receive normalized webhook events. Reconnects are handled
+              automatically using <code className="text-xs">Last-Event-ID</code>{" "}
+              so events fired during a closed connection are delivered in order
+              on the next connect.
+              <span className="block mt-2 text-xs text-amber-500">
+                Long-lived <code className="text-xs">text/event-stream</code>{" "}
+                response — opening it in a browser shows a blank tab (expected).
+                Test it with{" "}
+                <code className="text-xs">curl -N {urls.stream}</code> or wire
+                one of the per-SDK hooks at{" "}
+                <a
+                  href="https://openiap.dev/docs/webhooks#consume-stream"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline hover:text-foreground"
+                >
+                  openiap.dev/docs/webhooks
+                </a>
+                .
+              </span>
+            </>
+          }
+          url={urls.stream}
+        />
+      ) : null}
+
+      {urls ? (
+        <details className="border border-border rounded-lg bg-card">
+          <summary className="px-4 py-3 cursor-pointer text-sm font-medium">
+            Advanced — platform-specific URLs (legacy)
+          </summary>
+          <div className="border-t border-border p-4 space-y-3">
+            <p className="text-xs text-muted-foreground">
+              These URLs accept only the matching platform's payload. Use the
+              unified URL above unless an upstream tool insists on a
+              store-prefixed path.
+            </p>
+            <UrlCard
+              title="Apple-only"
+              description="Accepts ASN v2 signedPayload bodies only."
+              url={urls.apple}
+            />
+            <UrlCard
+              title="Google-only"
+              description="Accepts Pub/Sub envelopes only."
+              url={urls.google}
+            />
+          </div>
+        </details>
+      ) : null}
+
+      {urls ? (
+        <div className="border border-border rounded-lg bg-card p-4 text-sm space-y-2">
+          <div className="font-medium">Local/dev receiver smoke test</div>
+          <p className="text-xs text-muted-foreground">
+            POST a synthetic Pub/Sub test message to the unified URL only on
+            local/dev deployments with{" "}
+            <code className="text-xs">KIT_ALLOW_UNAUTHENTICATED_PUBSUB=1</code>.
+            Hosted production Google RTDN requires Pub/Sub OIDC; use the
+            store-console test notification buttons there.
+          </p>
+          <pre className="text-xs bg-muted/50 rounded p-3 overflow-x-auto">{`curl -X POST \\
   ${urls.unified} \\
   -H 'content-type: application/json' \\
   -d '{
@@ -198,7 +227,8 @@ export default function ProjectWebhooks() {
       "publishTime": "${new Date().toISOString()}"
     }
   }'`}</pre>
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }

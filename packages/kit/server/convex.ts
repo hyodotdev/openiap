@@ -95,11 +95,8 @@ function getConvexError(error: ConvexError<string>): ApiError | null {
   }
 
   // Unstructured error — the mutation/action threw
-  // `new ConvexError("some message")`. Return a generic mapping so the
-  // API surface responds with the original message + a stable code
-  // rather than a 500 / "UNKNOWN_ERROR".
-  return {
-    code: "CONVEX_ERROR",
-    message: error.data,
-  };
+  // `new ConvexError("some message")`. Treat it as internal so public
+  // route layers use their generic 500 fallback instead of exposing
+  // arbitrary backend details as client-safe text.
+  return null;
 }

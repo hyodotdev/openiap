@@ -1,4 +1,5 @@
 import groovy.json.JsonSlurper
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 static File locateOpeniapVersionsFile(File pluginDir, File hostProjectRoot) {
     // First try to find in host app's root directory
@@ -20,22 +21,89 @@ static File locateOpeniapVersionsFile(File pluginDir, File hostProjectRoot) {
     )
 }
 
+static String readPubspecVersion(File pubspecFile) {
+    if (!pubspecFile.isFile()) {
+        throw new GradleException("flutter_inapp_purchase: Unable to locate pubspec.yaml")
+    }
+    def matcher = pubspecFile.text =~ /(?m)^version:\s*([^\s#]+)/
+    if (!matcher.find()) {
+        throw new GradleException("flutter_inapp_purchase: 'version' missing in pubspec.yaml")
+    }
+    return matcher.group(1).trim()
+}
+
+static String readRequiredAndroidGradleProperty(File androidDir, String propertyName) {
+    File propertiesFile = new File(androidDir, 'gradle.properties')
+    if (!propertiesFile.isFile()) {
+        throw new GradleException("flutter_inapp_purchase: missing android/gradle.properties")
+    }
+
+    Properties properties = new Properties()
+    propertiesFile.withInputStream { properties.load(it) }
+    String value = properties.getProperty(propertyName)
+    if (value == null || value.trim().isEmpty()) {
+        throw new GradleException("flutter_inapp_purchase: missing ${propertyName} in android/gradle.properties")
+    }
+    return value.trim()
+}
+
 def openiapVersionsFile = locateOpeniapVersionsFile(buildscript.sourceFile.parentFile.parentFile, project.rootProject.rootDir)
 def openiapVersions = new JsonSlurper().parse(openiapVersionsFile)
 def openiapGoogleVersion = openiapVersions['google']
+if (!(openiapGoogleVersion instanceof String) || !openiapGoogleVersion.trim()) {
+    throw new GradleException("flutter_inapp_purchase: 'google' version missing or invalid in openiap-versions.json")
+}
+openiapGoogleVersion = openiapGoogleVersion.trim()
+def flutterPackageVersion = readPubspecVersion(new File(projectDir.parentFile, 'pubspec.yaml'))
 
-group 'io.github.hyochan.flutter_inapp_purchase'
-version '1.0-SNAPSHOT'
+group = 'io.github.hyochan.flutter_inapp_purchase'
+version = flutterPackageVersion
 
 buildscript {
-    ext.kotlin_version = '2.0.21'
+    def locateGoogleRootBuildFile = { File startDir ->
+        File current = startDir
+        while (current != null) {
+            File candidate = new File(current, 'packages/google/build.gradle.kts')
+            if (candidate.isFile()) {
+                return candidate
+            }
+            current = current.parentFile
+        }
+        return null
+    }
+
+    def readGradleProperty = { String propertyName ->
+        File propertiesFile = new File(projectDir, 'gradle.properties')
+        if (!propertiesFile.isFile()) {
+            return null
+        }
+        Properties properties = new Properties()
+        propertiesFile.withInputStream { properties.load(it) }
+        return properties.getProperty(propertyName)
+    }
+
+    def googlePluginVersion = { String pluginId ->
+        File googleRootBuildFile = locateGoogleRootBuildFile(projectDir)
+        if (googleRootBuildFile == null) {
+            return null
+        }
+        String escapedPluginId = java.util.regex.Pattern.quote(pluginId)
+        def matcher = googleRootBuildFile.text =~ /id\("${escapedPluginId}"\) version "([^"]+)"/
+        return matcher.find() ? matcher.group(1) : null
+    }
+
+    def androidGradlePluginVersion = googlePluginVersion('com.android.library')
+        ?: readRequiredAndroidGradleProperty(projectDir, 'openIapAndroidGradlePluginVersion')
+    ext.kotlin_version = googlePluginVersion('org.jetbrains.kotlin.android')
+        ?: readRequiredAndroidGradleProperty(projectDir, 'openIapKotlinVersion')
+
     repositories {
         google()
         mavenCentral()
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.1.4'
+        classpath "com.android.tools.build:gradle:$androidGradlePluginVersion"
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
@@ -50,18 +118,25 @@ rootProject.allprojects {
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 
+apply from: project.file('openiap-android-sdk.gradle')
+
+def openIapCompileSdkVersion = openIapResolveAndroidSdkVersion('compileSdkVersion', 'compileSdk', 35)
+def openIapMinSdkVersion = openIapResolveAndroidSdkVersion('minSdkVersion', 'minSdk', 23)
+def openIapTargetSdkVersion = openIapResolveAndroidSdkVersion('targetSdkVersion', 'compileSdk', 35)
+
 android {
     if (project.android.hasProperty('namespace')) {
-        namespace 'io.github.hyochan.flutter_inapp_purchase'
+        namespace = 'io.github.hyochan.flutter_inapp_purchase'
     }
-    compileSdkVersion 34
+    compileSdk = openIapCompileSdkVersion
 
     // Read horizonEnabled from gradle.properties, default to false (play)
     def horizonEnabled = project.findProperty('horizonEnabled')?.toBoolean() ?: false
 
     defaultConfig {
-        minSdkVersion 21
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        minSdkVersion = openIapMinSdkVersion
+        targetSdkVersion = openIapTargetSdkVersion
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // Use horizonEnabled to determine platform flavor
         def flavor = horizonEnabled ? 'horizon' : 'play'
@@ -78,10 +153,6 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = '17'
-    }
-
     flavorDimensions "platform"
     productFlavors {
         // Play flavor - Google Play Billing (default)
@@ -93,6 +164,12 @@ android {
         horizon {
             dimension "platform"
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
     }
 }
 
@@ -108,11 +185,8 @@ dependencies {
         implementation "io.github.hyochan.openiap:openiap-google:${openiapGoogleVersion}"
     }
 
-    // Amazon IAP for legacy Amazon Appstore support (runtime device detection)
-    implementation files('jars/in-app-purchasing-2.0.76.jar')
-    implementation 'androidx.annotation:annotation:1.6.0'
+    implementation "androidx.annotation:annotation:${readRequiredAndroidGradleProperty(projectDir, 'openIapAndroidAnnotationVersion')}"
 
-    // Google Play Billing for direct API usage (only in play flavor)
-    // Note: This is already included in openiap, but kept for backward compatibility
-    add("playCompileOnly", "com.android.billingclient:billing-ktx:8.0.0")
+    // Google Play Billing comes transitively from openiap-google so its
+    // version stays centralized in packages/google.
 }

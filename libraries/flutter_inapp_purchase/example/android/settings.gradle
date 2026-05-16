@@ -1,4 +1,43 @@
 pluginManagement {
+    def locateGoogleRootBuildFile = { File startDir ->
+        File current = startDir
+        while (current != null) {
+            File candidate = new File(current, 'packages/google/build.gradle.kts')
+            if (candidate.isFile()) {
+                return candidate
+            }
+            current = current.parentFile
+        }
+        return null
+    }
+
+    def readGradleProperty = { String propertyName ->
+        File propertiesFile = file("gradle.properties")
+        if (!propertiesFile.isFile()) {
+            return null
+        }
+        Properties properties = new Properties()
+        propertiesFile.withInputStream { properties.load(it) }
+        return properties.getProperty(propertyName)
+    }
+
+    def googlePluginVersion = { String pluginId ->
+        File googleRootBuildFile = locateGoogleRootBuildFile(settingsDir)
+        if (googleRootBuildFile == null) {
+            return null
+        }
+        String escapedPluginId = java.util.regex.Pattern.quote(pluginId)
+        def matcher = googleRootBuildFile.text =~ /id\("${escapedPluginId}"\) version "([^"]+)"/
+        return matcher.find() ? matcher.group(1) : null
+    }
+
+    def androidGradlePluginVersion = googlePluginVersion('com.android.application')
+        ?: readGradleProperty('openIapAndroidGradlePluginVersion')
+        ?: '8.13.2'
+    def kotlinPluginVersion = googlePluginVersion('org.jetbrains.kotlin.android')
+        ?: readGradleProperty('openIapKotlinVersion')
+        ?: '2.2.0'
+
     def flutterSdkPath = {
         def properties = new Properties()
         file("local.properties").withInputStream { properties.load(it) }
@@ -14,12 +53,23 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
+
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id == "com.android.application") {
+                useVersion(androidGradlePluginVersion)
+            }
+            if (requested.id.id == "org.jetbrains.kotlin.android") {
+                useVersion(kotlinPluginVersion)
+            }
+        }
+    }
 }
 
 plugins {
     id "dev.flutter.flutter-plugin-loader" version "1.0.0"
-    id "com.android.application" version "8.7.0" apply false
-    id "org.jetbrains.kotlin.android" version "2.1.0" apply false
+    id "com.android.application" apply false
+    id "org.jetbrains.kotlin.android" apply false
 }
 
 include ':app'

@@ -166,6 +166,6 @@ Before triggering a release:
 
 ## Getting Help
 
-- Open an [issue](https://github.com/hyochan/godot-iap/issues) for bugs or feature requests
-- Check the [documentation](https://hyochan.github.io/godot-iap) for usage guides
+- Open an [issue](https://github.com/hyodotdev/openiap/issues) for bugs or feature requests
+- Check the [documentation](https://openiap.dev/docs/setup/godot) for usage guides
 - Reference the [OpenIAP specification](https://openiap.dev) for API design

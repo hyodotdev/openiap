@@ -17,6 +17,64 @@ import {
  */
 type LocalPathOption = string | {ios?: string; android?: string};
 
+interface AndroidGradlePluginVersions {
+  kotlin: string;
+  vanniktechMavenPublish: string;
+}
+
+const DEFAULT_ANDROID_GRADLE_PLUGIN_VERSIONS: AndroidGradlePluginVersions = {
+  kotlin: '2.2.0',
+  vanniktechMavenPublish: '0.35.0',
+};
+
+const escapeRegExp = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const readGradlePluginVersion = (
+  contents: string,
+  pluginId: string,
+): string | null => {
+  const pattern = new RegExp(
+    `id\\("${escapeRegExp(pluginId)}"\\)\\s+version\\s+"([^"]+)"`,
+  );
+  return pattern.exec(contents)?.[1] ?? null;
+};
+
+const setGradlePluginVersion = (
+  contents: string,
+  pluginId: string,
+  version: string,
+): string => {
+  const pattern = new RegExp(
+    `id\\("${escapeRegExp(pluginId)}"\\)\\s+version\\s+"[^"]+"`,
+    'g',
+  );
+  return contents.replace(pattern, `id("${pluginId}") version "${version}"`);
+};
+
+const resolveAndroidGradlePluginVersions = (
+  androidModulePath: string,
+): AndroidGradlePluginVersions => {
+  const rootBuildGradle = path.resolve(
+    androidModulePath,
+    '..',
+    'build.gradle.kts',
+  );
+  if (!fs.existsSync(rootBuildGradle)) {
+    return DEFAULT_ANDROID_GRADLE_PLUGIN_VERSIONS;
+  }
+
+  const contents = fs.readFileSync(rootBuildGradle, 'utf8');
+  const kotlin =
+    readGradlePluginVersion(contents, 'org.jetbrains.kotlin.android') ??
+    DEFAULT_ANDROID_GRADLE_PLUGIN_VERSIONS.kotlin;
+  const vanniktechMavenPublish =
+    readGradlePluginVersion(contents, 'com.vanniktech.maven.publish') ??
+    DEFAULT_ANDROID_GRADLE_PLUGIN_VERSIONS.vanniktechMavenPublish;
+
+  return {kotlin, vanniktechMavenPublish};
+};
+
 // Log a message only once per Node process
 const logOnce = (() => {
   const printed = new Set<string>();
@@ -134,14 +192,21 @@ const withLocalOpenIAP: ConfigPlugin<
       }
       return config;
     }
+    const pluginVersions =
+      resolveAndroidGradlePluginVersions(androidModulePath);
+    const settingsRoot =
+      ((config.modRequest as any).platformProjectRoot as string | undefined) ??
+      path.join(projectRoot, 'android');
+    const relativeAndroidModulePath = path
+      .relative(settingsRoot, androidModulePath)
+      .replace(/\\/g, '/');
 
     // 1) settings.gradle: include and map projectDir
     const settings = config.modResults;
     const includeLine = "include ':openiap-google'";
-    const projectDirLine = `project(':openiap-google').projectDir = new File('${androidModulePath.replace(
-      /\\/g,
-      '/',
-    )}')`;
+    const projectDirLine = `project(':openiap-google').projectDir = new File(settingsDir, '${relativeAndroidModulePath}')`;
+    const projectDirPattern =
+      /^project\(':openiap-google'\)\.projectDir\s*=.*$/gm;
     let contents = settings.contents ?? '';
 
     // Ensure pluginManagement has plugin mappings required by the included module
@@ -159,18 +224,34 @@ const withLocalOpenIAP: ConfigPlugin<
         contents,
       );
 
+      contents = setGradlePluginVersion(
+        contents,
+        'com.vanniktech.maven.publish',
+        pluginVersions.vanniktechMavenPublish,
+      );
+      contents = setGradlePluginVersion(
+        contents,
+        'org.jetbrains.kotlin.android',
+        pluginVersions.kotlin,
+      );
+      contents = setGradlePluginVersion(
+        contents,
+        'org.jetbrains.kotlin.plugin.compose',
+        pluginVersions.kotlin,
+      );
+
       const pluginLines: string[] = [];
       if (needsVannik)
         pluginLines.push(
-          `  id("com.vanniktech.maven.publish") version "0.29.0"`,
+          `  id("com.vanniktech.maven.publish") version "${pluginVersions.vanniktechMavenPublish}"`,
         );
       if (needsKotlinAndroid)
         pluginLines.push(
-          `  id("org.jetbrains.kotlin.android") version "2.0.21"`,
+          `  id("org.jetbrains.kotlin.android") version "${pluginVersions.kotlin}"`,
         );
       if (needsCompose)
         pluginLines.push(
-          `  id("org.jetbrains.kotlin.plugin.compose") version "2.0.21"`,
+          `  id("org.jetbrains.kotlin.plugin.compose") version "${pluginVersions.kotlin}"`,
         );
 
       // If everything already present, skip
@@ -197,14 +278,13 @@ const withLocalOpenIAP: ConfigPlugin<
       }
     };
 
-    if (
-      !/com\.vanniktech\.maven\.publish/.test(contents) ||
-      !/org\.jetbrains\.kotlin\.android/.test(contents)
-    ) {
-      injectPluginManagement();
-    }
+    injectPluginManagement();
     if (!contents.includes(includeLine)) contents += `\n${includeLine}\n`;
-    if (!contents.includes(projectDirLine)) contents += `${projectDirLine}\n`;
+    if (projectDirPattern.test(contents)) {
+      contents = contents.replace(projectDirPattern, projectDirLine);
+    } else if (!contents.includes(projectDirLine)) {
+      contents += `${projectDirLine}\n`;
+    }
     settings.contents = contents;
     logOnce(`✅ Linked local Android module at: ${androidModulePath}`);
     return config;

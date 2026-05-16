@@ -90,7 +90,7 @@ export default function OrganizationUsagePage() {
                 }
               </p>
               <a
-                href="https://www.openiap.dev/sponsors"
+                href="https://openiap.dev/sponsors"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-medium transition-colors"

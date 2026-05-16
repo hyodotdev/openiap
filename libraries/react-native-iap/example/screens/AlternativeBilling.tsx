@@ -98,7 +98,11 @@ function AlternativeBillingScreen() {
     enableBillingProgramAndroid:
       Platform.OS === 'android' ? billingProgram : undefined,
     onPurchaseSuccess: async (purchase: Purchase) => {
-      console.log('Purchase successful:', purchase);
+      console.log('Purchase successful:', {
+        productId: purchase.productId,
+        transactionId: purchase.id,
+        platform: purchase.platform,
+      });
       setLastPurchase(purchase);
       setIsProcessing(false);
 
@@ -156,14 +160,14 @@ function AlternativeBillingScreen() {
           '[Android] User selected developer billing (External Payments)',
         );
         console.log(
-          '[Android] External transaction token:',
-          details.externalTransactionToken,
+          '[Android] External transaction token available:',
+          Boolean(details.externalTransactionToken),
         );
 
         setExternalPaymentsToken(details.externalTransactionToken);
         setIsProcessing(false);
         setPurchaseResult(
-          `✅ User selected Developer Billing (External Payments)\n\nToken: ${details.externalTransactionToken.substring(0, 30)}...\n\n⚠️ Important:\n1. Process payment through your external system\n2. Report token to Google Play within 24 hours`,
+          `✅ User selected Developer Billing (External Payments)\n\nToken: ${details.externalTransactionToken}\n\n⚠️ Important:\n1. Process payment through your external system\n2. Report token to Google Play within 24 hours`,
         );
 
         Alert.alert(
@@ -299,13 +303,11 @@ function AlternativeBillingScreen() {
         // Step 3: Create reporting token (after user completes external purchase)
         const details =
           await createBillingProgramReportingDetailsAndroid(billingProgram);
-        console.log(
-          '[Android] Reporting token created:',
-          details.externalTransactionToken.substring(0, 20) + '...',
-        );
+        const hasReportingToken = Boolean(details.externalTransactionToken);
+        console.log('[Android] Reporting token created:', hasReportingToken);
 
         setPurchaseResult(
-          `✅ Billing Programs API completed\n\nProgram: ${billingProgram}\nURL: ${externalUrl}\nToken: ${details.externalTransactionToken.substring(0, 30)}...\n\n⚠️ Important:\n1. User completes purchase externally\n2. Report token to Google Play within 24h`,
+          `✅ Billing Programs API completed\n\nProgram: ${billingProgram}\nURL: ${externalUrl}\nToken: ${details.externalTransactionToken ?? 'missing'}\n\n⚠️ Important:\n1. User completes purchase externally\n2. Report token to Google Play within 24h`,
         );
 
         Alert.alert(
@@ -642,9 +644,7 @@ function AlternativeBillingScreen() {
               External Payments Token (Japan)
             </Text>
             <View style={styles.purchaseCard}>
-              <Text style={styles.purchaseText}>
-                Token: {externalPaymentsToken.substring(0, 40)}...
-              </Text>
+              <Text style={styles.purchaseText}>Token: {externalPaymentsToken}</Text>
               <Text style={styles.purchaseWarning}>
                 ⚠️ Report this token to Google Play within 24 hours{'\n'}
                 ℹ️ Process external payment through your system

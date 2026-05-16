@@ -13,17 +13,25 @@ export default function OperationsPage() {
       <p>
         <code>/v1/purchase/verify</code> is protected by an in-memory
         token-bucket keyed on a SHA-256 hash of the API key. Defaults:
-        <strong> 60-request burst, 1 req/sec steady state</strong> —
-        equivalently 60 req/min sustained. Self-hosted deployments can tune via{" "}
+        <strong> 600-request burst, 10 req/sec steady state</strong> —
+        equivalently 600 req/min sustained. Self-hosted deployments can tune via{" "}
         <code>RATE_LIMIT_CAPACITY</code> and{" "}
         <code>RATE_LIMIT_REFILL_PER_SEC</code>.
       </p>
       <p>
         When the bucket empties, IAPKit returns <code>429 RATE_LIMITED</code>{" "}
-        with a <code>Retry-After</code> header (seconds). Every response —
-        successful or otherwise — also carries <code>X-RateLimit-Limit</code>{" "}
-        and <code>X-RateLimit-Remaining</code> so your client can back off
-        before getting 429'd.
+        with a <code>Retry-After</code> header (seconds). The verify endpoint
+        also has a per-(API key, payload) replay guard; it returns{" "}
+        <code>429 DUPLICATE_PAYLOAD</code> when the same receipt is retried too
+        aggressively, or <code>429 REPEATED_FAILURE</code> during the short
+        cooldown after the upstream store rejects that exact payload.
+      </p>
+      <p>
+        Authenticated responses after the auth layer — successful responses,
+        validation errors, and 429s — carry <code>X-RateLimit-Limit</code> and{" "}
+        <code>X-RateLimit-Remaining</code> so your client can back off before
+        getting 429'd. 401 / 403 auth failures return before those headers are
+        attached.
       </p>
 
       <Callout kind="tip" title="The bucket store is bounded too">
@@ -36,22 +44,26 @@ export default function OperationsPage() {
 
       <h2 className="mt-10 text-2xl font-semibold">Correlation IDs</h2>
       <p>
-        Every response from the verify endpoint carries an{" "}
+        Every verify response after the auth-header shape check carries an{" "}
         <code>X-Correlation-Id</code> header — a UUIDv4 IAPKit generates at the
-        middleware level. The same id appears in the structured log line for
-        that request, so support can pivot from a customer report straight to
-        the exact log entry.
+        logger middleware level. The same id appears in the structured log line
+        for that request, so support can pivot from a customer report straight
+        to the exact log entry. Missing or malformed Authorization headers
+        return before the logger runs.
       </p>
       <CodeBlock title="Sample response headers" language="http">
         {`HTTP/1.1 200 OK
 Content-Type: application/json
 X-Correlation-Id: 6ebb9c9e-2e6e-4f9a-9bf2-4a6a9d5f9d20
-X-RateLimit-Limit: 60
-X-RateLimit-Remaining: 57`}
+X-RateLimit-Limit: 600
+X-RateLimit-Remaining: 599`}
       </CodeBlock>
 
       <h2 className="mt-10 text-2xl font-semibold">Structured logs</h2>
-      <p>Each verify request emits one JSON line to stdout:</p>
+      <p>
+        Each verify request that reaches the logger emits one JSON line to
+        stdout:
+      </p>
       <CodeBlock title="stdout log line" language="json">
         {`{
   "level": "info",
@@ -90,9 +102,9 @@ X-RateLimit-Remaining: 57`}
       <p>
         The server installs <code>SIGTERM</code> and <code>SIGINT</code>{" "}
         handlers that call <code>Bun.serve().stop()</code> and drain in-flight{" "}
-        <code>/api/v1/*</code> requests before the process exits. Fly.io sends{" "}
-        <code>SIGTERM</code> before stopping a machine, so rolling deploys don't
-        cut off requests mid-verify.
+        <code>/v1/*</code> and <code>/api/v1/*</code> requests before the
+        process exits. Fly.io sends <code>SIGTERM</code> before stopping a
+        machine, so rolling deploys don't cut off requests mid-verify.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Outbound retries</h2>
@@ -117,11 +129,15 @@ X-RateLimit-Remaining: 57`}
 
       <h2 className="mt-10 text-2xl font-semibold">Input size limits</h2>
       <ul className="my-3 list-disc space-y-1 pl-6">
+        <li>receipt verification body ≤ 32 KB before JSON parsing</li>
+        <li>product management body ≤ 64 KB before JSON parsing</li>
+        <li>subscription user-binding body ≤ 8 KB before JSON parsing</li>
+        <li>webhook push body ≤ 256 KB before JSON parsing</li>
         <li>
           <code>jws</code> ≤ 16 KB (Apple)
         </li>
         <li>
-          <code>purchaseToken</code> ≤ 2 KB (Google)
+          <code>purchaseToken</code> ≤ 2 KB (Google / subscription binding)
         </li>
         <li>
           <code>userId</code> ≤ 256 chars (Horizon)
@@ -129,11 +145,14 @@ X-RateLimit-Remaining: 57`}
         <li>
           <code>sku</code> ≤ 256 chars (Horizon)
         </li>
+        <li>
+          <code>productId</code> ≤ 256 chars (catalog / subscriptions)
+        </li>
       </ul>
       <p>
-        Oversized requests return <code>400 INVALID_INPUT</code> before IAPKit
-        calls the upstream store, so a misbehaving client can't burn your Apple
-        / Google / Meta quota.
+        Oversized fields return <code>400 INVALID_INPUT</code>; oversized
+        request bodies return <code>413 PAYLOAD_TOO_LARGE</code>. Invalid inputs
+        stop before upstream store calls or Convex mutations.
       </p>
     </DocsPage>
   );

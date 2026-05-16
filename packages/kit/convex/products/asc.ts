@@ -1,8 +1,10 @@
 "use node";
 import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
 import { action, internalAction, type ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
+import type { Doc, Id } from "../_generated/dataModel";
 import { getProjectByApiKey } from "../purchases/shared";
 import { mapWithConcurrency } from "../utils/concurrency";
 import { mintAscJwt } from "./jwt";
@@ -34,7 +36,7 @@ type AscCredentials = {
 };
 async function resolveAscCredentials(
   ctx: ActionCtx,
-  project: Awaited<ReturnType<typeof getProjectByApiKey>>,
+  project: Doc<"projects">,
   options: { detailedErrors?: boolean } = {},
 ): Promise<AscCredentials> {
   // Apple uses ONE Issuer ID per team across both API gateways
@@ -131,6 +133,42 @@ async function resolveAscCredentials(
     );
   }
   return { issuerId, keyId, keyContent };
+}
+
+async function getProjectForActionArgs(
+  ctx: ActionCtx,
+  args: { apiKey?: string; projectId?: Id<"projects"> },
+): Promise<Doc<"projects">> {
+  if (args.projectId) {
+    const userId: Id<"users"> | null = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
+    const project: Doc<"projects"> | null = await ctx.runQuery(
+      internal.projects.internal.getProjectById,
+      { projectId: args.projectId },
+    );
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    const membership = await ctx.runQuery(
+      internal.organizations.internal.getMembership,
+      { userId, organizationId: project.organizationId },
+    );
+    if (!membership) {
+      throw new Error("Not a member of this organization");
+    }
+
+    return project;
+  }
+
+  if (args.apiKey !== undefined) {
+    return await getProjectByApiKey(ctx, args.apiKey);
+  }
+
+  throw new Error("apiKey or projectId is required");
 }
 
 // App Store Connect REST client + push-sync action.
@@ -781,13 +819,14 @@ export function pickPricePointIdMatching(
   targetMicros: number,
 ): string | null {
   if (!list) return null;
+  if (!Number.isSafeInteger(targetMicros) || targetMicros < 0) return null;
   const targetCents = Math.round(targetMicros / 10_000);
   for (const point of list.data) {
-    const raw = point.attributes?.customerPrice;
-    if (!raw) continue;
-    const n = Number(raw);
-    if (!Number.isFinite(n)) continue;
-    const pointCents = Math.round(n * 100);
+    const pointMicros = ascCustomerPriceToMicros(
+      point.attributes?.customerPrice,
+    );
+    if (pointMicros === undefined) continue;
+    const pointCents = Math.round(pointMicros / 10_000);
     if (Math.abs(pointCents - targetCents) <= 1) return point.id;
   }
   return null;
@@ -925,14 +964,24 @@ function parseAssignedPrice(
   const pointId = row.relationships?.[relationshipKey]?.data?.id;
   if (!pointId) return {};
   const point = resp.included?.find((entry) => entry.id === pointId);
-  const raw = point?.attributes?.customerPrice;
-  if (!raw) return {};
-  const n = Number(raw);
-  if (!Number.isFinite(n)) return {};
+  const priceAmountMicros = ascCustomerPriceToMicros(
+    point?.attributes?.customerPrice,
+  );
+  if (priceAmountMicros === undefined) return {};
   return {
-    priceAmountMicros: Math.round(n * 1_000_000),
+    priceAmountMicros,
     currency: "USD",
   };
+}
+
+export function ascCustomerPriceToMicros(
+  raw: string | undefined,
+): number | undefined {
+  if (!raw) return undefined;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) return undefined;
+  const micros = Math.round(n * 1_000_000);
+  return Number.isSafeInteger(micros) ? micros : undefined;
 }
 
 function extractAscError(parsed: unknown): string {
@@ -1736,13 +1785,16 @@ async function performIosSync(
 // thrown Error so the dashboard can show a toast and degrade
 // gracefully (the field stays a free-text input).
 export const listSubscriptionGroupsAppleIOS = action({
-  args: { apiKey: v.string() },
+  args: {
+    apiKey: v.optional(v.string()),
+    projectId: v.optional(v.id("projects")),
+  },
   returns: v.array(v.object({ id: v.string(), referenceName: v.string() })),
   handler: async (
     ctx,
     args,
   ): Promise<Array<{ id: string; referenceName: string }>> => {
-    const project = await getProjectByApiKey(ctx, args.apiKey);
+    const project = await getProjectForActionArgs(ctx, args);
     if (!project.iosAppAppleId) {
       throw new Error("Project iosAppAppleId is not configured");
     }
@@ -1894,11 +1946,9 @@ export function parseIntroOffers(
       const point = pointId
         ? resp.included?.find((entry) => entry.id === pointId)
         : undefined;
-      const raw = point?.attributes?.customerPrice;
-      const n = raw ? Number(raw) : Number.NaN;
-      const priceAmountMicros = Number.isFinite(n)
-        ? Math.round(n * 1_000_000)
-        : undefined;
+      const priceAmountMicros = ascCustomerPriceToMicros(
+        point?.attributes?.customerPrice,
+      );
       return {
         id: row.id,
         kind: mapAscOfferKind(row.attributes?.offerMode),

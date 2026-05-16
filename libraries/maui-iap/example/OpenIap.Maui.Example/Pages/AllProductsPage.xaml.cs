@@ -353,7 +353,10 @@ public partial class AllProductsPage : ContentPage
         foreach (var offer in offers)
         {
             AppendOfferTitle(offer.BasePlanId + (string.IsNullOrEmpty(offer.OfferId) ? string.Empty : $" - {offer.OfferId}"));
-            AppendOfferDetail($"Offer Token: {TrimMiddle(offer.OfferToken)}");
+            var offerTokenStatus = string.IsNullOrEmpty(offer.OfferToken)
+                ? "missing"
+                : offer.OfferToken;
+            AppendOfferDetail($"Offer Token: {offerTokenStatus}");
             AppendOfferDetail($"Tags: {FormatList(offer.OfferTags)}");
             foreach (var phase in offer.PricingPhases.PricingPhaseList)
             {
@@ -394,12 +397,17 @@ public partial class AllProductsPage : ContentPage
         try
         {
             AppendSection("Raw Product JSON");
-            AppendOfferDetail(JsonSerializer.Serialize(item, item.GetType(), PrettyJson));
+            AppendOfferDetail(SerializeProductPreview(item));
         }
         catch (Exception ex)
         {
             AppendOfferDetail($"Unable to serialize product: {ex.Message}");
         }
+    }
+
+    private static string SerializeProductPreview(object item)
+    {
+        return JsonSerializer.Serialize(item, item.GetType(), PrettyJson);
     }
 
     private void AppendSection(string title)

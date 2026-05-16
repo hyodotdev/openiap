@@ -22,21 +22,21 @@ import dev.hyo.martie.config.AppConfig
 import dev.hyo.martie.theme.AppColors
 import dev.hyo.martie.utils.swipeToBack
 import io.github.hyochan.kmpiap.KmpIAP
-import io.github.hyochan.kmpiap.fetchProducts
 import io.github.hyochan.kmpiap.requestPurchase
 import io.github.hyochan.kmpiap.toPurchaseInput
 import io.github.hyochan.kmpiap.getCurrentPlatform
-import io.github.hyochan.kmpiap.openiap.Product
+import io.github.hyochan.kmpiap.openiap.FetchProductsResultSubscriptions
 import io.github.hyochan.kmpiap.openiap.Purchase
 import io.github.hyochan.kmpiap.openiap.PurchaseError
 import io.github.hyochan.kmpiap.openiap.PurchaseState
 import io.github.hyochan.kmpiap.openiap.ProductQueryType
+import io.github.hyochan.kmpiap.openiap.ProductRequest
+import io.github.hyochan.kmpiap.openiap.ProductSubscription
 import io.github.hyochan.kmpiap.openiap.ProductType
+import io.github.hyochan.kmpiap.openiap.QueryResolver
 import io.github.hyochan.kmpiap.openiap.ErrorCode
 import io.github.hyochan.kmpiap.openiap.PurchaseAndroid
 import io.github.hyochan.kmpiap.openiap.PurchaseIOS
-import io.github.hyochan.kmpiap.openiap.ProductAndroid
-import io.github.hyochan.kmpiap.openiap.ProductIOS
 import io.github.hyochan.kmpiap.openiap.ActiveSubscription
 import io.github.hyochan.kmpiap.openiap.IapPlatform
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseProps
@@ -85,7 +85,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
     var initError by remember { mutableStateOf<String?>(null) }
     
     var connected by remember { mutableStateOf(false) }
-    var subscriptions by remember { mutableStateOf<List<Product>>(emptyList()) }
+    var subscriptions by remember { mutableStateOf<List<ProductSubscription>>(emptyList()) }
     var activeSubscriptions by remember { mutableStateOf<List<ActiveSubscription>>(emptyList()) }
     var hasActiveSubscription by remember { mutableStateOf(false) }
     var currentError by remember { mutableStateOf<PurchaseError?>(null) }
@@ -106,15 +106,14 @@ fun SubscriptionFlowScreen(navController: NavController) {
                     PurchaseState.Purchased -> {
                         isProcessing = false
 
-                        val dateText = purchase.transactionDate?.let {
-                            Instant.fromEpochSeconds(it.toLong()).toLocalDateTime(TimeZone.currentSystemDefault())
-                        } ?: "N/A"
+                        val dateText = Instant.fromEpochSeconds(purchase.transactionDate.toLong())
+                            .toLocalDateTime(TimeZone.currentSystemDefault())
                         purchaseResult = """
                     ✅ Subscription successful (${purchase.platform})
                     Product: ${purchase.productId}
                     Transaction ID: ${purchase.id.ifEmpty { "N/A" }}
                     Date: $dateText
-                    Receipt: ${purchase.purchaseToken?.take(50) ?: "N/A"}
+                    Receipt: ${purchase.purchaseToken ?: "N/A"}
                 """.trimIndent()
 
                         scope.launch {
@@ -140,7 +139,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                             verificationResult = when (result) {
                                                 is VerifyPurchaseResultIOS -> "📱 Local Verification (iOS):\n" +
                                                     "Valid: ${result.isValid}\n" +
-                                                    "Receipt: ${result.receiptData.take(50)}..."
+                                                    "Receipt: ${purchase.purchaseToken ?: "N/A"}"
                                                 is VerifyPurchaseResultAndroid -> "📱 Local Verification (Android):\n" +
                                                     "Product: ${result.productId}\n" +
                                                     "Receipt ID: ${result.receiptId}"
@@ -264,9 +263,15 @@ fun SubscriptionFlowScreen(navController: NavController) {
                 
                 val subscriptionProductsDeferred = async {
                     try {
-                        kmpIAP.fetchProducts {
-                            skus = SUBSCRIPTION_IDS
-                            type = ProductQueryType.Subs
+                        val result = (kmpIAP as QueryResolver).fetchProducts(
+                            ProductRequest(
+                                skus = SUBSCRIPTION_IDS,
+                                type = ProductQueryType.Subs
+                            )
+                        )
+                        when (result) {
+                            is FetchProductsResultSubscriptions -> result.value.orEmpty()
+                            else -> emptyList()
                         }
                     } catch (e: Exception) {
                         println("Failed to load subscription products: ${e.message}")
@@ -288,7 +293,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                 hasActiveSubscription = results.second
                 val subscriptionProducts = results.third
                 
-                // Process subscription products - they are already of type Product
+                // Process subscription products
                 subscriptions = subscriptionProducts
                 
                 if (subscriptions.isEmpty()) {
@@ -941,7 +946,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
 
 @Composable
 fun SubscriptionCard(
-    subscription: Product,
+    subscription: ProductSubscription,
     isSubscribed: Boolean,
     activeSubscription: ActiveSubscription? = null,
     onSubscribe: () -> Unit,
@@ -973,7 +978,7 @@ fun SubscriptionCard(
                             println("    Type: ${offer.type}")
                             println("    Payment Mode: ${offer.paymentMode}")
                             offer.basePlanIdAndroid?.let { println("    Base Plan: $it") }
-                            offer.offerTokenAndroid?.let { println("    Token: ${it.take(30)}...") }
+                            offer.offerTokenAndroid?.let { println("    Token: $it") }
                         }
                     }
                     is ProductSubscriptionIOS -> {
@@ -989,14 +994,6 @@ fun SubscriptionCard(
                                 offer.period?.let { println("    Period: ${it.value} ${it.unit}") }
                             }
                         }
-                    }
-                    is ProductAndroid -> {
-                        println("--- Android Specific ---")
-                        println("One Time Purchase Offer: ${subscription.oneTimePurchaseOfferDetailsAndroid}")
-                    }
-                    is ProductIOS -> {
-                        println("--- iOS Specific ---")
-                        println("Subscription Info: ${subscription.subscriptionInfoIOS}")
                     }
                 }
 
@@ -1091,7 +1088,6 @@ fun SubscriptionCard(
             val subscriptionOffers: List<SubscriptionOffer>? = when (subscription) {
                 is ProductSubscriptionAndroid -> subscription.subscriptionOffers.takeIf { it.isNotEmpty() }
                 is ProductSubscriptionIOS -> subscription.subscriptionOffers
-                else -> null
             }
 
             subscriptionOffers?.let { offers ->

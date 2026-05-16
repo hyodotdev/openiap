@@ -1,4 +1,3 @@
-/* global jest */
 const core = require('./expo-modules-core');
 const nativeModule = core.requireNativeModule();
 

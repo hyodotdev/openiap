@@ -3,20 +3,20 @@
 extend type Query {
   """
   Deprecated. Get the current App Store storefront country code — use cross-platform getStorefront instead.
-  See: https://www.openiap.dev/docs/apis/ios/get-storefront-ios
+  See: https://openiap.dev/docs/apis/ios/get-storefront-ios
   """
   # Future
   getStorefrontIOS: String! @deprecated(reason: "Use getStorefront")
   """
   Read the App Store-promoted product, if any (iOS 11+).
-  See: https://www.openiap.dev/docs/apis/ios/get-promoted-product-ios
+  See: https://openiap.dev/docs/apis/ios/get-promoted-product-ios
   """
   # Future
   getPromotedProductIOS: ProductIOS
   """
   Check eligibility for the external purchase notice sheet (iOS 17.4+).
   Uses ExternalPurchase.canPresent.
-  See: https://www.openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
+  See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
   """
   # Future
   canPresentExternalPurchaseNoticeIOS: Boolean!
@@ -24,7 +24,7 @@ extend type Query {
   Check eligibility for the custom-link variant of external purchase (iOS 18.1+).
   Returns true if the app can use custom external purchase links.
   Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible
-  See: https://www.openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
+  See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
   """
   # Future
   isEligibleForExternalPurchaseCustomLinkIOS: Boolean!
@@ -32,7 +32,7 @@ extend type Query {
   Fetch a token for Apple's External Purchase Server reporting API (iOS 18.1+).
   Use this token to report transactions made through ExternalPurchaseCustomLink.
   Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)
-  See: https://www.openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios
+  See: https://openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios
   """
   # Future
   getExternalPurchaseCustomLinkTokenIOS(
@@ -43,55 +43,55 @@ extend type Query {
   ): ExternalPurchaseCustomLinkTokenResultIOS!
   """
   List unfinished StoreKit transactions in the queue.
-  See: https://www.openiap.dev/docs/apis/ios/get-pending-transactions-ios
+  See: https://openiap.dev/docs/apis/ios/get-pending-transactions-ios
   """
   # Future
   getPendingTransactionsIOS: [PurchaseIOS!]!
   """
   Check intro-offer eligibility for a subscription group.
-  See: https://www.openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios
+  See: https://openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios
   """
   # Future
   isEligibleForIntroOfferIOS(groupID: String!): Boolean!
   """
   Get subscription status objects from StoreKit 2 (iOS 15+).
-  See: https://www.openiap.dev/docs/apis/ios/subscription-status-ios
+  See: https://openiap.dev/docs/apis/ios/subscription-status-ios
   """
   # Future
   subscriptionStatusIOS(sku: String!): [SubscriptionStatusIOS!]!
   """
   Get the user's current entitlement for a product, using StoreKit 2 (iOS 15+).
-  See: https://www.openiap.dev/docs/apis/ios/current-entitlement-ios
+  See: https://openiap.dev/docs/apis/ios/current-entitlement-ios
   """
   # Future
   currentEntitlementIOS(sku: String!): PurchaseIOS
   """
   Get the latest verified transaction for a product, using StoreKit 2.
-  See: https://www.openiap.dev/docs/apis/ios/latest-transaction-ios
+  See: https://openiap.dev/docs/apis/ios/latest-transaction-ios
   """
   # Future
   latestTransactionIOS(sku: String!): PurchaseIOS
   """
   Check whether a transaction's JWS verification passed (StoreKit 2).
-  See: https://www.openiap.dev/docs/apis/ios/is-transaction-verified-ios
+  See: https://openiap.dev/docs/apis/ios/is-transaction-verified-ios
   """
   # Future
   isTransactionVerifiedIOS(sku: String!): Boolean!
   """
   Return the JWS string for a transaction (StoreKit 2).
-  See: https://www.openiap.dev/docs/apis/ios/get-transaction-jws-ios
+  See: https://openiap.dev/docs/apis/ios/get-transaction-jws-ios
   """
   # Future
   getTransactionJwsIOS(sku: String!): String
   """
   Get base64-encoded receipt data (legacy validation).
-  See: https://www.openiap.dev/docs/apis/ios/get-receipt-data-ios
+  See: https://openiap.dev/docs/apis/ios/get-receipt-data-ios
   """
   # Future
   getReceiptDataIOS: String
   """
   Fetch the app transaction (iOS 16+).
-  See: https://www.openiap.dev/docs/apis/ios/get-app-transaction-ios
+  See: https://openiap.dev/docs/apis/ios/get-app-transaction-ios
   """
   # Future
   getAppTransactionIOS: AppTransaction
@@ -100,13 +100,13 @@ extend type Query {
   Requires the SK2ConsumableTransactionHistory Info.plist key in the host app
   for finished consumables to be included (iOS 18+).
   Unlike getAvailablePurchases, always returns the iOS-specific PurchaseIOS shape.
-  See: https://www.openiap.dev/docs/apis/ios/get-all-transactions-ios
+  See: https://openiap.dev/docs/apis/ios/get-all-transactions-ios
   """
   # Future
   getAllTransactionsIOS: [PurchaseIOS!]!
   """
   Deprecated. Legacy App Store receipt validation — use verifyPurchase instead.
-  See: https://www.openiap.dev/docs/apis/ios/validate-receipt-ios
+  See: https://openiap.dev/docs/apis/ios/validate-receipt-ios
   """
   # Future
   validateReceiptIOS(options: VerifyPurchaseProps!): VerifyPurchaseResultIOS! @deprecated(reason: "Use verifyPurchase")
@@ -115,7 +115,7 @@ extend type Query {
 extend type Mutation {
   """
   Clear pending transactions in the queue (sandbox helper).
-  See: https://www.openiap.dev/docs/apis/ios/clear-transaction-ios
+  See: https://openiap.dev/docs/apis/ios/clear-transaction-ios
   """
   # Future
   clearTransactionIOS: Boolean!
@@ -125,31 +125,31 @@ extend type Mutation {
   @deprecated Use promotedProductListenerIOS to receive the productId,
   then call requestPurchase with that SKU instead. In StoreKit 2,
   promoted products can be purchased directly via the standard purchase flow.
-  See: https://www.openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios
+  See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios
   """
   # Future
   requestPurchaseOnPromotedProductIOS: Boolean! @deprecated(reason: "Use promotedProductListenerIOS + requestPurchase instead")
   """
   Present the manage-subscriptions sheet and return changed purchases (iOS 15+).
-  See: https://www.openiap.dev/docs/apis/ios/show-manage-subscriptions-ios
+  See: https://openiap.dev/docs/apis/ios/show-manage-subscriptions-ios
   """
   # Future
   showManageSubscriptionsIOS: [PurchaseIOS!]!
   """
   Present the refund request sheet (iOS 15+). See also Features → Refund.
-  See: https://www.openiap.dev/docs/apis/ios/begin-refund-request-ios
+  See: https://openiap.dev/docs/apis/ios/begin-refund-request-ios
   """
   # Future
   beginRefundRequestIOS(sku: String!): String
   """
   Force sync transactions with the App Store (iOS 15+).
-  See: https://www.openiap.dev/docs/apis/ios/sync-ios
+  See: https://openiap.dev/docs/apis/ios/sync-ios
   """
   # Future
   syncIOS: Boolean!
   """
   Show the App Store offer code redemption sheet.
-  See: https://www.openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
+  See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
   """
   # Future
   presentCodeRedemptionSheetIOS: Boolean!
@@ -157,13 +157,13 @@ extend type Mutation {
   Present the external purchase notice sheet (iOS 17.4+).
   Uses ExternalPurchase.presentNoticeSheet() which returns a token when the user continues.
   Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet()
-  See: https://www.openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
+  See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
   """
   # Future
   presentExternalPurchaseNoticeSheetIOS: ExternalPurchaseNoticeResultIOS!
   """
   Present an external purchase link, StoreKit External (iOS 16+).
-  See: https://www.openiap.dev/docs/apis/ios/present-external-purchase-link-ios
+  See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
   """
   # Future
   presentExternalPurchaseLinkIOS(url: String!): ExternalPurchaseLinkResultIOS!
@@ -171,7 +171,7 @@ extend type Mutation {
   Present the disclosure sheet required before linking out via ExternalPurchaseCustomLink (iOS 18.1+).
   Call this after a deliberate customer interaction before linking out to external purchases.
   Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/shownotice(type:)
-  See: https://www.openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios
+  See: https://openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios
   """
   # Future
   showExternalPurchaseCustomLinkNoticeIOS(

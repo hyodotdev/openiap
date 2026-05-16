@@ -1,4 +1,9 @@
 #!/bin/bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+cd "$PROJECT_ROOT"
 
 echo "Running tests with coverage..."
 
@@ -10,6 +15,5 @@ bunx jest --coverage
 echo "Running example app tests..."
 cd example
 bunx jest --coverage --passWithNoTests
-cd ..
 
 echo "Coverage reports generated in ./coverage and ./example/coverage"

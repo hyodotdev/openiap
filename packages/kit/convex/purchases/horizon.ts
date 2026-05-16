@@ -33,6 +33,12 @@ import { retryOnTransient } from "./retry";
 // Docs: https://developers.meta.com/horizon/documentation/native/ps-iap
 const META_GRAPH_BASE = "https://graph.oculus.com";
 
+function describeError(error: unknown): string {
+  const status = (error as { code?: unknown })?.code;
+  const type = error instanceof Error ? error.name : typeof error;
+  return typeof status === "number" ? `${type} ${status}` : type;
+}
+
 export const verifyMetaHorizonReceiptInternalV1 = action({
   args: {
     apiKey: v.string(),
@@ -96,7 +102,7 @@ export const verifyMetaHorizonReceiptInternalV1 = action({
         return (await res.json()) as unknown;
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = describeError(error);
       // Persist the failure so it shows up in the dashboard, mirroring
       // Apple / Google paths.
       await ctx.runMutation(internal.purchases.internal.saveReceiptInternal, {

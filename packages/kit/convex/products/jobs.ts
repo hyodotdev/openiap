@@ -7,10 +7,15 @@ import {
   internalQuery,
   mutation,
   query,
+  type MutationCtx,
   type QueryCtx,
 } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
+import {
+  resolveProjectByApiKeyFromDb,
+  resolveProjectByIdForCurrentUserFromDb,
+} from "../projects/helpers";
 import { ErrorCode, createError } from "../utils/errors";
 
 // Per-job hard ceiling. Convex actions cap at ~10min; we allow 9min
@@ -64,13 +69,11 @@ const directionValidator = v.union(
 // `getAuthUserId` and broke the documented HTTP API entirely
 // (Copilot review on PR #127).
 async function resolveProjectByApiKey(
-  ctx: QueryCtx,
+  ctx: QueryCtx | MutationCtx,
   apiKey: string,
 ): Promise<{ project: Doc<"projects">; userId: Id<"users"> | null }> {
-  const project = await ctx.db
-    .query("projects")
-    .withIndex("by_api_key", (q) => q.eq("apiKey", apiKey))
-    .first();
+  const resolved = await resolveProjectByApiKeyFromDb(ctx, apiKey);
+  const project = resolved?.project ?? null;
   if (!project) {
     throw createError(ErrorCode.PROJECT_NOT_FOUND);
   }
@@ -98,13 +101,57 @@ async function resolveProjectByApiKey(
   return { project, userId };
 }
 
+async function resolveProjectForReadArgs(
+  ctx: QueryCtx,
+  args: { apiKey?: string; projectId?: Id<"projects"> },
+): Promise<Doc<"projects">> {
+  if (args.projectId) {
+    const resolved = await resolveProjectByIdForCurrentUserFromDb(
+      ctx,
+      args.projectId,
+    );
+    if (!resolved) {
+      throw createError(ErrorCode.PROJECT_NOT_FOUND);
+    }
+    return resolved.project;
+  }
+
+  if (args.apiKey !== undefined) {
+    return (await resolveProjectByApiKey(ctx, args.apiKey)).project;
+  }
+
+  throw createError(ErrorCode.INVALID_INPUT, "apiKey or projectId is required");
+}
+
+async function resolveProjectForMutationArgs(
+  ctx: MutationCtx,
+  args: { apiKey?: string; projectId?: Id<"projects"> },
+): Promise<{ project: Doc<"projects">; userId: Id<"users"> | null }> {
+  if (args.projectId) {
+    const resolved = await resolveProjectByIdForCurrentUserFromDb(
+      ctx,
+      args.projectId,
+    );
+    if (!resolved) {
+      throw createError(ErrorCode.PROJECT_NOT_FOUND);
+    }
+    return resolved;
+  }
+
+  if (args.apiKey !== undefined) {
+    return resolveProjectByApiKey(ctx, args.apiKey);
+  }
+
+  throw createError(ErrorCode.INVALID_INPUT, "apiKey or projectId is required");
+}
+
 // Authenticate `(apiKey, jobId)` together: resolve the project from
 // the apiKey, then verify the job belongs to that project. This
 // ensures the apiKey acts as a per-project capability — a stolen
 // jobId from one project can't be cancelled / read by another
 // project's apiKey.
 async function resolveJobByApiKey(
-  ctx: QueryCtx,
+  ctx: QueryCtx | MutationCtx,
   apiKey: string,
   jobId: Id<"productSyncJobs">,
 ): Promise<{ job: Doc<"productSyncJobs">; project: Doc<"projects"> }> {
@@ -121,15 +168,32 @@ async function resolveJobByApiKey(
   return { job, project };
 }
 
+async function resolveJobForMutationArgs(
+  ctx: MutationCtx,
+  args: {
+    apiKey?: string;
+    projectId?: Id<"projects">;
+    jobId: Id<"productSyncJobs">;
+  },
+): Promise<{ job: Doc<"productSyncJobs">; project: Doc<"projects"> }> {
+  const { project } = await resolveProjectForMutationArgs(ctx, args);
+  const job = await ctx.db.get(args.jobId);
+  if (!job || job.projectId !== project._id) {
+    throw createError(ErrorCode.INVALID_INPUT, "Sync job not found");
+  }
+  return { job, project };
+}
+
 // Latest job (any status) for a project+platform — drives the
 // dashboard's button state, progress, and last-result toast.
 export const getActiveSyncJob = query({
   args: {
-    apiKey: v.string(),
+    apiKey: v.optional(v.string()),
+    projectId: v.optional(v.id("projects")),
     platform: platformValidator,
   },
   handler: async (ctx, args) => {
-    const { project } = await resolveProjectByApiKey(ctx, args.apiKey);
+    const project = await resolveProjectForReadArgs(ctx, args);
     // Composite index `by_project_platform_created` narrows the
     // index range to just this (project, platform) — replaces the
     // earlier `by_project_and_created` + in-memory `.filter()`
@@ -161,7 +225,8 @@ export const getSyncJobById = query({
 // page reload doesn't fan out duplicate workers.
 export const enqueueProductSync = mutation({
   args: {
-    apiKey: v.string(),
+    apiKey: v.optional(v.string()),
+    projectId: v.optional(v.id("projects")),
     platform: platformValidator,
     direction: v.optional(directionValidator),
     dryRun: v.optional(v.boolean()),
@@ -171,7 +236,7 @@ export const enqueueProductSync = mutation({
     deduped: v.boolean(),
   }),
   handler: async (ctx, args) => {
-    const { project, userId } = await resolveProjectByApiKey(ctx, args.apiKey);
+    const { project, userId } = await resolveProjectForMutationArgs(ctx, args);
     // Atomic dedup via the project's `activeSyncJobIds` lock field.
     // Reading and writing the project doc lets Convex's OCC collapse
     // two concurrent enqueue mutations onto the same job: both read
@@ -314,11 +379,12 @@ export const runProductSyncPurgeLocal = internalAction({
 // that's enough to stop a runaway sync within seconds on most paths.
 export const cancelProductSync = mutation({
   args: {
-    apiKey: v.string(),
+    apiKey: v.optional(v.string()),
+    projectId: v.optional(v.id("projects")),
     jobId: v.id("productSyncJobs"),
   },
   handler: async (ctx, args) => {
-    const { job } = await resolveJobByApiKey(ctx, args.apiKey, args.jobId);
+    const { job } = await resolveJobForMutationArgs(ctx, args);
     if (job.status !== "queued" && job.status !== "running") {
       return { ok: false, reason: "not active" as const };
     }
@@ -336,11 +402,12 @@ export const cancelProductSync = mutation({
 // semantics stay distinct from operator dismiss.
 export const dismissCompletedJob = mutation({
   args: {
-    apiKey: v.string(),
+    apiKey: v.optional(v.string()),
+    projectId: v.optional(v.id("projects")),
     jobId: v.id("productSyncJobs"),
   },
   handler: async (ctx, args) => {
-    const { job } = await resolveJobByApiKey(ctx, args.apiKey, args.jobId);
+    const { job } = await resolveJobForMutationArgs(ctx, args);
     if (job.status !== "succeeded" && job.status !== "failed") {
       return { ok: false as const };
     }

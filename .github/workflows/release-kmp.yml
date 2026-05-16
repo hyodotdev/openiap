@@ -19,18 +19,13 @@ on:
         required: false
         default: false
         type: boolean
-      create_release:
-        description: "Also create a GitHub Release"
-        required: false
-        default: true
-        type: boolean
-
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
 
 env:
   GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx4g -XX:+UseParallelGC"
+  XCODE_VERSION: 16.4
 
 permissions:
   contents: write
@@ -61,13 +56,18 @@ jobs:
         run: ./gradlew :library:compileDebugKotlinAndroid --no-daemon --stacktrace
 
   validate-ios:
-    runs-on: macos-latest
+    runs-on: macos-15
     timeout-minutes: 60
     defaults:
       run:
         working-directory: libraries/kmp-iap
     steps:
       - uses: actions/checkout@v6
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
@@ -89,7 +89,6 @@ jobs:
       - name: Build iOS frameworks
         run: |
           ./gradlew :library:podGenIos
-          ./gradlew :library:updatePodspecDependency
           ./gradlew :library:podInstallSyntheticIos
           ./gradlew :library:podBuildOpeniapIos
           ./gradlew :library:linkPodDebugFrameworkIosSimulatorArm64
@@ -97,7 +96,7 @@ jobs:
 
   publish:
     needs: [validate-android, validate-ios]
-    runs-on: macos-latest
+    runs-on: macos-15
     defaults:
       run:
         working-directory: libraries/kmp-iap
@@ -105,6 +104,11 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
@@ -175,36 +179,57 @@ jobs:
           else
             echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
           fi
-          sed -i '' "s/^libraryVersion=.*/libraryVersion=$VERSION/" gradle.properties
 
-      - name: Update version in gradle.properties
-        if: ${{ inputs.version != 'current' }}
+      - name: Check if release tag already exists
+        id: check_tag
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+          VERSION_TYPE: ${{ inputs.version }}
         run: |
-          sed -i '' "s/^libraryVersion=.*/libraryVersion=${{ env.VERSION }}/" gradle.properties
+          RELEASE_TAG="kmp-iap-$VERSION"
+          if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+            if [ "$VERSION_TYPE" = "current" ]; then
+              echo "exists=true" >> "$GITHUB_OUTPUT"
+              echo "⚠️ Tag $RELEASE_TAG already exists. Will reuse existing tag (current mode)."
+            else
+              echo "exists=true" >> "$GITHUB_OUTPUT"
+              echo "❌ Tag $RELEASE_TAG already exists. Use 'current' to retry this version."
+              exit 1
+            fi
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "✓ Tag $RELEASE_TAG does not exist"
+          fi
 
-      - name: Regenerate podspec with correct version
-        if: ${{ inputs.version != 'current' }}
-        run: ./gradlew :library:podspec
+      - name: Checkout release tag (current version)
+        if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists == 'true' }}
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          RELEASE_TAG="kmp-iap-$VERSION"
+          git checkout "$RELEASE_TAG"
 
-      - name: Update podspec to read openiap-versions.json dynamically
+      - name: Update release metadata
         if: ${{ inputs.version != 'current' }}
-        run: ./gradlew :library:updatePodspecDependency
-
-      - name: Update README version
-        if: ${{ inputs.version != 'current' }}
-        run: ./gradlew :library:updateReadmeVersion
+        env:
+          VERSION: ${{ env.VERSION }}
+        run: |
+          perl -0pi -e 's/^libraryVersion=.*/libraryVersion=$ENV{VERSION}/m' gradle.properties
+          ./scripts/update-readme-version.sh "$VERSION"
 
       - name: Commit version updates
         if: ${{ inputs.version != 'current' }}
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add README.md library/library.podspec gradle.properties
-          git diff --staged --quiet || git commit -m "chore(release): kmp-iap ${{ env.VERSION }}"
-          git stash --include-untracked || true
-          git pull --rebase origin main || true
-          git stash pop || true
-          git push || echo "No changes to commit"
+          git add gradle.properties
+          if git diff --staged --quiet; then
+            echo "No version changes to commit"
+          else
+            git commit -m "chore(release): kmp-iap ${{ env.VERSION }}"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
 
       - name: Clean build artifacts
         run: rm -rf library/build/cocoapods
@@ -212,13 +237,35 @@ jobs:
       - name: Build iOS frameworks
         run: |
           ./gradlew :library:podGenIos
-          ./gradlew :library:updatePodspecDependency
           ./gradlew :library:podInstallSyntheticIos
           ./gradlew :library:podBuildOpeniapIos
           ./gradlew :library:linkPodDebugFrameworkIosSimulatorArm64
           ./gradlew :library:linkPodDebugFrameworkIosArm64
 
+      - name: Check if KMP package already published
+        id: check_maven
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://repo1.maven.org/maven2/io/github/hyochan/kmp-iap/$VERSION/" || true)
+          HTTP_STATUS="${HTTP_STATUS:-000}"
+          case "$HTTP_STATUS" in
+            200)
+              echo "exists=true" >> $GITHUB_OUTPUT
+              echo "⚠️ kmp-iap $VERSION already exists on Maven Central"
+              ;;
+            404)
+              echo "exists=false" >> $GITHUB_OUTPUT
+              echo "✓ kmp-iap $VERSION does not exist, will publish"
+              ;;
+            *)
+              echo "❌ Unable to verify kmp-iap $VERSION on Maven Central (HTTP $HTTP_STATUS)"
+              exit 1
+              ;;
+          esac
+
       - name: Publish to Maven Central
+        if: steps.check_maven.outputs.exists == 'false'
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
@@ -227,14 +274,33 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
         run: ./gradlew :library:publishAndReleaseToMavenCentral --no-daemon --no-parallel
 
+      - name: Create and push tag
+        if: success()
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          RELEASE_TAG="kmp-iap-$VERSION"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Tag $RELEASE_TAG already exists"
+          else
+            git tag -a "$RELEASE_TAG" -m "Release $RELEASE_TAG"
+            git push origin "$RELEASE_TAG"
+          fi
+
       - name: Generate release notes
-        if: inputs.create_release && success()
+        if: success()
         id: release_notes
         run: |
           VERSION="${{ env.VERSION }}"
+          RELEASE_REF="HEAD"
+          if git rev-parse "kmp-iap-$VERSION" >/dev/null 2>&1; then
+            RELEASE_REF="kmp-iap-$VERSION"
+          fi
           PREV_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' 'refs/tags/kmp-iap-*' | grep -v "$VERSION" | head -n 1)
           if [ -n "$PREV_TAG" ]; then
-            CHANGELOG=$(git log "$PREV_TAG..HEAD" --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- libraries/kmp-iap/ packages/google/ packages/apple/)
+            CHANGELOG=$(git log "$PREV_TAG..$RELEASE_REF" --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- libraries/kmp-iap/ packages/google/ packages/apple/)
           fi
           if [ -z "$CHANGELOG" ]; then
             CHANGELOG="- No direct code changes — picks up the latest openiap-google / openiap-apple native library updates. See the consolidated release notes for details."
@@ -254,7 +320,7 @@ jobs:
 
           \`\`\`kotlin
           dependencies {
-              implementation("io.github.hyochan.openiap:kmp-iap:$VERSION")
+              implementation("io.github.hyochan:kmp-iap:$VERSION")
           }
           \`\`\`
 
@@ -262,24 +328,41 @@ jobs:
 
           \`\`\`groovy
           dependencies {
-              implementation 'io.github.hyochan.openiap:kmp-iap:$VERSION'
+              implementation 'io.github.hyochan:kmp-iap:$VERSION'
           }
           \`\`\`
 
           ### Documentation
 
-          - [Setup guide — Kotlin Multiplatform](https://www.openiap.dev/docs/setup/kmp)
-          - [API reference](https://www.openiap.dev/docs/apis)
-          - [Release notes](https://www.openiap.dev/docs/updates/releases)
+          - [Setup guide — Kotlin Multiplatform](https://openiap.dev/docs/setup/kmp)
+          - [API reference](https://openiap.dev/docs/apis)
+          - [Release notes](https://openiap.dev/docs/updates/releases)
 
           ### Links
 
-          - [Maven Central](https://central.sonatype.com/artifact/io.github.hyochan.openiap/kmp-iap/$VERSION)
+          - [Maven Central](https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap/$VERSION)
           - [GitHub (monorepo)](https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap)
           EOF
 
+      - name: Build Android release artifacts
+        if: success()
+        run: ./gradlew :library:assembleRelease --no-daemon --stacktrace
+
+      - name: Create release artifacts
+        if: success()
+        run: |
+          mkdir -p release-artifacts
+          shopt -s nullglob
+          artifacts=(library/build/outputs/aar/*.aar library/build/libs/*.jar)
+          if [ ${#artifacts[@]} -eq 0 ]; then
+            echo "::error::No KMP release artifacts found"
+            exit 1
+          fi
+          cp "${artifacts[@]}" release-artifacts/
+          zip -r release-artifacts.zip release-artifacts/
+
       - name: Create GitHub Release
-        if: inputs.create_release && success()
+        if: success()
         uses: softprops/action-gh-release@v3
         with:
           tag_name: kmp-iap-${{ steps.version.outputs.VERSION }}
@@ -287,19 +370,4 @@ jobs:
           draft: false
           prerelease: ${{ steps.version.outputs.is_prerelease }}
           body_path: /tmp/release-notes.md
-
-      - name: Create release artifacts
-        if: inputs.create_release && success()
-        run: |
-          mkdir -p release-artifacts
-          cp library/build/outputs/aar/*.aar release-artifacts/ || true
-          cp library/build/libs/*.jar release-artifacts/ || true
-          zip -r release-artifacts.zip release-artifacts/
-
-      - name: Upload release artifacts
-        if: inputs.create_release && success()
-        uses: softprops/action-gh-release@v3
-        with:
           files: libraries/kmp-iap/release-artifacts.zip
-          tag_name: kmp-iap-${{ steps.version.outputs.VERSION }}
-          name: kmp-iap ${{ steps.version.outputs.VERSION }}

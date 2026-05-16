@@ -33,7 +33,6 @@ interface ProjectData {
   organizationId: Id<"organizations">;
   name: string;
   slug: string;
-  apiKey: string;
   platform?: string;
   androidPackageName?: string;
   iosBundleId?: string;
@@ -45,7 +44,7 @@ interface ProjectData {
   horizonEnabled?: boolean;
   horizonAppId?: string | null;
   // The Meta App Secret is never returned by
-  // `api.projects.query.getProject` — the server redacts it so a
+  // `api.projects.query.getProject` — the server omits it so a
   // dashboard member can't exfiltrate the Horizon credential via the
   // browser (see convex/projects/query.ts). All we surface is
   // whether one is configured, so the UI can show "Configured /
@@ -108,7 +107,7 @@ export default function ProjectSettings() {
     Boolean(project?.horizonEnabled),
   );
   const [horizonAppId, setHorizonAppId] = useState(project?.horizonAppId ?? "");
-  // Secret is ALWAYS empty on mount: the server redacts it from the
+  // Secret is ALWAYS empty on mount: the server omits it from the
   // query so we never receive it in the browser. `isReplacingHorizonAppSecret`
   // toggles between the "Configured ✓ / Replace" affordance and the
   // password input. Saving without replacing is a no-op for the
@@ -360,7 +359,7 @@ export default function ProjectSettings() {
   // The secret input is only required when enabling Horizon from a
   // blank slate or when the user explicitly chose to replace it.
   // Otherwise an empty field means "leave the existing secret alone"
-  // — the server redacts it so we never had the original to compare.
+  // — the server omits it so we never had the original to compare.
   const horizonAppSecretNeeded =
     horizonEnabled &&
     (!hasHorizonAppSecretConfigured || isReplacingHorizonAppSecret);
@@ -457,7 +456,7 @@ export default function ProjectSettings() {
         // either first-time setup (no secret configured yet) or the
         // user clicked Replace. Existing-secret path (not replacing)
         // omits the field so the mutation leaves the stored secret
-        // alone (the query redacts it, so we never had it to
+        // alone (the query omits it, so we never had it to
         // round-trip anyway). Missing this on first-time setup used
         // to trip the server's "Enabling Meta Horizon requires a
         // Horizon App Secret" invariant.

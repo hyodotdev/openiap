@@ -3,9 +3,31 @@ set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
+VERSIONS_FILE="$REPO_ROOT/openiap-versions.json"
 
-# Read TAG from openiap-versions.json
-VERSION=$(grep '"spec"' "$REPO_ROOT/openiap-versions.json" | sed 's/.*: *"\([^"]*\)".*/\1/')
+VERSION=$(python3 - "$VERSIONS_FILE" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+versions_path = Path(sys.argv[1])
+try:
+    data = json.loads(versions_path.read_text(encoding="utf-8"))
+except FileNotFoundError:
+    print(f"Error: {versions_path} not found", file=sys.stderr)
+    sys.exit(1)
+except json.JSONDecodeError as exc:
+    print(f"Error parsing {versions_path}: {exc}", file=sys.stderr)
+    sys.exit(1)
+
+value = data.get("spec")
+if not value:
+    print("Error: 'spec' version missing in openiap-versions.json", file=sys.stderr)
+    sys.exit(1)
+
+print(value)
+PY
+)
 TAG="gql-${VERSION}"
 
 ASSET_NAME="openiap-kotlin.zip"

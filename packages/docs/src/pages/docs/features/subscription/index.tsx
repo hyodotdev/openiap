@@ -3366,9 +3366,8 @@ const checkAndroidSubscription = async () => {
 
   const purchase = subscriptionPurchases[0];
   console.log('Purchase found:', purchase.productId);
-  console.log('Purchase token:', purchase.purchaseToken);
 
-  // Send to server for verification
+  // Send purchaseToken to your server for verification; do not log it.
   const serverResult = await fetch('https://your-server.com/api/verify-android', {
     method: 'POST',
     body: JSON.stringify({
@@ -3421,9 +3420,8 @@ suspend fun checkAndroidSubscription(): Map<String, Any> {
 
     val purchase = subscriptionPurchases.first()
     println("Purchase found: \${purchase.productId}")
-    println("Purchase token: \${purchase.purchaseToken}")
 
-    // Send to server for verification
+    // Send purchaseToken to your server for verification; do not log it.
     val serverResult = withContext(Dispatchers.IO) {
         verifyOnServer(
             purchaseToken = purchase.purchaseToken ?: "",
@@ -3472,9 +3470,8 @@ suspend fun checkAndroidSubscription(): Map<String, Any> {
 
     val purchase = subscriptionPurchases.first()
     println("Purchase found: \${purchase.productId}")
-    println("Purchase token: \${purchase.purchaseToken}")
 
-    // Send to server for verification
+    // Send purchaseToken to your server for verification; do not log it.
     val serverResult = withContext(Dispatchers.IO) {
         verifyOnServer(
             purchaseToken = purchase.purchaseToken ?: "",
@@ -3524,9 +3521,8 @@ Future<Map<String, dynamic>> checkAndroidSubscription() async {
 
   final purchase = subscriptionPurchases.first;
   print('Purchase found: \${purchase.productId}');
-  print('Purchase token: \${purchase.purchaseToken}');
 
-  // Send to server for verification
+  // Send purchaseToken to your server for verification; do not log it.
   final response = await http.post(
     Uri.parse('https://your-server.com/api/verify-android'),
     body: jsonEncode({
@@ -3577,9 +3573,8 @@ async Task<SubscriptionAccessResult> CheckAndroidSubscriptionAsync(string subscr
 
     // Purchase exists, but the client cannot determine expiry/refund/cancel state.
     Console.WriteLine($"Purchase found: {purchase.ProductId}");
-    Console.WriteLine($"Purchase token: {purchase.PurchaseToken}");
 
-    // Send to server for verification.
+    // Send purchaseToken to your server for verification; do not log it.
     var serverResult = await VerifyOnServerAsync(
         purchaseToken: purchase.PurchaseToken ?? "",
         productId: purchase.ProductId,
@@ -3615,9 +3610,8 @@ func check_android_subscription() -> Dictionary:
 
     var purchase = subscription_purchases[0]
     print("Purchase found: %s" % purchase.product_id)
-    print("Purchase token: %s" % purchase.purchase_token)
 
-    # Send to server for verification
+    # Send purchaseToken to your server for verification; do not log it.
     var http_request = HTTPRequest.new()
     add_child(http_request)
     http_request.request(

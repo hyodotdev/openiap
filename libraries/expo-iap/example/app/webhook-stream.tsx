@@ -160,7 +160,7 @@ export default function WebhookStreamScreen() {
         <Text style={styles.subtitleMuted}>
           base: {baseUrl}
           {'\n'}
-          api key: {apiKey ? `${apiKey.slice(0, 8)}…` : 'MISSING'}
+          api key: {apiKey ? 'CONFIGURED' : 'MISSING'}
         </Text>
       </View>
 

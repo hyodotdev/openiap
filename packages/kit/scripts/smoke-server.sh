@@ -85,6 +85,7 @@ probe() {
 # must serve index.html for an unknown path.
 probe "/health" "200"
 probe "/" "200"
+probe "/v1" "200"
 probe "/api/v1" "200"
 probe "/intu/project/intu/apikeys" "200"
 probe "/assets/missing-build-asset.js" "404"

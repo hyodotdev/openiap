@@ -40,6 +40,7 @@ import dev.hyo.openiap.ExternalLinkTypeAndroid
 import dev.hyo.openiap.DeveloperBillingOptionParamsAndroid
 import dev.hyo.openiap.DeveloperBillingLaunchModeAndroid
 import dev.hyo.openiap.DeveloperProvidedBillingDetailsAndroid
+import dev.hyo.openiap.OpenIapLog
 import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import dev.hyo.martie.util.findActivity
 import kotlinx.coroutines.delay
@@ -68,8 +69,8 @@ fun AlternativeBillingScreen(navController: NavController) {
 
     // Initialize store - use default constructor for auto-detection (compatible with both Play and Horizon)
     val iapStore = remember {
-        android.util.Log.d("AlternativeBillingScreen", "Creating OpenIapStore with auto-detection")
-        dev.hyo.openiap.OpenIapLog.isEnabled = true
+        OpenIapLog.isEnabled = true
+        OpenIapLog.debug("Creating OpenIapStore with auto-detection", tag = "AlternativeBillingScreen")
 
         // Use default constructor which auto-detects platform (Play or Horizon)
         // Alternative billing mode will be set via initConnection config
@@ -79,14 +80,14 @@ fun AlternativeBillingScreen(navController: NavController) {
     // User Choice Billing listener (remembered to properly add/remove)
     val userChoiceListener = remember {
         dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener { details ->
-            android.util.Log.d("UserChoiceEvent", "=== User Choice Billing Event ===")
-            android.util.Log.d("UserChoiceEvent", "External Token: ${details.externalTransactionToken}")
-            android.util.Log.d("UserChoiceEvent", "Products: ${details.products}")
-            android.util.Log.d("UserChoiceEvent", "==============================")
+            OpenIapLog.debug("=== User Choice Billing Event ===", tag = "UserChoiceEvent")
+            OpenIapLog.debug("External Token: ${details.externalTransactionToken}", tag = "UserChoiceEvent")
+            OpenIapLog.debug("Products: ${details.products}", tag = "UserChoiceEvent")
+            OpenIapLog.debug("==============================", tag = "UserChoiceEvent")
 
             // Show result in UI
             iapStore.postStatusMessage(
-                message = "User selected alternative billing\nToken: ${details.externalTransactionToken.take(20)}...\nProducts: ${details.products.joinToString()}",
+                message = "User selected alternative billing\nToken: ${details.externalTransactionToken}\nProducts: ${details.products.joinToString()}",
                 status = dev.hyo.openiap.store.PurchaseResultStatus.Info,
                 productId = details.products.firstOrNull()
             )
@@ -99,14 +100,14 @@ fun AlternativeBillingScreen(navController: NavController) {
     // Developer Provided Billing listener (remembered to properly add/remove)
     val developerBillingListener = remember {
         dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener { details ->
-            android.util.Log.d("DeveloperBillingEvent", "=== Developer Provided Billing Event ===")
-            android.util.Log.d("DeveloperBillingEvent", "External Token: ${details.externalTransactionToken}")
-            android.util.Log.d("DeveloperBillingEvent", "========================================")
+            OpenIapLog.debug("=== Developer Provided Billing Event ===", tag = "DeveloperBillingEvent")
+            OpenIapLog.debug("External Token: ${details.externalTransactionToken}", tag = "DeveloperBillingEvent")
+            OpenIapLog.debug("========================================", tag = "DeveloperBillingEvent")
 
             // Show result in UI
             iapStore.postStatusMessage(
                 message = "User selected developer billing (External Payments)\n\n" +
-                        "Token: ${details.externalTransactionToken.take(30)}...\n\n" +
+                        "Token: ${details.externalTransactionToken}\n\n" +
                         "⚠️ Next steps:\n" +
                         "1. Process payment with your payment gateway\n" +
                         "2. Report token to Google within 24 hours",
@@ -157,11 +158,11 @@ fun AlternativeBillingScreen(navController: NavController) {
             try {
                 val purchaseAndroid = purchase as? PurchaseAndroid
                 if (purchaseAndroid != null) {
-                    android.util.Log.d("AlternativeBilling", "Auto-finishing transaction for testing")
+                    OpenIapLog.debug("Auto-finishing transaction for testing", tag = "AlternativeBilling")
                     iapStore.finishTransaction(purchaseAndroid, true)
                 }
             } catch (e: Exception) {
-                android.util.Log.e("AlternativeBilling", "Auto-finish failed: ${e.message}")
+                OpenIapLog.error("Auto-finish failed: ${e.message}", tag = "AlternativeBilling")
             }
         }
     }
@@ -169,10 +170,10 @@ fun AlternativeBillingScreen(navController: NavController) {
     // Initialize connection when mode changes
     LaunchedEffect(selectedMode, selectedBillingProgram) {
         try {
-            android.util.Log.d("AlternativeBillingScreen", "Initializing with mode: $selectedMode")
+            OpenIapLog.debug("Initializing with mode: $selectedMode", tag = "AlternativeBillingScreen")
 
             // IMPORTANT: End existing connection first before creating new one
-            android.util.Log.d("AlternativeBillingScreen", "Ending existing connection...")
+            OpenIapLog.debug("Ending existing connection...", tag = "AlternativeBillingScreen")
             iapStore.endConnection()
             delay(500) // Give it time to fully disconnect
 
@@ -196,22 +197,22 @@ fun AlternativeBillingScreen(navController: NavController) {
                 )
             }
 
-            android.util.Log.d("AlternativeBillingScreen", "Reconnecting with config: $config")
+            OpenIapLog.debug("Reconnecting with config: $config", tag = "AlternativeBillingScreen")
             val connected = iapStore.initConnection(config)
-            android.util.Log.d("AlternativeBillingScreen", "Connection result: $connected")
+            OpenIapLog.debug("Connection result: $connected", tag = "AlternativeBillingScreen")
 
             if (connected) {
-                android.util.Log.d("AlternativeBillingScreen", "Fetching products...")
+                OpenIapLog.debug("Fetching products...", tag = "AlternativeBillingScreen")
                 val request = ProductRequest(
                     skus = IapConstants.INAPP_SKUS,
                     type = ProductQueryType.InApp
                 )
                 iapStore.fetchProducts(request)
             } else {
-                android.util.Log.e("AlternativeBillingScreen", "Failed to connect to billing service")
+                OpenIapLog.error("Failed to connect to billing service", tag = "AlternativeBillingScreen")
             }
         } catch (e: Exception) {
-            android.util.Log.e("AlternativeBillingScreen", "Connection error: ${e.message}", e)
+            OpenIapLog.error("Connection error: ${e.message}", e, tag = "AlternativeBillingScreen")
         }
     }
 
@@ -758,14 +759,14 @@ fun AlternativeBillingScreen(navController: NavController) {
                                                 }
 
                                                 // Step 3: Process payment (DEMO - not implemented)
-                                                android.util.Log.d("BillingPrograms", "⚠️ Payment processing not implemented - this is a demo")
+                                                OpenIapLog.debug("⚠️ Payment processing not implemented - this is a demo", tag = "BillingPrograms")
 
                                                 // Step 4: Create reporting details
                                                 val reportingDetails = iapStore.createBillingProgramReportingDetails(selectedBillingProgram)
                                                 iapStore.postStatusMessage(
                                                     "✅ Billing Programs flow completed (DEMO)\n\n" +
                                                     "Program: ${reportingDetails.billingProgram}\n" +
-                                                    "Token: ${reportingDetails.externalTransactionToken.take(20)}...\n\n" +
+                                                    "Token: ${reportingDetails.externalTransactionToken}\n\n" +
                                                     "⚠️ Next steps:\n" +
                                                     "1. Process payment in your system\n" +
                                                     "2. Report token to Google within 24h",
@@ -773,7 +774,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                                                     selectedProduct!!.id
                                                 )
                                             } catch (e: Exception) {
-                                                android.util.Log.e("BillingPrograms", "Error: ${e.message}", e)
+                                                OpenIapLog.error("Error: ${e.message}", e, tag = "BillingPrograms")
                                                 iapStore.postStatusMessage(
                                                     "Error: ${e.message}",
                                                     PurchaseResultStatus.Error
@@ -837,14 +838,14 @@ fun AlternativeBillingScreen(navController: NavController) {
                                                 }
 
                                                 // Step 2.5: Process payment (DEMO - not implemented)
-                                                android.util.Log.d("AlternativeBilling", "⚠️ Payment processing not implemented")
+                                                OpenIapLog.debug("⚠️ Payment processing not implemented", tag = "AlternativeBilling")
 
                                                 // Step 3: Create token
                                                 @Suppress("DEPRECATION")
                                                 val token = iapStore.createAlternativeBillingReportingToken()
                                                 if (token != null) {
                                                     iapStore.postStatusMessage(
-                                                        "Alternative billing completed (DEMO)\nToken: ${token.take(20)}...\n⚠️ Backend reporting required",
+                                                        "Alternative billing completed (DEMO)\nToken: $token\n⚠️ Backend reporting required",
                                                         PurchaseResultStatus.Info,
                                                         selectedProduct!!.id
                                                     )
@@ -855,7 +856,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                                                     )
                                                 }
                                             } catch (e: Exception) {
-                                                android.util.Log.e("AlternativeBilling", "Legacy alternative billing error: ${e.message}", e)
+                                                OpenIapLog.error("Legacy alternative billing error: ${e.message}", e, tag = "AlternativeBilling")
                                                 iapStore.postStatusMessage(
                                                     "Alternative billing failed: ${e.message}",
                                                     PurchaseResultStatus.Error
@@ -905,7 +906,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                                                 // If user selects Google Play → onPurchaseUpdated callback
                                                 // If user selects alternative → UserChoiceBillingListener callback
                                             } catch (e: Exception) {
-                                                android.util.Log.e("AlternativeBilling", "User choice billing error: ${e.message}", e)
+                                                OpenIapLog.error("User choice billing error: ${e.message}", e, tag = "AlternativeBilling")
                                                 iapStore.postStatusMessage(
                                                     "User choice billing failed: ${e.message}",
                                                     PurchaseResultStatus.Error
@@ -971,7 +972,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                                                     type = ProductQueryType.InApp
                                                 )
 
-                                                android.util.Log.d("ExternalPayments", "Launching purchase with External Payments option")
+                                                OpenIapLog.debug("Launching purchase with External Payments option", tag = "ExternalPayments")
                                                 iapStore.requestPurchase(props)
 
                                                 // If user selects Google Play → onPurchaseSuccess callback
@@ -984,7 +985,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                                                     selectedProduct!!.id
                                                 )
                                             } catch (e: Exception) {
-                                                android.util.Log.e("ExternalPayments", "External Payments error: ${e.message}", e)
+                                                OpenIapLog.error("External Payments error: ${e.message}", e, tag = "ExternalPayments")
                                                 iapStore.postStatusMessage(
                                                     "External Payments failed: ${e.message}",
                                                     PurchaseResultStatus.Error
@@ -1043,7 +1044,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                                     style = MaterialTheme.typography.bodySmall
                                 )
                                 Text(
-                                    "Token: ${purchase.purchaseToken?.take(20)}...",
+                                    "Token: ${purchase.purchaseToken}",
                                     style = MaterialTheme.typography.bodySmall
                                 )
 

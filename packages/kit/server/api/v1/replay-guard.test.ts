@@ -111,6 +111,27 @@ describe("markPayloadFailure + tryConsumeReplay cooldown", () => {
     expect(blocked.retryAfterSec).toBeGreaterThanOrEqual(58);
   });
 
+  test("does not extend cooldown retry-after when the clock moves backward", () => {
+    const store = new Map<string, ReplayBucket>();
+    const now = 10_000;
+    const cooldownMs = 60_000;
+
+    markPayloadFailure(store, "k:p", 30, now, 100);
+    const blocked = tryConsumeReplay(
+      store,
+      "k:p",
+      30,
+      1,
+      now - 5_000,
+      100,
+      cooldownMs,
+    );
+
+    expect(blocked.allowed).toBe(false);
+    expect(blocked.reason).toBe("repeated_failure");
+    expect(blocked.retryAfterSec).toBe(60);
+  });
+
   test("allows the same payload again after the cooldown elapses", () => {
     const store = new Map<string, ReplayBucket>();
     let now = 1_000;

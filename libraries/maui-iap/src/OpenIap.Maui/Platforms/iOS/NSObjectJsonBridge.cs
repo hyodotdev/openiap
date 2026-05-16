@@ -5,6 +5,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Text.Json.Nodes;
 using Foundation;
 
@@ -50,6 +51,20 @@ internal static class NSObjectJsonBridge
         return json;
     }
 
+    public static NSDictionary JsonObjectToDictionary(JsonObject json)
+    {
+        var keys = new List<NSObject>();
+        var values = new List<NSObject>();
+
+        foreach (var (key, node) in json)
+        {
+            keys.Add(new NSString(key));
+            values.Add(JsonToNSObject(node) ?? NSNull.Null);
+        }
+
+        return NSDictionary.FromObjectsAndKeys(values.ToArray(), keys.ToArray());
+    }
+
     public static JsonArray? ArrayToArray(NSArray? array)
     {
         if (array is null) return null;
@@ -65,6 +80,38 @@ internal static class NSObjectJsonBridge
     private static JsonNode? DictToNode(NSDictionary dict) => DictToObject(dict);
 
     private static JsonNode? ArrayToNode(NSArray array) => ArrayToArray(array);
+
+    private static NSObject? JsonToNSObject(JsonNode? node)
+    {
+        return node switch
+        {
+            null => null,
+            JsonObject obj => JsonObjectToDictionary(obj),
+            JsonArray array => JsonArrayToNSArray(array),
+            JsonValue value => JsonValueToNSObject(value),
+            _ => null,
+        };
+    }
+
+    private static NSArray JsonArrayToNSArray(JsonArray array)
+    {
+        var values = new List<NSObject>();
+        foreach (var item in array)
+        {
+            values.Add(JsonToNSObject(item) ?? NSNull.Null);
+        }
+        return NSArray.FromNSObjects(values.ToArray());
+    }
+
+    private static NSObject JsonValueToNSObject(JsonValue value)
+    {
+        if (value.TryGetValue<bool>(out var boolValue)) return NSNumber.FromBoolean(boolValue);
+        if (value.TryGetValue<int>(out var intValue)) return NSNumber.FromInt32(intValue);
+        if (value.TryGetValue<long>(out var longValue)) return NSNumber.FromInt64(longValue);
+        if (value.TryGetValue<double>(out var doubleValue)) return NSNumber.FromDouble(doubleValue);
+        if (value.TryGetValue<string>(out var stringValue)) return new NSString(stringValue);
+        return new NSString(value.ToString() ?? string.Empty);
+    }
 
     private static JsonNode? NumberToNode(NSNumber n)
     {

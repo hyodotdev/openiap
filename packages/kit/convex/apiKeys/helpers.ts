@@ -1,8 +1,8 @@
 import { Doc } from "../_generated/dataModel";
-import { QueryCtx } from "../_generated/server";
+import { MutationCtx, QueryCtx } from "../_generated/server";
 
 export async function getApiKeyByKey(
-  ctx: QueryCtx,
+  ctx: QueryCtx | MutationCtx,
   key: string,
 ): Promise<Doc<"apiKeys"> | null> {
   return ctx.db

@@ -2,6 +2,8 @@ import { mutation } from "../_generated/server";
 import { v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
 
+import { resolveProjectByApiKeyFromDb } from "../projects/helpers";
+
 // Public mutation called by SDKs after a successful receipt verification:
 // they know who the host-app user is, so they tell kit which userId owns
 // the verified purchaseToken. Idempotent — re-binding the same userId is
@@ -14,10 +16,8 @@ export const bindUser = mutation({
   },
   returns: v.object({ ok: v.boolean(), bound: v.boolean() }),
   handler: async (ctx, args) => {
-    const project = await ctx.db
-      .query("projects")
-      .withIndex("by_api_key", (q) => q.eq("apiKey", args.apiKey))
-      .unique();
+    const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
+    const project = resolved?.project ?? null;
     if (!project) return { ok: false, bound: false };
 
     const sub: Doc<"subscriptions"> | null = await ctx.db

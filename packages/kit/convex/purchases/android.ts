@@ -33,6 +33,10 @@ import { ReceiptVerificationError } from "./errors";
 import { HarmonizedPurchaseState } from "./purchaseState";
 import { retryOnTransient } from "./retry";
 
+function describeError(error: unknown): string {
+  return error instanceof Error ? error.name : typeof error;
+}
+
 // Google Play receipt verification action
 export const verifyGooglePlayReceiptInternalV1 = action({
   args: {
@@ -186,7 +190,7 @@ export const verifyGooglePlayReceiptInternalV1 = action({
         });
       }
 
-      console.error("Error verifying Android purchase:", error);
+      console.error("Error verifying Android purchase:", describeError(error));
       throw new PlayStoreVerificationError(error);
     }
   },
@@ -250,7 +254,10 @@ function parseAndValidateServiceAccountKey(
 
     return keyData;
   } catch (parseError) {
-    console.error("Failed to parse service account key:", parseError);
+    console.error(
+      "Failed to parse service account key:",
+      describeError(parseError),
+    );
     throw new InvalidServiceAccountKeyFormatError();
   }
 }
@@ -260,18 +267,30 @@ type GooglePlayVerificationResult = {
   remoteResponse: string;
 };
 
-function parseTimeToMillis(time?: string | null): number | undefined {
-  if (!time) {
+export function parseTimeToMillis(time?: string | null): number | undefined {
+  const value = time?.trim();
+  if (!value) {
     return undefined;
   }
 
-  const asNumber = Number(time);
-  if (!Number.isNaN(asNumber)) {
-    return asNumber;
+  if (/^\d+$/.test(value)) {
+    const asNumber = Number(value);
+    return Number.isSafeInteger(asNumber) ? asNumber : undefined;
   }
 
-  const parsed = Date.parse(time);
-  return Number.isNaN(parsed) ? undefined : parsed;
+  if (isNumericLikeTimestamp(value)) {
+    return undefined;
+  }
+
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function isNumericLikeTimestamp(value: string): boolean {
+  return (
+    /^[+-]?\d+(?:\.\d+)?(?:e[+-]?\d+)?$/i.test(value) ||
+    /^0x[0-9a-f]+$/i.test(value)
+  );
 }
 
 export function mapSubscriptionResponseToReceiptData(args: {
@@ -416,12 +435,10 @@ async function verifyPurchaseWithGooglePlay(
 
       remoteResponse = JSON.stringify(subResponse.data ?? null);
     } catch (subscriptionError: unknown) {
-      const errorMessage =
-        subscriptionError instanceof Error
-          ? subscriptionError.message
-          : String(subscriptionError);
-      console.error("Subscription verification also failed:", errorMessage);
-      console.error("Error details:", subscriptionError);
+      console.error(
+        "Subscription verification also failed:",
+        describeError(subscriptionError),
+      );
 
       // Throw appropriate error based on the error type
       throw createPlayStoreError(subscriptionError);

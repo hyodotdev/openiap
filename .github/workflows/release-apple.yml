@@ -37,20 +37,25 @@ concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
 
+env:
+  XCODE_VERSION: 16.4
+  COCOAPODS_VERSION: 1.15.2
+
 permissions:
   contents: write
 
 jobs:
   validate-ios:
-    runs-on: macos-latest
+    runs-on: macos-15
     timeout-minutes: 30
     steps:
     - name: Checkout
       uses: actions/checkout@v6
 
-    - name: Select Xcode
-      run: |
-        sudo xcode-select -s /Applications/Xcode.app
+    - name: Set up Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: ${{ env.XCODE_VERSION }}
 
     - name: Build
       working-directory: packages/apple
@@ -62,7 +67,7 @@ jobs:
 
   release:
     needs: [validate-ios]
-    runs-on: macos-latest
+    runs-on: macos-15
 
     steps:
     - name: Checkout
@@ -70,18 +75,25 @@ jobs:
       with:
         fetch-depth: 0
 
+    - name: Set up Xcode
+      if: inputs.publish_cocoapods == true
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: ${{ env.XCODE_VERSION }}
+
     - name: Calculate new version
       id: version
+      env:
+        TARGET_VERSION: ${{ github.event.inputs.target_version }}
+        VERSION_TYPE: ${{ github.event.inputs.version }}
+        IS_PRERELEASE: ${{ github.event.inputs.prerelease }}
       run: |
         # Read current apple version from openiap-versions.json
         CURRENT_VERSION=$(jq -r '.apple' openiap-versions.json)
         echo "Current version: $CURRENT_VERSION"
         echo "PREVIOUS_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
         echo "previous_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
-        TARGET_VERSION="${{ github.event.inputs.target_version }}"
 
-        VERSION_TYPE="${{ github.event.inputs.version }}"
-        IS_PRERELEASE="${{ github.event.inputs.prerelease }}"
         BASE_VERSION="${CURRENT_VERSION%%-*}"
         IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
 
@@ -134,13 +146,29 @@ jobs:
         # Allow reusing existing semver tags (for reruns where CocoaPods succeeded but SPM failed)
         if git rev-parse "$VERSION" >/dev/null 2>&1; then
           echo "exists=true" >> $GITHUB_OUTPUT
+          echo "bare_exists=true" >> $GITHUB_OUTPUT
           echo "⚠️ Tag $VERSION already exists. Will reuse existing tag."
         elif git rev-parse "apple-v$VERSION" >/dev/null 2>&1; then
           echo "exists=true" >> $GITHUB_OUTPUT
+          echo "bare_exists=false" >> $GITHUB_OUTPUT
           echo "⚠️ Legacy tag apple-v$VERSION already exists. Will reuse existing tag."
         else
           echo "exists=false" >> $GITHUB_OUTPUT
+          echo "bare_exists=false" >> $GITHUB_OUTPUT
           echo "✓ Tag $VERSION does not exist, proceeding with release"
+        fi
+
+    - name: Checkout release tag (current version)
+      if: steps.version.outputs.skip_version_commit == 'true' && steps.check_tag.outputs.exists == 'true'
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        RELEASE_TAG="$VERSION"
+        LEGACY_TAG="apple-v$VERSION"
+        if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+          git checkout "$RELEASE_TAG"
+        else
+          git checkout "$LEGACY_TAG"
         fi
 
     - name: Update version in openiap-versions.json
@@ -166,6 +194,7 @@ jobs:
         git config user.email "github-actions[bot]@users.noreply.github.com"
 
         git add openiap-versions.json packages/*/openiap-versions.json
+        git add packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json
 
         if git diff --staged --quiet; then
           echo "No version changes to commit"
@@ -178,30 +207,28 @@ jobs:
             if ! git pull --rebase origin main; then
               echo "⚠️ Rebase conflict detected, auto-resolving version files..."
 
-              # Auto-resolve openiap-versions.json conflicts by applying only our
-              # key on top of theirs. Taking ours wholesale would regress other
-              # packages' versions when a concurrent release landed in between
-              # (race observed 2026-04-24: google bump regressed apple 2.1.3 → 2.1.2).
+              # Auto-resolve version metadata conflicts by applying only our
+              # key on top of upstream. Taking ours wholesale would regress
+              # other packages' versions when a concurrent release landed in
+              # between (race observed 2026-04-24: google bump regressed apple
+              # 2.1.3 → 2.1.2).
               for conflict_file in $(git diff --name-only --diff-filter=U); do
-                if [[ "$conflict_file" == *"openiap-versions.json" ]]; then
-                  git show HEAD:"$conflict_file" > /tmp/theirs.json 2>/dev/null || true
-
-                  if [ -s /tmp/theirs.json ]; then
-                    jq --arg version "$VERSION" '.apple = $version' /tmp/theirs.json > /tmp/merged.json
-                    cp /tmp/merged.json "$conflict_file"
-                  else
-                    git checkout --theirs "$conflict_file" 2>/dev/null || git checkout --ours "$conflict_file"
-                  fi
-                  git add "$conflict_file"
-                else
-                  echo "❌ Unexpected conflict in $conflict_file"
-                  exit 1
-                fi
+                case "$conflict_file" in
+                  openiap-versions.json|packages/*/openiap-versions.json|packages/gql/package.json|packages/docs/package.json|packages/google/package.json|packages/apple/package.json)
+                    ;;
+                  *)
+                    echo "❌ Unexpected conflict in $conflict_file"
+                    exit 1
+                    ;;
+                esac
               done
 
-              # Also re-sync docs copy after merge
-              cp openiap-versions.json packages/docs/openiap-versions.json
-              git add packages/docs/openiap-versions.json
+              # Re-sync package metadata and docs copy after merge
+              git show HEAD:openiap-versions.json > /tmp/upstream-openiap-versions.json
+              jq --arg version "$VERSION" '.apple = $version' /tmp/upstream-openiap-versions.json > openiap-versions.json
+              ./scripts/sync-versions.sh
+              git add openiap-versions.json packages/*/openiap-versions.json
+              git add packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json
 
               GIT_EDITOR=true git rebase --continue || { echo "❌ Rebase continue failed"; exit 1; }
             fi
@@ -247,7 +274,7 @@ jobs:
     - name: Install CocoaPods
       if: inputs.publish_cocoapods == true
       run: |
-        gem install cocoapods
+        gem install cocoapods -v "$COCOAPODS_VERSION"
 
     - name: Validate Podspec
       if: inputs.publish_cocoapods == true
@@ -259,11 +286,11 @@ jobs:
         pod lib lint openiap.podspec --allow-warnings
 
     - name: Cleanup on validation failure
-      if: inputs.publish_cocoapods == true && failure() && steps.validate_podspec.outcome == 'failure'
+      if: inputs.publish_cocoapods == true && failure() && steps.validate_podspec.outcome == 'failure' && steps.check_tag.outputs.bare_exists != 'true'
       env:
         VERSION: ${{ steps.version.outputs.version }}
       run: |
-        echo "❌ Podspec validation failed. Cleaning up tag and commit..."
+        echo "❌ Podspec validation failed. Cleaning up tag created by this run..."
 
         # Delete the tag locally and remotely
         git tag -d "$VERSION" || true
@@ -293,6 +320,11 @@ jobs:
         PREVIOUS_VERSION: ${{ steps.version.outputs.previous_version }}
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
+        RELEASE_REF="HEAD"
+        if git rev-parse "$VERSION" >/dev/null 2>&1; then
+          RELEASE_REF="$VERSION"
+        fi
+
         # Get the previous apple tag
         PREV_TAG=""
 
@@ -308,8 +340,8 @@ jobs:
           echo "No previous apple tag found"
           CHANGELOG="- Initial release"
         else
-          echo "Generating changelog from $PREV_TAG to HEAD"
-          CHANGELOG=$(git log $PREV_TAG..HEAD --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- packages/apple/)
+          echo "Generating changelog from $PREV_TAG to $RELEASE_REF"
+          CHANGELOG=$(git log "$PREV_TAG..$RELEASE_REF" --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- packages/apple/)
 
           if [ -z "$CHANGELOG" ]; then
             CHANGELOG="- No direct code changes in packages/apple/."
@@ -347,8 +379,8 @@ jobs:
 
         ### Documentation
 
-        - [API reference](https://www.openiap.dev/docs/apis)
-        - [Release notes](https://www.openiap.dev/docs/updates/releases)
+        - [API reference](https://openiap.dev/docs/apis)
+        - [Release notes](https://openiap.dev/docs/updates/releases)
         - [GitHub (monorepo)](https://github.com/hyodotdev/openiap/tree/main/packages/apple)
 
         ### Links

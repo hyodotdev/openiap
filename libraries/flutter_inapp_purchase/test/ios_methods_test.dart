@@ -25,6 +25,8 @@ void main() {
             return null;
           case 'showManageSubscriptionsIOS':
             return null;
+          case 'deepLinkToSubscriptions':
+            return null;
           case 'getStorefrontIOS':
             return <String, dynamic>{'countryCode': 'US'};
           case 'validateReceiptIOS':
@@ -183,6 +185,11 @@ void main() {
     test('showManageSubscriptionsIOS calls correct channel method', () async {
       await iap.showManageSubscriptionsIOS();
       expect(calls.last.method, 'showManageSubscriptionsIOS');
+    });
+
+    test('deepLinkToSubscriptions calls Apple channel method', () async {
+      await iap.deepLinkToSubscriptions();
+      expect(calls.last.method, 'deepLinkToSubscriptions');
     });
 
     test('getStorefrontIOS returns storefront country code', () async {

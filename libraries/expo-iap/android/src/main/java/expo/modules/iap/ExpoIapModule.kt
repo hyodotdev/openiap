@@ -1,7 +1,6 @@
 package expo.modules.iap
 
 import android.content.Context
-import android.util.Log
 import dev.hyo.openiap.AndroidSubscriptionOfferInput
 import dev.hyo.openiap.DeepLinkOptions
 import dev.hyo.openiap.FetchProductsResultProducts
@@ -143,7 +142,7 @@ class ExpoIapModule : Module() {
                                 val ev = pendingEvents.poll() ?: break
                                 // Already on main dispatcher here; emit directly
                                 runCatching { sendEvent(ev.first, ev.second) }
-                                    .onFailure { Log.e(TAG, "Failed to flush buffered event: ${ev.first}", it) }
+                                    .onFailure { ExpoIapLog.failure("flush buffered event ${ev.first}", it) }
                             }
 
                             ExpoIapLog.result("initConnection", true)
@@ -354,11 +353,7 @@ class ExpoIapModule : Module() {
                                 errorMap,
                             )
                         }.onFailure { ex ->
-                            Log.e(
-                                TAG,
-                                "Failed to send PURCHASE_ERROR event (requestPurchase)",
-                                ex,
-                            )
+                            ExpoIapLog.failure("send PURCHASE_ERROR event requestPurchase", ex)
                         }
                         ExpoIapHelper.rejectPurchasePromises(
                             errorCode,
@@ -391,7 +386,10 @@ class ExpoIapModule : Module() {
                     try {
                         openIap.consumePurchaseAndroid(token)
                         val response = mapOf("responseCode" to 0, "purchaseToken" to token)
-                        ExpoIapLog.result("consumePurchaseAndroid", response)
+                        ExpoIapLog.result(
+                            "consumePurchaseAndroid",
+                            response,
+                        )
                         promise.resolve(response)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("consumePurchaseAndroid", e)
@@ -423,7 +421,7 @@ class ExpoIapModule : Module() {
                         val activity =
                             runCatching { currentActivity }
                                 .onFailure {
-                                    Log.e(TAG, "showAlternativeBillingDialogAndroid: Activity missing", it)
+                                    ExpoIapLog.failure("showAlternativeBillingDialogAndroid activity", it)
                                 }.getOrNull() ?: run {
                                 promise.reject(OpenIapError.ServiceUnavailable.CODE, "Activity not available", null)
                                 return@launch
@@ -587,7 +585,10 @@ class ExpoIapModule : Module() {
                                 "billingProgram" to program,
                                 "externalTransactionToken" to result.externalTransactionToken,
                             )
-                        ExpoIapLog.result("createBillingProgramReportingDetailsAndroid", response)
+                        ExpoIapLog.result(
+                            "createBillingProgramReportingDetailsAndroid",
+                            response,
+                        )
                         promise.resolve(response)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("createBillingProgramReportingDetailsAndroid", e)
@@ -603,7 +604,7 @@ class ExpoIapModule : Module() {
                         val activity =
                             runCatching { currentActivity }
                                 .onFailure {
-                                    Log.e(TAG, "launchExternalLinkAndroid: Activity missing", it)
+                                    ExpoIapLog.failure("launchExternalLinkAndroid activity", it)
                                 }.getOrNull() ?: run {
                                 promise.reject(OpenIapError.ServiceUnavailable.CODE, "Activity not available", null)
                                 return@launch

@@ -105,7 +105,7 @@ export default function VerificationGooglePage() {
       <h2 className="mt-10 text-2xl font-semibold">Verify call</h2>
       <CodeBlock title="POST /v1/purchase/verify" language="bash">
         {`curl -X POST https://kit.openiap.dev/v1/purchase/verify \\
-  -H "Authorization: Bearer openiap-kit_..." \\
+  -H "Authorization: Bearer openiap-kit_<your-key>" \\
   -H "Content-Type: application/json" \\
   -d '{
     "store": "google",

@@ -28,7 +28,7 @@ function VerifyPurchaseWithProviderResult() {
           Result envelope from <code>verifyPurchaseWithProvider</code>. Carries{' '}
           <code>isValid</code> plus the underlying provider response. See{' '}
           <a
-            href="https://www.openiap.dev/docs/features/validation"
+            href="https://openiap.dev/docs/features/validation"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -305,7 +305,7 @@ import type {
 const iosResult = await verifyPurchaseWithProvider({
   provider: 'iapkit',
   iapkit: {
-    apiKey: 'your-iapkit-api-key',
+    apiKey: 'openiap-kit_<your-key>',
     apple: {
       jws: purchase.purchaseToken, // JWS from StoreKit 2
     },
@@ -316,7 +316,7 @@ const iosResult = await verifyPurchaseWithProvider({
 const androidResult = await verifyPurchaseWithProvider({
   provider: 'iapkit',
   iapkit: {
-    apiKey: 'your-iapkit-api-key',
+    apiKey: 'openiap-kit_<your-key>',
     google: {
       purchaseToken: purchase.purchaseToken,
     },
@@ -335,7 +335,7 @@ if (result.iapkit?.isValid && result.iapkit.state === 'entitled') {
 // Create verification props for iOS
 let props = VerifyPurchaseWithProviderProps(
     iapkit: RequestVerifyPurchaseWithIapkitProps(
-        apiKey: "your-iapkit-api-key",
+        apiKey: "openiap-kit_<your-key>",
         apple: RequestVerifyPurchaseWithIapkitAppleProps(
             jws: purchase.jwsRepresentationIOS ?? ""
         ),
@@ -359,7 +359,7 @@ if let iapkit = result, iapkit.isValid && iapkit.state == .entitled {
 // Create verification props for Android
 val props = VerifyPurchaseWithProviderProps(
     iapkit = RequestVerifyPurchaseWithIapkitProps(
-        apiKey = "your-iapkit-api-key",
+        apiKey = "openiap-kit_<your-key>",
         apple = null,
         google = RequestVerifyPurchaseWithIapkitGoogleProps(
             purchaseToken = purchase.purchaseToken
@@ -386,7 +386,7 @@ result.iapkit?.let { iapkit ->
 final props = VerifyPurchaseWithProviderProps(
   provider: PurchaseVerificationProvider.iapkit,
   iapkit: RequestVerifyPurchaseWithIapkitProps(
-    apiKey: 'your-iapkit-api-key',
+    apiKey: 'openiap-kit_<your-key>',
     apple: RequestVerifyPurchaseWithIapkitAppleProps(
       jws: purchase.jwsRepresentationIOS ?? '',
     ),
@@ -413,7 +413,7 @@ var props = new VerifyPurchaseWithProviderProps
     Provider = PurchaseVerificationProvider.Iapkit,
     Iapkit = new RequestVerifyPurchaseWithIapkitProps
     {
-        ApiKey = "your-iapkit-api-key",
+        ApiKey = "openiap-kit_<your-key>",
         Google = new RequestVerifyPurchaseWithIapkitGoogleProps
         {
             PurchaseToken = purchase.PurchaseToken ?? "",
@@ -437,7 +437,7 @@ if (iapkit is { IsValid: true, State: IapkitPurchaseState.Entitled })
 var props = VerifyPurchaseWithProviderProps.new()
 props.provider = PurchaseVerificationProvider.IAPKIT
 props.iapkit = RequestVerifyPurchaseWithIapkitProps.new()
-props.iapkit.api_key = "your-iapkit-api-key"
+props.iapkit.api_key = "openiap-kit_<your-key>"
 props.iapkit.apple = RequestVerifyPurchaseWithIapkitAppleProps.new()
 props.iapkit.apple.jws = purchase.jws_representation_ios
 

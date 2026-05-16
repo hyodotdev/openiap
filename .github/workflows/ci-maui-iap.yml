@@ -34,6 +34,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  XCODE_VERSION: 16.4
+  XCODEGEN_VERSION: 2.45.4
+  XCODEGEN_SHA256: 090ec29491aad50aec10631bf6e62253fed733c50f3aab0f5ffc86bc170bdbef
+
 jobs:
   compile-check:
     name: Compile Check (net9.0 shared)
@@ -115,12 +120,17 @@ jobs:
 
   ios-binding:
     name: iOS binding (net9.0-ios + maccatalyst)
-    runs-on: macos-latest
+    runs-on: macos-15
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 1
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
 
       - name: Setup .NET 9 SDK
         uses: actions/setup-dotnet@v5
@@ -131,7 +141,7 @@ jobs:
         run: dotnet workload install maui --skip-sign-check
 
       - name: Install xcodegen
-        run: brew install xcodegen
+        run: bash scripts/install-xcodegen.sh "$XCODEGEN_VERSION"
 
       # The iOS binding csproj consumes packages/apple/.build/xcframework/OpenIAP.xcframework.
       # Build it via the wrapper Xcode project produced from packages/apple/wrapper/project.yml.

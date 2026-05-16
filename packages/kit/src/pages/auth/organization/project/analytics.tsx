@@ -30,7 +30,8 @@ import { api } from "@/convex";
 import { PageLoading } from "@/components/LoadingSpinner";
 import { cn, formatMicros, normalizeCurrencyCode } from "@/lib/utils";
 
-type ProjectContext = { project: Doc<"projects"> };
+type DashboardProject = Omit<Doc<"projects">, "apiKey" | "horizonAppSecret">;
+type ProjectContext = { project: DashboardProject };
 
 type Platform = "IOS" | "Android";
 type PlatformFilter = "all" | Platform;
@@ -174,8 +175,8 @@ export default function ProjectAnalytics() {
   // off the dep list because `maxFromDay` / `toDay` are derived
   // from it via `utcDayKey(...)` and only change at UTC midnight.
   const queryArgs = useMemo(
-    () => ({ apiKey: project.apiKey, fromDay: maxFromDay, toDay }),
-    [project.apiKey, maxFromDay, toDay],
+    () => ({ projectId: project._id, fromDay: maxFromDay, toDay }),
+    [project._id, maxFromDay, toDay],
   );
   const metrics = useQuery(
     api.subscriptions.query.getRevenueMetrics,

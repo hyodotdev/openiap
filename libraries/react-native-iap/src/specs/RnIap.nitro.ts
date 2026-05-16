@@ -35,6 +35,7 @@ import type {
   ExternalPurchaseCustomLinkTokenTypeIOS,
   ExternalPurchaseLinkResultIOS,
   ExternalPurchaseNoticeResultIOS,
+  DeveloperProvidedBillingDetailsAndroid,
   MutationFinishTransactionArgs,
   ProductCommon,
   PromotionalOfferJwsInputIOS,
@@ -147,8 +148,7 @@ export interface NitroReceiptValidationHorizonOptions {
   userId: VerifyPurchaseHorizonOptions['userId'];
 }
 
-export interface NitroPurchaseUpdatedListenerOptions
-  extends PurchaseUpdatedListenerOptions {}
+export type NitroPurchaseUpdatedListenerOptions = PurchaseUpdatedListenerOptions;
 
 export interface NitroReceiptValidationParams {
   apple?: NitroReceiptValidationAppleOptions | null;
@@ -423,19 +423,6 @@ export interface NitroBillingProgramReportingDetailsAndroid {
   /** The billing program that the reporting details are associated with */
   billingProgram: BillingProgramAndroid;
   /** External transaction token used to report transactions to Google */
-  externalTransactionToken: string;
-}
-
-/**
- * Details provided when user selects developer billing option (Android 8.3.0+)
- * Received via DeveloperProvidedBillingListener callback in External Payments flow
- */
-export interface DeveloperProvidedBillingDetailsAndroid {
-  /**
-   * External transaction token used to report transactions made through developer billing.
-   * This token must be used when reporting the external transaction to Google Play.
-   * Must be reported within 24 hours of the transaction.
-   */
   externalTransactionToken: string;
 }
 

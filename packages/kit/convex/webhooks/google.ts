@@ -467,14 +467,13 @@ async function maybeFetchSubscriptionInfo(
     if (error instanceof ConvexError) {
       throw error;
     }
-    // Sanitized: only the error name/code/message is logged. The full
+    // Sanitized: only the error name is logged. The full
     // googleapis error object can include the original request URL with
     // an OAuth bearer token and the response body — neither belongs in
     // logs that get shipped to error aggregation.
     const sanitized =
-      error instanceof Error
-        ? `${error.name}: ${error.message}`
-        : "(unknown error type)";
+      error instanceof Error ? error.name : "(unknown error type)";
+    const errorTextForDetection = error instanceof Error ? error.message : "";
     // Auth-shaped failures (401/403, "invalid_grant", "Invalid JWT")
     // typically mean the operator rotated the service account. Drop
     // the cached client so the next webhook re-reads the file and
@@ -497,8 +496,8 @@ async function maybeFetchSubscriptionInfo(
       errorCode === "403";
     if (
       numericAuthFailure ||
-      sanitized.includes("invalid_grant") ||
-      sanitized.includes("Invalid JWT")
+      errorTextForDetection.includes("invalid_grant") ||
+      errorTextForDetection.includes("Invalid JWT")
     ) {
       playClientCache.delete(String(projectId));
     }

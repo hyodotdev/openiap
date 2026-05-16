@@ -563,7 +563,7 @@ fun PurchaseFlowScreen(
             ?: throw IllegalStateException("Purchase token is required for IAPKit verification")
 
         println("PurchaseFlow: IAPKit verification params:")
-        println("  - purchaseToken: ${token.take(6)}… (redacted)")
+        println("  - purchaseToken: $token")
 
         val props = RequestVerifyPurchaseWithIapkitProps(
             apiKey = apiKey,
@@ -651,7 +651,6 @@ fun PurchaseFlowScreen(
                         result
                     } catch (e: Exception) {
                         println("PurchaseFlow: IAPKit verification error: ${e.message}")
-                        e.printStackTrace()
                         verificationResultMessage = "❌ IAPKit verification error: ${e.message}"
                         iapStore.postStatusMessage(
                             message = "Verification error: ${e.message}. Finishing transaction anyway for testing.",

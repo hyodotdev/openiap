@@ -24,6 +24,15 @@ export interface LintOptions {
   strict?: boolean;
 }
 
+const PLATFORM_TYPE_SUFFIX_EXCEPTIONS = new Set([
+  // Public API names kept for source/binary compatibility.
+  'AppTransaction',
+  'ProductAndroidOneTimePurchaseOfferDetail',
+  'ProductSubscriptionAndroidOfferDetails',
+  'UserChoiceBillingDetails',
+  'VerifyPurchaseResultHorizon',
+]);
+
 /**
  * Lint schema conventions and return findings.
  */
@@ -51,7 +60,7 @@ export function lintSchema(
       const lineNum = i + 1;
 
       // Track type definitions
-      const typeMatch = trimmed.match(/^type\s+([A-Za-z0-9_]+)/);
+      const typeMatch = trimmed.match(/^(?:extend\s+)?type\s+([A-Za-z0-9_]+)/);
       if (typeMatch) {
         const typeName = typeMatch[1];
         currentTypeName = typeName;
@@ -63,23 +72,27 @@ export function lintSchema(
 
         // Platform suffix checks for types in platform-specific files
         if (isIOSFile && !typeName.endsWith('IOS') && !typeName.startsWith('Query') && !typeName.startsWith('Mutation')) {
-          results.push({
-            level: 'warning',
-            file: fileName,
-            line: lineNum,
-            message: `Type "${typeName}" in iOS file should end with "IOS" suffix`,
-            rule: 'ios-type-suffix',
-          });
+          if (!PLATFORM_TYPE_SUFFIX_EXCEPTIONS.has(typeName)) {
+            results.push({
+              level: 'warning',
+              file: fileName,
+              line: lineNum,
+              message: `Type "${typeName}" in iOS file should end with "IOS" suffix`,
+              rule: 'ios-type-suffix',
+            });
+          }
         }
 
         if (isAndroidFile && !typeName.endsWith('Android') && !typeName.startsWith('Query') && !typeName.startsWith('Mutation')) {
-          results.push({
-            level: 'warning',
-            file: fileName,
-            line: lineNum,
-            message: `Type "${typeName}" in Android file should end with "Android" suffix`,
-            rule: 'android-type-suffix',
-          });
+          if (!PLATFORM_TYPE_SUFFIX_EXCEPTIONS.has(typeName)) {
+            results.push({
+              level: 'warning',
+              file: fileName,
+              line: lineNum,
+              message: `Type "${typeName}" in Android file should end with "Android" suffix`,
+              rule: 'android-type-suffix',
+            });
+          }
         }
 
         continue;

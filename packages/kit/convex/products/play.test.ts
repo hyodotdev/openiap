@@ -1,6 +1,32 @@
 import { describe, expect, it } from "vitest";
 
-import { basePlanIdForPeriod, moneyToMicros } from "./play";
+import {
+  basePlanIdForPeriod,
+  moneyToMicros,
+  playPriceMicrosToNumber,
+} from "./play";
+
+describe("playPriceMicrosToNumber", () => {
+  it("accepts non-negative safe integer price strings", () => {
+    expect(playPriceMicrosToNumber("0")).toBe(0);
+    expect(playPriceMicrosToNumber("990000")).toBe(990_000);
+    expect(playPriceMicrosToNumber(String(Number.MAX_SAFE_INTEGER))).toBe(
+      Number.MAX_SAFE_INTEGER,
+    );
+  });
+
+  it("rejects malformed, negative, fractional, and unsafe price strings", () => {
+    expect(playPriceMicrosToNumber(undefined)).toBeUndefined();
+    expect(playPriceMicrosToNumber("abc")).toBeUndefined();
+    expect(playPriceMicrosToNumber(" 990000 ")).toBeUndefined();
+    expect(playPriceMicrosToNumber("1e6")).toBeUndefined();
+    expect(playPriceMicrosToNumber("-1")).toBeUndefined();
+    expect(playPriceMicrosToNumber("1.5")).toBeUndefined();
+    expect(
+      playPriceMicrosToNumber(String(Number.MAX_SAFE_INTEGER + 1)),
+    ).toBeUndefined();
+  });
+});
 
 describe("moneyToMicros", () => {
   it("returns undefined when input is missing or has no units", () => {
@@ -54,9 +80,39 @@ describe("moneyToMicros", () => {
     ).toBeUndefined();
   });
 
-  it("returns undefined when units is not a parseable BigInt string", () => {
+  it("returns undefined when units is not a non-negative decimal string", () => {
     expect(
       moneyToMicros({ currencyCode: "USD", units: "abc", nanos: 0 }),
+    ).toBeUndefined();
+    expect(
+      moneyToMicros({ currencyCode: "USD", units: "+1", nanos: 0 }),
+    ).toBeUndefined();
+    expect(
+      moneyToMicros({ currencyCode: "USD", units: " 1", nanos: 0 }),
+    ).toBeUndefined();
+    expect(
+      moneyToMicros({ currencyCode: "USD", units: "1 ", nanos: 0 }),
+    ).toBeUndefined();
+  });
+
+  it("returns undefined for negative prices", () => {
+    expect(
+      moneyToMicros({ currencyCode: "USD", units: "-1", nanos: 0 }),
+    ).toBeUndefined();
+    expect(
+      moneyToMicros({ currencyCode: "USD", units: "0", nanos: -1_000 }),
+    ).toBeUndefined();
+  });
+
+  it("returns undefined when nanos is outside Google Money bounds", () => {
+    expect(
+      moneyToMicros({ currencyCode: "USD", units: "0", nanos: 1_000_000_000 }),
+    ).toBeUndefined();
+    expect(
+      moneyToMicros({ currencyCode: "USD", units: "0", nanos: -1_000_000_000 }),
+    ).toBeUndefined();
+    expect(
+      moneyToMicros({ currencyCode: "USD", units: "0", nanos: 1.5 }),
     ).toBeUndefined();
   });
 });

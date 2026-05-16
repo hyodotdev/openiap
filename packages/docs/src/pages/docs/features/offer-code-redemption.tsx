@@ -225,7 +225,7 @@ function RedeemCodeButton() {
   useEffect(() => {
     // Listen for purchases from code redemption
     const subscription = purchaseUpdatedListener(async (purchase) => {
-      console.log('Purchase from code redemption:', purchase);
+      console.log('Purchase from code redemption:', purchase.productId);
 
       // Verify and finish the transaction
       const isValid = await verifyPurchaseOnServer(purchase);

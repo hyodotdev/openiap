@@ -60,7 +60,7 @@ export default function IapkitJoinsOpenIap() {
         publisher: {
           "@type": "Organization",
           name: "OpenIAP",
-          url: "https://www.openiap.dev",
+          url: "https://openiap.dev",
           logo: {
             "@type": "ImageObject",
             url: `${SITE_ORIGIN}/logo.webp`,
@@ -225,7 +225,7 @@ export default function IapkitJoinsOpenIap() {
             <strong>OpenIAP Sponsorship.</strong> Support OpenIAP at any tier
             ($25 / $100 / $300 / $500 / $1,000) via PayPal or GitHub Sponsors at{" "}
             <a
-              href="https://www.openiap.dev/sponsors"
+              href="https://openiap.dev/sponsors"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -293,7 +293,7 @@ export default function IapkitJoinsOpenIap() {
           Running IAPKit in production and depending on it? Please consider
           sponsoring OpenIAP at{" "}
           <a
-            href="https://www.openiap.dev/sponsors"
+            href="https://openiap.dev/sponsors"
             target="_blank"
             rel="noopener noreferrer"
           >

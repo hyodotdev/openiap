@@ -1,9 +1,12 @@
 #!/bin/bash
 
 # Run iOS app script
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "Building iOS app..."
-cd /Users/hyo/Github/hyochan/kmp-iap/example
+cd "$SCRIPT_DIR"
 
 # Build the Kotlin Multiplatform part first
 ./gradlew :composeApp:linkPodDebugFrameworkIosSimulatorArm64

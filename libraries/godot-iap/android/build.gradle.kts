@@ -1,4 +1,5 @@
 import groovy.json.JsonSlurper
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.android.library")
@@ -7,17 +8,52 @@ plugins {
 
 val pluginName = "GodotIap"
 val pluginPackageName = "dev.hyo.godotiap"
+val monorepoRoot = projectDir.resolve("../../..").canonicalFile
 
 // Read OpenIAP version from shared config
-val openiapVersions = JsonSlurper().parse(file("../openiap-versions.json")) as Map<*, *>
-val openiapGoogleVersion = openiapVersions["google"] as String
+val openiapVersionsFile = listOf(
+    monorepoRoot.resolve("openiap-versions.json"),
+    file("../openiap-versions.json"),
+).firstOrNull { it.isFile }
+    ?: error("godot-iap Android: missing openiap-versions.json")
+val openiapVersions = JsonSlurper().parse(openiapVersionsFile) as Map<*, *>
+val openiapGoogleVersion = openiapVersions["google"]?.toString()
+    ?: error("godot-iap Android: 'google' version missing in openiap-versions.json")
+val googleOpenIapBuildFile = monorepoRoot.resolve("packages/google/openiap/build.gradle.kts")
+val googleOpenIapBuild = googleOpenIapBuildFile.takeIf { it.isFile }?.readText()
+
+fun readFallbackProperty(name: String): String {
+    return providers.gradleProperty(name).orNull
+        ?: error("godot-iap Android: missing fallback $name in gradle.properties")
+}
+
+fun readGoogleAndroidInt(name: String, fallbackPropertyName: String): Int {
+    return googleOpenIapBuild
+        ?.let { Regex("""$name\s*=\s*(\d+)""").find(it) }
+        ?.groupValues
+        ?.get(1)
+        ?.toInt()
+        ?: readFallbackProperty(fallbackPropertyName).toInt()
+}
+
+fun readGoogleVariable(name: String, fallbackPropertyName: String): String {
+    return googleOpenIapBuild
+        ?.let { Regex("""val\s+${Regex.escape(name)}\s*=\s*"([^"]+)"""").find(it) }
+        ?.groupValues
+        ?.get(1)
+        ?: readFallbackProperty(fallbackPropertyName)
+}
+
+val googleCompileSdk = readGoogleAndroidInt("compileSdk", "compileSdkVersion")
+val googleMinSdk = readGoogleAndroidInt("minSdk", "minSdkVersion")
+val googleCoroutinesVersion = readGoogleVariable("coroutinesVersion", "kotlinxCoroutinesVersion")
 
 android {
     namespace = pluginPackageName
-    compileSdk = 35
+    compileSdk = googleCompileSdk
 
     defaultConfig {
-        minSdk = 24
+        minSdk = googleMinSdk
 
         manifestPlaceholders["godotPluginName"] = pluginName
         manifestPlaceholders["godotPluginPackageName"] = pluginPackageName
@@ -38,8 +74,11 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
     }
 }
 
@@ -57,9 +96,7 @@ dependencies {
     // For production: This will be provided by Godot's export process
     compileOnly(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar", "*.aar"))))
 
-    // Kotlin coroutines for async operations (version from gradle.properties)
-    val kotlinxCoroutinesVersion: String by project
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:$kotlinxCoroutinesVersion")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:$googleCoroutinesVersion")
 }
 
 // Copy the built AAR to the addons directory for Godot

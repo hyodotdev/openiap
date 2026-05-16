@@ -21,7 +21,8 @@ import {
   normalizeCurrencyCode,
 } from "@/lib/utils";
 
-type ProjectContext = { project: Doc<"projects"> };
+type DashboardProject = Omit<Doc<"projects">, "apiKey" | "horizonAppSecret">;
+type ProjectContext = { project: DashboardProject };
 
 const STATE_FILTERS = [
   { id: "all", label: "All" },
@@ -41,10 +42,10 @@ export default function ProjectSubscriptions() {
   const [filter, setFilter] = useState<StateFilter>("all");
 
   const metrics = useQuery(api.subscriptions.query.metricsSummary, {
-    apiKey: project.apiKey,
+    projectId: project._id,
   });
   const subscriptions = useQuery(api.subscriptions.query.listSubscriptions, {
-    apiKey: project.apiKey,
+    projectId: project._id,
     state: filter === "all" ? undefined : filter,
     limit: 200,
   });

@@ -21,25 +21,27 @@ import { PageLoading } from "@/components/LoadingSpinner";
 import { Modal } from "@/components/Modal";
 import { Tooltip } from "@/components/Tooltip";
 import { Badge, PlatformBadge } from "../../../../components/Badge";
+import { usdPriceToMicros } from "./productPrice";
 
-type ProjectContext = { project: Doc<"projects"> };
+type DashboardProject = Omit<Doc<"projects">, "apiKey" | "horizonAppSecret">;
+type ProjectContext = { project: DashboardProject };
 type SyncJob = Doc<"productSyncJobs">;
 
 export default function ProjectProducts() {
   const { project } = useOutletContext<ProjectContext>();
   const products = useQuery(api.products.query.listProducts, {
-    apiKey: project.apiKey,
+    projectId: project._id,
   });
   const upsert = useMutation(api.products.mutation.upsertProduct);
   const enqueueSync = useMutation(api.products.jobs.enqueueProductSync);
   const cancelSync = useMutation(api.products.jobs.cancelProductSync);
   const dismissJob = useMutation(api.products.jobs.dismissCompletedJob);
   const iosJob = useQuery(api.products.jobs.getActiveSyncJob, {
-    apiKey: project.apiKey,
+    projectId: project._id,
     platform: "IOS",
   });
   const androidJob = useQuery(api.products.jobs.getActiveSyncJob, {
-    apiKey: project.apiKey,
+    projectId: project._id,
     platform: "Android",
   });
   const listAscGroups = useAction(
@@ -197,20 +199,19 @@ export default function ProjectProducts() {
     // description / reviewNote.
     const description = draft.description.trim() || undefined;
     const reviewNote = draft.reviewNote.trim() || undefined;
-    const priceUsd = parseFloat(draft.priceUsd);
-    const priceAmountMicros =
-      Number.isFinite(priceUsd) && priceUsd > 0
-        ? Math.round(priceUsd * 1_000_000)
-        : undefined;
+    const priceAmountMicros = usdPriceToMicros(draft.priceUsd);
     const isSubIos = draft.type === "Subscription" && draft.platform === "IOS";
-    const subscriptionGroupName =
-      isSubIos && draft.subscriptionGroupName.trim()
-        ? draft.subscriptionGroupName.trim()
-        : undefined;
+    if (isSubIos && !draft.subscriptionGroupName.trim()) {
+      toast.error("Subscription group is required for iOS subscriptions");
+      return;
+    }
+    const subscriptionGroupName = isSubIos
+      ? draft.subscriptionGroupName.trim()
+      : undefined;
     const billingPeriod =
       draft.type === "Subscription" ? draft.billingPeriod : undefined;
     await upsert({
-      apiKey: project.apiKey,
+      projectId: project._id,
       productId: draft.productId,
       platform: draft.platform,
       type: draft.type,
@@ -247,7 +248,7 @@ export default function ProjectProducts() {
     const dryRun = options?.dryRun === true;
     try {
       const { jobId, deduped } = await enqueueSync({
-        apiKey: project.apiKey,
+        projectId: project._id,
         platform,
         direction: "both",
         ...(dryRun ? { dryRun: true } : {}),
@@ -275,7 +276,7 @@ export default function ProjectProducts() {
     const label = platform === "IOS" ? "App Store Connect" : "Play Console";
     try {
       const { jobId, deduped } = await enqueueSync({
-        apiKey: project.apiKey,
+        projectId: project._id,
         platform,
         direction: "purge-local",
       });
@@ -295,7 +296,7 @@ export default function ProjectProducts() {
 
   const onCancel = async (jobId: SyncJob["_id"], label: string) => {
     try {
-      const result = await cancelSync({ apiKey: project.apiKey, jobId });
+      const result = await cancelSync({ projectId: project._id, jobId });
       // The mutation returns `{ ok: false, reason: "not active" }`
       // when the job already finished between render and click.
       // Showing "cancellation requested" in that case is misleading
@@ -435,10 +436,11 @@ export default function ProjectProducts() {
             <Field label="Subscription group (iOS)">
               <input
                 list="asc-subscription-groups"
+                required
                 value={draft.subscriptionGroupName}
                 onFocus={() => {
                   if (ascGroupNames !== null || ascGroupLoadFailed) return;
-                  void listAscGroups({ apiKey: project.apiKey })
+                  void listAscGroups({ projectId: project._id })
                     .then((groups) =>
                       setAscGroupNames(groups.map((g) => g.referenceName)),
                     )
@@ -524,7 +526,7 @@ export default function ProjectProducts() {
           void onCancel(jobId, "App Store Connect");
         }}
         onDismiss={(jobId) => {
-          void dismissJob({ apiKey: project.apiKey, jobId });
+          void dismissJob({ projectId: project._id, jobId });
         }}
       />
       <ProductGroup
@@ -548,7 +550,7 @@ export default function ProjectProducts() {
           void onCancel(jobId, "Play Console");
         }}
         onDismiss={(jobId) => {
-          void dismissJob({ apiKey: project.apiKey, jobId });
+          void dismissJob({ projectId: project._id, jobId });
         }}
       />
     </div>

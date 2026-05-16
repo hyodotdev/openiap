@@ -274,104 +274,19 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
     {
         var tcs = new TaskCompletionSource<RequestPurchaseResult?>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        // Purchase request → fetch sku/quantity from the iOS sub-prop.
-        if (@params.RequestPurchase is { } purchaseEnv)
+        try
         {
-            var iosProps = purchaseEnv.Apple ?? purchaseEnv.IOS;
-            if (iosProps is null)
-            {
-                tcs.TrySetException(OpenIapErrorMapper.Wrap(ErrorCode.DeveloperError, "iOS purchase request requires `apple` props"));
-                return tcs.Task;
-            }
-            _module.RequestPurchase(
-                iosProps.Sku,
-                iosProps.Quantity ?? 1,
-                ProductTypeWireString(@params.Type),
-                (result, err) =>
-                {
-                    try
-                    {
-                        if (err is not null) { tcs.TrySetException(MapNSError(err)); return; }
-                        var node = result is NSDictionary d ? NSObjectJsonBridge.DictToObject(d) : null;
-                        if (node is null) { tcs.TrySetResult(null); return; }
-                        var purchase = node.Deserialize<Purchase>(JsonOptions.Default);
-                        tcs.TrySetResult(purchase is null ? null : new RequestPurchaseResultPurchase(purchase));
-                    }
-                    catch (Exception ex) { tcs.TrySetException(ex); }
-                });
-            return tcs.Task;
+            ValidateIosPurchaseRequest(@params);
+            var payload = RequestPurchasePayload(@params);
+            _module.RequestPurchaseWithPayload(
+                payload,
+                (result, err) => CompleteRequestPurchaseResult(tcs, result, err));
+        }
+        catch (Exception ex)
+        {
+            tcs.TrySetException(ex);
         }
 
-        if (@params.RequestSubscription is { } subEnv)
-        {
-            var iosProps = subEnv.Apple ?? subEnv.IOS;
-            if (iosProps is null)
-            {
-                tcs.TrySetException(OpenIapErrorMapper.Wrap(ErrorCode.DeveloperError, "iOS subscription request requires `apple` props"));
-                return tcs.Task;
-            }
-
-            NSDictionary? legacyOffer = iosProps.WithOffer is null
-                ? null
-                : NSDictionary.FromObjectsAndKeys(
-                    new NSObject[]
-                    {
-                        new NSString(iosProps.WithOffer.Identifier),
-                        new NSString(iosProps.WithOffer.KeyIdentifier),
-                        new NSString(iosProps.WithOffer.Nonce),
-                        new NSString(iosProps.WithOffer.Signature),
-                        NSNumber.FromDouble(iosProps.WithOffer.Timestamp),
-                    },
-                    new NSObject[]
-                    {
-                        new NSString("identifier"),
-                        new NSString("keyIdentifier"),
-                        new NSString("nonce"),
-                        new NSString("signature"),
-                        new NSString("timestamp"),
-                    });
-
-            NSDictionary? jws = iosProps.PromotionalOfferJws is null
-                ? null
-                : NSDictionary.FromObjectsAndKeys(
-                    new NSObject[]
-                    {
-                        new NSString(iosProps.PromotionalOfferJws.OfferId),
-                        new NSString(iosProps.PromotionalOfferJws.Jws),
-                    },
-                    new NSObject[]
-                    {
-                        new NSString("offerId"),
-                        new NSString("jws"),
-                    });
-
-            NSNumber? introEligibility = iosProps.IntroductoryOfferEligibility is { } b
-                ? NSNumber.FromBoolean(b)
-                : null;
-            string? winBackId = iosProps.WinBackOffer?.OfferId;
-
-            _module.RequestSubscriptionExtended(
-                iosProps.Sku,
-                legacyOffer!,
-                introEligibility!,
-                jws!,
-                winBackId!,
-                (result, err) =>
-                {
-                    try
-                    {
-                        if (err is not null) { tcs.TrySetException(MapNSError(err)); return; }
-                        var node = result is NSDictionary d ? NSObjectJsonBridge.DictToObject(d) : null;
-                        if (node is null) { tcs.TrySetResult(null); return; }
-                        var purchase = node.Deserialize<Purchase>(JsonOptions.Default);
-                        tcs.TrySetResult(purchase is null ? null : new RequestPurchaseResultPurchase(purchase));
-                    }
-                    catch (Exception ex) { tcs.TrySetException(ex); }
-                });
-            return tcs.Task;
-        }
-
-        tcs.TrySetException(OpenIapErrorMapper.Wrap(ErrorCode.DeveloperError, "RequestPurchaseProps must set requestPurchase or requestSubscription"));
         return tcs.Task;
     }
 
@@ -587,12 +502,19 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
         return result.Where(a => filter.Contains(a.ProductId)).ToList();
     }
 
-    public Task<bool> HasActiveSubscriptionsAsync(IReadOnlyList<string>? subscriptionIds = null)
-        => InvokeBool(cb => _module.HasActiveSubscriptions(cb));
+    public async Task<bool> HasActiveSubscriptionsAsync(IReadOnlyList<string>? subscriptionIds = null)
+    {
+        if (subscriptionIds is { Count: > 0 })
+        {
+            return (await GetActiveSubscriptionsAsync(subscriptionIds)).Count > 0;
+        }
+
+        return await InvokeBool(cb => _module.HasActiveSubscriptions(cb));
+    }
 
     public async Task<string> GetStorefrontAsync()
     {
-        var storefront = await InvokeNullableString(cb => _module.GetStorefrontIOS(cb));
+        var storefront = await InvokeNullableString(cb => _module.GetStorefront(cb));
         return storefront ?? string.Empty;
     }
 
@@ -660,6 +582,57 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
         catch (Exception ex) { tcs.TrySetException(ex); }
     }
 
+    private static void ValidateIosPurchaseRequest(RequestPurchaseProps @params)
+    {
+        if (@params.RequestPurchase is { } purchaseEnv)
+        {
+            var iosProps = purchaseEnv.Apple ?? purchaseEnv.IOS;
+            if (iosProps is null)
+                throw OpenIapErrorMapper.Wrap(ErrorCode.DeveloperError, "iOS purchase request requires `apple` props");
+            if (string.IsNullOrWhiteSpace(iosProps.Sku))
+                throw OpenIapErrorMapper.Wrap(ErrorCode.DeveloperError, "iOS purchase request requires a SKU");
+            return;
+        }
+
+        if (@params.RequestSubscription is { } subEnv)
+        {
+            var iosProps = subEnv.Apple ?? subEnv.IOS;
+            if (iosProps is null)
+                throw OpenIapErrorMapper.Wrap(ErrorCode.DeveloperError, "iOS subscription request requires `apple` props");
+            if (string.IsNullOrWhiteSpace(iosProps.Sku))
+                throw OpenIapErrorMapper.Wrap(ErrorCode.DeveloperError, "iOS subscription request requires a SKU");
+            return;
+        }
+
+        throw OpenIapErrorMapper.Wrap(ErrorCode.DeveloperError, "RequestPurchaseProps must set requestPurchase or requestSubscription");
+    }
+
+    private static NSDictionary RequestPurchasePayload(RequestPurchaseProps @params)
+    {
+        var node = JsonSerializer.SerializeToNode(@params, JsonOptions.Default) as JsonObject
+            ?? throw OpenIapErrorMapper.Wrap(ErrorCode.DeveloperError, "Unable to serialize RequestPurchaseProps");
+        return NSObjectJsonBridge.JsonObjectToDictionary(node);
+    }
+
+    private static void CompleteRequestPurchaseResult(
+        TaskCompletionSource<RequestPurchaseResult?> tcs,
+        NSObject? result,
+        NSError? err)
+    {
+        try
+        {
+            if (err is not null) { tcs.TrySetException(MapNSError(err)); return; }
+            var node = result is NSDictionary d ? NSObjectJsonBridge.DictToObject(d) : null;
+            if (node is null) { tcs.TrySetResult(null); return; }
+            var purchase = node.Deserialize<Purchase>(JsonOptions.Default);
+            tcs.TrySetResult(purchase is null ? null : new RequestPurchaseResultPurchase(purchase));
+        }
+        catch (Exception ex)
+        {
+            tcs.TrySetException(ex);
+        }
+    }
+
     private static OpenIapException MapNSError(NSError err)
     {
         var message = GetNSErrorString(err, "message")
@@ -683,9 +656,6 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
         using var nsKey = new NSString(key);
         return err.UserInfo?.ObjectForKey(nsKey)?.ToString();
     }
-
-    private static string? ProductTypeWireString(ProductQueryType type)
-        => type == ProductQueryType.Subs ? "subs" : type == ProductQueryType.InApp ? "in-app" : null;
 
     private static NSDictionary ToPurchaseOptionsDictionary(PurchaseOptions? options)
     {

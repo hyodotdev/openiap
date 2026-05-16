@@ -1,17 +1,32 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Usage: ./scripts/bump-version.sh [major|minor|patch|x.x.x]
 
-set -e
+set -euo pipefail
 
-VERSIONS_FILE="openiap-versions.json"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+VERSIONS_FILE="${REPO_ROOT}/openiap-versions.json"
 
 # Get current version from openiap-versions.json
-if [ -f "${VERSIONS_FILE}" ]; then
+if [[ -f "${VERSIONS_FILE}" ]]; then
     if command -v jq &> /dev/null; then
-        CURRENT_VERSION=$(jq -r '.apple' "${VERSIONS_FILE}")
+        CURRENT_VERSION=$(jq -er '.apple | select(type == "string" and length > 0)' "${VERSIONS_FILE}")
     elif command -v python3 &> /dev/null; then
-        CURRENT_VERSION=$(python3 -c "import json; print(json.load(open('${VERSIONS_FILE}'))['apple'])")
+        CURRENT_VERSION=$(python3 - "${VERSIONS_FILE}" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+with open(path, encoding="utf-8") as file:
+    value = json.load(file).get("apple")
+
+if not isinstance(value, str) or not value.strip():
+    raise SystemExit(f"missing apple in {path}")
+
+print(value.strip())
+PY
+)
     else
         echo "❌ Error: jq or python3 is required to read openiap-versions.json"
         exit 1
@@ -30,7 +45,7 @@ MINOR="${VERSION_PARTS[1]}"
 PATCH="${VERSION_PARTS[2]}"
 
 # Determine new version
-if [ -z "$1" ]; then
+if [[ -z "${1:-}" ]]; then
     echo "Usage: $0 [major|minor|patch|x.x.x]"
     exit 1
 fi
@@ -54,62 +69,52 @@ esac
 echo "New version: $NEW_VERSION"
 
 # Update openiap-versions.json
-if [ -f "openiap-versions.json" ]; then
-    if command -v jq &> /dev/null; then
-        # Use jq to update JSON
-        jq --arg version "$NEW_VERSION" '.apple = $version' openiap-versions.json > openiap-versions.json.tmp && \
-        mv openiap-versions.json.tmp openiap-versions.json
-        echo "✅ Updated openiap-versions.json"
-    elif command -v python3 &> /dev/null; then
-        # Use python3 as fallback
-        python3 -c "
+if command -v jq &> /dev/null; then
+    tmp_file="${VERSIONS_FILE}.tmp"
+    jq --arg version "$NEW_VERSION" '.apple = $version' "$VERSIONS_FILE" > "$tmp_file"
+    mv "$tmp_file" "$VERSIONS_FILE"
+    echo "✅ Updated openiap-versions.json"
+elif command -v python3 &> /dev/null; then
+    VERSION="$NEW_VERSION" VERSIONS_FILE="$VERSIONS_FILE" python3 - <<'PY'
 import json
-with open('openiap-versions.json', 'r') as f:
+import os
+
+versions_file = os.environ["VERSIONS_FILE"]
+with open(versions_file, 'r', encoding='utf-8') as f:
     data = json.load(f)
-data['apple'] = '$NEW_VERSION'
-with open('openiap-versions.json', 'w') as f:
+data['apple'] = os.environ["VERSION"]
+with open(versions_file, 'w', encoding='utf-8') as f:
     json.dump(data, f, indent=2)
     f.write('\n')
-"
-        echo "✅ Updated openiap-versions.json (using python3)"
-    else
-        echo "⚠️  Warning: jq and python3 not available. Skipping openiap-versions.json update"
-    fi
+PY
+    echo "✅ Updated openiap-versions.json (using python3)"
+else
+    echo "❌ Error: jq or python3 is required to update openiap-versions.json"
+    exit 1
 fi
 
-# Update OpenIapVersion.swift fallback version
-if [ -f "Sources/OpenIapVersion.swift" ]; then
-    sed -i '' "s/return \"[0-9.]*\"/return \"$NEW_VERSION\"/" Sources/OpenIapVersion.swift
-    echo "✅ Updated OpenIapVersion.swift fallback"
-fi
+"$REPO_ROOT/scripts/sync-versions.sh"
 
-# Note: openiap.podspec now reads version from openiap-versions.json automatically
-
-# Update README.md - CocoaPods installation
-sed -i '' "s/pod 'openiap', '~> [0-9.]*'/pod 'openiap', '~> $NEW_VERSION'/" README.md
-
-# Update README.md - Swift Package Manager
-sed -i '' "s/.package(url: \"https:\/\/github.com\/hyodotdev\/openiap-apple.git\", from: \"[0-9.]*\")/.package(url: \"https:\/\/github.com\/hyodotdev\/openiap-apple.git\", from: \"$NEW_VERSION\")/" README.md
+# openiap.podspec reads the Apple version from openiap-versions.json.
 
 # Commit changes
-git add README.md openiap-versions.json Sources/OpenIapVersion.swift
-git commit -m "chore: bump version to $NEW_VERSION"
+cd "$REPO_ROOT"
+git add openiap-versions.json packages/*/openiap-versions.json
+git add packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json
+git commit -m "chore(apple): bump version to $NEW_VERSION"
 
 # Push commits
-git push origin main
+git pull --rebase origin main
+git push origin HEAD:main
 
 # Create and push tag (with check)
 if git rev-parse "refs/tags/$NEW_VERSION" >/dev/null 2>&1; then
-    echo "⚠️  Tag $NEW_VERSION already exists locally, deleting and recreating..."
-    git tag -d "$NEW_VERSION"
-fi
-
-git tag "$NEW_VERSION"
-
-# Try to push tag, ignore error if already exists
-if ! git push origin "$NEW_VERSION" 2>/dev/null; then
-    echo "ℹ️  Tag $NEW_VERSION already exists on remote (probably from CocoaPods release)"
+    echo "ℹ️  Tag $NEW_VERSION already exists locally. Reusing existing tag."
+elif git ls-remote --exit-code --tags origin "refs/tags/$NEW_VERSION" >/dev/null 2>&1; then
+    echo "ℹ️  Tag $NEW_VERSION already exists on remote. Reusing existing tag."
 else
+    git tag "$NEW_VERSION"
+    git push origin "$NEW_VERSION"
     echo "✅ Tag $NEW_VERSION pushed successfully"
 fi
 

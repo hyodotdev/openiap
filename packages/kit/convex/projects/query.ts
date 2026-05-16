@@ -1,23 +1,14 @@
-import { query } from "../_generated/server";
+import { query, type QueryCtx } from "../_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { Doc } from "../_generated/dataModel";
 
-/**
- * Strip long-lived server-side secrets from a project document before
- * returning it to the client. The Horizon App Secret is used by the
- * IAPKit server to compose `OC|APP_ID|APP_SECRET` for Meta's Graph
- * API; reading it back into the dashboard would let any org member
- * exfiltrate it through the browser. Apple `.p8` and Google service
- * accounts live in the `files` table and were already safe — Horizon
- * was the only credential stored inline on `projects`, so only it
- * needs redaction here.
- *
- * The client still needs to know whether a secret is configured so
- * the UI can show "Replace" vs. "Enter secret"; expose that as a
- * derived boolean instead.
- */
-function redactProjectSecrets(project: Doc<"projects">): Omit<
+import {
+  resolveProjectByApiKeyFromDb,
+  resolveProjectByIdForCurrentUserFromDb,
+} from "./helpers";
+
+function projectWithSecretState(project: Doc<"projects">): Omit<
   Doc<"projects">,
   "horizonAppSecret"
 > & {
@@ -28,6 +19,46 @@ function redactProjectSecrets(project: Doc<"projects">): Omit<
     ...rest,
     hasHorizonAppSecret:
       typeof horizonAppSecret === "string" && horizonAppSecret.length > 0,
+  };
+}
+
+function projectForApiKeyLookup(project: Doc<"projects">): Omit<
+  Doc<"projects">,
+  "apiKey" | "horizonAppSecret"
+> & {
+  hasHorizonAppSecret: boolean;
+} {
+  const { apiKey, ...rest } = projectWithSecretState(project);
+  void apiKey;
+  return rest;
+}
+
+function projectForDashboard(project: Doc<"projects">): Omit<
+  Doc<"projects">,
+  "apiKey" | "horizonAppSecret"
+> & {
+  hasHorizonAppSecret: boolean;
+} {
+  return projectForApiKeyLookup(project);
+}
+
+function projectForList(
+  project: Doc<"projects">,
+  projectIdsWithAnyKey: Set<string>,
+  projectIdsWithActiveKey: Set<string>,
+): Omit<Doc<"projects">, "apiKey" | "horizonAppSecret"> & {
+  hasApiKey: boolean;
+  hasHorizonAppSecret: boolean;
+} {
+  const { apiKey, ...rest } = projectWithSecretState(project);
+  return {
+    ...rest,
+    // Legacy-only projects predate the apiKeys table, so fall back to
+    // projects.apiKey only when no apiKeys rows exist yet. Once a project has
+    // entered the key table, active/revoked state there is authoritative.
+    hasApiKey:
+      projectIdsWithActiveKey.has(project._id) ||
+      (!projectIdsWithAnyKey.has(project._id) && apiKey.length > 0),
   };
 }
 
@@ -59,7 +90,24 @@ export const listOrganizationProjects = query({
       )
       .collect();
 
-    return projects.map(redactProjectSecrets);
+    const apiKeys = await ctx.db
+      .query("apiKeys")
+      .withIndex("by_organization", (q) =>
+        q.eq("organizationId", args.organizationId),
+      )
+      .collect();
+    const projectIdsWithAnyKey = new Set(
+      apiKeys.map((apiKey) => apiKey.projectId),
+    );
+    const projectIdsWithActiveKey = new Set(
+      apiKeys
+        .filter((apiKey) => apiKey.isActive)
+        .map((apiKey) => apiKey.projectId),
+    );
+
+    return projects.map((project) =>
+      projectForList(project, projectIdsWithAnyKey, projectIdsWithActiveKey),
+    );
   },
 });
 
@@ -96,7 +144,7 @@ export const getProject = query({
       )
       .first();
 
-    return project ? redactProjectSecrets(project) : null;
+    return project ? projectForDashboard(project) : null;
   },
 });
 
@@ -128,7 +176,62 @@ export const getProjectById = query({
       return null;
     }
 
-    return redactProjectSecrets(project);
+    return projectForDashboard(project);
+  },
+});
+
+async function getWebhookApiKey(ctx: QueryCtx, project: Doc<"projects">) {
+  const apiKeys = await ctx.db
+    .query("apiKeys")
+    .withIndex("by_project", (q) => q.eq("projectId", project._id))
+    .collect();
+  const activeApiKey = apiKeys
+    .filter((apiKey) => apiKey.isActive)
+    .sort((a, b) => b.createdAt - a.createdAt)[0];
+
+  if (activeApiKey) {
+    return activeApiKey.key;
+  }
+
+  // Legacy-only projects predate the apiKeys table. Once the table has rows
+  // for a project, do not fall back to projects.apiKey because revoked keys
+  // are authoritative there.
+  return apiKeys.length === 0 && project.apiKey.length > 0
+    ? project.apiKey
+    : null;
+}
+
+function webhookPathsForApiKey(apiKey: string) {
+  const encodedApiKey = encodeURIComponent(apiKey);
+  return {
+    unified: `/v1/webhooks/${encodedApiKey}`,
+    apple: `/v1/webhooks/apple/${encodedApiKey}`,
+    google: `/v1/webhooks/google/${encodedApiKey}`,
+    stream: `/v1/webhooks/stream/${encodedApiKey}`,
+  };
+}
+
+export const getWebhookEndpointPaths = query({
+  args: { projectId: v.id("projects") },
+  returns: v.union(
+    v.null(),
+    v.object({
+      unified: v.string(),
+      apple: v.string(),
+      google: v.string(),
+      stream: v.string(),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const resolved = await resolveProjectByIdForCurrentUserFromDb(
+      ctx,
+      args.projectId,
+    );
+    if (!resolved) return null;
+    if (resolved.role === "member") return null;
+
+    const apiKey = await getWebhookApiKey(ctx, resolved.project);
+    return apiKey ? webhookPathsForApiKey(apiKey) : null;
   },
 });
 
@@ -176,14 +279,13 @@ export const hasProjects = query({
 });
 
 // Public query to find project by API key (used by API verification endpoints).
-// Uses the `by_api_key` index on `projects` so this is a single point lookup
-// instead of a table scan.
+// New keys resolve through `apiKeys` first so rotation / revocation semantics
+// match the rest of the v1 surface; legacy project keys still fall back. Do
+// Do not echo the apiKey back to callers; route code only needs a truthy project.
 export const getProjectByApiKey = query({
   args: { apiKey: v.string() },
   handler: async (ctx, args) => {
-    return await ctx.db
-      .query("projects")
-      .withIndex("by_api_key", (q) => q.eq("apiKey", args.apiKey))
-      .first();
+    const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
+    return resolved ? projectForApiKeyLookup(resolved.project) : null;
   },
 });

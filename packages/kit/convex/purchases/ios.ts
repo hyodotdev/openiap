@@ -34,6 +34,10 @@ import {
 } from "./errors";
 import { retryOnTransient } from "./retry";
 
+function describeError(error: unknown): string {
+  return error instanceof Error ? error.name : typeof error;
+}
+
 export const verifyAppStoreReceiptInternalV1 = action({
   args: {
     apiKey: v.string(),
@@ -214,7 +218,7 @@ async function verifyJWSTransaction(
 
     return transactionData;
   } catch (error) {
-    console.error("Error verifying JWS transaction:", error);
+    console.error("Error verifying JWS transaction:", describeError(error));
     throw new AppStoreTransactionVerificationFailedError(
       getVerificationErrorMessage(error),
     );
@@ -252,7 +256,7 @@ async function getAppStoreServerCredentials(
     );
     privateKey = keyResponse.keyContent;
   } catch (error) {
-    console.error("Failed to load Apple P8 key:", error);
+    console.error("Failed to load Apple P8 key:", describeError(error));
     missingFields.push("privateKey");
   }
 

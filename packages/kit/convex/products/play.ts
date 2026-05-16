@@ -899,13 +899,19 @@ function pickPlayDescription(
   return product.listings?.[def]?.description ?? undefined;
 }
 
+export function playPriceMicrosToNumber(
+  raw: string | undefined | null,
+): number | undefined {
+  if (!raw) return undefined;
+  if (!/^\d+$/.test(raw)) return undefined;
+  const n = Number(raw);
+  return Number.isSafeInteger(n) && n >= 0 ? n : undefined;
+}
+
 function parsePlayPriceMicros(
   product: androidpublisher_v3.Schema$InAppProduct,
 ): number | undefined {
-  const raw = product.defaultPrice?.priceMicros;
-  if (!raw) return undefined;
-  const n = Number(raw);
-  return Number.isFinite(n) ? n : undefined;
+  return playPriceMicrosToNumber(product.defaultPrice?.priceMicros);
 }
 
 function pickPlayCurrency(
@@ -1092,9 +1098,10 @@ function collectPlaySubscriptionOffers(
  * stores price points internally — Play uses micros as the canonical
  * unit, so any rounding here would re-introduce drift we just cleaned
  * up. Resolves to `undefined` when the input has no `units`, when the
- * BigInt parse throws (malformed `units` string), or when the resulting
- * micros exceed `Number.MAX_SAFE_INTEGER` (≈ USD 9 billion — kit treats
- * those rows as price-unknown rather than silently corrupting them).
+ * `units` is not a non-negative decimal string, when `nanos` falls outside
+ * Google Money's int32 sub-unit range, or when the resulting micros exceed
+ * `Number.MAX_SAFE_INTEGER` (≈ USD 9 billion — kit treats those rows as
+ * price-unknown rather than silently corrupting them).
  *
  * PR #124 (https://github.com/hyodotdev/openiap/pull/124) review fix.
  */
@@ -1103,8 +1110,11 @@ export function moneyToMicros(
 ): number | undefined {
   if (!money?.units) return undefined;
   try {
-    const microsBigInt =
-      BigInt(money.units) * 1_000_000n + BigInt(money.nanos ?? 0) / 1_000n;
+    const unitsMicros = moneyUnitsToMicros(money.units);
+    if (unitsMicros === undefined) return undefined;
+    const nanosMicros = moneyNanosToMicros(money.nanos);
+    if (nanosMicros === undefined) return undefined;
+    const microsBigInt = unitsMicros + nanosMicros;
     // Drop values that exceed Number.MAX_SAFE_INTEGER. The schema
     // stores `priceAmountMicros` as a JS `number` (IEEE 754 double),
     // so anything above 2^53 - 1 would silently lose precision on
@@ -1113,16 +1123,28 @@ export function moneyToMicros(
     // very high unit values like IDR / KRW it's worth the explicit
     // guard rather than a silent corruption — kit treats the row as
     // "price unknown" and the dashboard surfaces that affordance.
-    if (
-      microsBigInt > BigInt(Number.MAX_SAFE_INTEGER) ||
-      microsBigInt < BigInt(Number.MIN_SAFE_INTEGER)
-    ) {
+    if (microsBigInt > BigInt(Number.MAX_SAFE_INTEGER) || microsBigInt < 0n) {
       return undefined;
     }
     return Number(microsBigInt);
   } catch {
     return undefined;
   }
+}
+
+function moneyUnitsToMicros(units: string): bigint | undefined {
+  if (!/^\d+$/.test(units)) return undefined;
+  return BigInt(units) * 1_000_000n;
+}
+
+function moneyNanosToMicros(
+  nanos: number | null | undefined,
+): bigint | undefined {
+  if (nanos == null) return 0n;
+  if (!Number.isInteger(nanos) || nanos < -999_999_999 || nanos > 999_999_999) {
+    return undefined;
+  }
+  return BigInt(nanos) / 1_000n;
 }
 
 /**

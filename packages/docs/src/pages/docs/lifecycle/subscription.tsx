@@ -274,7 +274,7 @@ function Subscription() {
           <p>
             Learn more about IAPKit integration in our{' '}
             <a
-              href="https://www.openiap.dev/docs/updates/announcements#2025-12-09"
+              href="https://openiap.dev/docs/updates/announcements#2025-12-09"
               target="_blank"
               rel="noopener noreferrer"
             >

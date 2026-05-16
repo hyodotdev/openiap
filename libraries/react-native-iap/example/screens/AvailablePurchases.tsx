@@ -37,7 +37,11 @@ export default function AvailablePurchases() {
     finishTransaction,
   } = useIAP({
     onPurchaseSuccess: async (purchase) => {
-      console.log('[AVAILABLE-PURCHASES] Purchase successful:', purchase);
+      console.log('[AVAILABLE-PURCHASES] Purchase successful:', {
+        productId: purchase.productId,
+        transactionId: purchase.id,
+        platform: purchase.platform,
+      });
 
       // Finish transaction like in subscription-flow
       await finishTransaction({
@@ -69,7 +73,11 @@ export default function AvailablePurchases() {
     setIsCheckingStatus(true);
     try {
       const subs = await getActiveSubscriptions();
-      console.log('[AVAILABLE-PURCHASES] Active subscriptions result:', subs);
+      console.log(
+        '[AVAILABLE-PURCHASES] Active subscriptions result:',
+        subs.length,
+        'items',
+      );
     } catch (error) {
       console.error(
         '[AVAILABLE-PURCHASES] Error checking subscription status:',
@@ -149,7 +157,7 @@ export default function AvailablePurchases() {
     console.log(
       '[AVAILABLE-PURCHASES] activeSubscriptions:',
       activeSubscriptions.length,
-      activeSubscriptions,
+      'items',
     );
   }, [activeSubscriptions]);
 

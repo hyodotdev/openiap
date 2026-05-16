@@ -1,3 +1,5 @@
+@file:Suppress("UNNECESSARY_NOT_NULL_ASSERTION", "UNNECESSARY_SAFE_CALL")
+
 package io.github.hyochan.kmpiap
 
 import io.github.hyochan.kmpiap.openiap.*

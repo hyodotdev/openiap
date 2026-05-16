@@ -143,7 +143,7 @@ This project uses Codecov with two checks: **codecov/patch** (new/modified lines
 ### API Method Naming
 
 - Functions that depend on event results should use `request` prefix (e.g., `requestPurchase`, `requestPurchaseWithBuilder`)
-- Follow OpenIAP terminology: <https://www.openiap.dev/docs/apis#terminology>
+- Follow OpenIAP terminology: <https://openiap.dev/docs/apis#terminology>
 - Do not use generic prefixes like `get`, `find` - refer to the official terminology
 
 ## IAP-Specific Guidelines
@@ -152,10 +152,10 @@ This project uses Codecov with two checks: **codecov/patch** (new/modified lines
 
 All implementations must follow the OpenIAP specification:
 
-- **APIs**: <https://www.openiap.dev/docs/apis>
-- **Types**: <https://www.openiap.dev/docs/types>
-- **Events**: <https://www.openiap.dev/docs/events>
-- **Errors**: <https://www.openiap.dev/docs/errors>
+- **APIs**: <https://openiap.dev/docs/apis>
+- **Types**: <https://openiap.dev/docs/types>
+- **Events**: <https://openiap.dev/docs/events>
+- **Errors**: <https://openiap.dev/docs/errors>
 
 ### Feature Development Process
 

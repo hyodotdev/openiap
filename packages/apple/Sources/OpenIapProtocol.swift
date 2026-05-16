@@ -91,6 +91,16 @@ public protocol OpenIapModuleProtocol {
     func presentCodeRedemptionSheetIOS() async throws -> Bool
     func showManageSubscriptionsIOS() async throws -> [PurchaseIOS]
     func deepLinkToSubscriptions(_ options: DeepLinkOptions?) async throws -> Void
+    func canPresentExternalPurchaseNoticeIOS() async throws -> Bool
+    func presentExternalPurchaseNoticeSheetIOS() async throws -> ExternalPurchaseNoticeResultIOS
+    func presentExternalPurchaseLinkIOS(_ url: String) async throws -> ExternalPurchaseLinkResultIOS
+    func isEligibleForExternalPurchaseCustomLinkIOS() async throws -> Bool
+    func getExternalPurchaseCustomLinkTokenIOS(
+        _ tokenType: ExternalPurchaseCustomLinkTokenTypeIOS
+    ) async throws -> ExternalPurchaseCustomLinkTokenResultIOS
+    func showExternalPurchaseCustomLinkNoticeIOS(
+        _ noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS
+    ) async throws -> ExternalPurchaseCustomLinkNoticeResultIOS
 
     // Event Listeners
     func purchaseUpdatedListener(
@@ -130,5 +140,51 @@ public extension OpenIapModuleProtocol {
     @available(*, deprecated, message: "Use verifyPurchase instead")
     func validateReceipt(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResult {
         try await verifyPurchase(props)
+    }
+
+    func canPresentExternalPurchaseNoticeIOS() async throws -> Bool {
+        throw PurchaseError(
+            code: .featureNotSupported,
+            message: "canPresentExternalPurchaseNoticeIOS not supported"
+        )
+    }
+
+    func presentExternalPurchaseNoticeSheetIOS() async throws -> ExternalPurchaseNoticeResultIOS {
+        throw PurchaseError(
+            code: .featureNotSupported,
+            message: "presentExternalPurchaseNoticeSheetIOS not supported"
+        )
+    }
+
+    func presentExternalPurchaseLinkIOS(_ url: String) async throws -> ExternalPurchaseLinkResultIOS {
+        throw PurchaseError(
+            code: .featureNotSupported,
+            message: "presentExternalPurchaseLinkIOS not supported"
+        )
+    }
+
+    func isEligibleForExternalPurchaseCustomLinkIOS() async throws -> Bool {
+        throw PurchaseError(
+            code: .featureNotSupported,
+            message: "isEligibleForExternalPurchaseCustomLinkIOS not supported"
+        )
+    }
+
+    func getExternalPurchaseCustomLinkTokenIOS(
+        _ tokenType: ExternalPurchaseCustomLinkTokenTypeIOS
+    ) async throws -> ExternalPurchaseCustomLinkTokenResultIOS {
+        throw PurchaseError(
+            code: .featureNotSupported,
+            message: "getExternalPurchaseCustomLinkTokenIOS not supported"
+        )
+    }
+
+    func showExternalPurchaseCustomLinkNoticeIOS(
+        _ noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS
+    ) async throws -> ExternalPurchaseCustomLinkNoticeResultIOS {
+        throw PurchaseError(
+            code: .featureNotSupported,
+            message: "showExternalPurchaseCustomLinkNoticeIOS not supported"
+        )
     }
 }

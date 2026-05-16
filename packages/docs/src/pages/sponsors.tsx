@@ -8,7 +8,7 @@ function Sponsors() {
         title="Sponsor OpenIAP"
         description="Sponsor OpenIAP — unified in-app purchase infrastructure used in production across iOS, Android, and emerging platforms. Sponsorship funds maintenance, stability, and long-term platform integration."
         path="/sponsors"
-        keywords="OpenIAP sponsors, GitHub Sponsors, IAP infrastructure, in-app purchase open source, vendor sponsorship, Amazon IAP"
+        keywords="OpenIAP sponsors, GitHub Sponsors, IAP infrastructure, in-app purchase open source, vendor sponsorship"
       />
       <div className="content-wrapper" style={{ textAlign: 'center' }}>
         <h1>Sponsor OpenIAP</h1>

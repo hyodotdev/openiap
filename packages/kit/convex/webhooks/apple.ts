@@ -112,7 +112,10 @@ export const ingestAppleAsnIOS = action({
     try {
       payload = await verifier.verifyAndDecodeNotification(args.signedPayload);
     } catch (error) {
-      console.error("[webhooks/apple] notification verification failed", error);
+      console.error(
+        "[webhooks/apple] notification verification failed",
+        error instanceof Error ? error.name : typeof error,
+      );
       // ConvexError so the Hono `mapWebhookError` translates to 400 —
       // signature failure is a permanent error and a 5xx would trigger
       // ASN's automatic retry loop forever. Apple's "do not retry on

@@ -234,7 +234,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         Task { [weak self] in
             do {
                 guard !sku.isEmpty else {
-                    await self?.emitPurchaseError(code: "MISSING_SKU", message: "SKU not provided")
+                    await self?.emitPurchaseError(code: ErrorCode.developerError.rawValue, message: "SKU not provided")
                     return
                 }
 
@@ -253,22 +253,22 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 switch result {
                 case .purchase(let purchase):
                     if purchase == nil {
-                        await self?.emitPurchaseError(code: "USER_CANCELLED", message: "Purchase was cancelled")
+                        await self?.emitPurchaseError(code: ErrorCode.userCancelled.rawValue, message: "Purchase was cancelled")
                     }
                     // If purchase succeeded, purchaseUpdatedListener will emit the signal
                 case .purchases(let purchases):
                     if purchases?.isEmpty ?? true {
-                        await self?.emitPurchaseError(code: "USER_CANCELLED", message: "Purchase was cancelled")
+                        await self?.emitPurchaseError(code: ErrorCode.userCancelled.rawValue, message: "Purchase was cancelled")
                     }
                     // If purchases succeeded, purchaseUpdatedListener will emit the signal
                 case .none:
-                    await self?.emitPurchaseError(code: "USER_CANCELLED", message: "Purchase was cancelled")
+                    await self?.emitPurchaseError(code: ErrorCode.userCancelled.rawValue, message: "Purchase was cancelled")
                 }
 
             } catch let error as PurchaseError {
                 await self?.emitPurchaseError(code: error.code.rawValue, message: error.message)
             } catch {
-                await self?.emitPurchaseError(code: "PURCHASE_FAILED", message: error.localizedDescription)
+                await self?.emitPurchaseError(code: ErrorCode.purchaseError.rawValue, message: error.localizedDescription)
             }
         }
 
@@ -320,7 +320,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
                 GodotIapLog.debug("[GodotIap] Restore completed with \(purchases.count) purchases")
             } catch {
-                await self?.emitPurchaseError(code: "RESTORE_FAILED", message: error.localizedDescription)
+                await self?.emitPurchaseError(code: ErrorCode.syncError.rawValue, message: error.localizedDescription)
             }
         }
 
@@ -334,7 +334,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         Task { [weak self] in
             guard let self = self else { return }
             do {
-                let purchases = try await self.openIap.getAvailablePurchases(nil) ?? []
+                let purchases = try await self.openIap.getAvailablePurchases(nil)
                 let purchaseDicts = purchases.map { self.purchaseToDictionary($0) }
 
                 if let jsonData = try? JSONSerialization.data(withJSONObject: purchaseDicts),
@@ -370,7 +370,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     subscriptionIds = ids
                 }
 
-                let subscriptions = try await self.openIap.getActiveSubscriptions(subscriptionIds) ?? []
+                let subscriptions = try await self.openIap.getActiveSubscriptions(subscriptionIds)
                 let subDicts: [[String: Any]] = subscriptions.map { sub in
                     return [
                         "productId": sub.productId,
@@ -412,7 +412,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     subscriptionIds = ids
                 }
 
-                let hasActive = try await self.openIap.hasActiveSubscriptions(subscriptionIds) ?? false
+                let hasActive = try await self.openIap.hasActiveSubscriptions(subscriptionIds)
 
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
@@ -437,7 +437,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         Task { [weak self] in
             guard let self = self else { return }
             do {
-                let result = try await self.openIap.syncIOS() ?? false
+                let result = try await self.openIap.syncIOS()
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
                     dict["success"] = Variant(result)
@@ -465,7 +465,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         Task { [weak self] in
             guard let self = self else { return }
             do {
-                let result = try await self.openIap.clearTransactionIOS() ?? false
+                let result = try await self.openIap.clearTransactionIOS()
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
                     dict["success"] = Variant(result)
@@ -487,7 +487,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         Task { [weak self] in
             guard let self = self else { return }
             do {
-                let transactions = try await self.openIap.getPendingTransactionsIOS() ?? []
+                let transactions = try await self.openIap.getPendingTransactionsIOS()
                 let transactionDicts = transactions.map { self.purchaseIOSToDictionary($0) }
 
                 if let jsonData = try? JSONSerialization.data(withJSONObject: transactionDicts),
@@ -541,7 +541,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         Task { [weak self] in
             guard let self = self else { return }
             do {
-                let result = try await self.openIap.presentCodeRedemptionSheetIOS() ?? false
+                let result = try await self.openIap.presentCodeRedemptionSheetIOS()
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
                     dict["success"] = Variant(result)
@@ -562,7 +562,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         Task { [weak self] in
             guard let self = self else { return }
             do {
-                let purchases = try await self.openIap.showManageSubscriptionsIOS() ?? []
+                let purchases = try await self.openIap.showManageSubscriptionsIOS()
                 let purchaseDicts = purchases.map { self.purchaseIOSToDictionary($0) }
 
                 if let jsonData = try? JSONSerialization.data(withJSONObject: purchaseDicts),
@@ -688,7 +688,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         Task { [weak self] in
             guard let self = self else { return }
             do {
-                let storefront = try await self.openIap.getStorefrontIOS() ?? ""
+                let storefront = try await self.openIap.getStorefrontIOS()
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
                     dict["method"] = Variant("getStorefrontIOS")
@@ -762,7 +762,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         Task { [weak self] in
             guard let self = self else { return }
             do {
-                let statuses = try await self.openIap.subscriptionStatusIOS(sku: sku) ?? []
+                let statuses = try await self.openIap.subscriptionStatusIOS(sku: sku)
                 let statusDicts: [[String: Any]] = statuses.map { status in
                     return OpenIapSerialization.encode(status)
                 }
@@ -791,7 +791,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         Task { [weak self] in
             guard let self = self else { return }
             do {
-                let isEligible = try await self.openIap.isEligibleForIntroOfferIOS(groupID: groupId) ?? false
+                let isEligible = try await self.openIap.isEligibleForIntroOfferIOS(groupID: groupId)
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
                     dict["success"] = Variant(true)
@@ -841,6 +841,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         return "{\"status\": \"pending\"}"
     }
 
+    @available(*, deprecated, message: "Use promotedProductIOS signal with requestPurchase instead.")
     @Callable
     public func requestPurchaseOnPromotedProductIOS() -> String {
         GodotIapLog.payload("Requesting purchase on promoted product", payload: nil)
@@ -848,7 +849,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         Task { [weak self] in
             guard let self = self else { return }
             do {
-                let result = try await self.openIap.requestPurchaseOnPromotedProductIOS() ?? false
+                let result = try await self.openIap.requestPurchaseOnPromotedProductIOS()
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
                     dict["success"] = Variant(result)
@@ -869,7 +870,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         Task { [weak self] in
             guard let self = self else { return }
             do {
-                let canPresent = try await self.openIap.canPresentExternalPurchaseNoticeIOS() ?? false
+                let canPresent = try await self.openIap.canPresentExternalPurchaseNoticeIOS()
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
                     dict["success"] = Variant(true)
@@ -1039,7 +1040,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         Task { [weak self] in
             guard let self = self else { return }
             do {
-                let isVerified = try await self.openIap.isTransactionVerifiedIOS(sku: sku) ?? false
+                let isVerified = try await self.openIap.isTransactionVerifiedIOS(sku: sku)
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
                     dict["success"] = Variant(true)
@@ -1125,6 +1126,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     // MARK: - StoreKit 2 Deprecated / Alias APIs
 
+    @available(*, deprecated, message: "Use verifyPurchase instead.")
     @Callable
     public func validateReceiptIOS(propsJson: String) -> String {
         GodotIapLog.payload("validateReceiptIOS", payload: propsJson)

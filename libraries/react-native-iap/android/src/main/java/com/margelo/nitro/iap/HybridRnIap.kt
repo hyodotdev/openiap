@@ -793,7 +793,7 @@ class HybridRnIap : HybridRnIapSpec() {
     // Event listener methods
     override fun addPurchaseUpdatedListener(
         listener: (purchase: NitroPurchase) -> Unit,
-        options: NitroPurchaseUpdatedListenerOptions?
+        options: PurchaseUpdatedListenerOptions?
     ): Double {
         return synchronized(purchaseUpdatedListeners) {
             val token = nextPurchaseUpdatedListenerToken

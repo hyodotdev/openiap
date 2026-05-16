@@ -213,7 +213,7 @@ func _on_android_subscription_billing_issue(purchase_json: String) -> void:
 ## var ok = await iap.init_connection()
 ## [/codeblock]
 ##
-## See: https://www.openiap.dev/docs/apis/init-connection
+## See: https://openiap.dev/docs/apis/init-connection
 func init_connection() -> bool:
 	print("[GodotIap] init_connection called")
 	if _native_plugin:
@@ -243,7 +243,7 @@ func init_connection() -> bool:
 ## End the IAP connection.
 ## @return bool - true if disconnection was successful
 ##
-## See: https://www.openiap.dev/docs/apis/end-connection
+## See: https://openiap.dev/docs/apis/end-connection
 func end_connection() -> bool:
 	print("[GodotIap] end_connection called")
 	if _native_plugin:
@@ -309,7 +309,7 @@ func _apply_purchase_updated_listener_options_ios() -> void:
 ## [b]Note:[/b] This is a regular awaitable call. Don't confuse with [code]request_*[/code]
 ## APIs (e.g. [method request_purchase]), which are event-based.
 ##
-## See: https://www.openiap.dev/docs/apis/fetch-products
+## See: https://openiap.dev/docs/apis/fetch-products
 func fetch_products(request) -> Array:
 	print("[GodotIap] fetch_products called")
 	var result = await _fetch_products_raw(request.to_dict())
@@ -381,7 +381,7 @@ func _fetch_products_raw(request: Dictionary) -> Dictionary:
 ## [b]Warning:[/b] Event-based. Connect to [signal purchase_updated] /
 ## [signal purchase_error] before calling this.
 ##
-## See: https://www.openiap.dev/docs/apis/request-purchase
+## See: https://openiap.dev/docs/apis/request-purchase
 func request_purchase(props) -> Variant:
 	var result = _request_purchase_raw(props.to_dict())
 	if result.get("success", false):
@@ -393,7 +393,7 @@ func request_purchase(props) -> Variant:
 
 ## Internal: Request a purchase with raw Dictionary
 func _request_purchase_raw(args: Dictionary) -> Dictionary:
-	print("[GodotIap] _request_purchase_raw called with: ", args)
+	print("[GodotIap] _request_purchase_raw called")
 	if not _native_plugin:
 		print("[GodotIap] ERROR: Native plugin not available. Cannot make purchases.")
 		purchase_error.emit({ "code": "not-prepared", "message": "Native plugin not available" })
@@ -418,7 +418,7 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 			"replacementModeAndroid": google_props.get("replacementModeAndroid", 0),
 		}
 		var params_json = JSON.stringify(params)
-		print("[GodotIap] Calling Android requestPurchase with: ", params_json)
+		print("[GodotIap] Calling Android requestPurchase: type=", purchase_type, ", skus=", params["skus"].size(), ", subscriptionOffers=", params["subscriptionOffers"].size(), ", hasPurchaseToken=", not str(params["purchaseTokenAndroid"]).is_empty())
 		result_raw = _native_plugin.call("requestPurchase", params_json)
 		# Android: null means the purchase dialog was launched, result comes via signal
 		if result_raw == null:
@@ -440,14 +440,14 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 		return { "success": false, "error": err_msg }
 
 	var result_json = str(result_raw)
-	print("[GodotIap] requestPurchase result: ", result_json)
+	print("[GodotIap] requestPurchase result received")
 	var result = JSON.parse_string(result_json)
 	if result is Dictionary:
 		if not result.get("success", false) and result.has("error"):
 			print("[GodotIap] requestPurchase error: ", result.get("error"))
 			purchase_error.emit({ "code": result.get("code", "unknown"), "message": result.get("error", "Unknown error") })
 		return result
-	print("[GodotIap] requestPurchase parse error for: ", result_json)
+	print("[GodotIap] requestPurchase parse error")
 	return { "success": false, "error": "Failed to parse response" }
 
 ## Complete a purchase transaction. Call after server-side verification.
@@ -463,7 +463,7 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 ## [b]Critical:[/b] Android purchases must be finalized within 3 days or Google auto-refunds.
 ## iOS unfinished transactions replay on every app launch.
 ##
-## See: https://www.openiap.dev/docs/apis/finish-transaction
+## See: https://openiap.dev/docs/apis/finish-transaction
 func finish_transaction(purchase, is_consumable: bool = false) -> Variant:
 	print("[GodotIap] finish_transaction called, consumable: ", is_consumable)
 	var result = _finish_transaction_raw(purchase.to_dict(), is_consumable)
@@ -481,7 +481,7 @@ func finish_transaction_dict(purchase: Dictionary, is_consumable: bool = false) 
 
 ## Internal: Finish transaction with raw Dictionary
 func _finish_transaction_raw(purchase: Dictionary, is_consumable: bool) -> Dictionary:
-	print("[GodotIap] _finish_transaction_raw called with: ", purchase, ", consumable: ", is_consumable)
+	print("[GodotIap] _finish_transaction_raw called for productId=", purchase.get("productId", ""), ", consumable: ", is_consumable)
 
 	if not _native_plugin:
 		return { "success": true }
@@ -494,11 +494,11 @@ func _finish_transaction_raw(purchase: Dictionary, is_consumable: bool) -> Dicti
 			return { "success": false, "error": "Product ID is required", "code": Types.ErrorCode.DEVELOPER_ERROR }
 
 		var purchase_json = JSON.stringify(purchase)
-		print("[GodotIap] Calling Android finishTransaction with: ", purchase_json, ", isConsumable: ", is_consumable)
+		print("[GodotIap] Calling Android finishTransaction for productId=", product_id, ", isConsumable: ", is_consumable)
 
 		# Note: has_method() doesn't work reliably with JNISingleton, so we call directly
 		var result_json = _native_plugin.call("finishTransaction", purchase_json, is_consumable)
-		print("[GodotIap] finishTransaction result: ", result_json)
+		print("[GodotIap] finishTransaction result received")
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
 			return result
@@ -507,9 +507,9 @@ func _finish_transaction_raw(purchase: Dictionary, is_consumable: bool) -> Dicti
 	elif _platform == "iOS":
 		var args = { "purchase": purchase, "isConsumable": is_consumable }
 		var args_json = JSON.stringify(args)
-		print("[GodotIap] Calling finishTransaction with: ", args_json)
+		print("[GodotIap] Calling finishTransaction for productId=", purchase.get("productId", ""), ", isConsumable: ", is_consumable)
 		var result_json = _native_plugin.call("finishTransaction", args_json)
-		print("[GodotIap] finishTransaction result: ", result_json)
+		print("[GodotIap] finishTransaction result received")
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
 			return result
@@ -522,7 +522,7 @@ func _finish_transaction_raw(purchase: Dictionary, is_consumable: bool) -> Dicti
 ## Android: Simply fetches available purchases.
 ## @return Types.VoidResult
 ##
-## See: https://www.openiap.dev/docs/apis/restore-purchases
+## See: https://openiap.dev/docs/apis/restore-purchases
 func restore_purchases() -> Variant:
 	print("[GodotIap] restore_purchases called")
 
@@ -550,7 +550,7 @@ func restore_purchases() -> Variant:
 ##         await iap.finish_transaction(purchase, false)
 ## [/codeblock]
 ##
-## See: https://www.openiap.dev/docs/apis/get-available-purchases
+## See: https://openiap.dev/docs/apis/get-available-purchases
 func get_available_purchases(options = null) -> Array:
 	print("[GodotIap] get_available_purchases called")
 	var raw_purchases = _get_available_purchases_raw()
@@ -586,7 +586,7 @@ func _get_available_purchases_raw() -> Array:
 ## @param subscription_ids: Array[String] - optional array of subscription IDs to filter
 ## @return Array[Types.ActiveSubscription]
 ##
-## See: https://www.openiap.dev/docs/apis/get-active-subscriptions
+## See: https://openiap.dev/docs/apis/get-active-subscriptions
 func get_active_subscriptions(subscription_ids: Array[String] = []) -> Array:
 	print("[GodotIap] get_active_subscriptions called")
 	var raw_subs = _get_active_subscriptions_raw(subscription_ids)
@@ -616,7 +616,7 @@ func _get_active_subscriptions_raw(subscription_ids: Array = []) -> Array:
 ## @param subscription_ids: Array[String] - optional array of subscription IDs to check
 ## @return bool - true if any subscription is active
 ##
-## See: https://www.openiap.dev/docs/apis/has-active-subscriptions
+## See: https://openiap.dev/docs/apis/has-active-subscriptions
 func has_active_subscriptions(subscription_ids: Array[String] = []) -> bool:
 	print("[GodotIap] has_active_subscriptions called")
 	if _native_plugin and (_platform == "Android" or _platform == "iOS"):
@@ -639,7 +639,7 @@ func has_active_subscriptions(subscription_ids: Array[String] = []) -> bool:
 ## Get the current storefront country code.
 ## @return String - country code (e.g., "US")
 ##
-## See: https://www.openiap.dev/docs/apis/get-storefront
+## See: https://openiap.dev/docs/apis/get-storefront
 func get_storefront() -> String:
 	print("[GodotIap] get_storefront called")
 	if _native_plugin:
@@ -664,7 +664,7 @@ func get_storefront() -> String:
 ## @param props: Types.VerifyPurchaseProps - verification properties
 ## @return Types.VerifyPurchaseResultIOS or Types.VerifyPurchaseResultAndroid, or null on failure
 ##
-## See: https://www.openiap.dev/docs/features/validation#verify-purchase
+## See: https://openiap.dev/docs/features/validation#verify-purchase
 func verify_purchase(props) -> Variant:
 	print("[GodotIap] verify_purchase called")
 	var result = _verify_purchase_raw(props.to_dict())
@@ -690,7 +690,7 @@ func _verify_purchase_raw(props: Dictionary) -> Dictionary:
 ## @param props: Types.VerifyPurchaseWithProviderProps - provider verification properties
 ## @return Types.VerifyPurchaseWithProviderResult
 ##
-## See: https://www.openiap.dev/docs/features/validation#verify-purchase-with-provider
+## See: https://openiap.dev/docs/features/validation#verify-purchase-with-provider
 func verify_purchase_with_provider(props) -> Variant:
 	print("[GodotIap] verify_purchase_with_provider called")
 	var result = _verify_purchase_with_provider_raw(props.to_dict())
@@ -715,7 +715,7 @@ func _verify_purchase_with_provider_raw(props: Dictionary) -> Dictionary:
 ## Sync with App Store (iOS only).
 ## @return Types.VoidResult
 ##
-## See: https://www.openiap.dev/docs/apis/ios/sync-ios
+## See: https://openiap.dev/docs/apis/ios/sync-ios
 func sync_ios() -> Variant:
 	var result = Types.VoidResult.new()
 	result.success = false
@@ -729,7 +729,7 @@ func sync_ios() -> Variant:
 ## Clear pending transactions from the StoreKit payment queue (iOS only).
 ## @return Types.VoidResult
 ##
-## See: https://www.openiap.dev/docs/apis/ios/clear-transaction-ios
+## See: https://openiap.dev/docs/apis/ios/clear-transaction-ios
 func clear_transaction_ios() -> Variant:
 	var result = Types.VoidResult.new()
 	result.success = false
@@ -743,7 +743,7 @@ func clear_transaction_ios() -> Variant:
 ## Get pending transactions (iOS only).
 ## @return Array[Types.PurchaseIOS]
 ##
-## See: https://www.openiap.dev/docs/apis/ios/get-pending-transactions-ios
+## See: https://openiap.dev/docs/apis/ios/get-pending-transactions-ios
 func get_pending_transactions_ios() -> Array:
 	var purchases: Array = []
 	if _native_plugin and _platform == "iOS":
@@ -762,7 +762,7 @@ func get_pending_transactions_ios() -> Array:
 ## Requires SK2ConsumableTransactionHistory Info.plist key for finished consumables (iOS 18+).
 ## @return Array of Types.PurchaseIOS
 ##
-## See: https://www.openiap.dev/docs/apis/ios/get-all-transactions-ios
+## See: https://openiap.dev/docs/apis/ios/get-all-transactions-ios
 func get_all_transactions_ios() -> Array:
 	var purchases: Array = []
 	if _native_plugin and _platform == "iOS":
@@ -780,7 +780,7 @@ func get_all_transactions_ios() -> Array:
 ## Present code redemption sheet (iOS only).
 ## @return Types.VoidResult
 ##
-## See: https://www.openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
+## See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
 func present_code_redemption_sheet_ios() -> Variant:
 	var result = Types.VoidResult.new()
 	result.success = false
@@ -794,7 +794,7 @@ func present_code_redemption_sheet_ios() -> Variant:
 ## Show manage subscriptions UI (iOS only).
 ## @return Array[Types.PurchaseIOS] - changed purchases
 ##
-## See: https://www.openiap.dev/docs/apis/ios/show-manage-subscriptions-ios
+## See: https://openiap.dev/docs/apis/ios/show-manage-subscriptions-ios
 func show_manage_subscriptions_ios() -> Array:
 	var purchases: Array = []
 	if _native_plugin and _platform == "iOS":
@@ -813,7 +813,7 @@ func show_manage_subscriptions_ios() -> Array:
 ## @param product_id: String - the product ID to request refund for
 ## @return Types.RefundResultIOS
 ##
-## See: https://www.openiap.dev/docs/apis/ios/begin-refund-request-ios
+## See: https://openiap.dev/docs/apis/ios/begin-refund-request-ios
 func begin_refund_request_ios(product_id: String) -> Variant:
 	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.call("beginRefundRequestIOS", product_id)
@@ -827,7 +827,7 @@ func begin_refund_request_ios(product_id: String) -> Variant:
 ## @param sku: String - product SKU
 ## @return Types.PurchaseIOS or null
 ##
-## See: https://www.openiap.dev/docs/apis/ios/current-entitlement-ios
+## See: https://openiap.dev/docs/apis/ios/current-entitlement-ios
 func current_entitlement_ios(sku: String) -> Variant:
 	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.call("currentEntitlementIOS", sku)
@@ -844,7 +844,7 @@ func current_entitlement_ios(sku: String) -> Variant:
 ## @param sku: String - product SKU
 ## @return Types.PurchaseIOS or null
 ##
-## See: https://www.openiap.dev/docs/apis/ios/latest-transaction-ios
+## See: https://openiap.dev/docs/apis/ios/latest-transaction-ios
 func latest_transaction_ios(sku: String) -> Variant:
 	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.call("latestTransactionIOS", sku)
@@ -860,7 +860,7 @@ func latest_transaction_ios(sku: String) -> Variant:
 ## Get app transaction (iOS 16+).
 ## @return Types.AppTransaction or null
 ##
-## See: https://www.openiap.dev/docs/apis/ios/get-app-transaction-ios
+## See: https://openiap.dev/docs/apis/ios/get-app-transaction-ios
 func get_app_transaction_ios() -> Variant:
 	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.call("getAppTransactionIOS")
@@ -876,7 +876,7 @@ func get_app_transaction_ios() -> Variant:
 ## @param sku: String - product SKU
 ## @return Array[Types.SubscriptionStatusIOS]
 ##
-## See: https://www.openiap.dev/docs/apis/ios/subscription-status-ios
+## See: https://openiap.dev/docs/apis/ios/subscription-status-ios
 func subscription_status_ios(sku: String) -> Array:
 	var statuses: Array = []
 	if _native_plugin and _platform == "iOS":
@@ -895,7 +895,7 @@ func subscription_status_ios(sku: String) -> Array:
 ## @param group_id: String - subscription group ID
 ## @return bool - true if eligible for introductory offer
 ##
-## See: https://www.openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios
+## See: https://openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios
 func is_eligible_for_intro_offer_ios(group_id: String) -> bool:
 	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.call("isEligibleForIntroOfferIOS", group_id)
@@ -907,7 +907,7 @@ func is_eligible_for_intro_offer_ios(group_id: String) -> bool:
 ## Get promoted product (iOS only).
 ## @return Types.ProductIOS or null
 ##
-## See: https://www.openiap.dev/docs/apis/ios/get-promoted-product-ios
+## See: https://openiap.dev/docs/apis/ios/get-promoted-product-ios
 func get_promoted_product_ios() -> Variant:
 	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.call("getPromotedProductIOS")
@@ -923,7 +923,7 @@ func get_promoted_product_ios() -> Variant:
 ## Request purchase on promoted product (iOS only).
 ## @return Types.VoidResult
 ##
-## See: https://www.openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios
+## See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios
 func request_purchase_on_promoted_product_ios() -> Variant:
 	var result = Types.VoidResult.new()
 	result.success = false
@@ -937,7 +937,7 @@ func request_purchase_on_promoted_product_ios() -> Variant:
 ## Check if can present external purchase notice (iOS 18.2+).
 ## @return bool - true if external purchase notice can be presented
 ##
-## See: https://www.openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
+## See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
 func can_present_external_purchase_notice_ios() -> bool:
 	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.call("canPresentExternalPurchaseNoticeIOS")
@@ -949,7 +949,7 @@ func can_present_external_purchase_notice_ios() -> bool:
 ## Present external purchase notice sheet (iOS 18.2+).
 ## @return Types.ExternalPurchaseNoticeResultIOS
 ##
-## See: https://www.openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
+## See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
 func present_external_purchase_notice_sheet_ios() -> Variant:
 	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.call("presentExternalPurchaseNoticeSheetIOS")
@@ -963,7 +963,7 @@ func present_external_purchase_notice_sheet_ios() -> Variant:
 ## @param url: String - external purchase URL
 ## @return Types.ExternalPurchaseLinkResultIOS
 ##
-## See: https://www.openiap.dev/docs/apis/ios/present-external-purchase-link-ios
+## See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
 func present_external_purchase_link_ios(url: String) -> Variant:
 	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.call("presentExternalPurchaseLinkIOS", url)
@@ -976,7 +976,7 @@ func present_external_purchase_link_ios(url: String) -> Variant:
 ## Get receipt data (iOS only).
 ## @return String - receipt data as base64
 ##
-## See: https://www.openiap.dev/docs/apis/ios/get-receipt-data-ios
+## See: https://openiap.dev/docs/apis/ios/get-receipt-data-ios
 func get_receipt_data_ios() -> String:
 	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.call("getReceiptDataIOS")
@@ -989,7 +989,7 @@ func get_receipt_data_ios() -> String:
 ## @param sku: String - product SKU
 ## @return bool - true if transaction is verified
 ##
-## See: https://www.openiap.dev/docs/apis/ios/is-transaction-verified-ios
+## See: https://openiap.dev/docs/apis/ios/is-transaction-verified-ios
 func is_transaction_verified_ios(sku: String) -> bool:
 	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.call("isTransactionVerifiedIOS", sku)
@@ -1002,7 +1002,7 @@ func is_transaction_verified_ios(sku: String) -> bool:
 ## @param sku: String - product SKU
 ## @return String - JWS representation of the transaction
 ##
-## See: https://www.openiap.dev/docs/apis/ios/get-transaction-jws-ios
+## See: https://openiap.dev/docs/apis/ios/get-transaction-jws-ios
 func get_transaction_jws_ios(sku: String) -> String:
 	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.call("getTransactionJwsIOS", sku)
@@ -1040,7 +1040,7 @@ func _parse_request_id(pending_json) -> String:
 ## @deprecated Prefer cross-platform get_storefront() which also works on iOS.
 ## @return String ISO 3166-1 alpha-2 country code, or empty string on failure
 ##
-## See: https://www.openiap.dev/docs/apis/ios/get-storefront-ios
+## See: https://openiap.dev/docs/apis/ios/get-storefront-ios
 func get_storefront_ios() -> String:
 	if not (_native_plugin and _platform == "iOS"):
 		return ""
@@ -1058,7 +1058,7 @@ func get_storefront_ios() -> String:
 ## @param props: Types.VerifyPurchaseProps with `apple: {sku: String}` set
 ## @return Variant Types.VerifyPurchaseResultIOS on success, null otherwise
 ##
-## See: https://www.openiap.dev/docs/apis/ios/validate-receipt-ios
+## See: https://openiap.dev/docs/apis/ios/validate-receipt-ios
 func validate_receipt_ios(props) -> Variant:
 	if not (_native_plugin and _platform == "iOS"):
 		return null
@@ -1079,7 +1079,7 @@ func validate_receipt_ios(props) -> Variant:
 ## @param props: Types.VerifyPurchaseProps with platform-specific fields
 ## @return Variant Types.VerifyPurchaseResultIOS | Types.VerifyPurchaseResultAndroid | null
 ##
-## See: https://www.openiap.dev/docs/apis/validate-receipt
+## See: https://openiap.dev/docs/apis/validate-receipt
 func validate_receipt(props) -> Variant:
 	if _platform == "iOS":
 		return await validate_receipt_ios(props)
@@ -1097,7 +1097,7 @@ func validate_receipt(props) -> Variant:
 ## returns false on any error.
 ## @return bool true if the current context can show external purchase custom link
 ##
-## See: https://www.openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
+## See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
 func is_eligible_for_external_purchase_custom_link_ios() -> bool:
 	if not (_native_plugin and _platform == "iOS"):
 		return false
@@ -1115,7 +1115,7 @@ func is_eligible_for_external_purchase_custom_link_ios() -> bool:
 ## @param token_type: String "acquisition" | "services"
 ## @return Variant Types.ExternalPurchaseCustomLinkTokenResultIOS or null
 ##
-## See: https://www.openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios
+## See: https://openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios
 func get_external_purchase_custom_link_token_ios(token_type: String) -> Variant:
 	if not (_native_plugin and _platform == "iOS"):
 		return null
@@ -1136,7 +1136,7 @@ func get_external_purchase_custom_link_token_ios(token_type: String) -> Variant:
 ## @param notice_type: String "browser"
 ## @return Variant Types.ExternalPurchaseCustomLinkNoticeResultIOS or null
 ##
-## See: https://www.openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios
+## See: https://openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios
 func show_external_purchase_custom_link_notice_ios(notice_type: String) -> Variant:
 	if not (_native_plugin and _platform == "iOS"):
 		return null
@@ -1158,7 +1158,7 @@ func show_external_purchase_custom_link_notice_ios(notice_type: String) -> Varia
 ## @param purchase_token: String - the purchase token to acknowledge
 ## @return Types.VoidResult
 ##
-## See: https://www.openiap.dev/docs/apis/android/acknowledge-purchase-android
+## See: https://openiap.dev/docs/apis/android/acknowledge-purchase-android
 func acknowledge_purchase_android(purchase_token: String) -> Variant:
 	var result = _acknowledge_purchase_android_raw(purchase_token)
 	return Types.VoidResult.from_dict(result)
@@ -1179,7 +1179,7 @@ func _acknowledge_purchase_android_raw(purchase_token: String) -> Dictionary:
 ## @param purchase_token: String - the purchase token to consume
 ## @return Types.VoidResult
 ##
-## See: https://www.openiap.dev/docs/apis/android/consume-purchase-android
+## See: https://openiap.dev/docs/apis/android/consume-purchase-android
 func consume_purchase_android(purchase_token: String) -> Variant:
 	var result = _consume_purchase_android_raw(purchase_token)
 	return Types.VoidResult.from_dict(result)
@@ -1199,7 +1199,7 @@ func _consume_purchase_android_raw(purchase_token: String) -> Dictionary:
 ## Check alternative billing availability (Android).
 ## @return Types.BillingProgramAvailabilityResultAndroid
 ##
-## See: https://www.openiap.dev/docs/apis/android/check-alternative-billing-availability-android
+## See: https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android
 func check_alternative_billing_availability_android() -> Variant:
 	if _native_plugin and _platform == "Android":
 		var result_json = _native_plugin.call("checkAlternativeBillingAvailabilityAndroid")
@@ -1213,7 +1213,7 @@ func check_alternative_billing_availability_android() -> Variant:
 ## Show alternative billing dialog (Android).
 ## @return Types.UserChoiceBillingDetails
 ##
-## See: https://www.openiap.dev/docs/apis/android/show-alternative-billing-dialog-android
+## See: https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android
 func show_alternative_billing_dialog_android() -> Variant:
 	if _native_plugin and _platform == "Android":
 		var result_json = _native_plugin.call("showAlternativeBillingDialogAndroid")
@@ -1226,7 +1226,7 @@ func show_alternative_billing_dialog_android() -> Variant:
 ## Create alternative billing token (Android).
 ## @return Types.BillingProgramReportingDetailsAndroid
 ##
-## See: https://www.openiap.dev/docs/apis/android/create-alternative-billing-token-android
+## See: https://openiap.dev/docs/apis/android/create-alternative-billing-token-android
 func create_alternative_billing_token_android() -> Variant:
 	if _native_plugin and _platform == "Android":
 		var result_json = _native_plugin.call("createAlternativeBillingTokenAndroid")
@@ -1240,7 +1240,7 @@ func create_alternative_billing_token_android() -> Variant:
 ## @param billing_program: Types.BillingProgramAndroid - billing program enum value
 ## @return Types.BillingProgramAvailabilityResultAndroid
 ##
-## See: https://www.openiap.dev/docs/apis/android/is-billing-program-available-android
+## See: https://openiap.dev/docs/apis/android/is-billing-program-available-android
 func is_billing_program_available_android(billing_program) -> Variant:
 	if _native_plugin and _platform == "Android":
 		var result_json = _native_plugin.call("isBillingProgramAvailableAndroid", billing_program)
@@ -1256,7 +1256,7 @@ func is_billing_program_available_android(billing_program) -> Variant:
 ## @param params: Types.LaunchExternalLinkParamsAndroid - external link parameters
 ## @return Types.VoidResult
 ##
-## See: https://www.openiap.dev/docs/apis/android/launch-external-link-android
+## See: https://openiap.dev/docs/apis/android/launch-external-link-android
 func launch_external_link_android(params) -> Variant:
 	if _native_plugin and _platform == "Android":
 		var params_json = JSON.stringify(params.to_dict())
@@ -1272,7 +1272,7 @@ func launch_external_link_android(params) -> Variant:
 ## @param billing_program: Types.BillingProgramAndroid - billing program enum value
 ## @return Types.BillingProgramReportingDetailsAndroid
 ##
-## See: https://www.openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
+## See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
 func create_billing_program_reporting_details_android(billing_program) -> Variant:
 	if _native_plugin and _platform == "Android":
 		var result_json = _native_plugin.call("createBillingProgramReportingDetailsAndroid", billing_program)
@@ -1298,7 +1298,7 @@ func get_package_name_android() -> String:
 ## @param options: Types.DeepLinkOptions or null - optional deep link configuration
 ## @return void
 ##
-## See: https://www.openiap.dev/docs/apis/deep-link-to-subscriptions
+## See: https://openiap.dev/docs/apis/deep-link-to-subscriptions
 func deep_link_to_subscriptions(options = null) -> void:
 	var opts = options if options != null else Types.DeepLinkOptions.new()
 	if _native_plugin and (_platform == "Android" or _platform == "iOS"):

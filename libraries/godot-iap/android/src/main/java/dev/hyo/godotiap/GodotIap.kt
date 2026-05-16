@@ -304,12 +304,6 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                             put("userCancelled", true)
                         }.toString()
                     }
-                    else -> {
-                        JSONObject().apply {
-                            put("success", false)
-                            put("error", "Unknown result type")
-                        }.toString()
-                    }
                 }
             } catch (e: OpenIapError.PurchaseCancelled) {
                 GodotIapLog.debug("requestPurchase cancelled by user")

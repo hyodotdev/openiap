@@ -12,9 +12,10 @@ export default function ApiReferencePage() {
       description="POST /v1/purchase/verify — request shapes, responses, errors, headers."
     >
       <p>
-        IAPKit exposes exactly one endpoint. Every interaction with the service
-        from your backend goes through it. The full OpenAPI spec is also served
-        at{" "}
+        IAPKit exposes one core purchase-verification endpoint for your backend:
+        <code> POST /v1/purchase/verify</code>. Webhooks, subscription state,
+        and product-catalog operations live on separate project-scoped surfaces.
+        The full OpenAPI spec is also served at{" "}
         <a
           href="/v1"
           className="text-primary underline"
@@ -38,7 +39,7 @@ export default function ApiReferencePage() {
       <h2 className="mt-8 text-2xl font-semibold">Authentication</h2>
       <p>Every request must include a Bearer API key:</p>
       <CodeBlock title="Authorization header" language="http">
-        {`Authorization: Bearer openiap-kit_<your-project-key>`}
+        {`Authorization: Bearer openiap-kit_<your-key>`}
       </CodeBlock>
       <p>
         Missing header → <code>401 MISSING_API_KEY</code>. Wrong scheme or
@@ -82,12 +83,14 @@ export default function ApiReferencePage() {
 }`}
       </CodeBlock>
 
-      <Callout kind="note" title="Empty or oversized fields return 400">
+      <Callout kind="note" title="Malformed inputs stop at the edge">
         <p>
-          Every string field is validated server-side for non-empty + per-field
-          length bounds. Oversized payloads return{" "}
-          <code>400 INVALID_INPUT</code> <em>before</em> IAPKit calls Apple /
-          Google / Meta, so malformed clients don't burn your upstream quota.
+          The JSON body is capped at 32 KB before parsing. Every string field is
+          then validated server-side for non-empty + per-field length bounds.
+          Oversized fields return <code>400 INVALID_INPUT</code>; oversized
+          request bodies return <code>413 PAYLOAD_TOO_LARGE</code>. Neither path
+          calls Apple / Google / Meta, so malformed clients don't burn your
+          upstream quota.
         </p>
       </Callout>
 
@@ -225,6 +228,13 @@ export default function ApiReferencePage() {
               </td>
             </tr>
             <tr>
+              <td className="px-3 py-2 font-mono text-xs">413</td>
+              <td className="px-3 py-2 font-mono text-xs">PAYLOAD_TOO_LARGE</td>
+              <td className="px-3 py-2">
+                Request body exceeds the 32 KB edge cap.
+              </td>
+            </tr>
+            <tr>
               <td className="px-3 py-2 font-mono text-xs">401</td>
               <td className="px-3 py-2 font-mono text-xs">MISSING_API_KEY</td>
               <td className="px-3 py-2">No Authorization header.</td>
@@ -238,9 +248,16 @@ export default function ApiReferencePage() {
             </tr>
             <tr>
               <td className="px-3 py-2 font-mono text-xs">429</td>
-              <td className="px-3 py-2 font-mono text-xs">RATE_LIMITED</td>
+              <td className="px-3 py-2 font-mono text-xs">
+                RATE_LIMITED
+                <br />
+                DUPLICATE_PAYLOAD
+                <br />
+                REPEATED_FAILURE
+              </td>
               <td className="px-3 py-2">
-                Per-key burst bucket empty; check Retry-After.
+                Per-key or per-payload guard rejected the request; check
+                Retry-After.
               </td>
             </tr>
             <tr>

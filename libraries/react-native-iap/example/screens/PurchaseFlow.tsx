@@ -724,10 +724,10 @@ function PurchaseFlowContainer() {
                   iapkit: {
                     apiKey: '***hidden***',
                     ...(Platform.OS === 'ios'
-                      ? {apple: {jws: `${jwsOrToken.substring(0, 50)}...`}}
+                      ? {apple: {jws: jwsOrToken}}
                       : {
                           google: {
-                            purchaseToken: `${jwsOrToken.substring(0, 50)}...`,
+                            purchaseToken: jwsOrToken,
                           },
                         }),
                   },
@@ -772,7 +772,7 @@ function PurchaseFlowContainer() {
       // ──────────────────────────────────────────────────────────────────────
       // Step 5: GRANT ENTITLEMENT
       // ──────────────────────────────────────────────────────────────────────
-      // TODO: In production, update your backend here:
+      // Production integration point:
       // - Save purchase record to database
       // - Unlock premium features for user
       // - Update user's subscription status

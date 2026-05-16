@@ -3,6 +3,21 @@ import Resend from "@auth/core/providers/resend";
 import { alphabet, generateRandomString } from "oslo/crypto";
 import { Resend as ResendAPI } from "resend";
 
+function describeErrorForLog(error: unknown): string {
+  if (error instanceof Error) return error.name;
+  if (error && typeof error === "object" && "name" in error) {
+    const name = (error as { name?: unknown }).name;
+    if (typeof name === "string") return name;
+  }
+  return typeof error;
+}
+
+function emailDomainForLog(email: string): string {
+  const atIndex = email.lastIndexOf("@");
+  if (atIndex < 0 || atIndex === email.length - 1) return "(invalid email)";
+  return `*@${email.slice(atIndex + 1)}`;
+}
+
 const createOTPEmailTemplate = (code: string, lang: "en" | "ko" | "ja") => {
   const messages = {
     en: {
@@ -234,8 +249,8 @@ const createResendOTPProvider = (locale: OTPLocale) =>
       });
 
       if (error) {
-        console.error("Resend API error:", error);
-        console.error("Failed to send email to:", email);
+        console.error("Resend API error:", describeErrorForLog(error));
+        console.error("Failed to send OTP email:", emailDomainForLog(email));
         throw new Error(messages.sendFailed);
       }
     },

@@ -1,14 +1,50 @@
 import groovy.json.JsonSlurper
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 buildscript {
+  def googleRootBuildFile = [
+    new File(projectDir, '../../../packages/google/build.gradle.kts'),
+    new File(rootDir, '../../../packages/google/build.gradle.kts'),
+    new File(rootProject.projectDir, '../../../packages/google/build.gradle.kts')
+  ].find { it.exists() }
+
+  def googlePluginVersion = { pluginId ->
+    if (googleRootBuildFile == null) {
+      return null
+    }
+    def marker = "id(\"${pluginId}\") version \""
+    def line = googleRootBuildFile.readLines().find { it.contains(marker) }
+    if (line == null) {
+      return null
+    }
+    def matcher = line =~ /version "([^"]+)"/
+    return matcher.find() ? matcher.group(1) : null
+  }
+
+  def configuredVersion = { extName, propertyName ->
+    if (rootProject.ext.has(extName)) {
+      return rootProject.ext.get(extName).toString()
+    }
+    def propertyValue = project.findProperty(propertyName)
+    if (propertyValue == null || propertyValue.toString().trim().isEmpty()) {
+      throw new GradleException("react-native-iap: missing ${propertyName} in android/gradle.properties")
+    }
+    return propertyValue.toString()
+  }
+
+  def androidGradlePluginVersion = googlePluginVersion('com.android.library')
+      ?: configuredVersion('androidGradlePluginVersion', 'NitroIap_androidGradlePluginVersion')
+  def kotlinGradlePluginVersion = googlePluginVersion('org.jetbrains.kotlin.android')
+      ?: configuredVersion('kotlinVersion', 'NitroIap_kotlinVersion')
+
   repositories {
     google()
     mavenCentral()
   }
 
   dependencies {
-    classpath "com.android.tools.build:gradle:8.12.1"
-    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.20"
+    classpath "com.android.tools.build:gradle:$androidGradlePluginVersion"
+    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinGradlePluginVersion"
   }
 }
 
@@ -45,9 +81,6 @@ def googleVersionString = googleVersion.trim()
 apply plugin: "com.android.library"
 apply plugin: 'org.jetbrains.kotlin.android'
 
-// Get kotlinVersion from root project or use default
-def kotlinVersion = rootProject.ext.has('kotlinVersion') ? rootProject.ext.get('kotlinVersion') : '2.0.21'
-
 // Only apply Nitro autolinking if the file exists
 def nitroAutolinkingFile = file('../nitrogen/generated/android/NitroIap+autolinking.gradle')
 if (nitroAutolinkingFile.exists()) {
@@ -63,25 +96,61 @@ apply from: "./fix-prefab.gradle"
 // }
 
 def getExtOrDefault(name) {
-  return rootProject.ext.has(name) ? rootProject.ext.get(name) : project.properties["NitroIap_" + name]
+  def value = rootProject.ext.has(name) ? rootProject.ext.get(name) : project.properties["NitroIap_" + name]
+  if (value == null || value.toString().trim().isEmpty()) {
+    throw new GradleException("react-native-iap: missing NitroIap_${name} in android/gradle.properties")
+  }
+  return value
 }
 
 def getExtOrIntegerDefault(name) {
-  return rootProject.ext.has(name) ? rootProject.ext.get(name) : (project.properties["NitroIap_" + name]).toInteger()
+  return getExtOrDefault(name).toString().toInteger()
 }
 
 // Read horizonEnabled from gradle.properties, default to false (play)
 def horizonEnabled = project.findProperty('horizonEnabled')?.toBoolean() ?: false
 
-android {
-  namespace "com.margelo.nitro.iap"
+def resolveOpenIapGoogleBuildFile() {
+  def candidates = [
+    new File(projectDir, '../../../packages/google/openiap/build.gradle.kts'),
+    new File(rootDir, '../../../packages/google/openiap/build.gradle.kts'),
+    new File(rootProject.projectDir, '../../../packages/google/openiap/build.gradle.kts')
+  ]
+  return candidates.find { it.exists() }
+}
 
-  ndkVersion getExtOrDefault("ndkVersion")
+def readOpenIapGoogleVariable(File buildFile, String variableName) {
+  if (buildFile == null) {
+    return null
+  }
+  def matcher = buildFile.text =~ /val\s+${variableName}\s*=\s*"([^"]+)"/
+  return matcher.find() ? matcher.group(1) : null
+}
+
+def readOpenIapGoogleDependencyVersion(File buildFile, String coordinate) {
+  if (buildFile == null) {
+    return null
+  }
+  def matcher = buildFile.text =~ /${java.util.regex.Pattern.quote(coordinate)}:([^"$)]+)/
+  return matcher.find() ? matcher.group(1) : null
+}
+
+def googleOpenIapBuildFile = resolveOpenIapGoogleBuildFile()
+def coroutinesVersion = readOpenIapGoogleVariable(googleOpenIapBuildFile, 'coroutinesVersion')
+    ?: getExtOrDefault("coroutinesVersion")
+def playServicesBaseVersion = getExtOrDefault("playServicesBaseVersion")
+def junitVersion = readOpenIapGoogleDependencyVersion(googleOpenIapBuildFile, 'junit:junit')
+    ?: getExtOrDefault("junitVersion")
+
+android {
+  namespace = "com.margelo.nitro.iap"
+
+  ndkVersion = getExtOrDefault("ndkVersion")
   compileSdkVersion getExtOrIntegerDefault("compileSdkVersion")
 
   defaultConfig {
-    minSdkVersion getExtOrIntegerDefault("minSdkVersion")
-    targetSdkVersion getExtOrIntegerDefault("targetSdkVersion")
+    minSdkVersion = getExtOrIntegerDefault("minSdkVersion")
+    targetSdkVersion = getExtOrIntegerDefault("targetSdkVersion")
     buildConfigField "boolean", "IS_NEW_ARCHITECTURE_ENABLED", isNewArchitectureEnabled().toString()
     // Ship consumer keep rules so Nitro HybridObjects aren't stripped in app release builds
     consumerProguardFiles 'consumer-rules.pro'
@@ -136,13 +205,13 @@ android {
   }
 
   buildFeatures {
-    buildConfig true
-    prefab true
+    buildConfig = true
+    prefab = true
   }
 
   buildTypes {
     release {
-      minifyEnabled false
+      minifyEnabled = false
     }
   }
   
@@ -151,16 +220,17 @@ android {
     targetCompatibility JavaVersion.VERSION_17
   }
   
-  // Configure Kotlin compiler to match Java compatibility
-  kotlinOptions {
-    jvmTarget = "17"
-  }
-
   lintOptions {
     disable "GradleCompatible"
   }
 
   // Removed sourceSets configuration for codegen as it's not needed for library modules
+}
+
+kotlin {
+  compilerOptions {
+    jvmTarget.set(JvmTarget.JVM_17)
+  }
 }
 
 repositories {
@@ -181,10 +251,10 @@ dependencies {
   }
 
   // Google Play Services
-  implementation 'com.google.android.gms:play-services-base:18.5.0'
+  implementation "com.google.android.gms:play-services-base:$playServicesBaseVersion"
 
   // Kotlin coroutines
-  implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0'
+  implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutinesVersion"
 
   // Determine which OpenIAP dependency to use
   // In monorepo: use local packages/google source if available
@@ -198,7 +268,7 @@ dependencies {
   }
 
   // Test dependencies
-  testImplementation 'junit:junit:4.13.2'
+  testImplementation "junit:junit:$junitVersion"
   testImplementation 'org.jetbrains.kotlin:kotlin-test'
   testImplementation 'org.jetbrains.kotlin:kotlin-test-junit'
 }

@@ -19,19 +19,12 @@ on:
         required: false
         default: false
         type: boolean
-      create_release:
-        description: "Also create a GitHub Release"
-        required: false
-        default: true
-        type: boolean
-
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
 
 permissions:
   contents: write
-  id-token: write
 
 jobs:
   validate-android:
@@ -49,19 +42,19 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 20.x
+          node-version: 20
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.1.38"
+          bun-version: 1.3.13
 
       - name: Install dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
 
       - name: Install example dependencies
         working-directory: libraries/expo-iap/example
-        run: bun install
+        run: bun install --frozen-lockfile
 
       - name: Install JDK
         uses: actions/setup-java@v5
@@ -95,19 +88,19 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 20.x
+          node-version: 20
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.1.38"
+          bun-version: 1.3.13
 
       - name: Install dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
 
       - name: Install example dependencies
         working-directory: libraries/expo-iap/example
-        run: bun install
+        run: bun install --frozen-lockfile
 
       - name: Set up Xcode
         uses: maxim-lobanov/setup-xcode@v1
@@ -136,6 +129,9 @@ jobs:
 
   deploy:
     needs: [validate-android, validate-ios]
+    permissions:
+      contents: write
+      id-token: write
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -149,13 +145,24 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 20.x
+          node-version: 20
           registry-url: "https://registry.npmjs.org"
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.1.38"
+          bun-version: 1.3.13
+
+      - name: Checkout release tag (current version)
+        if: ${{ inputs.version == 'current' }}
+        run: |
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          RELEASE_TAG="expo-iap-${NEW_VERSION}"
+          if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+            git checkout "$RELEASE_TAG"
+          else
+            echo "Tag $RELEASE_TAG does not exist; current mode will use HEAD."
+          fi
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -202,24 +209,66 @@ jobs:
             echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Check if release tag already exists
+        id: check_tag
+        env:
+          NEW_VERSION: ${{ steps.bump.outputs.version }}
+          VERSION_TYPE: ${{ inputs.version }}
+        run: |
+          RELEASE_TAG="expo-iap-${NEW_VERSION}"
+          if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+            if [ "$VERSION_TYPE" = "current" ]; then
+              echo "exists=true" >> "$GITHUB_OUTPUT"
+              echo "⚠️ Tag $RELEASE_TAG already exists. Will reuse existing tag (current mode)."
+            else
+              echo "exists=true" >> "$GITHUB_OUTPUT"
+              echo "❌ Tag $RELEASE_TAG already exists. Use 'current' to retry this version."
+              exit 1
+            fi
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "✓ Tag $RELEASE_TAG does not exist"
+          fi
+
       - name: Prepare package (build + codegen)
         run: bun run prepare
 
-      - name: Commit and tag
+      - name: Commit version update
         if: ${{ inputs.version != 'current' }}
         run: |
           NEW_VERSION="${{ steps.bump.outputs.version }}"
           git add package.json
           git commit -m "chore(release): expo-iap ${NEW_VERSION}"
-          git tag -a "expo-iap-${NEW_VERSION}" -m "Release expo-iap-${NEW_VERSION}"
 
       - name: Push commit and tags
         if: ${{ inputs.version != 'current' }}
+        env:
+          NEW_VERSION: ${{ steps.bump.outputs.version }}
         run: |
-          git stash --include-untracked
+          STASHED=false
+          if ! git diff --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
+            git stash push --include-untracked -m "release artifacts"
+            STASHED=true
+          fi
           git pull --rebase origin main
-          git stash pop || true
-          git push --follow-tags
+          if [ "$STASHED" = "true" ]; then
+            git stash pop
+          fi
+          git tag -a "expo-iap-${NEW_VERSION}" -m "Release expo-iap-${NEW_VERSION}"
+          git push origin HEAD:main --follow-tags
+
+      - name: Create tag (current version)
+        if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists != 'true' }}
+        env:
+          NEW_VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          TAG_TARGET="HEAD"
+          PUBLISHED_GIT_HEAD=$(npm view "expo-iap@$NEW_VERSION" gitHead 2>/dev/null || true)
+          if [ -n "$PUBLISHED_GIT_HEAD" ] && git cat-file -e "$PUBLISHED_GIT_HEAD^{commit}" 2>/dev/null; then
+            TAG_TARGET="$PUBLISHED_GIT_HEAD"
+          fi
+          git tag -a "expo-iap-${NEW_VERSION}" "$TAG_TARGET" -m "Release expo-iap-${NEW_VERSION}"
+          git push origin "expo-iap-${NEW_VERSION}"
 
       - name: Resolve symlinks for npm publish
         run: |
@@ -229,9 +278,27 @@ jobs:
           fi
 
       - name: Ensure npm CLI v11.5.1 or later (required for OIDC)
-        run: npm install -g npm@latest
+        run: npm install -g npm@11.5.1
+
+      - name: Check if npm package already published
+        id: check_npm
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          if NPM_OUTPUT=$(npm view "expo-iap@$VERSION" version 2>&1); then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "⚠️ expo-iap@$VERSION already exists on npm"
+          elif echo "$NPM_OUTPUT" | grep -qiE 'E404|404 Not Found'; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "✓ expo-iap@$VERSION does not exist, will publish"
+          else
+            echo "❌ Unable to verify expo-iap@$VERSION on npm"
+            echo "$NPM_OUTPUT"
+            exit 1
+          fi
 
       - name: Publish to npm with OIDC trusted publishing
+        if: steps.check_npm.outputs.exists == 'false'
         run: |
           if [ "${{ steps.bump.outputs.is_prerelease }}" = "true" ]; then
             npm publish --tag next --access public --provenance
@@ -240,14 +307,17 @@ jobs:
           fi
 
       - name: Generate release notes
-        if: ${{ inputs.create_release }}
         id: release_notes
         env:
           VERSION: ${{ steps.bump.outputs.version }}
         run: |
+          RELEASE_REF="HEAD"
+          if git rev-parse "expo-iap-$VERSION" >/dev/null 2>&1; then
+            RELEASE_REF="expo-iap-$VERSION"
+          fi
           PREV_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' 'refs/tags/expo-iap-*' | grep -v "$VERSION" | head -n 1)
           if [ -n "$PREV_TAG" ]; then
-            CHANGELOG=$(git log "$PREV_TAG..HEAD" --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- libraries/expo-iap/ packages/google/ packages/apple/)
+            CHANGELOG=$(git log "$PREV_TAG..$RELEASE_REF" --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- libraries/expo-iap/ packages/google/ packages/apple/)
           fi
           if [ -z "$CHANGELOG" ]; then
             CHANGELOG="- No direct code changes — picks up the latest openiap-google / openiap-apple native library updates. See the consolidated release notes for details."
@@ -271,9 +341,9 @@ jobs:
 
           ### Documentation
 
-          - [Setup guide — Expo](https://www.openiap.dev/docs/setup/expo)
-          - [API reference](https://www.openiap.dev/docs/apis)
-          - [Release notes](https://www.openiap.dev/docs/updates/releases)
+          - [Setup guide — Expo](https://openiap.dev/docs/setup/expo)
+          - [API reference](https://openiap.dev/docs/apis)
+          - [Release notes](https://openiap.dev/docs/updates/releases)
 
           ### Links
 
@@ -282,7 +352,6 @@ jobs:
           EOF
 
       - name: Create GitHub Release
-        if: ${{ inputs.create_release }}
         uses: softprops/action-gh-release@v3
         with:
           tag_name: expo-iap-${{ steps.bump.outputs.version }}

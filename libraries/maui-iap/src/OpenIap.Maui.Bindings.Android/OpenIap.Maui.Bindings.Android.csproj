@@ -39,7 +39,7 @@
     <AndroidLibrary Include="..\..\..\..\packages\google\openiap\build\outputs\aar\openiap-play-release.aar" Bind="false" />
   </ItemGroup>
 
-  <!-- Google Play Billing 8.3.0 — pulled directly from Google Maven so we get
+  <!-- Google Play Billing — pulled directly from Google Maven so we get
        the same Java classes that openiap-play-release.aar was compiled
        against. Microsoft's `Xamarin.Android.Google.BillingClient` NuGet at
        8.x upgrades AndroidX to 2.10 (NU1107 vs MAUI 9's pinned 2.8.7), and
@@ -48,25 +48,25 @@
        NoSuchMethodError). The Maven route avoids the NuGet resolver and
        keeps MAUI's AndroidX pins intact. -->
   <ItemGroup>
-    <AndroidMavenLibrary Include="com.android.billingclient:billing" Version="8.3.0" Repository="Google" Bind="false" />
-    <AndroidMavenLibrary Include="com.android.billingclient:billing-ktx" Version="8.3.0" Repository="Google" Bind="false" />
+    <AndroidMavenLibrary Include="com.android.billingclient:billing" Version="$(MauiPlayBillingVersion)" Repository="Google" Bind="false" />
+    <AndroidMavenLibrary Include="com.android.billingclient:billing-ktx" Version="$(MauiPlayBillingVersion)" Repository="Google" Bind="false" />
     <!-- billing 8.x's runtime uses DataTransport for telemetry and several
          Play Services modules. Pulled directly from Google Maven so the
          classes land in the APK without going through Microsoft NuGets
          (which would force AndroidX 2.10 → NU1107 vs MAUI 9). -->
-    <AndroidMavenLibrary Include="com.google.android.datatransport:transport-api" Version="3.0.0" Repository="Google" Bind="false" />
-    <AndroidMavenLibrary Include="com.google.android.datatransport:transport-backend-cct" Version="3.1.8" Repository="Google" Bind="false" />
-    <AndroidMavenLibrary Include="com.google.android.datatransport:transport-runtime" Version="3.1.8" Repository="Google" Bind="false" />
-    <AndroidMavenLibrary Include="com.google.android.gms:play-services-base" Version="18.5.0" Repository="Google" Bind="false" />
-    <AndroidMavenLibrary Include="com.google.android.gms:play-services-basement" Version="18.9.0" Repository="Google" Bind="false" />
-    <AndroidMavenLibrary Include="com.google.android.gms:play-services-location" Version="19.0.0" Repository="Google" Bind="false" />
-    <AndroidMavenLibrary Include="com.google.android.gms:play-services-tasks" Version="18.2.0" Repository="Google" Bind="false" />
-    <AndroidMavenLibrary Include="com.google.code.gson:gson" Version="2.10.1" Bind="false" />
+    <AndroidMavenLibrary Include="com.google.android.datatransport:transport-api" Version="$(MauiGoogleTransportApiVersion)" Repository="Google" Bind="false" />
+    <AndroidMavenLibrary Include="com.google.android.datatransport:transport-backend-cct" Version="$(MauiGoogleTransportBackendCctVersion)" Repository="Google" Bind="false" />
+    <AndroidMavenLibrary Include="com.google.android.datatransport:transport-runtime" Version="$(MauiGoogleTransportRuntimeVersion)" Repository="Google" Bind="false" />
+    <AndroidMavenLibrary Include="com.google.android.gms:play-services-base" Version="$(MauiGooglePlayServicesBaseVersion)" Repository="Google" Bind="false" />
+    <AndroidMavenLibrary Include="com.google.android.gms:play-services-basement" Version="$(MauiGooglePlayServicesBasementVersion)" Repository="Google" Bind="false" />
+    <AndroidMavenLibrary Include="com.google.android.gms:play-services-location" Version="$(MauiGooglePlayServicesLocationVersion)" Repository="Google" Bind="false" />
+    <AndroidMavenLibrary Include="com.google.android.gms:play-services-tasks" Version="$(MauiGooglePlayServicesTasksVersion)" Repository="Google" Bind="false" />
+    <AndroidMavenLibrary Include="com.google.code.gson:gson" Version="$(MauiGsonVersion)" Bind="false" />
 
-    <PackageReference Include="Xamarin.Kotlin.StdLib" Version="2.2.10" />
-    <PackageReference Include="Xamarin.KotlinX.Coroutines.Core" Version="1.9.0.3" />
-    <PackageReference Include="Xamarin.KotlinX.Coroutines.Core.Jvm" Version="1.9.0.3" />
-    <PackageReference Include="Xamarin.KotlinX.Coroutines.Android" Version="1.9.0.3" />
+    <PackageReference Include="Xamarin.Kotlin.StdLib" Version="$(MauiKotlinStdLibVersion)" />
+    <PackageReference Include="Xamarin.KotlinX.Coroutines.Core" Version="$(MauiKotlinCoroutinesVersion)" />
+    <PackageReference Include="Xamarin.KotlinX.Coroutines.Core.Jvm" Version="$(MauiKotlinCoroutinesVersion)" />
+    <PackageReference Include="Xamarin.KotlinX.Coroutines.Android" Version="$(MauiKotlinCoroutinesVersion)" />
   </ItemGroup>
 
   <!-- AndroidX (Activity, Core, Annotation, Fragment, Collection, etc.) come

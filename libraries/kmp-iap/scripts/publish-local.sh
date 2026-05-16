@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 echo "📦 Publishing KMP-IAP to Maven Local"
 echo "===================================="
@@ -10,16 +10,13 @@ VERSION=${1:-"1.0.0-SNAPSHOT"}
 echo "Version: $VERSION"
 echo ""
 
-# Set version in local.properties
-echo "libraryVersion=$VERSION" > local.properties
-
 # Clean and build
 echo "🧹 Cleaning..."
 ./gradlew clean
 
 # Publish to Maven Local
 echo "📤 Publishing to Maven Local..."
-./gradlew :library:publishToMavenLocal
+./gradlew :library:publishToMavenLocal -PlibraryVersion="$VERSION"
 
 echo ""
 echo "✅ Published successfully to Maven Local!"

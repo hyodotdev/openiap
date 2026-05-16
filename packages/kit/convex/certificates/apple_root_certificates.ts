@@ -59,7 +59,10 @@ export function loadAppleRootCertificates(): Buffer[] {
       const buffer = Buffer.from(cert.base64, "base64");
       certificates.push(buffer);
     } catch (error) {
-      console.warn(`❌ Failed to load ${cert.name}:`, error);
+      console.warn(
+        `Failed to load ${cert.name}:`,
+        error instanceof Error ? error.name : typeof error,
+      );
     }
   }
 

@@ -253,7 +253,7 @@ cp OpenIapExample/Info.plist.example OpenIapExample/Info.plist
 
 # Edit Info.plist with your API key
 <key>IAPKIT_API_KEY</key>
-<string>iapkit_your_api_key_here</string>`}</pre>
+<string>openiap-kit_<your-key></string>`}</pre>
                 </div>
 
                 <h3>Local</h3>
@@ -626,7 +626,7 @@ adb install Example/build/outputs/apk/debug/Example-debug.apk`}</pre>
 cp local.properties.example local.properties
 
 # Add your API key
-iapkit.api.key=iapkit_your_api_key_here`}</pre>
+iapkit.api.key=openiap-kit_<your-key>`}</pre>
                 </div>
 
                 <h3>Local</h3>
@@ -706,7 +706,8 @@ android {
                     <code>packages/google/</code> directory
                   </li>
                   <li>
-                    Verify it contains <code>iapkit.api.key=your_key</code>
+                    Verify it contains{' '}
+                    <code>iapkit.api.key=openiap-kit_&lt;your-key&gt;</code>
                   </li>
                   <li>
                     Clean and rebuild:{' '}
@@ -886,24 +887,6 @@ android {
             <pre className="code-block">{`cd libraries/react-native-iap/example
 yarn install
 yarn ios`}</pre>
-            <p
-              style={{
-                fontSize: '0.85rem',
-                margin: '0.75rem 0 0 0',
-                color: 'var(--text-secondary)',
-              }}
-            >
-              Also see the{' '}
-              <a
-                href="https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap/example-expo"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="external-link"
-              >
-                Expo-based example
-              </a>{' '}
-              in the same library.
-            </p>
           </div>
 
           <div

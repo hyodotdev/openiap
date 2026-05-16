@@ -2,6 +2,11 @@ import { query } from "../_generated/server";
 import { v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
 
+import {
+  resolveProjectByApiKeyFromDb,
+  resolveProjectByIdForCurrentUserFromDb,
+} from "../projects/helpers";
+
 const offerShape = v.object({
   id: v.string(),
   kind: v.union(
@@ -84,15 +89,18 @@ function shape(product: Doc<"products">) {
 
 export const listProducts = query({
   args: {
-    apiKey: v.string(),
+    apiKey: v.optional(v.string()),
+    projectId: v.optional(v.id("projects")),
     platform: v.optional(v.union(v.literal("IOS"), v.literal("Android"))),
   },
   returns: v.array(productShape),
   handler: async (ctx, args) => {
-    const project = await ctx.db
-      .query("projects")
-      .withIndex("by_api_key", (q) => q.eq("apiKey", args.apiKey))
-      .unique();
+    const resolved = args.projectId
+      ? await resolveProjectByIdForCurrentUserFromDb(ctx, args.projectId)
+      : args.apiKey
+        ? await resolveProjectByApiKeyFromDb(ctx, args.apiKey)
+        : null;
+    const project = resolved?.project ?? null;
     if (!project) return [];
 
     if (args.platform) {

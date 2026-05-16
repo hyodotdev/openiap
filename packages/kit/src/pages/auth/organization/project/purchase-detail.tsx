@@ -37,6 +37,22 @@ type DetailItem = {
   monospace?: boolean;
 };
 
+function parseJson(value: string): unknown {
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return value;
+  }
+}
+
+function formatJson(value: unknown): string | null {
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return null;
+  }
+}
+
 function DetailSection({
   title,
   items,
@@ -187,26 +203,18 @@ export default function PurchaseDetail() {
     (purchase as { productId?: string | null }).productId ?? null;
 
   const remoteResponse = purchase.remoteResponse
-    ? (JSON.parse(purchase.remoteResponse) as Record<string, any>)
+    ? parseJson(purchase.remoteResponse)
     : undefined;
 
   const formattedRemoteResponse: string | null = (() => {
     if (!purchase.remoteResponse) {
       return null;
     }
-    try {
-      return JSON.stringify(remoteResponse, null, 2);
-    } catch {
-      return purchase.remoteResponse;
-    }
+    return formatJson(remoteResponse);
   })();
 
   const requestPayload = (() => {
-    try {
-      return JSON.stringify(purchase.requestData, null, 2);
-    } catch {
-      return null;
-    }
+    return formatJson(purchase.requestData);
   })();
 
   const requestItems: DetailItem[] = [

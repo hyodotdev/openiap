@@ -4,10 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
-import 'package:flutter_inapp_purchase/extensions/purchase_helpers.dart';
 
 import '../widgets/product_detail_modal.dart';
-import '../widgets/purchase_detail_view.dart';
 import '../constants.dart';
 
 class SubscriptionFlowScreen extends StatefulWidget {
@@ -107,10 +105,7 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
         debugPrint('  Is acknowledged Android: $acknowledgedAndroid');
         debugPrint('  Transaction ID: ${transactionId ?? 'N/A'}');
         final token = purchase.purchaseToken;
-        final maskedToken = token == null
-            ? 'null'
-            : '${token.substring(0, token.length > 10 ? 10 : token.length)}...';
-        debugPrint('  Purchase token: $maskedToken');
+        debugPrint('  Purchase token: ${token ?? 'null'}');
         if (purchase is PurchaseAndroid) {
           debugPrint('  Auto renewing: ${purchase.autoRenewingAndroid}');
         }
@@ -709,8 +704,7 @@ Store: ${iapkitResult.store.value}
           // This is an upgrade/downgrade with proration
           debugPrint(
               'Upgrading subscription with proration mode: $_selectedProrationMode');
-          debugPrint(
-              'Using purchase token: ${_currentActiveSubscription!.purchaseToken}');
+          debugPrint('Using existing purchase token for subscription change');
 
           final requestProps = RequestPurchaseProps.subs((
             apple: null,
@@ -816,8 +810,7 @@ Store: ${iapkitResult.store.value}
       // Use current subscription token if available, otherwise use a test token
       final testToken = _currentActiveSubscription?.purchaseToken ??
           'test_empty_token_${DateTime.now().millisecondsSinceEpoch}';
-      debugPrint(
-          'Using test token: ${testToken.substring(0, testToken.length > 20 ? 20 : testToken.length)}...');
+      debugPrint('Using test token: ${testToken.isEmpty ? 'empty' : testToken}');
 
       // Test with empty string - but pass validation by using a non-empty token
       final requestProps = RequestPurchaseProps.subs((
@@ -936,7 +929,7 @@ Store: ${iapkitResult.store.value}
                     color: (isCurrent
                             ? Colors.green.shade600
                             : Colors.blueGrey.shade600)
-                        .withOpacity(0.1),
+                        .withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
                       color: isCurrent
@@ -1039,7 +1032,7 @@ Store: ${iapkitResult.store.value}
             if (subscription.purchaseToken != null) ...[
               const SizedBox(height: 4),
               Text(
-                'Token: ${subscription.purchaseToken!.substring(0, subscription.purchaseToken!.length > 20 ? 20 : subscription.purchaseToken!.length)}...',
+                'Token: ${subscription.purchaseToken}',
                 style: TextStyle(
                   fontSize: 11,
                   color: Colors.grey.shade600,
@@ -1243,7 +1236,7 @@ Store: ${iapkitResult.store.value}
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          subscription.title ?? subscription.id,
+                          subscription.title,
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -1271,9 +1264,7 @@ Store: ${iapkitResult.store.value}
                     ),
                   ),
                   Text(
-                    subscription.displayPrice ??
-                        subscription.price?.toString() ??
-                        '',
+                    subscription.displayPrice,
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -1284,7 +1275,7 @@ Store: ${iapkitResult.store.value}
               ),
               const SizedBox(height: 8),
               Text(
-                subscription.description ?? 'Subscription tier',
+                subscription.description,
                 style: TextStyle(color: Colors.grey[600]),
               ),
 
@@ -1459,7 +1450,7 @@ Store: ${iapkitResult.store.value}
               padding: const EdgeInsets.all(8.0),
               child: Chip(
                 label: Text(
-                  'Token: ${_currentActiveSubscription!.purchaseToken!.substring(0, _currentActiveSubscription!.purchaseToken!.length > 10 ? 10 : _currentActiveSubscription!.purchaseToken!.length)}...',
+                  'Token: ${_currentActiveSubscription!.purchaseToken}',
                   style: const TextStyle(fontSize: 10),
                 ),
                 backgroundColor: Colors.green,

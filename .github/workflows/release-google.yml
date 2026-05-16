@@ -60,7 +60,7 @@ jobs:
 
   release:
     needs: [validate-android]
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout
@@ -70,13 +70,14 @@ jobs:
 
     - name: Calculate new version
       id: version
+      env:
+        VERSION_TYPE: ${{ github.event.inputs.version }}
+        IS_PRERELEASE: ${{ github.event.inputs.prerelease }}
       run: |
         # Read current google version from openiap-versions.json
         CURRENT_VERSION=$(jq -r '.google' openiap-versions.json)
         echo "Current version: $CURRENT_VERSION"
 
-        VERSION_TYPE="${{ github.event.inputs.version }}"
-        IS_PRERELEASE="${{ github.event.inputs.prerelease }}"
         BASE_VERSION="${CURRENT_VERSION%%-*}"
         IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
 
@@ -143,6 +144,19 @@ jobs:
           echo "✓ Tag google-$VERSION does not exist, proceeding with release"
         fi
 
+    - name: Checkout release tag (current version)
+      if: steps.version.outputs.skip_version_commit == 'true' && steps.check_tag.outputs.exists == 'true'
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        RELEASE_TAG="google-$VERSION"
+        LEGACY_TAG="google-v$VERSION"
+        if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+          git checkout "$RELEASE_TAG"
+        else
+          git checkout "$LEGACY_TAG"
+        fi
+
     - name: Update version in openiap-versions.json
       if: steps.version.outputs.skip_version_commit != 'true'
       working-directory: packages/google
@@ -166,6 +180,7 @@ jobs:
         git config user.email "github-actions[bot]@users.noreply.github.com"
 
         git add openiap-versions.json packages/*/openiap-versions.json
+        git add packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json
 
         if git diff --staged --quiet; then
           echo "No version changes to commit"
@@ -178,30 +193,28 @@ jobs:
             if ! git pull --rebase origin main; then
               echo "⚠️ Rebase conflict detected, auto-resolving version files..."
 
-              # Auto-resolve openiap-versions.json conflicts by applying only our
-              # key on top of theirs. Taking ours wholesale would regress other
-              # packages' versions when a concurrent release landed in between
-              # (race observed 2026-04-24: google bump regressed apple 2.1.3 → 2.1.2).
+              # Auto-resolve version metadata conflicts by applying only our
+              # key on top of upstream. Taking ours wholesale would regress
+              # other packages' versions when a concurrent release landed in
+              # between (race observed 2026-04-24: google bump regressed apple
+              # 2.1.3 → 2.1.2).
               for conflict_file in $(git diff --name-only --diff-filter=U); do
-                if [[ "$conflict_file" == *"openiap-versions.json" ]]; then
-                  git show HEAD:"$conflict_file" > /tmp/theirs.json 2>/dev/null || true
-
-                  if [ -s /tmp/theirs.json ]; then
-                    jq --arg version "$VERSION" '.google = $version' /tmp/theirs.json > /tmp/merged.json
-                    cp /tmp/merged.json "$conflict_file"
-                  else
-                    git checkout --theirs "$conflict_file" 2>/dev/null || git checkout --ours "$conflict_file"
-                  fi
-                  git add "$conflict_file"
-                else
-                  echo "❌ Unexpected conflict in $conflict_file"
-                  exit 1
-                fi
+                case "$conflict_file" in
+                  openiap-versions.json|packages/*/openiap-versions.json|packages/gql/package.json|packages/docs/package.json|packages/google/package.json|packages/apple/package.json)
+                    ;;
+                  *)
+                    echo "❌ Unexpected conflict in $conflict_file"
+                    exit 1
+                    ;;
+                esac
               done
 
-              # Also re-sync docs copy after merge
-              cp openiap-versions.json packages/docs/openiap-versions.json
-              git add packages/docs/openiap-versions.json
+              # Re-sync package metadata and docs copy after merge
+              git show HEAD:openiap-versions.json > /tmp/upstream-openiap-versions.json
+              jq --arg version "$VERSION" '.google = $version' /tmp/upstream-openiap-versions.json > openiap-versions.json
+              ./scripts/sync-versions.sh
+              git add openiap-versions.json packages/*/openiap-versions.json
+              git add packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json
 
               GIT_EDITOR=true git rebase --continue || { echo "❌ Rebase continue failed"; exit 1; }
             fi
@@ -241,13 +254,22 @@ jobs:
       env:
         VERSION: ${{ steps.version.outputs.version }}
       run: |
-        if curl -s "https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google-horizon/$VERSION/" | grep -q "$VERSION"; then
-          echo "exists=true" >> $GITHUB_OUTPUT
-          echo "⚠️ openiap-google-horizon $VERSION already exists on Maven Central"
-        else
-          echo "exists=false" >> $GITHUB_OUTPUT
-          echo "✓ openiap-google-horizon $VERSION does not exist, will publish"
-        fi
+        HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google-horizon/$VERSION/" || true)
+        HTTP_STATUS="${HTTP_STATUS:-000}"
+        case "$HTTP_STATUS" in
+          200)
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "⚠️ openiap-google-horizon $VERSION already exists on Maven Central"
+            ;;
+          404)
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "✓ openiap-google-horizon $VERSION does not exist, will publish"
+            ;;
+          *)
+            echo "❌ Unable to verify openiap-google-horizon $VERSION on Maven Central (HTTP $HTTP_STATUS)"
+            exit 1
+            ;;
+        esac
 
     - name: Publish Horizon flavor to Maven Central
       if: steps.check_horizon.outputs.exists == 'false'
@@ -273,13 +295,22 @@ jobs:
       env:
         VERSION: ${{ steps.version.outputs.version }}
       run: |
-        if curl -s "https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google/$VERSION/" | grep -q "$VERSION"; then
-          echo "exists=true" >> $GITHUB_OUTPUT
-          echo "⚠️ openiap-google $VERSION already exists on Maven Central"
-        else
-          echo "exists=false" >> $GITHUB_OUTPUT
-          echo "✓ openiap-google $VERSION does not exist, will publish"
-        fi
+        HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google/$VERSION/" || true)
+        HTTP_STATUS="${HTTP_STATUS:-000}"
+        case "$HTTP_STATUS" in
+          200)
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "⚠️ openiap-google $VERSION already exists on Maven Central"
+            ;;
+          404)
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "✓ openiap-google $VERSION does not exist, will publish"
+            ;;
+          *)
+            echo "❌ Unable to verify openiap-google $VERSION on Maven Central (HTTP $HTTP_STATUS)"
+            exit 1
+            ;;
+        esac
 
     - name: Publish Play flavor to Maven Central
       if: steps.check_play.outputs.exists == 'false'
@@ -300,16 +331,23 @@ jobs:
           echo "✅ Published openiap-google (Play flavor) to Maven Central"
         fi
 
+    - name: Build release artifacts
+      working-directory: packages/google
+      run: ./gradlew :openiap:assembleRelease --no-daemon --stacktrace
+
     - name: Create release artifacts
       working-directory: packages/google
       run: |
         mkdir -p release-artifacts
-        cp openiap/build/outputs/aar/*.aar release-artifacts/ 2>/dev/null || echo "No AAR files found"
-        cp openiap/build/libs/*.jar release-artifacts/ 2>/dev/null || echo "No JAR files found"
-        if [ -d release-artifacts ] && [ "$(ls -A release-artifacts)" ]; then
-          (cd release-artifacts && shasum -a 256 * > ../checksums.txt) || true
-          zip -r release-artifacts.zip release-artifacts/
+        shopt -s nullglob
+        artifacts=(openiap/build/outputs/aar/*.aar openiap/build/libs/*.jar)
+        if [ ${#artifacts[@]} -eq 0 ]; then
+          echo "::error::No Google release artifacts found"
+          exit 1
         fi
+        cp "${artifacts[@]}" release-artifacts/
+        (cd release-artifacts && shasum -a 256 * > ../checksums.txt)
+        zip -r release-artifacts.zip release-artifacts/
 
     - name: Generate release notes
       id: release_notes
@@ -317,15 +355,19 @@ jobs:
         VERSION: ${{ steps.version.outputs.version }}
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        # Get the previous google tag BEFORE creating the new one
-        PREV_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' 'refs/tags/google-*' | head -n 1)
+        RELEASE_REF="HEAD"
+        if git rev-parse "google-$VERSION" >/dev/null 2>&1; then
+          RELEASE_REF="google-$VERSION"
+        fi
+
+        PREV_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' 'refs/tags/google-*' | grep -v "$VERSION" | head -n 1)
 
         if [ -z "$PREV_TAG" ]; then
           echo "No previous google tag found"
           CHANGELOG="- Initial release"
         else
-          echo "Generating changelog from $PREV_TAG to HEAD"
-          CHANGELOG=$(git log $PREV_TAG..HEAD --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- packages/google/)
+          echo "Generating changelog from $PREV_TAG to $RELEASE_REF"
+          CHANGELOG=$(git log "$PREV_TAG..$RELEASE_REF" --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- packages/google/)
 
           if [ -z "$CHANGELOG" ]; then
             CHANGELOG="- No direct code changes in packages/google/."
@@ -385,8 +427,8 @@ jobs:
 
         ### Documentation
 
-        - [API reference](https://www.openiap.dev/docs/apis)
-        - [Release notes](https://www.openiap.dev/docs/updates/releases)
+        - [API reference](https://openiap.dev/docs/apis)
+        - [Release notes](https://openiap.dev/docs/updates/releases)
         - [GitHub (monorepo)](https://github.com/hyodotdev/openiap/tree/main/packages/google)
 
         ### Maven Central
@@ -430,8 +472,19 @@ jobs:
           PRERELEASE_FLAG="--prerelease"
         fi
 
-        gh release create "google-$VERSION" \
-          $ARTIFACTS \
-          --title "Google $VERSION" \
-          $PRERELEASE_FLAG \
-          --notes-file /tmp/release-notes.md
+        if gh release view "google-$VERSION" >/dev/null 2>&1; then
+          echo "ℹ️ Release google-$VERSION already exists. Updating notes and artifacts."
+          gh release edit "google-$VERSION" \
+            --title "Google $VERSION" \
+            $PRERELEASE_FLAG \
+            --notes-file /tmp/release-notes.md
+          if [ -n "$ARTIFACTS" ]; then
+            gh release upload "google-$VERSION" $ARTIFACTS --clobber
+          fi
+        else
+          gh release create "google-$VERSION" \
+            $ARTIFACTS \
+            --title "Google $VERSION" \
+            $PRERELEASE_FLAG \
+            --notes-file /tmp/release-notes.md
+        fi

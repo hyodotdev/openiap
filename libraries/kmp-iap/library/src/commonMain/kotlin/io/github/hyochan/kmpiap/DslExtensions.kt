@@ -41,7 +41,7 @@ suspend fun KmpInAppPurchase.fetchProducts(
 ): List<Product> {
     val requestBuilder = ProductsRequestBuilder().apply(builder)
     val (skus, type) = requestBuilder.build()
-    val result = (this as QueryResolver).fetchProducts(ProductRequest(skus, type ?: ProductQueryType.All))
+    val result = (this as QueryResolver).fetchProducts(ProductRequest(skus, type))
     return result.asProductList()
 }
 

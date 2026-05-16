@@ -281,47 +281,6 @@
   margin-bottom: 1.5rem;
 }
 
-.feature-code {
-  background: var(--code-bg);
-  border-radius: 0.5rem;
-  padding: 1rem;
-  text-align: left;
-  border: 1px solid var(--border-color);
-  position: relative;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
-}
-
-.feature-code::-webkit-scrollbar {
-  height: 6px;
-}
-
-.feature-code::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.feature-code::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
-}
-
-.feature-code::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-.feature-code pre {
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: 0.875rem;
-  color: #abb2bf;
-  margin: 0;
-  padding: 0;
-  white-space: pre;
-  word-wrap: normal;
-  overflow-x: visible;
-}
-
 /* Home Sections with Alternating Backgrounds */
 .home-section {
   padding: 5rem 2rem;

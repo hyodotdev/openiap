@@ -15,7 +15,6 @@
   },
   "ignorePaths": [
     "node_modules",
-    "example-expo",
     "example"
   ]
 }

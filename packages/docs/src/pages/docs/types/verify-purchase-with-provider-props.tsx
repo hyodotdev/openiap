@@ -45,7 +45,7 @@ function VerifyPurchaseWithProviderProps() {
           </a>
           {`).`} See{' '}
           <a
-            href="https://www.openiap.dev/docs/features/validation"
+            href="https://openiap.dev/docs/features/validation"
             target="_blank"
             rel="noopener noreferrer"
           >

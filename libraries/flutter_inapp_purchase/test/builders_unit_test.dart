@@ -237,8 +237,12 @@ void main() {
         ..type = ProductQueryType.Subs;
 
       final props = builder.build();
-      // Subscription props don't include advancedCommerceData in the conversion
       expect(props, isA<RequestPurchaseProps>());
+      final json = props.toJson();
+      expect(
+        json['requestSubscription']['ios']['advancedCommerceData'],
+        'campaign',
+      );
     });
   });
 

@@ -301,6 +301,76 @@ void main() {
     });
   });
 
+  group('deepLinkToSubscriptions', () {
+    test('sends Android payload to native channel', () async {
+      final calls = <MethodCall>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        calls.add(call);
+        if (call.method == 'deepLinkToSubscriptionsAndroid') {
+          return null;
+        }
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+
+      await iap.deepLinkToSubscriptions(
+        packageNameAndroid: 'dev.hyo.martie',
+        skuAndroid: 'sub.premium',
+      );
+
+      final methodCall = calls.singleWhere(
+        (MethodCall call) => call.method == 'deepLinkToSubscriptionsAndroid',
+      );
+      final payload = Map<String, dynamic>.from(
+        methodCall.arguments as Map<dynamic, dynamic>,
+      );
+      expect(payload['packageNameAndroid'], 'dev.hyo.martie');
+      expect(payload['packageName'], 'dev.hyo.martie');
+      expect(payload['skuAndroid'], 'sub.premium');
+      expect(payload['sku'], 'sub.premium');
+    });
+
+    test('uses Apple channel method on iOS', () async {
+      final calls = <MethodCall>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        calls.add(call);
+        if (call.method == 'deepLinkToSubscriptions') {
+          return null;
+        }
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'ios'),
+      );
+
+      await iap.deepLinkToSubscriptions();
+      expect(calls.single.method, 'deepLinkToSubscriptions');
+    });
+
+    test('throws PurchaseError on unsupported platforms', () async {
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'linux'),
+      );
+
+      await expectLater(
+        iap.deepLinkToSubscriptions(),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            types.ErrorCode.IapNotAvailable,
+          ),
+        ),
+      );
+    });
+  });
+
   group('requestPurchase', () {
     test('throws when connection not initialized', () async {
       final iap = FlutterInappPurchase.private(
@@ -427,6 +497,65 @@ void main() {
 
       expect(payload['sku'], 'ios.sku');
       expect(payload['advancedCommerceData'], 'campaign_summer_2025');
+    });
+
+    test('sends advanced iOS subscription purchase fields', () async {
+      final calls = <MethodCall>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        calls.add(call);
+        switch (call.method) {
+          case 'initConnection':
+            return true;
+          case 'requestPurchase':
+            return null;
+        }
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'ios'),
+      );
+
+      await iap.initConnection();
+
+      const props = types.RequestPurchaseProps.subs((
+        apple: types.RequestSubscriptionIosProps(
+          sku: 'ios.sub',
+          introductoryOfferEligibility: true,
+          promotionalOfferJWS: types.PromotionalOfferJWSInputIOS(
+            offerId: 'promo-offer',
+            jws: 'header.payload.signature',
+          ),
+          winBackOffer: types.WinBackOfferInputIOS(
+            offerId: 'winback-offer',
+          ),
+        ),
+        google: null,
+        useAlternativeBilling: null,
+      ));
+
+      await iap.requestPurchase(props);
+
+      final requestCall = calls.singleWhere(
+        (MethodCall c) => c.method == 'requestPurchase',
+      );
+      final payload = Map<String, dynamic>.from(
+        requestCall.arguments as Map<dynamic, dynamic>,
+      );
+
+      expect(payload['sku'], 'ios.sub');
+      expect(payload['type'], 'subs');
+      expect(payload['introductoryOfferEligibility'], isTrue);
+      final promotionalOfferJWS = Map<String, dynamic>.from(
+        payload['promotionalOfferJWS'] as Map<dynamic, dynamic>,
+      );
+      expect(promotionalOfferJWS['offerId'], 'promo-offer');
+      expect(promotionalOfferJWS['jws'], 'header.payload.signature');
+      final winBackOffer = Map<String, dynamic>.from(
+        payload['winBackOffer'] as Map<dynamic, dynamic>,
+      );
+      expect(winBackOffer['offerId'], 'winback-offer');
     });
 
     test('initConnection memoizes after first call', () async {
@@ -1013,6 +1142,7 @@ void main() {
             isOfferPersonalized: true,
             obfuscatedAccountId: 'account-1',
             obfuscatedProfileId: 'profile-1',
+            offerToken: 'one-time-offer-token',
           ),
           useAlternativeBilling: null,
         )),
@@ -1031,6 +1161,7 @@ void main() {
       expect(payload['isOfferPersonalized'], isTrue);
       expect(payload['obfuscatedAccountId'], 'account-1');
       expect(payload['obfuscatedProfileId'], 'profile-1');
+      expect(payload['offerToken'], 'one-time-offer-token');
       expect(payload.containsKey('purchaseToken'), isFalse);
     });
   });

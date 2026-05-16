@@ -1,7 +1,7 @@
 # godot-iap
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/cc7f363a-43a9-470c-bde7-2f63985a9f46"" width="200" alt="godot-iap logo" />
+  <img src="https://github.com/user-attachments/assets/cc7f363a-43a9-470c-bde7-2f63985a9f46" width="200" alt="godot-iap logo" />
 
 [![CI](https://img.shields.io/github/actions/workflow/status/hyodotdev/openiap/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/hyodotdev/openiap?style=flat-square)](https://github.com/hyodotdev/openiap/releases)
@@ -25,7 +25,7 @@ We will keep working on it as time goes by just like we did in other IAP librari
 
 ## Documentation
 
-Visit the [documentation site](https://hyochan.github.io/godot-iap) for [installation guides](https://hyochan.github.io/godot-iap/getting-started/installation), [API reference](https://hyochan.github.io/godot-iap/api), and [examples](https://hyochan.github.io/godot-iap/examples/purchase-flow).
+Visit the [documentation site](https://openiap.dev/docs/setup/godot) for [installation guides](https://openiap.dev/docs/setup/godot), [API reference](https://openiap.dev/docs/apis), and [examples](https://openiap.dev/docs/example).
 
 ## Installation
 
@@ -50,22 +50,22 @@ source builds can override `MACOS_ARCHS`; `make macos` requests
 architectures that the framework binaries actually contain. The default release
 zip does not include macOS runtime frameworks.
 
-See the [Installation Guide](https://hyochan.github.io/godot-iap/getting-started/installation) for more details.
+See the [Installation Guide](https://openiap.dev/docs/setup/godot) for more details.
 
 ## Using with AI Assistants
 
 godot-iap provides AI-friendly documentation for Cursor, GitHub Copilot, Claude, and ChatGPT.
 
-**[AI Assistants Guide](https://hyochan.github.io/godot-iap/guides/ai-assistants)**
+**[AI Assistants Guide](https://openiap.dev/docs/guides/ai-assistants)**
 
 Quick links:
 
-- [llms.txt](https://hyochan.github.io/godot-iap/llms.txt) - Quick reference
-- [llms-full.txt](https://hyochan.github.io/godot-iap/llms-full.txt) - Full API reference
+- [llms.txt](https://openiap.dev/llms.txt) - Quick reference
+- [llms-full.txt](https://openiap.dev/llms-full.txt) - Full API reference
 
 ## Quick Start
 
-See the [Quick Start Guide](https://hyochan.github.io/godot-iap/#quick-start) for complete code examples and setup instructions.
+See the [Quick Start Guide](https://openiap.dev/docs/setup/godot) for complete code examples and setup instructions.
 
 ## Powered by OpenIAP
 
@@ -90,4 +90,4 @@ For bug reports, please [open an issue](https://github.com/hyodotdev/openiap/iss
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+MIT License - see the repository [LICENSE](../../LICENSE) file for details.

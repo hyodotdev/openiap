@@ -130,17 +130,17 @@ xed .
 ### Method Naming
 
 - Use `request` prefix for event-dependent functions (e.g., `requestPurchase`, `requestSubscription`)
-- Follow OpenIAP terminology: <https://www.openiap.dev/docs/apis#terminology>
+- Follow OpenIAP terminology: <https://openiap.dev/docs/apis#terminology>
 - Avoid generic prefixes like `get`, `find`
 
 ### OpenIAP Specification
 
 All implementations must follow the OpenIAP specification:
 
-- **APIs**: <https://www.openiap.dev/docs/apis>
-- **Types**: <https://www.openiap.dev/docs/types>
-- **Events**: <https://www.openiap.dev/docs/events>
-- **Errors**: <https://www.openiap.dev/docs/errors>
+- **APIs**: <https://openiap.dev/docs/apis>
+- **Types**: <https://openiap.dev/docs/types>
+- **Events**: <https://openiap.dev/docs/events>
+- **Errors**: <https://openiap.dev/docs/errors>
 
 #### Feature Development Process
 

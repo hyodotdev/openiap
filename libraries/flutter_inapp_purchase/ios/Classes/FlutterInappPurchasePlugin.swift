@@ -180,6 +180,9 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         case "showManageSubscriptionsIOS":
             showManageSubscriptionsIOS(result: result)
 
+        case "deepLinkToSubscriptions":
+            deepLinkToSubscriptions(result: result)
+
         case "isEligibleForIntroOfferIOS":
             if let args = call.arguments as? [String: Any],
                let groupId = args["productId"] as? String {
@@ -713,23 +716,52 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
             }
         }
     }
-    
+
+    @available(iOS 15.0, macOS 14.0, tvOS 15.0, *)
+    private func deepLinkToSubscriptions(result: @escaping FlutterResult) {
+        FlutterIapLog.debug("deepLinkToSubscriptions called")
+        Task { @MainActor in
+            do {
+                try await OpenIapModule.shared.deepLinkToSubscriptions(nil)
+                FlutterIapLog.result("deepLinkToSubscriptions", value: true)
+                result(nil)
+            } catch let purchaseError as PurchaseError {
+                FlutterIapLog.failure("deepLinkToSubscriptions", error: purchaseError)
+                result(FlutterError(
+                    code: purchaseError.code.rawValue,
+                    message: purchaseError.message,
+                    details: purchaseError.productId
+                ))
+            } catch {
+                FlutterIapLog.failure("deepLinkToSubscriptions", error: error)
+                let code: ErrorCode = .activityUnavailable
+                result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
+            }
+        }
+    }
+
     private func requestPurchaseOnPromotedProductIOS(result: @escaping FlutterResult) {
         FlutterIapLog.debug("requestPurchaseOnPromotedProductIOS called")
         Task { @MainActor in
             do {
-                _ = try await OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()
-                FlutterIapLog.result("requestPurchaseOnPromotedProductIOS", value: true)
-                result(nil)
+                let purchased = try await OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()
+                FlutterIapLog.result("requestPurchaseOnPromotedProductIOS", value: purchased)
+                result(purchased)
+            } catch let purchaseError as PurchaseError {
+                FlutterIapLog.failure("requestPurchaseOnPromotedProductIOS", error: purchaseError)
+                result(FlutterError(
+                    code: purchaseError.code.rawValue,
+                    message: purchaseError.message,
+                    details: purchaseError.productId
+                ))
             } catch {
-                await MainActor.run {
-                    let code: ErrorCode = .serviceError
-                    result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: nil))
-                }
+                FlutterIapLog.failure("requestPurchaseOnPromotedProductIOS", error: error)
+                let code: ErrorCode = .purchaseError
+                result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
             }
         }
     }
-    
+
     private func getPromotedProductIOS(result: @escaping FlutterResult) {
         Task { @MainActor in
             do {
@@ -754,7 +786,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         FlutterIapLog.debug("getStorefront called")
         Task { @MainActor in
             do {
-                let code = try await OpenIapModule.shared.getStorefrontIOS()
+                let code = try await OpenIapModule.shared.getStorefront()
                 FlutterIapLog.result("getStorefront", value: code)
                 result(code)
             } catch {
@@ -770,7 +802,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         FlutterIapLog.debug("getStorefrontIOS called")
         Task { @MainActor in
             do {
-                let code = try await OpenIapModule.shared.getStorefrontIOS()
+                let code = try await OpenIapModule.shared.getStorefront()
                 FlutterIapLog.result("getStorefrontIOS", value: ["countryCode": code])
                 result(["countryCode": code])
             } catch {
@@ -855,7 +887,12 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         Task { @MainActor in
             do {
                 let props = try FlutterIapHelper.decodeVerifyPurchaseProps(for: productId)
-                let res = try await OpenIapModule.shared.validateReceiptIOS(props)
+                let verifyResult = try await OpenIapModule.shared.verifyPurchase(props)
+                guard case let .verifyPurchaseResultIos(res) = verifyResult else {
+                    let code: ErrorCode = .featureNotSupported
+                    result(FlutterError(code: code.rawValue, message: "Expected iOS validation result", details: productId))
+                    return
+                }
                 var payload: [String: Any?] = [
                     "isValid": res.isValid,
                     "receiptData": res.receiptData,
@@ -1082,7 +1119,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         Task { @MainActor in
             do {
                 let jws = try await OpenIapModule.shared.getTransactionJwsIOS(sku: sku)
-                FlutterIapLog.result("getTransactionJwsIOS", value: jws ?? "nil")
+                FlutterIapLog.result("getTransactionJwsIOS", value: jws == nil ? nil : "<jws>")
                 result(jws)
             } catch let purchaseError as PurchaseError {
                 FlutterIapLog.failure("getTransactionJwsIOS", error: purchaseError)
@@ -1104,7 +1141,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         Task { @MainActor in
             do {
                 let receipt = try await OpenIapModule.shared.getReceiptDataIOS()
-                FlutterIapLog.result("getReceiptDataIOS", value: receipt ?? "nil")
+                FlutterIapLog.result("getReceiptDataIOS", value: receipt == nil ? nil : "<receipt>")
                 result(receipt)
             } catch let purchaseError as PurchaseError {
                 FlutterIapLog.failure("getReceiptDataIOS", error: purchaseError)

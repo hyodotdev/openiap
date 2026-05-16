@@ -48,6 +48,10 @@ interface OpenIapModule
     [Async]
     void RequestPurchase(string sku, nint quantity, [NullAllowed] string type, Action<NSObject?, NSError?> completion);
 
+    [Export("requestPurchaseWithPayload:completion:")]
+    [Async]
+    void RequestPurchaseWithPayload(NSDictionary payload, Action<NSObject?, NSError?> completion);
+
     [Export("requestSubscriptionWithSku:offer:completion:")]
     [Async]
     void RequestSubscription(string sku, [NullAllowed] NSDictionary offer, Action<NSObject?, NSError?> completion);
@@ -121,6 +125,10 @@ interface OpenIapModule
         Action<NSDictionary?, NSError?> completion);
 
     // -- Storefront / Subscriptions ----------------------------------------
+
+    [Export("getStorefrontWithCompletion:")]
+    [Async]
+    void GetStorefront(Action<string?, NSError?> completion);
 
     [Export("getStorefrontIOSWithCompletion:")]
     [Async]
