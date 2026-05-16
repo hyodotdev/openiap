@@ -2411,17 +2411,15 @@ function checkFrameworkDependencyHygiene() {
       'com.android.tools.build:gradle:8.1.4',
     ], 'Flutter standalone Android Gradle plugin must not lag compileSdk support');
     expectIncludes('libraries/flutter_inapp_purchase/android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt', [
-      'iap.isBillingProgramAvailable(BillingProgramAndroid.ExternalOffer)',
-      'iap.createBillingProgramReportingDetails(BillingProgramAndroid.ExternalOffer)',
       '@Suppress("DEPRECATION")',
+      'val isAvailable = iap.checkAlternativeBillingAvailability()',
+      'val token = iap.createAlternativeBillingReportingToken()',
       'val payload = JSONObject(e.toJSON())',
-    ], 'Flutter Android plugin must avoid avoidable Kotlin warnings');
+    ], 'Flutter Android plugin must preserve legacy alternative billing handlers');
     expectNotIncludes('libraries/flutter_inapp_purchase/android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt', [
       '@Deprecated("Deprecated channel endpoint; will be removed in 7.0.0")',
       'will be removed in 7.0.0',
       'removed in 7.0.0',
-      'iap.checkAlternativeBillingAvailability()',
-      'iap.createAlternativeBillingReportingToken()',
       'when (e)',
     ], 'Flutter Android plugin must not reintroduce avoidable Kotlin warnings');
     expectNotIncludes('libraries/flutter_inapp_purchase/android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AmazonInappPurchasePlugin.kt', [

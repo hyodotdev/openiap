@@ -209,15 +209,8 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
     }
 
     fun onDetachedFromActivity() {
-        val iap = openIap
         activity = null
-        connectionReady = false
-        iap?.setActivity(null)
-        scope.launch {
-            connectionMutex.withLock {
-                kotlin.runCatching { iap?.endConnection() }
-            }
-        }
+        openIap?.setActivity(null)
     }
 
     fun dispose() {
@@ -724,8 +717,9 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                             safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
                             return@launch
                         }
-                        val availability = iap.isBillingProgramAvailable(BillingProgramAndroid.ExternalOffer)
-                        safe.success(availability.isAvailable)
+                        @Suppress("DEPRECATION")
+                        val isAvailable = iap.checkAlternativeBillingAvailability()
+                        safe.success(isAvailable)
                     } catch (e: Exception) {
                         safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
                     }
@@ -760,8 +754,9 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                             safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
                             return@launch
                         }
-                        val details = iap.createBillingProgramReportingDetails(BillingProgramAndroid.ExternalOffer)
-                        safe.success(details.externalTransactionToken)
+                        @Suppress("DEPRECATION")
+                        val token = iap.createAlternativeBillingReportingToken()
+                        safe.success(token)
                     } catch (e: Exception) {
                         safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
                     }
