@@ -5,6 +5,8 @@ import android.app.Application
 import android.app.Application.ActivityLifecycleCallbacks
 import android.content.Context
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import dev.hyo.openiap.AndroidSubscriptionOfferInput
 import dev.hyo.openiap.BillingProgramAndroid
 import dev.hyo.openiap.DeepLinkOptions
@@ -51,6 +53,7 @@ import java.util.Locale
 class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, ActivityLifecycleCallbacks {
     private val job = Job()
     private val scope = CoroutineScope(Dispatchers.Main + job)
+    private val handler = Handler(Looper.getMainLooper())
 
     private var context: Context? = null
     private var activity: Activity? = null
@@ -189,7 +192,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
 
     private fun emitConnectionUpdated(connected: Boolean) {
         val item = JSONObject().apply { put("connected", connected) }
-        channel?.invokeMethod("connection-updated", item.toString())
+        handler.post { channel?.invokeMethod("connection-updated", item.toString()) }
     }
 
     fun setContext(context: Context?) {

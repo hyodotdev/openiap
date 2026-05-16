@@ -254,18 +254,15 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     }
 
     private fun Map<String, Any?>.toObjCMap(): Map<Any?, Any?> =
-        entries.mapNotNull { (key, value) ->
-            val converted = value.toObjCValue() ?: return@mapNotNull null
-            key to converted
-        }.toMap()
+        entries.associate { (key, value) -> key to value.toObjCValue() }
 
-    private fun Any?.toObjCValue(): Any? = when (this) {
-        null -> null
+    private fun Any?.toObjCValue(): Any = when (this) {
+        null -> NSNull()
         is Map<*, *> -> entries.mapNotNull { (key, value) ->
-            val converted = value.toObjCValue() ?: return@mapNotNull null
-            key to converted
+            key ?: return@mapNotNull null
+            key to value.toObjCValue()
         }.toMap()
-        is List<*> -> mapNotNull { it.toObjCValue() }
+        is List<*> -> map { it.toObjCValue() }
         else -> this
     }
 
