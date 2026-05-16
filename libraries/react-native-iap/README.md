@@ -55,7 +55,7 @@ More details and the Podfile snippet are in the docs: https://openiap.dev/docs/s
 - 🎯 **TypeScript First**: Full TypeScript support with comprehensive type definitions
 - 🛡️ **Centralized Error Handling**: Unified error management with platform-specific error code mapping
 - 🎣 **React Hooks**: Modern React hooks API with `useIAP`
-- 📱 **Expo Compatible**: Works with Expo development builds
+- 📱 **React Native Focused**: Use `expo-iap` for Expo projects
 - 🔍 **Receipt Validation**: Built-in receipt validation for both platforms
 - 💎 **Products & Subscriptions**: Support for both one-time purchases and subscriptions
 - 🚀 **Performance Optimized**: Efficient caching and minimal re-renders
@@ -82,13 +82,13 @@ React Native IAP is built with a modern architecture that emphasizes:
 
 ## 📱 Platform Support
 
-| Platform          | Support | Notes                                   |
-| ----------------- | ------- | --------------------------------------- |
-| iOS               | ✅      | StoreKit 2 (requires iOS 15+)           |
-| Android           | ✅      | Google Play Billing v8.0.0+             |
-| Expo Go           | ❌      | Not supported (requires native modules) |
-| Expo Dev Client   | ✅      | Full support                            |
-| Bare React Native | ✅      | Full support                            |
+| Platform          | Support | Notes                             |
+| ----------------- | ------- | --------------------------------- |
+| iOS               | ✅      | StoreKit 2 (requires iOS 15+)     |
+| Android           | ✅      | Google Play Billing v8.0.0+       |
+| Expo Go           | ❌      | Use `expo-iap` for Expo projects  |
+| Expo Dev Client   | ❌      | Use `expo-iap` for Expo projects  |
+| Bare React Native | ✅      | Full support                      |
 
 ## 📦 Installation & Configuration
 
@@ -96,7 +96,7 @@ React Native IAP is built with a modern architecture that emphasizes:
 
 Before installing React Native IAP, make sure you have:
 
-- React Native 0.64 or later, or Expo SDK 45 or later
+- React Native 0.64 or later
 - Node.js 16 or later
 - iOS 15+ for iOS apps (StoreKit 2 requirement)
 - Android API level 21+ for Android apps
@@ -134,29 +134,9 @@ buildscript {
    - Go to "Signing & Capabilities"
    - Click "+ Capability" and add "In-App Purchase"
 
-#### Expo Configuration
+#### Expo Projects
 
-For Expo projects, add the plugin to your `app.json` or `expo.json`:
-
-```json
-{
-  "expo": {
-    "plugins": [
-      "react-native-iap",
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "kotlinVersion": "2.2.0"
-          }
-        }
-      ]
-    ]
-  }
-}
-```
-
-**Note:** Expo projects require [development build (dev-client)](https://docs.expo.dev/develop/development-builds/introduction/) as this library contains native code.
+Use [`expo-iap`](https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap) for Expo apps. This package targets bare React Native/Nitro projects.
 
 ### Store Configuration
 

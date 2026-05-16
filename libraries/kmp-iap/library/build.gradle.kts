@@ -181,7 +181,7 @@ fun dynamicKmpPodspec(): String =
         spec.version                  = library_version
         spec.homepage                 = 'https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap'
         spec.source                   = { :git => 'https://github.com/hyodotdev/openiap.git', :tag => "kmp-iap-#{library_version}" }
-        spec.authors                  = { 'Hyo Chan Jang' => 'hyo@hyo.dev' }
+        spec.authors                  = { 'Hyo Dev' => 'hyo@hyo.dev' }
         spec.license                  = { :type => 'Apache-2.0', :file => '../LICENSE' }
         spec.summary                  = 'Kotlin Multiplatform OpenIAP library'
         spec.vendored_frameworks      = 'build/cocoapods/framework/library.framework'
@@ -364,7 +364,7 @@ mavenPublishing {
         developers {
             developer {
                 id.set("hyochan")
-                name.set("Hyo Chan Jang")
+                name.set("Hyo Dev")
                 email.set("hyo@hyo.dev")
                 url.set("https://github.com/hyochan/")
                 organization.set("hyodotdev")

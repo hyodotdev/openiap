@@ -21,19 +21,13 @@ We welcome contributions! This guide will help you get started with development 
 3. **Running the Example App**
 
    ```bash
-   # React Native Example (workspace)
    cd example && yarn ios
    cd example && yarn android
-
-   # Expo Example (independent)
-   cd example-expo && bun setup
-   cd example-expo && bun ios
-   cd example-expo && bun android
    ```
 
 ## Example Apps Architecture
 
-This project includes two example applications:
+This project includes one React Native CLI example application:
 
 ### `example/` - React Native CLI Example
 
@@ -41,45 +35,6 @@ This project includes two example applications:
 - **Router**: React Navigation
 - **Package Manager**: Yarn (workspace)
 - **Purpose**: Main development and testing environment
-
-### `example-expo/` - Expo Router Example
-
-- **Location**: `example-expo/app/`
-- **Router**: Expo Router
-- **Package Manager**: Bun (independent)
-- **Purpose**: Expo-specific testing and demonstration
-
-### Screen File Synchronization
-
-The `example-expo` app automatically syncs screen files from `example/screens/` to maintain consistency:
-
-- **Source**: `example/screens/*.tsx` (PascalCase)
-- **Target**: `example-expo/app/*.tsx` (kebab-case)
-
-**File Mapping:**
-
-- `AvailablePurchases.tsx` → `available-purchases.tsx`
-- `OfferCode.tsx` → `offer-code.tsx`
-- `PurchaseFlow.tsx` → `purchase-flow.tsx`
-- `SubscriptionFlow.tsx` → `subscription-flow.tsx`
-
-**Automatic Synchronization:**
-
-```bash
-# Happens automatically during:
-cd example-expo && bun install  # (postinstall script)
-cd example-expo && bun setup    # (setup script)
-
-# Manual synchronization:
-cd example-expo && ./scripts/copy-screens.sh
-```
-
-**Important Notes:**
-
-- 🚨 **Do NOT edit files in `example-expo/app/` directly**
-- ✅ **Always modify the source files in `example/screens/`**
-- 🔄 **Files are automatically copied with generation comments**
-- 📝 **Generated files include header comments indicating their source**
 
 ## Code Guidelines
 
@@ -94,9 +49,7 @@ When working with example screens:
 
 1. **Modify Source Files**: Make changes in `example/screens/*.tsx`
 2. **Test React Native**: Run `cd example && yarn ios/android` to test changes
-3. **Sync Expo Files**: Changes automatically sync to `example-expo/app/` during `bun install`
-4. **Test Expo**: Run `cd example-expo && bun ios/android` to verify expo compatibility
-5. **Commit**: Only commit source files in `example/screens/`, not generated files in `example-expo/app/`
+3. **Commit**: Commit the source files in `example/screens/`
 
 ### Testing
 
@@ -110,8 +63,7 @@ yarn typecheck && yarn lint --fix
 yarn test:ci
 
 # Test example apps
-cd example && yarn test        # React Native example tests
-cd example-expo && bun test    # Expo example tests (if available)
+cd example && yarn test
 ```
 
 ## Release Process (Maintainers)

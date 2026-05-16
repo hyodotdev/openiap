@@ -887,24 +887,6 @@ android {
             <pre className="code-block">{`cd libraries/react-native-iap/example
 yarn install
 yarn ios`}</pre>
-            <p
-              style={{
-                fontSize: '0.85rem',
-                margin: '0.75rem 0 0 0',
-                color: 'var(--text-secondary)',
-              }}
-            >
-              Also see the{' '}
-              <a
-                href="https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap/example-expo"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="external-link"
-              >
-                Expo-based example
-              </a>{' '}
-              in the same library.
-            </p>
           </div>
 
           <div

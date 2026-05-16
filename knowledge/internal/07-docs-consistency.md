@@ -164,7 +164,7 @@ bun run lint
 
 # 2. Cross-library typecheck for SDKs you touched
 cd libraries/expo-iap && bun run lint:tsc
-cd libraries/react-native-iap && yarn typecheck   # ignore example-expo errors
+cd libraries/react-native-iap && yarn typecheck
 cd libraries/flutter_inapp_purchase && dart analyze lib
 cd packages/apple && swift build
 cd packages/google && ./gradlew :openiap:compilePlayDebugKotlin

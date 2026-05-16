@@ -20,7 +20,7 @@ In App Purchase plugin for flutter. This project has been forked by react-native
                        DESC
   s.homepage         = 'https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase'
   s.license          = { :file => '../LICENSE' }
-  s.author           = { 'Hyo Chan Jang' => 'hyo@hyo.dev' }
+  s.author           = { 'Hyo Dev' => 'hyo@hyo.dev' }
   s.source           = { :path => '.' }
   s.source_files = 'Classes/**/*.swift'
   s.dependency 'FlutterMacOS'

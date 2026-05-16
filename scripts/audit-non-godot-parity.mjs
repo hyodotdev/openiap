@@ -427,7 +427,6 @@ function expectNoExampleStorefrontIOS() {
   const roots = [
     'libraries/expo-iap/example',
     'libraries/react-native-iap/example',
-    'libraries/react-native-iap/example-expo',
     'libraries/flutter_inapp_purchase/example',
     'libraries/kmp-iap/example',
     'libraries/maui-iap/example',
@@ -1300,7 +1299,7 @@ function checkFrameworkDependencyHygiene() {
       'libraryVersion=',
       'spec.version                  = library_version',
       'spec.source                   = { :git => \'https://github.com/hyodotdev/openiap.git\', :tag => "kmp-iap-#{library_version}" }',
-      "spec.authors                  = { 'Hyo Chan Jang' => 'hyo@hyo.dev' }",
+      "spec.authors                  = { 'Hyo Dev' => 'hyo@hyo.dev' }",
       "spec.license                  = { :type => 'Apache-2.0', :file => '../LICENSE' }",
     ], 'KMP podspec version');
     expectNotIncludes('libraries/kmp-iap/library/library.podspec', [
@@ -2903,7 +2902,6 @@ function checkFrameworkDependencyHygiene() {
     'libraries/flutter_inapp_purchase/example/android/settings.gradle',
     'libraries/godot-iap/android/gradle.properties',
     'libraries/react-native-iap/android/gradle.properties',
-    'libraries/react-native-iap/example-expo/app.config.ts',
     'libraries/react-native-iap/README.md',
   ]) {
     expectIncludes(kotlinVersionFile, [
@@ -2917,7 +2915,6 @@ function checkFrameworkDependencyHygiene() {
   }
   for (const kotlinVersionFile of [
     'libraries/expo-iap/plugin/build/withLocalOpenIAP.js',
-    'libraries/react-native-iap/example-expo/android/gradle.properties',
   ]) {
     expectOptionalIncludes(kotlinVersionFile, [
       '2.2.0',
@@ -2974,7 +2971,6 @@ checkGeneratedTypeSync();
 checkGqlRuntimeExports();
 checkOperationRegistry();
 checkExpoRouterExample('libraries/expo-iap/example', 'src/utils/constants.ts');
-checkExpoRouterExample('libraries/react-native-iap/example-expo', 'constants/products.ts');
 checkReactNativeClassic();
 checkFlutter();
 checkKmp();

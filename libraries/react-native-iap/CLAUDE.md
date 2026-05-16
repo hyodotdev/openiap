@@ -17,11 +17,10 @@ React Native IAP - A high-performance in-app purchase library using Nitro Module
 
 ⚠️ **IMPORTANT: This project uses Yarn 3 with workspaces**
 
-- **Workspace Structure**: Only `example` is in the yarn workspace. `example-expo` is an independent project
+- **Workspace Structure**: Only `example` is in the yarn workspace
 - Install dependencies: `yarn install` (installs for library and example only)
 - Add packages to library: `yarn add [package]`
 - Add packages to example: `yarn workspace rn-iap-example add [package]`
-- Add packages to example-expo: `cd example-expo && bun add [package]` (independent)
 - Run scripts: `yarn [script]`
 - Execute packages: `yarn dlx [package]` or `npx [package]`
 
@@ -51,10 +50,6 @@ example/               # React Native example app (workspace)
 ├── android/
 └── package.json
 
-example-expo/          # Independent Expo example app (NOT in workspace)
-├── app/
-├── scripts/
-└── package.json       # Uses bun, independent from yarn workspace
 ```
 
 ### Auto-generated Files
@@ -103,26 +98,6 @@ yarn workspace rn-iap-example android
 yarn workspace rn-iap-example start
 ```
 
-### Example-Expo (Independent Project)
-
-```bash
-# Independent project - requires separate setup
-# Uses bun and expo setup script
-
-# Initial setup (copies lib files and builds)
-cd example-expo && bun setup
-
-# iOS
-cd example-expo && bun ios
-cd example-expo && bun ios --device  # For physical device
-
-# Android
-cd example-expo && bun android
-
-# Start Metro bundler
-cd example-expo && bun start
-```
-
 ### iOS Setup
 
 ```bash
@@ -130,10 +105,6 @@ cd example-expo && bun start
 cd example/ios
 bundle install  # Install Ruby dependencies
 bundle exec pod install  # Install iOS dependencies
-
-# For example-expo (independent)
-cd example-expo/ios
-pod install  # iOS dependencies
 ```
 
 ## VSCode Integration
@@ -460,7 +431,6 @@ All error codes are defined in the `ErrorCode` enum:
 
    - **Additional Notes**:
      - Resolutions are configured in root `package.json` (workspace level)
-     - `example-expo` is **NOT** in yarn workspace (independent project)
      - Only `example` is included in workspace structure
 
 3. **iOS build errors**
