@@ -210,7 +210,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                             } else {
                                 val error = PurchaseError(
                                     code = ErrorCode.ServiceError,
-                                    message = result.debugMessage
+                                    message = result.debugMessage.takeIf { it.isNotBlank() } ?: "Failed to connect"
                                 )
                                 _purchaseErrorListener.tryEmit(error)
                                 continuation.resume(false)
@@ -1208,7 +1208,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         } else {
             val error = PurchaseError(
                 code = mapBillingResponseCode(billingResult.responseCode),
-                message = billingResult.debugMessage
+                message = billingResult.debugMessage.takeIf { it.isNotBlank() } ?: "Purchase failed"
             )
             _purchaseErrorListener.tryEmit(error)
             currentPurchaseCallback?.invoke(Result.success(emptyList()))

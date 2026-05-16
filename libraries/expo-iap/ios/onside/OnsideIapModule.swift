@@ -430,7 +430,7 @@ public final class ExpoIapOnsideModule: Module {
         let formattedPrice = formatter.string(from: priceNumber) ?? "\(product.price.value)"
         dictionary["displayPrice"] = formattedPrice
         dictionary["currency"] = product.price.currencyCode ?? ""
-        dictionary["price"] = priceNumber.doubleValue
+        dictionary["price"] = priceNumber
         dictionary["type"] = "in-app"
         dictionary["typeIOS"] = "non-consumable"
         dictionary["isFamilyShareableIOS"] = false
@@ -479,7 +479,7 @@ public final class ExpoIapOnsideModule: Module {
             "title": product.localizedTitle,
             "description": product.localizedDescription,
             "price": [
-                "value": priceNumber.doubleValue,
+                "value": priceNumber,
                 "currencyCode": product.price.currencyCode ?? "",
                 "formatted": formattedPrice,
             ],

@@ -113,7 +113,7 @@ internal static class NSObjectJsonBridge
         if (value.TryGetValue<long>(out var longValue)) return NSNumber.FromInt64(longValue);
         if (value.TryGetValue<double>(out var doubleValue)) return NSNumber.FromDouble(doubleValue);
         if (value.TryGetValue<string>(out var stringValue)) return new NSString(stringValue);
-        return new NSString(value.ToJsonString());
+        return new NSString(value.ToString() ?? string.Empty);
     }
 
     private static JsonNode? NumberToNode(NSNumber n)
