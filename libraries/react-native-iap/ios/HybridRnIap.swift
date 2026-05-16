@@ -960,7 +960,7 @@ class HybridRnIap: HybridRnIapSpec {
 
     func addPurchaseUpdatedListener(
         listener: @escaping (NitroPurchase) -> Void,
-        options: NitroPurchaseUpdatedListenerOptions?
+        options: PurchaseUpdatedListenerOptions?
     ) throws -> Double {
         let dedupeTransactionIOS = purchaseUpdatedDedupeTransactionIOS(from: options)
         let receiveDuplicateTransactionUpdatesIOS = !dedupeTransactionIOS
@@ -1004,7 +1004,7 @@ class HybridRnIap: HybridRnIapSpec {
     }
 
     private func purchaseUpdatedDedupeTransactionIOS(
-        from options: NitroPurchaseUpdatedListenerOptions?
+        from options: PurchaseUpdatedListenerOptions?
     ) -> Bool {
         guard let dedupeTransactionIOS = options?.dedupeTransactionIOS else {
             return true
@@ -1153,7 +1153,7 @@ class HybridRnIap: HybridRnIapSpec {
                 return
             }
             RnIapLog.payload("purchaseUpdatedListener.register.duplicates", nil)
-            let options = PurchaseUpdatedListenerOptions(
+            let options = OpenIAP.PurchaseUpdatedListenerOptions(
                 dedupeTransactionIOS: false
             )
             purchaseUpdatedDuplicateSub = OpenIapModule.shared.purchaseUpdatedListener({ [weak self] openIapPurchase in
