@@ -17,7 +17,7 @@ Google Play Billing Library enables in-app purchases and subscriptions on Androi
 | 8.2.1 | 2025-12-15 | Bug fix for `isBillingProgramAvailableAsync()` and `createBillingProgramReportingDetailsAsync()` |
 | 8.3 | 2025-12-23 | External Payments program (Japan only), developer billing options |
 
-**Current Version**: 8.3.0 (as of January 2026)
+**Current Version**: 8.3.0 (as of April 2026)
 
 ## Core Classes
 

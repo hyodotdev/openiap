@@ -193,7 +193,7 @@ file, line, and the offending mention.
 Run with:
 
 ```bash
-cd /Users/hyo/Github/hyodotdev/openiap
+cd <repo-root>
 bun run scripts/audit-docs.ts
 ```
 
