@@ -58,10 +58,8 @@ internal static class NSObjectJsonBridge
 
         foreach (var (key, node) in json)
         {
-            var value = JsonToNSObject(node);
-            if (value is null) continue;
             keys.Add(new NSString(key));
-            values.Add(value);
+            values.Add(JsonToNSObject(node) ?? NSNull.Null);
         }
 
         return NSDictionary.FromObjectsAndKeys(values.ToArray(), keys.ToArray());
@@ -100,8 +98,7 @@ internal static class NSObjectJsonBridge
         var values = new List<NSObject>();
         foreach (var item in array)
         {
-            var value = JsonToNSObject(item);
-            if (value is not null) values.Add(value);
+            values.Add(JsonToNSObject(item) ?? NSNull.Null);
         }
         return NSArray.FromNSObjects(values.ToArray());
     }
