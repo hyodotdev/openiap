@@ -2,7 +2,7 @@
 // ignore_for_file: constant_identifier_names
 
 /// Store types
-enum Store { none, playStore, amazon, appStore }
+enum Store { none, playStore, appStore }
 
 /// Platform detection enum
 enum IapPlatform { ios, android }

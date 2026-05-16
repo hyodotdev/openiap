@@ -185,8 +185,6 @@ dependencies {
         implementation "io.github.hyochan.openiap:openiap-google:${openiapGoogleVersion}"
     }
 
-    // Amazon IAP for legacy Amazon Appstore support (runtime device detection)
-    implementation files("jars/${readRequiredAndroidGradleProperty(projectDir, 'openIapAmazonIapJarFile')}")
     implementation "androidx.annotation:annotation:${readRequiredAndroidGradleProperty(projectDir, 'openIapAndroidAnnotationVersion')}"
 
     // Google Play Billing comes transitively from openiap-google so its

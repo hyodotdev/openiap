@@ -589,14 +589,11 @@ function checkFlutter() {
     'case "showExternalPurchaseCustomLinkNoticeIOS"',
     'subscriptionBillingIssueListener',
   ], 'Flutter macOS channel parity');
-  for (const androidPlugin of [
+  expectIncludes(
     'libraries/flutter_inapp_purchase/android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt',
-    'libraries/flutter_inapp_purchase/android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AmazonInappPurchasePlugin.kt',
-  ]) {
-    expectIncludes(androidPlugin, [
-      '"setPurchaseUpdatedListenerOptions" ->',
-    ], 'Flutter Android purchase listener option no-op');
-  }
+    ['"setPurchaseUpdatedListenerOptions" ->'],
+    'Flutter Android purchase listener option no-op',
+  );
   expectNotIncludes('libraries/flutter_inapp_purchase/android/build.gradle', [
     'com.android.billingclient:billing-ktx:',
   ], 'Flutter Android must inherit Play Billing from openiap-google');
@@ -2289,7 +2286,6 @@ function checkFrameworkDependencyHygiene() {
       'openIapKotlinVersion',
       'readRequiredAndroidGradleProperty',
       "readRequiredAndroidGradleProperty(projectDir, 'openIapAndroidAnnotationVersion')",
-      "readRequiredAndroidGradleProperty(projectDir, 'openIapAmazonIapJarFile')",
       'classpath "com.android.tools.build:gradle:$androidGradlePluginVersion"',
       'openiap-android-sdk.gradle',
       `openIapResolveAndroidSdkVersion('compileSdkVersion', 'compileSdk', ${googleCompileSdk})`,
@@ -2307,6 +2303,7 @@ function checkFrameworkDependencyHygiene() {
       'com.android.tools.build:gradle:8.7.3',
       "implementation 'androidx.annotation:annotation:1.6.0'",
       "implementation files('jars/in-app-purchasing-2.0.76.jar')",
+      'openIapAmazonIapJarFile',
       "version = '1.0-SNAPSHOT'",
     ], 'Flutter Android Gradle must avoid deprecated Groovy property syntax');
     expectIncludes('libraries/flutter_inapp_purchase/example/android/app/build.gradle', [
@@ -2352,7 +2349,6 @@ function checkFrameworkDependencyHygiene() {
       `openIapAndroidGradlePluginVersion=${googleAndroidGradlePluginVersion}`,
       `openIapKotlinVersion=${googleKotlinVersion}`,
       'openIapAndroidAnnotationVersion=',
-      'openIapAmazonIapJarFile=',
       'openIapJunitVersion=',
     ], 'Flutter Android Gradle plugin fallback versions');
     expectIncludes('libraries/flutter_inapp_purchase/example/android/gradle.properties', [
@@ -2425,17 +2421,11 @@ function checkFrameworkDependencyHygiene() {
       'removed in 7.0.0',
       'when (e)',
     ], 'Flutter Android plugin must not reintroduce avoidable Kotlin warnings');
-    expectNotIncludes('libraries/flutter_inapp_purchase/android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AmazonInappPurchasePlugin.kt', [
-      'TODO(v6.4.0)',
-      'prorationMode',
-      'obfuscatedAccountId',
-      'obfuscatedProfileId',
-    ], 'Flutter Amazon plugin must not keep stale commented legacy inputs');
-    expectIncludes('libraries/flutter_inapp_purchase/android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/FlutterInappPurchasePlugin.kt', [
-      'Build.VERSION.SDK_INT >= Build.VERSION_CODES.R',
-      'ctx.packageManager.getInstallSourceInfo(ctx.packageName).installingPackageName',
-      '@Suppress("DEPRECATION")',
-    ], 'Flutter Android store detection must avoid deprecated installer API on API 30+');
+    expectNotIncludes('libraries/flutter_inapp_purchase/android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/FlutterInappPurchasePlugin.kt', [
+      'AmazonInappPurchasePlugin',
+      'com.amazon.venezia',
+      'isAppInstalledFrom',
+    ], 'Flutter Android plugin must not expose standalone Amazon support');
     expectIncludes('libraries/react-native-iap/android/gradle.properties', [
       `NitroIap_minSdkVersion=${googleMinSdk}`,
     ], 'React Native Android minSdk must follow openiap-google');

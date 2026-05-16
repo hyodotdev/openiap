@@ -137,10 +137,8 @@ function FlutterSetup() {
         </p>
         <CodeBlock language="text">
           {`# In-App Purchase
--keep class com.amazon.** {*;}
 -keep class dev.hyo.** { *; }
 -keep class com.android.vending.billing.**
--dontwarn com.amazon.**
 -keepattributes *Annotation*`}
         </CodeBlock>
       </section>
