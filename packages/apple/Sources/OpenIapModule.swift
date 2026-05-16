@@ -56,7 +56,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// - Note: This wraps `OpenIapStoreKit2.initialize()`. Safe to call multiple times — the
     ///   second call is a no-op.
     ///
-    /// See: https://www.openiap.dev/docs/apis/init-connection
+    /// See: https://openiap.dev/docs/apis/init-connection
     public func initConnection() async throws -> Bool {
         while true {
             if let endTask = connection.currentEndTask() {
@@ -95,7 +95,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     /// Close the store connection and release resources.
-    /// See: https://www.openiap.dev/docs/apis/end-connection
+    /// See: https://openiap.dev/docs/apis/end-connection
     public func endConnection() async throws -> Bool {
         let task = connection.makeEndTask { [weak self] in
             guard let self else { return }
@@ -118,7 +118,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// - Note: This is a regular promise-based call. Do not confuse with `request*` APIs,
     ///   which are event-based.
     ///
-    /// See: https://www.openiap.dev/docs/apis/fetch-products
+    /// See: https://openiap.dev/docs/apis/fetch-products
     public func fetchProducts(_ params: ProductRequest) async throws -> FetchProductsResult {
         guard !params.skus.isEmpty else {
             let error = makePurchaseError(code: .emptySkuList)
@@ -218,7 +218,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     /// Read the App Store-promoted product, if any.
-    /// See: https://www.openiap.dev/docs/apis/ios/get-promoted-product-ios
+    /// See: https://openiap.dev/docs/apis/ios/get-promoted-product-ios
     public func getPromotedProductIOS() async throws -> ProductIOS? {
         // iOS-only: Promoted in-app purchases (App Store promotional purchases) only available on iOS
         // Reference: https://developer.apple.com/documentation/storekit/promoting-in-app-purchases
@@ -267,7 +267,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// - Throws: Synchronous rejections from StoreKit (e.g. user cancel before sheet, not prepared).
     /// - Warning: Event-based. Listen via `purchaseUpdatedListener` / `purchaseErrorListener`.
     ///
-    /// See: https://www.openiap.dev/docs/apis/request-purchase
+    /// See: https://openiap.dev/docs/apis/request-purchase
     public func requestPurchase(_ params: RequestPurchaseProps) async throws -> RequestPurchaseResult? {
         try await ensureConnection()
         let iosProps = try resolveIOSPurchaseProps(from: params)
@@ -417,14 +417,14 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     /// Buy the currently promoted product.
-    /// See: https://www.openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios
+    /// See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios
     @available(*, deprecated, message: "Use promotedProductListenerIOS + requestPurchase instead")
     public func requestPurchaseOnPromotedProductIOS() async throws -> Bool {
         throw makePurchaseError(code: .featureNotSupported)
     }
 
     /// Restore non-consumable and active subscription purchases.
-    /// See: https://www.openiap.dev/docs/apis/restore-purchases
+    /// See: https://openiap.dev/docs/apis/restore-purchases
     public func restorePurchases() async throws -> Void {
         _ = try await syncIOS()
     }
@@ -440,7 +440,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// - Returns: An array of `Purchase` values matching the selected scope.
     /// - Throws: When the StoreKit query fails.
     ///
-    /// See: https://www.openiap.dev/docs/apis/get-available-purchases
+    /// See: https://openiap.dev/docs/apis/get-available-purchases
     public func getAvailablePurchases(_ options: PurchaseOptions?) async throws -> [Purchase] {
         try await ensureConnection()
         let onlyActive = options?.onlyIncludeActiveItemsIOS ?? false
@@ -476,7 +476,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// `Transaction.all` and returns the iOS-specific `PurchaseIOS` shape rather than
     /// the cross-platform `Purchase` type.
     ///
-    /// See: https://www.openiap.dev/docs/apis/ios/get-all-transactions-ios
+    /// See: https://openiap.dev/docs/apis/ios/get-all-transactions-ios
     public func getAllTransactionsIOS() async throws -> [PurchaseIOS] {
         try await ensureConnection()
         var transactions: [PurchaseIOS] = []
@@ -513,7 +513,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// - Important: iOS unfinished transactions replay on every app launch. (Android purchases
     ///   must be acknowledged within 3 days, but that path lives in the Android module.)
     ///
-    /// See: https://www.openiap.dev/docs/apis/finish-transaction
+    /// See: https://openiap.dev/docs/apis/finish-transaction
     public func finishTransaction(purchase: PurchaseInput, isConsumable: Bool?) async throws -> Void {
         try await ensureConnection()
         let identifier = purchase.id
@@ -560,7 +560,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     /// List unfinished StoreKit transactions.
-    /// See: https://www.openiap.dev/docs/apis/ios/get-pending-transactions-ios
+    /// See: https://openiap.dev/docs/apis/ios/get-pending-transactions-ios
     public func getPendingTransactionsIOS() async throws -> [PurchaseIOS] {
         try await ensureConnection()
         let snapshot = await state.pendingSnapshot()
@@ -572,7 +572,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     /// Clear pending transactions in the queue (sandbox helper).
-    /// See: https://www.openiap.dev/docs/apis/ios/clear-transaction-ios
+    /// See: https://openiap.dev/docs/apis/ios/clear-transaction-ios
     public func clearTransactionIOS() async throws -> Bool {
         try await ensureConnection()
         for await result in Transaction.unfinished {
@@ -588,7 +588,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     /// Check whether a transaction's JWS verification passed.
-    /// See: https://www.openiap.dev/docs/apis/ios/is-transaction-verified-ios
+    /// See: https://openiap.dev/docs/apis/ios/is-transaction-verified-ios
     public func isTransactionVerifiedIOS(sku: String) async throws -> Bool {
         try await ensureConnection()
         let product = try await storeProduct(for: sku)
@@ -602,7 +602,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     /// Return the JWS string for a transaction.
-    /// See: https://www.openiap.dev/docs/apis/ios/get-transaction-jws-ios
+    /// See: https://openiap.dev/docs/apis/ios/get-transaction-jws-ios
     public func getTransactionJwsIOS(sku: String) async throws -> String? {
         try await ensureConnection()
         let product = try await storeProduct(for: sku)
@@ -617,7 +617,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     // MARK: - Validation
 
     /// Get base64 receipt data (legacy validation).
-    /// See: https://www.openiap.dev/docs/apis/ios/get-receipt-data-ios
+    /// See: https://openiap.dev/docs/apis/ios/get-receipt-data-ios
     public func getReceiptDataIOS() async throws -> String? {
         guard let receiptURL = Bundle.main.appStoreReceiptURL,
               FileManager.default.fileExists(atPath: receiptURL.path) else {
@@ -628,7 +628,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     /// Deprecated. Legacy App Store receipt validation. Use `verifyPurchase` instead.
-    /// See: https://www.openiap.dev/docs/apis/ios/validate-receipt-ios
+    /// See: https://openiap.dev/docs/apis/ios/validate-receipt-ios
     @available(*, deprecated, message: "Use verifyPurchase")
     public func validateReceiptIOS(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResultIOS {
         try await performVerifyPurchaseIOS(props)
@@ -669,14 +669,14 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     /// Deprecated. Use verifyPurchase instead — same input/output shape.
-    /// See: https://www.openiap.dev/docs/apis/validate-receipt
+    /// See: https://openiap.dev/docs/apis/validate-receipt
     @available(*, deprecated, message: "Use verifyPurchase")
     public func validateReceipt(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResult {
         try await verifyPurchase(props)
     }
 
     /// Verify a purchase against your own backend (returns isValid + raw store metadata).
-    /// See: https://www.openiap.dev/docs/features/validation#verify-purchase
+    /// See: https://openiap.dev/docs/features/validation#verify-purchase
     public func verifyPurchase(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResult {
         try await ensureConnection()
         let iosResult = try await performVerifyPurchaseIOS(props)
@@ -684,7 +684,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     /// Verify via a managed provider (currently IAPKit; the PurchaseVerificationProvider enum exposes only Iapkit today).
-    /// See: https://www.openiap.dev/docs/features/validation#verify-purchase-with-provider
+    /// See: https://openiap.dev/docs/features/validation#verify-purchase-with-provider
     public func verifyPurchaseWithProvider(_ props: VerifyPurchaseWithProviderProps) async throws -> VerifyPurchaseWithProviderResult {
         try await ensureConnection()
         guard props.provider == .iapkit else {
@@ -724,13 +724,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
         // Log request details for debugging
         OpenIapLog.debug("IAPKit request URL: \(url.absoluteString)")
-        if let requestBody = String(data: body, encoding: .utf8) {
-            // Truncate JWS for readability (keep first/last 50 chars)
-            let truncatedBody = requestBody.count > 200
-                ? String(requestBody.prefix(100)) + "..." + String(requestBody.suffix(50))
-                : requestBody
-            OpenIapLog.debug("IAPKit request body: \(truncatedBody)")
-        }
+        OpenIapLog.debug("IAPKit request body: <redacted>, bytes=\(body.count)")
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -738,7 +732,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         }
         guard (200...299).contains(httpResponse.statusCode) else {
             let responseBody = String(data: data, encoding: .utf8) ?? ""
-            OpenIapLog.warn("verifyPurchaseWithProvider failed (HTTP \(httpResponse.statusCode)): \(responseBody)")
+            OpenIapLog.warn("verifyPurchaseWithProvider failed (HTTP \(httpResponse.statusCode))")
             // Extract concise error message from IAPKit response
             var errorMessage = "HTTP \(httpResponse.statusCode)"
             if let jsonData = responseBody.data(using: .utf8),
@@ -748,14 +742,13 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             throw makePurchaseError(code: .receiptFailed, message: errorMessage)
         }
 
-        // Log raw response for debugging
-        let jsonString = String(data: data, encoding: .utf8) ?? ""
-        OpenIapLog.info("IAPKit raw response: \(jsonString)")
+        // Log only response metadata; the body can contain receipt details.
+        OpenIapLog.debug("IAPKit verification response received: bytes=\(data.count)")
 
         // Parse manually to handle extra fields from IAPKit
         // API response format: { "store": "apple", "isValid": true, "state": "PURCHASED" }
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            OpenIapLog.warn("Failed to parse IAPKit verification response. Raw: \(jsonString)")
+            OpenIapLog.warn("Failed to parse IAPKit verification response")
             throw makePurchaseError(code: .receiptFailed, message: "Unable to parse verification response")
         }
 
@@ -853,7 +846,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     // MARK: - Store Information
 
     /// Return the user's storefront country code.
-    /// See: https://www.openiap.dev/docs/apis/get-storefront
+    /// See: https://openiap.dev/docs/apis/get-storefront
     public func getStorefront() async throws -> String {
         try await ensureConnection()
         guard let storefront = await Storefront.current else {
@@ -865,7 +858,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     /// Deprecated. Use cross-platform `getStorefront` instead.
-    /// See: https://www.openiap.dev/docs/apis/ios/get-storefront-ios
+    /// See: https://openiap.dev/docs/apis/ios/get-storefront-ios
     public func getStorefrontIOS() async throws -> String {
         try await getStorefront()
     }
@@ -874,7 +867,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// - Note: Available on iOS 16.0+, macOS 14.0+, tvOS 16.0+, watchOS 9.0+
     /// - SeeAlso: https://developer.apple.com/documentation/storekit/apptransaction
     ///
-    /// See: https://www.openiap.dev/docs/apis/ios/get-app-transaction-ios
+    /// See: https://openiap.dev/docs/apis/ios/get-app-transaction-ios
     @available(iOS 16.0, macOS 14.0, tvOS 16.0, watchOS 9.0, *)
     public func getAppTransactionIOS() async throws -> AppTransaction? {
         try await ensureConnection()
@@ -890,7 +883,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     // MARK: - Subscription Management
 
     /// Get details of all currently active subscriptions.
-    /// See: https://www.openiap.dev/docs/apis/get-active-subscriptions
+    /// See: https://openiap.dev/docs/apis/get-active-subscriptions
     public func getActiveSubscriptions(_ subscriptionIds: [String]?) async throws -> [ActiveSubscription] {
         try await ensureConnection()
         var allSubscriptions: [ActiveSubscription] = []
@@ -952,7 +945,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     /// Check whether the user has any active subscription.
-    /// See: https://www.openiap.dev/docs/apis/has-active-subscriptions
+    /// See: https://openiap.dev/docs/apis/has-active-subscriptions
     public func hasActiveSubscriptions(_ subscriptionIds: [String]?) async throws -> Bool {
         let subscriptions = try await getActiveSubscriptions(subscriptionIds)
         return subscriptions.contains { $0.isActive }
@@ -962,7 +955,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// - Note: Available on iOS 15.0+, iPadOS 15.0+, Mac Catalyst 15.0+, macOS 14.0+, visionOS 1.0+. Not available on tvOS (subscriptions are managed in Settings > Accounts) or watchOS.
     /// - SeeAlso: https://developer.apple.com/documentation/storekit/appstore/showmanagesubscriptions(in:)
     ///
-    /// See: https://www.openiap.dev/docs/apis/deep-link-to-subscriptions
+    /// See: https://openiap.dev/docs/apis/deep-link-to-subscriptions
     public func deepLinkToSubscriptions(_ options: DeepLinkOptions?) async throws -> Void {
         try await ensureConnection()
         // tvOS: AppStore.showManageSubscriptions not available on tvOS (subscriptions managed in Settings > Accounts)
@@ -987,7 +980,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     /// Get subscription status objects from StoreKit 2.
-    /// See: https://www.openiap.dev/docs/apis/ios/subscription-status-ios
+    /// See: https://openiap.dev/docs/apis/ios/subscription-status-ios
     public func subscriptionStatusIOS(sku: String) async throws -> [SubscriptionStatusIOS] {
         try await ensureConnection()
         let product = try await storeProduct(for: sku)
@@ -1025,7 +1018,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     /// Get the user's current entitlement for a product.
-    /// See: https://www.openiap.dev/docs/apis/ios/current-entitlement-ios
+    /// See: https://openiap.dev/docs/apis/ios/current-entitlement-ios
     public func currentEntitlementIOS(sku: String) async throws -> PurchaseIOS? {
         try await ensureConnection()
         let product = try await storeProduct(for: sku)
@@ -1041,7 +1034,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     /// Get the latest verified transaction for a product.
-    /// See: https://www.openiap.dev/docs/apis/ios/latest-transaction-ios
+    /// See: https://openiap.dev/docs/apis/ios/latest-transaction-ios
     public func latestTransactionIOS(sku: String) async throws -> PurchaseIOS? {
         try await ensureConnection()
         let product = try await storeProduct(for: sku)
@@ -1062,7 +1055,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// - Note: Available on iOS 15.0+, iPadOS 15.0+, Mac Catalyst 15.0+, macOS 12.0+, visionOS 1.0+. Not available on tvOS or watchOS.
     /// - SeeAlso: https://developer.apple.com/documentation/storekit/transaction/3803220-beginrefundrequest
     ///
-    /// See: https://www.openiap.dev/docs/apis/ios/begin-refund-request-ios
+    /// See: https://openiap.dev/docs/apis/ios/begin-refund-request-ios
     public func beginRefundRequestIOS(sku: String) async throws -> String? {
         try await ensureConnection()
         // tvOS: Transaction.beginRefundRequest not available on tvOS
@@ -1110,7 +1103,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// Check if the user is eligible for an introductory offer for a subscription group
     /// - SeeAlso: https://developer.apple.com/documentation/storekit/product/subscriptioninfo/iseligibleforintrooffer(for:)
     ///
-    /// See: https://www.openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios
+    /// See: https://openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios
     public func isEligibleForIntroOfferIOS(groupID: String) async throws -> Bool {
         try await ensureConnection()
         return await StoreKit.Product.SubscriptionInfo.isEligibleForIntroOffer(for: groupID)
@@ -1119,7 +1112,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// Sync the user's in-app purchases with the App Store
     /// - SeeAlso: https://developer.apple.com/documentation/storekit/appstore/sync()
     ///
-    /// See: https://www.openiap.dev/docs/apis/ios/sync-ios
+    /// See: https://openiap.dev/docs/apis/ios/sync-ios
     public func syncIOS() async throws -> Bool {
         try await ensureConnection()
         do {
@@ -1134,7 +1127,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// - Note: Only available on iOS 14.0+ and Mac Catalyst. Not available on tvOS, macOS, or watchOS
     /// - SeeAlso: https://developer.apple.com/documentation/storekit/skpaymentqueue/3566726-presentcoderedemptionsheet
     ///
-    /// See: https://www.openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
+    /// See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
     public func presentCodeRedemptionSheetIOS() async throws -> Bool {
         try await ensureConnection()
         // presentCodeRedemptionSheet is only available on iOS, not tvOS/watchOS/macOS
@@ -1149,7 +1142,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     /// Present the manage-subscriptions sheet.
-    /// See: https://www.openiap.dev/docs/apis/ios/show-manage-subscriptions-ios
+    /// See: https://openiap.dev/docs/apis/ios/show-manage-subscriptions-ios
     public func showManageSubscriptionsIOS() async throws -> [PurchaseIOS] {
         try await deepLinkToSubscriptions(nil)
         return []
@@ -1158,7 +1151,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     // MARK: - External Purchase (iOS 17.4+, macOS 14.4+, tvOS 17.4+, visionOS 1.1+)
 
     /// Check eligibility for the external purchase notice sheet (iOS 17.4+).
-    /// See: https://www.openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
+    /// See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
     public func canPresentExternalPurchaseNoticeIOS() async throws -> Bool {
         try await ensureConnection()
         // iOS 17.4+, macOS 14.4+, tvOS 17.4+, watchOS 10.4+, visionOS 1.1+: ExternalPurchase.canPresent
@@ -1171,7 +1164,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     /// Present the external purchase notice sheet (iOS 17.4+).
-    /// See: https://www.openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
+    /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
     public func presentExternalPurchaseNoticeSheetIOS() async throws -> ExternalPurchaseNoticeResultIOS {
         try await ensureConnection()
         // iOS 17.4+, macOS 14.4+, tvOS 17.4+, watchOS 10.4+, visionOS 1.1+: ExternalPurchase.presentNoticeSheet
@@ -1235,7 +1228,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     /// Present an external purchase link, StoreKit External (iOS 16+).
-    /// See: https://www.openiap.dev/docs/apis/ios/present-external-purchase-link-ios
+    /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
     public func presentExternalPurchaseLinkIOS(_ url: String) async throws -> ExternalPurchaseLinkResultIOS {
         try await ensureConnection()
         // UIApplication.open is available on iOS/tvOS/visionOS but not watchOS/macOS
@@ -1269,7 +1262,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     // MARK: - ExternalPurchaseCustomLink (iOS 18.1+)
 
     /// Check eligibility for the custom-link variant of external purchase (iOS 18.1+).
-    /// See: https://www.openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
+    /// See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
     public func isEligibleForExternalPurchaseCustomLinkIOS() async throws -> Bool {
         try await ensureConnection()
         // iOS 18.1+: ExternalPurchaseCustomLink.isEligible
@@ -1282,7 +1275,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     /// Fetch a token for Apple's External Purchase Server reporting API (iOS 18.1+).
-    /// See: https://www.openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios
+    /// See: https://openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios
     public func getExternalPurchaseCustomLinkTokenIOS(
         _ tokenType: ExternalPurchaseCustomLinkTokenTypeIOS
     ) async throws -> ExternalPurchaseCustomLinkTokenResultIOS {
@@ -1324,7 +1317,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     /// Present the disclosure sheet required before linking out via ExternalPurchaseCustomLink (iOS 18.1+).
-    /// See: https://www.openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios
+    /// See: https://openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios
     public func showExternalPurchaseCustomLinkNoticeIOS(
         _ noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS
     ) async throws -> ExternalPurchaseCustomLinkNoticeResultIOS {

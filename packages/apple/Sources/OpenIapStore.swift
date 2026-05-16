@@ -55,11 +55,15 @@ public final class OpenIapStore: ObservableObject {
         setupListeners()
     }
 
-    deinit { listenerTokens.removeAll() }
+    deinit {
+        for token in listenerTokens { module.removeListener(token) }
+    }
 
     // MARK: - Listener Management
 
     private func setupListeners() {
+        guard listenerTokens.isEmpty else { return }
+
         let purchaseUpdate = module.purchaseUpdatedListener({ [weak self] purchase in
             Task { @MainActor in self?.handlePurchaseUpdate(purchase) }
         }, options: nil)
@@ -89,6 +93,7 @@ public final class OpenIapStore: ObservableObject {
         status.loadings.initConnection = true
         defer { status.loadings.initConnection = false }
         isConnected = try await module.initConnection()
+        setupListeners()
     }
 
     public func endConnection() async throws {
@@ -471,6 +476,34 @@ public final class OpenIapStore: ObservableObject {
         try await module.deepLinkToSubscriptions(nil)
     }
     #endif // !os(tvOS)
+
+    public func canPresentExternalPurchaseNoticeIOS() async throws -> Bool {
+        try await module.canPresentExternalPurchaseNoticeIOS()
+    }
+
+    public func presentExternalPurchaseNoticeSheetIOS() async throws -> ExternalPurchaseNoticeResultIOS {
+        try await module.presentExternalPurchaseNoticeSheetIOS()
+    }
+
+    public func presentExternalPurchaseLinkIOS(_ url: String) async throws -> ExternalPurchaseLinkResultIOS {
+        try await module.presentExternalPurchaseLinkIOS(url)
+    }
+
+    public func isEligibleForExternalPurchaseCustomLinkIOS() async throws -> Bool {
+        try await module.isEligibleForExternalPurchaseCustomLinkIOS()
+    }
+
+    public func getExternalPurchaseCustomLinkTokenIOS(
+        _ tokenType: ExternalPurchaseCustomLinkTokenTypeIOS
+    ) async throws -> ExternalPurchaseCustomLinkTokenResultIOS {
+        try await module.getExternalPurchaseCustomLinkTokenIOS(tokenType)
+    }
+
+    public func showExternalPurchaseCustomLinkNoticeIOS(
+        _ noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS
+    ) async throws -> ExternalPurchaseCustomLinkNoticeResultIOS {
+        try await module.showExternalPurchaseCustomLinkNoticeIOS(noticeType)
+    }
 
     public func clearTransactionIOS() async throws {
         _ = try await module.clearTransactionIOS()

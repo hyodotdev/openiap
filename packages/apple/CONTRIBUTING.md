@@ -8,7 +8,7 @@ Thank you for your interest in contributing! We love your input and appreciate y
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes
 4. Run tests (`swift test`)
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
+5. Commit your changes (`git commit -m 'feat(apple): add amazing feature'`)
 6. Push to your branch (`git push origin feature/amazing-feature`)
 7. Open a Pull Request
 
@@ -16,8 +16,8 @@ Thank you for your interest in contributing! We love your input and appreciate y
 
 ```bash
 # Clone your fork
-git clone https://github.com/YOUR_USERNAME/openiap-apple.git
-cd openiap-apple
+git clone https://github.com/YOUR_USERNAME/openiap.git
+cd openiap/packages/apple
 
 # Open in Xcode
 open Package.swift

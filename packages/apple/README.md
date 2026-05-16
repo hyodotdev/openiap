@@ -50,7 +50,7 @@ Add to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/hyodotdev/openiap.git", from: "$version")
+    .package(url: "https://github.com/hyodotdev/openiap.git", from: "<version>")
 ]
 ```
 
@@ -59,10 +59,10 @@ dependencies: [
 Add to your `Podfile`:
 
 ```ruby
-pod 'openiap', '~> $version'
+pod 'openiap', '~> <version>'
 ```
 
-> Check [`openiap-versions.json`](../../openiap-versions.json) for the current version.
+Use the latest version from the Swift Package / CocoaPods badges above.
 
 ## Quick Start
 

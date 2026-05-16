@@ -159,6 +159,37 @@ import StoreKit
         }
     }
 
+    @objc func requestPurchaseWithPayload(
+        _ payload: [String: Any],
+        completion: @escaping (Any?, Error?) -> Void
+    ) {
+        Task {
+            do {
+                let props = try OpenIapSerialization.requestPurchaseProps(from: payload)
+                let result = try await requestPurchase(props)
+
+                switch result {
+                case .purchase(let purchase):
+                    if let purchase = purchase {
+                        completion(OpenIapSerialization.purchase(purchase), nil)
+                    } else {
+                        completion(nil, nil)
+                    }
+                case .purchases(let purchases):
+                    if let firstPurchase = purchases?.first {
+                        completion(OpenIapSerialization.purchase(firstPurchase), nil)
+                    } else {
+                        completion(nil, nil)
+                    }
+                case .none:
+                    completion(nil, nil)
+                }
+            } catch {
+                completion(nil, error)
+            }
+        }
+    }
+
     @objc func requestSubscriptionWithSku(
         _ sku: String,
         offer: [String: Any]?,
@@ -333,14 +364,13 @@ import StoreKit
 
     @available(*, deprecated, message: "Use promotedProductListenerIOS + requestPurchase instead")
     @objc func requestPurchaseOnPromotedProductIOSWithCompletion(_ completion: @escaping (Bool, Error?) -> Void) {
-        Task {
-            do {
-                let result = try await requestPurchaseOnPromotedProductIOS()
-                completion(result, nil)
-            } catch {
-                completion(false, error)
-            }
-        }
+        completion(
+            false,
+            PurchaseError.make(
+                code: .featureNotSupported,
+                message: "Use promotedProductListenerIOS + requestPurchase instead"
+            )
+        )
     }
 
     @objc func deepLinkToSubscriptionsWithCompletion(_ completion: @escaping (Error?) -> Void) {
