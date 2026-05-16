@@ -4100,26 +4100,26 @@ public sealed record WinBackOfferInputIOS
 public interface MutationResolver
 {
     /// <summary>Acknowledge a non-consumable purchase. Required within 3 days or Google auto-refunds.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/android/acknowledge-purchase-android</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/android/acknowledge-purchase-android</summary>
     Task<bool> AcknowledgePurchaseAndroidAsync(string purchaseToken);
 
     /// <summary>Present the refund request sheet (iOS 15+). See also Features → Refund.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/ios/begin-refund-request-ios</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/ios/begin-refund-request-ios</summary>
     Task<string?> BeginRefundRequestIOSAsync(string sku);
 
     /// <summary>Check whether alternative billing is available for the user. Step 1 of the alternative billing flow.</summary>
     /// <summary></summary>
     /// <summary>Returns true if available, false otherwise.</summary>
     /// <summary>Throws OpenIapError.NotPrepared if billing client not ready.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/android/check-alternative-billing-availability-android</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android</summary>
     Task<bool> CheckAlternativeBillingAvailabilityAndroidAsync();
 
     /// <summary>Clear pending transactions in the queue (sandbox helper).</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/ios/clear-transaction-ios</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/ios/clear-transaction-ios</summary>
     Task<bool> ClearTransactionIOSAsync();
 
     /// <summary>Consume a consumable purchase so it can be re-bought.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/android/consume-purchase-android</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/android/consume-purchase-android</summary>
     Task<bool> ConsumePurchaseAndroidAsync(string purchaseToken);
 
     /// <summary>Create a reporting token for an alternative billing flow. Step 3 of the alternative billing flow.</summary>
@@ -4128,7 +4128,7 @@ public interface MutationResolver
     /// <summary></summary>
     /// <summary>Returns token string, or null if creation failed.</summary>
     /// <summary>Throws OpenIapError.NotPrepared if billing client not ready.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/android/create-alternative-billing-token-android</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/android/create-alternative-billing-token-android</summary>
     Task<string?> CreateAlternativeBillingTokenAndroidAsync();
 
     /// <summary>Create the reporting payload Google requires after a Developer-Provided Billing transaction (Play Billing 8.3.0+).</summary>
@@ -4136,23 +4136,23 @@ public interface MutationResolver
     /// <summary></summary>
     /// <summary>Returns external transaction token needed for reporting external transactions.</summary>
     /// <summary>Throws OpenIapError.NotPrepared if billing client not ready.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/android/create-billing-program-reporting-details-android</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android</summary>
     Task<BillingProgramReportingDetailsAndroid> CreateBillingProgramReportingDetailsAndroidAsync(BillingProgramAndroid program);
 
     /// <summary>Open the platform&apos;s subscription management UI.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/deep-link-to-subscriptions</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/deep-link-to-subscriptions</summary>
     Task<string> DeepLinkToSubscriptionsAsync(DeepLinkOptions? options = null);
 
     /// <summary>Close the store connection and release resources.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/end-connection</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/end-connection</summary>
     Task<bool> EndConnectionAsync();
 
     /// <summary>Complete a transaction after server-side verification. Required on Android within 3 days.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/finish-transaction</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/finish-transaction</summary>
     Task<string> FinishTransactionAsync(PurchaseInput purchase, bool? isConsumable = null);
 
     /// <summary>Initialize the store connection. Call before any IAP API.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/init-connection</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/init-connection</summary>
     Task<bool> InitConnectionAsync(InitConnectionConfig? config = null);
 
     /// <summary>Check whether a billing program (e.g., External Payments) is available for the current user.</summary>
@@ -4161,7 +4161,7 @@ public interface MutationResolver
     /// <summary>Available in Google Play Billing Library 8.2.0+.</summary>
     /// <summary>Returns availability result with isAvailable flag.</summary>
     /// <summary>Throws OpenIapError.NotPrepared if billing client not ready.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/android/is-billing-program-available-android</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/android/is-billing-program-available-android</summary>
     Task<BillingProgramAvailabilityResultAndroid> IsBillingProgramAvailableAndroidAsync(BillingProgramAndroid program);
 
     /// <summary>Launch an external content/offer link from inside the Billing Programs flow (Play Billing 8.2.0+).</summary>
@@ -4169,25 +4169,25 @@ public interface MutationResolver
     /// <summary></summary>
     /// <summary>Shows Play Store dialog and optionally launches external URL.</summary>
     /// <summary>Throws OpenIapError.NotPrepared if billing client not ready.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/android/launch-external-link-android</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/android/launch-external-link-android</summary>
     Task<bool> LaunchExternalLinkAndroidAsync(LaunchExternalLinkParamsAndroid @params);
 
     /// <summary>Show the App Store offer code redemption sheet.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios</summary>
     Task<bool> PresentCodeRedemptionSheetIOSAsync();
 
     /// <summary>Present an external purchase link, StoreKit External (iOS 16+).</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/ios/present-external-purchase-link-ios</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios</summary>
     Task<ExternalPurchaseLinkResultIOS> PresentExternalPurchaseLinkIOSAsync(string url);
 
     /// <summary>Present the external purchase notice sheet (iOS 17.4+).</summary>
     /// <summary>Uses ExternalPurchase.presentNoticeSheet() which returns a token when the user continues.</summary>
     /// <summary>Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet()</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios</summary>
     Task<ExternalPurchaseNoticeResultIOS> PresentExternalPurchaseNoticeSheetIOSAsync();
 
     /// <summary>Initiate a purchase or subscription flow; rely on events for final state.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/request-purchase</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/request-purchase</summary>
     Task<RequestPurchaseResult?> RequestPurchaseAsync(RequestPurchaseProps @params);
 
     /// <summary>Buy the currently promoted product.</summary>
@@ -4195,11 +4195,11 @@ public interface MutationResolver
     /// <summary>@deprecated Use promotedProductListenerIOS to receive the productId,</summary>
     /// <summary>then call requestPurchase with that SKU instead. In StoreKit 2,</summary>
     /// <summary>promoted products can be purchased directly via the standard purchase flow.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios</summary>
     Task<bool> RequestPurchaseOnPromotedProductIOSAsync();
 
     /// <summary>Restore non-consumable and active subscription purchases.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/restore-purchases</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/restore-purchases</summary>
     Task<string> RestorePurchasesAsync();
 
     /// <summary>Display Google&apos;s alternative billing information dialog. Step 2 of the alternative billing flow.</summary>
@@ -4207,25 +4207,25 @@ public interface MutationResolver
     /// <summary></summary>
     /// <summary>Returns true if user accepted, false if user canceled.</summary>
     /// <summary>Throws OpenIapError.NotPrepared if billing client not ready.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/android/show-alternative-billing-dialog-android</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android</summary>
     Task<bool> ShowAlternativeBillingDialogAndroidAsync();
 
     /// <summary>Present the disclosure sheet required before linking out via ExternalPurchaseCustomLink (iOS 18.1+).</summary>
     /// <summary>Call this after a deliberate customer interaction before linking out to external purchases.</summary>
     /// <summary>Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/shownotice(type:)</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios</summary>
     Task<ExternalPurchaseCustomLinkNoticeResultIOS> ShowExternalPurchaseCustomLinkNoticeIOSAsync(ExternalPurchaseCustomLinkNoticeTypeIOS noticeType);
 
     /// <summary>Present the manage-subscriptions sheet and return changed purchases (iOS 15+).</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/ios/show-manage-subscriptions-ios</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/ios/show-manage-subscriptions-ios</summary>
     Task<IReadOnlyList<PurchaseIOS>> ShowManageSubscriptionsIOSAsync();
 
     /// <summary>Force sync transactions with the App Store (iOS 15+).</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/ios/sync-ios</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/ios/sync-ios</summary>
     Task<bool> SyncIOSAsync();
 
     /// <summary>Deprecated. Validate purchase receipts with the configured providers — use verifyPurchase instead.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/features/validation#verify-purchase</summary>
+    /// <summary>See: https://openiap.dev/docs/features/validation#verify-purchase</summary>
     Task<VerifyPurchaseResult> ValidateReceiptAsync(VerifyPurchaseProps options);
 
     /// <summary>Verify a purchase against your own backend. Returns a platform-specific</summary>
@@ -4233,13 +4233,13 @@ public interface MutationResolver
     /// <summary>+ receipt/JWS metadata, VerifyPurchaseResultAndroid carries Play Store</summary>
     /// <summary>receipt fields (no isValid), and VerifyPurchaseResultHorizon uses success.</summary>
     /// <summary>Inspect the concrete variant before reading fields.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/features/validation#verify-purchase</summary>
+    /// <summary>See: https://openiap.dev/docs/features/validation#verify-purchase</summary>
     Task<VerifyPurchaseResult> VerifyPurchaseAsync(VerifyPurchaseProps options);
 
     /// <summary>Verify via a managed provider without standing up your own server. The</summary>
     /// <summary>PurchaseVerificationProvider enum currently exposes only IAPKit; platform</summary>
     /// <summary>availability may differ by implementation.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/features/validation#verify-purchase-with-provider</summary>
+    /// <summary>See: https://openiap.dev/docs/features/validation#verify-purchase-with-provider</summary>
     Task<VerifyPurchaseWithProviderResult> VerifyPurchaseWithProviderAsync(VerifyPurchaseWithProviderProps options);
 }
 
@@ -4248,94 +4248,94 @@ public interface QueryResolver
 {
     /// <summary>Check eligibility for the external purchase notice sheet (iOS 17.4+).</summary>
     /// <summary>Uses ExternalPurchase.canPresent.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios</summary>
     Task<bool> CanPresentExternalPurchaseNoticeIOSAsync();
 
     /// <summary>Get the user&apos;s current entitlement for a product, using StoreKit 2 (iOS 15+).</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/ios/current-entitlement-ios</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/ios/current-entitlement-ios</summary>
     Task<PurchaseIOS?> CurrentEntitlementIOSAsync(string sku);
 
     /// <summary>Fetch products or subscriptions from the store.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/fetch-products</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/fetch-products</summary>
     Task<FetchProductsResult> FetchProductsAsync(ProductRequest @params);
 
     /// <summary>Get details of all currently active subscriptions (filters by subscriptionIds when provided).</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/get-active-subscriptions</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/get-active-subscriptions</summary>
     Task<IReadOnlyList<ActiveSubscription>> GetActiveSubscriptionsAsync(IReadOnlyList<string>? subscriptionIds = null);
 
     /// <summary>List every StoreKit transaction (finished + unfinished) for the current user.</summary>
     /// <summary>Requires the SK2ConsumableTransactionHistory Info.plist key in the host app</summary>
     /// <summary>for finished consumables to be included (iOS 18+).</summary>
     /// <summary>Unlike getAvailablePurchases, always returns the iOS-specific PurchaseIOS shape.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/ios/get-all-transactions-ios</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/ios/get-all-transactions-ios</summary>
     Task<IReadOnlyList<PurchaseIOS>> GetAllTransactionsIOSAsync();
 
     /// <summary>Fetch the app transaction (iOS 16+).</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/ios/get-app-transaction-ios</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/ios/get-app-transaction-ios</summary>
     Task<AppTransaction?> GetAppTransactionIOSAsync();
 
     /// <summary>List active purchases for the current user.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/get-available-purchases</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/get-available-purchases</summary>
     Task<IReadOnlyList<Purchase>> GetAvailablePurchasesAsync(PurchaseOptions? options = null);
 
     /// <summary>Fetch a token for Apple&apos;s External Purchase Server reporting API (iOS 18.1+).</summary>
     /// <summary>Use this token to report transactions made through ExternalPurchaseCustomLink.</summary>
     /// <summary>Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios</summary>
     Task<ExternalPurchaseCustomLinkTokenResultIOS> GetExternalPurchaseCustomLinkTokenIOSAsync(ExternalPurchaseCustomLinkTokenTypeIOS tokenType);
 
     /// <summary>List unfinished StoreKit transactions in the queue.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/ios/get-pending-transactions-ios</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/ios/get-pending-transactions-ios</summary>
     Task<IReadOnlyList<PurchaseIOS>> GetPendingTransactionsIOSAsync();
 
     /// <summary>Read the App Store-promoted product, if any (iOS 11+).</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/ios/get-promoted-product-ios</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/ios/get-promoted-product-ios</summary>
     Task<ProductIOS?> GetPromotedProductIOSAsync();
 
     /// <summary>Get base64-encoded receipt data (legacy validation).</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/ios/get-receipt-data-ios</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/ios/get-receipt-data-ios</summary>
     Task<string?> GetReceiptDataIOSAsync();
 
     /// <summary>Return the user&apos;s storefront country code.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/get-storefront</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/get-storefront</summary>
     Task<string> GetStorefrontAsync();
 
     /// <summary>Deprecated. Get the current App Store storefront country code — use cross-platform getStorefront instead.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/ios/get-storefront-ios</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/ios/get-storefront-ios</summary>
     Task<string> GetStorefrontIOSAsync();
 
     /// <summary>Return the JWS string for a transaction (StoreKit 2).</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/ios/get-transaction-jws-ios</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/ios/get-transaction-jws-ios</summary>
     Task<string?> GetTransactionJwsIOSAsync(string sku);
 
     /// <summary>Check whether the user has any active subscription.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/has-active-subscriptions</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/has-active-subscriptions</summary>
     Task<bool> HasActiveSubscriptionsAsync(IReadOnlyList<string>? subscriptionIds = null);
 
     /// <summary>Check eligibility for the custom-link variant of external purchase (iOS 18.1+).</summary>
     /// <summary>Returns true if the app can use custom external purchase links.</summary>
     /// <summary>Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios</summary>
     Task<bool> IsEligibleForExternalPurchaseCustomLinkIOSAsync();
 
     /// <summary>Check intro-offer eligibility for a subscription group.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios</summary>
     Task<bool> IsEligibleForIntroOfferIOSAsync(string groupId);
 
     /// <summary>Check whether a transaction&apos;s JWS verification passed (StoreKit 2).</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/ios/is-transaction-verified-ios</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/ios/is-transaction-verified-ios</summary>
     Task<bool> IsTransactionVerifiedIOSAsync(string sku);
 
     /// <summary>Get the latest verified transaction for a product, using StoreKit 2.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/ios/latest-transaction-ios</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/ios/latest-transaction-ios</summary>
     Task<PurchaseIOS?> LatestTransactionIOSAsync(string sku);
 
     /// <summary>Get subscription status objects from StoreKit 2 (iOS 15+).</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/ios/subscription-status-ios</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/ios/subscription-status-ios</summary>
     Task<IReadOnlyList<SubscriptionStatusIOS>> SubscriptionStatusIOSAsync(string sku);
 
     /// <summary>Deprecated. Legacy App Store receipt validation — use verifyPurchase instead.</summary>
-    /// <summary>See: https://www.openiap.dev/docs/apis/ios/validate-receipt-ios</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/ios/validate-receipt-ios</summary>
     Task<VerifyPurchaseResultIOS> ValidateReceiptIOSAsync(VerifyPurchaseProps options);
 }
 

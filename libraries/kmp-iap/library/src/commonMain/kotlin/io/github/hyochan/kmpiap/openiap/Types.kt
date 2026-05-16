@@ -5273,12 +5273,12 @@ public sealed interface VerifyPurchaseResult {
 public interface MutationResolver {
     /**
      * Acknowledge a non-consumable purchase. Required within 3 days or Google auto-refunds.
-     * See: https://www.openiap.dev/docs/apis/android/acknowledge-purchase-android
+     * See: https://openiap.dev/docs/apis/android/acknowledge-purchase-android
      */
     suspend fun acknowledgePurchaseAndroid(purchaseToken: String): Boolean
     /**
      * Present the refund request sheet (iOS 15+). See also Features → Refund.
-     * See: https://www.openiap.dev/docs/apis/ios/begin-refund-request-ios
+     * See: https://openiap.dev/docs/apis/ios/begin-refund-request-ios
      */
     suspend fun beginRefundRequestIOS(sku: String): String?
     /**
@@ -5286,17 +5286,17 @@ public interface MutationResolver {
      * 
      * Returns true if available, false otherwise.
      * Throws OpenIapError.NotPrepared if billing client not ready.
-     * See: https://www.openiap.dev/docs/apis/android/check-alternative-billing-availability-android
+     * See: https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android
      */
     suspend fun checkAlternativeBillingAvailabilityAndroid(): Boolean
     /**
      * Clear pending transactions in the queue (sandbox helper).
-     * See: https://www.openiap.dev/docs/apis/ios/clear-transaction-ios
+     * See: https://openiap.dev/docs/apis/ios/clear-transaction-ios
      */
     suspend fun clearTransactionIOS(): Boolean
     /**
      * Consume a consumable purchase so it can be re-bought.
-     * See: https://www.openiap.dev/docs/apis/android/consume-purchase-android
+     * See: https://openiap.dev/docs/apis/android/consume-purchase-android
      */
     suspend fun consumePurchaseAndroid(purchaseToken: String): Boolean
     /**
@@ -5306,7 +5306,7 @@ public interface MutationResolver {
      * 
      * Returns token string, or null if creation failed.
      * Throws OpenIapError.NotPrepared if billing client not ready.
-     * See: https://www.openiap.dev/docs/apis/android/create-alternative-billing-token-android
+     * See: https://openiap.dev/docs/apis/android/create-alternative-billing-token-android
      */
     suspend fun createAlternativeBillingTokenAndroid(): String?
     /**
@@ -5315,27 +5315,27 @@ public interface MutationResolver {
      * 
      * Returns external transaction token needed for reporting external transactions.
      * Throws OpenIapError.NotPrepared if billing client not ready.
-     * See: https://www.openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
+     * See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
      */
     suspend fun createBillingProgramReportingDetailsAndroid(program: BillingProgramAndroid): BillingProgramReportingDetailsAndroid
     /**
      * Open the platform's subscription management UI.
-     * See: https://www.openiap.dev/docs/apis/deep-link-to-subscriptions
+     * See: https://openiap.dev/docs/apis/deep-link-to-subscriptions
      */
     suspend fun deepLinkToSubscriptions(options: DeepLinkOptions? = null): Unit
     /**
      * Close the store connection and release resources.
-     * See: https://www.openiap.dev/docs/apis/end-connection
+     * See: https://openiap.dev/docs/apis/end-connection
      */
     suspend fun endConnection(): Boolean
     /**
      * Complete a transaction after server-side verification. Required on Android within 3 days.
-     * See: https://www.openiap.dev/docs/apis/finish-transaction
+     * See: https://openiap.dev/docs/apis/finish-transaction
      */
     suspend fun finishTransaction(purchase: PurchaseInput, isConsumable: Boolean? = null): Unit
     /**
      * Initialize the store connection. Call before any IAP API.
-     * See: https://www.openiap.dev/docs/apis/init-connection
+     * See: https://openiap.dev/docs/apis/init-connection
      */
     suspend fun initConnection(config: InitConnectionConfig? = null): Boolean
     /**
@@ -5345,7 +5345,7 @@ public interface MutationResolver {
      * Available in Google Play Billing Library 8.2.0+.
      * Returns availability result with isAvailable flag.
      * Throws OpenIapError.NotPrepared if billing client not ready.
-     * See: https://www.openiap.dev/docs/apis/android/is-billing-program-available-android
+     * See: https://openiap.dev/docs/apis/android/is-billing-program-available-android
      */
     suspend fun isBillingProgramAvailableAndroid(program: BillingProgramAndroid): BillingProgramAvailabilityResultAndroid
     /**
@@ -5354,29 +5354,29 @@ public interface MutationResolver {
      * 
      * Shows Play Store dialog and optionally launches external URL.
      * Throws OpenIapError.NotPrepared if billing client not ready.
-     * See: https://www.openiap.dev/docs/apis/android/launch-external-link-android
+     * See: https://openiap.dev/docs/apis/android/launch-external-link-android
      */
     suspend fun launchExternalLinkAndroid(params: LaunchExternalLinkParamsAndroid): Boolean
     /**
      * Show the App Store offer code redemption sheet.
-     * See: https://www.openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
+     * See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
      */
     suspend fun presentCodeRedemptionSheetIOS(): Boolean
     /**
      * Present an external purchase link, StoreKit External (iOS 16+).
-     * See: https://www.openiap.dev/docs/apis/ios/present-external-purchase-link-ios
+     * See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
      */
     suspend fun presentExternalPurchaseLinkIOS(url: String): ExternalPurchaseLinkResultIOS
     /**
      * Present the external purchase notice sheet (iOS 17.4+).
      * Uses ExternalPurchase.presentNoticeSheet() which returns a token when the user continues.
      * Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet()
-     * See: https://www.openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
+     * See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
      */
     suspend fun presentExternalPurchaseNoticeSheetIOS(): ExternalPurchaseNoticeResultIOS
     /**
      * Initiate a purchase or subscription flow; rely on events for final state.
-     * See: https://www.openiap.dev/docs/apis/request-purchase
+     * See: https://openiap.dev/docs/apis/request-purchase
      */
     suspend fun requestPurchase(params: RequestPurchaseProps): RequestPurchaseResult?
     /**
@@ -5385,12 +5385,12 @@ public interface MutationResolver {
      * @deprecated Use promotedProductListenerIOS to receive the productId,
      * then call requestPurchase with that SKU instead. In StoreKit 2,
      * promoted products can be purchased directly via the standard purchase flow.
-     * See: https://www.openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios
+     * See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios
      */
     suspend fun requestPurchaseOnPromotedProductIOS(): Boolean
     /**
      * Restore non-consumable and active subscription purchases.
-     * See: https://www.openiap.dev/docs/apis/restore-purchases
+     * See: https://openiap.dev/docs/apis/restore-purchases
      */
     suspend fun restorePurchases(): Unit
     /**
@@ -5399,29 +5399,29 @@ public interface MutationResolver {
      * 
      * Returns true if user accepted, false if user canceled.
      * Throws OpenIapError.NotPrepared if billing client not ready.
-     * See: https://www.openiap.dev/docs/apis/android/show-alternative-billing-dialog-android
+     * See: https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android
      */
     suspend fun showAlternativeBillingDialogAndroid(): Boolean
     /**
      * Present the disclosure sheet required before linking out via ExternalPurchaseCustomLink (iOS 18.1+).
      * Call this after a deliberate customer interaction before linking out to external purchases.
      * Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/shownotice(type:)
-     * See: https://www.openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios
+     * See: https://openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios
      */
     suspend fun showExternalPurchaseCustomLinkNoticeIOS(noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS): ExternalPurchaseCustomLinkNoticeResultIOS
     /**
      * Present the manage-subscriptions sheet and return changed purchases (iOS 15+).
-     * See: https://www.openiap.dev/docs/apis/ios/show-manage-subscriptions-ios
+     * See: https://openiap.dev/docs/apis/ios/show-manage-subscriptions-ios
      */
     suspend fun showManageSubscriptionsIOS(): List<PurchaseIOS>
     /**
      * Force sync transactions with the App Store (iOS 15+).
-     * See: https://www.openiap.dev/docs/apis/ios/sync-ios
+     * See: https://openiap.dev/docs/apis/ios/sync-ios
      */
     suspend fun syncIOS(): Boolean
     /**
      * Deprecated. Validate purchase receipts with the configured providers — use verifyPurchase instead.
-     * See: https://www.openiap.dev/docs/features/validation#verify-purchase
+     * See: https://openiap.dev/docs/features/validation#verify-purchase
      */
     suspend fun validateReceipt(options: VerifyPurchaseProps): VerifyPurchaseResult
     /**
@@ -5430,14 +5430,14 @@ public interface MutationResolver {
      * + receipt/JWS metadata, VerifyPurchaseResultAndroid carries Play Store
      * receipt fields (no isValid), and VerifyPurchaseResultHorizon uses success.
      * Inspect the concrete variant before reading fields.
-     * See: https://www.openiap.dev/docs/features/validation#verify-purchase
+     * See: https://openiap.dev/docs/features/validation#verify-purchase
      */
     suspend fun verifyPurchase(options: VerifyPurchaseProps): VerifyPurchaseResult
     /**
      * Verify via a managed provider without standing up your own server. The
      * PurchaseVerificationProvider enum currently exposes only IAPKit; platform
      * availability may differ by implementation.
-     * See: https://www.openiap.dev/docs/features/validation#verify-purchase-with-provider
+     * See: https://openiap.dev/docs/features/validation#verify-purchase-with-provider
      */
     suspend fun verifyPurchaseWithProvider(options: VerifyPurchaseWithProviderProps): VerifyPurchaseWithProviderResult
 }
@@ -5449,22 +5449,22 @@ public interface QueryResolver {
     /**
      * Check eligibility for the external purchase notice sheet (iOS 17.4+).
      * Uses ExternalPurchase.canPresent.
-     * See: https://www.openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
+     * See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
      */
     suspend fun canPresentExternalPurchaseNoticeIOS(): Boolean
     /**
      * Get the user's current entitlement for a product, using StoreKit 2 (iOS 15+).
-     * See: https://www.openiap.dev/docs/apis/ios/current-entitlement-ios
+     * See: https://openiap.dev/docs/apis/ios/current-entitlement-ios
      */
     suspend fun currentEntitlementIOS(sku: String): PurchaseIOS?
     /**
      * Fetch products or subscriptions from the store.
-     * See: https://www.openiap.dev/docs/apis/fetch-products
+     * See: https://openiap.dev/docs/apis/fetch-products
      */
     suspend fun fetchProducts(params: ProductRequest): FetchProductsResult
     /**
      * Get details of all currently active subscriptions (filters by subscriptionIds when provided).
-     * See: https://www.openiap.dev/docs/apis/get-active-subscriptions
+     * See: https://openiap.dev/docs/apis/get-active-subscriptions
      */
     suspend fun getActiveSubscriptions(subscriptionIds: List<String>? = null): List<ActiveSubscription>
     /**
@@ -5472,91 +5472,91 @@ public interface QueryResolver {
      * Requires the SK2ConsumableTransactionHistory Info.plist key in the host app
      * for finished consumables to be included (iOS 18+).
      * Unlike getAvailablePurchases, always returns the iOS-specific PurchaseIOS shape.
-     * See: https://www.openiap.dev/docs/apis/ios/get-all-transactions-ios
+     * See: https://openiap.dev/docs/apis/ios/get-all-transactions-ios
      */
     suspend fun getAllTransactionsIOS(): List<PurchaseIOS>
     /**
      * Fetch the app transaction (iOS 16+).
-     * See: https://www.openiap.dev/docs/apis/ios/get-app-transaction-ios
+     * See: https://openiap.dev/docs/apis/ios/get-app-transaction-ios
      */
     suspend fun getAppTransactionIOS(): AppTransaction?
     /**
      * List active purchases for the current user.
-     * See: https://www.openiap.dev/docs/apis/get-available-purchases
+     * See: https://openiap.dev/docs/apis/get-available-purchases
      */
     suspend fun getAvailablePurchases(options: PurchaseOptions? = null): List<Purchase>
     /**
      * Fetch a token for Apple's External Purchase Server reporting API (iOS 18.1+).
      * Use this token to report transactions made through ExternalPurchaseCustomLink.
      * Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)
-     * See: https://www.openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios
+     * See: https://openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios
      */
     suspend fun getExternalPurchaseCustomLinkTokenIOS(tokenType: ExternalPurchaseCustomLinkTokenTypeIOS): ExternalPurchaseCustomLinkTokenResultIOS
     /**
      * List unfinished StoreKit transactions in the queue.
-     * See: https://www.openiap.dev/docs/apis/ios/get-pending-transactions-ios
+     * See: https://openiap.dev/docs/apis/ios/get-pending-transactions-ios
      */
     suspend fun getPendingTransactionsIOS(): List<PurchaseIOS>
     /**
      * Read the App Store-promoted product, if any (iOS 11+).
-     * See: https://www.openiap.dev/docs/apis/ios/get-promoted-product-ios
+     * See: https://openiap.dev/docs/apis/ios/get-promoted-product-ios
      */
     suspend fun getPromotedProductIOS(): ProductIOS?
     /**
      * Get base64-encoded receipt data (legacy validation).
-     * See: https://www.openiap.dev/docs/apis/ios/get-receipt-data-ios
+     * See: https://openiap.dev/docs/apis/ios/get-receipt-data-ios
      */
     suspend fun getReceiptDataIOS(): String?
     /**
      * Return the user's storefront country code.
-     * See: https://www.openiap.dev/docs/apis/get-storefront
+     * See: https://openiap.dev/docs/apis/get-storefront
      */
     suspend fun getStorefront(): String
     /**
      * Deprecated. Get the current App Store storefront country code — use cross-platform getStorefront instead.
-     * See: https://www.openiap.dev/docs/apis/ios/get-storefront-ios
+     * See: https://openiap.dev/docs/apis/ios/get-storefront-ios
      */
     suspend fun getStorefrontIOS(): String
     /**
      * Return the JWS string for a transaction (StoreKit 2).
-     * See: https://www.openiap.dev/docs/apis/ios/get-transaction-jws-ios
+     * See: https://openiap.dev/docs/apis/ios/get-transaction-jws-ios
      */
     suspend fun getTransactionJwsIOS(sku: String): String?
     /**
      * Check whether the user has any active subscription.
-     * See: https://www.openiap.dev/docs/apis/has-active-subscriptions
+     * See: https://openiap.dev/docs/apis/has-active-subscriptions
      */
     suspend fun hasActiveSubscriptions(subscriptionIds: List<String>? = null): Boolean
     /**
      * Check eligibility for the custom-link variant of external purchase (iOS 18.1+).
      * Returns true if the app can use custom external purchase links.
      * Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible
-     * See: https://www.openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
+     * See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
      */
     suspend fun isEligibleForExternalPurchaseCustomLinkIOS(): Boolean
     /**
      * Check intro-offer eligibility for a subscription group.
-     * See: https://www.openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios
+     * See: https://openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios
      */
     suspend fun isEligibleForIntroOfferIOS(groupID: String): Boolean
     /**
      * Check whether a transaction's JWS verification passed (StoreKit 2).
-     * See: https://www.openiap.dev/docs/apis/ios/is-transaction-verified-ios
+     * See: https://openiap.dev/docs/apis/ios/is-transaction-verified-ios
      */
     suspend fun isTransactionVerifiedIOS(sku: String): Boolean
     /**
      * Get the latest verified transaction for a product, using StoreKit 2.
-     * See: https://www.openiap.dev/docs/apis/ios/latest-transaction-ios
+     * See: https://openiap.dev/docs/apis/ios/latest-transaction-ios
      */
     suspend fun latestTransactionIOS(sku: String): PurchaseIOS?
     /**
      * Get subscription status objects from StoreKit 2 (iOS 15+).
-     * See: https://www.openiap.dev/docs/apis/ios/subscription-status-ios
+     * See: https://openiap.dev/docs/apis/ios/subscription-status-ios
      */
     suspend fun subscriptionStatusIOS(sku: String): List<SubscriptionStatusIOS>
     /**
      * Deprecated. Legacy App Store receipt validation — use verifyPurchase instead.
-     * See: https://www.openiap.dev/docs/apis/ios/validate-receipt-ios
+     * See: https://openiap.dev/docs/apis/ios/validate-receipt-ios
      */
     suspend fun validateReceiptIOS(options: VerifyPurchaseProps): VerifyPurchaseResultIOS
 }

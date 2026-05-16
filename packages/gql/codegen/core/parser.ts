@@ -124,7 +124,7 @@ export class SchemaParser {
         const trimmed = line.trim();
 
         // Track current type context
-        const typeMatch = trimmed.match(/^type\s+([A-Za-z0-9_]+)/);
+        const typeMatch = trimmed.match(/^(?:extend\s+)?type\s+([A-Za-z0-9_]+)/);
         if (typeMatch) {
           currentTypeName = typeMatch[1];
           if (expectUnionType) {
