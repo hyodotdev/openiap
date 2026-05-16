@@ -38,11 +38,7 @@ Pod::Spec.new do |s|
   # When podspec is in repo root (git distribution), use 'packages/apple/Sources/**/*.swift'
   sources_dir = File.join(File.dirname(__FILE__), 'Sources')
   s.source_files = File.directory?(sources_dir) ? 'Sources/**/*.swift' : 'packages/apple/Sources/**/*.swift'
-  s.resource_bundles = {
-    'OpenIAP' => [
-      File.directory?(sources_dir) ? 'Sources/openiap-versions.json' : 'openiap-versions.json'
-    ]
-  }
+  s.resources = File.directory?(sources_dir) ? 'Sources/openiap-versions.json' : 'openiap-versions.json'
 
   s.frameworks = 'StoreKit'
   s.requires_arc = true

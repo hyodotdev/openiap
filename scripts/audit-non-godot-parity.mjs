@@ -2929,7 +2929,7 @@ function checkFrameworkDependencyHygiene() {
     'version(for: "spec")',
   ], 'Apple OpenIAP runtime version');
   expectIncludes('packages/apple/openiap.podspec', [
-    's.resource_bundles',
+    's.resources',
     'Sources/openiap-versions.json',
     'openiap-versions.json',
   ], 'Apple podspec version resource');
