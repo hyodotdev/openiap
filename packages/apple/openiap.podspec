@@ -40,7 +40,7 @@ Pod::Spec.new do |s|
   s.source_files = File.directory?(sources_dir) ? 'Sources/**/*.swift' : 'packages/apple/Sources/**/*.swift'
   s.resource_bundles = {
     'OpenIAP' => [
-      File.directory?(sources_dir) ? 'Sources/openiap-versions.json' : 'packages/apple/Sources/openiap-versions.json'
+      File.directory?(sources_dir) ? 'Sources/openiap-versions.json' : 'openiap-versions.json'
     ]
   }
 

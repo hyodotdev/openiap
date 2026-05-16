@@ -2931,7 +2931,7 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes('packages/apple/openiap.podspec', [
     's.resource_bundles',
     'Sources/openiap-versions.json',
-    'packages/apple/Sources/openiap-versions.json',
+    'openiap-versions.json',
   ], 'Apple podspec version resource');
   expectNotIncludes('packages/apple/Sources/OpenIapVersion.swift', [
     '1.2.23',
