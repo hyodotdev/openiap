@@ -1,4 +1,5 @@
 import groovy.json.JsonSlurper
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.android.library")
@@ -9,8 +10,12 @@ plugins {
 
 // Read version from monorepo root openiap-versions.json
 val versionsFile = File(rootDir.parentFile.parentFile, "openiap-versions.json")
+if (!versionsFile.isFile) {
+    error("packages/google: missing openiap-versions.json at ${versionsFile.path}")
+}
 val versionsJson = JsonSlurper().parseText(versionsFile.readText()) as Map<*, *>
-val openIapVersion: String = versionsJson["google"]?.toString() ?: "1.0.0"
+val openIapVersion: String = versionsJson["google"]?.toString()
+    ?: error("packages/google: 'google' version missing in openiap-versions.json")
 
 android {
     namespace = "io.github.hyochan.openiap"
@@ -53,10 +58,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     // Enable Compose for composables in this library (IapContext)
     buildFeatures {
         compose = true
@@ -89,7 +90,18 @@ android {
     }
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
+    }
+}
+
 dependencies {
+    val playBillingVersion = "8.3.0"
+    val coroutinesVersion = "1.9.0"
+    val horizonPlatformVersion = "77.0.1"
+    val horizonBillingCompatibilityVersion = "1.1.1"
+
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
 
@@ -99,18 +111,18 @@ dependencies {
 
     // Play flavor: Google Play Billing API (compile + runtime)
     // Version 8.3.0 adds External Payments Program support (Japan only)
-    add("playCompileOnly", "com.android.billingclient:billing-ktx:8.3.0")
-    add("playApi", "com.android.billingclient:billing-ktx:8.3.0")
+    add("playCompileOnly", "com.android.billingclient:billing-ktx:$playBillingVersion")
+    add("playApi", "com.android.billingclient:billing-ktx:$playBillingVersion")
 
     // Horizon flavor: Meta Horizon Platform SDK and Billing Compatibility Library (compile + runtime)
-    add("horizonCompileOnly", "com.meta.horizon.platform.ovr:android-platform-sdk:77.0.1")
-    add("horizonApi", "com.meta.horizon.platform.ovr:android-platform-sdk:77.0.1")
-    add("horizonCompileOnly", "com.meta.horizon.billingclient.api:horizon-billing-compatibility:1.1.1")
-    add("horizonApi", "com.meta.horizon.billingclient.api:horizon-billing-compatibility:1.1.1")
+    add("horizonCompileOnly", "com.meta.horizon.platform.ovr:android-platform-sdk:$horizonPlatformVersion")
+    add("horizonApi", "com.meta.horizon.platform.ovr:android-platform-sdk:$horizonPlatformVersion")
+    add("horizonCompileOnly", "com.meta.horizon.billingclient.api:horizon-billing-compatibility:$horizonBillingCompatibilityVersion")
+    add("horizonApi", "com.meta.horizon.billingclient.api:horizon-billing-compatibility:$horizonBillingCompatibilityVersion")
 
     // Kotlin Coroutines
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutinesVersion")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
     
     // JSON handling
@@ -123,9 +135,9 @@ dependencies {
     
     // Testing dependencies
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesVersion")
     // Add Google Play Billing for tests (all flavors need it for OpenIapErrorTest)
-    testImplementation("com.android.billingclient:billing-ktx:8.3.0")
+    testImplementation("com.android.billingclient:billing-ktx:$playBillingVersion")
     // Robolectric for lightweight Android JVM tests (e.g. Horizon no-op listener)
     testImplementation("org.robolectric:robolectric:4.13")
     testImplementation("androidx.test:core:1.5.0")
@@ -176,8 +188,8 @@ mavenPublishing {
         }
     }
 
-    // Use the new Central Portal publishing which avoids Nexus staging profile lookups.
-    publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
+    // Central Portal is the default Maven Central target on Vanniktech 0.33+.
+    publishToMavenCentral()
     signAllPublications()
 
     pom {

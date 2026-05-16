@@ -59,6 +59,19 @@ enum class VerificationMethod(val displayName: String) {
     IAPKit("☁️ IAPKit (Server)")
 }
 
+private fun redactedPurchaseJson(purchase: PurchaseAndroid): String =
+    purchase.toJson()
+        .mapValues { (key, value) ->
+            if (key in sensitivePurchaseJsonKeys && value != null) "<redacted>" else value
+        }
+        .toString()
+
+private val sensitivePurchaseJsonKeys = setOf(
+    "dataAndroid",
+    "purchaseToken",
+    "signatureAndroid"
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PurchaseFlowScreen(
@@ -421,7 +434,7 @@ fun PurchaseFlowScreen(
                                 OutlinedButton(
                                     onClick = {
                                         lastPurchaseAndroid?.let { p ->
-                                            val json = p.toJson().toString()
+                                            val json = redactedPurchaseJson(p)
                                             clipboard.setText(AnnotatedString(json))
                                         }
                                     },
@@ -563,7 +576,7 @@ fun PurchaseFlowScreen(
             ?: throw IllegalStateException("Purchase token is required for IAPKit verification")
 
         println("PurchaseFlow: IAPKit verification params:")
-        println("  - purchaseToken: ${token.take(6)}… (redacted)")
+        println("  - purchaseToken: <redacted>")
 
         val props = RequestVerifyPurchaseWithIapkitProps(
             apiKey = apiKey,
@@ -651,7 +664,6 @@ fun PurchaseFlowScreen(
                         result
                     } catch (e: Exception) {
                         println("PurchaseFlow: IAPKit verification error: ${e.message}")
-                        e.printStackTrace()
                         verificationResultMessage = "❌ IAPKit verification error: ${e.message}"
                         iapStore.postStatusMessage(
                             message = "Verification error: ${e.message}. Finishing transaction anyway for testing.",

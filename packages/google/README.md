@@ -3,13 +3,13 @@
 <div align="center">
   <img src="./logo.webp" alt="OpenIAP Google Logo" width="120" height="120">
 
-  <p><strong>Android implementation of the <a href="https://www.openiap.dev/">OpenIAP</a> specification using Google Play Billing.</strong></p>
+  <p><strong>Android implementation of the <a href="https://openiap.dev/">OpenIAP</a> specification using Google Play Billing.</strong></p>
 </div>
 
 <br />
 
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.hyochan.openiap/openiap-google)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google)
-[![API](https://img.shields.io/badge/API-21%2B-brightgreen.svg?style=flat)](https://android-arsenal.com/api?level=21)
+[![API](https://img.shields.io/badge/API-23%2B-brightgreen.svg?style=flat)](https://android-arsenal.com/api?level=23)
 [![Google Release](https://github.com/hyodotdev/openiap/actions/workflows/release-google.yml/badge.svg)](https://github.com/hyodotdev/openiap/actions/workflows/release-google.yml)
 [![CI](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml/badge.svg)](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
@@ -31,10 +31,10 @@ Visit [**openiap.dev**](https://openiap.dev) for complete documentation, API ref
 
 ## Requirements
 
-- **Minimum SDK**: 21 (Android 5.0)
-- **Compile SDK**: 34+
-- **Google Play Billing**: v8.0.0
-- **Kotlin**: 1.9.20+
+- **Minimum SDK**: 23 (Android 6.0)
+- **Compile SDK**: 35
+- **Google Play Billing**: v8.3.0
+- **Kotlin**: 2.2.0+
 
 ## Installation
 
@@ -42,11 +42,11 @@ Add to your module's `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("io.github.hyochan.openiap:openiap-google:$version")
+    implementation("io.github.hyochan.openiap:openiap-google:<version>")
 }
 ```
 
-> Check [`openiap-versions.json`](../../openiap-versions.json) for the current version.
+Use the latest version from [Maven Central](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google) or the badge above.
 
 ## Quick Start
 

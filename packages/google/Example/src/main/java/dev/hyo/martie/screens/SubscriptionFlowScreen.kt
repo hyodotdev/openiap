@@ -52,6 +52,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.security.MessageDigest
 import dev.hyo.martie.util.findActivity
 import dev.hyo.martie.util.PREMIUM_SUBSCRIPTION_PRODUCT_ID
 import dev.hyo.martie.util.SUBSCRIPTION_PREFS_NAME
@@ -68,6 +69,16 @@ private object ReplacementMode {
     const val CHARGE_FULL_PRICE = 5       // Immediate change, charge full price
     const val DEFERRED = 6                // Change at next billing cycle
     const val KEEP_EXISTING = 7           // Keep existing payment schedule (8.1.0+)
+}
+
+private fun maskPurchaseToken(token: String?): String {
+    val value = token?.takeIf { it.isNotBlank() } ?: return "none"
+    val fingerprint = MessageDigest
+        .getInstance("SHA-256")
+        .digest(value.toByteArray(Charsets.UTF_8))
+        .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+        .take(12)
+    return "<redacted len=${value.length} sha256=$fingerprint>"
 }
 
 // Helper to format remaining time like "3d 4h" / "2h 12m" / "35m"
@@ -187,7 +198,6 @@ fun SubscriptionFlowScreen(
                 }
             } catch (e: Exception) {
                 println("SubscriptionFlow: getActiveSubscriptions FAILED: ${e.message}")
-                e.printStackTrace()
             }
             delay(500)
 
@@ -220,7 +230,7 @@ fun SubscriptionFlowScreen(
                         println("    Offer $index:")
                         println("      Base Plan: ${offer.basePlanId}")
                         println("      Offer ID: ${offer.offerId}")
-                        println("      Offer Token: ${offer.offerToken.take(20)}...")
+                        println("      Offer Token: <redacted>")
                         offer.pricingPhases.pricingPhaseList.forEachIndexed { phaseIndex, phase ->
                             println("      Phase $phaseIndex: ${phase.formattedPrice} for ${phase.billingPeriod}")
                         }
@@ -235,7 +245,6 @@ fun SubscriptionFlowScreen(
         }
         } catch (e: Exception) {
             println("SubscriptionFlow: Initialization error: ${e.message}")
-            e.printStackTrace()
             iapStore.postStatusMessage(
                 message = "Failed to initialize: ${e.message}",
                 status = PurchaseResultStatus.Error
@@ -859,7 +868,7 @@ fun SubscriptionFlowScreen(
                                                                 return@launch
                                                             }
 
-                                                            println("SubscriptionFlow [Horizon/Play]: Changing from ${currentOffer.basePlanId} to ${targetOffer.basePlanId} with token: ${purchaseToken.take(10)}...")
+                                                            println("SubscriptionFlow [Horizon/Play]: Changing from ${currentOffer.basePlanId} to ${targetOffer.basePlanId} with token: ${maskPurchaseToken(purchaseToken)}")
 
                                                             // Request subscription offer change (same product, different offer)
                                                             // Using new subscriptionProductReplacementParams API (8.1.0+)
@@ -908,7 +917,6 @@ fun SubscriptionFlowScreen(
                                                             }
                                                         } catch (e: Exception) {
                                                             println("SubscriptionFlow: Error changing subscription: ${e.message}")
-                                                            e.printStackTrace()
 
                                                             iapStore.postStatusMessage(
                                                                 message = "Subscription change failed: ${e.message}",
@@ -953,7 +961,7 @@ fun SubscriptionFlowScreen(
                                     }
 
                                     // Log purchase details for debugging
-                                    println("SubscriptionFlow: Current purchase details - productId: ${subscription.productId}, token: ${subscription.purchaseToken?.take(10)}")
+                                    println("SubscriptionFlow: Current purchase details - productId: ${subscription.productId}, token: ${maskPurchaseToken(subscription.purchaseToken)}")
                                     println("SubscriptionFlow: Purchase state: ${subscription.purchaseState}")
 
                                     // Resolve the active offer for this subscription
@@ -1087,7 +1095,7 @@ fun SubscriptionFlowScreen(
                                                                 return@launch
                                                             }
 
-                                                            println("SubscriptionFlow: Changing from ${currentOffer.basePlanId} to ${targetOffer.basePlanId} with token: ${purchaseToken.take(10)}...")
+                                                            println("SubscriptionFlow: Changing from ${currentOffer.basePlanId} to ${targetOffer.basePlanId} with token: ${maskPurchaseToken(purchaseToken)}")
 
                                                             // For same subscription with different offers, use CHARGE_FULL_PRICE
                                                             // This is often the only supported mode for offer changes
@@ -1137,7 +1145,6 @@ fun SubscriptionFlowScreen(
                                                             }
                                                         } catch (e: Exception) {
                                                             println("SubscriptionFlow: Error changing subscription: ${e.message}")
-                                                            e.printStackTrace()
 
                                                             // If upgrade fails, show more helpful message
                                                             val errorMessage = when {
@@ -1228,7 +1235,7 @@ fun SubscriptionFlowScreen(
                                     }
 
                                     // Platform-specific offer selection
-                                    val subscriptionOffers = if (isHorizon && product.id == "dev.hyo.martie.premium" && product is ProductAndroid) {
+                                    val subscriptionOffers = if (isHorizon && product.id == "dev.hyo.martie.premium") {
                                         // HORIZON ONLY: Premium product has multiple offers (MONTHLY and ANNUAL)
                                         // We default to MONTHLY offer for initial purchase
                                         val monthlyOffer = product.subscriptionOfferDetailsAndroid?.find { offer ->
@@ -1237,7 +1244,7 @@ fun SubscriptionFlowScreen(
                                             }
                                         }
                                         if (monthlyOffer != null) {
-                                            println("SubscriptionFlow: Using MONTHLY offer token: ${monthlyOffer.offerToken}")
+                                            println("SubscriptionFlow: Using MONTHLY offer token: <redacted>")
                                             listOf(AndroidSubscriptionOfferInput(
                                                 offerToken = monthlyOffer.offerToken,
                                                 sku = product.id
@@ -1367,7 +1374,7 @@ fun SubscriptionFlowScreen(
             ?: throw IllegalStateException("Purchase token is required for IAPKit verification")
 
         println("SubscriptionFlow: IAPKit verification params:")
-        println("  - purchaseToken: $token")
+        println("  - purchaseToken: ${maskPurchaseToken(token)}")
 
         val props = RequestVerifyPurchaseWithIapkitProps(
             apiKey = apiKey,
@@ -1454,7 +1461,6 @@ fun SubscriptionFlowScreen(
                         result
                     } catch (e: Exception) {
                         println("SubscriptionFlow: IAPKit verification error: ${e.message}")
-                        e.printStackTrace()
                         verificationResultMessage = "❌ IAPKit verification error: ${e.message}"
                         iapStore.postStatusMessage(
                             message = "Verification error: ${e.message}. Finishing transaction anyway for testing.",

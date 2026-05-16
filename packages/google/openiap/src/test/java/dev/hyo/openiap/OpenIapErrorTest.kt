@@ -327,6 +327,7 @@ class OpenIapErrorTest {
     }
 
     @Test
+    @Suppress("DEPRECATION")
     fun `fromBillingResponseCode forwards debugMessage for every response code`() {
         val debug = "offerToken does not match any product details"
         val codesToAssert = listOf(

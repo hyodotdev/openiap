@@ -128,7 +128,7 @@ internal class ProductManager {
 
                     // Log subscription offer details
                     product.subscriptionOfferDetails?.forEachIndexed { index, offer ->
-                        OpenIapLog.d("    Offer[$index]: token=${offer.offerToken}", TAG)
+                        OpenIapLog.d("    Offer[$index]: token=<redacted>", TAG)
                         offer.pricingPhases?.pricingPhaseList?.forEachIndexed { phaseIndex, phase ->
                             OpenIapLog.d(
                                 "      Phase[$phaseIndex]: period=${phase.billingPeriod}, " +

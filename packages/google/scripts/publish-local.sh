@@ -38,10 +38,6 @@ signingInMemoryKeyFile="$(read_prop signingInMemoryKeyFile)"
 signingInMemoryKey="$(read_prop signingInMemoryKey)"
 openIapVersion="$(read_prop openIapVersion)"
 openIapGroupId="$(read_prop OPENIAP_GROUP_ID)"
-# Staging profile id (either key is accepted)
-sonatypeStagingProfileId="$(read_prop sonatypeStagingProfileId)"
-mavenCentralStagingProfileId="$(read_prop mavenCentralStagingProfileId)"
-sonatypeHostProp="$(read_prop sonatypeHost)"
 
 if [[ -z "$mavenCentralUsername" || -z "$mavenCentralPassword" ]]; then
   echo "Missing required keys in local.properties. Required: mavenCentralUsername, mavenCentralPassword"
@@ -85,25 +81,9 @@ if [[ -n "$openIapVersion" ]]; then
   export ORG_GRADLE_PROJECT_openIapVersion="$openIapVersion"
 fi
 
-# Optional: select Sonatype host via env SONATYPE_HOST=(S01|DEFAULT)
-if [[ -n "${SONATYPE_HOST:-}" ]]; then
-  export ORG_GRADLE_PROJECT_sonatypeHost="$SONATYPE_HOST"
-elif [[ -n "$sonatypeHostProp" ]]; then
-  # Allow specifying the host via local.properties (sonatypeHost=DEFAULT|S01)
-  export ORG_GRADLE_PROJECT_sonatypeHost="$sonatypeHostProp"
-fi
-
 # Optional: override Maven groupId via local.properties OPENIAP_GROUP_ID
 if [[ -n "$openIapGroupId" ]]; then
   export ORG_GRADLE_PROJECT_OPENIAP_GROUP_ID="$openIapGroupId"
-fi
-
-# Optional: set explicit staging profile id to bypass lookup
-if [[ -n "$sonatypeStagingProfileId" ]]; then
-  export ORG_GRADLE_PROJECT_mavenCentralStagingProfileId="$sonatypeStagingProfileId"
-fi
-if [[ -n "$mavenCentralStagingProfileId" ]]; then
-  export ORG_GRADLE_PROJECT_mavenCentralStagingProfileId="$mavenCentralStagingProfileId"
 fi
 
 # Optional first argument can be "local" to publish to Maven Local for testing
@@ -116,31 +96,12 @@ if [[ "$MODE" == "local" ]]; then
   echo "Publishing to Maven Local (for local testing)..."
   ./gradlew :openiap:publishToMavenLocal --no-daemon --stacktrace
   echo "Published to Maven Local."
-  echo "Use dependency: ${openIapGroupId:-io.github.hyochan}:openiap-google:${openIapVersion:-<version-from-build>}"
+  echo "Use dependency: ${openIapGroupId:-io.github.hyochan.openiap}:openiap-google:${openIapVersion:-<version-from-build>}"
   exit 0
 fi
 
 echo "Building and publishing to Maven Central..."
-
-# Try with configured host (default S01 from Gradle config). If it fails with
-# a common stagingProfiles error, retry using the alternate host automatically.
-set +e
 ./gradlew :openiap:publishAndReleaseToMavenCentral --no-daemon --no-parallel --stacktrace
-rc=$?
-set -e
-
-if [[ $rc -ne 0 ]]; then
-  echo "Initial publish failed (exit $rc). Attempting host fallback..."
-  currentHost="${ORG_GRADLE_PROJECT_sonatypeHost:-S01}"
-  if [[ "$currentHost" =~ ^(?i)s01$ ]]; then
-    fallbackHost="DEFAULT"
-  else
-    fallbackHost="S01"
-  fi
-  echo "Retrying with SONATYPE_HOST=$fallbackHost"
-  export ORG_GRADLE_PROJECT_sonatypeHost="$fallbackHost"
-  ./gradlew :openiap:publishAndReleaseToMavenCentral --no-daemon --no-parallel --stacktrace
-fi
 
 echo "Publishing completed."
 echo "Check https://central.sonatype.com/publishing/deployments"

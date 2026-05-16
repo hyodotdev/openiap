@@ -167,7 +167,7 @@ fun ProductDetailModal(
                                     DetailRow("Formatted Price", offer.formattedPrice)
                                     DetailRow("Price (micros)", offer.priceAmountMicros)
                                     offer.offerId?.let { DetailRow("Offer ID", it) }
-                                    DetailRow("Offer Token", offer.offerToken)
+                                    DetailRow("Offer Token", redactedIfPresent(offer.offerToken))
                                     if (offer.offerTags.isNotEmpty()) {
                                         DetailRow("Tags", offer.offerTags.joinToString(", "))
                                     }
@@ -236,7 +236,7 @@ fun ProductDetailModal(
                                 ) {
                                     DetailRow("Base Plan", offer.basePlanId)
                                     offer.offerId?.let { DetailRow("Offer ID", it) }
-                                    DetailRow("Offer Token", offer.offerToken)
+                                    DetailRow("Offer Token", redactedIfPresent(offer.offerToken))
                                     if (offer.offerTags.isNotEmpty()) {
                                         DetailRow("Tags", offer.offerTags.joinToString(", "))
                                     }
@@ -364,7 +364,7 @@ fun PurchaseDetailModal(
                         }
                         add("id" to purchase.id)
                         add("transactionId" to (purchase.transactionId ?: "-"))
-                        add("purchaseToken" to (purchase.purchaseToken ?: "-"))
+                        add("purchaseToken" to redactedIfPresent(purchase.purchaseToken))
                         add("purchaseState" to purchase.purchaseState.rawValue)
                         add("productId" to purchase.productId)
                         add("transactionDate" to purchase.transactionDate.toString())
@@ -373,7 +373,7 @@ fun PurchaseDetailModal(
                         purchase.isAcknowledgedAndroid?.let { add("isAcknowledgedAndroid" to it.toString()) }
                         purchase.obfuscatedAccountIdAndroid?.let { add("obfuscatedAccountIdAndroid" to it) }
                         purchase.obfuscatedProfileIdAndroid?.let { add("obfuscatedProfileIdAndroid" to it) }
-                        purchase.signatureAndroid?.let { add("signatureAndroid" to it) }
+                        purchase.signatureAndroid?.let { add("signatureAndroid" to redactedIfPresent(it)) }
                     }
                     detailRows.forEach { (label, value) -> DetailRow(label, value) }
                 }
@@ -386,7 +386,7 @@ fun PurchaseDetailModal(
                 ) {
                     OutlinedButton(
                         onClick = {
-                            val json = purchase.toJson().toString()
+                            val json = redactedPurchaseJson(purchase)
                             clipboard.setText(AnnotatedString(json))
                         },
                         modifier = Modifier.weight(1f)
@@ -412,3 +412,19 @@ private fun DetailRow(label: String, value: String) {
         Text(value, style = MaterialTheme.typography.bodyMedium)
     }
 }
+
+private fun redactedIfPresent(value: String?): String =
+    if (value.isNullOrEmpty()) "-" else "<redacted>"
+
+private fun redactedPurchaseJson(purchase: PurchaseAndroid): String =
+    purchase.toJson()
+        .mapValues { (key, value) ->
+            if (key in sensitivePurchaseJsonKeys && value != null) "<redacted>" else value
+        }
+        .toString()
+
+private val sensitivePurchaseJsonKeys = setOf(
+    "dataAndroid",
+    "purchaseToken",
+    "signatureAndroid"
+)

@@ -110,7 +110,7 @@ fun WebhookStreamScreen(navController: NavController) {
         ) {
             Text("SSE /v1/webhooks/stream/{apiKey}", style = MaterialTheme.typography.titleMedium)
             Text(
-                "api key: ${BuildConfig.IAPKIT_API_KEY.take(8).ifEmpty { "MISSING" }}",
+                "api key: ${if (BuildConfig.IAPKIT_API_KEY.isBlank()) "MISSING" else "CONFIGURED"}",
                 color = AppColors.textSecondary
             )
 

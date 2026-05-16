@@ -72,9 +72,20 @@ import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import java.lang.ref.WeakReference
+import java.security.MessageDigest
 import java.util.concurrent.atomic.AtomicReference
 
 // AlternativeBillingMode moved to main source set (shared between Play and Horizon)
+
+private fun redactSensitiveToken(token: String?): String {
+    val value = token?.takeIf { it.isNotBlank() } ?: return "none"
+    val fingerprint = MessageDigest
+        .getInstance("SHA-256")
+        .digest(value.toByteArray(Charsets.UTF_8))
+        .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+        .take(12)
+    return "<redacted len=${value.length} sha256=$fingerprint>"
+}
 
 /**
  * Main OpenIapModule implementation for Android
@@ -456,7 +467,7 @@ class OpenIapModule(
                         try {
                             val tokenMethod = details.javaClass.getMethod("getExternalTransactionToken")
                             val token = tokenMethod.invoke(details) as? String
-                            OpenIapLog.d("✓ External transaction token created: $token", TAG)
+                            OpenIapLog.d("✓ External transaction token created: ${redactSensitiveToken(token)}", TAG)
                             if (continuation.isActive) continuation.resume(token)
                         } catch (e: Exception) {
                             OpenIapLog.e("Failed to extract token: ${e.message}", e, TAG)
@@ -583,7 +594,7 @@ class OpenIapModule(
                             try {
                                 val tokenMethod = details.javaClass.getMethod("getExternalTransactionToken")
                                 val token = tokenMethod.invoke(details) as? String
-                                OpenIapLog.d("Billing program reporting token created: $token", TAG)
+                                OpenIapLog.d("Billing program reporting token created: ${redactSensitiveToken(token)}", TAG)
 
                                 if (continuation.isActive && token != null) {
                                     continuation.resume(BillingProgramReportingDetailsAndroid(
@@ -837,7 +848,7 @@ class OpenIapModule(
                     val tokenResult = createAlternativeBillingReportingToken()
 
                     if (tokenResult != null) {
-                        OpenIapLog.d("✓ Alternative billing token created: $tokenResult", TAG)
+                        OpenIapLog.d("✓ Alternative billing token created: ${redactSensitiveToken(tokenResult)}", TAG)
                         OpenIapLog.d("", TAG)
                         OpenIapLog.d("============================================================", TAG)
                         OpenIapLog.d("NEXT STEPS (PRODUCTION IMPLEMENTATION REQUIRED)", TAG)
@@ -846,25 +857,16 @@ class OpenIapModule(
                         OpenIapLog.d("", TAG)
                         OpenIapLog.d("Required implementation:", TAG)
                         OpenIapLog.d("1. Process payment through YOUR alternative payment system", TAG)
-                        OpenIapLog.d("2. After successful payment, send this token to your backend:", TAG)
-                        OpenIapLog.d("   Token: $tokenResult", TAG)
+                        OpenIapLog.d("2. After successful payment, send this token to your backend without logging it", TAG)
+                        OpenIapLog.d("   Token: ${redactSensitiveToken(tokenResult)}", TAG)
                         OpenIapLog.d("3. Backend reports to Google Play Developer API within 24 hours:", TAG)
                         OpenIapLog.d("   POST https://androidpublisher.googleapis.com/androidpublisher/v3/", TAG)
                         OpenIapLog.d("        applications/{packageName}/externalTransactions", TAG)
-                        OpenIapLog.d("   Body: { externalTransactionToken: \"$tokenResult\", ... }", TAG)
+                        OpenIapLog.d("   Body: { externalTransactionToken: \"<redacted>\", ... }", TAG)
                         OpenIapLog.d("", TAG)
                         OpenIapLog.d("See: https://developer.android.com/google/play/billing/alternative/reporting", TAG)
                         OpenIapLog.d("============================================================", TAG)
                         OpenIapLog.d("=== END ALTERNATIVE BILLING ONLY MODE ===", TAG)
-
-                        // TODO: In production, emit this token via callback for payment processing
-                        // alternativeBillingCallback?.onTokenCreated(
-                        //     token = tokenResult,
-                        //     productId = props.skus.first(),
-                        //     onPaymentComplete = { transactionId ->
-                        //         // App reports to backend after payment success
-                        //     }
-                        // )
 
                         // Return empty list - app should handle purchase via alternative billing
                         return@withContext emptyList()
@@ -949,7 +951,7 @@ class OpenIapModule(
                     if (androidArgs.type == ProductQueryType.Subs) {
                         for (offer in androidArgs.subscriptionOffers.orEmpty()) {
                             if (offer.offerToken.isNotEmpty()) {
-                                OpenIapLog.d("Adding offer token for SKU ${offer.sku}: ${offer.offerToken}", TAG)
+                                OpenIapLog.d("Adding offer token for SKU ${offer.sku}: <redacted>", TAG)
                                 val queue = requestedOffersBySku.getOrPut(offer.sku) { mutableListOf() }
                                 queue.add(offer.offerToken)
                             }
@@ -962,9 +964,9 @@ class OpenIapModule(
 
                         if (androidArgs.type == ProductQueryType.Subs) {
                             val availableOffers = productDetails.subscriptionOfferDetails?.map {
-                                "${it.basePlanId}:${it.offerToken}"
+                                it.basePlanId
                             } ?: emptyList()
-                            OpenIapLog.d("Available offers for ${productDetails.productId}: $availableOffers", TAG)
+                            OpenIapLog.d("Available offer base plans for ${productDetails.productId}: $availableOffers", TAG)
 
                             val availableTokens = productDetails.subscriptionOfferDetails?.map { it.offerToken } ?: emptyList()
                             val fromQueue = requestedOffersBySku[productDetails.productId]?.let { queue ->
@@ -973,10 +975,10 @@ class OpenIapModule(
                             val fromIndex = androidArgs.subscriptionOffers?.getOrNull(index)?.takeIf { it.sku == productDetails.productId }?.offerToken
                             val resolved = fromQueue ?: fromIndex ?: productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken
 
-                            OpenIapLog.d("Resolved offer token for ${productDetails.productId}: $resolved", TAG)
+                            OpenIapLog.d("Resolved offer token for ${productDetails.productId}: ${redactSensitiveToken(resolved)}", TAG)
 
                             if (resolved.isNullOrEmpty() || (availableTokens.isNotEmpty() && !availableTokens.contains(resolved))) {
-                                OpenIapLog.w("Invalid offer token: $resolved not in $availableTokens", TAG)
+                                OpenIapLog.w("Invalid offer token: ${redactSensitiveToken(resolved)} not in available offer tokens", TAG)
                                 val err = OpenIapError.SkuOfferMismatch
                                 for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
                                 consumePurchaseCallback(Result.success(emptyList()))
@@ -995,7 +997,7 @@ class OpenIapModule(
                             }
                         } else if (androidArgs.type == ProductQueryType.InApp && !androidArgs.offerToken.isNullOrEmpty()) {
                             // Handle one-time purchase discount offers (Android 7.0+)
-                            OpenIapLog.d("Setting offer token for one-time product ${productDetails.productId}: ${androidArgs.offerToken}", TAG)
+                            OpenIapLog.d("Setting offer token for one-time product ${productDetails.productId}: <redacted>", TAG)
 
                             // Validate offer token exists in available one-time purchase offers
                             // Use oneTimePurchaseOfferDetailsList (Billing Library 7.0+) for discount offers
@@ -1003,7 +1005,7 @@ class OpenIapModule(
                             val availableTokens = oneTimePurchaseOffers?.map { it.offerToken } ?: emptyList()
 
                             if (availableTokens.isEmpty()) {
-                                OpenIapLog.w("No one-time purchase offers available for ${productDetails.productId}, but offerToken was provided: ${androidArgs.offerToken}", TAG)
+                                OpenIapLog.w("No one-time purchase offers available for ${productDetails.productId}, but offerToken was provided: <redacted>", TAG)
                                 val err = OpenIapError.SkuOfferMismatch
                                 for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
                                 consumePurchaseCallback(Result.success(emptyList()))
@@ -1011,7 +1013,7 @@ class OpenIapModule(
                             }
 
                             if (!availableTokens.contains(androidArgs.offerToken)) {
-                                OpenIapLog.w("Invalid one-time offer token: ${androidArgs.offerToken} not in $availableTokens", TAG)
+                                OpenIapLog.w("Invalid one-time offer token: <redacted> not in available offer tokens", TAG)
                                 val err = OpenIapError.SkuOfferMismatch
                                 for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
                                 consumePurchaseCallback(Result.success(emptyList()))
@@ -1050,7 +1052,7 @@ class OpenIapModule(
                     if (androidArgs.type == ProductQueryType.Subs && !androidArgs.purchaseToken.isNullOrBlank()) {
                         // This is a subscription upgrade/downgrade - do not set obfuscatedProfileId
                         OpenIapLog.d("=== Subscription Upgrade Flow ===", TAG)
-                        OpenIapLog.d("  - Old Token: ${androidArgs.purchaseToken.take(10)}...", TAG)
+                        OpenIapLog.d("  - Old Token: ${redactSensitiveToken(androidArgs.purchaseToken)}", TAG)
                         OpenIapLog.d("  - Target SKUs: ${androidArgs.skus}", TAG)
                         OpenIapLog.d("  - Replacement mode: ${androidArgs.replacementMode}", TAG)
                         OpenIapLog.d("  - Product Details Count: ${paramsList.size}", TAG)
@@ -1462,7 +1464,7 @@ class OpenIapModule(
                     OpenIapLog.d("Mapping purchase products=${purchase.products} to type=$productType basePlanId=$basePlanId (cached=${cached != null})", TAG)
                     purchase.toPurchase(productType, basePlanId)
                 }
-                OpenIapLog.d("Mapped purchases=${gson.toJson(mapped)}", TAG)
+                OpenIapLog.d("Mapped purchases count=${mapped.size}", TAG)
                 notifySuspendedSubscriptions(mapped)
                 for (converted in mapped) {
                     for (listener in purchaseUpdateListeners) {
@@ -1540,7 +1542,7 @@ class OpenIapModule(
 
                                 if (externalToken != null && products != null) {
                                     val productIds = products.mapNotNull { it?.toString() }
-                                    OpenIapLog.d("External transaction token: $externalToken", TAG)
+                                    OpenIapLog.d("External transaction token: ${redactSensitiveToken(externalToken)}", TAG)
                                     OpenIapLog.d("Products: $productIds", TAG)
 
                                     // Create UserChoiceBillingDetails for the event
@@ -1575,8 +1577,7 @@ class OpenIapModule(
                                     OpenIapLog.w("Failed to extract user choice details", TAG)
                                 }
                             } catch (e: Exception) {
-                                OpenIapLog.w("Error processing user choice details: ${e.message}", TAG)
-                                e.printStackTrace()
+                                OpenIapLog.e("Error processing user choice details", e, TAG)
                             }
                             OpenIapLog.d("==========================================", TAG)
                         }
@@ -1830,7 +1831,7 @@ class OpenIapModule(
                     val externalToken = tokenMethod?.invoke(billingDetails) as? String
 
                     if (externalToken != null) {
-                        OpenIapLog.d("External transaction token: $externalToken", TAG)
+                        OpenIapLog.d("External transaction token: ${redactSensitiveToken(externalToken)}", TAG)
 
                         // Create DeveloperProvidedBillingDetailsAndroid for the event
                         val details = DeveloperProvidedBillingDetailsAndroid(
@@ -1862,8 +1863,7 @@ class OpenIapModule(
                         OpenIapLog.w("Failed to extract external transaction token", TAG)
                     }
                 } catch (e: Exception) {
-                    OpenIapLog.w("Error processing developer billing details: ${e.message}", TAG)
-                    e.printStackTrace()
+                    OpenIapLog.e("Error processing developer billing details", e, TAG)
                 }
                 OpenIapLog.d("==========================================", TAG)
             }
