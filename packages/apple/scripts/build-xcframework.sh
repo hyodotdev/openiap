@@ -13,7 +13,10 @@ BUILD_DIR="${PACKAGE_DIR}/.build/xcframework"
 DERIVED="${BUILD_DIR}/derived"
 ARCHIVES="${BUILD_DIR}/archives"
 OUT="${BUILD_DIR}/OpenIAP.xcframework"
-VERSIONS_FILE="${PACKAGE_DIR}/openiap-versions.json"
+VERSIONS_FILE="${PACKAGE_DIR}/Sources/openiap-versions.json"
+if [[ ! -f "${VERSIONS_FILE}" ]]; then
+  VERSIONS_FILE="${PACKAGE_DIR}/../../openiap-versions.json"
+fi
 
 if [[ ! -d "${WRAPPER_DIR}" ]] || [[ ! -f "${WRAPPER_DIR}/project.yml" ]]; then
   echo "error: wrapper project not found at ${WRAPPER_DIR}"

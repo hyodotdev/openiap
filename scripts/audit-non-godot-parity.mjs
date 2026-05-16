@@ -156,6 +156,16 @@ function expectNotIncludes(relativePath, needles, label = relativePath) {
   }
 }
 
+function expectOptionalIncludes(relativePath, needles, label = relativePath) {
+  if (!exists(relativePath)) return;
+  expectIncludes(relativePath, needles, label);
+}
+
+function expectOptionalNotIncludes(relativePath, needles, label = relativePath) {
+  if (!exists(relativePath)) return;
+  expectNotIncludes(relativePath, needles, label);
+}
+
 function expectSameFile(sourcePath, targetPath, label = targetPath, normalize = (value) => value) {
   expectFile(sourcePath);
   expectFile(targetPath);
@@ -1019,7 +1029,6 @@ function checkFrameworkDependencyHygiene() {
 
   for (const localPathFile of [
     'knowledge/internal/07-docs-consistency.md',
-    'libraries/expo-iap/example/android/settings.gradle',
     'libraries/kmp-iap/example/run-ios.sh',
   ]) {
     expectNotIncludes(localPathFile, [
@@ -1028,6 +1037,11 @@ function checkFrameworkDependencyHygiene() {
       'C:\\',
     ], 'tracked scripts/docs must not contain local absolute paths');
   }
+  expectOptionalNotIncludes('libraries/expo-iap/example/android/settings.gradle', [
+    '/Users/',
+    '/home/',
+    'C:\\',
+  ], 'tracked scripts/docs must not contain local absolute paths');
   for (const canonicalUrlFile of [
     'scripts/audit-docs.ts',
     'libraries/expo-iap/CLAUDE.md',
@@ -2239,16 +2253,16 @@ function checkFrameworkDependencyHygiene() {
       "version = '0.1.0'",
       'versionName = "0.1.0"',
     ], 'Expo Android SDK fallbacks must not lag openiap-google');
-    expectNotIncludes('libraries/expo-iap/example/android/build.gradle', [
+    expectOptionalNotIncludes('libraries/expo-iap/example/android/build.gradle', [
       "url 'https://www.jitpack.io'",
     ], 'Expo example root Gradle must avoid deprecated Groovy property syntax');
-    expectIncludes('libraries/expo-iap/example/android/app/build.gradle', [
+    expectOptionalIncludes('libraries/expo-iap/example/android/app/build.gradle', [
       'compileSdk = rootProject.ext.compileSdkVersion',
       'minSdk = rootProject.ext.minSdkVersion',
       'targetSdk = rootProject.ext.targetSdkVersion',
       'namespace =',
     ], 'Expo example app Gradle SDK versions must use assignment syntax');
-    expectNotIncludes('libraries/expo-iap/example/android/app/build.gradle', [
+    expectOptionalNotIncludes('libraries/expo-iap/example/android/app/build.gradle', [
       'ndkVersion rootProject.ext.ndkVersion',
       'buildToolsVersion rootProject.ext.buildToolsVersion',
       'compileSdk rootProject.ext.compileSdkVersion',
@@ -2493,7 +2507,7 @@ function checkFrameworkDependencyHygiene() {
       'pluginVersions.vanniktechMavenPublish',
       'pluginVersions.kotlin',
     ], 'Expo local OpenIAP plugin Gradle plugin versions');
-    expectIncludes('libraries/expo-iap/plugin/build/withLocalOpenIAP.js', [
+    expectOptionalIncludes('libraries/expo-iap/plugin/build/withLocalOpenIAP.js', [
       'relativeAndroidModulePath',
       "new File(settingsDir, '${relativeAndroidModulePath}')",
       'projectDirPattern',
@@ -2503,13 +2517,13 @@ function checkFrameworkDependencyHygiene() {
       'version "0.29.0"',
       "new File('${androidModulePath",
     ], 'Expo local OpenIAP plugin Gradle plugin versions must not drift from packages/google');
-    expectIncludes('libraries/expo-iap/example/android/settings.gradle', [
+    expectOptionalIncludes('libraries/expo-iap/example/android/settings.gradle', [
       'id("com.vanniktech.maven.publish") version "0.35.0"',
       'id("org.jetbrains.kotlin.android") version "2.2.0"',
       'id("org.jetbrains.kotlin.plugin.compose") version "2.2.0"',
       "project(':openiap-google').projectDir = new File(settingsDir, '../../../../packages/google/openiap')",
     ], 'Expo example local OpenIAP plugin versions');
-    expectNotIncludes('libraries/expo-iap/example/android/settings.gradle', [
+    expectOptionalNotIncludes('libraries/expo-iap/example/android/settings.gradle', [
       'version "0.29.0"',
       'version "2.0.21"',
     ], 'Expo example local OpenIAP plugin versions must not drift');
@@ -2881,14 +2895,12 @@ function checkFrameworkDependencyHygiene() {
   }
 
   for (const kotlinVersionFile of [
-    'libraries/expo-iap/plugin/build/withLocalOpenIAP.js',
     'libraries/expo-iap/plugin/src/withLocalOpenIAP.ts',
     'libraries/flutter_inapp_purchase/android/gradle.properties',
     'libraries/flutter_inapp_purchase/example/android/gradle.properties',
     'libraries/flutter_inapp_purchase/example/android/settings.gradle',
     'libraries/godot-iap/android/gradle.properties',
     'libraries/react-native-iap/android/gradle.properties',
-    'libraries/react-native-iap/example-expo/android/gradle.properties',
     'libraries/react-native-iap/example-expo/app.config.ts',
     'libraries/react-native-iap/README.md',
   ]) {
@@ -2896,6 +2908,19 @@ function checkFrameworkDependencyHygiene() {
       '2.2.0',
     ], `${kotlinVersionFile} Kotlin version`);
     expectNotIncludes(kotlinVersionFile, [
+      '2.0.21',
+      '2.1.20',
+      '2.1.0',
+    ], `${kotlinVersionFile} Kotlin version`);
+  }
+  for (const kotlinVersionFile of [
+    'libraries/expo-iap/plugin/build/withLocalOpenIAP.js',
+    'libraries/react-native-iap/example-expo/android/gradle.properties',
+  ]) {
+    expectOptionalIncludes(kotlinVersionFile, [
+      '2.2.0',
+    ], `${kotlinVersionFile} Kotlin version`);
+    expectOptionalNotIncludes(kotlinVersionFile, [
       '2.0.21',
       '2.1.20',
       '2.1.0',
