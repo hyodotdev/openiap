@@ -49,18 +49,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CompletableDeferred
 import org.json.JSONArray
 import org.json.JSONObject
-import java.security.MessageDigest
 import java.util.Locale
-
-private fun redactSensitiveToken(token: String?): String {
-    val value = token?.takeIf { it.isNotBlank() } ?: return "none"
-    val fingerprint = MessageDigest
-        .getInstance("SHA-256")
-        .digest(value.toByteArray(Charsets.UTF_8))
-        .joinToString("") { "%02x".format(it.toInt() and 0xff) }
-        .take(12)
-    return "<redacted len=${value.length} sha256=$fingerprint>"
-}
 
 /**
  * Custom exception for OpenIAP errors that only includes the error JSON without stack traces.
@@ -203,7 +192,7 @@ class HybridRnIap : HybridRnIapSpec() {
                         runCatching {
                             RnIapLog.result(
                                 "userChoiceBillingListener",
-                                mapOf("products" to details.products, "token" to redactSensitiveToken(details.externalTransactionToken))
+                                mapOf("products" to details.products, "token" to details.externalTransactionToken)
                             )
                             val nitroDetails = UserChoiceBillingDetails(
                                 externalTransactionToken = details.externalTransactionToken,
@@ -217,7 +206,7 @@ class HybridRnIap : HybridRnIapSpec() {
                         runCatching {
                             RnIapLog.result(
                                 "developerProvidedBillingListener",
-                                mapOf("token" to redactSensitiveToken(details.externalTransactionToken))
+                                mapOf("token" to details.externalTransactionToken)
                             )
                             val nitroDetails = DeveloperProvidedBillingDetailsAndroid(
                                 externalTransactionToken = details.externalTransactionToken
@@ -1667,7 +1656,7 @@ class HybridRnIap : HybridRnIapSpec() {
                 val token = withContext(Dispatchers.Main) {
                     openIap.createAlternativeBillingReportingToken()
                 }
-                RnIapLog.result("createAlternativeBillingTokenAndroid", redactSensitiveToken(token))
+                RnIapLog.result("createAlternativeBillingTokenAndroid", token)
                 token?.let { Variant_NullType_String.Second(it) } ?: Variant_NullType_String.First(NullType.NULL)
             } catch (err: Throwable) {
                 RnIapLog.failure("createAlternativeBillingTokenAndroid", err)

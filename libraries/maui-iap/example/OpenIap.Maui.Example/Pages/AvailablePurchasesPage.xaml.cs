@@ -220,7 +220,7 @@ public partial class AvailablePurchasesPage : ContentPage
         AppendSubscriptionRow("Purchase Token",
             string.IsNullOrEmpty(subscription.PurchaseToken ?? subscription.PurchaseTokenAndroid)
                 ? null
-                : "<redacted>");
+                : subscription.PurchaseToken ?? subscription.PurchaseTokenAndroid);
         AppendSubscriptionRow("Active", subscription.IsActive ? "Yes" : "No");
         AppendSubscriptionRow("Date", FormatDate(subscription.TransactionDate));
         AppendSubscriptionRow("Auto Renew", FormatBool(subscription.AutoRenewingAndroid));

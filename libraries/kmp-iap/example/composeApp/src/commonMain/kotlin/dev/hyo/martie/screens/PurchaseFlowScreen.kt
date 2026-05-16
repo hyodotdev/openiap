@@ -122,7 +122,7 @@ fun PurchaseFlowScreen(navController: NavController) {
                     Product: ${purchase.productId}
                     Transaction ID: ${purchase.id.ifEmpty { "N/A" }}
                     Date: $dateText
-                    Receipt: ${purchase.purchaseToken?.let { "<redacted>" } ?: "N/A"}
+                    Receipt: ${purchase.purchaseToken ?: "N/A"}
                 """.trimIndent()
 
                         scope.launch {
@@ -148,7 +148,7 @@ fun PurchaseFlowScreen(navController: NavController) {
                                             verificationResult = when (result) {
                                                 is VerifyPurchaseResultIOS -> "📱 Local Verification (iOS):\n" +
                                                     "Valid: ${result.isValid}\n" +
-                                                    "Receipt: <redacted>"
+                                                    "Receipt: ${purchase.purchaseToken ?: "N/A"}"
                                                 is VerifyPurchaseResultAndroid -> "📱 Local Verification (Android):\n" +
                                                     "Product: ${result.productId}\n" +
                                                     "Receipt ID: ${result.receiptId}"

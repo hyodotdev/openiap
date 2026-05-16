@@ -273,7 +273,7 @@ function AlternativeBillingScreen() {
             product.id
           }\nProgram: ${
             details.billingProgram
-          }\nToken: <redacted>\n\n⚠️ Important:\n1. Report token to Google Play within 24 hours\n2. Process payment on your external site`,
+          }\nToken: ${details.externalTransactionToken}\n\n⚠️ Important:\n1. Report token to Google Play within 24 hours\n2. Process payment on your external site`,
         );
 
         Alert.alert(

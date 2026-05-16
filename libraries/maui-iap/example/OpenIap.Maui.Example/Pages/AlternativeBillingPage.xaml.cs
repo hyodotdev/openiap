@@ -361,7 +361,7 @@ public partial class AlternativeBillingPage : ContentPage
             var details = await mutate.CreateBillingProgramReportingDetailsAndroidAsync(_billingProgram);
             var tokenStatus = string.IsNullOrEmpty(details.ExternalTransactionToken)
                 ? "missing"
-                : "<redacted>";
+                : details.ExternalTransactionToken;
             ShowResult($"✅ Billing Programs API flow completed\n\nProduct: {common.Id}\nProgram: {details.BillingProgram.ToJson()}\nToken: {tokenStatus}\n\n⚠️ Important:\n1. Report token to Google Play within 24 hours\n2. Process payment on your external site");
             await DisplayAlert("Demo Complete", "Billing Programs API flow completed.\n\nIn production, report the token to Google Play backend within 24 hours.", "OK");
         }

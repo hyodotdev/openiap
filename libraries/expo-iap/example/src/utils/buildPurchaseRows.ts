@@ -86,7 +86,7 @@ export const buildPurchaseRows = (purchase: Purchase): PurchaseDetailRow[] => {
     pushRow(
       rows,
       'appAccountToken',
-      iosPurchase.appAccountToken ? '<redacted>' : null,
+      iosPurchase.appAccountToken ?? null,
     );
     pushRow(rows, 'appBundleIdIOS', iosPurchase.appBundleIdIOS);
     pushRow(rows, 'countryCodeIOS', iosPurchase.countryCodeIOS);
@@ -135,7 +135,7 @@ export const buildPurchaseRows = (purchase: Purchase): PurchaseDetailRow[] => {
     pushRow(
       rows,
       'signatureAndroid',
-      androidPurchase.signatureAndroid ? '<redacted>' : null,
+      androidPurchase.signatureAndroid ?? null,
     );
     pushRow(rows, 'packageNameAndroid', androidPurchase.packageNameAndroid);
     pushRow(
@@ -166,11 +166,11 @@ export const buildPurchaseRows = (purchase: Purchase): PurchaseDetailRow[] => {
     pushRow(
       rows,
       'dataAndroid',
-      androidPurchase.dataAndroid ? '<redacted>' : null,
+      androidPurchase.dataAndroid ?? null,
     );
   }
 
-  pushRow(rows, 'purchaseToken', purchase.purchaseToken ? '<redacted>' : null);
+  pushRow(rows, 'purchaseToken', purchase.purchaseToken ?? null);
 
   return rows;
 };

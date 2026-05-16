@@ -59,19 +59,6 @@ enum class VerificationMethod(val displayName: String) {
     IAPKit("☁️ IAPKit (Server)")
 }
 
-private fun redactedPurchaseJson(purchase: PurchaseAndroid): String =
-    purchase.toJson()
-        .mapValues { (key, value) ->
-            if (key in sensitivePurchaseJsonKeys && value != null) "<redacted>" else value
-        }
-        .toString()
-
-private val sensitivePurchaseJsonKeys = setOf(
-    "dataAndroid",
-    "purchaseToken",
-    "signatureAndroid"
-)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PurchaseFlowScreen(
@@ -434,7 +421,7 @@ fun PurchaseFlowScreen(
                                 OutlinedButton(
                                     onClick = {
                                         lastPurchaseAndroid?.let { p ->
-                                            val json = redactedPurchaseJson(p)
+                                            val json = p.toJson().toString()
                                             clipboard.setText(AnnotatedString(json))
                                         }
                                     },
@@ -576,7 +563,7 @@ fun PurchaseFlowScreen(
             ?: throw IllegalStateException("Purchase token is required for IAPKit verification")
 
         println("PurchaseFlow: IAPKit verification params:")
-        println("  - purchaseToken: <redacted>")
+        println("  - purchaseToken: $token")
 
         val props = RequestVerifyPurchaseWithIapkitProps(
             apiKey = apiKey,

@@ -105,8 +105,7 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
         debugPrint('  Is acknowledged Android: $acknowledgedAndroid');
         debugPrint('  Transaction ID: ${transactionId ?? 'N/A'}');
         final token = purchase.purchaseToken;
-        debugPrint(
-            '  Purchase token: ${token == null ? 'null' : '<redacted>'}');
+        debugPrint('  Purchase token: ${token ?? 'null'}');
         if (purchase is PurchaseAndroid) {
           debugPrint('  Auto renewing: ${purchase.autoRenewingAndroid}');
         }
@@ -693,7 +692,7 @@ Store: ${iapkitResult.store.value}
       final SubscriptionOfferAndroid? selectedOffer =
           androidOffers.isNotEmpty ? androidOffers.first : null;
       if (selectedOffer != null) {
-        debugPrint('Using offer token: <redacted>');
+        debugPrint('Using offer token: ${selectedOffer.offerToken}');
       }
 
       // Request subscription using the new API
@@ -811,8 +810,7 @@ Store: ${iapkitResult.store.value}
       // Use current subscription token if available, otherwise use a test token
       final testToken = _currentActiveSubscription?.purchaseToken ??
           'test_empty_token_${DateTime.now().millisecondsSinceEpoch}';
-      debugPrint(
-          'Using test token: ${testToken.isEmpty ? 'empty' : '<redacted>'}');
+      debugPrint('Using test token: ${testToken.isEmpty ? 'empty' : testToken}');
 
       // Test with empty string - but pass validation by using a non-empty token
       final requestProps = RequestPurchaseProps.subs((
@@ -1034,7 +1032,7 @@ Store: ${iapkitResult.store.value}
             if (subscription.purchaseToken != null) ...[
               const SizedBox(height: 4),
               Text(
-                'Token: <redacted>',
+                'Token: ${subscription.purchaseToken}',
                 style: TextStyle(
                   fontSize: 11,
                   color: Colors.grey.shade600,
@@ -1452,7 +1450,7 @@ Store: ${iapkitResult.store.value}
               padding: const EdgeInsets.all(8.0),
               child: Chip(
                 label: Text(
-                  'Token: <redacted>',
+                  'Token: ${_currentActiveSubscription!.purchaseToken}',
                   style: const TextStyle(fontSize: 10),
                 ),
                 backgroundColor: Colors.green,

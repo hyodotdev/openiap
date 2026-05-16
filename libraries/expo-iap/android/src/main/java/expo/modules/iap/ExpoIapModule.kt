@@ -33,23 +33,12 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.security.MessageDigest
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
 import dev.hyo.openiap.BillingProgramAndroid as OpenIapBillingProgram
 import dev.hyo.openiap.ExternalLinkLaunchModeAndroid as OpenIapExternalLinkLaunchMode
 import dev.hyo.openiap.ExternalLinkTypeAndroid as OpenIapExternalLinkType
 import dev.hyo.openiap.LaunchExternalLinkParamsAndroid as OpenIapLaunchExternalLinkParams
-
-private fun redactSensitiveToken(token: String?): String {
-    val value = token?.takeIf { it.isNotBlank() } ?: return "none"
-    val fingerprint = MessageDigest
-        .getInstance("SHA-256")
-        .digest(value.toByteArray(Charsets.UTF_8))
-        .joinToString("") { "%02x".format(it.toInt() and 0xff) }
-        .take(12)
-    return "<redacted len=${value.length} sha256=$fingerprint>"
-}
 
 class ExpoIapModule : Module() {
     companion object {
@@ -376,7 +365,7 @@ class ExpoIapModule : Module() {
             }
 
             AsyncFunction("acknowledgePurchaseAndroid") { token: String, promise: Promise ->
-                ExpoIapLog.payload("acknowledgePurchaseAndroid", mapOf("token" to redactSensitiveToken(token)))
+                ExpoIapLog.payload("acknowledgePurchaseAndroid", mapOf("token" to token))
                 scope.launch {
                     try {
                         openIap.acknowledgePurchaseAndroid(token)
@@ -392,14 +381,14 @@ class ExpoIapModule : Module() {
 
             // New name: consumePurchaseAndroid
             AsyncFunction("consumePurchaseAndroid") { token: String, promise: Promise ->
-                ExpoIapLog.payload("consumePurchaseAndroid", mapOf("token" to redactSensitiveToken(token)))
+                ExpoIapLog.payload("consumePurchaseAndroid", mapOf("token" to token))
                 scope.launch {
                     try {
                         openIap.consumePurchaseAndroid(token)
                         val response = mapOf("responseCode" to 0, "purchaseToken" to token)
                         ExpoIapLog.result(
                             "consumePurchaseAndroid",
-                            response + ("purchaseToken" to redactSensitiveToken(token)),
+                            response,
                         )
                         promise.resolve(response)
                     } catch (e: Exception) {
@@ -456,7 +445,7 @@ class ExpoIapModule : Module() {
                         // Note: OpenIapModule.createAlternativeBillingReportingToken() doesn't accept sku parameter
                         // The sku parameter is ignored for now - may be used in future versions
                         val token = openIap.createAlternativeBillingReportingToken()
-                        ExpoIapLog.result("createAlternativeBillingTokenAndroid", redactSensitiveToken(token))
+                        ExpoIapLog.result("createAlternativeBillingTokenAndroid", token)
                         promise.resolve(token)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("createAlternativeBillingTokenAndroid", e)
@@ -598,7 +587,7 @@ class ExpoIapModule : Module() {
                             )
                         ExpoIapLog.result(
                             "createBillingProgramReportingDetailsAndroid",
-                            response + ("externalTransactionToken" to redactSensitiveToken(result.externalTransactionToken)),
+                            response,
                         )
                         promise.resolve(response)
                     } catch (e: Exception) {

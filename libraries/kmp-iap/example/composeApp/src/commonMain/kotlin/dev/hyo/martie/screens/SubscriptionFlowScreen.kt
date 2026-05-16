@@ -113,7 +113,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                     Product: ${purchase.productId}
                     Transaction ID: ${purchase.id.ifEmpty { "N/A" }}
                     Date: $dateText
-                    Receipt: ${purchase.purchaseToken?.let { "<redacted>" } ?: "N/A"}
+                    Receipt: ${purchase.purchaseToken ?: "N/A"}
                 """.trimIndent()
 
                         scope.launch {
@@ -139,7 +139,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                             verificationResult = when (result) {
                                                 is VerifyPurchaseResultIOS -> "📱 Local Verification (iOS):\n" +
                                                     "Valid: ${result.isValid}\n" +
-                                                    "Receipt: <redacted>"
+                                                    "Receipt: ${purchase.purchaseToken ?: "N/A"}"
                                                 is VerifyPurchaseResultAndroid -> "📱 Local Verification (Android):\n" +
                                                     "Product: ${result.productId}\n" +
                                                     "Receipt ID: ${result.receiptId}"
@@ -978,7 +978,7 @@ fun SubscriptionCard(
                             println("    Type: ${offer.type}")
                             println("    Payment Mode: ${offer.paymentMode}")
                             offer.basePlanIdAndroid?.let { println("    Base Plan: $it") }
-                            offer.offerTokenAndroid?.let { println("    Token: <redacted>") }
+                            offer.offerTokenAndroid?.let { println("    Token: $it") }
                         }
                     }
                     is ProductSubscriptionIOS -> {

@@ -30,7 +30,7 @@ extension PurchaseDisplayMapping on Purchase {
       ),
       PurchaseDisplayField(
         label: 'purchaseToken',
-        value: _formatSensitiveString(purchaseToken),
+        value: _formatOptionalString(purchaseToken),
       ),
       PurchaseDisplayField(
         label: 'platform',
@@ -68,7 +68,7 @@ extension PurchaseDisplayMapping on Purchase {
         ),
         PurchaseDisplayField(
           label: 'appAccountToken',
-          value: _formatSensitiveString(ios.appAccountToken),
+          value: _formatOptionalString(ios.appAccountToken),
         ),
         PurchaseDisplayField(
           label: 'expirationDateIOS',
@@ -160,7 +160,7 @@ extension PurchaseDisplayMapping on Purchase {
       final androidFields = <PurchaseDisplayField>[
         PurchaseDisplayField(
           label: 'dataAndroid',
-          value: _formatSensitiveString(android.dataAndroid),
+          value: _formatOptionalString(android.dataAndroid),
         ),
         PurchaseDisplayField(
           label: 'transactionId',
@@ -168,7 +168,7 @@ extension PurchaseDisplayMapping on Purchase {
         ),
         PurchaseDisplayField(
           label: 'signatureAndroid',
-          value: _formatSensitiveString(android.signatureAndroid),
+          value: _formatOptionalString(android.signatureAndroid),
         ),
         PurchaseDisplayField(
           label: 'autoRenewingAndroid',
@@ -390,12 +390,6 @@ String _formatOptionalString(String? value) {
   if (value == null) return 'null';
   if (value.isEmpty) return '""';
   return value;
-}
-
-String _formatSensitiveString(String? value) {
-  if (value == null) return 'null';
-  if (value.isEmpty) return '""';
-  return '<redacted>';
 }
 
 String _formatNumericLikeString(String? value) {

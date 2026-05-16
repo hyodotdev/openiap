@@ -40,10 +40,9 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
       {}; // Track processed error messages
   VerificationMethod _verificationMethod = VerificationMethod.ignore;
 
-  String _maskSensitiveValue(String? value) {
+  String _formatTokenValue(String? value) {
     if (value == null || value.isEmpty) return 'none';
-    final visible = value.substring(0, value.length > 10 ? 10 : value.length);
-    return '$visible...';
+    return value;
   }
 
   @override
@@ -108,7 +107,7 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
         final txId = purchase.transactionIdFor;
         debugPrint('TransactionId: ${txId ?? 'N/A'}');
         debugPrint(
-            'PurchaseToken: ${_maskSensitiveValue(purchase.purchaseToken)}');
+            'PurchaseToken: ${_formatTokenValue(purchase.purchaseToken)}');
         debugPrint(
           'Purchase data: productId=${purchase.productId}, platform=${purchase.platform}, state=${purchase.purchaseState}',
         );
@@ -160,7 +159,7 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
     debugPrint('  Is acknowledged Android: $acknowledgedAndroid');
     debugPrint('  Transaction ID: ${transactionId ?? 'N/A'}');
     debugPrint(
-        '  Purchase token: ${_maskSensitiveValue(purchase.purchaseToken)}');
+        '  Purchase token: ${_formatTokenValue(purchase.purchaseToken)}');
     debugPrint('  ID: ${purchase.id} (${purchase.id.runtimeType})');
     debugPrint('  IDs array: ${purchase.ids}');
     if (purchase.platform == IapPlatform.IOS) {
@@ -244,7 +243,7 @@ Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpt
 
     debugPrint('✅ Purchase detected as successful: ${purchase.productId}');
     debugPrint(
-        'Purchase token: ${_maskSensitiveValue(purchase.purchaseToken)}');
+        'Purchase token: ${_formatTokenValue(purchase.purchaseToken)}');
     debugPrint('ID: ${purchase.id}'); // OpenIAP standard
     debugPrint('Transaction ID: ${transactionId ?? 'N/A'}');
 
@@ -258,9 +257,8 @@ Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpt
       _isProcessing = false;
       _currentPurchase = purchase;
 
-      final receiptStatus =
-          purchase.purchaseToken == null ? 'N/A' : '<redacted>';
-      final tokenStatus = purchase.purchaseToken == null ? 'N/A' : '<redacted>';
+      final receiptStatus = purchase.purchaseToken ?? 'N/A';
+      final tokenStatus = purchase.purchaseToken ?? 'N/A';
 
       // Format purchase result like KMP-IAP
       _purchaseResult = '''
@@ -397,7 +395,7 @@ $_purchaseResult
 
 $statusText Local Verification (iOS)
 Valid: ${iosResult.isValid}
-JWS: <redacted>
+JWS: ${purchase.purchaseToken ?? 'N/A'}
           '''
               .trim();
         });
@@ -435,8 +433,7 @@ Auto Renewing: ${androidResult.autoRenewing}
     try {
       debugPrint('Verifying purchase with IAPKit...');
       final jwsOrToken = purchase.purchaseToken ?? '';
-      debugPrint(
-          'Token for verification: ${jwsOrToken.substring(0, jwsOrToken.length > 50 ? 50 : jwsOrToken.length)}...');
+      debugPrint('Token for verification: $jwsOrToken');
 
       final result = await _iap.verifyPurchaseWithProvider(
         provider: PurchaseVerificationProvider.Iapkit,
@@ -863,7 +860,7 @@ Store: ${iapkitResult.store.value}
                                         setState(() {
                                           _purchaseResult = '''
 📊 Available Purchases: ${purchases.length}
-${purchases.map((p) => '- ${p.productId}: ${p.purchaseToken == null ? 'none' : '<redacted>'}').join('\n')}
+${purchases.map((p) => '- ${p.productId}: ${p.purchaseToken ?? 'none'}').join('\n')}
                                           '''
                                               .trim();
                                           _isProcessing = false;

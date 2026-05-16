@@ -167,7 +167,7 @@ function AlternativeBillingScreen() {
         setExternalPaymentsToken(details.externalTransactionToken);
         setIsProcessing(false);
         setPurchaseResult(
-          `✅ User selected Developer Billing (External Payments)\n\nToken: <redacted>\n\n⚠️ Important:\n1. Process payment through your external system\n2. Report token to Google Play within 24 hours`,
+          `✅ User selected Developer Billing (External Payments)\n\nToken: ${details.externalTransactionToken}\n\n⚠️ Important:\n1. Process payment through your external system\n2. Report token to Google Play within 24 hours`,
         );
 
         Alert.alert(
@@ -307,7 +307,7 @@ function AlternativeBillingScreen() {
         console.log('[Android] Reporting token created:', hasReportingToken);
 
         setPurchaseResult(
-          `✅ Billing Programs API completed\n\nProgram: ${billingProgram}\nURL: ${externalUrl}\nToken: ${hasReportingToken ? '<redacted>' : 'missing'}\n\n⚠️ Important:\n1. User completes purchase externally\n2. Report token to Google Play within 24h`,
+          `✅ Billing Programs API completed\n\nProgram: ${billingProgram}\nURL: ${externalUrl}\nToken: ${details.externalTransactionToken ?? 'missing'}\n\n⚠️ Important:\n1. User completes purchase externally\n2. Report token to Google Play within 24h`,
         );
 
         Alert.alert(
@@ -644,7 +644,7 @@ function AlternativeBillingScreen() {
               External Payments Token (Japan)
             </Text>
             <View style={styles.purchaseCard}>
-              <Text style={styles.purchaseText}>Token: {'<redacted>'}</Text>
+              <Text style={styles.purchaseText}>Token: {externalPaymentsToken}</Text>
               <Text style={styles.purchaseWarning}>
                 ⚠️ Report this token to Google Play within 24 hours{'\n'}
                 ℹ️ Process external payment through your system

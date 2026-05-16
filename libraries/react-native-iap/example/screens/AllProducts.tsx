@@ -429,7 +429,7 @@ function AllProducts() {
                                 style={[styles.offerValue, styles.offerToken]}
                                 numberOfLines={2}
                               >
-                                {'<redacted>'}
+                                {offer.offerToken}
                               </Text>
                             </View>
                           ),
@@ -525,7 +525,7 @@ function AllProducts() {
                                     ]}
                                     numberOfLines={2}
                                   >
-                                    {'<redacted>'}
+                                    {offer.offerTokenAndroid}
                                   </Text>
                                 </>
                               )}

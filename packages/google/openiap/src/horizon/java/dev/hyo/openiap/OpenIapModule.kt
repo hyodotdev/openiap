@@ -48,22 +48,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.lang.ref.WeakReference
-import java.security.MessageDigest
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 private const val TAG = "OpenIapModule"
-
-private fun redactSensitiveToken(token: String?): String {
-    val value = token?.takeIf { it.isNotBlank() } ?: return "none"
-    val fingerprint = MessageDigest
-        .getInstance("SHA-256")
-        .digest(value.toByteArray(Charsets.UTF_8))
-        .joinToString("") { "%02x".format(it.toInt() and 0xff) }
-        .take(12)
-    return "<redacted len=${value.length} sha256=$fingerprint>"
-}
 
 /**
  * OpenIapModule for Meta Horizon Billing
@@ -416,7 +405,7 @@ class OpenIapModule(
                     if (androidArgs.type == ProductQueryType.Subs) {
                         androidArgs.subscriptionOffers.orEmpty().forEach { offer ->
                             if (offer.offerToken.isNotEmpty()) {
-                                OpenIapLog.d("Adding offer token for SKU ${offer.sku}: <redacted>", TAG)
+                                OpenIapLog.d("Adding offer token for SKU ${offer.sku}: ${offer.offerToken}", TAG)
                                 val queue = requestedOffersBySku.getOrPut(offer.sku) { mutableListOf() }
                                 queue.add(offer.offerToken)
                             }
@@ -440,10 +429,10 @@ class OpenIapModule(
                             val fromIndex = androidArgs.subscriptionOffers?.getOrNull(index)?.takeIf { it.sku == productDetails.productId }?.offerToken
                             val resolved = fromQueue ?: fromIndex ?: productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken
 
-                            OpenIapLog.d("Resolved offer token for ${productDetails.productId}: ${redactSensitiveToken(resolved)}", TAG)
+                            OpenIapLog.d("Resolved offer token for ${productDetails.productId}: $resolved", TAG)
 
                             if (resolved.isNullOrEmpty() || (availableTokens.isNotEmpty() && !availableTokens.contains(resolved))) {
-                                OpenIapLog.w("Invalid offer token: ${redactSensitiveToken(resolved)} not in available offer tokens", TAG)
+                                OpenIapLog.w("Invalid offer token: $resolved not in available offer tokens", TAG)
                                 val err = OpenIapError.SkuOfferMismatch
                                 purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
                                 consumePurchaseCallback(Result.success(emptyList()))
@@ -455,7 +444,7 @@ class OpenIapModule(
                             // Handle one-time purchase discount offers
                             // Note: Horizon SDK doesn't currently support one-time purchase discount offers,
                             // but we pass the offer token through in case future SDK versions add support.
-                            OpenIapLog.d("Setting offer token for one-time product ${productDetails.productId}: <redacted>", TAG)
+                            OpenIapLog.d("Setting offer token for one-time product ${productDetails.productId}: ${androidArgs.offerToken}", TAG)
 
                             // Validate offerToken format (basic sanity check)
                             if (androidArgs.offerToken.isBlank()) {
@@ -483,7 +472,7 @@ class OpenIapModule(
                     if (androidArgs.type == ProductQueryType.Subs && !androidArgs.purchaseToken.isNullOrBlank()) {
                         // This is a subscription upgrade/downgrade - do not set obfuscatedProfileId
                         OpenIapLog.d("=== Subscription Upgrade Flow ===", TAG)
-                        OpenIapLog.d("  - Old Token: ${redactSensitiveToken(androidArgs.purchaseToken)}", TAG)
+                        OpenIapLog.d("  - Old Token: ${androidArgs.purchaseToken}", TAG)
                         OpenIapLog.d("  - Target SKUs: ${androidArgs.skus}", TAG)
                         OpenIapLog.d("  - Replacement mode: ${androidArgs.replacementMode}", TAG)
                         OpenIapLog.d("  - Product Details Count: ${paramsList.size}", TAG)
@@ -852,10 +841,8 @@ class OpenIapModule(
             OpenIapLog.i("Purchases count: ${purchases?.size ?: 0}", TAG)
 
             purchases?.forEachIndexed { index, purchase ->
-                val redactedToken = redactSensitiveToken(purchase.purchaseToken)
-                val redactedOrder = redactSensitiveToken(purchase.orderId)
                 OpenIapLog.i(
-                    "[HorizonPurchase $index] productIds=${purchase.products} token=$redactedToken orderId=$redactedOrder " +
+                    "[HorizonPurchase $index] productIds=${purchase.products} token=${purchase.purchaseToken} orderId=${purchase.orderId} " +
                     "acknowledged=${purchase.isAcknowledged()} autoRenew=${purchase.isAutoRenewing()}",
                     TAG
                 )

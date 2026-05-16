@@ -52,7 +52,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.security.MessageDigest
 import dev.hyo.martie.util.findActivity
 import dev.hyo.martie.util.PREMIUM_SUBSCRIPTION_PRODUCT_ID
 import dev.hyo.martie.util.SUBSCRIPTION_PREFS_NAME
@@ -69,16 +68,6 @@ private object ReplacementMode {
     const val CHARGE_FULL_PRICE = 5       // Immediate change, charge full price
     const val DEFERRED = 6                // Change at next billing cycle
     const val KEEP_EXISTING = 7           // Keep existing payment schedule (8.1.0+)
-}
-
-private fun maskPurchaseToken(token: String?): String {
-    val value = token?.takeIf { it.isNotBlank() } ?: return "none"
-    val fingerprint = MessageDigest
-        .getInstance("SHA-256")
-        .digest(value.toByteArray(Charsets.UTF_8))
-        .joinToString("") { "%02x".format(it.toInt() and 0xff) }
-        .take(12)
-    return "<redacted len=${value.length} sha256=$fingerprint>"
 }
 
 // Helper to format remaining time like "3d 4h" / "2h 12m" / "35m"
@@ -230,7 +219,7 @@ fun SubscriptionFlowScreen(
                         println("    Offer $index:")
                         println("      Base Plan: ${offer.basePlanId}")
                         println("      Offer ID: ${offer.offerId}")
-                        println("      Offer Token: <redacted>")
+                        println("      Offer Token: ${offer.offerToken}")
                         offer.pricingPhases.pricingPhaseList.forEachIndexed { phaseIndex, phase ->
                             println("      Phase $phaseIndex: ${phase.formattedPrice} for ${phase.billingPeriod}")
                         }
@@ -868,7 +857,7 @@ fun SubscriptionFlowScreen(
                                                                 return@launch
                                                             }
 
-                                                            println("SubscriptionFlow [Horizon/Play]: Changing from ${currentOffer.basePlanId} to ${targetOffer.basePlanId} with token: ${maskPurchaseToken(purchaseToken)}")
+                                                            println("SubscriptionFlow [Horizon/Play]: Changing from ${currentOffer.basePlanId} to ${targetOffer.basePlanId} with token: $purchaseToken")
 
                                                             // Request subscription offer change (same product, different offer)
                                                             // Using new subscriptionProductReplacementParams API (8.1.0+)
@@ -961,7 +950,7 @@ fun SubscriptionFlowScreen(
                                     }
 
                                     // Log purchase details for debugging
-                                    println("SubscriptionFlow: Current purchase details - productId: ${subscription.productId}, token: ${maskPurchaseToken(subscription.purchaseToken)}")
+                                    println("SubscriptionFlow: Current purchase details - productId: ${subscription.productId}, token: ${subscription.purchaseToken}")
                                     println("SubscriptionFlow: Purchase state: ${subscription.purchaseState}")
 
                                     // Resolve the active offer for this subscription
@@ -1095,7 +1084,7 @@ fun SubscriptionFlowScreen(
                                                                 return@launch
                                                             }
 
-                                                            println("SubscriptionFlow: Changing from ${currentOffer.basePlanId} to ${targetOffer.basePlanId} with token: ${maskPurchaseToken(purchaseToken)}")
+                                                            println("SubscriptionFlow: Changing from ${currentOffer.basePlanId} to ${targetOffer.basePlanId} with token: $purchaseToken")
 
                                                             // For same subscription with different offers, use CHARGE_FULL_PRICE
                                                             // This is often the only supported mode for offer changes
@@ -1244,7 +1233,7 @@ fun SubscriptionFlowScreen(
                                             }
                                         }
                                         if (monthlyOffer != null) {
-                                            println("SubscriptionFlow: Using MONTHLY offer token: <redacted>")
+                                            println("SubscriptionFlow: Using MONTHLY offer token: ${monthlyOffer.offerToken}")
                                             listOf(AndroidSubscriptionOfferInput(
                                                 offerToken = monthlyOffer.offerToken,
                                                 sku = product.id
@@ -1374,7 +1363,7 @@ fun SubscriptionFlowScreen(
             ?: throw IllegalStateException("Purchase token is required for IAPKit verification")
 
         println("SubscriptionFlow: IAPKit verification params:")
-        println("  - purchaseToken: ${maskPurchaseToken(token)}")
+        println("  - purchaseToken: $token")
 
         val props = RequestVerifyPurchaseWithIapkitProps(
             apiKey = apiKey,

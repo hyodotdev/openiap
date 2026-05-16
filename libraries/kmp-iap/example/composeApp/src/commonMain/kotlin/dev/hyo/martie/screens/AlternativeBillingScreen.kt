@@ -311,7 +311,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                     Product: ${product.id}
                     Program: ${details.billingProgram.rawValue}
                     URL: $linkUri
-                    Token: <redacted>
+                    Token: ${details.externalTransactionToken}
 
                     ⚠️ Important:
                     1. Process payment on your external site

@@ -418,11 +418,11 @@ function SubscriptionFlow({
                   targetBasePlanId,
                   offerToken: targetOffer.offerTokenAndroid,
                   replacementMode,
-                  purchaseToken: tokenString ? '<redacted>' : 'missing',
+                  purchaseToken: tokenString || 'missing',
                   allOffers: androidOffers?.map((o) => ({
                     basePlanId: o.basePlanIdAndroid,
                     offerId: o.id,
-                    offerToken: o.offerTokenAndroid ? '<redacted>' : undefined,
+                    offerToken: o.offerTokenAndroid,
                   })),
                 });
 
@@ -614,7 +614,7 @@ function SubscriptionFlow({
                           style={[styles.offerValue, styles.offerTokenText]}
                           numberOfLines={2}
                         >
-                          {'<redacted>'}
+                          {offer.offerTokenAndroid}
                         </Text>
                       </>
                     )}
@@ -1651,8 +1651,7 @@ function SubscriptionFlowContainer() {
     // iOS: Check transactionState (purchased/pending/failed/deferred)
     // Android: Check purchaseState (0=pending, 1=purchased, 2=failed)
     onPurchaseSuccess: async (purchase: Purchase) => {
-      const {purchaseToken, ...safePurchase} = purchase || {};
-      console.log('Purchase successful (redacted):', safePurchase);
+      console.log('Purchase successful:', purchase);
 
       // Try to detect which plan was purchased
       if (Platform.OS === 'ios') {
@@ -1800,10 +1799,10 @@ function SubscriptionFlowContainer() {
                   iapkit: {
                     apiKey: '***hidden***',
                     ...(Platform.OS === 'ios'
-                      ? {apple: {jws: '<redacted>'}}
+                      ? {apple: {jws: jwsOrToken}}
                       : {
                           google: {
-                            purchaseToken: '<redacted>',
+                            purchaseToken: jwsOrToken,
                           },
                         }),
                   },

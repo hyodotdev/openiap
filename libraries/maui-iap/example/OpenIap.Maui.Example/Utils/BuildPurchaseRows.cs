@@ -34,7 +34,7 @@ public static class BuildPurchaseRows
         {
             case PurchaseIOS ios:
                 Push(rows, "quantityIOS", ios.QuantityIOS.ToString());
-                Push(rows, "appAccountToken", RedactedIfPresent(ios.AppAccountToken));
+                Push(rows, "appAccountToken", ios.AppAccountToken);
                 Push(rows, "appBundleIdIOS", ios.AppBundleIdIOS);
                 Push(rows, "countryCodeIOS", ios.CountryCodeIOS);
                 Push(rows, "currencyCodeIOS", ios.CurrencyCodeIOS);
@@ -63,7 +63,7 @@ public static class BuildPurchaseRows
                 }
                 break;
             case PurchaseAndroid android:
-                Push(rows, "signatureAndroid", RedactedIfPresent(android.SignatureAndroid));
+                Push(rows, "signatureAndroid", android.SignatureAndroid);
                 Push(rows, "packageNameAndroid", android.PackageNameAndroid);
                 Push(rows, "developerPayloadAndroid", android.DeveloperPayloadAndroid);
                 Push(rows, "obfuscatedAccountIdAndroid",
@@ -74,12 +74,11 @@ public static class BuildPurchaseRows
                     FormatBoolean(android.IsAcknowledgedAndroid));
                 Push(rows, "autoRenewingAndroid",
                     FormatBoolean(android.AutoRenewingAndroid));
-                Push(rows, "dataAndroid", RedactedIfPresent(android.DataAndroid));
+                Push(rows, "dataAndroid", android.DataAndroid);
                 break;
         }
 
-        Push(rows, "purchaseToken",
-            string.IsNullOrEmpty(common.PurchaseToken) ? null : "<redacted>");
+        Push(rows, "purchaseToken", common.PurchaseToken);
         return rows;
     }
 
@@ -98,9 +97,6 @@ public static class BuildPurchaseRows
         if (string.IsNullOrEmpty(s)) return;
         rows.Add(new PurchaseDetailRow(label, s!));
     }
-
-    private static string? RedactedIfPresent(string? value) =>
-        string.IsNullOrEmpty(value) ? null : "<redacted>";
 
     private static string? FormatBoolean(bool? value) =>
         value.HasValue ? (value.Value ? "Yes" : "No") : null;

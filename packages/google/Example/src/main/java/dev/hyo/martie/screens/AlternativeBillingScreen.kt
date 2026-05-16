@@ -44,7 +44,6 @@ import dev.hyo.openiap.OpenIapLog
 import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import dev.hyo.martie.util.findActivity
 import kotlinx.coroutines.delay
-import java.security.MessageDigest
 
 // Billing mode options including new 8.2.0+ Billing Programs
 private enum class BillingModeOption {
@@ -52,16 +51,6 @@ private enum class BillingModeOption {
     USER_CHOICE,           // Legacy 7.0+ API
     BILLING_PROGRAMS,      // New 8.2.0+ API (recommended)
     EXTERNAL_PAYMENTS      // New 8.3.0+ API (Japan only)
-}
-
-private fun maskToken(token: String?): String {
-    val value = token?.takeIf { it.isNotBlank() } ?: return "none"
-    val fingerprint = MessageDigest
-        .getInstance("SHA-256")
-        .digest(value.toByteArray(Charsets.UTF_8))
-        .joinToString("") { "%02x".format(it.toInt() and 0xff) }
-        .take(12)
-    return "<redacted len=${value.length} sha256=$fingerprint>"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -92,13 +81,13 @@ fun AlternativeBillingScreen(navController: NavController) {
     val userChoiceListener = remember {
         dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener { details ->
             OpenIapLog.debug("=== User Choice Billing Event ===", tag = "UserChoiceEvent")
-            OpenIapLog.debug("External Token: ${maskToken(details.externalTransactionToken)}", tag = "UserChoiceEvent")
+            OpenIapLog.debug("External Token: ${details.externalTransactionToken}", tag = "UserChoiceEvent")
             OpenIapLog.debug("Products: ${details.products}", tag = "UserChoiceEvent")
             OpenIapLog.debug("==============================", tag = "UserChoiceEvent")
 
             // Show result in UI
             iapStore.postStatusMessage(
-                message = "User selected alternative billing\nToken: ${maskToken(details.externalTransactionToken)}\nProducts: ${details.products.joinToString()}",
+                message = "User selected alternative billing\nToken: ${details.externalTransactionToken}\nProducts: ${details.products.joinToString()}",
                 status = dev.hyo.openiap.store.PurchaseResultStatus.Info,
                 productId = details.products.firstOrNull()
             )
@@ -112,13 +101,13 @@ fun AlternativeBillingScreen(navController: NavController) {
     val developerBillingListener = remember {
         dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener { details ->
             OpenIapLog.debug("=== Developer Provided Billing Event ===", tag = "DeveloperBillingEvent")
-            OpenIapLog.debug("External Token: ${maskToken(details.externalTransactionToken)}", tag = "DeveloperBillingEvent")
+            OpenIapLog.debug("External Token: ${details.externalTransactionToken}", tag = "DeveloperBillingEvent")
             OpenIapLog.debug("========================================", tag = "DeveloperBillingEvent")
 
             // Show result in UI
             iapStore.postStatusMessage(
                 message = "User selected developer billing (External Payments)\n\n" +
-                        "Token: ${maskToken(details.externalTransactionToken)}\n\n" +
+                        "Token: ${details.externalTransactionToken}\n\n" +
                         "⚠️ Next steps:\n" +
                         "1. Process payment with your payment gateway\n" +
                         "2. Report token to Google within 24 hours",
@@ -777,7 +766,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                                                 iapStore.postStatusMessage(
                                                     "✅ Billing Programs flow completed (DEMO)\n\n" +
                                                     "Program: ${reportingDetails.billingProgram}\n" +
-                                                    "Token: ${maskToken(reportingDetails.externalTransactionToken)}\n\n" +
+                                                    "Token: ${reportingDetails.externalTransactionToken}\n\n" +
                                                     "⚠️ Next steps:\n" +
                                                     "1. Process payment in your system\n" +
                                                     "2. Report token to Google within 24h",
@@ -856,7 +845,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                                                 val token = iapStore.createAlternativeBillingReportingToken()
                                                 if (token != null) {
                                                     iapStore.postStatusMessage(
-                                                        "Alternative billing completed (DEMO)\nToken: ${maskToken(token)}\n⚠️ Backend reporting required",
+                                                        "Alternative billing completed (DEMO)\nToken: $token\n⚠️ Backend reporting required",
                                                         PurchaseResultStatus.Info,
                                                         selectedProduct!!.id
                                                     )
@@ -1055,7 +1044,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                                     style = MaterialTheme.typography.bodySmall
                                 )
                                 Text(
-                                    "Token: ${maskToken(purchase.purchaseToken)}",
+                                    "Token: ${purchase.purchaseToken}",
                                     style = MaterialTheme.typography.bodySmall
                                 )
 

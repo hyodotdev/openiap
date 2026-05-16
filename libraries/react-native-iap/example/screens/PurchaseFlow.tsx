@@ -724,10 +724,10 @@ function PurchaseFlowContainer() {
                   iapkit: {
                     apiKey: '***hidden***',
                     ...(Platform.OS === 'ios'
-                      ? {apple: {jws: '<redacted>'}}
+                      ? {apple: {jws: jwsOrToken}}
                       : {
                           google: {
-                            purchaseToken: '<redacted>',
+                            purchaseToken: jwsOrToken,
                           },
                         }),
                   },

@@ -147,7 +147,7 @@ class ProductDetailModal extends StatelessWidget {
             if (offer.offerToken.isNotEmpty)
               _buildDetailRow(
                 'Offer Token',
-                '<redacted>',
+                offer.offerToken,
               ),
             if (offer.offerTags.isNotEmpty)
               _buildDetailRow('Tags', offer.offerTags.join(', ')),
@@ -440,7 +440,7 @@ class ProductDetailModal extends StatelessWidget {
                                         ),
                                         _buildDetailRow(
                                           'Offer Token',
-                                          '<redacted>',
+                                          offer.offerToken,
                                         ),
                                         if (offer.offerTags.isNotEmpty)
                                           _buildDetailRow(
