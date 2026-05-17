@@ -272,8 +272,8 @@ namespace them away from other monorepo secrets):
 
 If `KIT_CONVEX_DEPLOY_KEY` is **not** set, the Convex deploy step
 prints a skip message and exits 0 — you'll need to run
-`bunx convex deploy` manually after merging any change under
-`convex/`. Set the secret once to automate it:
+`bun run deploy:kit` from the repo root manually after merging any change
+under `convex/`. Set the secret once to automate it:
 
 ```bash
 # Value from Convex dashboard → Settings → Deploy Keys

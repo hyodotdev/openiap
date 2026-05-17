@@ -18,6 +18,7 @@
     "version:sync": "bun scripts/sync-versions.mjs",
     "version:bump": "bun scripts/bump-version.mjs",
     "deploy": "./scripts/deploy.sh",
+    "deploy:kit": "cd packages/kit && npx convex deploy",
     "prepare": "husky"
   },
   "devDependencies": {

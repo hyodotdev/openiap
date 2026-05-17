@@ -25,7 +25,7 @@
     "smoke:server": "bun run build:all && ./scripts/smoke-server.sh",
     "precommit": "bunx lint-staged && bun run lint && bun run test && bun run smoke:server",
     "update-apple-certs": "node scripts/update-apple-certificates.js",
-    "convex:deploy": "convex deploy",
+    "convex:deploy": "npx convex deploy",
     "deploy:prod": "bash scripts/deploy-prod.sh"
   },
   "dependencies": {
@@ -40,7 +40,7 @@
     "@sentry/react": "^10.49.0",
     "antd": "^6.1.0",
     "clsx": "^2.1.1",
-    "convex": "^1.39.0",
+    "convex": "^1.39.1",
     "google-auth-library": "^10.6.2",
     "googleapis": "^157.0.0",
     "hono": "^4.12.18",
