@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM oven/bun:1.3.13-slim AS base
+FROM oven/bun:1.3.14-slim AS base
 
 # Build context is the monorepo root (see deploy-kit.yml + scripts/deploy-prod.sh).
 # This is required because the workspace lockfile lives at the root, not under
