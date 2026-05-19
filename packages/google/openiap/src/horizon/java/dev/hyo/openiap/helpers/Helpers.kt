@@ -9,7 +9,6 @@ import dev.hyo.openiap.OpenIapLog
 import dev.hyo.openiap.Purchase
 import dev.hyo.openiap.utils.HorizonBillingConverters.toPurchase
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlin.coroutines.resume
 
 private const val TAG = "Helpers"
 
@@ -43,18 +42,19 @@ internal suspend fun queryPurchasesHorizon(
     client: BillingClient?,
     productType: String
 ): List<Purchase> = suspendCancellableCoroutine { continuation ->
+    val resumer = continuation.resumeGuard()
     OpenIapLog.d("queryPurchasesHorizon: type=$productType", TAG)
 
     val billingClient = client ?: run {
         OpenIapLog.w("queryPurchasesHorizon: BillingClient is null", TAG)
-        continuation.resume(emptyList())
+        resumer.resume(emptyList())
         return@suspendCancellableCoroutine
     }
 
     // CRITICAL FIX: Check if BillingClient is ready before querying
     if (!billingClient.isReady()) {
         OpenIapLog.w("queryPurchasesHorizon: BillingClient is not ready", TAG)
-        continuation.resume(emptyList())
+        resumer.resume(emptyList())
         return@suspendCancellableCoroutine
     }
 
@@ -73,10 +73,10 @@ internal suspend fun queryPurchasesHorizon(
                 it.toPurchase()
             } ?: emptyList()
             OpenIapLog.d("queryPurchasesHorizon: Returning ${mapped.size} mapped purchases", TAG)
-            continuation.resume(mapped)
+            resumer.resume(mapped)
         } else {
             OpenIapLog.w("queryPurchasesHorizon: Failed with code=${result.responseCode}", TAG)
-            continuation.resume(emptyList())
+            resumer.resume(emptyList())
         }
     }
 }

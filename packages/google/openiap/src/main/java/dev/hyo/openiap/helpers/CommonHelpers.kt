@@ -13,7 +13,6 @@ import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlin.coroutines.resume
 
 /**
  * Suspend function to wait for a purchase update via listener.
@@ -23,14 +22,16 @@ internal suspend fun onPurchaseUpdated(
     addListener: (OpenIapPurchaseUpdateListener) -> Unit,
     removeListener: (OpenIapPurchaseUpdateListener) -> Unit
 ): Purchase = suspendCancellableCoroutine { continuation ->
+    lateinit var resumer: ContinuationResumeGuard<Purchase>
     val listener = object : OpenIapPurchaseUpdateListener {
         override fun onPurchaseUpdated(purchase: Purchase) {
             removeListener(this)
-            if (continuation.isActive) continuation.resume(purchase)
+            resumer.resume(purchase)
         }
     }
+    resumer = continuation.resumeGuard { removeListener(listener) }
     addListener(listener)
-    continuation.invokeOnCancellation { removeListener(listener) }
+    if (!continuation.isActive) removeListener(listener)
 }
 
 /**
@@ -41,14 +42,16 @@ internal suspend fun onPurchaseError(
     addListener: (OpenIapPurchaseErrorListener) -> Unit,
     removeListener: (OpenIapPurchaseErrorListener) -> Unit
 ): PurchaseError = suspendCancellableCoroutine { continuation ->
+    lateinit var resumer: ContinuationResumeGuard<PurchaseError>
     val listener = object : OpenIapPurchaseErrorListener {
         override fun onPurchaseError(error: OpenIapError) {
             removeListener(this)
-            if (continuation.isActive) continuation.resume(error.toPurchaseError())
+            resumer.resume(error.toPurchaseError())
         }
     }
+    resumer = continuation.resumeGuard { removeListener(listener) }
     addListener(listener)
-    continuation.invokeOnCancellation { removeListener(listener) }
+    if (!continuation.isActive) removeListener(listener)
 }
 
 /**
@@ -59,14 +62,16 @@ internal suspend fun onSubscriptionBillingIssue(
     addListener: (OpenIapSubscriptionBillingIssueListener) -> Unit,
     removeListener: (OpenIapSubscriptionBillingIssueListener) -> Unit
 ): Purchase = suspendCancellableCoroutine { continuation ->
+    lateinit var resumer: ContinuationResumeGuard<Purchase>
     val listener = object : OpenIapSubscriptionBillingIssueListener {
         override fun onSubscriptionBillingIssue(purchase: Purchase) {
             removeListener(this)
-            if (continuation.isActive) continuation.resume(purchase)
+            resumer.resume(purchase)
         }
     }
+    resumer = continuation.resumeGuard { removeListener(listener) }
     addListener(listener)
-    continuation.invokeOnCancellation { removeListener(listener) }
+    if (!continuation.isActive) removeListener(listener)
 }
 
 /**

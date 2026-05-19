@@ -53,6 +53,7 @@ import dev.hyo.openiap.helpers.onPurchaseUpdated
 import dev.hyo.openiap.helpers.onSubscriptionBillingIssue
 import dev.hyo.openiap.helpers.queryProductDetails
 import dev.hyo.openiap.helpers.queryPurchases
+import dev.hyo.openiap.helpers.resumeGuard
 import dev.hyo.openiap.helpers.restorePurchases as restorePurchasesHelper
 import dev.hyo.openiap.helpers.toAndroidPurchaseArgs
 import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
@@ -69,9 +70,8 @@ import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 import java.lang.ref.WeakReference
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 // AlternativeBillingMode moved to main source set (shared between Play and Horizon)
@@ -130,6 +130,12 @@ class OpenIapModule(
         currentPurchaseCallback.getAndSet(null)?.invoke(result)
     }
 
+    private fun billingResultError(message: String): BillingResult =
+        BillingResult.newBuilder()
+            .setResponseCode(BillingClient.BillingResponseCode.ERROR)
+            .setDebugMessage(message)
+            .build()
+
     // Billing programs enabled via enableBillingProgram (8.2.0+, EXTERNAL_PAYMENTS in 8.3.0+)
     private val enabledBillingPrograms = mutableSetOf<BillingProgramAndroid>()
 
@@ -163,11 +169,12 @@ class OpenIapModule(
 
         withContext(Dispatchers.IO) {
             suspendCancellableCoroutine<Boolean> { continuation ->
+                val resumer = continuation.resumeGuard()
                 initBillingClient(
-                    onSuccess = { continuation.resume(true) },
+                    onSuccess = { resumer.resume(true) },
                     onFailure = { err ->
                         OpenIapLog.w("Billing set up failed: ${err?.message}", TAG)
-                        continuation.resume(false)
+                        resumer.resume(false)
                     }
                 )
             }
@@ -352,6 +359,7 @@ class OpenIapModule(
         )
 
         suspendCancellableCoroutine { continuation ->
+            val resumer = continuation.resumeGuard()
             val listenerClass = Class.forName("com.android.billingclient.api.AlternativeBillingOnlyAvailabilityListener")
             val availabilityListener = java.lang.reflect.Proxy.newProxyInstance(
                 listenerClass.classLoader,
@@ -363,10 +371,10 @@ class OpenIapModule(
 
                     if (result?.responseCode == BillingClient.BillingResponseCode.OK) {
                         OpenIapLog.d("✓ Alternative billing is available", TAG)
-                        if (continuation.isActive) continuation.resume(true)
+                        resumer.resume(true)
                     } else {
                         OpenIapLog.e("✗ Alternative billing not available: ${result?.debugMessage}", tag = TAG)
-                        if (continuation.isActive) continuation.resume(false)
+                        resumer.resume(false)
                     }
                 }
                 null
@@ -394,6 +402,7 @@ class OpenIapModule(
         )
 
         val dialogResult = suspendCancellableCoroutine<BillingResult> { continuation ->
+            val resumer = continuation.resumeGuard()
             val listenerClass = Class.forName("com.android.billingclient.api.AlternativeBillingOnlyInformationDialogListener")
             val dialogListener = java.lang.reflect.Proxy.newProxyInstance(
                 listenerClass.classLoader,
@@ -402,9 +411,7 @@ class OpenIapModule(
                 if (method.name == "onAlternativeBillingOnlyInformationDialogResponse") {
                     val result = args?.get(0) as? BillingResult
                     OpenIapLog.d("Dialog result: ${result?.responseCode} - ${result?.debugMessage}", TAG)
-                    if (continuation.isActive && result != null) {
-                        continuation.resume(result)
-                    }
+                    resumer.resume(result ?: billingResultError("Missing alternative billing dialog result"))
                 }
                 null
             }
@@ -443,6 +450,7 @@ class OpenIapModule(
         )
 
         suspendCancellableCoroutine { continuation ->
+            val resumer = continuation.resumeGuard()
             val listenerClass = Class.forName("com.android.billingclient.api.AlternativeBillingOnlyReportingDetailsListener")
             val tokenListener = java.lang.reflect.Proxy.newProxyInstance(
                 listenerClass.classLoader,
@@ -457,14 +465,14 @@ class OpenIapModule(
                             val tokenMethod = details.javaClass.getMethod("getExternalTransactionToken")
                             val token = tokenMethod.invoke(details) as? String
                             OpenIapLog.d("✓ External transaction token created: $token", TAG)
-                            if (continuation.isActive) continuation.resume(token)
+                            resumer.resume(token)
                         } catch (e: Exception) {
                             OpenIapLog.e("Failed to extract token: ${e.message}", e, TAG)
-                            if (continuation.isActive) continuation.resume(null)
+                            resumer.resume(null)
                         }
                     } else {
                         OpenIapLog.e("Token creation failed: ${result?.debugMessage}", tag = TAG)
-                        if (continuation.isActive) continuation.resume(null)
+                        resumer.resume(null)
                     }
                 }
                 null
@@ -496,6 +504,7 @@ class OpenIapModule(
         }
 
         suspendCancellableCoroutine { continuation ->
+            val resumer = continuation.resumeGuard()
             try {
                 // Use reflection to call isBillingProgramAvailableAsync (8.2.0+)
                 val listenerClass = Class.forName("com.android.billingclient.api.BillingProgramAvailabilityListener")
@@ -508,12 +517,10 @@ class OpenIapModule(
                         OpenIapLog.d("Billing program availability result: ${result?.responseCode} - ${result?.debugMessage}", TAG)
 
                         val isAvailable = result?.responseCode == BillingClient.BillingResponseCode.OK
-                        if (continuation.isActive) {
-                            continuation.resume(BillingProgramAvailabilityResultAndroid(
+                        resumer.resume(BillingProgramAvailabilityResultAndroid(
                                 billingProgram = program,
                                 isAvailable = isAvailable
-                            ))
-                        }
+                        ))
                     }
                     null
                 }
@@ -526,20 +533,16 @@ class OpenIapModule(
                 method.invoke(client, billingProgramConstant, listener)
             } catch (e: NoSuchMethodException) {
                 OpenIapLog.e("isBillingProgramAvailableAsync not found. Requires Billing Library 8.2.0+", e, TAG)
-                if (continuation.isActive) {
-                    continuation.resume(BillingProgramAvailabilityResultAndroid(
+                resumer.resume(BillingProgramAvailabilityResultAndroid(
                         billingProgram = program,
                         isAvailable = false
-                    ))
-                }
+                ))
             } catch (e: Exception) {
                 OpenIapLog.e("Failed to check billing program availability: ${e.message}", e, TAG)
-                if (continuation.isActive) {
-                    continuation.resume(BillingProgramAvailabilityResultAndroid(
+                resumer.resume(BillingProgramAvailabilityResultAndroid(
                         billingProgram = program,
                         isAvailable = false
-                    ))
-                }
+                ))
             }
         }
     }
@@ -568,6 +571,7 @@ class OpenIapModule(
         }
 
         suspendCancellableCoroutine { continuation ->
+            val resumer = continuation.resumeGuard()
             try {
                 val listenerClass = Class.forName("com.android.billingclient.api.BillingProgramReportingDetailsListener")
                 val listener = java.lang.reflect.Proxy.newProxyInstance(
@@ -585,25 +589,25 @@ class OpenIapModule(
                                 val token = tokenMethod.invoke(details) as? String
                                 OpenIapLog.d("Billing program reporting token created: $token", TAG)
 
-                                if (continuation.isActive && token != null) {
-                                    continuation.resume(BillingProgramReportingDetailsAndroid(
+                                if (token != null) {
+                                    resumer.resume(BillingProgramReportingDetailsAndroid(
                                         billingProgram = program,
                                         externalTransactionToken = token
                                     ))
-                                } else if (continuation.isActive) {
-                                    continuation.resumeWithException(
+                                } else {
+                                    resumer.resumeWithException(
                                         OpenIapError.PurchaseFailed("Missing external transaction token")
                                     )
                                 }
                             } catch (e: Exception) {
                                 OpenIapLog.e("Failed to extract token: ${e.message}", e, TAG)
-                                if (continuation.isActive) continuation.resumeWithException(
+                                resumer.resumeWithException(
                                     OpenIapError.PurchaseFailed(e.message ?: e.javaClass.simpleName)
                                 )
                             }
                         } else {
                             OpenIapLog.e("Reporting details creation failed: ${result?.debugMessage}", tag = TAG)
-                            if (continuation.isActive) continuation.resumeWithException(
+                            resumer.resumeWithException(
                                 OpenIapError.PurchaseFailed(result?.debugMessage)
                             )
                         }
@@ -682,6 +686,7 @@ class OpenIapModule(
         }
 
         suspendCancellableCoroutine { continuation ->
+            val resumer = continuation.resumeGuard()
             try {
                 // Build LaunchExternalLinkParams using reflection
                 val paramsClass = Class.forName("com.android.billingclient.api.LaunchExternalLinkParams")
@@ -721,7 +726,7 @@ class OpenIapModule(
                         OpenIapLog.d("External link launch result: ${result?.responseCode} - ${result?.debugMessage}", TAG)
 
                         val success = result?.responseCode == BillingClient.BillingResponseCode.OK
-                        if (continuation.isActive) continuation.resume(success)
+                        resumer.resume(success)
                     }
                     null
                 }
@@ -736,10 +741,10 @@ class OpenIapModule(
                 launchMethod.invoke(client, activity, launchParams, listener)
             } catch (e: NoSuchMethodException) {
                 OpenIapLog.e("launchExternalLink not found. Requires Billing Library 8.2.0+", e, TAG)
-                if (continuation.isActive) continuation.resume(false)
+                resumer.resume(false)
             } catch (e: Exception) {
                 OpenIapLog.e("Failed to launch external link: ${e.message}", e, TAG)
-                if (continuation.isActive) continuation.resume(false)
+                resumer.resume(false)
             }
         }
     }
@@ -897,17 +902,25 @@ class OpenIapModule(
             }
 
             suspendCancellableCoroutine<List<Purchase>> { continuation ->
-                val callback: (Result<List<Purchase>>) -> Unit = { result ->
-                    if (continuation.isActive) continuation.resume(result.getOrDefault(emptyList()))
+                var callbackRef: ((Result<List<Purchase>>) -> Unit)? = null
+                val resumer = continuation.resumeGuard {
+                    callbackRef?.let { currentPurchaseCallback.compareAndSet(it, null) }
                 }
+                val callback: (Result<List<Purchase>>) -> Unit = { result ->
+                    resumer.resume(result.getOrDefault(emptyList()))
+                }
+                callbackRef = callback
                 if (!currentPurchaseCallback.compareAndSet(null, callback)) {
                     OpenIapLog.w("requestPurchase rejected: another purchase is already in progress", TAG)
-                    if (continuation.isActive) continuation.resumeWithException(
+                    resumer.resumeWithException(
                         OpenIapError.DeveloperError("Another purchase is already in progress")
                     )
                     return@suspendCancellableCoroutine
                 }
-                continuation.invokeOnCancellation { currentPurchaseCallback.compareAndSet(callback, null) }
+                if (!continuation.isActive) {
+                    currentPurchaseCallback.compareAndSet(callback, null)
+                    return@suspendCancellableCoroutine
+                }
 
                 val desiredType = if (androidArgs.type == ProductQueryType.Subs) BillingClient.ProductType.SUBS else BillingClient.ProductType.INAPP
 
@@ -1115,7 +1128,10 @@ class OpenIapModule(
                         .setProductList(productList)
                         .build()
 
+                    val didHandleProductDetails = AtomicBoolean(false)
                     client.queryProductDetailsAsync(queryParams) { billingResult: BillingResult, result: QueryProductDetailsResult ->
+                        if (!didHandleProductDetails.compareAndSet(false, true)) return@queryProductDetailsAsync
+
                         val productDetailsList = result.productDetailsList
                         if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && !productDetailsList.isNullOrEmpty()) {
                             productManager.putAll(productDetailsList)
@@ -1164,15 +1180,17 @@ class OpenIapModule(
             val result = if (isConsumable == true) {
                 val params = ConsumeParams.newBuilder().setPurchaseToken(token).build()
                 suspendCancellableCoroutine<BillingResult> { continuation ->
+                    val resumer = continuation.resumeGuard()
                     client.consumeAsync(params) { outcome, _ ->
-                        if (continuation.isActive) continuation.resume(outcome)
+                        resumer.resume(outcome)
                     }
                 }
             } else {
                 val params = AcknowledgePurchaseParams.newBuilder().setPurchaseToken(token).build()
                 suspendCancellableCoroutine<BillingResult> { continuation ->
+                    val resumer = continuation.resumeGuard()
                     client.acknowledgePurchase(params) { outcome ->
-                        if (continuation.isActive) continuation.resume(outcome)
+                        resumer.resume(outcome)
                     }
                 }
             }
@@ -1188,12 +1206,13 @@ class OpenIapModule(
             val client = billingClient ?: throw OpenIapError.NotPrepared
             val params = AcknowledgePurchaseParams.newBuilder().setPurchaseToken(purchaseToken).build()
             suspendCancellableCoroutine<Boolean> { continuation ->
+                val resumer = continuation.resumeGuard()
                 client.acknowledgePurchase(params) { result ->
                     if (result.responseCode != BillingClient.BillingResponseCode.OK) {
                         OpenIapLog.w("Failed to acknowledge purchase: ${result.debugMessage}", TAG)
-                        if (continuation.isActive) continuation.resume(false)
-                    } else if (continuation.isActive) {
-                        continuation.resume(true)
+                        resumer.resume(false)
+                    } else {
+                        resumer.resume(true)
                     }
                 }
             }
@@ -1205,12 +1224,13 @@ class OpenIapModule(
             val client = billingClient ?: throw OpenIapError.NotPrepared
             val params = ConsumeParams.newBuilder().setPurchaseToken(purchaseToken).build()
             suspendCancellableCoroutine<Boolean> { continuation ->
+                val resumer = continuation.resumeGuard()
                 client.consumeAsync(params) { result, _ ->
                     if (result.responseCode != BillingClient.BillingResponseCode.OK) {
                         OpenIapLog.w("Failed to consume purchase: ${result.debugMessage}", TAG)
-                        if (continuation.isActive) continuation.resume(false)
-                    } else if (continuation.isActive) {
-                        continuation.resume(true)
+                        resumer.resume(false)
+                    } else {
+                        resumer.resume(true)
                     }
                 }
             }
@@ -1328,6 +1348,7 @@ class OpenIapModule(
     suspend fun getStorefront() = withContext(Dispatchers.IO) {
         val client = billingClient ?: return@withContext ""
         suspendCancellableCoroutine { continuation ->
+            val resumer = continuation.resumeGuard()
             runCatching {
                 client.getBillingConfigAsync(
                     GetBillingConfigParams.newBuilder().build(),
@@ -1335,12 +1356,12 @@ class OpenIapModule(
                         val code = if (result.responseCode == BillingClient.BillingResponseCode.OK) {
                             config?.countryCode.orEmpty()
                         } else ""
-                        if (continuation.isActive) continuation.resume(code)
+                        resumer.resume(code)
                     }
                 )
             }.onFailure { error ->
                 OpenIapLog.w("getStorefront failed: ${error.message}", TAG)
-                if (continuation.isActive) continuation.resume("")
+                resumer.resume("")
             }
         }
     }

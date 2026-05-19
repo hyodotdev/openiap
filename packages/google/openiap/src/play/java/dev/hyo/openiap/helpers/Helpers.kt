@@ -7,7 +7,6 @@ import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.Purchase
 import dev.hyo.openiap.utils.BillingConverters.toPurchase
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlin.coroutines.resume
 
 // Common helpers (onPurchaseUpdated, onPurchaseError, AndroidPurchaseArgs,
 // toAndroidPurchaseArgs, toPurchaseError) are in main/helpers/CommonHelpers.kt
@@ -28,8 +27,10 @@ internal suspend fun queryPurchases(
     productType: String,
     includeSuspended: Boolean = false
 ): List<Purchase> = suspendCancellableCoroutine { continuation ->
+    val resumer = continuation.resumeGuard()
+
     val billingClient = client ?: run {
-        continuation.resume(emptyList())
+        resumer.resume(emptyList())
         return@suspendCancellableCoroutine
     }
     val paramsBuilder = QueryPurchasesParams.newBuilder().setProductType(productType)
@@ -50,8 +51,6 @@ internal suspend fun queryPurchases(
 
     val params = paramsBuilder.build()
     billingClient.queryPurchasesAsync(params) { result, purchaseList ->
-        if (!continuation.isActive) return@queryPurchasesAsync
-
         if (result.responseCode == BillingClient.BillingResponseCode.OK) {
             val mapped = purchaseList.map { billingPurchase ->
                 // IMPORTANT: Google Play Billing Library does not include basePlanId in the Purchase object
@@ -63,9 +62,9 @@ internal suspend fun queryPurchases(
                 // This is a known limitation of the client-side Billing Library
                 billingPurchase.toPurchase(productType, null)
             }
-            continuation.resume(mapped)
+            resumer.resume(mapped)
         } else {
-            continuation.resume(emptyList())
+            resumer.resume(emptyList())
         }
     }
 }
