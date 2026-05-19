@@ -1,30 +1,29 @@
 // swift-tools-version: 5.9
-// The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
 
 let package = Package(
     name: "flutter_inapp_purchase",
     platforms: [
-        .iOS("12.0")
+        .iOS("15.0"),
+        .macOS("14.0"),
     ],
     products: [
-        .library(name: "flutter-inapp-purchase", targets: ["flutter_inapp_purchase"])
+        .library(name: "flutter_inapp_purchase", targets: ["flutter_inapp_purchase"]),
     ],
-    dependencies: [],
+    dependencies: [
+        .package(
+            url: "https://github.com/hyodotdev/openiap.git",
+            exact: "2.2.1"
+        ),
+    ],
     targets: [
         .target(
             name: "flutter_inapp_purchase",
-            dependencies: [],
-            path: "ios/Classes",
-            resources: [
-                .process("../Assets")
+            dependencies: [
+                .product(name: "OpenIAP", package: "openiap"),
             ],
-            publicHeadersPath: "",
-            cSettings: [
-                .headerSearchPath("../Flutter"),
-                .headerSearchPath("../../../Flutter/Export")
-            ]
-        )
+            path: "ios/Classes"
+        ),
     ]
 )
