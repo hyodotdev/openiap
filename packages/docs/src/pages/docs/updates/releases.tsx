@@ -26,6 +26,176 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // May 19, 2026 — Android Billing callback race hotfix
+    {
+      id: 'android-billing-callback-race-hotfix-2026-05-19',
+      date: new Date('2026-05-19'),
+      element: (
+        <div
+          key="android-billing-callback-race-hotfix-2026-05-19"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="android-billing-callback-race-hotfix-2026-05-19"
+            level="h4"
+          >
+            May 19, 2026 — Android Billing callback race hotfix
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes an Android hotfix for intermittent Google Play Billing
+            callback races that could crash with <code>Already resumed</code>{' '}
+            while restoring or querying purchases. The{' '}
+            <strong>OpenIAP Spec remains 2.0.2</strong>; this rollout changes
+            native Android callback handling only and does not add GraphQL
+            fields, enum cases, or API operations. Track the fix in{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/issues/158"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              issue #158
+            </a>{' '}
+            and{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/159"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #159
+            </a>
+            .
+          </p>
+
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>Google Play restore crash fixed</strong> —{' '}
+              <code>queryPurchasesAsync</code> completions are now single-shot,
+              preventing duplicate or racing BillingClient callbacks from
+              resuming the same coroutine twice.
+            </li>
+            <li>
+              <strong>Shared continuation guard</strong> — Play and Horizon
+              callback bridges now use a reusable atomic resume guard instead of
+              the non-atomic <code>isActive</code>-then-<code>resume</code>{' '}
+              pattern.
+            </li>
+            <li>
+              <strong>Purchase launch side effects guarded</strong> — duplicate{' '}
+              <code>queryProductDetailsAsync</code> callbacks in{' '}
+              <code>requestPurchase</code> can no longer launch the billing flow
+              or emit terminal purchase results more than once.
+            </li>
+            <li>
+              <strong>Regression coverage</strong> — the Android test suite now
+              includes a duplicate concurrent BillingClient callback test for
+              purchase queries and product-detail lookup.
+            </li>
+            <li>
+              <strong>Framework rollout</strong> — React Native, Expo, Flutter,
+              KMP, Godot, and MAUI patch releases carry the{' '}
+              <code>openiap-google 2.2.1</code> dependency metadata so Android
+              apps receive the native fix through their usual package manager.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>OpenIAP Spec 2.0.2</li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/google-2.2.1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-google 2.2.1
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/react-native-iap-15.3.1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  react-native-iap 15.3.1
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/expo-iap-4.3.1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  expo-iap 4.3.1
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.3.1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  flutter_inapp_purchase 9.3.1
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/godot-iap-2.3.1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  godot-iap 2.3.1
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/kmp-iap-2.3.1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  kmp-iap 2.3.1
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/maui-iap-1.1.1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  OpenIap.Maui 1.1.1
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // May 17, 2026 — SDK minor maintenance release
     {
       id: 'sdk-minor-maintenance-2026-05-17',
