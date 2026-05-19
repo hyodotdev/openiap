@@ -21,7 +21,7 @@
     <RootNamespace>OpenIap.Maui</RootNamespace>
     <AssemblyName>OpenIap.Maui</AssemblyName>
     <PackageId>OpenIap.Maui</PackageId>
-    <PackageVersion>1.1.0</PackageVersion>
+    <PackageVersion>1.1.1</PackageVersion>
     <Title>OpenIAP for .NET MAUI</Title>
     <Description>OpenIAP — unified in-app purchases for .NET MAUI (iOS / Android). Mirrors the OpenIAP GraphQL schema and shares the same API surface as react-native-iap, expo-iap, flutter_inapp_purchase, and kmp-iap.</Description>
     <Authors>hyodotdev</Authors>
