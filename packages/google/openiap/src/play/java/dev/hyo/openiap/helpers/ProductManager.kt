@@ -6,8 +6,8 @@ import com.android.billingclient.api.ProductDetails
 import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapLog
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Manages ProductDetails caching and queries.
@@ -18,7 +18,7 @@ import kotlin.coroutines.resumeWithException
  * appears to have incomplete data (defensive programming).
  */
 internal class ProductManager {
-    private val cache = mutableMapOf<String, ProductDetails>()
+    private val cache = ConcurrentHashMap<String, ProductDetails>()
 
     fun get(productId: String): ProductDetails? = cache[productId]
 
@@ -47,7 +47,6 @@ internal class ProductManager {
 
         // Check which products are missing or have incomplete data
         val needsQuery = mutableListOf<String>()
-        val validCached = mutableListOf<ProductDetails>()
 
         for (productId in productIds.distinct()) {
             val cached = cache[productId]
@@ -65,9 +64,7 @@ internal class ProductManager {
                     else -> true
                 }
 
-                if (isComplete) {
-                    validCached.add(cached)
-                } else {
+                if (!isComplete) {
                     OpenIapLog.w("Cached ProductDetails for '$productId' has incomplete data, will re-query", "ProductManager")
                     needsQuery.add(productId)
                     cache.remove(productId)
@@ -90,17 +87,19 @@ internal class ProductManager {
             .build()
 
         return suspendCancellableCoroutine { cont ->
+            val resumer = cont.resumeGuard()
+            val didHandleProductDetails = AtomicBoolean(false)
             client.queryProductDetailsAsync(params) { billingResult, result ->
+                if (!didHandleProductDetails.compareAndSet(false, true)) return@queryProductDetailsAsync
+
                 // Always update cache even if coroutine was cancelled
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                     val list = result.productDetailsList ?: emptyList()
                     putAll(list)
                 }
 
-                if (!cont.isActive) return@queryProductDetailsAsync
-
                 if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
-                    cont.resumeWithException(
+                    resumer.resumeWithException(
                         OpenIapError.QueryProduct.withDiagnostics(
                             responseCode = billingResult.responseCode,
                             debugMessage = billingResult.debugMessage,
@@ -112,7 +111,7 @@ internal class ProductManager {
                     return@queryProductDetailsAsync
                 }
                 // Preserve requested order and include cached + newly-fetched
-                cont.resume(productIds.mapNotNull { cache[it] })
+                resumer.resume(productIds.mapNotNull { cache[it] })
             }
         }
     }

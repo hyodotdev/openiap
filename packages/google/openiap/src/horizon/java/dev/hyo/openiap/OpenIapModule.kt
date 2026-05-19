@@ -28,6 +28,7 @@ import dev.hyo.openiap.helpers.restorePurchasesHorizon
 import dev.hyo.openiap.helpers.queryPurchasesHorizon
 import dev.hyo.openiap.helpers.ProductManager
 import dev.hyo.openiap.helpers.queryProductDetailsHorizon
+import dev.hyo.openiap.helpers.resumeGuard
 import dev.hyo.openiap.utils.HorizonBillingConverters.toActiveSubscription
 import dev.hyo.openiap.utils.HorizonBillingConverters.toInAppProduct
 import dev.hyo.openiap.utils.HorizonBillingConverters.toPurchase
@@ -48,9 +49,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.lang.ref.WeakReference
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 private const val TAG = "OpenIapModule"
 
@@ -129,6 +129,7 @@ class OpenIapModule(
     override val initConnection: MutationInitConnectionHandler = {
         withContext(Dispatchers.IO) {
             suspendCancellableCoroutine<Boolean> { continuation ->
+                val resumer = continuation.resumeGuard()
                 OpenIapLog.i("=== INIT CONNECTION ===", TAG)
 
                 // CRITICAL FIX: Rebuild BillingClient if it was destroyed by endConnection
@@ -141,7 +142,7 @@ class OpenIapModule(
 
                 val client = billingClient ?: run {
                     OpenIapLog.w("Failed to build BillingClient", TAG)
-                    if (continuation.isActive) continuation.resume(false)
+                    resumer.resume(false)
                     return@suspendCancellableCoroutine
                 }
 
@@ -153,7 +154,7 @@ class OpenIapModule(
                         } else {
                             OpenIapLog.i("Horizon billing connected successfully", TAG)
                         }
-                        if (continuation.isActive) continuation.resume(ok)
+                        resumer.resume(ok)
                     }
 
                     override fun onBillingServiceDisconnected() {
@@ -379,15 +380,23 @@ class OpenIapModule(
             }
 
             suspendCancellableCoroutine<List<Purchase>> { continuation ->
-                val callback: (Result<List<Purchase>>) -> Unit = { result ->
-                    if (continuation.isActive) continuation.resume(result.getOrDefault(emptyList()))
+                var callbackRef: ((Result<List<Purchase>>) -> Unit)? = null
+                val resumer = continuation.resumeGuard {
+                    callbackRef?.let { currentPurchaseCallback.compareAndSet(it, null) }
                 }
+                val callback: (Result<List<Purchase>>) -> Unit = { result ->
+                    resumer.resume(result.getOrDefault(emptyList()))
+                }
+                callbackRef = callback
                 if (!currentPurchaseCallback.compareAndSet(null, callback)) {
                     OpenIapLog.w("requestPurchase rejected: another purchase is already in progress", TAG)
-                    if (continuation.isActive) continuation.resumeWithException(OpenIapError.DeveloperError())
+                    resumer.resumeWithException(OpenIapError.DeveloperError())
                     return@suspendCancellableCoroutine
                 }
-                continuation.invokeOnCancellation { currentPurchaseCallback.compareAndSet(callback, null) }
+                if (!continuation.isActive) {
+                    currentPurchaseCallback.compareAndSet(callback, null)
+                    return@suspendCancellableCoroutine
+                }
 
                 val desiredType = if (androidArgs.type == ProductQueryType.Subs) BillingClient.ProductType.SUBS else BillingClient.ProductType.INAPP
 
@@ -570,7 +579,10 @@ class OpenIapModule(
                         .setProductList(productList)
                         .build()
 
+                    val didHandleProductDetails = AtomicBoolean(false)
                     client.queryProductDetailsAsync(params) { billingResult, productDetailsList ->
+                        if (!didHandleProductDetails.compareAndSet(false, true)) return@queryProductDetailsAsync
+
                         if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
                             val err = OpenIapError.QueryProduct.withDiagnostics(
                                 responseCode = billingResult.responseCode,
@@ -618,21 +630,23 @@ class OpenIapModule(
             if (isConsumable == true) {
                 val params = ConsumeParams.newBuilder().setPurchaseToken(token).build()
                 suspendCancellableCoroutine<Unit> { continuation ->
+                    val resumer = continuation.resumeGuard()
                     client.consumeAsync(params) { result, _ ->
                         if (result.responseCode != BillingClient.BillingResponseCode.OK) {
                             OpenIapLog.w("Failed to consume Horizon purchase: ${result.debugMessage}", TAG)
                         }
-                        if (continuation.isActive) continuation.resume(Unit)
+                        resumer.resume(Unit)
                     }
                 }
             } else {
                 val params = AcknowledgePurchaseParams.newBuilder().setPurchaseToken(token).build()
                 suspendCancellableCoroutine<Unit> { continuation ->
+                    val resumer = continuation.resumeGuard()
                     client.acknowledgePurchase(params) { result ->
                         if (result.responseCode != BillingClient.BillingResponseCode.OK) {
                             OpenIapLog.w("Failed to acknowledge Horizon purchase: ${result.debugMessage}", TAG)
                         }
-                        if (continuation.isActive) continuation.resume(Unit)
+                        resumer.resume(Unit)
                     }
                 }
             }
@@ -644,12 +658,13 @@ class OpenIapModule(
             val client = billingClient ?: throw OpenIapError.NotPrepared
             val params = AcknowledgePurchaseParams.newBuilder().setPurchaseToken(purchaseToken).build()
             suspendCancellableCoroutine<Boolean> { continuation ->
+                val resumer = continuation.resumeGuard()
                 client.acknowledgePurchase(params) { result ->
                     val success = result.responseCode == BillingClient.BillingResponseCode.OK
                     if (!success) {
                         OpenIapLog.w("Horizon acknowledge failed: ${result.debugMessage}", TAG)
                     }
-                    if (continuation.isActive) continuation.resume(success)
+                    resumer.resume(success)
                 }
             }
         }
@@ -660,12 +675,13 @@ class OpenIapModule(
             val client = billingClient ?: throw OpenIapError.NotPrepared
             val params = ConsumeParams.newBuilder().setPurchaseToken(purchaseToken).build()
             suspendCancellableCoroutine<Boolean> { continuation ->
+                val resumer = continuation.resumeGuard()
                 client.consumeAsync(params) { result, _ ->
                     val success = result.responseCode == BillingClient.BillingResponseCode.OK
                     if (!success) {
                         OpenIapLog.w("Horizon consume failed: ${result.debugMessage}", TAG)
                     }
-                    if (continuation.isActive) continuation.resume(success)
+                    resumer.resume(success)
                 }
             }
         }
@@ -800,20 +816,21 @@ class OpenIapModule(
     suspend fun getStorefront(): String = withContext(Dispatchers.IO) {
         val client = billingClient ?: return@withContext ""
         suspendCancellableCoroutine { continuation ->
+            val resumer = continuation.resumeGuard()
             runCatching {
                 client.getBillingConfigAsync(
                     GetBillingConfigParams.newBuilder().build()
                 ) { result, config ->
-                    if (continuation.isActive) {
-                        val code = if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-                            config?.countryCode.orEmpty()
-                        } else ""
-                        continuation.resume(code)
+                    val code = if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+                        config?.countryCode.orEmpty()
+                    } else {
+                        ""
                     }
+                    resumer.resume(code)
                 }
             }.onFailure { error ->
                 OpenIapLog.w("Horizon getStorefront failed: ${error.message}", TAG)
-                if (continuation.isActive) continuation.resume("")
+                resumer.resume("")
             }
         }
     }
@@ -931,6 +948,7 @@ class OpenIapModule(
         skus: List<String>,
         productType: String
     ): List<HorizonProductDetails> = suspendCancellableCoroutine { continuation ->
+        val resumer = continuation.resumeGuard()
         val products = skus.map { sku ->
             QueryProductDetailsParams.Product.newBuilder()
                 .setProductId(sku)
@@ -940,10 +958,10 @@ class OpenIapModule(
         val params = QueryProductDetailsParams.newBuilder().setProductList(products).build()
         client.queryProductDetailsAsync(params) { result, details ->
             if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-                if (continuation.isActive) continuation.resume(details ?: emptyList())
+                resumer.resume(details ?: emptyList())
             } else {
                 OpenIapLog.w("Horizon queryProductDetails failed: ${result.debugMessage}", TAG)
-                if (continuation.isActive) continuation.resume(emptyList())
+                resumer.resume(emptyList())
             }
         }
     }
@@ -992,17 +1010,18 @@ class OpenIapModule(
 
             // Try to call the alternative billing method
             val result = suspendCancellableCoroutine<BillingResult> { cont ->
+                val resumer = cont.resumeGuard()
                 try {
                     client.isAlternativeBillingOnlyAvailableAsync { billingResult ->
-                        cont.resume(billingResult)
+                        resumer.resume(billingResult)
                     }
                 } catch (e: NoSuchMethodError) {
                     // Method doesn't exist in Horizon library
                     OpenIapLog.w("Alternative Billing not supported by Horizon library", TAG)
-                    cont.resumeWithException(Exception("Feature not supported"))
+                    resumer.resumeWithException(Exception("Feature not supported"))
                 } catch (e: Exception) {
                     OpenIapLog.e("Error checking alternative billing: ${e.message}", e, TAG)
-                    cont.resumeWithException(e)
+                    resumer.resumeWithException(e)
                 }
             }
 
@@ -1025,9 +1044,10 @@ class OpenIapModule(
             val currentActivity = activityRef.get() ?: throw Exception("Activity not available")
 
             val result = suspendCancellableCoroutine<BillingResult> { cont ->
+                val resumer = cont.resumeGuard()
                 try {
                     val listener = AlternativeBillingOnlyInformationDialogListener { billingResult ->
-                        cont.resume(billingResult)
+                        resumer.resume(billingResult)
                     }
                     currentActivity.runOnUiThread {
                         client.showAlternativeBillingOnlyInformationDialog(
@@ -1037,10 +1057,10 @@ class OpenIapModule(
                     }
                 } catch (e: NoSuchMethodError) {
                     OpenIapLog.w("showAlternativeBillingOnlyInformationDialog not supported", TAG)
-                    cont.resumeWithException(Exception("Feature not supported"))
+                    resumer.resumeWithException(Exception("Feature not supported"))
                 } catch (e: Exception) {
                     OpenIapLog.e("Error showing alternative billing dialog: ${e.message}", e, TAG)
-                    cont.resumeWithException(e)
+                    resumer.resumeWithException(e)
                 }
             }
 
@@ -1060,16 +1080,17 @@ class OpenIapModule(
             val client = billingClient ?: throw Exception("Not connected")
 
             val result = suspendCancellableCoroutine<Pair<BillingResult, AlternativeBillingOnlyReportingDetails?>> { cont ->
+                val resumer = cont.resumeGuard()
                 try {
                     client.createAlternativeBillingOnlyReportingDetailsAsync { billingResult, details ->
-                        cont.resume(Pair(billingResult, details))
+                        resumer.resume(Pair(billingResult, details))
                     }
                 } catch (e: NoSuchMethodError) {
                     OpenIapLog.w("createAlternativeBillingOnlyReportingDetails not supported", TAG)
-                    cont.resumeWithException(Exception("Feature not supported"))
+                    resumer.resumeWithException(Exception("Feature not supported"))
                 } catch (e: Exception) {
                     OpenIapLog.e("Error creating alternative billing token: ${e.message}", e, TAG)
-                    cont.resumeWithException(e)
+                    resumer.resumeWithException(e)
                 }
             }
 

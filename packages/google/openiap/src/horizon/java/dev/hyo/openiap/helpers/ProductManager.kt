@@ -6,7 +6,7 @@ import com.meta.horizon.billingclient.api.ProductDetails as HorizonProductDetail
 import dev.hyo.openiap.OpenIapLog
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.coroutines.resume
+import java.util.concurrent.atomic.AtomicBoolean
 
 private const val TAG = "ProductManager"
 
@@ -50,7 +50,7 @@ internal class ProductManager {
 
         // Check which products are missing or have incomplete data
         val needsQuery = mutableListOf<String>()
-        val validCached = mutableListOf<HorizonProductDetails>()
+        var validCachedCount = 0
 
         productIds.distinct().forEach { productId ->
             val cached = cache[CacheKey(productId, productType)]
@@ -69,7 +69,7 @@ internal class ProductManager {
                 }
 
                 if (isComplete) {
-                    validCached.add(cached)
+                    validCachedCount += 1
                 } else {
                     OpenIapLog.w("Cached ProductDetails for '$productId' has incomplete data, will re-query", TAG)
                     needsQuery.add(productId)
@@ -78,7 +78,7 @@ internal class ProductManager {
             }
         }
 
-        OpenIapLog.d("getOrQuery: needsQuery=$needsQuery, validCached=${validCached.size}", TAG)
+        OpenIapLog.d("getOrQuery: needsQuery=$needsQuery, validCached=$validCachedCount", TAG)
 
         if (needsQuery.isEmpty()) {
             val cached = productIds.mapNotNull { cache[CacheKey(it, productType)] }
@@ -99,8 +99,11 @@ internal class ProductManager {
         OpenIapLog.d("getOrQuery: Querying ${needsQuery.size} products from Horizon API", TAG)
 
         return suspendCancellableCoroutine { cont ->
-            cont.invokeOnCancellation { OpenIapLog.d("getOrQuery: cancelled", TAG) }
+            val resumer = cont.resumeGuard { OpenIapLog.d("getOrQuery: cancelled", TAG) }
+            val didHandleProductDetails = AtomicBoolean(false)
             client.queryProductDetailsAsync(params) { billingResult, result ->
+                if (!didHandleProductDetails.compareAndSet(false, true)) return@queryProductDetailsAsync
+
                 OpenIapLog.d(
                     "getOrQuery: Response code=${billingResult.responseCode}, " +
                     "message=${billingResult.debugMessage}, " +
@@ -116,7 +119,7 @@ internal class ProductManager {
                     )
                     // Return whatever we have in cache instead of crashing
                     val cached = productIds.mapNotNull { cache[CacheKey(it, productType)] }
-                    if (cont.isActive) cont.resume(cached)
+                    resumer.resume(cached)
                     return@queryProductDetailsAsync
                 }
 
@@ -150,7 +153,7 @@ internal class ProductManager {
                 // Preserve requested order and include cached + newly-fetched
                 val finalList = productIds.mapNotNull { cache[CacheKey(it, productType)] }
                 OpenIapLog.d("getOrQuery: Returning ${finalList.size} total products", TAG)
-                if (cont.isActive) cont.resume(finalList)
+                resumer.resume(finalList)
             }
         }
     }
