@@ -7,7 +7,6 @@ let package = Package(
     platforms: [
         .iOS("15.0"),
         .macOS("14.0"),
-        .tvOS("15.0"),
     ],
     products: [
         .library(name: "flutter_inapp_purchase", targets: ["flutter_inapp_purchase"]),
