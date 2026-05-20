@@ -432,8 +432,9 @@ dependencies {
           </a>
         </h3>
         <p>
-          Always verify purchases server-side using the Google Play Developer
-          API to prevent fraud and ensure purchase validity.
+          Always verify purchases through a trusted verifier that calls the
+          Google Play Developer API, either your backend or IAPKit, to prevent
+          fraud and ensure purchase validity.
         </p>
 
         <h3 id="subscription-management" className="anchor-heading">
@@ -582,8 +583,8 @@ dependencies {
         </h2>
         <ul>
           <li>
-            Always validate purchases server-side using Google Play Developer
-            API
+            Always validate purchases through your backend or IAPKit using the
+            Google Play Developer API
           </li>
           <li>Implement exponential backoff for network retries</li>
           <li>Cache product information locally for offline display</li>

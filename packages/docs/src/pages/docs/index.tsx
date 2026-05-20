@@ -583,6 +583,24 @@ function Docs() {
             />
             <li>
               <NavLink
+                to="/docs/webhooks"
+                className={({ isActive }) => (isActive ? 'active' : '')}
+                onClick={closeSidebar}
+              >
+                Webhooks
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
+                to="/docs/kit-backend"
+                className={({ isActive }) => (isActive ? 'active' : '')}
+                onClick={closeSidebar}
+              >
+                Kit Backend
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
                 to="/docs/errors"
                 className={({ isActive }) => (isActive ? 'active' : '')}
                 onClick={closeSidebar}

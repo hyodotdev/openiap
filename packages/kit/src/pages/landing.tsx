@@ -44,7 +44,7 @@ export default function LandingPage() {
           <div className="text-center max-w-4xl mx-auto">
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#24292e]/10 dark:bg-[#24292e]/20 text-[#24292e] dark:text-gray-300 rounded-full text-sm font-medium mb-6 opacity-0 animate-fade-in-up">
               <Shield className="w-4 h-4" />
-              <span>{"Fraud-proof your in-app purchases"}</span>
+              <span>{"Protect your in-app purchases"}</span>
             </div>
             <h1
               className="text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-bold mb-8 text-foreground"
@@ -118,7 +118,7 @@ export default function LandingPage() {
         <div className="container max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 text-foreground">
-              {"Purpose-built for fraud-proof IAP validation"}
+              {"Purpose-built for fraud-resistant IAP validation"}
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               {"One API to confirm every App Store and Play Store purchase."}
@@ -131,7 +131,7 @@ export default function LandingPage() {
                 <Globe className="w-6 h-6 text-primary" />
               </div>
               <h3 className="text-xl font-semibold mb-3 text-foreground break-words">
-                {"Tamper-proof server-side validation"}
+                {"Tamper-resistant hosted validation"}
               </h3>
               <p className="text-muted-foreground break-words">
                 {
@@ -149,7 +149,7 @@ export default function LandingPage() {
               </h3>
               <p className="text-muted-foreground break-words">
                 {
-                  "Add a single REST call to your backend and handle both stores with the same payload. You'll be up and running in minutes."
+                  "Add one IAPKit call and handle both stores with the same payload. You'll be up and running in minutes."
                 }
               </p>
             </div>
@@ -197,7 +197,7 @@ export default function LandingPage() {
                   <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
                   <span>
                     {
-                      "POST the receipt and purchase metadata to IAPKit for server-side validation."
+                      "Send the receipt and purchase metadata to IAPKit for managed validation."
                     }
                   </span>
                 </li>
@@ -205,7 +205,7 @@ export default function LandingPage() {
                   <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
                   <span>
                     {
-                      "Grant the item only when IAPKit returns a valid response."
+                      "Unlock local content or grant backend access only when IAPKit returns a valid response."
                     }
                   </span>
                 </li>

@@ -12,7 +12,7 @@ export default function ApiReferencePage() {
       description="POST /v1/purchase/verify — request shapes, responses, errors, headers."
     >
       <p>
-        IAPKit exposes one core purchase-verification endpoint for your backend:
+        IAPKit exposes one core purchase-verification endpoint for your app:{" "}
         <code> POST /v1/purchase/verify</code>. Webhooks, subscription state,
         and product-catalog operations live on separate project-scoped surfaces.
         The full OpenAPI spec is also served at{" "}
@@ -37,7 +37,7 @@ export default function ApiReferencePage() {
       </p>
 
       <h2 className="mt-8 text-2xl font-semibold">Authentication</h2>
-      <p>Every request must include a Bearer API key:</p>
+      <p>Every purchase-verification request must include a Bearer API key:</p>
       <CodeBlock title="Authorization header" language="http">
         {`Authorization: Bearer openiap-kit_<your-key>`}
       </CodeBlock>
@@ -103,9 +103,10 @@ export default function ApiReferencePage() {
       </CodeBlock>
 
       <p>
-        Your backend should grant the entitlement when{" "}
-        <code>isValid === true</code>. The <code>state</code> field carries the
-        harmonized lifecycle position across all three stores:
+        Your app can unlock local premium state, or your backend can grant its
+        own entitlement, when <code>isValid === true</code>. The{" "}
+        <code>state</code> field carries the harmonized lifecycle position
+        across all three stores:
       </p>
 
       <div className="my-4 overflow-hidden rounded-lg border border-border">

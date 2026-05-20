@@ -523,8 +523,8 @@ const withIapIOS: ConfigPlugin<WithIapIosOptions | undefined> = (
 
 export interface ExpoIapPluginOptions {
   /**
-   * IAPKit API key for server-side receipt verification.
-   * Get your API key from https://kit.openiap.dev
+   * IAPKit project key for managed receipt verification.
+   * Get your project key from https://kit.openiap.dev
    * This will be available via `Constants.expoConfig?.extra?.iapkitApiKey`
    */
   iapkitApiKey?: string;

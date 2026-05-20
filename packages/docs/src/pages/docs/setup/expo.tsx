@@ -311,7 +311,7 @@ cd ios && pod install`}
                 <code>iapkitApiKey</code>
               </td>
               <td>string</td>
-              <td>IAPKit API key for server-side receipt verification</td>
+              <td>IAPKit project key for managed receipt verification</td>
             </tr>
             <tr>
               <td>
@@ -379,7 +379,7 @@ function Store() {
     requestPurchase,
   } = useIAP({
     onPurchaseSuccess: async (purchase) => {
-      // 1. Validate receipt on your server
+      // 1. Validate receipt with your backend or IAPKit
       // 2. Grant entitlement
       // 3. CRITICAL: Finish the transaction
       //    (Android auto-refunds after 3 days if not called!)

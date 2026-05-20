@@ -481,7 +481,7 @@ func _ready():
     await GodotIapPlugin.init_connection()
 
 func _on_purchase_updated(purchase):
-    # Validate receipt on your server, then:
+    # Validate receipt with your backend or IAPKit, then:
     await GodotIapPlugin.finish_transaction(purchase, true)
     print("Purchased: ", purchase.product_id)
 

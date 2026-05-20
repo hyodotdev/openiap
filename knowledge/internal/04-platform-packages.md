@@ -123,6 +123,12 @@ The mechanical guardrail for this checklist is:
 bun run audit:parity
 ```
 
+This mirrors CI's **Audit SDK Parity** job and is intentionally run by the
+pre-commit hook on every commit. Do not bypass it for docs/version-only changes:
+the audit also checks generated docs version metadata and the Godot Android
+GDAP dependency pin against `openiap-versions.json`, so release-version drift can
+break CI even when no SDK source code changed.
+
 This audit treats `libraries/expo-iap/example` as the non-Godot example SSOT
 and fails when:
 
@@ -133,11 +139,17 @@ and fails when:
 - a GraphQL Query/Mutation/Subscription operation is added or removed without
   updating the operation parity registry
 - generated types or shared TS runtime helpers drift from `packages/gql`
+- framework/package version metadata or Godot Android GDAP dependencies drift
+  from the package/version SSOTs
 
-Run it after type generation and before opening a PR for SDK/API/example
-changes. If it fails for a newly introduced operation or feature, update the
-missing SDK bridge/example/test coverage first, then update the parity registry
-in [`scripts/audit-non-godot-parity.mjs`](../../scripts/audit-non-godot-parity.mjs).
+Run it after type generation, after version syncs, and before opening a PR for
+SDK/API/example/docs-version changes. If it fails for a newly introduced
+operation or feature, update the missing SDK bridge/example/test coverage first,
+then update the parity registry in
+[`scripts/audit-non-godot-parity.mjs`](../../scripts/audit-non-godot-parity.mjs).
+If it fails for Godot GDAP dependency drift, run
+`./libraries/godot-iap/scripts/write-gdap.sh` and commit the regenerated
+`libraries/godot-iap/addons/godot-iap/android/GodotIap.gdap`.
 
 ### The bug pattern
 

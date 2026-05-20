@@ -33,7 +33,7 @@ export const DOCS_NAV: DocsNavEntry[] = [
   {
     slug: "verification",
     title: "Store setup",
-    summary: "Per-store configuration for server-side receipt validation.",
+    summary: "Per-store configuration for managed receipt validation.",
     children: [
       {
         slug: "verification/apple",

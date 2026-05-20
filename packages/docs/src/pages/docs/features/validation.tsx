@@ -15,22 +15,23 @@ function Validation() {
     <div className="doc-page">
       <SEO
         title="Validation"
-        description="Validate in-app purchases server-side. verifyPurchase and verifyPurchaseWithProvider for receipt and JWS verification."
+        description="Validate in-app purchases with your backend or IAPKit. verifyPurchase and verifyPurchaseWithProvider for receipt and JWS verification."
         path="/docs/features/validation"
         keywords="verifyPurchase, purchase validation, IAPKit, receipt verification, server-side validation, JWS verification"
       />
       <h1>Validation</h1>
       <p>
         Verify purchases with your own backend or a managed provider like IAPKit
-        before granting entitlements. Always validate server-side — client-side
-        checks can be bypassed.
+        before granting entitlements. Always validate through a trusted
+        server-side verifier; local StoreKit or Play Billing state alone can be
+        bypassed.
       </p>
 
       <TLDRBox>
         <ul>
           <li>
-            <strong>Always verify purchases server-side</strong> before granting
-            entitlements
+            <strong>Always verify with a trusted verifier</strong> before
+            granting entitlements
           </li>
           <li>
             <a href="#verify-purchase">
@@ -53,8 +54,8 @@ function Validation() {
 
       <div className="alert-card alert-card--warning">
         <p>
-          <strong>Security:</strong> Never verify purchases only on the client
-          side. Client-side verification can be bypassed.
+          <strong>Security:</strong> Never rely only on local client purchase
+          state. Use your backend or IAPKit as the verifier.
         </p>
       </div>
 
@@ -181,8 +182,9 @@ if result.is_valid:
           for App Store and Google Play purchases. Instead of running your own
           backend that talks to Apple's App Store Server API and Google Play
           Developer API, you forward the JWS / purchase token to IAPKit and get
-          a normalized verification response — so one-time in-app purchases
-          can't be faked, replayed, or tampered with. Use the hosted version at{' '}
+          a normalized verification response — so one-time in-app purchases are
+          checked against the store's authoritative state. Use the hosted
+          version at{' '}
           <a
             href={IAPKIT_URL}
             target="_blank"
@@ -191,7 +193,7 @@ if result.is_valid:
           >
             kit.openiap.dev
           </a>{' '}
-          (free for everyone) or self-host the source from{' '}
+          or self-host the source from{' '}
           <a
             href="https://github.com/hyodotdev/openiap/tree/main/packages/kit"
             target="_blank"
@@ -212,9 +214,9 @@ if result.is_valid:
             shape for Apple and Google. No per-platform JSON parsing.
           </li>
           <li>
-            <strong>Fraud-proof</strong> — verifies Apple JWS signatures and
+            <strong>Fraud-resistant</strong> — verifies Apple JWS signatures and
             queries Google Play's authoritative subscription/purchase state on
-            the server, blocking forged receipts and replay attacks.
+            the server, blocking common forged receipt and replay flows.
           </li>
           <li>
             <strong>Entitlement state, not raw receipts</strong> — IAPKit
@@ -244,7 +246,7 @@ if result.is_valid:
         </ul>
 
         <p>
-          Get an API key at{' '}
+          Get an IAPKit project key at{' '}
           <a
             href={IAPKIT_URL}
             target="_blank"
