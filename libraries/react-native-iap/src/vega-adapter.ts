@@ -229,9 +229,9 @@ function toTimestamp(value: unknown): number {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value === 'string') {
     const timestamp = Date.parse(value);
-    return Number.isFinite(timestamp) ? timestamp : Date.now();
+    return Number.isFinite(timestamp) ? timestamp : 0;
   }
-  return Date.now();
+  return 0;
 }
 
 function toPriceAmountMicros(value: unknown): string {
@@ -553,7 +553,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
     function normalizeIapkitState(state: unknown): IapkitPurchaseState {
       const normalized =
         typeof state === 'string'
-          ? state.toLowerCase().replaceAll('_', '-')
+          ? state.toLowerCase().replace(/_/g, '-')
           : 'unknown';
       const states = new Set<IapkitPurchaseState>([
         'entitled',

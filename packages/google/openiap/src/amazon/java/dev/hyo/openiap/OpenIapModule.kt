@@ -660,12 +660,7 @@ class OpenIapModule(
     }
 
     private fun updateStorefront(userData: UserData?) {
-        val countryCode = userData?.let {
-            runCatching {
-                val method = it.javaClass.getMethod("getCountryCode")
-                method.invoke(it) as? String
-            }.getOrNull()
-        }
+        val countryCode = userData?.countryCode
         storefrontCode = countryCode
             ?: userData?.marketplace
             ?: storefrontCode
@@ -688,9 +683,10 @@ class OpenIapModule(
     }
 
     private fun AmazonProduct.toSubscriptionProduct(): ProductSubscriptionAndroid {
+        val subscriptionPeriod = this.subscriptionPeriod
         val phase = PricingPhaseAndroid(
             billingCycleCount = 0,
-            billingPeriod = reflectedString("getSubscriptionPeriod").orEmpty(),
+            billingPeriod = subscriptionPeriod.orEmpty(),
             formattedPrice = price.orEmpty(),
             priceAmountMicros = "0",
             priceCurrencyCode = "",
@@ -759,10 +755,4 @@ class OpenIapModule(
         )
     }
 
-    private fun AmazonProduct.reflectedString(methodName: String): String? {
-        return runCatching {
-            val method = javaClass.getMethod(methodName)
-            method.invoke(this) as? String
-        }.getOrNull()
-    }
 }
