@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from "vitest";
+import { describe, expect, test } from "vitest";
 
 import {
   buildAmazonRemoteId,
@@ -50,18 +50,13 @@ describe("mapAmazonReceiptState", () => {
     );
   });
 
-  test("maps expired subscription renewalDate to expired", () => {
-    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(2_000);
-    try {
-      expect(
-        mapAmazonReceiptState({
-          productType: "SUBSCRIPTION",
-          renewalDate: 1_000,
-        }),
-      ).toBe(HarmonizedPurchaseState.EXPIRED);
-    } finally {
-      nowSpy.mockRestore();
-    }
+  test("does not treat Amazon subscription renewalDate as expiry", () => {
+    expect(
+      mapAmazonReceiptState({
+        productType: "SUBSCRIPTION",
+        renewalDate: 1_000,
+      }),
+    ).toBe(HarmonizedPurchaseState.ENTITLED);
   });
 
   test("falls back to unknown for unrecognized product types", () => {

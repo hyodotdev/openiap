@@ -105,13 +105,6 @@ export function mapAmazonReceiptState(
     case "ENTITLED":
       return HarmonizedPurchaseState.ENTITLED;
     case "SUBSCRIPTION":
-      if (
-        receipt.renewalDate !== undefined &&
-        receipt.renewalDate !== null &&
-        receipt.renewalDate < Date.now()
-      ) {
-        return HarmonizedPurchaseState.EXPIRED;
-      }
       return HarmonizedPurchaseState.ENTITLED;
     default:
       return HarmonizedPurchaseState.UNKNOWN;

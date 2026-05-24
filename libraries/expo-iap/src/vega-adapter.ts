@@ -18,6 +18,7 @@ type ResponseOperation =
   | 'notify-fulfillment';
 
 const IAPKIT_VERIFY_TIMEOUT_MS = 10_000;
+const MAX_IAPKIT_ERROR_DEPTH = 5;
 
 type VegaListener = (payload: any) => void;
 
@@ -555,14 +556,19 @@ export function createExpoIapVegaModule(
         : 'unknown';
     }
 
-    function extractIapkitErrorMessage(json: unknown): string | null {
+    function extractIapkitErrorMessage(
+      json: unknown,
+      depth = 0,
+    ): string | null {
+      if (depth > MAX_IAPKIT_ERROR_DEPTH) return null;
       if (!json || typeof json !== 'object') return null;
       const record = json as Record<string, unknown>;
       function extractStringMessage(value: string): string {
+        if (depth >= MAX_IAPKIT_ERROR_DEPTH) return value;
         try {
           const parsed = JSON.parse(value);
           return parsed && typeof parsed === 'object'
-            ? (extractIapkitErrorMessage(parsed) ?? value)
+            ? (extractIapkitErrorMessage(parsed, depth + 1) ?? value)
             : value;
         } catch {
           return value;
@@ -580,7 +586,7 @@ export function createExpoIapVegaModule(
 
       const errors = record.errors;
       if (Array.isArray(errors) && errors.length > 0) {
-        return extractIapkitErrorMessage(errors[0]);
+        return extractIapkitErrorMessage(errors[0], depth + 1);
       }
 
       if (typeof record.message === 'string') {

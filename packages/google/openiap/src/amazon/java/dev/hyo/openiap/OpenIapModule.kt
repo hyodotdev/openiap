@@ -311,29 +311,11 @@ class OpenIapModule(
     }
 
     override val acknowledgePurchaseAndroid: MutationAcknowledgePurchaseAndroidHandler = { purchaseToken ->
-        withContext(Dispatchers.IO) {
-            runCatching {
-                ensureRegistered()
-                PurchasingService.notifyFulfillment(purchaseToken, FulfillmentResult.FULFILLED)
-                true
-            }.getOrElse {
-                OpenIapLog.w("Amazon acknowledge failed: ${it.message}", TAG)
-                false
-            }
-        }
+        acknowledgePurchase(purchaseToken)
     }
 
     override val consumePurchaseAndroid: MutationConsumePurchaseAndroidHandler = { purchaseToken ->
-        withContext(Dispatchers.IO) {
-            runCatching {
-                ensureRegistered()
-                PurchasingService.notifyFulfillment(purchaseToken, FulfillmentResult.FULFILLED)
-                true
-            }.getOrElse {
-                OpenIapLog.w("Amazon consume failed: ${it.message}", TAG)
-                false
-            }
-        }
+        consumePurchase(purchaseToken)
     }
 
     override val restorePurchases: MutationRestorePurchasesHandler = {
@@ -673,6 +655,30 @@ class OpenIapModule(
             ?: storefrontCode
     }
 
+    private suspend fun acknowledgePurchase(purchaseToken: String): Boolean = fulfillPurchase(
+        purchaseToken = purchaseToken,
+        operation = "acknowledge"
+    )
+
+    private suspend fun consumePurchase(purchaseToken: String): Boolean = fulfillPurchase(
+        purchaseToken = purchaseToken,
+        operation = "consume"
+    )
+
+    private suspend fun fulfillPurchase(
+        purchaseToken: String,
+        operation: String
+    ): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            ensureRegistered()
+            PurchasingService.notifyFulfillment(purchaseToken, FulfillmentResult.FULFILLED)
+            true
+        }.getOrElse {
+            OpenIapLog.w("Amazon $operation failed: ${it.message}", TAG)
+            false
+        }
+    }
+
     private fun AmazonProduct.toInAppProduct(): ProductAndroid {
         return ProductAndroid(
             currency = "",
@@ -744,6 +750,7 @@ class OpenIapModule(
         return when (value.lowercase(Locale.ROOT)) {
             "weekly", "week", "1 week" -> "P1W"
             "monthly", "month", "1 month" -> "P1M"
+            "bi-monthly", "bimonthly", "2 month", "2 months" -> "P2M"
             "quarterly", "quarter", "3 months" -> "P3M"
             "semiannual", "semiannually", "semi-annual", "semi-annually", "6 months" -> "P6M"
             "annual", "annually", "yearly", "year", "1 year" -> "P1Y"
@@ -758,10 +765,15 @@ class OpenIapModule(
         val numeric = value.replace(Regex("[^0-9,.-]"), "")
         if (numeric.isBlank()) return 0.0
 
-        val normalized = if (numeric.contains(',') && !numeric.contains('.')) {
-            numeric.replace(',', '.')
+        val lastDot = numeric.lastIndexOf('.')
+        val lastComma = numeric.lastIndexOf(',')
+        val decimalIndex = maxOf(lastDot, lastComma)
+        val normalized = if (decimalIndex >= 0) {
+            val integerPart = numeric.substring(0, decimalIndex).replace(Regex("[^0-9-]"), "")
+            val fractionPart = numeric.substring(decimalIndex + 1).replace(Regex("[^0-9]"), "")
+            "$integerPart.$fractionPart"
         } else {
-            numeric.replace(",", "")
+            numeric.replace(Regex("[^0-9-]"), "")
         }
         return normalized.toDoubleOrNull() ?: 0.0
     }
