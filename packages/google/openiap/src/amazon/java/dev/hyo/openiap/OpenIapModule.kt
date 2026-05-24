@@ -32,6 +32,8 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.lang.ref.WeakReference
+import java.text.NumberFormat
+import java.text.ParsePosition
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import com.amazon.device.iap.model.Product as AmazonProduct
@@ -800,6 +802,8 @@ class OpenIapModule(
         val value = this?.trim().orEmpty()
         if (value.isEmpty()) return 0.0
 
+        parseLocalizedPrice(value)?.let { return it }
+
         val numeric = value.replace(Regex("[^0-9,.-]"), "")
         if (numeric.isBlank()) return 0.0
 
@@ -817,6 +821,18 @@ class OpenIapModule(
             numeric.replace(Regex("[^0-9-]"), "")
         }
         return normalized.toDoubleOrNull() ?: 0.0
+    }
+
+    private fun parseLocalizedPrice(value: String): Double? {
+        val locale = Locale.getDefault()
+        return listOf(
+            NumberFormat.getCurrencyInstance(locale),
+            NumberFormat.getNumberInstance(locale)
+        ).firstNotNullOfOrNull { format ->
+            val position = ParsePosition(0)
+            val parsed = format.parse(value, position)
+            if (parsed != null && position.index > 0) parsed.toDouble() else null
+        }
     }
 
     private fun AmazonReceipt.toPurchase(): PurchaseAndroid {
