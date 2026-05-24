@@ -525,6 +525,31 @@ export default function ProjectSettings() {
     }
   };
 
+  const handleAmazonClear = async () => {
+    if (!project || !hasAmazonSharedSecretConfigured || savingAmazon) {
+      return;
+    }
+
+    setSavingAmazon(true);
+    try {
+      await updateProject({
+        projectId: project._id,
+        amazonSharedSecret: null,
+      });
+
+      setAmazonSharedSecret("");
+      setIsReplacingAmazonSharedSecret(false);
+      toast.success("Amazon RVS configuration removed.");
+    } catch (error: any) {
+      console.error("Amazon RVS config clear error:", error);
+      toast.error(
+        error.message || "Failed to remove Amazon RVS configuration.",
+      );
+    } finally {
+      setSavingAmazon(false);
+    }
+  };
+
   const handleReportingCurrencySubmit = async (
     event: FormEvent<HTMLFormElement>,
   ) => {
@@ -1860,16 +1885,27 @@ export default function ProjectSettings() {
                               {"Shared Secret configured"}
                             </span>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsReplacingAmazonSharedSecret(true);
-                              setAmazonSharedSecret("");
-                            }}
-                            className="px-3 py-1 text-sm font-medium text-primary hover:bg-primary/10 rounded transition-colors"
-                          >
-                            {"Replace"}
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsReplacingAmazonSharedSecret(true);
+                                setAmazonSharedSecret("");
+                              }}
+                              disabled={savingAmazon}
+                              className="px-3 py-1 text-sm font-medium text-primary hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed rounded transition-colors"
+                            >
+                              {"Replace"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleAmazonClear()}
+                              disabled={savingAmazon}
+                              className="px-3 py-1 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 disabled:opacity-50 disabled:cursor-not-allowed rounded transition-colors"
+                            >
+                              {"Remove"}
+                            </button>
+                          </div>
                         </div>
                       ) : (
                         <input

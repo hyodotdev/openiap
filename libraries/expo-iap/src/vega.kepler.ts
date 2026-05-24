@@ -9,10 +9,16 @@ import {
 
 let cachedVegaModule: ExpoIapVegaModule | null = null;
 
+/**
+ * Returns true when the current React Native platform is Amazon Vega/Kepler.
+ */
 export const isVegaOS = (): boolean => {
   return String(Platform.OS).toLowerCase() === 'kepler';
 };
 
+/**
+ * Lazily creates the Vega IAP adapter backed by Amazon's Kepler Appstore IAP service.
+ */
 export const getVegaIapModule = (): ExpoIapVegaModule | null => {
   if (!isVegaOS()) return null;
   if (!cachedVegaModule) {

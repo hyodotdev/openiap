@@ -106,6 +106,9 @@ type NativePurchaseUpdatedOptionsModule = {
 const isStorePlatform = (): boolean =>
   Platform.OS === 'ios' || Platform.OS === 'android';
 
+const isStoreRuntime = (): boolean =>
+  Platform.OS === 'ios' || isAndroidStoreRuntime();
+
 const unsupportedPlatformError = (): Error =>
   new Error(`Unsupported platform: ${Platform.OS}`);
 
@@ -578,7 +581,9 @@ export const subscriptionBillingIssueListener = (
  *
  * @see {@link https://openiap.dev/docs/apis/init-connection}
  */
-export const initConnection: MutationField<'initConnection'> = async (config) => {
+export const initConnection: MutationField<'initConnection'> = async (
+  config,
+) => {
   const result = await ExpoIapModule.initConnection(config ?? null);
   if (
     result === true &&
@@ -780,7 +785,7 @@ export const getAvailablePurchases: QueryField<
 export const getActiveSubscriptions: QueryField<
   'getActiveSubscriptions'
 > = async (subscriptionIds) => {
-  if (!isStorePlatform()) {
+  if (!isStoreRuntime()) {
     throw unsupportedPlatformError();
   }
 
@@ -810,7 +815,7 @@ export const getActiveSubscriptions: QueryField<
 export const hasActiveSubscriptions: QueryField<
   'hasActiveSubscriptions'
 > = async (subscriptionIds) => {
-  if (!isStorePlatform()) {
+  if (!isStoreRuntime()) {
     throw unsupportedPlatformError();
   }
 
@@ -1272,7 +1277,7 @@ export const verifyPurchase: MutationField<'verifyPurchase'> = async (
 export const verifyPurchaseWithProvider: MutationField<
   'verifyPurchaseWithProvider'
 > = async (options) => {
-  if (!isStorePlatform()) {
+  if (!isStoreRuntime()) {
     throw unsupportedPlatformError();
   }
 

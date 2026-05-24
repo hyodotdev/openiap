@@ -776,7 +776,6 @@ export function createExpoIapVegaModule(
     async endConnection(): Promise<boolean> {
       productTypesBySku.clear();
       cachedUserData = null;
-      listenersByEventName.clear();
       return true;
     },
     async fetchProducts(

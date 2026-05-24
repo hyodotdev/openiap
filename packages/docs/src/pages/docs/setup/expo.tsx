@@ -352,7 +352,7 @@ cd ios && pod install`}
               <td>
                 <code>modules.vega</code>
               </td>
-              <td>runtime</td>
+              <td>boolean</td>
               <td>
                 Declares Vega OS runtime support and enables conflict checks; it
                 does not select an Android flavor. Install Amazon's Vega IAP

@@ -17,6 +17,9 @@ type ResponseOperation =
   | 'user-data'
   | 'notify-fulfillment';
 
+const IAPKIT_VERIFY_TIMEOUT_MS = 10_000;
+const MAX_PURCHASE_UPDATE_PAGES = 100;
+
 interface VegaPrice {
   priceCurrencyCode?: string | null;
   priceStr?: string | null;
@@ -148,10 +151,6 @@ function toPurchaseErrorResult(
   };
 }
 
-function getResponseCode(response?: VegaResponse | null): unknown {
-  return response?.responseCode;
-}
-
 function responseCodeName(responseCode: unknown): string {
   if (typeof responseCode === 'string') {
     return responseCode.toUpperCase();
@@ -209,7 +208,7 @@ function ensureSuccessful(
   message: string,
   productId?: string,
 ): void {
-  const responseCode = getResponseCode(response);
+  const responseCode = response?.responseCode;
   if (isSuccess(operation, responseCode)) return;
 
   throw createVegaError(
@@ -447,8 +446,17 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
     const receipts: VegaReceipt[] = [];
     let reset = true;
     let hasMore = false;
+    let pageCount = 0;
 
     do {
+      if (pageCount >= MAX_PURCHASE_UPDATE_PAGES) {
+        throw createVegaError(
+          ErrorCode.ServiceError,
+          'Amazon Vega purchase updates exceeded the pagination limit.',
+        );
+      }
+      pageCount++;
+
       const response = await service.getPurchaseUpdates({reset});
       ensureSuccessful(
         'purchase-updates',
@@ -506,6 +514,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
     await hydrateProductTypesForReceipts(receipts);
     return receipts
       .filter((receipt) => {
+        if (receipt.isCancelled || receipt.cancelDate) return false;
         if (!includeSuspended && receipt.isDeferred) return false;
         const openIapType = productTypeToOpenIap(
           receipt.productType ??
@@ -574,19 +583,23 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
     function extractIapkitErrorMessage(json: unknown): string | null {
       if (!json || typeof json !== 'object') return null;
       const record = json as Record<string, unknown>;
+      function extractStringMessage(value: string): string {
+        try {
+          const parsed = JSON.parse(value);
+          return parsed && typeof parsed === 'object'
+            ? (extractIapkitErrorMessage(parsed) ?? value)
+            : value;
+        } catch {
+          return value;
+        }
+      }
+
       const details = record.details;
       if (details && typeof details === 'object') {
         const originalError = (details as Record<string, unknown>)
           .originalError;
         if (typeof originalError === 'string') {
-          try {
-            return (
-              extractIapkitErrorMessage(JSON.parse(originalError)) ??
-              originalError
-            );
-          } catch {
-            return originalError;
-          }
+          return extractStringMessage(originalError);
         }
       }
 
@@ -595,11 +608,13 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
         return extractIapkitErrorMessage(errors[0]);
       }
 
-      return typeof record.message === 'string'
-        ? record.message
-        : typeof record.error === 'string'
-          ? record.error
-          : null;
+      if (typeof record.message === 'string') {
+        return extractStringMessage(record.message);
+      }
+      if (typeof record.error === 'string') {
+        return extractStringMessage(record.error);
+      }
+      return null;
     }
 
     function parseIapkitJsonResponse(text: string): unknown | null {
@@ -611,6 +626,42 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
       }
     }
 
+    function isIapkitResultObject(
+      json: unknown,
+    ): json is Record<string, unknown> {
+      return Boolean(json) && typeof json === 'object' && !Array.isArray(json);
+    }
+
+    function hasIapkitErrors(json: unknown): boolean {
+      if (!isIapkitResultObject(json)) return false;
+      const errors = json.errors;
+      return Array.isArray(errors) && errors.length > 0;
+    }
+
+    function readIapkitResult(
+      json: Record<string, unknown>,
+      status: number,
+    ): {
+      isValid: boolean;
+      state: IapkitPurchaseState;
+    } {
+      if (
+        typeof json.isValid !== 'boolean' ||
+        typeof json.state !== 'string' ||
+        json.store !== 'amazon'
+      ) {
+        throw createVegaError(
+          ErrorCode.ReceiptFailed,
+          `IAPKit returned malformed response (HTTP ${status}).`,
+        );
+      }
+
+      return {
+        isValid: json.isValid,
+        state: normalizeIapkitState(json.state),
+      };
+    }
+
     if (params.provider !== 'iapkit') {
       throw createVegaError(
         ErrorCode.FeatureNotSupported,
@@ -619,15 +670,20 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
     }
 
     const iapkit = params.iapkit;
+    const payloadCount =
+      Number(Boolean(iapkit?.amazon)) +
+      Number(Boolean(iapkit?.apple)) +
+      Number(Boolean(iapkit?.google));
     const amazon = iapkit?.amazon;
-    if (!amazon) {
+    if (payloadCount !== 1 || !amazon) {
       throw createVegaError(
         ErrorCode.DeveloperError,
-        'Amazon Vega IAPKit verification requires amazon parameters.',
+        'Amazon Vega IAPKit verification requires exactly one amazon payload.',
       );
     }
 
-    const receiptId = amazon.receiptId.trim();
+    const receiptId =
+      typeof amazon.receiptId === 'string' ? amazon.receiptId.trim() : '';
     if (!receiptId) {
       throw createVegaError(
         ErrorCode.DeveloperError,
@@ -635,7 +691,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
       );
     }
 
-    let userId = amazon.userId?.trim() ?? '';
+    let userId = typeof amazon.userId === 'string' ? amazon.userId.trim() : '';
     if (!userId) {
       const response = await service.getUserData({});
       ensureSuccessful(
@@ -653,15 +709,20 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
       );
     }
 
+    const apiKey =
+      typeof iapkit?.apiKey === 'string' ? iapkit.apiKey.trim() : '';
     let response: Response;
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(
+        () => controller.abort(),
+        IAPKIT_VERIFY_TIMEOUT_MS,
+      );
       response = await fetch(IAPKIT_VERIFY_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(iapkit?.apiKey
-            ? {Authorization: `Bearer ${iapkit.apiKey}`}
-            : {}),
+          ...(apiKey ? {Authorization: `Bearer ${apiKey}`} : {}),
         },
         body: JSON.stringify({
           store: 'amazon',
@@ -669,7 +730,8 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
           receiptId,
           ...(amazon.sandbox == null ? {} : {sandbox: amazon.sandbox}),
         }),
-      });
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeout));
     } catch (error) {
       throw createVegaError(
         ErrorCode.NetworkError,
@@ -678,7 +740,17 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
           : 'Failed to reach IAPKit verification endpoint.',
       );
     }
-    const text = await response.text();
+    let text: string;
+    try {
+      text = await response.text();
+    } catch (error) {
+      throw createVegaError(
+        ErrorCode.NetworkError,
+        error instanceof Error
+          ? error.message
+          : 'Failed to read IAPKit verification response.',
+      );
+    }
     const json = parseIapkitJsonResponse(text);
 
     if (!response.ok) {
@@ -695,16 +767,26 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
       );
     }
 
-    const result = json as {
-      isValid?: unknown;
-      state?: unknown;
-      store?: unknown;
-    };
+    if (!isIapkitResultObject(json)) {
+      throw createVegaError(
+        ErrorCode.ReceiptFailed,
+        `IAPKit returned malformed response (HTTP ${response.status}).`,
+      );
+    }
+
+    if (hasIapkitErrors(json)) {
+      throw createVegaError(
+        ErrorCode.ReceiptFailed,
+        extractIapkitErrorMessage(json) ?? 'IAPKit verification failed.',
+      );
+    }
+
+    const result = readIapkitResult(json, response.status);
     return {
       provider: 'iapkit',
       iapkit: {
-        isValid: result.isValid === true,
-        state: normalizeIapkitState(result.state),
+        isValid: result.isValid,
+        state: result.state,
         store: 'amazon',
       },
     };
@@ -718,8 +800,6 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
     async endConnection(): Promise<boolean> {
       productTypesBySku.clear();
       cachedUserData = null;
-      purchaseUpdateListeners.clear();
-      purchaseErrorListeners.clear();
       return true;
     },
     async fetchProducts(skus: string[], type: string): Promise<NitroProduct[]> {

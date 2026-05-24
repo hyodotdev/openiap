@@ -301,7 +301,7 @@ export const updateProject = mutation({
     horizonEnabled: v.optional(v.boolean()),
     horizonAppId: v.optional(v.string()),
     horizonAppSecret: v.optional(v.string()),
-    amazonSharedSecret: v.optional(v.string()),
+    amazonSharedSecret: v.optional(v.union(v.string(), v.null())),
     reportingCurrency: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -393,9 +393,10 @@ export const updateProject = mutation({
       );
     }
     if (args.amazonSharedSecret !== undefined) {
-      updates.amazonSharedSecret = normalizeAmazonSharedSecret(
-        args.amazonSharedSecret,
-      );
+      updates.amazonSharedSecret =
+        args.amazonSharedSecret === null
+          ? null
+          : normalizeAmazonSharedSecret(args.amazonSharedSecret);
     }
 
     // Invariant: enabling Horizon without both credentials leaves the

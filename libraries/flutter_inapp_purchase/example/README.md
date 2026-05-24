@@ -70,6 +70,7 @@ To use Fire OS IAP through the Amazon Appstore SDK:
    ```
 
 3. **Test with Amazon App Tester** on a Fire OS or compatible Android test device:
+
    ```bash
    flutter run
    flutter build apk --release
