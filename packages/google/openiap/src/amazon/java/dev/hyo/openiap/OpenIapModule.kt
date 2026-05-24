@@ -26,6 +26,9 @@ import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.lang.ref.WeakReference
@@ -140,7 +143,13 @@ class OpenIapModule(
 
             val responses = params.skus
                 .chunked(AMAZON_PRODUCT_DATA_BATCH_SIZE)
-                .map { requestProductData(it) }
+                .let { batches ->
+                    coroutineScope {
+                        batches.map { batch ->
+                            async { requestProductData(batch) }
+                        }.awaitAll()
+                    }
+                }
             val failedResponse = responses.firstOrNull {
                 it.requestStatus != ProductDataResponse.RequestStatus.SUCCESSFUL
             }
@@ -189,10 +198,15 @@ class OpenIapModule(
         }
     }
 
-    override val getAvailablePurchases: QueryGetAvailablePurchasesHandler = {
+    override val getAvailablePurchases: QueryGetAvailablePurchasesHandler = { options ->
         withContext(Dispatchers.IO) {
             ensureRegistered()
-            requestPurchaseUpdates(reset = true)
+            val purchases = requestPurchaseUpdates(reset = true)
+            if (options?.includeSuspendedAndroid == true) {
+                purchases
+            } else {
+                purchases.filterNot { (it as? PurchaseAndroid)?.isSuspendedAndroid == true }
+            }
         }
     }
 
