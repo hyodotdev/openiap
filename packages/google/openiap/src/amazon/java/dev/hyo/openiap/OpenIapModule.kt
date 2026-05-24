@@ -605,8 +605,9 @@ class OpenIapModule(
         var pageCount = 0
         do {
             if (pageCount >= AMAZON_PURCHASE_UPDATES_MAX_PAGES) {
-                OpenIapLog.w("Amazon purchase updates exceeded pagination limit", TAG)
-                break
+                throw OpenIapError.ServiceTimeout(
+                    "Amazon purchase updates exceeded pagination limit ($AMAZON_PURCHASE_UPDATES_MAX_PAGES pages)"
+                )
             }
             pageCount += 1
             val response = awaitPurchaseUpdates(shouldReset)

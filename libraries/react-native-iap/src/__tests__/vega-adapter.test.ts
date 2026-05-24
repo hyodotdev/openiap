@@ -507,6 +507,39 @@ describe('Amazon Vega adapter', () => {
     }
   });
 
+  it('extracts string entries from IAPKit error arrays', async () => {
+    const service = createService();
+    const originalFetch = globalThis.fetch;
+    const fetchMock = jest.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        Response.json(
+          {
+            errors: ['receipt array failure'],
+          },
+          {status: 400},
+        ),
+    ) as unknown as jest.MockedFunction<typeof fetch>;
+    globalThis.fetch = fetchMock;
+
+    try {
+      const module = createVegaIapModule(service);
+
+      await expect(
+        module.verifyPurchaseWithProvider({
+          provider: 'iapkit',
+          iapkit: {
+            amazon: {
+              userId: 'amazon-user',
+              receiptId: 'receipt-vega-1',
+            },
+          },
+        }),
+      ).rejects.toThrow(`"message":"receipt array failure"`);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   it('rejects empty successful IAPKit responses as receipt errors', async () => {
     const service = createService();
     const originalFetch = globalThis.fetch;

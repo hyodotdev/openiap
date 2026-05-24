@@ -586,7 +586,10 @@ export function createExpoIapVegaModule(
 
       const errors = record.errors;
       if (Array.isArray(errors) && errors.length > 0) {
-        return extractIapkitErrorMessage(errors[0], depth + 1);
+        const firstError = errors[0];
+        return typeof firstError === 'string'
+          ? extractStringMessage(firstError)
+          : extractIapkitErrorMessage(firstError, depth + 1);
       }
 
       if (typeof record.message === 'string') {
