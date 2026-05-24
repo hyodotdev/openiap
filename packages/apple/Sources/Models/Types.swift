@@ -303,6 +303,7 @@ public enum IapStore: String, Codable, CaseIterable {
     case apple = "apple"
     case google = "google"
     case horizon = "horizon"
+    case amazon = "amazon"
 }
 
 /// Payment mode for subscription offers.
@@ -1902,7 +1903,8 @@ public struct RequestPurchaseProps: Codable {
 /// 
 /// Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
 /// - apple: Always targets App Store
-/// - google: Targets Play Store by default, or Horizon when built with horizon flavor
+/// - google: Targets Play Store by default, Horizon when built with horizon flavor,
+///   or Fire OS when built with amazon flavor
 ///   (determined at build time, not runtime)
 public struct RequestPurchasePropsByPlatforms: Codable {
     /// @deprecated Use google instead
@@ -2035,7 +2037,8 @@ public struct RequestSubscriptionIosProps: Codable {
 /// 
 /// Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
 /// - apple: Always targets App Store
-/// - google: Targets Play Store by default, or Horizon when built with horizon flavor
+/// - google: Targets Play Store by default, Horizon when built with horizon flavor,
+///   or Fire OS when built with amazon flavor
 ///   (determined at build time, not runtime)
 public struct RequestSubscriptionPropsByPlatforms: Codable {
     /// @deprecated Use google instead
@@ -2057,6 +2060,25 @@ public struct RequestSubscriptionPropsByPlatforms: Codable {
         self.apple = apple
         self.google = google
         self.ios = ios
+    }
+}
+
+public struct RequestVerifyPurchaseWithIapkitAmazonProps: Codable {
+    /// Amazon Appstore receipt id returned by PurchaseResponse.getReceipt().getReceiptId().
+    public var receiptId: String
+    /// Use Amazon RVS Cloud Sandbox for App Tester receipts.
+    public var sandbox: Bool?
+    /// Amazon Appstore user id returned by PurchaseResponse.getUserData().getUserId().
+    public var userId: String?
+
+    public init(
+        receiptId: String,
+        sandbox: Bool? = nil,
+        userId: String? = nil
+    ) {
+        self.receiptId = receiptId
+        self.sandbox = sandbox
+        self.userId = userId
     }
 }
 
@@ -2086,7 +2108,10 @@ public struct RequestVerifyPurchaseWithIapkitGoogleProps: Codable {
 /// 
 /// - apple: Verifies via App Store (JWS token)
 /// - google: Verifies via Play Store (purchase token)
+/// - amazon: Verifies via Amazon Appstore RVS (userId + receiptId)
 public struct RequestVerifyPurchaseWithIapkitProps: Codable {
+    /// Amazon Appstore verification parameters.
+    public var amazon: RequestVerifyPurchaseWithIapkitAmazonProps?
     /// API key used for the Authorization header (Bearer {apiKey}).
     public var apiKey: String?
     /// Apple App Store verification parameters.
@@ -2095,10 +2120,12 @@ public struct RequestVerifyPurchaseWithIapkitProps: Codable {
     public var google: RequestVerifyPurchaseWithIapkitGoogleProps?
 
     public init(
+        amazon: RequestVerifyPurchaseWithIapkitAmazonProps? = nil,
         apiKey: String? = nil,
         apple: RequestVerifyPurchaseWithIapkitAppleProps? = nil,
         google: RequestVerifyPurchaseWithIapkitGoogleProps? = nil
     ) {
+        self.amazon = amazon
         self.apiKey = apiKey
         self.apple = apple
         self.google = google

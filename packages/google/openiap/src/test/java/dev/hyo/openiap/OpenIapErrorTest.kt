@@ -6,6 +6,8 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+private const val BILLING_RESPONSE_SERVICE_TIMEOUT = -3
+
 class OpenIapErrorTest {
 
     @Test
@@ -317,7 +319,7 @@ class OpenIapErrorTest {
         assertTrue(OpenIapError.fromBillingResponseCode(BillingClient.BillingResponseCode.ITEM_NOT_OWNED) is OpenIapError.ItemNotOwned)
         assertTrue(OpenIapError.fromBillingResponseCode(BillingClient.BillingResponseCode.SERVICE_DISCONNECTED) is OpenIapError.ServiceDisconnected)
         assertTrue(OpenIapError.fromBillingResponseCode(BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED) is OpenIapError.FeatureNotSupported)
-        assertTrue(OpenIapError.fromBillingResponseCode(BillingClient.BillingResponseCode.SERVICE_TIMEOUT) is OpenIapError.ServiceTimeout)
+        assertTrue(OpenIapError.fromBillingResponseCode(BILLING_RESPONSE_SERVICE_TIMEOUT) is OpenIapError.ServiceTimeout)
     }
 
     @Test
@@ -341,7 +343,7 @@ class OpenIapErrorTest {
             BillingClient.BillingResponseCode.ITEM_NOT_OWNED,
             BillingClient.BillingResponseCode.SERVICE_DISCONNECTED,
             BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED,
-            BillingClient.BillingResponseCode.SERVICE_TIMEOUT,
+            BILLING_RESPONSE_SERVICE_TIMEOUT,
             999 // else branch → UnknownError
         )
         codesToAssert.forEach { code ->

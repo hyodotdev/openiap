@@ -35,6 +35,27 @@ export default defineConfig({
               return 'vendor-lucide';
             }
           }
+          if (id.includes('/src/pages/docs/updates/')) {
+            return 'docs-updates';
+          }
+          if (id.includes('/src/pages/docs/apis/')) {
+            return 'docs-apis';
+          }
+          if (id.includes('/src/pages/docs/types/')) {
+            return 'docs-types';
+          }
+          if (id.includes('/src/pages/docs/features/')) {
+            return 'docs-features';
+          }
+          if (id.includes('/src/pages/docs/setup/')) {
+            return 'docs-setup';
+          }
+          if (id.includes('/src/pages/docs/guides/')) {
+            return 'docs-guides';
+          }
+          if (id.includes('/src/pages/docs/foundation/')) {
+            return 'docs-foundation';
+          }
         },
       },
     },

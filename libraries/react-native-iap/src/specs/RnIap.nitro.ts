@@ -88,7 +88,7 @@ export type IapkitPurchaseState =
 
 // Store identifier for purchase origin
 // Defined locally for Nitro codegen (not in GQL schema)
-export type IapStore = 'unknown' | 'apple' | 'google' | 'horizon';
+export type IapStore = 'unknown' | 'apple' | 'google' | 'horizon' | 'amazon';
 
 // Purchase verification provider selection
 // Defined locally for Nitro codegen (not in GQL schema)
@@ -149,7 +149,8 @@ export interface NitroReceiptValidationHorizonOptions {
   userId: VerifyPurchaseHorizonOptions['userId'];
 }
 
-export type NitroPurchaseUpdatedListenerOptions = PurchaseUpdatedListenerOptions;
+export type NitroPurchaseUpdatedListenerOptions =
+  PurchaseUpdatedListenerOptions;
 
 export interface NitroReceiptValidationParams {
   apple?: NitroReceiptValidationAppleOptions | null;
@@ -383,8 +384,18 @@ export interface NitroVerifyPurchaseWithIapkitGoogleProps {
   purchaseToken: string;
 }
 
+export interface NitroVerifyPurchaseWithIapkitAmazonProps {
+  /** Amazon Appstore receipt id returned by PurchaseResponse.getReceipt().getReceiptId(). */
+  receiptId: string;
+  /** Use Amazon RVS Cloud Sandbox for App Tester receipts. */
+  sandbox?: boolean | null;
+  /** Amazon Appstore user id returned by PurchaseResponse.getUserData().getUserId(). */
+  userId?: string | null;
+}
+
 export interface NitroVerifyPurchaseWithIapkitProps {
   apiKey?: string | null;
+  amazon?: NitroVerifyPurchaseWithIapkitAmazonProps | null;
   apple?: NitroVerifyPurchaseWithIapkitAppleProps | null;
   google?: NitroVerifyPurchaseWithIapkitGoogleProps | null;
 }

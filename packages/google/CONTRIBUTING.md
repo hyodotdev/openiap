@@ -33,9 +33,18 @@ cd openiap/packages/google
 adb shell am start -n dev.hyo.martie/.MainActivity
 ```
 
-## Horizon OS Development (Meta Quest)
+## Store Flavor Development
 
-This library supports both Google Play Store and Meta Horizon OS (Quest devices) using product flavors.
+This library supports Google Play Store, Meta Horizon OS (Quest devices), and
+Fire OS using product flavors.
+
+| Variant                               | Store                          |
+| ------------------------------------- | ------------------------------ |
+| **playDebug** / **playRelease**       | Google Play Store billing      |
+| **horizonDebug** / **horizonRelease** | Meta Horizon OS billing        |
+| **amazonDebug** / **amazonRelease**   | Fire OS billing                |
+
+## Horizon OS Development (Meta Quest)
 
 ### Setting Up Horizon App ID
 
@@ -65,11 +74,6 @@ EXAMPLE_HORIZON_APP_ID=your_horizon_app_id_here
    - Set **openiap** module to **horizonDebug**
    - Run the app (App ID will be read from `local.properties`)
 
-### Build Variants
-
-- **playDebug** / **playRelease** - Google Play Store billing
-- **horizonDebug** / **horizonRelease** - Meta Horizon OS billing
-
 ### Testing on Quest Devices
 
 ```bash
@@ -84,6 +88,22 @@ adb logcat | grep -E "OpenIap|Horizon"
 ```
 
 **Note**: The Horizon App ID is required for Horizon Billing to work. Without it, the billing client will fail to connect.
+
+## Fire OS Development
+
+The Amazon flavor uses the Amazon Appstore SDK and is intended for Fire OS /
+Amazon-distributed Android builds.
+
+```bash
+# Build Fire OS variant
+./gradlew :Example:assembleAmazonDebug
+
+# Install Fire OS variant
+./gradlew :Example:installAmazonDebug
+
+# View logs
+adb logcat | grep -E "OpenIap|Amazon"
+```
 
 ## Generated Types
 

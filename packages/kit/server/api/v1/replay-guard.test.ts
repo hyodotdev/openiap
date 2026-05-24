@@ -56,6 +56,30 @@ describe("hashPayload", () => {
     });
     expect(left).not.toBe(right);
   });
+
+  test("distinguishes Amazon receipt tuples and sandbox mode", () => {
+    const tupleLeft = hashPayload({
+      store: "amazon",
+      userId: "ab",
+      receiptId: "c",
+      sandbox: true,
+    });
+    const tupleRight = hashPayload({
+      store: "amazon",
+      userId: "a",
+      receiptId: "bc",
+      sandbox: true,
+    });
+    const production = hashPayload({
+      store: "amazon",
+      userId: "ab",
+      receiptId: "c",
+      sandbox: false,
+    });
+
+    expect(tupleLeft).not.toBe(tupleRight);
+    expect(tupleLeft).not.toBe(production);
+  });
 });
 
 describe("tryConsumeReplay", () => {

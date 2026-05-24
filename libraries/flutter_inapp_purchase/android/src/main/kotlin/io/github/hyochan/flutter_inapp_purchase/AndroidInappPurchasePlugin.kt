@@ -249,6 +249,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
         }
     }
 
+    @Suppress("DEPRECATION")
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         val ch = channel
         if (ch == null) {

@@ -35,9 +35,12 @@ export interface ReplayBucket {
   // returned `isValid: false`. Subsequent
   // requests for the exact same payload are short-circuited with
   // `REPEATED_FAILURE` until the cooldown expires — re-asking
-  // Apple / Google / Meta about a receipt they already rejected, or
-  // retrying the same failed product-match guard, has no chance of
-  // changing the answer in seconds.
+  // Apple / Google / Meta / Amazon about a receipt they already
+  // rejected, or retrying the same failed product-match guard, has
+  // no chance of changing the answer in seconds. An attacker
+  // replaying a captured-then-revoked receipt should hit a hard wall
+  // instead of being able to rotate timing under the per-request
+  // burst cap to keep burning upstream API quota.
   lastFailureMs?: number;
 }
 
@@ -71,7 +74,8 @@ export function hashPayload(
   body:
     | { store: "apple"; jws: string; expectedProductId?: string }
     | { store: "google"; purchaseToken: string; expectedProductId?: string }
-    | { store: "horizon"; userId: string; sku: string },
+    | { store: "horizon"; userId: string; sku: string }
+    | { store: "amazon"; userId: string; receiptId: string; sandbox?: boolean },
 ): string {
   const hasher = crypto.createHash("sha256");
   hasher.update(body.store);
@@ -95,6 +99,13 @@ export function hashPayload(
       hasher.update(body.userId);
       hasher.update("\0");
       hasher.update(body.sku);
+      break;
+    case "amazon":
+      hasher.update(body.userId);
+      hasher.update("\0");
+      hasher.update(body.receiptId);
+      hasher.update("\0");
+      hasher.update(body.sandbox === true ? "sandbox" : "production");
       break;
   }
   return hasher.digest("hex").slice(0, 16);
@@ -285,11 +296,17 @@ export function replayGuardMiddleware(
     }
 
     // Valid-by-schema by the time this runs — the valibot validator
-    // upstream guarantees one of the three discriminated shapes.
+    // upstream guarantees one of the discriminated shapes.
     const body = c.req.valid("json" as never) as
       | { store: "apple"; jws: string; expectedProductId?: string }
       | { store: "google"; purchaseToken: string; expectedProductId?: string }
-      | { store: "horizon"; userId: string; sku: string };
+      | { store: "horizon"; userId: string; sku: string }
+      | {
+          store: "amazon";
+          userId: string;
+          receiptId: string;
+          sandbox?: boolean;
+        };
 
     const bucketKey = `${apiKeyHash}:${hashPayload(body)}`;
     const result = tryConsumeReplay(

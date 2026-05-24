@@ -371,6 +371,23 @@ describe('type-bridge utilities', () => {
       expect(result.purchaseState).toBe('purchased');
       expect(result.autoRenewingAndroid).toBe(true);
     });
+
+    it('preserves Amazon store on Android purchases', () => {
+      const nitroPurchase: NitroPurchase = {
+        id: 'receipt-amazon',
+        productId: 'sku-amazon',
+        transactionDate: 789,
+        purchaseTokenAndroid: 'receipt-amazon',
+        platform: 'android',
+        store: 'amazon',
+        quantity: 1,
+        purchaseState: 'purchased',
+        isAutoRenewing: false,
+      } as NitroPurchase;
+
+      const result = convertNitroPurchaseToPurchase(nitroPurchase);
+      expect(result.store).toBe('amazon');
+    });
   });
 
   describe('validation helpers', () => {
@@ -383,12 +400,25 @@ describe('type-bridge utilities', () => {
         platform: 'ios',
       } as NitroProduct);
 
-      const invalid = validateNitroProduct({
-        title: 'missing fields',
-      } as NitroProduct);
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
 
-      expect(valid).toBe(true);
-      expect(invalid).toBe(false);
+      try {
+        const invalid = validateNitroProduct({
+          title: 'missing fields',
+        } as NitroProduct);
+
+        expect(valid).toBe(true);
+        expect(invalid).toBe(false);
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          '[RN-IAP]',
+          'NitroProduct missing required field: id',
+          {title: 'missing fields'},
+        );
+      } finally {
+        consoleErrorSpy.mockRestore();
+      }
     });
 
     it('validates NitroPurchase shape', () => {
@@ -399,12 +429,25 @@ describe('type-bridge utilities', () => {
         platform: 'ios',
       } as NitroPurchase);
 
-      const invalid = validateNitroPurchase({
-        productId: 'sku',
-      } as NitroPurchase);
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
 
-      expect(valid).toBe(true);
-      expect(invalid).toBe(false);
+      try {
+        const invalid = validateNitroPurchase({
+          productId: 'sku',
+        } as NitroPurchase);
+
+        expect(valid).toBe(true);
+        expect(invalid).toBe(false);
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          '[RN-IAP]',
+          'NitroPurchase missing required field: id',
+          {productId: 'sku'},
+        );
+      } finally {
+        consoleErrorSpy.mockRestore();
+      }
     });
   });
 

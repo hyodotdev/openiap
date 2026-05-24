@@ -64,6 +64,7 @@ import {
 import {RnIapConsole} from './utils/debug';
 import {getSuccessFromPurchaseVariant} from './utils/purchase';
 import {parseAppTransactionPayload} from './utils';
+import {getVegaIapModule, isVegaOS} from './vega';
 
 // ------------------------------
 // Billing Programs API (Android 8.2.0+)
@@ -85,6 +86,7 @@ export type {
 } from './specs/RnIap.nitro';
 export * from './types';
 export * from './utils/error';
+export * from './vega';
 
 export type ProductTypeInput = 'inapp' | 'in-app' | 'subs';
 
@@ -167,6 +169,10 @@ let iapRef: RnIap | null = null;
  */
 export const isNitroReady = (): boolean => {
   if (iapRef) return true;
+  if (isVegaOS()) {
+    iapRef = getVegaIapModule();
+    return Boolean(iapRef);
+  }
   try {
     iapRef = NitroModules.createHybridObject<RnIap>('RnIap');
     return true;
@@ -201,9 +207,24 @@ export const isStandardIOS = (): boolean => {
   return Platform.OS === 'ios' && !isTVOS() && !isMacOS();
 };
 
+const isAndroidStoreRuntime = (): boolean => {
+  return Platform.OS === 'android' || isVegaOS();
+};
+
 const IAP = {
   get instance(): RnIap {
     if (iapRef) return iapRef;
+
+    if (isVegaOS()) {
+      const vegaModule = getVegaIapModule();
+      if (!vegaModule) {
+        throw new Error(
+          'Amazon Vega IAP module is unavailable. Add @amazon-devices/keplerscript-appstore-iap-lib and build with the React Native Vega kepler platform.',
+        );
+      }
+      iapRef = vegaModule;
+      return iapRef;
+    }
 
     // Attempt to create the HybridObject and map common Nitro/JSI readiness errors
     try {
@@ -732,28 +753,28 @@ const subscriptionBillingIssueNativeHandler: NitroSubscriptionBillingIssueListen
     }
   };
 
-function tryAttachSubscriptionBillingIssueNative(): void {
-  if (subscriptionBillingIssueNativeAttached) return;
-  try {
-    IAP.instance.addSubscriptionBillingIssueListener(
-      subscriptionBillingIssueNativeHandler,
-    );
-    subscriptionBillingIssueNativeAttached = true;
-  } catch (e) {
-    const msg = toErrorMessage(e);
-    if (msg.includes('Nitro runtime not installed')) {
-      RnIapConsole.warn(
-        '[subscriptionBillingIssueListener] Nitro not ready yet; will retry on next registration after initConnection()',
-      );
-    } else {
-      throw e;
-    }
-  }
-}
-
 export const subscriptionBillingIssueListener = (
   listener: (purchase: Purchase) => void,
 ): EventSubscription => {
+  function tryAttachSubscriptionBillingIssueNative(): void {
+    if (subscriptionBillingIssueNativeAttached) return;
+    try {
+      IAP.instance.addSubscriptionBillingIssueListener(
+        subscriptionBillingIssueNativeHandler,
+      );
+      subscriptionBillingIssueNativeAttached = true;
+    } catch (e) {
+      const msg = toErrorMessage(e);
+      if (msg.includes('Nitro runtime not installed')) {
+        RnIapConsole.warn(
+          '[subscriptionBillingIssueListener] Nitro not ready yet; will retry on next registration after initConnection()',
+        );
+      } else {
+        throw e;
+      }
+    }
+  }
+
   subscriptionBillingIssueJsListeners.add(listener);
   // Retry attachment every call so a listener registered before initConnection()
   // doesn't stay permanently inert once Nitro is ready.
@@ -852,7 +873,7 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
         // item.type === 'subs' case
         // For Android, check if subscription items have actual offers
         if (
-          Platform.OS === 'android' &&
+          isAndroidStoreRuntime() &&
           item.platform === 'android' &&
           item.type === 'subs'
         ) {
@@ -971,11 +992,26 @@ export const getAvailablePurchases: QueryField<
       }
 
       return validPurchases.map(convertNitroPurchaseToPurchase);
-    } else if (Platform.OS === 'android') {
-      // For Android, we need to call twice for inapp and subs
+    } else if (isAndroidStoreRuntime()) {
       const includeSuspended = Boolean(
         options?.includeSuspendedAndroid ?? false,
       );
+
+      if (isVegaOS()) {
+        const nitroPurchases = await IAP.instance.getAvailablePurchases({
+          android: {includeSuspended},
+        });
+        const validPurchases = nitroPurchases.filter(validateNitroPurchase);
+        if (validPurchases.length !== nitroPurchases.length) {
+          RnIapConsole.warn(
+            `[getAvailablePurchases] Some Vega purchases failed validation: ${nitroPurchases.length - validPurchases.length} invalid`,
+          );
+        }
+
+        return validPurchases.map(convertNitroPurchaseToPurchase);
+      }
+
+      // For Android Play/Horizon/Fire OS, query in-app items and subscriptions separately.
       const inappNitroPurchases = await IAP.instance.getAvailablePurchases({
         android: {type: 'inapp', includeSuspended},
       });
@@ -1073,9 +1109,9 @@ export const getStorefrontIOS: QueryField<'getStorefrontIOS'> = async () => {
  * @see {@link https://openiap.dev/docs/apis/get-storefront}
  */
 export const getStorefront: QueryField<'getStorefront'> = async () => {
-  if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
+  if (Platform.OS !== 'ios' && !isAndroidStoreRuntime()) {
     RnIapConsole.warn(
-      '[getStorefront] Storefront lookup is only supported on iOS and Android.',
+      '[getStorefront] Storefront lookup is only supported on iOS, Android, and Vega OS.',
     );
     return '';
   }
@@ -1674,7 +1710,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
           'Invalid request for iOS. The `sku` property is required.',
         );
       }
-    } else if (Platform.OS === 'android') {
+    } else if (isAndroidStoreRuntime()) {
       // Support both 'google' (recommended) and 'android' (deprecated) fields
       const androidRequest =
         perPlatformRequest.google ?? perPlatformRequest.android;
@@ -1742,7 +1778,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
     // Support both 'google' (recommended) and 'android' (deprecated) fields
     const androidRequestSource =
       perPlatformRequest.google ?? perPlatformRequest.android;
-    if (Platform.OS === 'android' && androidRequestSource) {
+    if (isAndroidStoreRuntime() && androidRequestSource) {
       const androidRequest = isSubs
         ? (androidRequestSource as RequestSubscriptionAndroidProps)
         : (androidRequestSource as RequestPurchaseAndroidProps);
@@ -1849,7 +1885,7 @@ export const finishTransaction: MutationField<'finishTransaction'> = async (
           transactionId: purchase.id,
         },
       };
-    } else if (Platform.OS === 'android') {
+    } else if (isAndroidStoreRuntime()) {
       const token = purchase.purchaseToken ?? undefined;
 
       if (!token) {
@@ -1907,9 +1943,9 @@ export const acknowledgePurchaseAndroid: MutationField<
   'acknowledgePurchaseAndroid'
 > = async (purchaseToken) => {
   try {
-    if (Platform.OS !== 'android') {
+    if (!isAndroidStoreRuntime()) {
       throw new Error(
-        'acknowledgePurchaseAndroid is only available on Android',
+        'acknowledgePurchaseAndroid is only available on Android and Vega OS',
       );
     }
 
@@ -1948,8 +1984,10 @@ export const consumePurchaseAndroid: MutationField<
   'consumePurchaseAndroid'
 > = async (purchaseToken) => {
   try {
-    if (Platform.OS !== 'android') {
-      throw new Error('consumePurchaseAndroid is only available on Android');
+    if (!isAndroidStoreRuntime()) {
+      throw new Error(
+        'consumePurchaseAndroid is only available on Android and Vega OS',
+      );
     }
 
     const result = await IAP.instance.finishTransaction({

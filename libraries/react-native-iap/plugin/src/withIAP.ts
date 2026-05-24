@@ -3,6 +3,7 @@ import {
   WarningAggregator,
   withAndroidManifest,
   withAppBuildGradle,
+  withGradleProperties,
   withPodfile,
   withEntitlementsPlist,
   withInfoPlist,
@@ -49,9 +50,9 @@ export const modifyProjectBuildGradle = (gradle: string): string => {
   return gradle;
 };
 
-const OPENIAP_COORD = 'io.github.hyochan.openiap:openiap-google';
+const OPENIAP_GROUP = 'io.github.hyochan.openiap';
 
-function loadOpenIapConfig(): {google: string} {
+function loadOpenIapVersion(): string {
   const versionsPath = resolvePath(__dirname, '../../openiap-versions.json');
   try {
     const raw = readFileSync(versionsPath, 'utf8');
@@ -63,7 +64,7 @@ function loadOpenIapConfig(): {google: string} {
         'react-native-iap: "google" version missing or invalid in openiap-versions.json',
       );
     }
-    return {google: googleVersion};
+    return googleVersion;
   } catch (error) {
     throw new Error(
       `react-native-iap: Unable to load openiap-versions.json (${error instanceof Error ? error.message : error})`,
@@ -71,21 +72,16 @@ function loadOpenIapConfig(): {google: string} {
   }
 }
 
-let cachedOpenIapVersion: string | null = null;
-const getOpenIapVersion = (): string => {
-  if (cachedOpenIapVersion) {
-    return cachedOpenIapVersion;
-  }
-  cachedOpenIapVersion = loadOpenIapConfig().google;
-  return cachedOpenIapVersion;
-};
-
-const modifyAppBuildGradle = (gradle: string): string => {
+const modifyAppBuildGradle = (
+  gradle: string,
+  isHorizonEnabled?: boolean,
+  isFireOsEnabled?: boolean,
+): string => {
   let modified = gradle;
 
   let openiapVersion: string;
   try {
-    openiapVersion = getOpenIapVersion();
+    openiapVersion = loadOpenIapVersion();
   } catch (error) {
     WarningAggregator.addWarningAndroid(
       'react-native-iap',
@@ -107,9 +103,27 @@ const modifyAppBuildGradle = (gradle: string): string => {
     )
     .replace(/\n{3,}/g, '\n\n');
 
-  const openiapDep = `    implementation "${OPENIAP_COORD}:${openiapVersion}"`;
+  const flavor = isFireOsEnabled
+    ? 'amazon'
+    : isHorizonEnabled
+      ? 'horizon'
+      : 'play';
+  const artifactId = isFireOsEnabled
+    ? 'openiap-google-amazon'
+    : isHorizonEnabled
+      ? 'openiap-google-horizon'
+      : 'openiap-google';
+  const openiapCoord = `${OPENIAP_GROUP}:${artifactId}`;
+  const openiapDep = `    implementation "${openiapCoord}:${openiapVersion}"`;
 
-  if (!modified.includes(OPENIAP_COORD)) {
+  const openiapAnyLine =
+    /^[ \t]*(implementation|api)[ \t]+\(?["']io\.github\.hyochan\.openiap:openiap-google(?:-(?:horizon|amazon))?:[^"']+["']\)?[ \t]*$/gim;
+  const hadExistingOpeniap = openiapAnyLine.test(modified);
+  if (hadExistingOpeniap) {
+    modified = modified.replace(openiapAnyLine, '').replace(/\n{3,}/g, '\n\n');
+  }
+
+  if (!modified.includes(openiapCoord)) {
     if (!/dependencies\s*{/.test(modified)) {
       modified += `\n\ndependencies {\n${openiapDep}\n}\n`;
     } else {
@@ -122,18 +136,65 @@ const modifyAppBuildGradle = (gradle: string): string => {
     }
   }
 
+  // Remove stale OpenIAP platform strategies even when returning to the default
+  // Play artifact. Otherwise a previous Fire OS/Horizon prebuild can keep
+  // selecting the wrong local flavor.
+  const strategyPattern =
+    /^[ \t]*missingDimensionStrategy[ \t]*\(?[ \t]*["']platform["'][ \t]*,[ \t]*["'](play|horizon|amazon)["'][ \t]*\)?[ \t]*$/gm;
+  if (strategyPattern.test(modified)) {
+    modified = modified.replace(strategyPattern, '');
+  }
+
+  const defaultConfigRegex = /defaultConfig\s*{/;
+  if (defaultConfigRegex.test(modified)) {
+    const strategyLine = `        missingDimensionStrategy "platform", "${flavor}"`;
+    if (!/missingDimensionStrategy.*platform/.test(modified)) {
+      modified = addLineToGradle(modified, defaultConfigRegex, strategyLine);
+    }
+  }
+
   return modified;
 };
 
-const withIapAndroid: ConfigPlugin<{iapkitApiKey?: string} | undefined> = (
-  config,
-  props,
-) => {
+const withIapAndroid: ConfigPlugin<
+  | {
+      iapkitApiKey?: string;
+      isHorizonEnabled?: boolean;
+      isFireOsEnabled?: boolean;
+    }
+  | undefined
+> = (config, props) => {
   // Add OpenIAP dependency to app build.gradle
   config = withAppBuildGradle(config, (config) => {
     config.modResults.contents = modifyAppBuildGradle(
       config.modResults.contents,
+      props?.isHorizonEnabled,
+      props?.isFireOsEnabled,
     );
+    return config;
+  });
+
+  config = withGradleProperties(config, (config) => {
+    const horizonValue = props?.isHorizonEnabled ?? false;
+    const fireOsValue = props?.isFireOsEnabled ?? false;
+
+    config.modResults = config.modResults.filter(
+      (item) =>
+        item.type !== 'property' ||
+        !['horizonEnabled', 'fireOsEnabled'].includes(item.key),
+    );
+
+    config.modResults.push({
+      type: 'property',
+      key: 'horizonEnabled',
+      value: String(horizonValue),
+    });
+    config.modResults.push({
+      type: 'property',
+      key: 'fireOsEnabled',
+      value: String(fireOsValue),
+    });
+
     return config;
   });
 
@@ -146,21 +207,27 @@ const withIapAndroid: ConfigPlugin<{iapkitApiKey?: string} | undefined> = (
     const permissions = manifest.manifest['uses-permission'];
     const billingPerm = {$: {'android:name': 'com.android.vending.BILLING'}};
 
-    const alreadyExists = permissions.some(
-      (p) => p.$['android:name'] === 'com.android.vending.BILLING',
-    );
-    if (!alreadyExists) {
-      permissions.push(billingPerm);
-      if (!hasLoggedPluginExecution) {
-        console.log(
-          '✅ Added com.android.vending.BILLING to AndroidManifest.xml',
-        );
-      }
+    if (props?.isFireOsEnabled) {
+      manifest.manifest['uses-permission'] = permissions.filter(
+        (p) => p.$['android:name'] !== 'com.android.vending.BILLING',
+      );
     } else {
-      if (!hasLoggedPluginExecution) {
-        console.log(
-          'ℹ️ com.android.vending.BILLING already exists in AndroidManifest.xml',
-        );
+      const alreadyExists = permissions.some(
+        (p) => p.$['android:name'] === 'com.android.vending.BILLING',
+      );
+      if (!alreadyExists) {
+        permissions.push(billingPerm);
+        if (!hasLoggedPluginExecution) {
+          console.log(
+            '✅ Added com.android.vending.BILLING to AndroidManifest.xml',
+          );
+        }
+      } else {
+        if (!hasLoggedPluginExecution) {
+          console.log(
+            'ℹ️ com.android.vending.BILLING already exists in AndroidManifest.xml',
+          );
+        }
       }
     }
 
@@ -366,6 +433,27 @@ type IapPluginProps = {
    * Get your project key from https://kit.openiap.dev
    */
   iapkitApiKey?: string;
+  /**
+   * Optional Android store modules.
+   * Fire OS takes precedence when both Fire OS and Horizon are enabled.
+   */
+  modules?: {
+    /**
+     * Horizon module for Meta Quest/VR devices.
+     * @platform android
+     */
+    horizon?: boolean;
+    /**
+     * Fire OS module for Amazon-distributed Android builds.
+     * @platform android
+     */
+    fireOS?: boolean;
+    /**
+     * Vega OS runtime target. This is not an Android flavor and cannot be
+     * combined with fireOS or horizon.
+     */
+    vega?: boolean;
+  };
 };
 
 const withIapIosFollyWorkaround: ConfigPlugin<IapPluginProps | undefined> = (
@@ -451,8 +539,24 @@ const withIapkitApiKeyIOS: ConfigPlugin<string | undefined> = (
 };
 
 const withIAP: ConfigPlugin<IapPluginProps | undefined> = (config, props) => {
+  const isFireOsEnabled = props?.modules?.fireOS ?? false;
+  const isVegaEnabled = props?.modules?.vega ?? false;
+  if (isVegaEnabled && (isFireOsEnabled || props?.modules?.horizon)) {
+    throw new Error(
+      'react-native-iap: modules.vega cannot be combined with Fire OS or Horizon Android flavors. Vega OS is selected by the kepler runtime, not Gradle.',
+    );
+  }
+
   try {
-    let result = withIapAndroid(config, {iapkitApiKey: props?.iapkitApiKey});
+    const isHorizonEnabled = isFireOsEnabled
+      ? false
+      : (props?.modules?.horizon ?? false);
+
+    let result = withIapAndroid(config, {
+      iapkitApiKey: props?.iapkitApiKey,
+      isHorizonEnabled,
+      isFireOsEnabled,
+    });
     result = withIapIosFollyWorkaround(result, props);
     // Add iOS alternative billing configuration if provided
     if (props?.iosAlternativeBilling) {

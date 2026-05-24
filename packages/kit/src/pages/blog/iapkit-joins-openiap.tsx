@@ -28,7 +28,7 @@ const FAQ: Array<{ q: string; a: string }> = [
   },
   {
     q: "Which platforms does IAPKit support?",
-    a: "IAPKit validates receipts for Apple App Store, Google Play, and Meta Horizon. Amazon Vega OS and FireOS support is on the roadmap.",
+    a: "IAPKit validates receipts for Apple App Store, Google Play, and Meta Horizon. Fire OS and Vega OS receipt-validation support is on the roadmap.",
   },
 ];
 
@@ -129,8 +129,8 @@ export default function IapkitJoinsOpenIap() {
           each platform makes in-app purchase validation harder than it needs to
           be, and each in its own way. Different APIs, different edge cases,
           different ways to fail. Every IAP developer reinventing the same
-          wheel. And with new platforms like Amazon Vega OS and FireOS joining
-          the ecosystem, the fragmentation is only getting worse.
+          wheel. And with new platforms like Fire OS and Vega OS
+          joining the ecosystem, the fragmentation is only getting worse.
         </p>
 
         <p>
@@ -252,8 +252,8 @@ export default function IapkitJoinsOpenIap() {
             Billing v7+, Meta Horizon.
           </li>
           <li>
-            <strong>New platform support coming</strong> — Amazon Vega OS,
-            FireOS.
+            <strong>New receipt-validation support coming</strong> — Fire OS,
+            Vega OS.
           </li>
           <li>
             Server-side webhooks and real-time notifications — renewals,

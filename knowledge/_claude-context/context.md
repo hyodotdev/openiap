@@ -1798,7 +1798,7 @@ Use these checks before writing a release list:
 If the release is not published yet, use planned wording and plain text. If the
 release is published, verify the tag exists with `gh release view <tag>` before
 linking it. This prevents stale Package Releases tables such as documenting
-`maui-iap 1.0.1` when the actual release tag is `maui-iap-1.0.2`.
+`maui-iap 1.0.1` when the actual release tag is `maui-iap-1.0.3`.
 
 ---
 

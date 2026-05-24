@@ -1233,6 +1233,168 @@ function Releases() {
       ),
     },
 
+    // May 23, 2026 — Fire OS support
+    {
+      id: 'fireos-support-2026-05-23',
+      date: new Date('2026-05-23'),
+      element: (
+        <div key="fireos-support-2026-05-23" style={noteCardStyle}>
+          <AnchorLink id="fireos-support-2026-05-23" level="h4">
+            May 23, 2026 — Fire OS support
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Adds Amazon Fire OS support to OpenIAP. Starting with{' '}
+            <code>openiap-google 2.3.0</code>, Android builds can target Google
+            Play, Meta Horizon, or Amazon Appstore from the same native package
+            family. The <strong>OpenIAP Spec remains 2.0.3</strong>; this
+            rollout adds the Fire OS runtime flavor, framework build flags,
+            Amazon Appstore receipt verification paths, and shared subscription
+            state mapping.
+          </p>
+
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>Amazon Fire OS flavor</strong> — native Android publishes{' '}
+              <code>openiap-google-amazon</code>, backed by the Amazon Appstore
+              SDK and selected with the <code>amazon</code> Gradle flavor.
+            </li>
+            <li>
+              <strong>Framework rollout</strong> — React Native, Expo, Flutter,
+              Godot, KMP, and MAUI releases include Fire OS metadata and build
+              integration alongside existing Play and Horizon support.
+            </li>
+            <li>
+              <strong>IAPKit verification</strong> — Amazon Appstore receipts
+              can be verified through IAPKit with <code>userId</code> and{' '}
+              <code>receiptId</code>, while the shared secret remains on the
+              server.
+            </li>
+            <li>
+              <strong>Shared subscription state</strong> — Fire OS
+              subscriptions flow through the same OpenIAP{' '}
+              <Link to="/docs/apis/fetch-products">
+                <code>fetchProducts</code>
+              </Link>
+              ,{' '}
+              <Link to="/docs/apis/request-purchase">
+                <code>requestPurchase</code>
+              </Link>
+              ,{' '}
+              <Link to="/docs/apis/get-active-subscriptions">
+                <code>getActiveSubscriptions</code>
+              </Link>
+              , and{' '}
+              <Link to="/docs/apis/get-available-purchases">
+                <code>getAvailablePurchases</code>
+              </Link>{' '}
+              lifecycle used by the other stores. The Amazon adapter hydrates
+              product type and subscription group metadata so app and framework
+              code do not need store-specific receipt alias handling.
+            </li>
+            <li>
+              <strong>Setup guide</strong> — see{' '}
+              <Link to="/docs/fireos-setup">Fire OS Setup</Link> for Amazon App
+              Tester, public key, and framework flag details.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>OpenIAP Spec 2.0.3</li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/google-2.3.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-google 2.3.0
+                </a>{' '}
+                including <code>openiap-google-amazon</code>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/react-native-iap-15.4.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  react-native-iap 15.4.0
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/expo-iap-4.4.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  expo-iap 4.4.0
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.4.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  flutter_inapp_purchase 9.4.0
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/godot-iap-2.4.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  godot-iap 2.4.0
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/kmp-iap-2.4.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  kmp-iap 2.4.0
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/maui-iap-1.2.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  OpenIap.Maui 1.2.0
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // May 19, 2026 — Android Billing callback race hotfix
     {
       id: 'android-billing-callback-race-hotfix-2026-05-19',

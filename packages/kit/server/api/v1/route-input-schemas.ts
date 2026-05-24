@@ -6,13 +6,16 @@ import * as v from "valibot";
 // push the Bun server into an OOM by posting a multi-megabyte string.
 // Apple JWS transactions are typically ~1–2 KB; nested subscription
 // payloads stay well under 10 KB. Google purchase tokens are opaque
-// base64 blobs, historically under ~200 chars. Product identifiers and
-// Meta Horizon's (userId, sku) are short strings.
+// base64 blobs, historically under ~200 chars. Product identifiers,
+// Meta Horizon's (userId, sku), and Amazon RVS's (userId, receiptId)
+// are short bounded strings.
 export const APPLE_JWS_MAX_LENGTH = 16_000;
 export const GOOGLE_PURCHASE_TOKEN_MAX_LENGTH = 2_000;
 const HORIZON_USER_ID_MAX_LENGTH = 256;
 const HORIZON_SKU_MAX_LENGTH = 256;
 const EXPECTED_PRODUCT_ID_MAX_LENGTH = 256;
+const AMAZON_USER_ID_MAX_LENGTH = 512;
+const AMAZON_RECEIPT_ID_MAX_LENGTH = 4_096;
 
 // Lower bounds — any real token from the respective store sits well
 // above these. A sub-threshold input is guaranteed garbage (empty
@@ -24,6 +27,8 @@ const EXPECTED_PRODUCT_ID_MAX_LENGTH = 256;
 const APPLE_JWS_MIN_LENGTH = 100;
 const GOOGLE_PURCHASE_TOKEN_MIN_LENGTH = 20;
 const HORIZON_USER_ID_MIN_LENGTH = 3;
+const AMAZON_USER_ID_MIN_LENGTH = 3;
+const AMAZON_RECEIPT_ID_MIN_LENGTH = 10;
 // `sku` only enforces non-empty (via `v.nonEmpty` below); a 1-char
 // minimum would be redundant. Raise the floor here only if a real
 // shortest-known SKU justifies it.
@@ -47,6 +52,8 @@ const GOOGLE_PURCHASE_TOKEN_PATTERN = /^[A-Za-z0-9._~-]+$/;
 const HORIZON_USER_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
 const HORIZON_SKU_PATTERN = /^[A-Za-z0-9._-]+$/;
 const EXPECTED_PRODUCT_ID_PATTERN = /^[A-Za-z0-9._-]+$/;
+const AMAZON_USER_ID_PATTERN = /^[A-Za-z0-9._~=-]+$/;
+const AMAZON_RECEIPT_ID_PATTERN = /^[A-Za-z0-9._~:=/-]+$/;
 
 const expectedProductIdSchema = v.optional(
   v.pipe(
@@ -154,5 +161,57 @@ export const verifyPurchaseInputSchema = v.variant("store", [
       ),
     }),
     v.title("Meta Horizon (Quest)"),
+  ),
+  v.pipe(
+    v.object({
+      store: v.literal("amazon"),
+      userId: v.pipe(
+        v.string(),
+        v.nonEmpty("userId must not be empty."),
+        v.minLength(
+          AMAZON_USER_ID_MIN_LENGTH,
+          `userId must be at least ${AMAZON_USER_ID_MIN_LENGTH} characters.`,
+        ),
+        v.maxLength(
+          AMAZON_USER_ID_MAX_LENGTH,
+          `userId must be at most ${AMAZON_USER_ID_MAX_LENGTH} characters.`,
+        ),
+        v.regex(
+          AMAZON_USER_ID_PATTERN,
+          "userId must contain only URL-safe Amazon RVS characters.",
+        ),
+        v.description(
+          "Amazon user id returned by PurchaseResponse.getUserData().getUserId().",
+        ),
+      ),
+      receiptId: v.pipe(
+        v.string(),
+        v.nonEmpty("receiptId must not be empty."),
+        v.minLength(
+          AMAZON_RECEIPT_ID_MIN_LENGTH,
+          `receiptId must be at least ${AMAZON_RECEIPT_ID_MIN_LENGTH} characters.`,
+        ),
+        v.maxLength(
+          AMAZON_RECEIPT_ID_MAX_LENGTH,
+          `receiptId must be at most ${AMAZON_RECEIPT_ID_MAX_LENGTH} characters.`,
+        ),
+        v.regex(
+          AMAZON_RECEIPT_ID_PATTERN,
+          "receiptId must contain only URL-safe Amazon RVS characters.",
+        ),
+        v.description(
+          "Amazon receipt id returned by PurchaseResponse.getReceipt().getReceiptId() or PurchaseUpdatesResponse.getReceipts().",
+        ),
+      ),
+      sandbox: v.optional(
+        v.pipe(
+          v.boolean(),
+          v.description(
+            "Use Amazon RVS Cloud Sandbox for App Tester receipts.",
+          ),
+        ),
+      ),
+    }),
+    v.title("Amazon Appstore"),
   ),
 ]);

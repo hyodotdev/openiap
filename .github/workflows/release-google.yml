@@ -294,6 +294,38 @@ jobs:
           echo "✅ Published openiap-google-horizon (Horizon flavor) to Maven Central"
         fi
 
+    - name: Check if Fire OS flavor already published
+      id: check_amazon
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        if curl -s "https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google-amazon/$VERSION/" | grep -q "$VERSION"; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+          echo "⚠️ openiap-google-amazon $VERSION already exists on Maven Central"
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+          echo "✓ openiap-google-amazon $VERSION does not exist, will publish"
+        fi
+
+    - name: Publish Fire OS flavor to Maven Central
+      if: steps.check_amazon.outputs.exists == 'false'
+      working-directory: packages/google
+      env:
+        ORG_GRADLE_PROJECT_openIapVersion: ${{ steps.version.outputs.version }}
+        ORG_GRADLE_PROJECT_OPENIAP_PUBLISH_VARIANT: amazon
+        ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+        ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+        ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_KEY_CONTENTS }}
+        ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
+        ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+      run: |
+        if [ -z "$ORG_GRADLE_PROJECT_mavenCentralUsername" ]; then
+          echo "⚠️ Maven Central credentials not set. Skipping publish."
+        else
+          ./gradlew :openiap:publishAndReleaseToMavenCentral --no-daemon --no-parallel --stacktrace
+          echo "✅ Published openiap-google-amazon (Fire OS flavor) to Maven Central"
+        fi
+
     - name: Check if Play flavor already published
       id: check_play
       env:
@@ -385,7 +417,7 @@ jobs:
         cat > /tmp/release-notes.md <<EOF
         ## OpenIAP Google $VERSION
 
-        Native Android library for the OpenIAP specification (Play + Horizon flavors, Billing 8.x).
+        Native Android library for the OpenIAP specification (Play + Horizon + Fire OS flavors).
 
         ### What's Changed
 
@@ -429,6 +461,24 @@ jobs:
         }
         \`\`\`
 
+        #### Fire OS (Amazon flavor)
+
+        **Gradle (Kotlin DSL):**
+
+        \`\`\`kotlin
+        dependencies {
+            implementation("io.github.hyochan.openiap:openiap-google-amazon:$VERSION")
+        }
+        \`\`\`
+
+        **Gradle (Groovy):**
+
+        \`\`\`groovy
+        dependencies {
+            implementation 'io.github.hyochan.openiap:openiap-google-amazon:$VERSION'
+        }
+        \`\`\`
+
         ### Documentation
 
         - [API reference](https://openiap.dev/docs/apis)
@@ -439,6 +489,7 @@ jobs:
 
         - [openiap-google (Play)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google/$VERSION)
         - [openiap-google-horizon (Horizon)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-horizon/$VERSION)
+        - [openiap-google-amazon (Fire OS)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-amazon/$VERSION)
         EOF
 
     - name: Create and push tag

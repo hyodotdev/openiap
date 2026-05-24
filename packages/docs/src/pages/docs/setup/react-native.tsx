@@ -16,7 +16,8 @@ function ReactNativeSetup() {
       <p>
         <code>react-native-iap</code> provides in-app purchase support for React
         Native apps using Nitro Modules. It supports StoreKit 2 on iOS and
-        Google Play Billing {GOOGLE_PLAY_BILLING.version}+ on Android.
+        Google Play Billing {GOOGLE_PLAY_BILLING.version}+ on Android by
+        default, with optional Horizon and Fire OS Android flavors.
       </p>
 
       <div
@@ -190,6 +191,16 @@ end`}
             Uses Google Play Billing {GOOGLE_PLAY_BILLING.version}+ with
             automatic service reconnection
           </li>
+          <li>
+            For Fire OS builds, set <code>fireOsEnabled=true</code> in{' '}
+            <code>android/gradle.properties</code> and see the{' '}
+            <a href="/docs/fireos-setup">Fire OS Setup Guide</a>
+          </li>
+          <li>
+            For Vega OS, do not use an Android flavor. Install Amazon's Vega IAP
+            package and follow the{' '}
+            <a href="/docs/features/vega-os">Vega OS Runtime</a> guide.
+          </li>
         </ul>
       </section>
 
@@ -228,7 +239,7 @@ function Store() {
       // 2. Grant entitlement
       // 3. CRITICAL: Finish the transaction
       //    (Android auto-refunds after 3 days if not called!)
-      await finishTransaction(purchase, false); // true for consumables
+      await finishTransaction({ purchase, isConsumable: false }); // true for consumables
     },
     onPurchaseError: (error) => {
       if (error.code === ErrorCode.UserCancelled) return;
@@ -339,7 +350,7 @@ await initConnection();
 const purchaseSub = purchaseUpdatedListener(async (purchase) => {
   // Validate on server, then finish transaction
   // CRITICAL: Android auto-refunds after 3 days if not called!
-  await finishTransaction(purchase, false); // true for consumables
+  await finishTransaction({ purchase, isConsumable: false }); // true for consumables
 });
 
 const errorSub = purchaseErrorListener((error) => {
@@ -424,6 +435,14 @@ switch (error.code) {
           <li>
             <a href="/docs/horizon-setup">Horizon OS Setup</a> — Meta Quest
             in-app purchase configuration
+          </li>
+          <li>
+            <a href="/docs/fireos-setup">Fire OS Setup</a> — Fire OS Android
+            flavor configuration
+          </li>
+          <li>
+            <a href="/docs/features/vega-os">Vega OS Runtime</a> — React Native
+            for Vega runtime adapter
           </li>
           <li>
             <a

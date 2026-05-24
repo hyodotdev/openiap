@@ -6,6 +6,7 @@ import dev.hyo.openiap.utils.verifyPurchaseWithHorizon
 import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
 import dev.hyo.openiap.IapStore
 import dev.hyo.openiap.IapkitPurchaseState
+import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitAmazonProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitGoogleProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps
 import dev.hyo.openiap.VerifyPurchaseGoogleOptions
@@ -150,18 +151,19 @@ class PurchaseVerificationValidatorTest {
     }
 
     @Test
-    fun `verifyPurchaseWithIapkit throws without google props`() = runTest {
+    fun `verifyPurchaseWithIapkit throws without android store props`() = runTest {
         val props = RequestVerifyPurchaseWithIapkitProps(
             apiKey = null,
             apple = null,
-            google = null
+            google = null,
+            amazon = null
         )
 
         try {
             verifyPurchaseWithIapkit(props, "TEST") { _ ->
                 throw AssertionError("Connection should not be created when google props are missing")
             }
-            throw AssertionError("Expected IllegalArgumentException for missing google props")
+            throw AssertionError("Expected IllegalArgumentException for missing android store props")
         } catch (expected: IllegalArgumentException) {
             // Expected path
         }
@@ -174,7 +176,8 @@ class PurchaseVerificationValidatorTest {
             apple = null,
             google = RequestVerifyPurchaseWithIapkitGoogleProps(
                 purchaseToken = "token-abc"
-            )
+            ),
+            amazon = null
         )
 
         verifyPurchaseWithIapkit(props, "TEST") { _ ->
@@ -189,7 +192,8 @@ class PurchaseVerificationValidatorTest {
             apple = null,
             google = RequestVerifyPurchaseWithIapkitGoogleProps(
                 purchaseToken = ""
-            )
+            ),
+            amazon = null
         )
 
         try {
@@ -209,7 +213,8 @@ class PurchaseVerificationValidatorTest {
             apple = null,
             google = RequestVerifyPurchaseWithIapkitGoogleProps(
                 purchaseToken = "token-123"
-            )
+            ),
+            amazon = null
         )
 
         val connection = FakeHttpURLConnection(200, """{"store":"google","isValid":true,"state":"ENTITLED"}""")
@@ -231,7 +236,8 @@ class PurchaseVerificationValidatorTest {
             apple = null,
             google = RequestVerifyPurchaseWithIapkitGoogleProps(
                 purchaseToken = "token-123"
-            )
+            ),
+            amazon = null
         )
 
         val connection = FakeHttpURLConnection(200, """{"store":"google","isValid":false,"state":"INAUTHENTIC"}""")
@@ -246,13 +252,90 @@ class PurchaseVerificationValidatorTest {
     }
 
     @Test
+    fun `verifyPurchaseWithIapkit posts amazon receipt details`() = runTest {
+        val props = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = "secret",
+            apple = null,
+            google = null,
+            amazon = RequestVerifyPurchaseWithIapkitAmazonProps(
+                userId = "amzn1.account.ABC123",
+                receiptId = "amzn1.receipt.ABC123456789",
+                sandbox = true
+            )
+        )
+
+        val connection = FakeHttpURLConnection(200, """{"store":"amazon","isValid":true,"state":"ENTITLED"}""")
+        val result = verifyPurchaseWithIapkit(props, "TEST") { _ -> connection }
+
+        assertEquals(IapStore.Amazon, result.store)
+        assertTrue(result.isValid)
+        assertEquals(IapkitPurchaseState.Entitled, result.state)
+        assertEquals("Bearer secret", connection.headers["Authorization"])
+
+        val bodyMap = Gson().fromJson(requireNotNull(connection.writtenBody), Map::class.java) as Map<*, *>
+        assertEquals("amazon", bodyMap["store"])
+        assertEquals("amzn1.account.ABC123", bodyMap["userId"])
+        assertEquals("amzn1.receipt.ABC123456789", bodyMap["receiptId"])
+        assertEquals(true, bodyMap["sandbox"])
+    }
+
+    @Test
+    fun `verifyPurchaseWithIapkit throws when amazon payload is incomplete`() = runTest {
+        val props = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = null,
+            apple = null,
+            google = null,
+            amazon = RequestVerifyPurchaseWithIapkitAmazonProps(
+                userId = "",
+                receiptId = "amzn1.receipt.ABC123456789",
+                sandbox = false
+            )
+        )
+
+        try {
+            verifyPurchaseWithIapkit(props, "TEST") { _ ->
+                throw AssertionError("Connection should not be created when amazon payload is invalid")
+            }
+            throw AssertionError("Expected IllegalArgumentException for invalid amazon payload")
+        } catch (expected: IllegalArgumentException) {
+            // Expected path
+        }
+    }
+
+    @Test
+    fun `verifyPurchaseWithIapkit throws when multiple android payloads are provided`() = runTest {
+        val props = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = null,
+            apple = null,
+            google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                purchaseToken = "token-123"
+            ),
+            amazon = RequestVerifyPurchaseWithIapkitAmazonProps(
+                userId = "amzn1.account.ABC123",
+                receiptId = "amzn1.receipt.ABC123456789",
+                sandbox = false
+            )
+        )
+
+        try {
+            verifyPurchaseWithIapkit(props, "TEST") { _ ->
+                throw AssertionError("Connection should not be created when multiple payloads are provided")
+            }
+            throw AssertionError("Expected IllegalArgumentException for multiple payloads")
+        } catch (expected: IllegalArgumentException) {
+            // Expected path
+        }
+    }
+
+    @Test
     fun `verifyPurchaseWithIapkit wraps non-2xx as PurchaseVerificationFailed`() = runTest {
         val props = RequestVerifyPurchaseWithIapkitProps(
             apiKey = null,
             apple = null,
             google = RequestVerifyPurchaseWithIapkitGoogleProps(
                 purchaseToken = "token-123"
-            )
+            ),
+            amazon = null
         )
 
         try {

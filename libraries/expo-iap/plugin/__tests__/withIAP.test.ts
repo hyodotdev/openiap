@@ -1,16 +1,18 @@
 import type {ExpoConfig} from '@expo/config-types';
-import {
+import plugin, {
   computeAutolinkModules,
   ensureOnsidePodIOS,
   modifyAppBuildGradle,
   resolveModuleSelection,
+  syncHorizonAppIdMetaData,
 } from '../src/withIAP';
+import {getAndroidLocalPathInput} from '../src/withLocalOpenIAP';
 import type {AutolinkState} from '../src/withIAP';
 import type {ExpoIapPluginCommonOptions} from '../src/expoConfig.augmentation';
 
 // Type-level expectations
 const autoModeOptions: ExpoIapPluginCommonOptions = {
-  modules: {onside: true},
+  modules: {onside: true, fireOS: false, vega: false},
 };
 
 const explicitModeOptions: ExpoIapPluginCommonOptions = {
@@ -57,11 +59,151 @@ describe('android configuration', () => {
     expect(matches).toHaveLength(1);
     expect(result).not.toContain('openiap-google:0.0.1');
   });
+
+  it('uses Fire OS artifact and flavor when Fire OS is enabled', () => {
+    const baseGradle = [
+      'android {',
+      '    defaultConfig {',
+      '    }',
+      '}',
+      'dependencies {',
+      '    implementation "io.github.hyochan.openiap:openiap-google-horizon:0.0.1"',
+      '}',
+      '',
+    ].join('\n');
+    const result = modifyAppBuildGradle(baseGradle, 'groovy', false, true);
+
+    expect(result).toContain(
+      `    implementation "io.github.hyochan.openiap:openiap-google-amazon:${dependencyVersion}"`,
+    );
+    expect(result).toContain(
+      '        missingDimensionStrategy "platform", "amazon"',
+    );
+    expect(result).not.toContain('openiap-google-horizon:0.0.1');
+  });
+
+  it('prefers Fire OS over Horizon when both store flags are enabled', () => {
+    const baseGradle = [
+      'android {',
+      '    defaultConfig {',
+      '    }',
+      '}',
+      'dependencies {',
+      '}',
+      '',
+    ].join('\n');
+    const result = modifyAppBuildGradle(baseGradle, 'kotlin', true, true);
+
+    expect(result).toContain(
+      `    implementation("io.github.hyochan.openiap:openiap-google-amazon:${dependencyVersion}")`,
+    );
+    expect(result).toContain(
+      '        missingDimensionStrategy("platform", "amazon")',
+    );
+  });
+
+  it('replaces stale platform strategy when returning to Play', () => {
+    const baseGradle = [
+      'android {',
+      '    defaultConfig {',
+      '        missingDimensionStrategy "platform", "amazon"',
+      '    }',
+      '}',
+      'dependencies {',
+      '    implementation "io.github.hyochan.openiap:openiap-google-amazon:0.0.1"',
+      '}',
+      '',
+    ].join('\n');
+    const result = modifyAppBuildGradle(baseGradle, 'groovy');
+
+    expect(result).toContain(
+      `    implementation "io.github.hyochan.openiap:openiap-google:${dependencyVersion}"`,
+    );
+    expect(result).not.toContain('openiap-google-amazon:0.0.1');
+    expect(result).toContain('missingDimensionStrategy "platform", "play"');
+  });
+
+  it('rejects Vega OS combined with Fire OS during prebuild', () => {
+    expect(() =>
+      plugin({name: 'test-app', slug: 'test-app'} as ExpoConfig, {
+        modules: {fireOS: true, vega: true},
+      }),
+    ).toThrow(/modules\.vega cannot be combined/);
+  });
+
+  it('removes Horizon App ID metadata outside Horizon builds', () => {
+    const manifest = {
+      manifest: {
+        application: [
+          {
+            'meta-data': [
+              {
+                $: {
+                  'android:name': 'com.meta.horizon.platform.ovr.OCULUS_APP_ID',
+                  'android:value': '123',
+                },
+              },
+              {
+                $: {
+                  'android:name': 'dev.iapkit.API_KEY',
+                  'android:value': 'key',
+                },
+              },
+            ],
+          },
+        ],
+      },
+    };
+
+    expect(syncHorizonAppIdMetaData(manifest, false, '123')).toBe('removed');
+    expect(manifest.manifest.application[0]!['meta-data']).toEqual([
+      {
+        $: {
+          'android:name': 'dev.iapkit.API_KEY',
+          'android:value': 'key',
+        },
+      },
+    ]);
+  });
+
+  it('adds Horizon App ID metadata only for Horizon builds', () => {
+    const manifest = {manifest: {}};
+
+    expect(syncHorizonAppIdMetaData(manifest, false, '123')).toBe('unchanged');
+    expect(manifest.manifest).not.toHaveProperty('application');
+
+    expect(syncHorizonAppIdMetaData(manifest, true, '123')).toBe('added');
+    expect(manifest.manifest.application?.[0]?.['meta-data']).toEqual([
+      {
+        $: {
+          'android:name': 'com.meta.horizon.platform.ovr.OCULUS_APP_ID',
+          'android:value': '123',
+        },
+      },
+    ]);
+  });
+});
+
+describe('local OpenIAP configuration', () => {
+  it('uses string localPath for Android local module resolution', () => {
+    expect(getAndroidLocalPathInput('/repo/packages/google')).toBe(
+      '/repo/packages/google',
+    );
+  });
+
+  it('uses android localPath when platform paths are split', () => {
+    expect(
+      getAndroidLocalPathInput({
+        ios: '/repo/packages/apple',
+        android: '/repo/packages/google',
+      }),
+    ).toBe('/repo/packages/google');
+  });
 });
 
 describe('ios module selection', () => {
   const createConfig = (ios?: ExpoConfig['ios']): ExpoConfig =>
-    ({name: 'test-app', slug: 'test-app', ios} as ExpoConfig);
+    ({name: 'test-app', slug: 'test-app', ios}) as ExpoConfig;
 
   it('defaults to Expo IAP only when no options provided', () => {
     const result = resolveModuleSelection(createConfig(), undefined);

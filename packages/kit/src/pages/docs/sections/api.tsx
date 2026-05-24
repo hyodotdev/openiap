@@ -91,14 +91,24 @@ export default function ApiReferencePage() {
 }`}
       </CodeBlock>
 
+      <h3 className="mt-6 text-lg font-semibold">Amazon Appstore variant</h3>
+      <CodeBlock language="javascript">
+        {`{
+  "store": "amazon",
+  "userId": "amzn1.account.ABC123",        // Amazon user id   (≤ 512 chars)
+  "receiptId": "amzn1.receipt.ABC123",     // Amazon receipt id (≤ 4 KB)
+  "sandbox": true                          // App Tester / RVS sandbox
+}`}
+      </CodeBlock>
+
       <Callout kind="note" title="Malformed inputs stop at the edge">
         <p>
           The JSON body is capped at 32 KB before parsing. Every string field is
           then validated server-side for non-empty + per-field length bounds.
           Oversized fields return <code>400 INVALID_INPUT</code>; oversized
           request bodies return <code>413 PAYLOAD_TOO_LARGE</code>. Neither path
-          calls Apple / Google / Meta, so malformed clients don't burn your
-          upstream quota.
+          calls Apple / Google / Horizon / Amazon, so malformed clients don't
+          burn your upstream quota.
         </p>
       </Callout>
 
@@ -112,11 +122,12 @@ export default function ApiReferencePage() {
       </CodeBlock>
 
       <p>
-        Your app can unlock premium state when <code>isValid === true</code>.{" "}
+        Your app can unlock local premium state, or your backend can grant its
+        own entitlement, when <code>isValid === true</code>.{" "}
         <code>state</code> carries the harmonized lifecycle position across all
-        three stores, and <code>productId</code> is the product id verified by
-        the upstream store. For Meta Horizon, <code>productId</code> is the SKU
-        IAPKit checked.
+        supported stores, and <code>productId</code> is the product id verified
+        by the upstream store. For Meta Horizon, <code>productId</code> is the
+        SKU IAPKit checked.
       </p>
       <p>
         If your own backend keeps an entitlement ledger, do not trust a

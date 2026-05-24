@@ -12309,9 +12309,16 @@ __metadata:
     react-test-renderer: ^19.1.1
     typescript: ^5.9.2
   peerDependencies:
+    "@amazon-devices/keplerscript-appstore-iap-lib": ~2.12.13
+    "@amazon-devices/package-manager-lib": ~1.0.1767254401
     react: "*"
     react-native: "*"
     react-native-nitro-modules: ^0.35.0
+  peerDependenciesMeta:
+    "@amazon-devices/keplerscript-appstore-iap-lib":
+      optional: true
+    "@amazon-devices/package-manager-lib":
+      optional: true
   languageName: unknown
   linkType: soft
 

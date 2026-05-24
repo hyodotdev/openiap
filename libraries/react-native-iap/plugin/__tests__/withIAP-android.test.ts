@@ -30,6 +30,16 @@ jest.mock('expo/config-plugins', () => ({
     const updated = {...original, contents: result.modResults.contents};
     return {...config, modResults: updated};
   },
+  withGradleProperties: (config: any, action: any) => {
+    const original = config.modResults;
+    const cfg = {...config, modResults: original.gradleProperties ?? []};
+    const result = action(cfg);
+    const updated = {
+      ...original,
+      gradleProperties: result.modResults,
+    };
+    return {...config, modResults: updated};
+  },
   withInfoPlist: (config: any, action: any) => {
     const original = config.modResults;
     const cfg = {...config, modResults: original.plist ?? {}};
@@ -60,16 +70,19 @@ jest.mock('expo/config-plugins', () => ({
 describe('withIAP config plugin (Android)', () => {
   const originalLog = console.log;
   const originalWarn = console.warn;
+  const originalError = console.error;
 
   beforeEach(() => {
     jest.resetModules();
     console.log = jest.fn();
     console.warn = jest.fn();
+    console.error = jest.fn();
   });
 
   afterEach(() => {
     console.log = originalLog;
     console.warn = originalWarn;
+    console.error = originalError;
   });
 
   function makeConfig(gradle: string, manifest?: any) {
@@ -77,6 +90,7 @@ describe('withIAP config plugin (Android)', () => {
       modResults: {
         contents: gradle,
         manifest: manifest ?? {manifest: {}},
+        gradleProperties: [],
         plist: {},
         entitlements: {},
         podfile: '',
@@ -169,5 +183,107 @@ describe('withIAP config plugin (Android)', () => {
     const res: any = plugin(config as any);
     const app = res.modResults.manifest.manifest.application[0];
     expect(app['meta-data']).toBeUndefined();
+  });
+
+  it('uses Fire OS artifact, flavor, and removes Play Billing permission when Fire OS is enabled', () => {
+    const initial = [
+      'android {',
+      '    defaultConfig {',
+      '    }',
+      '}',
+      'dependencies {',
+      `    implementation "io.github.hyochan.openiap:openiap-google-horizon:0.0.1"`,
+      '}',
+      '',
+    ].join('\n');
+    const manifest = {
+      manifest: {
+        'uses-permission': [
+          {$: {'android:name': 'com.android.vending.BILLING'}},
+        ],
+      },
+    };
+    const config = makeConfig(initial, manifest);
+    const res: any = plugin(config as any, {modules: {fireOS: true}});
+
+    expect(res.modResults.contents).toContain(
+      `io.github.hyochan.openiap:openiap-google-amazon:${OPENIAP_VERSION}`,
+    );
+    expect(res.modResults.contents).toContain(
+      'missingDimensionStrategy "platform", "amazon"',
+    );
+    expect(res.modResults.contents).not.toContain(
+      'openiap-google-horizon:0.0.1',
+    );
+    expect(res.modResults.manifest.manifest['uses-permission']).toHaveLength(0);
+    expect(res.modResults.gradleProperties).toEqual(
+      expect.arrayContaining([
+        {type: 'property', key: 'horizonEnabled', value: 'false'},
+        {type: 'property', key: 'fireOsEnabled', value: 'true'},
+      ]),
+    );
+  });
+
+  it('prefers Fire OS over Horizon when both Android modules are enabled', () => {
+    const initial = `android {\n    defaultConfig {\n    }\n}\n\ndependencies {\n}`;
+    const config = makeConfig(initial, {manifest: {}});
+    const res: any = plugin(config as any, {
+      modules: {fireOS: true, horizon: true},
+    });
+
+    expect(res.modResults.contents).toContain(
+      `io.github.hyochan.openiap:openiap-google-amazon:${OPENIAP_VERSION}`,
+    );
+    expect(res.modResults.contents).toContain(
+      'missingDimensionStrategy "platform", "amazon"',
+    );
+    expect(res.modResults.gradleProperties).toEqual(
+      expect.arrayContaining([
+        {type: 'property', key: 'horizonEnabled', value: 'false'},
+        {type: 'property', key: 'fireOsEnabled', value: 'true'},
+      ]),
+    );
+  });
+
+  it('rejects Vega OS combined with Fire OS during prebuild', () => {
+    const initial = `android {\n    defaultConfig {\n    }\n}\n\ndependencies {\n}`;
+    const config = makeConfig(initial, {manifest: {}});
+    expect(() =>
+      plugin(config as any, {
+        modules: {fireOS: true, vega: true},
+      }),
+    ).toThrow(/modules\.vega cannot be combined/);
+  });
+
+  it('replaces stale Amazon artifact and platform strategy when returning to Play', () => {
+    const initial = [
+      'android {',
+      '    defaultConfig {',
+      '        missingDimensionStrategy "platform", "amazon"',
+      '    }',
+      '}',
+      'dependencies {',
+      `    implementation "io.github.hyochan.openiap:openiap-google-amazon:0.0.1"`,
+      '}',
+      '',
+    ].join('\n');
+    const config = makeConfig(initial, {manifest: {}});
+    const res: any = plugin(config as any);
+
+    expect(res.modResults.contents).toContain(
+      `io.github.hyochan.openiap:openiap-google:${OPENIAP_VERSION}`,
+    );
+    expect(res.modResults.contents).not.toContain(
+      'openiap-google-amazon:0.0.1',
+    );
+    expect(res.modResults.contents).toContain(
+      'missingDimensionStrategy "platform", "play"',
+    );
+    expect(res.modResults.gradleProperties).toEqual(
+      expect.arrayContaining([
+        {type: 'property', key: 'horizonEnabled', value: 'false'},
+        {type: 'property', key: 'fireOsEnabled', value: 'false'},
+      ]),
+    );
   });
 });

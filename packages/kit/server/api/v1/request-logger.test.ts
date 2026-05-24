@@ -19,6 +19,8 @@ const TEST_APPLE_JWS = `${"a".repeat(42)}.${"b".repeat(42)}.${"c".repeat(42)}`;
 const TEST_GOOGLE_TOKEN = "t".repeat(40);
 const TEST_HORIZON_USER_ID = "user_123";
 const TEST_HORIZON_SKU = "premium.monthly";
+const TEST_AMAZON_USER_ID = "amzn1.account.ABC123";
+const TEST_AMAZON_RECEIPT_ID = "amzn1.receipt.ABC123456789";
 
 type TestVars = {
   apiKey?: string;
@@ -166,6 +168,29 @@ describe("requestLoggerMiddleware", () => {
     expect(res.status).toBe(200);
     expect(logs).toHaveLength(1);
     expect(logs[0].store).toBe("horizon");
+  });
+
+  test("logs Amazon verification store values", async () => {
+    const logs: VerifyLogLine[] = [];
+    const app = buildApp({ logs });
+
+    const res = await app.request("/verify", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer key-amazon",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        store: "amazon",
+        userId: TEST_AMAZON_USER_ID,
+        receiptId: TEST_AMAZON_RECEIPT_ID,
+        sandbox: true,
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(logs).toHaveLength(1);
+    expect(logs[0].store).toBe("amazon");
   });
 
   test("populates the X-Correlation-Id response header even on validator failure", async () => {

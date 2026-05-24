@@ -217,7 +217,9 @@ const verifyPurchaseRouteDescription = describeRoute({
     '  • Google — `{ store: "google",  purchaseToken, expectedProductId? }`\n' +
     '  • Horizon — `{ store: "horizon", userId, sku }` (Meta Quest;' +
     " IAPKit holds the App ID + App Secret and composes" +
-    " `OC|APP_ID|APP_SECRET` server-side)\n\n" +
+    " `OC|APP_ID|APP_SECRET` server-side)\n" +
+    '  • Amazon — `{ store: "amazon", userId, receiptId, sandbox? }`' +
+    " (Amazon Appstore SDK RVS; IAPKit holds the shared secret)\n\n" +
     "`expectedProductId` is optional for Apple / Google. When present, " +
     "IAPKit compares it against the product id verified by the upstream " +
     'store and returns `isValid: false`, `state: "INAUTHENTIC"` on ' +
@@ -236,7 +238,8 @@ const verifyPurchaseRouteDescription = describeRoute({
     "headers.\n\n" +
     "Input size caps: request body ≤ 32 KB, `jws` ≤ 16 KB, " +
     "`purchaseToken` ≤ 2 KB, `expectedProductId` ≤ 256 chars, " +
-    "`userId` ≤ 256 chars, `sku` ≤ 256 chars. " +
+    "Meta `userId` ≤ 256 chars, `sku` ≤ 256 chars. " +
+    "Amazon `userId` ≤ 512 chars and `receiptId` ≤ 4 KB. " +
     "Oversized fields return `400 INVALID_INPUT`; oversized request " +
     "bodies return `413 PAYLOAD_TOO_LARGE`. Neither hits the upstream store.",
   security: [{ apiKey: [] }],
@@ -334,7 +337,13 @@ const verifyPurchaseRouteDescription = describeRoute({
 type VerifyPurchaseJson =
   | { store: "apple"; jws: string; expectedProductId?: string }
   | { store: "google"; purchaseToken: string; expectedProductId?: string }
-  | { store: "horizon"; userId: string; sku: string };
+  | { store: "horizon"; userId: string; sku: string }
+  | {
+      store: "amazon";
+      userId: string;
+      receiptId: string;
+      sandbox?: boolean;
+    };
 
 // Tell Hono's Context what `c.req.valid("json")` returns for this
 // route so we don't need a `"json" as never` cast + `as VerifyPurchaseJson`.
@@ -405,6 +414,21 @@ const verifyPurchaseHandler = async (
 
         setOutcome({ isValid: horizon.isValid, state: horizon.state });
         return c.json(horizon);
+      }
+      case "amazon": {
+        const amazon = await client.action(
+          api.purchases.amazon.verifyAmazonReceiptInternalV1,
+          {
+            apiKey,
+            userId: json.userId,
+            receiptId: json.receiptId,
+            sandbox: json.sandbox,
+            requestIp,
+          },
+        );
+
+        setOutcome({ isValid: amazon.isValid, state: amazon.state });
+        return c.json(amazon);
       }
     }
   } catch (error) {

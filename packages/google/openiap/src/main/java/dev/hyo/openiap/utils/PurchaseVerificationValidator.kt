@@ -170,14 +170,20 @@ suspend fun verifyPurchaseWithIapkit(
 ): RequestVerifyPurchaseWithIapkitResult = withContext(Dispatchers.IO) {
     val endpoint = DEFAULT_IAPKIT_ENDPOINT
 
-    // On Android, only Google verification is supported via IAPKit
-    // Note: Horizon verification requires direct S2S API calls to Meta (not yet supported)
-    if (props.google == null) {
-        throw IllegalArgumentException("IAPKit verification on Android requires google payload")
+    val hasGoogle = props.google != null
+    val hasAmazon = props.amazon != null
+    if (listOf(hasGoogle, hasAmazon).count { it } != 1) {
+        throw IllegalArgumentException(
+            "IAPKit verification on Android requires exactly one google or amazon payload"
+        )
     }
 
-    val store = IapStore.Google
-    val payload = buildGooglePayload(props)
+    val store = if (hasAmazon) IapStore.Amazon else IapStore.Google
+    val payload = when (store) {
+        IapStore.Amazon -> buildAmazonPayload(props)
+        IapStore.Google -> buildGooglePayload(props)
+        else -> throw IllegalArgumentException("IAPKit verification on Android does not support ${store.rawValue}")
+    }
 
     val connection = connectionFactory(endpoint).apply {
         requestMethod = "POST"
@@ -256,6 +262,26 @@ private fun buildGooglePayload(props: RequestVerifyPurchaseWithIapkitProps): Map
         "store" to IapStore.Google.rawValue,
         "purchaseToken" to google.purchaseToken
     )
+}
+
+/**
+ * Build payload for Amazon Appstore RVS verification via IAPKit.
+ */
+private fun buildAmazonPayload(props: RequestVerifyPurchaseWithIapkitProps): Map<String, Any?> {
+    val amazon = props.amazon
+        ?: throw IllegalArgumentException("IAPKit Amazon verification requires amazon options")
+    val userId = amazon.userId?.trim().orEmpty()
+    val receiptId = amazon.receiptId.trim()
+    if (userId.isBlank() || receiptId.isBlank()) {
+        throw IllegalArgumentException("IAPKit Amazon verification requires userId and receiptId")
+    }
+    return mutableMapOf<String, Any?>(
+        "store" to IapStore.Amazon.rawValue,
+        "userId" to userId,
+        "receiptId" to receiptId
+    ).apply {
+        amazon.sandbox?.let { put("sandbox", it) }
+    }
 }
 
 

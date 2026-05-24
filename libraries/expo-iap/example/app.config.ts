@@ -10,11 +10,15 @@ const LOCAL_OPENIAP_PATHS = {
 // Read library version mode from libraries-versions.jsonc
 const parseJsonc = (text: string) =>
   JSON.parse(text.replace(/^\s*\/\/.*$/gm, ''));
-const versionsPath = path.resolve(__dirname, '../../../libraries-versions.jsonc');
+const versionsPath = path.resolve(
+  __dirname,
+  '../../../libraries-versions.jsonc',
+);
 const librariesVersions: Record<string, string> = fs.existsSync(versionsPath)
   ? parseJsonc(fs.readFileSync(versionsPath, 'utf8'))
   : {'expo-iap': 'local'};
-const useLocalDev = !librariesVersions['expo-iap'] || librariesVersions['expo-iap'] === 'local';
+const useLocalDev =
+  !librariesVersions['expo-iap'] || librariesVersions['expo-iap'] === 'local';
 
 export default ({config}: ConfigContext): ExpoConfig => {
   // Check if building for TV (set EXPO_TV=1 before prebuild)
@@ -42,6 +46,8 @@ export default ({config}: ConfigContext): ExpoConfig => {
           onside: isOnsideEnabled,
           // Horizon module: Android only (Meta Quest/VR devices)
           horizon: false,
+          // Fire OS module: Android only
+          fireOS: false,
         },
         android: {
           // Horizon App ID for Meta Quest/VR devices (required when modules.horizon is true)

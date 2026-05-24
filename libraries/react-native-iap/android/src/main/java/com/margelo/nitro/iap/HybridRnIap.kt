@@ -1275,11 +1275,12 @@ class HybridRnIap : HybridRnIapSpec() {
     }
 
     private fun mapIapStore(store: dev.hyo.openiap.IapStore): IapStore {
-        return when (store) {
-            dev.hyo.openiap.IapStore.Apple -> IapStore.APPLE
-            dev.hyo.openiap.IapStore.Google -> IapStore.GOOGLE
-            dev.hyo.openiap.IapStore.Horizon -> IapStore.HORIZON
-            dev.hyo.openiap.IapStore.Unknown -> IapStore.UNKNOWN
+        return when (store.rawValue.lowercase()) {
+            "apple" -> IapStore.APPLE
+            "google" -> IapStore.GOOGLE
+            "horizon" -> IapStore.HORIZON
+            "amazon" -> IapStore.AMAZON
+            else -> IapStore.UNKNOWN
         }
     }
 
@@ -1482,6 +1483,14 @@ class HybridRnIap : HybridRnIapSpec() {
                     (iapkit.google as? Variant_NullType_NitroVerifyPurchaseWithIapkitGoogleProps.Second)?.value?.let { google ->
                         iapkitMap["google"] = mapOf("purchaseToken" to google.purchaseToken)
                     }
+                    (iapkit.amazon as? Variant_NullType_NitroVerifyPurchaseWithIapkitAmazonProps.Second)?.value?.let { amazon ->
+                        val amazonMap = mutableMapOf<String, Any?>(
+                            "receiptId" to amazon.receiptId
+                        )
+                        amazon.userId.unwrapString()?.let { amazonMap["userId"] = it }
+                        amazon.sandbox.unwrapBool()?.let { amazonMap["sandbox"] = it }
+                        iapkitMap["amazon"] = amazonMap
+                    }
                     (iapkit.apple as? Variant_NullType_NitroVerifyPurchaseWithIapkitAppleProps.Second)?.value?.let { apple ->
                         iapkitMap["apple"] = mapOf("jws" to apple.jws)
                     }
@@ -1609,6 +1618,7 @@ class HybridRnIap : HybridRnIapSpec() {
     // Alternative Billing (Android)
     // -------------------------------------------------------------------------
 
+    @Suppress("DEPRECATION")
     override fun checkAlternativeBillingAvailabilityAndroid(): Promise<Boolean> {
         return Promise.async {
             RnIapLog.payload("checkAlternativeBillingAvailabilityAndroid", null)
@@ -1626,6 +1636,7 @@ class HybridRnIap : HybridRnIapSpec() {
         }
     }
 
+    @Suppress("DEPRECATION")
     override fun showAlternativeBillingDialogAndroid(): Promise<Boolean> {
         return Promise.async {
             RnIapLog.payload("showAlternativeBillingDialogAndroid", null)
@@ -1647,6 +1658,7 @@ class HybridRnIap : HybridRnIapSpec() {
         }
     }
 
+    @Suppress("DEPRECATION")
     override fun createAlternativeBillingTokenAndroid(sku: Variant_NullType_String?): Promise<Variant_NullType_String> {
         return Promise.async {
             val skuValue = sku.unwrapString()
@@ -2000,6 +2012,7 @@ class HybridRnIap : HybridRnIapSpec() {
             "APPLE" -> IapStore.APPLE
             "GOOGLE" -> IapStore.GOOGLE
             "HORIZON" -> IapStore.HORIZON
+            "AMAZON" -> IapStore.AMAZON
             else -> IapStore.UNKNOWN
         }
     }

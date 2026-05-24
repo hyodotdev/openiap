@@ -3,6 +3,7 @@ import {Platform} from 'react-native';
 
 // Internal modules
 import ExpoIapModule, {getNativeModule} from './ExpoIapModule';
+import {isVegaOS} from './vega';
 import {
   isProductIOS,
   validateReceiptIOS,
@@ -48,6 +49,7 @@ export * from './types';
 export * from './modules/android';
 export * from './modules/ios';
 export * from './onside';
+export * from './vega';
 
 // Get the native constant value
 export enum OpenIapEvent {
@@ -265,6 +267,10 @@ const normalizePurchasePlatform = (purchase: Purchase): Purchase => {
 
 const normalizePurchaseArray = (purchases: Purchase[]): Purchase[] =>
   purchases.map((purchase) => normalizePurchasePlatform(purchase));
+
+const isAndroidStoreRuntime = (): boolean => {
+  return Platform.OS === 'android' || isVegaOS();
+};
 
 export const purchaseUpdatedListener = (
   listener: (event: Purchase) => void,
@@ -681,7 +687,7 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
     return castResult(filterIosItems(rawItems));
   }
 
-  if (Platform.OS === 'android') {
+  if (isAndroidStoreRuntime()) {
     const rawItems = await ExpoIapModule.fetchProducts(native, skus);
     return castResult(filterAndroidItems(rawItems));
   }
@@ -717,6 +723,11 @@ export const getAvailablePurchases: QueryField<
     onlyIncludeActiveItemsIOS: options?.onlyIncludeActiveItemsIOS ?? true,
     includeSuspendedAndroid: options?.includeSuspendedAndroid ?? false,
   };
+
+  if (isVegaOS()) {
+    const purchases = await ExpoIapModule.getAvailableItems(normalizedOptions);
+    return normalizePurchaseArray(purchases as Purchase[]);
+  }
 
   let purchases: Purchase[];
 
@@ -814,7 +825,7 @@ export const hasActiveSubscriptions: QueryField<
  * @see {@link https://openiap.dev/docs/apis/get-storefront}
  */
 export const getStorefront: QueryField<'getStorefront'> = async () => {
-  if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
+  if (Platform.OS !== 'ios' && !isAndroidStoreRuntime()) {
     return '';
   }
   return ExpoIapModule.getStorefront();
@@ -930,7 +941,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
     return canonical === 'subs' ? [] : null;
   }
 
-  if (Platform.OS === 'android') {
+  if (isAndroidStoreRuntime()) {
     if (isInAppPurchase) {
       const normalizedRequest = normalizeRequestProps(
         request as RequestPurchasePropsByPlatforms,
@@ -1070,7 +1081,7 @@ export const finishTransaction: MutationField<'finishTransaction'> = async ({
     return;
   }
 
-  if (Platform.OS === 'android') {
+  if (isAndroidStoreRuntime()) {
     const token = purchase.purchaseToken ?? undefined;
 
     if (!token) {

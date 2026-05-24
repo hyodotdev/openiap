@@ -16,8 +16,14 @@ import {
  * Plugin to add local OpenIAP pod dependency for development
  * This is only for local development with openiap-apple library
  */
-type LocalPathOption = string | {ios?: string; android?: string};
+export type LocalPathOption = string | {ios?: string; android?: string};
 type GradleLanguage = 'groovy' | 'kotlin';
+
+export const getAndroidLocalPathInput = (
+  raw?: LocalPathOption,
+): string | undefined => {
+  return typeof raw === 'string' ? raw : raw?.android;
+};
 
 interface AndroidGradlePluginVersions {
   kotlin: string;
@@ -148,6 +154,8 @@ const withLocalOpenIAP: ConfigPlugin<
     horizonAppId?: string;
     /** Resolved from modules.horizon by withIAP */
     isHorizonEnabled?: boolean;
+    /** Resolved from modules.fireOS by withIAP */
+    isFireOsEnabled?: boolean;
   } | void
 > = (config, props) => {
   // Import and apply iOS alternative billing configuration if provided
@@ -233,7 +241,7 @@ const withLocalOpenIAP: ConfigPlugin<
   config = withSettingsGradle(config, (config) => {
     const raw = props?.localPath;
     const projectRoot = (config.modRequest as any).projectRoot as string;
-    const androidInput = typeof raw === 'string' ? undefined : raw?.android;
+    const androidInput = getAndroidLocalPathInput(raw);
     const androidModulePath =
       resolveAndroidModulePath(androidInput) ||
       resolveAndroidModulePath(path.resolve(projectRoot, 'openiap-google')) ||
@@ -358,7 +366,7 @@ const withLocalOpenIAP: ConfigPlugin<
   config = withAppBuildGradle(config, (config) => {
     const projectRoot = (config.modRequest as any).projectRoot as string;
     const raw = props?.localPath;
-    const androidInput = typeof raw === 'string' ? undefined : raw?.android;
+    const androidInput = getAndroidLocalPathInput(raw);
     const androidModulePath =
       resolveAndroidModulePath(androidInput) ||
       resolveAndroidModulePath(path.resolve(projectRoot, 'openiap-google')) ||
@@ -374,7 +382,11 @@ const withLocalOpenIAP: ConfigPlugin<
       appLanguage === 'kotlin'
         ? `    implementation(project(":openiap-google"))`
         : `    implementation project(':openiap-google')`;
-    const flavor = props?.isHorizonEnabled ? 'horizon' : 'play';
+    const flavor = props?.isFireOsEnabled
+      ? 'amazon'
+      : props?.isHorizonEnabled
+        ? 'horizon'
+        : 'play';
     const strategyLine =
       appLanguage === 'kotlin'
         ? `        missingDimensionStrategy("platform", "${flavor}")`
@@ -382,10 +394,10 @@ const withLocalOpenIAP: ConfigPlugin<
 
     let contents = gradle.contents;
 
-    // Remove Maven deps (both openiap-google and openiap-google-horizon)
+    // Remove Maven deps for all openiap-google flavors
     // to avoid duplicate classes with local module
     const mavenPattern =
-      /^\s*(?:implementation|api)\s*\(?\s*["']io\.github\.hyochan\.openiap:openiap-google(?:-horizon)?:[^"']+["']\s*\)?\s*$/gm;
+      /^\s*(?:implementation|api)\s*\(?\s*["']io\.github\.hyochan\.openiap:openiap-google(?:-(?:horizon|amazon))?:[^"']+["']\s*\)?\s*$/gm;
     if (mavenPattern.test(contents)) {
       contents = contents.replace(mavenPattern, '\n');
       logOnce(
@@ -396,7 +408,7 @@ const withLocalOpenIAP: ConfigPlugin<
     // Add missingDimensionStrategy (required for flavored module)
     // Remove any existing platform strategies first to avoid duplicates
     const strategyPattern =
-      /^\s*missingDimensionStrategy\s*\(?\s*["']platform["']\s*,\s*["'](play|horizon)["']\s*\)?\s*$/gm;
+      /^\s*missingDimensionStrategy\s*\(?\s*["']platform["']\s*,\s*["'](play|horizon|amazon)["']\s*\)?\s*$/gm;
     if (strategyPattern.test(contents)) {
       contents = contents.replace(strategyPattern, '');
       logOnce('🧹 Removed existing missingDimensionStrategy for platform');
@@ -434,7 +446,7 @@ const withLocalOpenIAP: ConfigPlugin<
   config = withProjectBuildGradle(config, (config) => {
     const projectRoot = (config.modRequest as any).projectRoot as string;
     const raw = props?.localPath;
-    const androidInput = typeof raw === 'string' ? undefined : raw?.android;
+    const androidInput = getAndroidLocalPathInput(raw);
     const androidModulePath =
       resolveAndroidModulePath(androidInput) ||
       resolveAndroidModulePath(path.resolve(projectRoot, 'openiap-google')) ||
@@ -444,7 +456,11 @@ const withLocalOpenIAP: ConfigPlugin<
       return config;
     }
 
-    const flavor = props?.isHorizonEnabled ? 'horizon' : 'play';
+    const flavor = props?.isFireOsEnabled
+      ? 'amazon'
+      : props?.isHorizonEnabled
+        ? 'horizon'
+        : 'play';
     config.modResults.contents = ensureLocalOpenIapFlavorStrategy(
       config.modResults.contents,
       flavor,
@@ -456,7 +472,7 @@ const withLocalOpenIAP: ConfigPlugin<
     return config;
   });
 
-  // 3) Set horizonEnabled in gradle.properties
+  // 3) Set store flags in gradle.properties
   config = withDangerousMod(config, [
     'android',
     async (config) => {
@@ -469,15 +485,20 @@ const withLocalOpenIAP: ConfigPlugin<
       if (fs.existsSync(gradlePropertiesPath)) {
         let contents = fs.readFileSync(gradlePropertiesPath, 'utf8');
         const isHorizon = props?.isHorizonEnabled ?? false;
+        const isFireOS = props?.isFireOsEnabled ?? false;
 
-        // Update horizonEnabled property
         contents = contents.replace(/^horizonEnabled=.*$/gm, '');
+        contents = contents.replace(/^fireOsEnabled=.*$/gm, '');
         if (!contents.endsWith('\n')) contents += '\n';
         contents += `horizonEnabled=${isHorizon}\n`;
+        contents += `fireOsEnabled=${isFireOS}\n`;
 
         fs.writeFileSync(gradlePropertiesPath, contents);
         logOnce(
           `🛠️ expo-iap: Set horizonEnabled=${isHorizon} in gradle.properties`,
+        );
+        logOnce(
+          `🛠️ expo-iap: Set fireOsEnabled=${isFireOS} in gradle.properties`,
         );
       }
 

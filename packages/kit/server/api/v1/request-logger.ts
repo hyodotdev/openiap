@@ -9,7 +9,7 @@ import { hashApiKey } from "./rate-limit";
 // never log the plaintext API key — only the SHA-256 prefix the rate
 // limiter already uses — so log leaks don't become credential leaks.
 
-export type VerifyStore = "apple" | "google" | "horizon";
+export type VerifyStore = "apple" | "google" | "horizon" | "amazon";
 
 export interface VerifyOutcome {
   isValid: boolean;

@@ -116,12 +116,19 @@ enum ExpoIapLog {
     private static func sanitizeDictionary(_ dictionary: [String: Any]) -> [String: Any] {
         var sanitized: [String: Any] = [:]
         for (key, value) in dictionary {
-            if key.lowercased().contains("token") {
+            if isSensitiveKey(key) {
                 sanitized[key] = "hidden"
             } else if let sanitizedValue = sanitize(value) {
                 sanitized[key] = sanitizedValue
             }
         }
         return sanitized
+    }
+
+    private static func isSensitiveKey(_ key: String) -> Bool {
+        let normalized = key.lowercased()
+            .filter { $0.isLetter || $0.isNumber }
+        let sensitiveFragments = ["token", "apikey", "secret", "jws", "receiptid", "userid"]
+        return sensitiveFragments.contains { normalized.contains($0) }
     }
 }

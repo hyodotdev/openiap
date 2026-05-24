@@ -1,4 +1,17 @@
-pluginManagement { includeBuild("../node_modules/@react-native/gradle-plugin") }
+pluginManagement {
+    includeBuild("../node_modules/@react-native/gradle-plugin")
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+    plugins {
+        id("com.android.library") version "8.7.3" apply false
+        id("org.jetbrains.kotlin.android") version "2.2.0" apply false
+        id("org.jetbrains.kotlin.plugin.compose") version "2.2.0" apply false
+        id("com.vanniktech.maven.publish") version "0.34.0" apply false
+    }
+}
 plugins { id("com.facebook.react.settings") }
 extensions.configure(com.facebook.react.ReactSettingsExtension){ ex -> 
     def command = ['node', '-e', "console.log(require('@react-native-community/cli').bin)"].execute(null, rootDir).text.trim()
@@ -7,3 +20,9 @@ extensions.configure(com.facebook.react.ReactSettingsExtension){ ex ->
 rootProject.name = 'dev.hyo.martie'
 include ':app'
 includeBuild('../node_modules/@react-native/gradle-plugin')
+
+def localOpenIapProject = new File(settingsDir, '../../../../packages/google/openiap')
+if (localOpenIapProject.exists()) {
+    include ':openiap'
+    project(':openiap').projectDir = localOpenIapProject
+}

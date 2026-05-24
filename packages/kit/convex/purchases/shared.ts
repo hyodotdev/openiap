@@ -445,7 +445,7 @@ export function isValidState(state: HarmonizedPurchaseState): boolean {
  * so no node-only import is introduced.
  */
 export function extractOrderIdFromRemoteResponse(
-  store: "apple" | "google" | "horizon",
+  store: "apple" | "google" | "horizon" | "amazon",
   remoteResponse?: string | null,
 ): string | null {
   if (store !== "google" || !remoteResponse) {
@@ -515,7 +515,7 @@ export function extractOrderIdFromRemoteResponse(
  * importing from a query module.
  */
 export function extractProductIdFromRemoteResponse(
-  store: "apple" | "google" | "horizon",
+  store: "apple" | "google" | "horizon" | "amazon",
   remoteResponse?: string | null,
 ): string | null {
   if (!remoteResponse) {
@@ -574,6 +574,14 @@ export function extractProductIdFromRemoteResponse(
         typeof (parsed as { sku?: unknown }).sku === "string"
       ) {
         return (parsed as { sku: string }).sku;
+      }
+
+      if (
+        store === "amazon" &&
+        "productId" in parsed &&
+        typeof (parsed as { productId?: unknown }).productId === "string"
+      ) {
+        return (parsed as { productId: string }).productId;
       }
     }
   } catch {

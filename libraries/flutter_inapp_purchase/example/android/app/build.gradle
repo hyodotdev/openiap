@@ -56,9 +56,13 @@ android {
         versionName = flutterVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Read horizonEnabled flag from gradle.properties (default: false)
+        // Read store flags from gradle.properties (default: Play)
         def horizonEnabled = project.findProperty('horizonEnabled')?.toBoolean() ?: false
-        def flavor = horizonEnabled ? 'horizon' : 'play'
+        def fireOsEnabled = project.findProperty('fireOsEnabled')?.toBoolean() ?: false
+        if (horizonEnabled && fireOsEnabled) {
+            throw new GradleException("flutter_inapp_purchase example: horizonEnabled and fireOsEnabled cannot both be true")
+        }
+        def flavor = fireOsEnabled ? 'amazon' : (horizonEnabled ? 'horizon' : 'play')
 
         // Select platform flavor from plugin's product flavors
         missingDimensionStrategy 'platform', flavor

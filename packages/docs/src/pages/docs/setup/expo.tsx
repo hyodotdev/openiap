@@ -133,18 +133,18 @@ function ExpoSetup() {
           </a>
         </h3>
         <p>
-          expo-iap uses Google Play Billing Library v
-          {GOOGLE_PLAY_BILLING.version}, which requires{' '}
-          <strong>Kotlin 2.0+</strong>.
+          expo-iap uses OpenIAP Android artifacts backed by Google Play Billing
+          Library v{GOOGLE_PLAY_BILLING.version}. Use{' '}
+          <strong>Kotlin 2.2+</strong> for Android builds.
         </p>
         <ul>
           <li>
-            <strong>Expo SDK 54+:</strong> No configuration needed — Kotlin 2.0+
-            is included by default.
+            <strong>Expo SDK 54+:</strong> Use the default toolchain when it is
+            already Kotlin 2.2 compatible, or set the version explicitly below.
           </li>
           <li>
-            <strong>Expo SDK 53:</strong> Kotlin 2.0+ is included natively, but
-            if you encounter build issues, explicitly set the Kotlin version:
+            <strong>Expo SDK 53:</strong> Explicitly set the Kotlin version when
+            building Android apps:
           </li>
         </ul>
         <CodeBlock language="json">
@@ -286,9 +286,11 @@ cd ios && pod install`}
           "iapkitApiKey": "openiap-kit_<your-key>",
           "modules": {
             "onside": true,
-            "horizon": true
+            "horizon": true,
+            "fireOS": false,
+            "vega": false
           },
-          "google": {
+          "android": {
             "horizonAppId": "YOUR_HORIZON_APP_ID"
           }
         }
@@ -338,7 +340,29 @@ cd ios && pod install`}
             </tr>
             <tr>
               <td>
-                <code>google.horizonAppId</code>
+                <code>modules.fireOS</code>
+              </td>
+              <td>boolean</td>
+              <td>
+                Enable the Fire OS Android <code>amazon</code> flavor (see{' '}
+                <a href="/docs/fireos-setup">Fire OS Setup</a>)
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>modules.vega</code>
+              </td>
+              <td>runtime</td>
+              <td>
+                Declares Vega OS runtime support and enables conflict checks; it
+                does not select an Android flavor. Install Amazon's Vega IAP
+                package and follow the{' '}
+                <a href="/docs/features/vega-os">Vega OS Runtime</a> guide.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>android.horizonAppId</code>
               </td>
               <td>string</td>
               <td>Meta Horizon App ID for Quest/VR devices</td>
@@ -383,7 +407,7 @@ function Store() {
       // 2. Grant entitlement
       // 3. CRITICAL: Finish the transaction
       //    (Android auto-refunds after 3 days if not called!)
-      await finishTransaction(purchase, false); // true for consumables
+      await finishTransaction({ purchase, isConsumable: false }); // true for consumables
     },
     onPurchaseError: (error) => {
       if (error.code === ErrorCode.UserCancelled) return;
@@ -654,9 +678,9 @@ EXPO_TV=1 npx expo run:ios --device "Apple TV 4K (3rd generation)"`}
           }}
         >
           <strong>Warning:</strong> Expo SDK 52 (React Native 0.76.x) uses
-          Kotlin 1.9.x, which is incompatible with Google Play Billing Library
-          v8 (requires Kotlin 2.0+). Upgrading to <strong>SDK 53+</strong> is
-          the recommended solution.
+          Kotlin 1.9.x, which is incompatible with the current OpenIAP Android
+          artifacts. Upgrading to <strong>SDK 53+</strong> and setting Kotlin
+          2.2.0 is the recommended solution.
         </div>
 
         <p>

@@ -716,6 +716,107 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// Verify via a managed provider (currently IAPKit; the PurchaseVerificationProvider enum exposes only Iapkit today).
     /// See: https://openiap.dev/docs/features/validation#verify-purchase-with-provider
     public func verifyPurchaseWithProvider(_ props: VerifyPurchaseWithProviderProps) async throws -> VerifyPurchaseWithProviderResult {
+        struct IapkitApplePayload: Codable {
+            let store: IapStore
+            let jws: String
+        }
+
+        func extractIapkitErrorMessage(from json: [String: Any]) -> String? {
+            if let details = json["details"] as? [String: Any],
+               let originalError = details["originalError"] as? String {
+                if let data = originalError.data(using: .utf8),
+                   let nested = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    return extractIapkitErrorMessage(from: nested) ?? originalError
+                }
+                return originalError
+            }
+
+            if let errors = json["errors"] as? [[String: Any]], let firstError = errors.first {
+                return extractIapkitErrorMessage(from: firstError)
+            }
+
+            if let message = json["message"] as? String, !message.contains("{\"error\"") {
+                return message
+            }
+
+            return json["error"] as? String
+        }
+
+        func buildIapkitPayload(props: RequestVerifyPurchaseWithIapkitProps) throws -> Data {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.withoutEscapingSlashes]
+            guard let apple = props.apple else {
+                throw makePurchaseError(code: .developerError, message: "Apple verification parameters are required")
+            }
+            guard apple.jws.isEmpty == false else {
+                throw makePurchaseError(code: .developerError, message: "JWS is required")
+            }
+            let payload = IapkitApplePayload(
+                store: .apple,
+                jws: apple.jws
+            )
+            return try encoder.encode(payload)
+        }
+
+        func verifyPurchaseWithIapkit(props: RequestVerifyPurchaseWithIapkitProps) async throws -> RequestVerifyPurchaseWithIapkitResult {
+            let url = URL(string: "https://kit.openiap.dev/v1/purchase/verify")!
+
+            guard props.apple != nil else {
+                throw makePurchaseError(code: .developerError, message: "IAPKit verification on Apple requires an apple payload")
+            }
+            let store: IapStore = .apple
+            let body = try buildIapkitPayload(props: props)
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            if let apiKey = props.apiKey, apiKey.isEmpty == false {
+                request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+            }
+            request.httpBody = body
+
+            OpenIapLog.debug("IAPKit request URL: \(url.absoluteString)")
+            OpenIapLog.debug("IAPKit request body bytes=\(body.count)")
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw makePurchaseError(code: .networkError, message: "Invalid response")
+            }
+            guard (200...299).contains(httpResponse.statusCode) else {
+                let responseBody = String(data: data, encoding: .utf8) ?? ""
+                OpenIapLog.warn("verifyPurchaseWithProvider failed (HTTP \(httpResponse.statusCode))")
+                var errorMessage = "HTTP \(httpResponse.statusCode)"
+                if let jsonData = responseBody.data(using: .utf8),
+                   let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
+                    errorMessage = extractIapkitErrorMessage(from: json) ?? errorMessage
+                }
+                throw makePurchaseError(code: .receiptFailed, message: errorMessage)
+            }
+
+            OpenIapLog.debug("IAPKit verification response received: bytes=\(data.count)")
+
+            guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                OpenIapLog.warn("Failed to parse IAPKit verification response")
+                throw makePurchaseError(code: .receiptFailed, message: "Unable to parse verification response")
+            }
+
+            if let errors = json["errors"] as? [[String: Any]], let firstError = errors.first {
+                let errorMessage = firstError["message"] as? String ?? "Unknown error"
+                let errorCode = firstError["code"] as? String ?? "unknown"
+                OpenIapLog.warn("IAPKit verification error: \(errorCode) - \(errorMessage)")
+                throw makePurchaseError(code: .receiptFailed, message: errorMessage)
+            }
+
+            let isValid = (json["isValid"] as? Bool) ?? false
+            let stateString = json["state"] as? String ?? "UNKNOWN"
+            let normalizedState = stateString.lowercased().replacingOccurrences(of: "_", with: "-")
+            let parsedState = IapkitPurchaseState(rawValue: normalizedState) ?? .unknown
+            let storeString = json["store"] as? String
+            let parsedStore = storeString.flatMap { IapStore(rawValue: $0) } ?? store
+            OpenIapLog.info("IAPKit verification result: store=\(parsedStore.rawValue), isValid=\(isValid), state=\(parsedState.rawValue)")
+            return RequestVerifyPurchaseWithIapkitResult(isValid: isValid, state: parsedState, store: parsedStore)
+        }
+
         try await ensureConnection()
         guard props.provider == .iapkit else {
             throw makePurchaseError(code: .featureNotSupported, message: "Provider \(props.provider.rawValue) is not supported")
@@ -728,150 +829,6 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             iapkit: result,
             provider: props.provider
         )
-    }
-
-    // NOTE: This Apple module intentionally sends only Apple payloads to IAPKit.
-    // The buildIapkitPayload function has a .google branch for type completeness,
-    // but it is never invoked from this module.
-    private func verifyPurchaseWithIapkit(props: RequestVerifyPurchaseWithIapkitProps) async throws -> RequestVerifyPurchaseWithIapkitResult {
-        // URL is a constant and cannot fail, so force unwrap is safe
-        let url = URL(string: "https://kit.openiap.dev/v1/purchase/verify")!
-
-        // On Apple, only Apple verification is supported
-        guard props.apple != nil else {
-            throw makePurchaseError(code: .developerError, message: "IAPKit verification on Apple requires an apple payload")
-        }
-        let store: IapStore = .apple
-        let body = try buildIapkitPayload(props: props, store: store)
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let apiKey = props.apiKey, apiKey.isEmpty == false {
-            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        }
-        request.httpBody = body
-
-        // Log request details for debugging
-        OpenIapLog.debug("IAPKit request URL: \(url.absoluteString)")
-        let requestBody = String(data: body, encoding: .utf8) ?? "<\(body.count) non-UTF8 bytes>"
-        OpenIapLog.debug("IAPKit request body: \(requestBody), bytes=\(body.count)")
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw makePurchaseError(code: .networkError, message: "Invalid response")
-        }
-        guard (200...299).contains(httpResponse.statusCode) else {
-            let responseBody = String(data: data, encoding: .utf8) ?? ""
-            OpenIapLog.warn("verifyPurchaseWithProvider failed (HTTP \(httpResponse.statusCode))")
-            // Extract concise error message from IAPKit response
-            var errorMessage = "HTTP \(httpResponse.statusCode)"
-            if let jsonData = responseBody.data(using: .utf8),
-               let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
-                errorMessage = extractIapkitErrorMessage(from: json) ?? errorMessage
-            }
-            throw makePurchaseError(code: .receiptFailed, message: errorMessage)
-        }
-
-        // Log only response metadata; the body can contain receipt details.
-        OpenIapLog.debug("IAPKit verification response received: bytes=\(data.count)")
-
-        // Parse manually to handle extra fields from IAPKit
-        // API response format: { "store": "apple", "isValid": true, "state": "PURCHASED" }
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            OpenIapLog.warn("Failed to parse IAPKit verification response")
-            throw makePurchaseError(code: .receiptFailed, message: "Unable to parse verification response")
-        }
-
-        // Check for error response format: { "errors": [{ "code": "...", "message": "..." }] }
-        if let errors = json["errors"] as? [[String: Any]], let firstError = errors.first {
-            let errorMessage = firstError["message"] as? String ?? "Unknown error"
-            let errorCode = firstError["code"] as? String ?? "unknown"
-            OpenIapLog.warn("IAPKit verification error: \(errorCode) - \(errorMessage)")
-            throw makePurchaseError(code: .receiptFailed, message: errorMessage)
-        }
-
-        let isValid = (json["isValid"] as? Bool) ?? false
-        let stateString = json["state"] as? String ?? "UNKNOWN"
-        // IAPKit API returns UPPER_SNAKE_CASE (e.g., "PURCHASED", "PENDING_ACKNOWLEDGMENT")
-        // Swift enum expects lower-kebab-case (e.g., "purchased", "pending-acknowledgment")
-        let normalizedState = stateString.lowercased().replacingOccurrences(of: "_", with: "-")
-        let parsedState = IapkitPurchaseState(rawValue: normalizedState) ?? .unknown
-        let storeString = json["store"] as? String
-        let parsedStore = storeString.flatMap { IapStore(rawValue: $0) } ?? store
-        OpenIapLog.info("IAPKit verification result: store=\(parsedStore.rawValue), isValid=\(isValid), state=\(parsedState.rawValue)")
-        return RequestVerifyPurchaseWithIapkitResult(isValid: isValid, state: parsedState, store: parsedStore)
-    }
-
-    private struct IapkitApplePayload: Codable {
-        let store: IapStore
-        let jws: String
-    }
-
-    private struct IapkitGooglePayload: Codable {
-        let store: IapStore
-        let purchaseToken: String
-    }
-
-    private func buildIapkitPayload(props: RequestVerifyPurchaseWithIapkitProps, store: IapStore) throws -> Data {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.withoutEscapingSlashes]
-        switch store {
-        case .apple:
-            guard let apple = props.apple else {
-                throw makePurchaseError(code: .developerError, message: "Apple verification parameters are required")
-            }
-            guard apple.jws.isEmpty == false else {
-                throw makePurchaseError(code: .developerError, message: "JWS is required")
-            }
-            let payload = IapkitApplePayload(
-                store: store,
-                jws: apple.jws
-            )
-            return try encoder.encode(payload)
-        case .google, .horizon:
-            guard let google = props.google else {
-                throw makePurchaseError(code: .developerError, message: "Google verification parameters are required")
-            }
-            guard google.purchaseToken.isEmpty == false else {
-                throw makePurchaseError(code: .developerError, message: "purchaseToken is required")
-            }
-            let payload = IapkitGooglePayload(
-                store: store,
-                purchaseToken: google.purchaseToken
-            )
-            return try encoder.encode(payload)
-        case .unknown:
-            throw makePurchaseError(code: .developerError, message: "Unknown store type")
-        }
-    }
-
-    /// Extract concise error message from IAPKit error response.
-    /// IAPKit returns nested error structures - we extract the deepest originalError for clarity.
-    private func extractIapkitErrorMessage(from json: [String: Any]) -> String? {
-        // Try to get details.originalError first (deepest level)
-        if let details = json["details"] as? [String: Any],
-           let originalError = details["originalError"] as? String {
-            // originalError might be a JSON string, try to parse it
-            if let data = originalError.data(using: .utf8),
-               let nested = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                return extractIapkitErrorMessage(from: nested) ?? originalError
-            }
-            return originalError
-        }
-
-        // Try errors array format: { "errors": [{ "message": "..." }] }
-        if let errors = json["errors"] as? [[String: Any]], let firstError = errors.first {
-            return extractIapkitErrorMessage(from: firstError)
-        }
-
-        // Try message field, but avoid the verbose nested JSON string
-        if let message = json["message"] as? String, !message.contains("{\"error\"") {
-            return message
-        }
-
-        // Fallback to error code
-        return json["error"] as? String
     }
 
     // MARK: - Store Information

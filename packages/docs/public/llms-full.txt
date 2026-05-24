@@ -9,9 +9,10 @@
 1. Installation
 2. Core APIs (Connection, Products, Purchase, Subscription)
 3. Platform-Specific APIs (iOS, Android)
-4. Types Reference
-5. Error Codes & Handling
-6. Implementation Patterns
+4. Store Targets (Play, Horizon, Fire OS, Vega OS)
+5. Types Reference
+6. Error Codes & Handling
+7. Implementation Patterns
 
 ---
 
@@ -39,10 +40,13 @@ pod 'openiap', '~> 2.2.1'
 ### Kotlin (Android)
 ```kotlin
 // Gradle (build.gradle.kts)
-implementation("io.github.hyochan.openiap:openiap-google:2.2.2")
+implementation("io.github.hyochan.openiap:openiap-google:2.3.0-rc.1")
 
 // For Meta Horizon OS
-implementation("io.github.hyochan.openiap:openiap-google-horizon:2.2.2")
+implementation("io.github.hyochan.openiap:openiap-google-horizon:2.3.0-rc.1")
+
+// For Fire OS (Amazon Appstore)
+implementation("io.github.hyochan.openiap:openiap-google-amazon:2.3.0-rc.1")
 ```
 
 ### Flutter
@@ -51,13 +55,13 @@ flutter pub add flutter_inapp_purchase
 ```
 
 ### Godot
-Download `godot-iap-2.3.2.zip` from GitHub Releases, extract it to
+Download `godot-iap-2.4.0-rc.1.zip` from GitHub Releases, extract it to
 `addons/godot-iap/`, then enable the plugin in Project Settings.
 
 ### Kotlin Multiplatform
 ```kotlin
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:2.3.2")
+    implementation("io.github.hyochan:kmp-iap:2.4.0-rc.1")
 }
 ```
 
@@ -69,7 +73,7 @@ https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap
 dotnet add package OpenIap.Maui
 ```
 
-Current NuGet package version: 1.1.5
+Current NuGet package version: 1.2.0-rc.1
 
 Requires .NET 9 or .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
 
@@ -83,6 +87,9 @@ Requires .NET 9 or .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
   `packages/google`.
 - Public surface: generated OpenIAP types plus `useIAP`, listener helpers,
   and platform-suffixed iOS/Android APIs.
+- Android builds can select Play, Horizon, or Fire OS artifacts.
+  Vega OS resolves a `kepler` JavaScript adapter before creating the Nitro
+  HybridObject.
 - Example app: `libraries/react-native-iap/example`.
 
 ### expo-iap
@@ -90,6 +97,9 @@ Requires .NET 9 or .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
 - Implementation: Expo Modules wrapper over the same native OpenIAP packages.
 - Public surface: same hook, listener, query, mutation, and platform API
   shape as `react-native-iap`, adapted for Expo managed/bare workflows.
+- Config plugins can select Horizon or Fire OS Android flavors;
+  Vega OS follows the Onside-style runtime selector pattern with a JavaScript
+  adapter.
 - Example app: `libraries/expo-iap/example`.
 
 ### flutter_inapp_purchase
@@ -98,6 +108,7 @@ Requires .NET 9 or .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
   iOS and Android method channels.
 - Public surface: singleton `FlutterInappPurchase.instance`, typed
   `fetchProducts<T>`, purchase streams, and resolver-style methods.
+- Android builds can select Play, Horizon, or Fire OS flavors.
 
 ### godot-iap
 - Package: `godot-iap` for Godot 4.x.
@@ -136,6 +147,48 @@ Requires .NET 9 or .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
   `OpenIapClient.WebhookEventTypes`.
 - Example app: `libraries/maui-iap/example/OpenIap.Maui.Example`, mirroring
   the `expo-iap` example flows.
+
+---
+
+## Store Targets
+
+- Google Play: default Android artifact, `openiap-google`.
+- Meta Horizon: Android `horizon` flavor, `openiap-google-horizon`.
+- Fire OS: Android `amazon` flavor,
+  `openiap-google-amazon`; set `fireOsEnabled=true` or
+  `missingDimensionStrategy("platform", "amazon")`.
+  Runtime adapters are wired for native Android, `react-native-iap`,
+  `expo-iap`, and `flutter_inapp_purchase`; Godot, KMP, and MAUI have schema
+  type parity but still need Android wrapper flavor switches.
+- Vega OS: not an Android flavor. Target React Native for Vega / Expo only,
+  using Amazon's JavaScript IAP API through the runtime-selected `kepler`
+  adapter at the same runtime integration layer as Onside. In Expo or React
+  Native config plugin options, `modules.vega=true` is only a
+  runtime-support guard; it does not select an Android flavor and cannot be
+  combined with `modules.fireOS` or `modules.horizon`.
+
+### Fire OS
+
+Fire OS is an Android target for Amazon Appstore distribution. It uses the
+`amazon` Gradle flavor and Amazon Appstore SDK.
+
+Fire OS maps OpenIAP calls to the Amazon Appstore SDK:
+
+| OpenIAP API | Amazon Appstore SDK mapping |
+|-------------|--------------------------|
+| `initConnection()` | Register `PurchasingListener`, request user data |
+| `fetchProducts()` | `PurchasingService.getProductData` |
+| `requestPurchase()` | `PurchasingService.purchase` |
+| `getAvailablePurchases()` | `PurchasingService.getPurchaseUpdates(reset=true)` |
+| `finishTransaction()` | `PurchasingService.notifyFulfillment(..., FULFILLED)` |
+
+### Vega OS Runtime
+
+Vega OS is not Fire OS and must not set `fireOsEnabled=true`; that flag is
+only for Android Fire OS builds. Install
+`@amazon-devices/keplerscript-appstore-iap-lib` and let
+`react-native-iap` / `expo-iap` select the `kepler` adapter at runtime,
+similar to how Onside is selected at the runtime integration layer.
 
 ---
 

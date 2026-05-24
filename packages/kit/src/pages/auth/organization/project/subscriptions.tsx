@@ -21,7 +21,10 @@ import {
   normalizeCurrencyCode,
 } from "@/lib/utils";
 
-type DashboardProject = Omit<Doc<"projects">, "apiKey" | "horizonAppSecret">;
+type DashboardProject = Omit<
+  Doc<"projects">,
+  "apiKey" | "horizonAppSecret" | "amazonSharedSecret"
+>;
 type ProjectContext = { project: DashboardProject };
 
 const STATE_FILTERS = [

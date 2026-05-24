@@ -230,7 +230,7 @@ function RedeemCodeButton() {
       // Verify and finish the transaction
       const isValid = await verifyPurchaseOnServer(purchase);
       if (isValid) {
-        await finishTransaction(purchase, false);
+        await finishTransaction({ purchase, isConsumable: false });
         console.log('Redemption completed successfully');
       }
     });

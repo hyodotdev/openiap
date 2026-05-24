@@ -64,12 +64,19 @@ internal object ExpoIapLog {
         val sanitized = linkedMapOf<String, Any?>()
         for ((rawKey, rawValue) in source) {
             val key = rawKey as? String ?: continue
-            if (key.lowercase().contains("token")) {
+            if (isSensitiveKey(key)) {
                 sanitized[key] = "hidden"
                 continue
             }
             sanitized[key] = sanitize(rawValue)
         }
         return sanitized
+    }
+
+    private fun isSensitiveKey(key: String): Boolean {
+        val normalized = key.lowercase().filter { it.isLetterOrDigit() }
+        return listOf("token", "apikey", "secret", "jws", "receiptid", "userid").any {
+            normalized.contains(it)
+        }
     }
 }

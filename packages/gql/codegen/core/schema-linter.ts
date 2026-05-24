@@ -24,14 +24,39 @@ export interface LintOptions {
   strict?: boolean;
 }
 
-const PLATFORM_TYPE_SUFFIX_EXCEPTIONS = new Set([
-  // Public API names kept for source/binary compatibility.
+const IOS_TYPE_SUFFIX_EXCEPTIONS = new Set([
+  // StoreKit names this payload AppTransaction; keep the public OpenIAP type stable.
   'AppTransaction',
-  'ProductAndroidOneTimePurchaseOfferDetail',
-  'ProductSubscriptionAndroidOfferDetails',
+]);
+
+const ANDROID_TYPE_SUFFIX_EXCEPTIONS = new Set([
+  // Legacy public type name from the User Choice Billing API.
   'UserChoiceBillingDetails',
+  // Meta Horizon verification result is Android-flavor specific but keeps the
+  // store suffix for API clarity.
   'VerifyPurchaseResultHorizon',
 ]);
+
+function isAllowedPlatformTypeName(
+  typeName: string,
+  platform: 'ios' | 'android',
+): boolean {
+  if (typeName.startsWith('Query') || typeName.startsWith('Mutation')) {
+    return true;
+  }
+
+  if (platform === 'ios') {
+    return typeName.endsWith('IOS') || IOS_TYPE_SUFFIX_EXCEPTIONS.has(typeName);
+  }
+
+  return (
+    typeName.endsWith('Android') ||
+    typeName.includes('Android') ||
+    typeName.endsWith('Horizon') ||
+    typeName.endsWith('Amazon') ||
+    ANDROID_TYPE_SUFFIX_EXCEPTIONS.has(typeName)
+  );
+}
 
 /**
  * Lint schema conventions and return findings.
@@ -71,28 +96,24 @@ export function lintSchema(
         }
 
         // Platform suffix checks for types in platform-specific files
-        if (isIOSFile && !typeName.endsWith('IOS') && !typeName.startsWith('Query') && !typeName.startsWith('Mutation')) {
-          if (!PLATFORM_TYPE_SUFFIX_EXCEPTIONS.has(typeName)) {
-            results.push({
-              level: 'warning',
-              file: fileName,
-              line: lineNum,
-              message: `Type "${typeName}" in iOS file should end with "IOS" suffix`,
-              rule: 'ios-type-suffix',
-            });
-          }
+        if (isIOSFile && !isAllowedPlatformTypeName(typeName, 'ios')) {
+          results.push({
+            level: 'warning',
+            file: fileName,
+            line: lineNum,
+            message: `Type "${typeName}" in iOS file should end with "IOS" suffix`,
+            rule: 'ios-type-suffix',
+          });
         }
 
-        if (isAndroidFile && !typeName.endsWith('Android') && !typeName.startsWith('Query') && !typeName.startsWith('Mutation')) {
-          if (!PLATFORM_TYPE_SUFFIX_EXCEPTIONS.has(typeName)) {
-            results.push({
-              level: 'warning',
-              file: fileName,
-              line: lineNum,
-              message: `Type "${typeName}" in Android file should end with "Android" suffix`,
-              rule: 'android-type-suffix',
-            });
-          }
+        if (isAndroidFile && !isAllowedPlatformTypeName(typeName, 'android')) {
+          results.push({
+            level: 'warning',
+            file: fileName,
+            line: lineNum,
+            message: `Type "${typeName}" in Android file should end with "Android" suffix`,
+            rule: 'android-type-suffix',
+          });
         }
 
         continue;

@@ -14,6 +14,18 @@ export type ExpoIapModuleOverrides = {
    * @default false
    */
   horizon?: boolean;
+  /**
+   * Enable Fire OS support for Amazon-distributed Android builds
+   * @platform android
+   * @default false
+   */
+  fireOS?: boolean;
+  /**
+   * Mark this config as targeting Vega OS. Vega OS is selected by the kepler
+   * runtime and must not be combined with Android store flavors.
+   * @default false
+   */
+  vega?: boolean;
 };
 
 type BaseExpoIapOptions = {
@@ -29,23 +41,23 @@ type BaseExpoIapOptions = {
    * Configure external purchase countries, links, and entitlements.
    * Requires approval from Apple.
    * @platform ios
-   */
-  iosAlternativeBilling?: IOSAlternativeBillingConfig;
-  /**
    * @deprecated Use ios.alternativeBilling instead
    */
+  iosAlternativeBilling?: IOSAlternativeBillingConfig;
   ios?: {
     alternativeBilling?: IOSAlternativeBillingConfig;
   };
   /**
    * Horizon OS app ID for Quest devices
    * @platform android
+   * @deprecated Use android.horizonAppId instead
    */
   horizonAppId?: string;
-  /**
-   * @deprecated Use modules.horizon and android.horizonAppId instead
-   */
   android?: {
+    /**
+     * Horizon OS app ID for Quest devices
+     * @platform android
+     */
     horizonAppId?: string;
   };
 };

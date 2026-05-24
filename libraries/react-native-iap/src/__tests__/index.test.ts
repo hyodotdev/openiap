@@ -100,6 +100,8 @@ describe('Public API (src/index.ts)', () => {
     (Platform as any).OS = 'ios';
     // Re-require module to ensure fresh state if needed
     jest.resetModules();
+    jest.dontMock('react-native');
+    jest.dontMock('../vega');
     // Reinstall the NitroModules mock after reset
     jest.doMock('react-native-nitro-modules', () => ({
       NitroModules: {
@@ -930,6 +932,50 @@ describe('Public API (src/index.ts)', () => {
       expect(res.map((p: any) => p.productId).sort()).toEqual(['p1', 's1']);
     });
 
+    it('Vega path queries purchase updates once', async () => {
+      jest.resetModules();
+      jest.doMock('react-native', () => ({
+        Platform: {OS: 'kepler'},
+      }));
+      jest.doMock('react-native-nitro-modules', () => ({
+        NitroModules: {
+          createHybridObject: jest.fn(() => mockIap),
+        },
+      }));
+      jest.doMock('../vega', () => ({
+        getVegaIapModule: jest.fn(() => mockIap),
+        isVegaOS: jest.fn(() => true),
+      }));
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      IAP = require('../index');
+
+      const nitro = {
+        id: 't-vega',
+        productId: 'premium_monthly',
+        transactionDate: Date.now(),
+        platform: 'android',
+        quantity: 1,
+        purchaseState: 'purchased',
+        isAutoRenewing: true,
+      };
+      mockIap.getAvailablePurchases.mockResolvedValueOnce([nitro]);
+
+      const res = await IAP.getAvailablePurchases({
+        includeSuspendedAndroid: true,
+      });
+
+      expect(mockIap.getAvailablePurchases).toHaveBeenCalledTimes(1);
+      expect(mockIap.getAvailablePurchases).toHaveBeenCalledWith({
+        android: {includeSuspended: true},
+      });
+      expect(res).toEqual([
+        expect.objectContaining({
+          productId: 'premium_monthly',
+          platform: 'android',
+        }),
+      ]);
+    });
+
     it('throws on unsupported platform', async () => {
       (Platform as any).OS = 'web';
       await expect(IAP.getAvailablePurchases()).rejects.toThrow(
@@ -1699,6 +1745,44 @@ describe('Public API (src/index.ts)', () => {
       });
 
       expect(result.iapkit?.store).toBe('google');
+    });
+
+    it('should pass Amazon IAPKit payloads through on Android', async () => {
+      (Platform as any).OS = 'android';
+      const mockResult = {
+        provider: 'iapkit',
+        iapkit: {
+          isValid: true,
+          state: 'ready-to-consume',
+          store: 'amazon',
+        },
+      };
+      mockIap.verifyPurchaseWithProvider.mockResolvedValueOnce(mockResult);
+
+      const result = await IAP.verifyPurchaseWithProvider({
+        provider: 'iapkit',
+        iapkit: {
+          apiKey: 'test-api-key',
+          amazon: {
+            userId: 'amazon-user',
+            receiptId: 'amazon-receipt',
+            sandbox: true,
+          },
+        },
+      });
+
+      expect(mockIap.verifyPurchaseWithProvider).toHaveBeenCalledWith({
+        provider: 'iapkit',
+        iapkit: {
+          apiKey: 'test-api-key',
+          amazon: {
+            userId: 'amazon-user',
+            receiptId: 'amazon-receipt',
+            sandbox: true,
+          },
+        },
+      });
+      expect(result.iapkit?.store).toBe('amazon');
     });
 
     it('should throw error when provider is not iapkit', async () => {

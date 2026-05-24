@@ -35,6 +35,7 @@ const STORE_UNKNOWN: IapStore = 'unknown';
 const STORE_APPLE: IapStore = 'apple';
 const STORE_GOOGLE: IapStore = 'google';
 const STORE_HORIZON: IapStore = 'horizon';
+const STORE_AMAZON: IapStore = 'amazon';
 const PRODUCT_TYPE_SUBS: ProductType = 'subs';
 const PRODUCT_TYPE_IN_APP: ProductType = 'in-app';
 const PURCHASE_STATE_PENDING: PurchaseState = 'pending';
@@ -67,6 +68,8 @@ function normalizeStore(value?: Nullable<string>): IapStore {
       return STORE_GOOGLE;
     case 'horizon':
       return STORE_HORIZON;
+    case 'amazon':
+      return STORE_AMAZON;
     default:
       return STORE_UNKNOWN;
   }

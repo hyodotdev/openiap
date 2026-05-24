@@ -105,7 +105,7 @@ const result = await verifyPurchase({
 
 if (result.isValid) {
   await grantEntitlement(purchase.productId);
-  await finishTransaction(purchase, false);
+  await finishTransaction({ purchase, isConsumable: false });
 }`}</CodeBlock>
             ),
             swift: (
@@ -297,7 +297,7 @@ const result = await verifyPurchaseWithProvider({
 
 if (result.iapkit?.isValid && result.iapkit?.state === 'entitled') {
   await grantEntitlement(purchase.productId);
-  await finishTransaction(purchase, false);
+  await finishTransaction({ purchase, isConsumable: false });
 }`}</CodeBlock>
             ),
             swift: (
@@ -475,7 +475,7 @@ if result.iapkit.is_valid and result.iapkit.state == IapkitPurchaseState.ENTITLE
 
   if (result.iapkit?.isValid) {
     // Verification succeeded - grant access
-    await finishTransaction(purchase);
+    await finishTransaction({ purchase, isConsumable: false });
     grantAccess();
   } else {
     // Verification returned invalid - actually invalid purchase
@@ -488,7 +488,7 @@ if result.iapkit.is_valid and result.iapkit.state == IapkitPurchaseState.ENTITLE
   console.error('Verification failed:', error);
 
   // Fail-open approach: grant access anyway
-  await finishTransaction(purchase);
+  await finishTransaction({ purchase, isConsumable: false });
   grantAccess();
 }`}</CodeBlock>
       </section>
