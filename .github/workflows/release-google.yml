@@ -299,7 +299,7 @@ jobs:
       env:
         VERSION: ${{ steps.version.outputs.version }}
       run: |
-        if curl -s "https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google-amazon/$VERSION/" | grep -q "$VERSION"; then
+        if curl -fsI "https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google-amazon/$VERSION/" >/dev/null; then
           echo "exists=true" >> $GITHUB_OUTPUT
           echo "⚠️ openiap-google-amazon $VERSION already exists on Maven Central"
         else

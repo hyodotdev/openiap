@@ -51,16 +51,17 @@ describe("mapAmazonReceiptState", () => {
   });
 
   test("maps expired subscription renewalDate to expired", () => {
-    vi.spyOn(Date, "now").mockReturnValue(2_000);
-
-    expect(
-      mapAmazonReceiptState({
-        productType: "SUBSCRIPTION",
-        renewalDate: 1_000,
-      }),
-    ).toBe(HarmonizedPurchaseState.EXPIRED);
-
-    vi.restoreAllMocks();
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(2_000);
+    try {
+      expect(
+        mapAmazonReceiptState({
+          productType: "SUBSCRIPTION",
+          renewalDate: 1_000,
+        }),
+      ).toBe(HarmonizedPurchaseState.EXPIRED);
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 
   test("falls back to unknown for unrecognized product types", () => {

@@ -1882,6 +1882,12 @@ export default function ProjectSettings() {
                           onChange={(e) =>
                             setAmazonSharedSecret(e.target.value)
                           }
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              void handleAmazonSubmit();
+                            }
+                          }}
                           className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary"
                         />
                       )}

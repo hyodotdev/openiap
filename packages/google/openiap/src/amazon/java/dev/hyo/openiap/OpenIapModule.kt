@@ -29,6 +29,7 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.lang.ref.WeakReference
+import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import com.amazon.device.iap.model.Product as AmazonProduct
 import com.amazon.device.iap.model.ProductType as AmazonProductType
@@ -370,9 +371,13 @@ class OpenIapModule(
         val options = it.iapkit ?: throw OpenIapError.DeveloperError(
             "Missing IAPKit verification parameters"
         )
-        val amazon = options.amazon ?: throw OpenIapError.DeveloperError(
-            "Amazon IAPKit verification requires amazon parameters"
-        )
+        val payloadCount = listOfNotNull(options.apple, options.google, options.amazon).size
+        val amazon = options.amazon
+        if (payloadCount != 1 || amazon == null) {
+            throw OpenIapError.DeveloperError(
+                "Amazon IAPKit verification requires exactly one amazon payload"
+            )
+        }
         val resolvedOptions = if (amazon.userId.isNullOrBlank()) {
             val userDataResponse = requestUserData()
             val userId = userDataResponse.userData?.userId
@@ -596,11 +601,13 @@ class OpenIapModule(
             shouldReset = false
             when (response.requestStatus) {
                 PurchaseUpdatesResponse.RequestStatus.SUCCESSFUL -> {
-                    purchases += response.receipts.orEmpty().map { receipt ->
-                        purchaseTypeByReceiptId[receipt.receiptId] = receipt.productType
-                        productTypeBySku[receipt.sku] = receipt.productType
-                        receipt.toPurchase()
-                    }
+                    purchases += response.receipts.orEmpty()
+                        .filter { !it.isCanceled }
+                        .map { receipt ->
+                            purchaseTypeByReceiptId[receipt.receiptId] = receipt.productType
+                            productTypeBySku[receipt.sku] = receipt.productType
+                            receipt.toPurchase()
+                        }
                 }
                 PurchaseUpdatesResponse.RequestStatus.NOT_SUPPORTED -> {
                     throw OpenIapError.FeatureNotSupported("Amazon Appstore IAP is not supported on this device")
@@ -626,13 +633,14 @@ class OpenIapModule(
         pending: ConcurrentHashMap<String, CompletableDeferred<T>>,
         earlyResponses: ConcurrentHashMap<String, T>
     ): T {
-        earlyResponses.remove(requestId)?.let { return it }
+        val earlyResponse = earlyResponses.remove(requestId)
+        if (earlyResponse != null) return earlyResponse
 
         val deferred = CompletableDeferred<T>()
         pending[requestId] = deferred
         earlyResponses.remove(requestId)?.let { response ->
             pending.remove(requestId)
-            if (!deferred.isCompleted) deferred.complete(response)
+            return response
         }
 
         return try {
@@ -641,7 +649,6 @@ class OpenIapModule(
             throw OpenIapError.ServiceTimeout("Amazon Appstore request timed out")
         } finally {
             pending.remove(requestId)
-            earlyResponses.remove(requestId)
         }
     }
 
@@ -683,10 +690,10 @@ class OpenIapModule(
     }
 
     private fun AmazonProduct.toSubscriptionProduct(): ProductSubscriptionAndroid {
-        val subscriptionPeriod = this.subscriptionPeriod
+        val subscriptionPeriod = this.subscriptionPeriod.toIsoBillingPeriod()
         val phase = PricingPhaseAndroid(
             billingCycleCount = 0,
-            billingPeriod = subscriptionPeriod.orEmpty(),
+            billingPeriod = subscriptionPeriod,
             formattedPrice = price.orEmpty(),
             priceAmountMicros = "0",
             priceCurrencyCode = "",
@@ -709,7 +716,7 @@ class OpenIapModule(
             offerTokenAndroid = "",
             paymentMode = PaymentMode.PayAsYouGo,
             period = null,
-            price = 0.0,
+            price = price.toPriceAmount(),
             pricingPhasesAndroid = phases,
             type = DiscountOfferType.Introductory
         )
@@ -728,6 +735,35 @@ class OpenIapModule(
             title = title.orEmpty(),
             type = ProductType.Subs
         )
+    }
+
+    private fun String?.toIsoBillingPeriod(): String {
+        val value = this?.trim().orEmpty()
+        if (value.isEmpty() || value.startsWith("P")) return value
+
+        return when (value.lowercase(Locale.ROOT)) {
+            "weekly", "week", "1 week" -> "P1W"
+            "monthly", "month", "1 month" -> "P1M"
+            "quarterly", "quarter", "3 months" -> "P3M"
+            "semiannual", "semiannually", "semi-annual", "semi-annually", "6 months" -> "P6M"
+            "annual", "annually", "yearly", "year", "1 year" -> "P1Y"
+            else -> value
+        }
+    }
+
+    private fun String?.toPriceAmount(): Double {
+        val value = this?.trim().orEmpty()
+        if (value.isEmpty()) return 0.0
+
+        val numeric = value.replace(Regex("[^0-9,.-]"), "")
+        if (numeric.isBlank()) return 0.0
+
+        val normalized = if (numeric.contains(',') && !numeric.contains('.')) {
+            numeric.replace(',', '.')
+        } else {
+            numeric.replace(",", "")
+        }
+        return normalized.toDoubleOrNull() ?: 0.0
     }
 
     private fun AmazonReceipt.toPurchase(): PurchaseAndroid {

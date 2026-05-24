@@ -35,7 +35,7 @@ export interface ReplayBucket {
   // returned `isValid: false`. Subsequent
   // requests for the exact same payload are short-circuited with
   // `REPEATED_FAILURE` until the cooldown expires — re-asking
-  // Apple / Google / Meta / Amazon about a receipt they already
+  // Apple / Google / Horizon / Amazon about a receipt they already
   // rejected, or retrying the same failed product-match guard, has
   // no chance of changing the answer in seconds. An attacker
   // replaying a captured-then-revoked receipt should hit a hard wall
@@ -194,7 +194,7 @@ export function tryConsumeReplay(
  * Mark the (key, payload) bucket as having just observed a failed
  * verification. Called from the middleware's finally block when the
  * handler explicitly set `verifyOutcome.isValid = false` — i.e. the
- * upstream store (Apple / Google / Meta) returned a definitive "this
+ * upstream store (Apple / Google / Horizon / Amazon) returned a definitive "this
  * receipt is invalid" verdict. Thrown errors from the handler (network
  * failures, configuration mistakes, project-not-found, etc.) do NOT
  * trigger the cooldown, since those aren't a verdict from the store

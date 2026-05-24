@@ -20,7 +20,7 @@ const AMAZON_RECEIPT_ID_MAX_LENGTH = 4_096;
 // Lower bounds — any real token from the respective store sits well
 // above these. A sub-threshold input is guaranteed garbage (empty
 // fragment, single char, "test", etc.) and can be rejected at the
-// edge so the quota counter and the upstream Apple / Google / Meta API
+// edge so the quota counter and the upstream Apple / Google / Horizon / Amazon API
 // aren't touched. Numbers are conservative: the shortest real Apple
 // JWS we've observed in production is ~600 chars; the shortest Google
 // purchaseToken ~30; Meta userIds are 15-20 digit numeric strings.

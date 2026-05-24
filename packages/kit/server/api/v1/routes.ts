@@ -365,6 +365,14 @@ const verifyPurchaseHandler = async (
   const setOutcome = (outcome: V1AppVariables["verifyOutcome"]) => {
     c.set("verifyOutcome", outcome);
   };
+  const sendReceiptResponse = (
+    store: VerifyPurchaseJson["store"],
+    receipt: { isValid: boolean; state: string; productId?: string },
+  ) => {
+    const outcome = { isValid: receipt.isValid, state: receipt.state };
+    setOutcome(outcome);
+    return c.json({ store, ...receipt });
+  };
 
   try {
     switch (json.store) {
@@ -379,8 +387,7 @@ const verifyPurchaseHandler = async (
           },
         );
 
-        setOutcome({ isValid: apple.isValid, state: apple.state });
-        return c.json(apple);
+        return sendReceiptResponse("apple", apple);
       }
       case "google": {
         const google = await client.action(
@@ -393,8 +400,7 @@ const verifyPurchaseHandler = async (
           },
         );
 
-        setOutcome({ isValid: google.isValid, state: google.state });
-        return c.json(google);
+        return sendReceiptResponse("google", google);
       }
       case "horizon": {
         // Meta Horizon (Quest): the client doesn't hold a
@@ -412,8 +418,7 @@ const verifyPurchaseHandler = async (
           },
         );
 
-        setOutcome({ isValid: horizon.isValid, state: horizon.state });
-        return c.json(horizon);
+        return sendReceiptResponse("horizon", horizon);
       }
       case "amazon": {
         const amazon = await client.action(
@@ -427,8 +432,7 @@ const verifyPurchaseHandler = async (
           },
         );
 
-        setOutcome({ isValid: amazon.isValid, state: amazon.state });
-        return c.json(amazon);
+        return sendReceiptResponse("amazon", amazon);
       }
     }
   } catch (error) {

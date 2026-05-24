@@ -115,6 +115,7 @@ export default function ApiReferencePage() {
       <h2 className="mt-10 text-2xl font-semibold">Success response</h2>
       <CodeBlock title="200 OK" language="json">
         {`{
+  "store": "amazon",
   "isValid": true,
   "state": "ENTITLED",
   "productId": "premium_monthly"
@@ -245,7 +246,7 @@ export default function ApiReferencePage() {
             <tr>
               <td className="px-3 py-2 font-mono text-xs">200</td>
               <td className="px-3 py-2">
-                <code>{`{ isValid, state, productId? }`}</code>
+                <code>{`{ store, isValid, state, productId? }`}</code>
               </td>
               <td className="px-3 py-2">Verification completed.</td>
             </tr>

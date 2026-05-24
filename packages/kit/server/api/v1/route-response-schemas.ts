@@ -47,7 +47,7 @@ const unifiedPurchaseStates = [
   },
   {
     name: "INAUTHENTIC",
-    description: "Purchase not found in App Store / Google Play.",
+    description: "Purchase not found in the upstream store.",
   },
 ] as const;
 
@@ -57,7 +57,15 @@ const unifiedPurchaseStateSchema = v.union(
   ),
 );
 
+const verifyStoreSchema = v.union([
+  v.literal("apple"),
+  v.literal("google"),
+  v.literal("horizon"),
+  v.literal("amazon"),
+]);
+
 const baseReceiptResponseSchema = v.object({
+  store: verifyStoreSchema,
   isValid: v.boolean(),
   state: unifiedPurchaseStateSchema,
   productId: v.optional(

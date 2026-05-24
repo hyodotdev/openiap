@@ -415,6 +415,30 @@ describe('Amazon Vega Expo adapter', () => {
     }
   });
 
+  it('rejects mixed IAPKit payloads on the Amazon Vega adapter', async () => {
+    const service = createService();
+    const module = createExpoIapVegaModule(service);
+
+    await expect(
+      module.verifyPurchaseWithProvider({
+        provider: 'iapkit',
+        iapkit: {
+          amazon: {
+            userId: 'amazon-user',
+            receiptId: 'receipt-vega-1',
+          },
+          google: {
+            purchaseToken: 'google-token',
+          },
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: ErrorCode.DeveloperError,
+      message:
+        'Amazon Vega IAPKit verification requires exactly one amazon payload.',
+    });
+  });
+
   it('wraps non-JSON IAPKit failures as receipt errors', async () => {
     const service = createService();
     const originalFetch = globalThis.fetch;
@@ -440,6 +464,44 @@ describe('Amazon Vega Expo adapter', () => {
       ).rejects.toMatchObject({
         code: ErrorCode.ReceiptFailed,
         message: 'HTTP 502',
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('extracts nested JSON IAPKit failure messages', async () => {
+    const service = createService();
+    const originalFetch = globalThis.fetch;
+    const fetchMock = jest.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        Response.json(
+          {
+            message: JSON.stringify({
+              error: 'receipt no longer valid',
+            }),
+          },
+          {status: 400},
+        ),
+    ) as unknown as jest.MockedFunction<typeof fetch>;
+    globalThis.fetch = fetchMock;
+
+    try {
+      const module = createExpoIapVegaModule(service);
+
+      await expect(
+        module.verifyPurchaseWithProvider({
+          provider: 'iapkit',
+          iapkit: {
+            amazon: {
+              userId: 'amazon-user',
+              receiptId: 'receipt-vega-1',
+            },
+          },
+        }),
+      ).rejects.toMatchObject({
+        code: ErrorCode.ReceiptFailed,
+        message: 'receipt no longer valid',
       });
     } finally {
       globalThis.fetch = originalFetch;
@@ -477,6 +539,153 @@ describe('Amazon Vega Expo adapter', () => {
     }
   });
 
+  it('treats successful IAPKit error payloads as receipt errors', async () => {
+    const service = createService();
+    const originalFetch = globalThis.fetch;
+    const fetchMock = jest.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        Response.json(
+          {
+            errors: [
+              {
+                code: 'BAD_RECEIPT',
+                message: 'bad receipt',
+              },
+            ],
+          },
+          {status: 200},
+        ),
+    ) as unknown as jest.MockedFunction<typeof fetch>;
+    globalThis.fetch = fetchMock;
+
+    try {
+      const module = createExpoIapVegaModule(service);
+
+      await expect(
+        module.verifyPurchaseWithProvider({
+          provider: 'iapkit',
+          iapkit: {
+            amazon: {
+              userId: 'amazon-user',
+              receiptId: 'receipt-vega-1',
+            },
+          },
+        }),
+      ).rejects.toMatchObject({
+        code: ErrorCode.ReceiptFailed,
+        message: 'bad receipt',
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('rejects malformed successful IAPKit payloads', async () => {
+    const service = createService();
+    const originalFetch = globalThis.fetch;
+    const fetchMock = jest.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        Response.json(['not', 'an', 'object'], {status: 200}),
+    ) as unknown as jest.MockedFunction<typeof fetch>;
+    globalThis.fetch = fetchMock;
+
+    try {
+      const module = createExpoIapVegaModule(service);
+
+      await expect(
+        module.verifyPurchaseWithProvider({
+          provider: 'iapkit',
+          iapkit: {
+            amazon: {
+              userId: 'amazon-user',
+              receiptId: 'receipt-vega-1',
+            },
+          },
+        }),
+      ).rejects.toMatchObject({
+        code: ErrorCode.ReceiptFailed,
+        message: 'IAPKit returned malformed response (HTTP 200).',
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('rejects successful IAPKit payloads missing required fields', async () => {
+    const service = createService();
+    const originalFetch = globalThis.fetch;
+    const fetchMock = jest.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        Response.json(
+          {
+            state: 'ENTITLED',
+            store: 'amazon',
+          },
+          {status: 200},
+        ),
+    ) as unknown as jest.MockedFunction<typeof fetch>;
+    globalThis.fetch = fetchMock;
+
+    try {
+      const module = createExpoIapVegaModule(service);
+
+      await expect(
+        module.verifyPurchaseWithProvider({
+          provider: 'iapkit',
+          iapkit: {
+            amazon: {
+              userId: 'amazon-user',
+              receiptId: 'receipt-vega-1',
+            },
+          },
+        }),
+      ).rejects.toMatchObject({
+        code: ErrorCode.ReceiptFailed,
+        message: 'IAPKit returned malformed response (HTTP 200).',
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('rejects successful IAPKit payloads for another store', async () => {
+    const service = createService();
+    const originalFetch = globalThis.fetch;
+    const fetchMock = jest.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        Response.json(
+          {
+            isValid: true,
+            state: 'ENTITLED',
+            store: 'apple',
+          },
+          {status: 200},
+        ),
+    ) as unknown as jest.MockedFunction<typeof fetch>;
+    globalThis.fetch = fetchMock;
+
+    try {
+      const module = createExpoIapVegaModule(service);
+
+      await expect(
+        module.verifyPurchaseWithProvider({
+          provider: 'iapkit',
+          iapkit: {
+            amazon: {
+              userId: 'amazon-user',
+              receiptId: 'receipt-vega-1',
+            },
+          },
+        }),
+      ).rejects.toMatchObject({
+        code: ErrorCode.ReceiptFailed,
+        message: 'IAPKit returned malformed response (HTTP 200).',
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   it('wraps IAPKit network failures as network errors', async () => {
     const service = createService();
     const originalFetch = globalThis.fetch;
@@ -501,6 +710,40 @@ describe('Amazon Vega Expo adapter', () => {
       ).rejects.toMatchObject({
         code: ErrorCode.NetworkError,
         message: 'network offline',
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('wraps IAPKit response body read failures as network errors', async () => {
+    const service = createService();
+    const originalFetch = globalThis.fetch;
+    const fetchMock = jest.fn(async () => ({
+      ok: true,
+      status: 200,
+      text: async () => {
+        throw new TypeError('body stream failed');
+      },
+    })) as unknown as jest.MockedFunction<typeof fetch>;
+    globalThis.fetch = fetchMock;
+
+    try {
+      const module = createExpoIapVegaModule(service);
+
+      await expect(
+        module.verifyPurchaseWithProvider({
+          provider: 'iapkit',
+          iapkit: {
+            amazon: {
+              userId: 'amazon-user',
+              receiptId: 'receipt-vega-1',
+            },
+          },
+        }),
+      ).rejects.toMatchObject({
+        code: ErrorCode.NetworkError,
+        message: 'body stream failed',
       });
     } finally {
       globalThis.fetch = originalFetch;

@@ -57,7 +57,7 @@ function buildApp(params: {
         return params.handler(c);
       }
       c.set("verifyOutcome", { isValid: true, state: "ENTITLED" });
-      return c.json({ isValid: true, state: "ENTITLED" });
+      return c.json({ store: "apple", isValid: true, state: "ENTITLED" });
     },
   );
   return app;
@@ -124,7 +124,10 @@ describe("requestLoggerMiddleware", () => {
       logs,
       handler: (c) => {
         c.set("verifyOutcome", { isValid: false, state: "INAUTHENTIC" });
-        return c.json({ isValid: false, state: "INAUTHENTIC" }, 500);
+        return c.json(
+          { store: "google", isValid: false, state: "INAUTHENTIC" },
+          500,
+        );
       },
     });
 
@@ -230,7 +233,7 @@ describe("requestLoggerMiddleware", () => {
       validator(verifyPurchaseInputSchema),
       (c) => {
         c.set("verifyOutcome", { isValid: true, state: "ENTITLED" });
-        return c.json({ isValid: true, state: "ENTITLED" });
+        return c.json({ store: "apple", isValid: true, state: "ENTITLED" });
       },
     );
 

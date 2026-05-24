@@ -124,7 +124,7 @@ export default function QuickstartPage() {
       </h2>
       <p>
         From your app, send the receipt to IAPKit. Here's the raw HTTP shape for
-        each of the three stores:
+        each supported store:
       </p>
 
       <CodeBlock title="Apple App Store" language="bash">
@@ -175,6 +175,7 @@ export default function QuickstartPage() {
       <p>Expected response:</p>
       <CodeBlock title="200 OK" language="json">
         {`{
+  "store": "amazon",
   "isValid": true,
   "state": "ENTITLED",
   "productId": "premium_monthly"

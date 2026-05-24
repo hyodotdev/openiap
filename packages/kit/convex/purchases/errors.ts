@@ -86,11 +86,11 @@ export class AmazonReceiptInvalidError extends ReceiptVerificationError {
 }
 
 export class AmazonReceiptVerificationError extends ReceiptVerificationError {
-  constructor(detail: string) {
+  constructor(detail: string, details?: Record<string, any>) {
     super(
       "AMAZON_RECEIPT_VERIFICATION_ERROR",
       `Amazon RVS verification failed: ${detail}`,
-      { originalError: detail },
+      { originalError: detail, ...details },
     );
   }
 }

@@ -17,6 +17,8 @@ type ResponseOperation =
   | 'user-data'
   | 'notify-fulfillment';
 
+const IAPKIT_VERIFY_TIMEOUT_MS = 10_000;
+
 type VegaListener = (payload: any) => void;
 
 interface VegaPurchaseErrorPayload {
@@ -500,7 +502,11 @@ export function createExpoIapVegaModule(
     const receipts = await getPurchaseUpdateReceipts();
     await hydrateProductTypesForReceipts(receipts);
     return receipts
-      .filter((receipt) => includeSuspended || !receipt.isDeferred)
+      .filter((receipt) => {
+        const isCanceled = Boolean(receipt.isCancelled || receipt.cancelDate);
+        if (isCanceled) return false;
+        return includeSuspended || !receipt.isDeferred;
+      })
       .map((receipt) =>
         mapReceipt(receipt, getCachedProductType(receipt, productTypesBySku)),
       );
@@ -552,19 +558,23 @@ export function createExpoIapVegaModule(
     function extractIapkitErrorMessage(json: unknown): string | null {
       if (!json || typeof json !== 'object') return null;
       const record = json as Record<string, unknown>;
+      function extractStringMessage(value: string): string {
+        try {
+          const parsed = JSON.parse(value);
+          return parsed && typeof parsed === 'object'
+            ? (extractIapkitErrorMessage(parsed) ?? value)
+            : value;
+        } catch {
+          return value;
+        }
+      }
+
       const details = record.details;
       if (details && typeof details === 'object') {
         const originalError = (details as Record<string, unknown>)
           .originalError;
         if (typeof originalError === 'string') {
-          try {
-            return (
-              extractIapkitErrorMessage(JSON.parse(originalError)) ??
-              originalError
-            );
-          } catch {
-            return originalError;
-          }
+          return extractStringMessage(originalError);
         }
       }
 
@@ -573,11 +583,13 @@ export function createExpoIapVegaModule(
         return extractIapkitErrorMessage(errors[0]);
       }
 
-      return typeof record.message === 'string'
-        ? record.message
-        : typeof record.error === 'string'
-          ? record.error
-          : null;
+      if (typeof record.message === 'string') {
+        return extractStringMessage(record.message);
+      }
+      if (typeof record.error === 'string') {
+        return extractStringMessage(record.error);
+      }
+      return null;
     }
 
     function parseIapkitJsonResponse(text: string): unknown | null {
@@ -589,6 +601,42 @@ export function createExpoIapVegaModule(
       }
     }
 
+    function isIapkitResultObject(
+      json: unknown,
+    ): json is Record<string, unknown> {
+      return Boolean(json) && typeof json === 'object' && !Array.isArray(json);
+    }
+
+    function hasIapkitErrors(json: unknown): boolean {
+      if (!isIapkitResultObject(json)) return false;
+      const errors = json.errors;
+      return Array.isArray(errors) && errors.length > 0;
+    }
+
+    function readIapkitResult(
+      json: Record<string, unknown>,
+      status: number,
+    ): {
+      isValid: boolean;
+      state: IapkitPurchaseState;
+    } {
+      if (
+        typeof json.isValid !== 'boolean' ||
+        typeof json.state !== 'string' ||
+        json.store !== 'amazon'
+      ) {
+        throw createVegaError(
+          ErrorCode.ReceiptFailed,
+          `IAPKit returned malformed response (HTTP ${status}).`,
+        );
+      }
+
+      return {
+        isValid: json.isValid,
+        state: normalizeIapkitState(json.state),
+      };
+    }
+
     if (options.provider !== 'iapkit') {
       throw createVegaError(
         ErrorCode.FeatureNotSupported,
@@ -597,15 +645,20 @@ export function createExpoIapVegaModule(
     }
 
     const iapkit = options.iapkit;
+    const payloadCount =
+      Number(Boolean(iapkit?.amazon)) +
+      Number(Boolean(iapkit?.apple)) +
+      Number(Boolean(iapkit?.google));
     const amazon = iapkit?.amazon;
-    if (!amazon) {
+    if (payloadCount !== 1 || !amazon) {
       throw createVegaError(
         ErrorCode.DeveloperError,
-        'Amazon Vega IAPKit verification requires amazon parameters.',
+        'Amazon Vega IAPKit verification requires exactly one amazon payload.',
       );
     }
 
-    const receiptId = amazon.receiptId.trim();
+    const receiptId =
+      typeof amazon.receiptId === 'string' ? amazon.receiptId.trim() : '';
     if (!receiptId) {
       throw createVegaError(
         ErrorCode.DeveloperError,
@@ -613,7 +666,7 @@ export function createExpoIapVegaModule(
       );
     }
 
-    let userId = amazon.userId?.trim() ?? '';
+    let userId = typeof amazon.userId === 'string' ? amazon.userId.trim() : '';
     if (!userId) {
       const response = await service.getUserData({});
       ensureSuccessful(
@@ -631,15 +684,20 @@ export function createExpoIapVegaModule(
       );
     }
 
+    const apiKey =
+      typeof iapkit?.apiKey === 'string' ? iapkit.apiKey.trim() : '';
     let response: Response;
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(
+        () => controller.abort(),
+        IAPKIT_VERIFY_TIMEOUT_MS,
+      );
       response = await fetch(IAPKIT_VERIFY_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(iapkit?.apiKey
-            ? {Authorization: `Bearer ${iapkit.apiKey}`}
-            : {}),
+          ...(apiKey ? {Authorization: `Bearer ${apiKey}`} : {}),
         },
         body: JSON.stringify({
           store: 'amazon',
@@ -647,7 +705,8 @@ export function createExpoIapVegaModule(
           receiptId,
           ...(amazon.sandbox == null ? {} : {sandbox: amazon.sandbox}),
         }),
-      });
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeout));
     } catch (error) {
       throw createVegaError(
         ErrorCode.NetworkError,
@@ -656,7 +715,17 @@ export function createExpoIapVegaModule(
           : 'Failed to reach IAPKit verification endpoint.',
       );
     }
-    const text = await response.text();
+    let text: string;
+    try {
+      text = await response.text();
+    } catch (error) {
+      throw createVegaError(
+        ErrorCode.NetworkError,
+        error instanceof Error
+          ? error.message
+          : 'Failed to read IAPKit verification response.',
+      );
+    }
     const json = parseIapkitJsonResponse(text);
 
     if (!response.ok) {
@@ -673,16 +742,26 @@ export function createExpoIapVegaModule(
       );
     }
 
-    const result = json as {
-      isValid?: unknown;
-      state?: unknown;
-      store?: unknown;
-    };
+    if (!isIapkitResultObject(json)) {
+      throw createVegaError(
+        ErrorCode.ReceiptFailed,
+        `IAPKit returned malformed response (HTTP ${response.status}).`,
+      );
+    }
+
+    if (hasIapkitErrors(json)) {
+      throw createVegaError(
+        ErrorCode.ReceiptFailed,
+        extractIapkitErrorMessage(json) ?? 'IAPKit verification failed.',
+      );
+    }
+
+    const result = readIapkitResult(json, response.status);
     return {
       provider: 'iapkit',
       iapkit: {
-        isValid: result.isValid === true,
-        state: normalizeIapkitState(result.state),
+        isValid: result.isValid,
+        state: result.state,
         store: 'amazon',
       },
     };

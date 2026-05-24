@@ -25,6 +25,7 @@ import {
 const AMAZON_RVS_BASE_URL = "https://appstore-sdk.amazon.com";
 const AMAZON_RVS_VERSION = "1.0";
 const AMAZON_SANDBOX_SHARED_SECRET = "iapkit-sandbox";
+const AMAZON_RVS_FETCH_TIMEOUT_MS = 10_000;
 
 export interface AmazonReceiptData {
   autoRenewing?: boolean;
@@ -43,9 +44,20 @@ export interface AmazonReceiptData {
 }
 
 function describeError(error: unknown): string {
+  if (error instanceof ReceiptVerificationError) {
+    return error.errorMessage;
+  }
   const status = (error as { code?: unknown })?.code;
   const type = error instanceof Error ? error.name : typeof error;
   return typeof status === "number" ? `${type} ${status}` : type;
+}
+
+function isAbortError(error: unknown): boolean {
+  return (
+    error !== null &&
+    typeof error === "object" &&
+    (error as { name?: unknown }).name === "AbortError"
+  );
 }
 
 function encodePathSegment(value: string): string {
@@ -116,6 +128,29 @@ export function parseAmazonReceiptResponse(raw: unknown): AmazonReceiptData {
   return raw;
 }
 
+function parseAmazonJsonBody(bodyText: string): unknown {
+  const trimmed = bodyText.trim();
+  if (!trimmed) {
+    throw new AmazonReceiptVerificationError(
+      "Amazon RVS returned an empty body.",
+      { responseBody: "" },
+    );
+  }
+
+  try {
+    return JSON.parse(trimmed) as unknown;
+  } catch (error) {
+    throw new AmazonReceiptVerificationError(
+      "Amazon RVS returned invalid JSON.",
+      {
+        parseError:
+          error instanceof Error ? error.message : describeError(error),
+        responseBody: bodyText.slice(0, 2_048),
+      },
+    );
+  }
+}
+
 export const verifyAmazonReceiptInternalV1 = action({
   args: {
     apiKey: v.string(),
@@ -154,14 +189,44 @@ export const verifyAmazonReceiptInternalV1 = action({
       sandbox,
     });
 
+    const saveFailedReceipt = async (failure: {
+      error: string;
+      message: string;
+      details?: unknown;
+      state?: HarmonizedPurchaseState;
+    }) => {
+      await ctx.runMutation(internal.purchases.internal.saveReceiptInternal, {
+        projectId: project._id,
+        store: "amazon",
+        applicationId,
+        remoteId,
+        requestData,
+        remoteResponse: JSON.stringify({
+          error: failure.error,
+          message: failure.message,
+          details: failure.details ?? null,
+        }),
+        state: failure.state ?? HarmonizedPurchaseState.UNKNOWN,
+        isValid: false,
+        requestIp: args.requestIp,
+        verificationDurationMs: Date.now() - verificationStart,
+      });
+    };
+
     let parsedBody: unknown;
     try {
       parsedBody = await retryOnTransient(
         async () => {
+          const controller = new AbortController();
+          const timeout = setTimeout(
+            () => controller.abort(),
+            AMAZON_RVS_FETCH_TIMEOUT_MS,
+          );
           const res = await fetch(url, {
             method: "GET",
             headers: { Accept: "application/json" },
-          });
+            signal: controller.signal,
+          }).finally(() => clearTimeout(timeout));
           const bodyText = await res.text().catch(() => "");
 
           if (res.status === 400 || res.status === 497) {
@@ -188,11 +253,13 @@ export const verifyAmazonReceiptInternalV1 = action({
             throw err;
           }
 
-          return bodyText ? (JSON.parse(bodyText) as unknown) : {};
+          return parseAmazonJsonBody(bodyText);
         },
         {
           shouldRetry: (error) =>
-            extractHttpStatus(error) === 429 || isTransientHttpError(error),
+            isAbortError(error) ||
+            extractHttpStatus(error) === 429 ||
+            isTransientHttpError(error),
         },
       );
     } catch (error) {
@@ -201,47 +268,49 @@ export const verifyAmazonReceiptInternalV1 = action({
           error.errorDetails?.status === 410
             ? HarmonizedPurchaseState.CANCELED
             : HarmonizedPurchaseState.INAUTHENTIC;
-        await ctx.runMutation(internal.purchases.internal.saveReceiptInternal, {
-          projectId: project._id,
-          store: "amazon",
-          applicationId,
-          remoteId,
-          requestData,
-          remoteResponse: JSON.stringify({
-            error: error.errorCode,
-            message: error.errorMessage,
-            details: error.errorDetails ?? null,
-          }),
+        await saveFailedReceipt({
+          error: error.errorCode,
+          message: error.errorMessage,
+          details: error.errorDetails ?? null,
           state,
-          isValid: false,
-          requestIp: args.requestIp,
-          verificationDurationMs: Date.now() - verificationStart,
         });
         return { isValid: false, state };
       }
 
       const message = describeError(error);
-      await ctx.runMutation(internal.purchases.internal.saveReceiptInternal, {
-        projectId: project._id,
-        store: "amazon",
-        applicationId,
-        remoteId,
-        requestData,
-        remoteResponse: JSON.stringify({
-          error: "AMAZON_RECEIPT_VERIFICATION_ERROR",
-          message,
-        }),
-        state: HarmonizedPurchaseState.UNKNOWN,
-        isValid: false,
-        requestIp: args.requestIp,
-        verificationDurationMs: Date.now() - verificationStart,
+      await saveFailedReceipt({
+        error:
+          error instanceof ReceiptVerificationError
+            ? error.errorCode
+            : "AMAZON_RECEIPT_VERIFICATION_ERROR",
+        message,
+        details:
+          error instanceof ReceiptVerificationError
+            ? error.errorDetails
+            : undefined,
       });
       throw new AmazonReceiptVerificationError(message);
     }
 
-    const receiptData = parseAmazonReceiptResponse(parsedBody);
-    const state = mapAmazonReceiptState(receiptData);
-    const remoteResponse = JSON.stringify(receiptData);
+    let receiptData: AmazonReceiptData;
+    let state: HarmonizedPurchaseState;
+    let remoteResponse: string;
+    try {
+      receiptData = parseAmazonReceiptResponse(parsedBody);
+      state = mapAmazonReceiptState(receiptData);
+      remoteResponse = JSON.stringify(receiptData);
+    } catch (error) {
+      const message = describeError(error);
+      await saveFailedReceipt({
+        error: "AMAZON_RECEIPT_PARSE_ERROR",
+        message,
+        details: {
+          rawResponse: parsedBody,
+          stack: error instanceof Error ? error.stack : undefined,
+        },
+      });
+      throw new AmazonReceiptVerificationError(message);
+    }
 
     await ctx.runMutation(internal.purchases.internal.saveReceiptInternal, {
       projectId: project._id,
