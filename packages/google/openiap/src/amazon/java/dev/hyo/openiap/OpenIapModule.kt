@@ -83,8 +83,6 @@ class OpenIapModule(
     private fun ensureRegistered() {
         if (isRegistered) return
         PurchasingService.registerListener(context.applicationContext, this)
-        runCatching { PurchasingService.enablePendingPurchases() }
-            .onFailure { OpenIapLog.w("Amazon pending purchases unavailable: ${it.message}", TAG) }
         isRegistered = true
     }
 
@@ -749,6 +747,7 @@ class OpenIapModule(
 
         return when (value.lowercase(Locale.ROOT)) {
             "weekly", "week", "1 week" -> "P1W"
+            "biweekly", "bi-weekly", "bi weekly", "2 week", "2 weeks" -> "P2W"
             "monthly", "month", "1 month" -> "P1M"
             "bi-monthly", "bimonthly", "2 month", "2 months" -> "P2M"
             "quarterly", "quarter", "3 months" -> "P3M"
