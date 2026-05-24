@@ -38,13 +38,14 @@ import com.amazon.device.iap.model.Receipt as AmazonReceipt
 private const val TAG = "OpenIapAmazon"
 private const val AMAZON_REQUEST_TIMEOUT_MS = 60_000L
 private const val AMAZON_PRODUCT_DATA_BATCH_SIZE = 100
+private const val AMAZON_PURCHASE_UPDATES_MAX_PAGES = 100
 
 /**
  * OpenIapModule for Amazon Appstore SDK IAP.
  *
  * Amazon's native IAP API is listener based instead of connection based. The
- * OpenIAP connection lifecycle registers the listener and enables pending
- * purchases, while individual API calls await the matching RequestId callback.
+ * OpenIAP connection lifecycle registers the listener, while individual API
+ * calls await the matching RequestId callback.
  */
 class OpenIapModule(
     private val context: Context,
@@ -228,23 +229,27 @@ class OpenIapModule(
             ensureRegistered()
             val androidArgs = props.toAndroidPurchaseArgs()
             if (androidArgs.skus.isEmpty()) {
-                emitPurchaseError(OpenIapError.EmptySkuList)
-                return@withContext emptyList()
+                emitPurchaseErrorAndThrow(OpenIapError.EmptySkuList)
             }
             if (androidArgs.skus.size != 1) {
-                emitPurchaseError(
+                emitPurchaseErrorAndThrow(
                     OpenIapError.DeveloperError("Amazon Appstore SDK purchases one SKU at a time")
                 )
-                return@withContext emptyList()
             }
 
             val sku = androidArgs.skus.first()
-            val response = requestAmazonPurchase(sku)
+            val response = runCatching { requestAmazonPurchase(sku) }
+                .getOrElse { error ->
+                    emitPurchaseErrorAndThrow(
+                        error.toOpenIapError("Amazon purchase request failed")
+                    )
+                }
             when (response.requestStatus) {
                 PurchaseResponse.RequestStatus.SUCCESSFUL -> {
                     val receipt = response.receipt ?: run {
-                        emitPurchaseError(OpenIapError.PurchaseFailed("Amazon purchase response did not include a receipt"))
-                        return@withContext emptyList()
+                        emitPurchaseErrorAndThrow(
+                            OpenIapError.PurchaseFailed("Amazon purchase response did not include a receipt")
+                        )
                     }
                     val purchase = receipt.toPurchase()
                     purchaseTypeByReceiptId[receipt.receiptId] = receipt.productType
@@ -256,28 +261,23 @@ class OpenIapModule(
                 }
                 PurchaseResponse.RequestStatus.ALREADY_PURCHASED -> {
                     val error = OpenIapError.ItemAlreadyOwned("Amazon reported the item is already purchased")
-                    emitPurchaseError(error)
-                    emptyList()
+                    emitPurchaseErrorAndThrow(error)
                 }
                 PurchaseResponse.RequestStatus.INVALID_SKU -> {
                     val error = OpenIapError.SkuNotFound(sku)
-                    emitPurchaseError(error)
-                    emptyList()
+                    emitPurchaseErrorAndThrow(error)
                 }
                 PurchaseResponse.RequestStatus.NOT_SUPPORTED -> {
                     val error = OpenIapError.FeatureNotSupported("Amazon Appstore IAP is not supported on this device")
-                    emitPurchaseError(error)
-                    emptyList()
+                    emitPurchaseErrorAndThrow(error)
                 }
                 PurchaseResponse.RequestStatus.PENDING -> {
                     val error = OpenIapError.PurchaseDeferred
-                    emitPurchaseError(error)
-                    emptyList()
+                    emitPurchaseErrorAndThrow(error)
                 }
                 PurchaseResponse.RequestStatus.FAILED -> {
                     val error = OpenIapError.UserCancelled("Amazon purchase failed or was cancelled")
-                    emitPurchaseError(error)
-                    emptyList()
+                    emitPurchaseErrorAndThrow(error)
                 }
             }
         }
@@ -549,6 +549,11 @@ class OpenIapModule(
         }
     }
 
+    private fun emitPurchaseErrorAndThrow(error: OpenIapError): Nothing {
+        emitPurchaseError(error)
+        throw error
+    }
+
     private suspend fun requestUserData(): UserDataResponse {
         val requestId = withContext(Dispatchers.Main) {
             ensureRegistered()
@@ -568,7 +573,14 @@ class OpenIapModule(
     private suspend fun requestAmazonPurchase(sku: String): PurchaseResponse {
         val requestId = withContext(Dispatchers.Main) {
             ensureRegistered()
-            PurchasingService.purchase(sku).toString()
+            val request = runCatching { PurchasingService.purchase(sku) }
+                .getOrElse { error ->
+                    throw error.toOpenIapError("Amazon purchase request failed")
+                }
+            if (request == null) {
+                throw OpenIapError.PurchaseFailed("Amazon purchase request did not return a requestId")
+            }
+            request.toString()
         }
         return awaitAmazonResponse(requestId, purchaseRequests, earlyPurchaseResponses)
     }
@@ -576,13 +588,19 @@ class OpenIapModule(
     private suspend fun requestPurchaseUpdates(reset: Boolean): List<Purchase> {
         val purchases = mutableListOf<Purchase>()
         var shouldReset = reset
+        var pageCount = 0
         do {
+            if (pageCount >= AMAZON_PURCHASE_UPDATES_MAX_PAGES) {
+                OpenIapLog.w("Amazon purchase updates exceeded pagination limit", TAG)
+                break
+            }
+            pageCount += 1
             val response = awaitPurchaseUpdates(shouldReset)
             shouldReset = false
             when (response.requestStatus) {
                 PurchaseUpdatesResponse.RequestStatus.SUCCESSFUL -> {
                     purchases += response.receipts.orEmpty()
-                        .filter { !it.isCanceled }
+                        .filter { it.cancelDate == null }
                         .map { receipt ->
                             purchaseTypeByReceiptId[receipt.receiptId] = receipt.productType
                             productTypeBySku[receipt.sku] = receipt.productType
@@ -598,6 +616,11 @@ class OpenIapModule(
             }
         } while (response.hasMore())
         return purchases
+    }
+
+    private fun Throwable.toOpenIapError(defaultMessage: String): OpenIapError {
+        return this as? OpenIapError
+            ?: OpenIapError.PurchaseFailed("$defaultMessage: ${message ?: javaClass.simpleName}")
     }
 
     private suspend fun awaitPurchaseUpdates(reset: Boolean): PurchaseUpdatesResponse {
@@ -686,7 +709,7 @@ class OpenIapModule(
             id = sku,
             nameAndroid = title.orEmpty(),
             platform = IapPlatform.Android,
-            price = null,
+            price = price.toPriceAmount(),
             productStatusAndroid = ProductStatusAndroid.Ok,
             title = title.orEmpty(),
             type = ProductType.InApp
@@ -695,6 +718,7 @@ class OpenIapModule(
 
     private fun AmazonProduct.toSubscriptionProduct(): ProductSubscriptionAndroid {
         val subscriptionPeriod = this.subscriptionPeriod.toIsoBillingPeriod()
+        val priceAmount = price.toPriceAmount()
         val phase = PricingPhaseAndroid(
             billingCycleCount = 0,
             billingPeriod = subscriptionPeriod,
@@ -720,7 +744,7 @@ class OpenIapModule(
             offerTokenAndroid = "",
             paymentMode = PaymentMode.PayAsYouGo,
             period = null,
-            price = price.toPriceAmount(),
+            price = priceAmount,
             pricingPhasesAndroid = phases,
             type = DiscountOfferType.Introductory
         )
@@ -732,7 +756,7 @@ class OpenIapModule(
             id = sku,
             nameAndroid = title.orEmpty(),
             platform = IapPlatform.Android,
-            price = null,
+            price = priceAmount,
             productStatusAndroid = ProductStatusAndroid.Ok,
             subscriptionOfferDetailsAndroid = listOf(legacyOffer),
             subscriptionOffers = listOf(standardizedOffer),
@@ -767,7 +791,10 @@ class OpenIapModule(
         val lastDot = numeric.lastIndexOf('.')
         val lastComma = numeric.lastIndexOf(',')
         val decimalIndex = maxOf(lastDot, lastComma)
-        val normalized = if (decimalIndex >= 0) {
+        val hasMixedSeparators = lastDot >= 0 && lastComma >= 0
+        val fractionLength = if (decimalIndex >= 0) numeric.length - decimalIndex - 1 else 0
+        val hasDecimalSeparator = decimalIndex >= 0 && (hasMixedSeparators || fractionLength in 1..2)
+        val normalized = if (hasDecimalSeparator) {
             val integerPart = numeric.substring(0, decimalIndex).replace(Regex("[^0-9-]"), "")
             val fractionPart = numeric.substring(decimalIndex + 1).replace(Regex("[^0-9]"), "")
             "$integerPart.$fractionPart"
@@ -780,6 +807,7 @@ class OpenIapModule(
     private fun AmazonReceipt.toPurchase(): PurchaseAndroid {
         val isSubscription = productType == AmazonProductType.SUBSCRIPTION
         val dateMillis = purchaseDate?.time?.toDouble() ?: 0.0
+        val isCanceled = cancelDate != null
         val state = if (isCanceled) PurchaseState.Unknown else PurchaseState.Purchased
         return PurchaseAndroid(
             autoRenewingAndroid = isSubscription && !isCanceled,
@@ -798,7 +826,8 @@ class OpenIapModule(
             signatureAndroid = null,
             store = IapStore.Amazon,
             transactionDate = dateMillis,
-            transactionId = receiptId
+            transactionId = receiptId,
+            isSuspendedAndroid = false
         )
     }
 
