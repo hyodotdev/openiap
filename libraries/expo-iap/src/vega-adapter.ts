@@ -131,7 +131,26 @@ const PRODUCT_TYPE_SUBSCRIPTION = 3;
 const FULFILLMENT_RESULT_FULFILLED = 1;
 const RESPONSE_SUCCESS = 1;
 const PURCHASE_RESPONSE_SUCCESS = 0;
-const IAPKIT_VERIFY_URL = 'https://kit.openiap.dev/v1/purchase/verify';
+const IAPKIT_DEFAULT_BASE_URL = 'https://kit.openiap.dev';
+const IAPKIT_VERIFY_PATH = '/v1/purchase/verify';
+
+type IapkitEndpointOptions = NonNullable<
+  VerifyPurchaseWithProviderProps['iapkit']
+> & {
+  baseUrl?: string | null;
+};
+
+function iapkitVerifyUrl(
+  iapkit: VerifyPurchaseWithProviderProps['iapkit'],
+): string {
+  const endpointOptions = iapkit as IapkitEndpointOptions | null | undefined;
+  const baseUrl =
+    typeof endpointOptions?.baseUrl === 'string' &&
+    endpointOptions.baseUrl.trim().length > 0
+      ? endpointOptions.baseUrl.trim()
+      : IAPKIT_DEFAULT_BASE_URL;
+  return `${baseUrl.replace(/\/+$/, '')}${IAPKIT_VERIFY_PATH}`;
+}
 
 function createVegaError(
   code: ErrorCode,
@@ -568,7 +587,7 @@ export function createExpoIapVegaModule(
         try {
           const parsed = JSON.parse(value);
           return parsed && typeof parsed === 'object'
-            ? (extractIapkitErrorMessage(parsed, depth + 1) ?? value)
+            ? extractIapkitErrorMessage(parsed, depth + 1) ?? value
             : value;
         } catch {
           return value;
@@ -702,7 +721,7 @@ export function createExpoIapVegaModule(
         () => controller.abort(),
         IAPKIT_VERIFY_TIMEOUT_MS,
       );
-      response = await fetch(IAPKIT_VERIFY_URL, {
+      response = await fetch(iapkitVerifyUrl(iapkit), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -885,11 +904,11 @@ export function createExpoIapVegaModule(
           renewalInfoIOS: null,
           autoRenewingAndroid:
             purchase.platform === 'android'
-              ? ((
+              ? (
                   purchase as Purchase & {
                     autoRenewingAndroid?: boolean | null;
                   }
-                ).autoRenewingAndroid ?? null)
+                ).autoRenewingAndroid ?? null
               : null,
           basePlanIdAndroid: null,
           currentPlanId: null,
@@ -899,8 +918,9 @@ export function createExpoIapVegaModule(
     async hasActiveSubscriptions(
       subscriptionIds?: string[] | null,
     ): Promise<boolean> {
-      const subscriptions =
-        await vegaModule.getActiveSubscriptions(subscriptionIds);
+      const subscriptions = await vegaModule.getActiveSubscriptions(
+        subscriptionIds,
+      );
       return subscriptions.length > 0;
     },
     async acknowledgePurchaseAndroid(purchaseToken): Promise<void> {

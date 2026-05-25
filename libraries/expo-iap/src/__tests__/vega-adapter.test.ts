@@ -65,7 +65,7 @@ const createService = (): jest.Mocked<VegaPurchasingService> =>
     notifyFulfillment: jest.fn(async () => ({
       responseCode: 1,
     })),
-  }) as unknown as jest.Mocked<VegaPurchasingService>;
+  } as unknown as jest.Mocked<VegaPurchasingService>);
 
 describe('Amazon Vega Expo adapter', () => {
   it('maps Vega product data to OpenIAP Android products', async () => {
@@ -410,6 +410,45 @@ describe('Amazon Vega Expo adapter', () => {
         receiptId: 'receipt-vega-1',
         sandbox: true,
       });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('supports custom IAPKit base URLs for Vega verification', async () => {
+    const service = createService();
+    const originalFetch = globalThis.fetch;
+    const fetchMock = jest.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        Response.json({
+          isValid: true,
+          state: 'ENTITLED',
+          store: 'amazon',
+        }),
+    ) as unknown as jest.MockedFunction<typeof fetch>;
+    globalThis.fetch = fetchMock;
+
+    try {
+      const module = createExpoIapVegaModule(service);
+
+      await module.verifyPurchaseWithProvider({
+        provider: 'iapkit',
+        iapkit: {
+          apiKey: 'kit-key',
+          baseUrl: 'http://localhost:3100/',
+          amazon: {
+            userId: 'amazon-user',
+            receiptId: 'receipt-vega-1',
+          },
+        },
+      } as Parameters<typeof module.verifyPurchaseWithProvider>[0] & {
+        iapkit: {baseUrl: string};
+      });
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        'http://localhost:3100/v1/purchase/verify',
+        expect.any(Object),
+      );
     } finally {
       globalThis.fetch = originalFetch;
     }

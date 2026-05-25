@@ -106,7 +106,26 @@ const RESPONSE_SUCCESS = 1;
 const PURCHASE_RESPONSE_SUCCESS = 0;
 const PURCHASE_STATE_PURCHASED = 1;
 const PURCHASE_STATE_PENDING = 2;
-const IAPKIT_VERIFY_URL = 'https://kit.openiap.dev/v1/purchase/verify';
+const IAPKIT_DEFAULT_BASE_URL = 'https://kit.openiap.dev';
+const IAPKIT_VERIFY_PATH = '/v1/purchase/verify';
+
+type IapkitEndpointOptions = NonNullable<
+  NitroVerifyPurchaseWithProviderProps['iapkit']
+> & {
+  baseUrl?: string | null;
+};
+
+function iapkitVerifyUrl(
+  iapkit: NitroVerifyPurchaseWithProviderProps['iapkit'],
+): string {
+  const endpointOptions = iapkit as IapkitEndpointOptions | null | undefined;
+  const baseUrl =
+    typeof endpointOptions?.baseUrl === 'string' &&
+    endpointOptions.baseUrl.trim().length > 0
+      ? endpointOptions.baseUrl.trim()
+      : IAPKIT_DEFAULT_BASE_URL;
+  return `${baseUrl.replace(/\/+$/, '')}${IAPKIT_VERIFY_PATH}`;
+}
 
 function createVegaError(
   code: ErrorCode,
@@ -771,7 +790,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
         () => controller.abort(),
         IAPKIT_VERIFY_TIMEOUT_MS,
       );
-      response = await fetch(IAPKIT_VERIFY_URL, {
+      response = await fetch(iapkitVerifyUrl(iapkit), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

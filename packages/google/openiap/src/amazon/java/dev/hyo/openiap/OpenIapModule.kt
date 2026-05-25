@@ -46,6 +46,72 @@ private const val AMAZON_REQUEST_TIMEOUT_MS = 60_000L
 private const val AMAZON_PRODUCT_DATA_BATCH_SIZE = 100
 private const val AMAZON_PURCHASE_UPDATES_MAX_PAGES = 100
 
+internal object AmazonPriceParser {
+    fun toPriceAmount(displayPrice: String?): Double {
+        val value = displayPrice?.trim().orEmpty()
+        if (value.isEmpty()) return 0.0
+
+        parseLocalizedPrice(value)?.let { return it }
+
+        val numeric = value.replace(Regex("[^0-9,.-]"), "")
+        if (numeric.isBlank()) return 0.0
+
+        val lastDot = numeric.lastIndexOf('.')
+        val lastComma = numeric.lastIndexOf(',')
+        val decimalIndex = maxOf(lastDot, lastComma)
+        val hasMixedSeparators = lastDot >= 0 && lastComma >= 0
+        val fractionLength = if (decimalIndex >= 0) {
+            numeric.length - decimalIndex - 1
+        } else {
+            0
+        }
+        val currencyFractionDigits = value.currencyFractionDigits()
+        val separatorMatchesCurrency = currencyFractionDigits != null &&
+            fractionLength == currencyFractionDigits
+        val hasDecimalSeparator = decimalIndex >= 0 &&
+            (hasMixedSeparators || fractionLength in 1..2 || separatorMatchesCurrency)
+        val normalized = if (hasDecimalSeparator) {
+            val integerPart = numeric.substring(0, decimalIndex).replace(Regex("[^0-9-]"), "")
+            val fractionPart = numeric.substring(decimalIndex + 1).replace(Regex("[^0-9]"), "")
+            "$integerPart.$fractionPart"
+        } else {
+            numeric.replace(Regex("[^0-9-]"), "")
+        }
+        return normalized.toDoubleOrNull() ?: 0.0
+    }
+
+    private fun parseLocalizedPrice(value: String): Double? {
+        val locale = Locale.getDefault()
+        return listOf(
+            NumberFormat.getCurrencyInstance(locale),
+            NumberFormat.getNumberInstance(locale)
+        ).firstNotNullOfOrNull { format ->
+            val position = ParsePosition(0)
+            val parsed = format.parse(value, position)
+            if (
+                parsed != null &&
+                position.index > 0 &&
+                !value.hasUnparsedPriceCharacters(position.index)
+            ) {
+                parsed.toDouble()
+            } else {
+                null
+            }
+        }
+    }
+
+    private fun String.hasUnparsedPriceCharacters(startIndex: Int): Boolean {
+        return drop(startIndex).any { it.isDigit() || it == '.' || it == ',' || it == '-' }
+    }
+
+    private fun String.currencyFractionDigits(): Int? {
+        val code = Regex("\\b[A-Z]{3}\\b").find(this)?.value ?: return null
+        return runCatching { Currency.getInstance(code).defaultFractionDigits }
+            .getOrNull()
+            ?.takeIf { it >= 0 }
+    }
+}
+
 /**
  * OpenIapModule for Amazon Appstore SDK IAP.
  *
@@ -203,8 +269,7 @@ class OpenIapModule(
 
     override val getAvailablePurchases: QueryGetAvailablePurchasesHandler = { options ->
         withContext(Dispatchers.IO) {
-            ensureRegistered()
-            val purchases = requestPurchaseUpdates(reset = true)
+            val purchases = getAvailableItems(ProductQueryType.All)
             if (options?.includeSuspendedAndroid == true) {
                 purchases
             } else {
@@ -826,49 +891,7 @@ class OpenIapModule(
     }
 
     private fun String?.toPriceAmount(): Double {
-        val value = this?.trim().orEmpty()
-        if (value.isEmpty()) return 0.0
-
-        parseLocalizedPrice(value)?.let { return it }
-
-        val numeric = value.replace(Regex("[^0-9,.-]"), "")
-        if (numeric.isBlank()) return 0.0
-
-        val lastDot = numeric.lastIndexOf('.')
-        val lastComma = numeric.lastIndexOf(',')
-        val decimalIndex = maxOf(lastDot, lastComma)
-        val hasMixedSeparators = lastDot >= 0 && lastComma >= 0
-        val fractionLength = if (decimalIndex >= 0) numeric.length - decimalIndex - 1 else 0
-        val currencyFractionDigits = value.currencyFractionDigits()
-        val hasDecimalSeparator = decimalIndex >= 0 &&
-            (hasMixedSeparators || fractionLength in 1..2 || fractionLength == currencyFractionDigits)
-        val normalized = if (hasDecimalSeparator) {
-            val integerPart = numeric.substring(0, decimalIndex).replace(Regex("[^0-9-]"), "")
-            val fractionPart = numeric.substring(decimalIndex + 1).replace(Regex("[^0-9]"), "")
-            "$integerPart.$fractionPart"
-        } else {
-            numeric.replace(Regex("[^0-9-]"), "")
-        }
-        return normalized.toDoubleOrNull() ?: 0.0
-    }
-
-    private fun parseLocalizedPrice(value: String): Double? {
-        val locale = Locale.getDefault()
-        return listOf(
-            NumberFormat.getCurrencyInstance(locale),
-            NumberFormat.getNumberInstance(locale)
-        ).firstNotNullOfOrNull { format ->
-            val position = ParsePosition(0)
-            val parsed = format.parse(value, position)
-            if (parsed != null && position.index > 0) parsed.toDouble() else null
-        }
-    }
-
-    private fun String.currencyFractionDigits(): Int? {
-        val code = Regex("\\b[A-Z]{3}\\b").find(this)?.value ?: return null
-        return runCatching { Currency.getInstance(code).defaultFractionDigits }
-            .getOrNull()
-            ?.takeIf { it >= 0 }
+        return AmazonPriceParser.toPriceAmount(this)
     }
 
     private fun AmazonReceipt.toPurchase(): PurchaseAndroid {

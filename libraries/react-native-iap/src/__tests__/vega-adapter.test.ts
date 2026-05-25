@@ -498,6 +498,45 @@ describe('Amazon Vega adapter', () => {
     }
   });
 
+  it('supports custom IAPKit base URLs for Vega verification', async () => {
+    const service = createService();
+    const originalFetch = globalThis.fetch;
+    const fetchMock = jest.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        Response.json({
+          isValid: true,
+          state: 'ENTITLED',
+          store: 'amazon',
+        }),
+    ) as unknown as jest.MockedFunction<typeof fetch>;
+    globalThis.fetch = fetchMock;
+
+    try {
+      const module = createVegaIapModule(service);
+
+      await module.verifyPurchaseWithProvider({
+        provider: 'iapkit',
+        iapkit: {
+          apiKey: 'kit-key',
+          baseUrl: 'http://localhost:3100/',
+          amazon: {
+            userId: 'amazon-user',
+            receiptId: 'receipt-vega-1',
+          },
+        },
+      } as Parameters<typeof module.verifyPurchaseWithProvider>[0] & {
+        iapkit: {baseUrl: string};
+      });
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        'http://localhost:3100/v1/purchase/verify',
+        expect.any(Object),
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   it('rejects mixed IAPKit payloads on the Amazon Vega adapter', async () => {
     const service = createService();
     const module = createVegaIapModule(service);
