@@ -192,9 +192,10 @@ export const modifyAppBuildGradle = (
   // Remove any existing openiap-google flavor lines (any version, groovy/kotlin, implementation/api)
   const openiapAnyLine =
     /^\s*(?:implementation|api)\s*\(?\s*["']io\.github\.hyochan\.openiap:openiap-google(?:-(?:horizon|amazon))?:[^"']+["']\s*\)?\s*$/gm;
-  const hadExisting = openiapAnyLine.test(modified);
+  const withoutExistingOpeniap = modified.replace(openiapAnyLine, '');
+  const hadExisting = withoutExistingOpeniap !== modified;
   if (hadExisting) {
-    modified = modified.replace(openiapAnyLine, '').replace(/\n{3,}/g, '\n\n');
+    modified = withoutExistingOpeniap.replace(/\n{3,}/g, '\n\n');
   }
 
   // Ensure the desired dependency line is present
@@ -217,8 +218,9 @@ export const modifyAppBuildGradle = (
   // selecting the wrong local flavor.
   const strategyPattern =
     /^\s*missingDimensionStrategy\s*\(?\s*["']platform["']\s*,\s*["'](play|horizon|amazon)["']\s*\)?\s*$/gm;
-  if (strategyPattern.test(modified)) {
-    modified = modified.replace(strategyPattern, '');
+  const withoutExistingStrategy = modified.replace(strategyPattern, '');
+  if (withoutExistingStrategy !== modified) {
+    modified = withoutExistingStrategy;
     logOnce('🧹 Removed existing missingDimensionStrategy for platform');
   }
 

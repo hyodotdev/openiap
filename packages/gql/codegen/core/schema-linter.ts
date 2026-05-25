@@ -52,8 +52,8 @@ function isAllowedPlatformTypeName(
   return (
     typeName.endsWith('Android') ||
     typeName.includes('Android') ||
-    typeName.endsWith('Horizon') ||
-    typeName.endsWith('Amazon') ||
+    typeName.includes('Horizon') ||
+    typeName.includes('Amazon') ||
     ANDROID_TYPE_SUFFIX_EXCEPTIONS.has(typeName)
   );
 }

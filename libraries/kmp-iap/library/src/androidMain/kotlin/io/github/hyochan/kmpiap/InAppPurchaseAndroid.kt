@@ -94,9 +94,10 @@ import io.github.hyochan.kmpiap.openiap.ExternalLinkTypeAndroid
 import io.github.hyochan.kmpiap.openiap.LaunchExternalLinkParamsAndroid
 import io.github.hyochan.kmpiap.openiap.SubscriptionProductReplacementParamsAndroid
 import io.github.hyochan.kmpiap.openiap.SubscriptionReplacementModeAndroid
-import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps as GoogleVerifyPurchaseWithIapkitProps
-import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitGoogleProps as GoogleVerifyPurchaseWithIapkitGoogleProps
-import dev.hyo.openiap.utils.verifyPurchaseWithIapkit as verifyPurchaseWithIapkitGoogle
+import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitAmazonProps as AndroidVerifyPurchaseWithIapkitAmazonProps
+import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitGoogleProps as AndroidVerifyPurchaseWithIapkitGoogleProps
+import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps as AndroidVerifyPurchaseWithIapkitProps
+import dev.hyo.openiap.utils.verifyPurchaseWithIapkit as verifyPurchaseWithIapkitAndroid
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.channels.BufferOverflow
@@ -1168,30 +1169,40 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
             iapkitOptions.amazon
         ).size
         val googleOptions = iapkitOptions.google
-        if (payloadCount != 1 || googleOptions == null) {
+        val amazonOptions = iapkitOptions.amazon
+        if (payloadCount != 1 || (googleOptions == null && amazonOptions == null)) {
             failWith(
                 PurchaseError(
                     code = ErrorCode.PurchaseVerificationFailed,
-                    message = "IAPKit verification on KMP Android requires exactly one google payload"
+                    message = "IAPKit verification on KMP Android requires exactly one google or amazon payload"
                 )
             )
         }
 
         return try {
-            val openIapProps = GoogleVerifyPurchaseWithIapkitProps(
+            val openIapProps = AndroidVerifyPurchaseWithIapkitProps(
                 apiKey = iapkitOptions.apiKey,
                 apple = null,
-                google = GoogleVerifyPurchaseWithIapkitGoogleProps(
-                    purchaseToken = googleOptions.purchaseToken
-                )
+                amazon = amazonOptions?.let { amazon ->
+                    AndroidVerifyPurchaseWithIapkitAmazonProps(
+                        receiptId = amazon.receiptId,
+                        sandbox = amazon.sandbox,
+                        userId = amazon.userId
+                    )
+                },
+                google = googleOptions?.let { google ->
+                    AndroidVerifyPurchaseWithIapkitGoogleProps(
+                        purchaseToken = google.purchaseToken
+                    )
+                }
             )
 
-            val googleResult = verifyPurchaseWithIapkitGoogle(openIapProps, "kmp-iap-android")
+            val androidResult = verifyPurchaseWithIapkitAndroid(openIapProps, "kmp-iap-android")
 
             val iapkitResult = RequestVerifyPurchaseWithIapkitResult(
-                isValid = googleResult.isValid,
-                state = IapkitPurchaseState.fromJson(googleResult.state.toJson()),
-                store = IapStore.fromJson(googleResult.store.toJson())
+                isValid = androidResult.isValid,
+                state = IapkitPurchaseState.fromJson(androidResult.state.toJson()),
+                store = IapStore.fromJson(androidResult.store.toJson())
             )
 
             VerifyPurchaseWithProviderResult(

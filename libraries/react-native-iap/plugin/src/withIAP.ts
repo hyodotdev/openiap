@@ -118,9 +118,10 @@ const modifyAppBuildGradle = (
 
   const openiapAnyLine =
     /^[ \t]*(implementation|api)[ \t]+\(?["']io\.github\.hyochan\.openiap:openiap-google(?:-(?:horizon|amazon))?:[^"']+["']\)?[ \t]*$/gim;
-  const hadExistingOpeniap = openiapAnyLine.test(modified);
+  const withoutExistingOpeniap = modified.replace(openiapAnyLine, '');
+  const hadExistingOpeniap = withoutExistingOpeniap !== modified;
   if (hadExistingOpeniap) {
-    modified = modified.replace(openiapAnyLine, '').replace(/\n{3,}/g, '\n\n');
+    modified = withoutExistingOpeniap.replace(/\n{3,}/g, '\n\n');
   }
 
   if (!modified.includes(openiapCoord)) {
@@ -141,8 +142,9 @@ const modifyAppBuildGradle = (
   // selecting the wrong local flavor.
   const strategyPattern =
     /^[ \t]*missingDimensionStrategy[ \t]*\(?[ \t]*["']platform["'][ \t]*,[ \t]*["'](play|horizon|amazon)["'][ \t]*\)?[ \t]*$/gm;
-  if (strategyPattern.test(modified)) {
-    modified = modified.replace(strategyPattern, '');
+  const withoutExistingStrategy = modified.replace(strategyPattern, '');
+  if (withoutExistingStrategy !== modified) {
+    modified = withoutExistingStrategy;
   }
 
   const defaultConfigRegex = /defaultConfig\s*{/;
