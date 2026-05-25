@@ -684,6 +684,7 @@ class OpenIapModule(
         val receipts = mutableListOf<AmazonReceipt>()
         var shouldReset = reset
         var pageCount = 0
+        var hasMore = false
         do {
             if (pageCount >= AMAZON_PURCHASE_UPDATES_MAX_PAGES) {
                 throw OpenIapError.ServiceTimeout(
@@ -705,7 +706,8 @@ class OpenIapModule(
                     throw OpenIapError.RestoreFailed
                 }
             }
-        } while (response.hasMore())
+            hasMore = response.hasMore()
+        } while (hasMore)
         hydrateProductTypesForReceipts(receipts)
         return receipts.map { receipt ->
             val productType = receipt.productTypeOrNull()
