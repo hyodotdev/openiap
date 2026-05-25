@@ -1,8 +1,14 @@
+import { Buffer } from "node:buffer";
 import { Hono, type Context, type Next } from "hono";
 
 import { api } from "@/convex";
 import { client, handleConvexError } from "../../convex";
 import { apiKeyValidationError } from "./middleware";
+import {
+  APPLE_JWS_PATTERN,
+  APPLE_JWS_MAX_LENGTH,
+  GOOGLE_PURCHASE_TOKEN_MAX_LENGTH,
+} from "./route-input-schemas";
 import {
   isContentLengthOverLimit,
   JsonBodyTooLargeError,
@@ -18,8 +24,9 @@ import {
 const subscriptions = new Hono();
 const MAX_USER_ID_LENGTH = 256;
 const MAX_PRODUCT_ID_LENGTH = 256;
-const MAX_PURCHASE_TOKEN_LENGTH = 2_000;
-const MAX_BIND_USER_BODY_BYTES = 8 * 1024;
+const MAX_BIND_USER_BODY_BYTES = 32 * 1024;
+const INVALID_APPLE_JWS_PURCHASE_TOKEN_MESSAGE =
+  "purchaseToken must be a valid Apple JWS containing originalTransactionId or transactionId";
 type SubscriptionState =
   | "Active"
   | "InGracePeriod"
@@ -199,8 +206,11 @@ subscriptions.post("/bind-user/:apiKey", async (c) => {
   ) {
     return invalidInput(c, "purchaseToken and userId are required");
   }
-  if (!isValidPurchaseTokenLength(payload.purchaseToken)) {
-    return invalidInput(c, "purchaseToken must be ≤ 2000 chars");
+  const normalizedPurchaseToken = normalizeBindUserPurchaseToken(
+    payload.purchaseToken,
+  );
+  if (!normalizedPurchaseToken.ok) {
+    return invalidInput(c, normalizedPurchaseToken.message);
   }
   if (!isValidUserIdLength(payload.userId)) {
     return invalidInput(c, "userId must be ≤ 256 chars");
@@ -208,7 +218,7 @@ subscriptions.post("/bind-user/:apiKey", async (c) => {
   try {
     const result = await client.mutation(api.subscriptions.mutation.bindUser, {
       apiKey,
-      purchaseToken: payload.purchaseToken,
+      purchaseToken: normalizedPurchaseToken.purchaseToken,
       userId: payload.userId,
     });
     return c.json(result);
@@ -238,8 +248,109 @@ function isValidProductIdLength(productId: string): boolean {
   return productId.length <= MAX_PRODUCT_ID_LENGTH;
 }
 
-function isValidPurchaseTokenLength(purchaseToken: string): boolean {
-  return purchaseToken.length <= MAX_PURCHASE_TOKEN_LENGTH;
+type BindUserPurchaseTokenResult =
+  | { ok: true; purchaseToken: string }
+  | { ok: false; message: string };
+type AppleJwsParseResult =
+  | { kind: "valid"; purchaseToken: string }
+  | { kind: "invalid" }
+  | { kind: "notAppleJws" };
+
+function normalizeBindUserPurchaseToken(
+  purchaseToken: string,
+): BindUserPurchaseTokenResult {
+  if (isCompactJwsShape(purchaseToken)) {
+    if (purchaseToken.length > APPLE_JWS_MAX_LENGTH) {
+      return { ok: false, message: bindUserPurchaseTokenLimitMessage() };
+    }
+
+    const appleJws = parseApplePurchaseTokenFromJws(purchaseToken);
+    if (appleJws.kind === "valid") {
+      return { ok: true, purchaseToken: appleJws.purchaseToken };
+    }
+    if (appleJws.kind === "invalid") {
+      return {
+        ok: false,
+        message: INVALID_APPLE_JWS_PURCHASE_TOKEN_MESSAGE,
+      };
+    }
+    if (purchaseToken.length <= GOOGLE_PURCHASE_TOKEN_MAX_LENGTH) {
+      return { ok: true, purchaseToken };
+    }
+
+    return {
+      ok: false,
+      message: INVALID_APPLE_JWS_PURCHASE_TOKEN_MESSAGE,
+    };
+  }
+
+  if (purchaseToken.length <= GOOGLE_PURCHASE_TOKEN_MAX_LENGTH) {
+    return { ok: true, purchaseToken };
+  }
+
+  return { ok: false, message: bindUserPurchaseTokenLimitMessage() };
+}
+
+function parseApplePurchaseTokenFromJws(jws: string): AppleJwsParseResult {
+  if (!isCompactJwsShape(jws) || jws.length > APPLE_JWS_MAX_LENGTH) {
+    return { kind: "notAppleJws" };
+  }
+
+  try {
+    const [headerBase64, payloadBase64] = jws.split(".");
+    const header = decodeJwsJsonPart(headerBase64);
+    const payload = decodeJwsJsonPart(payloadBase64);
+
+    if (!isJsonObject(header) || !isJsonObject(payload)) {
+      return { kind: "notAppleJws" };
+    }
+
+    const originalTransactionId = normalizeTransactionId(
+      payload.originalTransactionId,
+    );
+    if (originalTransactionId) {
+      return { kind: "valid", purchaseToken: originalTransactionId };
+    }
+
+    const transactionId = normalizeTransactionId(payload.transactionId);
+    if (transactionId) {
+      return { kind: "valid", purchaseToken: transactionId };
+    }
+  } catch {
+    return { kind: "notAppleJws" };
+  }
+
+  return { kind: "invalid" };
+}
+
+function isCompactJwsShape(value: string): boolean {
+  return APPLE_JWS_PATTERN.test(value);
+}
+
+function decodeJwsJsonPart(part: string): unknown {
+  const raw = Buffer.from(part, "base64url").toString("utf-8");
+  const safeRaw = raw.replace(
+    /"((?:originalT|t)ransactionId)"\s*:\s*(\d+)(?=\s*[,}])/g,
+    '"$1":"$2"',
+  );
+  return JSON.parse(safeRaw);
+}
+
+function normalizeTransactionId(value: unknown): string | null {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  return null;
+}
+
+function bindUserPurchaseTokenLimitMessage(): string {
+  return `purchaseToken must be ≤ ${GOOGLE_PURCHASE_TOKEN_MAX_LENGTH} chars, or an Apple JWS ≤ ${APPLE_JWS_MAX_LENGTH} chars`;
 }
 
 function isSubscriptionState(state: string): state is SubscriptionState {
