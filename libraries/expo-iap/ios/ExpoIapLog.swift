@@ -117,7 +117,16 @@ enum ExpoIapLog {
         func isSensitiveKey(_ key: String) -> Bool {
             let normalized = key.lowercased()
                 .filter { $0.isLetter || $0.isNumber }
-            let sensitiveFragments = ["token", "apikey", "secret", "jws", "receiptid", "userid"]
+            let sensitiveFragments = [
+                "token",
+                "apikey",
+                "secret",
+                "jws",
+                "receiptid",
+                "userid",
+                "password",
+                "auth",
+            ]
             return sensitiveFragments.contains { normalized.contains($0) }
         }
 
