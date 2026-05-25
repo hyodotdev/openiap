@@ -262,6 +262,93 @@ describe("subscriptionsRoutes", () => {
     });
   });
 
+  it("normalizes numeric Apple JWS transaction ids to strings", async () => {
+    const app = buildApp();
+    mocks.mutation.mockResolvedValueOnce({ ok: true, bound: true });
+    const jws = compactJws({
+      transactionId: 2000000000000001,
+      bundleId: "dev.hyo.openiap.test",
+    });
+
+    const response = await app.request("/subscriptions/bind-user/key", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        purchaseToken: jws,
+        userId: "user-1",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ ok: true, bound: true });
+    expect(mocks.mutation).toHaveBeenCalledWith("bindUser", {
+      apiKey: "key",
+      purchaseToken: "2000000000000001",
+      userId: "user-1",
+    });
+  });
+
+  it("rejects short Apple JWS-shaped bind-user purchaseToken without transaction ids", async () => {
+    const app = buildApp();
+    const jws = compactJws({
+      bundleId: "dev.hyo.openiap.test",
+    });
+
+    expect(jws.length).toBeLessThanOrEqual(2_000);
+
+    const response = await app.request("/subscriptions/bind-user/key", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        purchaseToken: jws,
+        userId: "user-1",
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      errors: [
+        {
+          code: "INVALID_INPUT",
+          message:
+            "purchaseToken must be a valid Apple JWS containing originalTransactionId or transactionId",
+        },
+      ],
+    });
+    expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("rejects long Apple JWS-shaped bind-user purchaseToken without transaction ids", async () => {
+    const app = buildApp();
+    const jws = compactJws({
+      bundleId: "dev.hyo.openiap.test",
+      padding: "x".repeat(2_400),
+    });
+
+    expect(jws.length).toBeGreaterThan(2_000);
+
+    const response = await app.request("/subscriptions/bind-user/key", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        purchaseToken: jws,
+        userId: "user-1",
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      errors: [
+        {
+          code: "INVALID_INPUT",
+          message:
+            "purchaseToken must be a valid Apple JWS containing originalTransactionId or transactionId",
+        },
+      ],
+    });
+    expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
   it("rejects oversized bind-user bodies before calling Convex", async () => {
     const app = buildApp();
     const response = await app.request("/subscriptions/bind-user/key", {

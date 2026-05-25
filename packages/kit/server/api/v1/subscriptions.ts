@@ -5,6 +5,7 @@ import { api } from "@/convex";
 import { client, handleConvexError } from "../../convex";
 import { apiKeyValidationError } from "./middleware";
 import {
+  APPLE_JWS_PATTERN,
   APPLE_JWS_MAX_LENGTH,
   GOOGLE_PURCHASE_TOKEN_MAX_LENGTH,
 } from "./route-input-schemas";
@@ -24,7 +25,8 @@ const subscriptions = new Hono();
 const MAX_USER_ID_LENGTH = 256;
 const MAX_PRODUCT_ID_LENGTH = 256;
 const MAX_BIND_USER_BODY_BYTES = 32 * 1024;
-const COMPACT_JWS_PART_PATTERN = /^[A-Za-z0-9_-]+$/;
+const INVALID_APPLE_JWS_PURCHASE_TOKEN_MESSAGE =
+  "purchaseToken must be a valid Apple JWS containing originalTransactionId or transactionId";
 type SubscriptionState =
   | "Active"
   | "InGracePeriod"
@@ -253,24 +255,24 @@ type BindUserPurchaseTokenResult =
 function normalizeBindUserPurchaseToken(
   purchaseToken: string,
 ): BindUserPurchaseTokenResult {
-  const applePurchaseToken = extractApplePurchaseTokenFromJws(purchaseToken);
-  if (applePurchaseToken) {
-    return { ok: true, purchaseToken: applePurchaseToken };
+  if (isCompactJwsShape(purchaseToken)) {
+    if (purchaseToken.length > APPLE_JWS_MAX_LENGTH) {
+      return { ok: false, message: bindUserPurchaseTokenLimitMessage() };
+    }
+
+    const applePurchaseToken = extractApplePurchaseTokenFromJws(purchaseToken);
+    if (applePurchaseToken) {
+      return { ok: true, purchaseToken: applePurchaseToken };
+    }
+
+    return {
+      ok: false,
+      message: INVALID_APPLE_JWS_PURCHASE_TOKEN_MESSAGE,
+    };
   }
 
   if (purchaseToken.length <= GOOGLE_PURCHASE_TOKEN_MAX_LENGTH) {
     return { ok: true, purchaseToken };
-  }
-
-  if (
-    isCompactJwsShape(purchaseToken) &&
-    purchaseToken.length <= APPLE_JWS_MAX_LENGTH
-  ) {
-    return {
-      ok: false,
-      message:
-        "Apple JWS purchaseToken must include originalTransactionId or transactionId",
-    };
   }
 
   return { ok: false, message: bindUserPurchaseTokenLimitMessage() };
@@ -285,13 +287,22 @@ function extractApplePurchaseTokenFromJws(jws: string): string | null {
     const [, payloadBase64] = jws.split(".");
     const payload = JSON.parse(
       Buffer.from(payloadBase64, "base64url").toString("utf-8"),
-    ) as Record<string, unknown>;
+    );
 
-    if (isNonBlankString(payload.originalTransactionId)) {
-      return payload.originalTransactionId;
+    if (!isJsonObject(payload)) {
+      return null;
     }
-    if (isNonBlankString(payload.transactionId)) {
-      return payload.transactionId;
+
+    const originalTransactionId = normalizeTransactionId(
+      payload.originalTransactionId,
+    );
+    if (originalTransactionId) {
+      return originalTransactionId;
+    }
+
+    const transactionId = normalizeTransactionId(payload.transactionId);
+    if (transactionId) {
+      return transactionId;
     }
   } catch {
     return null;
@@ -301,13 +312,20 @@ function extractApplePurchaseTokenFromJws(jws: string): string | null {
 }
 
 function isCompactJwsShape(value: string): boolean {
-  const parts = value.split(".");
-  return (
-    parts.length === 3 &&
-    parts.every(
-      (part) => part.length > 0 && COMPACT_JWS_PART_PATTERN.test(part),
-    )
-  );
+  return APPLE_JWS_PATTERN.test(value);
+}
+
+function normalizeTransactionId(value: unknown): string | null {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  return null;
 }
 
 function bindUserPurchaseTokenLimitMessage(): string {
