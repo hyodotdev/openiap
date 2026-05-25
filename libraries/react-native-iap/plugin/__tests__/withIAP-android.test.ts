@@ -129,6 +129,20 @@ describe('withIAP config plugin (Android)', () => {
     expect(after).toBe(before);
   });
 
+  it('adds OpenIAP dep when coordinate appears only in a comment', () => {
+    const initial = [
+      '// io.github.hyochan.openiap:openiap-google appears in a comment',
+      'dependencies {',
+      '}',
+    ].join('\n');
+    const config = makeConfig(initial, {manifest: {}});
+    const result: any = plugin(config as any);
+
+    expect(result.modResults.contents).toContain(
+      `implementation "io.github.hyochan.openiap:openiap-google:${OPENIAP_VERSION}"`,
+    );
+  });
+
   it('adds BILLING permission to AndroidManifest if missing', () => {
     const config = makeConfig('dependencies {\n}', {manifest: {}});
     const res: any = plugin(config as any);

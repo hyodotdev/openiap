@@ -52,6 +52,10 @@ export const modifyProjectBuildGradle = (gradle: string): string => {
 
 const OPENIAP_GROUP = 'io.github.hyochan.openiap';
 
+const escapeRegExp = (value: string): string => {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+};
+
 function loadOpenIapVersion(): string {
   const versionsPath = resolvePath(__dirname, '../../openiap-versions.json');
   try {
@@ -115,6 +119,12 @@ const modifyAppBuildGradle = (
       : 'openiap-google';
   const openiapCoord = `${OPENIAP_GROUP}:${artifactId}`;
   const openiapDep = `    implementation "${openiapCoord}:${openiapVersion}"`;
+  const desiredOpeniapLine = new RegExp(
+    `^[ \\t]*(?:implementation|api)[ \\t]+\\(?["']${escapeRegExp(
+      `${openiapCoord}:${openiapVersion}`,
+    )}["']\\)?[ \\t]*$`,
+    'm',
+  );
 
   const openiapAnyLine =
     /^[ \t]*(implementation|api)[ \t]+\(?["']io\.github\.hyochan\.openiap:openiap-google(?:-(?:horizon|amazon))?:[^"']+["']\)?[ \t]*$/gim;
@@ -124,7 +134,7 @@ const modifyAppBuildGradle = (
     modified = withoutExistingOpeniap.replace(/\n{3,}/g, '\n\n');
   }
 
-  if (!modified.includes(openiapCoord)) {
+  if (!desiredOpeniapLine.test(modified)) {
     if (!/dependencies\s*{/.test(modified)) {
       modified += `\n\ndependencies {\n${openiapDep}\n}\n`;
     } else {
