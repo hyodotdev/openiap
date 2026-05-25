@@ -61,6 +61,22 @@ internal object ExpoIapLog {
     }
 
     private fun sanitizeMap(source: Map<*, *>): Map<String, Any?> {
+        fun isSensitiveKey(key: String): Boolean {
+            val normalized = key.lowercase().filter { it.isLetterOrDigit() }
+            return listOf(
+                "token",
+                "apikey",
+                "secret",
+                "jws",
+                "receiptid",
+                "userid",
+                "password",
+                "auth"
+            ).any {
+                normalized.contains(it)
+            }
+        }
+
         val sanitized = linkedMapOf<String, Any?>()
         for ((rawKey, rawValue) in source) {
             val key = rawKey as? String ?: continue
@@ -71,21 +87,5 @@ internal object ExpoIapLog {
             sanitized[key] = sanitize(rawValue)
         }
         return sanitized
-    }
-
-    private fun isSensitiveKey(key: String): Boolean {
-        val normalized = key.lowercase().filter { it.isLetterOrDigit() }
-        return listOf(
-            "token",
-            "apikey",
-            "secret",
-            "jws",
-            "receiptid",
-            "userid",
-            "password",
-            "auth"
-        ).any {
-            normalized.contains(it)
-        }
     }
 }

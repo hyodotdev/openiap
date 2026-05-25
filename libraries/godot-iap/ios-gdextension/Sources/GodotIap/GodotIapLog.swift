@@ -128,6 +128,20 @@ enum GodotIapLog {
     }
 
     private static func sanitize(_ value: Any?) -> Any? {
+        func sanitizeJSONString(_ value: String) -> Any {
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard trimmed.first == "{" || trimmed.first == "[" else {
+                return value
+            }
+
+            guard let data = trimmed.data(using: .utf8),
+                  let json = try? JSONSerialization.jsonObject(with: data) else {
+                return value
+            }
+
+            return sanitize(json) ?? value
+        }
+
         guard let value else { return nil }
 
         if let string = value as? String {
@@ -160,6 +174,13 @@ enum GodotIapLog {
     }
 
     private static func sanitizeDictionary(_ dictionary: [String: Any]) -> [String: Any] {
+        func isSensitiveKey(_ key: String) -> Bool {
+            let normalized = key.lowercased()
+                .filter { $0.isLetter || $0.isNumber }
+            let sensitiveFragments = ["token", "apikey", "secret", "jws", "receiptid", "userid"]
+            return sensitiveFragments.contains { normalized.contains($0) }
+        }
+
         var sanitized: [String: Any] = [:]
         for (key, value) in dictionary {
             if isSensitiveKey(key) {
@@ -169,26 +190,5 @@ enum GodotIapLog {
             }
         }
         return sanitized
-    }
-
-    private static func sanitizeJSONString(_ value: String) -> Any {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.first == "{" || trimmed.first == "[" else {
-            return value
-        }
-
-        guard let data = trimmed.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: data) else {
-            return value
-        }
-
-        return sanitize(json) ?? value
-    }
-
-    private static func isSensitiveKey(_ key: String) -> Bool {
-        let normalized = key.lowercased()
-            .filter { $0.isLetter || $0.isNumber }
-        let sensitiveFragments = ["token", "apikey", "secret", "jws", "receiptid", "userid"]
-        return sensitiveFragments.contains { normalized.contains($0) }
     }
 }

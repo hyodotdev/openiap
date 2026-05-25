@@ -69,6 +69,19 @@ internal object GodotIapLog {
     private fun sanitize(value: Any?): Any? {
         if (value == null) return null
 
+        fun sanitizeJsonString(value: String): Any {
+            val trimmed = value.trim()
+            return try {
+                when {
+                    trimmed.startsWith("{") -> sanitizeJsonObject(JSONObject(trimmed))
+                    trimmed.startsWith("[") -> sanitizeJsonArray(JSONArray(trimmed))
+                    else -> value
+                }
+            } catch (_: Exception) {
+                value
+            }
+        }
+
         return when (value) {
             is String -> sanitizeJsonString(value)
             is Map<*, *> -> sanitizeMap(value)
@@ -89,19 +102,6 @@ internal object GodotIapLog {
             sanitized[key] = sanitize(rawValue)
         }
         return sanitized
-    }
-
-    private fun sanitizeJsonString(value: String): Any {
-        val trimmed = value.trim()
-        return try {
-            when {
-                trimmed.startsWith("{") -> sanitizeJsonObject(JSONObject(trimmed))
-                trimmed.startsWith("[") -> sanitizeJsonArray(JSONArray(trimmed))
-                else -> value
-            }
-        } catch (_: Exception) {
-            value
-        }
     }
 
     private fun sanitizeJsonObject(source: JSONObject): Map<String, Any?> {

@@ -52,35 +52,35 @@ export const modifyProjectBuildGradle = (gradle: string): string => {
 
 const OPENIAP_GROUP = 'io.github.hyochan.openiap';
 
-const escapeRegExp = (value: string): string => {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-};
-
-function loadOpenIapVersion(): string {
-  const versionsPath = resolvePath(__dirname, '../../openiap-versions.json');
-  try {
-    const raw = readFileSync(versionsPath, 'utf8');
-    const parsed = JSON.parse(raw);
-    const googleVersion =
-      typeof parsed?.google === 'string' ? parsed.google.trim() : '';
-    if (!googleVersion) {
-      throw new Error(
-        'react-native-iap: "google" version missing or invalid in openiap-versions.json',
-      );
-    }
-    return googleVersion;
-  } catch (error) {
-    throw new Error(
-      `react-native-iap: Unable to load openiap-versions.json (${error instanceof Error ? error.message : error})`,
-    );
-  }
-}
-
 const modifyAppBuildGradle = (
   gradle: string,
   isHorizonEnabled?: boolean,
   isFireOsEnabled?: boolean,
 ): string => {
+  const escapeRegExp = (value: string): string => {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  };
+
+  function loadOpenIapVersion(): string {
+    const versionsPath = resolvePath(__dirname, '../../openiap-versions.json');
+    try {
+      const raw = readFileSync(versionsPath, 'utf8');
+      const parsed = JSON.parse(raw);
+      const googleVersion =
+        typeof parsed?.google === 'string' ? parsed.google.trim() : '';
+      if (!googleVersion) {
+        throw new Error(
+          'react-native-iap: "google" version missing or invalid in openiap-versions.json',
+        );
+      }
+      return googleVersion;
+    } catch (error) {
+      throw new Error(
+        `react-native-iap: Unable to load openiap-versions.json (${error instanceof Error ? error.message : error})`,
+      );
+    }
+  }
+
   let modified = gradle;
 
   let openiapVersion: string;

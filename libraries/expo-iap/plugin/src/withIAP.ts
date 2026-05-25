@@ -24,28 +24,6 @@ const AUTOLINKING_CONFIG_PATH = path.resolve(
   '../../expo-module.config.json',
 );
 
-function loadOpenIapAndroidVersion(): string {
-  const versionsPath = path.resolve(__dirname, '../../openiap-versions.json');
-  try {
-    const raw = fs.readFileSync(versionsPath, 'utf8');
-    const parsed = JSON.parse(raw);
-    const googleVersion =
-      typeof parsed?.google === 'string' ? parsed.google.trim() : '';
-    if (!googleVersion) {
-      throw new Error(
-        'expo-iap: "google" version missing or invalid in openiap-versions.json',
-      );
-    }
-    return googleVersion;
-  } catch (error) {
-    throw new Error(
-      `expo-iap: Unable to load openiap-versions.json (${
-        error instanceof Error ? error.message : error
-      })`,
-    );
-  }
-}
-
 // Log a message only once per Node process
 const logOnce = (() => {
   const printed = new Set<string>();
@@ -151,6 +129,28 @@ export const modifyAppBuildGradle = (
   isHorizonEnabled?: boolean,
   isFireOsEnabled?: boolean,
 ): string => {
+  function loadOpenIapAndroidVersion(): string {
+    const versionsPath = path.resolve(__dirname, '../../openiap-versions.json');
+    try {
+      const raw = fs.readFileSync(versionsPath, 'utf8');
+      const parsed = JSON.parse(raw);
+      const googleVersion =
+        typeof parsed?.google === 'string' ? parsed.google.trim() : '';
+      if (!googleVersion) {
+        throw new Error(
+          'expo-iap: "google" version missing or invalid in openiap-versions.json',
+        );
+      }
+      return googleVersion;
+    } catch (error) {
+      throw new Error(
+        `expo-iap: Unable to load openiap-versions.json (${
+          error instanceof Error ? error.message : error
+        })`,
+      );
+    }
+  }
+
   let modified = gradle;
 
   let openIapAndroidVersion: string;
