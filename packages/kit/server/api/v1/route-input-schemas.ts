@@ -53,7 +53,7 @@ const HORIZON_USER_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
 const HORIZON_SKU_PATTERN = /^[A-Za-z0-9._-]+$/;
 const EXPECTED_PRODUCT_ID_PATTERN = /^[A-Za-z0-9._-]+$/;
 const AMAZON_USER_ID_PATTERN = /^[A-Za-z0-9._~=-]+$/;
-const AMAZON_RECEIPT_ID_PATTERN = /^[A-Za-z0-9._~:=/-]+$/;
+const AMAZON_RECEIPT_ID_PATTERN = /^[A-Za-z0-9._~:=/+-]+$/;
 
 const expectedProductIdSchema = v.optional(
   v.pipe(

@@ -231,7 +231,7 @@ class OpenIapModule(
                         .sortedWith(compareBy { product ->
                             params.skus.indexOf(product.sku).takeIf { it >= 0 } ?: Int.MAX_VALUE
                         })
-                    products.forEach { productTypeBySku[it.sku] = it.productType }
+                    products.forEach(::cacheProductType)
 
                     val inApps = products
                         .filter { it.productType != AmazonProductType.SUBSCRIPTION }
@@ -613,8 +613,7 @@ class OpenIapModule(
 
     override fun onPurchaseUpdatesResponse(purchaseUpdatesResponse: PurchaseUpdatesResponse) {
         purchaseUpdatesResponse.receipts.orEmpty().forEach { receipt ->
-            purchaseTypeByReceiptId[receipt.receiptId] = receipt.productType
-            productTypeBySku[receipt.sku] = receipt.productType
+            cacheReceiptProductType(receipt, receipt.productTypeOrNull())
         }
         completeOrCache(
             purchaseUpdatesRequests,
@@ -736,7 +735,7 @@ class OpenIapModule(
             when (response.requestStatus) {
                 ProductDataResponse.RequestStatus.SUCCESSFUL -> {
                     response.productData.orEmpty().values.forEach { product ->
-                        productTypeBySku[product.sku] = product.productType
+                        cacheProductType(product)
                     }
                 }
                 ProductDataResponse.RequestStatus.NOT_SUPPORTED -> {
@@ -767,6 +766,14 @@ class OpenIapModule(
         if (sku.isNotBlank()) {
             productTypeBySku[sku] = productType
         }
+    }
+
+    private fun cacheProductType(product: AmazonProduct) {
+        val sku = runCatching { product.sku }.getOrNull()
+            ?.takeIf { it.isNotBlank() }
+            ?: return
+        val productType = runCatching { product.productType }.getOrNull() ?: return
+        productTypeBySku[sku] = productType
     }
 
     private fun AmazonReceipt.productTypeOrNull(): AmazonProductType? {
