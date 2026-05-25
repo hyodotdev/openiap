@@ -169,7 +169,7 @@ export const verifyAmazonReceiptInternalV1 = action({
       receiptId: args.receiptId,
       sandbox,
     };
-    const applicationId = project.androidPackageName ?? "amazon-appstore";
+    const applicationId = project.androidPackageName ?? `amazon:${project._id}`;
     const remoteId = buildAmazonRemoteId({
       userId: args.userId,
       receiptId: args.receiptId,

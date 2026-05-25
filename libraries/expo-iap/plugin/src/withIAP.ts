@@ -116,7 +116,7 @@ export function syncHorizonAppIdMetaData(
     !manifest.manifest.application ||
     manifest.manifest.application.length === 0
   ) {
-    manifest.manifest.application = [{$: {'android:name': '.MainApplication'}}];
+    manifest.manifest.application = [{$: {}}];
   }
 
   const horizonApplication = manifest.manifest.application[0]!;

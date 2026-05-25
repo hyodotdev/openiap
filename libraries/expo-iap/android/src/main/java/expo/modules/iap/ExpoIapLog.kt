@@ -75,7 +75,16 @@ internal object ExpoIapLog {
 
     private fun isSensitiveKey(key: String): Boolean {
         val normalized = key.lowercase().filter { it.isLetterOrDigit() }
-        return listOf("token", "apikey", "secret", "jws", "receiptid", "userid").any {
+        return listOf(
+            "token",
+            "apikey",
+            "secret",
+            "jws",
+            "receiptid",
+            "userid",
+            "password",
+            "auth"
+        ).any {
             normalized.contains(it)
         }
     }

@@ -34,6 +34,7 @@ import kotlinx.coroutines.withTimeout
 import java.lang.ref.WeakReference
 import java.text.NumberFormat
 import java.text.ParsePosition
+import java.util.Currency
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import com.amazon.device.iap.model.Product as AmazonProduct
@@ -812,7 +813,9 @@ class OpenIapModule(
         val decimalIndex = maxOf(lastDot, lastComma)
         val hasMixedSeparators = lastDot >= 0 && lastComma >= 0
         val fractionLength = if (decimalIndex >= 0) numeric.length - decimalIndex - 1 else 0
-        val hasDecimalSeparator = decimalIndex >= 0 && (hasMixedSeparators || fractionLength in 1..2)
+        val currencyFractionDigits = value.currencyFractionDigits()
+        val hasDecimalSeparator = decimalIndex >= 0 &&
+            (hasMixedSeparators || fractionLength in 1..2 || fractionLength == currencyFractionDigits)
         val normalized = if (hasDecimalSeparator) {
             val integerPart = numeric.substring(0, decimalIndex).replace(Regex("[^0-9-]"), "")
             val fractionPart = numeric.substring(decimalIndex + 1).replace(Regex("[^0-9]"), "")
@@ -833,6 +836,13 @@ class OpenIapModule(
             val parsed = format.parse(value, position)
             if (parsed != null && position.index > 0) parsed.toDouble() else null
         }
+    }
+
+    private fun String.currencyFractionDigits(): Int? {
+        val code = Regex("\\b[A-Z]{3}\\b").find(this)?.value ?: return null
+        return runCatching { Currency.getInstance(code).defaultFractionDigits }
+            .getOrNull()
+            ?.takeIf { it >= 0 }
     }
 
     private fun AmazonReceipt.toPurchase(): PurchaseAndroid {

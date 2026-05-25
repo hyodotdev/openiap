@@ -84,6 +84,24 @@ function isMissingModuleError(error: unknown, moduleName: string): boolean {
   return false;
 }
 
+function getExpoIapFallbackModule(): any | null {
+  if (expoIapFallback !== undefined) {
+    return expoIapFallback;
+  }
+
+  try {
+    expoIapFallback = requireNativeModule('ExpoIap');
+  } catch (error) {
+    if (isMissingModuleError(error, 'ExpoIap')) {
+      expoIapFallback = null;
+    } else {
+      throw error;
+    }
+  }
+
+  return expoIapFallback;
+}
+
 export const NATIVE_ERROR_CODES: Record<string, unknown> = new Proxy(
   {} as Record<string, unknown>,
   {
@@ -106,24 +124,6 @@ export function getNativeModule() {
 
 export default new Proxy({} as any, {
   get(target, prop) {
-    function getExpoIapFallbackModule(): any | null {
-      if (expoIapFallback !== undefined) {
-        return expoIapFallback;
-      }
-
-      try {
-        expoIapFallback = requireNativeModule('ExpoIap');
-      } catch (error) {
-        if (isMissingModuleError(error, 'ExpoIap')) {
-          expoIapFallback = null;
-        } else {
-          throw error;
-        }
-      }
-
-      return expoIapFallback;
-    }
-
     if (typeof prop === 'symbol') return Reflect.get(target, prop);
     const resolved = getResolved();
     if (prop === 'USING_ONSIDE_SDK') {
