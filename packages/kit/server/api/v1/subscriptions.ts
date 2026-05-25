@@ -1,8 +1,13 @@
+import { Buffer } from "node:buffer";
 import { Hono, type Context, type Next } from "hono";
 
 import { api } from "@/convex";
 import { client, handleConvexError } from "../../convex";
 import { apiKeyValidationError } from "./middleware";
+import {
+  APPLE_JWS_MAX_LENGTH,
+  GOOGLE_PURCHASE_TOKEN_MAX_LENGTH,
+} from "./route-input-schemas";
 import {
   isContentLengthOverLimit,
   JsonBodyTooLargeError,
@@ -18,8 +23,8 @@ import {
 const subscriptions = new Hono();
 const MAX_USER_ID_LENGTH = 256;
 const MAX_PRODUCT_ID_LENGTH = 256;
-const MAX_PURCHASE_TOKEN_LENGTH = 2_000;
-const MAX_BIND_USER_BODY_BYTES = 8 * 1024;
+const MAX_BIND_USER_BODY_BYTES = 32 * 1024;
+const COMPACT_JWS_PART_PATTERN = /^[A-Za-z0-9_-]+$/;
 type SubscriptionState =
   | "Active"
   | "InGracePeriod"
@@ -199,8 +204,11 @@ subscriptions.post("/bind-user/:apiKey", async (c) => {
   ) {
     return invalidInput(c, "purchaseToken and userId are required");
   }
-  if (!isValidPurchaseTokenLength(payload.purchaseToken)) {
-    return invalidInput(c, "purchaseToken must be ≤ 2000 chars");
+  const normalizedPurchaseToken = normalizeBindUserPurchaseToken(
+    payload.purchaseToken,
+  );
+  if (!normalizedPurchaseToken.ok) {
+    return invalidInput(c, normalizedPurchaseToken.message);
   }
   if (!isValidUserIdLength(payload.userId)) {
     return invalidInput(c, "userId must be ≤ 256 chars");
@@ -208,7 +216,7 @@ subscriptions.post("/bind-user/:apiKey", async (c) => {
   try {
     const result = await client.mutation(api.subscriptions.mutation.bindUser, {
       apiKey,
-      purchaseToken: payload.purchaseToken,
+      purchaseToken: normalizedPurchaseToken.purchaseToken,
       userId: payload.userId,
     });
     return c.json(result);
@@ -238,8 +246,72 @@ function isValidProductIdLength(productId: string): boolean {
   return productId.length <= MAX_PRODUCT_ID_LENGTH;
 }
 
-function isValidPurchaseTokenLength(purchaseToken: string): boolean {
-  return purchaseToken.length <= MAX_PURCHASE_TOKEN_LENGTH;
+type BindUserPurchaseTokenResult =
+  | { ok: true; purchaseToken: string }
+  | { ok: false; message: string };
+
+function normalizeBindUserPurchaseToken(
+  purchaseToken: string,
+): BindUserPurchaseTokenResult {
+  const applePurchaseToken = extractApplePurchaseTokenFromJws(purchaseToken);
+  if (applePurchaseToken) {
+    return { ok: true, purchaseToken: applePurchaseToken };
+  }
+
+  if (purchaseToken.length <= GOOGLE_PURCHASE_TOKEN_MAX_LENGTH) {
+    return { ok: true, purchaseToken };
+  }
+
+  if (
+    isCompactJwsShape(purchaseToken) &&
+    purchaseToken.length <= APPLE_JWS_MAX_LENGTH
+  ) {
+    return {
+      ok: false,
+      message:
+        "Apple JWS purchaseToken must include originalTransactionId or transactionId",
+    };
+  }
+
+  return { ok: false, message: bindUserPurchaseTokenLimitMessage() };
+}
+
+function extractApplePurchaseTokenFromJws(jws: string): string | null {
+  if (!isCompactJwsShape(jws) || jws.length > APPLE_JWS_MAX_LENGTH) {
+    return null;
+  }
+
+  try {
+    const [, payloadBase64] = jws.split(".");
+    const payload = JSON.parse(
+      Buffer.from(payloadBase64, "base64url").toString("utf-8"),
+    ) as Record<string, unknown>;
+
+    if (isNonBlankString(payload.originalTransactionId)) {
+      return payload.originalTransactionId;
+    }
+    if (isNonBlankString(payload.transactionId)) {
+      return payload.transactionId;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function isCompactJwsShape(value: string): boolean {
+  const parts = value.split(".");
+  return (
+    parts.length === 3 &&
+    parts.every(
+      (part) => part.length > 0 && COMPACT_JWS_PART_PATTERN.test(part),
+    )
+  );
+}
+
+function bindUserPurchaseTokenLimitMessage(): string {
+  return `purchaseToken must be ≤ ${GOOGLE_PURCHASE_TOKEN_MAX_LENGTH} chars, or an Apple JWS ≤ ${APPLE_JWS_MAX_LENGTH} chars`;
 }
 
 function isSubscriptionState(state: string): state is SubscriptionState {
