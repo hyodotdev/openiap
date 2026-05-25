@@ -318,6 +318,29 @@ describe("subscriptionsRoutes", () => {
     expect(mocks.mutation).not.toHaveBeenCalled();
   });
 
+  it("accepts short dotted Google tokens that are not parseable Apple JWS", async () => {
+    const app = buildApp();
+    mocks.mutation.mockResolvedValueOnce({ ok: true, bound: true });
+    const purchaseToken = "google.token.value";
+
+    const response = await app.request("/subscriptions/bind-user/key", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        purchaseToken,
+        userId: "user-1",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ ok: true, bound: true });
+    expect(mocks.mutation).toHaveBeenCalledWith("bindUser", {
+      apiKey: "key",
+      purchaseToken,
+      userId: "user-1",
+    });
+  });
+
   it("rejects long Apple JWS-shaped bind-user purchaseToken without transaction ids", async () => {
     const app = buildApp();
     const jws = compactJws({

@@ -251,6 +251,10 @@ function isValidProductIdLength(productId: string): boolean {
 type BindUserPurchaseTokenResult =
   | { ok: true; purchaseToken: string }
   | { ok: false; message: string };
+type AppleJwsParseResult =
+  | { kind: "valid"; purchaseToken: string }
+  | { kind: "invalid" }
+  | { kind: "notAppleJws" };
 
 function normalizeBindUserPurchaseToken(
   purchaseToken: string,
@@ -260,9 +264,18 @@ function normalizeBindUserPurchaseToken(
       return { ok: false, message: bindUserPurchaseTokenLimitMessage() };
     }
 
-    const applePurchaseToken = extractApplePurchaseTokenFromJws(purchaseToken);
-    if (applePurchaseToken) {
-      return { ok: true, purchaseToken: applePurchaseToken };
+    const appleJws = parseApplePurchaseTokenFromJws(purchaseToken);
+    if (appleJws.kind === "valid") {
+      return { ok: true, purchaseToken: appleJws.purchaseToken };
+    }
+    if (appleJws.kind === "invalid") {
+      return {
+        ok: false,
+        message: INVALID_APPLE_JWS_PURCHASE_TOKEN_MESSAGE,
+      };
+    }
+    if (purchaseToken.length <= GOOGLE_PURCHASE_TOKEN_MAX_LENGTH) {
+      return { ok: true, purchaseToken };
     }
 
     return {
@@ -278,41 +291,44 @@ function normalizeBindUserPurchaseToken(
   return { ok: false, message: bindUserPurchaseTokenLimitMessage() };
 }
 
-function extractApplePurchaseTokenFromJws(jws: string): string | null {
+function parseApplePurchaseTokenFromJws(jws: string): AppleJwsParseResult {
   if (!isCompactJwsShape(jws) || jws.length > APPLE_JWS_MAX_LENGTH) {
-    return null;
+    return { kind: "notAppleJws" };
   }
 
   try {
-    const [, payloadBase64] = jws.split(".");
-    const payload = JSON.parse(
-      Buffer.from(payloadBase64, "base64url").toString("utf-8"),
-    );
+    const [headerBase64, payloadBase64] = jws.split(".");
+    const header = decodeJwsJsonPart(headerBase64);
+    const payload = decodeJwsJsonPart(payloadBase64);
 
-    if (!isJsonObject(payload)) {
-      return null;
+    if (!isJsonObject(header) || !isJsonObject(payload)) {
+      return { kind: "notAppleJws" };
     }
 
     const originalTransactionId = normalizeTransactionId(
       payload.originalTransactionId,
     );
     if (originalTransactionId) {
-      return originalTransactionId;
+      return { kind: "valid", purchaseToken: originalTransactionId };
     }
 
     const transactionId = normalizeTransactionId(payload.transactionId);
     if (transactionId) {
-      return transactionId;
+      return { kind: "valid", purchaseToken: transactionId };
     }
   } catch {
-    return null;
+    return { kind: "notAppleJws" };
   }
 
-  return null;
+  return { kind: "invalid" };
 }
 
 function isCompactJwsShape(value: string): boolean {
   return APPLE_JWS_PATTERN.test(value);
+}
+
+function decodeJwsJsonPart(part: string): unknown {
+  return JSON.parse(Buffer.from(part, "base64url").toString("utf-8"));
 }
 
 function normalizeTransactionId(value: unknown): string | null {
