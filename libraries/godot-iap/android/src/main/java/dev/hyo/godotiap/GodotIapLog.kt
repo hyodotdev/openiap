@@ -82,7 +82,7 @@ internal object GodotIapLog {
         val sanitized = linkedMapOf<String, Any?>()
         for ((rawKey, rawValue) in source) {
             val key = rawKey as? String ?: continue
-            if (key.lowercase().contains("token")) {
+            if (isSensitiveKey(key)) {
                 sanitized[key] = "hidden"
                 continue
             }

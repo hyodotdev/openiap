@@ -792,6 +792,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             let response: URLResponse
             do {
                 (data, response) = try await URLSession.shared.data(for: request)
+            } catch is CancellationError {
+                throw CancellationError()
             } catch {
                 OpenIapLog.warn("IAPKit verification network error: \(error.localizedDescription)")
                 throw makePurchaseError(code: .networkError, message: error.localizedDescription)

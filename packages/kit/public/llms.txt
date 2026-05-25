@@ -48,7 +48,8 @@ Harmonized `state` values (truthy `isValid`): `ENTITLED`,
 ## Status codes
 
 - `200` — verification ran; check `isValid`
-- `400 INVALID_INPUT` — malformed body / unknown store / input exceeds size cap
+- `400 INVALID_INPUT` — malformed body / unknown store / oversized field
+- `413 PAYLOAD_TOO_LARGE` — request body exceeds the 32 KB edge cap
 - `401 MISSING_API_KEY` — no `Authorization` header
 - `403 INVALID_API_KEY` — wrong scheme, malformed, or unrecognized key
 - `429 RATE_LIMITED` — per-key bucket empty; honor `Retry-After` seconds

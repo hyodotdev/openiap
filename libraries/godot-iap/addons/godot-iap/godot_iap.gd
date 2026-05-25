@@ -676,8 +676,11 @@ func verify_purchase(props) -> Variant:
 	if _native_plugin and _platform == "iOS":
 		var pending = _native_plugin.call("verifyPurchase", JSON.stringify(props_dict))
 		var request_id = _parse_request_id(pending)
+		if request_id.is_empty():
+			push_warning("[GodotIap] verify_purchase missing requestId")
+			return null
 		var payload = await _await_products_fetched_for("verifyPurchase", request_id)
-		if payload.get("success", false):
+		if payload is Dictionary and payload.get("success", false):
 			var payload_json = payload.get("resultJson", "")
 			var decoded = JSON.parse_string(payload_json)
 			if decoded is Dictionary:
@@ -712,8 +715,19 @@ func verify_purchase_with_provider(props) -> Variant:
 	if _native_plugin and _platform == "iOS":
 		var pending = _native_plugin.call("verifyPurchaseWithProvider", JSON.stringify(props_dict))
 		var request_id = _parse_request_id(pending)
+		if request_id.is_empty():
+			push_warning("[GodotIap] verify_purchase_with_provider missing requestId")
+			return Types.VerifyPurchaseWithProviderResult.from_dict({
+				"provider": props_dict.get("provider", "iapkit"),
+				"errors": [
+					{
+						"code": "purchase-verification-failed",
+						"message": "Missing requestId",
+					},
+				],
+			})
 		var payload = await _await_products_fetched_for("verifyPurchaseWithProvider", request_id)
-		if payload.get("success", false):
+		if payload is Dictionary and payload.get("success", false):
 			var payload_json = payload.get("resultJson", "")
 			var decoded = JSON.parse_string(payload_json)
 			if decoded is Dictionary:
@@ -723,7 +737,7 @@ func verify_purchase_with_provider(props) -> Variant:
 			"errors": [
 				{
 					"code": "purchase-verification-failed",
-					"message": payload.get("error", "Verification failed"),
+					"message": payload.get("error", "Verification failed") if payload is Dictionary else "Verification failed",
 				},
 			],
 		})

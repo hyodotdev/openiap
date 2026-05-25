@@ -126,7 +126,8 @@ sandbox guidance, webhook simulation, and project inspection. Full setup guide:
 | Code | Body                                  | When                                              |
 | ---- | ------------------------------------- | ------------------------------------------------- |
 | 200  | `{ store, isValid, state }`           | Verification ran                                  |
-| 400  | `INVALID_INPUT`                       | Malformed body, unknown store, oversized input    |
+| 400  | `INVALID_INPUT`                       | Malformed body, unknown store, oversized field    |
+| 413  | `PAYLOAD_TOO_LARGE`                   | Request body exceeds the 32 KB edge cap           |
 | 401  | `MISSING_API_KEY`                     | No `Authorization` header                         |
 | 403  | `INVALID_API_KEY`                     | Wrong scheme, malformed, or unknown key           |
 | 429  | `RATE_LIMITED`                        | Per-key bucket empty; honor `Retry-After`         |

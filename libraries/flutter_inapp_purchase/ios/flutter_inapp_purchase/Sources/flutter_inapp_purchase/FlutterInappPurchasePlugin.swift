@@ -934,14 +934,27 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                     if let purchaseToken = (iapkit["google"] as? [String: Any])?["purchaseToken"] as? String {
                         iapkitDict["google"] = ["purchaseToken": purchaseToken]
                     }
-                    if let amazon = iapkit["amazon"] as? [String: Any],
-                       let receiptId = amazon["receiptId"] as? String {
+                    if let amazon = iapkit["amazon"] as? [String: Any] {
+                        guard let rawReceiptId = amazon["receiptId"] as? String else {
+                            let code: ErrorCode = .developerError
+                            result(FlutterError(code: code.rawValue, message: "iapkit.amazon.receiptId required", details: nil))
+                            return
+                        }
+                        let receiptId = rawReceiptId.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !receiptId.isEmpty else {
+                            let code: ErrorCode = .developerError
+                            result(FlutterError(code: code.rawValue, message: "iapkit.amazon.receiptId required", details: nil))
+                            return
+                        }
                         var amazonDict: [String: Any] = ["receiptId": receiptId]
                         if let sandbox = amazon["sandbox"] as? Bool {
                             amazonDict["sandbox"] = sandbox
                         }
                         if let userId = amazon["userId"] as? String {
-                            amazonDict["userId"] = userId
+                            let trimmedUserId = userId.trimmingCharacters(in: .whitespacesAndNewlines)
+                            if !trimmedUserId.isEmpty {
+                                amazonDict["userId"] = trimmedUserId
+                            }
                         }
                         iapkitDict["amazon"] = amazonDict
                     }

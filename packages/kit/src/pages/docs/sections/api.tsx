@@ -254,7 +254,7 @@ export default function ApiReferencePage() {
               <td className="px-3 py-2 font-mono text-xs">400</td>
               <td className="px-3 py-2 font-mono text-xs">INVALID_INPUT</td>
               <td className="px-3 py-2">
-                Malformed body / unknown store / input exceeds size cap.
+                Malformed body / unknown store / oversized field.
               </td>
             </tr>
             <tr>
