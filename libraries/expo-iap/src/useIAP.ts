@@ -645,7 +645,12 @@ export function useIAP(options?: UseIAPOptions): UseIap {
           return; // Ignore initialization error before connected
         }
         const friendly = getUserFriendlyErrorMessage(error);
-        if (!isUserCancelledError(error) && !isRecoverableError(error)) {
+        if (
+          error.code !== ErrorCode.AlreadyOwned &&
+          error.code !== ErrorCode.ServiceTimeout &&
+          !isUserCancelledError(error) &&
+          !isRecoverableError(error)
+        ) {
           ExpoIapConsole.warn('[useIAP] Purchase error:', friendly);
         }
 

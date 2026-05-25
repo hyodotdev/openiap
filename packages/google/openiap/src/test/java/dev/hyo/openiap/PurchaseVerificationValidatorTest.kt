@@ -7,6 +7,7 @@ import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
 import dev.hyo.openiap.IapStore
 import dev.hyo.openiap.IapkitPurchaseState
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitAmazonProps
+import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitAppleProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitGoogleProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps
 import dev.hyo.openiap.VerifyPurchaseGoogleOptions
@@ -14,6 +15,7 @@ import dev.hyo.openiap.VerifyPurchaseHorizonOptions
 import dev.hyo.openiap.VerifyPurchaseProps
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.HttpURLConnection
@@ -328,6 +330,50 @@ class PurchaseVerificationValidatorTest {
     }
 
     @Test
+    fun `verifyPurchaseWithIapkit throws when apple payload is provided on Android`() = runTest {
+        val props = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = null,
+            apple = RequestVerifyPurchaseWithIapkitAppleProps(
+                jws = "header.payload.signature"
+            ),
+            google = null,
+            amazon = null
+        )
+
+        try {
+            verifyPurchaseWithIapkit(props, "TEST") { _ ->
+                throw AssertionError("Connection should not be created when apple payload is provided")
+            }
+            throw AssertionError("Expected IllegalArgumentException for apple payload on Android")
+        } catch (expected: IllegalArgumentException) {
+            assertTrue(expected.message?.contains("exactly one google or amazon") == true)
+        }
+    }
+
+    @Test
+    fun `verifyPurchaseWithIapkit throws when apple is mixed with android payloads`() = runTest {
+        val props = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = null,
+            apple = RequestVerifyPurchaseWithIapkitAppleProps(
+                jws = "header.payload.signature"
+            ),
+            google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                purchaseToken = "token-123"
+            ),
+            amazon = null
+        )
+
+        try {
+            verifyPurchaseWithIapkit(props, "TEST") { _ ->
+                throw AssertionError("Connection should not be created when apple payload is mixed")
+            }
+            throw AssertionError("Expected IllegalArgumentException for mixed apple payload")
+        } catch (expected: IllegalArgumentException) {
+            assertTrue(expected.message?.contains("exactly one google or amazon") == true)
+        }
+    }
+
+    @Test
     fun `verifyPurchaseWithIapkit wraps non-2xx as PurchaseVerificationFailed`() = runTest {
         val props = RequestVerifyPurchaseWithIapkitProps(
             apiKey = null,
@@ -346,6 +392,125 @@ class PurchaseVerificationValidatorTest {
             throw AssertionError("Expected PurchaseVerificationFailed for non-2xx response")
         } catch (error: OpenIapError.PurchaseVerificationFailed) {
             // PurchaseVerificationFailed is the expected exception
+            assertTrue(true)
+        }
+    }
+
+    @Test
+    fun `verifyPurchaseWithIapkit extracts nested JSON error messages`() = runTest {
+        val props = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = null,
+            apple = null,
+            google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                purchaseToken = "token-123"
+            ),
+            amazon = null
+        )
+
+        try {
+            verifyPurchaseWithIapkit(
+                props,
+                "TEST"
+            ) {
+                FakeHttpURLConnection(
+                    400,
+                    """{"message":"{\"error\":\"receipt no longer valid\"}"}"""
+                )
+            }
+            throw AssertionError("Expected PurchaseVerificationFailed for non-2xx response")
+        } catch (error: OpenIapError.PurchaseVerificationFailed) {
+            assertTrue(error.message.contains("receipt no longer valid"))
+        }
+    }
+
+    @Test
+    fun `verifyPurchaseWithIapkit rejects successful error payloads`() = runTest {
+        val props = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = null,
+            apple = null,
+            google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                purchaseToken = "token-123"
+            ),
+            amazon = null
+        )
+
+        try {
+            verifyPurchaseWithIapkit(
+                props,
+                "TEST"
+            ) { _ -> FakeHttpURLConnection(200, """{"errors":[{"message":"bad receipt"}]}""") }
+            throw AssertionError("Expected PurchaseVerificationFailed for IAPKit error payload")
+        } catch (error: OpenIapError.PurchaseVerificationFailed) {
+            assertTrue(error.message.contains("bad receipt"))
+        }
+    }
+
+    @Test
+    fun `verifyPurchaseWithIapkit rejects missing result fields`() = runTest {
+        val props = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = null,
+            apple = null,
+            google = null,
+            amazon = RequestVerifyPurchaseWithIapkitAmazonProps(
+                userId = "amzn1.account.ABC123",
+                receiptId = "amzn1.receipt.ABC123456789",
+                sandbox = true
+            )
+        )
+
+        try {
+            verifyPurchaseWithIapkit(
+                props,
+                "TEST"
+            ) { _ -> FakeHttpURLConnection(200, """{"store":"amazon","state":"ENTITLED"}""") }
+            throw AssertionError("Expected PurchaseVerificationFailed for missing fields")
+        } catch (error: OpenIapError.PurchaseVerificationFailed) {
+            assertTrue(error.message.contains("malformed"))
+        }
+    }
+
+    @Test
+    fun `verifyPurchaseWithIapkit rejects mismatched result store`() = runTest {
+        val props = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = null,
+            apple = null,
+            google = null,
+            amazon = RequestVerifyPurchaseWithIapkitAmazonProps(
+                userId = "amzn1.account.ABC123",
+                receiptId = "amzn1.receipt.ABC123456789",
+                sandbox = true
+            )
+        )
+
+        try {
+            verifyPurchaseWithIapkit(
+                props,
+                "TEST"
+            ) { _ -> FakeHttpURLConnection(200, """{"store":"google","isValid":true,"state":"ENTITLED"}""") }
+            throw AssertionError("Expected PurchaseVerificationFailed for mismatched store")
+        } catch (error: OpenIapError.PurchaseVerificationFailed) {
+            assertTrue(error.message.contains("malformed"))
+        }
+    }
+
+    @Test
+    fun `verifyPurchaseWithIapkit wraps IO failures as NetworkError`() = runTest {
+        val props = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = null,
+            apple = null,
+            google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                purchaseToken = "token-123"
+            ),
+            amazon = null
+        )
+
+        try {
+            verifyPurchaseWithIapkit(
+                props,
+                "TEST"
+            ) { _ -> FailingHttpURLConnection() }
+            throw AssertionError("Expected NetworkError for IO failure")
+        } catch (error: OpenIapError.NetworkError) {
             assertTrue(true)
         }
     }
@@ -434,6 +599,18 @@ private class FakeHttpURLConnection(
                 writtenBody = toString()
             }
         }
+    }
+
+    override fun disconnect() { /* no-op */ }
+
+    override fun usingProxy(): Boolean = false
+
+    override fun connect() { /* no-op */ }
+}
+
+private class FailingHttpURLConnection : HttpURLConnection(URL("https://example.com")) {
+    override fun getOutputStream(): OutputStream {
+        throw IOException("network offline")
     }
 
     override fun disconnect() { /* no-op */ }

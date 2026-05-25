@@ -672,17 +672,27 @@ func get_storefront() -> String:
 ## See: https://openiap.dev/docs/features/validation#verify-purchase
 func verify_purchase(props) -> Variant:
 	print("[GodotIap] verify_purchase called")
-	var result = _verify_purchase_raw(props.to_dict())
+	var props_dict: Dictionary = props.to_dict() if props is Object and props.has_method("to_dict") else (props if props is Dictionary else {})
+	if _native_plugin and _platform == "iOS":
+		var pending = _native_plugin.call("verifyPurchase", JSON.stringify(props_dict))
+		var request_id = _parse_request_id(pending)
+		var payload = await _await_products_fetched_for("verifyPurchase", request_id)
+		if payload.get("success", false):
+			var payload_json = payload.get("resultJson", "")
+			var decoded = JSON.parse_string(payload_json)
+			if decoded is Dictionary:
+				return Types.VerifyPurchaseResultIOS.from_dict(decoded)
+		return null
+
+	var result = _verify_purchase_raw(props_dict)
 	if result.get("success", false) or result.get("isValid", false):
-		if _platform == "iOS":
-			return Types.VerifyPurchaseResultIOS.from_dict(result)
-		elif _platform == "Android":
+		if _platform == "Android":
 			return Types.VerifyPurchaseResultAndroid.from_dict(result)
 	return null
 
 ## Internal: Verify purchase with raw Dictionary
 func _verify_purchase_raw(props: Dictionary) -> Dictionary:
-	if _native_plugin and (_platform == "Android" or _platform == "iOS"):
+	if _native_plugin and _platform == "Android":
 		var props_json = JSON.stringify(props)
 		var result_json = _native_plugin.call("verifyPurchase", props_json)
 		var result = JSON.parse_string(result_json)
@@ -698,19 +708,47 @@ func _verify_purchase_raw(props: Dictionary) -> Dictionary:
 ## See: https://openiap.dev/docs/features/validation#verify-purchase-with-provider
 func verify_purchase_with_provider(props) -> Variant:
 	print("[GodotIap] verify_purchase_with_provider called")
-	var result = _verify_purchase_with_provider_raw(props.to_dict())
+	var props_dict: Dictionary = props.to_dict() if props is Object and props.has_method("to_dict") else (props if props is Dictionary else {})
+	if _native_plugin and _platform == "iOS":
+		var pending = _native_plugin.call("verifyPurchaseWithProvider", JSON.stringify(props_dict))
+		var request_id = _parse_request_id(pending)
+		var payload = await _await_products_fetched_for("verifyPurchaseWithProvider", request_id)
+		if payload.get("success", false):
+			var payload_json = payload.get("resultJson", "")
+			var decoded = JSON.parse_string(payload_json)
+			if decoded is Dictionary:
+				return Types.VerifyPurchaseWithProviderResult.from_dict(decoded)
+		return Types.VerifyPurchaseWithProviderResult.from_dict({
+			"provider": props_dict.get("provider", "iapkit"),
+			"errors": [
+				{
+					"code": "purchase-verification-failed",
+					"message": payload.get("error", "Verification failed"),
+				},
+			],
+		})
+
+	var result = _verify_purchase_with_provider_raw(props_dict)
 	return Types.VerifyPurchaseWithProviderResult.from_dict(result)
 
 ## Internal: Verify purchase with provider raw Dictionary
 func _verify_purchase_with_provider_raw(props: Dictionary) -> Dictionary:
-	if _native_plugin and (_platform == "Android" or _platform == "iOS"):
+	if _native_plugin and _platform == "Android":
 		var props_json = JSON.stringify(props)
 		var result_json = _native_plugin.call("verifyPurchaseWithProvider", props_json)
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
 			return result
 	# No native plugin
-	return { "success": false, "isValid": false, "error": "Not available in no native plugin" }
+	return {
+		"provider": props.get("provider", "iapkit"),
+		"errors": [
+			{
+				"code": "feature-not-supported",
+				"message": "Not available in no native plugin",
+			},
+		],
+	}
 
 
 # ==========================================

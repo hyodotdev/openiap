@@ -1,8 +1,8 @@
 # IAPKit
 
 > Receipt-validation SaaS managed by OpenIAP. Hosted at https://kit.openiap.dev.
-> One Bearer-authed endpoint for all three stores (Apple / Google / Horizon);
-> harmonized response shape so your backend has a single code path for
+> One Bearer-authed endpoint for Apple / Google / Horizon / Amazon;
+> harmonized response shape with `{ store, isValid, state }` so your backend has a single code path for
 > entitlement + refund detection.
 
 IAPKit is a single-package Bun + Hono server bundled with a Convex backend
@@ -32,11 +32,13 @@ is an alias of `/v1/purchase/verify`. Pick `/v1/purchase/verify` for new code.
 - Horizon — `{ store: "horizon", userId, sku }` (≤ 256 chars each). IAPKit
   holds the App ID + App Secret server-side and composes the
   `OC|APP_ID|APP_SECRET` access token per-request.
+- Amazon — `{ store: "amazon", userId, receiptId, sandbox? }` where
+  `userId` and `receiptId` come from Amazon Appstore RVS.
 
 ## Success response
 
 ```json
-{ "isValid": true, "state": "ENTITLED" }
+{ "store": "amazon", "isValid": true, "state": "ENTITLED" }
 ```
 
 Harmonized `state` values (truthy `isValid`): `ENTITLED`,
@@ -66,6 +68,7 @@ Harmonized `state` values (truthy `isValid`): `ENTITLED`,
 - [/docs/verification/apple](https://kit.openiap.dev/docs/verification/apple) — bundle ID, Issuer ID, Key ID, .p8
 - [/docs/verification/google](https://kit.openiap.dev/docs/verification/google) — package name, service account JSON
 - [/docs/verification/horizon](https://kit.openiap.dev/docs/verification/horizon) — App ID + App Secret (write-only)
+- [/docs/api](https://kit.openiap.dev/docs/api) — includes Amazon RVS userId + receiptId verification payloads
 - [/docs/api](https://kit.openiap.dev/docs/api) — request shapes, responses, errors, headers
 - [/docs/operations](https://kit.openiap.dev/docs/operations) — rate limits, logs, `/health`, graceful shutdown
 - [openiap.dev/docs/webhooks](https://openiap.dev/docs/webhooks) — operator setup steps for the lifecycle webhook URL (Apple ASN v2 + Google RTDN) and SDK code for consuming the SSE stream

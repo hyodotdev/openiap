@@ -799,6 +799,17 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                     if let purchaseToken = (iapkit["google"] as? [String: Any])?["purchaseToken"] as? String {
                         iapkitDict["google"] = ["purchaseToken": purchaseToken]
                     }
+                    if let amazon = iapkit["amazon"] as? [String: Any],
+                       let receiptId = amazon["receiptId"] as? String {
+                        var amazonDict: [String: Any] = ["receiptId": receiptId]
+                        if let sandbox = amazon["sandbox"] as? Bool {
+                            amazonDict["sandbox"] = sandbox
+                        }
+                        if let userId = amazon["userId"] as? String {
+                            amazonDict["userId"] = userId
+                        }
+                        iapkitDict["amazon"] = amazonDict
+                    }
                     propsDict["iapkit"] = iapkitDict
                 }
 

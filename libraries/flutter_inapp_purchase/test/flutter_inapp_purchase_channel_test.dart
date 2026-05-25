@@ -2190,6 +2190,70 @@ void main() {
       expect(result.iapkit!.store, types.IapStore.Google);
     });
 
+    test('sends correct payload for Amazon verification', () async {
+      final calls = <MethodCall>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        calls.add(call);
+        switch (call.method) {
+          case 'initConnection':
+            return true;
+          case 'verifyPurchaseWithProvider':
+            return jsonEncode({
+              'provider': 'iapkit',
+              'iapkit': {
+                'isValid': true,
+                'state': 'entitled',
+                'store': 'amazon',
+              },
+            });
+        }
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+
+      await iap.initConnection();
+
+      final result = await iap.verifyPurchaseWithProvider(
+        provider: types.PurchaseVerificationProvider.Iapkit,
+        iapkit: const types.RequestVerifyPurchaseWithIapkitProps(
+          apiKey: 'test-api-key',
+          amazon: types.RequestVerifyPurchaseWithIapkitAmazonProps(
+            receiptId: 'amzn1.receipt.test',
+            sandbox: true,
+            userId: 'amzn1.account.test',
+          ),
+        ),
+      );
+
+      final verifyCall = calls.singleWhere(
+        (MethodCall c) => c.method == 'verifyPurchaseWithProvider',
+      );
+      final payload = Map<String, dynamic>.from(
+        verifyCall.arguments as Map<dynamic, dynamic>,
+      );
+
+      expect(payload['provider'], 'iapkit');
+      final iapkitPayload = Map<String, dynamic>.from(
+        payload['iapkit'] as Map<dynamic, dynamic>,
+      );
+      expect(iapkitPayload['amazon'], isNotNull);
+      final amazonPayload = Map<String, dynamic>.from(
+        iapkitPayload['amazon'] as Map<dynamic, dynamic>,
+      );
+      expect(amazonPayload['receiptId'], 'amzn1.receipt.test');
+      expect(amazonPayload['sandbox'], true);
+      expect(amazonPayload['userId'], 'amzn1.account.test');
+
+      expect(result.iapkit, isNotNull);
+      expect(result.iapkit!.isValid, true);
+      expect(result.iapkit!.state, types.IapkitPurchaseState.Entitled);
+      expect(result.iapkit!.store, types.IapStore.Amazon);
+    });
+
     test('throws PurchaseError on platform exception', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall call) async {
@@ -2266,6 +2330,50 @@ void main() {
       expect(result.iapkit, isNull);
     });
 
+    test('rejects missing provider in response', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        switch (call.method) {
+          case 'initConnection':
+            return true;
+          case 'verifyPurchaseWithProvider':
+            return {
+              'iapkit': {
+                'isValid': true,
+                'state': 'entitled',
+                'store': 'apple',
+              },
+            };
+        }
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'ios'),
+      );
+
+      await iap.initConnection();
+
+      await expectLater(
+        iap.verifyPurchaseWithProvider(
+          provider: types.PurchaseVerificationProvider.Iapkit,
+          iapkit: const types.RequestVerifyPurchaseWithIapkitProps(
+            apiKey: 'test-api-key',
+            apple: types.RequestVerifyPurchaseWithIapkitAppleProps(
+              jws: 'test-jws-token',
+            ),
+          ),
+        ),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            types.ErrorCode.PurchaseVerificationFailed,
+          ),
+        ),
+      );
+    });
+
     test('handles errors in response', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall call) async {
@@ -2319,7 +2427,7 @@ void main() {
       expect(result.errors![1].message, 'Subscription has expired');
     });
 
-    test('handles iapkit as non-Map gracefully', () async {
+    test('rejects iapkit as non-Map', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall call) async {
         switch (call.method) {
@@ -2340,20 +2448,24 @@ void main() {
 
       await iap.initConnection();
 
-      final result = await iap.verifyPurchaseWithProvider(
-        provider: types.PurchaseVerificationProvider.Iapkit,
-        iapkit: const types.RequestVerifyPurchaseWithIapkitProps(
-          apiKey: 'test-api-key',
-          apple: types.RequestVerifyPurchaseWithIapkitAppleProps(
-            jws: 'test-jws-token',
+      await expectLater(
+        iap.verifyPurchaseWithProvider(
+          provider: types.PurchaseVerificationProvider.Iapkit,
+          iapkit: const types.RequestVerifyPurchaseWithIapkitProps(
+            apiKey: 'test-api-key',
+            apple: types.RequestVerifyPurchaseWithIapkitAppleProps(
+              jws: 'test-jws-token',
+            ),
+          ),
+        ),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            types.ErrorCode.PurchaseVerificationFailed,
           ),
         ),
       );
-
-      // Should handle gracefully with default values
-      expect(result.provider, types.PurchaseVerificationProvider.Iapkit);
-      expect(result.iapkit, isNotNull);
-      expect(result.iapkit!.isValid, false); // Default value
     });
   });
 }

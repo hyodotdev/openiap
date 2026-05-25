@@ -583,6 +583,35 @@ let userId = '123';
 var config = { timeout: 5000 };
 ```
 
+### Keep Single-Use Helpers Local
+
+Private helper functions used by only one function should be declared inside
+that function so their scope matches their real ownership. Keep helpers at file
+scope only when they are exported, reused by multiple call sites, or need a
+stable top-level identity for tests, recursion, or platform registration.
+
+```typescript
+// ✅ CORRECT - helper is owned by getResolved()
+function getResolved(): ResolvedModule {
+    function getExpectedModuleName(): NativeModuleName {
+        return isVegaOS() ? 'ExpoIapVega' : 'ExpoIap';
+    }
+
+    const expectedName = getExpectedModuleName();
+    return resolve(expectedName);
+}
+
+// ❌ INCORRECT - helper has only one call site but lives at file scope
+function getExpectedModuleName(): NativeModuleName {
+    return isVegaOS() ? 'ExpoIapVega' : 'ExpoIap';
+}
+
+function getResolved(): ResolvedModule {
+    const expectedName = getExpectedModuleName();
+    return resolve(expectedName);
+}
+```
+
 ### Prefer Interface Over Type for Objects
 
 ```typescript

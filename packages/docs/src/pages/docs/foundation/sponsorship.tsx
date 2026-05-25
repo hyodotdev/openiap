@@ -111,7 +111,7 @@ function Sponsorship() {
                 <strong>Platform policy response</strong>
               </td>
               <td>
-                When Apple or Google change billing APIs, we update the spec so
+                When source stores change billing APIs, we update the spec so
                 you don't scramble
               </td>
             </tr>

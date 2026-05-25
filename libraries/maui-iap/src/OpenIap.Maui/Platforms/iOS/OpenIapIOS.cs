@@ -372,22 +372,19 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
 
     public Task<VerifyPurchaseWithProviderResult> VerifyPurchaseWithProviderAsync(VerifyPurchaseWithProviderProps options)
     {
-        var providerEnum = options.Provider;
-        var apiKey = options.Iapkit?.ApiKey;
-        var jws = options.Iapkit?.Apple?.Jws;
+        var payloadNode = JsonSerializer.SerializeToNode(options, JsonOptions.Default) as JsonObject
+            ?? throw OpenIapErrorMapper.Wrap(ErrorCode.DeveloperError, "Invalid verifyPurchaseWithProvider payload");
+        var payload = NSObjectJsonBridge.JsonObjectToDictionary(payloadNode);
         var tcs = new TaskCompletionSource<VerifyPurchaseWithProviderResult>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _module.VerifyPurchaseWithProvider(providerEnum.ToJson(), apiKey, jws, (dict, err) =>
+        _module.VerifyPurchaseWithProviderPayload(payload, (dict, err) =>
         {
             try
             {
                 if (err is not null) { tcs.TrySetException(MapNSError(err)); return; }
                 var node = NSObjectJsonBridge.DictToObject(dict);
-                var typed = node?.Deserialize<RequestVerifyPurchaseWithIapkitResult>(JsonOptions.Default);
-                tcs.TrySetResult(new VerifyPurchaseWithProviderResult
-                {
-                    Provider = providerEnum,
-                    Iapkit = typed,
-                });
+                var typed = node?.Deserialize<VerifyPurchaseWithProviderResult>(JsonOptions.Default);
+                if (typed is not null) tcs.TrySetResult(typed);
+                else tcs.TrySetException(OpenIapErrorMapper.Wrap(ErrorCode.Unknown, "verifyPurchaseWithProvider returned no payload"));
             }
             catch (Exception ex) { tcs.TrySetException(ex); }
         });

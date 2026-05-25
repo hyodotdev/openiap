@@ -1162,12 +1162,20 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                 message = "IAPKit options are required for Android verification"
             )
         )
-        val googleOptions = iapkitOptions.google ?: failWith(
-            PurchaseError(
-                code = ErrorCode.PurchaseVerificationFailed,
-                message = "Google purchaseToken is required for Android verification"
+        val payloadCount = listOfNotNull(
+            iapkitOptions.apple,
+            iapkitOptions.google,
+            iapkitOptions.amazon
+        ).size
+        val googleOptions = iapkitOptions.google
+        if (payloadCount != 1 || googleOptions == null) {
+            failWith(
+                PurchaseError(
+                    code = ErrorCode.PurchaseVerificationFailed,
+                    message = "IAPKit verification on KMP Android requires exactly one google payload"
+                )
             )
-        )
+        }
 
         return try {
             val openIapProps = GoogleVerifyPurchaseWithIapkitProps(

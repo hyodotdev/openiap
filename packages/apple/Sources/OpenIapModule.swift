@@ -722,24 +722,32 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         }
 
         func extractIapkitErrorMessage(from json: [String: Any]) -> String? {
+            func extractStringMessage(_ value: String) -> String {
+                if let data = value.data(using: .utf8),
+                   let nested = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    return extractIapkitErrorMessage(from: nested) ?? value
+                }
+                return value
+            }
+
             if let details = json["details"] as? [String: Any],
                let originalError = details["originalError"] as? String {
-                if let data = originalError.data(using: .utf8),
-                   let nested = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    return extractIapkitErrorMessage(from: nested) ?? originalError
-                }
-                return originalError
+                return extractStringMessage(originalError)
             }
 
             if let errors = json["errors"] as? [[String: Any]], let firstError = errors.first {
                 return extractIapkitErrorMessage(from: firstError)
             }
 
-            if let message = json["message"] as? String, !message.contains("{\"error\"") {
-                return message
+            if let message = json["message"] as? String {
+                return extractStringMessage(message)
             }
 
-            return json["error"] as? String
+            if let error = json["error"] as? String {
+                return extractStringMessage(error)
+            }
+
+            return nil
         }
 
         func buildIapkitPayload(props: RequestVerifyPurchaseWithIapkitProps) throws -> Data {
@@ -761,8 +769,9 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         func verifyPurchaseWithIapkit(props: RequestVerifyPurchaseWithIapkitProps) async throws -> RequestVerifyPurchaseWithIapkitResult {
             let url = URL(string: "https://kit.openiap.dev/v1/purchase/verify")!
 
-            guard props.apple != nil else {
-                throw makePurchaseError(code: .developerError, message: "IAPKit verification on Apple requires an apple payload")
+            let payloadCount = [props.apple != nil, props.google != nil, props.amazon != nil].filter { $0 }.count
+            guard payloadCount == 1, props.apple != nil else {
+                throw makePurchaseError(code: .developerError, message: "IAPKit verification on Apple requires exactly one apple payload")
             }
             let store: IapStore = .apple
             let body = try buildIapkitPayload(props: props)
@@ -770,7 +779,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            if let apiKey = props.apiKey, apiKey.isEmpty == false {
+            let apiKey = props.apiKey?.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let apiKey, apiKey.isEmpty == false {
                 request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
             }
             request.httpBody = body
@@ -778,7 +788,14 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             OpenIapLog.debug("IAPKit request URL: \(url.absoluteString)")
             OpenIapLog.debug("IAPKit request body bytes=\(body.count)")
 
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let data: Data
+            let response: URLResponse
+            do {
+                (data, response) = try await URLSession.shared.data(for: request)
+            } catch {
+                OpenIapLog.warn("IAPKit verification network error: \(error.localizedDescription)")
+                throw makePurchaseError(code: .networkError, message: error.localizedDescription)
+            }
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw makePurchaseError(code: .networkError, message: "Invalid response")
             }
@@ -801,18 +818,22 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             }
 
             if let errors = json["errors"] as? [[String: Any]], let firstError = errors.first {
-                let errorMessage = firstError["message"] as? String ?? "Unknown error"
+                let errorMessage = extractIapkitErrorMessage(from: firstError) ?? "Unknown error"
                 let errorCode = firstError["code"] as? String ?? "unknown"
                 OpenIapLog.warn("IAPKit verification error: \(errorCode) - \(errorMessage)")
                 throw makePurchaseError(code: .receiptFailed, message: errorMessage)
             }
 
-            let isValid = (json["isValid"] as? Bool) ?? false
-            let stateString = json["state"] as? String ?? "UNKNOWN"
+            guard let isValid = json["isValid"] as? Bool,
+                  let stateString = json["state"] as? String,
+                  let storeString = json["store"] as? String,
+                  let parsedStore = IapStore(rawValue: storeString),
+                  parsedStore == store else {
+                OpenIapLog.warn("IAPKit verification response missing required fields")
+                throw makePurchaseError(code: .receiptFailed, message: "IAPKit returned malformed response")
+            }
             let normalizedState = stateString.lowercased().replacingOccurrences(of: "_", with: "-")
             let parsedState = IapkitPurchaseState(rawValue: normalizedState) ?? .unknown
-            let storeString = json["store"] as? String
-            let parsedStore = storeString.flatMap { IapStore(rawValue: $0) } ?? store
             OpenIapLog.info("IAPKit verification result: store=\(parsedStore.rawValue), isValid=\(isValid), state=\(parsedState.rawValue)")
             return RequestVerifyPurchaseWithIapkitResult(isValid: isValid, state: parsedState, store: parsedStore)
         }

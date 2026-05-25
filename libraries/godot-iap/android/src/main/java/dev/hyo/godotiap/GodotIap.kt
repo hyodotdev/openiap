@@ -922,68 +922,90 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
     @UsedByGodot
     fun verifyPurchaseWithProvider(propsJson: String): String {
-        GodotIapLog.payload("verifyPurchaseWithProvider", propsJson)
+        GodotIapLog.payload(
+            "verifyPurchaseWithProvider",
+            mapOf("hasIapkit" to propsJson.contains("\"iapkit\""))
+        )
 
-        if (!isInitialized) {
+        fun errorResponse(message: String): String {
             return JSONObject().apply {
                 put("success", false)
-                put("error", "Not initialized")
+                put("provider", PurchaseVerificationProvider.Iapkit.toJson())
+                put(
+                    "errors",
+                    JSONArray().apply {
+                        put(JSONObject().apply {
+                            put("code", ErrorCode.PurchaseVerificationFailed.toJson())
+                            put("message", message)
+                        })
+                    }
+                )
             }.toString()
+        }
+
+        if (!isInitialized) {
+            return errorResponse("Not initialized")
         }
 
         return runBlocking {
             try {
-                val json = JSONObject(propsJson)
-
-                // Build IAPKit props
-                val iapkitProps = RequestVerifyPurchaseWithIapkitProps(
-                    apiKey = json.optString("apiKey").takeIf { it.isNotEmpty() },
-                    apple = json.optJSONObject("apple")?.let { appleJson ->
-                        RequestVerifyPurchaseWithIapkitAppleProps(
-                            jws = appleJson.getString("jws")
-                        )
-                    },
-                    google = json.optJSONObject("google")?.let { googleJson ->
-                        RequestVerifyPurchaseWithIapkitGoogleProps(
-                            purchaseToken = googleJson.getString("purchaseToken")
-                        )
+                val jsonBridge = object {
+                    fun objectToMap(json: JSONObject): Map<String, Any?> {
+                        val map = linkedMapOf<String, Any?>()
+                        val keys = json.keys()
+                        while (keys.hasNext()) {
+                            val key = keys.next()
+                            map[key] = valueToAny(json.opt(key))
+                        }
+                        return map
                     }
-                )
 
-                val providerProps = VerifyPurchaseWithProviderProps(
-                    iapkit = iapkitProps,
-                    provider = PurchaseVerificationProvider.Iapkit
-                )
+                    fun arrayToList(json: JSONArray): List<Any?> {
+                        return (0 until json.length()).map { index ->
+                            valueToAny(json.opt(index))
+                        }
+                    }
+
+                    fun valueToAny(value: Any?): Any? {
+                        if (value == null || value == JSONObject.NULL) return null
+                        return when (value) {
+                            is JSONObject -> objectToMap(value)
+                            is JSONArray -> arrayToList(value)
+                            else -> value
+                        }
+                    }
+                }
+
+                fun normalizeProviderProps(props: Map<String, Any?>): Map<String, Any?> {
+                    if (props["iapkit"] != null) return props
+
+                    val legacyIapkit = linkedMapOf<String, Any?>()
+                    listOf("amazon", "apiKey", "apple", "google").forEach { key ->
+                        if (props[key] != null) {
+                            legacyIapkit[key] = props[key]
+                        }
+                    }
+                    if (legacyIapkit.isEmpty()) return props
+
+                    return linkedMapOf(
+                        "provider" to (props["provider"] ?: PurchaseVerificationProvider.Iapkit.toJson()),
+                        "iapkit" to legacyIapkit
+                    )
+                }
+
+                val propsMap = normalizeProviderProps(jsonBridge.objectToMap(JSONObject(propsJson)))
+                val providerProps = VerifyPurchaseWithProviderProps.fromJson(propsMap)
+                    ?: throw IllegalArgumentException("Invalid verifyPurchaseWithProvider options")
 
                 val result = openIap.verifyPurchaseWithProvider(providerProps)
-
-                val response = JSONObject().apply {
-                    put("success", true)
-                    put("provider", result.provider.toJson())
-                    result.iapkit?.let { iapkit ->
-                        put("isValid", iapkit.isValid)
-                        put("state", iapkit.state.toJson())
-                        put("store", iapkit.store.toJson())
-                    }
-                    result.errors?.let { errors ->
-                        val errorsArray = JSONArray()
-                        errors.forEach { error ->
-                            errorsArray.put(JSONObject().apply {
-                                put("code", error.code)
-                                put("message", error.message)
-                            })
-                        }
-                        put("errors", errorsArray)
-                    }
-                }.toString()
+                val response = JSONObject(GodotIapHelper.sanitizeDictionary(result.toJson()))
+                    .apply { put("success", true) }
+                    .toString()
                 GodotIapLog.result("verifyPurchaseWithProvider", "verified")
                 response
             } catch (e: Exception) {
                 GodotIapLog.failure("verifyPurchaseWithProvider", e)
-                JSONObject().apply {
-                    put("success", false)
-                    put("error", e.message)
-                }.toString()
+                errorResponse(e.message ?: "Verification failed")
             }
         }
     }

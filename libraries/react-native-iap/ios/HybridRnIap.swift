@@ -446,6 +446,18 @@ class HybridRnIap: HybridRnIapSpec {
                     if case .second(let google) = iapkit.google {
                         iapkitDict["google"] = ["purchaseToken": google.purchaseToken]
                     }
+                    if case .second(let amazon) = iapkit.amazon {
+                        var amazonDict: [String: Any] = [
+                            "receiptId": amazon.receiptId
+                        ]
+                        if case .second(let sandbox) = amazon.sandbox {
+                            amazonDict["sandbox"] = sandbox
+                        }
+                        if case .second(let userId) = amazon.userId {
+                            amazonDict["userId"] = userId
+                        }
+                        iapkitDict["amazon"] = amazonDict
+                    }
                     propsDict["iapkit"] = iapkitDict
                 }
                 // Use JSONSerialization + JSONDecoder like expo-iap does

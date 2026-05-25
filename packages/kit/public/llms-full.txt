@@ -45,7 +45,8 @@ Mounted at both `/v1/*` (canonical) and `/api/v1/*` (alias).
 ### POST /v1/purchase/verify
 
 Verify an in-app purchase. The body is a tagged union discriminated on
-`store`. Response always has shape `{ isValid: boolean, state: <enum> }`.
+`store`. Response always has shape
+`{ store: "apple" | "google" | "horizon" | "amazon", isValid: boolean, state: <enum> }`.
 
 Request (Apple):
 ```json
@@ -66,6 +67,16 @@ IAPKit does not expose the Meta App Secret to the client. The dashboard
 stores it as a write-only credential and the server composes the
 `OC|APP_ID|APP_SECRET` access token when calling
 `POST https://graph.oculus.com/{APP_ID}/verify_entitlement`.
+
+Request (Amazon Appstore):
+```json
+{
+  "store": "amazon",
+  "userId": "amzn1.account...",
+  "receiptId": "amzn1.receipt...",
+  "sandbox": true
+}
+```
 
 ### Aliases
 
@@ -112,14 +123,14 @@ sandbox guidance, webhook simulation, and project inspection. Full setup guide:
 
 ## Status codes
 
-| Code | Body                            | When                                              |
-| ---- | ------------------------------- | ------------------------------------------------- |
-| 200  | `{ isValid, state }`            | Verification ran                                  |
-| 400  | `INVALID_INPUT`                 | Malformed body, unknown store, oversized input    |
-| 401  | `MISSING_API_KEY`               | No `Authorization` header                         |
-| 403  | `INVALID_API_KEY`               | Wrong scheme, malformed, or unknown key           |
-| 429  | `RATE_LIMITED`                  | Per-key bucket empty; honor `Retry-After`         |
-| 500  | `UNKNOWN_ERROR`                 | Server-side failure; include `X-Correlation-Id`   |
+| Code | Body                                  | When                                              |
+| ---- | ------------------------------------- | ------------------------------------------------- |
+| 200  | `{ store, isValid, state }`           | Verification ran                                  |
+| 400  | `INVALID_INPUT`                       | Malformed body, unknown store, oversized input    |
+| 401  | `MISSING_API_KEY`                     | No `Authorization` header                         |
+| 403  | `INVALID_API_KEY`                     | Wrong scheme, malformed, or unknown key           |
+| 429  | `RATE_LIMITED`                        | Per-key bucket empty; honor `Retry-After`         |
+| 500  | `UNKNOWN_ERROR`                       | Server-side failure; include `X-Correlation-Id`   |
 
 Error body shape:
 ```json
@@ -168,7 +179,7 @@ eviction (`RATE_LIMIT_MAX_STORE`).
 
 Oversized fields return `400 INVALID_INPUT`; oversized request bodies return
 `413 PAYLOAD_TOO_LARGE`. Neither path calls the upstream store, so a
-misbehaving client can't burn Apple / Google / Meta quota.
+misbehaving client can't burn Apple / Google / Horizon / Amazon quota.
 
 ## Structured logs
 

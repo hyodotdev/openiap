@@ -141,7 +141,7 @@ function KitBackend() {
           <li>
             <strong>Webhooks</strong> — copyable lifecycle webhook URL, the SSE
             stream URL, and a curl recipe for emitting a synthetic test
-            notification without going through the App Store / Play Console.
+            notification without opening a store console.
           </li>
         </ul>
       </section>

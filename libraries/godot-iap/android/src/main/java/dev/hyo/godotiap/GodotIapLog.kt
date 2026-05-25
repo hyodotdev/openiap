@@ -70,6 +70,7 @@ internal object GodotIapLog {
         if (value == null) return null
 
         return when (value) {
+            is String -> sanitizeJsonString(value)
             is Map<*, *> -> sanitizeMap(value)
             is List<*> -> value.mapNotNull { sanitize(it) }
             is Array<*> -> value.mapNotNull { sanitize(it) }
@@ -88,5 +89,55 @@ internal object GodotIapLog {
             sanitized[key] = sanitize(rawValue)
         }
         return sanitized
+    }
+
+    private fun sanitizeJsonString(value: String): Any {
+        val trimmed = value.trim()
+        return try {
+            when {
+                trimmed.startsWith("{") -> sanitizeJsonObject(JSONObject(trimmed))
+                trimmed.startsWith("[") -> sanitizeJsonArray(JSONArray(trimmed))
+                else -> value
+            }
+        } catch (_: Exception) {
+            value
+        }
+    }
+
+    private fun sanitizeJsonObject(source: JSONObject): Map<String, Any?> {
+        val sanitized = linkedMapOf<String, Any?>()
+        val keys = source.keys()
+        while (keys.hasNext()) {
+            val key = keys.next()
+            sanitized[key] =
+                if (isSensitiveKey(key)) {
+                    "hidden"
+                } else {
+                    sanitizeJsonValue(source.opt(key))
+                }
+        }
+        return sanitized
+    }
+
+    private fun sanitizeJsonArray(source: JSONArray): List<Any?> {
+        return (0 until source.length()).mapNotNull { index ->
+            sanitizeJsonValue(source.opt(index))
+        }
+    }
+
+    private fun sanitizeJsonValue(value: Any?): Any? {
+        if (value == null || value == JSONObject.NULL) return null
+        return when (value) {
+            is JSONObject -> sanitizeJsonObject(value)
+            is JSONArray -> sanitizeJsonArray(value)
+            else -> sanitize(value)
+        }
+    }
+
+    private fun isSensitiveKey(key: String): Boolean {
+        val normalized = key.lowercase().filter { it.isLetterOrDigit() }
+        return listOf("token", "apikey", "secret", "jws", "receiptid", "userid").any {
+            normalized.contains(it)
+        }
     }
 }

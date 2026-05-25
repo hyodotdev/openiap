@@ -142,7 +142,7 @@ We disclaim all warranties, express or implied, including:
 - Fitness for a particular purpose
 - Non-infringement
 
-We do not guarantee accuracy of validation results beyond what is provided by Apple or Google.
+We do not guarantee accuracy of validation results beyond what is provided by the source store.
 
 ---
 

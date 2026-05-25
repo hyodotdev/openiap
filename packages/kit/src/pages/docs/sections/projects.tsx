@@ -23,7 +23,7 @@ export default function ProjectsPage() {
       <pre className="my-4 overflow-x-auto rounded-lg border border-border bg-muted/30 px-4 py-3 text-xs leading-relaxed">
         <code>{`Organization (members, usage)
   └── Project (one mobile app)
-        ├── Store credentials (Apple, Google, Horizon)
+        ├── Store credentials (Apple, Google, Horizon, Amazon)
         └── API keys ── used by your app
 `}</code>
       </pre>
