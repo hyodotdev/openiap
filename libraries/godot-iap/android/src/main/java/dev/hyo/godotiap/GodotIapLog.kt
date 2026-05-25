@@ -11,6 +11,16 @@ import org.json.JSONObject
  */
 internal object GodotIapLog {
     private const val TAG = "GodotIap"
+    private val SENSITIVE_KEYS = listOf(
+        "token",
+        "apikey",
+        "secret",
+        "jws",
+        "receiptid",
+        "userid",
+        "password",
+        "auth"
+    )
 
     /**
      * Set to true during library development to enable debug logging.
@@ -136,16 +146,7 @@ internal object GodotIapLog {
 
     private fun isSensitiveKey(key: String): Boolean {
         val normalized = key.lowercase().filter { it.isLetterOrDigit() }
-        return listOf(
-            "token",
-            "apikey",
-            "secret",
-            "jws",
-            "receiptid",
-            "userid",
-            "password",
-            "auth"
-        ).any {
+        return SENSITIVE_KEYS.any {
             normalized.contains(it)
         }
     }
