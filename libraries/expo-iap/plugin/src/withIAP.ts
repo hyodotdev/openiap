@@ -297,11 +297,13 @@ const withIapAndroid: ConfigPlugin<
 
   config = withAndroidManifest(config, (config) => {
     const manifest = config.modResults;
-    if (!manifest.manifest['uses-permission']) {
-      manifest.manifest['uses-permission'] = [];
-    }
-
-    const permissions = manifest.manifest['uses-permission'];
+    const existingPermissions = manifest.manifest['uses-permission'];
+    const permissions = Array.isArray(existingPermissions)
+      ? existingPermissions
+      : existingPermissions
+        ? [existingPermissions]
+        : [];
+    manifest.manifest['uses-permission'] = permissions;
     const billingPerm = {$: {'android:name': 'com.android.vending.BILLING'}};
 
     if (props?.isFireOsEnabled) {
