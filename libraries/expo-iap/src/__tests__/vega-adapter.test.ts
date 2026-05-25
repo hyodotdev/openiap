@@ -328,6 +328,97 @@ describe('Amazon Vega Expo adapter', () => {
     ]);
   });
 
+  it('limits paginated Amazon purchase updates', async () => {
+    const service = createService();
+    service.getPurchaseUpdates.mockResolvedValue({
+      responseCode: 1,
+      hasMore: true,
+      receiptList: [],
+    });
+    const module = createExpoIapVegaModule(service);
+
+    await expect(module.getAvailableItems()).rejects.toMatchObject({
+      code: ErrorCode.ServiceError,
+    });
+    expect(service.getPurchaseUpdates).toHaveBeenCalledTimes(100);
+  });
+
+  it('chunks Vega product data requests', async () => {
+    const service = createService();
+    const skus = Array.from({length: 101}, (_, index) => `sku_${index}`);
+    service.getProductData.mockImplementation(async ({skus: batch}) => ({
+      responseCode: 1,
+      productData: Object.fromEntries(
+        batch.map((sku) => [
+          sku,
+          {
+            sku,
+            title: sku,
+            description: 'Product',
+            productType: 1,
+            price: {
+              priceCurrencyCode: 'USD',
+              priceStr: '$0.99',
+              valueInMicros: 990000,
+            },
+          },
+        ]),
+      ),
+    }));
+    const module = createExpoIapVegaModule(service);
+
+    const products = await module.fetchProducts('all', skus);
+
+    expect(products).toHaveLength(101);
+    expect(service.getProductData).toHaveBeenCalledTimes(2);
+    expect(service.getProductData.mock.calls[0]?.[0].skus).toHaveLength(100);
+    expect(service.getProductData.mock.calls[1]?.[0].skus).toHaveLength(1);
+  });
+
+  it('chunks product type hydration for purchase updates', async () => {
+    const service = createService();
+    const skus = Array.from({length: 101}, (_, index) => `sub_${index}`);
+    service.getPurchaseUpdates.mockResolvedValue({
+      responseCode: 1,
+      receiptList: skus.map((sku) => ({
+        receiptId: `receipt_${sku}`,
+        sku,
+      })),
+    });
+    service.getProductData.mockImplementation(async ({skus: batch}) => ({
+      responseCode: 1,
+      productData: Object.fromEntries(
+        batch.map((sku) => [
+          sku,
+          {
+            sku,
+            title: sku,
+            description: 'Subscription',
+            productType: 3,
+            subscriptionPeriod: 'P1M',
+            price: {
+              priceCurrencyCode: 'USD',
+              priceStr: '$4.99',
+              valueInMicros: 4990000,
+            },
+          },
+        ]),
+      ),
+    }));
+    const module = createExpoIapVegaModule(service);
+
+    const purchases = await module.getAvailableItems();
+
+    expect(purchases).toHaveLength(101);
+    expect(purchases[0]).toMatchObject({
+      isAutoRenewing: true,
+      productId: 'sub_0',
+    });
+    expect(service.getProductData).toHaveBeenCalledTimes(2);
+    expect(service.getProductData.mock.calls[0]?.[0].skus).toHaveLength(100);
+    expect(service.getProductData.mock.calls[1]?.[0].skus).toHaveLength(1);
+  });
+
   it('excludes suspended purchases unless requested', async () => {
     const service = createService();
     service.getPurchaseUpdates.mockResolvedValue({

@@ -334,8 +334,7 @@ class OpenIapModule(
                         )
                     }
                     val purchase = receipt.toPurchase()
-                    purchaseTypeByReceiptId[receipt.receiptId] = receipt.productType
-                    productTypeBySku[receipt.sku] = receipt.productType
+                    cacheReceiptProductType(receipt, receipt.productTypeOrNull())
                     purchaseUpdateListeners.forEach { listener ->
                         runCatching { listener.onPurchaseUpdated(purchase) }
                     }
@@ -683,7 +682,7 @@ class OpenIapModule(
     }
 
     private suspend fun requestPurchaseUpdates(reset: Boolean): List<Purchase> {
-        val purchases = mutableListOf<Purchase>()
+        val receipts = mutableListOf<AmazonReceipt>()
         var shouldReset = reset
         var pageCount = 0
         do {
@@ -697,13 +696,8 @@ class OpenIapModule(
             shouldReset = false
             when (response.requestStatus) {
                 PurchaseUpdatesResponse.RequestStatus.SUCCESSFUL -> {
-                    purchases += response.receipts.orEmpty()
+                    receipts += response.receipts.orEmpty()
                         .filter { it.cancelDate == null }
-                        .map { receipt ->
-                            purchaseTypeByReceiptId[receipt.receiptId] = receipt.productType
-                            productTypeBySku[receipt.sku] = receipt.productType
-                            receipt.toPurchase()
-                        }
                 }
                 PurchaseUpdatesResponse.RequestStatus.NOT_SUPPORTED -> {
                     throw OpenIapError.FeatureNotSupported("Amazon Appstore IAP is not supported on this device")
@@ -713,7 +707,70 @@ class OpenIapModule(
                 }
             }
         } while (response.hasMore())
-        return purchases
+        hydrateProductTypesForReceipts(receipts)
+        return receipts.map { receipt ->
+            val productType = receipt.productTypeOrNull()
+                ?: productTypeBySku[receipt.sku.orEmpty()]
+            cacheReceiptProductType(receipt, productType)
+            receipt.toPurchase(productType)
+        }
+    }
+
+    private suspend fun hydrateProductTypesForReceipts(receipts: List<AmazonReceipt>) {
+        val missingSkus = linkedSetOf<String>()
+        receipts.forEach { receipt ->
+            val sku = receipt.sku.orEmpty()
+            if (sku.isBlank()) return@forEach
+
+            val productType = receipt.productTypeOrNull()
+            if (productType != null) {
+                cacheReceiptProductType(receipt, productType)
+            } else if (!productTypeBySku.containsKey(sku)) {
+                missingSkus += sku
+            }
+        }
+        if (missingSkus.isEmpty()) return
+
+        missingSkus.chunked(AMAZON_PRODUCT_DATA_BATCH_SIZE).forEach { batch ->
+            val response = requestProductData(batch)
+            when (response.requestStatus) {
+                ProductDataResponse.RequestStatus.SUCCESSFUL -> {
+                    response.productData.orEmpty().values.forEach { product ->
+                        productTypeBySku[product.sku] = product.productType
+                    }
+                }
+                ProductDataResponse.RequestStatus.NOT_SUPPORTED -> {
+                    throw OpenIapError.FeatureNotSupported("Amazon Appstore IAP is not supported on this device")
+                }
+                ProductDataResponse.RequestStatus.FAILED -> {
+                    throw OpenIapError.QueryProduct.withDiagnostics(
+                        debugMessage = "Amazon getProductData failed while hydrating purchase types",
+                        productIds = batch,
+                        productType = ProductQueryType.All.rawValue,
+                        isEmptyProductList = response.productData.isNullOrEmpty()
+                    )
+                }
+            }
+        }
+    }
+
+    private fun cacheReceiptProductType(
+        receipt: AmazonReceipt,
+        productType: AmazonProductType?
+    ) {
+        if (productType == null) return
+        val receiptId = receipt.receiptId.orEmpty()
+        val sku = receipt.sku.orEmpty()
+        if (receiptId.isNotBlank()) {
+            purchaseTypeByReceiptId[receiptId] = productType
+        }
+        if (sku.isNotBlank()) {
+            productTypeBySku[sku] = productType
+        }
+    }
+
+    private fun AmazonReceipt.productTypeOrNull(): AmazonProductType? {
+        return runCatching { productType }.getOrNull()
     }
 
     private fun Throwable.toOpenIapError(defaultMessage: String): OpenIapError {
@@ -894,8 +951,10 @@ class OpenIapModule(
         return AmazonPriceParser.toPriceAmount(this)
     }
 
-    private fun AmazonReceipt.toPurchase(): PurchaseAndroid {
-        val isSubscription = productType == AmazonProductType.SUBSCRIPTION
+    private fun AmazonReceipt.toPurchase(
+        productTypeOverride: AmazonProductType? = productTypeOrNull()
+    ): PurchaseAndroid {
+        val isSubscription = productTypeOverride == AmazonProductType.SUBSCRIPTION
         val dateMillis = purchaseDate?.time?.toDouble() ?: 0.0
         val receiptCanceled = isCanceled || cancelDate != null
         val receiptDeferred = isDeferred

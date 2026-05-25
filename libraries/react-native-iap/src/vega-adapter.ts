@@ -19,6 +19,7 @@ type ResponseOperation =
 
 const IAPKIT_VERIFY_TIMEOUT_MS = 10_000;
 const MAX_IAPKIT_ERROR_DEPTH = 5;
+const MAX_PRODUCT_DATA_BATCH_SIZE = 100;
 const MAX_PURCHASE_UPDATE_PAGES = 100;
 
 interface VegaPrice {
@@ -329,6 +330,14 @@ function productDataToArray(
   return Object.values(productData);
 }
 
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
+
 function createPricingPhase(product: VegaProduct) {
   const price = product.price ?? {};
   return {
@@ -536,6 +545,19 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
     return receipts;
   };
 
+  const getProductData = async (
+    skus: string[],
+    message: string,
+  ): Promise<VegaProduct[]> => {
+    const products: VegaProduct[] = [];
+    for (const batch of chunkArray(skus, MAX_PRODUCT_DATA_BATCH_SIZE)) {
+      const response = await service.getProductData({skus: batch});
+      ensureSuccessful('product-data', response, message);
+      products.push(...productDataToArray(response.productData));
+    }
+    return products;
+  };
+
   const hydrateProductTypesForReceipts = async (
     receipts: VegaReceipt[],
   ): Promise<void> => {
@@ -553,16 +575,12 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
 
     if (missingSkus.size === 0) return;
 
-    const response = await service.getProductData({
-      skus: Array.from(missingSkus),
-    });
-    ensureSuccessful(
-      'product-data',
-      response,
+    const products = await getProductData(
+      Array.from(missingSkus),
       'Failed to fetch Amazon Vega product data for purchase updates',
     );
 
-    for (const product of productDataToArray(response.productData)) {
+    for (const product of products) {
       if (product.sku) {
         productTypesBySku.set(product.sku, product.productType);
       }
@@ -879,14 +897,12 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
         throw createVegaError(ErrorCode.EmptySkuList, 'No SKUs provided');
       }
 
-      const response = await service.getProductData({skus});
-      ensureSuccessful(
-        'product-data',
-        response,
+      const products = await getProductData(
+        skus,
         'Failed to fetch Amazon Vega products',
       );
 
-      return productDataToArray(response.productData)
+      return products
         .filter((product) => {
           if (product.sku) {
             productTypesBySku.set(product.sku, product.productType);

@@ -19,6 +19,8 @@ type ResponseOperation =
 
 const IAPKIT_VERIFY_TIMEOUT_MS = 10_000;
 const MAX_IAPKIT_ERROR_DEPTH = 5;
+const MAX_PRODUCT_DATA_BATCH_SIZE = 100;
+const MAX_PURCHASE_UPDATE_PAGES = 100;
 
 type VegaListener = (payload: any) => void;
 
@@ -325,6 +327,14 @@ function productDataToArray(
   return Object.values(productData);
 }
 
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
+
 function createPricingPhase(product: VegaProduct) {
   const price = product.price ?? {};
   return {
@@ -465,8 +475,17 @@ export function createExpoIapVegaModule(
     const receipts: VegaReceipt[] = [];
     let reset = true;
     let hasMore = false;
+    let pageCount = 0;
 
     do {
+      if (pageCount >= MAX_PURCHASE_UPDATE_PAGES) {
+        throw createVegaError(
+          ErrorCode.ServiceError,
+          'Amazon Vega purchase updates exceeded the pagination limit.',
+        );
+      }
+      pageCount++;
+
       const response = await service.getPurchaseUpdates({reset});
       ensureSuccessful(
         'purchase-updates',
@@ -480,6 +499,19 @@ export function createExpoIapVegaModule(
     } while (hasMore);
 
     return receipts;
+  };
+
+  const getProductData = async (
+    skus: string[],
+    message: string,
+  ): Promise<VegaProduct[]> => {
+    const products: VegaProduct[] = [];
+    for (const batch of chunkArray(skus, MAX_PRODUCT_DATA_BATCH_SIZE)) {
+      const response = await service.getProductData({skus: batch});
+      ensureSuccessful('product-data', response, message);
+      products.push(...productDataToArray(response.productData));
+    }
+    return products;
   };
 
   const hydrateProductTypesForReceipts = async (
@@ -499,16 +531,12 @@ export function createExpoIapVegaModule(
 
     if (missingSkus.size === 0) return;
 
-    const response = await service.getProductData({
-      skus: Array.from(missingSkus),
-    });
-    ensureSuccessful(
-      'product-data',
-      response,
+    const products = await getProductData(
+      Array.from(missingSkus),
       'Failed to fetch Amazon Vega product data for purchase updates',
     );
 
-    for (const product of productDataToArray(response.productData)) {
+    for (const product of products) {
       if (product.sku) {
         productTypesBySku.set(product.sku, product.productType);
       }
@@ -814,14 +842,12 @@ export function createExpoIapVegaModule(
         throw createVegaError(ErrorCode.EmptySkuList, 'No SKUs provided');
       }
 
-      const response = await service.getProductData({skus});
-      ensureSuccessful(
-        'product-data',
-        response,
+      const products = await getProductData(
+        skus,
         'Failed to fetch Amazon Vega products',
       );
 
-      return productDataToArray(response.productData)
+      return products
         .filter((product) => {
           if (product.sku) {
             productTypesBySku.set(product.sku, product.productType);
