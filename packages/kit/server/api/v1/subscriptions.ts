@@ -328,7 +328,12 @@ function isCompactJwsShape(value: string): boolean {
 }
 
 function decodeJwsJsonPart(part: string): unknown {
-  return JSON.parse(Buffer.from(part, "base64url").toString("utf-8"));
+  const raw = Buffer.from(part, "base64url").toString("utf-8");
+  const safeRaw = raw.replace(
+    /"((?:originalT|t)ransactionId)"\s*:\s*(\d+)(?=\s*[,}])/g,
+    '"$1":"$2"',
+  );
+  return JSON.parse(safeRaw);
 }
 
 function normalizeTransactionId(value: unknown): string | null {

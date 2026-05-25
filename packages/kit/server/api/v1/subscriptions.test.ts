@@ -40,11 +40,15 @@ function buildApp() {
 }
 
 function compactJws(payload: Record<string, unknown>): string {
+  return compactJwsFromRawPayload(JSON.stringify(payload));
+}
+
+function compactJwsFromRawPayload(payload: string): string {
   return [
     Buffer.from(JSON.stringify({ alg: "ES256", typ: "JWT" })).toString(
       "base64url",
     ),
-    Buffer.from(JSON.stringify(payload)).toString("base64url"),
+    Buffer.from(payload).toString("base64url"),
     Buffer.from("signature").toString("base64url"),
   ].join(".");
 }
@@ -284,6 +288,32 @@ describe("subscriptionsRoutes", () => {
     expect(mocks.mutation).toHaveBeenCalledWith("bindUser", {
       apiKey: "key",
       purchaseToken: "2000000000000001",
+      userId: "user-1",
+    });
+  });
+
+  it("preserves unsafe 64-bit numeric Apple JWS transaction ids", async () => {
+    const app = buildApp();
+    mocks.mutation.mockResolvedValueOnce({ ok: true, bound: true });
+    const transactionId = "9223372036854775807";
+    const jws = compactJwsFromRawPayload(
+      `{"transactionId":${transactionId},"bundleId":"dev.hyo.openiap.test"}`,
+    );
+
+    const response = await app.request("/subscriptions/bind-user/key", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        purchaseToken: jws,
+        userId: "user-1",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ ok: true, bound: true });
+    expect(mocks.mutation).toHaveBeenCalledWith("bindUser", {
+      apiKey: "key",
+      purchaseToken: transactionId,
       userId: "user-1",
     });
   });
