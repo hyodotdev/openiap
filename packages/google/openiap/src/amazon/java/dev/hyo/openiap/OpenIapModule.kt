@@ -574,7 +574,12 @@ class OpenIapModule(
     private suspend fun requestUserData(): UserDataResponse {
         val requestId = withContext(Dispatchers.Main) {
             ensureRegistered()
-            PurchasingService.getUserData().toString()
+            val request = runCatching { PurchasingService.getUserData() }
+                .getOrElse {
+                    throw OpenIapError.InitConnection
+                }
+                ?: throw OpenIapError.InitConnection
+            request.toString()
         }
         return awaitAmazonResponse(requestId, userDataRequests, earlyUserDataResponses)
     }
@@ -582,7 +587,17 @@ class OpenIapModule(
     private suspend fun requestProductData(skus: List<String>): ProductDataResponse {
         val requestId = withContext(Dispatchers.Main) {
             ensureRegistered()
-            PurchasingService.getProductData(skus.toSet()).toString()
+            val request = runCatching {
+                PurchasingService.getProductData(skus.toSet())
+            }
+                .getOrElse { error ->
+                    throw error.toOpenIapError("Amazon getProductData request failed")
+                }
+                ?: throw OpenIapError.QueryProduct.withDiagnostics(
+                    debugMessage = "Amazon getProductData failed to return a requestId",
+                    productIds = skus
+                )
+            request.toString()
         }
         return awaitAmazonResponse(requestId, productDataRequests, earlyProductDataResponses)
     }
@@ -644,9 +659,20 @@ class OpenIapModule(
     private suspend fun awaitPurchaseUpdates(reset: Boolean): PurchaseUpdatesResponse {
         val requestId = withContext(Dispatchers.Main) {
             ensureRegistered()
-            PurchasingService.getPurchaseUpdates(reset).toString()
+            val request = runCatching {
+                PurchasingService.getPurchaseUpdates(reset)
+            }
+                .getOrElse {
+                    throw OpenIapError.RestoreFailed
+                }
+                ?: throw OpenIapError.RestoreFailed
+            request.toString()
         }
-        return awaitAmazonResponse(requestId, purchaseUpdatesRequests, earlyPurchaseUpdatesResponses)
+        return awaitAmazonResponse(
+            requestId,
+            purchaseUpdatesRequests,
+            earlyPurchaseUpdatesResponses
+        )
     }
 
     private suspend fun <T> awaitAmazonResponse(
