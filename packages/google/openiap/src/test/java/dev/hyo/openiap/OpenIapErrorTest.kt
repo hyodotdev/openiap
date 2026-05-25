@@ -1,12 +1,22 @@
 package dev.hyo.openiap
 
-import com.android.billingclient.api.BillingClient
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+private const val BILLING_RESPONSE_USER_CANCELED = 1
+private const val BILLING_RESPONSE_SERVICE_UNAVAILABLE = 2
+private const val BILLING_RESPONSE_BILLING_UNAVAILABLE = 3
+private const val BILLING_RESPONSE_ITEM_UNAVAILABLE = 4
+private const val BILLING_RESPONSE_DEVELOPER_ERROR = 5
+private const val BILLING_RESPONSE_ERROR = 6
+private const val BILLING_RESPONSE_ITEM_ALREADY_OWNED = 7
+private const val BILLING_RESPONSE_ITEM_NOT_OWNED = 8
+private const val BILLING_RESPONSE_SERVICE_DISCONNECTED = -1
+private const val BILLING_RESPONSE_FEATURE_NOT_SUPPORTED = -2
 private const val BILLING_RESPONSE_SERVICE_TIMEOUT = -3
+private const val BILLING_PRODUCT_TYPE_SUBS = "subs"
 
 class OpenIapErrorTest {
 
@@ -121,10 +131,10 @@ class OpenIapErrorTest {
     @Test
     fun `QueryProduct carries billing diagnostics when provided`() {
         val error: OpenIapError = OpenIapError.QueryProduct.withDiagnostics(
-            responseCode = BillingClient.BillingResponseCode.DEVELOPER_ERROR,
+            responseCode = BILLING_RESPONSE_DEVELOPER_ERROR,
             debugMessage = "Invalid product ID",
             productIds = listOf("premium_monthly", "lifetime"),
-            productType = BillingClient.ProductType.SUBS,
+            productType = BILLING_PRODUCT_TYPE_SUBS,
             isEmptyProductList = true,
         )
         val json = error.toJSON()
@@ -134,15 +144,15 @@ class OpenIapErrorTest {
         assertEquals(ErrorCode.QueryProduct.rawValue, error.code)
         assertEquals("Failed to query product", error.message)
         val queryError = error as OpenIapError.QueryProduct
-        assertEquals(BillingClient.BillingResponseCode.DEVELOPER_ERROR, queryError.responseCode)
+        assertEquals(BILLING_RESPONSE_DEVELOPER_ERROR, queryError.responseCode)
         assertEquals("Invalid product ID", error.debugMessage)
         assertEquals(listOf("premium_monthly", "lifetime"), queryError.productIds)
-        assertEquals(BillingClient.ProductType.SUBS, queryError.productType)
+        assertEquals(BILLING_PRODUCT_TYPE_SUBS, queryError.productType)
         assertEquals(true, queryError.isEmptyProductList)
-        assertEquals(BillingClient.BillingResponseCode.DEVELOPER_ERROR, json["responseCode"])
+        assertEquals(BILLING_RESPONSE_DEVELOPER_ERROR, json["responseCode"])
         assertEquals("Invalid product ID", json["debugMessage"])
         assertEquals(listOf("premium_monthly", "lifetime"), json["productIds"])
-        assertEquals(BillingClient.ProductType.SUBS, json["productType"])
+        assertEquals(BILLING_PRODUCT_TYPE_SUBS, json["productType"])
         assertEquals(true, json["isEmptyProductList"])
     }
 
@@ -309,16 +319,16 @@ class OpenIapErrorTest {
     @Test
     @Suppress("DEPRECATION")
     fun `fromBillingResponseCode returns correct error for known response codes`() {
-        assertTrue(OpenIapError.fromBillingResponseCode(BillingClient.BillingResponseCode.USER_CANCELED) is OpenIapError.UserCancelled)
-        assertTrue(OpenIapError.fromBillingResponseCode(BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE) is OpenIapError.ServiceUnavailable)
-        assertTrue(OpenIapError.fromBillingResponseCode(BillingClient.BillingResponseCode.BILLING_UNAVAILABLE) is OpenIapError.BillingUnavailable)
-        assertTrue(OpenIapError.fromBillingResponseCode(BillingClient.BillingResponseCode.ITEM_UNAVAILABLE) is OpenIapError.ItemUnavailable)
-        assertTrue(OpenIapError.fromBillingResponseCode(BillingClient.BillingResponseCode.DEVELOPER_ERROR) is OpenIapError.DeveloperError)
-        assertTrue(OpenIapError.fromBillingResponseCode(BillingClient.BillingResponseCode.ERROR) is OpenIapError.BillingError)
-        assertTrue(OpenIapError.fromBillingResponseCode(BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED) is OpenIapError.ItemAlreadyOwned)
-        assertTrue(OpenIapError.fromBillingResponseCode(BillingClient.BillingResponseCode.ITEM_NOT_OWNED) is OpenIapError.ItemNotOwned)
-        assertTrue(OpenIapError.fromBillingResponseCode(BillingClient.BillingResponseCode.SERVICE_DISCONNECTED) is OpenIapError.ServiceDisconnected)
-        assertTrue(OpenIapError.fromBillingResponseCode(BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED) is OpenIapError.FeatureNotSupported)
+        assertTrue(OpenIapError.fromBillingResponseCode(BILLING_RESPONSE_USER_CANCELED) is OpenIapError.UserCancelled)
+        assertTrue(OpenIapError.fromBillingResponseCode(BILLING_RESPONSE_SERVICE_UNAVAILABLE) is OpenIapError.ServiceUnavailable)
+        assertTrue(OpenIapError.fromBillingResponseCode(BILLING_RESPONSE_BILLING_UNAVAILABLE) is OpenIapError.BillingUnavailable)
+        assertTrue(OpenIapError.fromBillingResponseCode(BILLING_RESPONSE_ITEM_UNAVAILABLE) is OpenIapError.ItemUnavailable)
+        assertTrue(OpenIapError.fromBillingResponseCode(BILLING_RESPONSE_DEVELOPER_ERROR) is OpenIapError.DeveloperError)
+        assertTrue(OpenIapError.fromBillingResponseCode(BILLING_RESPONSE_ERROR) is OpenIapError.BillingError)
+        assertTrue(OpenIapError.fromBillingResponseCode(BILLING_RESPONSE_ITEM_ALREADY_OWNED) is OpenIapError.ItemAlreadyOwned)
+        assertTrue(OpenIapError.fromBillingResponseCode(BILLING_RESPONSE_ITEM_NOT_OWNED) is OpenIapError.ItemNotOwned)
+        assertTrue(OpenIapError.fromBillingResponseCode(BILLING_RESPONSE_SERVICE_DISCONNECTED) is OpenIapError.ServiceDisconnected)
+        assertTrue(OpenIapError.fromBillingResponseCode(BILLING_RESPONSE_FEATURE_NOT_SUPPORTED) is OpenIapError.FeatureNotSupported)
         assertTrue(OpenIapError.fromBillingResponseCode(BILLING_RESPONSE_SERVICE_TIMEOUT) is OpenIapError.ServiceTimeout)
     }
 
@@ -333,16 +343,16 @@ class OpenIapErrorTest {
     fun `fromBillingResponseCode forwards debugMessage for every response code`() {
         val debug = "offerToken does not match any product details"
         val codesToAssert = listOf(
-            BillingClient.BillingResponseCode.USER_CANCELED,
-            BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
-            BillingClient.BillingResponseCode.BILLING_UNAVAILABLE,
-            BillingClient.BillingResponseCode.ITEM_UNAVAILABLE,
-            BillingClient.BillingResponseCode.DEVELOPER_ERROR,
-            BillingClient.BillingResponseCode.ERROR,
-            BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED,
-            BillingClient.BillingResponseCode.ITEM_NOT_OWNED,
-            BillingClient.BillingResponseCode.SERVICE_DISCONNECTED,
-            BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED,
+            BILLING_RESPONSE_USER_CANCELED,
+            BILLING_RESPONSE_SERVICE_UNAVAILABLE,
+            BILLING_RESPONSE_BILLING_UNAVAILABLE,
+            BILLING_RESPONSE_ITEM_UNAVAILABLE,
+            BILLING_RESPONSE_DEVELOPER_ERROR,
+            BILLING_RESPONSE_ERROR,
+            BILLING_RESPONSE_ITEM_ALREADY_OWNED,
+            BILLING_RESPONSE_ITEM_NOT_OWNED,
+            BILLING_RESPONSE_SERVICE_DISCONNECTED,
+            BILLING_RESPONSE_FEATURE_NOT_SUPPORTED,
             BILLING_RESPONSE_SERVICE_TIMEOUT,
             999 // else branch → UnknownError
         )

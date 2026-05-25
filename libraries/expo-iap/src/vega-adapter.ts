@@ -136,24 +136,6 @@ const PURCHASE_RESPONSE_SUCCESS = 0;
 const IAPKIT_DEFAULT_BASE_URL = 'https://kit.openiap.dev';
 const IAPKIT_VERIFY_PATH = '/v1/purchase/verify';
 
-type IapkitEndpointOptions = NonNullable<
-  VerifyPurchaseWithProviderProps['iapkit']
-> & {
-  baseUrl?: string | null;
-};
-
-function iapkitVerifyUrl(
-  iapkit: VerifyPurchaseWithProviderProps['iapkit'],
-): string {
-  const endpointOptions = iapkit as IapkitEndpointOptions | null | undefined;
-  const baseUrl =
-    typeof endpointOptions?.baseUrl === 'string' &&
-    endpointOptions.baseUrl.trim().length > 0
-      ? endpointOptions.baseUrl.trim()
-      : IAPKIT_DEFAULT_BASE_URL;
-  return `${baseUrl.replace(/\/+$/, '')}${IAPKIT_VERIFY_PATH}`;
-}
-
 function createVegaError(
   code: ErrorCode,
   message: string,
@@ -582,6 +564,27 @@ export function createExpoIapVegaModule(
   const verifyWithIapkit = async (
     options: VerifyPurchaseWithProviderProps,
   ): Promise<VerifyPurchaseWithProviderResult> => {
+    type IapkitEndpointOptions = NonNullable<
+      VerifyPurchaseWithProviderProps['iapkit']
+    > & {
+      baseUrl?: string | null;
+    };
+
+    function iapkitVerifyUrl(
+      iapkit: VerifyPurchaseWithProviderProps['iapkit'],
+    ): string {
+      const endpointOptions = iapkit as
+        | IapkitEndpointOptions
+        | null
+        | undefined;
+      const baseUrl =
+        typeof endpointOptions?.baseUrl === 'string' &&
+        endpointOptions.baseUrl.trim().length > 0
+          ? endpointOptions.baseUrl.trim()
+          : IAPKIT_DEFAULT_BASE_URL;
+      return `${baseUrl.replace(/\/+$/, '')}${IAPKIT_VERIFY_PATH}`;
+    }
+
     function normalizeIapkitState(state: unknown): IapkitPurchaseState {
       const normalized =
         typeof state === 'string'
@@ -615,7 +618,7 @@ export function createExpoIapVegaModule(
         try {
           const parsed = JSON.parse(value);
           return parsed && typeof parsed === 'object'
-            ? extractIapkitErrorMessage(parsed, depth + 1) ?? value
+            ? (extractIapkitErrorMessage(parsed, depth + 1) ?? value)
             : value;
         } catch {
           return value;
@@ -930,11 +933,11 @@ export function createExpoIapVegaModule(
           renewalInfoIOS: null,
           autoRenewingAndroid:
             purchase.platform === 'android'
-              ? (
+              ? ((
                   purchase as Purchase & {
                     autoRenewingAndroid?: boolean | null;
                   }
-                ).autoRenewingAndroid ?? null
+                ).autoRenewingAndroid ?? null)
               : null,
           basePlanIdAndroid: null,
           currentPlanId: null,
@@ -944,9 +947,8 @@ export function createExpoIapVegaModule(
     async hasActiveSubscriptions(
       subscriptionIds?: string[] | null,
     ): Promise<boolean> {
-      const subscriptions = await vegaModule.getActiveSubscriptions(
-        subscriptionIds,
-      );
+      const subscriptions =
+        await vegaModule.getActiveSubscriptions(subscriptionIds);
       return subscriptions.length > 0;
     },
     async acknowledgePurchaseAndroid(purchaseToken): Promise<void> {

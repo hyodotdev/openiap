@@ -720,6 +720,16 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             let store: IapStore
             let jws: String
         }
+        struct IapkitAmazonPayload: Codable {
+            let store: IapStore
+            let receiptId: String
+            let sandbox: Bool?
+            let userId: String?
+        }
+        struct IapkitGooglePayload: Codable {
+            let store: IapStore
+            let purchaseToken: String
+        }
 
         func extractIapkitErrorMessage(from json: [String: Any]) -> String? {
             func extractStringMessage(_ value: String) -> String {
@@ -750,31 +760,56 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             return nil
         }
 
-        func buildIapkitPayload(props: RequestVerifyPurchaseWithIapkitProps) throws -> Data {
+        func buildIapkitPayload(props: RequestVerifyPurchaseWithIapkitProps) throws -> (store: IapStore, body: Data) {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.withoutEscapingSlashes]
-            guard let apple = props.apple else {
-                throw makePurchaseError(code: .developerError, message: "Apple verification parameters are required")
+            let payloadCount = [props.apple != nil, props.google != nil, props.amazon != nil].filter { $0 }.count
+            guard payloadCount == 1 else {
+                throw makePurchaseError(code: .developerError, message: "IAPKit verification requires exactly one store payload")
             }
-            guard apple.jws.isEmpty == false else {
-                throw makePurchaseError(code: .developerError, message: "JWS is required")
+
+            if let apple = props.apple {
+                let jws = apple.jws.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard jws.isEmpty == false else {
+                    throw makePurchaseError(code: .developerError, message: "JWS is required")
+                }
+                let payload = IapkitApplePayload(store: .apple, jws: jws)
+                return (.apple, try encoder.encode(payload))
             }
-            let payload = IapkitApplePayload(
-                store: .apple,
-                jws: apple.jws
-            )
-            return try encoder.encode(payload)
+
+            if let google = props.google {
+                let purchaseToken = google.purchaseToken.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard purchaseToken.isEmpty == false else {
+                    throw makePurchaseError(code: .developerError, message: "Google purchase token is required")
+                }
+                let payload = IapkitGooglePayload(store: .google, purchaseToken: purchaseToken)
+                return (.google, try encoder.encode(payload))
+            }
+
+            if let amazon = props.amazon {
+                let receiptId = amazon.receiptId.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard receiptId.isEmpty == false else {
+                    throw makePurchaseError(code: .developerError, message: "Amazon receiptId is required")
+                }
+                let userId = amazon.userId?.trimmingCharacters(in: .whitespacesAndNewlines)
+                let payload = IapkitAmazonPayload(
+                    store: .amazon,
+                    receiptId: receiptId,
+                    sandbox: amazon.sandbox,
+                    userId: userId?.isEmpty == true ? nil : userId
+                )
+                return (.amazon, try encoder.encode(payload))
+            }
+
+            throw makePurchaseError(code: .developerError, message: "IAPKit verification payload is required")
         }
 
         func verifyPurchaseWithIapkit(props: RequestVerifyPurchaseWithIapkitProps) async throws -> RequestVerifyPurchaseWithIapkitResult {
             let url = URL(string: "https://kit.openiap.dev/v1/purchase/verify")!
 
-            let payloadCount = [props.apple != nil, props.google != nil, props.amazon != nil].filter { $0 }.count
-            guard payloadCount == 1, props.apple != nil else {
-                throw makePurchaseError(code: .developerError, message: "IAPKit verification on Apple requires exactly one apple payload")
-            }
-            let store: IapStore = .apple
-            let body = try buildIapkitPayload(props: props)
+            let payload = try buildIapkitPayload(props: props)
+            let store = payload.store
+            let body = payload.body
 
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
@@ -839,7 +874,6 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             OpenIapLog.info("IAPKit verification result: store=\(parsedStore.rawValue), isValid=\(isValid), state=\(parsedState.rawValue)")
             return RequestVerifyPurchaseWithIapkitResult(isValid: isValid, state: parsedState, store: parsedStore)
         }
-
         try await ensureConnection()
         guard props.provider == .iapkit else {
             throw makePurchaseError(code: .featureNotSupported, message: "Provider \(props.provider.rawValue) is not supported")

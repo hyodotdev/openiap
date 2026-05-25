@@ -110,24 +110,6 @@ const PURCHASE_STATE_PENDING = 2;
 const IAPKIT_DEFAULT_BASE_URL = 'https://kit.openiap.dev';
 const IAPKIT_VERIFY_PATH = '/v1/purchase/verify';
 
-type IapkitEndpointOptions = NonNullable<
-  NitroVerifyPurchaseWithProviderProps['iapkit']
-> & {
-  baseUrl?: string | null;
-};
-
-function iapkitVerifyUrl(
-  iapkit: NitroVerifyPurchaseWithProviderProps['iapkit'],
-): string {
-  const endpointOptions = iapkit as IapkitEndpointOptions | null | undefined;
-  const baseUrl =
-    typeof endpointOptions?.baseUrl === 'string' &&
-    endpointOptions.baseUrl.trim().length > 0
-      ? endpointOptions.baseUrl.trim()
-      : IAPKIT_DEFAULT_BASE_URL;
-  return `${baseUrl.replace(/\/+$/, '')}${IAPKIT_VERIFY_PATH}`;
-}
-
 function createVegaError(
   code: ErrorCode,
   message: string,
@@ -641,6 +623,27 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
   const verifyWithIapkit = async (
     params: NitroVerifyPurchaseWithProviderProps,
   ): Promise<NitroVerifyPurchaseWithProviderResult> => {
+    type IapkitEndpointOptions = NonNullable<
+      NitroVerifyPurchaseWithProviderProps['iapkit']
+    > & {
+      baseUrl?: string | null;
+    };
+
+    function iapkitVerifyUrl(
+      iapkit: NitroVerifyPurchaseWithProviderProps['iapkit'],
+    ): string {
+      const endpointOptions = iapkit as
+        | IapkitEndpointOptions
+        | null
+        | undefined;
+      const baseUrl =
+        typeof endpointOptions?.baseUrl === 'string' &&
+        endpointOptions.baseUrl.trim().length > 0
+          ? endpointOptions.baseUrl.trim()
+          : IAPKIT_DEFAULT_BASE_URL;
+      return `${baseUrl.replace(/\/+$/, '')}${IAPKIT_VERIFY_PATH}`;
+    }
+
     function normalizeIapkitState(state: unknown): IapkitPurchaseState {
       const normalized =
         typeof state === 'string'
