@@ -848,16 +848,23 @@ class OpenIapModule(
     private fun AmazonReceipt.toPurchase(): PurchaseAndroid {
         val isSubscription = productType == AmazonProductType.SUBSCRIPTION
         val dateMillis = purchaseDate?.time?.toDouble() ?: 0.0
-        val isCanceled = cancelDate != null
-        val state = if (isCanceled) PurchaseState.Unknown else PurchaseState.Purchased
+        val receiptCanceled = isCanceled || cancelDate != null
+        val receiptDeferred = isDeferred
+        val state = when {
+            receiptDeferred -> PurchaseState.Pending
+            receiptCanceled -> PurchaseState.Unknown
+            else -> PurchaseState.Purchased
+        }
         return PurchaseAndroid(
-            autoRenewingAndroid = isSubscription && !isCanceled,
+            autoRenewingAndroid =
+                isSubscription && !receiptCanceled && !receiptDeferred,
             currentPlanId = if (isSubscription) sku else null,
             dataAndroid = toJSON().toString(),
             id = receiptId,
             ids = listOf(sku),
             isAcknowledgedAndroid = null,
-            isAutoRenewing = isSubscription && !isCanceled,
+            isAutoRenewing =
+                isSubscription && !receiptCanceled && !receiptDeferred,
             packageNameAndroid = context.packageName,
             platform = IapPlatform.Android,
             productId = sku,
@@ -868,7 +875,7 @@ class OpenIapModule(
             store = IapStore.Amazon,
             transactionDate = dateMillis,
             transactionId = receiptId,
-            isSuspendedAndroid = false
+            isSuspendedAndroid = receiptDeferred
         )
     }
 

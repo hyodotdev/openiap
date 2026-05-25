@@ -336,7 +336,15 @@ describe('Amazon Vega adapter', () => {
     await expect(module.consumePurchaseAndroid('receipt-2')).resolves.toBe(
       true,
     );
+    const listener = jest.fn();
+    module.addPurchaseUpdatedListener(listener);
     await expect(module.restorePurchases()).resolves.toBeUndefined();
+    expect(listener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        productId: 'premium_monthly',
+        purchaseToken: 'sub-receipt',
+      }),
+    );
     expect(module.addSubscriptionBillingIssueListener).not.toThrow();
     await expect(
       module.deepLinkToSubscriptionsAndroid({
