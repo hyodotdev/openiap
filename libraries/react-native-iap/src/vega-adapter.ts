@@ -79,6 +79,14 @@ interface VegaUserDataResponse extends VegaResponse {
   userData?: VegaUserData | null;
 }
 
+interface VegaError extends Error {
+  code?: ErrorCode;
+  debugMessage?: string;
+  platform?: 'android';
+  productId?: string;
+  responseCode?: number;
+}
+
 export interface VegaPurchasingService {
   getProductData(request: {skus: string[]}): Promise<VegaProductDataResponse>;
   getPurchaseUpdates(request: {
@@ -106,20 +114,35 @@ function createVegaError(
   responseCode?: unknown,
   productId?: string,
 ): Error {
-  return new Error(
-    JSON.stringify({
-      code,
-      message,
-      responseCode: typeof responseCode === 'number' ? responseCode : undefined,
-      debugMessage: message,
-      productId,
-      platform: 'android',
-    }),
-  );
+  const error = new Error(message) as VegaError;
+  error.code = code;
+  error.debugMessage = message;
+  error.platform = 'android';
+  error.productId = productId;
+  if (typeof responseCode === 'number') {
+    error.responseCode = responseCode;
+  }
+  return error;
 }
 
 function parseVegaErrorPayload(error: unknown): Record<string, unknown> {
   if (!(error instanceof Error)) return {};
+  const vegaError = error as VegaError;
+  if (
+    vegaError.code != null ||
+    vegaError.debugMessage != null ||
+    vegaError.productId != null ||
+    vegaError.responseCode != null
+  ) {
+    return {
+      code: vegaError.code,
+      message: error.message,
+      responseCode: vegaError.responseCode,
+      debugMessage: vegaError.debugMessage,
+      productId: vegaError.productId,
+      platform: vegaError.platform,
+    };
+  }
   try {
     const parsed = JSON.parse(error.message);
     return parsed && typeof parsed === 'object'
@@ -411,6 +434,27 @@ function getSkuFromRequest(request: Parameters<RnIap['requestPurchase']>[0]) {
   }
   return skus[0]!;
 }
+
+function hasSubscriptionRequestContext(subscriptionOffers: unknown): boolean {
+  if (Array.isArray(subscriptionOffers)) return true;
+  if (typeof subscriptionOffers === 'string') {
+    return subscriptionOffers.trim().length > 0;
+  }
+  return subscriptionOffers != null;
+}
+
+function throwUnsupportedFeature(feature: string): never {
+  throw createVegaError(
+    ErrorCode.FeatureNotSupported,
+    `${feature} is not supported on Amazon Vega.`,
+  );
+}
+
+type VegaRnIapModule = Partial<RnIap> & {
+  acknowledgePurchaseAndroid(purchaseToken: string): Promise<boolean>;
+  consumePurchaseAndroid(purchaseToken: string): Promise<boolean>;
+  restorePurchases(): Promise<void>;
+};
 
 export function createVegaIapModule(service: VegaPurchasingService): RnIap {
   const productTypesBySku = new Map<string, unknown>();
@@ -801,7 +845,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
     };
   };
 
-  const module: Partial<RnIap> = {
+  const module: VegaRnIapModule = {
     async initConnection(): Promise<boolean> {
       await getStorefront();
       return true;
@@ -842,7 +886,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
       try {
         sku = getSkuFromRequest(request);
         const androidRequest = request.google ?? request.android;
-        const fallbackProductType = Array.isArray(
+        const fallbackProductType = hasSubscriptionRequestContext(
           androidRequest?.subscriptionOffers,
         )
           ? PRODUCT_TYPE_SUBSCRIPTION
@@ -907,6 +951,19 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
       const token = params.android?.purchaseToken;
       return finishReceipt(token ?? '');
     },
+    async acknowledgePurchaseAndroid(purchaseToken): Promise<boolean> {
+      await finishReceipt(purchaseToken);
+      return true;
+    },
+    async consumePurchaseAndroid(purchaseToken): Promise<boolean> {
+      await finishReceipt(purchaseToken);
+      return true;
+    },
+    async restorePurchases(): Promise<void> {
+      await getAvailablePurchases({
+        android: {includeSuspended: false},
+      });
+    },
     addPurchaseUpdatedListener(listener): number {
       const token = nextPurchaseUpdateListenerToken++;
       purchaseUpdateListeners.set(token, listener);
@@ -923,6 +980,72 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
     },
     addPromotedProductListenerIOS(): void {},
     removePromotedProductListenerIOS(): void {},
+    async getAppTransactionIOS(): Promise<null> {
+      return throwUnsupportedFeature('getAppTransactionIOS');
+    },
+    async requestPromotedProductIOS(): Promise<null> {
+      return throwUnsupportedFeature('requestPromotedProductIOS');
+    },
+    async getPromotedProductIOS(): Promise<null> {
+      return throwUnsupportedFeature('getPromotedProductIOS');
+    },
+    async buyPromotedProductIOS(): Promise<void> {
+      return throwUnsupportedFeature('buyPromotedProductIOS');
+    },
+    async presentCodeRedemptionSheetIOS(): Promise<boolean> {
+      return throwUnsupportedFeature('presentCodeRedemptionSheetIOS');
+    },
+    async clearTransactionIOS(): Promise<void> {
+      return throwUnsupportedFeature('clearTransactionIOS');
+    },
+    async beginRefundRequestIOS(): Promise<null> {
+      return throwUnsupportedFeature('beginRefundRequestIOS');
+    },
+    async subscriptionStatusIOS(): Promise<null> {
+      return throwUnsupportedFeature('subscriptionStatusIOS');
+    },
+    async currentEntitlementIOS(): Promise<null> {
+      return throwUnsupportedFeature('currentEntitlementIOS');
+    },
+    async latestTransactionIOS(): Promise<null> {
+      return throwUnsupportedFeature('latestTransactionIOS');
+    },
+    async getPendingTransactionsIOS(): Promise<NitroPurchase[]> {
+      return throwUnsupportedFeature('getPendingTransactionsIOS');
+    },
+    async getAllTransactionsIOS(): Promise<NitroPurchase[]> {
+      return throwUnsupportedFeature('getAllTransactionsIOS');
+    },
+    async syncIOS(): Promise<boolean> {
+      return throwUnsupportedFeature('syncIOS');
+    },
+    async showManageSubscriptionsIOS(): Promise<NitroPurchase[]> {
+      return throwUnsupportedFeature('showManageSubscriptionsIOS');
+    },
+    async deepLinkToSubscriptionsIOS(): Promise<boolean> {
+      return throwUnsupportedFeature('deepLinkToSubscriptionsIOS');
+    },
+    async isEligibleForIntroOfferIOS(): Promise<boolean> {
+      return throwUnsupportedFeature('isEligibleForIntroOfferIOS');
+    },
+    async getReceiptDataIOS(): Promise<string> {
+      return throwUnsupportedFeature('getReceiptDataIOS');
+    },
+    async getReceiptIOS(): Promise<string> {
+      return throwUnsupportedFeature('getReceiptIOS');
+    },
+    async requestReceiptRefreshIOS(): Promise<string> {
+      return throwUnsupportedFeature('requestReceiptRefreshIOS');
+    },
+    async isTransactionVerifiedIOS(): Promise<boolean> {
+      return throwUnsupportedFeature('isTransactionVerifiedIOS');
+    },
+    async getTransactionJwsIOS(): Promise<null> {
+      return throwUnsupportedFeature('getTransactionJwsIOS');
+    },
+    async validateReceipt(): Promise<never> {
+      return throwUnsupportedFeature('validateReceipt');
+    },
     async getStorefront(): Promise<string> {
       return getStorefront();
     },
@@ -931,6 +1054,60 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
     },
     async verifyPurchaseWithProvider(params) {
       return verifyWithIapkit(params);
+    },
+    async deepLinkToSubscriptionsAndroid(): Promise<void> {
+      return throwUnsupportedFeature('deepLinkToSubscriptionsAndroid');
+    },
+    async checkAlternativeBillingAvailabilityAndroid(): Promise<boolean> {
+      return throwUnsupportedFeature(
+        'checkAlternativeBillingAvailabilityAndroid',
+      );
+    },
+    async showAlternativeBillingDialogAndroid(): Promise<boolean> {
+      return throwUnsupportedFeature('showAlternativeBillingDialogAndroid');
+    },
+    async createAlternativeBillingTokenAndroid(): Promise<null> {
+      return throwUnsupportedFeature('createAlternativeBillingTokenAndroid');
+    },
+    addUserChoiceBillingListenerAndroid(): void {},
+    removeUserChoiceBillingListenerAndroid(): void {},
+    addDeveloperProvidedBillingListenerAndroid(): void {},
+    removeDeveloperProvidedBillingListenerAndroid(): void {},
+    addSubscriptionBillingIssueListener(): void {},
+    removeSubscriptionBillingIssueListener(): void {},
+    enableBillingProgramAndroid(): void {
+      throwUnsupportedFeature('enableBillingProgramAndroid');
+    },
+    async isBillingProgramAvailableAndroid(): Promise<never> {
+      return throwUnsupportedFeature('isBillingProgramAvailableAndroid');
+    },
+    async createBillingProgramReportingDetailsAndroid(): Promise<never> {
+      return throwUnsupportedFeature(
+        'createBillingProgramReportingDetailsAndroid',
+      );
+    },
+    async launchExternalLinkAndroid(): Promise<boolean> {
+      return throwUnsupportedFeature('launchExternalLinkAndroid');
+    },
+    async canPresentExternalPurchaseNoticeIOS(): Promise<boolean> {
+      return throwUnsupportedFeature('canPresentExternalPurchaseNoticeIOS');
+    },
+    async presentExternalPurchaseNoticeSheetIOS(): Promise<never> {
+      return throwUnsupportedFeature('presentExternalPurchaseNoticeSheetIOS');
+    },
+    async presentExternalPurchaseLinkIOS(): Promise<never> {
+      return throwUnsupportedFeature('presentExternalPurchaseLinkIOS');
+    },
+    async isEligibleForExternalPurchaseCustomLinkIOS(): Promise<boolean> {
+      return throwUnsupportedFeature(
+        'isEligibleForExternalPurchaseCustomLinkIOS',
+      );
+    },
+    async getExternalPurchaseCustomLinkTokenIOS(): Promise<never> {
+      return throwUnsupportedFeature('getExternalPurchaseCustomLinkTokenIOS');
+    },
+    async showExternalPurchaseCustomLinkNoticeIOS(): Promise<never> {
+      return throwUnsupportedFeature('showExternalPurchaseCustomLinkNoticeIOS');
     },
   };
 

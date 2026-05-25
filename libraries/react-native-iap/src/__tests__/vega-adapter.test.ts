@@ -182,7 +182,10 @@ describe('Amazon Vega adapter', () => {
       module.requestPurchase({
         android: {skus: ['missing_sku']},
       }),
-    ).rejects.toThrow(`"code":"${ErrorCode.SkuNotFound}"`);
+    ).rejects.toMatchObject({
+      code: ErrorCode.SkuNotFound,
+      responseCode: 2,
+    });
     expect(errorListener).toHaveBeenCalledWith(
       expect.objectContaining({
         code: ErrorCode.SkuNotFound,
@@ -286,6 +289,71 @@ describe('Amazon Vega adapter', () => {
         autoRenewingAndroid: true,
       }),
     ]);
+  });
+
+  it('uses serialized subscription request context for direct Nitro calls', async () => {
+    const service = createService();
+    service.purchase.mockResolvedValueOnce({
+      responseCode: 0,
+      receipt: {
+        receiptId: 'sub-purchase',
+        sku: 'premium_monthly',
+      },
+    });
+    const module = createVegaIapModule(service);
+
+    await expect(
+      module.requestPurchase({
+        android: {
+          skus: ['premium_monthly'],
+          subscriptionOffers: '[]' as any,
+        },
+      }),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        productId: 'premium_monthly',
+        isAutoRenewing: true,
+        autoRenewingAndroid: true,
+      }),
+    ]);
+  });
+
+  it('exposes direct finish helpers and unsupported stubs on Vega', async () => {
+    const service = createService();
+    const module = createVegaIapModule(service) as ReturnType<
+      typeof createVegaIapModule
+    > & {
+      acknowledgePurchaseAndroid(purchaseToken: string): Promise<boolean>;
+      addSubscriptionBillingIssueListener(listener?: unknown): void;
+      consumePurchaseAndroid(purchaseToken: string): Promise<boolean>;
+      deepLinkToSubscriptionsAndroid(options: unknown): Promise<void>;
+      restorePurchases(): Promise<void>;
+    };
+
+    await expect(module.acknowledgePurchaseAndroid('receipt-1')).resolves.toBe(
+      true,
+    );
+    await expect(module.consumePurchaseAndroid('receipt-2')).resolves.toBe(
+      true,
+    );
+    await expect(module.restorePurchases()).resolves.toBeUndefined();
+    expect(module.addSubscriptionBillingIssueListener).not.toThrow();
+    await expect(
+      module.deepLinkToSubscriptionsAndroid({
+        packageNameAndroid: 'dev.hyo.openiap',
+        skuAndroid: 'premium_monthly',
+      }),
+    ).rejects.toMatchObject({
+      code: ErrorCode.FeatureNotSupported,
+    });
+    expect(service.notifyFulfillment).toHaveBeenCalledWith({
+      fulfillmentResult: 1,
+      receiptId: 'receipt-1',
+    });
+    expect(service.notifyFulfillment).toHaveBeenCalledWith({
+      fulfillmentResult: 1,
+      receiptId: 'receipt-2',
+    });
   });
 
   it('loads all paginated Amazon purchase updates', async () => {
@@ -440,7 +508,7 @@ describe('Amazon Vega adapter', () => {
         },
       }),
     ).rejects.toThrow(
-      `"message":"Amazon Vega IAPKit verification requires exactly one amazon payload."`,
+      'Amazon Vega IAPKit verification requires exactly one amazon payload.',
     );
   });
 
@@ -466,7 +534,7 @@ describe('Amazon Vega adapter', () => {
             },
           },
         }),
-      ).rejects.toThrow(`"message":"HTTP 502"`);
+      ).rejects.toThrow('HTTP 502');
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -501,7 +569,7 @@ describe('Amazon Vega adapter', () => {
             },
           },
         }),
-      ).rejects.toThrow(`"message":"receipt no longer valid"`);
+      ).rejects.toThrow('receipt no longer valid');
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -534,7 +602,7 @@ describe('Amazon Vega adapter', () => {
             },
           },
         }),
-      ).rejects.toThrow(`"message":"receipt array failure"`);
+      ).rejects.toThrow('receipt array failure');
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -562,9 +630,7 @@ describe('Amazon Vega adapter', () => {
             },
           },
         }),
-      ).rejects.toThrow(
-        `"message":"IAPKit returned non-JSON response (HTTP 200)."`,
-      );
+      ).rejects.toThrow('IAPKit returned non-JSON response (HTTP 200).');
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -602,7 +668,7 @@ describe('Amazon Vega adapter', () => {
             },
           },
         }),
-      ).rejects.toThrow(`"message":"bad receipt"`);
+      ).rejects.toThrow('bad receipt');
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -630,9 +696,7 @@ describe('Amazon Vega adapter', () => {
             },
           },
         }),
-      ).rejects.toThrow(
-        `"message":"IAPKit returned malformed response (HTTP 200)."`,
-      );
+      ).rejects.toThrow('IAPKit returned malformed response (HTTP 200).');
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -666,9 +730,7 @@ describe('Amazon Vega adapter', () => {
             },
           },
         }),
-      ).rejects.toThrow(
-        `"message":"IAPKit returned malformed response (HTTP 200)."`,
-      );
+      ).rejects.toThrow('IAPKit returned malformed response (HTTP 200).');
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -703,9 +765,7 @@ describe('Amazon Vega adapter', () => {
             },
           },
         }),
-      ).rejects.toThrow(
-        `"message":"IAPKit returned malformed response (HTTP 200)."`,
-      );
+      ).rejects.toThrow('IAPKit returned malformed response (HTTP 200).');
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -732,7 +792,9 @@ describe('Amazon Vega adapter', () => {
             },
           },
         }),
-      ).rejects.toThrow(`"code":"network-error"`);
+      ).rejects.toMatchObject({
+        code: ErrorCode.NetworkError,
+      });
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -763,7 +825,9 @@ describe('Amazon Vega adapter', () => {
             },
           },
         }),
-      ).rejects.toThrow(`"code":"network-error"`);
+      ).rejects.toMatchObject({
+        code: ErrorCode.NetworkError,
+      });
     } finally {
       globalThis.fetch = originalFetch;
     }
