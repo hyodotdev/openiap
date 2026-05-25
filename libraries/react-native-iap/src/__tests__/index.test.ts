@@ -112,6 +112,10 @@ describe('Public API (src/index.ts)', () => {
     mockIap.getReceiptIOS = undefined;
     mockIap.requestReceiptRefreshIOS = undefined;
     mockIap.getStorefront = jest.fn(async () => 'USA');
+    mockIap.addSubscriptionBillingIssueListener.mockReset();
+    mockIap.addSubscriptionBillingIssueListener.mockImplementation(
+      () => undefined,
+    );
     // Ensure getAvailablePurchases always returns an empty array by default
     mockIap.getAvailablePurchases = jest.fn(async () => []);
     // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -2482,6 +2486,27 @@ describe('Public API (src/index.ts)', () => {
       const handler2 = jest.fn();
       const sub2 = IAP.subscriptionBillingIssueListener(handler2);
       expect(sub2).toBeDefined();
+    });
+
+    it('reattaches a pre-init listener after initConnection', async () => {
+      mockIap.addSubscriptionBillingIssueListener
+        .mockImplementationOnce(() => {
+          throw new Error('Nitro runtime not installed');
+        })
+        .mockImplementation(() => undefined);
+
+      const handler = jest.fn();
+      const sub = IAP.subscriptionBillingIssueListener(handler);
+      expect(mockIap.addSubscriptionBillingIssueListener).toHaveBeenCalledTimes(
+        1,
+      );
+
+      await IAP.initConnection();
+
+      expect(mockIap.addSubscriptionBillingIssueListener).toHaveBeenCalledTimes(
+        2,
+      );
+      sub.remove();
     });
 
     it('cleans up JS listener when native attach throws', () => {

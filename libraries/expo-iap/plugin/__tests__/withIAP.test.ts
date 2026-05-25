@@ -182,6 +182,39 @@ describe('android configuration', () => {
       },
     ]);
   });
+
+  it('normalizes a single meta-data object before adding Horizon metadata', () => {
+    const manifest = {
+      manifest: {
+        application: [
+          {
+            'meta-data': {
+              $: {
+                'android:name': 'dev.iapkit.API_KEY',
+                'android:value': 'key',
+              },
+            },
+          },
+        ],
+      },
+    };
+
+    expect(syncHorizonAppIdMetaData(manifest, true, '123')).toBe('added');
+    expect(manifest.manifest.application[0]!['meta-data']).toEqual([
+      {
+        $: {
+          'android:name': 'dev.iapkit.API_KEY',
+          'android:value': 'key',
+        },
+      },
+      {
+        $: {
+          'android:name': 'com.meta.horizon.platform.ovr.OCULUS_APP_ID',
+          'android:value': '123',
+        },
+      },
+    ]);
+  });
 });
 
 describe('local OpenIAP configuration', () => {

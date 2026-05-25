@@ -73,9 +73,7 @@ import {getVegaIapModule, isVegaOS} from './vega';
 // Note: BillingProgramAndroid, ExternalLinkLaunchModeAndroid, and ExternalLinkTypeAndroid
 // are exported from './types' (auto-generated from openiap-gql).
 // Import them here for use in this file's interfaces and functions.
-import type {
-  BillingProgramAndroid,
-} from './types';
+import type {BillingProgramAndroid} from './types';
 
 // Export all types
 export type {
@@ -753,28 +751,28 @@ const subscriptionBillingIssueNativeHandler: NitroSubscriptionBillingIssueListen
     }
   };
 
+function tryAttachSubscriptionBillingIssueNative(): void {
+  if (subscriptionBillingIssueNativeAttached) return;
+  try {
+    IAP.instance.addSubscriptionBillingIssueListener(
+      subscriptionBillingIssueNativeHandler,
+    );
+    subscriptionBillingIssueNativeAttached = true;
+  } catch (e) {
+    const msg = toErrorMessage(e);
+    if (msg.includes('Nitro runtime not installed')) {
+      RnIapConsole.warn(
+        '[subscriptionBillingIssueListener] Nitro not ready yet; will retry after initConnection()',
+      );
+    } else {
+      throw e;
+    }
+  }
+}
+
 export const subscriptionBillingIssueListener = (
   listener: (purchase: Purchase) => void,
 ): EventSubscription => {
-  function tryAttachSubscriptionBillingIssueNative(): void {
-    if (subscriptionBillingIssueNativeAttached) return;
-    try {
-      IAP.instance.addSubscriptionBillingIssueListener(
-        subscriptionBillingIssueNativeHandler,
-      );
-      subscriptionBillingIssueNativeAttached = true;
-    } catch (e) {
-      const msg = toErrorMessage(e);
-      if (msg.includes('Nitro runtime not installed')) {
-        RnIapConsole.warn(
-          '[subscriptionBillingIssueListener] Nitro not ready yet; will retry on next registration after initConnection()',
-        );
-      } else {
-        throw e;
-      }
-    }
-  }
-
   subscriptionBillingIssueJsListeners.add(listener);
   // Retry attachment every call so a listener registered before initConnection()
   // doesn't stay permanently inert once Nitro is ready.
@@ -1595,9 +1593,13 @@ export const initConnection: MutationField<'initConnection'> = async (
   config,
 ) => {
   try {
-    return await IAP.instance.initConnection(
+    const result = await IAP.instance.initConnection(
       config as Record<string, unknown> | undefined,
     );
+    if (subscriptionBillingIssueJsListeners.size > 0) {
+      tryAttachSubscriptionBillingIssueNative();
+    }
+    return result;
   } catch (error) {
     RnIapConsole.error('Failed to initialize IAP connection:', error);
     const parsedError = parseErrorStringToJsonObj(error);
@@ -1762,6 +1764,10 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
         }
         if (subscriptionRequest.compactJWS !== undefined) {
           iosPayload.compactJWS = subscriptionRequest.compactJWS;
+        }
+        if (subscriptionRequest.introductoryOfferEligibility !== undefined) {
+          iosPayload.introductoryOfferEligibility =
+            subscriptionRequest.introductoryOfferEligibility;
         }
         if (subscriptionRequest.promotionalOfferJWS) {
           iosPayload.promotionalOfferJWS =

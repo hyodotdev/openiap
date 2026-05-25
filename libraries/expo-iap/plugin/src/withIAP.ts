@@ -72,6 +72,9 @@ export function syncHorizonAppIdMetaData(
   horizonAppId?: string,
 ): HorizonAppIdSyncResult {
   const application = manifest.manifest.application?.[0];
+  if (application?.['meta-data'] && !Array.isArray(application['meta-data'])) {
+    application['meta-data'] = [application['meta-data']];
+  }
   const existingMetaData = application?.['meta-data'];
 
   if (!isHorizonEnabled) {
