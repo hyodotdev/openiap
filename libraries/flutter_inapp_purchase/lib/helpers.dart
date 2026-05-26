@@ -124,6 +124,7 @@ gentype.ProductCommon parseProductFromNative(
         subscriptionOffers: _parseSubscriptionOffersIOS(
           json['subscriptionOffers'],
         ),
+        subscriptionGroupIdIOS: json['subscriptionGroupIdIOS']?.toString(),
         subscriptionPeriodNumberIOS:
             json['subscriptionPeriodNumberIOS']?.toString(),
         subscriptionPeriodUnitIOS: _parseSubscriptionPeriod(

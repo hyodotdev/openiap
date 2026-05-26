@@ -1504,7 +1504,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     }
 
     private func subscriptionToDictionary(_ subscription: ProductSubscription) -> [String: Any] {
-        return [
+        var dictionary: [String: Any] = [
             "id": subscription.id,
             "title": subscription.title,
             "description": subscription.description,
@@ -1514,6 +1514,11 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             "type": "subs",
             "platform": "ios"
         ]
+        if case let .productSubscriptionIos(ios) = subscription,
+           let groupId = ios.subscriptionGroupIdIOS {
+            dictionary["subscriptionGroupIdIOS"] = groupId
+        }
+        return dictionary
     }
 
     private func purchaseToDictionary(_ purchase: Purchase) -> [String: Any] {
