@@ -243,12 +243,14 @@ final class OpenIapTests: XCTestCase {
         XCTAssertNotNil(dictionary["introductoryPricePaymentModeIOS"])
         XCTAssertEqual(dictionary["introductoryPricePaymentModeIOS"] as? String, "free-trial",
             "introductoryPricePaymentModeIOS should be encoded as 'free-trial' (raw value), not 'freeTrial' (enum case name)")
+        XCTAssertEqual(dictionary["subscriptionGroupIdIOS"] as? String, "group")
 
         // Test round-trip encoding/decoding
         let data = try JSONEncoder().encode(product)
         let decoded = try JSONDecoder().decode(ProductSubscriptionIOS.self, from: data)
 
         XCTAssertEqual(decoded.introductoryPricePaymentModeIOS, .freeTrial)
+        XCTAssertEqual(decoded.subscriptionGroupIdIOS, "group")
 
         // Verify JSON string contains the raw value
         let jsonString = String(data: data, encoding: .utf8)!
@@ -974,6 +976,7 @@ final class OpenIapTests: XCTestCase {
             jsonRepresentationIOS: "{}",
             platform: .ios,
             price: 9.99,
+            subscriptionGroupIdIOS: "group",
             subscriptionInfoIOS: info,
             subscriptionPeriodNumberIOS: "1",
             subscriptionPeriodUnitIOS: .month,
