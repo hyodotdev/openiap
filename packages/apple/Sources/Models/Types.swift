@@ -1092,7 +1092,9 @@ public struct ProductSubscriptionIOS: Codable, ProductCommon {
     public var jsonRepresentationIOS: String
     public var platform: IapPlatform = .ios
     public var price: Double? = nil
-    /// @deprecated Use subscriptionOffers instead for cross-platform compatibility.
+    /// App Store subscription group identifier for intro-offer eligibility checks.
+    public var subscriptionGroupIdIOS: String? = nil
+    /// @deprecated Use subscriptionOffers for offer metadata and subscriptionGroupIdIOS for the App Store subscription group identifier.
     public var subscriptionInfoIOS: SubscriptionInfoIOS? = nil
     /// Standardized subscription offers.
     /// Cross-platform type with iOS-specific fields using suffix.

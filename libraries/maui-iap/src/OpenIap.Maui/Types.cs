@@ -3037,7 +3037,10 @@ public sealed record ProductSubscriptionIOS : ProductSubscription, ProductCommon
     public IapPlatform Platform { get; init; } = IapPlatform.IOS;
     [JsonPropertyName("price")]
     public double? Price { get; init; }
-    /// <summary>@deprecated Use subscriptionOffers instead for cross-platform compatibility.</summary>
+    /// <summary>App Store subscription group identifier for intro-offer eligibility checks.</summary>
+    [JsonPropertyName("subscriptionGroupIdIOS")]
+    public string? SubscriptionGroupIdIOS { get; init; }
+    /// <summary>@deprecated Use subscriptionOffers for offer metadata and subscriptionGroupIdIOS for the App Store subscription group identifier.</summary>
     [JsonPropertyName("subscriptionInfoIOS")]
     public SubscriptionInfoIOS? SubscriptionInfoIOS { get; init; }
     /// <summary>Standardized subscription offers.</summary>
