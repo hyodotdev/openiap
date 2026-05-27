@@ -1108,9 +1108,11 @@ export interface ProductSubscriptionIOS extends ProductCommon {
   jsonRepresentationIOS: string;
   platform: 'ios';
   price?: (number | null);
+  /** App Store subscription group identifier for intro-offer eligibility checks. */
+  subscriptionGroupIdIOS?: (string | null);
   /**
-   * @deprecated Use subscriptionOffers instead for cross-platform compatibility.
-   * @deprecated Use subscriptionOffers instead
+   * @deprecated Use subscriptionOffers for offer metadata and subscriptionGroupIdIOS for the App Store subscription group identifier.
+   * @deprecated Use subscriptionOffers for offers and subscriptionGroupIdIOS for group ID
    */
   subscriptionInfoIOS?: (SubscriptionInfoIOS | null);
   /**

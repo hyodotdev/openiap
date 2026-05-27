@@ -92,6 +92,7 @@ enum StoreKitTypesBridge {
             jsonRepresentationIOS: String(data: product.jsonRepresentation, encoding: .utf8) ?? "",
             platform: .ios,
             price: NSDecimalNumber(decimal: product.price).doubleValue,
+            subscriptionGroupIdIOS: subscription.subscriptionGroupID,
             subscriptionInfoIOS: makeSubscriptionInfo(from: product.subscription),
             subscriptionOffers: standardizedOffers.isEmpty ? nil : standardizedOffers,
             subscriptionPeriodNumberIOS: String(subscription.subscriptionPeriod.value),

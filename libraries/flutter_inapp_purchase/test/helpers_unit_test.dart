@@ -30,6 +30,7 @@ void main() {
           'price': 9.99,
           'isFamilyShareableIOS': true,
           'jsonRepresentationIOS': '{}',
+          'subscriptionGroupIdIOS': '21686373',
           'typeIOS': 'AUTO_RENEWABLE_SUBSCRIPTION',
         },
         'subs',
@@ -41,6 +42,7 @@ void main() {
       expect(subscription.id, 'premium_monthly');
       expect(subscription.platform, types.IapPlatform.IOS);
       expect(subscription.isFamilyShareableIOS, isTrue);
+      expect(subscription.subscriptionGroupIdIOS, '21686373');
       expect(subscription.type, types.ProductType.Subs);
     });
 

@@ -131,12 +131,19 @@ type ProductSubscriptionIOS implements ProductCommon {
   """
   subscriptionOffers: [SubscriptionOffer!]
 
-  # Deprecated platform-specific fields
   """
-  @deprecated Use subscriptionOffers instead for cross-platform compatibility.
+  App Store subscription group identifier for intro-offer eligibility checks.
+  """
+  subscriptionGroupIdIOS: String
+
+  # Deprecated legacy iOS fields
+  """
+  @deprecated Use subscriptionOffers for offer metadata and subscriptionGroupIdIOS for the App Store subscription group identifier.
   """
   subscriptionInfoIOS: SubscriptionInfoIOS
-    @deprecated(reason: "Use subscriptionOffers instead")
+    @deprecated(
+      reason: "Use subscriptionOffers for offers and subscriptionGroupIdIOS for group ID"
+    )
 
   """
   @deprecated Use subscriptionOffers instead for cross-platform compatibility.

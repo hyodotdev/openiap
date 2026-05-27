@@ -2898,7 +2898,11 @@ public data class ProductSubscriptionIOS(
     override val platform: IapPlatform = IapPlatform.Ios,
     override val price: Double? = null,
     /**
-     * @deprecated Use subscriptionOffers instead for cross-platform compatibility.
+     * App Store subscription group identifier for intro-offer eligibility checks.
+     */
+    val subscriptionGroupIdIOS: String? = null,
+    /**
+     * @deprecated Use subscriptionOffers for offer metadata and subscriptionGroupIdIOS for the App Store subscription group identifier.
      */
     val subscriptionInfoIOS: SubscriptionInfoIOS? = null,
     /**
@@ -2934,6 +2938,7 @@ public data class ProductSubscriptionIOS(
                 jsonRepresentationIOS = json["jsonRepresentationIOS"] as? String ?: "",
                 platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: IapPlatform.Ios,
                 price = (json["price"] as? Number)?.toDouble(),
+                subscriptionGroupIdIOS = json["subscriptionGroupIdIOS"] as? String,
                 subscriptionInfoIOS = (json["subscriptionInfoIOS"] as? Map<String, Any?>)?.let { SubscriptionInfoIOS.fromJson(it) },
                 subscriptionOffers = (json["subscriptionOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { SubscriptionOffer.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionOffer") },
                 subscriptionPeriodNumberIOS = json["subscriptionPeriodNumberIOS"] as? String,
@@ -2964,6 +2969,7 @@ public data class ProductSubscriptionIOS(
         "jsonRepresentationIOS" to jsonRepresentationIOS,
         "platform" to platform.toJson(),
         "price" to price,
+        "subscriptionGroupIdIOS" to subscriptionGroupIdIOS,
         "subscriptionInfoIOS" to subscriptionInfoIOS?.toJson(),
         "subscriptionOffers" to subscriptionOffers?.map { it.toJson() },
         "subscriptionPeriodNumberIOS" to subscriptionPeriodNumberIOS,

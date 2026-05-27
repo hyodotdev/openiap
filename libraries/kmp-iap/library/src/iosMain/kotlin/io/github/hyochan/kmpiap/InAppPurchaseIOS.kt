@@ -1247,6 +1247,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     price = (map["price"] as? Number)?.toDouble(),
                     subscriptionInfoIOS = null, // Complex object
                     subscriptionOffers = subscriptionOffers.ifEmpty { null },
+                    subscriptionGroupIdIOS = map["subscriptionGroupIdIOS"] as? String,
                     subscriptionPeriodNumberIOS = map["subscriptionPeriodNumberIOS"] as? String,
                     subscriptionPeriodUnitIOS = null, // Complex enum
                     title = map["title"] as? String ?: "",

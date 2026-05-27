@@ -1965,7 +1965,9 @@ class ProductSubscriptionIOS:
 	var type_ios: ProductTypeIOS
 	## Standardized subscription offers.
 	var subscription_offers: Array[SubscriptionOffer] = []
-	## @deprecated Use subscriptionOffers instead for cross-platform compatibility.
+	## App Store subscription group identifier for intro-offer eligibility checks.
+	var subscription_group_id_ios: Variant = null
+	## @deprecated Use subscriptionOffers for offer metadata and subscriptionGroupIdIOS for the App Store subscription group identifier.
 	var subscription_info_ios: SubscriptionInfoIOS
 	## @deprecated Use subscriptionOffers instead for cross-platform compatibility.
 	var discounts_ios: Array[DiscountIOS] = []
@@ -2027,6 +2029,8 @@ class ProductSubscriptionIOS:
 				else:
 					arr.append(item)
 			obj.subscription_offers = arr
+		if data.has("subscriptionGroupIdIOS") and data["subscriptionGroupIdIOS"] != null:
+			obj.subscription_group_id_ios = data["subscriptionGroupIdIOS"]
 		if data.has("subscriptionInfoIOS") and data["subscriptionInfoIOS"] != null:
 			if data["subscriptionInfoIOS"] is Dictionary:
 				obj.subscription_info_ios = SubscriptionInfoIOS.from_dict(data["subscriptionInfoIOS"])
@@ -2106,6 +2110,8 @@ class ProductSubscriptionIOS:
 			dict["subscriptionOffers"] = arr
 		else:
 			dict["subscriptionOffers"] = null
+		if subscription_group_id_ios != null:
+			dict["subscriptionGroupIdIOS"] = subscription_group_id_ios
 		if subscription_info_ios != null and subscription_info_ios.has_method("to_dict"):
 			dict["subscriptionInfoIOS"] = subscription_info_ios.to_dict()
 		else:

@@ -260,6 +260,9 @@ export function convertNitroProductToProduct(
       normalizeSubscriptionPeriod(
         nitroProduct.introductoryPriceSubscriptionPeriodIOS,
       );
+    iosProduct.subscriptionGroupIdIOS = toNullableString(
+      nitroProduct.subscriptionGroupIdIOS,
+    );
     iosProduct.subscriptionPeriodNumberIOS = toNullableString(
       nitroProduct.subscriptionPeriodNumberIOS,
     );

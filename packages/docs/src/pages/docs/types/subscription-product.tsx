@@ -220,6 +220,15 @@ function SubscriptionProduct() {
                     </tr>
                     <tr>
                       <td>
+                        <code>subscriptionGroupIdIOS</code>
+                      </td>
+                      <td>
+                        App Store subscription group identifier used by{' '}
+                        <code>isEligibleForIntroOfferIOS</code>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
                         <code>typeIOS</code>
                       </td>
                       <td>

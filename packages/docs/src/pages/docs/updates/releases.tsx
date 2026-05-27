@@ -26,6 +26,187 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // May 27, 2026 — iOS subscription group ID product field
+    {
+      id: 'ios-subscription-group-id-product-field-2026-05-27',
+      date: new Date('2026-05-27'),
+      element: (
+        <div
+          key="ios-subscription-group-id-product-field-2026-05-27"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="ios-subscription-group-id-product-field-2026-05-27"
+            level="h4"
+          >
+            May 27, 2026 — iOS subscription group ID product field
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes <strong>OpenIAP Spec 2.0.3</strong> and SDK patch releases
+            so iOS subscription products expose the App Store subscription group
+            identifier directly as{' '}
+            <code>ProductSubscriptionIOS.subscriptionGroupIdIOS</code>.{' '}
+            <code>subscriptionInfoIOS</code> remains deprecated: apps should use{' '}
+            <code>subscriptionOffers</code> for offer metadata and{' '}
+            <code>subscriptionGroupIdIOS</code> for intro-offer eligibility
+            checks. This addresses{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/issues/147"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              issue #147
+            </a>
+            .
+          </p>
+
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>Direct subscription group access</strong> — iOS
+              subscription products returned from{' '}
+              <Link to="/docs/apis/fetch-products">
+                <code>fetchProducts()</code>
+              </Link>{' '}
+              now carry <code>subscriptionGroupIdIOS</code>, avoiding reads from
+              deprecated <code>subscriptionInfoIOS.subscriptionGroupId</code>.
+            </li>
+            <li>
+              <strong>StoreKit mapping</strong> — openiap-apple maps StoreKit
+              2&apos;s <code>Product.SubscriptionInfo.subscriptionGroupID</code>{' '}
+              into the new product field for auto-renewable subscriptions.
+            </li>
+            <li>
+              <strong>Framework parity</strong> — React Native, Expo, Flutter,
+              KMP, Godot, and MAUI receive regenerated types; the React Native,
+              Flutter, KMP, and Godot bridges also pass the iOS field through
+              their native product payloads.
+            </li>
+            <li>
+              <strong>Deprecation guidance clarified</strong> — generated type
+              comments now direct offer data to <code>subscriptionOffers</code>{' '}
+              and the App Store group id to <code>subscriptionGroupIdIOS</code>.
+            </li>
+            <li>
+              <strong>Android behavior unchanged</strong> — openiap-google is
+              regenerated for schema parity, but this patch does not change
+              Google Play product or purchase behavior.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/gql-2.0.3"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-spec 2.0.3
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/2.2.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-apple 2.2.2
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/google-2.2.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-google 2.2.2
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/react-native-iap-15.3.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  react-native-iap 15.3.2
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/expo-iap-4.3.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  expo-iap 4.3.2
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.3.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  flutter_inapp_purchase 9.3.2
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/godot-iap-2.3.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  godot-iap 2.3.2
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/kmp-iap-2.3.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  kmp-iap 2.3.2
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/maui-iap-1.1.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  OpenIap.Maui 1.1.2
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // May 19, 2026 — Android Billing callback race hotfix
     {
       id: 'android-billing-callback-race-hotfix-2026-05-19',
