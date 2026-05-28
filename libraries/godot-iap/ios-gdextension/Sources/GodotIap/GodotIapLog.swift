@@ -41,6 +41,24 @@ import os
 /// - Note: `setEnabled` and `setHandler` should be called once at app startup
 ///   before any logging occurs. They are not thread-safe for concurrent writes.
 enum GodotIapLog {
+    private static let sensitiveKeys: Set<String> = [
+        "token",
+        "purchasetoken",
+        "receipttoken",
+        "accesstoken",
+        "apikey",
+        "secret",
+        "sharedsecret",
+        "jws",
+        "receiptid",
+        "userid",
+        "password",
+        "auth",
+        "authorization",
+        "authheader",
+        "bearer",
+    ]
+
     enum Level: String {
         case debug
         case info
@@ -174,21 +192,10 @@ enum GodotIapLog {
     }
 
     private static func sanitizeDictionary(_ dictionary: [String: Any]) -> [String: Any] {
-        let sensitiveFragments = [
-            "token",
-            "apikey",
-            "secret",
-            "jws",
-            "receiptid",
-            "userid",
-            "password",
-            "auth",
-        ]
-
         func isSensitiveKey(_ key: String) -> Bool {
             let normalized = key.lowercased()
                 .filter { $0.isLetter || $0.isNumber }
-            return sensitiveFragments.contains { normalized.contains($0) }
+            return sensitiveKeys.contains(normalized)
         }
 
         var sanitized: [String: Any] = [:]

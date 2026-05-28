@@ -4,6 +4,24 @@ import os
 #endif
 
 enum ExpoIapLog {
+    private static let sensitiveKeys: Set<String> = [
+        "token",
+        "purchasetoken",
+        "receipttoken",
+        "accesstoken",
+        "apikey",
+        "secret",
+        "sharedsecret",
+        "jws",
+        "receiptid",
+        "userid",
+        "password",
+        "auth",
+        "authorization",
+        "authheader",
+        "bearer",
+    ]
+
     enum Level: String {
         case debug
         case info
@@ -114,21 +132,10 @@ enum ExpoIapLog {
     }
 
     private static func sanitizeDictionary(_ dictionary: [String: Any]) -> [String: Any] {
-        let sensitiveFragments = [
-            "token",
-            "apikey",
-            "secret",
-            "jws",
-            "receiptid",
-            "userid",
-            "password",
-            "auth",
-        ]
-
         func isSensitiveKey(_ key: String) -> Bool {
             let normalized = key.lowercased()
                 .filter { $0.isLetter || $0.isNumber }
-            return sensitiveFragments.contains { normalized.contains($0) }
+            return sensitiveKeys.contains(normalized)
         }
 
         var sanitized: [String: Any] = [:]
