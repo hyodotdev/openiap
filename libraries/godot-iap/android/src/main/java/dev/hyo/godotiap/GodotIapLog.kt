@@ -3,6 +3,7 @@ package dev.hyo.godotiap
 import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.Locale
 
 /**
  * Logging utility for GodotIap plugin.
@@ -152,7 +153,7 @@ internal object GodotIapLog {
     }
 
     private fun isSensitiveKey(key: String): Boolean {
-        val normalized = key.lowercase().filter { it.isLetterOrDigit() }
+        val normalized = key.lowercase(Locale.ROOT).filter { it.isLetterOrDigit() }
         return normalized in SENSITIVE_KEYS
     }
 }

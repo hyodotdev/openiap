@@ -18,6 +18,7 @@ import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
+import java.util.Locale
 
 private const val DEFAULT_IAPKIT_ENDPOINT = "https://kit.openiap.dev/v1/purchase/verify"
 private val gson = Gson()
@@ -305,7 +306,7 @@ suspend fun verifyPurchaseWithIapkit(
                 throw malformedIapkitResponse()
             }
 
-            val normalizedState = state.lowercase().replace("_", "-")
+            val normalizedState = state.lowercase(Locale.ROOT).replace("_", "-")
             val parsedState = runCatching {
                 IapkitPurchaseState.fromJson(normalizedState)
             }.getOrDefault(IapkitPurchaseState.Unknown)

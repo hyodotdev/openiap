@@ -3,6 +3,7 @@ package expo.modules.iap
 import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.Locale
 
 internal object ExpoIapLog {
     private const val TAG = "ExpoIap"
@@ -79,7 +80,7 @@ internal object ExpoIapLog {
 
     private fun sanitizeMap(source: Map<*, *>): Map<String, Any?> {
         fun isSensitiveKey(key: String): Boolean {
-            val normalized = key.lowercase().filter { it.isLetterOrDigit() }
+            val normalized = key.lowercase(Locale.ROOT).filter { it.isLetterOrDigit() }
             return normalized in SENSITIVE_KEYS
         }
 

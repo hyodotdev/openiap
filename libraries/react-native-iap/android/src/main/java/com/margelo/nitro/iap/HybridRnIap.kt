@@ -575,7 +575,7 @@ class HybridRnIap : HybridRnIapSpec() {
                 mapOf("type" to androidOptions?.type?.name, "includeSuspended" to includeSuspended)
             )
 
-            val typeName = androidOptions?.type?.name?.lowercase()
+            val typeName = androidOptions?.type?.name?.lowercase(Locale.ROOT)
             val normalizedType = when (typeName) {
                 "inapp" -> {
                     RnIapLog.warn("getAvailablePurchases received legacy type 'inapp'; forwarding as 'in-app'")
@@ -1275,7 +1275,7 @@ class HybridRnIap : HybridRnIapSpec() {
     }
 
     private fun mapIapStore(store: dev.hyo.openiap.IapStore): IapStore {
-        return when (store.rawValue.lowercase()) {
+        return when (store.rawValue.lowercase(Locale.ROOT)) {
             "apple" -> IapStore.APPLE
             "google" -> IapStore.GOOGLE
             "horizon" -> IapStore.HORIZON
@@ -1470,7 +1470,7 @@ class HybridRnIap : HybridRnIapSpec() {
         return Promise.async {
             try {
                 // Convert Nitro enum to string (e.g., IAPKIT -> "iapkit")
-                val providerString = params.provider.name.lowercase()
+                val providerString = params.provider.name.lowercase(Locale.ROOT)
                 RnIapLog.payload("verifyPurchaseWithProvider", mapOf("provider" to providerString))
 
                 // Build the props map for OpenIAP - use string value for provider
