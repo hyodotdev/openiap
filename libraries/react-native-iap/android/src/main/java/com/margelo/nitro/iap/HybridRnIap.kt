@@ -49,7 +49,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CompletableDeferred
 import org.json.JSONArray
 import org.json.JSONObject
-import java.util.Locale
 
 /**
  * Custom exception for OpenIAP errors that only includes the error JSON without stack traces.
@@ -575,7 +574,7 @@ class HybridRnIap : HybridRnIapSpec() {
                 mapOf("type" to androidOptions?.type?.name, "includeSuspended" to includeSuspended)
             )
 
-            val typeName = androidOptions?.type?.name?.lowercase(Locale.ROOT)
+            val typeName = androidOptions?.type?.name?.lowercase(java.util.Locale.ROOT)
             val normalizedType = when (typeName) {
                 "inapp" -> {
                     RnIapLog.warn("getAvailablePurchases received legacy type 'inapp'; forwarding as 'in-app'")
@@ -1275,7 +1274,7 @@ class HybridRnIap : HybridRnIapSpec() {
     }
 
     private fun mapIapStore(store: dev.hyo.openiap.IapStore): IapStore {
-        return when (store.rawValue.lowercase(Locale.ROOT)) {
+        return when (store.rawValue.lowercase(java.util.Locale.ROOT)) {
             "apple" -> IapStore.APPLE
             "google" -> IapStore.GOOGLE
             "horizon" -> IapStore.HORIZON
@@ -1470,7 +1469,7 @@ class HybridRnIap : HybridRnIapSpec() {
         return Promise.async {
             try {
                 // Convert Nitro enum to string (e.g., IAPKIT -> "iapkit")
-                val providerString = params.provider.name.lowercase(Locale.ROOT)
+                val providerString = params.provider.name.lowercase(java.util.Locale.ROOT)
                 RnIapLog.payload("verifyPurchaseWithProvider", mapOf("provider" to providerString))
 
                 // Build the props map for OpenIAP - use string value for provider
