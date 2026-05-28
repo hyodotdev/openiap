@@ -36,7 +36,7 @@ function PlatformTabs({ children }: PlatformTabsProps) {
   );
 
   const [activeTab, setActiveTab] = useState<Platform>(
-    () => platformFromHash(availablePlatforms) ?? availablePlatforms[0] ?? 'ios'
+    () => availablePlatforms[0] ?? 'ios'
   );
 
   useEffect(() => {
@@ -44,7 +44,6 @@ function PlatformTabs({ children }: PlatformTabsProps) {
       return;
     }
 
-    // Handle hash changes for tab switching
     const handleHashChange = () => {
       const next = platformFromHash(availablePlatforms);
       if (next) {
@@ -52,6 +51,7 @@ function PlatformTabs({ children }: PlatformTabsProps) {
       }
     };
 
+    handleHashChange();
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, [availablePlatforms]);

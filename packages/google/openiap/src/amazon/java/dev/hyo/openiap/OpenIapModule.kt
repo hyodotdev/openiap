@@ -185,6 +185,7 @@ class OpenIapModule(
     private val earlyPurchaseResponses = ConcurrentHashMap<String, PurchaseResponse>()
     private val earlyPurchaseUpdatesResponses = ConcurrentHashMap<String, PurchaseUpdatesResponse>()
     private val earlyUserDataResponses = ConcurrentHashMap<String, UserDataResponse>()
+    private val timedOutRequestIds = ConcurrentHashMap.newKeySet<String>()
     private val purchaseTypeByReceiptId = ConcurrentHashMap<String, AmazonProductType>()
     private val purchaseSkuByReceiptId = ConcurrentHashMap<String, String>()
     private val productTypeBySku = ConcurrentHashMap<String, AmazonProductType>()
@@ -235,6 +236,7 @@ class OpenIapModule(
             earlyPurchaseResponses.clear()
             earlyPurchaseUpdatesResponses.clear()
             earlyUserDataResponses.clear()
+            timedOutRequestIds.clear()
             purchaseTypeByReceiptId.clear()
             purchaseSkuByReceiptId.clear()
             productTypeBySku.clear()
@@ -890,6 +892,7 @@ class OpenIapModule(
         return try {
             withTimeout(AMAZON_REQUEST_TIMEOUT_MS) { deferred.await() }
         } catch (_: TimeoutCancellationException) {
+            timedOutRequestIds.add(requestId)
             throw OpenIapError.ServiceTimeout("Amazon Appstore request timed out")
         } finally {
             pending.remove(requestId)
@@ -905,6 +908,11 @@ class OpenIapModule(
         val deferred = pending.remove(requestId)
         if (deferred != null) {
             if (!deferred.isCompleted) deferred.complete(value)
+        } else if (timedOutRequestIds.remove(requestId)) {
+            OpenIapLog.w(
+                "Ignoring late Amazon Appstore response for timed-out request $requestId",
+                TAG
+            )
         } else {
             earlyResponses[requestId] = value
         }

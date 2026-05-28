@@ -6,6 +6,23 @@ import org.json.JSONObject
 
 internal object ExpoIapLog {
     private const val TAG = "ExpoIap"
+    private val SENSITIVE_KEYS = setOf(
+        "token",
+        "purchasetoken",
+        "receipttoken",
+        "accesstoken",
+        "apikey",
+        "secret",
+        "sharedsecret",
+        "jws",
+        "receiptid",
+        "userid",
+        "password",
+        "auth",
+        "authorization",
+        "authheader",
+        "bearer"
+    )
 
     fun payload(
         name: String,
@@ -61,22 +78,9 @@ internal object ExpoIapLog {
     }
 
     private fun sanitizeMap(source: Map<*, *>): Map<String, Any?> {
-        val sensitiveKeys = listOf(
-            "token",
-            "apikey",
-            "secret",
-            "jws",
-            "receiptid",
-            "userid",
-            "password",
-            "auth"
-        )
-
         fun isSensitiveKey(key: String): Boolean {
             val normalized = key.lowercase().filter { it.isLetterOrDigit() }
-            return sensitiveKeys.any {
-                normalized.contains(it)
-            }
+            return normalized in SENSITIVE_KEYS
         }
 
         val sanitized = linkedMapOf<String, Any?>()
