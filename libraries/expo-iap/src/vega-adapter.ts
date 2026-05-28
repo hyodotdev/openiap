@@ -939,8 +939,8 @@ export function createExpoIapVegaModule(
                   }
                 ).autoRenewingAndroid ?? null)
               : null,
-          basePlanIdAndroid: null,
-          currentPlanId: null,
+          basePlanIdAndroid: purchase.productId,
+          currentPlanId: purchase.productId,
           purchaseTokenAndroid: purchase.purchaseToken ?? null,
         }));
     },

@@ -975,6 +975,8 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
           purchaseToken: purchase.purchaseToken ?? null,
           transactionDate: purchase.transactionDate,
           autoRenewingAndroid: purchase.autoRenewingAndroid ?? true,
+          basePlanIdAndroid: purchase.productId,
+          currentPlanId: purchase.productId,
           purchaseTokenAndroid: purchase.purchaseTokenAndroid ?? null,
         }));
     },

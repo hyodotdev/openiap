@@ -21,6 +21,10 @@ const PLATFORM_LABELS: Record<Platform, string> = {
 const PLATFORM_ORDER: Platform[] = ['ios', 'android', 'horizon', 'amazon'];
 
 function platformFromHash(availablePlatforms: Platform[]): Platform | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
   const hash = window.location.hash.toLowerCase();
   return availablePlatforms.find((platform) => hash.includes(platform)) ?? null;
 }
@@ -36,6 +40,10 @@ function PlatformTabs({ children }: PlatformTabsProps) {
   );
 
   useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     // Handle hash changes for tab switching
     const handleHashChange = () => {
       const next = platformFromHash(availablePlatforms);

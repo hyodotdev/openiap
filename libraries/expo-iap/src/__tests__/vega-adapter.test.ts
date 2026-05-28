@@ -202,6 +202,8 @@ describe('Amazon Vega Expo adapter', () => {
       expect.objectContaining({
         productId: 'premium_monthly',
         isActive: true,
+        basePlanIdAndroid: 'premium_monthly',
+        currentPlanId: 'premium_monthly',
         purchaseToken: 'sub-receipt',
       }),
     ]);
@@ -229,6 +231,8 @@ describe('Amazon Vega Expo adapter', () => {
       expect.objectContaining({
         productId: 'premium_monthly',
         isActive: true,
+        basePlanIdAndroid: 'premium_monthly',
+        currentPlanId: 'premium_monthly',
         purchaseToken: 'sub-receipt',
       }),
     ]);
@@ -254,6 +258,8 @@ describe('Amazon Vega Expo adapter', () => {
       expect.objectContaining({
         productId: 'premium_monthly',
         isActive: true,
+        basePlanIdAndroid: 'premium_monthly',
+        currentPlanId: 'premium_monthly',
         purchaseToken: 'sub-receipt',
       }),
     ]);
