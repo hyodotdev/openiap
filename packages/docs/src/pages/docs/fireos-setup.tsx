@@ -86,6 +86,13 @@ function FireOSSetup() {
             subscriptions to <code>subs</code>.
           </li>
           <li>
+            Product IDs in Amazon Appstore and Amazon App Tester should match
+            the SKUs your app passes to <code>fetchProducts</code> and{' '}
+            <code>requestPurchase</code>. For subscriptions, keep each Amazon
+            subscription group or term aligned with the same app-facing SKU you
+            use on Apple, Google, Horizon OS, and Kit entitlement checks.
+          </li>
+          <li>
             Amazon App Tester installed on a Fire OS or compatible Android test
             device for sandbox testing.
           </li>
@@ -94,6 +101,72 @@ function FireOSSetup() {
             <code>src/main/assets</code> directory.
           </li>
         </ul>
+      </section>
+
+      <section>
+        <h2 id="catalog-identity" className="anchor-heading">
+          Catalog Identity
+          <a href="#catalog-identity" className="anchor-link">
+            #
+          </a>
+        </h2>
+        <p>
+          Treat the SKU that your app requests as the canonical entitlement
+          identity. Apple, Google Play, Horizon OS, and Amazon all have store
+          console concepts for grouping subscription products or terms, but the
+          app should still receive one stable OpenIAP <code>productId</code> for
+          the item it requested.
+        </p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Store setup</th>
+              <th>OpenIAP app identity</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Apple subscription group</td>
+              <td>
+                Use the App Store product ID as the SKU passed to OpenIAP.
+              </td>
+            </tr>
+            <tr>
+              <td>Google subscription with base plans or offers</td>
+              <td>
+                Use the subscription product ID as <code>productId</code>, then
+                read plan details from subscription offers.
+              </td>
+            </tr>
+            <tr>
+              <td>Amazon subscription group or term</td>
+              <td>
+                Use the Amazon SKU that appears in product data and purchase
+                requests as the OpenIAP <code>productId</code>. Do not rely on a
+                separate test-catalog alias for entitlement checks.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <blockquote className="info-note">
+          If Amazon App Tester or the Amazon catalog returns a receipt SKU that
+          differs from the SKU your app requested, immediate client-side
+          purchase updates can keep the requested SKU for the in-flight
+          response, but restore and server verification flows still depend on
+          the store catalog identity. Keep Amazon product IDs, tester JSON, and
+          IAPKit product mappings aligned, then check subscription state through{' '}
+          <code>getActiveSubscriptions</code>,{' '}
+          <code>getAvailablePurchases</code>, or Kit entitlement APIs.
+        </blockquote>
+        <p>
+          With that catalog identity in place, Fire OS subscription checks use
+          the same OpenIAP calls as the other stores. Apps call{' '}
+          <code>getActiveSubscriptions</code> with their subscription SKUs and
+          read <code>productId</code>, <code>currentPlanId</code>, and{' '}
+          <code>isActive</code> from the returned{' '}
+          <code>ActiveSubscription</code>
+          records instead of writing Amazon-specific receipt mapping code.
+        </p>
       </section>
 
       <section>

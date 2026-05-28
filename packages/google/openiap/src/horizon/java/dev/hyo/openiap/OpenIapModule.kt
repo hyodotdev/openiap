@@ -61,6 +61,7 @@ private const val TAG = "OpenIapModule"
  * @param userChoiceBillingListener Listener for user choice billing selection (optional)
  *
  * Note: Oculus App ID is read from AndroidManifest.xml meta-data with key "com.oculus.vr.APP_ID"
+ * or "com.meta.horizon.platform.ovr.OCULUS_APP_ID".
  */
 class OpenIapModule(
     private val context: Context,
@@ -78,18 +79,20 @@ class OpenIapModule(
         private const val PURCHASE_QUERY_DELAY_MS = 500L
     }
 
-    // Read Oculus App ID from AndroidManifest.xml
+    // Read Oculus App ID from AndroidManifest.xml.
     private val appId: String? by lazy {
         try {
             val appInfo = context.packageManager.getApplicationInfo(
                 context.packageName,
                 android.content.pm.PackageManager.GET_META_DATA
             )
-            val id = appInfo.metaData?.getString("com.oculus.vr.APP_ID")
+            val metaData = appInfo.metaData
+            val id = metaData?.getString("com.oculus.vr.APP_ID")
+                ?: metaData?.getString("com.meta.horizon.platform.ovr.OCULUS_APP_ID")
             OpenIapLog.d("Read Oculus App ID from manifest: $id", TAG)
             id
         } catch (e: Exception) {
-            OpenIapLog.w("Failed to read com.oculus.vr.APP_ID from AndroidManifest.xml: ${e.message}", TAG)
+            OpenIapLog.w("Failed to read Oculus App ID from AndroidManifest.xml: ${e.message}", TAG)
             null
         }
     }

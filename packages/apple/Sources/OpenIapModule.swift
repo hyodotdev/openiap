@@ -965,6 +965,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                 allSubscriptions.append(
                     ActiveSubscription(
                         autoRenewingAndroid: nil,
+                        currentPlanId: transaction.productID,
                         daysUntilExpirationIOS: daysUntilExpiration,
                         environmentIOS: environment,
                         expirationDateIOS: expiration?.milliseconds,

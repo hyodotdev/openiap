@@ -112,6 +112,44 @@ internal object AmazonPriceParser {
     }
 }
 
+internal fun buildAmazonPurchase(
+    packageName: String,
+    receiptId: String,
+    receiptSku: String,
+    isSubscription: Boolean,
+    purchaseDateMillis: Double,
+    isCanceled: Boolean,
+    isDeferred: Boolean,
+    productIdOverride: String? = null
+): PurchaseAndroid {
+    val resolvedProductId = productIdOverride?.takeIf { it.isNotBlank() } ?: receiptSku
+    val state = when {
+        isDeferred -> PurchaseState.Pending
+        isCanceled -> PurchaseState.Unknown
+        else -> PurchaseState.Purchased
+    }
+    return PurchaseAndroid(
+        autoRenewingAndroid = isSubscription && !isCanceled && !isDeferred,
+        currentPlanId = if (isSubscription) resolvedProductId else null,
+        dataAndroid = "",
+        id = receiptId,
+        ids = listOf(resolvedProductId),
+        isAcknowledgedAndroid = null,
+        isAutoRenewing = isSubscription && !isCanceled && !isDeferred,
+        packageNameAndroid = packageName,
+        platform = IapPlatform.Android,
+        productId = resolvedProductId,
+        purchaseState = state,
+        purchaseToken = receiptId,
+        quantity = 1,
+        signatureAndroid = null,
+        store = IapStore.Amazon,
+        transactionDate = purchaseDateMillis,
+        transactionId = receiptId,
+        isSuspendedAndroid = isDeferred
+    )
+}
+
 /**
  * OpenIapModule for Amazon Appstore SDK IAP.
  *
@@ -148,6 +186,7 @@ class OpenIapModule(
     private val earlyPurchaseUpdatesResponses = ConcurrentHashMap<String, PurchaseUpdatesResponse>()
     private val earlyUserDataResponses = ConcurrentHashMap<String, UserDataResponse>()
     private val purchaseTypeByReceiptId = ConcurrentHashMap<String, AmazonProductType>()
+    private val purchaseSkuByReceiptId = ConcurrentHashMap<String, String>()
     private val productTypeBySku = ConcurrentHashMap<String, AmazonProductType>()
 
     private val purchaseUpdateListeners = ConcurrentHashMap.newKeySet<OpenIapPurchaseUpdateListener>()
@@ -197,6 +236,7 @@ class OpenIapModule(
             earlyPurchaseUpdatesResponses.clear()
             earlyUserDataResponses.clear()
             purchaseTypeByReceiptId.clear()
+            purchaseSkuByReceiptId.clear()
             productTypeBySku.clear()
             storefrontCode = ""
             true
@@ -333,8 +373,22 @@ class OpenIapModule(
                             OpenIapError.PurchaseFailed("Amazon purchase response did not include a receipt")
                         )
                     }
-                    val purchase = receipt.toPurchase()
-                    cacheReceiptProductType(receipt, receipt.productTypeOrNull())
+                    if (!receipt.sku.isNullOrBlank() && receipt.sku != sku) {
+                        OpenIapLog.w(
+                            "Amazon receipt SKU '${receipt.sku}' differs from requested SKU '$sku'. " +
+                                "Using the requested SKU for the OpenIAP purchase productId; " +
+                                "align the Amazon catalog and App Tester data for restore and server verification.",
+                            TAG
+                        )
+                    }
+                    // This response is correlated by Amazon requestId, so the
+                    // local request SKU is safe even when callbacks arrive out
+                    // of order.
+                    cacheReceiptProduct(receipt, receipt.productTypeOrNull(), sku)
+                    val purchase = receipt.toPurchase(
+                        productTypeOverride = receipt.productTypeOrNull(),
+                        productIdOverride = sku
+                    )
                     purchaseUpdateListeners.forEach { listener ->
                         runCatching { listener.onPurchaseUpdated(purchase) }
                     }
@@ -613,7 +667,7 @@ class OpenIapModule(
 
     override fun onPurchaseUpdatesResponse(purchaseUpdatesResponse: PurchaseUpdatesResponse) {
         purchaseUpdatesResponse.receipts.orEmpty().forEach { receipt ->
-            cacheReceiptProductType(receipt, receipt.productTypeOrNull())
+            cacheReceiptProduct(receipt, receipt.productTypeOrNull())
         }
         completeOrCache(
             purchaseUpdatesRequests,
@@ -712,8 +766,11 @@ class OpenIapModule(
         return receipts.map { receipt ->
             val productType = receipt.productTypeOrNull()
                 ?: productTypeBySku[receipt.sku.orEmpty()]
-            cacheReceiptProductType(receipt, productType)
-            receipt.toPurchase(productType)
+            cacheReceiptProduct(receipt, productType)
+            receipt.toPurchase(
+                productTypeOverride = productType,
+                productIdOverride = canonicalSkuForReceipt(receipt)
+            )
         }
     }
 
@@ -725,7 +782,7 @@ class OpenIapModule(
 
             val productType = receipt.productTypeOrNull()
             if (productType != null) {
-                cacheReceiptProductType(receipt, productType)
+                cacheReceiptProduct(receipt, productType)
             } else if (!productTypeBySku.containsKey(sku)) {
                 missingSkus += sku
             }
@@ -755,19 +812,28 @@ class OpenIapModule(
         }
     }
 
-    private fun cacheReceiptProductType(
+    private fun cacheReceiptProduct(
         receipt: AmazonReceipt,
-        productType: AmazonProductType?
+        productType: AmazonProductType?,
+        requestedSku: String? = null
     ) {
-        if (productType == null) return
         val receiptId = receipt.receiptId.orEmpty()
         val sku = receipt.sku.orEmpty()
-        if (receiptId.isNotBlank()) {
+        if (receiptId.isNotBlank() && !requestedSku.isNullOrBlank()) {
+            purchaseSkuByReceiptId[receiptId] = requestedSku
+        }
+        if (productType != null && receiptId.isNotBlank()) {
             purchaseTypeByReceiptId[receiptId] = productType
         }
-        if (sku.isNotBlank()) {
+        if (productType != null && sku.isNotBlank()) {
             productTypeBySku[sku] = productType
         }
+    }
+
+    private fun canonicalSkuForReceipt(receipt: AmazonReceipt): String? {
+        val receiptId = receipt.receiptId.orEmpty()
+        if (receiptId.isBlank()) return null
+        return purchaseSkuByReceiptId[receiptId]
     }
 
     private fun cacheProductType(product: AmazonProduct) {
@@ -961,39 +1027,22 @@ class OpenIapModule(
     }
 
     private fun AmazonReceipt.toPurchase(
-        productTypeOverride: AmazonProductType? = productTypeOrNull()
+        productTypeOverride: AmazonProductType? = productTypeOrNull(),
+        productIdOverride: String? = null
     ): PurchaseAndroid {
-        val isSubscription = productTypeOverride == AmazonProductType.SUBSCRIPTION
         val dateMillis = purchaseDate?.time?.toDouble() ?: 0.0
         val receiptCanceled = isCanceled || cancelDate != null
         val receiptDeferred = isDeferred
-        val state = when {
-            receiptDeferred -> PurchaseState.Pending
-            receiptCanceled -> PurchaseState.Unknown
-            else -> PurchaseState.Purchased
-        }
-        return PurchaseAndroid(
-            autoRenewingAndroid =
-                isSubscription && !receiptCanceled && !receiptDeferred,
-            currentPlanId = if (isSubscription) sku else null,
-            dataAndroid = toJSON().toString(),
-            id = receiptId,
-            ids = listOf(sku),
-            isAcknowledgedAndroid = null,
-            isAutoRenewing =
-                isSubscription && !receiptCanceled && !receiptDeferred,
-            packageNameAndroid = context.packageName,
-            platform = IapPlatform.Android,
-            productId = sku,
-            purchaseState = state,
-            purchaseToken = receiptId,
-            quantity = 1,
-            signatureAndroid = null,
-            store = IapStore.Amazon,
-            transactionDate = dateMillis,
-            transactionId = receiptId,
-            isSuspendedAndroid = receiptDeferred
-        )
+        return buildAmazonPurchase(
+            packageName = context.packageName,
+            receiptId = receiptId,
+            receiptSku = sku,
+            isSubscription = productTypeOverride == AmazonProductType.SUBSCRIPTION,
+            purchaseDateMillis = dateMillis,
+            isCanceled = receiptCanceled,
+            isDeferred = receiptDeferred,
+            productIdOverride = productIdOverride
+        ).copy(dataAndroid = toJSON().toString())
     }
 
 }

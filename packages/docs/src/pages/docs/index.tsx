@@ -101,6 +101,7 @@ import Errors from './errors';
 import Purchase from './features/purchase';
 import SubscriptionFeature from './features/subscription/index';
 import SubscriptionUpgradeDowngrade from './features/subscription/upgrade-downgrade';
+import SubscriptionActiveSubscriptions from './features/subscription/active-subscriptions';
 import Discount from './features/discount';
 import OfferCodeRedemption from './features/offer-code-redemption';
 import ExternalPurchase from './features/external-purchase';
@@ -605,7 +606,7 @@ function Docs() {
                 className={({ isActive }) => (isActive ? 'active' : '')}
                 onClick={closeSidebar}
               >
-                Kit Backend
+                Purchase Verification
               </NavLink>
             </li>
             <li>
@@ -690,6 +691,10 @@ function Docs() {
                 {
                   to: '/docs/features/subscription/upgrade-downgrade',
                   label: 'Upgrade/Downgrade',
+                },
+                {
+                  to: '/docs/features/subscription/active-subscriptions',
+                  label: 'Active Subscriptions',
                 },
               ]}
               onItemClick={closeSidebar}
@@ -1196,6 +1201,10 @@ function Docs() {
             path="features/subscription/upgrade-downgrade"
             element={<SubscriptionUpgradeDowngrade />}
           />
+          <Route
+            path="features/subscription/active-subscriptions"
+            element={<SubscriptionActiveSubscriptions />}
+          />
           <Route path="features/discount" element={<Discount />} />
           <Route
             path="features/offer-code-redemption"
@@ -1237,6 +1246,26 @@ function Docs() {
           <Route path="setup/kmp" element={<KmpSetup />} />
           <Route path="setup/maui" element={<MauiSetup />} />
           <Route path="example" element={<Example />} />
+          <Route
+            path="example/ios"
+            element={<Navigate to="/docs/example" replace />}
+          />
+          <Route
+            path="example/android"
+            element={<Navigate to="/docs/example" replace />}
+          />
+          <Route
+            path="example/horizon"
+            element={<Navigate to="/docs/example" replace />}
+          />
+          <Route
+            path="example/fireos"
+            element={<Navigate to="/docs/example" replace />}
+          />
+          <Route
+            path="example/amazon"
+            element={<Navigate to="/docs/example" replace />}
+          />
           <Route path="guides/ai-assistants" element={<AIAssistants />} />
           <Route path="guides/mcp-server" element={<MCPServer />} />
           <Route path="guides/testing" element={<Testing />} />

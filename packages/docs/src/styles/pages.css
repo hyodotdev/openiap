@@ -621,6 +621,119 @@
   color: #3ddc84;
 }
 
+/* Example videos */
+.example-video-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0 2rem;
+}
+
+.example-overview-image {
+  display: block;
+  width: min(100%, 440px);
+  margin: 1rem 0 1.25rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  background: var(--bg-secondary);
+}
+
+.example-action-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  align-items: start;
+  margin: 1rem 0 2rem;
+}
+
+.example-action-copy p:first-child {
+  margin-top: 0;
+}
+
+.example-action-copy {
+  min-width: 0;
+}
+
+.example-action-copy .doc-table {
+  display: block;
+  overflow-x: auto;
+  margin-top: 1rem;
+}
+
+.example-video-card {
+  max-width: 440px;
+  overflow: hidden;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+}
+
+.example-video-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-bottom: 1px solid var(--border-color);
+}
+
+.example-video-tab {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0.65rem 0.45rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.example-video-tab:hover {
+  color: var(--text-primary);
+}
+
+.example-video-tab.active {
+  border-bottom-color: var(--accent-color);
+  color: var(--text-primary);
+}
+
+.example-video-card video,
+.example-video-placeholder {
+  display: block;
+  width: 100%;
+  aspect-ratio: 9 / 16;
+  max-height: 520px;
+  background: #111;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.example-video-placeholder {
+  display: grid;
+  place-items: center;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.example-video-content {
+  padding: 1rem;
+}
+
+.example-video-content h4 {
+  margin: 0 0 0.4rem;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.example-video-content p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
 @media (max-width: 600px) {
   .screenshot-card {
     flex-direction: column;
@@ -630,5 +743,9 @@
 
   .screenshot-card img {
     width: 150px;
+  }
+
+  .example-video-card {
+    max-width: none;
   }
 }

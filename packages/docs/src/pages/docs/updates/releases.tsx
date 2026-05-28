@@ -1282,8 +1282,8 @@ function Releases() {
               server.
             </li>
             <li>
-              <strong>Shared subscription state</strong> — Fire OS
-              subscriptions flow through the same OpenIAP{' '}
+              <strong>Shared subscription state</strong> — Fire OS subscriptions
+              flow through the same OpenIAP{' '}
               <Link to="/docs/apis/fetch-products">
                 <code>fetchProducts</code>
               </Link>
