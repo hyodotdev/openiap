@@ -7,7 +7,7 @@ import { HORIZON_CONFIG } from './horizon';
 import { IAPKIT_URL, trackIapKitClick } from '../../../lib/config';
 
 const FIREOS_VIDEO_BASE = '/examples/amazon/videos';
-const FIREOS_POSTER = '/examples/amazon/home.png';
+const FIREOS_POSTER = '/examples/amazon/home.webp';
 const FIREOS_VIDEO_VERSION = 'v=20260526-corrected';
 
 function fireOsVideo(fileName: string) {

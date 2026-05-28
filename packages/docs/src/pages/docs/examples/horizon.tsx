@@ -3,7 +3,7 @@ import StoreExampleTemplate, {
 } from './StoreExampleTemplate';
 
 const HORIZON_VIDEO_BASE = '/examples/horizon/videos';
-const HORIZON_POSTER = '/examples/horizon/home.png';
+const HORIZON_POSTER = '/examples/horizon/home.webp';
 const HORIZON_VIDEO_VERSION = 'v=20260527-subscription-purchase';
 
 function horizonVideo(fileName: string) {
