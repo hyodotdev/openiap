@@ -12,22 +12,20 @@ import java.util.Locale
  */
 internal object GodotIapLog {
     private const val TAG = "GodotIap"
-    private val SENSITIVE_KEYS = setOf(
+    private val SENSITIVE_KEY_FRAGMENTS = setOf(
         "token",
-        "purchasetoken",
-        "receipttoken",
-        "accesstoken",
         "apikey",
         "secret",
-        "sharedsecret",
         "jws",
         "receiptid",
         "userid",
         "password",
+        "bearer"
+    )
+    private val SENSITIVE_AUTH_KEYS = setOf(
         "auth",
         "authorization",
-        "authheader",
-        "bearer"
+        "authheader"
     )
 
     /**
@@ -154,6 +152,7 @@ internal object GodotIapLog {
 
     private fun isSensitiveKey(key: String): Boolean {
         val normalized = key.lowercase(Locale.ROOT).filter { it.isLetterOrDigit() }
-        return normalized in SENSITIVE_KEYS
+        return SENSITIVE_KEY_FRAGMENTS.any { normalized.contains(it) } ||
+            normalized in SENSITIVE_AUTH_KEYS
     }
 }

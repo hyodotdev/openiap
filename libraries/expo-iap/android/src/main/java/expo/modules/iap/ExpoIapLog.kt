@@ -7,22 +7,20 @@ import java.util.Locale
 
 internal object ExpoIapLog {
     private const val TAG = "ExpoIap"
-    private val SENSITIVE_KEYS = setOf(
+    private val SENSITIVE_KEY_FRAGMENTS = setOf(
         "token",
-        "purchasetoken",
-        "receipttoken",
-        "accesstoken",
         "apikey",
         "secret",
-        "sharedsecret",
         "jws",
         "receiptid",
         "userid",
         "password",
+        "bearer"
+    )
+    private val SENSITIVE_AUTH_KEYS = setOf(
         "auth",
         "authorization",
-        "authheader",
-        "bearer"
+        "authheader"
     )
 
     fun payload(
@@ -81,7 +79,8 @@ internal object ExpoIapLog {
     private fun sanitizeMap(source: Map<*, *>): Map<String, Any?> {
         fun isSensitiveKey(key: String): Boolean {
             val normalized = key.lowercase(Locale.ROOT).filter { it.isLetterOrDigit() }
-            return normalized in SENSITIVE_KEYS
+            return SENSITIVE_KEY_FRAGMENTS.any { normalized.contains(it) } ||
+                normalized in SENSITIVE_AUTH_KEYS
         }
 
         val sanitized = linkedMapOf<String, Any?>()
