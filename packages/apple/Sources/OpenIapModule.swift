@@ -830,6 +830,9 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             } catch is CancellationError {
                 throw CancellationError()
             } catch {
+                if let urlError = error as? URLError, urlError.code == .cancelled {
+                    throw CancellationError()
+                }
                 OpenIapLog.warn("IAPKit verification network error: \(error.localizedDescription)")
                 throw makePurchaseError(code: .networkError, message: error.localizedDescription)
             }

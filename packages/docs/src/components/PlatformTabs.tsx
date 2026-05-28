@@ -32,7 +32,12 @@ function platformFromHash(availablePlatforms: Platform[]): Platform | null {
 function PlatformTabs({ children }: PlatformTabsProps) {
   const availablePlatforms = useMemo(
     () => PLATFORM_ORDER.filter((platform) => children[platform] !== undefined),
-    [children]
+    [
+      children.ios !== undefined,
+      children.android !== undefined,
+      children.horizon !== undefined,
+      children.amazon !== undefined,
+    ]
   );
 
   const [activeTab, setActiveTab] = useState<Platform>(

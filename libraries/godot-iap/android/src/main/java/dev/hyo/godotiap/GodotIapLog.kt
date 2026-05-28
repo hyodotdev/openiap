@@ -138,7 +138,7 @@ internal object GodotIapLog {
     }
 
     private fun sanitizeJsonArray(source: JSONArray): List<Any?> {
-        return (0 until source.length()).mapNotNull { index ->
+        return (0 until source.length()).map { index ->
             sanitizeJsonValue(source.opt(index))
         }
     }
