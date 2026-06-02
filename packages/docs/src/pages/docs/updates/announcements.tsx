@@ -511,7 +511,7 @@ function Announcements() {
             <li>
               <strong>Backend Purchase Verification + Security</strong> -
               Server-side validation that prevents fraud, tampering, and receipt
-              reuse. More secure than client-only verification.
+              reuse. More secure than relying only on local client state.
             </li>
             <li>
               <strong>Fast Launch</strong> - Simplified IAP verification

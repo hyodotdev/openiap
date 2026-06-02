@@ -45,6 +45,13 @@ if [ "$EXPECTED_BUN" != "$ACTUAL_BUN" ]; then
   exit 1
 fi
 
+# CI's `Audit SDK Parity` job is fast and cross-cuts generated docs metadata,
+# library examples, package versions, and Godot Android GDAP dependency pins.
+# Run it for every commit so version/GDAP drift is caught before push, not
+# after GitHub Actions turns main red.
+echo "🔎 SDK parity audit — running CI mirror…"
+node scripts/audit-non-godot-parity.mjs
+
 # Paths-aware kit pre-commit gate. Only runs when staged changes touch
 # packages/kit/**, so unrelated edits to apple/google/gql/docs/libraries
 # aren't blocked.

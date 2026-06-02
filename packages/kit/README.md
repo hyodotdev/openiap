@@ -144,10 +144,11 @@ Authorization headers return before the logger runs.
 
 Receipt-verification request bodies are capped at 32 KB before JSON
 parsing. Product-management writes are capped at 64 KB, subscription
-user-binding writes at 8 KB, and webhook pushes at 256 KB. `jws`
-(Apple) and `purchaseToken` (Google / subscription binding) are bounded
-at 16 KB and 2 KB respectively; `userId`, `sku`, and `productId` are
-bounded at 256 chars where accepted. Oversized fields return
+user-binding writes at 32 KB, and webhook pushes at 256 KB. `jws`
+(Apple) is bounded at 16 KB, and `purchaseToken` is bounded at 2 KB for
+Google tokens or 16 KB when an Apple JWS is passed to subscription
+binding; `userId`, `sku`, and `productId` are bounded at 256 chars where
+accepted. Oversized fields return
 `400 INVALID_INPUT`; oversized request bodies return
 `413 PAYLOAD_TOO_LARGE`. Invalid inputs stop before upstream store calls
 or Convex mutations.

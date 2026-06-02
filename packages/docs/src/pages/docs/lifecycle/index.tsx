@@ -87,10 +87,10 @@ function LifeCycle() {
           - the legacy term used by Apple in StoreKit 1
         </HighlightText>
         <p>
-          <strong>Critical:</strong> Always verify purchases server-side for
-          security. Never trust client-side verification alone in production.
-          This applies to ALL purchase types: consumables, non-consumables, and
-          subscriptions.
+          <strong>Critical:</strong> Always verify purchases through a trusted
+          server-side verifier, either your backend or IAPKit. Never trust local
+          client purchase state alone in production. This applies to ALL
+          purchase types: consumables, non-consumables, and subscriptions.
         </p>
 
         <h4>When to Verify</h4>

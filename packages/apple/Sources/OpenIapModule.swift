@@ -195,6 +195,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                     jsonRepresentationIOS: String(data: product.jsonRepresentation, encoding: .utf8) ?? "",
                     platform: .ios,
                     price: NSDecimalNumber(decimal: product.price).doubleValue,
+                    subscriptionGroupIdIOS: nil,
                     subscriptionInfoIOS: nil,  // StoreKit: Non-renewing subscriptions have no subscription metadata
                     subscriptionPeriodNumberIOS: nil,
                     subscriptionPeriodUnitIOS: nil,

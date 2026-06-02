@@ -602,6 +602,7 @@ export interface NitroProduct {
   introductoryPriceNumberOfPeriodsIOS?: number | null;
   introductoryPricePaymentModeIOS: PaymentModeIOS;
   introductoryPriceSubscriptionPeriodIOS?: string | null;
+  subscriptionGroupIdIOS?: string | null;
   subscriptionPeriodNumberIOS?: number | null;
   subscriptionPeriodUnitIOS?: string | null;
   // Cross-platform standardized offer fields (JSON serialized)

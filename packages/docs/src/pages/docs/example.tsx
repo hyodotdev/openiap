@@ -163,9 +163,9 @@ xcodebuild -project Martie.xcodeproj \\
                     <h4>Purchase Flow</h4>
                     <p>
                       Test purchasing consumable and non-consumable products.
-                      Select from three verification methods: IAPKit
-                      (server-side), Local (StoreKit verification), or None
-                      (skip verification).
+                      Select from three verification methods: IAPKit (managed
+                      validation), Local (StoreKit verification), or None (skip
+                      verification).
                     </p>
                   </div>
                 </div>
@@ -194,7 +194,7 @@ xcodebuild -project Martie.xcodeproj \\
                 </h2>
                 <p>The example app supports three verification methods:</p>
 
-                <h3>IAPKit (Server-Side)</h3>
+                <h3>IAPKit (Managed validation)</h3>
                 <ul>
                   <li>Sends purchase data to IAPKit API for verification</li>
                   <li>
@@ -212,7 +212,7 @@ xcodebuild -project Martie.xcodeproj \\
                     >
                       kit.openiap.dev
                     </a>{' '}
-                    (free for everyone) or self-host from{' '}
+                    or self-host from{' '}
                     <a
                       href="https://github.com/hyodotdev/openiap/tree/main/packages/kit"
                       target="_blank"
@@ -234,7 +234,7 @@ xcodebuild -project Martie.xcodeproj \\
                   }}
                 >
                   <strong>Note:</strong> To use IAPKit verification, get your
-                  API key from{' '}
+                  project key from{' '}
                   <a
                     href={IAPKIT_URL}
                     target="_blank"
@@ -251,7 +251,7 @@ xcodebuild -project Martie.xcodeproj \\
                   >{`# Copy the template
 cp OpenIapExample/Info.plist.example OpenIapExample/Info.plist
 
-# Edit Info.plist with your API key
+# Edit Info.plist with your project key
 <key>IAPKIT_API_KEY</key>
 <string>openiap-kit_<your-key></string>`}</pre>
                 </div>
@@ -280,7 +280,7 @@ cp OpenIapExample/Info.plist.example OpenIapExample/Info.plist
                 </h2>
                 <p>
                   The <code>Info.plist</code> file is automatically excluded
-                  from git to protect your API key. Only the{' '}
+                  from git to avoid committing your project key. Only the{' '}
                   <code>Info.plist.example</code> template is committed.
                 </p>
               </section>
@@ -568,7 +568,7 @@ adb install Example/build/outputs/apk/debug/Example-debug.apk`}</pre>
                 </h2>
                 <p>The example app supports three verification methods:</p>
 
-                <h3>IAPKit (Server-Side)</h3>
+                <h3>IAPKit (Managed validation)</h3>
                 <ul>
                   <li>Sends purchase data to IAPKit API for verification</li>
                   <li>
@@ -586,7 +586,7 @@ adb install Example/build/outputs/apk/debug/Example-debug.apk`}</pre>
                     >
                       kit.openiap.dev
                     </a>{' '}
-                    (free for everyone) or self-host from{' '}
+                    or self-host from{' '}
                     <a
                       href="https://github.com/hyodotdev/openiap/tree/main/packages/kit"
                       target="_blank"
@@ -608,7 +608,7 @@ adb install Example/build/outputs/apk/debug/Example-debug.apk`}</pre>
                   }}
                 >
                   <strong>Note:</strong> To use IAPKit verification, get your
-                  API key from{' '}
+                  project key from{' '}
                   <a
                     href={IAPKIT_URL}
                     target="_blank"
@@ -625,7 +625,7 @@ adb install Example/build/outputs/apk/debug/Example-debug.apk`}</pre>
                   >{`# Copy the template
 cp local.properties.example local.properties
 
-# Add your API key
+# Add your project key
 iapkit.api.key=openiap-kit_<your-key>`}</pre>
                 </div>
 
@@ -648,13 +648,13 @@ iapkit.api.key=openiap-kit_<your-key>`}</pre>
 
               <section>
                 <h2 id="android-buildconfig" className="anchor-heading">
-                  How API Key is Loaded
+                  How Project Key is Loaded
                   <a href="#android-buildconfig" className="anchor-link">
                     #
                   </a>
                 </h2>
                 <p>
-                  The API key from <code>local.properties</code> is injected
+                  The project key from <code>local.properties</code> is injected
                   into the app via <code>BuildConfig</code> during the build
                   process. The Example app's <code>build.gradle.kts</code>{' '}
                   includes:

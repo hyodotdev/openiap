@@ -18,7 +18,7 @@ export default function IntroductionPage() {
         store-specific receipt to <code>/v1/purchase/verify</code>, IAPKit calls
         the upstream store with credentials it already holds for your project,
         and returns a normalized <code>{`{ isValid, state }`}</code>
-        result your backend can trust.
+        result your app can use.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">When to reach for IAPKit</h2>
@@ -29,12 +29,12 @@ export default function IntroductionPage() {
         revoked subscription, or a replayed receipt on a jailbroken device all
         look identical to a fresh purchase from the client's perspective.
         Validating server-to-server against Apple / Google / Meta is the only
-        way to be certain, and that validation needs per-app credentials that
-        have no business living on a customer device.
+        way to be certain, and that validation needs store credentials that must
+        stay inside IAPKit, not on a customer device.
       </p>
       <p>
         IAPKit centralizes those credentials in one place, exposes one API your
-        server calls with just an API key, and harmonizes the three stores' very
+        app calls with a project API key, and harmonizes the three stores' very
         different response shapes into a single lifecycle: <code>ENTITLED</code>
         , <code>PENDING_ACKNOWLEDGMENT</code>, <code>CANCELED</code>, and
         friends.
@@ -71,7 +71,7 @@ export default function IntroductionPage() {
         and the static dashboard build.
       </p>
       <pre className="my-4 overflow-x-auto rounded-lg border border-border bg-muted/30 px-4 py-3 text-xs leading-relaxed">
-        <code>{`  your backend / device          IAPKit                         upstream store
+        <code>{`  your app                      IAPKit                         upstream store
   ─────────────────────         ──────────────────            ─────────────────
      POST /v1/purchase/verify     apiKey → project
       Bearer <apiKey>    ───►     verify action      ───►     App Store / Play /
@@ -104,8 +104,8 @@ export default function IntroductionPage() {
           <Link to="/docs/api" className="text-primary underline">
             API reference
           </Link>{" "}
-          — the purchase-verification endpoint you call from your server, with
-          every request shape and error code.
+          — the purchase-verification endpoint your app calls, with every
+          request shape and error code.
         </li>
         <li>
           <Link to="/docs/operations" className="text-primary underline">

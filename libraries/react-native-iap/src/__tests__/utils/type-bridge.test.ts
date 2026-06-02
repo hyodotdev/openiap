@@ -114,6 +114,7 @@ describe('type-bridge utilities', () => {
         price: 4.99,
         platform: 'ios',
         typeIOS: 'autoRenewableSubscription',
+        subscriptionGroupIdIOS: '21686373',
         subscriptionOffers: JSON.stringify([
           {
             id: 'intro_weekly',
@@ -146,6 +147,7 @@ describe('type-bridge utilities', () => {
 
       expect(result.type).toBe('subs');
       expect(result.platform).toBe('ios');
+      expect(result.subscriptionGroupIdIOS).toBe('21686373');
       expect(Array.isArray(result.subscriptionOffers)).toBe(true);
       expect(result.subscriptionOffers.length).toBe(2);
       expect(result.subscriptionOffers[0].id).toBe('intro_weekly');

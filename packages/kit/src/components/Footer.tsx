@@ -33,7 +33,7 @@ export default function Footer() {
             </Link>
             <p className="text-sm text-muted-foreground mb-4">
               {
-                "Fraud-proof App Store and Google Play receipt validation for IAPs."
+                "Fraud-resistant App Store and Google Play receipt validation for IAPs."
               }
             </p>
             <p className="text-xs text-muted-foreground">

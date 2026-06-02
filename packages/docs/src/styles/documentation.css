@@ -9,11 +9,9 @@
 /* Sidebar - Light mode: light bg, Dark mode: dark bg.
    The container is centered with `margin: 0 auto`, so on wide screens
    there's a gap between the viewport's left edge and the sidebar's
-   start. We pull the sidebar leftward by exactly that gap so the
-   background extends to the viewport edge. The gap amount is exposed
-   as a CSS variable (`--sidebar-edge-fill`) and added to each nav
-   row's left padding so the active highlight overlay reaches the
-   edge as well — instead of starting at the original 280px column. */
+   start. Pull the sidebar leftward by exactly that gap so the
+   background and active border start at the viewport edge while the
+   link text keeps normal padding inside the 280px column. */
 .docs-sidebar {
   --sidebar-edge-fill: max(0px, calc((100vw - var(--max-width)) / 2));
   width: 280px;
@@ -141,8 +139,7 @@
 .docs-nav a {
   color: var(--text-secondary);
   text-decoration: none;
-  padding: var(--spacing-sm) var(--spacing-lg) var(--spacing-sm)
-    calc(var(--sidebar-edge-fill, 0px) + var(--spacing-lg));
+  padding: var(--spacing-sm) var(--spacing-lg);
   display: block;
   font-size: var(--font-size-sm);
   transition: all 0.15s ease;
@@ -189,8 +186,7 @@
   font: inherit;
   text-align: left;
   color: inherit;
-  padding: var(--spacing-sm) var(--spacing-lg) var(--spacing-sm)
-    calc(var(--sidebar-edge-fill, 0px) + var(--spacing-lg));
+  padding: var(--spacing-sm) var(--spacing-lg);
   transition: all 0.15s ease;
 }
 
@@ -345,7 +341,7 @@
    sub-group → sub-group rows. The inner row indent stays even deeper
    via `.menu-dropdown-items--nested .menu-dropdown-item`. */
 .menu-dropdown--nested > .menu-dropdown-header {
-  padding-left: calc(var(--sidebar-edge-fill, 0px) + var(--spacing-lg) + 1rem);
+  padding-left: calc(var(--spacing-lg) + 1rem);
 }
 
 .menu-dropdown-title.menu-dropdown-title--nested {
@@ -361,7 +357,7 @@
 }
 
 .menu-dropdown-items--nested .menu-dropdown-item {
-  padding-left: calc(var(--sidebar-edge-fill, 0px) + var(--spacing-lg) + 2rem);
+  padding-left: calc(var(--spacing-lg) + 2rem);
 }
 
 /* Main content area */

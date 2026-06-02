@@ -224,7 +224,7 @@ function Store() {
     requestPurchase,
   } = useIAP({
     onPurchaseSuccess: async (purchase) => {
-      // 1. Validate receipt on your server
+      // 1. Validate receipt with your backend or IAPKit
       // 2. Grant entitlement
       // 3. CRITICAL: Finish the transaction
       //    (Android auto-refunds after 3 days if not called!)

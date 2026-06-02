@@ -44,7 +44,8 @@ function Purchase() {
             from listener
           </li>
           <li>
-            <strong>Verify Purchase</strong> - Validate on your server
+            <strong>Verify Purchase</strong> - Validate with your backend or
+            IAPKit
           </li>
           <li>
             <strong>Finish Transaction</strong> - Complete the transaction
@@ -637,12 +638,14 @@ await purchase_product("com.app.coins_100")`}</CodeBlock>
 
       <section>
         <AnchorLink id="verify-purchase" level="h2">
-          Verify Purchase (Server-Side)
+          Verify Purchase with Your Backend
         </AnchorLink>
         <p>
-          <strong>Always verify purchases on your server.</strong> Client-side
-          verification can be bypassed. Use <code>verifyPurchase</code> to send
-          purchase data to your server for validation.
+          <strong>Always verify purchases with a trusted verifier.</strong>{' '}
+          Client-side store state alone can be bypassed. Use{' '}
+          <code>verifyPurchase</code> to send purchase data to your own backend,
+          or use the IAPKit section below when you want OpenIAP's managed
+          validation backend to do that work.
         </p>
 
         <LanguageTabs>
@@ -851,7 +854,9 @@ Future<bool> verifyOnServer(ProductPurchase purchase) async {
             <strong>⚠️ Security Best Practices:</strong>
           </p>
           <ul>
-            <li>Never verify purchases only on the client side</li>
+            <li>
+              Never rely only on local StoreKit or Play Billing client state
+            </li>
             <li>Store purchase records in your database</li>
             <li>
               Implement idempotency to handle duplicate verification requests
@@ -884,15 +889,16 @@ Future<bool> verifyOnServer(ProductPurchase purchase) async {
           <code>verifyPurchaseWithProvider</code> with the{' '}
           <code>&apos;iapkit&apos;</code> provider and pass the
           platform-specific token (iOS JWS or Android purchase token) — no
-          store-verification code required. If your app has server-side accounts
-          or entitlements, keep the final grant decision on your backend and
-          call IAPKit from that trusted path; client-only use is convenient, but
-          not tamper-proof.
+          store-verification code required. If your own backend serves protected
+          paid resources, have that backend authenticate the user and query
+          IAPKit before serving them; direct app-to-IAPKit calls are fine for
+          in-app or local feature unlocks, but they cannot authorize backend
+          resources by themselves.
         </p>
 
         <div className="alert-card alert-card--info">
           <p>
-            <strong>ℹ️ Get an API key:</strong> Sign up at{' '}
+            <strong>ℹ️ Get a project key:</strong> Sign up at{' '}
             <a
               href="https://kit.openiap.dev"
               target="_blank"

@@ -361,9 +361,9 @@ type IapPluginProps = {
    */
   iosAlternativeBilling?: IosAlternativeBillingConfig;
   /**
-   * IAPKit API key for purchase verification.
+   * IAPKit project key for managed purchase verification.
    * This key will be added to AndroidManifest.xml (as meta-data) and Info.plist.
-   * Get your API key from https://kit.openiap.dev
+   * Get your project key from https://kit.openiap.dev
    */
   iapkitApiKey?: string;
 };

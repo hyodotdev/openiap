@@ -2737,6 +2737,7 @@ class ProductSubscriptionIOS extends ProductSubscription implements ProductCommo
     required this.jsonRepresentationIOS,
     this.platform = IapPlatform.IOS,
     this.price,
+    this.subscriptionGroupIdIOS,
     this.subscriptionInfoIOS,
     this.subscriptionOffers,
     this.subscriptionPeriodNumberIOS,
@@ -2764,7 +2765,9 @@ class ProductSubscriptionIOS extends ProductSubscription implements ProductCommo
   final String jsonRepresentationIOS;
   final IapPlatform platform;
   final double? price;
-  /// @deprecated Use subscriptionOffers instead for cross-platform compatibility.
+  /// App Store subscription group identifier for intro-offer eligibility checks.
+  final String? subscriptionGroupIdIOS;
+  /// @deprecated Use subscriptionOffers for offer metadata and subscriptionGroupIdIOS for the App Store subscription group identifier.
   final SubscriptionInfoIOS? subscriptionInfoIOS;
   /// Standardized subscription offers.
   /// Cross-platform type with iOS-specific fields using suffix.
@@ -2795,6 +2798,7 @@ class ProductSubscriptionIOS extends ProductSubscription implements ProductCommo
       jsonRepresentationIOS: json['jsonRepresentationIOS'] as String,
       platform: IapPlatform.fromJson(json['platform'] as String),
       price: (json['price'] as num?)?.toDouble(),
+      subscriptionGroupIdIOS: json['subscriptionGroupIdIOS'] as String?,
       subscriptionInfoIOS: json['subscriptionInfoIOS'] != null ? SubscriptionInfoIOS.fromJson(json['subscriptionInfoIOS'] as Map<String, dynamic>) : null,
       subscriptionOffers: (json['subscriptionOffers'] as List<dynamic>?) == null ? null : (json['subscriptionOffers'] as List<dynamic>?)!.map((e) => SubscriptionOffer.fromJson(e as Map<String, dynamic>)).toList(),
       subscriptionPeriodNumberIOS: json['subscriptionPeriodNumberIOS'] as String?,
@@ -2826,6 +2830,7 @@ class ProductSubscriptionIOS extends ProductSubscription implements ProductCommo
       'jsonRepresentationIOS': jsonRepresentationIOS,
       'platform': platform.toJson(),
       'price': price,
+      'subscriptionGroupIdIOS': subscriptionGroupIdIOS,
       'subscriptionInfoIOS': subscriptionInfoIOS?.toJson(),
       'subscriptionOffers': subscriptionOffers == null ? null : subscriptionOffers!.map((e) => e.toJson()).toList(),
       'subscriptionPeriodNumberIOS': subscriptionPeriodNumberIOS,

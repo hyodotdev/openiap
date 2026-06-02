@@ -2507,8 +2507,8 @@ func purchase_with_offer(subscription_id: String, offer_type: int) -> void:
           Verify Subscription
         </AnchorLink>
         <p>
-          Always verify subscription purchases on your server before granting
-          access to premium content.
+          Always verify subscription purchases with your backend or IAPKit
+          before granting access to premium content.
         </p>
         <LanguageTabs>
           {{

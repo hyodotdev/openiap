@@ -131,13 +131,14 @@ X-RateLimit-Remaining: 599`}
       <ul className="my-3 list-disc space-y-1 pl-6">
         <li>receipt verification body ≤ 32 KB before JSON parsing</li>
         <li>product management body ≤ 64 KB before JSON parsing</li>
-        <li>subscription user-binding body ≤ 8 KB before JSON parsing</li>
+        <li>subscription user-binding body ≤ 32 KB before JSON parsing</li>
         <li>webhook push body ≤ 256 KB before JSON parsing</li>
         <li>
           <code>jws</code> ≤ 16 KB (Apple)
         </li>
         <li>
-          <code>purchaseToken</code> ≤ 2 KB (Google / subscription binding)
+          <code>purchaseToken</code> ≤ 2 KB for Google tokens, or ≤ 16 KB when
+          an Apple JWS is passed to subscription binding
         </li>
         <li>
           <code>userId</code> ≤ 256 chars (Horizon)

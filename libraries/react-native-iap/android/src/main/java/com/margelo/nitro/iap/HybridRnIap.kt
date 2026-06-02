@@ -1194,6 +1194,7 @@ class HybridRnIap : HybridRnIapSpec() {
             introductoryPricePaymentModeIOS = PaymentModeIOS.EMPTY,
             introductoryPriceNumberOfPeriodsIOS = null,
             introductoryPriceSubscriptionPeriodIOS = null,
+            subscriptionGroupIdIOS = null,
             subscriptionOffers = subscriptionOffersStandardizedJson.wrapVariant(),
             discountOffers = discountOffersJson.wrapVariant(),
             nameAndroid = nameAndroid.wrapVariant(),

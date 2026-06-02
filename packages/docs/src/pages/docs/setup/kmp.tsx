@@ -275,7 +275,7 @@ kmpIAP.initConnection()
 // Collect in separate coroutines (collect is suspending and never returns)
 scope.launch {
     kmpIAP.purchaseUpdatedListener.collect { purchase ->
-        // Validate receipt on your server
+        // Validate receipt with your backend or IAPKit
         // CRITICAL: Android auto-refunds after 3 days if not called!
         kmpIAP.finishTransaction(purchase = purchase, isConsumable = true)
     }

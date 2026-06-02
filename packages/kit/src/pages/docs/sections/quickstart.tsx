@@ -35,8 +35,8 @@ export default function QuickstartPage() {
       <h2 className="mt-10 text-2xl font-semibold">2. Create a project</h2>
       <p>
         Projects group a single mobile app's configuration: its iOS bundle id,
-        Android package name, the store credentials, and the API keys your
-        backend will authenticate with.
+        Android package name, the store credentials, and the API keys your app
+        will authenticate with.
       </p>
       <DocsScreenshot
         src="/docs/screenshots/project-new.webp"
@@ -82,21 +82,38 @@ export default function QuickstartPage() {
       <h2 className="mt-10 text-2xl font-semibold">4. Issue an API key</h2>
       <p>
         The <strong>API Keys</strong> tab lists the project's keys. A default
-        production key is auto-created; you can rotate it or add scoped keys for
-        CI environments.
+        production key is auto-created; you can rotate it or add separate keys
+        for app builds, CI, and staging.
+      </p>
+      <p>
+        Keys are credentials for the same project, not separate entitlement
+        environments. For isolated staging and production state, create separate
+        projects and keep each app on a key from the matching project.
+      </p>
+      <p>
+        Use keys from the same project when verifying a purchase and when
+        binding or checking subscription status. <code>bind-user</code>,{" "}
+        <code>status</code>, and <code>entitlements</code> look up subscription
+        state inside the key's project; state from another project will not be
+        found.
+      </p>
+      <p>
+        When clients call status or entitlements directly, use opaque app-scoped
+        user IDs rather than public identifiers like email addresses.
       </p>
       <DocsScreenshot
         src="/docs/screenshots/api-keys.webp"
         alt="API Keys tab"
-        caption="Issued keys start with openiap-kit_. Store them as secrets — anyone with the key can hit /v1/purchase/verify against your project's quota."
+        caption="Issued keys start with openiap-kit_. Anyone holding one can call project-scoped endpoints against your quota and subscription state."
       />
 
-      <Callout kind="warning" title="API keys are production-sensitive">
+      <Callout kind="warning" title="Project keys are production-sensitive">
         <p>
-          Treat the key like a password. IAPKit request logs include only a hash
-          prefix, but any backend that calls the API still needs the plaintext
-          secret at request time. Put it in a secret manager, not in a
-          Git-tracked config file.
+          The project key is designed for apps that use IAPKit as their managed
+          validation backend. Do not commit it to a public repo or log it.
+          Assume embedded keys can be extracted and use separate keys for each
+          app build or environment so you can rotate one from the dashboard if
+          it leaks or is abused. Keep server-side copies in a secret manager.
         </p>
       </Callout>
 
@@ -104,8 +121,8 @@ export default function QuickstartPage() {
         5. Verify your first receipt
       </h2>
       <p>
-        From your backend, POST the receipt to IAPKit. Here's the shape for each
-        of the three stores:
+        From your app, send the receipt to IAPKit. Here's the raw HTTP shape for
+        each of the three stores:
       </p>
 
       <CodeBlock title="Apple App Store" language="bash">

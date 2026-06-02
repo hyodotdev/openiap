@@ -8,8 +8,8 @@ import * as v from "valibot";
 // payloads stay well under 10 KB. Google purchase tokens are opaque
 // base64 blobs, historically under ~200 chars. Meta Horizon identifies
 // entitlements by (userId, sku) — both short strings.
-const APPLE_JWS_MAX_LENGTH = 16_000;
-const GOOGLE_PURCHASE_TOKEN_MAX_LENGTH = 2_000;
+export const APPLE_JWS_MAX_LENGTH = 16_000;
+export const GOOGLE_PURCHASE_TOKEN_MAX_LENGTH = 2_000;
 const HORIZON_USER_ID_MAX_LENGTH = 256;
 const HORIZON_SKU_MAX_LENGTH = 256;
 
@@ -40,7 +40,8 @@ const HORIZON_USER_ID_MIN_LENGTH = 3;
 // IMPORTANT: these patterns are intentionally lax enough to match
 // every legitimate shape we've seen. Tightening them further has a
 // real false-positive cost; widen only after checking the logs.
-const APPLE_JWS_PATTERN = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
+export const APPLE_JWS_PATTERN =
+  /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
 const GOOGLE_PURCHASE_TOKEN_PATTERN = /^[A-Za-z0-9._~-]+$/;
 const HORIZON_USER_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
 const HORIZON_SKU_PATTERN = /^[A-Za-z0-9._-]+$/;

@@ -17,14 +17,14 @@ export default function ProjectsPage() {
         An <strong>organization</strong> groups team members and usage data.
         Inside it, every distinct app is a <strong>project</strong>: bundle id,
         package name, store credentials, and its own purchase log. Each project
-        owns one or more <strong>API keys</strong> that your backend uses to
+        owns one or more <strong>API keys</strong> that your app uses to
         authenticate against <code>/v1/purchase/verify</code>.
       </p>
       <pre className="my-4 overflow-x-auto rounded-lg border border-border bg-muted/30 px-4 py-3 text-xs leading-relaxed">
         <code>{`Organization (members, usage)
   └── Project (one mobile app)
         ├── Store credentials (Apple, Google, Horizon)
-        └── API keys ── used in Bearer header by your backend
+        └── API keys ── used by your app
 `}</code>
       </pre>
       <p>
@@ -80,8 +80,16 @@ export default function ProjectsPage() {
       <p>
         When a project is created, IAPKit issues a default production key named{" "}
         <em>Default Production Key</em>. You can issue additional keys on the{" "}
-        <strong>API Keys</strong> tab — handy for scoping per environment
-        (staging vs. production) so rotation doesn't cause outages.
+        <strong>API Keys</strong> tab for rotation, separate app builds, CI, or
+        staging callers.
+      </p>
+      <p>
+        Extra keys are not separate environments. Every key on the same project
+        reads and writes the same purchase log, subscription state, user
+        bindings, and entitlement results. If staging and production need
+        isolated state, create separate projects and use the matching project
+        keys consistently from each app for verify, webhooks, bind-user, status,
+        and entitlement calls.
       </p>
       <DocsScreenshot
         src="/docs/screenshots/api-keys.webp"
@@ -92,9 +100,14 @@ export default function ProjectsPage() {
       <p>All keys are:</p>
       <ul className="my-3 list-disc space-y-1 pl-6">
         <li>
-          Sent as{" "}
+          Sent as a bearer token for <code>/v1/purchase/verify</code>, e.g.{" "}
           <code>Authorization: Bearer openiap-kit_&lt;your-key&gt;</code> on
-          every request.
+          purchase verification requests.
+        </li>
+        <li>
+          Used as a path segment by webhook, subscription, product, and SDK
+          helper endpoints that need to work without custom bearer-header
+          plumbing.
         </li>
         <li>
           Hashed before logging — the server only retains the SHA-256 prefix in
@@ -110,8 +123,8 @@ export default function ProjectsPage() {
         <p>
           When rotating a key in production, add the new key first, cut traffic
           over, then revoke the old one — the rate-limit bucket is per key so a
-          hard swap gives you a free 60-second burst of capacity during the
-          cutover.
+          staggered cutover avoids forcing old and new callers through the same
+          short-lived bucket.
         </p>
       </Callout>
 

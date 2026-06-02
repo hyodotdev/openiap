@@ -32,8 +32,8 @@ function KitBackend() {
         <p>
           Receipt verification uses an <code>Authorization: Bearer</code> API
           key header. Webhook, subscription, product, and MCP-friendly endpoints
-          carry the project API key as a path segment so store consoles, mobile
-          WebViews, and stdio MCP tools can call them without custom bearer
+          carry the project API key as a path segment so store consoles, SDK
+          helpers, and stdio MCP tools can call them without custom bearer
           header plumbing.
         </p>
         <ul>
@@ -72,7 +72,7 @@ function KitBackend() {
           </li>
           <li>
             <code>POST /v1/subscriptions/bind-user/&#123;apiKey&#125;</code> —
-            attach a userId to a verified purchase.
+            attach a userId to a tracked subscription by purchase token.
           </li>
           <li>
             <code>GET/POST/DELETE /v1/products/&#123;apiKey&#125;</code> —
@@ -85,6 +85,37 @@ function KitBackend() {
             — push-sync with App Store Connect / Play Console.
           </li>
         </ul>
+      </section>
+
+      <section>
+        <AnchorLink id="api-keys-environments" level="h2">
+          API keys and environments
+        </AnchorLink>
+        <p>
+          Kit API keys are project-scoped credentials. Creating more than one
+          key lets you rotate credentials, split app builds, and revoke an
+          abused app, CI, or staging key without replacing every caller.
+        </p>
+        <p>
+          Additional keys do not create separate sandbox or production
+          entitlement stores. <code>status</code>, <code>entitlements</code>,
+          and <code>bind-user</code> all resolve the supplied key to its owning
+          project and read or write that project's subscription state.
+        </p>
+        <p>
+          If you need staging and production to have isolated purchase logs,
+          webhook state, and user bindings, create separate Kit projects and use
+          keys from the matching project consistently for verify, webhooks,
+          bind-user, status, and entitlement calls.
+        </p>
+        <p>
+          Purchase verification writes purchase rows under the key's project.
+          Subscription endpoints read or write subscription rows under the key's
+          project. Mixing keys between projects splits those records, so a later{' '}
+          <code>bind-user</code>, <code>status</code>, or{' '}
+          <code>entitlements</code> call made with a different project's key
+          will not see the matching subscription state.
+        </p>
       </section>
 
       <section>
@@ -117,54 +148,45 @@ function KitBackend() {
 
       <section>
         <AnchorLink id="entitlements" level="h2">
-          Entitlement check from a client
+          Entitlement checks by userId
         </AnchorLink>
         <p>
-          The fastest gate ("is this user paying?") is one HTTP request. Each
-          SDK ships a typed wrapper so you don't construct URLs by hand:
+          The fastest gate ("is this user paying?") is one HTTP request by
+          userId. Your app can call Kit directly when IAPKit is acting as your
+          managed validation backend. If the protected resource lives on your
+          own backend, authenticate the user there and have that backend call
+          Kit by userId instead of trusting a client-supplied premium flag. For
+          direct client calls, prefer opaque app-scoped user IDs instead of
+          public identifiers like email addresses.
+        </p>
+        <p>
+          SDK helpers are available so you don't have to construct URLs by hand:
         </p>
         <LanguageTabs>
           {{
             typescript: (
               <CodeBlock language="typescript">{`import { kitApi } from 'react-native-iap';
+// Expo apps can import from 'expo-iap'.
+// Node/server helpers can import from '@hyodotdev/openiap-gql/kit-api'.
 
-const api = kitApi({ apiKey: process.env.OPENIAP_API_KEY! });
+const openiapProjectKey = '<project-api-key-from-sdk-config-or-env>';
+const api = kitApi({ apiKey: openiapProjectKey });
 const { active, subscription } = await api.status('user-1');
 if (active) {
   unlockPremium(subscription?.productId);
 }`}</CodeBlock>
             ),
-            dart: (
-              <CodeBlock language="dart">{`final api = KitApi(apiKey: const String.fromEnvironment('OPENIAP_API_KEY'));
-final status = await api.status('user-1');
-if (status.active) {
-  unlockPremium(status.subscription?.productId);
-}`}</CodeBlock>
-            ),
             csharp: (
               <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
-using System;
 
-var apiKey = Environment.GetEnvironmentVariable("OPENIAP_API_KEY")
-    ?? throw new InvalidOperationException("OPENIAP_API_KEY is required");
-var api = Iap.KitApi(new KitApiOptions { ApiKey = apiKey });
+var openiapProjectKey = "<project-api-key-from-sdk-config-or-env>";
+var api = Iap.KitApi(new KitApiOptions { ApiKey = openiapProjectKey });
 var status = await api.StatusAsync("user-1");
 if (status.Active)
 {
     UnlockPremium(status.Subscription?.ProductId);
 }`}</CodeBlock>
-            ),
-            kotlin: (
-              <CodeBlock language="kotlin">{`val api = KitApi(apiKey = System.getenv("OPENIAP_API_KEY")!!)
-val status = api.status("user-1")
-if (status.active) unlockPremium(status.subscription?.productId)`}</CodeBlock>
-            ),
-            gdscript: (
-              <CodeBlock language="gdscript">{`var api := KitApi.new(api_key)
-var status := await api.status("user-1")
-if status.active:
-    unlock_premium(status.subscription.product_id)`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
