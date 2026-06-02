@@ -6,21 +6,22 @@ let package = Package(
     name: "flutter_inapp_purchase",
     platforms: [
         .iOS("15.0"),
-        .macOS("14.0"),
     ],
     products: [
         .library(name: "flutter-inapp-purchase", targets: ["flutter_inapp_purchase"])
     ],
     dependencies: [
+        .package(name: "FlutterFramework", path: "../FlutterFramework"),
         .package(url: "https://github.com/hyodotdev/openiap.git", from: "2.2.1"),
     ],
     targets: [
         .target(
             name: "flutter_inapp_purchase",
             dependencies: [
+                .product(name: "FlutterFramework", package: "FlutterFramework"),
                 .product(name: "OpenIAP", package: "openiap"),
             ],
-            path: "ios/flutter_inapp_purchase/Sources/flutter_inapp_purchase"
+            path: "Sources/flutter_inapp_purchase"
         )
     ]
 )
