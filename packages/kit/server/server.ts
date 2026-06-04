@@ -24,7 +24,7 @@ app.get("/health", (c) => c.json({ ok: true }));
 app.route("/api/v1", apiRoutes);
 app.route("/v1", apiRoutes);
 
-// ChatGPT / MCP connector endpoint for IAPKit. This must sit before
+// Codex / MCP plugin endpoint for IAPKit. This must sit before
 // static serving so `/mcp` never falls through to the React Router SPA.
 app.all("/mcp", (c) => handleIapKitMcpRequest(c.req.raw));
 

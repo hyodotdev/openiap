@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { handleIapKitMcpRequest } from "./mcp";
 
 describe("IAPKit MCP route handler", () => {
-  it("initializes a ChatGPT-compatible MCP session", async () => {
+  it("initializes a Codex-compatible MCP session", async () => {
     const initResponse = await postMcp({
       jsonrpc: "2.0",
       id: 1,
@@ -36,6 +36,9 @@ describe("IAPKit MCP route handler", () => {
 
     expect(toolNames).toContain("iapkit_inspect_state");
     expect(toolNames).toContain("iapkit_manage_product");
+    expect(toolNames).toContain("iapkit_revenue_analytics");
+    expect(toolNames).toContain("iapkit_sync_products");
+    expect(toolNames).toContain("iapkit_sync_status");
     expect(toolNames).not.toContain("openiap_inspect_state");
   });
 

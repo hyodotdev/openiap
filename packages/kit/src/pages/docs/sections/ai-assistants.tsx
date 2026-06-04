@@ -85,18 +85,18 @@ export default function AiAssistantsPage() {
         </p>
       </Callout>
 
-      <h2 className="mt-10 text-2xl font-semibold">ChatGPT plugin</h2>
+      <h2 className="mt-10 text-2xl font-semibold">Codex plugin</h2>
       <p>
-        ChatGPT can use IAPKit as an MCP connector through{" "}
-        <code>https://kit.openiap.dev/mcp</code>. The connector uses your IAPKit
-        project API key, not an OpenAI API key. See the{" "}
+        Codex can use IAPKit as an MCP-backed plugin through{" "}
+        <code>https://kit.openiap.dev/mcp</code>. The plugin uses your IAPKit
+        project API key, not an OpenAI or ChatGPT API key. See the{" "}
         <Link
-          to="/docs/ai-assistants/chatgpt-plugin"
+          to="/docs/ai-assistants/codex-plugin"
           className="text-primary underline"
         >
-          ChatGPT plugin guide
+          Codex plugin guide
         </Link>{" "}
-        for the exact setup flow, self-hosted option, and tool list.
+        for the setup flow, self-hosted option, and tool list.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Using the files</h2>

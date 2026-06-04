@@ -70,12 +70,12 @@ export const DOCS_NAV: DocsNavEntry[] = [
   {
     slug: "ai-assistants",
     title: "AI assistants",
-    summary: "llms.txt, MCP, and ChatGPT connector setup.",
+    summary: "llms.txt, MCP, and Codex plugin setup.",
     children: [
       {
-        slug: "ai-assistants/chatgpt-plugin",
-        title: "ChatGPT plugin",
-        summary: "Connect ChatGPT to IAPKit through the /mcp endpoint.",
+        slug: "ai-assistants/codex-plugin",
+        title: "Codex plugin",
+        summary: "Connect Codex to IAPKit through the /mcp endpoint.",
       },
     ],
   },

@@ -9,7 +9,7 @@ import { z } from "zod";
 
 import { kitClient, KitHttpError, normalizeKitBaseUrl } from "./kit-client.js";
 
-// 10-tool MCP server for IAPKit. Every tool funnels through `withClient`
+// MCP server for IAPKit. Every tool funnels through `withClient`
 // so Authorization bearer / IAPKIT_API_KEY / OPENIAP_API_KEY config is
 // consistent and errors surface in a uniform `{ ok: false, error }` shape
 // that LLMs handle predictably.
@@ -59,6 +59,9 @@ function kitTextParam(name: string, maxLength?: number) {
 const PRODUCT_ID_PARAM = kitTextParam("productId", MAX_KIT_ID_LENGTH);
 const USER_ID_PARAM = kitTextParam("userId", MAX_KIT_ID_LENGTH);
 const TITLE_PARAM = kitTextParam("title");
+const ISO_DAY_PARAM = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD");
 const PRICE_AMOUNT_MICROS_PARAM = z
   .number()
   .int()
@@ -188,7 +191,7 @@ function redactSecretString(value: string, apiKey?: string): string {
   }
   return redacted
     .replace(
-      /(\/v1\/(?:subscriptions\/(?:status|entitlements|list|metrics)|products|webhooks(?:\/stream)?|webhooks\/(?:apple|google))\/)[^/?\s"]+/g,
+      /(\/v1\/(?:subscriptions\/(?:status|entitlements|list|metrics|revenue)|products|webhooks(?:\/stream)?|webhooks\/(?:apple|google))\/)[^/?\s"]+/g,
       `$1${API_KEY_PLACEHOLDER}`,
     )
     .replace(
@@ -360,7 +363,7 @@ function registerIapKitTools(
     server,
     options,
     "create_product",
-    "Add or update a product in IAPKit's local catalog. Note: this creates the IAPKit-side row only — actual App Store Connect / Play Console creation is triggered by `iapkit_manage_product` once the project's store credentials are configured.",
+    "Add or update a product in IAPKit's local catalog. Note: this creates the IAPKit-side row only — use `iapkit_sync_products` with direction=push or both after store credentials are configured to enqueue App Store Connect / Play Console sync.",
     {
       productId: PRODUCT_ID_PARAM,
       platform: z.enum(["IOS", "Android"]),
@@ -624,7 +627,53 @@ function registerIapKitTools(
   );
 
   // ---------------------------------------------------------------------------
-  // 10. manage_product — disable / refresh a product entry.
+  // 10. revenue_analytics — answer purchase / revenue questions.
+  // ---------------------------------------------------------------------------
+  registerTool(
+    server,
+    options,
+    "revenue_analytics",
+    "Summarize IAPKit subscription purchase and revenue analytics for a date range. Defaults to the current UTC month so Codex can answer questions like 'how many purchases happened this month?'.",
+    {
+      period: z
+        .enum(["this_month", "last_30_days", "last_90_days", "custom"])
+        .optional()
+        .describe(
+          "Date window to summarize. Use custom with fromDay and toDay for an explicit range.",
+        ),
+      fromDay: ISO_DAY_PARAM.optional().describe(
+        "Inclusive UTC day for custom ranges, YYYY-MM-DD.",
+      ),
+      toDay: ISO_DAY_PARAM.optional().describe(
+        "Inclusive UTC day for custom ranges, YYYY-MM-DD.",
+      ),
+      productId: PRODUCT_ID_PARAM.optional(),
+      platform: z.enum(["IOS", "Android"]).optional(),
+      currency: z.string().optional(),
+      apiKey: OPTIONAL_API_KEY,
+      baseUrl: OPTIONAL_BASE_URL,
+    },
+    READ_ONLY_TOOL,
+    async (args, extra) => {
+      try {
+        const range = resolveRevenueRange(args);
+        const metrics = await withClient(args, extra).revenueMetrics(range);
+        return ok(
+          summarizeRevenueMetrics(metrics, {
+            ...range,
+            productId: args.productId,
+            platform: args.platform,
+            currency: args.currency,
+          }),
+        );
+      } catch (error) {
+        return err(error, resolveApiKey(args, extra));
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 11. manage_product — disable / refresh a product entry.
   // ---------------------------------------------------------------------------
   registerTool(
     server,
@@ -660,6 +709,68 @@ function registerIapKitTools(
           state: stateMap[action],
         });
         return ok({ ...next, action: args.action });
+      } catch (error) {
+        return err(error, resolveApiKey(args, extra));
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 12. sync_products — enqueue App Store / Play Console sync.
+  // ---------------------------------------------------------------------------
+  registerTool(
+    server,
+    options,
+    "sync_products",
+    "Enqueue an IAPKit product sync job for App Store Connect or Google Play. Use dryRun=true first to inspect what Codex would change; set dryRun=false only when the user explicitly asks to apply the store sync.",
+    {
+      platform: z.enum(["IOS", "Android"]),
+      direction: z
+        .enum(["pull", "push", "both", "purge-local"])
+        .optional()
+        .describe(
+          "pull imports from the store, push writes IAPKit catalog rows to the store, both does both, purge-local removes local rows missing from the store.",
+        ),
+      dryRun: z
+        .boolean()
+        .optional()
+        .describe("Defaults to true so Codex previews store changes first."),
+      apiKey: OPTIONAL_API_KEY,
+      baseUrl: OPTIONAL_BASE_URL,
+    },
+    WRITE_TOOL,
+    async (args, extra) => {
+      try {
+        return ok(
+          await withClient(args, extra).syncProducts({
+            platform: args.platform,
+            direction: args.direction ?? "both",
+            dryRun: args.dryRun ?? true,
+          }),
+        );
+      } catch (error) {
+        return err(error, resolveApiKey(args, extra));
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 13. sync_status — poll a product sync job.
+  // ---------------------------------------------------------------------------
+  registerTool(
+    server,
+    options,
+    "sync_status",
+    "Return the current state and log summary for a previously enqueued IAPKit product sync job.",
+    {
+      jobId: kitTextParam("jobId", MAX_KIT_ID_LENGTH),
+      apiKey: OPTIONAL_API_KEY,
+      baseUrl: OPTIONAL_BASE_URL,
+    },
+    READ_ONLY_TOOL,
+    async (args, extra) => {
+      try {
+        return ok(await withClient(args, extra).syncJob(args.jobId));
       } catch (error) {
         return err(error, resolveApiKey(args, extra));
       }
@@ -731,6 +842,168 @@ func _ready() -> void:
 
 function codeStringLiteral(value: string): string {
   return JSON.stringify(value);
+}
+
+type RevenueMetricsResponse = {
+  days: Array<{
+    day: string;
+    currency: string;
+    productId: string;
+    platform: "IOS" | "Android";
+    activeSubs: number;
+    newSubs: number;
+    renewals: number;
+    cancellations: number;
+    refunds: number;
+    revenueMicros: number;
+  }>;
+  currencies: string[];
+  productIds: string[];
+  platforms: Array<"IOS" | "Android">;
+  truncated: boolean;
+};
+
+function resolveRevenueRange(args: {
+  period?: "this_month" | "last_30_days" | "last_90_days" | "custom";
+  fromDay?: string;
+  toDay?: string;
+}): { fromDay: string; toDay: string; period: string } {
+  const period = args.period ?? "this_month";
+  if (period === "custom") {
+    if (!args.fromDay || !args.toDay) {
+      throw new Error("fromDay and toDay are required when period is custom");
+    }
+    if (args.fromDay > args.toDay) {
+      throw new Error("fromDay must be on or before toDay");
+    }
+    return { fromDay: args.fromDay, toDay: args.toDay, period };
+  }
+
+  const now = new Date();
+  const today = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
+
+  if (period === "this_month") {
+    return {
+      fromDay: formatUtcDay(
+        new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1)),
+      ),
+      toDay: formatUtcDay(today),
+      period,
+    };
+  }
+
+  return {
+    fromDay: formatUtcDay(
+      addUtcDays(today, period === "last_30_days" ? -29 : -89),
+    ),
+    toDay: formatUtcDay(today),
+    period,
+  };
+}
+
+function formatUtcDay(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function addUtcDays(date: Date, days: number): Date {
+  const next = new Date(date);
+  next.setUTCDate(next.getUTCDate() + days);
+  return next;
+}
+
+function summarizeRevenueMetrics(
+  metrics: RevenueMetricsResponse,
+  filters: {
+    fromDay: string;
+    toDay: string;
+    period: string;
+    productId?: string;
+    platform?: "IOS" | "Android";
+    currency?: string;
+  },
+) {
+  const rows = metrics.days.filter((row) => {
+    if (filters.productId && row.productId !== filters.productId) return false;
+    if (filters.platform && row.platform !== filters.platform) return false;
+    if (filters.currency && row.currency !== filters.currency) return false;
+    return true;
+  });
+
+  const totalsByCurrency = new Map<
+    string,
+    {
+      revenueMicros: number;
+      purchaseEvents: number;
+      newSubs: number;
+      renewals: number;
+      cancellations: number;
+      refunds: number;
+    }
+  >();
+  const totalsByProduct = new Map<
+    string,
+    { purchaseEvents: number; revenueMicrosByCurrency: Record<string, number> }
+  >();
+  const totalsByPlatform = new Map<
+    "IOS" | "Android",
+    { purchaseEvents: number; revenueMicrosByCurrency: Record<string, number> }
+  >();
+
+  for (const row of rows) {
+    const purchaseEvents = row.newSubs + row.renewals;
+    const currencyTotal = totalsByCurrency.get(row.currency) ?? {
+      revenueMicros: 0,
+      purchaseEvents: 0,
+      newSubs: 0,
+      renewals: 0,
+      cancellations: 0,
+      refunds: 0,
+    };
+    currencyTotal.revenueMicros += row.revenueMicros;
+    currencyTotal.purchaseEvents += purchaseEvents;
+    currencyTotal.newSubs += row.newSubs;
+    currencyTotal.renewals += row.renewals;
+    currencyTotal.cancellations += row.cancellations;
+    currencyTotal.refunds += row.refunds;
+    totalsByCurrency.set(row.currency, currencyTotal);
+
+    const productTotal = totalsByProduct.get(row.productId) ?? {
+      purchaseEvents: 0,
+      revenueMicrosByCurrency: {},
+    };
+    productTotal.purchaseEvents += purchaseEvents;
+    productTotal.revenueMicrosByCurrency[row.currency] =
+      (productTotal.revenueMicrosByCurrency[row.currency] ?? 0) +
+      row.revenueMicros;
+    totalsByProduct.set(row.productId, productTotal);
+
+    const platformTotal = totalsByPlatform.get(row.platform) ?? {
+      purchaseEvents: 0,
+      revenueMicrosByCurrency: {},
+    };
+    platformTotal.purchaseEvents += purchaseEvents;
+    platformTotal.revenueMicrosByCurrency[row.currency] =
+      (platformTotal.revenueMicrosByCurrency[row.currency] ?? 0) +
+      row.revenueMicros;
+    totalsByPlatform.set(row.platform, platformTotal);
+  }
+
+  return {
+    range: filters,
+    rowCount: rows.length,
+    totalsByCurrency: Object.fromEntries(totalsByCurrency),
+    totalsByProduct: Object.fromEntries(totalsByProduct),
+    totalsByPlatform: Object.fromEntries(totalsByPlatform),
+    availableFilters: {
+      currencies: metrics.currencies,
+      productIds: metrics.productIds,
+      platforms: metrics.platforms,
+    },
+    truncated: metrics.truncated,
+    note: "purchaseEvents counts subscription starts plus renewals in IAPKit revenue rollups. Refunds and cancellations are reported separately.",
+  };
 }
 
 function simulatePurchaseSteps(args: {

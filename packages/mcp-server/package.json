@@ -1,7 +1,7 @@
 {
   "name": "@hyodotdev/openiap-mcp-server",
   "version": "0.1.0",
-  "description": "Model Context Protocol server for IAPKit — wires ChatGPT, Claude, Cursor, and Codex into IAPKit's product, subscription, and webhook surfaces.",
+  "description": "Model Context Protocol server for IAPKit — wires Codex and other MCP clients into IAPKit's product, subscription, revenue, and webhook surfaces.",
   "type": "module",
   "private": true,
   "bin": {

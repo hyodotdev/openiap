@@ -11,9 +11,9 @@ import {
 } from "./request-body";
 
 // Catalog read/write surface mirroring onesub's @onesub/providers
-// admin path. The actual App Store Connect / Play Console push-sync
-// is a Phase 3 follow-up; for now this manages the kit-side cache,
-// which the dashboard / MCP server / SDKs all share.
+// admin path. Store sync is queued through background jobs so the
+// dashboard, MCP server, and API clients do not hold browser/mobile
+// HTTP connections open while App Store Connect or Play Console work runs.
 
 const products = new Hono();
 const MAX_PRODUCT_ID_LENGTH = 256;

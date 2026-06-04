@@ -84,7 +84,120 @@ describe("remote MCP HTTP server", () => {
 
     expect(toolNames).toContain("iapkit_inspect_state");
     expect(toolNames).toContain("iapkit_create_product");
+    expect(toolNames).toContain("iapkit_revenue_analytics");
+    expect(toolNames).toContain("iapkit_sync_products");
+    expect(toolNames).toContain("iapkit_sync_status");
     expect(toolNames).not.toContain("openiap_inspect_state");
+  });
+
+  it("summarizes revenue analytics through the bearer-authenticated Kit API", async () => {
+    const apiKey = "openiap-kit_secret_revenue";
+    const previousBaseUrl = process.env.IAPKIT_BASE_URL;
+    process.env.IAPKIT_BASE_URL = await startKitApi((req, res) => {
+      expect(req.method).toBe("GET");
+      expect(req.url).toBe(
+        `/v1/subscriptions/revenue/${apiKey}?fromDay=2026-06-01&toDay=2026-06-04`,
+      );
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          days: [
+            {
+              day: "2026-06-01",
+              currency: "USD",
+              productId: "premium_monthly",
+              platform: "IOS",
+              activeSubs: 10,
+              newSubs: 2,
+              renewals: 3,
+              cancellations: 1,
+              refunds: 0,
+              revenueMicros: 4990000,
+            },
+          ],
+          currencies: ["USD"],
+          productIds: ["premium_monthly"],
+          platforms: ["IOS"],
+          truncated: false,
+        }),
+      );
+    });
+
+    try {
+      const { baseUrl, sessionId } = await initializeMcpSession(apiKey);
+      const response = await postMcp(
+        baseUrl,
+        {
+          jsonrpc: "2.0",
+          id: 2,
+          method: "tools/call",
+          params: {
+            name: "iapkit_revenue_analytics",
+            arguments: {
+              period: "custom",
+              fromDay: "2026-06-01",
+              toDay: "2026-06-04",
+            },
+          },
+        },
+        sessionId,
+        { authorization: `Bearer ${apiKey}` },
+      );
+      const event = parseSseJson(await response.text());
+      const payload = JSON.parse(event.result.content[0].text);
+
+      expect(payload.totalsByCurrency.USD).toMatchObject({
+        purchaseEvents: 5,
+        newSubs: 2,
+        renewals: 3,
+        revenueMicros: 4990000,
+      });
+    } finally {
+      if (previousBaseUrl === undefined) delete process.env.IAPKIT_BASE_URL;
+      else process.env.IAPKIT_BASE_URL = previousBaseUrl;
+    }
+  });
+
+  it("enqueues store sync jobs through the bearer-authenticated Kit API", async () => {
+    const apiKey = "openiap-kit_secret_sync";
+    const previousBaseUrl = process.env.IAPKIT_BASE_URL;
+    process.env.IAPKIT_BASE_URL = await startKitApi((req, res) => {
+      expect(req.method).toBe("POST");
+      expect(req.url).toBe(
+        `/v1/products/${apiKey}/sync/ios?direction=push&dryRun=false`,
+      );
+      res.writeHead(202, { "content-type": "application/json" });
+      res.end(JSON.stringify({ jobId: "job_123", deduped: false }));
+    });
+
+    try {
+      const { baseUrl, sessionId } = await initializeMcpSession(apiKey);
+      const response = await postMcp(
+        baseUrl,
+        {
+          jsonrpc: "2.0",
+          id: 2,
+          method: "tools/call",
+          params: {
+            name: "iapkit_sync_products",
+            arguments: {
+              platform: "IOS",
+              direction: "push",
+              dryRun: false,
+            },
+          },
+        },
+        sessionId,
+        { authorization: `Bearer ${apiKey}` },
+      );
+      const event = parseSseJson(await response.text());
+      const payload = JSON.parse(event.result.content[0].text);
+
+      expect(payload).toEqual({ jobId: "job_123", deduped: false });
+    } finally {
+      if (previousBaseUrl === undefined) delete process.env.IAPKIT_BASE_URL;
+      else process.env.IAPKIT_BASE_URL = previousBaseUrl;
+    }
   });
 
   it("returns client errors for invalid JSON and oversized payloads", async () => {
@@ -190,6 +303,31 @@ async function startKitApi(
 
   const address = kitApi.address() as AddressInfo;
   return `http://127.0.0.1:${address.port}`;
+}
+
+async function initializeMcpSession(
+  apiKey: string,
+): Promise<{ baseUrl: string; sessionId: string }> {
+  const baseUrl = await startServer();
+  const initResponse = await postMcp(
+    baseUrl,
+    {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: "2025-06-18",
+        capabilities: {},
+        clientInfo: { name: "vitest", version: "0.0.0" },
+      },
+    },
+    undefined,
+    { authorization: `Bearer ${apiKey}` },
+  );
+  const sessionId = initResponse.headers.get("mcp-session-id");
+  expect(sessionId).toBeTruthy();
+  await initResponse.text();
+  return { baseUrl, sessionId: sessionId ?? "" };
 }
 
 async function closeServer(server: Server): Promise<void> {
