@@ -30,7 +30,7 @@ export function GeneratedApiKeyNotice({
   const handleCopy = async (): Promise<void> => {
     const ok = await copyTextToClipboard(apiKey.key);
     if (!ok) {
-      toast.message("Copy failed. Select the key manually.");
+      toast.error("Copy failed. Select the key manually.");
       return;
     }
 
