@@ -69,6 +69,13 @@ appropriate labels before merging.
 - For release-note package lists, verify versions from package metadata and
   GitHub release tags; never infer framework versions from `openiap-versions.json`
   or from a nearby release block.
+- For PRs with new features, visible behavior changes, UI changes, docs pages,
+  example flows, or developer workflows, record the actual changed surface,
+  compress the video to under 10 MB, and upload it to the GitHub PR as a
+  `Preview` comment or committed docs/example asset. If PR attachment upload is
+  blocked by local browser or extension permissions, commit a compressed asset
+  under `.github/pr-previews/` and link the GitHub-hosted raw/blob URL. Use the
+  Codex Chrome Extension for web/docs/dashboard previews when applicable.
 - Keep commits in Angular Conventional Commits format:
   `<type>(<scope>): <subject>`.
 
