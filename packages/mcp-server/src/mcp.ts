@@ -547,7 +547,7 @@ function registerIapKitTools(
           eventTimeMillis: Date.now(),
           testNotification: { version: "1.0" },
         };
-        const data = Buffer.from(JSON.stringify(message)).toString("base64");
+        const data = base64EncodeUtf8(JSON.stringify(message));
         const body = {
           message: {
             data,
@@ -842,6 +842,15 @@ func _ready() -> void:
 
 function codeStringLiteral(value: string): string {
   return JSON.stringify(value);
+}
+
+function base64EncodeUtf8(value: string): string {
+  const bytes = new TextEncoder().encode(value);
+  let binary = "";
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary);
 }
 
 type RevenueMetricsResponse = {

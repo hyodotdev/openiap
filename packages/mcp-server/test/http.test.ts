@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   createRemoteMcpHttpServer,
+  startRemoteMcpHttpServer,
   type RemoteMcpHttpServer,
 } from "../src/http";
 
@@ -47,6 +48,30 @@ describe("remote MCP HTTP server", () => {
         health: "/health",
       },
     });
+  });
+
+  it("rejects when the configured listener cannot bind", async () => {
+    const occupied = createServer();
+
+    try {
+      await new Promise<void>((resolve) => {
+        occupied.listen(0, "127.0.0.1", resolve);
+      });
+      const port = (occupied.address() as AddressInfo).port;
+
+      await expect(
+        startRemoteMcpHttpServer({
+          host: "127.0.0.1",
+          port,
+          logger: {
+            error: () => undefined,
+            info: () => undefined,
+          },
+        }),
+      ).rejects.toMatchObject({ code: "EADDRINUSE" });
+    } finally {
+      await closeServer(occupied);
+    }
   });
 
   it("initializes an MCP session and exposes IAPKit tool names", async () => {
@@ -221,6 +246,58 @@ describe("remote MCP HTTP server", () => {
       if (previousBaseUrl === undefined) delete process.env.IAPKIT_BASE_URL;
       else process.env.IAPKIT_BASE_URL = previousBaseUrl;
     }
+  });
+
+  it("posts UTF-8-safe synthetic Android webhook payloads", async () => {
+    const apiKey = "openiap-kit_secret_webhook";
+    const { baseUrl, sessionId } = await initializeMcpSession(apiKey);
+    const kitBaseUrl = await startKitApi((req, res) => {
+      expect(req.method).toBe("POST");
+      expect(req.url).toBe(`/v1/webhooks/${apiKey}`);
+
+      let raw = "";
+      req.on("data", (chunk) => {
+        raw += chunk;
+      });
+      req.on("end", () => {
+        const parsed = JSON.parse(raw) as {
+          message: { data: string; messageId: string };
+        };
+        const decoded = JSON.parse(
+          Buffer.from(parsed.message.data, "base64").toString("utf8"),
+        );
+
+        expect(decoded).toMatchObject({
+          version: "1.0",
+          packageName: "com.example.app",
+          testNotification: { version: "1.0" },
+        });
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ ok: true }));
+      });
+    });
+
+    const response = await postMcp(
+      baseUrl,
+      {
+        jsonrpc: "2.0",
+        id: 2,
+        method: "tools/call",
+        params: {
+          name: "iapkit_simulate_webhook",
+          arguments: {
+            platform: "Android",
+            baseUrl: kitBaseUrl,
+          },
+        },
+      },
+      sessionId,
+      { authorization: `Bearer ${apiKey}` },
+    );
+    const event = parseSseJson(await response.text());
+    const payload = JSON.parse(event.result.content[0].text);
+
+    expect(payload).toMatchObject({ status: 200 });
   });
 
   it("returns client errors for invalid JSON and oversized payloads", async () => {

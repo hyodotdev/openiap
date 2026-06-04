@@ -34,19 +34,34 @@ const DEFAULT_ALLOWED_ORIGINS = [
 type AuthenticatedRequest = IncomingMessage & { auth?: AuthInfo };
 
 export interface RemoteMcpHttpServerOptions {
+  /** Interface address to bind. Defaults to HOST, then 0.0.0.0. */
   host?: string;
+  /** TCP port to bind. Defaults to PORT, IAPKIT_MCP_PORT, then 3939. */
   port?: number;
+  /** MCP endpoint path. Defaults to /mcp. */
   mcpPath?: string;
+  /** CORS allow-list. Defaults to IAPKIT_MCP_ALLOWED_ORIGINS or local/Codex origins. */
   allowedOrigins?: string[];
+  /** Expose legacy openiap_* tool aliases in addition to iapkit_* tools. */
   includeLegacyOpenIapAliases?: boolean;
+  /** Logger for lifecycle and request failures. Defaults to console. */
   logger?: Pick<Console, "error" | "info">;
 }
 
+/** Runtime handle for an IAPKit remote MCP HTTP server. */
 export interface RemoteMcpHttpServer {
+  /** Node HTTP server instance, unbound until listen/start is called. */
   server: NodeHttpServer;
+  /** Closes MCP transports first, then the HTTP listener. */
   close: () => Promise<void>;
 }
 
+/**
+ * Creates an IAPKit Streamable HTTP MCP server without binding a socket.
+ *
+ * @param options Server configuration and MCP compatibility flags.
+ * @returns A server handle whose `server` can be bound by the caller.
+ */
 export function createRemoteMcpHttpServer(
   options: RemoteMcpHttpServerOptions = {},
 ): RemoteMcpHttpServer {
@@ -157,6 +172,13 @@ export function createRemoteMcpHttpServer(
   return { server, close };
 }
 
+/**
+ * Creates and starts the IAPKit Streamable HTTP MCP server.
+ *
+ * @param options Server configuration and MCP compatibility flags.
+ * @returns A bound server handle.
+ * @throws When the configured port/host is invalid or the listener emits an error.
+ */
 export async function startRemoteMcpHttpServer(
   options: RemoteMcpHttpServerOptions = {},
 ): Promise<RemoteMcpHttpServer> {
@@ -168,8 +190,18 @@ export async function startRemoteMcpHttpServer(
     DEFAULT_PORT;
   const remote = createRemoteMcpHttpServer(options);
 
-  await new Promise<void>((resolve) => {
-    remote.server.listen(port, host, resolve);
+  await new Promise<void>((resolve, reject) => {
+    const onError = (error: Error) => {
+      remote.server.off("listening", onListening);
+      reject(error);
+    };
+    const onListening = () => {
+      remote.server.off("error", onError);
+      resolve();
+    };
+
+    remote.server.once("error", onError);
+    remote.server.listen(port, host, onListening);
   });
 
   (options.logger ?? console).info(

@@ -124,8 +124,8 @@ IAPKIT_API_KEY="openiap-kit_your-project-key" \\
 
       <h2 className="mt-10 text-2xl font-semibold">Available tools</h2>
       <p>
-        The connector exposes read-only tools for project inspection and
-        write-capable tools for product catalog changes or webhook simulation.
+        The connector exposes 13 tools for project inspection, purchase and
+        revenue questions, catalog changes, webhook simulation, and store sync.
         Codex sees them with the <code>iapkit_</code> prefix:
       </p>
       <ul className="list-disc space-y-1 pl-5">
@@ -134,16 +134,30 @@ IAPKIT_API_KEY="openiap-kit_your-project-key" \\
           renewals, cancellations, refunds, and revenue rollups.
         </li>
         <li>
+          <code>iapkit_check_status</code> - active subscription status for one
+          user.
+        </li>
+        <li>
           <code>iapkit_inspect_state</code> - metrics, product catalog, webhook
           URLs.
         </li>
         <li>
-          <code>iapkit_list_products</code> and{" "}
-          <code>iapkit_view_subscribers</code> - catalog and subscriber reads.
+          <code>iapkit_list_products</code> - product catalog reads.
+        </li>
+        <li>
+          <code>iapkit_view_subscribers</code> - subscriber list reads.
         </li>
         <li>
           <code>iapkit_create_product</code> and{" "}
           <code>iapkit_manage_product</code> - product catalog writes.
+        </li>
+        <li>
+          <code>iapkit_simulate_purchase</code> - sandbox purchase guidance for
+          Apple or Google.
+        </li>
+        <li>
+          <code>iapkit_simulate_webhook</code> - synthetic webhook delivery for
+          local/dev verification.
         </li>
         <li>
           <code>iapkit_sync_products</code> and <code>iapkit_sync_status</code>{" "}
