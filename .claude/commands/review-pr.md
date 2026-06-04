@@ -84,11 +84,36 @@ The automated reviewers (Copilot + Gemini) need a few minutes to produce feedbac
 
 1. Re-fetch unresolved review threads (`gh api repos/{owner}/{repo}/pulls/$PR_NUMBER/comments`).
 2. If new unresolved threads exist → fix them, push, post `/gemini review` again, and schedule another 8-minute wake-up.
-3. If no new unresolved threads exist → the PR is clean. End the loop and report completion to the user.
+3. If no new unresolved threads exist → the PR is clean. Clean up the temporary review-trigger comments, end the loop, and report completion to the user.
 
 Use the `ScheduleWakeup` tool for the wake-up, passing `/review-pr $PR_NUMBER` back as the prompt so the next firing re-enters this skill with full context. Omit the call to stop the loop once all threads are resolved.
 
 Guard against infinite loops: if a reviewer keeps flagging the same finding after two fix attempts, stop scheduling wake-ups and hand back to the user with a summary of what remains disputed.
+
+### Cleanup Review Trigger Comments
+
+When the polling loop ends with no unresolved review threads, delete the temporary top-level comments created only to trigger bot reviews:
+
+- Author comments whose body is exactly `/gemini review`
+- Author comments whose body is exactly `@coderabbitai review`
+- CodeRabbit top-level "Action performed" replies created by those commands (`CodeRabbit review command invocation`)
+
+Do **not** delete inline review replies, actual reviewer summaries, CodeRabbit walkthrough comments, or any comment containing substantive review feedback. The cleanup is only for command noise left in the PR timeline.
+
+Use the issue comments API because PR conversation comments are issue comments:
+
+```bash
+gh api repos/hyodotdev/openiap/issues/$PR_NUMBER/comments --paginate --jq '
+  .[]
+  | select(
+      .body == "/gemini review"
+      or .body == "@coderabbitai review"
+      or (.user.login == "coderabbitai[bot]" and (.body | contains("CodeRabbit review command invocation")))
+    )
+  | .id' | while read comment_id; do
+  [ -n "$comment_id" ] && gh api -X DELETE "repos/hyodotdev/openiap/issues/comments/$comment_id"
+done
+```
 
 ### Replying to Inline Review Comments
 
