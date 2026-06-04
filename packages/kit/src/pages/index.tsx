@@ -52,14 +52,7 @@ export default function PublicPages() {
           The public navigation header wrapping everything else was
           both stealing sidebar height and double-scrolling the
           content column. */}
-      <Route
-        path="docs"
-        element={
-          <PageWithTitle title="Documentation">
-            <DocsLayout />
-          </PageWithTitle>
-        }
-      >
+      <Route path="docs" element={<DocsLayout />}>
         {docsChildRoutes}
       </Route>
       <Route element={<PublicLayout />}>
