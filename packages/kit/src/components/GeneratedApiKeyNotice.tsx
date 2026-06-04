@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Copy, KeyRound, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -20,6 +20,13 @@ export function GeneratedApiKeyNotice({
 }: GeneratedApiKeyNoticeProps) {
   const [copied, setCopied] = useState(false);
 
+  useEffect(() => {
+    if (!copied) return;
+
+    const timer = window.setTimeout(() => setCopied(false), 1_500);
+    return () => window.clearTimeout(timer);
+  }, [copied]);
+
   const handleCopy = async (): Promise<void> => {
     const ok = await copyTextToClipboard(apiKey.key);
     if (!ok) {
@@ -29,7 +36,6 @@ export function GeneratedApiKeyNotice({
 
     setCopied(true);
     toast.success("API key copied to clipboard");
-    window.setTimeout(() => setCopied(false), 1_500);
   };
 
   return (
