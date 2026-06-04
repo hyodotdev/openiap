@@ -18,6 +18,7 @@ import { loadAppleRootCertificates } from "../certificates/apple_root_certificat
 import {
   getProjectByApiKey,
   mapToAppStoreReceiptResponse,
+  applyExpectedProductId,
   AppStoreReceiptData,
   receiptResponseValidator,
   isValidState,
@@ -42,6 +43,7 @@ export const verifyAppStoreReceiptInternalV1 = action({
   args: {
     apiKey: v.string(),
     jws: v.string(),
+    expectedProductId: v.optional(v.string()),
     requestIp: v.optional(v.string()),
   },
   returns: receiptResponseValidator,
@@ -52,9 +54,16 @@ export const verifyAppStoreReceiptInternalV1 = action({
     const decodedPayload = decodeJwsPayload(args.jws);
     const environment = decodedPayload.environment as Environment;
 
-    const requestData = {
+    const requestData: {
+      store: "apple";
+      jws: string;
+      expectedProductId?: string;
+    } = {
       store: "apple" as const,
       jws: args.jws,
+      ...(args.expectedProductId !== undefined
+        ? { expectedProductId: args.expectedProductId }
+        : {}),
     };
 
     if (project.iosBundleId === undefined) {
@@ -110,7 +119,13 @@ export const verifyAppStoreReceiptInternalV1 = action({
       hashJws(args.jws);
 
     const serializedResponse = JSON.stringify(transactionData);
-    const receiptResponse = mapToAppStoreReceiptResponse(transactionData);
+    // Persist the store-verified purchase state; `expectedProductId`
+    // mismatch is caller-scoped and should not corrupt purchase logs.
+    const storeReceiptResponse = mapToAppStoreReceiptResponse(transactionData);
+    const receiptResponse = applyExpectedProductId(
+      storeReceiptResponse,
+      args.expectedProductId,
+    );
 
     await ctx.runMutation(internal.purchases.internal.saveReceiptInternal, {
       projectId: project._id,
@@ -119,8 +134,8 @@ export const verifyAppStoreReceiptInternalV1 = action({
       remoteId,
       requestData,
       remoteResponse: serializedResponse,
-      state: receiptResponse.state,
-      isValid: isValidState(receiptResponse.state),
+      state: storeReceiptResponse.state,
+      isValid: isValidState(storeReceiptResponse.state),
       requestIp: args.requestIp,
       verificationDurationMs: Date.now() - verificationStart,
     });
@@ -407,6 +422,7 @@ async function persistFailedAppStoreReceipt(
     requestData: {
       store: "apple";
       jws: string;
+      expectedProductId?: string;
     };
     requestIp?: string;
     error: unknown;

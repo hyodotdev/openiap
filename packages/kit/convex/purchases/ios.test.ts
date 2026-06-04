@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapToAppStoreReceiptResponse } from "./shared";
+import { applyExpectedProductId, mapToAppStoreReceiptResponse } from "./shared";
 import { HarmonizedPurchaseState } from "./purchaseState";
 
 describe("App Store mappings (real data)", () => {
@@ -27,6 +27,7 @@ describe("App Store mappings (real data)", () => {
     expect(receipt).toEqual({
       isValid: true,
       state: HarmonizedPurchaseState.ENTITLED,
+      productId: "untold_full_premium",
     });
   });
 
@@ -54,6 +55,7 @@ describe("App Store mappings (real data)", () => {
     expect(receipt).toEqual({
       isValid: true,
       state: HarmonizedPurchaseState.READY_TO_CONSUME,
+      productId: "dev.hyo.martie.10bulbs",
     });
   });
 
@@ -85,6 +87,7 @@ describe("App Store mappings (real data)", () => {
     expect(receipt).toEqual({
       isValid: true,
       state: HarmonizedPurchaseState.ENTITLED,
+      productId: "dev.hyo.martie.premium",
     });
   });
 
@@ -116,6 +119,7 @@ describe("App Store mappings (real data)", () => {
     expect(receipt).toEqual({
       isValid: false,
       state: HarmonizedPurchaseState.EXPIRED,
+      productId: "dev.hyo.martie.premium",
     });
   });
 
@@ -149,6 +153,24 @@ describe("App Store mappings (real data)", () => {
     expect(receipt).toEqual({
       isValid: false,
       state: HarmonizedPurchaseState.CANCELED,
+      productId: "dev.hyo.martie.premium",
+    });
+  });
+
+  it("marks a valid receipt inauthentic when expectedProductId mismatches", () => {
+    const receipt = applyExpectedProductId(
+      {
+        isValid: true,
+        state: HarmonizedPurchaseState.ENTITLED,
+        productId: "dev.hyo.martie.premium",
+      },
+      "dev.hyo.martie.coins",
+    );
+
+    expect(receipt).toEqual({
+      isValid: false,
+      state: HarmonizedPurchaseState.INAUTHENTIC,
+      productId: "dev.hyo.martie.premium",
     });
   });
 });

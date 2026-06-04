@@ -115,6 +115,20 @@ If you need a localized dashboard for your users, fork and add an
 i18n layer of your choice. Don't reintroduce one upstream without
 discussion — the simplification is intentional, not an oversight.
 
+## IAPKit docs and messaging
+
+- Default positioning: IAPKit is the managed receipt-validation backend
+  that apps can call directly. Describe a customer's own backend
+  entitlement ledger as an optional advanced integration, not the
+  default path.
+- Keep docs concise and contract-driven. Request/response field claims
+  must follow `server/api/v1/route-input-schemas.ts`,
+  `server/api/v1/route-response-schemas.ts`, and Convex validators;
+  update those sources and docs together.
+- For product verification, never imply a client-provided product id is
+  trustworthy. Use the store-verified `productId` and optional
+  `expectedProductId` match guard.
+
 ## Icons
 
 Always use icon components, never inline `<svg>`:

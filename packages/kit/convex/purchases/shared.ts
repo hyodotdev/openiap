@@ -96,6 +96,7 @@ export const purchaseTypeValidator = v.union(
 export const receiptResponseValidator = v.object({
   isValid: v.boolean(),
   state: harmonizedPurchaseStateValidator,
+  productId: v.optional(v.string()),
 });
 
 export async function getProjectByApiKey(ctx: ActionCtx, apiKey: string) {
@@ -164,6 +165,7 @@ export function mapToAppStoreReceiptResponse(
   return {
     isValid: isValidState(state),
     state,
+    ...(receiptData.productId ? { productId: receiptData.productId } : {}),
   };
 }
 
@@ -175,6 +177,25 @@ export function mapToGooglePlayReceiptResponse(
   return {
     isValid: isValidState(state),
     state,
+    productId: receiptData.productId,
+  };
+}
+
+export function applyExpectedProductId(
+  receiptResponse: ReceiptResponse,
+  expectedProductId?: string,
+): ReceiptResponse {
+  if (
+    expectedProductId === undefined ||
+    receiptResponse.productId === expectedProductId
+  ) {
+    return receiptResponse;
+  }
+
+  return {
+    ...receiptResponse,
+    isValid: false,
+    state: HarmonizedPurchaseState.INAUTHENTIC,
   };
 }
 

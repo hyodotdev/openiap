@@ -29,10 +29,12 @@ export const purchaseRequestDataValidator = v.union(
   v.object({
     store: v.literal("apple"),
     jws: v.string(),
+    expectedProductId: v.optional(v.string()),
   }),
   v.object({
     store: v.literal("google"),
     purchaseToken: v.string(),
+    expectedProductId: v.optional(v.string()),
   }),
   // Meta Horizon (Quest / VR): the client SDK doesn't return a Google-
   // or Apple-style opaque receipt; instead Meta's Graph API verifies

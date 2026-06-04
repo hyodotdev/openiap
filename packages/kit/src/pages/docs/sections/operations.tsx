@@ -149,6 +149,10 @@ X-RateLimit-Remaining: 599`}
         <li>
           <code>productId</code> ≤ 256 chars (catalog / subscriptions)
         </li>
+        <li>
+          <code>expectedProductId</code> ≤ 256 chars (optional Apple / Google
+          verify match guard)
+        </li>
       </ul>
       <p>
         Oversized fields return <code>400 INVALID_INPUT</code>; oversized

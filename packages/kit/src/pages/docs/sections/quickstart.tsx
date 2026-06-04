@@ -82,8 +82,9 @@ export default function QuickstartPage() {
       <h2 className="mt-10 text-2xl font-semibold">4. Issue an API key</h2>
       <p>
         The <strong>API Keys</strong> tab lists the project's keys. A default
-        production key is auto-created; you can rotate it or add separate keys
-        for app builds, CI, and staging.
+        production key is auto-created and shown once when the project is
+        created; you can rotate it or add separate keys for app builds, CI, and
+        staging.
       </p>
       <p>
         Keys are credentials for the same project, not separate entitlement
@@ -109,11 +110,12 @@ export default function QuickstartPage() {
 
       <Callout kind="warning" title="Project keys are production-sensitive">
         <p>
-          The project key is designed for apps that use IAPKit as their managed
-          validation backend. Do not commit it to a public repo or log it.
-          Assume embedded keys can be extracted and use separate keys for each
-          app build or environment so you can rotate one from the dashboard if
-          it leaks or is abused. Keep server-side copies in a secret manager.
+          The project key lets your app call IAPKit's managed validation service
+          directly. Do not commit it to a public repo or log it. Assume embedded
+          keys can be extracted and use separate keys for each app build or
+          environment so you can rotate one from the dashboard if it leaks or is
+          abused. If your own backend calls IAPKit instead of the app calling
+          directly, keep that server-side copy in a secret manager.
         </p>
       </Callout>
 
@@ -131,7 +133,8 @@ export default function QuickstartPage() {
   -H "Content-Type: application/json" \\
   -d '{
     "store": "apple",
-    "jws": "eyJhbGciOi..."
+    "jws": "eyJhbGciOi...",
+    "expectedProductId": "premium_monthly"
   }'`}
       </CodeBlock>
 
@@ -141,7 +144,8 @@ export default function QuickstartPage() {
   -H "Content-Type: application/json" \\
   -d '{
     "store": "google",
-    "purchaseToken": "ljhjpg..."
+    "purchaseToken": "ljhjpg...",
+    "expectedProductId": "premium_monthly"
   }'`}
       </CodeBlock>
 
@@ -160,14 +164,16 @@ export default function QuickstartPage() {
       <CodeBlock title="200 OK" language="json">
         {`{
   "isValid": true,
-  "state": "ENTITLED"
+  "state": "ENTITLED",
+  "productId": "premium_monthly"
 }`}
       </CodeBlock>
 
       <p>
-        <code>isValid</code> is the short-circuit answer you'll grant
-        entitlements on; <code>state</code> is the harmonized lifecycle position
-        if you need more granularity. See the{" "}
+        <code>isValid</code> is the short-circuit answer your app can unlock
+        content on; <code>state</code> is the harmonized lifecycle position if
+        you need more granularity, and <code>productId</code> is the product id
+        verified by the store. See the{" "}
         <Link to="/docs/api" className="text-primary underline">
           API reference
         </Link>{" "}

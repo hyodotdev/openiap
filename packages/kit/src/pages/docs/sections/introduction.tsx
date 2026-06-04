@@ -12,13 +12,13 @@ export default function IntroductionPage() {
       description="IAPKit is a hosted receipt-validation API for Apple, Google, and Meta Horizon purchases. Managed by OpenIAP."
     >
       <p>
-        <strong>IAPKit</strong>, managed by OpenIAP, is a receipt-validation
-        backend that turns a mobile or VR in-app purchase into a signed,
-        server-verified "did this user actually pay" answer. You send a
-        store-specific receipt to <code>/v1/purchase/verify</code>, IAPKit calls
-        the upstream store with credentials it already holds for your project,
-        and returns a normalized <code>{`{ isValid, state }`}</code>
-        result your app can use.
+        <strong>IAPKit</strong>, managed by OpenIAP, is a hosted
+        receipt-validation service for mobile and VR apps that need server-side
+        store verification without building their own receipt server. Your app
+        sends a store-specific receipt to <code>/v1/purchase/verify</code>,
+        IAPKit calls the upstream store with credentials it already holds for
+        your project, and returns a normalized{" "}
+        <code>{`{ isValid, state, productId }`}</code> result your app can use.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">When to reach for IAPKit</h2>
@@ -33,11 +33,11 @@ export default function IntroductionPage() {
         stay inside IAPKit, not on a customer device.
       </p>
       <p>
-        IAPKit centralizes those credentials in one place, exposes one API your
-        app calls with a project API key, and harmonizes the three stores' very
-        different response shapes into a single lifecycle: <code>ENTITLED</code>
-        , <code>PENDING_ACKNOWLEDGMENT</code>, <code>CANCELED</code>, and
-        friends.
+        IAPKit centralizes those credentials in one place, exposes one managed
+        API your app can call directly with a project API key, and harmonizes
+        the three stores' very different response shapes into a single
+        lifecycle: <code>ENTITLED</code>, <code>PENDING_ACKNOWLEDGMENT</code>,{" "}
+        <code>CANCELED</code>, and friends.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Supported stores</h2>
@@ -77,7 +77,8 @@ export default function IntroductionPage() {
       Bearer <apiKey>    ───►     verify action      ───►     App Store / Play /
       { store, ... }                                           Meta Graph API
                                                           ◄── verified receipt
-      { isValid, state } ◄───     harmonized state
+      { isValid, state,
+        productId }      ◄───     harmonized state
 `}</code>
       </pre>
 

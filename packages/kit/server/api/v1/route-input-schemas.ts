@@ -6,12 +6,13 @@ import * as v from "valibot";
 // push the Bun server into an OOM by posting a multi-megabyte string.
 // Apple JWS transactions are typically ~1–2 KB; nested subscription
 // payloads stay well under 10 KB. Google purchase tokens are opaque
-// base64 blobs, historically under ~200 chars. Meta Horizon identifies
-// entitlements by (userId, sku) — both short strings.
+// base64 blobs, historically under ~200 chars. Product identifiers and
+// Meta Horizon's (userId, sku) are short strings.
 export const APPLE_JWS_MAX_LENGTH = 16_000;
 export const GOOGLE_PURCHASE_TOKEN_MAX_LENGTH = 2_000;
 const HORIZON_USER_ID_MAX_LENGTH = 256;
 const HORIZON_SKU_MAX_LENGTH = 256;
+const EXPECTED_PRODUCT_ID_MAX_LENGTH = 256;
 
 // Lower bounds — any real token from the respective store sits well
 // above these. A sub-threshold input is guaranteed garbage (empty
@@ -45,6 +46,25 @@ export const APPLE_JWS_PATTERN =
 const GOOGLE_PURCHASE_TOKEN_PATTERN = /^[A-Za-z0-9._~-]+$/;
 const HORIZON_USER_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
 const HORIZON_SKU_PATTERN = /^[A-Za-z0-9._-]+$/;
+const EXPECTED_PRODUCT_ID_PATTERN = /^[A-Za-z0-9._-]+$/;
+
+const expectedProductIdSchema = v.optional(
+  v.pipe(
+    v.string(),
+    v.nonEmpty("expectedProductId must not be empty."),
+    v.maxLength(
+      EXPECTED_PRODUCT_ID_MAX_LENGTH,
+      `expectedProductId must be at most ${EXPECTED_PRODUCT_ID_MAX_LENGTH} characters.`,
+    ),
+    v.regex(
+      EXPECTED_PRODUCT_ID_PATTERN,
+      "expectedProductId must contain only letters, digits, '.', '_' or '-'.",
+    ),
+    v.description(
+      "Optional product id that must match the product id verified by the store.",
+    ),
+  ),
+);
 
 export const verifyPurchaseInputSchema = v.variant("store", [
   v.pipe(
@@ -67,6 +87,7 @@ export const verifyPurchaseInputSchema = v.variant("store", [
         ),
         v.description("The JWS token returned with the purchase response."),
       ),
+      expectedProductId: expectedProductIdSchema,
     }),
     v.title("Apple App Store"),
   ),
@@ -92,6 +113,7 @@ export const verifyPurchaseInputSchema = v.variant("store", [
           "The token provided to the user's device when the subscription was purchased.",
         ),
       ),
+      expectedProductId: expectedProductIdSchema,
     }),
     v.title("Google Play Store"),
   ),

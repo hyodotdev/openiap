@@ -32,14 +32,12 @@ export interface ReplayBucket {
   tokens: number;
   lastRefillMs: number;
   // Set when the most recent verify call for this (key, payload)
-  // returned `isValid: false` from the upstream store. Subsequent
+  // returned `isValid: false`. Subsequent
   // requests for the exact same payload are short-circuited with
   // `REPEATED_FAILURE` until the cooldown expires — re-asking
-  // Apple / Google / Meta about a receipt they already rejected has
-  // no chance of changing the answer in seconds, and an attacker
-  // replaying a captured-then-revoked receipt should hit a hard wall
-  // instead of being able to rotate timing under the per-request
-  // burst cap to keep burning upstream API quota.
+  // Apple / Google / Meta about a receipt they already rejected, or
+  // retrying the same failed product-match guard, has no chance of
+  // changing the answer in seconds.
   lastFailureMs?: number;
 }
 
@@ -71,8 +69,8 @@ export interface ReplayConsumeResult {
  */
 export function hashPayload(
   body:
-    | { store: "apple"; jws: string }
-    | { store: "google"; purchaseToken: string }
+    | { store: "apple"; jws: string; expectedProductId?: string }
+    | { store: "google"; purchaseToken: string; expectedProductId?: string }
     | { store: "horizon"; userId: string; sku: string },
 ): string {
   const hasher = crypto.createHash("sha256");
@@ -81,9 +79,17 @@ export function hashPayload(
   switch (body.store) {
     case "apple":
       hasher.update(body.jws);
+      if (body.expectedProductId !== undefined) {
+        hasher.update("\0");
+        hasher.update(body.expectedProductId);
+      }
       break;
     case "google":
       hasher.update(body.purchaseToken);
+      if (body.expectedProductId !== undefined) {
+        hasher.update("\0");
+        hasher.update(body.expectedProductId);
+      }
       break;
     case "horizon":
       hasher.update(body.userId);
@@ -281,8 +287,8 @@ export function replayGuardMiddleware(
     // Valid-by-schema by the time this runs — the valibot validator
     // upstream guarantees one of the three discriminated shapes.
     const body = c.req.valid("json" as never) as
-      | { store: "apple"; jws: string }
-      | { store: "google"; purchaseToken: string }
+      | { store: "apple"; jws: string; expectedProductId?: string }
+      | { store: "google"; purchaseToken: string; expectedProductId?: string }
       | { store: "horizon"; userId: string; sku: string };
 
     const bucketKey = `${apiKeyHash}:${hashPayload(body)}`;
@@ -304,7 +310,7 @@ export function replayGuardMiddleware(
           : "DUPLICATE_PAYLOAD";
       const message =
         result.reason === "repeated_failure"
-          ? `This receipt was just rejected as invalid by the upstream store; the same payload won't be re-verified for ${result.retryAfterSec}s. If you believe this is wrong, wait the cooldown then retry — the store provider's verdict for a given receipt almost never changes within seconds.`
+          ? `This receipt payload was just rejected; the same payload won't be re-verified for ${result.retryAfterSec}s. If you believe this is wrong, wait the cooldown then retry — store verdicts and product-match guard results almost never change within seconds.`
           : `Too many verifications for the same payload from this API key. Legitimate clients re-verify a receipt at most a handful of times per minute. Retry after ${result.retryAfterSec}s, or cache the previous result on your side.`;
       return c.json(
         {
@@ -318,11 +324,11 @@ export function replayGuardMiddleware(
       await next();
     } finally {
       // After the handler completes, mark the bucket if the upstream
-      // store rejected the receipt. Lives in `finally` so an exception
+      // verification returned invalid. Lives in `finally` so an exception
       // bubbling out of the handler doesn't skip the marking step —
       // we only mark on the explicit `isValid: false` signal so
-      // configuration / network errors aren't conflated with
-      // genuine receipt rejections.
+      // configuration / network errors aren't conflated with stable
+      // receipt or product-match failures.
       const outcome = c.get("verifyOutcome");
       if (outcome && outcome.isValid === false) {
         markPayloadFailure(store, bucketKey, capacity, clock(), maxStoreSize);
