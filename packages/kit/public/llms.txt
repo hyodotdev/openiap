@@ -20,6 +20,7 @@ Auth: `Authorization: Bearer openiap-kit_<project-key>`
 - [GET /v1/openapi](https://kit.openiap.dev/v1/openapi) — machine-readable OpenAPI spec
 - [GET /v1](https://kit.openiap.dev/v1) — Redoc UI for the OpenAPI spec
 - [GET /health](https://kit.openiap.dev/health) — liveness probe (no Convex round-trip)
+- [POST /mcp](https://kit.openiap.dev/docs/ai-assistants/chatgpt-plugin) — MCP Streamable HTTP endpoint for ChatGPT and other MCP clients. Uses an IAPKit project API key, not an OpenAI API key.
 
 Also mounted at `/api/v1/*` for backwards compatibility. `/v1/verify-purchase`
 is an alias of `/v1/purchase/verify`. Pick `/v1/purchase/verify` for new code.
@@ -69,4 +70,5 @@ Harmonized `state` values (truthy `isValid`): `ENTITLED`,
 - [/docs/operations](https://kit.openiap.dev/docs/operations) — rate limits, logs, `/health`, graceful shutdown
 - [openiap.dev/docs/webhooks](https://openiap.dev/docs/webhooks) — operator setup steps for the lifecycle webhook URL (Apple ASN v2 + Google RTDN) and SDK code for consuming the SSE stream
 - [/docs/ai-assistants](https://kit.openiap.dev/docs/ai-assistants) — how to point Claude / Cursor / etc. at this file
+- [/docs/ai-assistants/chatgpt-plugin](https://kit.openiap.dev/docs/ai-assistants/chatgpt-plugin) — ChatGPT MCP connector setup and self-hosted IAPKit MCP server option
 - [/docs/release-notes](https://kit.openiap.dev/docs/release-notes) — changelog

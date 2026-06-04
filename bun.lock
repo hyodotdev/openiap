@@ -84,6 +84,7 @@
         "@convex-dev/auth": "^0.0.92",
         "@convex-dev/migrations": "^0.3.4",
         "@hono/standard-validator": "^0.2.2",
+        "@hyodotdev/openiap-mcp-server": "workspace:*",
         "@icons-pack/react-simple-icons": "^13.7.0",
         "@preact/signals-react": "^3.2.1",
         "@sentry/bun": "^10.26.0",
@@ -149,6 +150,8 @@
       "name": "@hyodotdev/openiap-mcp-server",
       "version": "0.1.0",
       "bin": {
+        "iapkit-mcp": "./dist/index.js",
+        "iapkit-mcp-http": "./dist/http.js",
         "openiap-mcp": "./dist/index.js",
       },
       "dependencies": {

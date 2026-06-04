@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 import { Callout } from "../components/Callout";
 import { CodeBlock } from "../components/CodeBlock";
 import { DocsPage } from "../components/DocsPage";
@@ -82,6 +84,20 @@ export default function AiAssistantsPage() {
           in accurate context without repo access.
         </p>
       </Callout>
+
+      <h2 className="mt-10 text-2xl font-semibold">ChatGPT plugin</h2>
+      <p>
+        ChatGPT can use IAPKit as an MCP connector through{" "}
+        <code>https://kit.openiap.dev/mcp</code>. The connector uses your IAPKit
+        project API key, not an OpenAI API key. See the{" "}
+        <Link
+          to="/docs/ai-assistants/chatgpt-plugin"
+          className="text-primary underline"
+        >
+          ChatGPT plugin guide
+        </Link>{" "}
+        for the exact setup flow, self-hosted option, and tool list.
+      </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Using the files</h2>
 

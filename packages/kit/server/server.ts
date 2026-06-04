@@ -6,6 +6,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 
 import { apiRoutes } from "./api/v1/routes";
+import { handleIapKitMcpRequest } from "./mcp";
 import { shouldReturnNotFoundForMissingStaticPath } from "./staticPaths";
 import { parsePort } from "./utils/env";
 
@@ -22,6 +23,10 @@ app.get("/health", (c) => c.json({ ok: true }));
 // existing api.iapkit.com clients.
 app.route("/api/v1", apiRoutes);
 app.route("/v1", apiRoutes);
+
+// ChatGPT / MCP connector endpoint for IAPKit. This must sit before
+// static serving so `/mcp` never falls through to the React Router SPA.
+app.all("/mcp", (c) => handleIapKitMcpRequest(c.req.raw));
 
 const STATIC_ROOT = process.env.STATIC_ROOT ?? "./dist";
 
