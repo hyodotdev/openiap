@@ -13,8 +13,7 @@ Single-package repo deployed as one Fly.io machine:
 - `src/` — React 19 SPA (dashboard, auth, usage, projects, API keys, docs)
 - `server/` — Hono + Bun server for `/api/v1/*` + `/v1/*` + SPA fallback
 - `packages/mcp-server/` — MCP server used by `/mcp`, the Codex plugin,
-  Claude/Cursor/ChatGPT-compatible MCP clients, and self-hosted IAPKit
-  assistant workflows
+  MCP-compatible assistant clients, and self-hosted IAPKit assistant workflows
 - `convex/` — Convex functions (auth, orgs, projects, receipts)
 - `public/` — static assets (served by Vite in dev, Hono in prod)
 

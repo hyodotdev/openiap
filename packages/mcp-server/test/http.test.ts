@@ -81,6 +81,17 @@ describe("remote MCP HTTP server", () => {
     const toolNames = listEvent.result.tools.map(
       (tool: { name: string }) => tool.name,
     );
+    const toolsByName = new Map(
+      listEvent.result.tools.map(
+        (tool: {
+          name: string;
+          annotations?: {
+            readOnlyHint?: boolean;
+            destructiveHint?: boolean;
+          };
+        }) => [tool.name, tool],
+      ),
+    );
 
     expect(toolNames).toContain("iapkit_inspect_state");
     expect(toolNames).toContain("iapkit_create_product");
@@ -88,6 +99,18 @@ describe("remote MCP HTTP server", () => {
     expect(toolNames).toContain("iapkit_sync_products");
     expect(toolNames).toContain("iapkit_sync_status");
     expect(toolNames).not.toContain("openiap_inspect_state");
+    expect(
+      toolsByName.get("iapkit_revenue_analytics")?.annotations,
+    ).toMatchObject({
+      readOnlyHint: true,
+      destructiveHint: false,
+    });
+    expect(toolsByName.get("iapkit_create_product")?.annotations).toMatchObject(
+      {
+        readOnlyHint: false,
+        destructiveHint: true,
+      },
+    );
   });
 
   it("summarizes revenue analytics through the bearer-authenticated Kit API", async () => {

@@ -43,7 +43,7 @@ const READ_ONLY_TOOL: ToolAnnotations = {
 };
 const WRITE_TOOL: ToolAnnotations = {
   readOnlyHint: false,
-  destructiveHint: false,
+  destructiveHint: true,
   idempotentHint: false,
   openWorldHint: true,
 };
