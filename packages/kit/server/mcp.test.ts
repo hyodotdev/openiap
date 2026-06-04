@@ -38,6 +38,24 @@ describe("IAPKit MCP route handler", () => {
     expect(toolNames).toContain("iapkit_manage_product");
     expect(toolNames).not.toContain("openiap_inspect_state");
   });
+
+  it("returns 400 for invalid MCP JSON", async () => {
+    const response = await rawPostMcp("{");
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: -32700, message: "Parse error: Invalid JSON" },
+    });
+  });
+
+  it("returns 413 for oversized MCP JSON bodies", async () => {
+    const response = await rawPostMcp("x".repeat(1024 * 1024 + 1));
+
+    expect(response.status).toBe(413);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: -32000, message: "Payload Too Large" },
+    });
+  });
 });
 
 function postMcp(body: unknown, sessionId?: string): Promise<Response> {
@@ -50,6 +68,19 @@ function postMcp(body: unknown, sessionId?: string): Promise<Response> {
         ...(sessionId ? { "mcp-session-id": sessionId } : {}),
       },
       body: JSON.stringify(body),
+    }),
+  );
+}
+
+function rawPostMcp(body: string): Promise<Response> {
+  return handleIapKitMcpRequest(
+    new Request("http://localhost/mcp", {
+      method: "POST",
+      headers: {
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+      },
+      body,
     }),
   );
 }

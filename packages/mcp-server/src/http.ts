@@ -21,6 +21,7 @@ import {
 const DEFAULT_MCP_PATH = "/mcp";
 const DEFAULT_PORT = 3939;
 const MAX_MCP_BODY_BYTES = 1024 * 1024;
+const MCP_BODY_TOO_LARGE_ERROR = "MCP request body is too large";
 const DEFAULT_ALLOWED_ORIGINS = [
   "https://chatgpt.com",
   "https://chat.openai.com",
@@ -121,6 +122,18 @@ export function createRemoteMcpHttpServer(
 
       writeJsonRpcError(res, 405, -32000, "Method not allowed");
     } catch (error) {
+      if (error instanceof SyntaxError) {
+        if (!res.headersSent) {
+          writeJsonRpcError(res, 400, -32700, "Parse error: Invalid JSON");
+        }
+        return;
+      }
+      if (isMcpBodyTooLargeError(error)) {
+        if (!res.headersSent) {
+          writeJsonRpcError(res, 413, -32000, "Payload Too Large");
+        }
+        return;
+      }
       logger.error("IAPKit MCP HTTP error:", error);
       if (!res.headersSent) {
         writeJsonRpcError(res, 500, -32603, "Internal server error");
@@ -257,7 +270,7 @@ async function readJsonBody(req: IncomingMessage): Promise<unknown> {
     const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
     byteLength += buffer.byteLength;
     if (byteLength > MAX_MCP_BODY_BYTES) {
-      throw new Error("MCP request body is too large");
+      throw new Error(MCP_BODY_TOO_LARGE_ERROR);
     }
     chunks.push(buffer);
   }
@@ -265,6 +278,10 @@ async function readJsonBody(req: IncomingMessage): Promise<unknown> {
   const raw = Buffer.concat(chunks).toString("utf8");
   if (!raw.trim()) return undefined;
   return JSON.parse(raw);
+}
+
+function isMcpBodyTooLargeError(error: unknown): boolean {
+  return error instanceof Error && error.message === MCP_BODY_TOO_LARGE_ERROR;
 }
 
 function setCorsHeaders(

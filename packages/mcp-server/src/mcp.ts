@@ -87,15 +87,23 @@ function validateApiKey(apiKey: string): string | null {
   return null;
 }
 
+function resolveApiKey(
+  opts: { apiKey?: string; baseUrl?: string },
+  extra?: ToolExtra,
+): string | undefined {
+  return (
+    opts.apiKey ??
+    extra?.authInfo?.token ??
+    process.env.IAPKIT_API_KEY ??
+    process.env.OPENIAP_API_KEY
+  );
+}
+
 function withClient(
   opts: { apiKey?: string; baseUrl?: string },
   extra?: ToolExtra,
 ) {
-  const apiKey =
-    opts.apiKey ??
-    extra?.authInfo?.token ??
-    process.env.IAPKIT_API_KEY ??
-    process.env.OPENIAP_API_KEY;
+  const apiKey = resolveApiKey(opts, extra);
   if (!apiKey) {
     throw new Error(
       "No IAPKit API key was provided. Set Authorization: Bearer <IAPKit project key>, IAPKIT_API_KEY, OPENIAP_API_KEY, or the tool's apiKey argument.",
@@ -125,17 +133,18 @@ function ok(payload: unknown) {
   };
 }
 
-function err(error: unknown) {
+function err(error: unknown, apiKey?: string) {
   const detail =
     error instanceof KitHttpError
       ? {
           status: error.status,
-          body: redactSecrets(error.body),
-          message: redactSecrets(error.message),
+          body: redactSecrets(error.body, apiKey),
+          message: redactSecrets(error.message, apiKey),
         }
       : {
           message: redactSecrets(
             error instanceof Error ? error.message : String(error),
+            apiKey,
           ),
         };
   return {
@@ -149,26 +158,30 @@ function err(error: unknown) {
   };
 }
 
-function redactSecrets(value: unknown): unknown {
+function redactSecrets(value: unknown, apiKey?: string): unknown {
   if (typeof value === "string") {
-    return redactSecretString(value);
+    return redactSecretString(value, apiKey);
   }
   if (Array.isArray(value)) {
-    return value.map((item) => redactSecrets(item));
+    return value.map((item) => redactSecrets(item, apiKey));
   }
   if (value && typeof value === "object") {
     return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [key, redactSecrets(item)]),
+      Object.entries(value).map(([key, item]) => [
+        key,
+        redactSecrets(item, apiKey),
+      ]),
     );
   }
   return value;
 }
 
-function redactSecretString(value: string): string {
+function redactSecretString(value: string, apiKey?: string): string {
   const knownSecrets = [
+    apiKey,
     process.env.IAPKIT_API_KEY,
     process.env.OPENIAP_API_KEY,
-  ].filter((secret): secret is string => Boolean(secret));
+  ].filter((secret): secret is string => Boolean(secret?.trim()));
   let redacted = value;
   for (const secret of knownSecrets) {
     redacted = redacted.split(secret).join(API_KEY_PLACEHOLDER);
@@ -290,7 +303,7 @@ function registerIapKitTools(
       try {
         return ok(await withClient(args, extra).status(args.userId));
       } catch (error) {
-        return err(error);
+        return err(error, resolveApiKey(args, extra));
       }
     },
   );
@@ -335,7 +348,7 @@ function registerIapKitTools(
           : null;
         return ok({ health, metrics, userProbe });
       } catch (error) {
-        return err(error);
+        return err(error, resolveApiKey(args, extra));
       }
     },
   );
@@ -381,6 +394,7 @@ function registerIapKitTools(
             new Error(
               "subscriptionGroupName is required for iOS Subscription products",
             ),
+            resolveApiKey(args, extra),
           );
         }
         return ok(
@@ -398,7 +412,7 @@ function registerIapKitTools(
           }),
         );
       } catch (error) {
-        return err(error);
+        return err(error, resolveApiKey(args, extra));
       }
     },
   );
@@ -425,7 +439,7 @@ function registerIapKitTools(
           }),
         );
       } catch (error) {
-        return err(error);
+        return err(error, resolveApiKey(args, extra));
       }
     },
   );
@@ -469,7 +483,7 @@ function registerIapKitTools(
           }),
         );
       } catch (error) {
-        return err(error);
+        return err(error, resolveApiKey(args, extra));
       }
     },
   );
@@ -512,7 +526,7 @@ function registerIapKitTools(
         process.env.OPENIAP_API_KEY;
       if (!apiKey) return err(new Error("apiKey required"));
       const validationError = validateApiKey(apiKey);
-      if (validationError) return err(new Error(validationError));
+      if (validationError) return err(new Error(validationError), apiKey);
       let baseUrl: string;
       try {
         baseUrl = normalizeKitBaseUrl(
@@ -521,7 +535,7 @@ function registerIapKitTools(
             process.env.OPENIAP_BASE_URL,
         );
       } catch (error) {
-        return err(error);
+        return err(error, apiKey);
       }
       if (args.platform === "Android") {
         const message = {
@@ -556,11 +570,12 @@ function registerIapKitTools(
                 responseBody,
                 `kit /v1/webhooks/${API_KEY_PLACEHOLDER} returned ${response.status}`,
               ),
+              apiKey,
             );
           }
           return ok({ status: response.status, body: responseBody });
         } catch (error) {
-          return err(error);
+          return err(error, apiKey);
         }
       }
       return ok({
@@ -603,7 +618,7 @@ function registerIapKitTools(
           note: "Use webhookUrls.lifecycle for both Apple ASN v2 and Google Pub/Sub RTDN. Legacy aliases remain supported for existing store-console wiring. URLs use an IAPKIT_API_KEY placeholder so tool output does not leak project credentials.",
         });
       } catch (error) {
-        return err(error);
+        return err(error, resolveApiKey(args, extra));
       }
     },
   );
@@ -646,7 +661,7 @@ function registerIapKitTools(
         });
         return ok({ ...next, action: args.action });
       } catch (error) {
-        return err(error);
+        return err(error, resolveApiKey(args, extra));
       }
     },
   );
