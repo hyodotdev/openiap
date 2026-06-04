@@ -124,11 +124,11 @@ export default function ApiReferencePage() {
 
       <p>
         Your app can unlock local premium state, or your backend can grant its
-        own entitlement, when <code>isValid === true</code>.{" "}
-        <code>state</code> carries the harmonized lifecycle position across all
-        supported stores, and <code>productId</code> is the product id verified
-        by the upstream store. For Meta Horizon, <code>productId</code> is the
-        SKU IAPKit checked.
+        own entitlement, when <code>isValid === true</code>. <code>state</code>{" "}
+        carries the harmonized lifecycle position across all supported stores,
+        and <code>productId</code> is the product id verified by the upstream
+        store. For Meta Horizon, <code>productId</code> is the SKU IAPKit
+        checked.
       </p>
       <p>
         If your own backend keeps an entitlement ledger, do not trust a
