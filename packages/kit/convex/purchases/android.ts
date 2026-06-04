@@ -80,7 +80,7 @@ export const verifyGooglePlayReceiptInternalV1 = action({
 
     const keyData = parseAndValidateServiceAccountKey(fileContent.content);
 
-    let requestData: {
+    const requestData: {
       store: "google";
       purchaseToken: string;
       expectedProductId?: string;
@@ -108,14 +108,6 @@ export const verifyGooglePlayReceiptInternalV1 = action({
           packageName,
           purchaseToken: args.purchaseToken,
         });
-
-      requestData = {
-        store: "google" as const,
-        purchaseToken: args.purchaseToken,
-        ...(args.expectedProductId !== undefined
-          ? { expectedProductId: args.expectedProductId }
-          : {}),
-      };
 
       // Persist the store-verified purchase state; `expectedProductId`
       // mismatch is caller-scoped and should not corrupt purchase logs.
