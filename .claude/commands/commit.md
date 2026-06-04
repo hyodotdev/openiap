@@ -193,12 +193,11 @@ handoff:
    Extension for web/docs/dashboard previews.
 2. Compress the final recording to **under 10 MB**. Prefer H.264 MP4 with lower
    resolution / frame rate when needed.
-3. Upload the compressed recording to the GitHub PR as a clearly labeled
-   `Preview` comment, or commit it as a docs/example asset only when the video
-   itself is product documentation. If PR attachment upload is blocked by local
-   browser or extension permissions, commit a compressed asset under
-   `.github/pr-previews/` and link the GitHub-hosted raw/blob URL from the
-   preview comment.
+3. Upload the compressed recording to the GitHub PR as a PR body attachment or a
+   clearly labeled attached `Preview` comment.
+   Do not commit one-off PR preview recordings. Only commit preview media when
+   the media itself is product documentation or an example asset that should
+   ship with the repository.
 4. Link/embed the GitHub-hosted recording in the PR body or preview comment.
 
 If there is no visual or interactive surface, add a short PR note explaining why
