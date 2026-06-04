@@ -79,7 +79,10 @@ export default function ProjectsPage() {
       <h2 className="mt-10 text-2xl font-semibold">API keys</h2>
       <p>
         When a project is created, IAPKit issues a default production key named{" "}
-        <em>Default Production Key</em>. You can issue additional keys on the{" "}
+        <em>Default Production Key</em>. It is a real active key for that
+        project, not a placeholder. The full value is shown only when the
+        project is created or when a key is regenerated; after that the
+        dashboard shows only a preview. You can issue additional keys on the{" "}
         <strong>API Keys</strong> tab for rotation, separate app builds, CI, or
         staging callers.
       </p>
@@ -112,6 +115,10 @@ export default function ProjectsPage() {
         <li>
           Hashed before logging — the server only retains the SHA-256 prefix in
           structured logs, never the plaintext.
+        </li>
+        <li>
+          Regenerable if the one-time full value was missed or leaked. The old
+          key stops working immediately after regeneration.
         </li>
         <li>
           Scoped to a single project — one key can't verify another project's

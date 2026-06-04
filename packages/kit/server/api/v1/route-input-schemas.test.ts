@@ -15,7 +15,11 @@ const VALID_GOOGLE_TOKEN = "a".repeat(40);
 
 describe("verifyPurchaseInputSchema", () => {
   test("accepts a well-formed Apple payload", () => {
-    const result = parse({ store: "apple", jws: VALID_APPLE_JWS });
+    const result = parse({
+      store: "apple",
+      jws: VALID_APPLE_JWS,
+      expectedProductId: "premium.monthly",
+    });
     expect(result.success).toBe(true);
   });
 
@@ -23,6 +27,7 @@ describe("verifyPurchaseInputSchema", () => {
     const result = parse({
       store: "google",
       purchaseToken: VALID_GOOGLE_TOKEN,
+      expectedProductId: "premium.monthly",
     });
     expect(result.success).toBe(true);
   });
@@ -134,6 +139,30 @@ describe("verifyPurchaseInputSchema", () => {
     expect(
       parse({ store: "google", purchaseToken: "<script>alert(1)</script>" })
         .success,
+    ).toBe(false);
+  });
+
+  test("rejects malformed expectedProductId values", () => {
+    expect(
+      parse({
+        store: "google",
+        purchaseToken: VALID_GOOGLE_TOKEN,
+        expectedProductId: "",
+      }).success,
+    ).toBe(false);
+    expect(
+      parse({
+        store: "google",
+        purchaseToken: VALID_GOOGLE_TOKEN,
+        expectedProductId: "bad product",
+      }).success,
+    ).toBe(false);
+    expect(
+      parse({
+        store: "apple",
+        jws: VALID_APPLE_JWS,
+        expectedProductId: "p".repeat(257),
+      }).success,
     ).toBe(false);
   });
 

@@ -13,6 +13,10 @@ import {
   XCircle,
 } from "lucide-react";
 import { ButtonPrimary } from "@/components/ButtonPrimary";
+import {
+  GeneratedApiKey,
+  GeneratedApiKeyNotice,
+} from "@/components/GeneratedApiKeyNotice";
 import { PageLoading } from "@/components/LoadingSpinner";
 import { MixpanelEvent, trackEvent } from "@/lib/mixpanel";
 
@@ -26,6 +30,9 @@ export default function ApiKeys() {
   const [keyName, setKeyName] = useState("");
   const [keyDescription, setKeyDescription] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const [revealedApiKey, setRevealedApiKey] = useState<GeneratedApiKey | null>(
+    null,
+  );
 
   // Get current project
   const currentOrg = useQuery(
@@ -63,10 +70,8 @@ export default function ApiKeys() {
       });
       trackEvent(MixpanelEvent.ApiKeyCreated);
 
-      // Copy the new key to clipboard
-      void navigator.clipboard.writeText(result.key);
-
-      toast.success("API key created and copied to clipboard");
+      setRevealedApiKey({ name: result.name, key: result.key });
+      toast.success("API key created. Copy it below before leaving this page.");
 
       // Reset form
       setKeyName("");
@@ -107,8 +112,10 @@ export default function ApiKeys() {
 
     try {
       const result = await regenerateApiKey({ keyId });
-      void navigator.clipboard.writeText(result.key);
-      toast.success("API key regenerated and copied to clipboard");
+      setRevealedApiKey({ name: result.name, key: result.key });
+      toast.success(
+        "API key regenerated. Copy it below before leaving this page.",
+      );
     } catch {
       toast.error("Failed to regenerate API key");
     }
@@ -137,6 +144,13 @@ export default function ApiKeys() {
           <Plus className="w-5 h-5" />
         </ButtonPrimary>
       </div>
+
+      {revealedApiKey && (
+        <GeneratedApiKeyNotice
+          apiKey={revealedApiKey}
+          onDismiss={() => setRevealedApiKey(null)}
+        />
+      )}
 
       {/* Create Form */}
       {showCreateForm && (

@@ -45,6 +45,12 @@ export default function ApiReferencePage() {
         Missing header → <code>401 MISSING_API_KEY</code>. Wrong scheme or
         malformed key → <code>403 INVALID_API_KEY</code>.
       </p>
+      <p>
+        In the default mobile-direct flow, your app sends this key to IAPKit as
+        the managed validation service. If you proxy calls through your own
+        backend instead, keep the key server-side and call the same endpoint
+        from there.
+      </p>
 
       <h2 className="mt-10 text-2xl font-semibold">
         POST <span className="font-mono">/v1/purchase/verify</span>
@@ -62,7 +68,8 @@ export default function ApiReferencePage() {
       <CodeBlock language="javascript">
         {`{
   "store": "apple",
-  "jws": "eyJhbGciOi..."       // JWS token from StoreKit 2 (≤ 16 KB)
+  "jws": "eyJhbGciOi...",      // JWS token from StoreKit 2 (≤ 16 KB)
+  "expectedProductId": "premium_monthly" // optional match guard
 }`}
       </CodeBlock>
 
@@ -70,7 +77,8 @@ export default function ApiReferencePage() {
       <CodeBlock language="javascript">
         {`{
   "store": "google",
-  "purchaseToken": "ljhjpg..."  // Play purchase token (≤ 2 KB)
+  "purchaseToken": "ljhjpg...", // Play purchase token (≤ 2 KB)
+  "expectedProductId": "premium_monthly" // optional match guard
 }`}
       </CodeBlock>
 
@@ -98,15 +106,24 @@ export default function ApiReferencePage() {
       <CodeBlock title="200 OK" language="json">
         {`{
   "isValid": true,
-  "state": "ENTITLED"
+  "state": "ENTITLED",
+  "productId": "premium_monthly"
 }`}
       </CodeBlock>
 
       <p>
-        Your app can unlock local premium state, or your backend can grant its
-        own entitlement, when <code>isValid === true</code>. The{" "}
-        <code>state</code> field carries the harmonized lifecycle position
-        across all three stores:
+        Your app can unlock premium state when <code>isValid === true</code>.{" "}
+        <code>state</code> carries the harmonized lifecycle position across all
+        three stores, and <code>productId</code> is the product id verified by
+        the upstream store. For Meta Horizon, <code>productId</code> is the SKU
+        IAPKit checked.
+      </p>
+      <p>
+        If your own backend keeps an entitlement ledger, do not trust a
+        client-provided product id. Send <code>expectedProductId</code> with the
+        Apple or Google request. IAPKit compares it against the store-verified{" "}
+        <code>productId</code> and returns <code>isValid: false</code> with{" "}
+        <code>state: "INAUTHENTIC"</code> on mismatch.
       </p>
 
       <div className="my-4 overflow-hidden rounded-lg border border-border">
@@ -217,7 +234,7 @@ export default function ApiReferencePage() {
             <tr>
               <td className="px-3 py-2 font-mono text-xs">200</td>
               <td className="px-3 py-2">
-                <code>{`{ isValid, state }`}</code>
+                <code>{`{ isValid, state, productId? }`}</code>
               </td>
               <td className="px-3 py-2">Verification completed.</td>
             </tr>

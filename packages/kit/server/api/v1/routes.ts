@@ -213,11 +213,16 @@ const verifyPurchaseRouteDescription = describeRoute({
   description:
     "Verify an in-app purchase.\n\n" +
     "Supported request shapes (discriminated on `store`):\n" +
-    '  • Apple  — `{ store: "apple",   jws }`\n' +
-    '  • Google — `{ store: "google",  purchaseToken }`\n' +
+    '  • Apple  — `{ store: "apple",   jws, expectedProductId? }`\n' +
+    '  • Google — `{ store: "google",  purchaseToken, expectedProductId? }`\n' +
     '  • Horizon — `{ store: "horizon", userId, sku }` (Meta Quest;' +
     " IAPKit holds the App ID + App Secret and composes" +
     " `OC|APP_ID|APP_SECRET` server-side)\n\n" +
+    "`expectedProductId` is optional for Apple / Google. When present, " +
+    "IAPKit compares it against the product id verified by the upstream " +
+    'store and returns `isValid: false`, `state: "INAUTHENTIC"` on ' +
+    "mismatch. Successful responses include `productId` when the store " +
+    "response exposes one; for Horizon this is the checked `sku`.\n\n" +
     "Rate limit: per API key, 600 req/min sustained with a 600-request " +
     "burst — sized to let legitimate global apps verify at app-launch " +
     "scale without tripping. In addition, per-(API key, payload) " +
@@ -230,7 +235,8 @@ const verifyPurchaseRouteDescription = describeRoute({
     "before the rate-limit middleware and do not include those " +
     "headers.\n\n" +
     "Input size caps: request body ≤ 32 KB, `jws` ≤ 16 KB, " +
-    "`purchaseToken` ≤ 2 KB, `userId` ≤ 256 chars, `sku` ≤ 256 chars. " +
+    "`purchaseToken` ≤ 2 KB, `expectedProductId` ≤ 256 chars, " +
+    "`userId` ≤ 256 chars, `sku` ≤ 256 chars. " +
     "Oversized fields return `400 INVALID_INPUT`; oversized request " +
     "bodies return `413 PAYLOAD_TOO_LARGE`. Neither hits the upstream store.",
   security: [{ apiKey: [] }],
@@ -326,8 +332,8 @@ const verifyPurchaseRouteDescription = describeRoute({
 });
 
 type VerifyPurchaseJson =
-  | { store: "apple"; jws: string }
-  | { store: "google"; purchaseToken: string }
+  | { store: "apple"; jws: string; expectedProductId?: string }
+  | { store: "google"; purchaseToken: string; expectedProductId?: string }
   | { store: "horizon"; userId: string; sku: string };
 
 // Tell Hono's Context what `c.req.valid("json")` returns for this
@@ -359,12 +365,13 @@ const verifyPurchaseHandler = async (
           {
             apiKey,
             jws: json.jws,
+            expectedProductId: json.expectedProductId,
             requestIp,
           },
         );
 
         setOutcome({ isValid: apple.isValid, state: apple.state });
-        return c.json({ isValid: apple.isValid, state: apple.state });
+        return c.json(apple);
       }
       case "google": {
         const google = await client.action(
@@ -372,12 +379,13 @@ const verifyPurchaseHandler = async (
           {
             apiKey,
             purchaseToken: json.purchaseToken,
+            expectedProductId: json.expectedProductId,
             requestIp,
           },
         );
 
         setOutcome({ isValid: google.isValid, state: google.state });
-        return c.json({ isValid: google.isValid, state: google.state });
+        return c.json(google);
       }
       case "horizon": {
         // Meta Horizon (Quest): the client doesn't hold a
@@ -396,7 +404,7 @@ const verifyPurchaseHandler = async (
         );
 
         setOutcome({ isValid: horizon.isValid, state: horizon.state });
-        return c.json({ isValid: horizon.isValid, state: horizon.state });
+        return c.json(horizon);
       }
     }
   } catch (error) {

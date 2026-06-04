@@ -90,6 +90,7 @@ describe("Google Play v2 mappings", () => {
       expect(response).toEqual({
         isValid: true,
         state: HarmonizedPurchaseState.ENTITLED,
+        productId: productPurchaseV2Response.productLineItem[0].productId,
       });
     });
   });
@@ -126,6 +127,7 @@ describe("Google Play v2 mappings", () => {
     expect(response).toEqual({
       isValid: true,
       state: HarmonizedPurchaseState.ENTITLED,
+      productId: "untold_premium",
     });
   });
 
@@ -166,6 +168,7 @@ describe("Google Play v2 mappings", () => {
     expect(response).toEqual({
       isValid: false,
       state: HarmonizedPurchaseState.CONSUMED,
+      productId: "dev.hyo.martie.10bulbs",
     });
   });
 
@@ -202,6 +205,7 @@ describe("Google Play v2 mappings", () => {
     expect(response).toEqual({
       isValid: false,
       state: HarmonizedPurchaseState.EXPIRED,
+      productId: "dev.hyo.martie.premium",
     });
   });
 
@@ -242,6 +246,7 @@ describe("Google Play v2 mappings", () => {
     expect(response).toEqual({
       isValid: true,
       state: HarmonizedPurchaseState.PENDING_ACKNOWLEDGMENT,
+      productId: "dev.hyo.martie.10bulbs",
     });
   });
 
@@ -274,6 +279,7 @@ describe("Google Play v2 mappings", () => {
     expect(response).toEqual({
       isValid: false,
       state: HarmonizedPurchaseState.PENDING,
+      productId: "test.product",
     });
   });
 
@@ -311,6 +317,7 @@ describe("Google Play v2 mappings", () => {
     expect(response).toEqual({
       isValid: false,
       state: HarmonizedPurchaseState.CANCELED,
+      productId: "untold_full",
     });
   });
 
@@ -343,6 +350,7 @@ describe("Google Play v2 mappings", () => {
     expect(response).toEqual({
       isValid: false,
       state: HarmonizedPurchaseState.UNKNOWN,
+      productId: "test.product",
     });
   });
 });
