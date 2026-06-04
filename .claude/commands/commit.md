@@ -197,7 +197,10 @@ handoff:
    clearly labeled attached `Preview` comment.
    Do not commit one-off PR preview recordings. Only commit preview media when
    the media itself is product documentation or an example asset that should
-   ship with the repository.
+   ship with the repository. If PR attachment upload is blocked by local browser
+   or extension permissions, commit a compressed asset under
+   `.github/pr-previews/` and link the GitHub-hosted raw/blob URL from the
+   preview comment.
 4. Link/embed the GitHub-hosted recording in the PR body or preview comment.
 
 If there is no visual or interactive surface, add a short PR note explaining why
