@@ -218,6 +218,16 @@ function registerTool(
   );
 }
 
+/**
+ * Creates the IAPKit MCP server and registers the `iapkit_*` tool surface.
+ *
+ * The returned server is configured with the package name/version metadata and
+ * `https://kit.openiap.dev` as its website URL. Tool registration is performed
+ * before returning so callers can connect the server directly to stdio, HTTP,
+ * or web-standard MCP transports.
+ *
+ * @returns An `McpServer` instance with all IAPKit tools registered.
+ */
 export function createIapKitMcpServer(): McpServer {
   const server = new McpServer({
     name: IAPKIT_MCP_SERVER_NAME,
@@ -493,22 +503,22 @@ function registerIapKitTools(server: McpServer) {
     },
     WRITE_TOOL,
     async (args, extra) => {
-      const apiKey =
-        args.apiKey ??
-        extra?.authInfo?.token ??
-        process.env.IAPKIT_API_KEY;
-      if (!apiKey) return err(new Error("apiKey required"));
-      const validationError = validateApiKey(apiKey);
-      if (validationError) return err(new Error(validationError), apiKey);
-      let baseUrl: string;
-      try {
-        baseUrl = normalizeKitBaseUrl(
-          args.baseUrl ?? process.env.IAPKIT_BASE_URL,
-        );
-      } catch (error) {
-        return err(error, apiKey);
-      }
       if (args.platform === "Android") {
+        const apiKey =
+          args.apiKey ??
+          extra?.authInfo?.token ??
+          process.env.IAPKIT_API_KEY;
+        if (!apiKey) return err(new Error("apiKey required"));
+        const validationError = validateApiKey(apiKey);
+        if (validationError) return err(new Error(validationError), apiKey);
+        let baseUrl: string;
+        try {
+          baseUrl = normalizeKitBaseUrl(
+            args.baseUrl ?? process.env.IAPKIT_BASE_URL,
+          );
+        } catch (error) {
+          return err(error, apiKey);
+        }
         const message = {
           version: "1.0",
           packageName: "com.example.app",

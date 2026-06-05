@@ -356,6 +356,20 @@ describe("remote MCP HTTP server", () => {
     expect(payload).toMatchObject({ status: 200 });
   });
 
+  it("returns iOS webhook simulation guidance without credentials", async () => {
+    const { baseUrl, sessionId } = await initializeMcpSession();
+
+    const payload = await callTool<{ info: string }>(
+      baseUrl,
+      sessionId,
+      "iapkit_simulate_webhook",
+      { platform: "IOS" },
+    );
+
+    expect(payload.info).toContain("Apple ASN v2 simulation");
+    expect(payload.info).toContain("/v1/webhooks/{apiKey}");
+  });
+
   it("returns client errors for invalid JSON and oversized payloads", async () => {
     const baseUrl = await startServer();
 
@@ -462,9 +476,10 @@ async function startKitApi(
 }
 
 async function initializeMcpSession(
-  apiKey: string,
+  apiKey?: string,
 ): Promise<{ baseUrl: string; sessionId: string }> {
   const baseUrl = await startServer();
+  const headers = apiKey ? { authorization: `Bearer ${apiKey}` } : {};
   const initResponse = await postMcp(
     baseUrl,
     {
@@ -478,7 +493,7 @@ async function initializeMcpSession(
       },
     },
     undefined,
-    { authorization: `Bearer ${apiKey}` },
+    headers,
   );
   const sessionId = initResponse.headers.get("mcp-session-id");
   expect(sessionId).toBeTruthy();
