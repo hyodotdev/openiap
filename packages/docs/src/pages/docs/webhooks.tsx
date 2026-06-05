@@ -223,7 +223,7 @@ import { useWebhookEvents } from 'react-native-iap';
 import EventSource from 'react-native-sse';
 
 const { events, lastError, isConnected } = useWebhookEvents({
-  apiKey: process.env.OPENIAP_API_KEY!,
+  apiKey: process.env.IAPKIT_API_KEY!,
   // baseUrl defaults to https://kit.openiap.dev
   eventSourceFactory: (url) => new EventSource(url),
   onEvent: (event) => {

@@ -3,10 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 
 import { createIapKitMcpServer } from "./mcp.js";
 
-const server = createIapKitMcpServer({
-  includeLegacyOpenIapAliases:
-    process.env.IAPKIT_MCP_LEGACY_ALIASES !== "false",
-});
+const server = createIapKitMcpServer();
 const transport = new StdioServerTransport();
 
 await server.connect(transport);

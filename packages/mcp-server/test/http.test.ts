@@ -47,6 +47,10 @@ describe("remote MCP HTTP server", () => {
         mcp: "/mcp",
         health: "/health",
       },
+      authentication: [
+        "Authorization: Bearer <IAPKit project API key>",
+        "IAPKIT_API_KEY environment variable",
+      ],
     });
   });
 

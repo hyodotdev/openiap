@@ -10,17 +10,12 @@ import { z } from "zod";
 import { kitClient, KitHttpError, normalizeKitBaseUrl } from "./kit-client.js";
 
 // MCP server for IAPKit. Every tool funnels through `withClient`
-// so Authorization bearer / IAPKIT_API_KEY / OPENIAP_API_KEY config is
-// consistent and errors surface in a uniform `{ ok: false, error }` shape
-// that LLMs handle predictably.
+// so Authorization bearer / IAPKIT_API_KEY config is consistent and errors
+// surface in a uniform `{ ok: false, error }` shape that LLMs handle predictably.
 
 export const IAPKIT_MCP_SERVER_NAME = "iapkit-mcp";
 export const IAPKIT_MCP_SERVER_VERSION = "0.1.0";
-
-export interface IapKitMcpServerOptions {
-  toolNamePrefix?: "iapkit" | "openiap";
-  includeLegacyOpenIapAliases?: boolean;
-}
+const IAPKIT_TOOL_PREFIX = "iapkit";
 
 type ToolExtra = RequestHandlerExtra<ServerRequest, ServerNotification>;
 
@@ -29,7 +24,7 @@ const OPTIONAL_BASE_URL = z
   .url()
   .optional()
   .describe(
-    "Override IAPKit base URL. Defaults to IAPKIT_BASE_URL, then OPENIAP_BASE_URL, then https://kit.openiap.dev.",
+    "Override IAPKit base URL. Defaults to IAPKIT_BASE_URL, then https://kit.openiap.dev.",
   );
 
 const API_KEY_PLACEHOLDER = "<IAPKIT_API_KEY>";
@@ -78,7 +73,7 @@ const API_KEY_PARAM = z
   });
 
 const OPTIONAL_API_KEY = API_KEY_PARAM.optional().describe(
-  "IAPKit project API key. Defaults to the MCP Authorization bearer token, then IAPKIT_API_KEY, then OPENIAP_API_KEY.",
+  "IAPKit project API key. Defaults to the MCP Authorization bearer token, then IAPKIT_API_KEY.",
 );
 
 function validateApiKey(apiKey: string): string | null {
@@ -97,8 +92,7 @@ function resolveApiKey(
   return (
     opts.apiKey ??
     extra?.authInfo?.token ??
-    process.env.IAPKIT_API_KEY ??
-    process.env.OPENIAP_API_KEY
+    process.env.IAPKIT_API_KEY
   );
 }
 
@@ -109,7 +103,7 @@ function withClient(
   const apiKey = resolveApiKey(opts, extra);
   if (!apiKey) {
     throw new Error(
-      "No IAPKit API key was provided. Set Authorization: Bearer <IAPKit project key>, IAPKIT_API_KEY, OPENIAP_API_KEY, or the tool's apiKey argument.",
+      "No IAPKit API key was provided. Set Authorization: Bearer <IAPKit project key>, IAPKIT_API_KEY, or the tool's apiKey argument.",
     );
   }
   const validationError = validateApiKey(apiKey);
@@ -119,9 +113,7 @@ function withClient(
   return kitClient({
     apiKey,
     baseUrl:
-      opts.baseUrl ??
-      process.env.IAPKIT_BASE_URL ??
-      process.env.OPENIAP_BASE_URL,
+      opts.baseUrl ?? process.env.IAPKIT_BASE_URL,
   });
 }
 
@@ -183,7 +175,6 @@ function redactSecretString(value: string, apiKey?: string): string {
   const knownSecrets = [
     apiKey,
     process.env.IAPKIT_API_KEY,
-    process.env.OPENIAP_API_KEY,
   ].filter((secret): secret is string => Boolean(secret?.trim()));
   let redacted = value;
   for (const secret of knownSecrets) {
@@ -202,7 +193,6 @@ function redactSecretString(value: string, apiKey?: string): string {
 
 function registerTool(
   server: McpServer,
-  options: Required<IapKitMcpServerOptions>,
   localName: string,
   description: string,
   schema: Record<string, z.ZodTypeAny>,
@@ -210,52 +200,30 @@ function registerTool(
   handler: (args: any, extra: ToolExtra) => unknown,
 ) {
   server.tool(
-    `${options.toolNamePrefix}_${localName}`,
+    `${IAPKIT_TOOL_PREFIX}_${localName}`,
     description,
     schema,
     annotations,
     handler as any,
   );
-  if (
-    options.includeLegacyOpenIapAliases &&
-    options.toolNamePrefix !== "openiap"
-  ) {
-    server.tool(
-      `openiap_${localName}`,
-      description,
-      schema,
-      annotations,
-      handler as any,
-    );
-  }
 }
 
-export function createIapKitMcpServer(
-  options: IapKitMcpServerOptions = {},
-): McpServer {
-  const resolvedOptions: Required<IapKitMcpServerOptions> = {
-    toolNamePrefix: options.toolNamePrefix ?? "iapkit",
-    includeLegacyOpenIapAliases: options.includeLegacyOpenIapAliases ?? false,
-  };
+export function createIapKitMcpServer(): McpServer {
   const server = new McpServer({
     name: IAPKIT_MCP_SERVER_NAME,
     version: IAPKIT_MCP_SERVER_VERSION,
     websiteUrl: "https://kit.openiap.dev",
   });
-  registerIapKitTools(server, resolvedOptions);
+  registerIapKitTools(server);
   return server;
 }
 
-function registerIapKitTools(
-  server: McpServer,
-  options: Required<IapKitMcpServerOptions>,
-) {
+function registerIapKitTools(server: McpServer) {
   // ---------------------------------------------------------------------------
   // 1. setup — generate per-framework integration snippet.
   // ---------------------------------------------------------------------------
   registerTool(
     server,
-    options,
     "setup",
     "Print a copy/pasteable IAPKit integration snippet for a given framework. Does not modify files — emit code for the LLM / human to apply.",
     {
@@ -293,7 +261,6 @@ function registerIapKitTools(
   // ---------------------------------------------------------------------------
   registerTool(
     server,
-    options,
     "check_status",
     "Return whether a userId currently has an active subscription, plus the latest subscription record.",
     {
@@ -316,7 +283,6 @@ function registerIapKitTools(
   // ---------------------------------------------------------------------------
   registerTool(
     server,
-    options,
     "troubleshoot",
     "Run a fast diagnostic against the configured kit deployment: health probe, sample status query, sample entitlement query.",
     {
@@ -361,7 +327,6 @@ function registerIapKitTools(
   // ---------------------------------------------------------------------------
   registerTool(
     server,
-    options,
     "create_product",
     "Add or update a product in IAPKit's local catalog. Note: this creates the IAPKit-side row only — use `iapkit_sync_products` with direction=push or both after store credentials are configured to enqueue App Store Connect / Play Console sync.",
     {
@@ -425,7 +390,6 @@ function registerIapKitTools(
   // ---------------------------------------------------------------------------
   registerTool(
     server,
-    options,
     "list_products",
     "List the project's product catalog stored in IAPKit.",
     {
@@ -452,7 +416,6 @@ function registerIapKitTools(
   // ---------------------------------------------------------------------------
   registerTool(
     server,
-    options,
     "view_subscribers",
     "List subscription rows for the project. Filter by state / productId / userId.",
     {
@@ -496,7 +459,6 @@ function registerIapKitTools(
   // ---------------------------------------------------------------------------
   registerTool(
     server,
-    options,
     "simulate_purchase",
     "Print step-by-step instructions for triggering a sandbox purchase on Apple StoreKit Configuration / Google Play License Tester. Does not call live APIs — sandbox purchases must be initiated from the device itself.",
     {
@@ -512,7 +474,6 @@ function registerIapKitTools(
   // ---------------------------------------------------------------------------
   registerTool(
     server,
-    options,
     "simulate_webhook",
     "POST a synthetic test notification to kit's webhook endpoint. Android simulation is for local/dev deployments with KIT_ALLOW_UNAUTHENTICATED_PUBSUB=1; production Google RTDN requires Pub/Sub OIDC.",
     {
@@ -525,17 +486,14 @@ function registerIapKitTools(
       const apiKey =
         args.apiKey ??
         extra?.authInfo?.token ??
-        process.env.IAPKIT_API_KEY ??
-        process.env.OPENIAP_API_KEY;
+        process.env.IAPKIT_API_KEY;
       if (!apiKey) return err(new Error("apiKey required"));
       const validationError = validateApiKey(apiKey);
       if (validationError) return err(new Error(validationError), apiKey);
       let baseUrl: string;
       try {
         baseUrl = normalizeKitBaseUrl(
-          args.baseUrl ??
-            process.env.IAPKIT_BASE_URL ??
-            process.env.OPENIAP_BASE_URL,
+          args.baseUrl ?? process.env.IAPKIT_BASE_URL,
         );
       } catch (error) {
         return err(error, apiKey);
@@ -592,7 +550,6 @@ function registerIapKitTools(
   // ---------------------------------------------------------------------------
   registerTool(
     server,
-    options,
     "inspect_state",
     "Return a dashboard-style summary: metrics, product catalog, configured webhooks endpoint URLs.",
     {
@@ -613,12 +570,8 @@ function registerIapKitTools(
           webhookUrls: {
             lifecycle: `${client.baseUrl}/v1/webhooks/${API_KEY_PLACEHOLDER}`,
             stream: `${client.baseUrl}/v1/webhooks/stream/${API_KEY_PLACEHOLDER}`,
-            legacyAliases: {
-              apple: `${client.baseUrl}/v1/webhooks/apple/${API_KEY_PLACEHOLDER}`,
-              google: `${client.baseUrl}/v1/webhooks/google/${API_KEY_PLACEHOLDER}`,
-            },
           },
-          note: "Use webhookUrls.lifecycle for both Apple ASN v2 and Google Pub/Sub RTDN. Legacy aliases remain supported for existing store-console wiring. URLs use an IAPKIT_API_KEY placeholder so tool output does not leak project credentials.",
+          note: "Use webhookUrls.lifecycle for both Apple ASN v2 and Google Pub/Sub RTDN. URLs use an IAPKIT_API_KEY placeholder so tool output does not leak project credentials.",
         });
       } catch (error) {
         return err(error, resolveApiKey(args, extra));
@@ -631,7 +584,6 @@ function registerIapKitTools(
   // ---------------------------------------------------------------------------
   registerTool(
     server,
-    options,
     "revenue_analytics",
     "Summarize IAPKit subscription purchase and revenue analytics for a date range. Defaults to the current UTC month so Codex can answer questions like 'how many purchases happened this month?'.",
     {
@@ -677,7 +629,6 @@ function registerIapKitTools(
   // ---------------------------------------------------------------------------
   registerTool(
     server,
-    options,
     "manage_product",
     "Update or remove a product in IAPKit's catalog. `action: 'remove'` soft-removes via the product state endpoint.",
     {
@@ -720,7 +671,6 @@ function registerIapKitTools(
   // ---------------------------------------------------------------------------
   registerTool(
     server,
-    options,
     "sync_products",
     "Enqueue an IAPKit product sync job for App Store Connect or Google Play. Use dryRun=true first to inspect what Codex would change; set dryRun=false only when the user explicitly asks to apply the store sync.",
     {
@@ -759,7 +709,6 @@ function registerIapKitTools(
   // ---------------------------------------------------------------------------
   registerTool(
     server,
-    options,
     "sync_status",
     "Return the current state and log summary for a previously enqueued IAPKit product sync job.",
     {

@@ -42,8 +42,6 @@ export interface RemoteMcpHttpServerOptions {
   mcpPath?: string;
   /** CORS allow-list. Defaults to IAPKIT_MCP_ALLOWED_ORIGINS or local/Codex origins. */
   allowedOrigins?: string[];
-  /** Expose legacy openiap_* tool aliases in addition to iapkit_* tools. */
-  includeLegacyOpenIapAliases?: boolean;
   /** Logger for lifecycle and request failures. Defaults to console. */
   logger?: Pick<Console, "error" | "info">;
 }
@@ -59,7 +57,7 @@ export interface RemoteMcpHttpServer {
 /**
  * Creates an IAPKit Streamable HTTP MCP server without binding a socket.
  *
- * @param options Server configuration and MCP compatibility flags.
+ * @param options Server configuration.
  * @returns A server handle whose `server` can be bound by the caller.
  */
 export function createRemoteMcpHttpServer(
@@ -106,7 +104,6 @@ export function createRemoteMcpHttpServer(
           authentication: [
             "Authorization: Bearer <IAPKit project API key>",
             "IAPKIT_API_KEY environment variable",
-            "OPENIAP_API_KEY environment variable for backward compatibility",
           ],
         });
         return;
@@ -125,7 +122,6 @@ export function createRemoteMcpHttpServer(
           res,
           transports,
           logger,
-          Boolean(options.includeLegacyOpenIapAliases),
         );
         return;
       }
@@ -175,7 +171,7 @@ export function createRemoteMcpHttpServer(
 /**
  * Creates and starts the IAPKit Streamable HTTP MCP server.
  *
- * @param options Server configuration and MCP compatibility flags.
+ * @param options Server configuration.
  * @returns A bound server handle.
  * @throws When the configured port/host is invalid or the listener emits an error.
  */
@@ -215,7 +211,6 @@ async function handleMcpPost(
   res: ServerResponse,
   transports: Map<string, StreamableHTTPServerTransport>,
   logger: Pick<Console, "error" | "info">,
-  includeLegacyOpenIapAliases: boolean,
 ): Promise<void> {
   const sessionId = headerString(req.headers["mcp-session-id"]);
   const body = await readJsonBody(req);
@@ -253,9 +248,7 @@ async function handleMcpPost(
     }
   };
 
-  const mcpServer = createIapKitMcpServer({
-    includeLegacyOpenIapAliases,
-  });
+  const mcpServer = createIapKitMcpServer();
   await mcpServer.connect(transport);
   await transport.handleRequest(req, res, body);
 }

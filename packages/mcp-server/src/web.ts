@@ -19,7 +19,6 @@ const DEFAULT_ALLOWED_ORIGINS = [
 
 export interface IapKitWebMcpHandlerOptions {
   allowedOrigins?: string[];
-  includeLegacyOpenIapAliases?: boolean;
   logger?: Pick<Console, "error" | "info">;
 }
 
@@ -54,7 +53,6 @@ export function createIapKitWebMcpHandler(
           request,
           transports,
           logger,
-          Boolean(options.includeLegacyOpenIapAliases),
           authInfo,
         );
         return withCors(request, response, allowedOrigins);
@@ -103,7 +101,6 @@ async function handlePost(
   request: Request,
   transports: Map<string, WebStandardStreamableHTTPServerTransport>,
   logger: Pick<Console, "error" | "info">,
-  includeLegacyOpenIapAliases: boolean,
   authInfo: AuthInfo | undefined,
 ): Promise<Response> {
   const sessionId = request.headers.get("mcp-session-id") ?? undefined;
@@ -143,9 +140,7 @@ async function handlePost(
     if (initializedSessionId) transports.delete(initializedSessionId);
   };
 
-  const server = createIapKitMcpServer({
-    includeLegacyOpenIapAliases,
-  });
+  const server = createIapKitMcpServer();
   await server.connect(transport);
   return transport.handleRequest(request, {
     parsedBody: body,

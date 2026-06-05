@@ -270,19 +270,19 @@ if (status.Active)
         </AnchorLink>
         <p>
           <code>@hyodotdev/openiap-mcp-server</code> is a stdio Model Context
-          Protocol server with 10 tools covering setup, status checks,
+          Protocol server with 13 tools covering setup, status checks,
           troubleshooting, product CRUD, subscription listing, sandbox
           simulation, and full-state inspection. Plug it into Claude Desktop /
           Cursor / Codex via:
         </p>
         <CodeBlock language="json">{`{
   "mcpServers": {
-    "openiap": {
+    "iapkit": {
       "command": "bunx",
       "args": ["@hyodotdev/openiap-mcp-server"],
       "env": {
-        "OPENIAP_API_KEY": "openiap-kit_<your-key>",
-        "OPENIAP_BASE_URL": "https://kit.openiap.dev"
+        "IAPKIT_API_KEY": "openiap-kit_<your-key>",
+        "IAPKIT_BASE_URL": "https://kit.openiap.dev"
       }
     }
   }
