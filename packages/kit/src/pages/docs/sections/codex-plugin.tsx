@@ -165,7 +165,7 @@ IAPKIT_API_KEY="openiap-kit_your-project-key" \\
         </li>
         <li>
           <code>iapkit_setup</code> - framework integration snippets for Expo,
-          React Native, Flutter, KMP, and Godot.
+          React Native, Flutter, KMP, Godot, native iOS, and native Android.
         </li>
         <li>
           <code>iapkit_troubleshoot</code> - health, metrics, and optional user

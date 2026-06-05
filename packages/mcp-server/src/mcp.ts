@@ -16,8 +16,18 @@ import { kitClient, KitHttpError, normalizeKitBaseUrl } from "./kit-client.js";
 export const IAPKIT_MCP_SERVER_NAME = "iapkit-mcp";
 export const IAPKIT_MCP_SERVER_VERSION = "0.1.0";
 const IAPKIT_TOOL_PREFIX = "iapkit";
+const SETUP_FRAMEWORKS = [
+  "expo",
+  "react-native",
+  "flutter",
+  "kmp",
+  "godot",
+  "ios",
+  "android",
+] as const;
 
 type ToolExtra = RequestHandlerExtra<ServerRequest, ServerNotification>;
+type SetupFramework = (typeof SETUP_FRAMEWORKS)[number];
 
 const OPTIONAL_BASE_URL = z
   .string()
@@ -228,8 +238,8 @@ function registerIapKitTools(server: McpServer) {
     "Print a copy/pasteable IAPKit integration snippet for a given framework. Does not modify files — emit code for the LLM / human to apply.",
     {
       framework: z
-        .enum(["expo", "react-native", "flutter", "kmp", "godot"])
-        .describe("Which framework SDK to wire."),
+        .enum(SETUP_FRAMEWORKS)
+        .describe("Which framework SDK or native platform to wire."),
       apiKey: z
         .string()
         .optional()
@@ -728,7 +738,7 @@ function registerIapKitTools(server: McpServer) {
 }
 
 function renderSetupSnippet(
-  framework: "expo" | "react-native" | "flutter" | "kmp" | "godot",
+  framework: SetupFramework,
   apiKey: string,
   productId: string,
 ): string {
@@ -786,6 +796,101 @@ func _ready() -> void:
     add_child(webhook)
     webhook.connect_stream()
     GodotIap.request_purchase(${productIdLiteral})`;
+    case "ios":
+      return `import OpenIAP
+
+let iapkitApiKey = ${apiKeyLiteral}
+let productId = ${productIdLiteral}
+let iapStore = OpenIapStore()
+
+try await iapStore.initConnection()
+try await iapStore.fetchProducts(skus: [productId], type: .inApp)
+
+if let purchase = try await iapStore.requestPurchase(sku: productId, type: .inApp),
+   let jws = purchase.purchaseToken {
+    let verification = try await iapStore.verifyPurchaseWithProvider(
+        VerifyPurchaseWithProviderProps(
+            iapkit: RequestVerifyPurchaseWithIapkitProps(
+                apiKey: iapkitApiKey,
+                apple: RequestVerifyPurchaseWithIapkitAppleProps(jws: jws),
+                google: nil
+            ),
+            provider: .iapkit
+        )
+    )
+    if verification?.isValid == true {
+        grantEntitlement(purchase.productId)
+    }
+}`;
+    case "android":
+      return `import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import dev.hyo.openiap.OpenIapModule
+import dev.hyo.openiap.ProductQueryType
+import dev.hyo.openiap.ProductRequest
+import dev.hyo.openiap.PurchaseVerificationProvider
+import dev.hyo.openiap.RequestPurchaseAndroidProps
+import dev.hyo.openiap.RequestPurchaseProps
+import dev.hyo.openiap.RequestPurchasePropsByPlatforms
+import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitGoogleProps
+import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps
+import dev.hyo.openiap.VerifyPurchaseWithProviderProps
+import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
+import kotlinx.coroutines.launch
+
+class MainActivity : AppCompatActivity() {
+    private val openIap by lazy { OpenIapModule(this) }
+    private val iapkitApiKey = ${apiKeyLiteral}
+    private val productId = ${productIdLiteral}
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        openIap.setActivity(this)
+        openIap.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { purchase ->
+            lifecycleScope.launch {
+                val token = purchase.purchaseToken ?: return@launch
+                val verification = openIap.verifyPurchaseWithProvider(
+                    VerifyPurchaseWithProviderProps(
+                        iapkit = RequestVerifyPurchaseWithIapkitProps(
+                            apiKey = iapkitApiKey,
+                            google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                                purchaseToken = token
+                            )
+                        ),
+                        provider = PurchaseVerificationProvider.Iapkit
+                    )
+                ).iapkit
+                if (verification?.isValid == true) {
+                    grantEntitlement(purchase.productId)
+                }
+            }
+        })
+
+        lifecycleScope.launch {
+            openIap.initConnection(null)
+            openIap.fetchProducts(
+                ProductRequest(skus = listOf(productId), type = ProductQueryType.InApp)
+            )
+        }
+    }
+
+    fun buyPremium() {
+        lifecycleScope.launch {
+            openIap.setActivity(this@MainActivity)
+            openIap.requestPurchase(
+                RequestPurchaseProps(
+                    request = RequestPurchaseProps.Request.Purchase(
+                        RequestPurchasePropsByPlatforms(
+                            google = RequestPurchaseAndroidProps(skus = listOf(productId))
+                        )
+                    ),
+                    type = ProductQueryType.InApp
+                )
+            )
+        }
+    }
+}`;
   }
 }
 

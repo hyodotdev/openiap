@@ -16,6 +16,12 @@ import {
 let remote: RemoteMcpHttpServer | null = null;
 let kitApi: Server | null = null;
 
+interface SetupToolPayload {
+  framework: string;
+  snippet: string;
+  note: string;
+}
+
 afterEach(async () => {
   if (remote) {
     await remote.close();
@@ -208,6 +214,52 @@ describe("remote MCP HTTP server", () => {
       if (previousBaseUrl === undefined) delete process.env.IAPKIT_BASE_URL;
       else process.env.IAPKIT_BASE_URL = previousBaseUrl;
     }
+  });
+
+  it("generates native iOS and Android setup snippets", async () => {
+    const apiKey = "openiap-kit_secret_setup";
+    const { baseUrl, sessionId } = await initializeMcpSession(apiKey);
+
+    const iosPayload = await callTool<SetupToolPayload>(
+      baseUrl,
+      sessionId,
+      "iapkit_setup",
+      {
+        framework: "ios",
+        productId: "premium_monthly",
+      },
+    );
+    expect(iosPayload).toMatchObject({
+      framework: "ios",
+      note: expect.stringContaining("IAPKIT_API_KEY"),
+    });
+    expect(iosPayload.snippet).toContain("OpenIapStore");
+    expect(iosPayload.snippet).toContain(
+      "RequestVerifyPurchaseWithIapkitAppleProps",
+    );
+    expect(iosPayload.snippet).toContain("<IAPKIT_API_KEY>");
+    expect(iosPayload.snippet).not.toContain(apiKey);
+
+    const androidPayload = await callTool<SetupToolPayload>(
+      baseUrl,
+      sessionId,
+      "iapkit_setup",
+      {
+        framework: "android",
+        productId: "premium_monthly",
+      },
+    );
+    expect(androidPayload).toMatchObject({
+      framework: "android",
+      note: expect.stringContaining("IAPKIT_API_KEY"),
+    });
+    expect(androidPayload.snippet).toContain("OpenIapModule");
+    expect(androidPayload.snippet).toContain("OpenIapPurchaseUpdateListener");
+    expect(androidPayload.snippet).toContain(
+      "RequestVerifyPurchaseWithIapkitGoogleProps",
+    );
+    expect(androidPayload.snippet).toContain("<IAPKIT_API_KEY>");
+    expect(androidPayload.snippet).not.toContain(apiKey);
   });
 
   it("enqueues store sync jobs through the bearer-authenticated Kit API", async () => {
@@ -432,6 +484,30 @@ async function initializeMcpSession(
   expect(sessionId).toBeTruthy();
   await initResponse.text();
   return { baseUrl, sessionId: sessionId ?? "" };
+}
+
+async function callTool<T>(
+  baseUrl: string,
+  sessionId: string,
+  name: string,
+  args: Record<string, unknown>,
+): Promise<T> {
+  const response = await postMcp(
+    baseUrl,
+    {
+      jsonrpc: "2.0",
+      id: 2,
+      method: "tools/call",
+      params: {
+        name,
+        arguments: args,
+      },
+    },
+    sessionId,
+  );
+  expect(response.status).toBe(200);
+  const event = parseSseJson(await response.text());
+  return JSON.parse(event.result.content[0].text) as T;
 }
 
 async function closeServer(server: Server): Promise<void> {
