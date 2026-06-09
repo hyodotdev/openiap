@@ -11,17 +11,16 @@ function VegaOSRuntime() {
     <div className="doc-page">
       <SEO
         title="Vega OS Runtime"
-        description="Configure OpenIAP for Amazon Vega OS in React Native and Expo apps using the Vega JavaScript IAP runtime adapter."
+        description="Configure OpenIAP for Amazon Vega OS in React Native for Vega apps using the Vega JavaScript IAP runtime adapter."
         path="/docs/features/vega-os"
-        keywords="Vega OS IAP, React Native for Vega, Expo Vega, Amazon Vega SDK, OpenIAP Vega, kepler"
+        keywords="Vega OS IAP, React Native for Vega, Amazon Vega SDK, OpenIAP Vega, kepler"
       />
       <h1>Vega OS Runtime</h1>
 
       <p>
         Vega OS is not Fire OS and it is not an Android flavor. OpenIAP supports
-        Vega OS as a runtime-selected JavaScript adapter in{' '}
-        <code>react-native-iap</code> and <code>expo-iap</code>, using Amazon's
-        Vega IAP JavaScript API.
+        Vega OS as a runtime-selected JavaScript adapter for React Native for
+        Vega apps, using Amazon's Vega IAP JavaScript API.
       </p>
       <p>
         Treat this like the Onside integration layer: the library keeps the
@@ -49,8 +48,8 @@ function VegaOSRuntime() {
                 <code>react-native-iap</code>, <code>expo-iap</code>
               </td>
               <td>
-                Runtime adapter selected when <code>Platform.OS</code> is{' '}
-                <code>kepler</code>
+                Runtime adapter selected when the app is running on React Native
+                for Vega and <code>Platform.OS</code> is <code>kepler</code>
               </td>
             </tr>
             <tr>
@@ -75,7 +74,10 @@ function VegaOSRuntime() {
           Requirements
         </AnchorLink>
         <ul>
-          <li>React Native for Vega or an Expo-compatible Vega app runtime.</li>
+          <li>
+            An app build target compatible with Amazon React Native for Vega.
+            The current public Vega docs center on React Native 0.72 support.
+          </li>
           <li>
             Amazon Vega IAP package installed in the app:
             <CodeBlock language="json">{`{
@@ -135,9 +137,10 @@ id = "/com.amazon.kepler.appstore.iap.purchase.core@IAppstoreIAPPurchaseCoreServ
           </a>
         </h3>
         <p>
-          Install <code>expo-iap</code> normally. The module resolver checks for
-          the Vega runtime before falling back to the existing Onside and native
-          module paths.
+          Expo projects can use <code>expo-iap</code> to prepare the Vega
+          project files through the config plugin. The app still has to build
+          against a React Native for Vega runtime version supported by the
+          installed Amazon Vega CLI.
         </p>
         <CodeBlock language="typescript">{`[
   'expo-iap',
@@ -260,8 +263,10 @@ await finishTransaction({ purchase, isConsumable: true });`}</CodeBlock>
         </AnchorLink>
         <ul>
           <li>
-            Vega OS support is limited to <code>react-native-iap</code> and{' '}
-            <code>expo-iap</code>.
+            Vega OS support is limited to React Native for Vega. OpenIAP exposes
+            that path through <code>react-native-iap</code> and through{' '}
+            <code>expo-iap</code> config/plugin support for compatible Expo
+            projects.
           </li>
           <li>
             Vega OS uses Amazon's JavaScript IAP API, not the Fire OS Android

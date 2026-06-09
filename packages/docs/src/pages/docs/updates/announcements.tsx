@@ -85,11 +85,12 @@ function Announcements() {
           <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
             Fire OS support starts with in-app purchases through the Android{' '}
             <code>amazon</code> flavor and Amazon Appstore SDK. Vega OS support
-            is a separate runtime path for <code>react-native-iap</code> and{' '}
-            <code>expo-iap</code> apps running in Amazon's Vega / Kepler
-            environment. Together, they help developers keep one familiar
-            OpenIAP purchase flow while reaching Amazon-specific purchase
-            environments. The implementation is tracked in{' '}
+            is a separate React Native for Vega runtime path, with{' '}
+            <code>react-native-iap</code> runtime support and{' '}
+            <code>expo-iap</code> config-plugin support for compatible Expo
+            projects. Together, they help developers keep one familiar OpenIAP
+            purchase flow while reaching Amazon-specific purchase environments.
+            The implementation is tracked in{' '}
             <a
               href="https://github.com/hyodotdev/openiap/pull/162"
               target="_blank"
@@ -130,7 +131,7 @@ function Announcements() {
             <li>
               <strong>Vega OS runtime</strong>: Vega OS is not Fire OS and is
               not an Android flavor. The Vega adapter is selected only in the
-              Kepler runtime for React Native and Expo apps.
+              Kepler runtime for React Native for Vega apps.
             </li>
           </ul>
           <a
@@ -165,7 +166,7 @@ function Announcements() {
             <a href="/docs/features/vega-os" className="external-link">
               Vega OS runtime guide
             </a>{' '}
-            for React Native and Expo apps running in the Vega / Kepler runtime.
+            for React Native for Vega apps and compatible Expo projects.
           </div>
         </div>
       ),
