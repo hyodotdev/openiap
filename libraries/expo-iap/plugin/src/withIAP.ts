@@ -12,6 +12,7 @@ import type {ExpoConfig} from '@expo/config-types';
 import * as fs from 'fs';
 import * as path from 'path';
 import withLocalOpenIAP from './withLocalOpenIAP';
+import withVega, {type VegaProjectOptions} from './withVega';
 import {
   withIosAlternativeBilling,
   type IOSAlternativeBillingConfig,
@@ -695,6 +696,10 @@ export interface ExpoIapPluginOptions {
      */
     horizonAppId?: string;
   };
+  /**
+   * Vega-specific project generation options.
+   */
+  vega?: VegaProjectOptions;
 }
 
 export interface ModuleSelectionResult {
@@ -855,6 +860,10 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
     }
 
     syncAutolinking(autolinkState);
+
+    if (isVegaEnabled) {
+      result = withVega(result, options?.vega);
+    }
 
     return result;
   } catch (error) {

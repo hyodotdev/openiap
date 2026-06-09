@@ -1,5 +1,6 @@
 import type {IOS} from '@expo/config-types';
 import type {IOSAlternativeBillingConfig} from './withIAP';
+import type {VegaProjectOptions} from './withVega';
 
 export type ExpoIapModuleOverrides = {
   /**
@@ -60,6 +61,10 @@ type BaseExpoIapOptions = {
      */
     horizonAppId?: string;
   };
+  /**
+   * Vega project generation options used when modules.vega is true.
+   */
+  vega?: VegaProjectOptions;
 };
 
 type AutoModuleOptions = BaseExpoIapOptions & {

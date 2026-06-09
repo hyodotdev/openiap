@@ -354,9 +354,9 @@ cd ios && pod install`}
               </td>
               <td>boolean</td>
               <td>
-                Declares Vega OS runtime support and enables conflict checks; it
-                does not select an Android flavor. Install Amazon's Vega IAP
-                package and follow the{' '}
+                Enables Vega OS runtime setup. This prepares Vega manifest and
+                Kepler project metadata, but it does not select an Android
+                flavor. Follow the{' '}
                 <a href="/docs/features/vega-os">Vega OS Runtime</a> guide.
               </td>
             </tr>

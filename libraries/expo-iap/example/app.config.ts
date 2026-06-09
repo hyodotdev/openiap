@@ -23,6 +23,7 @@ const useLocalDev =
 export default ({config}: ConfigContext): ExpoConfig => {
   // Check if building for TV (set EXPO_TV=1 before prebuild)
   const isTV = process.env.EXPO_TV === '1';
+  const isVegaEnabled = process.env.EXPO_IAP_VEGA === '1';
   const isOnsideEnabled = false;
 
   const pluginEntries: NonNullable<ExpoConfig['plugins']> = [
@@ -48,6 +49,14 @@ export default ({config}: ConfigContext): ExpoConfig => {
           horizon: false,
           // Fire OS module: Android only
           fireOS: false,
+          // Vega OS module: Kepler runtime target
+          vega: isVegaEnabled,
+        },
+        vega: {
+          packageId: 'dev.hyo.martie',
+          title: 'Expo IAP Example',
+          appName: 'ExpoIAPExample',
+          icon: './assets/images/icon.png',
         },
         android: {
           // Horizon App ID for Meta Quest/VR devices (required when modules.horizon is true)

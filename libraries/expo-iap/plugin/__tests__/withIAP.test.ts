@@ -9,6 +9,14 @@ import plugin, {
 import {getAndroidLocalPathInput} from '../src/withLocalOpenIAP';
 import type {AutolinkState} from '../src/withIAP';
 import type {ExpoIapPluginCommonOptions} from '../src/expoConfig.augmentation';
+import {
+  createVegaAppJson,
+  createVegaEntryPoint,
+  createVegaManifest,
+  mergeVegaPackageJson,
+  normalizeVegaPackageId,
+  resolveVegaProjectSettings,
+} from '../src/withVega';
 
 // Type-level expectations
 const autoModeOptions: ExpoIapPluginCommonOptions = {
@@ -410,5 +418,71 @@ describe('ensureOnsidePodIOS', () => {
 
     expect(content).not.toBe(basePodfile);
     expect(content).toContain("ENV['EXPO_IAP_ONSIDE'] = '1'");
+  });
+});
+
+describe('vega project generation', () => {
+  it('normalizes derived Vega package ids', () => {
+    expect(normalizeVegaPackageId('dev.hyo.martie')).toBe('dev.hyo.martie');
+    expect(normalizeVegaPackageId('123 bad id')).toBe('app_123.bad.id');
+  });
+
+  it('creates a manifest from Expo config defaults', () => {
+    const settings = resolveVegaProjectSettings({
+      name: 'Expo IAP Example',
+      slug: 'expo-iap-example',
+      version: '1.0.0',
+      icon: './assets/images/icon.png',
+      android: {package: 'dev.hyo.martie'},
+    } as ExpoConfig);
+    const manifest = createVegaManifest(settings);
+
+    expect(settings.packageId).toBe('dev.hyo.martie');
+    expect(settings.componentId).toBe('dev.hyo.martie.main');
+    expect(settings.appName).toBe('ExpoIAPExample');
+    expect(manifest).toContain('id = "dev.hyo.martie"');
+    expect(manifest).toContain('icon = "@image/icon.png"');
+    expect(manifest).toContain('id = "com.amazon.iap.core.service"');
+    expect(manifest).toContain(
+      'id = "/com.amazon.kepler.appstore.iap.purchase.core@IAppstoreIAPPurchaseCoreService"',
+    );
+    expect(createVegaEntryPoint()).toContain(
+      'AppRegistry.registerComponent(appName, () => App);',
+    );
+    expect(createVegaAppJson(settings)).toEqual({
+      name: 'ExpoIAPExample',
+      displayName: 'Expo IAP Example',
+      expoIapGenerated: true,
+    });
+  });
+
+  it('merges Vega scripts, dependencies, and kepler metadata', () => {
+    const settings = resolveVegaProjectSettings({
+      name: 'Expo IAP Example',
+      slug: 'expo-iap-example',
+      android: {package: 'dev.hyo.martie'},
+    } as ExpoConfig);
+    const result = mergeVegaPackageJson(
+      {
+        scripts: {start: 'expo start'},
+        dependencies: {expo: '^54.0.0'},
+        devDependencies: {typescript: '~5.9.2'},
+      },
+      settings,
+    );
+
+    expect(result.scripts?.start).toBe('expo start');
+    expect(result.scripts?.['vega:prebuild']).toContain('expo prebuild');
+    expect(result.scripts?.['build:vega:release']).toContain('expo prebuild');
+    expect(result.scripts?.['build:vega:release']).toContain('build-vega');
+    expect(result.scripts?.['run:vega:firetv']).toContain('armv7-debug');
+    expect(result.dependencies?.expo).toBe('^54.0.0');
+    expect(
+      result.dependencies?.['@amazon-devices/keplerscript-appstore-iap-lib'],
+    ).toBe('~2.12.13');
+    expect(
+      result.devDependencies?.['@amazon-devices/kepler-cli-platform'],
+    ).toBe('~0.22.0');
+    expect(result.kepler?.appName).toBe('ExpoIAPExample');
   });
 });

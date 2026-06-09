@@ -80,8 +80,7 @@ function VegaOSRuntime() {
             Amazon Vega IAP package installed in the app:
             <CodeBlock language="json">{`{
   "dependencies": {
-    "@amazon-devices/keplerscript-appstore-iap-lib": "~2.12.13",
-    "@amazon-devices/package-manager-lib": "~1.0.1767254401"
+    "@amazon-devices/keplerscript-appstore-iap-lib": "~2.12.13"
   }
 }`}</CodeBlock>
           </li>
@@ -110,9 +109,10 @@ id = "/com.amazon.kepler.appstore.iap.purchase.core@IAppstoreIAPPurchaseCoreServ
         </p>
         <p>
           In Expo or React Native config plugin options, set{' '}
-          <code>modules.vega=true</code> only as a runtime-support guard. It
-          does not select an Android flavor; it prevents accidental combinations
-          with <code>modules.fireOS</code> or <code>modules.horizon</code>.
+          <code>modules.vega=true</code>. It does not select an Android flavor;
+          the Expo config plugin prepares the Vega manifest and Kepler project
+          metadata, then prevents accidental combinations with{' '}
+          <code>modules.fireOS</code> or <code>modules.horizon</code>.
         </p>
 
         <h3 id="react-native-iap" className="anchor-heading">
@@ -139,6 +139,27 @@ id = "/com.amazon.kepler.appstore.iap.purchase.core@IAppstoreIAPPurchaseCoreServ
           the Vega runtime before falling back to the existing Onside and native
           module paths.
         </p>
+        <CodeBlock language="typescript">{`[
+  'expo-iap',
+  {
+    modules: {
+      vega: true,
+    },
+    vega: {
+      packageId: 'dev.example.app',
+      title: 'Example App',
+      icon: './assets/images/icon.png',
+    },
+  },
+]`}</CodeBlock>
+        <p>
+          When <code>modules.vega</code> is enabled, the Expo plugin prepares
+          the Vega manifest, entry point, generated app metadata, app icon
+          assets, Kepler package metadata, and Vega build scripts during
+          prebuild.
+        </p>
+        <CodeBlock language="bash">{`EXPO_IAP_VEGA=1 expo prebuild --platform android --no-install
+EXPO_IAP_VEGA=1 react-native build-vega --build-type Debug`}</CodeBlock>
       </section>
 
       <section>
@@ -253,6 +274,13 @@ await finishTransaction({ purchase, isConsumable: true });`}</CodeBlock>
           <li>
             The OpenIAP store remains <code>amazon</code> for compatibility,
             while runtime selection remains Vega-specific.
+          </li>
+          <li>
+            Complete <code>build-vega</code> bundling requires a React Native
+            version supported by the installed Amazon Vega CLI. If the CLI
+            rejects the app's React Native version, <code>modules.vega</code>{' '}
+            can still prepare and validate the Vega project files, but the app
+            needs an Amazon-supported React Native for Vega build target.
           </li>
         </ul>
       </section>
