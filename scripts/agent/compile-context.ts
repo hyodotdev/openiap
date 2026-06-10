@@ -306,7 +306,8 @@ Requires .NET 9 or .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
 - Google Play: default Android artifact, \`openiap-google\`.
 - Meta Horizon: Android \`horizon\` flavor, \`openiap-google-horizon\`.
 - Fire OS: Android \`amazon\` flavor,
-  \`openiap-google-amazon\`; set \`fireOsEnabled=true\` or
+  \`openiap-google-amazon\`; set \`amazon.fireOS=true\`,
+  \`fireOsEnabled=true\`, or
   \`missingDimensionStrategy("platform", "amazon")\`.
   Runtime adapters are wired for native Android, \`react-native-iap\`,
   \`expo-iap\`, and \`flutter_inapp_purchase\`; Godot, KMP, and MAUI have schema
@@ -314,9 +315,10 @@ Requires .NET 9 or .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
 - Vega OS: not an Android flavor. Target React Native for Vega / Expo only,
   using Amazon's JavaScript IAP API through the runtime-selected \`kepler\`
   adapter at the same runtime integration layer as Onside. In Expo or React
-  Native config plugin options, \`modules.vega=true\` is only a
-  runtime-support guard; it does not select an Android flavor and cannot be
-  combined with \`modules.fireOS\` or \`modules.horizon\`.
+  Native config plugin options, use \`amazon.vegaOS=true\`. It marks the Vega
+  runtime target and does not select an Android flavor. \`amazon.fireOS\` and
+  \`amazon.vegaOS\` can both be enabled when an app produces separate Fire OS
+  and Vega OS artifacts.
 
 ### Fire OS
 
@@ -335,9 +337,10 @@ Fire OS maps OpenIAP calls to the Amazon Appstore SDK:
 
 ### Vega OS Runtime
 
-Vega OS is not Fire OS and must not set \`fireOsEnabled=true\`; that flag is
-only for Android Fire OS builds. Install
-\`@amazon-devices/keplerscript-appstore-iap-lib\` and let
+Vega OS is not Fire OS and is not selected with \`fireOsEnabled=true\`; that
+flag is only for Android Fire OS builds. Use \`amazon.vegaOS=true\` for the
+Vega runtime target and \`amazon.fireOS=true\` for separate Fire OS Android
+artifacts. Install \`@amazon-devices/keplerscript-appstore-iap-lib\` and let
 \`react-native-iap\` / \`expo-iap\` select the \`kepler\` adapter at runtime,
 similar to how Onside is selected at the runtime integration layer.
 

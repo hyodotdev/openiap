@@ -18,9 +18,15 @@ const subscriptionIds = [
   'dev.hyo.martie.premium', // Same as subscription-flow
 ];
 
+const isVegaOS = (): boolean => String(Platform.OS) === 'kepler';
+
 export default function AvailablePurchases() {
   const [loading, setLoading] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
+  const [subscriptionLinkMessage, setSubscriptionLinkMessage] = useState<
+    string | null
+  >(null);
+  const isVega = isVegaOS();
 
   // Use global modal context
   const {showData} = useDataModal();
@@ -55,7 +61,7 @@ export default function AvailablePurchases() {
       }, 1000);
     },
     onPurchaseError: (error: PurchaseError) => {
-      console.error('[AVAILABLE-PURCHASES] Purchase failed:', error);
+      console.log('[AVAILABLE-PURCHASES] Purchase failed:', error);
       Alert.alert('Purchase Failed', error.message);
     },
   });
@@ -79,11 +85,11 @@ export default function AvailablePurchases() {
         'items',
       );
     } catch (error) {
-      console.error(
+      console.log(
         '[AVAILABLE-PURCHASES] Error checking subscription status:',
         error,
       );
-      console.warn(
+      console.log(
         '[AVAILABLE-PURCHASES] Subscription status check failed, but existing state preserved',
       );
     } finally {
@@ -100,7 +106,7 @@ export default function AvailablePurchases() {
       await getAvailablePurchases();
       console.log('Available purchases request sent');
     } catch (error) {
-      console.error('Error getting available purchases:', error);
+      console.log('Error getting available purchases:', error);
       Alert.alert('Error', 'Failed to get available purchases');
     } finally {
       setLoading(false);
@@ -113,8 +119,12 @@ export default function AvailablePurchases() {
       console.log(
         '[AVAILABLE-PURCHASES] Connected to store, loading subscription products...',
       );
-      // Request products first - this is event-based, not promise-based
-      fetchProducts({skus: subscriptionIds, type: 'subs'});
+      fetchProducts({skus: subscriptionIds, type: 'subs'}).catch((error) => {
+        console.log(
+          '[AVAILABLE-PURCHASES] Failed to load subscription products:',
+          error,
+        );
+      });
       console.log(
         '[AVAILABLE-PURCHASES] Product loading request sent - waiting for results...',
       );
@@ -122,7 +132,7 @@ export default function AvailablePurchases() {
       // Then load available purchases
       console.log('[AVAILABLE-PURCHASES] Loading available purchases...');
       getAvailablePurchases().catch((error) => {
-        console.warn(
+        console.log(
           '[AVAILABLE-PURCHASES] Failed to load available purchases:',
           error,
         );
@@ -170,7 +180,20 @@ export default function AvailablePurchases() {
   }, [subscriptions]);
 
   const openManageSubscriptions = () => {
-    deepLinkToSubscriptions().catch(() => {});
+    if (isVega) {
+      setSubscriptionLinkMessage(
+        'Subscription management deep links are not exposed through the Amazon Vega OpenIAP adapter. Use this screen to inspect active subscriptions and purchase history.',
+      );
+      return;
+    }
+
+    deepLinkToSubscriptions().catch((error) => {
+      setSubscriptionLinkMessage(
+        error instanceof Error
+          ? error.message
+          : 'Failed to open subscription management.',
+      );
+    });
   };
 
   return (
@@ -251,6 +274,9 @@ export default function AvailablePurchases() {
           >
             <Text style={styles.buttonText}>👤 Manage Subscriptions</Text>
           </TouchableOpacity>
+          {subscriptionLinkMessage ? (
+            <Text style={styles.helperText}>{subscriptionLinkMessage}</Text>
+          ) : null}
         </View>
       )}
 
@@ -519,5 +545,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  helperText: {
+    color: '#666',
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 10,
   },
 });

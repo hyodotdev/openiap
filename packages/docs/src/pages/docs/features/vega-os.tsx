@@ -76,7 +76,16 @@ function VegaOSRuntime() {
         <ul>
           <li>
             An app build target compatible with Amazon React Native for Vega.
-            The current public Vega docs center on React Native 0.72 support.
+            The current public Vega docs center on{' '}
+            <a
+              href="https://developer.amazon.com/docs/react-native-vega/0.72/react_overview.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              React Native 0.72 support
+            </a>
+            .
           </li>
           <li>
             Amazon Vega IAP package installed in the app:
@@ -106,15 +115,18 @@ id = "/com.amazon.kepler.appstore.iap.purchase.core@IAppstoreIAPPurchaseCoreServ
           Setup
         </AnchorLink>
         <p>
-          Do not set <code>fireOsEnabled=true</code> for Vega OS. That Gradle
-          property selects the Fire OS Android flavor only.
+          Do not use <code>fireOsEnabled=true</code> as the Vega OS selector.
+          That Gradle property selects the Fire OS Android flavor only. Use{' '}
+          <code>amazon.vegaOS</code> for the Amazon Vega runtime target and{' '}
+          <code>amazon.fireOS</code> only when the same config should also
+          prepare Fire OS Android builds.
         </p>
         <p>
-          In Expo or React Native config plugin options, set{' '}
-          <code>modules.vega=true</code>. It does not select an Android flavor;
-          the Expo config plugin prepares the Vega manifest and Kepler project
-          metadata, then prevents accidental combinations with{' '}
-          <code>modules.fireOS</code> or <code>modules.horizon</code>.
+          Vega apps need a Kepler-compatible React Native project, a{' '}
+          <code>manifest.toml</code>, and a Vega build target. The{' '}
+          <code>expo-iap</code> config plugin can generate that project
+          metadata. Plain React Native apps should provide the Vega project
+          files directly, as shown in the OpenIAP repository example.
         </p>
 
         <h3 id="react-native-iap" className="anchor-heading">
@@ -129,6 +141,38 @@ id = "/com.amazon.kepler.appstore.iap.purchase.core@IAppstoreIAPPurchaseCoreServ
           <code>kepler</code> runtime. Non-Vega platforms continue creating the
           Nitro <code>RnIap</code> HybridObject.
         </p>
+        <CodeBlock language="typescript">{`[
+  'react-native-iap',
+  {
+    amazon: {
+      fireOS: true,
+      vegaOS: true,
+    },
+    modules: {
+      horizon: false,
+    },
+  },
+]`}</CodeBlock>
+        <p>
+          In <code>react-native-iap</code>, <code>amazon.fireOS</code> selects
+          the Android Amazon Appstore flavor during prebuild.{' '}
+          <code>amazon.vegaOS</code> keeps the Amazon target shape aligned with{' '}
+          <code>expo-iap</code>, but the React Native app still supplies its
+          Vega <code>manifest.toml</code>, entry point, and Kepler build target
+          directly.
+        </p>
+        <p>
+          The React Native example includes a Vega build script that creates an
+          Amazon-supported React Native 0.72 Vega build target, copies the
+          current package source plus the existing example screens into that
+          target, and produces an <code>armv7</code> package for Fire TV
+          devices. The Vega app opens the same example menu and flows as the
+          regular React Native example:
+        </p>
+        <CodeBlock language="bash">{`cd libraries/react-native-iap/example
+yarn build:vega:debug
+
+yarn run:vega:firetv`}</CodeBlock>
 
         <h3 id="expo-iap" className="anchor-heading">
           expo-iap
@@ -145,8 +189,9 @@ id = "/com.amazon.kepler.appstore.iap.purchase.core@IAppstoreIAPPurchaseCoreServ
         <CodeBlock language="typescript">{`[
   'expo-iap',
   {
-    modules: {
-      vega: true,
+    amazon: {
+      fireOS: true,
+      vegaOS: true,
     },
     vega: {
       packageId: 'dev.example.app',
@@ -156,13 +201,178 @@ id = "/com.amazon.kepler.appstore.iap.purchase.core@IAppstoreIAPPurchaseCoreServ
   },
 ]`}</CodeBlock>
         <p>
-          When <code>modules.vega</code> is enabled, the Expo plugin prepares
+          When <code>amazon.vegaOS</code> is enabled, the Expo plugin prepares
           the Vega manifest, entry point, generated app metadata, app icon
           assets, Kepler package metadata, and Vega build scripts during
-          prebuild.
+          prebuild. <code>amazon.fireOS</code> can be enabled in the same
+          config, but Fire OS and Vega OS still produce separate build
+          artifacts.
         </p>
         <CodeBlock language="bash">{`EXPO_IAP_VEGA=1 expo prebuild --platform android --no-install
 EXPO_IAP_VEGA=1 react-native build-vega --build-type Debug`}</CodeBlock>
+        <p>
+          The Expo example also includes a Vega build script for testing the
+          current local <code>expo-iap</code> source against an Amazon-supported
+          React Native 0.72 Vega build target. The script copies the existing
+          Expo Router routes and example components into the temporary Vega app,
+          then uses lightweight shims only for Expo Router navigation and
+          Expo-only helper modules:
+        </p>
+        <CodeBlock language="bash">{`cd libraries/expo-iap/example
+bun run build:vega:debug
+
+bun run run:vega:firetv`}</CodeBlock>
+        <p>
+          For local IAPKit validation while testing on a physical Fire TV
+          device, run the Kit API server on the Mac and build the example with a
+          LAN-reachable base URL. A Fire TV device cannot reach the Mac through{' '}
+          <code>localhost</code>, so use the Mac's Wi-Fi IP address:
+        </p>
+        <CodeBlock language="bash">{`# Terminal 1: local Kit API server
+cd packages/kit
+PORT=3100 bun --env-file=.env.local ./server/server.ts
+
+# Terminal 2: React Native example
+cd libraries/react-native-iap
+IAPKIT_API_KEY=openiap-kit_<your-key> \\
+IAPKIT_BASE_URL=http://<mac-lan-ip>:3100 \\
+  yarn workspace rn-iap-example build:vega:debug
+
+# Terminal 2: Expo example
+cd libraries/expo-iap/example
+EXPO_PUBLIC_IAPKIT_API_KEY=openiap-kit_<your-key> \\
+EXPO_PUBLIC_IAPKIT_BASE_URL=http://<mac-lan-ip>:3100 \\
+  bun run build:vega:debug`}</CodeBlock>
+        <p>
+          Include the matching IAPKit API key environment variable when testing
+          server verification: <code>IAPKIT_API_KEY</code> for the React Native
+          example, or <code>EXPO_PUBLIC_IAPKIT_API_KEY</code> for the Expo
+          example.
+        </p>
+        <p>
+          Amazon's Vega run-app documentation uses the interactive component ID
+          as the app id. For physical Fire TV devices, replace{' '}
+          <code>&lt;device-serial&gt;</code> with the serial shown by{' '}
+          <code>vega device list</code>. For VVD, use the architecture-specific
+          package that matches the virtual device.
+        </p>
+        <CodeBlock language="bash">{`vega device list
+
+vega device -d <device-serial> install-app \\
+  --packagePath build/armv7-debug/<example>_armv7.vpkg
+
+vega device -d <device-serial> launch-app \\
+  --appName <component-id>`}</CodeBlock>
+        <p>
+          Some Fire TV devices show a five-digit parental-control PIN prompt
+          before the app is foregrounded. If remote number key events do not
+          complete the prompt, send the PIN digits through VDA. This example
+          enters <code>01234</code>:
+        </p>
+        <CodeBlock language="bash">{`for key in KEY_0 KEY_1 KEY_2 KEY_3 KEY_4; do
+  vega exec vda -s <device-serial> shell inputd-cli button_press "$key"
+done`}</CodeBlock>
+      </section>
+
+      <section>
+        <AnchorLink id="app-tester-sandbox" level="h2">
+          App Tester Sandbox
+        </AnchorLink>
+        <p>
+          Local Vega IAP testing uses Amazon App Tester in sandbox mode. Keep
+          the App Tester catalog file and the app sandbox config file separate:
+          App Tester reads <code>amazon.sdktester.json</code>, while the app
+          reads <code>amazon.config.json</code>.
+        </p>
+        <p>
+          Amazon's{' '}
+          <a
+            href="https://developer.amazon.com/docs/vega/0.22/configure-app-tester.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="external-link"
+          >
+            App Tester configuration documentation
+          </a>{' '}
+          requires the tester service and UI module in{' '}
+          <code>manifest.toml</code> for sandbox testing:
+        </p>
+        <CodeBlock language="toml">{`[wants]
+[[wants.service]]
+id = "com.amazon.iap.tester.service"
+
+[[wants.module]]
+id = "/com.amazonappstore.iap.tester@IIAPTesterUI"`}</CodeBlock>
+        <p>Push the App Tester catalog to the App Tester scratch directory:</p>
+        <CodeBlock language="bash">{`vega exec vda -s <device-serial> shell \\
+  mkdir -p /tmp/scratch/com.amazonappstore.iap.tester
+
+vega device copy-to -d <device-serial> \\
+  -s amazon.sdktester.json \\
+  -o /tmp/scratch/com.amazonappstore.iap.tester`}</CodeBlock>
+        <p>
+          Enable sandbox mode for the Vega application id with this app-local
+          config. Use the id passed to <code>run-app</code> or{' '}
+          <code>launch-app</code>, for example the interactive component id in{' '}
+          <code>manifest.toml</code>.
+        </p>
+        <CodeBlock language="json">{`{
+  "debug.amazon.sandboxmode": "debug"
+}`}</CodeBlock>
+        <CodeBlock language="bash">{`vega exec vda -s <device-serial> shell \\
+  mkdir -p /tmp/scratch/<application-id>
+
+vega device copy-to -d <device-serial> \\
+  -s amazon.config.json \\
+  -o /tmp/scratch/<application-id>`}</CodeBlock>
+        <p>
+          Relaunch App Tester after changing <code>amazon.sdktester.json</code>,
+          and relaunch the test app after changing{' '}
+          <code>amazon.config.json</code>, following Amazon's{' '}
+          <a
+            href="https://developer.amazon.com/docs/vega/0.22/use-app-tester.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="external-link"
+          >
+            App Tester usage documentation
+          </a>
+          . In sandbox mode, IAP logs should report the debug sandbox mode and
+          App Tester responses instead of production-mode catalog responses.
+        </p>
+        <CodeBlock language="bash">{`vega exec vda -s <device-serial> shell \\
+  vlcm terminate-app --pkg-id com.amazonappstore.iap.tester --force
+
+vega exec vda -s <device-serial> shell \\
+  vlcm launch-app pkg://com.amazonappstore.iap.tester.ui
+
+vega device -d <device-serial> terminate-app --appName <component-id>
+vega device -d <device-serial> launch-app --appName <component-id>`}</CodeBlock>
+        <p>
+          OpenIAP's repository examples include matching{' '}
+          <code>amazon.sdktester.json</code> and <code>amazon.config.json</code>{' '}
+          files for the example product IDs so the <code>All Products</code> and
+          purchase-flow screens can be tested against App Tester.
+        </p>
+        <p>
+          If App Tester shows the JSON catalog, the sandbox user is logged in,
+          and <code>getProductData</code> or <code>getPurchaseUpdates</code>{' '}
+          still returns <code>FAILED</code>, check the installed Amazon Vega IAP
+          package/runtime before changing OpenIAP product IDs. A public{' '}
+          <a
+            href="https://community.amazondeveloper.com/t/using-amazon-devices-keplerscript-appstore-iap-lib-2-12-13-causes-in-app-purchases-to-fail/24746"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="external-link"
+          >
+            Amazon Developer Community report
+          </a>{' '}
+          tracks this behavior with{' '}
+          <code>@amazon-devices/keplerscript-appstore-iap-lib@2.12.13</code>.
+          OpenIAP surfaces those responses as product or purchase loading errors
+          so the app can stay open while the Amazon-side package/runtime issue
+          is investigated.
+        </p>
       </section>
 
       <section>
@@ -178,6 +388,7 @@ EXPO_IAP_VEGA=1 react-native build-vega --build-type Debug`}</CodeBlock>
   finishTransaction,
   initConnection,
   requestPurchase,
+  verifyPurchaseWithProvider,
 } from 'react-native-iap'; // or 'expo-iap'
 
 await initConnection();
@@ -197,7 +408,28 @@ await requestPurchase({
 });
 
 // In the purchase success path:
+const verification = await verifyPurchaseWithProvider({
+  provider: 'iapkit',
+  iapkit: {
+    apiKey: '<iapkit-api-key>',
+    amazon: {
+      receiptId: purchase.purchaseToken ?? '',
+      sandbox: __DEV__,
+    },
+  },
+});
+
+if (verification.iapkit?.isValid !== true) {
+  throw new Error('IAPKit could not verify the Amazon receipt');
+}
+
 await finishTransaction({ purchase, isConsumable: true });`}</CodeBlock>
+        <p>
+          Vega OS uses the same IAPKit Amazon payload as Fire OS. The Vega
+          adapter sends <code>store: 'amazon'</code> to IAPKit and can resolve
+          the Amazon user id from Vega user data when <code>amazon.userId</code>{' '}
+          is omitted.
+        </p>
       </section>
 
       <section>
@@ -215,6 +447,14 @@ await finishTransaction({ purchase, isConsumable: true });`}</CodeBlock>
             <tr>
               <td>
                 <code>initConnection()</code>
+              </td>
+              <td>
+                Marks the Vega adapter ready without fetching Amazon user data
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>getStorefront()</code>
               </td>
               <td>
                 <code>PurchasingService.getUserData</code>
@@ -241,9 +481,7 @@ await finishTransaction({ purchase, isConsumable: true });`}</CodeBlock>
                 <code>getAvailablePurchases()</code>,{' '}
                 <code>restorePurchases()</code>
               </td>
-              <td>
-                <code>PurchasingService.getPurchaseUpdates</code>
-              </td>
+              <td>Internal Amazon purchase update read</td>
             </tr>
             <tr>
               <td>
@@ -274,7 +512,8 @@ await finishTransaction({ purchase, isConsumable: true });`}</CodeBlock>
           </li>
           <li>
             Server-side Amazon Receipt Verification Service integration is not
-            included in the client package.
+            embedded in the client package. Use IAPKit's Amazon verification
+            path, or run your own server-side RVS integration.
           </li>
           <li>
             The OpenIAP store remains <code>amazon</code> for compatibility,
@@ -283,9 +522,15 @@ await finishTransaction({ purchase, isConsumable: true });`}</CodeBlock>
           <li>
             Complete <code>build-vega</code> bundling requires a React Native
             version supported by the installed Amazon Vega CLI. If the CLI
-            rejects the app's React Native version, <code>modules.vega</code>{' '}
+            rejects the app's React Native version, <code>amazon.vegaOS</code>{' '}
             can still prepare and validate the Vega project files, but the app
             needs an Amazon-supported React Native for Vega build target.
+          </li>
+          <li>
+            The repository Vega examples intentionally build through temporary
+            React Native 0.72 Vega projects so they can test the current OpenIAP
+            package source and the existing example UI while staying inside
+            Amazon's supported Vega runtime version.
           </li>
         </ul>
       </section>

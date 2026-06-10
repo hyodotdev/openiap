@@ -154,7 +154,7 @@ const withLocalOpenIAP: ConfigPlugin<
     horizonAppId?: string;
     /** Resolved from modules.horizon by withIAP */
     isHorizonEnabled?: boolean;
-    /** Resolved from modules.fireOS by withIAP */
+    /** Resolved from amazon.fireOS by withIAP */
     isFireOsEnabled?: boolean;
   } | void
 > = (config, props) => {

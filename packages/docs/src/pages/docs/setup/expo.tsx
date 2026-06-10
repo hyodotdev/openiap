@@ -286,9 +286,11 @@ cd ios && pod install`}
           "iapkitApiKey": "openiap-kit_<your-key>",
           "modules": {
             "onside": true,
-            "horizon": true,
+            "horizon": true
+          },
+          "amazon": {
             "fireOS": false,
-            "vega": false
+            "vegaOS": false
           },
           "android": {
             "horizonAppId": "YOUR_HORIZON_APP_ID"
@@ -299,6 +301,13 @@ cd ios && pod install`}
   }
 }`}
         </CodeBlock>
+        <p>
+          Amazon targets are grouped under <code>amazon</code>.{' '}
+          <code>amazon.fireOS</code> selects the Android Amazon Appstore flavor,
+          while <code>amazon.vegaOS</code> prepares Kepler/Vega project files.
+          They can both be <code>true</code> in one config, but Fire OS and Vega
+          OS are still built as separate artifacts.
+        </p>
         <table>
           <thead>
             <tr>
@@ -340,7 +349,7 @@ cd ios && pod install`}
             </tr>
             <tr>
               <td>
-                <code>modules.fireOS</code>
+                <code>amazon.fireOS</code>
               </td>
               <td>boolean</td>
               <td>
@@ -350,7 +359,7 @@ cd ios && pod install`}
             </tr>
             <tr>
               <td>
-                <code>modules.vega</code>
+                <code>amazon.vegaOS</code>
               </td>
               <td>boolean</td>
               <td>

@@ -17,7 +17,7 @@ function Validation() {
         title="Validation"
         description="Validate in-app purchases with your backend or IAPKit. verifyPurchase and verifyPurchaseWithProvider for receipt and JWS verification."
         path="/docs/features/validation"
-        keywords="verifyPurchase, purchase validation, IAPKit, receipt verification, server-side validation, JWS verification"
+        keywords="verifyPurchase, purchase validation, IAPKit, receipt verification, Amazon RVS, Fire OS, Vega OS, server-side validation, JWS verification"
       />
       <h1>Validation</h1>
       <p>
@@ -179,12 +179,14 @@ if result.is_valid:
             IAPKit
           </a>{' '}
           is an <strong>open-source</strong> (MIT) receipt-validation service
-          for App Store and Google Play purchases. Instead of running your own
-          backend that talks to Apple's App Store Server API and Google Play
-          Developer API, you forward the JWS / purchase token to IAPKit and get
-          a normalized verification response — so one-time in-app purchases are
-          checked against the store's authoritative state. Use the hosted
-          version at{' '}
+          for App Store, Google Play, Amazon Appstore, and Meta Horizon
+          purchases. Instead of running your own backend that talks to each
+          store's verification API, you forward the JWS, purchase token, Amazon
+          receipt id, or Horizon entitlement payload to IAPKit and get a
+          normalized verification response — so one-time in-app purchases are
+          checked against the store's authoritative state. Amazon Fire OS and
+          Vega OS both use the <code>iapkit.amazon</code> payload. Use the
+          hosted version at{' '}
           <a
             href={IAPKIT_URL}
             target="_blank"
@@ -211,12 +213,13 @@ if result.is_valid:
             <Link to="/docs/types/verify-purchase-with-provider-result">
               <code>VerifyPurchaseWithProviderResult</code>
             </Link>{' '}
-            shape for Apple and Google. No per-platform JSON parsing.
+            shape for Apple, Google, Amazon, and Horizon. No per-platform JSON
+            parsing.
           </li>
           <li>
-            <strong>Fraud-resistant</strong> — verifies Apple JWS signatures and
-            queries Google Play's authoritative subscription/purchase state on
-            the server, blocking common forged receipt and replay flows.
+            <strong>Fraud-resistant</strong> — verifies receipts and purchase
+            state against the store's authoritative server API, blocking common
+            forged receipt and replay flows.
           </li>
           <li>
             <strong>Entitlement state, not raw receipts</strong> — IAPKit
@@ -290,8 +293,13 @@ const result = await verifyPurchaseWithProvider({
   provider: 'iapkit',
   iapkit: {
     apiKey: 'openiap-kit_<your-key>',
-    apple: { jws: purchase.purchaseToken },
-    google: { purchaseToken: purchase.purchaseToken },
+    // Choose exactly one store payload.
+    // apple: { jws: purchase.purchaseToken },
+    // google: { purchaseToken: purchase.purchaseToken },
+    amazon: {
+      receiptId: purchase.purchaseToken,
+      sandbox: __DEV__,
+    },
   },
 });
 

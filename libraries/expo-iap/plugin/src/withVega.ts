@@ -232,7 +232,7 @@ export const mergeVegaPackageJson = <T extends MutablePackageJson>(
   setIfMissing(
     next.scripts,
     'run:vega:firetv',
-    `vega run-app build/armv7-debug/${vpkgBaseName}_armv7.vpkg ${settings.componentId} -d`,
+    `vega device install-app --packagePath build/armv7-debug/${vpkgBaseName}_armv7.vpkg && vega device launch-app --appName ${settings.componentId}`,
   );
 
   setIfMissing(

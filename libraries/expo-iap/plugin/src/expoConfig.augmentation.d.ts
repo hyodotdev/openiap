@@ -15,18 +15,23 @@ export type ExpoIapModuleOverrides = {
    * @default false
    */
   horizon?: boolean;
+};
+
+export type AmazonPlatformOptions = {
   /**
-   * Enable Fire OS support for Amazon-distributed Android builds
+   * Enable Fire OS support for Amazon-distributed Android builds.
+   * This selects the Android `amazon` flavor.
    * @platform android
    * @default false
    */
   fireOS?: boolean;
   /**
-   * Mark this config as targeting Vega OS. Vega OS is selected by the kepler
-   * runtime and must not be combined with Android store flavors.
+   * Enable Vega OS project generation for Amazon's Kepler runtime.
+   * This prepares Vega metadata and build scripts; it does not select an
+   * Android Gradle flavor.
    * @default false
    */
-  vega?: boolean;
+  vegaOS?: boolean;
 };
 
 type BaseExpoIapOptions = {
@@ -62,7 +67,12 @@ type BaseExpoIapOptions = {
     horizonAppId?: string;
   };
   /**
-   * Vega project generation options used when modules.vega is true.
+   * Amazon platform targets. Fire OS and Vega OS can both be enabled in the
+   * same config, but they still produce separate build artifacts.
+   */
+  amazon?: AmazonPlatformOptions;
+  /**
+   * Vega project generation options used when amazon.vegaOS is true.
    */
   vega?: VegaProjectOptions;
 };

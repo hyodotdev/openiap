@@ -5,6 +5,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Platform,
 } from 'react-native';
 import {Link} from 'expo-router';
 import {getStorefront} from 'expo-iap';
@@ -85,8 +86,13 @@ const MENU_ITEMS: MenuItem[] = [
  */
 export default function Home() {
   const [storefront, setStorefront] = useState<string | null>(null);
+  const [focusedIndex, setFocusedIndex] = useState(0);
 
   useEffect(() => {
+    if ((Platform.OS as string) === 'kepler') {
+      return;
+    }
+
     getStorefront()
       .then((code) => {
         setStorefront(code);
@@ -107,10 +113,18 @@ export default function Home() {
     </View>
   );
 
-  const renderItem = (item: MenuItem) => {
+  const renderItem = (item: MenuItem, index: number) => {
     return (
       <Link key={item.id} href={item.href as any} asChild>
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity
+          focusable
+          hasTVPreferredFocus={focusedIndex === index}
+          onFocus={() => setFocusedIndex(index)}
+          style={[
+            styles.menuItem,
+            focusedIndex === index && styles.menuItemFocused,
+          ]}
+        >
           <View
             style={[styles.iconContainer, {backgroundColor: item.accentColor}]}
           >
@@ -130,9 +144,7 @@ export default function Home() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.contentInner}>
         {renderHeader()}
-        <View style={styles.menuGrid}>
-          {MENU_ITEMS.map(renderItem)}
-        </View>
+        <View style={styles.menuGrid}>{MENU_ITEMS.map(renderItem)}</View>
       </View>
     </ScrollView>
   );
@@ -175,7 +187,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderColor: '#E2E8F0',
     borderRadius: 8,
-    borderWidth: 1,
+    borderWidth: 2,
     flexDirection: 'row',
     minHeight: 84,
     paddingHorizontal: 16,
@@ -188,6 +200,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 3,
+  },
+  menuItemFocused: {
+    borderColor: '#2563EB',
   },
   iconContainer: {
     alignItems: 'center',

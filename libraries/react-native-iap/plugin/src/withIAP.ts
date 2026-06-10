@@ -448,7 +448,24 @@ type IapPluginProps = {
    */
   iapkitApiKey?: string;
   /**
-   * Optional Android store modules.
+   * Amazon platform targets.
+   *
+   * Fire OS selects the Android Amazon Appstore flavor. Vega OS is selected by
+   * the Kepler runtime and does not change the Android Gradle flavor.
+   */
+  amazon?: {
+    /**
+     * Fire OS module for Amazon-distributed Android builds.
+     * @platform android
+     */
+    fireOS?: boolean;
+    /**
+     * Vega OS runtime target. This is not an Android flavor.
+     */
+    vegaOS?: boolean;
+  };
+  /**
+   * Optional non-Amazon Android store modules.
    * Fire OS takes precedence when both Fire OS and Horizon are enabled.
    */
   modules?: {
@@ -457,18 +474,26 @@ type IapPluginProps = {
      * @platform android
      */
     horizon?: boolean;
-    /**
-     * Fire OS module for Amazon-distributed Android builds.
-     * @platform android
-     */
-    fireOS?: boolean;
-    /**
-     * Vega OS runtime target. This is not an Android flavor and cannot be
-     * combined with fireOS or horizon.
-     */
-    vega?: boolean;
   };
 };
+
+export function resolveAmazonPlatformFlags(props?: IapPluginProps): {
+  isFireOsEnabled: boolean;
+  isVegaEnabled: boolean;
+  isHorizonEnabled: boolean;
+} {
+  const isFireOsEnabled = props?.amazon?.fireOS ?? false;
+  const isVegaEnabled = props?.amazon?.vegaOS ?? false;
+  const isHorizonEnabled = isFireOsEnabled
+    ? false
+    : (props?.modules?.horizon ?? false);
+
+  return {
+    isFireOsEnabled,
+    isVegaEnabled,
+    isHorizonEnabled,
+  };
+}
 
 const withIapIosFollyWorkaround: ConfigPlugin<IapPluginProps | undefined> = (
   config,
@@ -553,18 +578,9 @@ const withIapkitApiKeyIOS: ConfigPlugin<string | undefined> = (
 };
 
 const withIAP: ConfigPlugin<IapPluginProps | undefined> = (config, props) => {
-  const isFireOsEnabled = props?.modules?.fireOS ?? false;
-  const isVegaEnabled = props?.modules?.vega ?? false;
-  if (isVegaEnabled && (isFireOsEnabled || props?.modules?.horizon)) {
-    throw new Error(
-      'react-native-iap: modules.vega cannot be combined with Fire OS or Horizon Android flavors. Vega OS is selected by the kepler runtime, not Gradle.',
-    );
-  }
-
   try {
-    const isHorizonEnabled = isFireOsEnabled
-      ? false
-      : (props?.modules?.horizon ?? false);
+    const {isFireOsEnabled, isHorizonEnabled} =
+      resolveAmazonPlatformFlags(props);
 
     let result = withIapAndroid(config, {
       iapkitApiKey: props?.iapkitApiKey,

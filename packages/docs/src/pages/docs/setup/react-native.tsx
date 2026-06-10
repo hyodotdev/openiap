@@ -192,13 +192,17 @@ end`}
             automatic service reconnection
           </li>
           <li>
-            For Fire OS builds, set <code>fireOsEnabled=true</code> in{' '}
-            <code>android/gradle.properties</code> and see the{' '}
-            <a href="/docs/fireos-setup">Fire OS Setup Guide</a>
+            For Fire OS builds, use <code>amazon.fireOS=true</code> with the{' '}
+            <code>react-native-iap</code> config plugin, or set{' '}
+            <code>fireOsEnabled=true</code> in{' '}
+            <code>android/gradle.properties</code> when configuring Gradle
+            directly. See the{' '}
+            <a href="/docs/fireos-setup">Fire OS Setup Guide</a>.
           </li>
           <li>
-            For Vega OS, do not use an Android flavor. Install Amazon's Vega IAP
-            package and follow the{' '}
+            For Vega OS, do not use an Android flavor. Use{' '}
+            <code>amazon.vegaOS=true</code> as the config plugin target marker,
+            install Amazon's Vega IAP package, and follow the{' '}
             <a href="/docs/features/vega-os">Vega OS Runtime</a> guide.
           </li>
         </ul>

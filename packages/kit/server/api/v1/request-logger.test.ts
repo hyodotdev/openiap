@@ -4,6 +4,7 @@ import { Hono } from "hono";
 import { apiKeyMiddleware } from "./middleware";
 import {
   requestLoggerMiddleware,
+  type VerifyDebugLogLine,
   type VerifyLogLine,
   type VerifyOutcome,
 } from "./request-logger";
@@ -31,6 +32,8 @@ type TestVars = {
 
 function buildApp(params: {
   logs: VerifyLogLine[];
+  debugLogs?: VerifyDebugLogLine[];
+  debug?: boolean;
   now?: () => number;
   handler?: (c: {
     set: (k: "verifyOutcome", v: VerifyOutcome) => void;
@@ -48,6 +51,8 @@ function buildApp(params: {
     apiKeyMiddleware,
     requestLoggerMiddleware({
       logger: (line) => params.logs.push(line),
+      debugLogger: (line) => params.debugLogs?.push(line),
+      debug: params.debug,
       now: params.now ?? defaultNow,
       newCorrId: () => "corr-fixed",
     }),
@@ -194,6 +199,114 @@ describe("requestLoggerMiddleware", () => {
     expect(res.status).toBe(200);
     expect(logs).toHaveLength(1);
     expect(logs[0].store).toBe("amazon");
+  });
+
+  test("emits redacted non-production debug logs when enabled", async () => {
+    const logs: VerifyLogLine[] = [];
+    const debugLogs: VerifyDebugLogLine[] = [];
+    const app = buildApp({ logs, debugLogs, debug: true });
+
+    const res = await app.request("/verify", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer key-amazon",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        store: "amazon",
+        userId: TEST_AMAZON_USER_ID,
+        receiptId: TEST_AMAZON_RECEIPT_ID,
+        sandbox: true,
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(logs).toHaveLength(1);
+    expect(debugLogs).toHaveLength(1);
+
+    const line = debugLogs[0];
+    expect(line.kind).toBe("verify_request_debug");
+    expect(line.corrId).toBe("corr-fixed");
+    expect(line.statusCode).toBe(200);
+    expect(line.store).toBe("amazon");
+    expect(line.sandbox).toBe(true);
+    expect(line.apiKeyHash).toMatch(/^[0-9a-f]{16}$/);
+    expect(line.identifiers?.userId).toEqual({
+      length: TEST_AMAZON_USER_ID.length,
+      sha256Prefix: expect.stringMatching(/^[0-9a-f]{16}$/),
+    });
+    expect(line.identifiers?.receiptId).toEqual({
+      length: TEST_AMAZON_RECEIPT_ID.length,
+      sha256Prefix: expect.stringMatching(/^[0-9a-f]{16}$/),
+    });
+
+    const serializedLine = JSON.stringify(line);
+    expect(serializedLine).not.toContain("key-amazon");
+    expect(serializedLine).not.toContain(TEST_AMAZON_USER_ID);
+    expect(serializedLine).not.toContain(TEST_AMAZON_RECEIPT_ID);
+  });
+
+  test("does not emit debug logs when disabled", async () => {
+    const logs: VerifyLogLine[] = [];
+    const debugLogs: VerifyDebugLogLine[] = [];
+    const app = buildApp({ logs, debugLogs, debug: false });
+
+    const res = await app.request("/verify", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer key-amazon",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        store: "amazon",
+        userId: TEST_AMAZON_USER_ID,
+        receiptId: TEST_AMAZON_RECEIPT_ID,
+        sandbox: true,
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(logs).toHaveLength(1);
+    expect(debugLogs).toHaveLength(0);
+  });
+
+  test("keeps debug logs off in production even when explicitly requested", async () => {
+    const previousNodeEnv = process.env.NODE_ENV;
+    const previousKitDebug = process.env.KIT_DEBUG_VERIFY_LOGS;
+
+    process.env.NODE_ENV = "production";
+    process.env.KIT_DEBUG_VERIFY_LOGS = "1";
+
+    try {
+      const logs: VerifyLogLine[] = [];
+      const debugLogs: VerifyDebugLogLine[] = [];
+      const app = buildApp({ logs, debugLogs, debug: true });
+
+      const res = await app.request("/verify", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer key-amazon",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          store: "amazon",
+          userId: TEST_AMAZON_USER_ID,
+          receiptId: TEST_AMAZON_RECEIPT_ID,
+          sandbox: true,
+        }),
+      });
+
+      expect(res.status).toBe(200);
+      expect(logs).toHaveLength(1);
+      expect(debugLogs).toHaveLength(0);
+    } finally {
+      process.env.NODE_ENV = previousNodeEnv;
+      if (previousKitDebug === undefined) {
+        delete process.env.KIT_DEBUG_VERIFY_LOGS;
+      } else {
+        process.env.KIT_DEBUG_VERIFY_LOGS = previousKitDebug;
+      }
+    }
   });
 
   test("populates the X-Correlation-Id response header even on validator failure", async () => {

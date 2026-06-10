@@ -17,7 +17,10 @@ import {
   withIosAlternativeBilling,
   type IOSAlternativeBillingConfig,
 } from './withIosAlternativeBilling';
-import type {ExpoIapPluginCommonOptions} from './expoConfig.augmentation';
+import type {
+  AmazonPlatformOptions,
+  ExpoIapPluginCommonOptions,
+} from './expoConfig.augmentation';
 
 const pkg = require('../../package.json');
 const AUTOLINKING_CONFIG_PATH = path.resolve(
@@ -649,7 +652,7 @@ export interface ExpoIapPluginOptions {
    */
   iosAlternativeBilling?: IOSAlternativeBillingConfig;
   /**
-   * Optional modules configuration
+   * Non-Amazon optional modules configuration.
    */
   modules?: {
     /**
@@ -662,16 +665,6 @@ export interface ExpoIapPluginOptions {
      * @platform android
      */
     horizon?: boolean;
-    /**
-     * Fire OS module for Amazon-distributed Android builds
-     * @platform android
-     */
-    fireOS?: boolean;
-    /**
-     * Vega OS runtime target. This is not an Android flavor and cannot be
-     * combined with fireOS or horizon.
-     */
-    vega?: boolean;
   };
   /**
    * iOS-specific configuration
@@ -697,6 +690,11 @@ export interface ExpoIapPluginOptions {
     horizonAppId?: string;
   };
   /**
+   * Amazon platform targets. Fire OS and Vega OS can both be enabled in the
+   * same config, but they still produce separate build artifacts.
+   */
+  amazon?: AmazonPlatformOptions;
+  /**
    * Vega-specific project generation options.
    */
   vega?: VegaProjectOptions;
@@ -706,6 +704,32 @@ export interface ModuleSelectionResult {
   selection: 'auto' | 'expo-iap' | 'onside';
   includeExpoIap: boolean;
   includeOnside: boolean;
+}
+
+export type AmazonPlatformFlags = {
+  isFireOsEnabled: boolean;
+  isVegaEnabled: boolean;
+  isHorizonEnabled: boolean;
+  isOnsideEnabled: boolean;
+};
+
+export function resolveAmazonPlatformFlags(
+  options?: Pick<ExpoIapPluginOptions, 'amazon' | 'modules'> | void,
+): AmazonPlatformFlags {
+  const amazon = options?.amazon;
+  const isFireOsEnabled = amazon?.fireOS ?? false;
+  const isVegaEnabled = amazon?.vegaOS ?? false;
+  const isHorizonEnabled = isFireOsEnabled
+    ? false
+    : (options?.modules?.horizon ?? false);
+  const isOnsideEnabled = options?.modules?.onside ?? false;
+
+  return {
+    isFireOsEnabled,
+    isVegaEnabled,
+    isHorizonEnabled,
+    isOnsideEnabled,
+  };
 }
 
 /**
@@ -751,13 +775,12 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
   config,
   options,
 ) => {
-  const isFireOsEnabled = options?.modules?.fireOS ?? false;
-  const isVegaEnabled = options?.modules?.vega ?? false;
-  if (isVegaEnabled && (isFireOsEnabled || options?.modules?.horizon)) {
-    throw new Error(
-      'expo-iap: modules.vega cannot be combined with Fire OS or Horizon Android flavors. Vega OS is selected by the kepler runtime, not Gradle.',
-    );
-  }
+  const {
+    isFireOsEnabled,
+    isVegaEnabled,
+    isHorizonEnabled,
+    isOnsideEnabled,
+  } = resolveAmazonPlatformFlags(options);
 
   try {
     // Add iapkitApiKey to extra if provided
@@ -768,12 +791,6 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
       };
       logOnce('🔑 [expo-iap] Added iapkitApiKey to config.extra');
     }
-
-    // Read Android store flavor configuration from modules.
-    const isHorizonEnabled = isFireOsEnabled
-      ? false
-      : (options?.modules?.horizon ?? false);
-    const isOnsideEnabled = options?.modules?.onside ?? false;
 
     const horizonAppId =
       options?.android?.horizonAppId ?? options?.horizonAppId;

@@ -21,6 +21,11 @@ const IAPKIT_VERIFY_TIMEOUT_MS = 10_000;
 const MAX_IAPKIT_ERROR_DEPTH = 5;
 const MAX_PRODUCT_DATA_BATCH_SIZE = 100;
 const MAX_PURCHASE_UPDATE_PAGES = 100;
+const NOTIFY_FULFILLMENT_MAX_ATTEMPTS = 15;
+const NOTIFY_FULFILLMENT_RETRY_DELAY_MS = 1_000;
+const PURCHASE_UPDATES_MAX_ATTEMPTS = 5;
+const PURCHASE_UPDATES_RETRY_DELAY_MS = 1_000;
+const PURCHASE_RECOVERY_CLOCK_SKEW_MS = 5_000;
 
 interface VegaPrice {
   priceCurrencyCode?: string | null;
@@ -31,10 +36,14 @@ interface VegaPrice {
 interface VegaProduct {
   description?: string | null;
   freeTrialPeriod?: string | null;
-  price?: VegaPrice | null;
+  itemType?: unknown;
+  price?: VegaPrice | number | string | null;
   productType?: unknown;
   sku?: string | null;
+  subscriptionBase?: string | null;
+  subscriptionParent?: string | null;
   subscriptionPeriod?: string | null;
+  term?: string | null;
   title?: string | null;
 }
 
@@ -80,6 +89,10 @@ interface VegaUserDataResponse extends VegaResponse {
   userData?: VegaUserData | null;
 }
 
+interface VegaUserDataRequest {
+  fetchUserProfileAccessConsentStatus: boolean;
+}
+
 interface VegaError extends Error {
   code?: ErrorCode;
   debugMessage?: string;
@@ -93,7 +106,7 @@ export interface VegaPurchasingService {
   getPurchaseUpdates(request: {
     reset: boolean;
   }): Promise<VegaPurchaseUpdatesResponse>;
-  getUserData(request: Record<string, never>): Promise<VegaUserDataResponse>;
+  getUserData(request: VegaUserDataRequest): Promise<VegaUserDataResponse>;
   notifyFulfillment(request: {
     fulfillmentResult: number;
     receiptId: string;
@@ -109,6 +122,10 @@ const PURCHASE_STATE_PURCHASED = 1;
 const PURCHASE_STATE_PENDING = 2;
 const IAPKIT_DEFAULT_BASE_URL = 'https://kit.openiap.dev';
 const IAPKIT_VERIFY_PATH = '/v1/purchase/verify';
+const VEGA_PARSER_ERROR_MESSAGES = [
+  'Cannot convert undefined value to object',
+  'userId is not found while parsing Json',
+];
 
 function createVegaError(
   code: ErrorCode,
@@ -184,6 +201,12 @@ function responseCodeName(responseCode: unknown): string {
   return '';
 }
 
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 function isSuccess(
   operation: ResponseOperation,
   responseCode: unknown,
@@ -207,8 +230,10 @@ function mapErrorCode(
   if (name.includes('INVALID_SKU')) return ErrorCode.SkuNotFound;
   if (name.includes('NOT_SUPPORTED')) return ErrorCode.FeatureNotSupported;
   if (name.includes('PENDING')) return ErrorCode.Pending;
-  if (operation === 'purchase' && name.includes('FAILED')) {
-    return ErrorCode.UserCancelled;
+  if (name.includes('FAILED')) {
+    return operation === 'purchase'
+      ? ErrorCode.UserCancelled
+      : ErrorCode.ServiceError;
   }
 
   if (typeof responseCode === 'number') {
@@ -218,14 +243,38 @@ function mapErrorCode(
       if (responseCode === 3) return ErrorCode.FeatureNotSupported;
       if (responseCode === 4) return ErrorCode.UserCancelled;
     }
-    if (responseCode === 2 && operation !== 'purchase') {
+    if (operation !== 'purchase' && responseCode === 2) {
       return ErrorCode.FeatureNotSupported;
+    }
+    if (operation !== 'purchase' && responseCode === 3) {
+      return ErrorCode.ServiceError;
+    }
+    if (operation !== 'purchase' && responseCode === 4) {
+      return ErrorCode.ServiceError;
     }
   }
 
   if (operation === 'product-data') return ErrorCode.QueryProduct;
   if (operation === 'user-data') return ErrorCode.InitConnection;
   return ErrorCode.PurchaseError;
+}
+
+function shouldRetryResponse(
+  operation: ResponseOperation,
+  responseCode: unknown,
+): boolean {
+  if (isSuccess(operation, responseCode)) return false;
+  if (operation === 'purchase') return false;
+  if (typeof responseCode === 'number') return responseCode === 3;
+  return responseCodeName(responseCode).includes('FAILED');
+}
+
+function shouldRecoverPurchaseResponse(responseCode: unknown): boolean {
+  if (typeof responseCode === 'number') {
+    return responseCode === 1 || responseCode === 4;
+  }
+  const name = responseCodeName(responseCode);
+  return name.includes('ALREADY_PURCHASED') || name.includes('FAILED');
 }
 
 function ensureSuccessful(
@@ -259,6 +308,10 @@ function toTimestamp(value: unknown): number {
   return 0;
 }
 
+function priceNumberToMicros(value: number): number {
+  return Math.trunc(Math.abs(value) < 10_000 ? value * 1_000_000 : value);
+}
+
 function toPriceAmountMicros(value: unknown): string {
   if (typeof value === 'bigint') return value.toString();
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -268,11 +321,49 @@ function toPriceAmountMicros(value: unknown): string {
   return '0';
 }
 
+function getPriceObject(product: VegaProduct): VegaPrice {
+  return product.price != null &&
+    typeof product.price === 'object' &&
+    !Array.isArray(product.price)
+    ? product.price
+    : {};
+}
+
+function getPriceAmountMicros(product: VegaProduct): unknown {
+  if (typeof product.price === 'number' && Number.isFinite(product.price)) {
+    return priceNumberToMicros(product.price);
+  }
+  return getPriceObject(product).valueInMicros;
+}
+
 function microsToPrice(value: unknown): number | null {
   const micros =
     typeof value === 'bigint' ? Number(value) : Number(value ?? Number.NaN);
   if (!Number.isFinite(micros)) return null;
   return micros / 1_000_000;
+}
+
+function getPrice(product: VegaProduct): number | null {
+  if (typeof product.price === 'number' && Number.isFinite(product.price)) {
+    return Math.abs(product.price) < 10_000
+      ? product.price
+      : product.price / 1_000_000;
+  }
+  return microsToPrice(getPriceObject(product).valueInMicros);
+}
+
+function getDisplayPrice(product: VegaProduct): string {
+  const price = product.price;
+  if (typeof price === 'number' && Number.isFinite(price)) {
+    const value = Math.abs(price) < 10_000 ? price : price / 1_000_000;
+    return value.toFixed(2);
+  }
+  if (typeof price === 'string') return price;
+  return getPriceObject(product).priceStr ?? '';
+}
+
+function getCurrency(product: VegaProduct): string {
+  return getPriceObject(product).priceCurrencyCode ?? '';
 }
 
 function isSubscription(productType: unknown): boolean {
@@ -289,6 +380,21 @@ function isSubscription(productType: unknown): boolean {
 
 function productTypeToOpenIap(productType: unknown): 'in-app' | 'subs' {
   return isSubscription(productType) ? 'subs' : 'in-app';
+}
+
+function getProductType(product: VegaProduct): unknown {
+  return product.productType ?? product.itemType;
+}
+
+function getSubscriptionPeriod(product: VegaProduct): string {
+  if (product.subscriptionPeriod) return product.subscriptionPeriod;
+
+  const term = product.term?.toLowerCase() ?? '';
+  if (term.includes('year')) return 'P1Y';
+  if (term.includes('month')) return 'P1M';
+  if (term.includes('week')) return 'P1W';
+  if (term.includes('day')) return 'P1D';
+  return '';
 }
 
 function getReceiptSku(receipt: VegaReceipt): string {
@@ -308,8 +414,16 @@ function productDataToArray(
   productData?: Map<string, VegaProduct> | Record<string, VegaProduct> | null,
 ): VegaProduct[] {
   if (!productData) return [];
-  if (productData instanceof Map) return Array.from(productData.values());
-  return Object.values(productData);
+  if (productData instanceof Map) {
+    return Array.from(productData.entries()).map(([sku, product]) => ({
+      ...product,
+      sku: product.sku ?? sku,
+    }));
+  }
+  return Object.entries(productData).map(([sku, product]) => ({
+    ...product,
+    sku: product.sku ?? sku,
+  }));
 }
 
 function chunkArray<T>(items: T[], size: number): T[][] {
@@ -320,14 +434,28 @@ function chunkArray<T>(items: T[], size: number): T[][] {
   return chunks;
 }
 
+function createUserDataRequest(): VegaUserDataRequest {
+  return {
+    fetchUserProfileAccessConsentStatus: false,
+  };
+}
+
+function isVegaParserError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    VEGA_PARSER_ERROR_MESSAGES.some((message) =>
+      error.message.includes(message),
+    )
+  );
+}
+
 function createPricingPhase(product: VegaProduct) {
-  const price = product.price ?? {};
   return {
     billingCycleCount: 0,
-    billingPeriod: product.subscriptionPeriod ?? '',
-    formattedPrice: price.priceStr ?? '',
-    priceAmountMicros: toPriceAmountMicros(price.valueInMicros),
-    priceCurrencyCode: price.priceCurrencyCode ?? '',
+    billingPeriod: getSubscriptionPeriod(product),
+    formattedPrice: getDisplayPrice(product),
+    priceAmountMicros: toPriceAmountMicros(getPriceAmountMicros(product)),
+    priceCurrencyCode: getCurrency(product),
     recurrenceMode: 1,
   };
 }
@@ -351,14 +479,14 @@ function createStandardizedSubscriptionOffer(product: VegaProduct) {
   const sku = product.sku ?? '';
   return {
     basePlanIdAndroid: sku,
-    currency: product.price?.priceCurrencyCode ?? '',
-    displayPrice: product.price?.priceStr ?? '',
+    currency: getCurrency(product),
+    displayPrice: getDisplayPrice(product),
     id: sku,
     offerTagsAndroid: [],
     offerTokenAndroid: '',
     paymentMode: 'pay-as-you-go',
     period: null,
-    price: microsToPrice(product.price?.valueInMicros) ?? 0,
+    price: getPrice(product) ?? 0,
     pricingPhasesAndroid: {
       pricingPhaseList: [pricingPhase],
     },
@@ -368,7 +496,7 @@ function createStandardizedSubscriptionOffer(product: VegaProduct) {
 
 function mapProduct(product: VegaProduct): NitroProduct {
   const sku = product.sku ?? '';
-  const type = productTypeToOpenIap(product.productType);
+  const type = productTypeToOpenIap(getProductType(product));
   const subscriptionOfferDetails =
     type === 'subs' ? [createSubscriptionOffer(product)] : null;
   const subscriptionOffers =
@@ -380,13 +508,13 @@ function mapProduct(product: VegaProduct): NitroProduct {
     description: product.description ?? '',
     type,
     displayName: product.title ?? sku,
-    displayPrice: product.price?.priceStr ?? '',
-    currency: product.price?.priceCurrencyCode ?? '',
-    price: microsToPrice(product.price?.valueInMicros),
+    displayPrice: getDisplayPrice(product),
+    currency: getCurrency(product),
+    price: getPrice(product),
     platform: 'android',
     introductoryPricePaymentModeIOS: 'empty',
     nameAndroid: product.title ?? sku,
-    subscriptionPeriodAndroid: product.subscriptionPeriod ?? null,
+    subscriptionPeriodAndroid: getSubscriptionPeriod(product) || null,
     freeTrialPeriodAndroid: product.freeTrialPeriod ?? null,
     subscriptionOfferDetailsAndroid: subscriptionOfferDetails
       ? stringifyJson(subscriptionOfferDetails)
@@ -401,9 +529,10 @@ function mapProduct(product: VegaProduct): NitroProduct {
 function mapReceipt(
   receipt: VegaReceipt,
   fallbackProductType?: unknown,
+  productIdOverride?: string,
 ): NitroPurchase {
   const receiptId = receipt.receiptId ?? '';
-  const productId = getReceiptSku(receipt);
+  const productId = productIdOverride ?? getReceiptSku(receipt);
   const type = productTypeToOpenIap(receipt.productType ?? fallbackProductType);
   const isPending = Boolean(receipt.isDeferred);
   const isCanceled = Boolean(receipt.isCancelled || receipt.cancelDate);
@@ -466,8 +595,18 @@ type VegaRnIapModule = Partial<RnIap> & {
   restorePurchases(): Promise<void>;
 };
 
+interface RecoveredNitroPurchases {
+  requestedPurchases: NitroPurchase[];
+}
+
+interface RecoverPurchasesOptions {
+  minPurchaseDateMs?: number;
+}
+
 export function createVegaIapModule(service: VegaPurchasingService): RnIap {
   const productTypesBySku = new Map<string, unknown>();
+  const subscriptionBasesBySku = new Map<string, string>();
+  const subscriptionParentsBySku = new Map<string, string>();
   const purchaseUpdateListeners = new Map<
     number,
     (purchase: NitroPurchase) => void
@@ -490,10 +629,76 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
     }
   };
 
-  const getStorefront = async (): Promise<string> => {
-    const response = await service.getUserData({});
+  const cacheProductMetadata = (product: VegaProduct): void => {
+    if (!product.sku) return;
+
+    const productType = getProductType(product);
+    productTypesBySku.set(product.sku, productType);
+
+    if (product.subscriptionBase) {
+      subscriptionBasesBySku.set(product.sku, product.subscriptionBase);
+      productTypesBySku.set(product.subscriptionBase, productType);
+    }
+    if (product.subscriptionParent) {
+      subscriptionParentsBySku.set(product.sku, product.subscriptionParent);
+      productTypesBySku.set(product.subscriptionParent, productType);
+    }
+  };
+
+  const receiptMatchesRequestedSku = (
+    receipt: VegaReceipt,
+    sku: string,
+  ): boolean => {
+    const receiptSku = getReceiptSku(receipt);
+    if (!receiptSku) return false;
+    if (receiptSku === sku || receipt.termSku === sku) return true;
+    if (receiptSku === subscriptionBasesBySku.get(sku)) return true;
+    if (receiptSku === subscriptionParentsBySku.get(sku)) return true;
+    return receiptSku === `${sku}.base`;
+  };
+
+  const resolveReceiptProductId = (
+    receipt: VegaReceipt,
+    productIdOverride?: string,
+  ): string => {
+    if (productIdOverride) return productIdOverride;
+
+    const receiptSku = getReceiptSku(receipt);
+    if (!receiptSku) return '';
+
+    for (const [productSku, subscriptionBase] of subscriptionBasesBySku) {
+      if (receiptSku === subscriptionBase) return productSku;
+    }
+
+    for (const [productSku, subscriptionParent] of subscriptionParentsBySku) {
+      if (receiptSku === subscriptionParent) return productSku;
+    }
+
+    if (receiptSku.endsWith('.base')) {
+      const parentSku = receiptSku.slice(0, -'.base'.length);
+      if (productTypesBySku.has(parentSku)) return parentSku;
+    }
+
+    return receiptSku;
+  };
+
+  const getUserData = async (): Promise<VegaUserData | null> => {
+    let response: VegaUserDataResponse;
+    try {
+      response = await service.getUserData(createUserDataRequest());
+    } catch (error) {
+      if (isVegaParserError(error)) {
+        return null;
+      }
+      throw error;
+    }
     ensureSuccessful('user-data', response, 'Failed to fetch Amazon user data');
     cachedUserData = response.userData ?? null;
+    return cachedUserData;
+  };
+
+  const getStorefront = async (): Promise<string> => {
+    await getUserData();
     return cachedUserData?.marketplace ?? cachedUserData?.countryCode ?? '';
   };
 
@@ -512,7 +717,35 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
       }
       pageCount++;
 
-      const response = await service.getPurchaseUpdates({reset});
+      let response: VegaPurchaseUpdatesResponse | null = null;
+      for (
+        let attempt = 1;
+        attempt <= PURCHASE_UPDATES_MAX_ATTEMPTS;
+        attempt += 1
+      ) {
+        try {
+          response = await service.getPurchaseUpdates({reset});
+        } catch (error) {
+          if (isVegaParserError(error)) {
+            return receipts;
+          }
+          throw error;
+        }
+
+        if (
+          !shouldRetryResponse('purchase-updates', response.responseCode) ||
+          attempt === PURCHASE_UPDATES_MAX_ATTEMPTS
+        ) {
+          break;
+        }
+        await delay(PURCHASE_UPDATES_RETRY_DELAY_MS);
+      }
+      if (!response) {
+        throw createVegaError(
+          ErrorCode.ServiceError,
+          'Amazon Vega purchase updates returned no response.',
+        );
+      }
       ensureSuccessful(
         'purchase-updates',
         response,
@@ -550,6 +783,13 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
       if (!sku) continue;
       if (receipt.productType != null) {
         productTypesBySku.set(sku, receipt.productType);
+        continue;
+      }
+
+      const resolvedSku = resolveReceiptProductId(receipt);
+      const resolvedProductType = productTypesBySku.get(resolvedSku);
+      if (resolvedProductType != null) {
+        productTypesBySku.set(sku, resolvedProductType);
       } else if (!productTypesBySku.has(sku)) {
         missingSkus.add(sku);
       }
@@ -557,15 +797,21 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
 
     if (missingSkus.size === 0) return;
 
-    const products = await getProductData(
-      Array.from(missingSkus),
-      'Failed to fetch Amazon Vega product data for purchase updates',
-    );
+    let products: VegaProduct[];
+    try {
+      products = await getProductData(
+        Array.from(missingSkus),
+        'Failed to fetch Amazon Vega product data for purchase updates',
+      );
+    } catch (error) {
+      if (isVegaParserError(error)) {
+        return;
+      }
+      throw error;
+    }
 
     for (const product of products) {
-      if (product.sku) {
-        productTypesBySku.set(product.sku, product.productType);
-      }
+      cacheProductMetadata(product);
     }
   };
 
@@ -589,7 +835,11 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
         return true;
       })
       .map((receipt) =>
-        mapReceipt(receipt, getCachedProductType(receipt, productTypesBySku)),
+        mapReceipt(
+          receipt,
+          getCachedProductType(receipt, productTypesBySku),
+          resolveReceiptProductId(receipt),
+        ),
       );
   };
 
@@ -603,13 +853,34 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
       );
     }
 
-    const response = await service.notifyFulfillment({
-      fulfillmentResult: FULFILLMENT_RESULT_FULFILLED,
-      receiptId: purchaseToken,
-    });
+    let lastResponse: VegaResponse | null = null;
+    for (
+      let attempt = 1;
+      attempt <= NOTIFY_FULFILLMENT_MAX_ATTEMPTS;
+      attempt += 1
+    ) {
+      const response = await service.notifyFulfillment({
+        fulfillmentResult: FULFILLMENT_RESULT_FULFILLED,
+        receiptId: purchaseToken,
+      });
+      if (isSuccess('notify-fulfillment', response.responseCode)) {
+        return {
+          responseCode: 0,
+          code: '',
+          message: '',
+          purchaseToken,
+        };
+      }
+
+      lastResponse = response;
+      if (attempt < NOTIFY_FULFILLMENT_MAX_ATTEMPTS) {
+        await delay(NOTIFY_FULFILLMENT_RETRY_DELAY_MS);
+      }
+    }
+
     ensureSuccessful(
       'notify-fulfillment',
-      response,
+      lastResponse,
       'Failed to notify Amazon Vega fulfillment',
     );
     return {
@@ -618,6 +889,45 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
       message: '',
       purchaseToken,
     };
+  };
+
+  const recoverFulfillablePurchases = async (
+    sku: string,
+    fallbackProductType?: unknown,
+    options?: RecoverPurchasesOptions,
+  ): Promise<RecoveredNitroPurchases> => {
+    const receipts = await getPurchaseUpdateReceipts();
+    await hydrateProductTypesForReceipts(receipts);
+    const requestedPurchases: NitroPurchase[] = [];
+
+    for (const receipt of receipts) {
+      if (receipt.isCancelled || receipt.cancelDate || receipt.isDeferred) {
+        continue;
+      }
+
+      const purchaseTimestamp = toTimestamp(receipt.purchaseDate);
+      if (
+        options?.minPurchaseDateMs != null &&
+        (purchaseTimestamp === 0 || purchaseTimestamp < options.minPurchaseDateMs)
+      ) {
+        continue;
+      }
+
+      const matchesRequestedSku = receiptMatchesRequestedSku(receipt, sku);
+      const purchase = mapReceipt(
+        receipt,
+        receipt.productType ??
+          getCachedProductType(receipt, productTypesBySku, sku) ??
+          (matchesRequestedSku ? fallbackProductType : undefined),
+        resolveReceiptProductId(receipt, matchesRequestedSku ? sku : undefined),
+      );
+      if (matchesRequestedSku) {
+        requestedPurchases.push(purchase);
+      }
+      emitPurchaseUpdated(purchase);
+    }
+
+    return {requestedPurchases};
   };
 
   const verifyWithIapkit = async (
@@ -786,13 +1096,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
 
     let userId = typeof amazon.userId === 'string' ? amazon.userId.trim() : '';
     if (!userId) {
-      const response = await service.getUserData({});
-      ensureSuccessful(
-        'user-data',
-        response,
-        'Failed to fetch Amazon user data for IAPKit verification',
-      );
-      cachedUserData = response.userData ?? cachedUserData;
+      await getUserData();
       userId = cachedUserData?.userId?.trim() ?? '';
     }
     if (!userId) {
@@ -887,11 +1191,12 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
 
   const module: VegaRnIapModule = {
     async initConnection(): Promise<boolean> {
-      await getStorefront();
       return true;
     },
     async endConnection(): Promise<boolean> {
       productTypesBySku.clear();
+      subscriptionBasesBySku.clear();
+      subscriptionParentsBySku.clear();
       cachedUserData = null;
       return true;
     },
@@ -907,10 +1212,8 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
 
       return products
         .filter((product) => {
-          if (product.sku) {
-            productTypesBySku.set(product.sku, product.productType);
-          }
-          const openIapType = productTypeToOpenIap(product.productType);
+          cacheProductMetadata(product);
+          const openIapType = productTypeToOpenIap(getProductType(product));
           if (type === 'all') return true;
           if (type === 'subs') return openIapType === 'subs';
           return openIapType === 'in-app';
@@ -932,7 +1235,46 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
         if (fallbackProductType != null) {
           productTypesBySku.set(sku, fallbackProductType);
         }
-        const response = await service.purchase({sku});
+        let response: VegaPurchaseResponse;
+        const purchaseStartedAtMs =
+          Date.now() - PURCHASE_RECOVERY_CLOCK_SKEW_MS;
+        try {
+          response = await service.purchase({sku});
+        } catch (error) {
+          if (isVegaParserError(error)) {
+            try {
+              const recovered = await recoverFulfillablePurchases(
+                sku,
+                fallbackProductType,
+                {minPurchaseDateMs: purchaseStartedAtMs},
+              );
+              if (recovered.requestedPurchases.length > 0) {
+                return recovered.requestedPurchases;
+              }
+            } catch {
+              // Keep the original parser error as the source of truth.
+            }
+          }
+          throw error;
+        }
+
+        if (
+          !isSuccess('purchase', response.responseCode) &&
+          shouldRecoverPurchaseResponse(response.responseCode)
+        ) {
+          try {
+            const recovered = await recoverFulfillablePurchases(
+              sku,
+              fallbackProductType,
+            );
+            if (recovered.requestedPurchases.length > 0) {
+              return recovered.requestedPurchases;
+            }
+          } catch {
+            // Keep the original purchase response as the source of truth.
+          }
+        }
+
         ensureSuccessful(
           'purchase',
           response,
@@ -943,7 +1285,11 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
         if (!response.receipt) return [];
 
         cachedUserData = response.userData ?? cachedUserData;
-        const purchase = mapReceipt(response.receipt, fallbackProductType);
+        const purchase = mapReceipt(
+          response.receipt,
+          fallbackProductType,
+          sku,
+        );
         emitPurchaseUpdated(purchase);
         return [purchase];
       } catch (error) {

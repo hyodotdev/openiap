@@ -26,10 +26,18 @@ import type {
   Purchase,
   VerifyPurchaseWithProviderProps,
 } from '../../src/types';
+import {ErrorCode} from '../../src/types';
 import type {PurchaseError} from '../../src/utils/errorMapping';
 import PurchaseDetails from '../src/components/PurchaseDetails';
 import PurchaseSummaryRow from '../src/components/PurchaseSummaryRow';
 import {extractErrorMessage} from '../src/utils/errorUtils';
+import {useVegaTvSelection} from '../src/hooks/useVegaTvSelection';
+import {
+  createIapkitVerificationPayload,
+  getDefaultVerificationMethod,
+  getPurchaseCleanupKey,
+  showNativeAlert,
+} from '../src/utils/vegaRuntime';
 
 type VerificationMethod = 'ignore' | 'local' | 'iapkit';
 
@@ -42,6 +50,13 @@ const TIER_MAP: Record<string, number> = {
 const getSubscriptionTier = (productId: string): number => {
   return TIER_MAP[productId] ?? 0;
 };
+
+function isSubscriptionFlowProduct(productId: string): boolean {
+  return SUBSCRIPTION_PRODUCT_IDS.some(
+    (subscriptionId) =>
+      productId === subscriptionId || productId.startsWith(`${subscriptionId}.`),
+  );
+}
 
 /**
  * Subscription Flow Example - Subscription Products
@@ -335,6 +350,84 @@ function SubscriptionFlow({
       subscriptions,
     ],
   );
+
+  const getSubscriptionButtonState = useCallback(
+    (subscription: ProductSubscription) => {
+      const isSubscribed = activeSubscriptions.some(
+        (sub) => sub.productId === subscription.id,
+      );
+      const isPending = isPendingUpgrade(subscription.id);
+      const upgradeInfo = getUpgradeInfo(subscription.id);
+      const isProductCancelled = isCancelled(subscription.id);
+
+      let buttonText = 'Subscribe';
+      let buttonStyles = [styles.subscribeButton];
+      let buttonDisabled = isProcessing || !connected;
+
+      if (isProcessing) {
+        buttonText = 'Processing...';
+        buttonDisabled = true;
+      } else if (isPending) {
+        buttonText = '⏳ Scheduled';
+        buttonStyles = [styles.pendingButton];
+        buttonDisabled = true;
+      } else if (isSubscribed && !isProductCancelled) {
+        buttonText = '✅ Subscribed';
+        buttonStyles = [styles.subscribedButton];
+        buttonDisabled = true;
+      } else if (isSubscribed && isProductCancelled) {
+        buttonText = '🔄 Reactivate';
+        buttonStyles = [styles.reactivateButton];
+        buttonDisabled = false;
+      } else if (upgradeInfo.canUpgrade) {
+        buttonText = '⬆️ Upgrade';
+        buttonStyles = [styles.upgradeButton];
+        buttonDisabled = false;
+      } else if (upgradeInfo.isDowngrade) {
+        buttonText = '⬇️ Downgrade';
+        buttonStyles = [styles.downgradeButton];
+        buttonDisabled = false;
+      }
+
+      return {
+        buttonDisabled,
+        buttonStyles,
+        buttonText,
+        isPending,
+        isProductCancelled,
+        isSubscribed,
+        upgradeInfo,
+      };
+    },
+    [
+      activeSubscriptions,
+      connected,
+      getUpgradeInfo,
+      isCancelled,
+      isPendingUpgrade,
+      isProcessing,
+    ],
+  );
+
+  const {
+    selectedIndex: tvSelectedSubscriptionIndex,
+    setSelectedIndex: setTvSelectedSubscriptionIndex,
+  } = useVegaTvSelection({
+    itemCount: subscriptions.length,
+    isItemDisabled: (index) => {
+      const subscription = subscriptions[index];
+      return (
+        !subscription || getSubscriptionButtonState(subscription).buttonDisabled
+      );
+    },
+    onSelect: (index) => {
+      const subscription = subscriptions[index];
+      if (subscription) {
+        handleSubscription(subscription.id);
+      }
+    },
+    suppressSelection: isProcessing || Boolean(purchaseResult),
+  });
 
   const retryLoadSubscriptions = useCallback(() => {
     onRetryLoadSubscriptions();
@@ -1181,43 +1274,16 @@ function SubscriptionFlow({
         {!connected ? (
           <Loading message="Connecting to store..." />
         ) : subscriptions.length > 0 ? (
-          subscriptions.map((subscription) => {
-            const isSubscribed = activeSubscriptions.some(
-              (sub) => sub.productId === subscription.id,
-            );
-            const isPending = isPendingUpgrade(subscription.id);
-            const upgradeInfo = getUpgradeInfo(subscription.id);
-            const isProductCancelled = isCancelled(subscription.id);
-
-            // Determine button state and text
-            let buttonText = 'Subscribe';
-            let buttonStyles = [styles.subscribeButton];
-            let buttonDisabled = isProcessing || !connected;
-
-            if (isProcessing) {
-              buttonText = 'Processing...';
-              buttonDisabled = true;
-            } else if (isPending) {
-              buttonText = '⏳ Scheduled';
-              buttonStyles = [styles.pendingButton];
-              buttonDisabled = true;
-            } else if (isSubscribed && !isProductCancelled) {
-              buttonText = '✅ Subscribed';
-              buttonStyles = [styles.subscribedButton];
-              buttonDisabled = true;
-            } else if (isSubscribed && isProductCancelled) {
-              buttonText = '🔄 Reactivate';
-              buttonStyles = [styles.reactivateButton];
-              buttonDisabled = false;
-            } else if (upgradeInfo.canUpgrade) {
-              buttonText = '⬆️ Upgrade';
-              buttonStyles = [styles.upgradeButton];
-              buttonDisabled = false;
-            } else if (upgradeInfo.isDowngrade) {
-              buttonText = '⬇️ Downgrade';
-              buttonStyles = [styles.downgradeButton];
-              buttonDisabled = false;
-            }
+          subscriptions.map((subscription, index) => {
+            const {
+              buttonDisabled,
+              buttonStyles,
+              buttonText,
+              isPending,
+              isProductCancelled,
+              isSubscribed,
+              upgradeInfo,
+            } = getSubscriptionButtonState(subscription);
 
             return (
               <View key={subscription.id} style={styles.subscriptionCard}>
@@ -1261,17 +1327,23 @@ function SubscriptionFlow({
                 </View>
                 <View style={styles.subscriptionActions}>
                   <TouchableOpacity
+                    focusable={true}
                     style={styles.infoButton}
                     onPress={() => handleSubscriptionPress(subscription)}
                   >
                     <Text style={styles.infoButtonText}>ℹ️</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
+                    focusable={true}
+                    hasTVPreferredFocus={index === tvSelectedSubscriptionIndex}
                     style={[
                       ...buttonStyles,
+                      index === tvSelectedSubscriptionIndex &&
+                        styles.tvFocusedButton,
                       buttonDisabled && styles.disabledButton,
                     ]}
                     onPress={() => handleSubscription(subscription.id)}
+                    onFocus={() => setTvSelectedSubscriptionIndex(index)}
                     disabled={buttonDisabled}
                   >
                     <Text
@@ -1465,7 +1537,7 @@ function SubscriptionFlowContainer() {
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   const [lastPurchase, setLastPurchase] = useState<Purchase | null>(null);
   const [verificationMethod, setVerificationMethod] =
-    useState<VerificationMethod>('ignore');
+    useState<VerificationMethod>(getDefaultVerificationMethod());
   const verificationMethodRef = useRef<VerificationMethod>(verificationMethod);
 
   // Keep ref in sync with state
@@ -1478,6 +1550,7 @@ function SubscriptionFlowContainer() {
   const isHandlingPurchaseRef = useRef(false);
   const isCheckingStatusRef = useRef(false);
   const didFetchSubsRef = useRef(false);
+  const cleanupPurchaseKeysRef = useRef(new Set<string>());
 
   const resetHandlingState = useCallback(() => {
     isHandlingPurchaseRef.current = false;
@@ -1490,8 +1563,10 @@ function SubscriptionFlowContainer() {
   const {
     connected,
     subscriptions,
+    availablePurchases,
     fetchProducts,
     finishTransaction,
+    getAvailablePurchases,
     getActiveSubscriptions,
     activeSubscriptions,
     verifyPurchase,
@@ -1514,6 +1589,15 @@ function SubscriptionFlowContainer() {
         '[SubscriptionFlow] Current verificationMethod ref:',
         verificationMethodRef.current,
       );
+
+      const productId = purchase.productId ?? '';
+      if (!isSubscriptionFlowProduct(productId)) {
+        console.log('[SubscriptionFlow] ignoring non-subscription product:', {
+          productId,
+        });
+        return;
+      }
+
       setLastPurchase(purchase);
 
       if (isHandlingPurchaseRef.current) {
@@ -1525,13 +1609,21 @@ function SubscriptionFlowContainer() {
       }
 
       isHandlingPurchaseRef.current = true;
-      setIsProcessing(false);
 
       let isPurchased = false;
       let isRestoration = false;
       const purchasePlatform = (purchase.platform ?? '')
         .toString()
         .toLowerCase();
+      const purchaseStore = (purchase as Purchase & {store?: string | null})
+        .store;
+      const normalizedPurchaseStore = purchaseStore?.toLowerCase() ?? '';
+      const hasAndroidPurchaseIdentity = Boolean(
+        purchase.purchaseToken ||
+          purchase.id ||
+          purchase.transactionId ||
+          purchase.productId,
+      );
 
       if (Platform.OS === 'ios' && purchasePlatform === 'ios') {
         const hasValidToken = !!(
@@ -1569,21 +1661,29 @@ function SubscriptionFlowContainer() {
             ? purchase.transactionReasonIOS
             : undefined,
         );
-      } else if (Platform.OS === 'android' && purchasePlatform === 'android') {
-        isPurchased = true;
+      } else if (
+        Platform.OS === 'android' ||
+        purchasePlatform === 'android' ||
+        normalizedPurchaseStore === 'amazon'
+      ) {
+        isPurchased = hasAndroidPurchaseIdentity;
         isRestoration = false;
 
         console.log('Android Purchase Analysis:');
+        console.log('  platform:', purchasePlatform || Platform.OS);
+        console.log('  store:', normalizedPurchaseStore || 'unknown');
+        console.log('  hasAndroidPurchaseIdentity:', hasAndroidPurchaseIdentity);
         console.log('  isPurchased:', isPurchased);
         console.log('  isRestoration:', isRestoration);
       }
 
       if (!isPurchased) {
-        console.warn(
+        console.log(
           'Purchase callback received but purchase validation failed',
         );
         setPurchaseResult('Purchase validation failed.');
-        Alert.alert(
+        setIsProcessing(false);
+        showNativeAlert(
           'Purchase Issue',
           'Purchase could not be validated. Please try again.',
         );
@@ -1601,7 +1701,9 @@ function SubscriptionFlowContainer() {
         console.log(
           '[SubscriptionFlow] This is a restoration, skipping verification',
         );
-        setPurchaseResult('Subscription restored successfully.');
+        setPurchaseResult(
+          'Subscription restored; finishing transaction...',
+        );
 
         // Step 6: finish transaction (restoration)
         try {
@@ -1609,8 +1711,14 @@ function SubscriptionFlowContainer() {
             purchase,
             isConsumable: false,
           });
+          setPurchaseResult('Subscription restored and finished successfully.');
         } catch (error) {
-          console.warn('finishTransaction failed during restoration:', error);
+          setPurchaseResult(
+            `Subscription restored, but finishTransaction failed: ${extractErrorMessage(
+              error,
+            )}`,
+          );
+          console.log('finishTransaction failed during restoration:', error);
         }
 
         console.log('✅ Subscription restoration completed');
@@ -1619,19 +1727,18 @@ function SubscriptionFlowContainer() {
         try {
           await getActiveSubscriptions();
         } catch (error) {
-          console.warn('Failed to refresh status:', error);
+          console.log('Failed to refresh status:', error);
         }
 
         resetHandlingState();
+        setIsProcessing(false);
         return;
       }
       console.log(
         '[SubscriptionFlow] Not a restoration, proceeding to verification check',
       );
 
-      setPurchaseResult('Subscription activated successfully.');
-
-      const productId = purchase.productId;
+      setPurchaseResult('Subscription received; finishing transaction...');
 
       // ------------------------------------------------------------
       // Step 4: verifyPurchase - 3 methods available
@@ -1660,7 +1767,7 @@ function SubscriptionFlowContainer() {
               apple: {sku: productId},
               google: {
                 sku: productId,
-                packageName: 'dev.anthropic.iapexample',
+                packageName: 'dev.hyo.openiap.expo.example',
                 purchaseToken: purchase.purchaseToken ?? '',
                 accessToken: '', // ⚠️ Requires server-issued OAuth token
                 isSub: true,
@@ -1673,9 +1780,6 @@ function SubscriptionFlowContainer() {
             );
           } else if (currentVerificationMethod === 'iapkit') {
             console.log('[SubscriptionFlow] Verifying with IAPKit...');
-            // Note: apiKey is automatically injected from config plugin (iapkitApiKey)
-            // No need to manually pass it - expo-iap reads it from Constants.expoConfig.extra.iapkitApiKey
-
             console.log(
               '[SubscriptionFlow] purchase.purchaseToken:',
               purchase.purchaseToken &&
@@ -1686,7 +1790,7 @@ function SubscriptionFlowContainer() {
 
             const jwsOrToken = purchase.purchaseToken ?? '';
             if (!jwsOrToken) {
-              console.warn(
+              console.log(
                 '[SubscriptionFlow] No purchaseToken/JWS available for verification',
               );
               throw new Error(
@@ -1694,36 +1798,28 @@ function SubscriptionFlowContainer() {
               );
             }
 
-            // apiKey is auto-filled from config plugin - no need to specify it
+            const iapkitPayload = createIapkitVerificationPayload(
+              purchase,
+              jwsOrToken,
+            );
             const verifyRequest: VerifyPurchaseWithProviderProps = {
               provider: 'iapkit',
-              iapkit: {
-                apple: {
-                  jws: jwsOrToken,
-                },
-                google: {
-                  purchaseToken: jwsOrToken,
-                },
-              },
+              iapkit: iapkitPayload,
+            };
+            const iapkitLogPayload = {
+              ...iapkitPayload,
+              ...(iapkitPayload.apiKey ? {apiKey: '***hidden***'} : {}),
             };
 
             console.log(
               '[SubscriptionFlow] Sending IAPKit verification request:',
               JSON.stringify(
-                {
-                  provider: verifyRequest.provider,
-                  iapkit: {
-                    ...(Platform.OS === 'ios'
-                      ? {apple: {jws: jwsOrToken}}
-                      : {
-                          google: {
-                            purchaseToken: jwsOrToken,
-                          },
-                        }),
+                  {
+                    provider: verifyRequest.provider,
+                    iapkit: iapkitLogPayload,
                   },
-                },
-                null,
-                2,
+                  null,
+                  2,
               ),
             );
 
@@ -1739,7 +1835,7 @@ function SubscriptionFlowContainer() {
               const statusEmoji = iapkitResult.isValid ? '✅' : '⚠️';
               const stateText = iapkitResult.state || 'unknown';
 
-              Alert.alert(
+              showNativeAlert(
                 `${statusEmoji} IAPKit Verification`,
                 `Valid: ${iapkitResult.isValid}\nState: ${stateText}\nStore: ${
                   iapkitResult.store || 'unknown'
@@ -1748,8 +1844,8 @@ function SubscriptionFlowContainer() {
             }
           }
         } catch (error) {
-          console.warn('[SubscriptionFlow] Verification failed:', error);
-          Alert.alert(
+          console.log('[SubscriptionFlow] Verification failed:', error);
+          showNativeAlert(
             'Verification Failed',
             `Purchase verification failed: ${extractErrorMessage(error)}`,
           );
@@ -1763,17 +1859,27 @@ function SubscriptionFlowContainer() {
       // IMPORTANT: Must call finishTransaction to complete the purchase
       // Subscriptions are NOT consumable (isConsumable: false)
       // ------------------------------------------------------------
+      let didFinishTransaction = false;
       try {
         await finishTransaction({
           purchase,
           isConsumable: false,
         });
+        didFinishTransaction = true;
+        setPurchaseResult('Subscription activated and finished successfully.');
       } catch (error) {
-        console.warn('finishTransaction failed (new purchase):', error);
+        setPurchaseResult(
+          `Subscription activated, but finishTransaction failed: ${extractErrorMessage(
+            error,
+          )}`,
+        );
+        console.log('finishTransaction failed (new purchase):', error);
       }
 
-      Alert.alert('Success', 'New subscription activated successfully!');
-      console.log('✅ New subscription purchase completed');
+      if (didFinishTransaction) {
+        showNativeAlert('Success', 'New subscription activated successfully!');
+        console.log('✅ New subscription purchase completed');
+      }
 
       // ------------------------------------------------------------
       // Step 5: grant entitlement
@@ -1783,7 +1889,7 @@ function SubscriptionFlowContainer() {
       try {
         await getActiveSubscriptions();
       } catch (error) {
-        console.warn('Failed to refresh status:', error);
+        console.log('Failed to refresh status:', error);
       }
 
       resetHandlingState();
@@ -1794,9 +1900,14 @@ function SubscriptionFlowContainer() {
     // Handle purchase failures (user cancelled, payment failed, etc.)
     // ------------------------------------------------------------
     onPurchaseError: (error: PurchaseError) => {
-      console.error('Subscription failed:', error);
+      console.log('Subscription failed:', error.message);
       setIsProcessing(false);
       resetHandlingState();
+      if (error.code === ErrorCode.UserCancelled) {
+        setPurchaseResult('Subscription cancelled by user');
+        return;
+      }
+
       setPurchaseResult(`Subscription failed: ${error.message}`);
     },
   });
@@ -1821,10 +1932,13 @@ function SubscriptionFlowContainer() {
     isCheckingStatusRef.current = true;
     setIsCheckingStatus(true);
     try {
-      getActiveSubscriptions();
+      await getActiveSubscriptions();
     } catch (error) {
-      console.error('Error checking subscription status:', error);
-      console.warn(
+      console.log(
+        'Error checking subscription status:',
+        extractErrorMessage(error),
+      );
+      console.log(
         'Subscription status check failed, but existing state preserved',
       );
     } finally {
@@ -1842,13 +1956,57 @@ function SubscriptionFlowContainer() {
     if (connected && !didFetchSubsRef.current) {
       didFetchSubsRef.current = true;
       console.log('Connected to store, loading subscription products...');
-      fetchProducts({skus: subscriptionIds, type: 'subs'});
+      fetchProducts({skus: subscriptionIds, type: 'subs'}).catch((error) => {
+        const message = extractErrorMessage(error);
+        console.log('[SubscriptionFlow] fetchProducts error:', message);
+        setPurchaseResult(`Subscription loading failed: ${message}`);
+      });
+      getAvailablePurchases().catch((error) => {
+        console.log('[SubscriptionFlow] getAvailablePurchases error:', error);
+      });
       console.log('Product loading request sent - waiting for results...');
     } else if (!connected) {
       didFetchSubsRef.current = false;
+      cleanupPurchaseKeysRef.current.clear();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connected]);
+
+  useEffect(() => {
+    if (!connected || availablePurchases.length === 0) return;
+
+    for (const purchase of availablePurchases) {
+      const productId = purchase.productId ?? '';
+      if (!isSubscriptionFlowProduct(productId)) {
+        console.log(
+          '[SubscriptionFlow] skipping cleanup for non-subscription product:',
+          {productId},
+        );
+        continue;
+      }
+
+      const cleanupKey = getPurchaseCleanupKey(purchase);
+      if (cleanupPurchaseKeysRef.current.has(cleanupKey)) continue;
+      cleanupPurchaseKeysRef.current.add(cleanupKey);
+
+      finishTransaction({
+        purchase,
+        isConsumable: false,
+      })
+        .then(() => {
+          console.log('[SubscriptionFlow] cleaned up available purchase:', {
+            productId,
+          });
+        })
+        .catch((error) => {
+          cleanupPurchaseKeysRef.current.delete(cleanupKey);
+          console.log(
+            '[SubscriptionFlow] available purchase cleanup failed:',
+            error,
+          );
+        });
+    }
+  }, [availablePurchases, connected, finishTransaction]);
 
   // ============================================================
   // On App Launch - Check Existing Subscriptions
@@ -1944,15 +2102,6 @@ function SubscriptionFlowContainer() {
               )
           : [];
 
-      if (typeof requestPurchase !== 'function') {
-        console.warn(
-          '[SubscriptionFlow] requestPurchase missing (test/mock env)',
-        );
-        setIsProcessing(false);
-        setPurchaseResult('Cannot start purchase in test/mock environment.');
-        return;
-      }
-
       void requestPurchase({
         request: {
           // Apple subscription request
@@ -1967,13 +2116,31 @@ function SubscriptionFlowContainer() {
           },
         },
         type: 'subs',
+      }).catch((error: PurchaseError) => {
+        console.log('requestPurchase failed:', {
+          code: error.code,
+          message: error.message,
+        });
+        setIsProcessing(false);
+        if (error.code === ErrorCode.UserCancelled) {
+          setPurchaseResult('Subscription cancelled by user');
+          return;
+        }
+
+        setPurchaseResult(`Subscription failed: ${error.message}`);
       });
     },
     [activeSubscriptions, subscriptions],
   );
 
   const handleRetryLoadSubscriptions = useCallback(() => {
-    fetchProducts({skus: SUBSCRIPTION_PRODUCT_IDS, type: 'subs'});
+    fetchProducts({skus: SUBSCRIPTION_PRODUCT_IDS, type: 'subs'}).catch(
+      (error) => {
+        const message = extractErrorMessage(error);
+        console.log('[SubscriptionFlow] retry fetchProducts error:', message);
+        setPurchaseResult(`Subscription loading failed: ${message}`);
+      },
+    );
   }, [fetchProducts]);
 
   const handleManageSubscriptions = useCallback(async () => {
@@ -1983,7 +2150,7 @@ function SubscriptionFlowContainer() {
         const openedNative = await showManageSubscriptionsIOS()
           .then(() => true)
           .catch((error) => {
-            console.warn(
+            console.log(
               '[SubscriptionFlow] showManageSubscriptionsIOS failed, falling back to deep link',
               error,
             );
@@ -2008,7 +2175,10 @@ function SubscriptionFlowContainer() {
         );
       }
     } catch (error) {
-      console.error('Failed to open subscription management:', error);
+      console.log(
+        'Failed to open subscription management:',
+        extractErrorMessage(error),
+      );
       Alert.alert('Error', 'Failed to open subscription management');
     }
   }, [handleRefreshStatus, subscriptions]);
@@ -2237,6 +2407,10 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
     fontSize: 16,
+  },
+  tvFocusedButton: {
+    borderColor: '#0F172A',
+    borderWidth: 3,
   },
   disabledButton: {
     opacity: 0.5,

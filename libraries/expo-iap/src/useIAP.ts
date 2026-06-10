@@ -60,6 +60,20 @@ import {
   isRecoverableError,
 } from './utils/errorMapping';
 
+const PURCHASE_DELIVERY_DEDUP_WINDOW_MS = 30_000;
+
+function getPurchaseDeliveryKey(purchase: Purchase): string {
+  return [
+    purchase.store ?? '',
+    purchase.productId ?? '',
+    purchase.purchaseToken ??
+      purchase.transactionId ??
+      purchase.id ??
+      purchase.transactionDate ??
+      '',
+  ].join(':');
+}
+
 type UseIap = {
   connected: boolean;
   products: Product[];
@@ -169,6 +183,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
 
   const optionsRef = useRef<UseIAPOptions | undefined>(options);
   const connectedRef = useRef<boolean>(false);
+  const deliveredPurchaseKeysRef = useRef(new Set<string>());
 
   // Helper function to merge arrays with duplicate checking
   const mergeWithDuplicateCheck = useCallback(
@@ -249,6 +264,19 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     }),
     [],
   );
+
+  const markPurchaseDelivered = useCallback((purchase: Purchase): boolean => {
+    const key = getPurchaseDeliveryKey(purchase);
+    if (deliveredPurchaseKeysRef.current.has(key)) {
+      return false;
+    }
+
+    deliveredPurchaseKeysRef.current.add(key);
+    setTimeout(() => {
+      deliveredPurchaseKeysRef.current.delete(key);
+    }, PURCHASE_DELIVERY_DEDUP_WINDOW_MS);
+    return true;
+  }, []);
 
   // Helper function to invoke onError callback
   const invokeOnError = useCallback((error: unknown) => {
@@ -495,6 +523,25 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     [toPurchaseInput],
   );
 
+  const refreshSubscriptionStatus = useCallback(
+    async (productId: string) => {
+      try {
+        if (subscriptionsRefState.current.some((sub) => sub.id === productId)) {
+          await fetchProductsInternal({skus: [productId], type: 'subs'});
+          await getAvailablePurchasesInternal();
+          await getActiveSubscriptionsInternal();
+        }
+      } catch (error) {
+        ExpoIapConsole.warn('Failed to refresh subscription status:', error);
+      }
+    },
+    [
+      fetchProductsInternal,
+      getAvailablePurchasesInternal,
+      getActiveSubscriptionsInternal,
+    ],
+  );
+
   /**
    * Initiate a purchase or subscription flow. The result is delivered through
    * `purchaseUpdatedListener` — NOT the return value.
@@ -523,29 +570,28 @@ export function useIAP(options?: UseIAPOptions): UseIap {
    * @see {@link https://openiap.dev/docs/apis/request-purchase}
    */
   const requestPurchaseWithReset = useCallback(
-    (requestObj: MutationRequestPurchaseArgs) => {
-      return requestPurchaseInternal(requestObj);
-    },
-    [],
-  );
+    async (requestObj: MutationRequestPurchaseArgs) => {
+      const purchaseResult = await requestPurchaseInternal(requestObj);
+      const purchases = Array.isArray(purchaseResult)
+        ? purchaseResult
+        : purchaseResult
+          ? [purchaseResult]
+          : [];
 
-  const refreshSubscriptionStatus = useCallback(
-    async (productId: string) => {
-      try {
-        if (subscriptionsRefState.current.some((sub) => sub.id === productId)) {
-          await fetchProductsInternal({skus: [productId], type: 'subs'});
-          await getAvailablePurchasesInternal();
-          await getActiveSubscriptionsInternal();
+      for (const purchase of purchases ?? []) {
+        if (!markPurchaseDelivered(purchase)) {
+          continue;
         }
-      } catch (error) {
-        ExpoIapConsole.warn('Failed to refresh subscription status:', error);
+
+        await refreshSubscriptionStatus(purchase.productId);
+        if (optionsRef.current?.onPurchaseSuccess) {
+          optionsRef.current.onPurchaseSuccess(purchase);
+        }
       }
+
+      return purchaseResult;
     },
-    [
-      fetchProductsInternal,
-      getAvailablePurchasesInternal,
-      getActiveSubscriptionsInternal,
-    ],
+    [markPurchaseDelivered, refreshSubscriptionStatus],
   );
 
   /**
@@ -626,6 +672,10 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     // Register purchase update listener BEFORE initConnection to avoid race conditions.
     subscriptionsRef.current.purchaseUpdate = purchaseUpdatedListener(
       async (purchase: Purchase) => {
+        if (!markPurchaseDelivered(purchase)) {
+          return;
+        }
+
         // Refresh subscription status for both iOS and Android subscription purchases.
         // refreshSubscriptionStatus internally checks whether the product is a known
         // subscription, so it is safe to call unconditionally for any purchase event.
@@ -699,7 +749,12 @@ export function useIAP(options?: UseIAPOptions): UseIap {
       subscriptionsRef.current.purchaseUpdate = undefined;
       subscriptionsRef.current.promotedProductIOS = undefined;
     }
-  }, [buildConnectionConfig, refreshSubscriptionStatus, invokeOnError]);
+  }, [
+    buildConnectionConfig,
+    markPurchaseDelivered,
+    refreshSubscriptionStatus,
+    invokeOnError,
+  ]);
 
   // Manual reconnect method for when the initial auto-connect fails.
   // Re-runs initConnection and updates the connected state.
@@ -716,6 +771,10 @@ export function useIAP(options?: UseIAPOptions): UseIap {
         if (!subscriptionsRef.current.purchaseUpdate) {
           subscriptionsRef.current.purchaseUpdate = purchaseUpdatedListener(
             async (purchase: Purchase) => {
+              if (!markPurchaseDelivered(purchase)) {
+                return;
+              }
+
               await refreshSubscriptionStatus(purchase.productId);
 
               if (optionsRef.current?.onPurchaseSuccess) {
@@ -747,7 +806,12 @@ export function useIAP(options?: UseIAPOptions): UseIap {
       invokeOnError(error);
       return false;
     }
-  }, [buildConnectionConfig, refreshSubscriptionStatus, invokeOnError]);
+  }, [
+    buildConnectionConfig,
+    markPurchaseDelivered,
+    refreshSubscriptionStatus,
+    invokeOnError,
+  ]);
 
   useEffect(() => {
     initIapWithSubscriptions();

@@ -37,7 +37,7 @@ const mockUseIAP = {
 
 jest.mock('../../src', () => ({
   useIAP: jest.fn(() => mockUseIAP),
-  requestPurchase: jest.fn(),
+  requestPurchase: jest.fn(() => Promise.resolve()),
   getAppTransactionIOS: jest.fn(),
   getStorefront: jest.fn(),
 }));

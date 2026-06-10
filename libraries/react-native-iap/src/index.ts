@@ -2212,8 +2212,14 @@ export const validateReceiptIOS: QueryField<'validateReceiptIOS'> = async (
  *   provider: 'iapkit',
  *   iapkit: {
  *     apiKey: 'your-api-key',
- *     apple: { jws: purchase.purchaseToken },
- *     google: { purchaseToken: purchase.purchaseToken },
+ *     // Choose exactly one store payload.
+ *     // apple: { jws: purchase.purchaseToken },
+ *     // google: { purchaseToken: purchase.purchaseToken },
+ *     amazon: {
+ *       userId: amazonUserId,
+ *       receiptId: purchase.purchaseToken,
+ *       sandbox: __DEV__,
+ *     },
  *   },
  * });
  * ```

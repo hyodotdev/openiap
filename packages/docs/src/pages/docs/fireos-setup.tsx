@@ -42,12 +42,18 @@ function FireOSSetup() {
             consumers.
           </li>
           <li>
-            Framework flag: <code>fireOsEnabled=true</code> selects the Fire OS
-            Android flavor in React Native, Expo, and Flutter builds.
+            Config plugin option: <code>amazon.fireOS=true</code> selects the
+            Fire OS Android flavor during prebuild in <code>expo-iap</code> and{' '}
+            <code>react-native-iap</code>.
           </li>
           <li>
-            Vega OS: not an Android flavor. Do not set{' '}
-            <code>fireOsEnabled=true</code> for Vega OS apps.
+            Gradle/runtime flag: <code>fireOsEnabled=true</code> selects the
+            Fire OS Android flavor in React Native and Flutter builds.
+          </li>
+          <li>
+            Vega OS: not an Android flavor. Use <code>amazon.vegaOS=true</code>{' '}
+            to mark the Amazon Vega runtime target; Expo projects can also
+            generate Vega metadata from that option.
           </li>
         </ul>
       </section>
@@ -177,10 +183,11 @@ function FireOSSetup() {
           </a>
         </h2>
         <p>
-          React Native and Expo config plugins write the Fire OS Gradle
-          selection during prebuild. Flutter apps should wire the same property
-          into the app module's <code>missingDimensionStrategy</code>. Enable
-          Fire OS builds in the app's <code>android/gradle.properties</code>:
+          Expo and React Native config plugins use <code>amazon.fireOS</code>.
+          Flutter builds, or React Native builds that do not run a config
+          plugin, can select the same Android flavor through the{' '}
+          <code>fireOsEnabled</code> Gradle property and the app module's{' '}
+          <code>missingDimensionStrategy</code>:
         </p>
         <CodeBlock language="properties">{`fireOsEnabled=true
 # Do not set horizonEnabled=true in the same build.`}</CodeBlock>
@@ -189,10 +196,10 @@ function FireOSSetup() {
           selection during prebuild:
         </p>
         <CodeBlock language="typescript">{`// Expo
-plugins: [['expo-iap', { modules: { fireOS: true } }]]
+plugins: [['expo-iap', { amazon: { fireOS: true } }]]
 
 // React Native config plugin
-plugins: [['react-native-iap', { modules: { fireOS: true } }]]`}</CodeBlock>
+plugins: [['react-native-iap', { amazon: { fireOS: true } }]]`}</CodeBlock>
         <p>
           For Flutter, read the property from{' '}
           <code>android/gradle.properties</code> in{' '}
@@ -267,7 +274,8 @@ await requestPurchase({
             <Link to="/docs/apis/restore-purchases">
               <code>restorePurchases</code>
             </Link>{' '}
-            use <code>PurchasingService.getPurchaseUpdates(reset=true)</code>.
+            stay on the OpenIAP surface while the Amazon adapter internally
+            reads purchase updates from the Amazon Appstore SDK.
           </li>
           <li>
             <Link to="/docs/apis/finish-transaction">
@@ -287,6 +295,37 @@ await requestPurchase({
       </section>
 
       <section>
+        <h2 id="iapkit-verification" className="anchor-heading">
+          IAPKit Verification
+          <a href="#iapkit-verification" className="anchor-link">
+            #
+          </a>
+        </h2>
+        <p>
+          Fire OS purchases can use IAPKit's Amazon verification path instead of
+          app-owned receipt-verification infrastructure. Pass the Amazon receipt
+          id through <code>iapkit.amazon.receiptId</code>; the Amazon Android
+          flavor can resolve <code>userId</code> from Amazon user data when it
+          is omitted. Use <code>sandbox: true</code> for Amazon App Tester
+          receipts.
+        </p>
+        <CodeBlock language="typescript">{`const result = await verifyPurchaseWithProvider({
+  provider: 'iapkit',
+  iapkit: {
+    apiKey: '<iapkit-api-key>',
+    amazon: {
+      receiptId: purchase.purchaseToken ?? '',
+      sandbox: __DEV__,
+    },
+  },
+});`}</CodeBlock>
+        <p>
+          See the <Link to="/docs/kit-backend">IAPKit backend guide</Link> for
+          the shared Fire OS and Vega OS Amazon verification flow.
+        </p>
+      </section>
+
+      <section>
         <h2 id="limitations" className="anchor-heading">
           Current Limitations
           <a href="#limitations" className="anchor-link">
@@ -296,12 +335,16 @@ await requestPurchase({
         <ul>
           <li>
             Server-side Amazon Receipt Verification Service integration is not
-            included in the Android client package.
+            embedded in the Android client package. Use IAPKit's Amazon
+            verification path, or run your own server-side RVS integration.
           </li>
           <li>
-            Sandbox testing still requires Amazon App Tester setup and Amazon's
-            sandbox mode, for example{' '}
-            <code>adb shell setprop debug.amazon.sandboxmode debug</code>.
+            Fire OS sandbox testing still requires Amazon App Tester setup and
+            the Android sandbox property, for example{' '}
+            <code>adb shell setprop debug.amazon.sandboxmode debug</code>. Vega
+            OS sandbox testing uses the app-local{' '}
+            <code>amazon.config.json</code> flow documented in the{' '}
+            <Link to="/docs/features/vega-os">Vega OS Runtime</Link> guide.
           </li>
           <li>
             Vega OS is intentionally not included in the Fire OS Android flavor.

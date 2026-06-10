@@ -3,12 +3,12 @@
   "version": "15.4.0-rc.1",
   "description": "React Native In-App Purchases module for iOS and Android using Nitro",
   "main": "./lib/module/index.js",
-  "react-native": "./src/index.ts",
+  "react-native": "./src/index",
   "types": "./lib/typescript/src/index.d.ts",
   "exports": {
     ".": {
       "source": "./src/index.ts",
-      "react-native": "./src/index.ts",
+      "react-native": "./src/index",
       "types": "./lib/typescript/src/index.d.ts",
       "default": "./lib/module/index.js"
     },

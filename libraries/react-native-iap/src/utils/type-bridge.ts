@@ -194,7 +194,7 @@ function toNullableBoolean(value: unknown): boolean | null {
 function parseSubscriptionOffers(value?: Nullable<string> | any[]) {
   if (!value) return undefined;
 
-  // If it's already an array (from mocks), return it as-is
+  // Keep pre-normalized native values intact.
   if (Array.isArray(value)) {
     return value;
   }

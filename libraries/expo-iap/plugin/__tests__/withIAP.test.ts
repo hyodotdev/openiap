@@ -3,6 +3,7 @@ import plugin, {
   computeAutolinkModules,
   ensureOnsidePodIOS,
   modifyAppBuildGradle,
+  resolveAmazonPlatformFlags,
   resolveModuleSelection,
   syncHorizonAppIdMetaData,
 } from '../src/withIAP';
@@ -20,7 +21,12 @@ import {
 
 // Type-level expectations
 const autoModeOptions: ExpoIapPluginCommonOptions = {
-  modules: {onside: true, fireOS: false, vega: false},
+  amazon: {fireOS: false, vegaOS: false},
+  modules: {onside: true},
+};
+
+const groupedAmazonOptions: ExpoIapPluginCommonOptions = {
+  amazon: {fireOS: true, vegaOS: true},
 };
 
 const explicitModeOptions: ExpoIapPluginCommonOptions = {
@@ -31,6 +37,7 @@ const invalidExplicitOptions: ExpoIapPluginCommonOptions = {
   modules: {onside: false},
 };
 void autoModeOptions;
+void groupedAmazonOptions;
 void explicitModeOptions;
 void invalidExplicitOptions;
 
@@ -131,12 +138,44 @@ describe('android configuration', () => {
     expect(result).toContain('missingDimensionStrategy "platform", "play"');
   });
 
-  it('rejects Vega OS combined with Fire OS during prebuild', () => {
-    expect(() =>
-      plugin({name: 'test-app', slug: 'test-app'} as ExpoConfig, {
-        modules: {fireOS: true, vega: true},
+  it('allows Fire OS and Vega OS to be enabled as Amazon targets', () => {
+    expect(
+      resolveAmazonPlatformFlags({
+        amazon: {fireOS: true, vegaOS: true},
       }),
-    ).toThrow(/modules\.vega cannot be combined/);
+    ).toEqual({
+      isFireOsEnabled: true,
+      isVegaEnabled: true,
+      isHorizonEnabled: false,
+      isOnsideEnabled: false,
+    });
+  });
+
+  it('keeps Onside and Horizon selection outside the Amazon group', () => {
+    expect(
+      resolveAmazonPlatformFlags({
+        modules: {horizon: true, onside: true},
+      }),
+    ).toEqual({
+      isFireOsEnabled: false,
+      isVegaEnabled: false,
+      isHorizonEnabled: true,
+      isOnsideEnabled: true,
+    });
+  });
+
+  it('lets Fire OS take precedence over Horizon for Android flavor selection', () => {
+    expect(
+      resolveAmazonPlatformFlags({
+        amazon: {fireOS: true, vegaOS: false},
+        modules: {horizon: true},
+      }),
+    ).toEqual({
+      isFireOsEnabled: true,
+      isVegaEnabled: false,
+      isHorizonEnabled: false,
+      isOnsideEnabled: false,
+    });
   });
 
   it('removes Horizon App ID metadata outside Horizon builds', () => {
@@ -476,6 +515,12 @@ describe('vega project generation', () => {
     expect(result.scripts?.['build:vega:release']).toContain('expo prebuild');
     expect(result.scripts?.['build:vega:release']).toContain('build-vega');
     expect(result.scripts?.['run:vega:firetv']).toContain('armv7-debug');
+    expect(result.scripts?.['run:vega:firetv']).toContain(
+      'vega device install-app',
+    );
+    expect(result.scripts?.['run:vega:firetv']).toContain(
+      'vega device launch-app',
+    );
     expect(result.dependencies?.expo).toBe('^54.0.0');
     expect(
       result.dependencies?.['@amazon-devices/keplerscript-appstore-iap-lib'],

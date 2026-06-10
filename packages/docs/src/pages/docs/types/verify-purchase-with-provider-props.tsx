@@ -130,6 +130,18 @@ function VerifyPurchaseWithProviderProps() {
               </td>
               <td>Google/Android verification parameters.</td>
             </tr>
+            <tr>
+              <td>
+                <code>amazon</code>
+              </td>
+              <td>
+                <code>RequestVerifyPurchaseWithIapkitAmazonProps?</code>
+              </td>
+              <td>
+                Amazon Appstore verification parameters for Fire OS and Vega OS
+                purchase receipts.
+              </td>
+            </tr>
           </tbody>
         </table>
 
@@ -185,6 +197,64 @@ function VerifyPurchaseWithProviderProps() {
               <td>
                 The token provided to the user's device when the product or
                 subscription was purchased.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <AnchorLink
+          id="request-verify-purchase-with-iapkit-amazon-props"
+          level="h4"
+        >
+          RequestVerifyPurchaseWithIapkitAmazonProps
+        </AnchorLink>
+        <p>
+          Amazon Appstore receipt verification parameters. Fire OS and Vega OS
+          both use this <code>amazon</code> payload when verifying through
+          IAPKit.
+        </p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>userId</code>
+              </td>
+              <td>
+                <code>string?</code>
+              </td>
+              <td>
+                Amazon Appstore user id returned by{' '}
+                <code>PurchaseResponse.getUserData().getUserId()</code>.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>receiptId</code>
+              </td>
+              <td>
+                <code>string</code>
+              </td>
+              <td>
+                Amazon Appstore receipt id returned by{' '}
+                <code>PurchaseResponse.getReceipt().getReceiptId()</code>.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>sandbox</code>
+              </td>
+              <td>
+                <code>boolean?</code>
+              </td>
+              <td>
+                Use Amazon RVS Cloud Sandbox for Amazon App Tester receipts.
               </td>
             </tr>
           </tbody>

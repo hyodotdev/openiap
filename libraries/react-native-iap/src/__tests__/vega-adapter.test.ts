@@ -71,6 +71,15 @@ const createService = (): jest.Mocked<VegaPurchasingService> =>
   }) as unknown as jest.Mocked<VegaPurchasingService>;
 
 describe('Amazon Vega adapter', () => {
+  it('initializes without fetching Amazon user data', async () => {
+    const service = createService();
+    const module = createVegaIapModule(service);
+
+    await expect(module.initConnection()).resolves.toBe(true);
+
+    expect(service.getUserData).not.toHaveBeenCalled();
+  });
+
   it('maps Vega products to Nitro Android products', async () => {
     const service = createService();
     const module = createVegaIapModule(service);
@@ -128,6 +137,50 @@ describe('Amazon Vega adapter', () => {
     ]);
   });
 
+  it('maps App Tester catalog-shaped product data', async () => {
+    const service = createService();
+    service.getProductData.mockResolvedValueOnce({
+      responseCode: 1,
+      productData: {
+        'dev.hyo.martie.10bulbs': {
+          itemType: 'CONSUMABLE',
+          price: 0.99,
+          title: '10 Bulbs',
+          description: 'A small pack of bulbs',
+        },
+        'dev.hyo.martie.premium': {
+          itemType: 'SUBSCRIPTION',
+          price: 4.99,
+          term: 'Monthly',
+          title: 'Premium Monthly',
+          description: 'Monthly premium access',
+        },
+      },
+    });
+    const module = createVegaIapModule(service);
+
+    await expect(
+      module.fetchProducts(
+        ['dev.hyo.martie.10bulbs', 'dev.hyo.martie.premium'],
+        'all',
+      ),
+    ).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'dev.hyo.martie.10bulbs',
+          type: 'in-app',
+          price: 0.99,
+        }),
+        expect.objectContaining({
+          id: 'dev.hyo.martie.premium',
+          type: 'subs',
+          price: 4.99,
+          subscriptionPeriodAndroid: 'P1M',
+        }),
+      ]),
+    );
+  });
+
   it('emits a purchase update and finishes with notifyFulfillment', async () => {
     const service = createService();
     const module = createVegaIapModule(service);
@@ -168,11 +221,392 @@ describe('Amazon Vega adapter', () => {
     });
   });
 
-  it('maps Amazon invalid SKU purchase failures to OpenIAP errors', async () => {
+  it('retries transient Amazon Vega fulfillment failures', async () => {
+    jest.useFakeTimers();
+    const service = createService();
+    service.notifyFulfillment
+      .mockResolvedValueOnce({responseCode: 'FAILED'})
+      .mockResolvedValueOnce({responseCode: 1});
+    const module = createVegaIapModule(service);
+
+    try {
+      const result = module.finishTransaction({
+        android: {purchaseToken: 'receipt-1', isConsumable: true},
+      });
+      await Promise.resolve();
+      jest.advanceTimersByTime(1_000);
+
+      await expect(result).resolves.toEqual(
+        expect.objectContaining({
+          responseCode: 0,
+          purchaseToken: 'receipt-1',
+        }),
+      );
+      expect(service.notifyFulfillment).toHaveBeenCalledTimes(2);
+      expect(service.notifyFulfillment).toHaveBeenNthCalledWith(2, {
+        fulfillmentResult: 1,
+        receiptId: 'receipt-1',
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('recovers fulfillable receipts after Amazon Vega purchase failures', async () => {
     const service = createService();
     service.purchase.mockResolvedValueOnce({
+      responseCode: 'FAILED',
+      receipt: null,
+    });
+    service.getPurchaseUpdates.mockResolvedValueOnce({
+      responseCode: 1,
+      receiptList: [
+        {
+          receiptId: 'recovered-receipt',
+          sku: 'coins_100',
+          productType: 1,
+          purchaseDate: new Date('2026-06-10T00:00:00.000Z'),
+        },
+      ],
+    });
+    const module = createVegaIapModule(service);
+    const listener = jest.fn();
+    const errorListener = jest.fn();
+    module.addPurchaseUpdatedListener(listener);
+    module.addPurchaseErrorListener(errorListener);
+
+    await expect(
+      module.requestPurchase({
+        android: {skus: ['coins_100']},
+      }),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        productId: 'coins_100',
+        purchaseToken: 'recovered-receipt',
+        store: 'amazon',
+      }),
+    ]);
+    expect(listener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        productId: 'coins_100',
+        purchaseToken: 'recovered-receipt',
+      }),
+    );
+    expect(service.notifyFulfillment).not.toHaveBeenCalled();
+    expect(errorListener).not.toHaveBeenCalled();
+  });
+
+  it('recovers fulfillable receipts after parser-only purchase errors', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-06-10T00:00:00.000Z'));
+    const service = createService();
+    try {
+      service.purchase.mockRejectedValueOnce(
+        new Error(
+          '[AmazonIAPSDK] Unable to parse the response : userId is not found while parsing Json',
+        ),
+      );
+      service.getPurchaseUpdates.mockResolvedValueOnce({
+        responseCode: 1,
+        receiptList: [
+          {
+            receiptId: 'recovered-receipt',
+            sku: 'coins_100',
+            productType: 1,
+            purchaseDate: new Date('2026-06-10T00:00:01.000Z'),
+          },
+        ],
+      });
+      const module = createVegaIapModule(service);
+      const listener = jest.fn();
+      const errorListener = jest.fn();
+      module.addPurchaseUpdatedListener(listener);
+      module.addPurchaseErrorListener(errorListener);
+
+      await expect(
+        module.requestPurchase({
+          android: {skus: ['coins_100']},
+        }),
+      ).resolves.toEqual([
+        expect.objectContaining({
+          productId: 'coins_100',
+          purchaseToken: 'recovered-receipt',
+          store: 'amazon',
+        }),
+      ]);
+      expect(listener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          productId: 'coins_100',
+          purchaseToken: 'recovered-receipt',
+        }),
+      );
+      expect(service.notifyFulfillment).not.toHaveBeenCalled();
+      expect(errorListener).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('does not recover old receipts after parser-only purchase errors', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-06-10T00:00:00.000Z'));
+    const service = createService();
+    const parserError = new Error(
+      '[AmazonIAPSDK] Unable to parse the response : userId is not found while parsing Json',
+    );
+    try {
+      service.purchase.mockRejectedValueOnce(parserError);
+      service.getPurchaseUpdates.mockResolvedValueOnce({
+        responseCode: 1,
+        receiptList: [
+          {
+            receiptId: 'old-receipt',
+            sku: 'coins_100',
+            productType: 1,
+            purchaseDate: new Date('2026-06-09T23:00:00.000Z'),
+          },
+        ],
+      });
+      const module = createVegaIapModule(service);
+      const listener = jest.fn();
+      const errorListener = jest.fn();
+      module.addPurchaseUpdatedListener(listener);
+      module.addPurchaseErrorListener(errorListener);
+
+      await expect(
+        module.requestPurchase({
+          android: {skus: ['coins_100']},
+        }),
+      ).rejects.toBe(parserError);
+      expect(listener).not.toHaveBeenCalled();
+      expect(service.notifyFulfillment).not.toHaveBeenCalled();
+      expect(errorListener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: ErrorCode.PurchaseError,
+        }),
+      );
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('does not fulfill recovered purchases before the app finishes them', async () => {
+    const service = createService();
+    service.purchase.mockResolvedValueOnce({
+      responseCode: 'FAILED',
+      receipt: null,
+    });
+    service.getPurchaseUpdates.mockResolvedValueOnce({
+      responseCode: 1,
+      receiptList: [
+        {
+          receiptId: 'recovered-receipt',
+          sku: 'coins_100',
+          productType: 1,
+          purchaseDate: new Date('2026-06-10T00:00:00.000Z'),
+        },
+      ],
+    });
+    const module = createVegaIapModule(service);
+
+    await expect(
+      module.requestPurchase({
+        android: {skus: ['coins_100']},
+      }),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        productId: 'coins_100',
+        purchaseToken: 'recovered-receipt',
+      }),
+    ]);
+    expect(service.notifyFulfillment).not.toHaveBeenCalled();
+  });
+
+  it('emits other recovered receipts while preserving the original purchase failure', async () => {
+    const service = createService();
+    service.purchase.mockResolvedValueOnce({
+      responseCode: 'FAILED',
+      receipt: null,
+    });
+    service.getPurchaseUpdates.mockResolvedValueOnce({
+      responseCode: 1,
+      receiptList: [
+        {
+          receiptId: 'previous-sub-receipt',
+          sku: 'premium_monthly',
+          productType: 3,
+          purchaseDate: new Date('2026-06-09T00:00:00.000Z'),
+        },
+      ],
+    });
+    const module = createVegaIapModule(service);
+    const listener = jest.fn();
+    module.addPurchaseUpdatedListener(listener);
+
+    await expect(
+      module.requestPurchase({
+        android: {skus: ['coins_100']},
+      }),
+    ).rejects.toMatchObject({
+      code: ErrorCode.UserCancelled,
+    });
+    expect(service.notifyFulfillment).not.toHaveBeenCalled();
+    expect(service.purchase).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        productId: 'premium_monthly',
+        purchaseToken: 'previous-sub-receipt',
+      }),
+    );
+  });
+
+  it('treats subscription base receipts as the requested subscription purchase', async () => {
+    const service = createService();
+    service.getProductData.mockResolvedValueOnce({
+      responseCode: 1,
+      productData: new Map([
+        [
+          'premium_monthly',
+          {
+            sku: 'premium_monthly',
+            title: 'Premium Monthly',
+            description: 'Monthly plan',
+            productType: 3,
+            subscriptionBase: 'premium_monthly.base',
+            price: {
+              priceCurrencyCode: 'USD',
+              priceStr: '$4.99',
+              valueInMicros: 4990000,
+            },
+          },
+        ],
+      ]),
+    });
+    service.purchase.mockResolvedValueOnce({
+      responseCode: 4,
+      receipt: null,
+    });
+    service.getPurchaseUpdates.mockResolvedValueOnce({
+      responseCode: 1,
+      receiptList: [
+        {
+          receiptId: 'base-receipt',
+          sku: 'premium_monthly.base',
+          productType: 3,
+          purchaseDate: new Date('2026-06-10T00:00:00.000Z'),
+        },
+      ],
+    });
+    const module = createVegaIapModule(service);
+
+    await module.fetchProducts(['premium_monthly'], 'subs');
+
+    await expect(
+      module.requestPurchase({
+        android: {
+          skus: ['premium_monthly'],
+          subscriptionOffers: [
+            {sku: 'premium_monthly', offerToken: 'offer-token'},
+          ],
+        },
+      }),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        productId: 'premium_monthly',
+        purchaseToken: 'base-receipt',
+      }),
+    ]);
+    expect(service.notifyFulfillment).not.toHaveBeenCalled();
+    expect(service.purchase).toHaveBeenCalledTimes(1);
+  });
+
+  it('normalizes subscription base receipts in active subscription queries', async () => {
+    const service = createService();
+    service.getProductData.mockResolvedValueOnce({
+      responseCode: 1,
+      productData: new Map([
+        [
+          'premium_monthly',
+          {
+            sku: 'premium_monthly',
+            title: 'Premium Monthly',
+            description: 'Monthly plan',
+            productType: 3,
+            subscriptionBase: 'premium_monthly.base',
+            price: {
+              priceCurrencyCode: 'USD',
+              priceStr: '$4.99',
+              valueInMicros: 4990000,
+            },
+          },
+        ],
+      ]),
+    });
+    service.getPurchaseUpdates.mockResolvedValueOnce({
+      responseCode: 1,
+      receiptList: [
+        {
+          receiptId: 'base-receipt',
+          sku: 'premium_monthly.base',
+          productType: 3,
+          purchaseDate: new Date('2026-06-10T00:00:00.000Z'),
+        },
+      ],
+    });
+    const module = createVegaIapModule(service);
+
+    await module.fetchProducts(['premium_monthly'], 'subs');
+
+    await expect(
+      module.getActiveSubscriptions(['premium_monthly']),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        productId: 'premium_monthly',
+        basePlanIdAndroid: 'premium_monthly',
+        currentPlanId: 'premium_monthly',
+        purchaseToken: 'base-receipt',
+      }),
+    ]);
+  });
+
+  it('keeps original purchase failure when recovery parsing fails', async () => {
+    const service = createService();
+    service.purchase.mockResolvedValueOnce({
+      responseCode: 'FAILED',
+      receipt: null,
+    });
+    service.getPurchaseUpdates.mockRejectedValueOnce(
+      new Error(
+        '[AmazonIAPSDK] Unable to parse the response : userId is not found while parsing Json',
+      ),
+    );
+    const module = createVegaIapModule(service);
+    const errorListener = jest.fn();
+    module.addPurchaseErrorListener(errorListener);
+
+    await expect(
+      module.requestPurchase({
+        android: {skus: ['coins_100']},
+      }),
+    ).rejects.toMatchObject({
+      code: ErrorCode.UserCancelled,
+    });
+    expect(errorListener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: ErrorCode.UserCancelled,
+      }),
+    );
+  });
+
+  it('maps Amazon invalid SKU purchase failures to OpenIAP errors', async () => {
+    const service = createService();
+    service.purchase.mockResolvedValue({
       responseCode: 2,
       receipt: null,
+    });
+    service.getPurchaseUpdates.mockResolvedValueOnce({
+      responseCode: 1,
+      receiptList: [],
     });
     const module = createVegaIapModule(service);
     const errorListener = jest.fn();
@@ -411,6 +845,79 @@ describe('Amazon Vega adapter', () => {
     ]);
   });
 
+  it('treats Amazon parser-only purchase update errors as no updates', async () => {
+    const service = createService();
+    service.getPurchaseUpdates.mockRejectedValueOnce(
+      new Error(
+        '[AmazonIAPSDK] Unable to parse the response : userId is not found while parsing Json',
+      ),
+    );
+    const module = createVegaIapModule(service);
+
+    await expect(module.getAvailablePurchases()).resolves.toEqual([]);
+  });
+
+  it('retries failed Amazon purchase update responses', async () => {
+    jest.useFakeTimers();
+    const service = createService();
+    service.getPurchaseUpdates
+      .mockResolvedValueOnce({
+        responseCode: 3,
+        receiptList: [],
+      })
+      .mockResolvedValueOnce({
+        responseCode: 1,
+        receiptList: [
+          {
+            receiptId: 'recovered-receipt',
+            sku: 'coins_100',
+            productType: 1,
+          },
+        ],
+      });
+    const module = createVegaIapModule(service);
+
+    try {
+      const result = module.getAvailablePurchases();
+      await Promise.resolve();
+      jest.advanceTimersByTime(1_000);
+
+      await expect(result).resolves.toEqual([
+        expect.objectContaining({
+          productId: 'coins_100',
+          purchaseToken: 'recovered-receipt',
+        }),
+      ]);
+      expect(service.getPurchaseUpdates).toHaveBeenCalledTimes(2);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('ignores parser-only product type hydration errors for purchase updates', async () => {
+    const service = createService();
+    service.getPurchaseUpdates.mockResolvedValueOnce({
+      responseCode: 1,
+      receiptList: [
+        {
+          receiptId: 'base-receipt',
+          sku: 'premium_monthly.base',
+          purchaseDate: new Date('2026-06-10T00:00:00.000Z'),
+        },
+      ],
+    });
+    service.getProductData.mockRejectedValueOnce(
+      new Error(
+        '[AmazonIAPSDK] Unable to parse the response : userId is not found while parsing Json',
+      ),
+    );
+    const module = createVegaIapModule(service);
+
+    await expect(
+      module.getActiveSubscriptions(['premium_monthly']),
+    ).resolves.toEqual([]);
+  });
+
   it('chunks Vega product data requests', async () => {
     const service = createService();
     const skus = Array.from({length: 101}, (_, index) => `sku_${index}`);
@@ -558,7 +1065,9 @@ describe('Amazon Vega adapter', () => {
         },
       });
 
-      expect(service.getUserData).toHaveBeenCalledWith({});
+      expect(service.getUserData).toHaveBeenCalledWith({
+        fetchUserProfileAccessConsentStatus: false,
+      });
       expect(fetchMock).toHaveBeenCalledWith(
         'https://kit.openiap.dev/v1/purchase/verify',
         expect.objectContaining({

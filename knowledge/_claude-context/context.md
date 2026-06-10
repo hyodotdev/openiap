@@ -1033,6 +1033,13 @@ The Google package supports **two build flavors**:
 2. Put reusable Kotlin helpers in `openiap/src/main/java/dev/hyo/openiap/utils/`
 3. Run `./scripts/generate-types.sh` to regenerate types
 4. **Test BOTH flavors** when making changes to shared code
+5. **Never persist local receipt-to-SKU aliases as entitlement identity**:
+   store-specific adapters may cache data for performance or correlate an
+   in-flight request by request ID, but they must not permanently rewrite
+   `productId`, `currentPlanId`, or entitlement state from app-local alias
+   storage. Subscription and entitlement state must come from the store response,
+   restore/query APIs, or Kit/server verification so client state cannot drift
+   from server truth.
 
 ### Build Commands
 

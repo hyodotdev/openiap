@@ -47,13 +47,15 @@ export default ({config}: ConfigContext): ExpoConfig => {
           onside: isOnsideEnabled,
           // Horizon module: Android only (Meta Quest/VR devices)
           horizon: false,
-          // Fire OS module: Android only
+        },
+        amazon: {
+          // Fire OS: Android amazon flavor
           fireOS: false,
-          // Vega OS module: Kepler runtime target
-          vega: isVegaEnabled,
+          // Vega OS: Kepler runtime target
+          vegaOS: isVegaEnabled,
         },
         vega: {
-          packageId: 'dev.hyo.martie',
+          packageId: 'dev.hyo.openiap.expo.example',
           title: 'Expo IAP Example',
           appName: 'ExpoIAPExample',
           icon: './assets/images/icon.png',
@@ -142,7 +144,7 @@ export default ({config}: ConfigContext): ExpoConfig => {
     ios: {
       ...config.ios,
       supportsTablet: false,
-      bundleIdentifier: 'dev.hyo.martie',
+      bundleIdentifier: 'dev.hyo.openiap.expo.example',
     },
     android: {
       ...config.android,
@@ -150,12 +152,17 @@ export default ({config}: ConfigContext): ExpoConfig => {
         foregroundImage: './assets/images/adaptive-icon.png',
         backgroundColor: '#000000',
       },
-      package: 'dev.hyo.martie',
+      package: 'dev.hyo.openiap.expo.example',
     },
     plugins: pluginEntries,
     experiments: {
       ...config.experiments,
       typedRoutes: true,
+    },
+    extra: {
+      ...config.extra,
+      iapkitApiKey: process.env.EXPO_PUBLIC_IAPKIT_API_KEY,
+      iapkitBaseUrl: process.env.EXPO_PUBLIC_IAPKIT_BASE_URL,
     },
   };
 

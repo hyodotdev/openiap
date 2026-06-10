@@ -88,4 +88,15 @@ describe('Home Component', () => {
 
     consoleLog.mockRestore();
   });
+
+  it('should skip storefront lookup on Vega', () => {
+    Object.defineProperty(Platform, 'OS', {
+      get: jest.fn(() => 'kepler'),
+      configurable: true,
+    });
+
+    const {getByText} = render(<Home />);
+    expect(getByText('expo-iap Examples')).toBeDefined();
+    expect(ExpoIap.getStorefront).not.toHaveBeenCalled();
+  });
 });

@@ -13,9 +13,14 @@ import {
   type WebhookListener,
   type WebhookListenerError,
 } from 'react-native-iap';
-import {IAPKIT_API_KEY} from '@env';
+import {IAPKIT_API_KEY, IAPKIT_BASE_URL} from '@env';
 
-const IAPKIT_BASE_URL = 'https://kit.openiap.dev';
+const DEFAULT_IAPKIT_BASE_URL = 'https://kit.openiap.dev';
+
+type WebhookStreamProps = {
+  apiKey?: string;
+  baseUrl?: string;
+};
 
 export function base64EncodeUtf8(input: string): string {
   const btoaFn = (globalThis as {btoa?: (value: string) => string}).btoa;
@@ -25,7 +30,10 @@ export function base64EncodeUtf8(input: string): string {
   return btoaFn(unescape(encodeURIComponent(input)));
 }
 
-export default function WebhookStream() {
+export default function WebhookStream({
+  apiKey = IAPKIT_API_KEY,
+  baseUrl = IAPKIT_BASE_URL || DEFAULT_IAPKIT_BASE_URL,
+}: WebhookStreamProps = {}) {
   const [events, setEvents] = useState<WebhookEventPayload[]>([]);
   const [status, setStatus] = useState<
     'idle' | 'connecting' | 'connected' | 'error'
@@ -35,15 +43,15 @@ export default function WebhookStream() {
   const listenerRef = useRef<WebhookListener | null>(null);
 
   const startStream = useCallback(() => {
-    if (!IAPKIT_API_KEY) {
+    if (!apiKey) {
       setStatus('error');
       setStatusMessage('IAPKIT_API_KEY is not configured.');
       return;
     }
     listenerRef.current?.close();
     listenerRef.current = connectWebhookStream({
-      apiKey: IAPKIT_API_KEY,
-      baseUrl: IAPKIT_BASE_URL,
+      apiKey,
+      baseUrl,
       onEvent: (event) => {
         setStatusMessage(null);
         setEvents((prev) => [event, ...prev].slice(0, 50));
@@ -55,7 +63,7 @@ export default function WebhookStream() {
     });
     setStatus('connected');
     setStatusMessage(null);
-  }, []);
+  }, [apiKey, baseUrl]);
 
   const stopStream = useCallback(() => {
     listenerRef.current?.close();
@@ -72,7 +80,7 @@ export default function WebhookStream() {
   }, []);
 
   const triggerTestNotification = useCallback(async () => {
-    if (!IAPKIT_API_KEY) {
+    if (!apiKey) {
       setStatusMessage('Cannot trigger test: IAPKIT_API_KEY is missing.');
       return;
     }
@@ -85,7 +93,7 @@ export default function WebhookStream() {
         testNotification: {version: '1.0'},
       });
       const response = await fetch(
-        `${IAPKIT_BASE_URL}/v1/webhooks/${encodeURIComponent(IAPKIT_API_KEY)}`,
+        `${baseUrl.replace(/\/$/, '')}/v1/webhooks/${encodeURIComponent(apiKey)}`,
         {
           method: 'POST',
           headers: {'content-type': 'application/json'},
@@ -110,7 +118,7 @@ export default function WebhookStream() {
     } finally {
       setTesting(false);
     }
-  }, []);
+  }, [apiKey, baseUrl]);
 
   return (
     <View style={styles.container}>
@@ -118,8 +126,7 @@ export default function WebhookStream() {
         <Text style={styles.title}>Webhook Stream</Text>
         <Text style={styles.subtitle}>IAPKit SSE + test notification</Text>
         <Text style={styles.meta}>
-          api key:{' '}
-          {IAPKIT_API_KEY ? 'CONFIGURED' : 'MISSING'}
+          api key: {apiKey ? 'CONFIGURED' : 'MISSING'}
         </Text>
       </View>
 

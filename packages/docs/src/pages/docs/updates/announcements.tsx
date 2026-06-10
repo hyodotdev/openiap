@@ -90,7 +90,10 @@ function Announcements() {
             <code>expo-iap</code> config-plugin support for compatible Expo
             projects. Together, they help developers keep one familiar OpenIAP
             purchase flow while reaching Amazon-specific purchase environments.
-            The implementation is tracked in{' '}
+            IAPKit uses the same Amazon verification path for Fire OS and Vega
+            OS receipts, so apps can keep managed receipt checks and entitlement
+            state in the same OpenIAP backend flow. The implementation is
+            tracked in{' '}
             <a
               href="https://github.com/hyodotdev/openiap/pull/162"
               target="_blank"
@@ -122,6 +125,11 @@ function Announcements() {
               <strong>Amazon Appstore IAP</strong>: OpenIAP maps Amazon
               consumables, entitlements, subscriptions, purchase updates, and
               fulfillment into the standard OpenIAP API shape.
+            </li>
+            <li>
+              <strong>IAPKit verification</strong>: Fire OS and Vega OS
+              purchases can verify through IAPKit's Amazon receipt path with the
+              same <code>iapkit.amazon</code> payload.
             </li>
             <li>
               <strong>Catalog identity</strong>: Product IDs stay aligned across
@@ -166,7 +174,11 @@ function Announcements() {
             <a href="/docs/features/vega-os" className="external-link">
               Vega OS runtime guide
             </a>{' '}
-            for React Native for Vega apps and compatible Expo projects.
+            for React Native for Vega apps and compatible Expo projects. Use the{' '}
+            <a href="/docs/kit-backend" className="external-link">
+              IAPKit backend guide
+            </a>{' '}
+            for Amazon receipt verification and entitlement checks.
           </div>
         </div>
       ),
