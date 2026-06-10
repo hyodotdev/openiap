@@ -43,6 +43,7 @@ import dev.hyo.openiap.ExternalLinkLaunchModeAndroid as OpenIapExternalLinkLaunc
 import dev.hyo.openiap.ExternalLinkTypeAndroid as OpenIapExternalLinkType
 import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import dev.hyo.openiap.store.OpenIapStore
+import java.util.Locale
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -1274,12 +1275,12 @@ class HybridRnIap : HybridRnIapSpec() {
     }
 
     private fun mapIapStore(store: dev.hyo.openiap.IapStore): IapStore {
-        return when (store.rawValue.lowercase(java.util.Locale.ROOT)) {
-            "apple" -> IapStore.APPLE
-            "google" -> IapStore.GOOGLE
-            "horizon" -> IapStore.HORIZON
-            "amazon" -> IapStore.AMAZON
-            else -> IapStore.UNKNOWN
+        return when (store) {
+            dev.hyo.openiap.IapStore.Apple -> IapStore.APPLE
+            dev.hyo.openiap.IapStore.Google -> IapStore.GOOGLE
+            dev.hyo.openiap.IapStore.Horizon -> IapStore.HORIZON
+            dev.hyo.openiap.IapStore.Amazon -> IapStore.AMAZON
+            dev.hyo.openiap.IapStore.Unknown -> IapStore.UNKNOWN
         }
     }
 

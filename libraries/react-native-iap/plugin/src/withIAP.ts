@@ -10,8 +10,6 @@ import {
 } from 'expo/config-plugins';
 import type {ConfigPlugin} from 'expo/config-plugins';
 import type {ExpoConfig} from '@expo/config-types';
-import {readFileSync} from 'node:fs';
-import {resolve as resolvePath} from 'node:path';
 
 const pkg = require('../../package.json');
 
@@ -62,10 +60,8 @@ const modifyAppBuildGradle = (
   };
 
   function loadOpenIapVersion(): string {
-    const versionsPath = resolvePath(__dirname, '../../openiap-versions.json');
     try {
-      const raw = readFileSync(versionsPath, 'utf8');
-      const parsed = JSON.parse(raw);
+      const parsed = require('../../openiap-versions.json');
       const googleVersion =
         typeof parsed?.google === 'string' ? parsed.google.trim() : '';
       if (!googleVersion) {

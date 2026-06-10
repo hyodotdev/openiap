@@ -64,7 +64,7 @@ const HORIZON_APP_ID_META_DATA_NAME =
 
 type AndroidManifestLike = {
   manifest: {
-    application?: Array<Record<string, any>>;
+    application?: Record<string, any>[];
   };
 };
 
@@ -137,10 +137,8 @@ export const modifyAppBuildGradle = (
   isFireOsEnabled?: boolean,
 ): string => {
   function loadOpenIapAndroidVersion(): string {
-    const versionsPath = path.resolve(__dirname, '../../openiap-versions.json');
     try {
-      const raw = fs.readFileSync(versionsPath, 'utf8');
-      const parsed = JSON.parse(raw);
+      const parsed = require('../../openiap-versions.json');
       const googleVersion =
         typeof parsed?.google === 'string' ? parsed.google.trim() : '';
       if (!googleVersion) {

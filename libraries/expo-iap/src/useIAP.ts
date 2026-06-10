@@ -696,8 +696,8 @@ export function useIAP(options?: UseIAPOptions): UseIap {
         }
         const friendly = getUserFriendlyErrorMessage(error);
         if (
-          error.code !== ErrorCode.AlreadyOwned &&
-          error.code !== ErrorCode.ServiceTimeout &&
+          error?.code !== ErrorCode.AlreadyOwned &&
+          error?.code !== ErrorCode.ServiceTimeout &&
           !isUserCancelledError(error) &&
           !isRecoverableError(error)
         ) {
