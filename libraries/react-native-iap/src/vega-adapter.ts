@@ -733,6 +733,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
         }
 
         if (
+          !response ||
           !shouldRetryResponse('purchase-updates', response.responseCode) ||
           attempt === PURCHASE_UPDATES_MAX_ATTEMPTS
         ) {
@@ -863,7 +864,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
         fulfillmentResult: FULFILLMENT_RESULT_FULFILLED,
         receiptId: purchaseToken,
       });
-      if (isSuccess('notify-fulfillment', response.responseCode)) {
+      if (isSuccess('notify-fulfillment', response?.responseCode)) {
         return {
           responseCode: 0,
           code: '',

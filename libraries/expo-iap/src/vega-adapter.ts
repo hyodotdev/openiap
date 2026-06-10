@@ -685,6 +685,7 @@ export function createExpoIapVegaModule(
         }
 
         if (
+          !response ||
           !shouldRetryResponse('purchase-updates', response.responseCode) ||
           attempt === PURCHASE_UPDATES_MAX_ATTEMPTS
         ) {
@@ -806,7 +807,7 @@ export function createExpoIapVegaModule(
         fulfillmentResult: FULFILLMENT_RESULT_FULFILLED,
         receiptId: purchaseToken,
       });
-      if (isSuccess('notify-fulfillment', response.responseCode)) return;
+      if (isSuccess('notify-fulfillment', response?.responseCode)) return;
 
       lastResponse = response;
       if (attempt < NOTIFY_FULFILLMENT_MAX_ATTEMPTS) {

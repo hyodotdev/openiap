@@ -65,8 +65,8 @@ const normalizePurchaseArray = (purchases: Purchase[]): Purchase[] =>
   });
 
 const getAndroidRequest = (
-  request: RequestPurchasePropsByPlatforms | RequestSubscriptionPropsByPlatforms,
-) => request.google ?? request.android;
+  request?: RequestPurchasePropsByPlatforms | RequestSubscriptionPropsByPlatforms | null,
+) => request?.google ?? request?.android;
 
 const createPurchaseTokenError = (purchase: Purchase): Error => {
   const error = new Error(
