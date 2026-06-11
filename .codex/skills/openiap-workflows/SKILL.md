@@ -1,19 +1,19 @@
 ---
 name: openiap-workflows
-description: Use for OpenIAP monorepo work that should follow the repository's Claude slash-command workflows, including review-pr, audit-code, compile-knowledge, verify-all, resolve-issue, commit/push/PR, generated type sync, package-specific checks, GitHub review threads, and project conventions from CLAUDE.md/AGENTS.md.
+description: Use for OpenIAP monorepo work that should follow the repository's Claude slash-command workflows, including review-pr, audit-code, compile-knowledge, verify-all, e2e-tests, resolve-issue, commit/push/PR, generated type sync, package-specific checks, GitHub review threads, and project conventions from AGENTS.md/CLAUDE.md/GEMINI.md.
 ---
 
 # OpenIAP Workflows
 
 Use this skill when the user asks Codex to perform an OpenIAP repo workflow that
 previously lived under `.claude/commands`, such as reviewing a PR, resolving an
-issue, auditing code, compiling knowledge, verifying the monorepo, or committing
-and opening a PR.
+issue, auditing code, compiling knowledge, running device-backed E2E regression,
+verifying the monorepo, or committing and opening a PR.
 
 ## Source Of Truth
 
-Before changing code, read the root `AGENTS.md` or `CLAUDE.md`; they are linked
-in this repo. Then read the relevant detailed files:
+Before changing code, read the root `AGENTS.md`; `CLAUDE.md` and `GEMINI.md`
+are symlinks to it in this repo. Then read the relevant detailed files:
 
 - Package and library rules: `knowledge/internal/*.md`
 - Package conventions: `packages/*/CONVENTION.md`
@@ -37,6 +37,8 @@ natural-language requests, execute the matching workflow:
 - Resolve a GitHub issue: read `.claude/commands/resolve-issue.md`.
 - Verify all, health check, or pre-PR verification: read
   `.claude/commands/verify-all.md`.
+- E2E tests, device regression, connected-device purchase flow checks, or
+  "e2e-tests": read `.claude/commands/e2e-tests.md`.
 - Commit, push, or create PR: read `.claude/commands/commit.md`.
 
 When a command file gives a sequence, follow it unless the user's newest
@@ -45,9 +47,9 @@ instruction narrows the scope.
 ## Internal Workflow Change Guard
 
 Internal agent/workflow-only changes include `.claude/commands/`,
-`.codex/skills/`, `AGENTS.md`, `CLAUDE.md`, and agent automation notes. Do not
-create a branch, push, or open a PR for those changes unless the user explicitly
-asks to publish, PR, or merge them.
+`.codex/skills/`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and agent automation
+notes. Do not create a branch, push, or open a PR for those changes unless the
+user explicitly asks to publish, PR, or merge them.
 
 If a user asks to update an internal workflow and does not explicitly ask for a
 PR, keep the change local and report the changed files. If a PR is already open
