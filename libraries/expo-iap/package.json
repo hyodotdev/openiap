@@ -16,6 +16,7 @@
     "test": "jest && bun run test:plugin",
     "test:plugin": "cd plugin && bunx jest",
     "test:coverage": "jest --coverage",
+    "verify:consumer-install": "node ../../scripts/verify-npm-consumer-install.mjs --package . --package-name expo-iap --required openiap-versions.json --required build/index.js --required build/index.d.ts --required android/build.gradle --required ios/ExpoIap.podspec --required app.plugin.js --required plugin/build/withIAP.js",
     "prepare": "bun run clean:plugin && bun run clean && expo-module prepare && sh -c 'command -v husky >/dev/null 2>&1 && husky install || { echo \"husky not installed; skipping\"; exit 0; }'",
     "expo-module": "expo-module",
     "open:ios": "xed example/ios",
