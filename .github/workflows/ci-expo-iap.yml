@@ -76,3 +76,6 @@ jobs:
 
       - name: Test plugin
         run: bun run test:plugin
+
+      - name: Consumer install smoke test
+        run: bun run verify:consumer-install

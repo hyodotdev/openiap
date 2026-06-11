@@ -1729,6 +1729,36 @@ function checkFrameworkDependencyHygiene() {
       'NPM_STATUS=$?',
     ], `${npmReleaseWorkflow} must not drift npm trusted-publishing CLI version`);
   }
+  expectIncludes('scripts/verify-npm-consumer-install.mjs', [
+    'npm',
+    'pack',
+    '--pack-destination',
+    '--ignore-scripts',
+    'openiap-versions.json must be packed as a real file',
+    'consumer install smoke test passed',
+  ], 'npm consumer install smoke helper');
+  for (const [packageJsonPath, packageName] of [
+    ['libraries/expo-iap/package.json', 'expo-iap'],
+    ['libraries/react-native-iap/package.json', 'react-native-iap'],
+  ]) {
+    expectIncludes(packageJsonPath, [
+      '"verify:consumer-install"',
+      'verify-npm-consumer-install.mjs',
+      `--package-name ${packageName}`,
+      '--required openiap-versions.json',
+    ], `${packageJsonPath} must expose npm consumer smoke test`);
+  }
+  for (const [workflowPath, command] of [
+    ['.github/workflows/ci-expo-iap.yml', 'bun run verify:consumer-install'],
+    ['.github/workflows/ci-react-native-iap.yml', 'yarn verify:consumer-install'],
+    ['.github/workflows/release-expo.yml', 'bun run verify:consumer-install --pack-ignore-scripts'],
+    ['.github/workflows/release-react-native.yml', 'verify:consumer-install --pack-ignore-scripts'],
+  ]) {
+    expectIncludes(workflowPath, [
+      'Consumer install smoke test',
+      command,
+    ], `${workflowPath} must run npm consumer smoke test`);
+  }
   expectIncludes('.github/workflows/publish-flutter.yml', [
     'Check if pub.dev package already published',
     'flutter-version: "3.41.9"',
