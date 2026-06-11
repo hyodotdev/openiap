@@ -79,10 +79,11 @@ function run(command, args, cwd) {
   const verbose = readBooleanEnv('OPENIAP_VERBOSE_NPM_CONSUMER_SMOKE');
   if (verbose && result.stdout) process.stdout.write(result.stdout);
   if (verbose && result.stderr) process.stderr.write(result.stderr);
-  if (result.status !== 0) {
+  if (result.status !== 0 || result.signal) {
     if (!verbose && result.stdout) process.stdout.write(result.stdout);
     if (!verbose && result.stderr) process.stderr.write(result.stderr);
-    throw new Error(`${command} ${args.join(' ')} failed with exit code ${result.status}`);
+    const reason = result.signal ? `signal ${result.signal}` : `exit code ${result.status}`;
+    throw new Error(`${command} ${args.join(' ')} failed with ${reason}`);
   }
   return result.stdout;
 }
@@ -151,10 +152,12 @@ function prepareVersionFile(packageRoot) {
   const stat = fs.lstatSync(versionFile);
   const isSymlink = stat.isSymbolicLink();
   let target = null;
+  let originalContent = null;
   if (isSymlink) {
     target = fs.readlinkSync(versionFile);
   } else if (stat.isFile()) {
-    const content = fs.readFileSync(versionFile, 'utf8').trim();
+    originalContent = fs.readFileSync(versionFile);
+    const content = originalContent.toString('utf8').trim();
     if (content.startsWith('.') && content.endsWith('.json') && !content.includes('\n')) {
       target = content;
     }
@@ -171,7 +174,7 @@ function prepareVersionFile(packageRoot) {
       if (isSymlink) {
         fs.symlinkSync(target, versionFile);
       } else {
-        fs.writeFileSync(versionFile, target);
+        fs.writeFileSync(versionFile, originalContent);
       }
     } catch {
       // Preserve the original failure; the restore attempt is best-effort.
@@ -184,7 +187,7 @@ function prepareVersionFile(packageRoot) {
     if (isSymlink) {
       fs.symlinkSync(target, versionFile);
     } else {
-      fs.writeFileSync(versionFile, target);
+      fs.writeFileSync(versionFile, originalContent);
     }
   };
 }
@@ -294,8 +297,15 @@ try {
   validateInstalledPackage(installedRoot, options);
   console.log(`${options.packageName} consumer install smoke test passed.`);
 } finally {
-  restoreVersionFile();
+  let restoreError = null;
+  try {
+    restoreVersionFile();
+  } catch (error) {
+    restoreError = error;
+    console.error('Failed to restore version file:', error);
+  }
   if (tempRoot && !readBooleanEnv('OPENIAP_KEEP_NPM_CONSUMER_SMOKE_TMP')) {
     fs.rmSync(tempRoot, {recursive: true, force: true});
   }
+  if (restoreError) throw restoreError;
 }
