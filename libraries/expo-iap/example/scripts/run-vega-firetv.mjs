@@ -23,6 +23,7 @@ const run = (args, options = {}) => {
       cwd: exampleRoot,
       encoding: options.encoding,
       stdio: options.encoding ? ['ignore', 'pipe', 'pipe'] : 'inherit',
+      timeout: options.timeout,
     });
   } catch (error) {
     if (options.allowFailure) return '';
@@ -30,8 +31,26 @@ const run = (args, options = {}) => {
   }
 };
 
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const findFirstVegaDeviceId = (output) => {
+  for (const line of output.split(/\r?\n/)) {
+    const match = line.trim().match(/^(\S+)\s+:/);
+    if (match) return match[1];
+  }
+
+  return undefined;
+};
+
 const resolveDeviceId = () => {
   if (process.env.VEGA_DEVICE_ID) return process.env.VEGA_DEVICE_ID;
+
+  const deviceListOutput = run(['device', 'list'], {
+    allowFailure: true,
+    encoding: 'utf8',
+  });
+  const vegaDeviceId = findFirstVegaDeviceId(deviceListOutput);
+  if (vegaDeviceId) return vegaDeviceId;
 
   const output = run(['exec', 'vda', 'devices'], {encoding: 'utf8'});
   const deviceLine = output
@@ -112,6 +131,16 @@ const shell = (deviceId, args, options = {}) => {
   run(['exec', 'vda', '-s', deviceId, 'shell', ...args], options);
 };
 
+const shellOutput = (deviceId, args) =>
+  run(['exec', 'vda', '-s', deviceId, 'shell', ...args], {
+    allowFailure: true,
+    encoding: 'utf8',
+  });
+
+const pushToDevice = (deviceId, source, destination) => {
+  run(['exec', 'vda', '-s', deviceId, 'push', source, destination]);
+};
+
 const copyToDevice = (deviceId, source, destinationDirectory, options = {}) => {
   run([
     'device',
@@ -137,6 +166,54 @@ const appTesterCatalog = path.join(exampleRoot, 'amazon.sdktester.json');
 const appSandboxConfig = path.join(exampleRoot, 'amazon.config.json');
 const launchApp = () => {
   run(['device', '-d', deviceId, 'launch-app', '--appName', appId], {
+    allowFailure: true,
+  });
+};
+const cancelQueuedInstalls = () => {
+  const output = shellOutput(deviceId, ['vpm', 'query-installs']);
+  const packageBaseName = path.basename(packageFile, '.vpkg');
+  const tokenPattern = new RegExp(
+    `InstallRequestStatus token: (\\S*${escapeRegExp(packageBaseName)}\\S*) status: REQUEST_ENQUEUED`,
+    'g',
+  );
+  const tokens = new Set(
+    [...output.matchAll(tokenPattern)].map((match) => match[1]),
+  );
+
+  for (const token of tokens) {
+    shell(deviceId, ['vpm', 'cancel-download', token, '--timeout=5'], {
+      allowFailure: true,
+    });
+  }
+};
+const installApp = () => {
+  try {
+    run(['device', '-d', deviceId, 'install-app', '--packagePath', packageFile], {
+      timeout: 90000,
+    });
+    return;
+  } catch (error) {
+    console.warn(
+      'vega device install-app failed; retrying with vpm install-async.',
+    );
+  }
+
+  cancelQueuedInstalls();
+  const remotePackageFile = `/tmp/${path.basename(packageFile)}`;
+  const token = `${path.basename(packageFile, '.vpkg')}_${Date.now()}`;
+  pushToDevice(deviceId, packageFile, remotePackageFile);
+  shell(deviceId, [
+    'vpm',
+    'install-async',
+    remotePackageFile,
+    `--token=${token}`,
+    '--timeout=60',
+    '--high-priority',
+    '--force',
+    '--update-max-timeout=5',
+    '--terminate-on-max-timeout',
+  ]);
+  shell(deviceId, ['vpm', 'query-installs', `--token=${token}`], {
     allowFailure: true,
   });
 };
@@ -188,6 +265,6 @@ shell(
 if (shouldLaunchAppTesterUi) {
   shell(deviceId, ['vlcm', 'launch-app', appTesterUi], {allowFailure: true});
 }
-run(['device', '-d', deviceId, 'install-app', '--packagePath', packageFile]);
+installApp();
 launchApp();
 submitParentalPin();

@@ -25,7 +25,8 @@ export default ({config}: ConfigContext): ExpoConfig => {
   const isTV = process.env.EXPO_TV === '1';
   const isFireOsEnabled = process.env.EXPO_IAP_FIREOS === '1';
   const isVegaEnabled = process.env.EXPO_IAP_VEGA === '1';
-  const isOnsideEnabled = false;
+  const isHorizonEnabled = process.env.EXPO_IAP_HORIZON === '1';
+  const isOnsideEnabled = process.env.EXPO_IAP_ONSIDE === '1';
 
   const pluginEntries: NonNullable<ExpoConfig['plugins']> = [
     // TV config plugin (must be first for TV builds)
@@ -47,7 +48,7 @@ export default ({config}: ConfigContext): ExpoConfig => {
           // Onside module: iOS only (alternative billing for Korea)
           onside: isOnsideEnabled,
           // Horizon module: Android only (Meta Quest/VR devices)
-          horizon: false,
+          horizon: isHorizonEnabled,
         },
         amazon: {
           // Fire OS: Android amazon flavor

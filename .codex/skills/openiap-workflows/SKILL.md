@@ -44,6 +44,10 @@ natural-language requests, execute the matching workflow:
 When a command file gives a sequence, follow it unless the user's newest
 instruction narrows the scope.
 
+For `e2e-tests`, an unqualified request means the full regression matrix in the
+command file, including native packages, framework libraries, build-only
+platform rows, connected-device rows, and explicit blocked/unsupported rows.
+
 ## Internal Workflow Change Guard
 
 Internal agent/workflow-only changes include `.claude/commands/`,
