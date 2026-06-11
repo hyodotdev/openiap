@@ -313,6 +313,7 @@ if (sourcePackageJson.name !== options.packageName) {
 
 let tempRoot = null;
 let restoreVersionFile = () => {};
+let success = false;
 
 try {
   tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), `${options.packageName.replaceAll('/', '-')}-consumer-`));
@@ -354,16 +355,22 @@ try {
   const installedRoot = packageInstallDir(consumerRoot, options.packageName);
   validateInstalledPackage(installedRoot, options);
   console.log(`${options.packageName} consumer install smoke test passed.`);
+  success = true;
 } finally {
-  let restoreError = null;
+  let cleanupError = null;
   try {
     restoreVersionFile();
   } catch (error) {
-    restoreError = error;
+    cleanupError = error;
     console.error('Failed to restore version file:', error);
   }
   if (tempRoot && !readBooleanEnv('OPENIAP_KEEP_NPM_CONSUMER_SMOKE_TMP')) {
-    fs.rmSync(tempRoot, {recursive: true, force: true});
+    try {
+      fs.rmSync(tempRoot, {recursive: true, force: true});
+    } catch (error) {
+      cleanupError ??= error;
+      console.error('Failed to clean up temp directory:', error);
+    }
   }
-  if (restoreError) throw restoreError;
+  if (success && cleanupError) throw cleanupError;
 }
