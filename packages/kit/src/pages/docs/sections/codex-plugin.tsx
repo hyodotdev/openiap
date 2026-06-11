@@ -7,21 +7,22 @@ export default function CodexPluginPage() {
   return (
     <DocsPage
       slug="ai-assistants/codex-plugin"
-      title="Codex plugin"
-      description="Connect Codex to IAPKit through MCP so people can chat with IAPKit, inspect purchases, manage products, sync stores, and apply app code changes."
+      title="OpenIAP Codex plugin"
+      description="Connect Codex to OpenIAP through MCP so it can review app purchase flows, help implement in-app purchases, inspect IAPKit data, and apply app code changes."
     >
       <p>
-        The IAPKit Codex plugin is an MCP-backed connector. Codex talks to{" "}
-        <code>/mcp</code>, the connector exposes IAPKit tools, and those tools
-        call the same <code>/v1</code> API that the dashboard and SDK helpers
-        use. Codex can then combine IAPKit project context with its normal
-        workspace tools to answer questions, propose product operations, and
-        edit application code.
+        The OpenIAP Codex plugin is an MCP-backed connector for in-app purchase
+        implementation and review. Codex talks to <code>/mcp</code>, the
+        connector exposes OpenIAP workflows backed by IAPKit project tools, and
+        those tools call the same <code>/v1</code> API that the dashboard and
+        SDK helpers use. Codex can then combine live project context with its
+        normal workspace tools to inspect purchase flows, generate setup code,
+        review product configuration, and apply app code changes.
       </p>
 
       <Callout kind="note" title="Experimental">
         <p>
-          This Codex plugin is experimental. The MCP endpoint, tool names, and
+          This OpenIAP plugin is experimental. The MCP endpoint, tool names, and
           setup flow are available for early testing, and we will keep improving
           the connector as Codex MCP support and IAPKit workflows evolve.
         </p>
@@ -65,7 +66,7 @@ export default function CodexPluginPage() {
               Tool prefix
             </div>
             <code className="mt-1 block break-all rounded border border-border bg-background px-3 py-2">
-              iapkit_*
+              iapkit_* tools through the OpenIAP plugin
             </code>
           </div>
         </div>
@@ -73,15 +74,56 @@ export default function CodexPluginPage() {
 
       <DocsScreenshot
         src="/docs/screenshots/codex-plugin.webp"
-        alt="IAPKit Codex plugin documentation page"
+        alt="OpenIAP Codex plugin documentation page"
         caption="This page rendered locally after the /mcp endpoint was added. The screenshot is captured from the actual docs route."
       />
 
-      <h2 className="mt-10 text-2xl font-semibold">Connect from Codex</h2>
+      <h2 className="mt-10 text-2xl font-semibold">
+        Install the OpenIAP plugin
+      </h2>
       <p>
-        Use the hosted endpoint after this Kit deployment is live. If you are
-        reviewing a pull request or testing unreleased MCP changes, use the
-        local setup in the next section.
+        After this repository marketplace is available, add it to Codex and
+        install <strong>OpenIAP</strong> from the Plugin Directory. This is the
+        installable plugin path. The public OpenAI-curated Plugin Directory does
+        not yet support self-serve public publishing.
+      </p>
+      <CodeBlock language="bash">
+        {`codex plugin marketplace add hyodotdev/openiap --ref main`}
+      </CodeBlock>
+      <ol className="list-decimal space-y-2 pl-5">
+        <li>Restart Codex after adding or updating the marketplace.</li>
+        <li>
+          Open <code>/plugins</code> or the Codex Plugin Directory.
+        </li>
+        <li>
+          Select the <strong>OpenIAP</strong> marketplace.
+        </li>
+        <li>
+          Install the <strong>OpenIAP</strong> plugin.
+        </li>
+        <li>
+          Set <code>IAPKIT_API_KEY</code> in the environment that launches
+          Codex, then open a new thread.
+        </li>
+      </ol>
+
+      <CodeBlock language="bash">
+        {`export IAPKIT_API_KEY="openiap-kit_your-project-key"`}
+      </CodeBlock>
+
+      <CodeBlock language="text">
+        {`Use the OpenIAP plugin.
+
+Review my app's in-app purchase flow and list the OpenIAP/IAPKit tools available.
+Do not create products, start sync jobs, or modify files until I confirm.`}
+      </CodeBlock>
+
+      <h2 className="mt-10 text-2xl font-semibold">Manual MCP config</h2>
+      <p>
+        If you do not want to install the plugin bundle, configure the hosted
+        MCP server directly. Use the hosted endpoint after this Kit deployment
+        is live. If you are reviewing a pull request or testing unreleased MCP
+        changes, use the local setup in the next section.
       </p>
       <ol className="list-decimal space-y-2 pl-5">
         <li>
@@ -106,14 +148,14 @@ export default function CodexPluginPage() {
       </CodeBlock>
 
       <CodeBlock language="toml">
-        {`[mcp_servers.iapkit]
+        {`[mcp_servers.openiap]
 url = "https://kit.openiap.dev/mcp"
 bearer_token_env_var = "IAPKIT_API_KEY"
 default_tools_approval_mode = "prompt"`}
       </CodeBlock>
 
       <CodeBlock language="text">
-        {`Use the IAPKit MCP server.
+        {`Use the OpenIAP MCP server.
 
 Inspect my IAPKit project and summarize subscription purchases this month, grouped by currency.
 Do not create products, start sync jobs, or modify files until I confirm.`}
@@ -137,7 +179,7 @@ IAPKIT_API_KEY="openiap-kit_your-project-key" \\
       </CodeBlock>
 
       <CodeBlock language="toml">
-        {`[mcp_servers.iapkit-local]
+        {`[mcp_servers.openiap-local]
 url = "http://127.0.0.1:3939/mcp"
 default_tools_approval_mode = "prompt"`}
       </CodeBlock>
@@ -146,11 +188,11 @@ default_tools_approval_mode = "prompt"`}
         The local Codex config does not need a bearer token because the local
         MCP server process already has <code>IAPKIT_API_KEY</code>. With the
         local server running, open Codex and use <code>/mcp</code> to confirm
-        that <code>iapkit-local</code> is connected. Then start with a read-only
-        prompt:
+        that <code>openiap-local</code> is connected. Then start with a
+        read-only prompt:
       </p>
       <CodeBlock language="text">
-        {`Use the IAPKit MCP server. List the available iapkit tools.`}
+        {`Use the OpenIAP MCP server. List the available iapkit tools.`}
       </CodeBlock>
 
       <p>
@@ -158,17 +200,18 @@ default_tools_approval_mode = "prompt"`}
         does not write to IAPKit, ask Codex to generate a setup snippet:
       </p>
       <CodeBlock language="text">
-        {`Use the IAPKit MCP server. Call iapkit_setup for framework expo and productId premium_monthly. Do not modify files.`}
+        {`Use the OpenIAP MCP server. Call iapkit_setup for framework expo and productId premium_monthly. Do not modify files.`}
       </CodeBlock>
 
       <h2 className="mt-10 text-2xl font-semibold">What Codex can do</h2>
       <p>
-        IAPKit tools give Codex live project operations. Codex&apos;s normal
-        workspace tools still handle source edits, tests, and pull-request work.
-        Together, a single thread can inspect this month&apos;s purchase counts,
-        create an IAPKit catalog row, enqueue an App Store or Play sync, poll
-        the sync job, and update the app code that calls the corresponding
-        OpenIAP SDK.
+        The OpenIAP plugin gives Codex purchase-flow implementation help and
+        live IAPKit project operations. Codex&apos;s normal workspace tools
+        still handle source edits, tests, and pull-request work. Together, a
+        single thread can inspect app purchase code, generate SDK setup
+        snippets, review this month&apos;s purchase counts, create an IAPKit
+        catalog row, enqueue an App Store or Play sync, poll the sync job, and
+        update the app code that calls the corresponding OpenIAP SDK.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Self-hosted connector</h2>
@@ -184,7 +227,7 @@ default_tools_approval_mode = "prompt"`}
 # http://127.0.0.1:3939/mcp`}
       </CodeBlock>
       <CodeBlock language="toml">
-        {`[mcp_servers.iapkit-self-hosted]
+        {`[mcp_servers.openiap-self-hosted]
 url = "https://your-mcp-host.example.com/mcp"
 default_tools_approval_mode = "prompt"`}
       </CodeBlock>

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "openiap": {
+      "url": "https://kit.openiap.dev/mcp",
+      "bearer_token_env_var": "IAPKIT_API_KEY",
+      "default_tools_approval_mode": "prompt"
+    }
+  }
+}

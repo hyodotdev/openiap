@@ -1,0 +1,20 @@
+{
+  "name": "openiap",
+  "interface": {
+    "displayName": "OpenIAP"
+  },
+  "plugins": [
+    {
+      "name": "openiap",
+      "source": {
+        "source": "local",
+        "path": "./plugins/openiap"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}
