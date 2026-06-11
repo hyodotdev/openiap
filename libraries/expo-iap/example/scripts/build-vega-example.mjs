@@ -12,6 +12,10 @@ const tempPackageSourceRoot = path.join(tempRoot, 'openiap-expo-iap-src');
 const buildType = process.argv[2] === 'Release' ? 'Release' : 'Debug';
 const iapkitApiKey = process.env.EXPO_PUBLIC_IAPKIT_API_KEY ?? '';
 const iapkitBaseUrl = process.env.EXPO_PUBLIC_IAPKIT_BASE_URL ?? '';
+const vegaPackageId = 'dev.hyo.openiap.expo.example';
+const vegaComponentId = `${vegaPackageId}.main`;
+const vegaAppName = 'ExpoIapVegaExample';
+const vegaDisplayName = 'Expo IAP Vega Example';
 
 const writeFile = (relativePath, contents) => {
   const filePath = path.join(tempRoot, relativePath);
@@ -92,6 +96,44 @@ const writeLocalJavaScriptModule = (packageName, source, main = 'index.js') => {
   );
   fs.writeFileSync(path.join(moduleRoot, main), source, 'utf8');
 };
+
+const createVegaManifest = () => `schema-version = 1
+
+[package]
+id = "${vegaPackageId}"
+title = "${vegaDisplayName}"
+version = "1.0.0"
+
+[components]
+[[components.interactive]]
+id = "${vegaComponentId}"
+runtime-module = "/com.amazon.kepler.keplerscript.runtime.loader_2@IKeplerScript_2_0"
+launch-type = "singleton"
+categories = ["com.amazon.category.main"]
+
+[wants]
+[[wants.service]]
+id = "com.amazon.inputmethod.service"
+
+[[wants.service]]
+id = "com.amazon.network.service"
+
+[[wants.service]]
+id = "com.amazon.iap.core.service"
+
+[[wants.service]]
+id = "com.amazon.iap.tester.service"
+
+[[wants.module]]
+id = "/com.amazon.iap.core@IIAPCoreUI"
+
+[[wants.module]]
+id = "/com.amazonappstore.iap.tester@IIAPTesterUI"
+
+[needs]
+[[needs.module]]
+id = "/com.amazon.kepler.appstore.iap.purchase.core@IAppstoreIAPPurchaseCoreService"
+`;
 
 const rewriteExpoSourceImports = (source) =>
   source
@@ -297,7 +339,7 @@ writeFile(
       },
       kepler: {
         projectType: 'application',
-        appName: 'ExpoIapVegaExample',
+        appName: vegaAppName,
         targets: ['tv'],
         os: ['vega'],
       },
@@ -312,8 +354,8 @@ writeFile(
   `${JSON.stringify(
     {
       '//': 'The declared app name must match the Vega component id.',
-      name: 'dev.hyo.openiap.expo.example.main',
-      displayName: 'Expo IAP Vega Example',
+      name: vegaComponentId,
+      displayName: vegaDisplayName,
     },
     null,
     2,
@@ -405,7 +447,7 @@ writeLocalEntryModule(
   'openiap-expo-iap.ts',
   path.join(tempPackageSourceRoot, 'index.kepler.ts'),
 );
-copyFile(path.join(exampleRoot, 'manifest.toml'), 'manifest.toml');
+writeFile('manifest.toml', createVegaManifest());
 
 run('bun', ['install', '--force']);
 writeLocalPackageAlias(

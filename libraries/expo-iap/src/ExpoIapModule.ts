@@ -42,7 +42,7 @@ function getResolved(): {module: any; name: NativeIapModuleName} {
       if (!vegaModule) {
         throw new UnavailabilityError(
           'expo-iap',
-          'Amazon Vega IAP module is unavailable. Add @amazon-devices/keplerscript-appstore-iap-lib and build with the React Native Vega kepler platform.',
+          'Amazon Vega IAP module is unavailable. Install @amazon-devices/keplerscript-appstore-iap-lib in the Vega app target and build with the React Native for Vega kepler platform.',
         );
       }
       return {module: vegaModule, name: 'ExpoIapVega'};

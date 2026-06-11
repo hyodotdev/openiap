@@ -495,7 +495,7 @@ describe('vega project generation', () => {
     });
   });
 
-  it('merges Vega scripts, dependencies, and kepler metadata', () => {
+  it('merges Vega scripts, dependency buckets, and kepler metadata', () => {
     const settings = resolveVegaProjectSettings({
       name: 'Expo IAP Example',
       slug: 'expo-iap-example',
@@ -528,6 +528,82 @@ describe('vega project generation', () => {
     expect(
       result.devDependencies?.['@amazon-devices/kepler-cli-platform'],
     ).toBe('~0.22.0');
+    expect(
+      result.devDependencies?.['@amazon-devices/react-native-kepler'],
+    ).toBeUndefined();
+    expect(
+      result.optionalDependencies?.['@amazon-devices/react-native-kepler'],
+    ).toBe('^2.0.0');
     expect(result.kepler?.appName).toBe('ExpoIAPExample');
+  });
+
+  it('moves existing react-native-kepler direct dependency into optionalDependencies', () => {
+    const settings = resolveVegaProjectSettings({
+      name: 'Expo IAP Example',
+      slug: 'expo-iap-example',
+      android: {package: 'dev.hyo.martie'},
+    } as ExpoConfig);
+    const result = mergeVegaPackageJson(
+      {
+        dependencies: {
+          '@amazon-devices/keplerscript-appstore-iap-lib': '~2.12.13',
+        },
+        devDependencies: {
+          '@amazon-devices/kepler-cli-platform': '~0.22.0',
+          '@amazon-devices/react-native-kepler': '^2.0.0',
+        },
+      },
+      settings,
+    );
+
+    expect(
+      result.dependencies?.['@amazon-devices/keplerscript-appstore-iap-lib'],
+    ).toBe('~2.12.13');
+    expect(
+      result.devDependencies?.['@amazon-devices/kepler-cli-platform'],
+    ).toBe('~0.22.0');
+    expect(
+      result.devDependencies?.['@amazon-devices/react-native-kepler'],
+    ).toBeUndefined();
+    expect(
+      result.optionalDependencies?.['@amazon-devices/react-native-kepler'],
+    ).toBe('^2.0.0');
+  });
+
+  it('moves Vega CLI tooling out of optionalDependencies for command discovery', () => {
+    const settings = resolveVegaProjectSettings({
+      name: 'Expo IAP Example',
+      slug: 'expo-iap-example',
+      android: {package: 'dev.hyo.martie'},
+    } as ExpoConfig);
+    const result = mergeVegaPackageJson(
+      {
+        optionalDependencies: {
+          '@amazon-devices/kepler-cli-platform': '~0.22.0',
+          '@amazon-devices/kepler-compatibility-metro-config': '^0.0.6',
+          '@amazon-devices/kepler-module-resolver-preset': '^0.1.15',
+          '@amazon-devices/react-native-kepler': '^2.0.0',
+        },
+      },
+      settings,
+    );
+
+    expect(
+      result.devDependencies?.['@amazon-devices/kepler-cli-platform'],
+    ).toBe('~0.22.0');
+    expect(
+      result.devDependencies?.[
+        '@amazon-devices/kepler-compatibility-metro-config'
+      ],
+    ).toBe('^0.0.6');
+    expect(
+      result.devDependencies?.['@amazon-devices/kepler-module-resolver-preset'],
+    ).toBe('^0.1.15');
+    expect(
+      result.optionalDependencies?.['@amazon-devices/kepler-cli-platform'],
+    ).toBeUndefined();
+    expect(
+      result.optionalDependencies?.['@amazon-devices/react-native-kepler'],
+    ).toBe('^2.0.0');
   });
 });

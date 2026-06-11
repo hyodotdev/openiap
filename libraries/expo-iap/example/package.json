@@ -21,7 +21,6 @@
   },
   "dependencies": {
     "@expo/react-native-action-sheet": "^4.1.1",
-    "@amazon-devices/keplerscript-appstore-iap-lib": "~2.12.13",
     "@expo/vector-icons": "^15.0.2",
     "@preact/signals-react": "^3.2.1",
     "@react-navigation/bottom-tabs": "^7.2.0",
@@ -50,10 +49,6 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
-    "@amazon-devices/kepler-cli-platform": "~0.22.0",
-    "@amazon-devices/kepler-compatibility-metro-config": "^0.0.6",
-    "@amazon-devices/kepler-module-resolver-preset": "^0.1.15",
-    "@amazon-devices/react-native-kepler": "^2.0.0",
     "@react-native-community/cli": "11.3.2",
     "@react-native/metro-config": "^0.72.6",
     "@testing-library/jest-native": "^5.4.3",
@@ -71,17 +66,6 @@
     "typescript": "~5.9.2"
   },
   "private": true,
-  "kepler": {
-    "projectType": "application",
-    "appName": "ExpoIAPExample",
-    "targets": [
-      "tv"
-    ],
-    "os": [
-      "vega"
-    ],
-    "api": 0.1
-  },
   "expo": {
     "autolinking": {
       "nativeModulesDir": ".."

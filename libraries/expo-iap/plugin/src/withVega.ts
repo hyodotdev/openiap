@@ -178,6 +178,7 @@ type MutablePackageJson = {
   scripts?: Record<string, string>;
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
+  optionalDependencies?: Record<string, string>;
   kepler?: Record<string, unknown>;
 };
 
@@ -189,6 +190,41 @@ const setIfMissing = (
   if (!target[key]) {
     target[key] = value;
   }
+};
+
+const setDependency = (pkg: MutablePackageJson, key: string, value: string) => {
+  delete pkg.devDependencies?.[key];
+  delete pkg.optionalDependencies?.[key];
+  if (!pkg.dependencies) {
+    pkg.dependencies = {};
+  }
+  setIfMissing(pkg.dependencies, key, value);
+};
+
+const setDevDependency = (
+  pkg: MutablePackageJson,
+  key: string,
+  value: string,
+) => {
+  delete pkg.dependencies?.[key];
+  delete pkg.optionalDependencies?.[key];
+  if (!pkg.devDependencies) {
+    pkg.devDependencies = {};
+  }
+  setIfMissing(pkg.devDependencies, key, value);
+};
+
+const setOptionalDependency = (
+  pkg: MutablePackageJson,
+  key: string,
+  value: string,
+) => {
+  delete pkg.dependencies?.[key];
+  delete pkg.devDependencies?.[key];
+  if (!pkg.optionalDependencies) {
+    pkg.optionalDependencies = {};
+  }
+  setIfMissing(pkg.optionalDependencies, key, value);
 };
 
 const getVpkgBaseName = (
@@ -207,11 +243,12 @@ const getVpkgBaseName = (
 export const mergeVegaPackageJson = <T extends MutablePackageJson>(
   pkg: T,
   settings: VegaProjectSettings,
-): T => {
-  const next = {...pkg};
+): T & MutablePackageJson => {
+  const next: T & MutablePackageJson = {...pkg};
   next.scripts = {...(pkg.scripts ?? {})};
   next.dependencies = {...(pkg.dependencies ?? {})};
   next.devDependencies = {...(pkg.devDependencies ?? {})};
+  next.optionalDependencies = {...(pkg.optionalDependencies ?? {})};
   const vpkgBaseName = getVpkgBaseName(pkg, settings);
 
   setIfMissing(
@@ -235,32 +272,24 @@ export const mergeVegaPackageJson = <T extends MutablePackageJson>(
     `vega device install-app --packagePath build/armv7-debug/${vpkgBaseName}_armv7.vpkg && vega device launch-app --appName ${settings.componentId}`,
   );
 
-  setIfMissing(
-    next.dependencies,
+  setDependency(
+    next,
     '@amazon-devices/keplerscript-appstore-iap-lib',
     '~2.12.13',
   );
 
-  setIfMissing(
-    next.devDependencies,
-    '@amazon-devices/kepler-cli-platform',
-    '~0.22.0',
-  );
-  setIfMissing(
-    next.devDependencies,
+  setDevDependency(next, '@amazon-devices/kepler-cli-platform', '~0.22.0');
+  setDevDependency(
+    next,
     '@amazon-devices/kepler-compatibility-metro-config',
     '^0.0.6',
   );
-  setIfMissing(
-    next.devDependencies,
+  setDevDependency(
+    next,
     '@amazon-devices/kepler-module-resolver-preset',
     '^0.1.15',
   );
-  setIfMissing(
-    next.devDependencies,
-    '@amazon-devices/react-native-kepler',
-    '^2.0.0',
-  );
+  setOptionalDependency(next, '@amazon-devices/react-native-kepler', '^2.0.0');
   setIfMissing(next.devDependencies, '@react-native-community/cli', '11.3.2');
   setIfMissing(next.devDependencies, '@react-native/metro-config', '^0.72.6');
   setIfMissing(next.devDependencies, 'babel-plugin-module-resolver', '^5.0.2');

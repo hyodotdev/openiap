@@ -23,6 +23,7 @@ const useLocalDev =
 export default ({config}: ConfigContext): ExpoConfig => {
   // Check if building for TV (set EXPO_TV=1 before prebuild)
   const isTV = process.env.EXPO_TV === '1';
+  const isFireOsEnabled = process.env.EXPO_IAP_FIREOS === '1';
   const isVegaEnabled = process.env.EXPO_IAP_VEGA === '1';
   const isOnsideEnabled = false;
 
@@ -50,7 +51,7 @@ export default ({config}: ConfigContext): ExpoConfig => {
         },
         amazon: {
           // Fire OS: Android amazon flavor
-          fireOS: false,
+          fireOS: isFireOsEnabled,
           // Vega OS: Kepler runtime target
           vegaOS: isVegaEnabled,
         },

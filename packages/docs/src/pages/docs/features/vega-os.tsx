@@ -88,12 +88,11 @@ function VegaOSRuntime() {
             .
           </li>
           <li>
-            Amazon Vega IAP package installed in the app:
-            <CodeBlock language="json">{`{
-  "dependencies": {
-    "@amazon-devices/keplerscript-appstore-iap-lib": "~2.12.13"
-  }
-}`}</CodeBlock>
+            Amazon Vega IAP installed in the Vega app target.{' '}
+            <code>react-native-iap</code> and <code>expo-iap</code> declare the
+            Amazon IAP package as an optional peer dependency, so non-Vega iOS,
+            Android, Fire OS, and Horizon builds do not install it by default:
+            <CodeBlock language="bash">{`npm install @amazon-devices/keplerscript-appstore-iap-lib@~2.12.13`}</CodeBlock>
           </li>
           <li>
             Vega IAP service declarations in <code>manifest.toml</code>:
@@ -128,6 +127,21 @@ id = "/com.amazon.kepler.appstore.iap.purchase.core@IAppstoreIAPPurchaseCoreServ
           metadata. Plain React Native apps should provide the Vega project
           files directly, as shown in the OpenIAP repository example.
         </p>
+        <p>
+          Keep the React Native for Vega runtime in the Vega app target or a
+          Vega-only package manifest. In particular, do not keep{' '}
+          <code>@amazon-devices/react-native-kepler</code> as a direct
+          dependency of a package manifest that is also used for normal iOS or
+          Android builds, because React Native Codegen can scan it during those
+          builds.
+        </p>
+        <p>
+          If a Vega target keeps{' '}
+          <code>@amazon-devices/react-native-kepler</code> in{' '}
+          <code>optionalDependencies</code>, do not omit optional dependencies
+          during install. The package is still required for Vega builds; it is
+          optionalized only to keep non-Vega installs and Codegen clean.
+        </p>
 
         <h3 id="react-native-iap" className="anchor-heading">
           react-native-iap
@@ -141,26 +155,49 @@ id = "/com.amazon.kepler.appstore.iap.purchase.core@IAppstoreIAPPurchaseCoreServ
           <code>kepler</code> runtime. Non-Vega platforms continue creating the
           Nitro <code>RnIap</code> HybridObject.
         </p>
-        <CodeBlock language="typescript">{`[
-  'react-native-iap',
-  {
-    amazon: {
-      fireOS: true,
-      vegaOS: true,
-    },
-    modules: {
-      horizon: false,
-    },
-  },
-]`}</CodeBlock>
         <p>
-          In <code>react-native-iap</code>, <code>amazon.fireOS</code> selects
-          the Android Amazon Appstore flavor during prebuild.{' '}
-          <code>amazon.vegaOS</code> keeps the Amazon target shape aligned with{' '}
-          <code>expo-iap</code>, but the React Native app still supplies its
-          Vega <code>manifest.toml</code>, entry point, and Kepler build target
-          directly.
+          Vega users install the Amazon IAP package in their Vega app target to
+          satisfy the optional peer dependency. Projects that also ship regular
+          iOS or Android apps should isolate the Amazon React Native for Vega
+          runtime packages in the Vega target, as the repository example build
+          script does with a temporary React Native 0.72 app.
         </p>
+        <p>
+          In <code>react-native-iap</code>, the config plugin can select the
+          Fire OS Android flavor with <code>amazon.fireOS</code>, but it does
+          not generate Vega project files or automatically sync package.json
+          dependencies. A plain React Native Vega target should provide its own{' '}
+          <code>manifest.toml</code>, Kepler entry point, Metro/Babel resolver,
+          package dependencies, and <code>kepler</code> metadata directly.
+        </p>
+        <CodeBlock language="bash">{`# In the Vega-only React Native for Vega target
+yarn add react-native-iap
+yarn add @amazon-devices/keplerscript-appstore-iap-lib@~2.12.13 @amazon-devices/react-native-kepler@^2.0.0
+yarn add -D @amazon-devices/kepler-cli-platform@~0.22.0 @react-native-community/cli@11.3.2 @react-native/metro-config@^0.72.6`}</CodeBlock>
+        <p>
+          A Vega-only package manifest can keep the React Native for Vega
+          runtime as a direct dependency because that manifest is not used by
+          normal iOS or Android builds:
+        </p>
+        <CodeBlock language="json">{`{
+  "dependencies": {
+    "@amazon-devices/keplerscript-appstore-iap-lib": "~2.12.13",
+    "@amazon-devices/react-native-kepler": "^2.0.0",
+    "react": "18.2.0",
+    "react-native": "0.72.0"
+  },
+  "devDependencies": {
+    "@amazon-devices/kepler-cli-platform": "~0.22.0",
+    "@react-native-community/cli": "11.3.2",
+    "@react-native/metro-config": "^0.72.6"
+  },
+  "kepler": {
+    "projectType": "application",
+    "appName": "MyVegaApp",
+    "targets": ["tv"],
+    "os": ["vega"]
+  }
+}`}</CodeBlock>
         <p>
           The React Native example includes a Vega build script that creates an
           Amazon-supported React Native 0.72 Vega build target, copies the
@@ -186,6 +223,14 @@ yarn run:vega:firetv`}</CodeBlock>
           against a React Native for Vega runtime version supported by the
           installed Amazon Vega CLI.
         </p>
+        <p>
+          Install the Amazon Vega peer dependency only for the Vega build
+          target. The regular Expo iOS and Android development build should not
+          require <code>@amazon-devices/react-native-kepler</code> unless that
+          same package manifest is intentionally building a Vega artifact. Vega
+          CI should also install optional dependencies so the React Native for
+          Vega runtime is present for <code>build-vega</code>.
+        </p>
         <CodeBlock language="typescript">{`[
   'expo-iap',
   {
@@ -204,9 +249,13 @@ yarn run:vega:firetv`}</CodeBlock>
           When <code>amazon.vegaOS</code> is enabled, the Expo plugin prepares
           the Vega manifest, entry point, generated app metadata, app icon
           assets, Kepler package metadata, and Vega build scripts during
-          prebuild. <code>amazon.fireOS</code> can be enabled in the same
-          config, but Fire OS and Vega OS still produce separate build
-          artifacts.
+          prebuild. It keeps the Amazon IAP package as a runtime dependency and
+          the Kepler CLI/Metro/Babel packages as development dependencies, but
+          syncs <code>@amazon-devices/react-native-kepler</code> as an{' '}
+          <code>optionalDependency</code> so regular iOS and Android Codegen do
+          not scan it as a direct React Native dependency.{' '}
+          <code>amazon.fireOS</code> can be enabled in the same config, but Fire
+          OS and Vega OS still produce separate build artifacts.
         </p>
         <CodeBlock language="bash">{`EXPO_IAP_VEGA=1 expo prebuild --platform android --no-install
 EXPO_IAP_VEGA=1 react-native build-vega --build-type Debug`}</CodeBlock>

@@ -308,6 +308,17 @@ cd ios && pod install`}
           They can both be <code>true</code> in one config, but Fire OS and Vega
           OS are still built as separate artifacts.
         </p>
+        <p>
+          Vega OS support uses optional peer dependencies. Install Amazon's Vega
+          IAP package only in the Vega app target. When{' '}
+          <code>amazon.vegaOS</code> is enabled, the plugin keeps the Kepler
+          CLI, Metro, and Babel packages available for <code>build-vega</code>,
+          but syncs <code>@amazon-devices/react-native-kepler</code> as an{' '}
+          <code>optionalDependency</code>. Keep that package out of normal{' '}
+          <code>dependencies</code> and <code>devDependencies</code> used by
+          regular Expo iOS or Android builds, and make sure Vega CI installs
+          optional dependencies before running <code>build-vega</code>.
+        </p>
         <table>
           <thead>
             <tr>
