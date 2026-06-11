@@ -82,6 +82,14 @@ buildscript {
         return properties.getProperty(propertyName)
     }
 
+    def readRequiredAndroidGradleProperty = { File androidDir, String propertyName ->
+        def value = readGradleProperty(propertyName)
+        if (value == null || value.toString().trim().isEmpty()) {
+            throw new GradleException("flutter_inapp_purchase: missing ${propertyName} in android/gradle.properties")
+        }
+        return value.toString().trim()
+    }
+
     def googlePluginVersion = { String pluginId ->
         File googleRootBuildFile = locateGoogleRootBuildFile(projectDir)
         if (googleRootBuildFile == null) {
@@ -138,7 +146,7 @@ android {
         targetSdkVersion = openIapTargetSdkVersion
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Use horizonEnabled to determine platform flavor
+        // Select the local :openiap flavor when developing inside the monorepo.
         def flavor = horizonEnabled ? 'horizon' : 'play'
         missingDimensionStrategy "platform", flavor
     }
@@ -153,18 +161,6 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
-    flavorDimensions "platform"
-    productFlavors {
-        // Play flavor - Google Play Billing (default)
-        play {
-            dimension "platform"
-            isDefault = true
-        }
-        // Horizon flavor - Meta Horizon Billing
-        horizon {
-            dimension "platform"
-        }
-    }
 }
 
 kotlin {
