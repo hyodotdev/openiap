@@ -4,6 +4,14 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 
+function readArgValue(argv, index, flag) {
+  const value = argv[index + 1];
+  if (typeof value !== 'string' || value.length === 0 || value.startsWith('--')) {
+    throw new Error(`Missing value for ${flag}`);
+  }
+  return value;
+}
+
 function parseArgs(argv) {
   const options = {
     packagePath: null,
@@ -16,13 +24,17 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--package') {
-      options.packagePath = argv[++i];
+      options.packagePath = readArgValue(argv, i, arg);
+      i += 1;
     } else if (arg === '--package-name') {
-      options.packageName = argv[++i];
+      options.packageName = readArgValue(argv, i, arg);
+      i += 1;
     } else if (arg === '--required') {
-      options.required.push(argv[++i]);
+      options.required.push(readArgValue(argv, i, arg));
+      i += 1;
     } else if (arg === '--forbid') {
-      options.forbid.push(argv[++i]);
+      options.forbid.push(readArgValue(argv, i, arg));
+      i += 1;
     } else if (arg === '--pack-ignore-scripts') {
       options.packIgnoreScripts = true;
     } else {
@@ -117,9 +129,18 @@ function prepareVersionFile(packageRoot) {
   if (!fs.existsSync(versionFile)) return () => {};
 
   const stat = fs.lstatSync(versionFile);
-  if (!stat.isSymbolicLink()) return () => {};
+  const isSymlink = stat.isSymbolicLink();
+  let target = null;
+  if (isSymlink) {
+    target = fs.readlinkSync(versionFile);
+  } else if (stat.isFile()) {
+    const content = fs.readFileSync(versionFile, 'utf8').trim();
+    if (content.startsWith('.') && content.endsWith('.json') && !content.includes('\n')) {
+      target = content;
+    }
+  }
+  if (!target) return () => {};
 
-  const target = fs.readlinkSync(versionFile);
   const resolvedTarget = path.resolve(path.dirname(versionFile), target);
   try {
     fs.rmSync(versionFile);
@@ -127,7 +148,11 @@ function prepareVersionFile(packageRoot) {
   } catch (error) {
     try {
       fs.rmSync(versionFile, {force: true});
-      fs.symlinkSync(target, versionFile);
+      if (isSymlink) {
+        fs.symlinkSync(target, versionFile);
+      } else {
+        fs.writeFileSync(versionFile, target);
+      }
     } catch {
       // Preserve the original failure; the restore attempt is best-effort.
     }
@@ -136,7 +161,11 @@ function prepareVersionFile(packageRoot) {
 
   return () => {
     fs.rmSync(versionFile, {force: true});
-    fs.symlinkSync(target, versionFile);
+    if (isSymlink) {
+      fs.symlinkSync(target, versionFile);
+    } else {
+      fs.writeFileSync(versionFile, target);
+    }
   };
 }
 
@@ -202,10 +231,13 @@ if (sourcePackageJson.name !== options.packageName) {
   throw new Error(`${packageRoot} package name ${sourcePackageJson.name} does not match ${options.packageName}`);
 }
 
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), `${options.packageName.replaceAll('/', '-')}-consumer-`));
-const restoreVersionFile = prepareVersionFile(packageRoot);
+let tempRoot = null;
+let restoreVersionFile = () => {};
 
 try {
+  tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), `${options.packageName.replaceAll('/', '-')}-consumer-`));
+  restoreVersionFile = prepareVersionFile(packageRoot);
+
   const packArgs = ['pack', '--json', '--pack-destination', tempRoot];
   if (options.packIgnoreScripts) packArgs.push('--ignore-scripts');
   const packOutput = run('npm', packArgs, packageRoot);
@@ -243,7 +275,7 @@ try {
   console.log(`${options.packageName} consumer install smoke test passed.`);
 } finally {
   restoreVersionFile();
-  if (!process.env.OPENIAP_KEEP_NPM_CONSUMER_SMOKE_TMP) {
+  if (tempRoot && !process.env.OPENIAP_KEEP_NPM_CONSUMER_SMOKE_TMP) {
     fs.rmSync(tempRoot, {recursive: true, force: true});
   }
 }
