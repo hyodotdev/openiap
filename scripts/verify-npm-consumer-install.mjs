@@ -22,6 +22,14 @@ function consumerPackageName(packageName) {
   return `${packageName.replace(/^@/, '').replaceAll('/', '-')}-consumer-smoke`;
 }
 
+function readJsonObject(filePath, label) {
+  const value = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`${label} is not a valid JSON object`);
+  }
+  return value;
+}
+
 function parseArgs(argv) {
   const options = {
     packagePath: null,
@@ -185,7 +193,7 @@ function validateInstalledPackage(installedRoot, options) {
   const packageJsonPath = path.join(installedRoot, 'package.json');
   assertFile(packageJsonPath, 'installed package.json');
 
-  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+  const packageJson = readJsonObject(packageJsonPath, 'installed package.json');
   if (packageJson.name !== options.packageName) {
     throw new Error(`Installed package name ${packageJson.name} does not match ${options.packageName}`);
   }
@@ -213,7 +221,7 @@ function validateInstalledPackage(installedRoot, options) {
     if (stat.isSymbolicLink()) {
       throw new Error('openiap-versions.json must be packed as a real file, not a symlink');
     }
-    const versions = JSON.parse(fs.readFileSync(versionFile, 'utf8'));
+    const versions = readJsonObject(versionFile, 'openiap-versions.json');
     for (const key of ['spec', 'google', 'apple']) {
       if (typeof versions[key] !== 'string' || versions[key].trim().length === 0) {
         throw new Error(`openiap-versions.json is missing ${key}`);
@@ -238,7 +246,7 @@ function validateInstalledPackage(installedRoot, options) {
 
 const options = parseArgs(process.argv.slice(2));
 const packageRoot = path.resolve(process.cwd(), options.packagePath);
-const sourcePackageJson = JSON.parse(fs.readFileSync(path.join(packageRoot, 'package.json'), 'utf8'));
+const sourcePackageJson = readJsonObject(path.join(packageRoot, 'package.json'), `${packageRoot}/package.json`);
 if (sourcePackageJson.name !== options.packageName) {
   throw new Error(`${packageRoot} package name ${sourcePackageJson.name} does not match ${options.packageName}`);
 }
