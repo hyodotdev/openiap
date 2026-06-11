@@ -14,13 +14,22 @@ trap cleanup EXIT
 package_copy="$tmp_root/flutter_inapp_purchase"
 consumer_app="$tmp_root/openiap_consumer_smoke"
 
-mkdir -p "$package_copy"
+cp -R "$package_root" "$tmp_root/"
+rm -rf \
+  "$package_copy/.build" \
+  "$package_copy/.dart_tool" \
+  "$package_copy/android/.gradle" \
+  "$package_copy/android/build" \
+  "$package_copy/build" \
+  "$package_copy/example/.dart_tool" \
+  "$package_copy/example/android/.gradle" \
+  "$package_copy/example/android/build" \
+  "$package_copy/example/build"
 
-git -C "$repo_root" ls-files libraries/flutter_inapp_purchase | while IFS= read -r source_path; do
-  relative_path="${source_path#libraries/flutter_inapp_purchase/}"
-  mkdir -p "$package_copy/$(dirname "$relative_path")"
-  cp -L "$repo_root/$source_path" "$package_copy/$relative_path"
-done
+if [ -L "$package_copy/openiap-versions.json" ]; then
+  rm "$package_copy/openiap-versions.json"
+  cp "$repo_root/openiap-versions.json" "$package_copy/openiap-versions.json"
+fi
 
 flutter create --platforms=android -t app --project-name openiap_consumer_smoke "$consumer_app"
 
@@ -40,7 +49,7 @@ flutter create --platforms=android -t app --project-name openiap_consumer_smoke 
   if [ -n "$android_sdk_root" ] &&
     [ -d "$android_sdk_root/ndk/27.0.12077973" ] &&
     [ -f android/app/build.gradle.kts ]; then
-    perl -0pi -e 's/ndkVersion = flutter\.ndkVersion/ndkVersion = "27.0.12077973"/' android/app/build.gradle.kts
+    perl -0pi -e 's/ndkVersion\s*=\s*flutter\.ndkVersion/ndkVersion = "27.0.12077973"/' android/app/build.gradle.kts
   fi
 
   flutter build apk --debug
