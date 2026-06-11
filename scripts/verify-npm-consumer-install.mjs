@@ -41,6 +41,9 @@ function run(command, args, cwd) {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
   });
+  if (result.error) {
+    throw new Error(`Failed to execute ${command} ${args.join(' ')}: ${result.error.message}`);
+  }
   const verbose = process.env.OPENIAP_VERBOSE_NPM_CONSUMER_SMOKE;
   if (verbose && result.stdout) process.stdout.write(result.stdout);
   if (verbose && result.stderr) process.stderr.write(result.stderr);
@@ -58,12 +61,14 @@ function stripAnsi(value) {
 
 function parseNpmPackJson(stdout) {
   const clean = stripAnsi(stdout).trim();
-  for (let index = clean.lastIndexOf('['); index >= 0; index = clean.lastIndexOf('[', index - 1)) {
-    try {
-      const parsed = JSON.parse(clean.slice(index));
-      if (Array.isArray(parsed) && parsed[0]?.filename) return parsed[0];
-    } catch {
-      // Keep scanning; package lifecycle scripts can print arbitrary output.
+  for (let start = clean.indexOf('['); start !== -1; start = clean.indexOf('[', start + 1)) {
+    for (let end = clean.lastIndexOf(']'); end > start; end = clean.lastIndexOf(']', end - 1)) {
+      try {
+        const parsed = JSON.parse(clean.slice(start, end + 1));
+        if (Array.isArray(parsed) && parsed[0]?.filename) return parsed[0];
+      } catch {
+        // Keep scanning; package lifecycle scripts can print arbitrary output.
+      }
     }
   }
   throw new Error('Unable to parse npm pack --json output');
@@ -116,8 +121,18 @@ function prepareVersionFile(packageRoot) {
 
   const target = fs.readlinkSync(versionFile);
   const resolvedTarget = path.resolve(path.dirname(versionFile), target);
-  fs.rmSync(versionFile);
-  fs.copyFileSync(resolvedTarget, versionFile);
+  try {
+    fs.rmSync(versionFile);
+    fs.copyFileSync(resolvedTarget, versionFile);
+  } catch (error) {
+    try {
+      fs.rmSync(versionFile, {force: true});
+      fs.symlinkSync(target, versionFile);
+    } catch {
+      // Preserve the original failure; the restore attempt is best-effort.
+    }
+    throw error;
+  }
 
   return () => {
     fs.rmSync(versionFile, {force: true});
