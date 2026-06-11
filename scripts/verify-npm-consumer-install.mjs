@@ -164,8 +164,20 @@ function parseNpmPackJson(stdout) {
 }
 
 function assertFile(filePath, label = filePath) {
-  if (!fs.existsSync(filePath)) {
-    throw new Error(`Missing ${label}`);
+  let stat;
+  try {
+    stat = fs.lstatSync(filePath);
+  } catch (error) {
+    if (error?.code === 'ENOENT') {
+      throw new Error(`Missing ${label}`);
+    }
+    throw error;
+  }
+  if (stat.isSymbolicLink()) {
+    throw new Error(`${label} must be a real file, not a symlink`);
+  }
+  if (!stat.isFile()) {
+    throw new Error(`${label} must be a file`);
   }
 }
 
@@ -276,16 +288,23 @@ function validateInstalledPackage(installedRoot, options) {
   }
 
   const versionFile = path.join(installedRoot, 'openiap-versions.json');
-  if (fs.existsSync(versionFile)) {
+  try {
     const stat = fs.lstatSync(versionFile);
     if (stat.isSymbolicLink()) {
       throw new Error('openiap-versions.json must be packed as a real file, not a symlink');
+    }
+    if (!stat.isFile()) {
+      throw new Error('openiap-versions.json must be a file');
     }
     const versions = readJsonObject(versionFile, 'openiap-versions.json');
     for (const key of ['spec', 'google', 'apple']) {
       if (typeof versions[key] !== 'string' || versions[key].trim().length === 0) {
         throw new Error(`openiap-versions.json is missing ${key}`);
       }
+    }
+  } catch (error) {
+    if (error?.code !== 'ENOENT') {
+      throw error;
     }
   }
 
@@ -357,20 +376,19 @@ try {
   console.log(`${options.packageName} consumer install smoke test passed.`);
   success = true;
 } finally {
-  let cleanupError = null;
+  let restoreError = null;
   try {
     restoreVersionFile();
   } catch (error) {
-    cleanupError = error;
+    restoreError = error;
     console.error('Failed to restore version file:', error);
   }
   if (tempRoot && !readBooleanEnv('OPENIAP_KEEP_NPM_CONSUMER_SMOKE_TMP')) {
     try {
       fs.rmSync(tempRoot, {recursive: true, force: true});
     } catch (error) {
-      cleanupError ??= error;
       console.error('Failed to clean up temp directory:', error);
     }
   }
-  if (success && cleanupError) throw cleanupError;
+  if (success && restoreError) throw restoreError;
 }
