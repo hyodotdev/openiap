@@ -191,7 +191,10 @@ function packageInstallDir(consumerRoot, packageName) {
 
 function collectExportPaths(value, paths = []) {
   if (typeof value === 'string') {
-    if (value.startsWith('./')) paths.push(value.slice(2));
+    if (value.startsWith('./')) {
+      const exportPath = value.slice(2);
+      if (exportPath.length > 0) paths.push(exportPath);
+    }
     return paths;
   }
   if (value && typeof value === 'object') {
