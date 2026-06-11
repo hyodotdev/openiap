@@ -28,10 +28,8 @@ rm -rf \
   "$package_copy/example/android/build" \
   "$package_copy/example/build"
 
-if [ -L "$package_copy/openiap-versions.json" ]; then
-  rm "$package_copy/openiap-versions.json"
-  cp "$repo_root/openiap-versions.json" "$package_copy/openiap-versions.json"
-fi
+rm -f "$package_copy/openiap-versions.json"
+cp "$repo_root/openiap-versions.json" "$package_copy/openiap-versions.json"
 
 flutter create --platforms=android -t app --project-name openiap_consumer_smoke "$consumer_app"
 
@@ -51,9 +49,9 @@ flutter create --platforms=android -t app --project-name openiap_consumer_smoke 
   if [ -n "$android_sdk_root" ] &&
     [ -d "$android_sdk_root/ndk/27.0.12077973" ]; then
     if [ -f android/app/build.gradle.kts ]; then
-      perl -0pi -e 's/ndkVersion\s*=\s*flutter\.ndkVersion/ndkVersion = "27.0.12077973"/' android/app/build.gradle.kts
+      perl -pi -e 's/ndkVersion\s*=\s*flutter\.ndkVersion/ndkVersion = "27.0.12077973"/' android/app/build.gradle.kts
     elif [ -f android/app/build.gradle ]; then
-      perl -0pi -e 's/ndkVersion\s+flutter\.ndkVersion/ndkVersion "27.0.12077973"/' android/app/build.gradle
+      perl -pi -e 's/ndkVersion\s*=?\s*flutter\.ndkVersion/ndkVersion = "27.0.12077973"/' android/app/build.gradle
     fi
   fi
 
