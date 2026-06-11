@@ -92,14 +92,20 @@ function stripAnsi(value) {
   return value.replace(/\u001b\[[0-9;]*m/g, '');
 }
 
-function findJsonArrayRanges(value) {
-  const ranges = [];
+function isJsonArrayCandidate(value, index) {
+  for (let i = index + 1; i < value.length; i += 1) {
+    if (/\s/.test(value[i])) continue;
+    return value[i] === '{';
+  }
+  return false;
+}
+
+function findJsonArrayEnd(value, start) {
   let depth = 0;
-  let start = -1;
   let inString = false;
   let escape = false;
 
-  for (let i = 0; i < value.length; i += 1) {
+  for (let i = start; i < value.length; i += 1) {
     const char = value[i];
     if (inString) {
       if (escape) {
@@ -112,20 +118,26 @@ function findJsonArrayRanges(value) {
       continue;
     }
 
-    if (depth > 0 && char === '"') {
+    if (char === '"') {
       inString = true;
     } else if (char === '[') {
-      if (depth === 0) start = i;
       depth += 1;
     } else if (char === ']' && depth > 0) {
       depth -= 1;
-      if (depth === 0 && start !== -1) {
-        ranges.push([start, i + 1]);
-        start = -1;
-      }
+      if (depth === 0) return i + 1;
     }
   }
 
+  return -1;
+}
+
+function findJsonArrayRanges(value) {
+  const ranges = [];
+  for (let start = value.indexOf('['); start !== -1; start = value.indexOf('[', start + 1)) {
+    if (!isJsonArrayCandidate(value, start)) continue;
+    const end = findJsonArrayEnd(value, start);
+    if (end !== -1) ranges.push([start, end]);
+  }
   return ranges;
 }
 
