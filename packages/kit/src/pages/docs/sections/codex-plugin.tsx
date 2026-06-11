@@ -19,6 +19,14 @@ export default function CodexPluginPage() {
         edit application code.
       </p>
 
+      <Callout kind="note" title="Experimental">
+        <p>
+          This Codex plugin is experimental. The MCP endpoint, tool names, and
+          setup flow are available for early testing, and we will keep improving
+          the connector as Codex MCP support and IAPKit workflows evolve.
+        </p>
+      </Callout>
+
       <Callout kind="note" title="Uses an IAPKit key">
         <p>
           Do not use an OpenAI or ChatGPT API key for this plugin.
@@ -70,31 +78,87 @@ export default function CodexPluginPage() {
       />
 
       <h2 className="mt-10 text-2xl font-semibold">Connect from Codex</h2>
+      <p>
+        Use the hosted endpoint after this Kit deployment is live. If you are
+        reviewing a pull request or testing unreleased MCP changes, use the
+        local setup in the next section.
+      </p>
       <ol className="list-decimal space-y-2 pl-5">
-        <li>Open Codex plugin or MCP connector settings.</li>
         <li>
-          Create a new plugin or MCP connector named <strong>IAPKit</strong>.
+          Create or rotate an IAPKit project API key from the project&apos;s{" "}
+          <strong>API keys</strong> tab.
         </li>
         <li>
-          Set the MCP URL to <code>https://kit.openiap.dev/mcp</code>.
+          Export it in the shell that launches Codex. This keeps the key out of
+          the Codex config file.
         </li>
         <li>
-          Configure bearer authentication with the IAPKit project API key from
-          the project&apos;s <strong>API keys</strong> tab. If the client does
-          not support bearer auth, self-host the MCP server and set{" "}
-          <code>IAPKIT_API_KEY</code> in that server&apos;s environment.
+          Add the hosted IAPKit MCP server to <code>~/.codex/config.toml</code>.
         </li>
         <li>
-          Save the connector, open a new Codex thread, and ask it to inspect or
-          change your IAPKit project.
+          Restart Codex or open a new thread, then verify that the{" "}
+          <code>iapkit_*</code> tools are listed.
         </li>
       </ol>
 
-      <CodeBlock language="text">
-        {`Use the IAPKit plugin.
+      <CodeBlock language="bash">
+        {`export IAPKIT_API_KEY="openiap-kit_your-project-key"`}
+      </CodeBlock>
 
-How many subscription purchases happened this month, grouped by currency?
-Then create an iOS monthly subscription product and update my app code to use it.`}
+      <CodeBlock language="toml">
+        {`[mcp_servers.iapkit]
+url = "https://kit.openiap.dev/mcp"
+bearer_token_env_var = "IAPKIT_API_KEY"
+default_tools_approval_mode = "prompt"`}
+      </CodeBlock>
+
+      <CodeBlock language="text">
+        {`Use the IAPKit MCP server.
+
+Inspect my IAPKit project and summarize subscription purchases this month, grouped by currency.
+Do not create products, start sync jobs, or modify files until I confirm.`}
+      </CodeBlock>
+
+      <h2 className="mt-10 text-2xl font-semibold">
+        Test local changes before deployment
+      </h2>
+      <p>
+        When testing a pull request or an unreleased MCP change, run the local
+        HTTP server from the monorepo and point Codex at the local MCP URL
+        instead of the hosted endpoint.
+      </p>
+      <CodeBlock language="bash">
+        {`# From the monorepo root
+IAPKIT_API_KEY="openiap-kit_your-project-key" \\
+  bun run --filter @hyodotdev/openiap-mcp-server start:http
+
+# The local MCP URL is:
+# http://127.0.0.1:3939/mcp`}
+      </CodeBlock>
+
+      <CodeBlock language="toml">
+        {`[mcp_servers.iapkit-local]
+url = "http://127.0.0.1:3939/mcp"
+default_tools_approval_mode = "prompt"`}
+      </CodeBlock>
+
+      <p>
+        The local Codex config does not need a bearer token because the local
+        MCP server process already has <code>IAPKIT_API_KEY</code>. With the
+        local server running, open Codex and use <code>/mcp</code> to confirm
+        that <code>iapkit-local</code> is connected. Then start with a read-only
+        prompt:
+      </p>
+      <CodeBlock language="text">
+        {`Use the IAPKit MCP server. List the available iapkit tools.`}
+      </CodeBlock>
+
+      <p>
+        A healthy connection exposes 13 tools. For a safe functional test that
+        does not write to IAPKit, ask Codex to generate a setup snippet:
+      </p>
+      <CodeBlock language="text">
+        {`Use the IAPKit MCP server. Call iapkit_setup for framework expo and productId premium_monthly. Do not modify files.`}
       </CodeBlock>
 
       <h2 className="mt-10 text-2xl font-semibold">What Codex can do</h2>
@@ -111,15 +175,18 @@ Then create an iOS monthly subscription product and update my app code to use it
       <p>
         Self-hosting is the safest path for a single project because the IAPKit
         project key stays in your MCP server process instead of being typed into
-        a chat. The server still talks to the hosted IAPKit API by default.
+        a chat. Run the same HTTP server used for local testing, then expose it
+        through an HTTPS tunnel or deploy it behind your own HTTPS URL. The
+        server still talks to the hosted IAPKit API by default.
       </p>
       <CodeBlock language="bash">
-        {`# From the monorepo root
-IAPKIT_API_KEY="openiap-kit_your-project-key" \\
-  bun run --filter @hyodotdev/openiap-mcp-server start:http
-
-# Public HTTPS tunnel or deployment should forward to:
-# http://localhost:3939/mcp`}
+        {`# Public HTTPS tunnel or deployment should forward to:
+# http://127.0.0.1:3939/mcp`}
+      </CodeBlock>
+      <CodeBlock language="toml">
+        {`[mcp_servers.iapkit-self-hosted]
+url = "https://your-mcp-host.example.com/mcp"
+default_tools_approval_mode = "prompt"`}
       </CodeBlock>
 
       <h2 className="mt-10 text-2xl font-semibold">Available tools</h2>
