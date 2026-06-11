@@ -12,6 +12,16 @@ function readArgValue(argv, index, flag) {
   return value;
 }
 
+function readBooleanEnv(name) {
+  const value = process.env[name];
+  if (typeof value !== 'string' || value.length === 0) return false;
+  return !['0', 'false', 'no', 'off'].includes(value.toLowerCase());
+}
+
+function consumerPackageName(packageName) {
+  return `${packageName.replace(/^@/, '').replaceAll('/', '-')}-consumer-smoke`;
+}
+
 function parseArgs(argv) {
   const options = {
     packagePath: null,
@@ -52,11 +62,12 @@ function run(command, args, cwd) {
     cwd,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
+    shell: process.platform === 'win32',
   });
   if (result.error) {
     throw new Error(`Failed to execute ${command} ${args.join(' ')}: ${result.error.message}`);
   }
-  const verbose = process.env.OPENIAP_VERBOSE_NPM_CONSUMER_SMOKE;
+  const verbose = readBooleanEnv('OPENIAP_VERBOSE_NPM_CONSUMER_SMOKE');
   if (verbose && result.stdout) process.stdout.write(result.stdout);
   if (verbose && result.stderr) process.stderr.write(result.stderr);
   if (result.status !== 0) {
@@ -252,7 +263,7 @@ try {
   fs.writeFileSync(
     path.join(consumerRoot, 'package.json'),
     `${JSON.stringify({
-      name: `${options.packageName.replaceAll('/', '-')}-consumer-smoke`,
+      name: consumerPackageName(options.packageName),
       private: true,
       type: 'module',
       dependencies: {
@@ -275,7 +286,7 @@ try {
   console.log(`${options.packageName} consumer install smoke test passed.`);
 } finally {
   restoreVersionFile();
-  if (tempRoot && !process.env.OPENIAP_KEEP_NPM_CONSUMER_SMOKE_TMP) {
+  if (tempRoot && !readBooleanEnv('OPENIAP_KEEP_NPM_CONSUMER_SMOKE_TMP')) {
     fs.rmSync(tempRoot, {recursive: true, force: true});
   }
 }
