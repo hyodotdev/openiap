@@ -317,6 +317,7 @@ try {
 
   const consumerRoot = path.join(tempRoot, 'consumer');
   fs.mkdirSync(consumerRoot);
+  const relativeTarballPath = path.relative(consumerRoot, tarballPath).split(path.sep).join(path.posix.sep);
   fs.writeFileSync(
     path.join(consumerRoot, 'package.json'),
     `${JSON.stringify({
@@ -324,7 +325,7 @@ try {
       private: true,
       type: 'module',
       dependencies: {
-        [options.packageName]: `file:${tarballPath}`,
+        [options.packageName]: `file:${relativeTarballPath}`,
       },
     }, null, 2)}\n`,
   );
