@@ -7,7 +7,9 @@ repo_root="$(git -C "$package_root" rev-parse --show-toplevel)"
 tmp_root="$(mktemp -d)"
 
 cleanup() {
-  rm -rf "$tmp_root"
+  if [ -n "${tmp_root:-}" ] && [ -d "$tmp_root" ]; then
+    rm -rf "$tmp_root"
+  fi
 }
 trap cleanup EXIT
 
