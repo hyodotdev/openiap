@@ -92,16 +92,60 @@ function stripAnsi(value) {
   return value.replace(/\u001b\[[0-9;]*m/g, '');
 }
 
+function findJsonArrayRanges(value) {
+  const ranges = [];
+  let depth = 0;
+  let start = -1;
+  let inString = false;
+  let escape = false;
+
+  for (let i = 0; i < value.length; i += 1) {
+    const char = value[i];
+    if (inString) {
+      if (escape) {
+        escape = false;
+      } else if (char === '\\') {
+        escape = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (depth > 0 && char === '"') {
+      inString = true;
+    } else if (char === '[') {
+      if (depth === 0) start = i;
+      depth += 1;
+    } else if (char === ']' && depth > 0) {
+      depth -= 1;
+      if (depth === 0 && start !== -1) {
+        ranges.push([start, i + 1]);
+        start = -1;
+      }
+    }
+  }
+
+  return ranges;
+}
+
 function parseNpmPackJson(stdout) {
   const clean = stripAnsi(stdout).trim();
-  for (let start = clean.indexOf('['); start !== -1; start = clean.indexOf('[', start + 1)) {
-    for (let end = clean.lastIndexOf(']'); end > start; end = clean.lastIndexOf(']', end - 1)) {
-      try {
-        const parsed = JSON.parse(clean.slice(start, end + 1));
-        if (Array.isArray(parsed) && parsed[0]?.filename) return parsed[0];
-      } catch {
-        // Keep scanning; package lifecycle scripts can print arbitrary output.
-      }
+  try {
+    const parsed = JSON.parse(clean);
+    if (Array.isArray(parsed) && parsed[0]?.filename) return parsed[0];
+  } catch {
+    // Keep scanning; package lifecycle scripts can print arbitrary output.
+  }
+
+  const ranges = findJsonArrayRanges(clean);
+  for (let i = ranges.length - 1; i >= 0; i -= 1) {
+    const [start, end] = ranges[i];
+    try {
+      const parsed = JSON.parse(clean.slice(start, end));
+      if (Array.isArray(parsed) && parsed[0]?.filename) return parsed[0];
+    } catch {
+      // Keep scanning; package lifecycle scripts can print arbitrary output.
     }
   }
   throw new Error('Unable to parse npm pack --json output');
@@ -210,6 +254,7 @@ function validateInstalledPackage(installedRoot, options) {
   if (packageJson.exports) {
     const exportPaths = [...new Set(collectExportPaths(packageJson.exports))];
     for (const exportPath of exportPaths) {
+      if (exportPath.includes('*')) continue;
       assertFile(path.join(installedRoot, exportPath), `export target ${exportPath}`);
     }
   }
