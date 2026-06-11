@@ -36,6 +36,11 @@ jobs:
           flutter-version: "3.41.9"
           cache: true
 
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
       - name: Install dependencies
         run: flutter pub get
 
@@ -44,3 +49,6 @@ jobs:
 
       - name: Test
         run: flutter test
+
+      - name: Android consumer build smoke test
+        run: bash scripts/verify-android-consumer-build.sh

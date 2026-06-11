@@ -1738,7 +1738,7 @@ function checkFrameworkDependencyHygiene() {
     "if: steps.check_pub.outputs.exists == 'false'",
   ], 'Flutter publish workflow must support pub.dev release reruns');
   for (const flutterWorkflow of [
-    '.github/workflows/ci-flutter-iap.yml',
+    '.github/workflows/ci-flutter-inapp-purchase.yml',
     '.github/workflows/release-flutter.yml',
     '.github/workflows/publish-flutter.yml',
   ]) {
