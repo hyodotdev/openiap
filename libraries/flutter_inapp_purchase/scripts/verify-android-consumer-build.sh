@@ -47,9 +47,12 @@ flutter create --platforms=android -t app --project-name openiap_consumer_smoke 
   fi
 
   if [ -n "$android_sdk_root" ] &&
-    [ -d "$android_sdk_root/ndk/27.0.12077973" ] &&
-    [ -f android/app/build.gradle.kts ]; then
-    perl -0pi -e 's/ndkVersion\s*=\s*flutter\.ndkVersion/ndkVersion = "27.0.12077973"/' android/app/build.gradle.kts
+    [ -d "$android_sdk_root/ndk/27.0.12077973" ]; then
+    if [ -f android/app/build.gradle.kts ]; then
+      perl -0pi -e 's/ndkVersion\s*=\s*flutter\.ndkVersion/ndkVersion = "27.0.12077973"/' android/app/build.gradle.kts
+    elif [ -f android/app/build.gradle ]; then
+      perl -0pi -e 's/ndkVersion\s+flutter\.ndkVersion/ndkVersion "27.0.12077973"/' android/app/build.gradle
+    fi
   fi
 
   flutter build apk --debug
