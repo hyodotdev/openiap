@@ -334,7 +334,11 @@ enum RnIapHelper {
     }
 
     static func convertRenewalInfo(_ dictionary: [String: Any]) -> NitroSubscriptionRenewalInfo? {
-        guard let autoRenewStatus = boolValue(dictionary["autoRenewStatus"]) else {
+        // OpenIapSerialization.encode(RenewalInfoIOS) emits `willAutoRenew` (see
+        // packages/apple/Sources/Models/Types.swift); guarding on the non-existent
+        // `autoRenewStatus` key dropped the whole renewalInfo, so
+        // subscriptionStatusIOS never exposed autoRenewPreference to JS.
+        guard let autoRenewStatus = boolValue(dictionary["willAutoRenew"]) else {
             return nil
         }
 
