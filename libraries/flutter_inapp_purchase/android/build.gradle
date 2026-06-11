@@ -72,18 +72,14 @@ buildscript {
         return null
     }
 
-    def readGradleProperty = { String propertyName ->
-        File propertiesFile = new File(projectDir, 'gradle.properties')
+    def readRequiredAndroidGradleProperty = { File androidDir, String propertyName ->
+        File propertiesFile = new File(androidDir, 'gradle.properties')
         if (!propertiesFile.isFile()) {
-            return null
+            throw new GradleException("flutter_inapp_purchase: missing android/gradle.properties")
         }
         Properties properties = new Properties()
         propertiesFile.withInputStream { properties.load(it) }
-        return properties.getProperty(propertyName)
-    }
-
-    def readRequiredAndroidGradleProperty = { File androidDir, String propertyName ->
-        def value = readGradleProperty(propertyName)
+        def value = properties.getProperty(propertyName)
         if (value == null || value.toString().trim().isEmpty()) {
             throw new GradleException("flutter_inapp_purchase: missing ${propertyName} in android/gradle.properties")
         }
