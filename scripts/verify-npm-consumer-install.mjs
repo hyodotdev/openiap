@@ -63,6 +63,7 @@ function run(command, args, cwd) {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
     shell: process.platform === 'win32',
+    maxBuffer: 10 * 1024 * 1024,
   });
   if (result.error) {
     throw new Error(`Failed to execute ${command} ${args.join(' ')}: ${result.error.message}`);
@@ -214,7 +215,7 @@ function validateInstalledPackage(installedRoot, options) {
     }
     const versions = JSON.parse(fs.readFileSync(versionFile, 'utf8'));
     for (const key of ['spec', 'google', 'apple']) {
-      if (typeof versions[key] !== 'string' || versions[key].length === 0) {
+      if (typeof versions[key] !== 'string' || versions[key].trim().length === 0) {
         throw new Error(`openiap-versions.json is missing ${key}`);
       }
     }
