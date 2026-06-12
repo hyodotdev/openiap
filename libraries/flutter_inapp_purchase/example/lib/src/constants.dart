@@ -4,9 +4,17 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class IapConstants {
   // IAPKit API Key for purchase verification
   // Get your API key from https://kit.openiap.dev
-  static String get iapkitApiKey => dotenv.env['IAPKIT_API_KEY'] ?? '';
-  static String get iapkitBaseUrl =>
-      dotenv.env['IAPKIT_BASE_URL'] ?? 'https://kit.openiap.dev';
+  static const _iapkitApiKeyFromEnvironment =
+      String.fromEnvironment('IAPKIT_API_KEY');
+  static const _iapkitBaseUrlFromEnvironment =
+      String.fromEnvironment('IAPKIT_BASE_URL');
+
+  static String get iapkitApiKey => _iapkitApiKeyFromEnvironment.isNotEmpty
+      ? _iapkitApiKeyFromEnvironment
+      : dotenv.env['IAPKIT_API_KEY'] ?? '';
+  static String get iapkitBaseUrl => _iapkitBaseUrlFromEnvironment.isNotEmpty
+      ? _iapkitBaseUrlFromEnvironment
+      : dotenv.env['IAPKIT_BASE_URL'] ?? 'https://kit.openiap.dev';
 
   // Consumable Product IDs
   static const List<String> consumableProductIds = [

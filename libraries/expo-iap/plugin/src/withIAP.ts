@@ -7,6 +7,7 @@ import {
   withGradleProperties,
   withInfoPlist,
   withPodfile,
+  withProjectBuildGradle,
 } from 'expo/config-plugins';
 import type {ExpoConfig} from '@expo/config-types';
 import * as fs from 'fs';
@@ -69,6 +70,70 @@ type AndroidManifestLike = {
 };
 
 type HorizonAppIdSyncResult = 'added' | 'updated' | 'removed' | 'unchanged';
+
+export const normalizeGeneratedGroovyProjectBuildGradle = (
+  gradle: string,
+): string =>
+  gradle.replace(
+    /maven\s*\{\s*url\s+(['"])https:\/\/www\.jitpack\.io\1\s*\}/g,
+    "maven { url = uri('https://www.jitpack.io') }",
+  );
+
+export const normalizeGeneratedGroovyAppBuildGradle = (
+  gradle: string,
+): string => {
+  let modified = gradle;
+  const replacements: Array<[RegExp, string]> = [
+    [
+      /^(\s*)ndkVersion\s+rootProject\.ext\.ndkVersion\s*$/gm,
+      '$1ndkVersion = rootProject.ext.ndkVersion',
+    ],
+    [
+      /^(\s*)buildToolsVersion\s+rootProject\.ext\.buildToolsVersion\s*$/gm,
+      '$1buildToolsVersion = rootProject.ext.buildToolsVersion',
+    ],
+    [
+      /^(\s*)compileSdk\s+rootProject\.ext\.compileSdkVersion\s*$/gm,
+      '$1compileSdk = rootProject.ext.compileSdkVersion',
+    ],
+    [/^(\s*)namespace\s+(['"][^'"]+['"])\s*$/gm, '$1namespace = $2'],
+    [/^(\s*)applicationId\s+(['"][^'"]+['"])\s*$/gm, '$1applicationId = $2'],
+    [
+      /^(\s*)minSdkVersion\s+rootProject\.ext\.minSdkVersion\s*$/gm,
+      '$1minSdk = rootProject.ext.minSdkVersion',
+    ],
+    [
+      /^(\s*)targetSdkVersion\s+rootProject\.ext\.targetSdkVersion\s*$/gm,
+      '$1targetSdk = rootProject.ext.targetSdkVersion',
+    ],
+    [
+      /^(\s*)signingConfig\s+signingConfigs\.debug\s*$/gm,
+      '$1signingConfig = signingConfigs.debug',
+    ],
+    [
+      /^(\s*)shrinkResources\s+enableShrinkResources\.toBoolean\(\)\s*$/gm,
+      '$1shrinkResources = enableShrinkResources.toBoolean()',
+    ],
+    [
+      /^(\s*)crunchPngs\s+enablePngCrunchInRelease\.toBoolean\(\)\s*$/gm,
+      '$1crunchPngs = enablePngCrunchInRelease.toBoolean()',
+    ],
+    [
+      /^(\s*)useLegacyPackaging\s+enableLegacyPackaging\.toBoolean\(\)\s*$/gm,
+      '$1useLegacyPackaging = enableLegacyPackaging.toBoolean()',
+    ],
+    [
+      /^(\s*)ignoreAssetsPattern\s+(['"][^'"]+['"])\s*$/gm,
+      '$1ignoreAssetsPattern = $2',
+    ],
+  ];
+
+  for (const [pattern, replacement] of replacements) {
+    modified = modified.replace(pattern, replacement);
+  }
+
+  return modified;
+};
 
 export function syncHorizonAppIdMetaData(
   manifest: AndroidManifestLike,
@@ -156,7 +221,10 @@ export const modifyAppBuildGradle = (
     }
   }
 
-  let modified = gradle;
+  let modified =
+    language === 'groovy'
+      ? normalizeGeneratedGroovyAppBuildGradle(gradle)
+      : gradle;
 
   let openIapAndroidVersion: string;
   try {
@@ -175,14 +243,14 @@ export const modifyAppBuildGradle = (
   const flavor = isFireOsEnabled
     ? 'amazon'
     : isHorizonEnabled
-      ? 'horizon'
-      : 'play';
+    ? 'horizon'
+    : 'play';
 
   const artifactId = isFireOsEnabled
     ? 'openiap-google-amazon'
     : isHorizonEnabled
-      ? 'openiap-google-horizon'
-      : 'openiap-google';
+    ? 'openiap-google-horizon'
+    : 'openiap-google';
 
   // Ensure OpenIAP dependency exists at desired version in app-level build.gradle(.kts)
   const impl = (ga: string, v: string) =>
@@ -258,19 +326,34 @@ const withIapAndroid: ConfigPlugin<
 > = (config, props) => {
   const addDeps = props?.addDeps ?? true;
 
-  // Add dependencies if needed (only when not using local module)
-  if (addDeps) {
-    config = withAppBuildGradle(config, (config) => {
-      const language = (config.modResults as any).language || 'groovy';
-      config.modResults.contents = modifyAppBuildGradle(
+  config = withProjectBuildGradle(config, (config) => {
+    const language = (config.modResults as any).language || 'groovy';
+    if (language === 'groovy') {
+      config.modResults.contents = normalizeGeneratedGroovyProjectBuildGradle(
         config.modResults.contents,
-        language,
-        props?.isHorizonEnabled,
-        props?.isFireOsEnabled,
       );
-      return config;
-    });
-  }
+    }
+    return config;
+  });
+
+  config = withAppBuildGradle(config, (config) => {
+    const language = (config.modResults as any).language || 'groovy';
+    const normalized =
+      language === 'groovy'
+        ? normalizeGeneratedGroovyAppBuildGradle(config.modResults.contents)
+        : config.modResults.contents;
+
+    config.modResults.contents = addDeps
+      ? modifyAppBuildGradle(
+          normalized,
+          language,
+          props?.isHorizonEnabled,
+          props?.isFireOsEnabled,
+        )
+      : normalized;
+
+    return config;
+  });
 
   // Set store flags in gradle.properties so expo-iap module can pick them up.
   config = withGradleProperties(config, (config) => {
@@ -308,8 +391,8 @@ const withIapAndroid: ConfigPlugin<
     const permissions = Array.isArray(existingPermissions)
       ? existingPermissions
       : existingPermissions
-        ? [existingPermissions]
-        : [];
+      ? [existingPermissions]
+      : [];
     manifest.manifest['uses-permission'] = permissions;
     const billingPerm = {$: {'android:name': 'com.android.vending.BILLING'}};
 
@@ -719,7 +802,7 @@ export function resolveAmazonPlatformFlags(
   const isVegaEnabled = amazon?.vegaOS ?? false;
   const isHorizonEnabled = isFireOsEnabled
     ? false
-    : (options?.modules?.horizon ?? false);
+    : options?.modules?.horizon ?? false;
   const isOnsideEnabled = options?.modules?.onside ?? false;
 
   return {
@@ -773,12 +856,8 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
   config,
   options,
 ) => {
-  const {
-    isFireOsEnabled,
-    isVegaEnabled,
-    isHorizonEnabled,
-    isOnsideEnabled,
-  } = resolveAmazonPlatformFlags(options);
+  const {isFireOsEnabled, isVegaEnabled, isHorizonEnabled, isOnsideEnabled} =
+    resolveAmazonPlatformFlags(options);
 
   try {
     // Add iapkitApiKey to extra if provided

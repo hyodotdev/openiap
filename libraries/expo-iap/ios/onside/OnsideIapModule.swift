@@ -112,9 +112,16 @@ public final class ExpoIapOnsideModule: Module {
                 print("[ExpoIapOnsideModule] Storefront is nil, requesting login...")
                 #endif
 
-                // Check if Onside Store is installed
-                if let onsideURL = URL(string: "onside://"),
-                await MainActor.run(body: { UIApplication.shared.canOpenURL(onsideURL) }) {
+                let canOpenOnsideStore: Bool
+                if let onsideURL = URL(string: "onside://") {
+                    canOpenOnsideStore = await MainActor.run {
+                        UIApplication.shared.canOpenURL(onsideURL)
+                    }
+                } else {
+                    canOpenOnsideStore = false
+                }
+
+                if canOpenOnsideStore {
                     #if DEBUG
                     print("[ExpoIapOnsideModule] ✅ Onside Store app is installed")
                     #endif
@@ -227,14 +234,14 @@ public final class ExpoIapOnsideModule: Module {
             let txId = purchasePayload["transactionId"] as? String
 
             let transaction: OnsidePaymentTransaction? = await MainActor.run {
-                let transactions = Onside.defaultPaymentQueue().transactions
+                let queue = Onside.defaultPaymentQueue()
                 if let txId, !txId.isEmpty {
-                    return transactions.first(where: { $0.transactionIdentifier == txId })
+                    return queue.transactions.first(where: { $0.transactionIdentifier == txId })
                 }
 
                 // 2) fallback: if txId is not available yet — search by productId (less reliable!)
                 if let productId, !productId.isEmpty {
-                    return transactions.first(where: {
+                    return queue.transactions.first(where: {
                         $0.payment.product.productIdentifier == productId
                         && ($0.transactionState == .purchased || $0.transactionState == .restored)
                     })
@@ -301,7 +308,8 @@ public final class ExpoIapOnsideModule: Module {
             )
             try await ensureObserverRegistered()
             let payload: [[String: Any]] = try await MainActor.run {
-                let items = try Onside.defaultPaymentQueue().transactions.compactMap { transaction -> [String: Any]? in
+                let queue = Onside.defaultPaymentQueue()
+                let items = try queue.transactions.compactMap { transaction -> [String: Any]? in
                     switch transaction.transactionState {
                     case .purchased, .restored:
                         return try serialize(transaction: transaction)
@@ -391,10 +399,11 @@ public final class ExpoIapOnsideModule: Module {
             Onside.defaultPaymentQueue().remove(observer: transactionObserver)
             isInitialized = false
         }
+        productCache.removeAll()
+        transactionDateCache.removeAll()
         let cont = restoreContinuation
         restoreContinuation = nil
         cont?.resume(returning: false)
-        transactionDateCache.removeAll()
     }
 
     private func handle(transaction: OnsidePaymentTransaction) {
@@ -436,7 +445,7 @@ public final class ExpoIapOnsideModule: Module {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
         formatter.currencyCode = product.price.currencyCode
-        let priceNumber = NSDecimalNumber(string: String(product.price.value))
+        let priceNumber = makePriceNumber(from: product)
         let formattedPrice = formatter.string(from: priceNumber) ?? "\(product.price.value)"
         dictionary["displayPrice"] = formattedPrice
         dictionary["currency"] = product.price.currencyCode
@@ -460,7 +469,7 @@ public final class ExpoIapOnsideModule: Module {
         dictionary["quantity"] = 1
         dictionary["isAutoRenewing"] = false
         dictionary["purchaseState"] = mapPurchaseState(transaction.transactionState)
-        let txDate = date(for: transaction)
+        let txDate = fallbackTransactionDate(for: transaction)
         dictionary["transactionDate"] = Int(txDate.timeIntervalSince1970 * 1000)
         dictionary["currencyCodeIOS"] = product.price.currencyCode
         let currencyFormatter = NumberFormatter()
@@ -477,30 +486,12 @@ public final class ExpoIapOnsideModule: Module {
         return sanitize(dictionary)
     }
 
-    private func date(for transaction: OnsidePaymentTransaction) -> Date {
-        guard let key = transaction.transactionIdentifier ?? transaction.originalTransactionIdentifier,
-              !key.isEmpty
-        else {
-            return Date()
-        }
-
-        if let cachedDate = transactionDateCache[key] {
-            return cachedDate
-        }
-
-        // OnsideKit currently exposes no purchase date on the transaction, so
-        // keep the first observed timestamp stable for repeated serializations.
-        let observedDate = Date()
-        transactionDateCache[key] = observedDate
-        return observedDate
-    }
-
     // Build a JSON string from known product fields (no Encodable conformance required)
     private func makeProductJSONRepresentation(from product: OnsideProduct) throws -> String {
         let priceFormatter = NumberFormatter()
         priceFormatter.numberStyle = .currency
         priceFormatter.currencyCode = product.price.currencyCode
-        let priceNumber = NSDecimalNumber(string: String(product.price.value))
+        let priceNumber = makePriceNumber(from: product)
         let formattedPrice = priceFormatter.string(from: priceNumber) ?? "\(product.price.value)"
         let jsonObject: [String: Any] = [
             "id": product.productIdentifier,
@@ -520,6 +511,23 @@ public final class ExpoIapOnsideModule: Module {
             throw OnsideBridgeError.queueError("Unable to encode JSON string")
         }
         return json
+    }
+
+    private func makePriceNumber(from product: OnsideProduct) -> NSDecimalNumber {
+        NSDecimalNumber(string: String(product.price.value))
+    }
+
+    private func fallbackTransactionDate(for transaction: OnsidePaymentTransaction) -> Date {
+        let cacheKey = transaction.transactionIdentifier
+            ?? transaction.originalTransactionIdentifier
+            ?? transaction.payment.product.productIdentifier
+        if let cachedDate = transactionDateCache[cacheKey] {
+            return cachedDate
+        }
+
+        let date = Date()
+        transactionDateCache[cacheKey] = date
+        return date
     }
 
     private func sanitize(_ dictionary: [String: Any?]) -> [String: Any] {

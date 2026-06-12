@@ -3,6 +3,8 @@ import plugin, {
   computeAutolinkModules,
   ensureOnsidePodIOS,
   modifyAppBuildGradle,
+  normalizeGeneratedGroovyAppBuildGradle,
+  normalizeGeneratedGroovyProjectBuildGradle,
   resolveAmazonPlatformFlags,
   resolveModuleSelection,
   syncHorizonAppIdMetaData,
@@ -136,6 +138,71 @@ describe('android configuration', () => {
     );
     expect(result).not.toContain('openiap-google-amazon:0.0.1');
     expect(result).toContain('missingDimensionStrategy "platform", "play"');
+  });
+
+  it('normalizes Expo generated Groovy root Gradle syntax', () => {
+    const result = normalizeGeneratedGroovyProjectBuildGradle(
+      "allprojects {\n  repositories {\n    maven { url 'https://www.jitpack.io' }\n  }\n}\n",
+    );
+
+    expect(result).toContain("maven { url = uri('https://www.jitpack.io') }");
+    expect(result).not.toContain("url 'https://www.jitpack.io'");
+  });
+
+  it('normalizes Expo generated Groovy app Gradle assignment syntax', () => {
+    const result = normalizeGeneratedGroovyAppBuildGradle(
+      [
+        'android {',
+        '    ndkVersion rootProject.ext.ndkVersion',
+        '    buildToolsVersion rootProject.ext.buildToolsVersion',
+        '    compileSdk rootProject.ext.compileSdkVersion',
+        "    namespace 'dev.hyo.openiap.expo.example'",
+        '    defaultConfig {',
+        "        applicationId 'dev.hyo.openiap.expo.example'",
+        '        minSdkVersion rootProject.ext.minSdkVersion',
+        '        targetSdkVersion rootProject.ext.targetSdkVersion',
+        '    }',
+        '    buildTypes {',
+        '        debug {',
+        '            signingConfig signingConfigs.debug',
+        '        }',
+        '        release {',
+        '            shrinkResources enableShrinkResources.toBoolean()',
+        '            crunchPngs enablePngCrunchInRelease.toBoolean()',
+        '        }',
+        '    }',
+        '    packagingOptions {',
+        '        jniLibs {',
+        '            useLegacyPackaging enableLegacyPackaging.toBoolean()',
+        '        }',
+        '    }',
+        '    androidResources {',
+        "        ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'",
+        '    }',
+        '}',
+      ].join('\n'),
+    );
+
+    expect(result).toContain('ndkVersion = rootProject.ext.ndkVersion');
+    expect(result).toContain('compileSdk = rootProject.ext.compileSdkVersion');
+    expect(result).toContain("namespace = 'dev.hyo.openiap.expo.example'");
+    expect(result).toContain('minSdk = rootProject.ext.minSdkVersion');
+    expect(result).toContain('targetSdk = rootProject.ext.targetSdkVersion');
+    expect(result).toContain('signingConfig = signingConfigs.debug');
+    expect(result).toContain(
+      'shrinkResources = enableShrinkResources.toBoolean()',
+    );
+    expect(result).toContain(
+      'crunchPngs = enablePngCrunchInRelease.toBoolean()',
+    );
+    expect(result).toContain(
+      'useLegacyPackaging = enableLegacyPackaging.toBoolean()',
+    );
+    expect(result).toContain("ignoreAssetsPattern = '!.svn");
+    expect(result).not.toContain(
+      'compileSdk rootProject.ext.compileSdkVersion',
+    );
+    expect(result).not.toContain('minSdkVersion rootProject.ext.minSdkVersion');
   });
 
   it('allows Fire OS and Vega OS to be enabled as Amazon targets', () => {
@@ -283,7 +350,7 @@ describe('local OpenIAP configuration', () => {
 
 describe('ios module selection', () => {
   const createConfig = (ios?: ExpoConfig['ios']): ExpoConfig =>
-    ({name: 'test-app', slug: 'test-app', ios}) as ExpoConfig;
+    ({name: 'test-app', slug: 'test-app', ios} as ExpoConfig);
 
   it('defaults to Expo IAP only when no options provided', () => {
     const result = resolveModuleSelection(createConfig(), undefined);
