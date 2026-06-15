@@ -38,7 +38,7 @@
     "@preact/signals-react": "^3.2.1",
     "@sentry/bun": "^10.26.0",
     "@sentry/react": "^10.49.0",
-    "@valibot/to-json-schema": "1.7.0",
+    "@valibot/to-json-schema": "1.7.1",
     "antd": "^6.1.0",
     "clsx": "^2.1.1",
     "convex": "^1.39.1",
