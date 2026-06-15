@@ -46,7 +46,7 @@ public partial class WebhookStreamPage : ContentPage
         ResetEmptyLog();
         Append($"→ Connecting {url}");
 
-        _listener = Iap.ConnectWebhookStream(new WebhookListenerOptions
+        _listener = OpenIapClient.ConnectWebhookStream(new WebhookListenerOptions
         {
             ApiKey = apiKey,
             BaseUrl = BaseUrlEntry.Text,

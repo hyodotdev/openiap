@@ -125,7 +125,7 @@ function PurchaseScreen() {
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-await ((MutationResolver)Iap.Instance).EndConnectionAsync();`}</CodeBlock>
+await ((MutationResolver)OpenIapClient.Instance).EndConnectionAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`# In _exit_tree or cleanup

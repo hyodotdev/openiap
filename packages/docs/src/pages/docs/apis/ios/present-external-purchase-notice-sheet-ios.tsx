@@ -129,7 +129,7 @@ if (Platform.OS === 'ios') {
 using OpenIap.Maui;
 
 // kmp-iap (iOS targets only — no-op on Android)
-var result = await ((MutationResolver)Iap.Instance).PresentExternalPurchaseNoticeSheetIOSAsync();`}</CodeBlock>
+var result = await ((MutationResolver)OpenIapClient.Instance).PresentExternalPurchaseNoticeSheetIOSAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

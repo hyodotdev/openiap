@@ -236,15 +236,14 @@ import sys
 path, play_billing, gson = sys.argv[1:]
 text = open(path, encoding="utf-8").read()
 preserved_property_names = [
+    "MauiBillingClientNuGetVersion",
+    "MauiGoogleGsonNuGetVersion",
+    "MauiAndroidXActivityVersion",
+    "MauiAndroidXFragmentVersion",
+    "MauiAndroidXLifecycleVersion",
+    "MauiAndroidXSavedStateVersion",
     "MauiKotlinStdLibVersion",
     "MauiKotlinCoroutinesVersion",
-    "MauiGoogleTransportApiVersion",
-    "MauiGoogleTransportBackendCctVersion",
-    "MauiGoogleTransportRuntimeVersion",
-    "MauiGooglePlayServicesBaseVersion",
-    "MauiGooglePlayServicesBasementVersion",
-    "MauiGooglePlayServicesLocationVersion",
-    "MauiGooglePlayServicesTasksVersion",
 ]
 preserved = {}
 for name in preserved_property_names:
@@ -258,15 +257,14 @@ content = f"""<Project>
   <PropertyGroup>
     <MauiPlayBillingVersion>{play_billing}</MauiPlayBillingVersion>
     <MauiGsonVersion>{gson}</MauiGsonVersion>
+    <MauiBillingClientNuGetVersion>{preserved["MauiBillingClientNuGetVersion"]}</MauiBillingClientNuGetVersion>
+    <MauiGoogleGsonNuGetVersion>{preserved["MauiGoogleGsonNuGetVersion"]}</MauiGoogleGsonNuGetVersion>
+    <MauiAndroidXActivityVersion>{preserved["MauiAndroidXActivityVersion"]}</MauiAndroidXActivityVersion>
+    <MauiAndroidXFragmentVersion>{preserved["MauiAndroidXFragmentVersion"]}</MauiAndroidXFragmentVersion>
+    <MauiAndroidXLifecycleVersion>{preserved["MauiAndroidXLifecycleVersion"]}</MauiAndroidXLifecycleVersion>
+    <MauiAndroidXSavedStateVersion>{preserved["MauiAndroidXSavedStateVersion"]}</MauiAndroidXSavedStateVersion>
     <MauiKotlinStdLibVersion>{preserved["MauiKotlinStdLibVersion"]}</MauiKotlinStdLibVersion>
     <MauiKotlinCoroutinesVersion>{preserved["MauiKotlinCoroutinesVersion"]}</MauiKotlinCoroutinesVersion>
-    <MauiGoogleTransportApiVersion>{preserved["MauiGoogleTransportApiVersion"]}</MauiGoogleTransportApiVersion>
-    <MauiGoogleTransportBackendCctVersion>{preserved["MauiGoogleTransportBackendCctVersion"]}</MauiGoogleTransportBackendCctVersion>
-    <MauiGoogleTransportRuntimeVersion>{preserved["MauiGoogleTransportRuntimeVersion"]}</MauiGoogleTransportRuntimeVersion>
-    <MauiGooglePlayServicesBaseVersion>{preserved["MauiGooglePlayServicesBaseVersion"]}</MauiGooglePlayServicesBaseVersion>
-    <MauiGooglePlayServicesBasementVersion>{preserved["MauiGooglePlayServicesBasementVersion"]}</MauiGooglePlayServicesBasementVersion>
-    <MauiGooglePlayServicesLocationVersion>{preserved["MauiGooglePlayServicesLocationVersion"]}</MauiGooglePlayServicesLocationVersion>
-    <MauiGooglePlayServicesTasksVersion>{preserved["MauiGooglePlayServicesTasksVersion"]}</MauiGooglePlayServicesTasksVersion>
   </PropertyGroup>
 </Project>
 """

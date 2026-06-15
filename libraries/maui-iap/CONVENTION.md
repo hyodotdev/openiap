@@ -8,17 +8,17 @@ C# / .NET MAUI specifics on top of the monorepo-wide rules in
 - **C# 12** with `<Nullable>enable</Nullable>` and
   `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` (configured in
   the .csproj).
-- **.NET 8** target with platform-specific TFMs:
-  `net9.0;net9.0-android;net9.0-ios;net9.0-maccatalyst`.
-- The shared `net9.0` TFM compiles without the MAUI workload — keep it
-  green for fast PR-time validation.
+- **.NET 9 / .NET 10** targets with platform-specific TFMs:
+  `net9.0;net10.0;net9.0-android;net10.0-android;net9.0-ios;net10.0-ios;net9.0-maccatalyst;net10.0-maccatalyst`.
+- The shared `net9.0` and `net10.0` TFMs compile without the MAUI workload —
+  keep both green for fast PR-time validation.
 
 ## Namespaces
 
 | Namespace                            | Owns                                           |
 | ------------------------------------ | ---------------------------------------------- |
 | `OpenIap`                            | Generated types, enums, resolver interfaces.   |
-| `OpenIap.Maui`                       | `IOpenIap` contract, static `Iap` facade.      |
+| `OpenIap.Maui`                       | `IOpenIap` contract, static `OpenIapClient` facade, legacy `Iap` shim. |
 | `OpenIap.Maui.Platforms.Android`     | Android bridge implementation.                 |
 | `OpenIap.Maui.Platforms.iOS`         | iOS bridge implementation.                     |
 | `OpenIap.Maui.Platforms.MacCatalyst` | macCatalyst bridge implementation.             |

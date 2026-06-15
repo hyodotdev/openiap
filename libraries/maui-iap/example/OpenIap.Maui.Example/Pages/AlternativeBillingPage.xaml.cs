@@ -30,8 +30,8 @@ public partial class AlternativeBillingPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
-        _purchaseSub ??= Iap.Instance.PurchaseUpdated.Subscribe(p => MainThread.BeginInvokeOnMainThread(() => OnPurchase(p)));
-        _errorSub ??= Iap.Instance.PurchaseError.Subscribe(err => MainThread.BeginInvokeOnMainThread(() => OnPurchaseError(err)));
+        _purchaseSub ??= OpenIapClient.Instance.PurchaseUpdated.Subscribe(p => MainThread.BeginInvokeOnMainThread(() => OnPurchase(p)));
+        _errorSub ??= OpenIapClient.Instance.PurchaseError.Subscribe(err => MainThread.BeginInvokeOnMainThread(() => OnPurchaseError(err)));
         await ConnectAndFetchAsync();
     }
 
@@ -75,7 +75,7 @@ public partial class AlternativeBillingPage : ContentPage
     {
         try
         {
-            var query = (QueryResolver)Iap.Instance;
+            var query = (QueryResolver)OpenIapClient.Instance;
             var result = await query.FetchProductsAsync(new ProductRequest
             {
                 Skus = Constants.ConsumableProductIds,
@@ -307,7 +307,7 @@ public partial class AlternativeBillingPage : ContentPage
         ShowResult("🌐 Opening external purchase link...");
         try
         {
-            var mutate = (MutationResolver)Iap.Instance;
+            var mutate = (MutationResolver)OpenIapClient.Instance;
             var result = await mutate.PresentExternalPurchaseLinkIOSAsync(externalUrl);
             if (!string.IsNullOrEmpty(result.Error))
             {
@@ -339,7 +339,7 @@ public partial class AlternativeBillingPage : ContentPage
 
         try
         {
-            var mutate = (MutationResolver)Iap.Instance;
+            var mutate = (MutationResolver)OpenIapClient.Instance;
             var availability = await mutate.IsBillingProgramAvailableAndroidAsync(_billingProgram);
             if (!availability.IsAvailable)
             {
@@ -384,7 +384,7 @@ public partial class AlternativeBillingPage : ContentPage
 
         try
         {
-            var mutate = (MutationResolver)Iap.Instance;
+            var mutate = (MutationResolver)OpenIapClient.Instance;
             await mutate.RequestPurchaseAsync(new RequestPurchaseProps
             {
                 RequestPurchase = new RequestPurchasePropsByPlatforms
@@ -416,7 +416,7 @@ public partial class AlternativeBillingPage : ContentPage
 
         try
         {
-            var mutate = (MutationResolver)Iap.Instance;
+            var mutate = (MutationResolver)OpenIapClient.Instance;
             await mutate.FinishTransactionAsync(
                 purchase: new PurchaseInput(purchase),
                 isConsumable: Constants.ConsumableProductIdSet.Contains(common.ProductId));

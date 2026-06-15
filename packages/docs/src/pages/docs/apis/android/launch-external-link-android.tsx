@@ -201,7 +201,7 @@ if (Platform.OS === 'android') {
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-await ((MutationResolver)Iap.Instance).LaunchExternalLinkAndroidAsync(
+await ((MutationResolver)OpenIapClient.Instance).LaunchExternalLinkAndroidAsync(
     new LaunchExternalLinkParamsAndroid
     {
         BillingProgram = BillingProgramAndroid.ExternalOffer,

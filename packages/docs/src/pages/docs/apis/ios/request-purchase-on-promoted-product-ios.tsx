@@ -115,7 +115,7 @@ using OpenIap.Maui;
 
 // kmp-iap (iOS targets only — no-op on Android)
 // Deprecated — prefer promotedProductListenerIOS + requestPurchase.
-await ((MutationResolver)Iap.Instance).RequestPurchaseOnPromotedProductIOSAsync();`}</CodeBlock>
+await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseOnPromotedProductIOSAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

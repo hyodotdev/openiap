@@ -168,7 +168,7 @@ if (Platform.OS === 'android') {
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var details = await ((MutationResolver)Iap.Instance).CreateBillingProgramReportingDetailsAndroidAsync(
+var details = await ((MutationResolver)OpenIapClient.Instance).CreateBillingProgramReportingDetailsAndroidAsync(
     BillingProgramAndroid.ExternalOffer
 );`}</CodeBlock>
           ),

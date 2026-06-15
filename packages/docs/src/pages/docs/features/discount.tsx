@@ -443,7 +443,7 @@ using System;
 using OpenIap.Maui;
 using System.Linq;
 
-var result = await ((QueryResolver)Iap.Instance).FetchProductsAsync(new ProductRequest
+var result = await ((QueryResolver)OpenIapClient.Instance).FetchProductsAsync(new ProductRequest
 {
     Skus = new[] { "premium_feature", "coins_100" },
     Type = ProductQueryType.InApp,
@@ -853,7 +853,7 @@ ProductCardViewModel BuildProductCard(ProductAndroid product)
 
 async Task PurchaseAsync(ProductAndroid product)
 {
-    await ((MutationResolver)Iap.Instance).RequestPurchaseAsync(new RequestPurchaseProps
+    await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new RequestPurchaseProps
     {
         RequestPurchase = new RequestPurchasePropsByPlatforms
         {
@@ -1371,7 +1371,7 @@ async Task PurchaseWithOfferAsync(ProductAndroid product, int offerIndex = 0)
     var selectedOffer = offers.ElementAtOrDefault(offerIndex)
         ?? throw new ArgumentOutOfRangeException(nameof(offerIndex));
 
-    await ((MutationResolver)Iap.Instance).RequestPurchaseAsync(new RequestPurchaseProps
+    await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new RequestPurchaseProps
     {
         Type = ProductQueryType.InApp,
         RequestPurchase = new RequestPurchasePropsByPlatforms

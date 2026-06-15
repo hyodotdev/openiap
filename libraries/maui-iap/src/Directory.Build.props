@@ -3,14 +3,13 @@
   <PropertyGroup>
     <MauiPlayBillingVersion>8.3.0</MauiPlayBillingVersion>
     <MauiGsonVersion>2.10.1</MauiGsonVersion>
-    <MauiKotlinStdLibVersion>2.2.10</MauiKotlinStdLibVersion>
-    <MauiKotlinCoroutinesVersion>1.9.0.3</MauiKotlinCoroutinesVersion>
-    <MauiGoogleTransportApiVersion>3.0.0</MauiGoogleTransportApiVersion>
-    <MauiGoogleTransportBackendCctVersion>3.1.8</MauiGoogleTransportBackendCctVersion>
-    <MauiGoogleTransportRuntimeVersion>3.1.8</MauiGoogleTransportRuntimeVersion>
-    <MauiGooglePlayServicesBaseVersion>18.5.0</MauiGooglePlayServicesBaseVersion>
-    <MauiGooglePlayServicesBasementVersion>18.9.0</MauiGooglePlayServicesBasementVersion>
-    <MauiGooglePlayServicesLocationVersion>19.0.0</MauiGooglePlayServicesLocationVersion>
-    <MauiGooglePlayServicesTasksVersion>18.2.0</MauiGooglePlayServicesTasksVersion>
+    <MauiBillingClientNuGetVersion>8.3.0.2</MauiBillingClientNuGetVersion>
+    <MauiGoogleGsonNuGetVersion>2.14.0</MauiGoogleGsonNuGetVersion>
+    <MauiAndroidXActivityVersion>1.12.4.1</MauiAndroidXActivityVersion>
+    <MauiAndroidXFragmentVersion>1.8.9.2</MauiAndroidXFragmentVersion>
+    <MauiAndroidXLifecycleVersion>2.10.0.2</MauiAndroidXLifecycleVersion>
+    <MauiAndroidXSavedStateVersion>1.4.0.2</MauiAndroidXSavedStateVersion>
+    <MauiKotlinStdLibVersion>2.3.10.1</MauiKotlinStdLibVersion>
+    <MauiKotlinCoroutinesVersion>1.10.2.3</MauiKotlinCoroutinesVersion>
   </PropertyGroup>
 </Project>

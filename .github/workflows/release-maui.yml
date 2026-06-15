@@ -34,28 +34,30 @@ env:
 
 jobs:
   validate:
-    name: Validate (net9.0 shared)
+    name: Validate (net9.0 / net10.0 shared)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup .NET 9 SDK
-        uses: actions/setup-dotnet@v5
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2
         with:
-          dotnet-version: "9.0.x"
+          dotnet-version: "10.0.x"
 
-      # The shared `net9.0` build catches Types.cs / public-API regressions
+      # The shared `net9.0` / `net10.0` builds catch Types.cs / public-API regressions
       # without needing the MAUI / android / ios workloads. Two things make
       # this work — see ci-maui-iap.yml for the same pattern with details.
       # Note: `-p:TargetFrameworks=...` is PLURAL (overrides the project's
       # multi-target list); the singular `-p:TargetFramework=...` and `-f`
       # leave the implicit restore walking all TFMs.
-      - name: Build library (net9.0)
-        run: dotnet build libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0
+      - name: Build library (shared)
+        run: |
+          dotnet build libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0
+          dotnet build libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0
 
   validate-multitarget:
-    name: Validate (net9.0-android / net9.0-ios / net9.0-maccatalyst)
+    name: Validate (net9.0/net10.0 platform TFMs)
     runs-on: macos-15
     timeout-minutes: 60
     steps:
@@ -72,10 +74,10 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
-      - name: Setup .NET 9 SDK
-        uses: actions/setup-dotnet@v5
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2
         with:
-          dotnet-version: "9.0.x"
+          dotnet-version: "10.0.x"
 
       - name: Install MAUI workload
         run: dotnet workload install maui --skip-sign-check
@@ -95,6 +97,8 @@ jobs:
         working-directory: libraries/maui-iap/android
         run: ../../../packages/google/gradlew :openiap:assembleRelease
 
+      # OpenIap.Maui.csproj includes net9.0-android, net10.0-android,
+      # net9.0-ios, net10.0-ios, net9.0-maccatalyst, and net10.0-maccatalyst.
       - name: Build all target frameworks
         run: dotnet build libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj
 
@@ -118,10 +122,10 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
-      - name: Setup .NET 9 SDK
-        uses: actions/setup-dotnet@v5
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2
         with:
-          dotnet-version: "9.0.x"
+          dotnet-version: "10.0.x"
 
       - name: Install MAUI workload
         run: dotnet workload install maui --skip-sign-check
