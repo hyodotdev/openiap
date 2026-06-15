@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 import { Callout } from "../components/Callout";
 import { CodeBlock } from "../components/CodeBlock";
 import { DocsPage } from "../components/DocsPage";
@@ -117,6 +119,106 @@ export default function CodexPluginPage() {
 Review my app's in-app purchase flow and list the OpenIAP/IAPKit tools available.
 Do not create products, start sync jobs, or modify files until I confirm.`}
       </CodeBlock>
+
+      <h2 className="mt-10 text-2xl font-semibold">
+        Example: connect Martie in Codex
+      </h2>
+      <p>
+        Use this sequence when following or recording a real app setup. Martie
+        uses <code>dev.hyo.martie</code> as both the iOS bundle id and Android
+        package name. Enter that identifier in the IAPKit project{" "}
+        <strong>Settings</strong> first; the sync tools read the package and
+        bundle identifiers from IAPKit, not from the Codex prompt.
+      </p>
+      <ol className="list-decimal space-y-2 pl-5">
+        <li>
+          Configure store credentials in IAPKit:{" "}
+          <Link
+            to="/docs/verification/apple"
+            className="text-primary underline"
+          >
+            Apple App Store
+          </Link>{" "}
+          for <code>dev.hyo.martie</code>, and{" "}
+          <Link
+            to="/docs/verification/google"
+            className="text-primary underline"
+          >
+            Google Play
+          </Link>{" "}
+          for package <code>dev.hyo.martie</code>.
+        </li>
+        <li>
+          Ask Codex to inspect the IAPKit project and app workspace before any
+          writes.
+        </li>
+        <li>
+          Let Codex create or confirm the local IAPKit catalog rows for the
+          Martie subscription products.
+        </li>
+        <li>
+          Run store sync as <code>dryRun: true</code>, review the diff, then
+          approve <code>dryRun: false</code> only when the proposed App Store
+          Connect or Google Play changes are correct.
+        </li>
+        <li>
+          Ask Codex to apply the Expo setup snippet to the app and run the
+          app&apos;s typecheck/tests.
+        </li>
+      </ol>
+
+      <CodeBlock title="1. Inspect first" language="text">
+        {`Use the OpenIAP plugin in this workspace.
+
+The app is Martie:
+- iOS bundle id: dev.hyo.martie
+- Android package name: dev.hyo.martie
+- framework: Expo
+
+Inspect the IAPKit project, list existing products, and review the app's purchase code.
+Do not create products, start sync jobs, or edit files until I approve.`}
+      </CodeBlock>
+
+      <CodeBlock title="2. Create the local catalog rows" language="text">
+        {`Use the OpenIAP plugin.
+
+Create or update these Martie subscription products in IAPKit's local catalog:
+- premium_monthly: Subscription, monthly, USD 4.99
+- premium_yearly: Subscription, yearly, USD 39.99
+
+Create both iOS and Android rows.
+For iOS, use subscriptionGroupName "Martie Premium".
+After creating them, list products and summarize exactly what changed.`}
+      </CodeBlock>
+
+      <CodeBlock title="3. Preview store sync" language="text">
+        {`Use the OpenIAP plugin.
+
+Run a dry-run product sync for Martie:
+- platform Android, direction push, dryRun true
+- platform IOS, direction push, dryRun true
+
+Poll each sync job until it finishes.
+Show the proposed store changes and wait for my approval before running dryRun false.`}
+      </CodeBlock>
+
+      <CodeBlock title="4. Wire the Expo app" language="text">
+        {`Use the OpenIAP plugin and update the Expo app.
+
+Call iapkit_setup for framework expo and productId premium_monthly.
+Apply the generated snippet to the app's purchase screen or purchase hook.
+Keep IAPKIT_API_KEY out of source code; read it from runtime configuration.
+Run the app's typecheck and tests after editing.`}
+      </CodeBlock>
+
+      <Callout kind="warning" title="Record dry-runs, not live writes">
+        <p>
+          For public demos and docs recordings, stop at{" "}
+          <code>dryRun: true</code> unless the video is captured against a
+          disposable sandbox project. A live <code>dryRun: false</code> sync can
+          write products to App Store Connect or Google Play.
+        </p>
+      </Callout>
 
       <h2 className="mt-10 text-2xl font-semibold">Manual MCP config</h2>
       <p>
