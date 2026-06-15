@@ -422,7 +422,7 @@ var props = new VerifyPurchaseWithProviderProps
 };
 
 // Verify purchase
-var result = await ((MutationResolver)Iap.Instance).VerifyPurchaseWithProviderAsync(props);
+var result = await ((MutationResolver)OpenIapClient.Instance).VerifyPurchaseWithProviderAsync(props);
 
 // Check result
 var iapkit = result.Iapkit;

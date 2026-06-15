@@ -78,3 +78,6 @@ jobs:
 
       - name: Test
         run: yarn test
+
+      - name: Consumer install smoke test
+        run: yarn verify:consumer-install

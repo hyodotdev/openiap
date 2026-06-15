@@ -102,7 +102,7 @@ if (Platform.OS === 'android') {
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var ok = await ((MutationResolver)Iap.Instance).CheckAlternativeBillingAvailabilityAndroidAsync();`}</CodeBlock>
+var ok = await ((MutationResolver)OpenIapClient.Instance).CheckAlternativeBillingAvailabilityAndroidAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":

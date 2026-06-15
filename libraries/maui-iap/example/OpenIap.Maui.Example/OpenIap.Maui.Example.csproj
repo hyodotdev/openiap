@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net9.0-android;net9.0-ios;net9.0-maccatalyst</TargetFrameworks>
+    <TargetFrameworks>net9.0-android;net10.0-android;net9.0-ios;net10.0-ios;net9.0-maccatalyst;net10.0-maccatalyst</TargetFrameworks>
     <OutputType>Exe</OutputType>
     <RootNamespace>OpenIap.Maui.Example</RootNamespace>
     <UseMaui>true</UseMaui>
@@ -28,9 +28,16 @@
 
   <ItemGroup>
     <MauiIcon Include="Resources\AppIcon\appicon.png" Color="#000000" />
+  </ItemGroup>
 
+  <ItemGroup Condition="'$(TargetFramework)' == 'net9.0-android' or '$(TargetFramework)' == 'net9.0-ios' or '$(TargetFramework)' == 'net9.0-maccatalyst'">
     <PackageReference Include="Microsoft.Maui.Controls" Version="9.0.*" />
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.*" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0-android' or '$(TargetFramework)' == 'net10.0-ios' or '$(TargetFramework)' == 'net10.0-maccatalyst'">
+    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.*" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.*" />
   </ItemGroup>
 
   <ItemGroup>

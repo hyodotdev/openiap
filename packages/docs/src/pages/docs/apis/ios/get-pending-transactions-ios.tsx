@@ -50,7 +50,7 @@ function GetPendingTransactionsIOS() {
             <CodeBlock language="dart">{`Future<List<PurchaseIOS>> getPendingTransactionsIOS();`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task<List<PurchaseIOS>> GetPendingTransactionsIOSAsync()`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<IReadOnlyList<PurchaseIOS>> GetPendingTransactionsIOSAsync()`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func get_pending_transactions_ios() -> Variant`}</CodeBlock>
@@ -100,7 +100,7 @@ if (Platform.OS === 'ios') {
 using OpenIap.Maui;
 
 // kmp-iap (iOS targets only — no-op on Android)
-var txs = await ((QueryResolver)Iap.Instance).GetPendingTransactionsIOSAsync()`}</CodeBlock>
+var txs = await ((QueryResolver)OpenIapClient.Instance).GetPendingTransactionsIOSAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

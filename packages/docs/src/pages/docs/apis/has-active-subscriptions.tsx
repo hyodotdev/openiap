@@ -137,7 +137,7 @@ function PremiumGate({ children }: { children: React.ReactNode }) {
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var isPremium = await ((QueryResolver)Iap.Instance).HasActiveSubscriptionsAsync()`}</CodeBlock>
+var isPremium = await ((QueryResolver)OpenIapClient.Instance).HasActiveSubscriptionsAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`var is_premium = await iap.has_active_subscriptions()`}</CodeBlock>

@@ -12,7 +12,7 @@ internal static class IapLifecycle
         await Gate.WaitAsync();
         try
         {
-            var mutate = (MutationResolver)Iap.Instance;
+            var mutate = (MutationResolver)OpenIapClient.Instance;
             return await mutate.InitConnectionAsync(config).WaitAsync(TimeSpan.FromSeconds(15));
         }
         finally
@@ -26,7 +26,7 @@ internal static class IapLifecycle
         await Gate.WaitAsync();
         try
         {
-            var mutate = (MutationResolver)Iap.Instance;
+            var mutate = (MutationResolver)OpenIapClient.Instance;
             await mutate.EndConnectionAsync().WaitAsync(TimeSpan.FromSeconds(5));
         }
         catch (Exception ex)

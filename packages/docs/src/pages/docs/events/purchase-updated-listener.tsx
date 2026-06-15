@@ -70,7 +70,7 @@ val purchaseUpdates: Flow<Purchase> = kmpIAP.purchaseUpdatedListener`}</CodeBloc
 using OpenIap.Maui;
 using System;
 
-IObservable<Purchase> purchaseUpdates = Iap.Instance.PurchaseUpdated;`}</CodeBlock>
+IObservable<Purchase> purchaseUpdates = OpenIapClient.Instance.PurchaseUpdated;`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`signal purchase_updated(purchase: Purchase)`}</CodeBlock>
@@ -116,7 +116,7 @@ IObservable<Purchase> purchaseUpdates = Iap.Instance.PurchaseUpdated;`}</CodeBlo
 );`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`var updates = Iap.Instance.PurchaseUpdatedWithOptions(
+            <CodeBlock language="csharp">{`var updates = OpenIapClient.Instance.PurchaseUpdatedWithOptions(
     new PurchaseUpdatedListenerOptions
     {
         DedupeTransactionIOS = false,
@@ -247,7 +247,7 @@ subscription.cancel();`}</CodeBlock>
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var subscription = Iap.Instance.PurchaseUpdated.Subscribe(async purchase =>
+var subscription = OpenIapClient.Instance.PurchaseUpdated.Subscribe(async purchase =>
 {
     if (purchase is PurchaseCommon purchaseInfo)
     {
@@ -262,7 +262,7 @@ var subscription = Iap.Instance.PurchaseUpdated.Subscribe(async purchase =>
             await DeliverProductAsync(validPurchase.ProductId);
         }
 
-        await ((MutationResolver)Iap.Instance).FinishTransactionAsync(
+        await ((MutationResolver)OpenIapClient.Instance).FinishTransactionAsync(
             new PurchaseInput(purchase),
             isConsumable: false);
     }

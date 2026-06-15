@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-05-16T12:59:43.331Z
+> Generated: 2026-06-15T14:57:16.350Z
 
 ## Table of Contents
 1. Installation
@@ -30,19 +30,19 @@ cd ios && pod install
 ### Swift (iOS/macOS)
 ```swift
 // Swift Package Manager
-.package(url: "https://github.com/hyodotdev/openiap.git", from: "2.1.9")
+.package(url: "https://github.com/hyodotdev/openiap.git", from: "2.2.1")
 
 // CocoaPods
-pod 'openiap', '~> 2.1.9'
+pod 'openiap', '~> 2.2.1'
 ```
 
 ### Kotlin (Android)
 ```kotlin
 // Gradle (build.gradle.kts)
-implementation("io.github.hyochan.openiap:openiap-google:2.1.5")
+implementation("io.github.hyochan.openiap:openiap-google:2.2.1")
 
 // For Meta Horizon OS
-implementation("io.github.hyochan.openiap:openiap-google-horizon:2.1.5")
+implementation("io.github.hyochan.openiap:openiap-google-horizon:2.2.1")
 ```
 
 ### Flutter
@@ -51,13 +51,13 @@ flutter pub add flutter_inapp_purchase
 ```
 
 ### Godot
-Download `godot-iap-2.2.10.zip` from GitHub Releases, extract it to
+Download `godot-iap-2.3.1.zip` from GitHub Releases, extract it to
 `addons/godot-iap/`, then enable the plugin in Project Settings.
 
 ### Kotlin Multiplatform
 ```kotlin
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:2.2.8")
+    implementation("io.github.hyochan:kmp-iap:2.3.1")
 }
 ```
 
@@ -69,9 +69,9 @@ https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap
 dotnet add package OpenIap.Maui
 ```
 
-Current NuGet package version: 1.0.4
+Current NuGet package version: 1.1.1
 
-Requires .NET 9+, the MAUI workload, iOS 15.0+, and Android API 24+.
+Requires .NET 9 or .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
 
 ---
 
@@ -117,20 +117,23 @@ Requires .NET 9+, the MAUI workload, iOS 15.0+, and Android API 24+.
   are private implementation details and are flattened into `OpenIap.Maui`
   instead of being published as separate package dependencies.
 - Implementation: .NET MAUI projection with generated `Types.cs`, a static
-  `Iap.Instance` facade, `IOpenIap` observables, and per-platform resolvers.
+  `OpenIapClient.Instance` facade, legacy `Iap` shim, `IOpenIap`
+  observables, and per-platform resolvers.
 - iOS/macCatalyst bridge: .NET-for-iOS binding over
   `OpenIAP.xcframework` and `OpenIapModule+ObjC.swift`; NuGet consumers get
   the official `OpenIap.Maui.Bindings.iOS.resources.zip` sidecar so no
   app-level `NativeReference` is required.
 - Android bridge: Xamarin.Android binding over the MAUI-owned
   `openiap-release.aar`, which wraps the unbound
-  `openiap-play-release.aar` runtime dependency; resolved BillingClient /
-  Play Services AARs are included in the main nupkg for app packaging.
+  `openiap-play-release.aar` runtime dependency. Google Billing, Play
+  Services, Gson, AndroidX, and Kotlin Android libraries stay as NuGet
+  `PackageReference` dependencies so consuming apps can deduplicate them.
 - Public surface: `QueryResolver`, `MutationResolver`, and `IOpenIap`
   implemented by `OpenIapIOS`, `OpenIapAndroid`, and `OpenIapMacCatalyst`;
-  IAPKit helpers mirror the TypeScript SDKs via `Iap.KitApi(...)`,
-  `Iap.ConnectWebhookStream(...)`, `Iap.ParseWebhookEventData(...)`, and
-  `Iap.WebhookEventTypes`.
+  IAPKit helpers mirror the TypeScript SDKs via
+  `OpenIapClient.KitApi(...)`, `OpenIapClient.ConnectWebhookStream(...)`,
+  `OpenIapClient.ParseWebhookEventData(...)`, and
+  `OpenIapClient.WebhookEventTypes`.
 - Example app: `libraries/maui-iap/example/OpenIap.Maui.Example`, mirroring
   the `expo-iap` example flows.
 
@@ -191,7 +194,7 @@ iap.purchaseUpdatedListener.collect { purchase ->
 using OpenIap;
 using OpenIap.Maui;
 
-var iap = Iap.Instance;
+var iap = OpenIapClient.Instance;
 await ((MutationResolver)iap).InitConnectionAsync();
 
 await ((QueryResolver)iap).FetchProductsAsync(new ProductRequest

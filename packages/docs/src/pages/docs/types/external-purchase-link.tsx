@@ -581,7 +581,7 @@ async Task HandleExternalPurchaseAsync(string externalUrl)
 {
     // Step 1: Check if external purchase is available.
     var canPresent =
-        await ((QueryResolver)Iap.Instance).CanPresentExternalPurchaseNoticeIOSAsync();
+        await ((QueryResolver)OpenIapClient.Instance).CanPresentExternalPurchaseNoticeIOSAsync();
     if (!canPresent)
     {
         Console.WriteLine("External purchase not available on this device");
@@ -590,7 +590,7 @@ async Task HandleExternalPurchaseAsync(string externalUrl)
 
     // Step 2: Present Apple's compliance notice sheet.
     var noticeResult =
-        await ((MutationResolver)Iap.Instance).PresentExternalPurchaseNoticeSheetIOSAsync();
+        await ((MutationResolver)OpenIapClient.Instance).PresentExternalPurchaseNoticeSheetIOSAsync();
     if (noticeResult.Result == ExternalPurchaseNoticeAction.Dismissed)
     {
         Console.WriteLine("User dismissed the notice sheet");
@@ -599,7 +599,7 @@ async Task HandleExternalPurchaseAsync(string externalUrl)
 
     // Step 3: Open external purchase link.
     var linkResult =
-        await ((MutationResolver)Iap.Instance).PresentExternalPurchaseLinkIOSAsync(externalUrl);
+        await ((MutationResolver)OpenIapClient.Instance).PresentExternalPurchaseLinkIOSAsync(externalUrl);
     if (linkResult.Success)
     {
         Console.WriteLine("User redirected to external payment");

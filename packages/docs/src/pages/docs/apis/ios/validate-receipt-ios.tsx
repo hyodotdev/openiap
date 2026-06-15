@@ -133,7 +133,7 @@ using OpenIap.Maui;
 
 // kmp-iap (iOS targets only — no-op on Android)
 // Deprecated — prefer verifyPurchase().
-await ((MutationResolver)Iap.Instance).ValidateReceiptIOSAsync(
+await ((QueryResolver)OpenIapClient.Instance).ValidateReceiptIOSAsync(
     new VerifyPurchaseProps
     {
         Apple = new VerifyPurchaseAppleOptions

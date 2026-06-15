@@ -18,7 +18,7 @@ public partial class HomePage : ContentPage
 
         try
         {
-            var query = (QueryResolver)Iap.Instance;
+            var query = (QueryResolver)OpenIapClient.Instance;
             var storefront = await query.GetStorefrontAsync();
             StorefrontLabel.Text = string.IsNullOrEmpty(storefront)
                 ? "Best Practice Implementations"

@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Full Reference: https://openiap.dev/llms-full.txt
-> Generated: 2026-05-16T12:59:43.331Z
+> Generated: 2026-06-15T14:57:16.350Z
 
 ## Installation
 
@@ -19,12 +19,12 @@ npm install react-native-iap
 ### Native
 ```swift
 // Swift Package Manager
-.package(url: "https://github.com/hyodotdev/openiap.git", from: "2.1.9")
+.package(url: "https://github.com/hyodotdev/openiap.git", from: "2.2.1")
 ```
 
 ```kotlin
 // Gradle
-implementation("io.github.hyochan.openiap:openiap-google:2.1.5")
+implementation("io.github.hyochan.openiap:openiap-google:2.2.1")
 ```
 
 ```bash
@@ -34,12 +34,12 @@ flutter pub add flutter_inapp_purchase
 
 ```gdscript
 # Godot
-# Install godot-iap 2.2.10 to addons/godot-iap and enable the plugin
+# Install godot-iap 2.3.1 to addons/godot-iap and enable the plugin
 ```
 
 ```kotlin
 // Kotlin Multiplatform
-implementation("io.github.hyochan:kmp-iap:2.2.8")
+implementation("io.github.hyochan:kmp-iap:2.3.1")
 ```
 
 ```bash
@@ -47,7 +47,7 @@ implementation("io.github.hyochan:kmp-iap:2.2.8")
 dotnet add package OpenIap.Maui
 ```
 
-Current NuGet package version: 1.0.4
+Current NuGet package version: 1.1.1
 
 ## Framework Libraries
 
@@ -56,11 +56,13 @@ Current NuGet package version: 1.0.4
 - `flutter_inapp_purchase`: Dart API with generated OpenIAP types and streams.
 - `godot-iap`: Godot 4.x plugin with GDScript functions and signals.
 - `kmp-iap`: Kotlin Multiplatform API with Flow-based purchase events.
-- `maui-iap`: `OpenIap.Maui` package with `Iap.Instance`,
-  generated `Types.cs`, IAPKit helpers (`Iap.KitApi`,
-  `Iap.ConnectWebhookStream`, `Iap.ParseWebhookEventData`), flattened iOS
-  xcframework / Android AAR bindings in one NuGet package, and MAUI example
-  flows matching `expo-iap`.
+- `maui-iap`: `OpenIap.Maui` package with `OpenIapClient.Instance`,
+  generated `Types.cs`, IAPKit helpers (`OpenIapClient.KitApi`,
+  `OpenIapClient.ConnectWebhookStream`,
+  `OpenIapClient.ParseWebhookEventData`), flattened OpenIAP-owned iOS
+  xcframework / Android AAR bindings, Google and AndroidX Android
+  dependencies as NuGet package references, and MAUI example flows matching
+  `expo-iap`.
 
 ## Core APIs
 
