@@ -60,7 +60,7 @@ fun addDeveloperProvidedBillingListener(
 using OpenIap.Maui;
 
 // Observable callback approach.
-IDisposable subscription = Iap.Instance.DeveloperProvidedBillingAndroid.Subscribe(details =>
+IDisposable subscription = OpenIapClient.Instance.DeveloperProvidedBillingAndroid.Subscribe(details =>
 {
     Console.WriteLine(details.ExternalTransactionToken);
 });`}</CodeBlock>
@@ -172,7 +172,7 @@ subscription.cancel();`}</CodeBlock>
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var subscription = Iap.Instance.DeveloperProvidedBillingAndroid.Subscribe(async details =>
+var subscription = OpenIapClient.Instance.DeveloperProvidedBillingAndroid.Subscribe(async details =>
 {
     Console.WriteLine("User selected developer billing");
     Console.WriteLine($"Token: {details.ExternalTransactionToken}");

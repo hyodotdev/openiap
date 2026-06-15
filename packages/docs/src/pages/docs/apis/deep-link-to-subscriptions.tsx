@@ -195,7 +195,7 @@ function ManageSubscriptionsButton() {
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-await ((MutationResolver)Iap.Instance).DeepLinkToSubscriptionsAsync(
+await ((MutationResolver)OpenIapClient.Instance).DeepLinkToSubscriptionsAsync(
     new DeepLinkOptions
     {
         SkuAndroid = "com.app.premium",

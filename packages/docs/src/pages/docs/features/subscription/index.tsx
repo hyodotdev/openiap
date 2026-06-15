@@ -256,7 +256,7 @@ using System;
 using System.Linq;
 
 // Fetch subscription products
-var result = await ((QueryResolver)Iap.Instance).FetchProductsAsync(new ProductRequest
+var result = await ((QueryResolver)OpenIapClient.Instance).FetchProductsAsync(new ProductRequest
 {
     Skus = new[] { "premium_monthly" },
     Type = ProductQueryType.Subs,
@@ -454,7 +454,7 @@ string? DisplayIntroOffer(ProductSubscriptionIOS subscription)
 }
 
 // Check eligibility
-var isEligible = await ((QueryResolver)Iap.Instance)
+var isEligible = await ((QueryResolver)OpenIapClient.Instance)
     .IsEligibleForIntroOfferIOSAsync("premium_monthly");
 
 if (isEligible && subscription is not null)
@@ -695,7 +695,7 @@ async Task PurchaseWithPromoOfferAsync(string subscriptionId, string offerId)
         timestamp: timestamp);
 
     // 2. Purchase with the promotional offer
-    await ((MutationResolver)Iap.Instance).RequestPurchaseAsync(new RequestPurchaseProps
+    await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new RequestPurchaseProps
     {
         Type = ProductQueryType.Subs,
         RequestSubscription = new RequestSubscriptionPropsByPlatforms
@@ -837,7 +837,7 @@ using OpenIap.Maui;
 async Task PurchaseSubscriptionAsync(string subscriptionId)
 {
     // Intro offer is applied automatically when eligible.
-    await ((MutationResolver)Iap.Instance).RequestPurchaseAsync(new RequestPurchaseProps
+    await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new RequestPurchaseProps
     {
         Type = ProductQueryType.Subs,
         RequestSubscription = new RequestSubscriptionPropsByPlatforms
@@ -1163,7 +1163,7 @@ using System;
 using System.Linq;
 
 // Fetch subscription products
-var result = await ((QueryResolver)Iap.Instance).FetchProductsAsync(new ProductRequest
+var result = await ((QueryResolver)OpenIapClient.Instance).FetchProductsAsync(new ProductRequest
 {
     Skus = new[] { "premium_monthly" },
     Type = ProductQueryType.Subs,
@@ -1404,7 +1404,7 @@ async Task PurchaseSubscriptionAsync(string subscriptionId, ProductSubscriptionA
         return;
     }
 
-    await ((MutationResolver)Iap.Instance).RequestPurchaseAsync(new RequestPurchaseProps
+    await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new RequestPurchaseProps
     {
         Type = ProductQueryType.Subs,
         RequestSubscription = new RequestSubscriptionPropsByPlatforms
@@ -1755,7 +1755,7 @@ async Task HandlePurchaseAsync(
     // Store it before purchase.
     purchasedBasePlanId = basePlanId;
 
-    await ((MutationResolver)Iap.Instance).RequestPurchaseAsync(new RequestPurchaseProps
+    await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new RequestPurchaseProps
     {
         Type = ProductQueryType.Subs,
         RequestSubscription = new RequestSubscriptionPropsByPlatforms
@@ -2202,7 +2202,7 @@ async Task PurchaseWithOfferAsync(
         return;
     }
 
-    await ((MutationResolver)Iap.Instance).RequestPurchaseAsync(new RequestPurchaseProps
+    await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new RequestPurchaseProps
     {
         Type = ProductQueryType.Subs,
         RequestSubscription = new RequestSubscriptionPropsByPlatforms
@@ -2750,7 +2750,7 @@ using OpenIap.Maui;
 using System;
 
 // Check if user has any active subscription
-var hasActive = await ((QueryResolver)Iap.Instance).HasActiveSubscriptionsAsync();
+var hasActive = await ((QueryResolver)OpenIapClient.Instance).HasActiveSubscriptionsAsync();
 if (hasActive)
 {
     Console.WriteLine("User has premium access");
@@ -2758,7 +2758,7 @@ if (hasActive)
 
 // Get all active subscriptions
 var activeSubscriptions =
-    await ((QueryResolver)Iap.Instance).GetActiveSubscriptionsAsync();
+    await ((QueryResolver)OpenIapClient.Instance).GetActiveSubscriptionsAsync();
 
 foreach (var subscription in activeSubscriptions)
 {
@@ -3193,7 +3193,7 @@ using System;
 // Note: subscriptionStatusIOS is iOS-only.
 async Task<(bool IsActive, string Status)> CheckSubscriptionStatusAsync(string sku)
 {
-    var statuses = await ((QueryResolver)Iap.Instance).SubscriptionStatusIOSAsync(sku);
+    var statuses = await ((QueryResolver)OpenIapClient.Instance).SubscriptionStatusIOSAsync(sku);
 
     foreach (var status in statuses)
     {
@@ -3223,7 +3223,7 @@ async Task<(bool IsActive, string Status)> CheckSubscriptionStatusAsync(string s
 // Using ActiveSubscription for quick checks.
 async Task CheckFromActiveSubscriptionsAsync()
 {
-    var subscriptions = await ((QueryResolver)Iap.Instance).GetActiveSubscriptionsAsync();
+    var subscriptions = await ((QueryResolver)OpenIapClient.Instance).GetActiveSubscriptionsAsync();
     var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
     foreach (var subscription in subscriptions)
@@ -3560,7 +3560,7 @@ public sealed record SubscriptionAccessResult(
 // Client-side: Can only check if purchase exists.
 async Task<SubscriptionAccessResult> CheckAndroidSubscriptionAsync(string subscriptionId)
 {
-    var purchases = await ((QueryResolver)Iap.Instance).GetAvailablePurchasesAsync();
+    var purchases = await ((QueryResolver)OpenIapClient.Instance).GetAvailablePurchasesAsync();
     var purchase = purchases
         .OfType<PurchaseAndroid>()
         .FirstOrDefault(purchase => purchase.ProductId == subscriptionId);
@@ -3822,7 +3822,7 @@ Future<void> manageSubscriptions() async {
 using OpenIap.Maui;
 
 // Open subscription management page.
-await ((MutationResolver)Iap.Instance).DeepLinkToSubscriptionsAsync();`}</CodeBlock>
+await ((MutationResolver)OpenIapClient.Instance).DeepLinkToSubscriptionsAsync();`}</CodeBlock>
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`# Open subscription management page

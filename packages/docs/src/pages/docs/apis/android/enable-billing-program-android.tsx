@@ -171,7 +171,7 @@ function App() {
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-await ((MutationResolver)Iap.Instance).InitConnectionAsync(
+await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(
     new InitConnectionConfig
     {
         EnableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer,

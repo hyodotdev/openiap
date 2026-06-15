@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net9.0-android</TargetFramework>
+    <TargetFrameworks>net9.0-android;net10.0-android</TargetFrameworks>
     <SupportedOSPlatformVersion>24.0</SupportedOSPlatformVersion>
     <RootNamespace>OpenIap.Maui.Bindings.Android</RootNamespace>
     <AssemblyName>OpenIap.Maui.Bindings.Android</AssemblyName>
@@ -17,7 +17,7 @@
                      deliberate to surface each subtype's own field set.
       BG86xx-BG88xx: known Java-binding noise about renamed/wrapped events.
     -->
-    <!-- The binding csproj targets net9.0-android; generated calls reference
+    <!-- The binding csproj targets Android TFMs; generated calls reference
          APIs marked [SupportedOSPlatform("Android21.0")]. The codegen does not
          emit availability attributes on the generated wrappers so CA1416 fires
          on every JNI call site. They are safe at our minimum API 24. -->
@@ -39,30 +39,13 @@
     <AndroidLibrary Include="..\..\..\..\packages\google\openiap\build\outputs\aar\openiap-play-release.aar" Bind="false" />
   </ItemGroup>
 
-  <!-- Google Play Billing — pulled directly from Google Maven so we get
-       the same Java classes that openiap-play-release.aar was compiled
-       against. Microsoft's `Xamarin.Android.Google.BillingClient` NuGet at
-       8.x upgrades AndroidX to 2.10 (NU1107 vs MAUI 9's pinned 2.8.7), and
-       the 7.x NuGet is missing 8.x APIs the AAR uses (e.g.
-       BillingClient.Builder.enableAutoServiceReconnection() — runtime
-       NoSuchMethodError). The Maven route avoids the NuGet resolver and
-       keeps MAUI's AndroidX pins intact. -->
+  <!-- Google dependencies are NuGet PackageReferences, not embedded Maven
+       AARs. This lets consumer apps deduplicate BillingClient, Play Services,
+       DataTransport, and Gson when other Xamarin.GooglePlayServices.* packages
+       are already present. -->
   <ItemGroup>
-    <AndroidMavenLibrary Include="com.android.billingclient:billing" Version="$(MauiPlayBillingVersion)" Repository="Google" Bind="false" />
-    <AndroidMavenLibrary Include="com.android.billingclient:billing-ktx" Version="$(MauiPlayBillingVersion)" Repository="Google" Bind="false" />
-    <!-- billing 8.x's runtime uses DataTransport for telemetry and several
-         Play Services modules. Pulled directly from Google Maven so the
-         classes land in the APK without going through Microsoft NuGets
-         (which would force AndroidX 2.10 → NU1107 vs MAUI 9). -->
-    <AndroidMavenLibrary Include="com.google.android.datatransport:transport-api" Version="$(MauiGoogleTransportApiVersion)" Repository="Google" Bind="false" />
-    <AndroidMavenLibrary Include="com.google.android.datatransport:transport-backend-cct" Version="$(MauiGoogleTransportBackendCctVersion)" Repository="Google" Bind="false" />
-    <AndroidMavenLibrary Include="com.google.android.datatransport:transport-runtime" Version="$(MauiGoogleTransportRuntimeVersion)" Repository="Google" Bind="false" />
-    <AndroidMavenLibrary Include="com.google.android.gms:play-services-base" Version="$(MauiGooglePlayServicesBaseVersion)" Repository="Google" Bind="false" />
-    <AndroidMavenLibrary Include="com.google.android.gms:play-services-basement" Version="$(MauiGooglePlayServicesBasementVersion)" Repository="Google" Bind="false" />
-    <AndroidMavenLibrary Include="com.google.android.gms:play-services-location" Version="$(MauiGooglePlayServicesLocationVersion)" Repository="Google" Bind="false" />
-    <AndroidMavenLibrary Include="com.google.android.gms:play-services-tasks" Version="$(MauiGooglePlayServicesTasksVersion)" Repository="Google" Bind="false" />
-    <AndroidMavenLibrary Include="com.google.code.gson:gson" Version="$(MauiGsonVersion)" Bind="false" />
-
+    <PackageReference Include="Xamarin.Android.Google.BillingClient" Version="$(MauiBillingClientNuGetVersion)" />
+    <PackageReference Include="GoogleGson" Version="$(MauiGoogleGsonNuGetVersion)" />
     <PackageReference Include="Xamarin.Kotlin.StdLib" Version="$(MauiKotlinStdLibVersion)" />
     <PackageReference Include="Xamarin.KotlinX.Coroutines.Core" Version="$(MauiKotlinCoroutinesVersion)" />
     <PackageReference Include="Xamarin.KotlinX.Coroutines.Core.Jvm" Version="$(MauiKotlinCoroutinesVersion)" />

@@ -183,7 +183,7 @@ final sub = iap.subscriptionBillingIssueListener.listen((purchase) {
 await sub.cancel();`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`// .NET MAUI — see OpenIap.Maui.Iap.Instance.
+              <CodeBlock language="csharp">{`// .NET MAUI — see OpenIap.Maui.OpenIapClient.Instance.
 // The full operation surface lives on OpenIap.QueryResolver /
 // MutationResolver / SubscriptionResolver (auto-generated from the schema).`}</CodeBlock>
             ),

@@ -205,7 +205,7 @@ switch (status) {
                       <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var status = await ((MutationResolver)Iap.Instance)
+var status = await ((MutationResolver)OpenIapClient.Instance)
     .BeginRefundRequestIOSAsync(purchase.ProductId);
 
 switch (status)

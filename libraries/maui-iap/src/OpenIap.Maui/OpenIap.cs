@@ -2,11 +2,11 @@
 // OpenIAP — public API surface for .NET MAUI
 // ============================================================================
 //
-// The static `Iap` class is the recommended entry point. It delegates to a
-// platform implementation that is selected at compile time (see the
-// Platforms/ folder). The class is named `Iap` (not `OpenIap`) to avoid
-// shadowing the `OpenIap` namespace when consumers `using` both
-// `OpenIap` and `OpenIap.Maui`. Mirrors the API surface of:
+// The static `OpenIapClient` class is the recommended entry point. It
+// delegates to a platform implementation that is selected at compile time (see
+// the Platforms/ folder). The older `Iap` facade remains as a compatibility
+// shim, but the longer name avoids collisions with app namespaces such as
+// `OpenIap.Maui.Iap`. Mirrors the API surface of:
 //   - react-native-iap / expo-iap (TypeScript)
 //   - flutter_inapp_purchase (Dart)
 //   - kmp-iap (Kotlin)
@@ -25,6 +25,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Threading.Tasks;
 using OpenIap;
 
@@ -90,10 +91,10 @@ public interface IOpenIap
 
 /// <summary>
 /// Static convenience facade. Resolves the platform implementation lazily so
-/// host apps can write <c>await Iap.Instance.FetchProductsAsync(...)</c>
+/// host apps can write <c>await OpenIapClient.Instance.FetchProductsAsync(...)</c>
 /// once the platform impl also implements <c>QueryResolver</c>.
 /// </summary>
-public static class Iap
+public static class OpenIapClient
 {
     private static IOpenIap? _instance;
 
@@ -151,6 +152,38 @@ public static class Iap
     /// </summary>
     public static ParsedWebhookEventResult ParseWebhookEventData(string raw)
         => WebhookClient.ParseWebhookEventData(raw);
+}
+
+/// <summary>
+/// Backward-compatible alias for <see cref="OpenIapClient"/>. New code should
+/// use <see cref="OpenIapClient"/> to avoid namespace/type name collisions in
+/// projects whose namespaces start with <c>OpenIap.Maui.Iap</c>.
+/// </summary>
+[EditorBrowsable(EditorBrowsableState.Never)]
+public static class Iap
+{
+    /// <inheritdoc cref="OpenIapClient.Instance"/>
+    public static IOpenIap Instance => OpenIapClient.Instance;
+
+    /// <inheritdoc cref="OpenIapClient.OverrideInstance(IOpenIap)"/>
+    public static void OverrideInstance(IOpenIap instance)
+        => OpenIapClient.OverrideInstance(instance);
+
+    /// <inheritdoc cref="OpenIapClient.KitApi(KitApiOptions)"/>
+    public static KitApiClient KitApi(KitApiOptions options)
+        => OpenIapClient.KitApi(options);
+
+    /// <inheritdoc cref="OpenIapClient.ConnectWebhookStream(WebhookListenerOptions)"/>
+    public static WebhookListener ConnectWebhookStream(WebhookListenerOptions options)
+        => OpenIapClient.ConnectWebhookStream(options);
+
+    /// <inheritdoc cref="OpenIapClient.WebhookEventTypes"/>
+    public static IReadOnlyList<WebhookEventType> WebhookEventTypes
+        => OpenIapClient.WebhookEventTypes;
+
+    /// <inheritdoc cref="OpenIapClient.ParseWebhookEventData(string)"/>
+    public static ParsedWebhookEventResult ParseWebhookEventData(string raw)
+        => OpenIapClient.ParseWebhookEventData(raw);
 }
 
 /// <summary>

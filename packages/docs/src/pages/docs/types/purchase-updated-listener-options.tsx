@@ -109,7 +109,7 @@ function PurchaseUpdatedListenerOptions() {
 );`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`Iap.Instance.PurchaseUpdatedWithOptions(
+              <CodeBlock language="csharp">{`OpenIapClient.Instance.PurchaseUpdatedWithOptions(
     new PurchaseUpdatedListenerOptions
     {
         DedupeTransactionIOS = false,

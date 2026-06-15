@@ -177,7 +177,7 @@ dotnet add package ${versions.mauiPackageId}
 
 Current NuGet package version: ${versions.maui}
 
-Requires .NET 9+, the MAUI workload, iOS 15.0+, and Android API 24+.
+Requires .NET 9 or .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
 
 ---
 
@@ -223,20 +223,23 @@ Requires .NET 9+, the MAUI workload, iOS 15.0+, and Android API 24+.
   are private implementation details and are flattened into \`OpenIap.Maui\`
   instead of being published as separate package dependencies.
 - Implementation: .NET MAUI projection with generated \`Types.cs\`, a static
-  \`Iap.Instance\` facade, \`IOpenIap\` observables, and per-platform resolvers.
+  \`OpenIapClient.Instance\` facade, legacy \`Iap\` shim, \`IOpenIap\`
+  observables, and per-platform resolvers.
 - iOS/macCatalyst bridge: .NET-for-iOS binding over
   \`OpenIAP.xcframework\` and \`OpenIapModule+ObjC.swift\`; NuGet consumers get
   the official \`OpenIap.Maui.Bindings.iOS.resources.zip\` sidecar so no
   app-level \`NativeReference\` is required.
 - Android bridge: Xamarin.Android binding over the MAUI-owned
   \`openiap-release.aar\`, which wraps the unbound
-  \`openiap-play-release.aar\` runtime dependency; resolved BillingClient /
-  Play Services AARs are included in the main nupkg for app packaging.
+  \`openiap-play-release.aar\` runtime dependency. Google Billing, Play
+  Services, Gson, AndroidX, and Kotlin Android libraries stay as NuGet
+  \`PackageReference\` dependencies so consuming apps can deduplicate them.
 - Public surface: \`QueryResolver\`, \`MutationResolver\`, and \`IOpenIap\`
   implemented by \`OpenIapIOS\`, \`OpenIapAndroid\`, and \`OpenIapMacCatalyst\`;
-  IAPKit helpers mirror the TypeScript SDKs via \`Iap.KitApi(...)\`,
-  \`Iap.ConnectWebhookStream(...)\`, \`Iap.ParseWebhookEventData(...)\`, and
-  \`Iap.WebhookEventTypes\`.
+  IAPKit helpers mirror the TypeScript SDKs via
+  \`OpenIapClient.KitApi(...)\`, \`OpenIapClient.ConnectWebhookStream(...)\`,
+  \`OpenIapClient.ParseWebhookEventData(...)\`, and
+  \`OpenIapClient.WebhookEventTypes\`.
 - Example app: \`libraries/maui-iap/example/OpenIap.Maui.Example\`, mirroring
   the \`expo-iap\` example flows.
 
@@ -297,7 +300,7 @@ iap.purchaseUpdatedListener.collect { purchase ->
 using OpenIap;
 using OpenIap.Maui;
 
-var iap = Iap.Instance;
+var iap = OpenIapClient.Instance;
 await ((MutationResolver)iap).InitConnectionAsync();
 
 await ((QueryResolver)iap).FetchProductsAsync(new ProductRequest
@@ -405,11 +408,13 @@ Current NuGet package version: ${versions.maui}
 - \`flutter_inapp_purchase\`: Dart API with generated OpenIAP types and streams.
 - \`godot-iap\`: Godot 4.x plugin with GDScript functions and signals.
 - \`kmp-iap\`: Kotlin Multiplatform API with Flow-based purchase events.
-- \`maui-iap\`: \`OpenIap.Maui\` package with \`Iap.Instance\`,
-  generated \`Types.cs\`, IAPKit helpers (\`Iap.KitApi\`,
-  \`Iap.ConnectWebhookStream\`, \`Iap.ParseWebhookEventData\`), flattened iOS
-  xcframework / Android AAR bindings in one NuGet package, and MAUI example
-  flows matching \`expo-iap\`.
+- \`maui-iap\`: \`OpenIap.Maui\` package with \`OpenIapClient.Instance\`,
+  generated \`Types.cs\`, IAPKit helpers (\`OpenIapClient.KitApi\`,
+  \`OpenIapClient.ConnectWebhookStream\`,
+  \`OpenIapClient.ParseWebhookEventData\`), flattened OpenIAP-owned iOS
+  xcframework / Android AAR bindings, Google and AndroidX Android
+  dependencies as NuGet package references, and MAUI example flows matching
+  \`expo-iap\`.
 
 ## Core APIs
 

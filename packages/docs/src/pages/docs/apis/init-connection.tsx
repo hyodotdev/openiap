@@ -196,10 +196,10 @@ kmpIAP.initConnection(
 using OpenIap.Maui;
 
 // Standard connection
-await ((MutationResolver)Iap.Instance).InitConnectionAsync();
+await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync();
 
 // With alternative billing
-await ((MutationResolver)Iap.Instance).InitConnectionAsync(
+await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(
     new InitConnectionConfig
     {
         EnableBillingProgramAndroid = BillingProgramAndroid.UserChoiceBilling,

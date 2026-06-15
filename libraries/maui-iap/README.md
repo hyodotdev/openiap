@@ -8,14 +8,14 @@ macCatalyst from a single C# API.
 | Layer                                      |          iOS          |        Android        |      macCatalyst      |
 | ------------------------------------------ | :-------------------: | :-------------------: | :-------------------: |
 | Generated types (`Types.cs`)               |          yes          |          yes          |          yes          |
-| `Iap.Instance` facade and listener streams |          yes          |          yes          |          yes          |
+| `OpenIapClient.Instance` facade and listener streams |          yes          |          yes          |          yes          |
 | StoreKit 2 / Play Billing native bindings  |          yes          |          yes          |          yes          |
 | Example MAUI app                           |          yes          |          yes          |          yes          |
 | NuGet package shape                        | single public package | single public package | single public package |
 
 ## Install
 
-Requires .NET 9 SDK and the MAUI workload:
+Requires the .NET 9 or .NET 10 SDK and the MAUI workload:
 
 ```bash
 dotnet workload install maui
@@ -25,9 +25,11 @@ dotnet add package OpenIap.Maui
 For manual `.csproj` edits, copy the current PackageReference from the
 [OpenIap.Maui NuGet package page](https://www.nuget.org/packages/OpenIap.Maui).
 
-`OpenIap.Maui` is the only NuGet package apps reference. The Android binding,
-iOS binding, Google Play Billing AARs, and StoreKit xcframework resources are
-flattened into the main NuGet package.
+`OpenIap.Maui` is the only NuGet package apps reference. The Android and iOS
+binding outputs are flattened into the main NuGet package, while Google
+Billing, Play Services, Gson, AndroidX, and Kotlin Android libraries remain
+normal NuGet dependencies so apps can deduplicate them with their own package
+graph.
 
 ## Usage
 
@@ -35,7 +37,7 @@ flattened into the main NuGet package.
 using OpenIap;
 using OpenIap.Maui;
 
-var iap = Iap.Instance;
+var iap = OpenIapClient.Instance;
 var query = (QueryResolver)iap;
 var mutate = (MutationResolver)iap;
 
@@ -77,6 +79,10 @@ Always validate purchases on your server before granting entitlement, then call
 `FinishTransactionAsync`. On Android, unfinished purchases are refunded
 automatically after 3 days.
 
+`Iap` remains available as a backward-compatible facade, but new code should use
+`OpenIapClient` so app namespaces such as `OpenIap.Maui.Iap` do not collide
+with the facade type name.
+
 ## IAPKit API and webhooks
 
 MAUI exposes the same kit helper surface as `expo-iap` and
@@ -86,7 +92,7 @@ MAUI exposes the same kit helper surface as `expo-iap` and
 using OpenIap;
 using OpenIap.Maui;
 
-var kit = Iap.KitApi(new KitApiOptions
+var kit = OpenIapClient.KitApi(new KitApiOptions
 {
     ApiKey = "iapkit_...",
     BaseUrl = "https://kit.openiap.dev",
@@ -96,7 +102,7 @@ var status = await kit.StatusAsync("user-123");
 var entitlements = await kit.EntitlementsAsync("user-123");
 await kit.BindUserAsync(purchaseToken: "token", userId: "user-123");
 
-using var listener = Iap.ConnectWebhookStream(new WebhookListenerOptions
+using var listener = OpenIapClient.ConnectWebhookStream(new WebhookListenerOptions
 {
     ApiKey = "iapkit_...",
     OnEvent = webhookEvent =>
@@ -109,7 +115,7 @@ using var listener = Iap.ConnectWebhookStream(new WebhookListenerOptions
     },
 });
 
-ParsedWebhookEventResult parsed = Iap.ParseWebhookEventData(rawSseData);
+ParsedWebhookEventResult parsed = OpenIapClient.ParseWebhookEventData(rawSseData);
 ```
 
 ## Example app
@@ -128,6 +134,9 @@ dotnet build -t:Run -f net9.0-android
 dotnet build -t:Run -f net9.0-ios
 dotnet build -t:Run -f net9.0-maccatalyst
 ```
+
+For .NET 10 apps, use the matching `net10.0-android`, `net10.0-ios`, and
+`net10.0-maccatalyst` target frameworks.
 
 VS Code launch configurations are in `libraries/maui-iap/.vscode/launch.json`.
 The Android launcher builds both AARs before compiling the example app.

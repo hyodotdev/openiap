@@ -582,20 +582,20 @@ using OpenIap.Maui;
 using System;
 
 // Enable External Payments via InitConnectionConfig.
-await ((MutationResolver)Iap.Instance).InitConnectionAsync(new InitConnectionConfig
+await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(new InitConnectionConfig
 {
     EnableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments,
 });
 
 // Listen for developer billing selection.
-using var subscription = Iap.Instance.DeveloperProvidedBillingAndroid.Subscribe(details =>
+using var subscription = OpenIapClient.Instance.DeveloperProvidedBillingAndroid.Subscribe(details =>
 {
     Console.WriteLine($"Token: {details.ExternalTransactionToken}");
     // Report token to Google via your backend within 24 hours.
 });
 
 // Check availability (Japan only).
-var result = await ((MutationResolver)Iap.Instance)
+var result = await ((MutationResolver)OpenIapClient.Instance)
     .IsBillingProgramAvailableAndroidAsync(BillingProgramAndroid.ExternalPayments);
 if (result.IsAvailable)
 {
@@ -617,7 +617,7 @@ if (result.IsAvailable)
         },
         Type = ProductQueryType.InApp,
     };
-    await ((MutationResolver)Iap.Instance).RequestPurchaseAsync(props);
+    await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(props);
 }`}</CodeBlock>
             ),
             gdscript: (

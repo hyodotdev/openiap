@@ -174,7 +174,7 @@ subscription.cancel();`}</CodeBlock>
 using OpenIap.Maui;
 using System;
 
-using var subscription = Iap.Instance.UserChoiceBillingAndroid.Subscribe(details =>
+using var subscription = OpenIapClient.Instance.UserChoiceBillingAndroid.Subscribe(details =>
 {
     Console.WriteLine("User chose alternative billing");
     Console.WriteLine($"Products: {string.Join(", ", details.Products)}");

@@ -110,8 +110,8 @@ if (Platform.isIOS) {
 using OpenIap.Maui;
 
 // kmp-iap (iOS targets only — no-op on Android)
-// Deprecated — prefer await ((QueryResolver)Iap.Instance).GetStorefrontAsync()
-var code = await ((QueryResolver)Iap.Instance).GetStorefrontIOSAsync()`}</CodeBlock>
+// Deprecated — prefer await ((QueryResolver)OpenIapClient.Instance).GetStorefrontAsync()
+var code = await ((QueryResolver)OpenIapClient.Instance).GetStorefrontIOSAsync()`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":
