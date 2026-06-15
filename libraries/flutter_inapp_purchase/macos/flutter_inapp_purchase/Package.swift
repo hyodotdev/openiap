@@ -19,7 +19,7 @@ let package = Package(
             name: "flutter_inapp_purchase",
             dependencies: [
                 .product(name: "FlutterFramework", package: "FlutterFramework"),
-                .product(name: "OpenIAP", package: "openiap"),
+                .product(name: "OpenIAP", package: "OpenIAP"),
             ],
             path: "Sources/flutter_inapp_purchase"
         )
