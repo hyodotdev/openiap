@@ -99,11 +99,7 @@ function resolveApiKey(
   opts: { apiKey?: string; baseUrl?: string },
   extra?: ToolExtra,
 ): string | undefined {
-  return (
-    opts.apiKey ??
-    extra?.authInfo?.token ??
-    process.env.IAPKIT_API_KEY
-  );
+  return opts.apiKey ?? extra?.authInfo?.token ?? process.env.IAPKIT_API_KEY;
 }
 
 function withClient(
@@ -122,8 +118,7 @@ function withClient(
   }
   return kitClient({
     apiKey,
-    baseUrl:
-      opts.baseUrl ?? process.env.IAPKIT_BASE_URL,
+    baseUrl: opts.baseUrl ?? process.env.IAPKIT_BASE_URL,
   });
 }
 
@@ -182,10 +177,9 @@ function redactSecrets(value: unknown, apiKey?: string): unknown {
 }
 
 function redactSecretString(value: string, apiKey?: string): string {
-  const knownSecrets = [
-    apiKey,
-    process.env.IAPKIT_API_KEY,
-  ].filter((secret): secret is string => Boolean(secret?.trim()));
+  const knownSecrets = [apiKey, process.env.IAPKIT_API_KEY].filter(
+    (secret): secret is string => Boolean(secret?.trim()),
+  );
   let redacted = value;
   for (const secret of knownSecrets) {
     redacted = redacted.split(secret).join(API_KEY_PLACEHOLDER);
@@ -505,9 +499,7 @@ function registerIapKitTools(server: McpServer) {
     async (args, extra) => {
       if (args.platform === "Android") {
         const apiKey =
-          args.apiKey ??
-          extra?.authInfo?.token ??
-          process.env.IAPKIT_API_KEY;
+          args.apiKey ?? extra?.authInfo?.token ?? process.env.IAPKIT_API_KEY;
         if (!apiKey) return err(new Error("apiKey required"));
         const validationError = validateApiKey(apiKey);
         if (validationError) return err(new Error(validationError), apiKey);
