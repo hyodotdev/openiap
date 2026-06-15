@@ -216,6 +216,35 @@ describe("remote MCP HTTP server", () => {
     }
   });
 
+  it("generates Expo setup snippets compatible with current SDK types", async () => {
+    const apiKey = "openiap-kit_secret_setup";
+    const { baseUrl, sessionId } = await initializeMcpSession(apiKey);
+
+    const expoPayload = await callTool<SetupToolPayload>(
+      baseUrl,
+      sessionId,
+      "iapkit_setup",
+      {
+        framework: "expo",
+        productId: "premium_monthly",
+      },
+    );
+    expect(expoPayload).toMatchObject({
+      framework: "expo",
+      note: expect.stringContaining("IAPKIT_API_KEY"),
+    });
+    expect(expoPayload.snippet).toContain(
+      "export function useOpenIapPremium()",
+    );
+    expect(expoPayload.snippet).toContain("useIAP()");
+    expect(expoPayload.snippet).toContain("fetchProducts({");
+    expect(expoPayload.snippet).toContain("new EventSource<string>");
+    expect(expoPayload.snippet).toContain("type WebhookEventStream");
+    expect(expoPayload.snippet).toContain("<IAPKIT_API_KEY>");
+    expect(expoPayload.snippet).not.toContain("useIAP({ skus:");
+    expect(expoPayload.snippet).not.toContain(apiKey);
+  });
+
   it("generates native iOS and Android setup snippets", async () => {
     const apiKey = "openiap-kit_secret_setup";
     const { baseUrl, sessionId } = await initializeMcpSession(apiKey);

@@ -750,18 +750,60 @@ function renderSetupSnippet(
   switch (framework) {
     case "expo":
     case "react-native":
-      return `import { useIAP, useWebhookEvents } from '${framework === "expo" ? "expo-iap" : "react-native-iap"}';
+      return `import { useEffect } from 'react';
+import { useIAP, useWebhookEvents, type WebhookEventStream } from '${framework === "expo" ? "expo-iap" : "react-native-iap"}';
 import EventSource from 'react-native-sse';
 
-const { events } = useWebhookEvents({
-  apiKey: ${apiKeyLiteral},
-  eventSourceFactory: (url) => new EventSource(url),
-  onEvent: (event) => {
-    if (event.type === 'SubscriptionRenewed') grantEntitlement(event.purchaseToken);
-  },
-});
+const productId = ${productIdLiteral};
 
-const { fetchProducts, requestPurchase } = useIAP({ skus: [${productIdLiteral}] });`;
+function createWebhookEventSource(
+  url: string,
+  headers: Record<string, string>,
+): WebhookEventStream {
+  const source = new EventSource<string>(url, { headers });
+  const stream: WebhookEventStream = {
+    onmessage: null,
+    onerror: null,
+    close: () => source.close(),
+    addEventListener: (type, listener) => {
+      source.addEventListener(type, (event) => {
+        listener({
+          data: event.data ?? '',
+          lastEventId: event.lastEventId ?? undefined,
+        });
+      });
+    },
+  };
+  source.addEventListener('error', (event) => stream.onerror?.(event));
+  return stream;
+}
+
+export function useOpenIapPremium() {
+  useWebhookEvents({
+    apiKey: ${apiKeyLiteral},
+    eventSourceFactory: createWebhookEventSource,
+    onEvent: (event) => {
+      if (event.type === 'SubscriptionRenewed') grantEntitlement(event.purchaseToken);
+    },
+  });
+
+  const { fetchProducts, requestPurchase } = useIAP();
+
+  useEffect(() => {
+    void fetchProducts({ skus: [productId], type: 'in-app' });
+  }, [fetchProducts]);
+
+  const buyPremium = () =>
+    requestPurchase({
+      request: {
+        ios: { sku: productId },
+        android: { skus: [productId] },
+      },
+      type: 'in-app',
+    });
+
+  return { buyPremium };
+}`;
     case "flutter":
       return `import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 import 'package:flutter_inapp_purchase/webhook_client.dart';
