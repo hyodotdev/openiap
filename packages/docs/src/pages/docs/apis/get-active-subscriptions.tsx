@@ -207,7 +207,7 @@ function SubscriptionStatus() {
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var subscriptions = await ((QueryResolver)OpenIapClient.Instance).GetActiveSubscriptionsAsync()`}</CodeBlock>
+var subscriptions = await ((QueryResolver)OpenIapClient.Instance).GetActiveSubscriptionsAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`var subscriptions = await iap.get_active_subscriptions()`}</CodeBlock>

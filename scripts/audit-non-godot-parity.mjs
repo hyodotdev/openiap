@@ -2909,6 +2909,12 @@ function checkFrameworkDependencyHygiene() {
   expectNotIncludes('libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj', [
     '<BuildOutputInPackage Include="$(OutputPath)*.aar"',
   ], 'MAUI package must not fat-bundle transitive Google AARs');
+  expectIncludes('libraries/maui-iap/example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj', [
+    'net10.0-android',
+    'net10.0-ios',
+    'net10.0-maccatalyst',
+    'Version="10.0.*"',
+  ], 'MAUI example app must validate net10 target frameworks');
   for (const mauiWorkflow of [
     '.github/workflows/ci-maui-iap.yml',
     '.github/workflows/release-maui.yml',
