@@ -1615,14 +1615,14 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
     /// Resolves iOS purchase props from request params.
     /// Returns either RequestPurchaseIosProps or RequestSubscriptionIosProps based on request type.
-    private func resolveIOSPurchaseProps(from params: RequestPurchaseProps) throws -> any IosPropsProtocol {
+    func resolveIOSPurchaseProps(from params: RequestPurchaseProps) throws -> any IosPropsProtocol {
         switch params.request {
         case let .purchase(platforms):
-            if let ios = platforms.ios {
+            if let ios = platforms.apple ?? platforms.ios {
                 return ios
             }
         case let .subscription(platforms):
-            if let ios = platforms.ios {
+            if let ios = platforms.apple ?? platforms.ios {
                 return ios
             }
         }
