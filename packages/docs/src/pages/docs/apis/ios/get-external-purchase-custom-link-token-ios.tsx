@@ -141,8 +141,8 @@ using OpenIap.Maui;
 
 // kmp-iap (iOS targets only — no-op on Android)
 var token = await ((QueryResolver)OpenIapClient.Instance).GetExternalPurchaseCustomLinkTokenIOSAsync(
-    tokenType = ExternalPurchaseCustomLinkTokenTypeIOS.ACQUISITION
-)`}</CodeBlock>
+    tokenType: ExternalPurchaseCustomLinkTokenTypeIOS.ACQUISITION
+);`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

@@ -2802,6 +2802,7 @@ function checkFrameworkDependencyHygiene() {
       );
     }
     if (
+      mauiBillingClientNuGetVersion &&
       mauiBillingClientNuGetVersion !== googleBillingVersions[0] &&
       !mauiBillingClientNuGetVersion.startsWith(`${googleBillingVersions[0]}.`)
     ) {
