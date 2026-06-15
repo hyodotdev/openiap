@@ -48,8 +48,8 @@ public partial class SubscriptionFlowPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
-        _purchaseSub ??= Iap.Instance.PurchaseUpdated.Subscribe(p => MainThread.BeginInvokeOnMainThread(() => OnPurchase(p)));
-        _errorSub ??= Iap.Instance.PurchaseError.Subscribe(err => MainThread.BeginInvokeOnMainThread(() => OnPurchaseError(err)));
+        _purchaseSub ??= OpenIapClient.Instance.PurchaseUpdated.Subscribe(p => MainThread.BeginInvokeOnMainThread(() => OnPurchase(p)));
+        _errorSub ??= OpenIapClient.Instance.PurchaseError.Subscribe(err => MainThread.BeginInvokeOnMainThread(() => OnPurchaseError(err)));
         await ConnectAndFetchAsync();
     }
 
@@ -95,7 +95,7 @@ public partial class SubscriptionFlowPage : ContentPage
     {
         try
         {
-            var query = (QueryResolver)Iap.Instance;
+            var query = (QueryResolver)OpenIapClient.Instance;
             var result = await query.FetchProductsAsync(new ProductRequest
             {
                 Skus = Constants.SubscriptionProductIds,
@@ -125,7 +125,7 @@ public partial class SubscriptionFlowPage : ContentPage
         RefreshActiveButton.Text = "Refreshing status...";
         try
         {
-            var query = (QueryResolver)Iap.Instance;
+            var query = (QueryResolver)OpenIapClient.Instance;
             var active = await query.GetActiveSubscriptionsAsync(Constants.SubscriptionProductIds)
                 .WaitAsync(TimeSpan.FromSeconds(20));
             _active.Clear();
@@ -508,7 +508,7 @@ public partial class SubscriptionFlowPage : ContentPage
         try
         {
             SetActionStatus($"Dispatching StoreKit request: {common.Id}");
-            var mutate = (MutationResolver)Iap.Instance;
+            var mutate = (MutationResolver)OpenIapClient.Instance;
             var requestTask = mutate.RequestPurchaseAsync(new RequestPurchaseProps
             {
                 RequestSubscription = new RequestSubscriptionPropsByPlatforms
@@ -669,7 +669,7 @@ public partial class SubscriptionFlowPage : ContentPage
     {
         try
         {
-            var mutate = (MutationResolver)Iap.Instance;
+            var mutate = (MutationResolver)OpenIapClient.Instance;
             await mutate.FinishTransactionAsync(
                 purchase: new PurchaseInput(purchase),
                 isConsumable: false).WaitAsync(TimeSpan.FromSeconds(10));
@@ -693,7 +693,7 @@ public partial class SubscriptionFlowPage : ContentPage
 
         try
         {
-            var mutate = (MutationResolver)Iap.Instance;
+            var mutate = (MutationResolver)OpenIapClient.Instance;
             if (_verification == VerificationMethod.Local)
             {
                 var result = await mutate.VerifyPurchaseAsync(new VerifyPurchaseProps
@@ -780,7 +780,7 @@ public partial class SubscriptionFlowPage : ContentPage
     {
         try
         {
-            var mutate = (MutationResolver)Iap.Instance;
+            var mutate = (MutationResolver)OpenIapClient.Instance;
             if (IsApplePlatform)
             {
                 try

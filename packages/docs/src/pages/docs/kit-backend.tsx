@@ -181,7 +181,7 @@ if (active) {
 using OpenIap.Maui;
 
 var openiapProjectKey = "<project-api-key-from-sdk-config-or-env>";
-var api = Iap.KitApi(new KitApiOptions { ApiKey = openiapProjectKey });
+var api = OpenIapClient.KitApi(new KitApiOptions { ApiKey = openiapProjectKey });
 var status = await api.StatusAsync("user-1");
 if (status.Active)
 {

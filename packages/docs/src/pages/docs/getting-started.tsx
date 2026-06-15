@@ -307,8 +307,8 @@ await iap.requestPurchaseWithBuilder(
               <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var query = (QueryResolver)Iap.Instance;
-var mutation = (MutationResolver)Iap.Instance;
+var query = (QueryResolver)OpenIapClient.Instance;
+var mutation = (MutationResolver)OpenIapClient.Instance;
 
 // 1. Open the store connection on app start.
 await mutation.InitConnectionAsync();
@@ -321,7 +321,7 @@ var products = await query.FetchProductsAsync(new ProductRequest
 });
 
 // 3. Listen for purchase results.
-var subscription = Iap.Instance.PurchaseUpdated.Subscribe(async purchase =>
+var subscription = OpenIapClient.Instance.PurchaseUpdated.Subscribe(async purchase =>
 {
     // Verify on your backend, grant entitlement, then finish.
     await mutation.FinishTransactionAsync(

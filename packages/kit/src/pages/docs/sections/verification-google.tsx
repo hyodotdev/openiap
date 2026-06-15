@@ -15,7 +15,7 @@ export default function VerificationGooglePage() {
         authenticates with a Google Cloud service account you create once and
         grant narrow permissions to in Google Play Console. The client only
         forwards the opaque <code>purchaseToken</code> from Play Billing — the
-        server resolves product vs. subscription automatically using v2
+        IAPKit server resolves product vs. subscription automatically using v2
         endpoints.
       </p>
 
@@ -109,7 +109,8 @@ export default function VerificationGooglePage() {
   -H "Content-Type: application/json" \\
   -d '{
     "store": "google",
-    "purchaseToken": "ljhjpg..."
+    "purchaseToken": "ljhjpg...",
+    "expectedProductId": "premium_monthly"
   }'`}
       </CodeBlock>
 
@@ -120,6 +121,14 @@ export default function VerificationGooglePage() {
         <code>purchases.subscriptionsv2.get</code>. Either way your client just
         sends the opaque token — there's no need to tell IAPKit whether it's a
         one-shot or a subscription.
+      </p>
+      <p>
+        Google purchase tokens are opaque, so your app or backend should not try
+        to derive the product id from the token. IAPKit returns the{" "}
+        <code>productId</code> that Google verifies. If you already know which
+        product the user is trying to unlock, send{" "}
+        <code>expectedProductId</code> and IAPKit rejects the verification if
+        Google's product id differs.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Transient retries</h2>

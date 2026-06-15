@@ -1,6 +1,6 @@
 {
   "name": "react-native-iap",
-  "version": "15.3.1",
+  "version": "15.3.2",
   "description": "React Native In-App Purchases module for iOS and Android using Nitro",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
@@ -63,6 +63,7 @@
     "test:all": "yarn test:library && yarn test:example",
     "test:ci": "jest --maxWorkers=2 --coverage",
     "test:ci:example": "yarn workspace rn-iap-example test --coverage",
+    "verify:consumer-install": "node ../../scripts/verify-npm-consumer-install.mjs --package . --package-name react-native-iap --required openiap-versions.json --required lib/module/index.js --required lib/typescript/src/index.d.ts --required android/build.gradle --required NitroIap.podspec --required app.plugin.js --required nitro.json",
     "prepare:husky": "husky install",
     "precommit": "lint-staged",
     "ci:check": "./scripts/ci-check.sh",

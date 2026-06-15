@@ -22,6 +22,10 @@ import {
 } from "lucide-react";
 import ProjectCard from "./ProjectCard";
 import { ButtonPrimary } from "@/components/ButtonPrimary";
+import {
+  GeneratedApiKey,
+  GeneratedApiKeyNotice,
+} from "@/components/GeneratedApiKeyNotice";
 import { MixpanelEvent, trackEvent } from "@/lib/mixpanel";
 
 const PLATFORM_OPTIONS = [
@@ -118,6 +122,9 @@ export default function Projects() {
     "",
   );
   const [isCreating, setIsCreating] = useState(false);
+  const [revealedApiKey, setRevealedApiKey] = useState<GeneratedApiKey | null>(
+    null,
+  );
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,7 +132,7 @@ export default function Projects() {
 
     setIsCreating(true);
     try {
-      await createProject({
+      const result = await createProject({
         organizationId: currentOrg._id,
         name: newProjectName.trim(),
         slug: newProjectSlug.trim() || undefined,
@@ -139,7 +146,11 @@ export default function Projects() {
       setSlugManuallyEdited(false);
       setSelectedPlatform("");
       setShowCreateForm(false);
-      toast.success("Project created successfully!");
+      setRevealedApiKey({
+        name: "Default Production Key",
+        key: result.apiKey,
+      });
+      toast.success("Project created. Copy the default production key below.");
     } catch {
       toast.error("Failed to create project");
     } finally {
@@ -368,6 +379,13 @@ export default function Projects() {
             </div>
           </form>
         </div>
+      )}
+
+      {revealedApiKey && (
+        <GeneratedApiKeyNotice
+          apiKey={revealedApiKey}
+          onDismiss={() => setRevealedApiKey(null)}
+        />
       )}
 
       {/* Projects Grid */}

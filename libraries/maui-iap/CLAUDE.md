@@ -7,8 +7,11 @@ imports the generated [`Types.cs`](src/OpenIap.Maui/Types.cs) from
 (`IOpenIap`), and delegates the actual purchase work to the OpenIAP
 native packages — `packages/apple` on iOS / macCatalyst, `packages/google`
 on Android. It also exposes the same IAPKit HTTP/webhook helper surface as the
-TypeScript SDKs through `Iap.KitApi(...)`, `Iap.ConnectWebhookStream(...)`, and
-`Iap.ParseWebhookEventData(...)`.
+TypeScript SDKs through `OpenIapClient.KitApi(...)`,
+`OpenIapClient.ConnectWebhookStream(...)`, and
+`OpenIapClient.ParseWebhookEventData(...)`. The legacy `Iap` facade remains as
+a compatibility shim, but new code should use `OpenIapClient` to avoid
+namespace/type collisions with app namespaces such as `OpenIap.Maui.Iap`.
 
 ## Required pre-work
 
@@ -21,8 +24,9 @@ Before editing anything in this library:
    [`04-platform-packages.md`](../../knowledge/internal/04-platform-packages.md#sdk-parity-checklist-critical--prevents-declared-but-not-implemented).
 2. Read [`CONVENTION.md`](./CONVENTION.md) for C# / MAUI-specific naming
    and style rules.
-3. Run `dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -f net9.0` (the
-   shared TFM compiles without the MAUI workload) before pushing.
+3. Run `dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0`
+   and `dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0`
+   (the shared TFMs compile without the MAUI workload) before pushing.
 
 ## Project layout
 
@@ -34,8 +38,8 @@ libraries/maui-iap/
 ├── openiap-versions.json           — symlink for native spec/apple/google versions
 └── src/
     └── OpenIap.Maui/
-        ├── OpenIap.Maui.csproj     — multi-target (net9.0 + ios/android/maccatalyst)
-        ├── OpenIap.cs              — IOpenIap contract + static facade
+        ├── OpenIap.Maui.csproj     — multi-target (net9.0/net10.0 + ios/android/maccatalyst)
+        ├── OpenIap.cs              — IOpenIap contract + static facades
         ├── UnsupportedOpenIap.cs   — fallback for non-platform builds
         ├── Types.cs                — AUTO-GENERATED, do not edit
         └── Platforms/
@@ -138,9 +142,13 @@ so the main package flattens their outputs instead of declaring unpublished
 The package includes:
 
 - binding DLLs in `lib/<tfm>/`
-- Android AARs in `lib/net9.0-android35.0/`, including the binding support AAR
-  with Maven-resolved jars, the MAUI-owned module AAR, and the unbound
-  `openiap-play-release.aar` runtime dependency
+- Android AARs in `lib/net9.0-android35.0/` and
+  `lib/net10.0-android36.0/`, limited to OpenIAP-owned artifacts: the
+  MAUI-owned module AAR and the unbound `openiap-play-release.aar` runtime
+  dependency
+- Android Google Billing, Play Services, Gson, AndroidX, and Kotlin runtime
+  libraries as normal NuGet `PackageReference` dependencies, not embedded AAR
+  copies
 - iOS / macCatalyst `OpenIap.Maui.Bindings.iOS.resources.zip` sidecars
   next to the iOS binding DLLs
 
@@ -180,7 +188,8 @@ For maui-iap specifically:
 
 ```bash
 # Cross-platform shared compile (no MAUI workload required)
-dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -f net9.0
+dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0
+dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0
 
 # Full multi-target build (requires MAUI workload)
 dotnet workload install maui
@@ -192,7 +201,9 @@ dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj
 1. Regenerate types if `packages/gql/src/*.graphql` changed:
    `cd packages/gql && bun run generate`
 2. Run `bash scripts/sync-versions.sh` from repo root.
-3. Run `dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -f net9.0`.
+3. Run the shared compile checks:
+   `dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0`
+   and `dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0`.
 4. Verify `Types.cs` matches `packages/gql/src/generated/Types.cs`
    byte-for-byte (the sync should keep them in lockstep).
 

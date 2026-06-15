@@ -22,10 +22,11 @@ function MauiSetup() {
       <div className="alert-card alert-card--info">
         <p>
           <strong>Package shape:</strong> apps reference only{' '}
-          <code>OpenIap.Maui</code>. The Android binding, iOS binding, Google
-          Play Billing AARs, and StoreKit xcframework resources are flattened
-          into that package, so NuGet consumers do not add separate binding
-          packages or <code>NativeReference</code> entries.
+          <code>OpenIap.Maui</code>. OpenIAP-owned Android and iOS binding
+          outputs are flattened into that package. Google Billing, Play
+          Services, Gson, AndroidX, and Kotlin Android libraries stay as normal
+          NuGet dependencies so your app can deduplicate them with its own
+          package graph.
         </p>
       </div>
 
@@ -61,7 +62,7 @@ function MauiSetup() {
                 <strong>.NET</strong>
               </td>
               <td>
-                .NET 9 SDK and the MAUI workload:{' '}
+                .NET 9 or .NET 10 SDK and the MAUI workload:{' '}
                 <code>dotnet workload install maui</code>
               </td>
             </tr>
@@ -150,7 +151,11 @@ function MauiSetup() {
           <code>TargetFrameworks</code>:
         </p>
         <CodeBlock language="xml">
-          {`<TargetFrameworks>net9.0-ios;net9.0-android;net9.0-maccatalyst</TargetFrameworks>
+          {`<!-- .NET 9 apps -->
+<TargetFrameworks>net9.0-ios;net9.0-android;net9.0-maccatalyst</TargetFrameworks>
+
+<!-- .NET 10 apps -->
+<TargetFrameworks>net10.0-ios;net10.0-android;net10.0-maccatalyst</TargetFrameworks>
 
 <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
 <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
@@ -220,14 +225,14 @@ function MauiSetup() {
           </a>
         </h3>
         <p>
-          Use <code>Iap.Instance</code> as the entry point. Cast it to the
-          generated resolver interfaces when calling query or mutation APIs.
+          Use <code>OpenIapClient.Instance</code> as the entry point. Cast it to
+          the generated resolver interfaces when calling query or mutation APIs.
         </p>
         <CodeBlock language="csharp">
           {`using OpenIap;
 using OpenIap.Maui;
 
-var iap = Iap.Instance;
+var iap = OpenIapClient.Instance;
 var query = (QueryResolver)iap;
 var mutate = (MutationResolver)iap;
 
@@ -316,7 +321,7 @@ await mutate.RequestPurchaseAsync(new RequestPurchaseProps
           {`using OpenIap;
 using OpenIap.Maui;
 
-var kit = Iap.KitApi(new KitApiOptions
+var kit = OpenIapClient.KitApi(new KitApiOptions
 {
     ApiKey = "openiap-kit_<your-key>",
     BaseUrl = "https://kit.openiap.dev",
@@ -326,14 +331,14 @@ StatusResponse status = await kit.StatusAsync("user_123");
 EntitlementsResponse entitlements = await kit.EntitlementsAsync("user_123");
 BindUserResponse bind = await kit.BindUserAsync(purchase.PurchaseToken!, "user_123");
 
-using WebhookListener listener = Iap.ConnectWebhookStream(new WebhookListenerOptions
+using WebhookListener listener = OpenIapClient.ConnectWebhookStream(new WebhookListenerOptions
 {
     ApiKey = "openiap-kit_<your-key>",
     OnEvent = webhookEvent => Console.WriteLine(webhookEvent.Type),
     OnError = error => Console.WriteLine($"{error.Code}: {error.Message}"),
 });
 
-ParsedWebhookEventResult parsed = Iap.ParseWebhookEventData(rawSseData);`}
+ParsedWebhookEventResult parsed = OpenIapClient.ParseWebhookEventData(rawSseData);`}
         </CodeBlock>
 
         <h3 id="cleanup" className="anchor-heading">
@@ -385,6 +390,10 @@ dotnet build -t:Run -f net9.0-ios
 # macCatalyst
 dotnet build -t:Run -f net9.0-maccatalyst`}
         </CodeBlock>
+        <p>
+          Replace <code>net9.0-*</code> with <code>net10.0-*</code> when your
+          app targets .NET 10.
+        </p>
         <p>
           VS Code launch configurations are available in{' '}
           <code>libraries/maui-iap/.vscode/launch.json</code>. The iOS device

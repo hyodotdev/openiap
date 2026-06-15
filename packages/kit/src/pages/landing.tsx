@@ -205,7 +205,7 @@ export default function LandingPage() {
                   <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
                   <span>
                     {
-                      "Unlock local content or grant backend access only when IAPKit returns a valid response."
+                      "Unlock app content only when IAPKit returns a valid, store-verified response."
                     }
                   </span>
                 </li>
@@ -235,7 +235,8 @@ export default function LandingPage() {
                   <pre className="text-sm md:text-base w-full min-w-0">
                     <code className="block w-full min-w-0">{`{
   "isValid": true,
-  "state": "ENTITLED"
+  "state": "ENTITLED",
+  "productId": "premium_monthly"
 }`}</code>
                   </pre>
                 </div>

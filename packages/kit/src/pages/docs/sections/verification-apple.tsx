@@ -178,7 +178,8 @@ if (revocationDate !== undefined) {
       >
         {`{
   "isValid": false,
-  "state": "CANCELED"
+  "state": "CANCELED",
+  "productId": "premium_monthly"
 }`}
       </CodeBlock>
 

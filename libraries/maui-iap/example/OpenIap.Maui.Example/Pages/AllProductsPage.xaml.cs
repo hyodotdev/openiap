@@ -39,7 +39,7 @@ public partial class AllProductsPage : ContentPage
     {
         try
         {
-            var query = (QueryResolver)Iap.Instance;
+            var query = (QueryResolver)OpenIapClient.Instance;
 
             await IapLifecycle.InitConnectionAsync();
             ConnectionLabel.Text = "✅ Connected";

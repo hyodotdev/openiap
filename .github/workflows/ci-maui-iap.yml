@@ -41,7 +41,7 @@ env:
 
 jobs:
   compile-check:
-    name: Compile Check (net9.0 shared)
+    name: Compile Check (net9.0 / net10.0 shared)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -52,28 +52,30 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Setup .NET 9 SDK
-        uses: actions/setup-dotnet@v5
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: "10.0.x"
 
-      # The shared `net9.0` build is the fast lane — no AAR / xcframework, no
+      # The shared `net9.0` / `net10.0` builds are the fast lane — no AAR / xcframework, no
       # MAUI workload, no native binding csprojs in the project graph. Two
       # things make this work:
       #   1. `<UseMaui>` is conditional on having a platform identifier in
-      #      OpenIap.Maui.csproj, so the net9.0 TFM doesn't activate MAUI.
+      #      OpenIap.Maui.csproj, so the shared TFMs don't activate MAUI.
       #   2. `-p:TargetFrameworks=net9.0` (PLURAL — overrides the project's
       #      `<TargetFrameworks>` list to a single TFM). This must be plural,
       #      not `-p:TargetFramework=net9.0` (singular) or `-f net9.0`: those
       #      filter the inner BUILD but leave the implicit RESTORE walking
-      #      all 4 TFMs in the multi-target list, which loads the conditional
+      #      all platform TFMs in the multi-target list, which loads the conditional
       #      ProjectReferences to Bindings.Android / Bindings.iOS for
       #      restore-time evaluation and triggers NETSDK1147 / NETSDK1178.
-      - name: Build library (net9.0)
-        run: dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0 --nologo
+      - name: Build library (shared)
+        run: |
+          dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0 --nologo
+          dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0 --nologo
 
   android-binding:
-    name: Android binding (net9.0-android)
+    name: Android binding (net9.0-android + net10.0-android)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -87,10 +89,10 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup .NET 9 SDK
-        uses: actions/setup-dotnet@v5
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: "10.0.x"
 
       - name: Install MAUI workload
         run: dotnet workload install maui-android --skip-sign-check
@@ -115,11 +117,13 @@ jobs:
       - name: Build Android binding + library
         working-directory: libraries/maui-iap
         run: |
-          dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj --nologo
+          dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj -p:TargetFrameworks=net9.0-android --nologo
+          dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj -p:TargetFrameworks=net10.0-android --nologo
           dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0-android --nologo
+          dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0-android --nologo
 
   ios-binding:
-    name: iOS binding (net9.0-ios + maccatalyst)
+    name: iOS binding (net9.0/net10.0 ios + maccatalyst)
     runs-on: macos-15
     timeout-minutes: 45
     steps:
@@ -132,10 +136,10 @@ jobs:
         with:
           xcode-version: ${{ env.XCODE_VERSION }}
 
-      - name: Setup .NET 9 SDK
-        uses: actions/setup-dotnet@v5
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: "10.0.x"
 
       - name: Install MAUI workload
         run: dotnet workload install maui --skip-sign-check
@@ -155,10 +159,14 @@ jobs:
         working-directory: libraries/maui-iap/src/OpenIap.Maui.Bindings.iOS
         run: |
           dotnet build -p:TargetFrameworks=net9.0-ios --nologo
+          dotnet build -p:TargetFrameworks=net10.0-ios --nologo
           dotnet build -p:TargetFrameworks=net9.0-maccatalyst --nologo
+          dotnet build -p:TargetFrameworks=net10.0-maccatalyst --nologo
 
       - name: Build library (ios + maccatalyst)
         working-directory: libraries/maui-iap/src/OpenIap.Maui
         run: |
           dotnet build -p:TargetFrameworks=net9.0-ios --nologo
+          dotnet build -p:TargetFrameworks=net10.0-ios --nologo
           dotnet build -p:TargetFrameworks=net9.0-maccatalyst --nologo
+          dotnet build -p:TargetFrameworks=net10.0-maccatalyst --nologo

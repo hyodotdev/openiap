@@ -277,6 +277,9 @@ jobs:
             cp --remove-destination "$(readlink openiap-versions.json)" openiap-versions.json
           fi
 
+      - name: Consumer install smoke test
+        run: bun run verify:consumer-install --pack-ignore-scripts
+
       - name: Ensure npm CLI v11.5.1 or later (required for OIDC)
         run: npm install -g npm@11.5.1
 

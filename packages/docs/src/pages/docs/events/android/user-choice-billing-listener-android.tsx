@@ -174,11 +174,11 @@ subscription.cancel();`}</CodeBlock>
 using OpenIap.Maui;
 using System;
 
-using var subscription = Iap.Instance.UserChoiceBillingAndroid.Subscribe(details =>
+using var subscription = OpenIapClient.Instance.UserChoiceBillingAndroid.Subscribe(details =>
 {
     Console.WriteLine("User chose alternative billing");
     Console.WriteLine($"Products: {string.Join(", ", details.Products)}");
-    Console.WriteLine($"Token: {details.ExternalTransactionToken}");
+    Console.WriteLine("External transaction token received; send it to your backend without logging it.");
 
     // Process payment with your backend.
     _ = ProcessUserChoiceBillingAsync(details);

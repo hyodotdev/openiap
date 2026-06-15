@@ -133,7 +133,7 @@ if (result.isValid) {
               <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var result = await ((MutationResolver)Iap.Instance).VerifyPurchaseAsync(
+var result = await ((MutationResolver)OpenIapClient.Instance).VerifyPurchaseAsync(
     new VerifyPurchaseProps
     {
         Google = new VerifyPurchaseGoogleOptions

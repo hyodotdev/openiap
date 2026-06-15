@@ -511,7 +511,7 @@ await iap.endConnection();`}</CodeBlock>
                 <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var iap = Iap.Instance;
+var iap = OpenIapClient.Instance;
 var query = (QueryResolver)iap;
 var mutation = (MutationResolver)iap;
 

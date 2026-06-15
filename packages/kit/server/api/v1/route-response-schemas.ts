@@ -60,6 +60,14 @@ const unifiedPurchaseStateSchema = v.union(
 const baseReceiptResponseSchema = v.object({
   isValid: v.boolean(),
   state: unifiedPurchaseStateSchema,
+  productId: v.optional(
+    v.pipe(
+      v.string(),
+      v.description(
+        "Product id verified by the upstream store. For Meta Horizon this is the SKU IAPKit checked.",
+      ),
+    ),
+  ),
 });
 
 export const verifyPurchaseSuccessResponseSchema = v.pipe(

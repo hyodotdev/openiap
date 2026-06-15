@@ -28,8 +28,17 @@ jobs:
           channel: "stable"
           flutter-version: "3.41.9"
 
+      - name: Setup Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Android consumer build smoke test
+        run: bash scripts/verify-android-consumer-build.sh
 
       - name: Check if pub.dev package already published
         id: check_pub

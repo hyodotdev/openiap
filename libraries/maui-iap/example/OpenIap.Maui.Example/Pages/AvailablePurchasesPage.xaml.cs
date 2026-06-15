@@ -60,7 +60,7 @@ public partial class AvailablePurchasesPage : ContentPage
 
         try
         {
-            var query = (QueryResolver)Iap.Instance;
+            var query = (QueryResolver)OpenIapClient.Instance;
             await query.FetchProductsAsync(new ProductRequest
             {
                 Skus = Constants.SubscriptionProductIds,
@@ -170,7 +170,7 @@ public partial class AvailablePurchasesPage : ContentPage
     {
         try
         {
-            var mutate = (MutationResolver)Iap.Instance;
+            var mutate = (MutationResolver)OpenIapClient.Instance;
             var sku = _active.FirstOrDefault()?.ProductId ?? Constants.DefaultSubscriptionProductId;
             await mutate.DeepLinkToSubscriptionsAsync(new DeepLinkOptions
             {
@@ -194,7 +194,7 @@ public partial class AvailablePurchasesPage : ContentPage
     {
         try
         {
-            var query = (QueryResolver)Iap.Instance;
+            var query = (QueryResolver)OpenIapClient.Instance;
             var storefront = await query.GetStorefrontAsync();
             StorefrontLabel.Text = $"Storefront: {storefront ?? string.Empty}";
             StorefrontLabel.IsVisible = !string.IsNullOrEmpty(storefront);

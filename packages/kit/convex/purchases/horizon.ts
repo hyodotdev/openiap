@@ -157,7 +157,7 @@ export const verifyMetaHorizonReceiptInternalV1 = action({
       verificationDurationMs: Date.now() - verificationStart,
     });
 
-    return { isValid: isValidState(state), state };
+    return { isValid: isValidState(state), state, productId: args.sku };
   },
 });
 

@@ -27,6 +27,20 @@ describe("hashPayload", () => {
     expect(apple).not.toBe(google);
   });
 
+  test("distinguishes product match guards for the same store token", () => {
+    const left = hashPayload({
+      store: "google",
+      purchaseToken: "same-token",
+      expectedProductId: "premium_monthly",
+    });
+    const right = hashPayload({
+      store: "google",
+      purchaseToken: "same-token",
+      expectedProductId: "coins_100",
+    });
+    expect(left).not.toBe(right);
+  });
+
   test("distinguishes Horizon (userId, sku) pairs with a separator", () => {
     // Without the `\0` separator between userId and sku,
     // ("ab", "c") and ("a", "bc") would hash to the same input.

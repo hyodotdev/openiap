@@ -49,7 +49,7 @@ val purchaseErrors: Flow<PurchaseError>`}</CodeBlock>
 using OpenIap.Maui;
 using System;
 
-IObservable<PurchaseError> purchaseErrors = Iap.Instance.PurchaseError;`}</CodeBlock>
+IObservable<PurchaseError> purchaseErrors = OpenIapClient.Instance.PurchaseError;`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
@@ -211,7 +211,7 @@ subscription.cancel();`}</CodeBlock>
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var subscription = Iap.Instance.PurchaseError.Subscribe(async error =>
+var subscription = OpenIapClient.Instance.PurchaseError.Subscribe(async error =>
 {
     Console.WriteLine($"Purchase error: {error.Code} - {error.Message}");
 
@@ -222,7 +222,7 @@ var subscription = Iap.Instance.PurchaseError.Subscribe(async error =>
             break;
         case ErrorCode.AlreadyOwned:
             // Restore purchases instead.
-            await ((MutationResolver)Iap.Instance).RestorePurchasesAsync();
+            await ((MutationResolver)OpenIapClient.Instance).RestorePurchasesAsync();
             break;
         case ErrorCode.NetworkError:
             ShowRetryDialog();

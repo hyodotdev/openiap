@@ -261,28 +261,28 @@ await FlutterInappPurchase.instance.initConnection();`}</CodeBlock>
 using OpenIap.Maui;
 
 // Initialize with user choice billing (7.0+)
-await ((MutationResolver)Iap.Instance).InitConnectionAsync(
+await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(
     new InitConnectionConfig
     {
         EnableBillingProgramAndroid = BillingProgramAndroid.UserChoiceBilling,
     });
 
 // Initialize with external offer (alternative only)
-await ((MutationResolver)Iap.Instance).InitConnectionAsync(
+await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(
     new InitConnectionConfig
     {
         EnableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer,
     });
 
 // Initialize with external payments (Japan only, 8.3.0+)
-await ((MutationResolver)Iap.Instance).InitConnectionAsync(
+await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(
     new InitConnectionConfig
     {
         EnableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments,
     });
 
 // Standard billing (default)
-await ((MutationResolver)Iap.Instance).InitConnectionAsync();`}</CodeBlock>
+await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync();`}</CodeBlock>
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`# Initialize with user choice billing (7.0+)
@@ -470,7 +470,7 @@ userChoiceSubscription.cancel();`}</CodeBlock>
 using OpenIap.Maui;
 
 // Step 1: Set up listener for when user selects alternative billing.
-var userChoiceSubscription = Iap.Instance.UserChoiceBillingAndroid.Subscribe(async details =>
+var userChoiceSubscription = OpenIapClient.Instance.UserChoiceBillingAndroid.Subscribe(async details =>
 {
     Console.WriteLine("User chose alternative billing");
     Console.WriteLine($"Products: {string.Join(", ", details.Products)}");
@@ -487,20 +487,20 @@ var userChoiceSubscription = Iap.Instance.UserChoiceBillingAndroid.Subscribe(asy
 });
 
 // Step 2: Initialize with user choice billing (recommended).
-await ((MutationResolver)Iap.Instance).InitConnectionAsync(new InitConnectionConfig
+await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(new InitConnectionConfig
 {
     EnableBillingProgramAndroid = BillingProgramAndroid.UserChoiceBilling,
 });
 
 // Step 3: Fetch products and purchase as normal.
-await ((QueryResolver)Iap.Instance).FetchProductsAsync(new ProductRequest
+await ((QueryResolver)OpenIapClient.Instance).FetchProductsAsync(new ProductRequest
 {
     Skus = new[] { "premium_subscription" },
     Type = ProductQueryType.Subs,
 });
 
 // Step 4: Request purchase - dialog will show both options.
-await ((MutationResolver)Iap.Instance).RequestPurchaseAsync(new RequestPurchaseProps
+await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new RequestPurchaseProps
 {
     Type = ProductQueryType.Subs,
     RequestSubscription = new RequestSubscriptionPropsByPlatforms
@@ -728,14 +728,14 @@ using OpenIap.Maui;
 using System.Linq;
 
 // Step 1: Initialize with external offer (recommended).
-await ((MutationResolver)Iap.Instance).InitConnectionAsync(new InitConnectionConfig
+await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(new InitConnectionConfig
 {
     EnableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer,
 });
 
 // Step 2: Check if alternative billing is available.
 var isAvailable =
-    await ((MutationResolver)Iap.Instance).CheckAlternativeBillingAvailabilityAndroidAsync();
+    await ((MutationResolver)OpenIapClient.Instance).CheckAlternativeBillingAvailabilityAndroidAsync();
 if (!isAvailable)
 {
     Console.WriteLine("Alternative billing not available in this region");
@@ -743,7 +743,7 @@ if (!isAvailable)
 }
 
 // Step 3: Fetch products (still needed to show prices).
-var result = await ((QueryResolver)Iap.Instance).FetchProductsAsync(new ProductRequest
+var result = await ((QueryResolver)OpenIapClient.Instance).FetchProductsAsync(new ProductRequest
 {
     Skus = new[] { "premium_subscription" },
     Type = ProductQueryType.Subs,
@@ -754,7 +754,7 @@ var product = result is FetchProductsResultSubscriptions subscriptions
 
 // Step 4: Show required Google Play disclosure dialog.
 var accepted =
-    await ((MutationResolver)Iap.Instance).ShowAlternativeBillingDialogAndroidAsync();
+    await ((MutationResolver)OpenIapClient.Instance).ShowAlternativeBillingDialogAndroidAsync();
 if (!accepted || product is null)
 {
     Console.WriteLine("User did not accept alternative billing");
@@ -763,7 +763,7 @@ if (!accepted || product is null)
 
 // Step 5: Create token for this transaction.
 var token =
-    await ((MutationResolver)Iap.Instance).CreateAlternativeBillingTokenAndroidAsync();
+    await ((MutationResolver)OpenIapClient.Instance).CreateAlternativeBillingTokenAndroidAsync();
 
 // Step 6: Process purchase with your backend.
 var paymentResult = await ProcessAlternativePurchaseAsync(

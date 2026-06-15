@@ -29,6 +29,17 @@ Complete workflow: branch → commit → push → PR
 
 ## Complete Workflow
 
+### Internal Workflow Guard
+
+If the staged changes only touch internal agent/workflow files, do not push or
+create a PR unless the user explicitly asked to publish, PR, or merge them.
+Internal workflow files include `.claude/commands/`, `.codex/skills/`,
+`AGENTS.md`, `CLAUDE.md`, and agent automation notes.
+
+For those internal-only changes, prefer a local commit or local working-tree
+change and report the files changed. If the user explicitly asks to open or
+merge a PR anyway, add appropriate labels before merging.
+
 ### 1. Check Branch
 
 ```bash

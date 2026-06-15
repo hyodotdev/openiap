@@ -58,7 +58,7 @@ public partial class OfferCodePage : ContentPage
 #if IOS || MACCATALYST
         try
         {
-            var mutate = (MutationResolver)Iap.Instance;
+            var mutate = (MutationResolver)OpenIapClient.Instance;
             var presented = await mutate.PresentCodeRedemptionSheetIOSAsync();
             ResultPanel.IsVisible = true;
             ResultLabel.Text = presented

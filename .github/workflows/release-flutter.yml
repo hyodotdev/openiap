@@ -67,6 +67,10 @@ jobs:
         working-directory: libraries/flutter_inapp_purchase/example
         run: flutter build apk --debug
 
+      - name: Android consumer build smoke test
+        working-directory: libraries/flutter_inapp_purchase
+        run: bash scripts/verify-android-consumer-build.sh
+
   validate-ios:
     if: github.ref == 'refs/heads/main'
     runs-on: macos-15

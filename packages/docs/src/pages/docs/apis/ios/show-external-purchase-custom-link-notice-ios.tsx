@@ -153,7 +153,7 @@ if (Platform.OS === 'ios') {
 using OpenIap.Maui;
 
 // kmp-iap (iOS targets only — no-op on Android)
-var result = await ((MutationResolver)Iap.Instance).ShowExternalPurchaseCustomLinkNoticeIOSAsync(
+var result = await ((MutationResolver)OpenIapClient.Instance).ShowExternalPurchaseCustomLinkNoticeIOSAsync(
     ExternalPurchaseCustomLinkNoticeTypeIOS.Browser);`}</CodeBlock>
           ),
           gdscript: (

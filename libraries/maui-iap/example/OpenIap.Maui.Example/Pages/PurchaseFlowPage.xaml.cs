@@ -36,8 +36,8 @@ public partial class PurchaseFlowPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
-        _purchaseSub ??= Iap.Instance.PurchaseUpdated.Subscribe(p => MainThread.BeginInvokeOnMainThread(() => OnPurchase(p)));
-        _errorSub ??= Iap.Instance.PurchaseError.Subscribe(err => MainThread.BeginInvokeOnMainThread(() => OnPurchaseError(err)));
+        _purchaseSub ??= OpenIapClient.Instance.PurchaseUpdated.Subscribe(p => MainThread.BeginInvokeOnMainThread(() => OnPurchase(p)));
+        _errorSub ??= OpenIapClient.Instance.PurchaseError.Subscribe(err => MainThread.BeginInvokeOnMainThread(() => OnPurchaseError(err)));
         await ConnectAndFetchAsync();
     }
 
@@ -81,7 +81,7 @@ public partial class PurchaseFlowPage : ContentPage
     {
         try
         {
-            var query = (QueryResolver)Iap.Instance;
+            var query = (QueryResolver)OpenIapClient.Instance;
             var result = await query.FetchProductsAsync(new ProductRequest
             {
                 Skus = Constants.ProductIds,
@@ -109,7 +109,7 @@ public partial class PurchaseFlowPage : ContentPage
         StorefrontRefreshButton.Text = "Refreshing storefront...";
         try
         {
-            var query = (QueryResolver)Iap.Instance;
+            var query = (QueryResolver)OpenIapClient.Instance;
             var storefront = await query.GetStorefrontAsync().WaitAsync(TimeSpan.FromSeconds(10));
             StorefrontValueLabel.Text = string.IsNullOrEmpty(storefront) ? "Not available" : storefront;
             StorefrontErrorLabel.IsVisible = false;
@@ -140,7 +140,7 @@ public partial class PurchaseFlowPage : ContentPage
         RefreshPurchasesButton.Text = "Refreshing purchases...";
         try
         {
-            var query = (QueryResolver)Iap.Instance;
+            var query = (QueryResolver)OpenIapClient.Instance;
             var purchases = await query.GetAvailablePurchasesAsync(new PurchaseOptions
             {
                 OnlyIncludeActiveItemsIOS = true,
@@ -318,7 +318,7 @@ public partial class PurchaseFlowPage : ContentPage
         RenderProducts();
         try
         {
-            var mutate = (MutationResolver)Iap.Instance;
+            var mutate = (MutationResolver)OpenIapClient.Instance;
             var requestTask = mutate.RequestPurchaseAsync(new RequestPurchaseProps
             {
                 RequestPurchase = new RequestPurchasePropsByPlatforms
@@ -391,7 +391,7 @@ public partial class PurchaseFlowPage : ContentPage
         {
             try
             {
-                var mutate = (MutationResolver)Iap.Instance;
+                var mutate = (MutationResolver)OpenIapClient.Instance;
                 if (_verification == VerificationMethod.Local)
                 {
                     var result = await mutate.VerifyPurchaseAsync(new VerifyPurchaseProps
@@ -453,7 +453,7 @@ public partial class PurchaseFlowPage : ContentPage
     {
         try
         {
-            var mutate = (MutationResolver)Iap.Instance;
+            var mutate = (MutationResolver)OpenIapClient.Instance;
             await mutate.FinishTransactionAsync(
                 purchase: new PurchaseInput(purchase),
                 isConsumable: isConsumable).WaitAsync(TimeSpan.FromSeconds(10));
@@ -525,7 +525,7 @@ public partial class PurchaseFlowPage : ContentPage
 #if IOS || MACCATALYST
         try
         {
-            var query = (QueryResolver)Iap.Instance;
+            var query = (QueryResolver)OpenIapClient.Instance;
             var t = await query.GetAppTransactionIOSAsync();
             if (t is null)
             {

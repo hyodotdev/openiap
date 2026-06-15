@@ -453,6 +453,47 @@ final class OpenIapTests: XCTestCase {
         XCTAssertNil(decoded.advancedCommerceData)
     }
 
+    @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
+    func testResolvePurchasePropsUsesAppleAlias() throws {
+        let props = RequestPurchaseProps(
+            request: .purchase(RequestPurchasePropsByPlatforms(
+                apple: RequestPurchaseIosProps(sku: "dev.hyo.apple"),
+                ios: RequestPurchaseIosProps(sku: "dev.hyo.legacy")
+            ))
+        )
+
+        let resolved = try OpenIapModule.shared.resolveIOSPurchaseProps(from: props)
+
+        XCTAssertEqual(resolved.sku, "dev.hyo.apple")
+    }
+
+    @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
+    func testResolvePurchasePropsFallsBackToLegacyIosAlias() throws {
+        let props = RequestPurchaseProps(
+            request: .purchase(RequestPurchasePropsByPlatforms(
+                ios: RequestPurchaseIosProps(sku: "dev.hyo.legacy")
+            ))
+        )
+
+        let resolved = try OpenIapModule.shared.resolveIOSPurchaseProps(from: props)
+
+        XCTAssertEqual(resolved.sku, "dev.hyo.legacy")
+    }
+
+    @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
+    func testResolveSubscriptionPropsUsesAppleAlias() throws {
+        let props = RequestPurchaseProps(
+            request: .subscription(RequestSubscriptionPropsByPlatforms(
+                apple: RequestSubscriptionIosProps(sku: "dev.hyo.sub.apple"),
+                ios: RequestSubscriptionIosProps(sku: "dev.hyo.sub.legacy")
+            ))
+        )
+
+        let resolved = try OpenIapModule.shared.resolveIOSPurchaseProps(from: props)
+
+        XCTAssertEqual(resolved.sku, "dev.hyo.sub.apple")
+    }
+
     func testAdvancedCommerceDataJSONSerialization() throws {
         let props = RequestPurchaseIosProps(
             advancedCommerceData: "promo_code_abc",

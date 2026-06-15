@@ -38,13 +38,13 @@ function kotlinToCSharp(kotlin) {
   );
 
   // Call sites: `openIapStore.x(`, `kmpIAP.x(`, `kmpIapInstance.x(`, `iap.x(` →
-  // `await ((QueryResolver)Iap.Instance).XAsync(` (best-effort; reader can
+  // `await ((QueryResolver)OpenIapClient.Instance).XAsync(` (best-effort; reader can
   // swap to MutationResolver where appropriate).
   s = s.replace(
     /\b(openIapStore|kmpIAP|kmpIapInstance|iap)\.([a-z][A-Za-z0-9]*)\(/g,
     (_m, _recv, method) => {
       const csName = method[0].toUpperCase() + method.slice(1) + 'Async';
-      return `await ((QueryResolver)Iap.Instance).${csName}(`;
+      return `await ((QueryResolver)OpenIapClient.Instance).${csName}(`;
     }
   );
 

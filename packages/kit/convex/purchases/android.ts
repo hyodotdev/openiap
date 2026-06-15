@@ -9,6 +9,7 @@ import { Id } from "../_generated/dataModel";
 import {
   getProjectByApiKey,
   mapToGooglePlayReceiptResponse,
+  applyExpectedProductId,
   GooglePlayReceiptData,
   receiptResponseValidator,
   isValidState,
@@ -42,6 +43,7 @@ export const verifyGooglePlayReceiptInternalV1 = action({
   args: {
     apiKey: v.string(),
     purchaseToken: v.string(),
+    expectedProductId: v.optional(v.string()),
     requestIp: v.optional(v.string()),
   },
   returns: receiptResponseValidator,
@@ -78,9 +80,16 @@ export const verifyGooglePlayReceiptInternalV1 = action({
 
     const keyData = parseAndValidateServiceAccountKey(fileContent.content);
 
-    let requestData = {
+    const requestData: {
+      store: "google";
+      purchaseToken: string;
+      expectedProductId?: string;
+    } = {
       store: "google" as const,
       purchaseToken: args.purchaseToken,
+      ...(args.expectedProductId !== undefined
+        ? { expectedProductId: args.expectedProductId }
+        : {}),
     };
 
     try {
@@ -100,12 +109,13 @@ export const verifyGooglePlayReceiptInternalV1 = action({
           purchaseToken: args.purchaseToken,
         });
 
-      requestData = {
-        store: "google" as const,
-        purchaseToken: args.purchaseToken,
-      };
-
-      const receiptResponse = mapToGooglePlayReceiptResponse(receiptData);
+      // Persist the store-verified purchase state; `expectedProductId`
+      // mismatch is caller-scoped and should not corrupt purchase logs.
+      const storeReceiptResponse = mapToGooglePlayReceiptResponse(receiptData);
+      const receiptResponse = applyExpectedProductId(
+        storeReceiptResponse,
+        args.expectedProductId,
+      );
 
       await ctx.runMutation(internal.purchases.internal.saveReceiptInternal, {
         projectId: project._id,
@@ -114,8 +124,8 @@ export const verifyGooglePlayReceiptInternalV1 = action({
         remoteId: receiptData.purchaseToken,
         requestData,
         remoteResponse,
-        state: receiptResponse.state,
-        isValid: isValidState(receiptResponse.state),
+        state: storeReceiptResponse.state,
+        isValid: isValidState(storeReceiptResponse.state),
         requestIp: args.requestIp,
         verificationDurationMs: Date.now() - verificationStart,
       });
@@ -467,6 +477,7 @@ async function persistFailedGoogleReceipt(
     requestData: {
       store: "google";
       purchaseToken: string;
+      expectedProductId?: string;
     };
     requestIp?: string;
     error: ReceiptVerificationError;
