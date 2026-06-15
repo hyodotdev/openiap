@@ -590,7 +590,7 @@ await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(new InitCon
 // Listen for developer billing selection.
 using var subscription = OpenIapClient.Instance.DeveloperProvidedBillingAndroid.Subscribe(details =>
 {
-    Console.WriteLine($"Token: {details.ExternalTransactionToken}");
+    Console.WriteLine("External transaction token received; send it to your backend without logging it.");
     // Report token to Google via your backend within 24 hours.
 });
 
