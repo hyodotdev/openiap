@@ -21,6 +21,7 @@ settings:
     MARKETING_VERSION: "$(OPENIAP_MARKETING_VERSION)"
     CURRENT_PROJECT_VERSION: "1"
     SUPPORTED_PLATFORMS: "iphoneos iphonesimulator macosx"
+    LD_DYLIB_INSTALL_NAME: "@rpath/$(EXECUTABLE_PATH)"
 targets:
   OpenIAP:
     type: framework
