@@ -116,14 +116,14 @@ function promptBlock(time) {
         strokeWidth: 1.4,
       })}
       <rect x="86" y="280" width="4" height="104" rx="2" fill="#77bdfb"/>
-      ${text('Prompt', 116, 293, {
+      ${text('Prompt', 116, 287, {
         size: 26,
         weight: 760,
         fill: '#8fc9ff',
       })}
       ${lines
         .map(([line, start], index) =>
-          text(line, 116, 340 + index * 37, {
+          text(line, 116, 322 + index * 34, {
             size: 27,
             weight: 530,
             fill: '#edf4ff',
@@ -173,11 +173,15 @@ const steps = [
 ];
 
 function stepRows(time) {
+  const rowStartY = 430;
+  const rowGap = 51;
+  const rowHeight = 38;
+
   return steps
     .map((step, index) => {
-      const y = 444 + index * 52;
+      const y = rowStartY + index * rowGap;
       const show = fade(time, step.start, 0.5);
-      const done = time > step.start + 1.6;
+      const done = time >= step.start + 1.6;
       const active = time >= step.start && time < step.start + 1.6;
       const fill = active ? '#1a4e73' : '#151923';
       const stroke = active ? '#4aa9e9' : '#2b3444';
@@ -185,30 +189,30 @@ function stepRows(time) {
 
       return `
         <g opacity="${show}" transform="translate(0 ${Math.round((1 - show) * 10)})">
-          ${roundedRect(86, y, 990, 46, {
-            rx: 16,
+          ${roundedRect(86, y, 990, rowHeight, {
+            rx: 15,
             fill,
             stroke,
             strokeWidth: active ? 2 : 1.2,
           })}
-          ${roundedRect(106, y + 10, 27, 27, {
-            rx: 13.5,
+          ${roundedRect(106, y + 6.5, 25, 25, {
+            rx: 12.5,
             fill: active ? '#79beff' : '#53637a',
             stroke: 'none',
           })}
-          ${text(String(index + 1), 119.5, y + 24, {
-            size: 14,
+          ${text(String(index + 1), 118.5, y + 19.5, {
+            size: 13,
             weight: 800,
             fill: active ? '#0c1c2b' : '#c9d5e8',
             anchor: 'middle',
           })}
-          ${text(step.label, 150, y + 24, {
-            size: 22,
+          ${text(step.label, 150, y + 19.5, {
+            size: 20,
             weight: 760,
             fill: '#f1f6ff',
           })}
-          ${text(`${step.result}${done ? ' OK' : ''}`, 610, y + 24, {
-            size: 22,
+          ${text(`${step.result}${done ? ' OK' : ''}`, 610, y + 19.5, {
+            size: 20,
             weight: 720,
             fill: done || active ? '#b8f1ce' : '#cbd4e3',
             opacity: resultOpacity,
@@ -372,80 +376,80 @@ function purchaseSheet(opacity) {
   return `
     <g opacity="${opacity}">
       <rect x="1196" y="154" width="355" height="686" fill="#000000" opacity="0.58"/>
-      ${roundedRect(1206, 436, 336, 360, {
+      ${roundedRect(1206, 390, 336, 370, {
         rx: 36,
         fill: '#1f1f1f',
         stroke: '#393939',
         strokeWidth: 1.2,
       })}
-      ${text('Sandbox', 1230, 474, {
+      ${text('Sandbox', 1230, 428, {
         size: 21,
         weight: 780,
         fill: '#ffffff',
       })}
-      <circle cx="1508" cy="472" r="22" fill="#3a3a3a"/>
-      ${text('x', 1508, 474, {
+      <circle cx="1508" cy="426" r="22" fill="#3a3a3a"/>
+      ${text('x', 1508, 428, {
         size: 27,
         weight: 360,
         fill: '#f4f4f4',
         anchor: 'middle',
       })}
-      ${roundedRect(1228, 503, 292, 170, {
+      ${roundedRect(1228, 457, 292, 160, {
         rx: 20,
         fill: '#494947',
         stroke: 'none',
       })}
-      <rect x="1243" y="520" width="57" height="57" fill="#f5f5f5"/>
-      ${text('E', 1271, 550, {
+      <rect x="1243" y="474" width="57" height="57" fill="#f5f5f5"/>
+      ${text('E', 1271, 504, {
         size: 32,
         weight: 850,
         fill: '#1d1d1f',
         anchor: 'middle',
       })}
-      ${text('10 Bulbs', 1314, 529, {
+      ${text('10 Bulbs', 1314, 483, {
         size: 15,
         weight: 780,
         fill: '#ffffff',
       })}
-      ${text('Example App', 1314, 548, {
+      ${text('Example App', 1314, 502, {
         size: 12,
         weight: 520,
         fill: '#d8d8d8',
       })}
-      ${text('In-App Purchase', 1314, 566, {
+      ${text('In-App Purchase', 1314, 520, {
         size: 12,
         weight: 520,
         fill: '#d8d8d8',
       })}
-      <line x1="1243" y1="592" x2="1505" y2="592" stroke="#5b5b59" stroke-width="1"/>
-      ${text('₩1,100', 1243, 620, {
+      <line x1="1243" y1="546" x2="1505" y2="546" stroke="#5b5b59" stroke-width="1"/>
+      ${text('₩1,100', 1243, 574, {
         size: 17,
         weight: 800,
         fill: '#ffffff',
       })}
-      ${text('One-time charge', 1243, 642, {
+      ${text('One-time charge', 1243, 596, {
         size: 13,
         weight: 520,
         fill: '#d8d8d8',
       })}
-      ${text('For testing purposes only. You will not be charged', 1243, 680, {
+      ${text('For testing purposes only. You will not be charged', 1243, 630, {
         size: 12,
         weight: 520,
         fill: '#ffffff',
       })}
-      ${text('for confirming this purchase.', 1243, 697, {
+      ${text('for confirming this purchase.', 1243, 647, {
         size: 12,
         weight: 520,
         fill: '#ffffff',
       })}
-      <line x1="1243" y1="718" x2="1505" y2="718" stroke="#5b5b59" stroke-width="1"/>
-      ${text('Account: sandbox@example.com', 1243, 740, {
+      <line x1="1243" y1="670" x2="1505" y2="670" stroke="#5b5b59" stroke-width="1"/>
+      ${text('Account: sandbox@example.com', 1243, 692, {
         size: 12,
         weight: 520,
         fill: '#d8d8d8',
       })}
-      <circle cx="1374" cy="766" r="17" fill="none" stroke="#0a84ff" stroke-width="3"/>
-      ${text('Confirm with Side Button', 1374, 804, {
+      <circle cx="1374" cy="724" r="17" fill="none" stroke="#0a84ff" stroke-width="3"/>
+      ${text('Confirm with Side Button', 1374, 753, {
         size: 15,
         weight: 580,
         fill: '#c6c6c6',
@@ -530,9 +534,22 @@ try {
       `frame-${String(frame).padStart(4, '0')}.png`
     );
     writeFileSync(svgPath, renderFrame(time));
-    execFileSync('sips', ['-s', 'format', 'png', svgPath, '--out', pngPath], {
-      stdio: 'ignore',
-    });
+    try {
+      execFileSync('sips', ['-s', 'format', 'png', svgPath, '--out', pngPath], {
+        stdio: 'pipe',
+      });
+    } catch (error) {
+      const stderr =
+        error && typeof error === 'object' && 'stderr' in error
+          ? String(error.stderr)
+          : error instanceof Error
+            ? error.message
+            : String(error);
+      console.error(
+        `Failed to render frame ${frame} at ${time.toFixed(2)}s: ${stderr}`
+      );
+      throw error;
+    }
   }
 
   if (existsSync(outputPath)) {
