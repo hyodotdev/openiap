@@ -473,6 +473,54 @@ describe("remote MCP HTTP server", () => {
       else process.env.IAPKIT_BASE_URL = previousBaseUrl;
     }
   });
+
+  it("redacts API keys from partial diagnostic errors", async () => {
+    const apiKey = "openiap-kit_secret_diagnostic";
+    const previousBaseUrl = process.env.IAPKIT_BASE_URL;
+    process.env.IAPKIT_BASE_URL = await startKitApi((req, res) => {
+      if (req.url === "/health") {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ ok: true }));
+        return;
+      }
+
+      res.writeHead(500, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          error: `upstream saw bearer key ${apiKey}`,
+          path: req.url,
+        }),
+      );
+    });
+
+    try {
+      const { baseUrl, sessionId } = await initializeMcpSession(apiKey);
+      const response = await postMcp(
+        baseUrl,
+        {
+          jsonrpc: "2.0",
+          id: 2,
+          method: "tools/call",
+          params: {
+            name: "iapkit_troubleshoot",
+            arguments: { sampleUserId: "user_1" },
+          },
+        },
+        sessionId,
+        { authorization: `Bearer ${apiKey}` },
+      );
+      const callBody = await response.text();
+
+      expect(callBody).not.toContain(apiKey);
+      expect(callBody).toContain("<IAPKIT_API_KEY>");
+      expect(callBody).toContain("/v1/subscriptions/metrics/");
+      expect(callBody).toContain("/v1/subscriptions/status/");
+      expect(callBody).toContain("/v1/subscriptions/entitlements/");
+    } finally {
+      if (previousBaseUrl === undefined) delete process.env.IAPKIT_BASE_URL;
+      else process.env.IAPKIT_BASE_URL = previousBaseUrl;
+    }
+  });
 });
 
 async function startServer(): Promise<string> {

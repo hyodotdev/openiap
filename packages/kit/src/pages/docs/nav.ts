@@ -75,7 +75,8 @@ export const DOCS_NAV: DocsNavEntry[] = [
       {
         slug: "ai-assistants/codex-plugin",
         title: "Codex plugin",
-        summary: "Connect Codex to IAPKit through the /mcp endpoint.",
+        summary:
+          "Kit endpoint and key reference; full MCP guide lives in OpenIAP docs.",
       },
     ],
   },

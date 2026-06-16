@@ -20,13 +20,13 @@ export const BLOG_AUTHOR = {
 export const POSTS: BlogPost[] = [
   {
     slug: "iapkit-joins-openiap",
-    title: "IAPKit joins OpenIAP. The API is now free for everyone.",
+    title: "IAPKit joins OpenIAP. Validation is now free.",
     date: "2026-04-22",
     readingTime: "4 min read",
     excerpt:
-      "We're moving IAPKit under OpenIAP and dropping every paywall. Receipt validation is the ground floor of IAP — it shouldn't be a tier you pay for.",
+      "We're moving IAPKit under OpenIAP and making receipt validation and analytics free. Receipt validation is the ground floor of IAP — it shouldn't be a tier you pay for.",
     description:
-      "IAPKit is joining OpenIAP and going completely free. No paywall, no plans, no usage limits on App Store, Google Play, and Meta Horizon receipt validation.",
+      "IAPKit is joining OpenIAP. App Store, Google Play, and Meta Horizon receipt validation and analytics are free, while future AI-assisted workflows may use separate usage-based pricing.",
     keywords: [
       "IAPKit",
       "OpenIAP",

@@ -28,15 +28,19 @@ const RELEASES: ReleaseEntry[] = [
   {
     version: "1.2.0",
     date: "2026-04-22",
-    tagline: "IAPKit joins OpenIAP. API is now free for everyone, no paywall.",
+    tagline: "IAPKit joins OpenIAP. Validation and analytics are now free.",
     items: [
       {
         kind: "feature",
-        text: "IAPKit is now an OpenIAP project. Receipt validation is free for every developer, no usage caps, no credit card required.",
+        text: "IAPKit is now an OpenIAP project. Receipt validation and analytics are free for every developer, no credit card required.",
       },
       {
         kind: "feature",
-        text: "Community sponsorship replaces paid plans. If your team or company depends on IAPKit, support the project at openiap.dev/sponsors.",
+        text: "Community sponsorship replaces paid validation plans. If your team or company depends on IAPKit, support the project at openiap.dev/sponsors.",
+      },
+      {
+        kind: "ops",
+        text: "AI-assisted workflows may later use separate usage-based pricing because model token costs are real infrastructure costs.",
       },
       {
         kind: "feature",
@@ -44,11 +48,11 @@ const RELEASES: ReleaseEntry[] = [
       },
       {
         kind: "feature",
-        text: "Previous paying customers were migrated to the free tier automatically. Any remaining balance was refunded in full.",
+        text: "Previous paying customers were migrated to free validation access automatically. Any remaining balance was refunded in full.",
       },
       {
         kind: "ops",
-        text: "Dropped Stripe + paid plans entirely. Dashboard now has a single 'Usage' tab that shows monthly verifications and a sponsor nudge.",
+        text: "Dropped Stripe + paid validation plans. Dashboard now has a single 'Usage' tab that shows monthly verifications and a sponsor nudge.",
       },
       {
         kind: "fix",

@@ -7,7 +7,7 @@ import { MemoryRouter } from "react-router-dom";
 import { FreeTransitionNotice } from "./FreeTransitionNotice";
 
 const DISMISS_KEY = "iapkit.freeTransitionNoticeDismissed.v2";
-const TITLE = "IAPKit is now free for everyone.";
+const TITLE = "IAPKit validation APIs are now free.";
 const MESSAGE_PREFIX = "Thank you for supporting IAPKit.";
 
 function renderNotice(hadBillingRelationship: boolean) {

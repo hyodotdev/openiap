@@ -7,12 +7,12 @@ const SLUG = "iapkit-joins-openiap";
 
 const FAQ: Array<{ q: string; a: string }> = [
   {
-    q: "Is IAPKit really free?",
-    a: "Yes. Every receipt-validation API is free for all developers. No credit card, no paywall, no monthly plan, no usage limits. Indie projects and large commercial apps have the same access — everyone pays the same: nothing.",
+    q: "Which parts of IAPKit are free?",
+    a: "Receipt validation and analytics are free for all developers. No credit card, no monthly plan, and no validation paywall. AI-assisted workflows may later use separate usage-based pricing because model token costs are real infrastructure costs.",
   },
   {
     q: "Why is IAPKit joining OpenIAP?",
-    a: "Receipt validation is the ground floor of in-app purchases — not a premium feature. Keeping it behind a paywall was out of step with what OpenIAP stands for. Moving IAPKit under OpenIAP and making the API free removes one more wall from an already fragmented IAP ecosystem.",
+    a: "Receipt validation is the ground floor of in-app purchases — not a premium feature. Keeping validation behind a paywall was out of step with what OpenIAP stands for. Moving IAPKit under OpenIAP and making validation and analytics free removes one more wall from an already fragmented IAP ecosystem.",
   },
   {
     q: "What happens to existing paying customers?",
@@ -92,7 +92,7 @@ export default function IapkitJoinsOpenIap() {
     title: post?.title ?? "IAPKit joins OpenIAP",
     description:
       post?.description ??
-      "IAPKit is joining OpenIAP and going completely free. No paywall, no plans, no usage limits.",
+      "IAPKit is joining OpenIAP. Receipt validation and analytics are free.",
     canonicalPath: `/blog/${SLUG}`,
     ogType: "article",
     keywords: post?.keywords,
@@ -109,7 +109,7 @@ export default function IapkitJoinsOpenIap() {
           <span>{post?.readingTime}</span>
         </div>
         <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-tight">
-          IAPKit joins OpenIAP. The API is now free for everyone.
+          IAPKit joins OpenIAP. Validation is now free.
         </h1>
         <div className="mt-8 flex items-center gap-3 pt-6 border-t border-border">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-600 to-accent flex items-center justify-center text-white font-semibold">
@@ -164,8 +164,8 @@ export default function IapkitJoinsOpenIap() {
         </p>
 
         <p>
-          And with this transition, the IAPKit API is becoming{" "}
-          <strong>completely free</strong>.
+          And with this transition, IAPKit receipt validation and analytics are
+          becoming <strong>free for every developer</strong>.
         </p>
 
         <h2>Why we're doing this</h2>
@@ -176,18 +176,19 @@ export default function IapkitJoinsOpenIap() {
         </p>
 
         <p>
-          Keeping it behind a paywall made sense as an early-stage business
-          decision — but over time, it became increasingly out of step with what
-          OpenIAP stands for. Charging for the most foundational building block
-          of IAP was adding one more wall to the very fragmentation we set out
-          to fix.
+          Keeping validation behind a paywall made sense as an early-stage
+          business decision — but over time, it became increasingly out of step
+          with what OpenIAP stands for. Charging for the most foundational
+          building block of IAP was adding one more wall to the very
+          fragmentation we set out to fix.
         </p>
 
         <p>So we changed the model:</p>
 
         <ul>
           <li>
-            Free for every developer — from side projects to production apps.
+            Validation and analytics are free for every developer — from side
+            projects to production apps.
           </li>
           <li>
             Sustained by community Sponsorship — any amount, fully voluntary.
@@ -205,14 +206,20 @@ export default function IapkitJoinsOpenIap() {
 
         <ul>
           <li>
-            <strong>All validation APIs are free.</strong> No credit card, no
-            paywall, no monthly plan, no usage limits.
+            <strong>Validation and analytics are free.</strong> No credit card,
+            no validation paywall, no monthly plan for the core receipt
+            verification flow.
           </li>
           <li>
             <strong>
               Same access for indie projects and large commercial apps
             </strong>{" "}
-            — everyone pays the same: nothing.
+            — validation and analytics cost the same: nothing.
+          </li>
+          <li>
+            <strong>Sustainable AI features.</strong> Workflows that call
+            external AI models may later use usage-based pricing because model
+            token costs are real infrastructure costs.
           </li>
           <li>
             <strong>
@@ -257,6 +264,10 @@ export default function IapkitJoinsOpenIap() {
             break.
           </li>
           <li>
+            AI-assisted setup and debugging workflows, designed with transparent
+            usage controls so token-heavy features can stay sustainable.
+          </li>
+          <li>
             Self-hosted enterprise option, for companies with strict data
             residency needs.
           </li>
@@ -286,7 +297,7 @@ export default function IapkitJoinsOpenIap() {
           >
             Start now
           </a>
-          . No card, no limits to worry about.
+          . No card required for validation or analytics.
         </p>
 
         <p>
@@ -299,8 +310,8 @@ export default function IapkitJoinsOpenIap() {
           >
             openiap.dev/sponsors
           </a>
-          . Any tier from $25 to $1,000 keeps IAPKit free for thousands of indie
-          developers.
+          . Any tier from $25 to $1,000 keeps IAPKit validation and analytics
+          free for thousands of indie developers.
         </p>
       </div>
 

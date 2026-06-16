@@ -79,13 +79,9 @@ export default function LandingPage() {
               , verifies your App Store and Google Play receipts so you don't
               have to.
             </p>
-            {/* Free-forever banner — PR #5 dropped every paid tier, and
-                the primary CTA used to read "Try IAPKit for free" which
-                reads like a trial that escalates. This standalone line
-                leaves no room to assume an upsell later. */}
             <p className="inline-flex items-center gap-2 mb-8 px-4 py-2 rounded-full bg-amber-100 dark:bg-amber-500/15 text-amber-900 dark:text-amber-100 text-sm md:text-base font-medium opacity-0 animate-fade-in-up animation-delay-300">
               <span aria-hidden="true">✨</span>
-              {"IAPKit is 100% free for everyone."}
+              {"Validation and analytics are free for every developer."}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center opacity-0 animate-fade-in-up animation-delay-400">
               <button
@@ -107,7 +103,7 @@ export default function LandingPage() {
               </button>
             </div>
             <p className="mt-6 text-sm text-muted-foreground animate-fade-up animation-delay-400">
-              {"Free forever · No credit card, ever"}
+              {"No credit card for validation or analytics."}
             </p>
           </div>
         </div>
@@ -163,7 +159,7 @@ export default function LandingPage() {
               </h3>
               <p className="text-muted-foreground break-words">
                 {
-                  "Search any receipt, inspect payloads, and re-run validations without digging through logs."
+                  "Search receipts, inspect payloads, review analytics, and re-run validations without digging through logs."
                 }
               </p>
             </div>
@@ -255,7 +251,12 @@ export default function LandingPage() {
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
               {
-                "IAPKit is free for everyone. If your team depends on it, help sustain the project — every contribution keeps it free for thousands of indie developers."
+                "Core IAPKit validation and analytics are free for every developer. If your team depends on them, help sustain the project — every contribution keeps the foundation available for thousands of indie developers."
+              }
+            </p>
+            <p className="text-sm text-muted-foreground max-w-2xl mx-auto mb-8">
+              {
+                "Advanced AI-assisted workflows may be handled separately later, because model token costs are real infrastructure costs."
               }
             </p>
             <div className="flex flex-col sm:flex-row gap-4 items-center justify-center">

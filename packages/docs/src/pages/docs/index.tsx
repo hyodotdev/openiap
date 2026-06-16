@@ -124,6 +124,7 @@ import Announcements from './updates/announcements';
 import Releases from './updates/releases';
 import Versions from './updates/versions';
 import AIAssistants from './guides/ai-assistants';
+import MCPServer from './guides/mcp-server';
 import Testing from './guides/testing';
 import FoundationGovernance from './foundation/governance';
 import FoundationOnePager from './foundation/one-pager';
@@ -635,15 +636,12 @@ function Docs() {
               }))}
               onItemClick={closeSidebar}
             />
-            <li>
-              <NavLink
-                to="/docs/guides/ai-assistants"
-                className={({ isActive }) => (isActive ? 'active' : '')}
-                onClick={closeSidebar}
-              >
-                AI Assistants
-              </NavLink>
-            </li>
+            <MenuDropdown
+              title="AI Assistants"
+              titleTo="/docs/guides/ai-assistants"
+              items={[{ to: '/docs/guides/mcp-server', label: 'MCP Server' }]}
+              onItemClick={closeSidebar}
+            />
             <li>
               <NavLink
                 to="/docs/guides/testing"
@@ -1215,6 +1213,7 @@ function Docs() {
           <Route path="setup/maui" element={<MauiSetup />} />
           <Route path="example" element={<Example />} />
           <Route path="guides/ai-assistants" element={<AIAssistants />} />
+          <Route path="guides/mcp-server" element={<MCPServer />} />
           <Route path="guides/testing" element={<Testing />} />
           <Route path="foundation/about" element={<FoundationOnePager />} />
           <Route

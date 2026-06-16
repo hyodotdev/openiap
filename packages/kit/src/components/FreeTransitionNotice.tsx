@@ -65,12 +65,12 @@ export function FreeTransitionNotice({
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-amber-600 dark:text-amber-400" />
           <h2 className="text-base font-semibold text-amber-900 dark:text-amber-50">
-            {"IAPKit is now free for everyone."}
+            {"IAPKit validation APIs are now free."}
           </h2>
         </div>
         <p className="mt-2 text-sm leading-relaxed text-amber-900/80 dark:text-amber-100/85">
           {
-            "Thank you for supporting IAPKit. Your subscription has been cancelled and any unused portion refunded in full — there's nothing you need to do. The validation APIs you were using keep working, without limits."
+            "Thank you for supporting IAPKit. Your subscription has been cancelled and any unused portion refunded in full — there's nothing you need to do. The validation APIs and analytics you were using keep working."
           }
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">

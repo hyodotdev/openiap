@@ -311,8 +311,12 @@ function registerIapKitTools(server: McpServer) {
       try {
         const client = withClient(args, extra);
         const [health, metrics] = await Promise.all([
-          client.health().catch((e) => ({ error: stringifyError(e) })),
-          client.metrics().catch((e) => ({ error: stringifyError(e) })),
+          client
+            .health()
+            .catch((e) => ({ error: stringifyError(e, client.apiKey) })),
+          client
+            .metrics()
+            .catch((e) => ({ error: stringifyError(e, client.apiKey) })),
         ]);
         // The tool description promises status + entitlement checks. Run
         // both in parallel when a sampleUserId is supplied so diagnostics
@@ -323,10 +327,10 @@ function registerIapKitTools(server: McpServer) {
           ? await Promise.all([
               client
                 .status(args.sampleUserId)
-                .catch((e) => ({ error: stringifyError(e) })),
+                .catch((e) => ({ error: stringifyError(e, client.apiKey) })),
               client
                 .entitlements(args.sampleUserId)
-                .catch((e) => ({ error: stringifyError(e) })),
+                .catch((e) => ({ error: stringifyError(e, client.apiKey) })),
             ]).then(([status, entitlements]) => ({ status, entitlements }))
           : null;
         return ok({ health, metrics, userProbe });
@@ -573,8 +577,12 @@ function registerIapKitTools(server: McpServer) {
       try {
         const client = withClient(args, extra);
         const [metrics, products] = await Promise.all([
-          client.metrics().catch((e) => ({ error: stringifyError(e) })),
-          client.listProducts().catch((e) => ({ error: stringifyError(e) })),
+          client
+            .metrics()
+            .catch((e) => ({ error: stringifyError(e, client.apiKey) })),
+          client
+            .listProducts()
+            .catch((e) => ({ error: stringifyError(e, client.apiKey) })),
         ]);
         return ok({
           metrics,
@@ -1133,7 +1141,7 @@ function simulatePurchaseSteps(args: {
   ];
 }
 
-function stringifyError(e: unknown): string {
-  if (e instanceof Error) return e.message;
-  return String(e);
+function stringifyError(e: unknown, apiKey?: string): string {
+  const message = e instanceof Error ? e.message : String(e);
+  return String(redactSecrets(message, apiKey));
 }
