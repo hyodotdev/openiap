@@ -4,6 +4,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -23,10 +24,18 @@ const height = 900;
 const fps = 15;
 const durationSeconds = 24;
 const frameCount = fps * durationSeconds;
+const scriptDir = dirname(fileURLToPath(import.meta.url));
 const outputPath = resolve(
-  dirname(fileURLToPath(import.meta.url)),
+  scriptDir,
   '../public/docs/videos/openiap-mcp-expo-test.webm'
 );
+const purchaseCapturePath = resolve(
+  scriptDir,
+  '../public/docs/images/openiap-mcp-iphone-purchase.png'
+);
+const purchaseCaptureDataUri = `data:image/png;base64,${readFileSync(
+  purchaseCapturePath
+).toString('base64')}`;
 
 function requireCommand(command) {
   try {
@@ -84,7 +93,7 @@ function roundedRect(x, y, w, h, options = {}) {
 }
 
 function badge(label, x, y, w, fill, stroke) {
-  const h = 40;
+  const h = 42;
 
   return [
     roundedRect(x, y, w, h, {
@@ -93,11 +102,12 @@ function badge(label, x, y, w, fill, stroke) {
       stroke,
       strokeWidth: 1.4,
     }),
-    text(label, x + w / 2, y + h / 2, {
+    text(label, x + w / 2, y + 27, {
       size: 15,
       weight: 720,
       fill: '#eef6ff',
       anchor: 'middle',
+      baseline: 'alphabetic',
     }),
   ].join('');
 }
@@ -180,13 +190,15 @@ const steps = [
 
 function stepRows(time) {
   const rowStartY = 452;
-  const rowGap = 48;
-  const rowHeight = 40;
+  const rowGap = 50;
+  const rowHeight = 42;
 
   return steps
     .map((step, index) => {
       const y = rowStartY + index * rowGap;
       const centerY = y + rowHeight / 2;
+      const textY = centerY + 7;
+      const numberY = centerY + 5;
       const show = fade(time, step.start, 0.5);
       const done = time >= step.start + 1.6;
       const active = time >= step.start && time < step.start + 1.6;
@@ -202,23 +214,26 @@ function stepRows(time) {
             stroke,
             strokeWidth: active ? 2 : 1.2,
           })}
-          <circle cx="118.5" cy="${centerY}" r="12.5" fill="${active ? '#79beff' : '#53637a'}"/>
-          ${text(String(index + 1), 118.5, centerY, {
+          <circle cx="118.5" cy="${centerY}" r="13" fill="${active ? '#79beff' : '#53637a'}"/>
+          ${text(String(index + 1), 118.5, numberY, {
             size: 13,
             weight: 800,
             fill: active ? '#0c1c2b' : '#c9d5e8',
             anchor: 'middle',
+            baseline: 'alphabetic',
           })}
-          ${text(step.label, 150, centerY, {
+          ${text(step.label, 150, textY, {
             size: 20,
             weight: 760,
             fill: '#f1f6ff',
+            baseline: 'alphabetic',
           })}
-          ${text(`${step.result}${done ? ' OK' : ''}`, 610, centerY, {
+          ${text(`${step.result}${done ? ' OK' : ''}`, 610, textY, {
             size: 20,
             weight: 720,
             fill: done || active ? '#b8f1ce' : '#cbd4e3',
             opacity: resultOpacity,
+            baseline: 'alphabetic',
           })}
         </g>`;
     })
@@ -383,93 +398,22 @@ function purchaseSheet(opacity) {
   }
 
   return `
-    <g opacity="${opacity}">
-      <rect x="1196" y="154" width="355" height="686" fill="#000000" opacity="0.58"/>
-      ${roundedRect(1206, 356, 336, 408, {
-        rx: 36,
-        fill: '#1f1f1f',
-        stroke: '#393939',
-        strokeWidth: 1.2,
-      })}
-      ${text('Sandbox', 1230, 395, {
-        size: 22,
-        weight: 780,
-        fill: '#ffffff',
-      })}
-      <circle cx="1508" cy="393" r="22" fill="#3a3a3a"/>
-      ${text('x', 1508, 392, {
-        size: 27,
-        weight: 360,
-        fill: '#f4f4f4',
-        anchor: 'middle',
-      })}
-      ${roundedRect(1228, 427, 292, 180, {
-        rx: 20,
-        fill: '#4c4c4a',
-        stroke: 'none',
-      })}
-      <rect x="1243" y="443" width="61" height="61" fill="#f5f5f5"/>
-      ${text('E', 1273.5, 473.5, {
-        size: 32,
-        weight: 850,
-        fill: '#1d1d1f',
-        anchor: 'middle',
-      })}
-      ${text('10 Bulbs', 1317, 451, {
-        size: 15,
-        weight: 780,
-        fill: '#ffffff',
-      })}
-      ${text('Example App', 1317, 470, {
-        size: 12,
-        weight: 520,
-        fill: '#d8d8d8',
-      })}
-      ${text('In-App Purchase', 1317, 489, {
-        size: 12,
-        weight: 520,
-        fill: '#d8d8d8',
-      })}
-      <line x1="1243" y1="532" x2="1505" y2="532" stroke="#5b5b59" stroke-width="1"/>
-      ${text('₩1,100', 1243, 565, {
-        size: 17,
-        weight: 800,
-        fill: '#ffffff',
-      })}
-      ${text('One-time charge', 1243, 587, {
-        size: 13,
-        weight: 520,
-        fill: '#d8d8d8',
-      })}
-      ${text('For testing purposes only. You will not be charged', 1243, 628, {
-        size: 12,
-        weight: 640,
-        fill: '#ffffff',
-      })}
-      ${text('for confirming this purchase.', 1243, 645, {
-        size: 12,
-        weight: 640,
-        fill: '#ffffff',
-      })}
-      <line x1="1243" y1="681" x2="1505" y2="681" stroke="#5b5b59" stroke-width="1"/>
-      ${text('Account: sandbox@example.com', 1243, 707, {
-        size: 12,
-        weight: 520,
-        fill: '#d8d8d8',
-      })}
-      <circle cx="1374" cy="733" r="17" fill="none" stroke="#0a84ff" stroke-width="3"/>
-      ${text('Confirm with Side Button', 1374, 760, {
-        size: 15,
-        weight: 580,
-        fill: '#c6c6c6',
-        anchor: 'middle',
-      })}
+    <g opacity="${opacity}" clip-path="url(#phoneCaptureClip)">
+      <image
+        x="1187"
+        y="50"
+        width="372"
+        height="806"
+        preserveAspectRatio="xMidYMid meet"
+        href="${purchaseCaptureDataUri}"
+        xlink:href="${purchaseCaptureDataUri}"
+      />
     </g>`;
 }
 
 function renderFrame(time) {
   return `<?xml version="1.0" encoding="UTF-8"?>
-  <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+  <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
     <defs>
       <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
         <stop offset="0" stop-color="#10131a"/>
@@ -484,6 +428,9 @@ function renderFrame(time) {
         <stop offset="0" stop-color="#1b222d" stop-opacity="0.62"/>
         <stop offset="1" stop-color="#0b0d10" stop-opacity="0"/>
       </radialGradient>
+      <clipPath id="phoneCaptureClip">
+        <rect x="1178" y="50" width="390" height="806" rx="48"/>
+      </clipPath>
     </defs>
     <rect width="${width}" height="${height}" fill="url(#bg)"/>
     <rect width="${width}" height="${height}" fill="url(#glow)"/>
