@@ -3103,6 +3103,14 @@ function checkFrameworkDependencyHygiene() {
     'APPLE_VERSION="$(read_openiap_version apple)"',
     'OPENIAP_MARKETING_VERSION="${APPLE_VERSION}"',
   ], 'Apple xcframework marketing version');
+  expectIncludes('packages/apple/scripts/build-xcframework.sh', [
+    'EXPECTED_INSTALL_NAME="@rpath/OpenIAP.framework/OpenIAP"',
+    'LD_DYLIB_INSTALL_NAME="${EXPECTED_INSTALL_NAME}"',
+    'validate_install_names',
+  ], 'Apple xcframework install name');
+  expectIncludes('packages/apple/wrapper/project.yml', [
+    'LD_DYLIB_INSTALL_NAME: "@rpath/$(EXECUTABLE_PATH)"',
+  ], 'Apple wrapper install name');
   expectNotIncludes('packages/apple/scripts/bump-version.sh', [
     'OpenIapVersion.swift fallback',
     'Sources/OpenIapVersion.swift',

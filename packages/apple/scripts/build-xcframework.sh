@@ -14,6 +14,7 @@ DERIVED="${BUILD_DIR}/derived"
 ARCHIVES="${BUILD_DIR}/archives"
 OUT="${BUILD_DIR}/OpenIAP.xcframework"
 VERSIONS_FILE="${PACKAGE_DIR}/Sources/openiap-versions.json"
+EXPECTED_INSTALL_NAME="@rpath/OpenIAP.framework/OpenIAP"
 if [[ ! -f "${VERSIONS_FILE}" ]]; then
   VERSIONS_FILE="${PACKAGE_DIR}/../../openiap-versions.json"
 fi
@@ -71,9 +72,45 @@ archive() {
     -derivedDataPath "${DERIVED}" \
     -configuration Release \
     OPENIAP_MARKETING_VERSION="${APPLE_VERSION}" \
+    LD_DYLIB_INSTALL_NAME="${EXPECTED_INSTALL_NAME}" \
     SKIP_INSTALL=NO \
     BUILD_LIBRARY_FOR_DISTRIBUTION=YES \
     -quiet
+}
+
+validate_install_names() {
+  local binary
+  local install_name
+  local found=0
+  local failed=0
+
+  while IFS= read -r -d '' binary; do
+    found=1
+    while IFS= read -r install_name; do
+      if [[ -z "${install_name}" ]]; then
+        continue
+      fi
+
+      if [[ "${install_name}" != "${EXPECTED_INSTALL_NAME}" ]]; then
+        echo "error: ${binary} has install name ${install_name}; expected ${EXPECTED_INSTALL_NAME}"
+        failed=1
+      fi
+    done < <(otool -l "${binary}" | awk '/LC_ID_DYLIB/{in_id=1; next} in_id && / name /{print $2; in_id=0}')
+  done < <(
+    find "${OUT}" \
+      \( -path "*/OpenIAP.framework/OpenIAP" -o -path "*/OpenIAP.framework/Versions/*/OpenIAP" \) \
+      -type f \
+      -print0
+  )
+
+  if [[ "${found}" -eq 0 ]]; then
+    echo "error: no OpenIAP.framework binaries found in ${OUT}"
+    exit 1
+  fi
+
+  if [[ "${failed}" -ne 0 ]]; then
+    exit 1
+  fi
 }
 
 archive "generic/platform=iOS"                         "${ARCHIVES}/ios.xcarchive"
@@ -107,5 +144,7 @@ xcodebuild -create-xcframework \
   -framework "${SIM_FW}" \
   -framework "${CAT_FW}" \
   -output "${OUT}"
+
+validate_install_names
 
 echo "==> done: ${OUT}"
