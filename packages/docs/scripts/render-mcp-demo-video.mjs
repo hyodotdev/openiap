@@ -64,10 +64,11 @@ function text(value, x, y, options = {}) {
     fill = '#f5f7fb',
     opacity = 1,
     anchor = 'start',
+    baseline = 'central',
     family = "-apple-system, BlinkMacSystemFont, 'SF Pro Display', Inter, Arial, sans-serif",
   } = options;
 
-  return `<text x="${x}" y="${y}" fill="${fill}" opacity="${opacity}" font-size="${size}" font-weight="${weight}" font-family="${family}" text-anchor="${anchor}" dominant-baseline="middle">${escapeText(value)}</text>`;
+  return `<text x="${x}" y="${y}" fill="${fill}" opacity="${opacity}" font-size="${size}" font-weight="${weight}" font-family="${family}" text-anchor="${anchor}" dominant-baseline="${baseline}" letter-spacing="0">${escapeText(value)}</text>`;
 }
 
 function roundedRect(x, y, w, h, options = {}) {
@@ -83,14 +84,16 @@ function roundedRect(x, y, w, h, options = {}) {
 }
 
 function badge(label, x, y, w, fill, stroke) {
+  const h = 40;
+
   return [
-    roundedRect(x, y, w, 39, {
-      rx: 19.5,
+    roundedRect(x, y, w, h, {
+      rx: h / 2,
       fill,
       stroke,
       strokeWidth: 1.4,
     }),
-    text(label, x + w / 2, y + 20, {
+    text(label, x + w / 2, y + h / 2, {
       size: 15,
       weight: 720,
       fill: '#eef6ff',
@@ -101,6 +104,9 @@ function badge(label, x, y, w, fill, stroke) {
 
 function promptBlock(time) {
   const opacity = fade(time, 0.4, 0.8);
+  const x = 86;
+  const y = 268;
+  const h = 156;
   const lines = [
     ['Use OpenIAP MCP to wire IAP in this Expo app.', 0.6],
     ['Load Premium, 10 Bulbs, and 30 Bulbs.', 1.25],
@@ -109,21 +115,21 @@ function promptBlock(time) {
 
   return `
     <g opacity="${opacity}">
-      ${roundedRect(86, 256, 990, 151, {
+      ${roundedRect(x, y, 990, h, {
         rx: 20,
         fill: '#151923',
         stroke: '#2c3445',
         strokeWidth: 1.4,
       })}
-      <rect x="86" y="280" width="4" height="104" rx="2" fill="#77bdfb"/>
-      ${text('Prompt', 116, 287, {
+      <rect x="${x}" y="${y + 26}" width="4" height="100" rx="2" fill="#77bdfb"/>
+      ${text('Prompt', x + 30, y + 31, {
         size: 26,
         weight: 760,
         fill: '#8fc9ff',
       })}
       ${lines
         .map(([line, start], index) =>
-          text(line, 116, 322 + index * 34, {
+          text(line, x + 30, y + 73 + index * 35, {
             size: 27,
             weight: 530,
             fill: '#edf4ff',
@@ -173,13 +179,14 @@ const steps = [
 ];
 
 function stepRows(time) {
-  const rowStartY = 430;
-  const rowGap = 51;
-  const rowHeight = 38;
+  const rowStartY = 452;
+  const rowGap = 48;
+  const rowHeight = 40;
 
   return steps
     .map((step, index) => {
       const y = rowStartY + index * rowGap;
+      const centerY = y + rowHeight / 2;
       const show = fade(time, step.start, 0.5);
       const done = time >= step.start + 1.6;
       const active = time >= step.start && time < step.start + 1.6;
@@ -195,23 +202,19 @@ function stepRows(time) {
             stroke,
             strokeWidth: active ? 2 : 1.2,
           })}
-          ${roundedRect(106, y + 6.5, 25, 25, {
-            rx: 12.5,
-            fill: active ? '#79beff' : '#53637a',
-            stroke: 'none',
-          })}
-          ${text(String(index + 1), 118.5, y + 19.5, {
+          <circle cx="118.5" cy="${centerY}" r="12.5" fill="${active ? '#79beff' : '#53637a'}"/>
+          ${text(String(index + 1), 118.5, centerY, {
             size: 13,
             weight: 800,
             fill: active ? '#0c1c2b' : '#c9d5e8',
             anchor: 'middle',
           })}
-          ${text(step.label, 150, y + 19.5, {
+          ${text(step.label, 150, centerY, {
             size: 20,
             weight: 760,
             fill: '#f1f6ff',
           })}
-          ${text(`${step.result}${done ? ' OK' : ''}`, 610, y + 19.5, {
+          ${text(`${step.result}${done ? ' OK' : ''}`, 610, centerY, {
             size: 20,
             weight: 720,
             fill: done || active ? '#b8f1ce' : '#cbd4e3',
@@ -265,6 +268,7 @@ function productCard({
 }
 
 function phone(time) {
+  const storeOpacity = fade(time, 5.2, 0.7);
   const premiumOpacity = fade(time, 8.0, 0.7);
   const bulb10Opacity = fade(time, 11.2, 0.7);
   const bulb30Opacity = fade(time, 14.2, 0.7);
@@ -315,11 +319,16 @@ function phone(time) {
         anchor: 'middle',
       })}
       <line x1="1196" y1="154" x2="1551" y2="154" stroke="#2a2a2a" stroke-width="1"/>
-      ${text('Store', 1226, 206, {
-        size: 36,
-        weight: 850,
-        fill: '#f8f8f8',
-      })}
+      ${
+        storeOpacity > 0.02
+          ? text('Store', 1226, 206, {
+              size: 36,
+              weight: 850,
+              fill: '#f8f8f8',
+              opacity: storeOpacity,
+            })
+          : ''
+      }
       ${
         premiumOpacity > 0.02
           ? `${text('Subscriptions', 1226, 286, {
@@ -376,80 +385,80 @@ function purchaseSheet(opacity) {
   return `
     <g opacity="${opacity}">
       <rect x="1196" y="154" width="355" height="686" fill="#000000" opacity="0.58"/>
-      ${roundedRect(1206, 390, 336, 370, {
+      ${roundedRect(1206, 356, 336, 408, {
         rx: 36,
         fill: '#1f1f1f',
         stroke: '#393939',
         strokeWidth: 1.2,
       })}
-      ${text('Sandbox', 1230, 428, {
-        size: 21,
+      ${text('Sandbox', 1230, 395, {
+        size: 22,
         weight: 780,
         fill: '#ffffff',
       })}
-      <circle cx="1508" cy="426" r="22" fill="#3a3a3a"/>
-      ${text('x', 1508, 428, {
+      <circle cx="1508" cy="393" r="22" fill="#3a3a3a"/>
+      ${text('x', 1508, 392, {
         size: 27,
         weight: 360,
         fill: '#f4f4f4',
         anchor: 'middle',
       })}
-      ${roundedRect(1228, 457, 292, 160, {
+      ${roundedRect(1228, 427, 292, 180, {
         rx: 20,
-        fill: '#494947',
+        fill: '#4c4c4a',
         stroke: 'none',
       })}
-      <rect x="1243" y="474" width="57" height="57" fill="#f5f5f5"/>
-      ${text('E', 1271, 504, {
+      <rect x="1243" y="443" width="61" height="61" fill="#f5f5f5"/>
+      ${text('E', 1273.5, 473.5, {
         size: 32,
         weight: 850,
         fill: '#1d1d1f',
         anchor: 'middle',
       })}
-      ${text('10 Bulbs', 1314, 483, {
+      ${text('10 Bulbs', 1317, 451, {
         size: 15,
         weight: 780,
         fill: '#ffffff',
       })}
-      ${text('Example App', 1314, 502, {
+      ${text('Example App', 1317, 470, {
         size: 12,
         weight: 520,
         fill: '#d8d8d8',
       })}
-      ${text('In-App Purchase', 1314, 520, {
+      ${text('In-App Purchase', 1317, 489, {
         size: 12,
         weight: 520,
         fill: '#d8d8d8',
       })}
-      <line x1="1243" y1="546" x2="1505" y2="546" stroke="#5b5b59" stroke-width="1"/>
-      ${text('₩1,100', 1243, 574, {
+      <line x1="1243" y1="532" x2="1505" y2="532" stroke="#5b5b59" stroke-width="1"/>
+      ${text('₩1,100', 1243, 565, {
         size: 17,
         weight: 800,
         fill: '#ffffff',
       })}
-      ${text('One-time charge', 1243, 596, {
+      ${text('One-time charge', 1243, 587, {
         size: 13,
         weight: 520,
         fill: '#d8d8d8',
       })}
-      ${text('For testing purposes only. You will not be charged', 1243, 630, {
+      ${text('For testing purposes only. You will not be charged', 1243, 628, {
         size: 12,
-        weight: 520,
+        weight: 640,
         fill: '#ffffff',
       })}
-      ${text('for confirming this purchase.', 1243, 647, {
+      ${text('for confirming this purchase.', 1243, 645, {
         size: 12,
-        weight: 520,
+        weight: 640,
         fill: '#ffffff',
       })}
-      <line x1="1243" y1="670" x2="1505" y2="670" stroke="#5b5b59" stroke-width="1"/>
-      ${text('Account: sandbox@example.com', 1243, 692, {
+      <line x1="1243" y1="681" x2="1505" y2="681" stroke="#5b5b59" stroke-width="1"/>
+      ${text('Account: sandbox@example.com', 1243, 707, {
         size: 12,
         weight: 520,
         fill: '#d8d8d8',
       })}
-      <circle cx="1374" cy="724" r="17" fill="none" stroke="#0a84ff" stroke-width="3"/>
-      ${text('Confirm with Side Button', 1374, 753, {
+      <circle cx="1374" cy="733" r="17" fill="none" stroke="#0a84ff" stroke-width="3"/>
+      ${text('Confirm with Side Button', 1374, 760, {
         size: 15,
         weight: 580,
         fill: '#c6c6c6',
@@ -463,8 +472,8 @@ function renderFrame(time) {
   <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
     <defs>
       <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
-        <stop offset="0" stop-color="#10151d"/>
-        <stop offset="0.58" stop-color="#0c1017"/>
+        <stop offset="0" stop-color="#10131a"/>
+        <stop offset="0.58" stop-color="#0c0f15"/>
         <stop offset="1" stop-color="#090a0d"/>
       </linearGradient>
       <linearGradient id="panel" x1="0" x2="1" y1="0" y2="1">
@@ -472,7 +481,7 @@ function renderFrame(time) {
         <stop offset="1" stop-color="#11151d"/>
       </linearGradient>
       <radialGradient id="glow" cx="56%" cy="8%" r="58%">
-        <stop offset="0" stop-color="#1e2a39" stop-opacity="0.72"/>
+        <stop offset="0" stop-color="#1b222d" stop-opacity="0.62"/>
         <stop offset="1" stop-color="#0b0d10" stop-opacity="0"/>
       </radialGradient>
     </defs>
@@ -490,7 +499,7 @@ function renderFrame(time) {
       stroke: '#2d3748',
       strokeWidth: 1.8,
     })}
-    <g transform="translate(92 84)">
+    <g transform="translate(92 64)">
       ${badge('Local MCP', 0, 0, 142, '#123f64', '#2c8cca')}
       ${badge('Dev Kit', 158, 0, 142, '#104b36', '#2c936a')}
       ${badge('Real iPhone', 316, 0, 156, '#4d390d', '#bd8a17')}
