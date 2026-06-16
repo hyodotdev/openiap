@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { execFileSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
@@ -9,6 +9,14 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+if (process.platform !== 'darwin') {
+  console.error(
+    'Error: render:mcp-video requires macOS because it uses the macOS-only sips utility for SVG-to-PNG conversion.'
+  );
+  process.exit(1);
+}
 
 const width = 1600;
 const height = 900;
@@ -16,16 +24,13 @@ const fps = 15;
 const durationSeconds = 24;
 const frameCount = fps * durationSeconds;
 const outputPath = resolve(
-  dirname(new URL(import.meta.url).pathname),
+  dirname(fileURLToPath(import.meta.url)),
   '../public/docs/videos/openiap-mcp-expo-test.webm'
 );
 
 function requireCommand(command) {
   try {
-    execFileSync('command', ['-v', command], {
-      shell: true,
-      stdio: 'ignore',
-    });
+    execSync(`command -v ${command}`, { stdio: 'ignore' });
   } catch {
     throw new Error(`Missing required command: ${command}`);
   }
