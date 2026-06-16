@@ -112,14 +112,7 @@ export default function AuthenticatedPages() {
 
   return (
     <Routes>
-      <Route
-        path="docs"
-        element={
-          <PageWithTitle title="Documentation">
-            <DocsLayout />
-          </PageWithTitle>
-        }
-      >
+      <Route path="docs" element={<DocsLayout />}>
         {docsChildRoutes}
       </Route>
       <Route path="blog" element={<BlogLayout />}>

@@ -1,0 +1,32 @@
+{
+  "name": "openiap",
+  "version": "0.1.0",
+  "description": "Help Codex inspect and implement in-app purchase flows with OpenIAP.",
+  "author": {
+    "name": "OpenIAP",
+    "url": "https://openiap.dev"
+  },
+  "homepage": "https://kit.openiap.dev/docs/ai-assistants/codex-plugin",
+  "repository": "https://github.com/hyodotdev/openiap",
+  "license": "MIT",
+  "keywords": ["openiap", "iapkit", "in-app-purchases", "mcp", "codex"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "OpenIAP",
+    "shortDescription": "Inspect and implement in-app purchase flows.",
+    "longDescription": "Connects Codex to OpenIAP workflows for app in-app purchase implementation, purchase-flow review, SDK setup snippets, product catalog checks, subscription analytics, webhook simulation, and IAPKit-backed receipt-validation operations.",
+    "developerName": "OpenIAP",
+    "category": "Developer Tools",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://openiap.dev",
+    "privacyPolicyURL": "https://openiap.dev/privacy",
+    "termsOfServiceURL": "https://openiap.dev/terms",
+    "defaultPrompt": [
+      "Use OpenIAP to review my in-app purchase flow.",
+      "Use OpenIAP to generate an Expo setup snippet.",
+      "Use OpenIAP to summarize IAPKit purchases."
+    ],
+    "brandColor": "#2563EB"
+  },
+  "mcpServers": "./.mcp.json"
+}

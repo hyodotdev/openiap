@@ -12,6 +12,33 @@
 - No trailing period
 - Use imperative mood ("add" not "added")
 
+## Pull Request Preview Recordings
+
+Every PR that introduces a new feature, visible behavior change, UI change,
+documentation page, example flow, or developer workflow must include a preview
+recording before it is handed off for review.
+
+Requirements:
+
+- Record the actual changed surface after the implementation is complete. Use
+  the Codex Chrome Extension for web/docs/dashboard previews whenever a browser
+  can render the change.
+- Compress the final video to **under 10 MB** so GitHub accepts it reliably.
+  Prefer H.264 MP4 with a modest resolution / frame rate when the raw capture is
+  too large.
+- Upload the compressed recording to the GitHub PR as a PR body attachment or a
+  clearly labeled attached `Preview` comment.
+- Do not commit one-off PR preview recordings. Only commit preview media when
+  the media itself is a product documentation or example asset that should ship
+  with the repository.
+- Link or embed the uploaded preview in the PR body or a clearly labeled
+  `Preview` PR comment.
+- If the change has no visual or interactive surface, include a short note in
+  the PR explaining why a recording was not applicable and show the most useful
+  terminal/API proof instead.
+- Do not upload secrets, private customer data, unreleased credentials, or local
+  browser profile details in previews. Redact or use test fixtures.
+
 ### With Tag and Scope
 
 When a commit targets a specific package or library, include the scope:

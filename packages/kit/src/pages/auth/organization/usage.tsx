@@ -49,7 +49,9 @@ export default function OrganizationUsagePage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold">{"Usage"}</h1>
         <p className="text-muted-foreground mt-2">
-          {"Track your monthly API usage. All validations are free."}
+          {
+            "Track validation usage and stored receipt analytics. Validation and analytics are free."
+          }
         </p>
       </div>
 
@@ -86,7 +88,12 @@ export default function OrganizationUsagePage() {
               </h2>
               <p className="text-sm text-amber-900/80 dark:text-amber-100/80 mt-2 mb-4">
                 {
-                  "IAPKit is free for everyone. If your team or company depends on it, consider supporting the project so we can keep it running for thousands of indie developers."
+                  "Validation and analytics stay free for every developer. If your team or company depends on them, consider supporting the project so we can keep the core service running for thousands of indie developers."
+                }
+              </p>
+              <p className="text-xs text-amber-900/70 dark:text-amber-100/70 mb-4">
+                {
+                  "AI-assisted workflows may later use separate usage-based pricing because model token costs are real infrastructure costs."
                 }
               </p>
               <a

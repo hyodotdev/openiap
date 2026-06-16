@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 import { Callout } from "../components/Callout";
 import { CodeBlock } from "../components/CodeBlock";
 import { DocsPage } from "../components/DocsPage";
@@ -82,6 +84,20 @@ export default function AiAssistantsPage() {
           in accurate context without repo access.
         </p>
       </Callout>
+
+      <h2 className="mt-10 text-2xl font-semibold">Codex plugin</h2>
+      <p>
+        Codex can use IAPKit as an MCP-backed plugin through{" "}
+        <code>https://kit.openiap.dev/mcp</code>. The plugin uses your IAPKit
+        project API key, not an OpenAI or ChatGPT API key. See the{" "}
+        <Link
+          to="/docs/ai-assistants/codex-plugin"
+          className="text-primary underline"
+        >
+          Codex plugin guide
+        </Link>{" "}
+        for the setup flow, self-hosted option, and tool list.
+      </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Using the files</h2>
 

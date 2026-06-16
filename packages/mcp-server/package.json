@@ -1,18 +1,27 @@
 {
   "name": "@hyodotdev/openiap-mcp-server",
   "version": "0.1.0",
-  "description": "Model Context Protocol server for OpenIAP — wires Claude / Cursor / Codex into kit's product, subscription, and webhook surfaces.",
+  "description": "Model Context Protocol server for IAPKit — wires Codex and other MCP clients into IAPKit's product, subscription, revenue, and webhook surfaces.",
   "type": "module",
   "private": true,
   "bin": {
+    "iapkit-mcp": "./dist/index.js",
+    "iapkit-mcp-http": "./dist/http.js",
     "openiap-mcp": "./dist/index.js"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./http": "./src/http.ts",
+    "./mcp": "./src/mcp.ts",
+    "./web": "./src/web.ts"
   },
   "main": "src/index.ts",
   "scripts": {
     "build": "tsc -p .",
     "lint": "tsc -p . --noEmit",
     "test": "vitest run --passWithNoTests",
-    "start": "bun run src/index.ts"
+    "start": "bun run src/index.ts",
+    "start:http": "bun run src/http.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

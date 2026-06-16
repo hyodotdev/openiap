@@ -15,6 +15,7 @@ vi.mock("@/convex", () => ({
         entitlements: "entitlements",
         listSubscriptions: "listSubscriptions",
         metricsSummary: "metricsSummary",
+        getRevenueMetrics: "getRevenueMetrics",
       },
       mutation: {
         bindUser: "bindUser",
@@ -209,6 +210,62 @@ describe("subscriptionsRoutes", () => {
 
     expect(mocks.query).not.toHaveBeenCalled();
     expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("forwards revenue metrics ranges to Convex", async () => {
+    const app = buildApp();
+    mocks.query.mockResolvedValueOnce({
+      days: [],
+      currencies: [],
+      productIds: [],
+      platforms: [],
+      truncated: false,
+    });
+
+    const response = await app.request(
+      "/subscriptions/revenue/key?fromDay=2026-06-01&toDay=2026-06-04",
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.query).toHaveBeenCalledWith("getRevenueMetrics", {
+      apiKey: "key",
+      fromDay: "2026-06-01",
+      toDay: "2026-06-04",
+    });
+  });
+
+  it("rejects invalid revenue ranges before calling Convex", async () => {
+    const app = buildApp();
+
+    const cases = [
+      {
+        path: "/subscriptions/revenue/key?fromDay=bad&toDay=2026-06-04",
+        message: "fromDay and toDay must be YYYY-MM-DD",
+      },
+      {
+        path: "/subscriptions/revenue/key?fromDay=2026-02-31&toDay=2026-06-04",
+        message: "fromDay and toDay must be valid calendar days",
+      },
+      {
+        path: "/subscriptions/revenue/key?fromDay=2026-06-05&toDay=2026-06-04",
+        message: "fromDay must be on or before toDay",
+      },
+      {
+        path: "/subscriptions/revenue/key?fromDay=2026-01-01&toDay=2026-06-04",
+        message: "revenue range must be 92 days or less",
+      },
+    ];
+
+    for (const { path, message } of cases) {
+      const response = await app.request(path);
+
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toEqual({
+        errors: [{ code: "INVALID_INPUT", message }],
+      });
+    }
+
+    expect(mocks.query).not.toHaveBeenCalled();
   });
 
   it("rejects oversized non-Apple bind-user purchaseToken before calling Convex", async () => {

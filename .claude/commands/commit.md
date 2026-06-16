@@ -9,6 +9,7 @@ Complete workflow: branch → commit → push → PR
 ```
 
 **Options:**
+
 - `--push` or `-p`: Push to remote after commit
 - `--pr`: Create PR after push
 - `--all` or `-a`: Commit all changes at once
@@ -48,6 +49,7 @@ git branch --show-current
 ```
 
 **If on `main`** → Create a feature branch first:
+
 ```bash
 git checkout -b feat/<feature-name>
 ```
@@ -55,6 +57,7 @@ git checkout -b feat/<feature-name>
 **If NOT on `main`** → Proceed with commits directly.
 
 **Branch naming conventions:**
+
 - **Always include the target library/package name** in the branch name
 - `feat/<library>-<feature-name>` - New features (e.g., `feat/godot-win-back-offers`)
 - `fix/<library>-<bug-description>` - Bug fixes (e.g., `fix/expo-double-init`)
@@ -62,6 +65,7 @@ git checkout -b feat/<feature-name>
 - `chore/<library>-<task>` - Maintenance tasks (e.g., `chore/kmp-bump-deps`)
 
 **Library shortnames:**
+
 - `rn` or `react-native` → react-native-iap
 - `expo` → expo-iap
 - `flutter` → flutter_inapp_purchase
@@ -82,21 +86,25 @@ git diff --name-only
 ### 3. Stage Changes
 
 **GQL schema only (FIRST COMMIT):**
+
 ```bash
 git add packages/gql/src/*.graphql
 ```
 
 **Generated types (SECOND COMMIT):**
+
 ```bash
 git add packages/gql/src/generated/
 ```
 
 **Specific path:**
+
 ```bash
 git add <path>
 ```
 
 **All changes:**
+
 ```bash
 git add .
 ```
@@ -134,6 +142,7 @@ EOF
 | `test` | Adding/updating tests |
 
 **Scope Examples:**
+
 - `gql` - GraphQL schema changes
 - `apple` - iOS/macOS package
 - `google` - Android package
@@ -174,6 +183,28 @@ EOF
 )"
 ```
 
+### 7a. Upload Preview Recording
+
+For every PR that adds a new feature, visible behavior change, UI change,
+documentation page, example flow, or developer workflow, record a preview before
+handoff:
+
+1. Render the actual changed surface after implementation. Use the Codex Chrome
+   Extension for web/docs/dashboard previews.
+2. Compress the final recording to **under 10 MB**. Prefer H.264 MP4 with lower
+   resolution / frame rate when needed.
+3. Upload the compressed recording to the GitHub PR as a PR body attachment or a
+   clearly labeled attached `Preview` comment.
+   Do not commit one-off PR preview recordings. Only commit preview media when
+   the media itself is product documentation or an example asset that should
+   ship with the repository.
+4. Link/embed the GitHub-hosted recording in the PR body or preview comment.
+
+If there is no visual or interactive surface, add a short PR note explaining why
+recording is not applicable and include the best terminal/API proof instead.
+Never include secrets, private customer data, or browser profile details in the
+recording.
+
 ### 8. Add Labels to PR
 
 After creating the PR, add appropriate labels based on the changes.
@@ -184,6 +215,7 @@ gh pr edit <PR_NUMBER> --add-label "<label1>,<label2>"
 ```
 
 **Label selection guide:**
+
 - Changes to `packages/apple/` → `📱 iOS`
 - Changes to `packages/google/` → `🤖 android`
 - Changes to `packages/docs/` → `📖 documentation`
@@ -207,17 +239,18 @@ gh pr edit <PR_NUMBER> --add-label "<label1>,<label2>"
 
 When making cross-package changes, commit in this order:
 
-| Order | Path | Description |
-|-------|------|-------------|
-| 1 | `packages/gql/src/*.graphql` | GraphQL schema ONLY (no generated types) |
-| 2 | `packages/gql/src/generated/` | Generated types (after schema review) |
-| 3 | `packages/apple/` | iOS implementation |
-| 4 | `packages/google/` | Android implementation |
-| 5 | `packages/docs/` | Documentation updates |
-| 6 | `.claude/commands/` | Skill/workflow updates |
-| 7 | `knowledge/` | Knowledge base updates |
+| Order | Path                          | Description                              |
+| ----- | ----------------------------- | ---------------------------------------- |
+| 1     | `packages/gql/src/*.graphql`  | GraphQL schema ONLY (no generated types) |
+| 2     | `packages/gql/src/generated/` | Generated types (after schema review)    |
+| 3     | `packages/apple/`             | iOS implementation                       |
+| 4     | `packages/google/`            | Android implementation                   |
+| 5     | `packages/docs/`              | Documentation updates                    |
+| 6     | `.claude/commands/`           | Skill/workflow updates                   |
+| 7     | `knowledge/`                  | Knowledge base updates                   |
 
 **IMPORTANT - First Commit Must Be GQL Spec Only:**
+
 ```bash
 # Stage ONLY .graphql files (not generated/)
 git add packages/gql/src/*.graphql
@@ -233,6 +266,7 @@ git commit -m "feat(gql): add new types..."
 ```
 
 This order allows:
+
 - API schema to be reviewed first before any implementation
 - Generated types committed after schema approval
 - Platform implementations to follow the approved schema
@@ -243,6 +277,7 @@ This order allows:
 ## Example Commit Messages
 
 **GQL schema update:**
+
 ```
 feat(gql): add win-back offer and product status types
 
@@ -259,6 +294,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 ```
 
 **Generated types:**
+
 ```
 chore(gql): regenerate types for all platforms
 
@@ -269,6 +305,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 ```
 
 **iOS implementation:**
+
 ```
 feat(apple): implement win-back offers and JWS promotional offers
 
@@ -281,6 +318,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 ```
 
 **Documentation update:**
+
 ```
 docs: add release notes and type documentation
 
@@ -306,20 +344,24 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 ## Changes
 
 ### GraphQL Schema (packages/gql)
+
 - `WinBackOfferInputIOS` - Win-back offer input type
 - `ProductStatusAndroid` - Product fetch status enum
 - `PromotionalOfferJWSInputIOS` - JWS format promo offers
 
 ### iOS (packages/apple)
+
 - Implement win-back offer handling in purchase flow
 - Add JWS promotional offer support (back-deployed to iOS 15)
 - Add introductory offer eligibility override
 
 ### Android (packages/google)
+
 - Map ProductStatusAndroid from BillingResult
 - Return status in fetchProducts response
 
 ### Documentation (packages/docs)
+
 - Release notes for v1.3.13
 - Type documentation updates
 - Example code updates

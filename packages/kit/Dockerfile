@@ -31,6 +31,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json bun.lock ./
 COPY packages/kit ./packages/kit
+COPY packages/mcp-server ./packages/mcp-server
 # bun 1.3.13 + workspaces installs some deps under each package's
 # local node_modules (e.g. `vite`, `@vitejs/plugin-react`) instead of
 # fully hoisting. Pull kit's local node_modules from the deps stage
@@ -38,6 +39,7 @@ COPY packages/kit ./packages/kit
 # build fails with `vite: command not found` (PR #124 (https://github.com/hyodotdev/openiap/pull/124) review
 # fallout).
 COPY --from=deps /app/packages/kit/node_modules ./packages/kit/node_modules
+COPY --from=deps /app/packages/mcp-server/node_modules ./packages/mcp-server/node_modules
 WORKDIR /app/packages/kit
 ARG VITE_KIT_CONVEX_URL
 ENV VITE_KIT_CONVEX_URL=${VITE_KIT_CONVEX_URL}
