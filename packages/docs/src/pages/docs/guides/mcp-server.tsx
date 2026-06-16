@@ -185,7 +185,7 @@ default_tools_approval_mode = "prompt"`}</CodeBlock>
         </ul>
         <figure style={{ margin: '1.5rem 0' }}>
           <video
-            src="/docs/videos/openiap-mcp-expo-test.webm?v=real-device-v9"
+            src="/docs/videos/openiap-mcp-expo-test.webm?v=real-purchase-v1"
             controls
             muted
             playsInline
