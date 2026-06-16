@@ -81,21 +81,29 @@ archive() {
 validate_install_names() {
   local binary
   local install_name
+  local saw_install_name
   local found=0
   local failed=0
 
   while IFS= read -r -d '' binary; do
     found=1
+    saw_install_name=0
     while IFS= read -r install_name; do
       if [[ -z "${install_name}" ]]; then
         continue
       fi
+      saw_install_name=1
 
       if [[ "${install_name}" != "${EXPECTED_INSTALL_NAME}" ]]; then
         echo "error: ${binary} has install name ${install_name}; expected ${EXPECTED_INSTALL_NAME}"
         failed=1
       fi
-    done < <(otool -l "${binary}" | awk '/LC_ID_DYLIB/{in_id=1; next} in_id && / name /{print $2; in_id=0}')
+    done < <(otool -D "${binary}" | grep -v ':$' || true)
+
+    if [[ "${saw_install_name}" -eq 0 ]]; then
+      echo "error: ${binary} has no LC_ID_DYLIB install name entry"
+      failed=1
+    fi
   done < <(
     find "${OUT}" \
       \( -path "*/OpenIAP.framework/OpenIAP" -o -path "*/OpenIAP.framework/Versions/*/OpenIAP" \) \
