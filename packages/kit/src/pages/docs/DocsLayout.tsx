@@ -2,8 +2,11 @@ import { useEffect, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Menu, X } from "lucide-react";
 
-import { DOCS_NAV, type DocsNavEntry } from "./nav";
+import { DOCS_NAV, flattenDocsNav, type DocsNavEntry } from "./nav";
+import { usePageTitle } from "@/hooks/usePageTitle";
 import { MixpanelEvent, trackEvent } from "@/lib/mixpanel";
+
+const FLATTENED_DOCS_NAV = flattenDocsNav(DOCS_NAV);
 
 /**
  * Docs shell. The container claims the full viewport and splits into
@@ -19,6 +22,7 @@ import { MixpanelEvent, trackEvent } from "@/lib/mixpanel";
  * no longer hosts the docs.
  */
 export default function DocsLayout() {
+  const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -52,6 +56,8 @@ export default function DocsLayout() {
   useEffect(() => {
     trackEvent(MixpanelEvent.ViewedDocs);
   }, []);
+
+  usePageTitle(titleForDocsPath(location.pathname));
 
   return (
     <div className="flex h-screen bg-background">
@@ -170,6 +176,20 @@ function DocsNavTree({ onNavigate }: { onNavigate?: () => void }) {
         />
       ))}
     </nav>
+  );
+}
+
+function titleForDocsPath(pathname: string): string {
+  const marker = "/docs";
+  const docsIndex = pathname.indexOf(marker);
+  if (docsIndex === -1) return "Documentation";
+
+  const slug = pathname
+    .slice(docsIndex + marker.length)
+    .replace(/^\/+|\/+$/g, "");
+  return (
+    FLATTENED_DOCS_NAV.find((entry) => entry.slug === slug)?.title ??
+    "Documentation"
   );
 }
 

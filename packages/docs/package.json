@@ -11,6 +11,7 @@
     "preview": "bunx vite preview",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,css,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,css,json}\"",
+    "render:mcp-video": "node scripts/render-mcp-demo-video.mjs",
     "prepare": "husky",
     "deploy": "./deploy.sh",
     "deploy:preview": "vercel"

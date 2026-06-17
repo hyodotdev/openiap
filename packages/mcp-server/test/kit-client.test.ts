@@ -23,9 +23,9 @@ describe("normalizeKitBaseUrl", () => {
     expect(() => normalizeKitBaseUrl("ftp://kit.example")).toThrow(
       "kit baseUrl must use http or https",
     );
-    expect(() => normalizeKitBaseUrl("https://kit.example?token=secret")).toThrow(
-      "kit baseUrl must not include query or fragment",
-    );
+    expect(() =>
+      normalizeKitBaseUrl("https://kit.example?token=secret"),
+    ).toThrow("kit baseUrl must not include query or fragment");
   });
 });
 
@@ -90,6 +90,48 @@ describe("kitClient", () => {
     });
 
     await expect(client.listProducts()).resolves.toEqual({ products: [] });
+  });
+
+  it("calls revenue and sync endpoints with encoded query params", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = kitClient({
+      apiKey: "custom-secret",
+      baseUrl: "https://kit.example",
+    });
+
+    await client.revenueMetrics({
+      fromDay: "2026-06-01",
+      toDay: "2026-06-04",
+    });
+    await client.syncProducts({
+      platform: "Android",
+      direction: "purge-local",
+      dryRun: true,
+    });
+    await client.syncJob("job/with slash");
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "https://kit.example/v1/subscriptions/revenue/custom-secret?fromDay=2026-06-01&toDay=2026-06-04",
+      expect.any(Object),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "https://kit.example/v1/products/custom-secret/sync/android?direction=purge-local&dryRun=true",
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      "https://kit.example/v1/products/custom-secret/sync/jobs/job%2Fwith%20slash",
+      expect.any(Object),
+    );
   });
 
   it("includes the full kit path in HTTP error messages", async () => {

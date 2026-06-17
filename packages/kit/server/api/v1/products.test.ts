@@ -398,6 +398,33 @@ describe("productsRoutes", () => {
     expect(mocks.mutation).not.toHaveBeenCalled();
   });
 
+  it("enqueues product sync jobs", async () => {
+    const app = buildApp();
+    mocks.mutation.mockResolvedValueOnce({
+      jobId: "job_123",
+      deduped: false,
+    });
+
+    const response = await app.request(
+      "/products/key/sync/android?direction=push&dryRun=true",
+      {
+        method: "POST",
+      },
+    );
+
+    expect(response.status).toBe(202);
+    await expect(response.json()).resolves.toEqual({
+      jobId: "job_123",
+      deduped: false,
+    });
+    expect(mocks.mutation).toHaveBeenCalledWith("enqueueProductSync", {
+      apiKey: "key",
+      platform: "Android",
+      direction: "push",
+      dryRun: true,
+    });
+  });
+
   it("rejects oversized sync job ids before calling Convex", async () => {
     const app = buildApp();
     const jobId = "j".repeat(257);

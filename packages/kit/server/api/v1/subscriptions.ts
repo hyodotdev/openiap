@@ -51,6 +51,7 @@ const API_KEY_ROUTES = [
   "/entitlements/:apiKey",
   "/list/:apiKey",
   "/metrics/:apiKey",
+  "/revenue/:apiKey",
   "/bind-user/:apiKey",
 ];
 
@@ -174,6 +175,45 @@ subscriptions.get("/metrics/:apiKey", async (c) => {
       error,
       "SUBSCRIPTION_METRICS_FAILED",
       "Subscription metrics lookup failed",
+    );
+  }
+});
+
+subscriptions.get("/revenue/:apiKey", async (c) => {
+  const apiKey = c.req.param("apiKey");
+  const fromDay = c.req.query("fromDay");
+  const toDay = c.req.query("toDay");
+
+  if (!isIsoDay(fromDay) || !isIsoDay(toDay)) {
+    return invalidInput(c, "fromDay and toDay must be YYYY-MM-DD");
+  }
+  if (fromDay > toDay) {
+    return invalidInput(c, "fromDay must be on or before toDay");
+  }
+  const spanDays = isoDaySpan(fromDay, toDay);
+  if (spanDays === null) {
+    return invalidInput(c, "fromDay and toDay must be valid calendar days");
+  }
+  if (spanDays > 92) {
+    return invalidInput(c, "revenue range must be 92 days or less");
+  }
+
+  try {
+    const result = await client.query(
+      api.subscriptions.query.getRevenueMetrics,
+      {
+        apiKey,
+        fromDay,
+        toDay,
+      },
+    );
+    return c.json(result);
+  } catch (error) {
+    return subscriptionRouteError(
+      c,
+      error,
+      "SUBSCRIPTION_REVENUE_FAILED",
+      "Subscription revenue lookup failed",
     );
   }
 });
@@ -363,6 +403,36 @@ function isJsonObject(value: unknown): value is Record<string, unknown> {
 
 function isNonBlankString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function isIsoDay(value: unknown): value is string {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function isoDaySpan(fromDay: string, toDay: string): number | null {
+  const fromMs = isoDayStartMs(fromDay);
+  const toMs = isoDayStartMs(toDay);
+  if (fromMs === null || toMs === null) return null;
+  return Math.round((toMs - fromMs) / 86_400_000) + 1;
+}
+
+function isoDayStartMs(day: string): number | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const date = Number(match[3]);
+  const ms = Date.UTC(year, month - 1, date);
+  const parsed = new Date(ms);
+  if (
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() !== month - 1 ||
+    parsed.getUTCDate() !== date
+  ) {
+    return null;
+  }
+  return ms;
 }
 
 function invalidInput(c: Context, message: string) {

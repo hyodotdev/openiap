@@ -12,6 +12,8 @@ Single-package repo deployed as one Fly.io machine:
 
 - `src/` — React 19 SPA (dashboard, auth, usage, projects, API keys, docs)
 - `server/` — Hono + Bun server for `/api/v1/*` + `/v1/*` + SPA fallback
+- `packages/mcp-server/` — MCP server used by `/mcp`, the Codex plugin,
+  MCP-compatible assistant clients, and self-hosted IAPKit assistant workflows
 - `convex/` — Convex functions (auth, orgs, projects, receipts)
 - `public/` — static assets (served by Vite in dev, Hono in prod)
 
@@ -30,6 +32,11 @@ Each project has its own API key. Keys are stored in Convex
 (`convex/apiKeys`), looked up by SHA-256 hash, and can be rotated from the
 dashboard. Dashboard users sign in via GitHub / Google OAuth or email-OTP
 (Resend).
+
+The MCP endpoint at `/mcp` uses the same IAPKit project key. MCP clients may
+send it as `Authorization: Bearer <project-key>`. A self-hosted MCP server can
+instead set `IAPKIT_API_KEY` so the project key stays in that private process.
+This is not an OpenAI or ChatGPT API key.
 
 ## Endpoints
 
@@ -80,6 +87,14 @@ returns the raw JSON. Both are unauthenticated.
 Intentionally cheap — no Convex round-trip. Used by Fly.io liveness /
 readiness probes. Sentry is configured to drop `/health` transactions so
 probe traffic doesn't dominate trace quota.
+
+### POST /mcp
+
+MCP Streamable HTTP endpoint for Codex and other MCP clients. Exposes tools
+with the `iapkit_` prefix: setup snippets, revenue analytics, status checks,
+diagnostics, product catalog reads/writes, store-sync jobs, subscriber views,
+sandbox guidance, webhook simulation, and project inspection. Full setup guide:
+`/docs/ai-assistants/codex-plugin`.
 
 ## Harmonized purchase states
 

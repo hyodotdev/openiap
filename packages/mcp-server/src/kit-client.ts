@@ -123,6 +123,32 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
         mrrMicros: number;
         currency?: string;
       }>(`/v1/subscriptions/metrics/${encodeURIComponent(apiKey)}`),
+    revenueMetrics: (params: { fromDay: string; toDay: string }) => {
+      const usp = new URLSearchParams({
+        fromDay: params.fromDay,
+        toDay: params.toDay,
+      });
+      return call<{
+        days: Array<{
+          day: string;
+          currency: string;
+          productId: string;
+          platform: "IOS" | "Android";
+          activeSubs: number;
+          newSubs: number;
+          renewals: number;
+          cancellations: number;
+          refunds: number;
+          revenueMicros: number;
+        }>;
+        currencies: string[];
+        productIds: string[];
+        platforms: Array<"IOS" | "Android">;
+        truncated: boolean;
+      }>(
+        `/v1/subscriptions/revenue/${encodeURIComponent(apiKey)}?${usp.toString()}`,
+      );
+    },
     listProducts: (params: { platform?: "IOS" | "Android" } = {}) => {
       const usp = new URLSearchParams();
       if (params.platform) usp.set("platform", params.platform);
@@ -155,6 +181,25 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
       call<{ id: string; state: string }>(
         `/v1/products/${encodeURIComponent(apiKey)}/state`,
         { method: "POST", body: JSON.stringify(params) },
+      ),
+    syncProducts: (params: {
+      platform: "IOS" | "Android";
+      direction: "pull" | "push" | "both" | "purge-local";
+      dryRun: boolean;
+    }) => {
+      const platformPath = params.platform === "IOS" ? "ios" : "android";
+      const usp = new URLSearchParams({
+        direction: params.direction,
+        dryRun: String(params.dryRun),
+      });
+      return call<{ jobId: string; deduped?: boolean }>(
+        `/v1/products/${encodeURIComponent(apiKey)}/sync/${platformPath}?${usp.toString()}`,
+        { method: "POST" },
+      );
+    },
+    syncJob: (jobId: string) =>
+      call<unknown>(
+        `/v1/products/${encodeURIComponent(apiKey)}/sync/jobs/${encodeURIComponent(jobId)}`,
       ),
     health: () => call<{ ok: boolean }>("/health"),
   };
