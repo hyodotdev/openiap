@@ -34,12 +34,10 @@ function FireOSSetup() {
         </h2>
         <ul>
           <li>
-            Fire OS: Android app target using the Amazon Appstore SDK via the{' '}
-            <code>amazon</code> flavor.
-          </li>
-          <li>
-            Artifact: <code>openiap-google-amazon</code> for native Android
-            consumers.
+            Fire OS flavor: Android app target for Fire OS devices using the
+            Amazon Appstore SDK. In Gradle and package names, OpenIAP exposes
+            this as the <code>amazon</code> flavor and{' '}
+            <code>openiap-google-amazon</code> artifact.
           </li>
           <li>
             Config plugin option: <code>amazon.fireOS=true</code> selects the
