@@ -1100,7 +1100,17 @@ class OpenIapModule(
                                 result.debugMessage
                             )
                             OpenIapLog.d("ITEM_ALREADY_OWNED received; querying owned purchases for ${androidArgs.skus}", TAG)
-                            queryAlreadyOwnedPurchases(client, desiredType, androidArgs.skus) { recovered ->
+                            val basePlanIdsBySku = if (desiredType == BillingClient.ProductType.SUBS) {
+                                details.associate { productDetails ->
+                                    productDetails.productId to productDetails.subscriptionOfferDetails
+                                        .orEmpty()
+                                        .firstOrNull()
+                                        ?.basePlanId
+                                }
+                            } else {
+                                emptyMap()
+                            }
+                            queryAlreadyOwnedPurchases(client, desiredType, androidArgs.skus, basePlanIdsBySku) { recovered ->
                                 if (recovered.isNotEmpty()) {
                                     OpenIapLog.d("Recovered ${recovered.size} already-owned purchase(s)", TAG)
                                     notifySuspendedSubscriptions(recovered)

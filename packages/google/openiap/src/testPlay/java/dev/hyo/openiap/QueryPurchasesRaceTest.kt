@@ -109,6 +109,25 @@ class QueryPurchasesRaceTest {
     }
 
     @Test
+    fun `queryAlreadyOwnedPurchases preserves requested subscription base plan`() {
+        val client = DuplicateBillingClient(
+            purchases = listOf(billingPurchase("subscription-product", "subscription-token"))
+        )
+        val recoveredPlanIds = mutableListOf<String?>()
+
+        queryAlreadyOwnedPurchases(
+            client,
+            BillingClient.ProductType.SUBS,
+            listOf("subscription-product"),
+            mapOf("subscription-product" to "premium-yearly")
+        ) { purchases ->
+            recoveredPlanIds += purchases.map { it.currentPlanId }
+        }
+
+        assertEquals(listOf("premium-yearly"), recoveredPlanIds)
+    }
+
+    @Test
     fun `ProductManager getOrQuery tolerates duplicate concurrent callbacks`() = runTest {
         val client = DuplicateBillingClient()
         val productManager = ProductManager()

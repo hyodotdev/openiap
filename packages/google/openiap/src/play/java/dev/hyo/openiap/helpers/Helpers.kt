@@ -78,6 +78,7 @@ internal fun queryAlreadyOwnedPurchases(
     client: BillingClient?,
     productType: String,
     skus: List<String>,
+    basePlanIdsBySku: Map<String, String?> = emptyMap(),
     onResult: (List<Purchase>) -> Unit
 ) {
     val requestedSkus = skus.toSet()
@@ -99,12 +100,14 @@ internal fun queryAlreadyOwnedPurchases(
             return@queryPurchasesAsync
         }
 
-        val recovered = purchaseList.orEmpty()
-            .map { billingPurchase -> billingPurchase.toPurchase(productType, null) }
-            .filter { purchase ->
-                purchase.productId in requestedSkus ||
-                    purchase.ids.orEmpty().any { id -> id in requestedSkus }
+        val recovered = purchaseList.orEmpty().mapNotNull { billingPurchase ->
+            val matchingSku = billingPurchase.products.firstOrNull { productId ->
+                productId in requestedSkus
             }
+            matchingSku?.let { sku ->
+                billingPurchase.toPurchase(productType, basePlanIdsBySku[sku])
+            }
+        }
         onResult(recovered)
     }
 }
