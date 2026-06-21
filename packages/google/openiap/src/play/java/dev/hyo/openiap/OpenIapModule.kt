@@ -110,8 +110,8 @@ class OpenIapModule(
 
     private val purchaseUpdateListeners = java.util.concurrent.CopyOnWriteArraySet<OpenIapPurchaseUpdateListener>()
     private val purchaseErrorListeners = java.util.concurrent.CopyOnWriteArraySet<OpenIapPurchaseErrorListener>()
-    private val userChoiceBillingListeners = mutableSetOf<OpenIapUserChoiceBillingListener>()
-    private val developerProvidedBillingListeners = mutableSetOf<OpenIapDeveloperProvidedBillingListener>()
+    private val userChoiceBillingListeners = java.util.concurrent.CopyOnWriteArraySet<OpenIapUserChoiceBillingListener>()
+    private val developerProvidedBillingListeners = java.util.concurrent.CopyOnWriteArraySet<OpenIapDeveloperProvidedBillingListener>()
     // Thread-safe: listeners can be added/removed on the main thread while
     // notifySuspendedSubscriptions iterates from Dispatchers.IO.
     private val subscriptionBillingIssueListeners =
