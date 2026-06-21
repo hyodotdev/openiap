@@ -51,6 +51,7 @@ import dev.hyo.openiap.helpers.AndroidPurchaseArgs
 import dev.hyo.openiap.helpers.onPurchaseError
 import dev.hyo.openiap.helpers.onPurchaseUpdated
 import dev.hyo.openiap.helpers.onSubscriptionBillingIssue
+import dev.hyo.openiap.helpers.queryAlreadyOwnedPurchases
 import dev.hyo.openiap.helpers.queryProductDetails
 import dev.hyo.openiap.helpers.queryPurchases
 import dev.hyo.openiap.helpers.resumeGuard
@@ -107,8 +108,8 @@ class OpenIapModule(
     private val gson = Gson()
     private val fallbackActivity: Activity? = if (context is Activity) context else null
 
-    private val purchaseUpdateListeners = mutableSetOf<OpenIapPurchaseUpdateListener>()
-    private val purchaseErrorListeners = mutableSetOf<OpenIapPurchaseErrorListener>()
+    private val purchaseUpdateListeners = java.util.concurrent.CopyOnWriteArraySet<OpenIapPurchaseUpdateListener>()
+    private val purchaseErrorListeners = java.util.concurrent.CopyOnWriteArraySet<OpenIapPurchaseErrorListener>()
     private val userChoiceBillingListeners = mutableSetOf<OpenIapUserChoiceBillingListener>()
     private val developerProvidedBillingListeners = mutableSetOf<OpenIapDeveloperProvidedBillingListener>()
     // Thread-safe: listeners can be added/removed on the main thread while
@@ -901,6 +902,8 @@ class OpenIapModule(
                 return@withContext emptyList()
             }
 
+            val desiredType = if (androidArgs.type == ProductQueryType.Subs) BillingClient.ProductType.SUBS else BillingClient.ProductType.INAPP
+
             suspendCancellableCoroutine<List<Purchase>> { continuation ->
                 var callbackRef: ((Result<List<Purchase>>) -> Unit)? = null
                 val resumer = continuation.resumeGuard {
@@ -921,8 +924,6 @@ class OpenIapModule(
                     currentPurchaseCallback.compareAndSet(callback, null)
                     return@suspendCancellableCoroutine
                 }
-
-                val desiredType = if (androidArgs.type == ProductQueryType.Subs) BillingClient.ProductType.SUBS else BillingClient.ProductType.INAPP
 
                 val detailsBySku = mutableMapOf<String, ProductDetails>()
                 for (sku in androidArgs.skus) {
@@ -1093,6 +1094,30 @@ class OpenIapModule(
                     val result = client.launchBillingFlow(activity, flowBuilder.build())
                     OpenIapLog.d("launchBillingFlow result: ${result.responseCode} - ${result.debugMessage}", TAG)
                     if (result.responseCode != BillingClient.BillingResponseCode.OK) {
+                        if (result.responseCode == BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED) {
+                            val err = OpenIapError.fromBillingResponseCode(
+                                result.responseCode,
+                                result.debugMessage
+                            )
+                            OpenIapLog.d("ITEM_ALREADY_OWNED received; querying owned purchases for ${androidArgs.skus}", TAG)
+                            queryAlreadyOwnedPurchases(client, desiredType, androidArgs.skus) { recovered ->
+                                if (recovered.isNotEmpty()) {
+                                    OpenIapLog.d("Recovered ${recovered.size} already-owned purchase(s)", TAG)
+                                    consumePurchaseCallback(Result.success(recovered))
+                                    notifySuspendedSubscriptions(recovered)
+                                    for (purchase in recovered) {
+                                        for (listener in purchaseUpdateListeners) {
+                                            runCatching { listener.onPurchaseUpdated(purchase) }
+                                        }
+                                    }
+                                } else {
+                                    OpenIapLog.w("ITEM_ALREADY_OWNED recovery found no matching owned purchases", TAG)
+                                    for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
+                                    consumePurchaseCallback(Result.success(emptyList()))
+                                }
+                            }
+                            return
+                        }
                         val err = when (result.responseCode) {
                             BillingClient.BillingResponseCode.DEVELOPER_ERROR -> {
                                 OpenIapLog.w("DEVELOPER_ERROR: Invalid arguments. Check if subscriptions are in the same group.", TAG)

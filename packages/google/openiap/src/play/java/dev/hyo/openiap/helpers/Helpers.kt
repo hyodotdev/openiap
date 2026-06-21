@@ -7,6 +7,7 @@ import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.Purchase
 import dev.hyo.openiap.utils.BillingConverters.toPurchase
 import kotlinx.coroutines.suspendCancellableCoroutine
+import java.util.concurrent.atomic.AtomicBoolean
 
 // Common helpers (onPurchaseUpdated, onPurchaseError, AndroidPurchaseArgs,
 // toAndroidPurchaseArgs, toPurchaseError) are in main/helpers/CommonHelpers.kt
@@ -66,6 +67,45 @@ internal suspend fun queryPurchases(
         } else {
             resumer.resume(emptyList())
         }
+    }
+}
+
+/**
+ * Queries Play Billing directly after ITEM_ALREADY_OWNED and returns only
+ * currently owned purchases that match the in-flight request SKUs.
+ */
+internal fun queryAlreadyOwnedPurchases(
+    client: BillingClient?,
+    productType: String,
+    skus: List<String>,
+    onResult: (List<Purchase>) -> Unit
+) {
+    val requestedSkus = skus.toSet()
+    if (client == null || requestedSkus.isEmpty()) {
+        onResult(emptyList())
+        return
+    }
+
+    val didHandleResult = AtomicBoolean(false)
+    val params = QueryPurchasesParams.newBuilder()
+        .setProductType(productType)
+        .build()
+
+    client.queryPurchasesAsync(params) { result, purchaseList ->
+        if (!didHandleResult.compareAndSet(false, true)) return@queryPurchasesAsync
+
+        if (result.responseCode != BillingClient.BillingResponseCode.OK) {
+            onResult(emptyList())
+            return@queryPurchasesAsync
+        }
+
+        val recovered = purchaseList.orEmpty()
+            .map { billingPurchase -> billingPurchase.toPurchase(productType, null) }
+            .filter { purchase ->
+                purchase.productId in requestedSkus ||
+                    purchase.ids.orEmpty().any { id -> id in requestedSkus }
+            }
+        onResult(recovered)
     }
 }
 

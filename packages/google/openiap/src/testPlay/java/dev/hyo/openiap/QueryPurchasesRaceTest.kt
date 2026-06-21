@@ -33,15 +33,21 @@ import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryProductDetailsResult
 import com.android.billingclient.api.QueryPurchasesParams
 import dev.hyo.openiap.helpers.ProductManager
+import dev.hyo.openiap.helpers.queryAlreadyOwnedPurchases
 import dev.hyo.openiap.helpers.queryPurchases
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class QueryPurchasesRaceTest {
 
     @Test
@@ -58,6 +64,51 @@ class QueryPurchasesRaceTest {
     }
 
     @Test
+    fun `queryAlreadyOwnedPurchases tolerates duplicate concurrent callbacks`() {
+        val client = DuplicateBillingClient()
+        val completions = AtomicInteger(0)
+
+        queryAlreadyOwnedPurchases(
+            client,
+            BillingClient.ProductType.INAPP,
+            listOf("product-id")
+        ) {
+            completions.incrementAndGet()
+        }
+
+        assertEquals(1, completions.get())
+        assertTrue(
+            "queryAlreadyOwnedPurchases must ignore duplicate concurrent callbacks: " +
+                client.callbackFailures.joinToString { it::class.java.simpleName },
+            client.callbackFailures.isEmpty()
+        )
+    }
+
+    @Test
+    fun `queryAlreadyOwnedPurchases filters purchases by requested sku`() {
+        val requested = billingPurchase("requested-product", "requested-token")
+        assertEquals(listOf("requested-product"), requested.products)
+
+        val client = DuplicateBillingClient(
+            purchases = listOf(
+                requested,
+                billingPurchase("other-product", "other-token")
+            )
+        )
+        val recoveredProductIds = mutableListOf<String>()
+
+        queryAlreadyOwnedPurchases(
+            client,
+            BillingClient.ProductType.SUBS,
+            listOf("requested-product")
+        ) { purchases ->
+            recoveredProductIds += purchases.map { it.productId }
+        }
+
+        assertEquals(listOf("requested-product"), recoveredProductIds)
+    }
+
+    @Test
     fun `ProductManager getOrQuery tolerates duplicate concurrent callbacks`() = runTest {
         val client = DuplicateBillingClient()
         val productManager = ProductManager()
@@ -71,7 +122,25 @@ class QueryPurchasesRaceTest {
         )
     }
 
-    private class DuplicateBillingClient : BillingClient() {
+    private fun billingPurchase(productId: String, token: String): Purchase = Purchase(
+        """
+        {
+          "orderId": "order-$productId",
+          "packageName": "dev.hyo.openiap.test",
+          "productId": "$productId",
+          "purchaseTime": 1,
+          "purchaseState": 0,
+          "purchaseToken": "$token",
+          "quantity": 1,
+          "acknowledged": false
+        }
+        """.trimIndent(),
+        "signature"
+    )
+
+    private class DuplicateBillingClient(
+        private val purchases: List<Purchase> = emptyList()
+    ) : BillingClient() {
         val callbackFailures = Collections.synchronizedList(mutableListOf<Throwable>())
 
         override fun queryPurchasesAsync(
@@ -81,7 +150,9 @@ class QueryPurchasesRaceTest {
             val result = BillingResult.newBuilder()
                 .setResponseCode(BillingResponseCode.OK)
                 .build()
-            val purchaseList = CallbackBarrierList<Purchase>(callbackCount = 2)
+            val purchaseList = purchases.ifEmpty {
+                CallbackBarrierList(callbackCount = 2)
+            }
             runDuplicateCallbacks {
                 listener.onQueryPurchasesResponse(result, purchaseList)
             }
