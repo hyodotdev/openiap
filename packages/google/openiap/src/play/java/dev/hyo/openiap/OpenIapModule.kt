@@ -1103,13 +1103,13 @@ class OpenIapModule(
                             queryAlreadyOwnedPurchases(client, desiredType, androidArgs.skus) { recovered ->
                                 if (recovered.isNotEmpty()) {
                                     OpenIapLog.d("Recovered ${recovered.size} already-owned purchase(s)", TAG)
-                                    consumePurchaseCallback(Result.success(recovered))
                                     notifySuspendedSubscriptions(recovered)
                                     for (purchase in recovered) {
                                         for (listener in purchaseUpdateListeners) {
                                             runCatching { listener.onPurchaseUpdated(purchase) }
                                         }
                                     }
+                                    consumePurchaseCallback(Result.success(recovered))
                                 } else {
                                     OpenIapLog.w("ITEM_ALREADY_OWNED recovery found no matching owned purchases", TAG)
                                     for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
