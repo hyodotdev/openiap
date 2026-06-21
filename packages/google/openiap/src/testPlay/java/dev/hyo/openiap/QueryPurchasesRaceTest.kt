@@ -128,6 +128,7 @@ class QueryPurchasesRaceTest {
           "orderId": "order-$productId",
           "packageName": "dev.hyo.openiap.test",
           "productId": "$productId",
+          "productIds": ["$productId"],
           "purchaseTime": 1,
           "purchaseState": 0,
           "purchaseToken": "$token",
