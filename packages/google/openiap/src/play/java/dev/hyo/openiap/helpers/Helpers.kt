@@ -92,24 +92,45 @@ internal fun queryAlreadyOwnedPurchases(
         .setProductType(productType)
         .build()
 
-    client.queryPurchasesAsync(params) { result, purchaseList ->
-        if (!didHandleResult.compareAndSet(false, true)) return@queryPurchasesAsync
+    try {
+        client.queryPurchasesAsync(params) { result, purchaseList ->
+            if (!didHandleResult.compareAndSet(false, true)) return@queryPurchasesAsync
 
-        if (result.responseCode != BillingClient.BillingResponseCode.OK) {
+            if (result.responseCode != BillingClient.BillingResponseCode.OK) {
+                onResult(emptyList())
+                return@queryPurchasesAsync
+            }
+
+            val recovered = purchaseList.orEmpty().mapNotNull { billingPurchase ->
+                val matchingSku = billingPurchase.products.firstOrNull { productId ->
+                    productId in requestedSkus
+                }
+                matchingSku?.let { sku ->
+                    billingPurchase.toPurchase(productType, basePlanIdsBySku[sku])
+                }
+            }
+            onResult(recovered)
+        }
+    } catch (_: Exception) {
+        if (didHandleResult.compareAndSet(false, true)) {
             onResult(emptyList())
-            return@queryPurchasesAsync
         }
-
-        val recovered = purchaseList.orEmpty().mapNotNull { billingPurchase ->
-            val matchingSku = billingPurchase.products.firstOrNull { productId ->
-                productId in requestedSkus
-            }
-            matchingSku?.let { sku ->
-                billingPurchase.toPurchase(productType, basePlanIdsBySku[sku])
-            }
-        }
-        onResult(recovered)
     }
+}
+
+internal data class SubscriptionBasePlanOffer(
+    val offerToken: String?,
+    val basePlanId: String?
+)
+
+internal fun resolveBasePlanIdForOfferToken(
+    offers: List<SubscriptionBasePlanOffer>,
+    requestedOfferToken: String?
+): String? {
+    return requestedOfferToken?.let { token ->
+        offers.find { it.offerToken == token }?.basePlanId
+    }
+        ?: offers.firstOrNull()?.basePlanId
 }
 
 internal suspend fun queryProductDetails(
