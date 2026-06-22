@@ -25,7 +25,7 @@ jobs:
       parity: ${{ steps.filter.outputs.parity }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Check for changes
         uses: dorny/paths-filter@v4
@@ -73,7 +73,7 @@ jobs:
     if: needs.changes.outputs.parity == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -93,7 +93,7 @@ jobs:
     if: needs.changes.outputs.gql == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -158,7 +158,7 @@ jobs:
     if: needs.changes.outputs.android == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Java
         uses: actions/setup-java@v5
@@ -208,7 +208,7 @@ jobs:
     if: needs.changes.outputs.ios == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Xcode
         uses: maxim-lobanov/setup-xcode@v1
@@ -249,7 +249,7 @@ jobs:
     if: needs.changes.outputs.docs == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -289,7 +289,7 @@ jobs:
     if: needs.changes.outputs.agent == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2

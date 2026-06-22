@@ -28,7 +28,7 @@ jobs:
       run:
         working-directory: packages/kit
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -96,7 +96,7 @@ jobs:
     env:
       KIT_CONVEX_DEPLOY_KEY: ${{ secrets.KIT_CONVEX_DEPLOY_KEY }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup flyctl
         # Pinned to the `1.6` release rather than `@master` so the action
