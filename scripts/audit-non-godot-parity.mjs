@@ -574,11 +574,16 @@ function checkFlutter() {
     "invokeMethod('deepLinkToSubscriptions')",
     'deepLinkToSubscriptionsAndroid',
   ], 'Flutter deepLinkToSubscriptions bridge');
-  expectIncludes('libraries/flutter_inapp_purchase/ios/Classes/FlutterInappPurchasePlugin.swift', [
+  const flutterIosPlugin =
+    'libraries/flutter_inapp_purchase/ios/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift';
+  const flutterMacosPlugin =
+    'libraries/flutter_inapp_purchase/macos/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift';
+
+  expectIncludes(flutterIosPlugin, [
     'case "deepLinkToSubscriptions"',
     'OpenIapModule.shared.deepLinkToSubscriptions(nil)',
   ], 'Flutter iOS deepLinkToSubscriptions bridge');
-  expectIncludes('libraries/flutter_inapp_purchase/macos/Classes/FlutterInappPurchasePlugin.swift', [
+  expectIncludes(flutterMacosPlugin, [
     'case "setPurchaseUpdatedListenerOptions"',
     'case "deepLinkToSubscriptions"',
     'case "getAllTransactionsIOS"',
@@ -599,18 +604,18 @@ function checkFlutter() {
   ], 'Flutter Android must inherit Play Billing from openiap-google');
   for (const nativePlugin of [
     'libraries/expo-iap/ios/ExpoIapModule.swift',
-    'libraries/flutter_inapp_purchase/ios/Classes/FlutterInappPurchasePlugin.swift',
-    'libraries/flutter_inapp_purchase/macos/Classes/FlutterInappPurchasePlugin.swift',
+    flutterIosPlugin,
+    flutterMacosPlugin,
   ]) {
     expectNotIncludes(nativePlugin, [
       'OpenIapModule.shared.validateReceiptIOS',
       'OpenIapModule.shared.getStorefrontIOS()',
     ], 'Flutter deprecated native OpenIAP calls');
   }
-  expectIncludes('libraries/flutter_inapp_purchase/ios/Classes/FlutterInappPurchasePlugin.swift', [
+  expectIncludes(flutterIosPlugin, [
     'OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()',
   ], 'Flutter iOS promoted purchase bridge');
-  expectIncludes('libraries/flutter_inapp_purchase/macos/Classes/FlutterInappPurchasePlugin.swift', [
+  expectIncludes(flutterMacosPlugin, [
     'OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()',
   ], 'Flutter macOS promoted purchase bridge');
   expectIncludes('libraries/react-native-iap/ios/HybridRnIap.swift', [
