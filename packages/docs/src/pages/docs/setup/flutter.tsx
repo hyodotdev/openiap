@@ -14,7 +14,7 @@ function FlutterSetup() {
       <h1>Flutter Setup</h1>
       <p>
         <code>flutter_inapp_purchase</code> provides in-app purchase support for
-        Flutter apps on iOS and Android.
+        Flutter apps on iOS, Android, and macOS.
       </p>
 
       <div
@@ -50,6 +50,35 @@ function FlutterSetup() {
   ${FLUTTER_PACKAGE.dependencyLine}`}
         </CodeBlock>
 
+        <h3 id="ios-macos-dependency-manager" className="anchor-heading">
+          iOS/macOS Native Dependency Manager
+          <a href="#ios-macos-dependency-manager" className="anchor-link">
+            #
+          </a>
+        </h3>
+        <p>
+          The Dart install command above is the only package install step for
+          most apps. On Flutter 3.44 and newer, Swift Package Manager is enabled
+          by default, and the Flutter CLI resolves the native OpenIAP dependency
+          automatically when you run or build the app.
+        </p>
+        <p>
+          Projects that disable Swift Package Manager, or projects using an
+          older Flutter toolchain, continue to use CocoaPods. In that case, run
+          CocoaPods after <code>flutter pub get</code>:
+        </p>
+        <CodeBlock language="bash">
+          {`(cd ios && pod install)
+
+# If your app also has a macOS target:
+(cd macos && pod install)`}
+        </CodeBlock>
+        <p>
+          Do not add OpenIAP manually to your app&apos;s{' '}
+          <code>Package.swift</code> or <code>Podfile</code>; the Flutter plugin
+          declares the native dependency.
+        </p>
+
         <h3 id="ios-config" className="anchor-heading">
           iOS Configuration
           <a href="#ios-config" className="anchor-link">
@@ -76,6 +105,23 @@ function FlutterSetup() {
     <string>itms-apps</string>
 </array>`}
         </CodeBlock>
+
+        <h3 id="macos-config" className="anchor-heading">
+          macOS Configuration
+          <a href="#macos-config" className="anchor-link">
+            #
+          </a>
+        </h3>
+        <ul>
+          <li>
+            Requires <strong>macOS 14.0+</strong>
+          </li>
+          <li>
+            Enable In-App Purchase capability in Xcode: Target &gt;{' '}
+            <strong>Signing &amp; Capabilities</strong> &gt;{' '}
+            <strong>+ Capability</strong> &gt; <strong>In-App Purchase</strong>
+          </li>
+        </ul>
 
         <h3 id="android-config" className="anchor-heading">
           Android Configuration

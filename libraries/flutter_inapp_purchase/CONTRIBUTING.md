@@ -19,11 +19,16 @@ flutter pub get
 
 ### Platform-Specific Setup
 
-#### iOS
+#### iOS and macOS
 
-- This plugin uses the OpenIAP Apple native module via CocoaPods. See [openiap-versions.json](./openiap-versions.json) for the current version.
-- After upgrading or cloning, run `pod install` in your iOS project (e.g., `example/ios`).
-- Minimum iOS deployment target is `15.0` for StoreKit 2 support.
+- This plugin declares the OpenIAP Apple native module for both Swift Package Manager and CocoaPods. See [openiap-versions.json](./openiap-versions.json) for the current version.
+- Flutter 3.44 and newer enables Swift Package Manager by default. When testing SwiftPM locally, run `flutter config --enable-swift-package-manager`, then build from `example`.
+- CocoaPods remains supported for older Flutter projects or projects that disable SwiftPM. After upgrading or cloning, run `pod install` in each Apple example target you use:
+  ```bash
+  (cd example/ios && pod install)
+  (cd example/macos && pod install)
+  ```
+- Minimum deployment targets are iOS `15.0` and macOS `14.0`.
 
 #### Android
 
