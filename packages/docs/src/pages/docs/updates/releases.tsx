@@ -26,6 +26,121 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // June 23, 2026 — Flutter Swift Package Manager support
+    {
+      id: 'flutter-swift-package-manager-support-2026-06-23',
+      date: new Date('2026-06-23'),
+      element: (
+        <div
+          key="flutter-swift-package-manager-support-2026-06-23"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="flutter-swift-package-manager-support-2026-06-23"
+            level="h4"
+          >
+            June 23, 2026 — Flutter Swift Package Manager support
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes <strong>flutter_inapp_purchase 9.3.4</strong> with
+            platform-specific Swift Package Manager manifests for iOS and macOS.
+            This release packages the Flutter plugin&apos;s native Swift sources
+            so Flutter&apos;s SwiftPM integration can resolve both the generated{' '}
+            <code>FlutterFramework</code> package and OpenIAP&apos;s Swift
+            package without relying on the removed root manifest. The{' '}
+            <strong>OpenIAP Spec remains 2.0.2</strong>. Track the change in{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/161"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #161
+            </a>
+            .
+          </p>
+
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>Native SwiftPM manifests</strong> — adds package manifests
+              under <code>ios/flutter_inapp_purchase/</code> and{' '}
+              <code>macos/flutter_inapp_purchase/</code>, matching
+              Flutter&apos;s generated SwiftPM layout for plugin packages.
+            </li>
+            <li>
+              <strong>OpenIAP package dependency</strong> — declares OpenIAP as
+              a SwiftPM dependency with the correct <code>OpenIAP</code> package
+              and product name so the plugin&apos;s StoreKit bridge can import
+              the native OpenIAP module.
+            </li>
+            <li>
+              <strong>CocoaPods compatibility preserved</strong> — keeps the
+              existing iOS and macOS podspec flows working while pointing them
+              at the new Swift source layout.
+            </li>
+            <li>
+              <strong>Generated artifact hygiene</strong> — ignores Flutter and
+              Xcode SwiftPM generated files such as{' '}
+              <code>Flutter/ephemeral/Packages</code> and{' '}
+              <code>xcshareddata/swiftpm</code> outputs.
+            </li>
+            <li>
+              <strong>CI parity coverage</strong> — the SDK parity audit now
+              checks the new Flutter SwiftPM manifests and generated llms root
+              symlinks so path drift is caught before release.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.3.4"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  flutter_inapp_purchase 9.3.4
+                </a>{' '}
+                (
+                <a
+                  href="https://pub.dev/packages/flutter_inapp_purchase/versions/9.3.4"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  pub.dev
+                </a>
+                )
+              </li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // June 23, 2026 — Android already-owned purchase recovery hotfix
     {
       id: 'android-already-owned-recovery-hotfix-2026-06-23',
