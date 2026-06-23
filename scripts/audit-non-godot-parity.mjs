@@ -574,11 +574,45 @@ function checkFlutter() {
     "invokeMethod('deepLinkToSubscriptions')",
     'deepLinkToSubscriptionsAndroid',
   ], 'Flutter deepLinkToSubscriptions bridge');
-  expectIncludes('libraries/flutter_inapp_purchase/ios/Classes/FlutterInappPurchasePlugin.swift', [
+  const flutterIosPlugin =
+    'libraries/flutter_inapp_purchase/ios/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift';
+  const flutterMacosPlugin =
+    'libraries/flutter_inapp_purchase/macos/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift';
+  const flutterSwiftPackagePaths = [
+    'libraries/flutter_inapp_purchase/ios/flutter_inapp_purchase/Package.swift',
+    'libraries/flutter_inapp_purchase/macos/flutter_inapp_purchase/Package.swift',
+  ];
+
+  for (const flutterSwiftPackage of flutterSwiftPackagePaths) {
+    expectFile(flutterSwiftPackage);
+    if (!exists(flutterSwiftPackage)) continue;
+    const flutterSwiftPackageText = read(flutterSwiftPackage);
+    const openIapDependencyVersion = flutterSwiftPackageText.match(
+      /\.package\(url: "https:\/\/github\.com\/hyodotdev\/openiap\.git", from: "([^"]+)"\),/,
+    )?.[1];
+    if (!openIapDependencyVersion) {
+      fail(`${flutterSwiftPackage} is missing the OpenIAP SwiftPM dependency`);
+    } else if (
+      !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(
+        openIapDependencyVersion,
+      )
+    ) {
+      fail(`${flutterSwiftPackage} OpenIAP dependency version must be semver`);
+    }
+    if (
+      !flutterSwiftPackageText.includes(
+        '.product(name: "OpenIAP", package: "OpenIAP")',
+      )
+    ) {
+      fail(`${flutterSwiftPackage} is missing the OpenIAP product dependency`);
+    }
+  }
+
+  expectIncludes(flutterIosPlugin, [
     'case "deepLinkToSubscriptions"',
     'OpenIapModule.shared.deepLinkToSubscriptions(nil)',
   ], 'Flutter iOS deepLinkToSubscriptions bridge');
-  expectIncludes('libraries/flutter_inapp_purchase/macos/Classes/FlutterInappPurchasePlugin.swift', [
+  expectIncludes(flutterMacosPlugin, [
     'case "setPurchaseUpdatedListenerOptions"',
     'case "deepLinkToSubscriptions"',
     'case "getAllTransactionsIOS"',
@@ -599,18 +633,18 @@ function checkFlutter() {
   ], 'Flutter Android must inherit Play Billing from openiap-google');
   for (const nativePlugin of [
     'libraries/expo-iap/ios/ExpoIapModule.swift',
-    'libraries/flutter_inapp_purchase/ios/Classes/FlutterInappPurchasePlugin.swift',
-    'libraries/flutter_inapp_purchase/macos/Classes/FlutterInappPurchasePlugin.swift',
+    flutterIosPlugin,
+    flutterMacosPlugin,
   ]) {
     expectNotIncludes(nativePlugin, [
       'OpenIapModule.shared.validateReceiptIOS',
       'OpenIapModule.shared.getStorefrontIOS()',
     ], 'Flutter deprecated native OpenIAP calls');
   }
-  expectIncludes('libraries/flutter_inapp_purchase/ios/Classes/FlutterInappPurchasePlugin.swift', [
+  expectIncludes(flutterIosPlugin, [
     'OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()',
   ], 'Flutter iOS promoted purchase bridge');
-  expectIncludes('libraries/flutter_inapp_purchase/macos/Classes/FlutterInappPurchasePlugin.swift', [
+  expectIncludes(flutterMacosPlugin, [
     'OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()',
   ], 'Flutter macOS promoted purchase bridge');
   expectIncludes('libraries/react-native-iap/ios/HybridRnIap.swift', [
@@ -981,6 +1015,25 @@ function checkFrameworkDependencyHygiene() {
     'packages/docs/openiap-versions.json',
     'Docs package version copy',
   );
+  expectSymlinkTarget(
+    'llms.txt',
+    'packages/docs/public/llms.txt',
+    'Root llms.txt',
+  );
+  expectSymlinkTarget(
+    'llms-full.txt',
+    'packages/docs/public/llms-full.txt',
+    'Root llms-full.txt',
+  );
+  for (const docsLlmsFile of [
+    'packages/docs/public/llms.txt',
+    'packages/docs/public/llms-full.txt',
+  ]) {
+    expectFile(docsLlmsFile);
+    if (exists(docsLlmsFile) && fs.lstatSync(abs(docsLlmsFile)).isSymbolicLink()) {
+      fail(`${docsLlmsFile} must be a real file for docs deployment`);
+    }
+  }
   expectFile('packages/docs/src/generated/version-metadata.json');
   if (exists('packages/docs/src/generated/version-metadata.json')) {
     const docsVersionMetadata = readJson('packages/docs/src/generated/version-metadata.json');

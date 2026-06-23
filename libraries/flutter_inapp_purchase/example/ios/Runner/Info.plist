@@ -52,5 +52,26 @@
 			<string>cstr6suwn9.skadnetwork</string>
 		</dict>
 	</array>
+	 <key>UIApplicationSceneManifest</key>
+ <dict>
+  <key>UIApplicationSupportsMultipleScenes</key>
+  <false/>
+  <key>UISceneConfigurations</key>
+  <dict>
+  <key>UIWindowSceneSessionRoleApplication</key>
+    <array>
+      <dict>
+        <key>UISceneClassName</key>
+        <string>UIWindowScene</string>
+        <key>UISceneDelegateClassName</key>
+        <string>FlutterSceneDelegate</string>
+        <key>UISceneConfigurationName</key>
+        <string>flutter</string>
+        <key>UISceneStoryboardFile</key>
+        <string>Main</string>
+      </dict>
+    </array>
+   </dict>
+ </dict>
 </dict>
 </plist>

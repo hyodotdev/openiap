@@ -24,6 +24,25 @@ flutter pub add flutter_inapp_purchase
 For manual `pubspec.yaml` edits, copy the current dependency from the
 [flutter_inapp_purchase pub.dev package page](https://pub.dev/packages/flutter_inapp_purchase).
 
+### iOS/macOS Native Dependency Resolution
+
+No manual `Package.swift` or `Podfile` entry is required. On Flutter 3.44 and
+newer, Swift Package Manager is enabled by default and the Flutter CLI resolves
+the native OpenIAP dependency automatically when you run or build the app.
+
+Projects that disable Swift Package Manager, or projects using an older Flutter
+toolchain, continue to use CocoaPods. Run `pod install` after `flutter pub get`
+for each Apple target you use:
+
+```bash
+(cd ios && pod install)
+
+# If your app also has a macOS target:
+(cd macos && pod install)
+```
+
+Apple platform targets require iOS 15.0+ or macOS 14.0+.
+
 ## 🔧 Quick Start
 
 ### Basic Usage
@@ -61,6 +80,7 @@ flutter_inapp_purchase provides AI-friendly documentation for Cursor, GitHub Cop
 **[AI Assistants Guide](https://openiap.dev/docs/guides/ai-assistants)**
 
 Quick links:
+
 - [llms.txt](https://openiap.dev/llms.txt) - Quick reference
 - [llms-full.txt](https://openiap.dev/llms-full.txt) - Full API reference
 

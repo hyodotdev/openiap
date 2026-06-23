@@ -35,7 +35,10 @@ const CONFIG = {
   outputFile: "context.md",
   // LLMs.txt output (for AI assistants on web)
   llmsOutputDir: path.resolve(scriptDir, "../../packages/docs/public"),
-  rootLlmsOutputDir: path.resolve(scriptDir, "../.."),
+  rootLlmsSymlinks: {
+    "llms.txt": "packages/docs/public/llms.txt",
+    "llms-full.txt": "packages/docs/public/llms-full.txt",
+  },
 };
 
 function readInstallationVersions(): {
@@ -87,6 +90,26 @@ function readInstallationVersions(): {
 
 function withSingleTrailingNewline(content: string): string {
   return `${content.trimEnd()}\n`;
+}
+
+function ensureSymlink(linkPath: string, targetPath: string): void {
+  try {
+    const currentTarget = fs.readlinkSync(linkPath);
+    if (currentTarget === targetPath) {
+      return;
+    }
+    fs.unlinkSync(linkPath);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code !== "ENOENT" && code !== "EINVAL") {
+      throw error;
+    }
+    if (fs.existsSync(linkPath)) {
+      fs.unlinkSync(linkPath);
+    }
+  }
+
+  fs.symlinkSync(targetPath, linkPath);
 }
 
 // ============================================================================
@@ -583,20 +606,19 @@ interface PurchaseError {
 - GitHub: https://github.com/hyodotdev/openiap
 `;
 
-  // Write files to the deployed docs public directory and the repository root.
-  // The website serves packages/docs/public, while the root copies keep local
-  // repository consumers from reading stale LLM context.
-  const outputDirs = [CONFIG.llmsOutputDir, CONFIG.rootLlmsOutputDir];
-  for (const outputDir of outputDirs) {
-    fs.mkdirSync(outputDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(outputDir, "llms.txt"),
-      withSingleTrailingNewline(quickContent),
-    );
-    fs.writeFileSync(
-      path.join(outputDir, "llms-full.txt"),
-      withSingleTrailingNewline(fullContent),
-    );
+  // The website serves packages/docs/public. Root files are symlinks to avoid
+  // drift between local repository readers and deployed docs.
+  fs.mkdirSync(CONFIG.llmsOutputDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(CONFIG.llmsOutputDir, "llms.txt"),
+    withSingleTrailingNewline(quickContent),
+  );
+  fs.writeFileSync(
+    path.join(CONFIG.llmsOutputDir, "llms-full.txt"),
+    withSingleTrailingNewline(fullContent),
+  );
+  for (const [filename, targetPath] of Object.entries(CONFIG.rootLlmsSymlinks)) {
+    ensureSymlink(path.join(CONFIG.projectRoot, filename), targetPath);
   }
 
   console.log(
@@ -781,14 +803,9 @@ openiap/
       `  ✓ Output: ${path.join(CONFIG.llmsOutputDir, "llms-full.txt")}`,
     ),
   );
-  console.log(
-    chalk.green(`  ✓ Output: ${path.join(CONFIG.rootLlmsOutputDir, "llms.txt")}`),
-  );
-  console.log(
-    chalk.green(
-      `  ✓ Output: ${path.join(CONFIG.rootLlmsOutputDir, "llms-full.txt")}`,
-    ),
-  );
+  for (const [filename, targetPath] of Object.entries(CONFIG.rootLlmsSymlinks)) {
+    console.log(chalk.green(`  ✓ Symlink: ${filename} -> ${targetPath}`));
+  }
 
   console.log(chalk.bold.green("\n✅ Context compilation complete!\n"));
   console.log(chalk.white("Usage with Claude Code:"));

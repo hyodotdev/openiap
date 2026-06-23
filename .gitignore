@@ -72,6 +72,7 @@ coverage/
 tmp/
 temp/
 .build
+.swiftpm
 
 # RAG Agent generated outputs (benchmark comparisons)
 scripts/agent/_generated/

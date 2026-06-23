@@ -17,6 +17,7 @@ flutter_export_environment*
 launch.json
 .flutter-plugins-*
 
+.swiftpm/
 coverage
 
 # Node.js
