@@ -26,6 +26,240 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // June 23, 2026 — Android already-owned purchase recovery hotfix
+    {
+      id: 'android-already-owned-recovery-hotfix-2026-06-23',
+      date: new Date('2026-06-23'),
+      element: (
+        <div
+          key="android-already-owned-recovery-hotfix-2026-06-23"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="android-already-owned-recovery-hotfix-2026-06-23"
+            level="h4"
+          >
+            June 23, 2026 — Android already-owned purchase recovery hotfix
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes an Android hotfix for Google Play Billing flows that
+            return <code>ITEM_ALREADY_OWNED</code> from{' '}
+            <code>launchBillingFlow</code> before Play returns a purchase update
+            callback. The <strong>OpenIAP Spec remains 2.0.2</strong>; this
+            rollout changes native Android recovery behavior and wrapper package
+            metadata only. Track the fix in{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/issues/166"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              issue #166
+            </a>{' '}
+            and{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/189"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #189
+            </a>
+            .
+          </p>
+
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>Direct Play Billing recovery</strong> — when Google Play
+              reports <code>ITEM_ALREADY_OWNED</code>, openiap-google now calls{' '}
+              <code>queryPurchasesAsync</code> immediately and returns only the
+              owned purchases matching the in-flight request SKUs.
+            </li>
+            <li>
+              <strong>No purchase ownership cache</strong> — the recovery path
+              does not store entitlement state locally. Apps that want an
+              explicit user-facing restore flow should still guide users to
+              restore through{' '}
+              <Link to="/docs/apis/get-available-purchases">
+                <code>getAvailablePurchases()</code>
+              </Link>
+              .
+            </li>
+            <li>
+              <strong>Subscription offer metadata preserved</strong> — for
+              subscriptions, the requested offer token is mapped back to the
+              matching base plan so recovered purchases keep the expected{' '}
+              <code>currentPlanId</code> metadata when Play can provide it.
+            </li>
+            <li>
+              <strong>Listener dispatch made concurrency-safe</strong> — the
+              Android Play listener sets now use thread-safe iteration so
+              listener add/remove calls cannot race purchase or error delivery.
+            </li>
+            <li>
+              <strong>Regression coverage</strong> — Android tests now cover
+              duplicate concurrent owned-purchase callbacks, SKU filtering,
+              subscription base-plan preservation, and exception-safe fallback
+              completion.
+            </li>
+            <li>
+              <strong>Framework rollout</strong> — React Native, Expo, Flutter,
+              KMP, Godot, and MAUI patch releases carry the{' '}
+              <code>openiap-google 2.2.2</code> Android fix through their normal
+              package managers.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>OpenIAP Spec 2.0.2</li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/google-2.2.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-google 2.2.2
+                </a>{' '}
+                (
+                <a
+                  href="https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google/2.2.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Maven Central
+                </a>
+                )
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/react-native-iap-15.3.3"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  react-native-iap 15.3.3
+                </a>{' '}
+                (
+                <a
+                  href="https://www.npmjs.com/package/react-native-iap/v/15.3.3"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  npm
+                </a>
+                )
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/expo-iap-4.3.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  expo-iap 4.3.2
+                </a>{' '}
+                (
+                <a
+                  href="https://www.npmjs.com/package/expo-iap/v/4.3.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  npm
+                </a>
+                )
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.3.3"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  flutter_inapp_purchase 9.3.3
+                </a>{' '}
+                (
+                <a
+                  href="https://pub.dev/packages/flutter_inapp_purchase/versions/9.3.3"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  pub.dev
+                </a>
+                )
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/kmp-iap-2.3.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  kmp-iap 2.3.2
+                </a>{' '}
+                (
+                <a
+                  href="https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap/2.3.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Maven Central
+                </a>
+                )
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/godot-iap-2.3.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  godot-iap 2.3.2
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/maui-iap-1.1.5"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  OpenIap.Maui 1.1.5
+                </a>{' '}
+                (
+                <a
+                  href="https://www.nuget.org/packages/OpenIap.Maui/1.1.5"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  NuGet
+                </a>
+                )
+              </li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // May 27, 2026 — iOS subscription group ID product field
     {
       id: 'ios-subscription-group-id-product-field-2026-05-27',
