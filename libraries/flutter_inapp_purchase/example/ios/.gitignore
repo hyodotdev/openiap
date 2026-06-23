@@ -38,8 +38,10 @@ Icon?
 /Flutter/flutter_assets/
 /Flutter/App.framework
 /Flutter/Flutter.framework
+/Flutter/ephemeral/Packages/
 /Flutter/Generated.xcconfig
 /ServiceDefinitions.json
 
 Pods/
 .symlinks/
+**/xcshareddata/swiftpm/

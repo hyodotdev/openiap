@@ -109,7 +109,7 @@ cp .env.example .env
 ```bash
 # Compile for AI assistants (no Ollama required)
 bun run compile:ai
-# → generates context.md, llms.txt, llms-full.txt
+# → generates context.md and docs public llms files; root llms files are symlinks
 
 # Compile for Local RAG (Ollama required)
 bun run compile:local
@@ -212,7 +212,7 @@ openiap/
 | Script | Description | Ollama Required |
 |--------|-------------|-----------------|
 | `bun run compile` | Compile all (AI context + Local RAG) | Yes |
-| `bun run compile:ai` | Generate context.md, llms.txt, llms-full.txt | No |
+| `bun run compile:ai` | Generate context.md and docs public llms files | No |
 | `bun run compile:local` | Index knowledge + code map (LanceDB) | Yes |
 | `bun run compile:local:knowledge` | Index only knowledge files | Yes |
 | `bun run compile:local:code` | Build only code map | Yes |
@@ -398,5 +398,5 @@ bun run compile:ai
 
 ```bash
 bun run compile:ai
-# → regenerates packages/docs/public/llms.txt
+# → regenerates packages/docs/public/llms*.txt and refreshes root symlinks
 ```

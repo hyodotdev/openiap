@@ -578,6 +578,35 @@ function checkFlutter() {
     'libraries/flutter_inapp_purchase/ios/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift';
   const flutterMacosPlugin =
     'libraries/flutter_inapp_purchase/macos/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift';
+  const flutterSwiftPackagePaths = [
+    'libraries/flutter_inapp_purchase/ios/flutter_inapp_purchase/Package.swift',
+    'libraries/flutter_inapp_purchase/macos/flutter_inapp_purchase/Package.swift',
+  ];
+
+  for (const flutterSwiftPackage of flutterSwiftPackagePaths) {
+    expectFile(flutterSwiftPackage);
+    if (!exists(flutterSwiftPackage)) continue;
+    const flutterSwiftPackageText = read(flutterSwiftPackage);
+    const openIapDependencyVersion = flutterSwiftPackageText.match(
+      /\.package\(url: "https:\/\/github\.com\/hyodotdev\/openiap\.git", from: "([^"]+)"\),/,
+    )?.[1];
+    if (!openIapDependencyVersion) {
+      fail(`${flutterSwiftPackage} is missing the OpenIAP SwiftPM dependency`);
+    } else if (
+      !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(
+        openIapDependencyVersion,
+      )
+    ) {
+      fail(`${flutterSwiftPackage} OpenIAP dependency version must be semver`);
+    }
+    if (
+      !flutterSwiftPackageText.includes(
+        '.product(name: "OpenIAP", package: "OpenIAP")',
+      )
+    ) {
+      fail(`${flutterSwiftPackage} is missing the OpenIAP product dependency`);
+    }
+  }
 
   expectIncludes(flutterIosPlugin, [
     'case "deepLinkToSubscriptions"',
@@ -986,6 +1015,25 @@ function checkFrameworkDependencyHygiene() {
     'packages/docs/openiap-versions.json',
     'Docs package version copy',
   );
+  expectSymlinkTarget(
+    'llms.txt',
+    'packages/docs/public/llms.txt',
+    'Root llms.txt',
+  );
+  expectSymlinkTarget(
+    'llms-full.txt',
+    'packages/docs/public/llms-full.txt',
+    'Root llms-full.txt',
+  );
+  for (const docsLlmsFile of [
+    'packages/docs/public/llms.txt',
+    'packages/docs/public/llms-full.txt',
+  ]) {
+    expectFile(docsLlmsFile);
+    if (exists(docsLlmsFile) && fs.lstatSync(abs(docsLlmsFile)).isSymbolicLink()) {
+      fail(`${docsLlmsFile} must be a real file for docs deployment`);
+    }
+  }
   expectFile('packages/docs/src/generated/version-metadata.json');
   if (exists('packages/docs/src/generated/version-metadata.json')) {
     const docsVersionMetadata = readJson('packages/docs/src/generated/version-metadata.json');
