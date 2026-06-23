@@ -85,6 +85,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add openiap-versions.json packages/*/openiap-versions.json
+          git add packages/docs/src/generated/version-metadata.json
           git add packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json
           git commit -m "chore(docs): bump version to $VERSION"
           if ! git pull --rebase origin main; then
@@ -93,6 +94,8 @@ jobs:
             for conflict_file in $(git diff --name-only --diff-filter=U); do
               case "$conflict_file" in
                 openiap-versions.json|packages/*/openiap-versions.json|packages/gql/package.json|packages/docs/package.json|packages/google/package.json|packages/apple/package.json)
+                  ;;
+                packages/docs/src/generated/version-metadata.json)
                   ;;
                 *)
                   echo "❌ Unexpected conflict in $conflict_file"
@@ -105,6 +108,7 @@ jobs:
             jq --arg version "$VERSION" '.spec = $version' /tmp/upstream-openiap-versions.json > openiap-versions.json
             ./scripts/sync-versions.sh
             git add openiap-versions.json packages/*/openiap-versions.json
+            git add packages/docs/src/generated/version-metadata.json
             git add packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json
 
             GIT_EDITOR=true git rebase --continue || { echo "❌ Rebase continue failed"; exit 1; }

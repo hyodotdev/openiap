@@ -80,6 +80,9 @@ jobs:
         with:
           node-version: 20
 
+      - name: Sync generated version files
+        run: ./scripts/sync-versions.sh
+
       - name: Run non-Godot SDK parity audit
         run: node scripts/audit-non-godot-parity.mjs
 
