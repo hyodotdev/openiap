@@ -1625,6 +1625,7 @@ function checkFrameworkDependencyHygiene() {
     "jq --arg version \"$VERSION\" '.spec = $version'",
     'git show HEAD:openiap-versions.json > /tmp/upstream-openiap-versions.json',
     './scripts/sync-versions.sh',
+    'packages/docs/src/generated/version-metadata.json',
     'if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then',
     'Tag $TAG_NAME already exists',
     'packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json',
@@ -1641,6 +1642,7 @@ function checkFrameworkDependencyHygiene() {
       'git show HEAD:openiap-versions.json > /tmp/upstream-openiap-versions.json',
       'Re-sync package metadata and docs copy after merge',
       './scripts/sync-versions.sh',
+      'packages/docs/src/generated/version-metadata.json',
       'packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json',
     ], `${releaseWorkflow} must commit package metadata synced from openiap-versions.json`);
     expectNotIncludes(releaseWorkflow, [

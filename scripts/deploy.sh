@@ -114,9 +114,10 @@ if ! ./scripts/sync-versions.sh; then
 fi
 
 # Commit version changes if there are any
-if [[ -n $(git status -s openiap-versions.json packages/*/openiap-versions.json packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json 2>/dev/null) ]]; then
+if [[ -n $(git status -s openiap-versions.json packages/*/openiap-versions.json packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json packages/docs/src/generated/version-metadata.json 2>/dev/null) ]]; then
     echo -e "${BLUE}📝 Committing version changes...${NC}"
     git add openiap-versions.json packages/*/openiap-versions.json
+    git add packages/docs/src/generated/version-metadata.json
     git add packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json
     git commit -m "chore(spec): bump version to $VERSION"
     git pull --rebase origin main

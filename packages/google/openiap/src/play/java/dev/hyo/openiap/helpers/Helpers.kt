@@ -7,6 +7,7 @@ import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.Purchase
 import dev.hyo.openiap.utils.BillingConverters.toPurchase
 import kotlinx.coroutines.suspendCancellableCoroutine
+import java.util.concurrent.atomic.AtomicBoolean
 
 // Common helpers (onPurchaseUpdated, onPurchaseError, AndroidPurchaseArgs,
 // toAndroidPurchaseArgs, toPurchaseError) are in main/helpers/CommonHelpers.kt
@@ -67,6 +68,69 @@ internal suspend fun queryPurchases(
             resumer.resume(emptyList())
         }
     }
+}
+
+/**
+ * Queries Play Billing directly after ITEM_ALREADY_OWNED and returns only
+ * currently owned purchases that match the in-flight request SKUs.
+ */
+internal fun queryAlreadyOwnedPurchases(
+    client: BillingClient?,
+    productType: String,
+    skus: List<String>,
+    basePlanIdsBySku: Map<String, String?> = emptyMap(),
+    onResult: (List<Purchase>) -> Unit
+) {
+    val requestedSkus = skus.toSet()
+    if (client == null || requestedSkus.isEmpty()) {
+        onResult(emptyList())
+        return
+    }
+
+    val didHandleResult = AtomicBoolean(false)
+    val params = QueryPurchasesParams.newBuilder()
+        .setProductType(productType)
+        .build()
+
+    try {
+        client.queryPurchasesAsync(params) { result, purchaseList ->
+            if (!didHandleResult.compareAndSet(false, true)) return@queryPurchasesAsync
+
+            if (result.responseCode != BillingClient.BillingResponseCode.OK) {
+                onResult(emptyList())
+                return@queryPurchasesAsync
+            }
+
+            val recovered = purchaseList.orEmpty().mapNotNull { billingPurchase ->
+                val matchingSku = billingPurchase.products.firstOrNull { productId ->
+                    productId in requestedSkus
+                }
+                matchingSku?.let { sku ->
+                    billingPurchase.toPurchase(productType, basePlanIdsBySku[sku])
+                }
+            }
+            onResult(recovered)
+        }
+    } catch (_: Exception) {
+        if (didHandleResult.compareAndSet(false, true)) {
+            onResult(emptyList())
+        }
+    }
+}
+
+internal data class SubscriptionBasePlanOffer(
+    val offerToken: String?,
+    val basePlanId: String?
+)
+
+internal fun resolveBasePlanIdForOfferToken(
+    offers: List<SubscriptionBasePlanOffer>,
+    requestedOfferToken: String?
+): String? {
+    return requestedOfferToken?.let { token ->
+        offers.find { it.offerToken == token }?.basePlanId
+    }
+        ?: offers.firstOrNull()?.basePlanId
 }
 
 internal suspend fun queryProductDetails(
