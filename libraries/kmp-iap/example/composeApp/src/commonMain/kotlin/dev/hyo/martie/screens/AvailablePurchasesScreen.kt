@@ -27,9 +27,10 @@ import io.github.hyochan.kmpiap.toPurchaseInput
 import kotlinx.coroutines.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlinx.datetime.Instant
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalTime::class)
 @Composable
 fun AvailablePurchasesScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
@@ -70,9 +71,8 @@ fun AvailablePurchasesScreen(navController: NavController) {
                             }
                             // For non-auto-renewing, check expiry time
                             purchase.expirationDateIOS?.let { expiryTime ->
-                                val expiryDate = Instant.fromEpochMilliseconds(expiryTime.toLong())
-                                val now = kotlinx.datetime.Clock.System.now()
-                                return@filter expiryDate > now  // Only show if not expired
+                                val now = Clock.System.now().toEpochMilliseconds()
+                                return@filter expiryTime.toLong() > now  // Only show if not expired
                             }
                             return@filter true  // Show if no expiry info
                         } else {

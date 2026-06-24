@@ -1,15 +1,16 @@
 package dev.hyo.martie.screens
 
-import kotlinx.datetime.Clock
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 internal expect suspend fun triggerWebhookTestNotification(
     apiKey: String,
     baseUrl: String = "https://kit.openiap.dev",
 ): Result<Unit>
 
-@OptIn(ExperimentalEncodingApi::class)
+@OptIn(ExperimentalEncodingApi::class, ExperimentalTime::class)
 internal fun buildWebhookTestNotificationPayload(messagePrefix: String): String {
     val now = Clock.System.now()
     val timestamp = now.toEpochMilliseconds()

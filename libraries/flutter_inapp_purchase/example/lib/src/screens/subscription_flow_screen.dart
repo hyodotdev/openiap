@@ -810,7 +810,8 @@ Store: ${iapkitResult.store.value}
       // Use current subscription token if available, otherwise use a test token
       final testToken = _currentActiveSubscription?.purchaseToken ??
           'test_empty_token_${DateTime.now().millisecondsSinceEpoch}';
-      debugPrint('Using test token: ${testToken.isEmpty ? 'empty' : testToken}');
+      debugPrint(
+          'Using test token: ${testToken.isEmpty ? 'empty' : testToken}');
 
       // Test with empty string - but pass validation by using a non-empty token
       final requestProps = RequestPurchaseProps.subs((

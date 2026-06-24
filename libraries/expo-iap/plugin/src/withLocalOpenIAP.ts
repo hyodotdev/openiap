@@ -3,6 +3,7 @@ import {
   withDangerousMod,
   withSettingsGradle,
   withAppBuildGradle,
+  withProjectBuildGradle,
 } from 'expo/config-plugins';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -85,6 +86,42 @@ const logOnce = (() => {
     }
   };
 })();
+
+const LOCAL_OPENIAP_FLAVOR_BLOCK_START =
+  '// Added by expo-iap (local openiap-google flavor selection)';
+const LOCAL_OPENIAP_FLAVOR_BLOCK_END =
+  '// End expo-iap local openiap-google flavor selection';
+
+export const ensureLocalOpenIapFlavorStrategy = (
+  contents: string,
+  flavor: 'play' | 'horizon',
+): string => {
+  const existingBlockPattern = new RegExp(
+    `\\n?${escapeRegExp(LOCAL_OPENIAP_FLAVOR_BLOCK_START)}[\\s\\S]*?${escapeRegExp(
+      LOCAL_OPENIAP_FLAVOR_BLOCK_END,
+    )}\\n?`,
+    'm',
+  );
+  const cleaned = contents
+    .replace(existingBlockPattern, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trimEnd();
+
+  return `${cleaned}
+
+${LOCAL_OPENIAP_FLAVOR_BLOCK_START}
+subprojects { subproject ->
+  subproject.plugins.withId("com.android.library") {
+    subproject.android {
+      defaultConfig {
+        missingDimensionStrategy "platform", "${flavor}"
+      }
+    }
+  }
+}
+${LOCAL_OPENIAP_FLAVOR_BLOCK_END}
+`;
+};
 
 const withLocalOpenIAP: ConfigPlugin<
   {
@@ -355,6 +392,32 @@ const withLocalOpenIAP: ConfigPlugin<
     }
 
     gradle.contents = contents;
+    return config;
+  });
+
+  // 2b) project build.gradle: Expo autolinked library modules can consume the
+  // local flavored OpenIAP module transitively, so give them the same default.
+  config = withProjectBuildGradle(config, (config) => {
+    const projectRoot = (config.modRequest as any).projectRoot as string;
+    const raw = props?.localPath;
+    const androidInput = typeof raw === 'string' ? undefined : raw?.android;
+    const androidModulePath =
+      resolveAndroidModulePath(androidInput) ||
+      resolveAndroidModulePath(path.resolve(projectRoot, 'openiap-google')) ||
+      null;
+
+    if (!androidModulePath || !fs.existsSync(androidModulePath)) {
+      return config;
+    }
+
+    const flavor = props?.isHorizonEnabled ? 'horizon' : 'play';
+    config.modResults.contents = ensureLocalOpenIapFlavorStrategy(
+      config.modResults.contents,
+      flavor,
+    );
+    logOnce(
+      `🛠️ expo-iap: Added local OpenIAP flavor strategy for ${flavor}`,
+    );
     return config;
   });
 
