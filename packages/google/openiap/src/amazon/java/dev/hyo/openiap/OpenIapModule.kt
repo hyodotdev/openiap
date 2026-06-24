@@ -1,9 +1,13 @@
 package dev.hyo.openiap
 
 import android.app.Activity
+import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import com.amazon.device.iap.PurchasingListener
 import com.amazon.device.iap.PurchasingService
 import com.amazon.device.iap.model.FulfillmentResult
@@ -43,6 +47,8 @@ import com.amazon.device.iap.model.Receipt as AmazonReceipt
 
 private const val TAG = "OpenIapAmazon"
 private const val AMAZON_REQUEST_TIMEOUT_MS = 60_000L
+private const val AMAZON_PURCHASE_REQUEST_TIMEOUT_MS = 5 * 60_000L
+private const val AMAZON_PURCHASE_CANCEL_FALLBACK_MS = 2_000L
 private const val AMAZON_PRODUCT_DATA_BATCH_SIZE = 100
 private const val AMAZON_PURCHASE_UPDATES_MAX_PAGES = 100
 
@@ -176,6 +182,10 @@ class OpenIapModule(
     private var currentActivityRef: WeakReference<Activity>? = null
     private var isRegistered = false
     private var storefrontCode: String = ""
+    private val mainHandler by lazy(LazyThreadSafetyMode.NONE) { Handler(Looper.getMainLooper()) }
+    private var pendingPurchaseRequestId: String? = null
+    private var purchaseCancelFallback: Runnable? = null
+    private var purchaseLifecycleCallbacks: Application.ActivityLifecycleCallbacks? = null
 
     private val productDataRequests = ConcurrentHashMap<String, CompletableDeferred<ProductDataResponse>>()
     private val purchaseRequests = ConcurrentHashMap<String, CompletableDeferred<PurchaseResponse>>()
@@ -201,6 +211,7 @@ class OpenIapModule(
 
     override fun setActivity(activity: Activity?) {
         currentActivityRef = activity?.let { WeakReference(it) }
+        if (activity != null) schedulePurchaseCancelFallback()
     }
 
     override val initConnection: MutationInitConnectionHandler = {
@@ -240,6 +251,7 @@ class OpenIapModule(
             purchaseTypeByReceiptId.clear()
             purchaseSkuByReceiptId.clear()
             productTypeBySku.clear()
+            clearPurchaseRequestTracking()
             storefrontCode = ""
             true
         }
@@ -659,12 +671,65 @@ class OpenIapModule(
     }
 
     override fun onPurchaseResponse(purchaseResponse: PurchaseResponse) {
+        clearPurchaseRequestTracking(purchaseResponse.requestId.toString())
         completeOrCache(
             purchaseRequests,
             earlyPurchaseResponses,
             purchaseResponse.requestId.toString(),
             purchaseResponse
         )
+    }
+
+    private fun trackPurchaseRequest(requestId: String) {
+        pendingPurchaseRequestId = requestId
+        registerPurchaseLifecycleCallbacks()
+    }
+
+    private fun registerPurchaseLifecycleCallbacks() {
+        if (purchaseLifecycleCallbacks != null) return
+        val application = context.applicationContext as? Application ?: return
+        val callbacks = object : Application.ActivityLifecycleCallbacks {
+            override fun onActivityResumed(activity: Activity) {
+                schedulePurchaseCancelFallback()
+            }
+
+            override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = Unit
+            override fun onActivityStarted(activity: Activity) = Unit
+            override fun onActivityPaused(activity: Activity) = Unit
+            override fun onActivityStopped(activity: Activity) = Unit
+            override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) = Unit
+            override fun onActivityDestroyed(activity: Activity) = Unit
+        }
+        application.registerActivityLifecycleCallbacks(callbacks)
+        purchaseLifecycleCallbacks = callbacks
+    }
+
+    private fun schedulePurchaseCancelFallback() {
+        val requestId = pendingPurchaseRequestId ?: return
+        purchaseCancelFallback?.let(mainHandler::removeCallbacks)
+        val fallback = Runnable {
+            val pending = purchaseRequests[requestId] ?: return@Runnable
+            if (!pending.isCompleted) {
+                pending.completeExceptionally(
+                    OpenIapError.UserCancelled("Amazon purchase failed or was cancelled")
+                )
+            }
+        }
+        purchaseCancelFallback = fallback
+        mainHandler.postDelayed(fallback, AMAZON_PURCHASE_CANCEL_FALLBACK_MS)
+    }
+
+    private fun clearPurchaseRequestTracking(requestId: String? = null) {
+        val pendingRequestId = pendingPurchaseRequestId
+        if (requestId != null && pendingRequestId != null && requestId != pendingRequestId) {
+            return
+        }
+        purchaseCancelFallback?.let(mainHandler::removeCallbacks)
+        purchaseCancelFallback = null
+        pendingPurchaseRequestId = null
+        val callbacks = purchaseLifecycleCallbacks ?: return
+        (context.applicationContext as? Application)?.unregisterActivityLifecycleCallbacks(callbacks)
+        purchaseLifecycleCallbacks = null
     }
 
     override fun onPurchaseUpdatesResponse(purchaseUpdatesResponse: PurchaseUpdatesResponse) {
@@ -731,9 +796,18 @@ class OpenIapModule(
             if (request == null) {
                 throw OpenIapError.PurchaseFailed("Amazon purchase request did not return a requestId")
             }
-            request.toString()
+            request.toString().also(::trackPurchaseRequest)
         }
-        return awaitAmazonResponse(requestId, purchaseRequests, earlyPurchaseResponses)
+        return try {
+            awaitAmazonResponse(
+                requestId,
+                purchaseRequests,
+                earlyPurchaseResponses,
+                timeoutMs = AMAZON_PURCHASE_REQUEST_TIMEOUT_MS
+            )
+        } finally {
+            clearPurchaseRequestTracking(requestId)
+        }
     }
 
     private suspend fun requestPurchaseUpdates(reset: Boolean): List<Purchase> {
@@ -877,7 +951,8 @@ class OpenIapModule(
     private suspend fun <T> awaitAmazonResponse(
         requestId: String,
         pending: ConcurrentHashMap<String, CompletableDeferred<T>>,
-        earlyResponses: ConcurrentHashMap<String, T>
+        earlyResponses: ConcurrentHashMap<String, T>,
+        timeoutMs: Long = AMAZON_REQUEST_TIMEOUT_MS
     ): T {
         val earlyResponse = earlyResponses.remove(requestId)
         if (earlyResponse != null) return earlyResponse
@@ -890,7 +965,7 @@ class OpenIapModule(
         }
 
         return try {
-            withTimeout(AMAZON_REQUEST_TIMEOUT_MS) { deferred.await() }
+            withTimeout(timeoutMs) { deferred.await() }
         } catch (_: TimeoutCancellationException) {
             timedOutRequestIds.add(requestId)
             throw OpenIapError.ServiceTimeout("Amazon Appstore request timed out")

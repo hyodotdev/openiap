@@ -7,6 +7,9 @@ import * as ExpoIap from 'expo-iap';
 // Mock expo-router
 jest.mock('expo-router', () => ({
   Link: ({children}: any) => children,
+  useRouter: () => ({
+    push: jest.fn(),
+  }),
 }));
 
 // Mock expo-iap

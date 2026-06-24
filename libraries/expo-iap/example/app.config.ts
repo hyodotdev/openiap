@@ -146,7 +146,7 @@ export default ({config}: ConfigContext): ExpoConfig => {
     ios: {
       ...config.ios,
       supportsTablet: false,
-      bundleIdentifier: 'dev.hyo.openiap.expo.example',
+      bundleIdentifier: 'dev.hyo.martie',
     },
     android: {
       ...config.android,
@@ -154,7 +154,7 @@ export default ({config}: ConfigContext): ExpoConfig => {
         foregroundImage: './assets/images/adaptive-icon.png',
         backgroundColor: '#000000',
       },
-      package: 'dev.hyo.openiap.expo.example',
+      package: 'dev.hyo.martie',
     },
     plugins: pluginEntries,
     experiments: {

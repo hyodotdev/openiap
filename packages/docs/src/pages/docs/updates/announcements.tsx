@@ -83,9 +83,10 @@ function Announcements() {
             the OpenIAP ecosystem.
           </p>
           <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
-            Fire OS support starts with in-app purchases through the Android{' '}
-            <code>amazon</code> flavor and Amazon Appstore SDK. Vega OS support
-            is a separate React Native for Vega runtime path, with{' '}
+            Fire OS support starts with OpenIAP's Fire OS flavor: the Android{' '}
+            <code>amazon</code> flavor and <code>openiap-google-amazon</code>{' '}
+            artifact backed by the Amazon Appstore SDK. Vega OS support is a
+            separate React Native for Vega runtime path, with{' '}
             <code>react-native-iap</code> runtime support and{' '}
             <code>expo-iap</code> config-plugin support for compatible Expo
             projects. Together, they help developers keep one familiar OpenIAP
@@ -104,6 +105,9 @@ function Announcements() {
             </a>
             .
           </p>
+          <h3 style={{ marginTop: '1.25rem', marginBottom: '0.5rem' }}>
+            Key Points
+          </h3>
           <ul
             style={{
               paddingLeft: '1.5rem',
@@ -117,9 +121,9 @@ function Announcements() {
               interoperability across stores, runtimes, and frameworks.
             </li>
             <li>
-              <strong>Fire OS setup</strong>: Android apps select the Amazon
-              flavor with <code>fireOsEnabled=true</code> or the matching
-              framework config-plugin option.
+              <strong>Fire OS flavor</strong>: Android apps select the{' '}
+              <code>amazon</code> flavor with <code>fireOsEnabled=true</code> or
+              the matching framework config-plugin option.
             </li>
             <li>
               <strong>Amazon Appstore IAP</strong>: OpenIAP maps Amazon

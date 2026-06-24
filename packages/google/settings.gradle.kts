@@ -1,4 +1,12 @@
 pluginManagement {
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id == "com.android.application" || requested.id.id == "com.android.library") {
+                val version = requested.version ?: return@eachPlugin
+                useModule("com.android.tools.build:gradle:$version")
+            }
+        }
+    }
     repositories {
         gradlePluginPortal()
         google()

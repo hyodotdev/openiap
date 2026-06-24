@@ -18,6 +18,7 @@ import {
  */
 export type LocalPathOption = string | {ios?: string; android?: string};
 type GradleLanguage = 'groovy' | 'kotlin';
+type OpenIapAndroidFlavor = 'play' | 'horizon' | 'amazon';
 
 export const getAndroidLocalPathInput = (
   raw?: LocalPathOption,
@@ -104,7 +105,7 @@ const normalizeGradleLanguage = (language?: string): GradleLanguage =>
 
 export const ensureLocalOpenIapFlavorStrategy = (
   contents: string,
-  flavor: 'play' | 'horizon',
+  flavor: OpenIapAndroidFlavor,
   language: GradleLanguage = 'groovy',
 ): string => {
   const existingBlockPattern = new RegExp(

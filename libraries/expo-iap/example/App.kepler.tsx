@@ -82,6 +82,10 @@ export default function App(): React.JSX.Element {
 
   const navigation = useMemo(
     () => ({
+      push(href: unknown) {
+        const nextRoute = normalizeRoute(href);
+        setStack((currentStack) => [...currentStack, nextRoute]);
+      },
       navigate(href: unknown) {
         const nextRoute = normalizeRoute(href);
         setStack((currentStack) => [...currentStack, nextRoute]);

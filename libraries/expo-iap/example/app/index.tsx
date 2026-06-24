@@ -7,7 +7,7 @@ import {
   View,
   Platform,
 } from 'react-native';
-import {Link} from 'expo-router';
+import {useRouter} from 'expo-router';
 import {getStorefront} from 'expo-iap';
 
 type MenuItem = {
@@ -85,6 +85,7 @@ const MENU_ITEMS: MenuItem[] = [
  * This demonstrates TypeScript-first, platform-agnostic approaches to in-app purchases.
  */
 export default function Home() {
+  const router = useRouter();
   const [storefront, setStorefront] = useState<string | null>(null);
   const [focusedIndex, setFocusedIndex] = useState(0);
 
@@ -115,28 +116,28 @@ export default function Home() {
 
   const renderItem = (item: MenuItem, index: number) => {
     return (
-      <Link key={item.id} href={item.href as any} asChild>
-        <TouchableOpacity
-          focusable
-          hasTVPreferredFocus={focusedIndex === index}
-          onFocus={() => setFocusedIndex(index)}
-          style={[
-            styles.menuItem,
-            focusedIndex === index && styles.menuItemFocused,
-          ]}
+      <TouchableOpacity
+        key={item.id}
+        focusable
+        hasTVPreferredFocus={focusedIndex === index}
+        onFocus={() => setFocusedIndex(index)}
+        onPress={() => router.push(item.href as any)}
+        style={[
+          styles.menuItem,
+          focusedIndex === index && styles.menuItemFocused,
+        ]}
+      >
+        <View
+          style={[styles.iconContainer, {backgroundColor: item.accentColor}]}
         >
-          <View
-            style={[styles.iconContainer, {backgroundColor: item.accentColor}]}
-          >
-            <Text style={styles.menuIcon}>{item.icon}</Text>
-          </View>
-          <View style={styles.menuLabel}>
-            <Text style={styles.menuTitle}>{item.title}</Text>
-            <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
-          </View>
-          <Text style={styles.chevron}>›</Text>
-        </TouchableOpacity>
-      </Link>
+          <Text style={styles.menuIcon}>{item.icon}</Text>
+        </View>
+        <View style={styles.menuLabel}>
+          <Text style={styles.menuTitle}>{item.title}</Text>
+          <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+        </View>
+        <Text style={styles.chevron}>›</Text>
+      </TouchableOpacity>
     );
   };
 

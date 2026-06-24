@@ -863,7 +863,7 @@ function PurchaseFlowContainer() {
               apple: {sku: productId},
               google: {
                 sku: productId,
-                packageName: 'dev.hyo.openiap.expo.example',
+                packageName: 'dev.hyo.martie',
                 purchaseToken: purchase.purchaseToken ?? '', // Required for production
                 accessToken: '', // Requires server-issued OAuth token
               },

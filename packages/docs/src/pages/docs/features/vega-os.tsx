@@ -48,22 +48,29 @@ function VegaOSRuntime() {
                 <code>react-native-iap</code>, <code>expo-iap</code>
               </td>
               <td>
-                Runtime adapter selected when the app is running on React Native
-                for Vega and <code>Platform.OS</code> is <code>kepler</code>
+                Runtime adapter selected in the <code>kepler</code> runtime for
+                React Native for Vega apps
               </td>
             </tr>
             <tr>
               <td>Fire OS</td>
-              <td>Android, React Native, Expo, Flutter</td>
               <td>
-                Android <code>amazon</code> flavor. See{' '}
+                Android, <code>react-native-iap</code>, <code>expo-iap</code>,{' '}
+                <code>flutter_inapp_purchase</code>, <code>kmp-iap</code>,{' '}
+                <code>OpenIap.Maui</code>
+              </td>
+              <td>
+                Build-time Android <code>amazon</code> flavor; not the Vega
+                runtime path. See{' '}
                 <Link to="/docs/fireos-setup">Fire OS Setup</Link>.
               </td>
             </tr>
             <tr>
-              <td>Flutter, Godot, KMP, MAUI, native Android</td>
-              <td>Not Vega targets</td>
-              <td>No Vega JavaScript runtime adapter</td>
+              <td>Google Play / Horizon OS</td>
+              <td>Android and framework wrappers</td>
+              <td>
+                Default Play artifact or Android <code>horizon</code> flavor
+              </td>
             </tr>
           </tbody>
         </table>
@@ -128,19 +135,9 @@ id = "/com.amazon.kepler.appstore.iap.purchase.core@IAppstoreIAPPurchaseCoreServ
           files directly, as shown in the OpenIAP repository example.
         </p>
         <p>
-          Keep the React Native for Vega runtime in the Vega app target or a
-          Vega-only package manifest. In particular, do not keep{' '}
-          <code>@amazon-devices/react-native-kepler</code> as a direct
-          dependency of a package manifest that is also used for normal iOS or
-          Android builds, because React Native Codegen can scan it during those
-          builds.
-        </p>
-        <p>
-          If a Vega target keeps{' '}
-          <code>@amazon-devices/react-native-kepler</code> in{' '}
-          <code>optionalDependencies</code>, do not omit optional dependencies
-          during install. The package is still required for Vega builds; it is
-          optionalized only to keep non-Vega installs and Codegen clean.
+          Use Amazon's React Native for Vega project setup as the source of
+          truth for <code>kepler</code> runtime dependencies. OpenIAP provides
+          the IAP adapter and package integration for that Vega target.
         </p>
 
         <h3 id="react-native-iap" className="anchor-heading">
@@ -149,6 +146,21 @@ id = "/com.amazon.kepler.appstore.iap.purchase.core@IAppstoreIAPPurchaseCoreServ
             #
           </a>
         </h3>
+        <p>
+          References:{' '}
+          <Link to="/docs/setup/react-native">
+            OpenIAP React Native setup guide
+          </Link>
+          ;{' '}
+          <a
+            href="https://developer.amazon.com/docs/react-native-vega/0.72/react_overview.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="external-link"
+          >
+            Amazon React Native for Vega overview
+          </a>
+        </p>
         <p>
           Install <code>react-native-iap</code> normally. The package includes a
           Vega resolver that loads <code>vega.kepler.ts</code> in the{' '}
@@ -302,8 +314,8 @@ EXPO_PUBLIC_IAPKIT_BASE_URL=http://<mac-lan-ip>:3100 \\
           Amazon's Vega run-app documentation uses the interactive component ID
           as the app id. For physical Fire TV devices, replace{' '}
           <code>&lt;device-serial&gt;</code> with the serial shown by{' '}
-          <code>vega device list</code>. For VVD, use the architecture-specific
-          package that matches the virtual device.
+          <code>vega device list</code>. For Vega Virtual Device (VVD), use the
+          architecture-specific package that matches the virtual device.
         </p>
         <CodeBlock language="bash">{`vega device list
 

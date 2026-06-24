@@ -1093,64 +1093,71 @@ class OpenIapModule(
                         applyDeveloperBillingOption(flowBuilder, developerBillingOption)
                     }
 
-                    val result = client.launchBillingFlow(activity, flowBuilder.build())
-                    OpenIapLog.d("launchBillingFlow result: ${result.responseCode} - ${result.debugMessage}", TAG)
-                    if (result.responseCode != BillingClient.BillingResponseCode.OK) {
-                        if (result.responseCode == BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED) {
-                            val err = OpenIapError.fromBillingResponseCode(
-                                result.responseCode,
-                                result.debugMessage
-                            )
-                            OpenIapLog.d("ITEM_ALREADY_OWNED received; querying owned purchases for ${androidArgs.skus}", TAG)
-                            val basePlanIdsBySku = if (desiredType == BillingClient.ProductType.SUBS) {
-                                details.associate { productDetails ->
-                                    val requestedOfferToken = androidArgs.subscriptionOffers
-                                        ?.find { it.sku == productDetails.productId }
-                                        ?.offerToken
-                                    val offers = productDetails.subscriptionOfferDetails
-                                        .orEmpty()
-                                        .map { offer ->
-                                            SubscriptionBasePlanOffer(
-                                                offerToken = offer.offerToken,
-                                                basePlanId = offer.basePlanId
-                                            )
-                                        }
-                                    productDetails.productId to resolveBasePlanIdForOfferToken(
-                                        offers,
-                                        requestedOfferToken
-                                    )
-                                }
-                            } else {
-                                emptyMap()
-                            }
-                            queryAlreadyOwnedPurchases(client, desiredType, androidArgs.skus, basePlanIdsBySku) { recovered ->
-                                if (recovered.isNotEmpty()) {
-                                    OpenIapLog.d("Recovered ${recovered.size} already-owned purchase(s)", TAG)
-                                    notifySuspendedSubscriptions(recovered)
-                                    for (purchase in recovered) {
-                                        for (listener in purchaseUpdateListeners) {
-                                            runCatching { listener.onPurchaseUpdated(purchase) }
-                                        }
+                    val billingFlowParams = flowBuilder.build()
+
+                    // BillingClient requires launchBillingFlow to run on the
+                    // Android UI thread. Some SDK wrappers call from background
+                    // coroutines, so match the Horizon implementation here.
+                    activity.runOnUiThread {
+                        val result = client.launchBillingFlow(activity, billingFlowParams)
+                        OpenIapLog.d("launchBillingFlow result: ${result.responseCode} - ${result.debugMessage}", TAG)
+                        if (result.responseCode != BillingClient.BillingResponseCode.OK) {
+                            if (result.responseCode == BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED) {
+                                val err = OpenIapError.fromBillingResponseCode(
+                                    result.responseCode,
+                                    result.debugMessage
+                                )
+                                OpenIapLog.d("ITEM_ALREADY_OWNED received; querying owned purchases for ${androidArgs.skus}", TAG)
+                                val basePlanIdsBySku = if (desiredType == BillingClient.ProductType.SUBS) {
+                                    details.associate { productDetails ->
+                                        val requestedOfferToken = androidArgs.subscriptionOffers
+                                            ?.find { it.sku == productDetails.productId }
+                                            ?.offerToken
+                                        val offers = productDetails.subscriptionOfferDetails
+                                            .orEmpty()
+                                            .map { offer ->
+                                                SubscriptionBasePlanOffer(
+                                                    offerToken = offer.offerToken,
+                                                    basePlanId = offer.basePlanId
+                                                )
+                                            }
+                                        productDetails.productId to resolveBasePlanIdForOfferToken(
+                                            offers,
+                                            requestedOfferToken
+                                        )
                                     }
-                                    consumePurchaseCallback(Result.success(recovered))
                                 } else {
-                                    OpenIapLog.w("ITEM_ALREADY_OWNED recovery found no matching owned purchases", TAG)
-                                    for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
-                                    consumePurchaseCallback(Result.success(emptyList()))
+                                    emptyMap()
                                 }
+                                queryAlreadyOwnedPurchases(client, desiredType, androidArgs.skus, basePlanIdsBySku) { recovered ->
+                                    if (recovered.isNotEmpty()) {
+                                        OpenIapLog.d("Recovered ${recovered.size} already-owned purchase(s)", TAG)
+                                        notifySuspendedSubscriptions(recovered)
+                                        for (purchase in recovered) {
+                                            for (listener in purchaseUpdateListeners) {
+                                                runCatching { listener.onPurchaseUpdated(purchase) }
+                                            }
+                                        }
+                                        consumePurchaseCallback(Result.success(recovered))
+                                    } else {
+                                        OpenIapLog.w("ITEM_ALREADY_OWNED recovery found no matching owned purchases", TAG)
+                                        for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
+                                        consumePurchaseCallback(Result.success(emptyList()))
+                                    }
+                                }
+                                return@runOnUiThread
                             }
-                            return
-                        }
-                        val err = when (result.responseCode) {
-                            BillingClient.BillingResponseCode.DEVELOPER_ERROR -> {
-                                OpenIapLog.w("DEVELOPER_ERROR: Invalid arguments. Check if subscriptions are in the same group.", TAG)
-                                OpenIapError.DeveloperError(result.debugMessage)
+                            val err = when (result.responseCode) {
+                                BillingClient.BillingResponseCode.DEVELOPER_ERROR -> {
+                                    OpenIapLog.w("DEVELOPER_ERROR: Invalid arguments. Check if subscriptions are in the same group.", TAG)
+                                    OpenIapError.DeveloperError(result.debugMessage)
+                                }
+                                BillingClient.BillingResponseCode.USER_CANCELED -> OpenIapError.UserCancelled(result.debugMessage)
+                                else -> OpenIapError.PurchaseFailed(result.debugMessage)
                             }
-                            BillingClient.BillingResponseCode.USER_CANCELED -> OpenIapError.UserCancelled(result.debugMessage)
-                            else -> OpenIapError.PurchaseFailed(result.debugMessage)
+                            for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
+                            consumePurchaseCallback(Result.success(emptyList()))
                         }
-                        for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
-                        consumePurchaseCallback(Result.success(emptyList()))
                     }
                 }
 

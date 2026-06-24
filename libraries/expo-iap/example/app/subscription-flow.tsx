@@ -1767,7 +1767,7 @@ function SubscriptionFlowContainer() {
               apple: {sku: productId},
               google: {
                 sku: productId,
-                packageName: 'dev.hyo.openiap.expo.example',
+                packageName: 'dev.hyo.martie',
                 purchaseToken: purchase.purchaseToken ?? '',
                 accessToken: '', // ⚠️ Requires server-issued OAuth token
                 isSub: true,

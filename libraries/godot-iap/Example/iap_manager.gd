@@ -70,7 +70,7 @@ func _fetch_products_delayed() -> void:
 ## Clear pending purchases that weren't finished (e.g., app crashed after purchase)
 func _clear_pending_purchases() -> void:
 	print("[IAPManager] Checking for pending purchases...")
-	var pending_purchases = GodotIapPlugin.get_available_purchases()
+	var pending_purchases = GodotIapPlugin._get_available_purchases_raw()
 
 	if pending_purchases.size() == 0:
 		print("[IAPManager] No pending purchases found")
@@ -79,9 +79,9 @@ func _clear_pending_purchases() -> void:
 	print("[IAPManager] Found %d pending purchase(s), finishing..." % pending_purchases.size())
 
 	for purchase in pending_purchases:
-		# Types.PurchaseAndroid/PurchaseIOS objects have direct properties
-		var product_id: String = purchase.product_id
-		var is_acknowledged: bool = purchase.is_acknowledged_android if "is_acknowledged_android" in purchase else false
+		var purchase_dict := _purchase_to_dict(purchase)
+		var product_id := _purchase_product_id(purchase, purchase_dict)
+		var is_acknowledged := _purchase_is_acknowledged(purchase, purchase_dict)
 
 		print("[IAPManager] Processing pending purchase: %s (acknowledged: %s)" % [product_id, is_acknowledged])
 
@@ -95,10 +95,61 @@ func _clear_pending_purchases() -> void:
 
 		print("[IAPManager] Finishing pending purchase: %s (consumable: %s)" % [product_id, is_consumable])
 
-		var result = GodotIapPlugin.finish_transaction_dict(purchase.to_dict(), is_consumable)
+		var result = GodotIapPlugin.finish_transaction_dict(purchase_dict, is_consumable)
 		print("[IAPManager] finish_transaction_dict result: success=%s" % result.success)
 
 	print("[IAPManager] Pending purchases cleared")
+
+
+func _purchase_to_dict(purchase: Variant) -> Dictionary:
+	if purchase is Dictionary:
+		return purchase
+	if purchase != null and purchase.has_method("to_dict"):
+		var data = purchase.to_dict()
+		if data is Dictionary:
+			return data
+	return {}
+
+
+func _purchase_product_id(purchase: Variant, purchase_dict: Dictionary) -> String:
+	if purchase_dict.has("productId") and purchase_dict["productId"] != null:
+		return str(purchase_dict["productId"])
+	if purchase_dict.has("product_id") and purchase_dict["product_id"] != null:
+		return str(purchase_dict["product_id"])
+	if purchase != null:
+		var product_id = purchase.get("product_id")
+		if product_id != null:
+			return str(product_id)
+	return ""
+
+
+func _purchase_is_acknowledged(purchase: Variant, purchase_dict: Dictionary) -> bool:
+	var keys := [
+		"isAcknowledgedAndroid",
+		"isAcknowledged",
+		"is_acknowledged_android",
+		"is_acknowledged",
+	]
+	for key in keys:
+		if purchase_dict.has(key) and purchase_dict[key] != null:
+			return _variant_to_bool(purchase_dict[key])
+	if purchase != null:
+		var acknowledged = purchase.get("is_acknowledged_android")
+		if acknowledged != null:
+			return _variant_to_bool(acknowledged)
+	return false
+
+
+func _variant_to_bool(value: Variant) -> bool:
+	match typeof(value):
+		TYPE_BOOL:
+			return value
+		TYPE_INT, TYPE_FLOAT:
+			return value != 0
+		TYPE_STRING:
+			return value.to_lower() == "true"
+		_:
+			return false
 
 
 func _fetch_products() -> void:
@@ -137,6 +188,8 @@ func _on_products_fetched(result: Dictionary) -> void:
 func _process_products(products_array: Array) -> void:
 	for product in products_array:
 		var id = product.get("id", "") if product is Dictionary else product.id
+		if products.has(id) and products[id] is Dictionary and not (product is Dictionary):
+			continue
 		products[id] = product
 		var price = product.get("displayPrice", product.get("localizedPrice", "")) if product is Dictionary else product.display_price
 		print("[IAPManager] Product loaded: %s - %s" % [id, price])
@@ -256,10 +309,10 @@ func _get_default_offer_token(product_id: String) -> String:
 	var product = products[product_id]
 
 	# Check if product has subscription offer details (Android)
-	if "subscription_offer_details_android" in product and product.subscription_offer_details_android:
-		for offer in product.subscription_offer_details_android:
-			if offer.offer_token:
-				return offer.offer_token
+	for offer in _subscription_offer_details(product):
+		var offer_token := _offer_token_from_detail(offer)
+		if not offer_token.is_empty():
+			return offer_token
 
 	return ""
 
@@ -273,26 +326,73 @@ func get_subscription_offers(product_id: String) -> Array:
 	var offers: Array = []
 
 	# Android: Get subscription offer details
-	if "subscription_offer_details_android" in product and product.subscription_offer_details_android:
-		for offer_detail in product.subscription_offer_details_android:
-			var offer_info = {
-				"id": offer_detail.offer_id if offer_detail.offer_id else "base_plan",
-				"base_plan_id": offer_detail.base_plan_id if "base_plan_id" in offer_detail else "",
-				"offer_token": offer_detail.offer_token if "offer_token" in offer_detail else "",
-				"is_base_plan": offer_detail.offer_id == null or offer_detail.offer_id == ""
-			}
+	for offer_detail in _subscription_offer_details(product):
+		var offer_id := _string_field(offer_detail, ["offerId", "offer_id", "id"])
+		var offer_info = {
+			"id": offer_id if not offer_id.is_empty() else "base_plan",
+			"base_plan_id": _string_field(offer_detail, ["basePlanId", "base_plan_id", "basePlanIdAndroid", "base_plan_id_android"]),
+			"offer_token": _offer_token_from_detail(offer_detail),
+			"is_base_plan": offer_id.is_empty()
+		}
 
-			# Get pricing info from pricing phases
-			if "pricing_phases" in offer_detail and offer_detail.pricing_phases:
-				var phases = offer_detail.pricing_phases
-				if "pricing_phase_list" in phases and phases.pricing_phase_list.size() > 0:
-					var first_phase = phases.pricing_phase_list[0]
-					offer_info["display_price"] = first_phase.formatted_price if "formatted_price" in first_phase else ""
-					offer_info["billing_period"] = first_phase.billing_period if "billing_period" in first_phase else ""
+		# Get pricing info from pricing phases
+		var phases = _field(offer_detail, ["pricingPhases", "pricing_phases", "pricingPhasesAndroid", "pricing_phases_android"])
+		var phase_list = _field(phases, ["pricingPhaseList", "pricing_phase_list"])
+		if phase_list is Array and phase_list.size() > 0:
+			var first_phase = phase_list[0]
+			offer_info["display_price"] = _string_field(first_phase, ["formattedPrice", "formatted_price", "displayPrice", "display_price"])
+			offer_info["billing_period"] = _string_field(first_phase, ["billingPeriod", "billing_period"])
 
-			offers.append(offer_info)
+		offers.append(offer_info)
 
 	return offers
+
+
+func _subscription_offer_details(product: Variant) -> Array:
+	var details = _field(product, [
+		"subscriptionOfferDetailsAndroid",
+		"subscription_offer_details_android",
+	])
+	if details is Array and details.size() > 0:
+		return details
+
+	var offers = _field(product, [
+		"subscriptionOffers",
+		"subscription_offers",
+	])
+	if offers is Array:
+		return offers
+
+	return []
+
+
+func _offer_token_from_detail(offer_detail: Variant) -> String:
+	return _string_field(offer_detail, [
+		"offerToken",
+		"offer_token",
+		"offerTokenAndroid",
+		"offer_token_android",
+	])
+
+
+func _string_field(source: Variant, keys: Array) -> String:
+	var value = _field(source, keys)
+	return "" if value == null else str(value)
+
+
+func _field(source: Variant, keys: Array) -> Variant:
+	if source == null:
+		return null
+	if source is Dictionary:
+		for key in keys:
+			if source.has(key):
+				return source[key]
+		return null
+	for key in keys:
+		var value = source.get(key)
+		if value != null:
+			return value
+	return null
 
 
 ## Purchase a subscription with a specific offer

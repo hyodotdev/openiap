@@ -4,6 +4,7 @@ import {TouchableOpacity} from 'react-native';
 type RouterHref = string | {pathname?: string};
 
 interface RouterShimNavigation {
+  push(href: RouterHref): void;
   navigate(href: RouterHref): void;
   replace(href: RouterHref): void;
   back(): void;
@@ -25,6 +26,7 @@ interface StackProps {
 }
 
 const inertNavigation: RouterShimNavigation = {
+  push() {},
   navigate() {},
   replace() {},
   back() {},
