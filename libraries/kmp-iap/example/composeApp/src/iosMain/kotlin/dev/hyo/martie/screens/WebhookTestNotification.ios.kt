@@ -36,7 +36,10 @@ internal actual suspend fun triggerWebhookTestNotification(
         return@suspendCancellableCoroutine
     }
 
-    val url = NSURL(string = webhookTestNotificationUrl(baseUrl, apiKey))
+    val url = NSURL.URLWithString(webhookTestNotificationUrl(baseUrl, apiKey)) ?: run {
+        continuation.resume(Result.failure(IllegalStateException("Invalid webhook URL.")))
+        return@suspendCancellableCoroutine
+    }
     val request = NSMutableURLRequest.requestWithURL(url)
     request.setHTTPMethod("POST")
     request.setValue("application/json", forHTTPHeaderField = "Content-Type")
@@ -51,16 +54,17 @@ internal actual suspend fun triggerWebhookTestNotification(
         delegate,
         null,
     )
-    delegate.session = session
     val task = session.dataTaskWithRequest(request)
-    continuation.invokeOnCancellation { task.cancel() }
+    continuation.invokeOnCancellation {
+        task.cancel()
+        session.invalidateAndCancel()
+    }
     task.resume()
 }
 
 private class WebhookTestNotificationDelegate(
     private val continuation: CancellableContinuation<Result<Unit>>,
 ) : NSObject(), NSURLSessionDataDelegateProtocol {
-    var session: NSURLSession? = null
     private var statusCode = 0
     private var didResume = false
 
@@ -76,6 +80,7 @@ private class WebhookTestNotificationDelegate(
         } else {
             completionHandler(NSURLSessionResponseCancel)
             dataTask.cancel()
+            session.invalidateAndCancel()
             resumeOnce(Result.failure(IllegalStateException("Test POST returned $statusCode")))
         }
     }
@@ -85,6 +90,7 @@ private class WebhookTestNotificationDelegate(
         task: NSURLSessionTask,
         didCompleteWithError: NSError?,
     ) {
+        session.finishTasksAndInvalidate()
         if (didCompleteWithError != null) {
             resumeOnce(
                 Result.failure(
@@ -101,7 +107,6 @@ private class WebhookTestNotificationDelegate(
     private fun resumeOnce(result: Result<Unit>) {
         if (didResume) return
         didResume = true
-        session?.finishTasksAndInvalidate()
         continuation.resume(result)
     }
 }

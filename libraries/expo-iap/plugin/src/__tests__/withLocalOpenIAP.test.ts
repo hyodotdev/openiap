@@ -24,13 +24,32 @@ describe('ensureLocalOpenIapFlavorStrategy', () => {
     expect(result).toContain('missingDimensionStrategy "platform", "play"');
   });
 
+  it('emits Kotlin DSL for Kotlin project build files', () => {
+    const result = ensureLocalOpenIapFlavorStrategy(
+      baseProjectBuildGradle,
+      'horizon',
+      'kotlin',
+    );
+
+    expect(result).toContain('subprojects {');
+    expect(result).toContain(
+      'extensions.configure<com.android.build.gradle.LibraryExtension>("android")',
+    );
+    expect(result).toContain(
+      'missingDimensionStrategy("platform", "horizon")',
+    );
+    expect(result).not.toContain(
+      'missingDimensionStrategy "platform", "horizon"',
+    );
+  });
+
   it('replaces the managed block when the target flavor changes', () => {
     const playResult = ensureLocalOpenIapFlavorStrategy(
       baseProjectBuildGradle,
       'play',
     );
     const horizonResult = ensureLocalOpenIapFlavorStrategy(
-      playResult,
+      `${playResult}\n${playResult}`,
       'horizon',
     );
 
@@ -41,7 +60,9 @@ describe('ensureLocalOpenIapFlavorStrategy', () => {
       'missingDimensionStrategy "platform", "play"',
     );
     expect(
-      horizonResult.match(/local openiap-google flavor selection/g) ?? [],
-    ).toHaveLength(2);
+      horizonResult.match(
+        /Added by expo-iap \(local openiap-google flavor selection\)/g,
+      ) ?? [],
+    ).toHaveLength(1);
   });
 });

@@ -27,10 +27,8 @@ import io.github.hyochan.kmpiap.toPurchaseInput
 import kotlinx.coroutines.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlin.time.Clock
-import kotlin.time.ExperimentalTime
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalTime::class)
+@OptIn(ExperimentalMaterial3Api::class, kotlin.time.ExperimentalTime::class)
 @Composable
 fun AvailablePurchasesScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
@@ -71,7 +69,8 @@ fun AvailablePurchasesScreen(navController: NavController) {
                             }
                             // For non-auto-renewing, check expiry time
                             purchase.expirationDateIOS?.let { expiryTime ->
-                                val now = Clock.System.now().toEpochMilliseconds()
+                                // kotlinx-datetime 0.6.1 does not expose Clock.System in common source with this Kotlin toolchain.
+                                val now = kotlin.time.Clock.System.now().toEpochMilliseconds()
                                 return@filter expiryTime.toLong() > now  // Only show if not expired
                             }
                             return@filter true  // Show if no expiry info
