@@ -242,8 +242,7 @@ Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpt
     }
 
     debugPrint('✅ Purchase detected as successful: ${purchase.productId}');
-    debugPrint(
-        'Purchase token: ${_formatTokenValue(purchase.purchaseToken)}');
+    debugPrint('Purchase token: ${_formatTokenValue(purchase.purchaseToken)}');
     debugPrint('ID: ${purchase.id}'); // OpenIAP standard
     debugPrint('Transaction ID: ${transactionId ?? 'N/A'}');
 

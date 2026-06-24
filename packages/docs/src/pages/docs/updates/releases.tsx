@@ -101,6 +101,15 @@ function Releases() {
               checks the new Flutter SwiftPM manifests and generated llms root
               symlinks so path drift is caught before release.
             </li>
+            <li>
+              <strong>Expo local release builds</strong> —{' '}
+              <code>expo-iap 4.3.3</code> updates the local OpenIAP config
+              plugin so Expo release builds that link the monorepo&apos;s local{' '}
+              <code>:openiap-google</code> module apply the selected{' '}
+              <code>play</code> or <code>horizon</code> flavor to transitive
+              Android library modules such as <code>:expo</code>, avoiding
+              Gradle variant ambiguity during <code>assembleRelease</code>.
+            </li>
           </ul>
 
           <div
@@ -132,6 +141,24 @@ function Releases() {
                   rel="noopener noreferrer"
                 >
                   pub.dev
+                </a>
+                )
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/expo-iap-4.3.3"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  expo-iap 4.3.3
+                </a>{' '}
+                (
+                <a
+                  href="https://www.npmjs.com/package/expo-iap/v/4.3.3"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  npm
                 </a>
                 )
               </li>

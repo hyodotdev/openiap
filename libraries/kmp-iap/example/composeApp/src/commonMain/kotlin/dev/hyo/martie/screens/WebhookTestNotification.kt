@@ -1,6 +1,5 @@
 package dev.hyo.martie.screens
 
-import kotlinx.datetime.Clock
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
@@ -9,9 +8,10 @@ internal expect suspend fun triggerWebhookTestNotification(
     baseUrl: String = "https://kit.openiap.dev",
 ): Result<Unit>
 
-@OptIn(ExperimentalEncodingApi::class)
+@OptIn(ExperimentalEncodingApi::class, kotlin.time.ExperimentalTime::class)
 internal fun buildWebhookTestNotificationPayload(messagePrefix: String): String {
-    val now = Clock.System.now()
+    // kotlinx-datetime 0.6.1 does not expose Clock.System in common source with this Kotlin toolchain.
+    val now = kotlin.time.Clock.System.now()
     val timestamp = now.toEpochMilliseconds()
     val dataJson =
         """{"version":"1.0","packageName":"com.example.app","eventTimeMillis":"$timestamp","testNotification":{"version":"1.0"}}"""

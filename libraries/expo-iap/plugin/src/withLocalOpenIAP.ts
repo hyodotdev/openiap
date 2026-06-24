@@ -3,6 +3,7 @@ import {
   withDangerousMod,
   withSettingsGradle,
   withAppBuildGradle,
+  withProjectBuildGradle,
 } from 'expo/config-plugins';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -16,6 +17,7 @@ import {
  * This is only for local development with openiap-apple library
  */
 type LocalPathOption = string | {ios?: string; android?: string};
+type GradleLanguage = 'groovy' | 'kotlin';
 
 interface AndroidGradlePluginVersions {
   kotlin: string;
@@ -85,6 +87,59 @@ const logOnce = (() => {
     }
   };
 })();
+
+const LOCAL_OPENIAP_FLAVOR_BLOCK_START =
+  '// Added by expo-iap (local openiap-google flavor selection)';
+const LOCAL_OPENIAP_FLAVOR_BLOCK_END =
+  '// End expo-iap local openiap-google flavor selection';
+
+const normalizeGradleLanguage = (language?: string): GradleLanguage =>
+  language === 'kotlin' ? 'kotlin' : 'groovy';
+
+export const ensureLocalOpenIapFlavorStrategy = (
+  contents: string,
+  flavor: 'play' | 'horizon',
+  language: GradleLanguage = 'groovy',
+): string => {
+  const existingBlockPattern = new RegExp(
+    `\\n?${escapeRegExp(LOCAL_OPENIAP_FLAVOR_BLOCK_START)}[\\s\\S]*?${escapeRegExp(
+      LOCAL_OPENIAP_FLAVOR_BLOCK_END,
+    )}\\n?`,
+    'gm',
+  );
+  const cleaned = contents
+    .replace(existingBlockPattern, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trimEnd();
+
+  const strategyBlock =
+    language === 'kotlin'
+      ? `subprojects {
+  plugins.withId("com.android.library") {
+    extensions.configure<com.android.build.gradle.LibraryExtension>("android") {
+      defaultConfig {
+        missingDimensionStrategy("platform", "${flavor}")
+      }
+    }
+  }
+}`
+      : `subprojects { subproject ->
+  subproject.plugins.withId("com.android.library") {
+    subproject.android {
+      defaultConfig {
+        missingDimensionStrategy "platform", "${flavor}"
+      }
+    }
+  }
+}`;
+
+  return `${cleaned}
+
+${LOCAL_OPENIAP_FLAVOR_BLOCK_START}
+${strategyBlock}
+${LOCAL_OPENIAP_FLAVOR_BLOCK_END}
+`;
+};
 
 const withLocalOpenIAP: ConfigPlugin<
   {
@@ -203,10 +258,19 @@ const withLocalOpenIAP: ConfigPlugin<
 
     // 1) settings.gradle: include and map projectDir
     const settings = config.modResults;
-    const includeLine = "include ':openiap-google'";
-    const projectDirLine = `project(':openiap-google').projectDir = new File(settingsDir, '${relativeAndroidModulePath}')`;
+    const settingsLanguage = normalizeGradleLanguage(settings.language);
+    const includeLine =
+      settingsLanguage === 'kotlin'
+        ? 'include(":openiap-google")'
+        : "include ':openiap-google'";
+    const projectDirLine =
+      settingsLanguage === 'kotlin'
+        ? `project(":openiap-google").projectDir = File(settingsDir, "${relativeAndroidModulePath}")`
+        : `project(':openiap-google').projectDir = new File(settingsDir, '${relativeAndroidModulePath}')`;
+    const includePattern =
+      /include\s*(?:\(\s*)?["']:openiap-google["']\s*\)?/;
     const projectDirPattern =
-      /^project\(':openiap-google'\)\.projectDir\s*=.*$/gm;
+      /^\s*project\(["']:openiap-google["']\)\.projectDir\s*=.*$/gm;
     let contents = settings.contents ?? '';
 
     // Ensure pluginManagement has plugin mappings required by the included module
@@ -279,7 +343,7 @@ const withLocalOpenIAP: ConfigPlugin<
     };
 
     injectPluginManagement();
-    if (!contents.includes(includeLine)) contents += `\n${includeLine}\n`;
+    if (!includePattern.test(contents)) contents += `\n${includeLine}\n`;
     if (projectDirPattern.test(contents)) {
       contents = contents.replace(projectDirPattern, projectDirLine);
     } else if (!contents.includes(projectDirLine)) {
@@ -305,9 +369,16 @@ const withLocalOpenIAP: ConfigPlugin<
     }
 
     const gradle = config.modResults;
-    const dependencyLine = `    implementation project(':openiap-google')`;
+    const appLanguage = normalizeGradleLanguage(gradle.language);
+    const dependencyLine =
+      appLanguage === 'kotlin'
+        ? `    implementation(project(":openiap-google"))`
+        : `    implementation project(':openiap-google')`;
     const flavor = props?.isHorizonEnabled ? 'horizon' : 'play';
-    const strategyLine = `        missingDimensionStrategy "platform", "${flavor}"`;
+    const strategyLine =
+      appLanguage === 'kotlin'
+        ? `        missingDimensionStrategy("platform", "${flavor}")`
+        : `        missingDimensionStrategy "platform", "${flavor}"`;
 
     let contents = gradle.contents;
 
@@ -355,6 +426,33 @@ const withLocalOpenIAP: ConfigPlugin<
     }
 
     gradle.contents = contents;
+    return config;
+  });
+
+  // 2b) project build.gradle: Expo autolinked library modules can consume the
+  // local flavored OpenIAP module transitively, so give them the same default.
+  config = withProjectBuildGradle(config, (config) => {
+    const projectRoot = (config.modRequest as any).projectRoot as string;
+    const raw = props?.localPath;
+    const androidInput = typeof raw === 'string' ? undefined : raw?.android;
+    const androidModulePath =
+      resolveAndroidModulePath(androidInput) ||
+      resolveAndroidModulePath(path.resolve(projectRoot, 'openiap-google')) ||
+      null;
+
+    if (!androidModulePath || !fs.existsSync(androidModulePath)) {
+      return config;
+    }
+
+    const flavor = props?.isHorizonEnabled ? 'horizon' : 'play';
+    config.modResults.contents = ensureLocalOpenIapFlavorStrategy(
+      config.modResults.contents,
+      flavor,
+      normalizeGradleLanguage(config.modResults.language),
+    );
+    logOnce(
+      `🛠️ expo-iap: Added local OpenIAP flavor strategy for ${flavor}`,
+    );
     return config;
   });
 

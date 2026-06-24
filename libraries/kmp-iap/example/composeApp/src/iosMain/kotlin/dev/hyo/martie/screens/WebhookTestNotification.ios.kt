@@ -1,17 +1,32 @@
 package dev.hyo.martie.screens
 
+import kotlinx.cinterop.BetaInteropApi
+import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.suspendCancellableCoroutine
+import platform.Foundation.NSError
 import platform.Foundation.NSHTTPURLResponse
 import platform.Foundation.NSMutableURLRequest
 import platform.Foundation.NSString
 import platform.Foundation.NSURL
+import platform.Foundation.NSURLResponse
 import platform.Foundation.NSURLSession
+import platform.Foundation.NSURLSessionConfiguration
+import platform.Foundation.NSURLSessionDataDelegateProtocol
+import platform.Foundation.NSURLSessionDataTask
+import platform.Foundation.NSURLSessionResponseAllow
+import platform.Foundation.NSURLSessionResponseCancel
+import platform.Foundation.NSURLSessionResponseDisposition
+import platform.Foundation.NSURLSessionTask
 import platform.Foundation.NSUTF8StringEncoding
+import platform.Foundation.create
 import platform.Foundation.dataUsingEncoding
+import platform.Foundation.setHTTPBody
 import platform.Foundation.setHTTPMethod
 import platform.Foundation.setValue
+import platform.darwin.NSObject
 import kotlin.coroutines.resume
 
+@OptIn(BetaInteropApi::class)
 internal actual suspend fun triggerWebhookTestNotification(
     apiKey: String,
     baseUrl: String,
@@ -21,35 +36,77 @@ internal actual suspend fun triggerWebhookTestNotification(
         return@suspendCancellableCoroutine
     }
 
-    val url = NSURL(string = webhookTestNotificationUrl(baseUrl, apiKey))
-    if (url == null) {
-        continuation.resume(Result.failure(IllegalArgumentException("Invalid webhook URL.")))
+    val url = NSURL.URLWithString(webhookTestNotificationUrl(baseUrl, apiKey)) ?: run {
+        continuation.resume(Result.failure(IllegalStateException("Invalid webhook URL.")))
         return@suspendCancellableCoroutine
     }
-
-    val request = NSMutableURLRequest.requestWithURL(url) as NSMutableURLRequest
+    val request = NSMutableURLRequest.requestWithURL(url)
     request.setHTTPMethod("POST")
     request.setValue("application/json", forHTTPHeaderField = "Content-Type")
-    request.HTTPBody = NSString
+    val body = NSString
         .create(string = buildWebhookTestNotificationPayload("kmp-ios"))
         .dataUsingEncoding(NSUTF8StringEncoding)
+    request.setHTTPBody(body)
 
-    val task = NSURLSession.sharedSession.dataTaskWithRequest(request) { _, response, error ->
-        if (error != null) {
-            continuation.resume(
-                Result.failure(
-                    IllegalStateException(error.localizedDescription ?: "Network error"),
-                ),
-            )
-            return@dataTaskWithRequest
-        }
-        val statusCode = (response as? NSHTTPURLResponse)?.statusCode?.toInt() ?: 0
+    val delegate = WebhookTestNotificationDelegate(continuation)
+    val session = NSURLSession.sessionWithConfiguration(
+        NSURLSessionConfiguration.defaultSessionConfiguration(),
+        delegate,
+        null,
+    )
+    val task = session.dataTaskWithRequest(request)
+    continuation.invokeOnCancellation {
+        task.cancel()
+        session.invalidateAndCancel()
+    }
+    task.resume()
+}
+
+private class WebhookTestNotificationDelegate(
+    private val continuation: CancellableContinuation<Result<Unit>>,
+) : NSObject(), NSURLSessionDataDelegateProtocol {
+    private var statusCode = 0
+    private var didResume = false
+
+    override fun URLSession(
+        session: NSURLSession,
+        dataTask: NSURLSessionDataTask,
+        didReceiveResponse: NSURLResponse,
+        completionHandler: (NSURLSessionResponseDisposition) -> Unit,
+    ) {
+        statusCode = (didReceiveResponse as? NSHTTPURLResponse)?.statusCode?.toInt() ?: 0
         if (statusCode in 200..299) {
-            continuation.resume(Result.success(Unit))
+            completionHandler(NSURLSessionResponseAllow)
         } else {
-            continuation.resume(Result.failure(IllegalStateException("Test POST returned $statusCode")))
+            completionHandler(NSURLSessionResponseCancel)
+            dataTask.cancel()
+            session.invalidateAndCancel()
+            resumeOnce(Result.failure(IllegalStateException("Test POST returned $statusCode")))
         }
     }
-    continuation.invokeOnCancellation { task.cancel() }
-    task.resume()
+
+    override fun URLSession(
+        session: NSURLSession,
+        task: NSURLSessionTask,
+        didCompleteWithError: NSError?,
+    ) {
+        session.finishTasksAndInvalidate()
+        if (didCompleteWithError != null) {
+            resumeOnce(
+                Result.failure(
+                    IllegalStateException(didCompleteWithError.localizedDescription),
+                ),
+            )
+        } else if (statusCode in 200..299) {
+            resumeOnce(Result.success(Unit))
+        } else {
+            resumeOnce(Result.failure(IllegalStateException("Test POST returned $statusCode")))
+        }
+    }
+
+    private fun resumeOnce(result: Result<Unit>) {
+        if (didResume) return
+        didResume = true
+        continuation.resume(result)
+    }
 }
