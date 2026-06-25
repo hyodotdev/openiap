@@ -1271,12 +1271,14 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     private fun convertAnyListToProductOrSubscriptions(data: Any?): List<ProductOrSubscription> {
         if (data == null) return emptyList()
 
-        return try {
-            val list = data as? List<*> ?: return emptyList()
-            list.mapNotNull { item ->
-                val dict = (item as? Map<*, *>) ?: return@mapNotNull null
+        val list = data as? List<*> ?: return emptyList()
+        return list.mapNotNull { item ->
+            runCatching {
+                val dict = (item as? Map<*, *>) ?: return@runCatching null
                 val map = dict.mapKeys { it.key.toString() }
 
+                // Native iOS may return either generated union JSON or raw StoreKit maps;
+                // decode the union first, then recover by product type for legacy payloads.
                 runCatching { ProductOrSubscription.fromJson(map) }.getOrElse {
                     val type = map["type"] as? String
                     if (type == ProductType.Subs.rawValue) {
@@ -1289,9 +1291,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                         }
                     }
                 }
-            }
-        } catch (e: Exception) {
-            emptyList()
+            }.getOrNull()
         }
     }
 
