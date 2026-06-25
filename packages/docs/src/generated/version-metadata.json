@@ -1,10 +1,10 @@
 {
   "_generatedBy": "scripts/sync-versions.sh",
-  "expoPackageVersion": "4.3.3",
+  "expoPackageVersion": "4.3.4",
   "reactNativePackageVersion": "15.3.3",
-  "flutterPackageVersion": "9.3.4",
+  "flutterPackageVersion": "9.3.5",
   "godotPackageVersion": "2.3.2",
-  "kmpPackageVersion": "2.3.2",
+  "kmpPackageVersion": "2.3.3",
   "mauiPackageId": "OpenIap.Maui",
   "mauiPackageVersion": "1.1.5",
   "googleCompileSdk": "35",
