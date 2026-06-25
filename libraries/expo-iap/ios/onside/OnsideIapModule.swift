@@ -301,7 +301,7 @@ public final class ExpoIapOnsideModule: Module {
             )
             try await ensureObserverRegistered()
             let payload: [[String: Any]] = try await MainActor.run {
-                try Onside.defaultPaymentQueue().transactions.compactMap { transaction -> [String: Any]? in
+                let items = try Onside.defaultPaymentQueue().transactions.compactMap { transaction -> [String: Any]? in
                     switch transaction.transactionState {
                     case .purchased, .restored:
                         return try serialize(transaction: transaction)
@@ -309,11 +309,12 @@ public final class ExpoIapOnsideModule: Module {
                         return nil
                     }
                 }
-            }
-            if alsoPublish {
-                payload.forEach {
-                    sendEvent(OnsideEvent.purchaseUpdated.rawValue, $0)
+                if alsoPublish {
+                    items.forEach {
+                        sendEvent(OnsideEvent.purchaseUpdated.rawValue, $0)
+                    }
                 }
+                return items
             }
             ExpoIapLog.result("getAvailableItemsOnside", value: payload)
             return payload
@@ -435,7 +436,7 @@ public final class ExpoIapOnsideModule: Module {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
         formatter.currencyCode = product.price.currencyCode
-        let priceNumber = NSDecimalNumber(decimal: Decimal(product.price.value))
+        let priceNumber = NSDecimalNumber(string: String(product.price.value))
         let formattedPrice = formatter.string(from: priceNumber) ?? "\(product.price.value)"
         dictionary["displayPrice"] = formattedPrice
         dictionary["currency"] = product.price.currencyCode
@@ -499,7 +500,7 @@ public final class ExpoIapOnsideModule: Module {
         let priceFormatter = NumberFormatter()
         priceFormatter.numberStyle = .currency
         priceFormatter.currencyCode = product.price.currencyCode
-        let priceNumber = NSDecimalNumber(decimal: Decimal(product.price.value))
+        let priceNumber = NSDecimalNumber(string: String(product.price.value))
         let formattedPrice = priceFormatter.string(from: priceNumber) ?? "\(product.price.value)"
         let jsonObject: [String: Any] = [
             "id": product.productIdentifier,
