@@ -777,7 +777,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                 PurchaseError(code = ErrorCode.EmptySkuList, message = "SKU list is empty")
             )
 
-            val queryType = params.type ?: ProductQueryType.All
+            val queryType = params.type ?: ProductQueryType.InApp
             val includeInApp = queryType == ProductQueryType.InApp || queryType == ProductQueryType.All
             val includeSubs = queryType == ProductQueryType.Subs || queryType == ProductQueryType.All
 

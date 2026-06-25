@@ -1281,7 +1281,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 // decode the union first, then recover by product type for legacy payloads.
                 runCatching { ProductOrSubscription.fromJson(map) }.getOrElse {
                     val type = map["type"] as? String
-                    if (type == ProductType.Subs.rawValue) {
+                    if (type?.equals(ProductType.Subs.rawValue, ignoreCase = true) == true) {
                         convertAnyListToProductSubscriptions(listOf(item)).firstOrNull()?.let {
                             ProductOrSubscription.ProductSubscriptionItem(it)
                         }
