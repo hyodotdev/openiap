@@ -205,7 +205,7 @@ class OpenIapModule(
             if (!client.isReady) throw OpenIapError.NotPrepared
             if (params.skus.isEmpty() && params.type != ProductQueryType.All) throw OpenIapError.EmptySkuList
 
-            val queryType = params.type ?: ProductQueryType.All
+            val queryType = params.type ?: ProductQueryType.InApp
 
             when (queryType) {
                 ProductQueryType.InApp -> {

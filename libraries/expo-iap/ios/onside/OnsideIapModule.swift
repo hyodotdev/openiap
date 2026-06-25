@@ -50,6 +50,7 @@ public final class ExpoIapOnsideModule: Module {
     private let transactionObserver = OnsideTransactionObserverBridge()
     private let productFetcher = OnsideProductFetcher()
     private var productCache: [String: OnsideProduct] = [:]
+    private var transactionDateCache: [String: Date] = [:]
 
     nonisolated public func definition() -> ModuleDefinition {
         Name("ExpoIapOnside")
@@ -113,7 +114,7 @@ public final class ExpoIapOnsideModule: Module {
 
                 // Check if Onside Store is installed
                 if let onsideURL = URL(string: "onside://"),
-                UIApplication.shared.canOpenURL(onsideURL) {
+                await MainActor.run(body: { UIApplication.shared.canOpenURL(onsideURL) }) {
                     #if DEBUG
                     print("[ExpoIapOnsideModule] ✅ Onside Store app is installed")
                     #endif
@@ -225,16 +226,15 @@ public final class ExpoIapOnsideModule: Module {
             let productId = purchasePayload["productId"] as? String
             let txId = purchasePayload["transactionId"] as? String
 
-            let queue = await Onside.defaultPaymentQueue()
-
             let transaction: OnsidePaymentTransaction? = await MainActor.run {
+                let transactions = Onside.defaultPaymentQueue().transactions
                 if let txId, !txId.isEmpty {
-                    return queue.transactions.first(where: { $0.transactionIdentifier == txId })
+                    return transactions.first(where: { $0.transactionIdentifier == txId })
                 }
 
                 // 2) fallback: if txId is not available yet — search by productId (less reliable!)
                 if let productId, !productId.isEmpty {
-                    return queue.transactions.first(where: {
+                    return transactions.first(where: {
                         $0.payment.product.productIdentifier == productId
                         && ($0.transactionState == .purchased || $0.transactionState == .restored)
                     })
@@ -247,7 +247,9 @@ public final class ExpoIapOnsideModule: Module {
                 throw OnsideBridgeError.transactionNotFound(txId ?? productId ?? "")
             }
 
-            await queue.finishTransaction(transaction)
+            await MainActor.run {
+                Onside.defaultPaymentQueue().finishTransaction(transaction)
+            }
             ExpoIapLog.result("finishTransactionOnside", value: true)
             return true
         }
@@ -298,14 +300,21 @@ public final class ExpoIapOnsideModule: Module {
                 ]
             )
             try await ensureObserverRegistered()
-            let queue = await Onside.defaultPaymentQueue()
-            let payload = try queue.transactions.compactMap { transaction -> [String: Any]? in
-                switch transaction.transactionState {
-                case .purchased, .restored:
-                    return try serialize(transaction: transaction)
-                default:
-                    return nil
+            let payload: [[String: Any]] = try await MainActor.run {
+                let items = try Onside.defaultPaymentQueue().transactions.compactMap { transaction -> [String: Any]? in
+                    switch transaction.transactionState {
+                    case .purchased, .restored:
+                        return try serialize(transaction: transaction)
+                    default:
+                        return nil
+                    }
                 }
+                if alsoPublish {
+                    items.forEach {
+                        sendEvent(OnsideEvent.purchaseUpdated.rawValue, $0)
+                    }
+                }
+                return items
             }
             ExpoIapLog.result("getAvailableItemsOnside", value: payload)
             return payload
@@ -323,7 +332,7 @@ public final class ExpoIapOnsideModule: Module {
     private func getOnsideStorefront() async throws -> String {
         ExpoIapLog.payload("getStorefrontOnside", payload: nil)
         try await ensureObserverRegistered()
-        let storefront = await Onside.defaultPaymentQueue().storefront?.countryCode ?? ""
+        let storefront = Onside.defaultPaymentQueue().storefront?.countryCode ?? ""
         ExpoIapLog.result("getStorefrontOnside", value: storefront)
         return storefront
     }
@@ -385,6 +394,7 @@ public final class ExpoIapOnsideModule: Module {
         let cont = restoreContinuation
         restoreContinuation = nil
         cont?.resume(returning: false)
+        transactionDateCache.removeAll()
     }
 
     private func handle(transaction: OnsidePaymentTransaction) {
@@ -425,11 +435,11 @@ public final class ExpoIapOnsideModule: Module {
         dictionary["displayNameIOS"] = product.localizedTitle
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
-        formatter.currencyCode = product.price.currencyCode ?? ""
-        let priceNumber = NSDecimalNumber(decimal: product.price.value)
+        formatter.currencyCode = product.price.currencyCode
+        let priceNumber = NSDecimalNumber(string: String(product.price.value))
         let formattedPrice = formatter.string(from: priceNumber) ?? "\(product.price.value)"
         dictionary["displayPrice"] = formattedPrice
-        dictionary["currency"] = product.price.currencyCode ?? ""
+        dictionary["currency"] = product.price.currencyCode
         dictionary["price"] = priceNumber
         dictionary["type"] = "in-app"
         dictionary["typeIOS"] = "non-consumable"
@@ -450,15 +460,15 @@ public final class ExpoIapOnsideModule: Module {
         dictionary["quantity"] = 1
         dictionary["isAutoRenewing"] = false
         dictionary["purchaseState"] = mapPurchaseState(transaction.transactionState)
-        let txDate = transaction.transactionDate ?? Date()
+        let txDate = date(for: transaction)
         dictionary["transactionDate"] = Int(txDate.timeIntervalSince1970 * 1000)
-        dictionary["currencyCodeIOS"] = product.price.currencyCode ?? ""
+        dictionary["currencyCodeIOS"] = product.price.currencyCode
         let currencyFormatter = NumberFormatter()
         currencyFormatter.numberStyle = .currency
-        currencyFormatter.currencyCode = product.price.currencyCode ?? ""
+        currencyFormatter.currencyCode = product.price.currencyCode
         dictionary["currencySymbolIOS"] = currencyFormatter.currencySymbol ?? ""
 
-        dictionary["storefrontCountryCodeIOS"] = transaction.storefront.countryCode ?? ""
+        dictionary["storefrontCountryCodeIOS"] = transaction.storefront.countryCode
         dictionary["purchaseToken"] = nil
         dictionary["environmentIOS"] = transaction.storefront.id
         if let error = transaction.error {
@@ -467,12 +477,30 @@ public final class ExpoIapOnsideModule: Module {
         return sanitize(dictionary)
     }
 
+    private func date(for transaction: OnsidePaymentTransaction) -> Date {
+        guard let key = transaction.transactionIdentifier ?? transaction.originalTransactionIdentifier,
+              !key.isEmpty
+        else {
+            return Date()
+        }
+
+        if let cachedDate = transactionDateCache[key] {
+            return cachedDate
+        }
+
+        // OnsideKit currently exposes no purchase date on the transaction, so
+        // keep the first observed timestamp stable for repeated serializations.
+        let observedDate = Date()
+        transactionDateCache[key] = observedDate
+        return observedDate
+    }
+
     // Build a JSON string from known product fields (no Encodable conformance required)
     private func makeProductJSONRepresentation(from product: OnsideProduct) throws -> String {
         let priceFormatter = NumberFormatter()
         priceFormatter.numberStyle = .currency
-        priceFormatter.currencyCode = product.price.currencyCode ?? ""
-        let priceNumber = NSDecimalNumber(decimal: product.price.value)
+        priceFormatter.currencyCode = product.price.currencyCode
+        let priceNumber = NSDecimalNumber(string: String(product.price.value))
         let formattedPrice = priceFormatter.string(from: priceNumber) ?? "\(product.price.value)"
         let jsonObject: [String: Any] = [
             "id": product.productIdentifier,
@@ -480,7 +508,7 @@ public final class ExpoIapOnsideModule: Module {
             "description": product.localizedDescription,
             "price": [
                 "value": priceNumber,
-                "currencyCode": product.price.currencyCode ?? "",
+                "currencyCode": product.price.currencyCode,
                 "formatted": formattedPrice,
             ],
             "isFamilyShareable": false,
@@ -655,6 +683,7 @@ private final class OnsideProductFetcher: NSObject, OnsideProductsRequestDelegat
         }
     }
 
+    @MainActor
     private func cleanup() {
         request?.delegate = nil
         request?.stop()

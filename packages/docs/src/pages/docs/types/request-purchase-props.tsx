@@ -218,7 +218,7 @@ await FlutterInappPurchase.instance.requestPurchase(
       apple: RequestPurchaseIosProps(sku: 'monthly_sub'),
       google: RequestPurchaseAndroidProps(skus: ['monthly_sub']),
     ),
-    type: ProductQueryType.subs,
+    type: ProductQueryType.Subs,
   ),
 );`}</CodeBlock>
             ),

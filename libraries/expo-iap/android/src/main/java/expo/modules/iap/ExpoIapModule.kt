@@ -3,6 +3,7 @@ package expo.modules.iap
 import android.content.Context
 import dev.hyo.openiap.AndroidSubscriptionOfferInput
 import dev.hyo.openiap.DeepLinkOptions
+import dev.hyo.openiap.FetchProductsResultAll
 import dev.hyo.openiap.FetchProductsResultProducts
 import dev.hyo.openiap.FetchProductsResultSubscriptions
 import dev.hyo.openiap.InitConnectionConfig
@@ -183,9 +184,9 @@ class ExpoIapModule : Module() {
                         val result = openIap.fetchProducts(request)
                         val payload =
                             when (result) {
+                                is FetchProductsResultAll -> result.value.orEmpty().map { it.toJson() }
                                 is FetchProductsResultProducts -> result.value.orEmpty().map { it.toJson() }
                                 is FetchProductsResultSubscriptions -> result.value.orEmpty().map { it.toJson() }
-                                else -> emptyList<Map<String, Any?>>()
                             }
                         ExpoIapLog.result("fetchProducts", payload)
                         promise.resolve(payload)

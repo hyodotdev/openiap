@@ -99,4 +99,44 @@ void main() {
     expect(subscriptions, hasLength(1));
     expect(subscriptions.first.id, 'premium_monthly');
   });
+
+  test('fetchProducts returns mixed products when querying all type', () async {
+    final platform = FakePlatform(operatingSystem: 'ios');
+    final iap = FlutterInappPurchase.private(platform);
+
+    await iap.initConnection();
+
+    final products = await iap.fetchProducts<types.ProductCommon>(
+      skus: const ['premium_monthly', 'coin_pack'],
+      type: types.ProductQueryType.All,
+    );
+
+    expect(products, hasLength(2));
+    expect(products.whereType<types.ProductSubscription>(), hasLength(1));
+    expect(products.whereType<types.Product>(), hasLength(1));
+  });
+
+  test('queryHandlers fetchProducts preserves all result union', () async {
+    final platform = FakePlatform(operatingSystem: 'ios');
+    final iap = FlutterInappPurchase.private(platform);
+
+    await iap.initConnection();
+
+    final result = await iap.queryHandlers.fetchProducts!(
+      skus: const ['premium_monthly', 'coin_pack'],
+      type: types.ProductQueryType.All,
+    );
+
+    expect(result, isA<types.FetchProductsResultAll>());
+    final allResult = result as types.FetchProductsResultAll;
+    expect(allResult.value, hasLength(2));
+    expect(
+      allResult.value,
+      contains(isA<types.ProductOrSubscriptionProductSubscription>()),
+    );
+    expect(
+      allResult.value,
+      contains(isA<types.ProductOrSubscriptionProduct>()),
+    );
+  });
 }

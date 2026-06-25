@@ -474,13 +474,21 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                             val subscriptions = convertAnyListToProductSubscriptions(result)
                             continuation.resume(FetchProductsResultSubscriptions(subscriptions))
                         }
+                        ProductQueryType.All -> {
+                            val items = convertAnyListToProductOrSubscriptions(result)
+                            continuation.resume(FetchProductsResultAll(items))
+                        }
                         else -> {
                             val products = convertAnyListToProducts(result)
                             continuation.resume(FetchProductsResultProducts(products))
                         }
                     }
                 } else {
-                    continuation.resume(FetchProductsResultProducts(emptyList()))
+                    when (params.type) {
+                        ProductQueryType.Subs -> continuation.resume(FetchProductsResultSubscriptions(emptyList()))
+                        ProductQueryType.All -> continuation.resume(FetchProductsResultAll(emptyList()))
+                        else -> continuation.resume(FetchProductsResultProducts(emptyList()))
+                    }
                 }
             }
         }
@@ -1257,6 +1265,33 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             }
         } catch (e: Exception) {
             emptyList()
+        }
+    }
+
+    private fun convertAnyListToProductOrSubscriptions(data: Any?): List<ProductOrSubscription> {
+        if (data == null) return emptyList()
+
+        val list = data as? List<*> ?: return emptyList()
+        return list.mapNotNull { item ->
+            runCatching {
+                val dict = (item as? Map<*, *>) ?: return@runCatching null
+                val map = dict.mapKeys { it.key.toString() }
+
+                // Native iOS may return either generated union JSON or raw StoreKit maps;
+                // decode the union first, then recover by product type for legacy payloads.
+                runCatching { ProductOrSubscription.fromJson(map) }.getOrElse {
+                    val type = map["type"] as? String
+                    if (type?.equals(ProductType.Subs.rawValue, ignoreCase = true) == true) {
+                        convertAnyListToProductSubscriptions(listOf(item)).firstOrNull()?.let {
+                            ProductOrSubscription.ProductSubscriptionItem(it)
+                        }
+                    } else {
+                        convertAnyListToProducts(listOf(item)).firstOrNull()?.let {
+                            ProductOrSubscription.ProductItem(it)
+                        }
+                    }
+                }
+            }.getOrNull()
         }
     }
 
