@@ -12,12 +12,15 @@ function FetchProducts() {
     <div className="doc-page">
       <SEO
         title="fetchProducts"
-        description="Retrieve products or subscriptions from the store by SKU."
+        description="Retrieve in-app products, subscriptions, or mixed all results from the store by SKU."
         path="/docs/apis/fetch-products"
         keywords="fetchProducts, product info, SKU, ProductRequest"
       />
       <h1>fetchProducts</h1>
-      <p>Retrieve products or subscriptions from the store by SKU.</p>
+      <p>
+        Retrieve in-app products, subscriptions, or a mixed result from the
+        store by SKU.
+      </p>
       <p>
         <strong>iOS:</strong> Wraps <code>Product.products(for:)</code>{' '}
         (StoreKit 2). Fetches the localized price/title for each SKU. Unknown
@@ -41,7 +44,10 @@ function FetchProducts() {
         >
           Google docs
         </a>
-        .
+        . When <code>type</code> is <code>&apos;all&apos;</code>, Android
+        queries both <code>INAPP</code> and <code>SUBS</code> product details
+        and returns a mixed result that preserves product and subscription
+        variants.
       </p>
 
       <AnchorLink id="request-apis" level="h2">
@@ -113,9 +119,9 @@ type FetchProductsResult =
             <CodeBlock language="kotlin">{`suspend fun fetchProducts(request: ProductRequest): FetchProductsResult`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`Future<FetchProductsResult> fetchProducts({
+            <CodeBlock language="dart">{`Future<List<T>> fetchProducts<T extends ProductCommon>({
   required List<String> skus,
-  ProductQueryType? type,
+  ProductQueryType type = ProductQueryType.InApp,
 });`}</CodeBlock>
           ),
           gdscript: (
@@ -196,14 +202,147 @@ public sealed record FetchProductsResultAll(IReadOnlyList<ProductOrSubscription>
           <em>
             (for <code>type: 'all'</code>)
           </em>{' '}
-          — Mixed array; use each entry's <code>type</code> field to
-          disambiguate.
+          — Mixed array that preserves each item as either a product or a
+          subscription. TypeScript-based wrappers expose this as a flat
+          discriminated union; generated Kotlin, Dart, and C# schema handlers
+          expose the same contract through their language-specific union
+          wrappers.
         </li>
         <li>
           <code>null</code> <em>(legacy)</em> — Older schema branch retained for
           backwards compatibility.
         </li>
       </ul>
+
+      <AnchorLink id="fetch-all-product-types" level="h2">
+        Fetch all product types
+      </AnchorLink>
+      <p>
+        Use <code>type: &apos;all&apos;</code> only when you intentionally want
+        one request to return both in-app products and subscriptions. If{' '}
+        <code>type</code> is omitted, OpenIAP defaults to in-app products.
+      </p>
+      <LanguageTabs>
+        {{
+          typescript: (
+            <CodeBlock language="typescript">{`import { fetchProducts } from 'expo-iap';
+
+const items = await fetchProducts({
+  skus: ['com.app.coins_100', 'com.app.monthly'],
+  type: 'all',
+});
+
+for (const item of items ?? []) {
+  if (item.type === 'subs') {
+    console.log('subscription', item.id, item.subscriptionOffers);
+  } else {
+    console.log('in-app product', item.id, item.displayPrice);
+  }
+}`}</CodeBlock>
+          ),
+          swift: (
+            <CodeBlock language="swift">{`let result = try await OpenIapModule.shared.fetchProducts(
+    ProductRequest(skus: ["com.app.coins_100", "com.app.monthly"], type: .all)
+)
+
+if case let .all(items) = result {
+    for item in items ?? [] {
+        switch item {
+        case let .product(product):
+            print("in-app product \\(product.id)")
+        case let .productSubscription(subscription):
+            print("subscription \\(subscription.id)")
+        }
+    }
+}`}</CodeBlock>
+          ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`val result = openIapStore.fetchProducts(
+    ProductRequest(
+        skus = listOf("com.app.coins_100", "com.app.monthly"),
+        type = ProductQueryType.All,
+    )
+)
+
+if (result is FetchProductsResultAll) {
+    result.value.orEmpty().forEach { item ->
+        when (item) {
+            is ProductOrSubscription.ProductItem ->
+                println("in-app product " + item.value.id)
+            is ProductOrSubscription.ProductSubscriptionItem ->
+                println("subscription " + item.value.id)
+        }
+    }
+}`}</CodeBlock>
+          ),
+          kmp: (
+            <CodeBlock language="kotlin">{`val result = kmpIAP.fetchProducts(
+    ProductRequest(
+        skus = listOf("com.app.coins_100", "com.app.monthly"),
+        type = ProductQueryType.All,
+    )
+)
+
+if (result is FetchProductsResultAll) {
+    result.value.orEmpty().forEach { item ->
+        when (item) {
+            is ProductOrSubscription.ProductItem ->
+                println("in-app product " + item.value.id)
+            is ProductOrSubscription.ProductSubscriptionItem ->
+                println("subscription " + item.value.id)
+        }
+    }
+}`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`final items = await FlutterInappPurchase.instance
+    .fetchProducts<ProductCommon>(
+  skus: ['com.app.coins_100', 'com.app.monthly'],
+  type: ProductQueryType.All,
+);
+
+for (final item in items) {
+  switch (item.type) {
+    case ProductType.Subs:
+      print('subscription ' + item.id);
+    case ProductType.InApp:
+      print('in-app product ' + item.id);
+  }
+}`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`var request = ProductRequest.new()
+request.skus = ["com.app.coins_100", "com.app.monthly"]
+request.type = ProductQueryType.ALL
+var items = await iap.fetch_products(request)
+
+for item in items:
+    if item.type == ProductType.SUBS:
+        print("subscription ", item.id)
+    else:
+        print("in-app product ", item.id)`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`var result = await iap.FetchProductsAsync(new ProductRequest {
+    Skus = new[] { "com.app.coins_100", "com.app.monthly" },
+    Type = ProductQueryType.All,
+});
+
+if (result is FetchProductsResultAll allResult) {
+    foreach (var item in allResult.Value ?? Array.Empty<ProductOrSubscription>()) {
+        switch (item) {
+            case Product product:
+                Console.WriteLine($"in-app product {product.Id}");
+                break;
+            case ProductSubscription subscription:
+                Console.WriteLine($"subscription {subscription.Id}");
+                break;
+        }
+    }
+}`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
 
       <h2>Example</h2>
       <LanguageTabs>
@@ -283,16 +422,14 @@ val products = kmpIAP.fetchProducts {
 }`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`final FetchProductsResult result = await FlutterInappPurchase.instance.fetchProducts(
+            <CodeBlock language="dart">{`final products = await FlutterInappPurchase.instance.fetchProducts<Product>(
   skus: ['com.app.premium'],
   type: ProductQueryType.InApp,
 );
 
-// fetchProducts returns a sealed FetchProductsResult — unwrap by variant.
-final List<Product> products = switch (result) {
-  FetchProductsResultProducts(value: final list) => list ?? <Product>[],
-  _ => <Product>[],
-};`}</CodeBlock>
+for (final product in products) {
+  print(product.title + ': ' + product.displayPrice);
+}`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`var request = ProductRequest.new()

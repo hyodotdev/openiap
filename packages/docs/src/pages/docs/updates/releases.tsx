@@ -26,6 +26,198 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // June 26, 2026 — fetchProducts all mixed-result parity hotfix
+    {
+      id: 'fetch-products-all-parity-hotfix-2026-06-26',
+      date: new Date('2026-06-26'),
+      element: (
+        <div
+          key="fetch-products-all-parity-hotfix-2026-06-26"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="fetch-products-all-parity-hotfix-2026-06-26"
+            level="h4"
+          >
+            June 26, 2026 — fetchProducts all mixed-result parity hotfix
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes a cross-SDK hotfix for{' '}
+            <code>{'fetchProducts({ type: "all" })'}</code> so combined product
+            queries preserve both in-app products and subscriptions instead of
+            collapsing to an empty or product-only result. The{' '}
+            <strong>OpenIAP Spec remains 2.0.2</strong>; this release updates
+            Android bridge/result mapping and wrapper compatibility layers for{' '}
+            <code>openiap-google</code>, <code>expo-iap</code>,{' '}
+            <code>flutter_inapp_purchase</code>, and <code>kmp-iap</code>. Track
+            the regression in{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/issues/192"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              issue #192
+            </a>{' '}
+            and{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/193"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #193
+            </a>
+            .
+          </p>
+
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>Mixed all results preserved</strong> — explicit{' '}
+              <code>ProductQueryType.All</code> now returns the generated{' '}
+              <code>FetchProductsResultAll</code> branch in Google Play,
+              Horizon, Expo Android, Flutter Android, and KMP Android/iOS paths
+              that participate in the shared result contract.
+            </li>
+            <li>
+              <strong>Default product queries aligned</strong> — omitted{' '}
+              <code>ProductRequest.type</code> falls back to{' '}
+              <code>ProductQueryType.InApp</code>, matching the schema default
+              and docs while keeping explicit <code>All</code> behavior
+              available.
+            </li>
+            <li>
+              <strong>Flutter compatibility fixed</strong> — the public{' '}
+              <code>fetchProducts&lt;T&gt;()</code> convenience API keeps
+              returning typed lists, while{' '}
+              <code>queryHandlers.fetchProducts</code> now wraps{' '}
+              <code>All</code> results as <code>FetchProductsResultAll</code>{' '}
+              instead of dropping subscriptions through the product-only branch.
+            </li>
+            <li>
+              <strong>KMP iOS bridge hardened</strong> — mixed payload decoding
+              now preserves valid items even when one native bridge payload
+              fails to decode, and falls back by product type only after the
+              generated union decoder has been tried.
+            </li>
+            <li>
+              <strong>Expo Onside iOS bridge fixes</strong> — queue mutations
+              run on the main actor, available-purchase publishing honors{' '}
+              <code>alsoPublishToEventListenerIOS</code>, transaction dates stay
+              stable across repeated serialization, and price serialization
+              avoids direct binary floating-point formatting.
+            </li>
+            <li>
+              <strong>Audited unchanged SDKs</strong> — React Native, Godot, and
+              MAUI already preserve the mixed result contract and do not require
+              code changes in this release.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/google-2.2.3"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-google 2.2.3
+                </a>{' '}
+                (
+                <a
+                  href="https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google/2.2.3"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Maven Central
+                </a>
+                )
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/expo-iap-4.3.4"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  expo-iap 4.3.4
+                </a>{' '}
+                (
+                <a
+                  href="https://www.npmjs.com/package/expo-iap/v/4.3.4"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  npm
+                </a>
+                )
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.3.5"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  flutter_inapp_purchase 9.3.5
+                </a>{' '}
+                (
+                <a
+                  href="https://pub.dev/packages/flutter_inapp_purchase/versions/9.3.5"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  pub.dev
+                </a>
+                )
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/kmp-iap-2.3.3"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  kmp-iap 2.3.3
+                </a>{' '}
+                (
+                <a
+                  href="https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap/2.3.3"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Maven Central
+                </a>
+                )
+              </li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // June 23, 2026 — Flutter Swift Package Manager support
     {
       id: 'flutter-swift-package-manager-support-2026-06-23',

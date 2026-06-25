@@ -2734,16 +2734,34 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           queryType: queryType,
         );
 
-        // Wrap list in appropriate union type for OpenIAP compatibility
+        // Wrap list in the generated result union for OpenIAP compatibility.
+        // `All` must preserve product and subscription variants instead of
+        // flattening the mixed result into the product-only branch.
+        if (queryType == gentype.ProductQueryType.All) {
+          final wrapped = products
+              .map<gentype.ProductOrSubscription?>((product) {
+                if (product is gentype.ProductSubscription) {
+                  return gentype.ProductOrSubscriptionProductSubscription(
+                    product,
+                  );
+                }
+                if (product is gentype.Product) {
+                  return gentype.ProductOrSubscriptionProduct(product);
+                }
+                return null;
+              })
+              .whereType<gentype.ProductOrSubscription>()
+              .toList(growable: false);
+          return gentype.FetchProductsResultAll(wrapped);
+        }
         if (queryType == gentype.ProductQueryType.Subs) {
           return gentype.FetchProductsResultSubscriptions(
             products.whereType<gentype.ProductSubscription>().toList(),
           );
-        } else {
-          return gentype.FetchProductsResultProducts(
-            products.whereType<gentype.Product>().toList(),
-          );
         }
+        return gentype.FetchProductsResultProducts(
+          products.whereType<gentype.Product>().toList(),
+        );
       };
 
   gentype.QueryHandlers get queryHandlers => gentype.QueryHandlers(

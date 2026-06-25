@@ -153,20 +153,22 @@ val allProducts = openIapStore.fetchProducts(
             ),
             dart: (
               <CodeBlock language="dart">{`// Fetch in-app purchases (default)
-final inappProducts = await FlutterInappPurchase.instance.fetchProducts(
+final inappProducts = await FlutterInappPurchase.instance.fetchProducts<Product>(
   skus: ['product1', 'product2'],
 );
 
 // Fetch only subscriptions
-final subscriptions = await FlutterInappPurchase.instance.fetchProducts(
+final subscriptions = await FlutterInappPurchase.instance
+    .fetchProducts<ProductSubscription>(
   skus: ['sub1', 'sub2'],
-  type: ProductQueryType.subs,
+  type: ProductQueryType.Subs,
 );
 
 // Fetch all products (both in-app and subscriptions)
-final allProducts = await FlutterInappPurchase.instance.fetchProducts(
+final allProducts = await FlutterInappPurchase.instance
+    .fetchProducts<ProductCommon>(
   skus: ['product1', 'sub1'],
-  type: ProductQueryType.all,
+  type: ProductQueryType.All,
 );`}</CodeBlock>
             ),
             csharp: (
