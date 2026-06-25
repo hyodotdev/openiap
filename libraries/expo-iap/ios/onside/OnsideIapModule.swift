@@ -50,6 +50,7 @@ public final class ExpoIapOnsideModule: Module {
     private let transactionObserver = OnsideTransactionObserverBridge()
     private let productFetcher = OnsideProductFetcher()
     private var productCache: [String: OnsideProduct] = [:]
+    private var transactionDateCache: [String: Date] = [:]
 
     nonisolated public func definition() -> ModuleDefinition {
         Name("ExpoIapOnside")
@@ -246,7 +247,9 @@ public final class ExpoIapOnsideModule: Module {
                 throw OnsideBridgeError.transactionNotFound(txId ?? productId ?? "")
             }
 
-            await Onside.defaultPaymentQueue().finishTransaction(transaction)
+            await MainActor.run {
+                Onside.defaultPaymentQueue().finishTransaction(transaction)
+            }
             ExpoIapLog.result("finishTransactionOnside", value: true)
             return true
         }
@@ -385,6 +388,7 @@ public final class ExpoIapOnsideModule: Module {
         let cont = restoreContinuation
         restoreContinuation = nil
         cont?.resume(returning: false)
+        transactionDateCache.removeAll()
     }
 
     private func handle(transaction: OnsidePaymentTransaction) {
@@ -450,7 +454,7 @@ public final class ExpoIapOnsideModule: Module {
         dictionary["quantity"] = 1
         dictionary["isAutoRenewing"] = false
         dictionary["purchaseState"] = mapPurchaseState(transaction.transactionState)
-        let txDate = Date()
+        let txDate = date(for: transaction)
         dictionary["transactionDate"] = Int(txDate.timeIntervalSince1970 * 1000)
         dictionary["currencyCodeIOS"] = product.price.currencyCode
         let currencyFormatter = NumberFormatter()
@@ -465,6 +469,24 @@ public final class ExpoIapOnsideModule: Module {
             dictionary["reasonIOS"] = error.localizedDescription
         }
         return sanitize(dictionary)
+    }
+
+    private func date(for transaction: OnsidePaymentTransaction) -> Date {
+        guard let key = transaction.transactionIdentifier ?? transaction.originalTransactionIdentifier,
+              !key.isEmpty
+        else {
+            return Date()
+        }
+
+        if let cachedDate = transactionDateCache[key] {
+            return cachedDate
+        }
+
+        // OnsideKit currently exposes no purchase date on the transaction, so
+        // keep the first observed timestamp stable for repeated serializations.
+        let observedDate = Date()
+        transactionDateCache[key] = observedDate
+        return observedDate
     }
 
     // Build a JSON string from known product fields (no Encodable conformance required)

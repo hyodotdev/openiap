@@ -183,7 +183,7 @@ class OpenIapModule(
             OpenIapLog.i("Requested SKUs: ${params.skus}", TAG)
             OpenIapLog.i("Query type: ${params.type}", TAG)
 
-            val queryType = params.type ?: ProductQueryType.All
+            val queryType = params.type ?: ProductQueryType.InApp
             val includeInApp = queryType == ProductQueryType.InApp || queryType == ProductQueryType.All
             val includeSubs = queryType == ProductQueryType.Subs || queryType == ProductQueryType.All
 

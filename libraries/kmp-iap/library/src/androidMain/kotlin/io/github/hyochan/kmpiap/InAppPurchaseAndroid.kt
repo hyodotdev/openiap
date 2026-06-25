@@ -837,6 +837,8 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                 ProductQueryType.InApp -> FetchProductsResultProducts(inAppDetails.map { it.toProduct() })
                 ProductQueryType.Subs -> FetchProductsResultSubscriptions(subsDetails.mapNotNull { it.toSubscriptionProduct() })
                 ProductQueryType.All -> {
+                    // Preserve the mixed OpenIAP `all` union by keeping in-app
+                    // products and subscriptions in their distinct variants.
                     val combined = buildList<ProductOrSubscription> {
                         addAll(inAppDetails.map { ProductOrSubscription.ProductItem(it.toProduct()) })
                         addAll(
