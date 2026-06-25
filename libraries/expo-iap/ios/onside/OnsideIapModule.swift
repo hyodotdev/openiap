@@ -310,6 +310,11 @@ public final class ExpoIapOnsideModule: Module {
                     }
                 }
             }
+            if alsoPublish {
+                payload.forEach {
+                    sendEvent(OnsideEvent.purchaseUpdated.rawValue, $0)
+                }
+            }
             ExpoIapLog.result("getAvailableItemsOnside", value: payload)
             return payload
         }
@@ -430,7 +435,7 @@ public final class ExpoIapOnsideModule: Module {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
         formatter.currencyCode = product.price.currencyCode
-        let priceNumber = NSDecimalNumber(value: product.price.value)
+        let priceNumber = NSDecimalNumber(decimal: Decimal(product.price.value))
         let formattedPrice = formatter.string(from: priceNumber) ?? "\(product.price.value)"
         dictionary["displayPrice"] = formattedPrice
         dictionary["currency"] = product.price.currencyCode
@@ -494,7 +499,7 @@ public final class ExpoIapOnsideModule: Module {
         let priceFormatter = NumberFormatter()
         priceFormatter.numberStyle = .currency
         priceFormatter.currencyCode = product.price.currencyCode
-        let priceNumber = NSDecimalNumber(value: product.price.value)
+        let priceNumber = NSDecimalNumber(decimal: Decimal(product.price.value))
         let formattedPrice = priceFormatter.string(from: priceNumber) ?? "\(product.price.value)"
         let jsonObject: [String: Any] = [
             "id": product.productIdentifier,
