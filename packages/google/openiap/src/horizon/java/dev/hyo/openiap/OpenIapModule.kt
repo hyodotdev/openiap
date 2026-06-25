@@ -33,7 +33,6 @@ import dev.hyo.openiap.utils.HorizonBillingConverters.toActiveSubscription
 import dev.hyo.openiap.utils.HorizonBillingConverters.toInAppProduct
 import dev.hyo.openiap.utils.HorizonBillingConverters.toPurchase
 import dev.hyo.openiap.utils.HorizonBillingConverters.toSubscriptionProduct
-import dev.hyo.openiap.utils.toProduct
 import dev.hyo.openiap.utils.verifyPurchaseWithGooglePlay
 import dev.hyo.openiap.utils.verifyPurchaseWithHorizon
 import dev.hyo.openiap.MutationVerifyPurchaseHandler
@@ -220,11 +219,11 @@ class OpenIapModule(
                 ProductQueryType.InApp -> FetchProductsResultProducts(inAppProducts)
                 ProductQueryType.Subs -> FetchProductsResultSubscriptions(subscriptionProducts)
                 ProductQueryType.All -> {
-                    val combined = buildList<Product> {
-                        addAll(inAppProducts)
-                        addAll(subscriptionProducts.map(ProductSubscriptionAndroid::toProduct))
+                    val combined = buildList<ProductOrSubscription> {
+                        addAll(inAppProducts.map { ProductOrSubscription.ProductItem(it) })
+                        addAll(subscriptionProducts.map { ProductOrSubscription.ProductSubscriptionItem(it) })
                     }
-                    FetchProductsResultProducts(combined)
+                    FetchProductsResultAll(combined)
                 }
             }
         }

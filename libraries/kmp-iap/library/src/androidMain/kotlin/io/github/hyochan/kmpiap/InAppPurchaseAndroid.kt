@@ -36,6 +36,7 @@ import io.github.hyochan.kmpiap.openiap.ExternalPurchaseNoticeResultIOS
 import io.github.hyochan.kmpiap.openiap.InitConnectionConfig
 import io.github.hyochan.kmpiap.openiap.UserChoiceBillingDetails
 import io.github.hyochan.kmpiap.openiap.FetchProductsResult
+import io.github.hyochan.kmpiap.openiap.FetchProductsResultAll
 import io.github.hyochan.kmpiap.openiap.FetchProductsResultProducts
 import io.github.hyochan.kmpiap.openiap.FetchProductsResultSubscriptions
 import io.github.hyochan.kmpiap.openiap.MutationDeepLinkToSubscriptionsHandler
@@ -46,6 +47,7 @@ import io.github.hyochan.kmpiap.openiap.MutationRequestPurchaseHandler
 import io.github.hyochan.kmpiap.openiap.MutationValidateReceiptHandler
 import io.github.hyochan.kmpiap.openiap.MutationHandlers
 import io.github.hyochan.kmpiap.openiap.Product
+import io.github.hyochan.kmpiap.openiap.ProductOrSubscription
 import io.github.hyochan.kmpiap.openiap.ProductQueryType
 import io.github.hyochan.kmpiap.openiap.ProductRequest
 import io.github.hyochan.kmpiap.openiap.Purchase
@@ -835,11 +837,17 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                 ProductQueryType.InApp -> FetchProductsResultProducts(inAppDetails.map { it.toProduct() })
                 ProductQueryType.Subs -> FetchProductsResultSubscriptions(subsDetails.mapNotNull { it.toSubscriptionProduct() })
                 ProductQueryType.All -> {
-                    val combined = buildList<Product> {
-                        addAll(inAppDetails.map { it.toProduct() })
-                        addAll(subsDetails.map { it.toProduct() })
+                    val combined = buildList<ProductOrSubscription> {
+                        addAll(inAppDetails.map { ProductOrSubscription.ProductItem(it.toProduct()) })
+                        addAll(
+                            subsDetails.mapNotNull { detail ->
+                                detail.toSubscriptionProduct()?.let {
+                                    ProductOrSubscription.ProductSubscriptionItem(it)
+                                }
+                            }
+                        )
                     }
-                    FetchProductsResultProducts(combined)
+                    FetchProductsResultAll(combined)
                 }
             }
         }

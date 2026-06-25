@@ -474,13 +474,21 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                             val subscriptions = convertAnyListToProductSubscriptions(result)
                             continuation.resume(FetchProductsResultSubscriptions(subscriptions))
                         }
+                        ProductQueryType.All -> {
+                            val items = convertAnyListToProductOrSubscriptions(result)
+                            continuation.resume(FetchProductsResultAll(items))
+                        }
                         else -> {
                             val products = convertAnyListToProducts(result)
                             continuation.resume(FetchProductsResultProducts(products))
                         }
                     }
                 } else {
-                    continuation.resume(FetchProductsResultProducts(emptyList()))
+                    when (params.type) {
+                        ProductQueryType.Subs -> continuation.resume(FetchProductsResultSubscriptions(emptyList()))
+                        ProductQueryType.All -> continuation.resume(FetchProductsResultAll(emptyList()))
+                        else -> continuation.resume(FetchProductsResultProducts(emptyList()))
+                    }
                 }
             }
         }
@@ -1254,6 +1262,33 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     type = ProductType.Subs,
                     typeIOS = ProductTypeIOS.AutoRenewableSubscription
                 )
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun convertAnyListToProductOrSubscriptions(data: Any?): List<ProductOrSubscription> {
+        if (data == null) return emptyList()
+
+        return try {
+            val list = data as? List<*> ?: return emptyList()
+            list.mapNotNull { item ->
+                val dict = (item as? Map<*, *>) ?: return@mapNotNull null
+                val map = dict.mapKeys { it.key.toString() }
+
+                runCatching { ProductOrSubscription.fromJson(map) }.getOrElse {
+                    val type = map["type"] as? String
+                    if (type == ProductType.Subs.rawValue) {
+                        convertAnyListToProductSubscriptions(listOf(item)).firstOrNull()?.let {
+                            ProductOrSubscription.ProductSubscriptionItem(it)
+                        }
+                    } else {
+                        convertAnyListToProducts(listOf(item)).firstOrNull()?.let {
+                            ProductOrSubscription.ProductItem(it)
+                        }
+                    }
+                }
             }
         } catch (e: Exception) {
             emptyList()

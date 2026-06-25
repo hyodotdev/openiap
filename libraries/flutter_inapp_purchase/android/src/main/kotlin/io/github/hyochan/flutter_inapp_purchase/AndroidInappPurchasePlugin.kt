@@ -15,6 +15,7 @@ import dev.hyo.openiap.DeveloperBillingOptionParamsAndroid
 import dev.hyo.openiap.ExternalLinkLaunchModeAndroid
 import dev.hyo.openiap.ExternalLinkTypeAndroid
 import dev.hyo.openiap.FetchProductsResult
+import dev.hyo.openiap.FetchProductsResultAll
 import dev.hyo.openiap.FetchProductsResultProducts
 import dev.hyo.openiap.FetchProductsResultSubscriptions
 import dev.hyo.openiap.InitConnectionConfig
@@ -87,11 +88,12 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
         deduplicate: Boolean = false
     ): JSONArray {
         val entries: List<Map<String, Any?>> = when (result) {
+            is FetchProductsResultAll -> result.value?.map { it.toJson() }
+                ?: emptyList()
             is FetchProductsResultProducts -> result.value?.map { it.toJson() }
                 ?: emptyList()
             is FetchProductsResultSubscriptions -> result.value?.map { it.toJson() }
                 ?: emptyList()
-            else -> emptyList<Map<String, Any?>>()
         }
         val array = JSONArray()
         val seenIds = mutableSetOf<String>()
