@@ -16,6 +16,12 @@ import {
 import {IAPKIT_API_KEY, IAPKIT_BASE_URL} from '@env';
 
 const DEFAULT_IAPKIT_BASE_URL = 'https://kit.openiap.dev';
+const DEFAULT_API_KEY =
+  typeof IAPKIT_API_KEY === 'string' ? IAPKIT_API_KEY : '';
+const DEFAULT_BASE_URL =
+  typeof IAPKIT_BASE_URL === 'string' && IAPKIT_BASE_URL.length > 0
+    ? IAPKIT_BASE_URL
+    : DEFAULT_IAPKIT_BASE_URL;
 
 type WebhookStreamProps = {
   apiKey?: string;
@@ -31,8 +37,8 @@ export function base64EncodeUtf8(input: string): string {
 }
 
 export default function WebhookStream({
-  apiKey = IAPKIT_API_KEY,
-  baseUrl = IAPKIT_BASE_URL || DEFAULT_IAPKIT_BASE_URL,
+  apiKey = DEFAULT_API_KEY,
+  baseUrl = DEFAULT_BASE_URL,
 }: WebhookStreamProps = {}) {
   const [events, setEvents] = useState<WebhookEventPayload[]>([]);
   const [status, setStatus] = useState<

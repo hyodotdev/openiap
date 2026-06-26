@@ -1,3 +1,5 @@
 src/types.ts
+src/kit-api.ts
+src/webhook-client.ts
 docs/**
 .claude/commands/**
