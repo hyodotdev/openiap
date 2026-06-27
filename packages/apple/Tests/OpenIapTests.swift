@@ -1,3 +1,4 @@
+import StoreKit
 import XCTest
 @testable import OpenIAP
 
@@ -58,6 +59,32 @@ final class OpenIapTests: XCTestCase {
     func testPurchaseErrorMakeProvidesDefaultMessage() {
         let error = PurchaseError.make(code: .userCancelled, productId: "sku", message: nil)
         XCTAssertEqual(error.message, "User cancelled the purchase flow")
+    }
+
+    func testPurchaseErrorWrapMapsStoreKitUserCancelled() {
+        let error = PurchaseError.wrap(StoreKitError.userCancelled, fallback: .serviceError)
+        XCTAssertEqual(error.code, .userCancelled)
+    }
+
+    func testPurchaseErrorWrapMapsSKPaymentCancelled() {
+        let error = PurchaseError.wrap(SKError(.paymentCancelled), fallback: .serviceError)
+        XCTAssertEqual(error.code, .userCancelled)
+    }
+
+    func testPurchaseErrorWrapMapsStoreKitSystemPaymentCancelled() {
+        let error = PurchaseError.wrap(
+            StoreKitError.systemError(SKError(.paymentCancelled)),
+            fallback: .serviceError
+        )
+        XCTAssertEqual(error.code, .userCancelled)
+    }
+
+    func testPurchaseErrorWrapMapsStoreKitNSErrorPaymentCancelled() {
+        let error = PurchaseError.wrap(
+            NSError(domain: SKError.errorDomain, code: SKError.Code.paymentCancelled.rawValue),
+            fallback: .serviceError
+        )
+        XCTAssertEqual(error.code, .userCancelled)
     }
 
     @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
