@@ -95,18 +95,43 @@ public extension PurchaseError {
     }
 
     /// Wraps any error into a `PurchaseError`, preserving existing instances.
-    /// Automatically maps StoreKitError to appropriate PurchaseError codes.
+    /// Automatically maps StoreKit errors to appropriate PurchaseError codes.
     static func wrap(
         _ error: Error,
         fallback: ErrorCode = .purchaseError,
         productId: String? = nil
     ) -> PurchaseError {
+        func isStoreKitCancellation(_ error: Error) -> Bool {
+            if let storeKitError = error as? StoreKitError {
+                switch storeKitError {
+                case .userCancelled:
+                    return true
+                case .systemError(let underlyingError):
+                    return isStoreKitCancellation(underlyingError)
+                default:
+                    return false
+                }
+            }
+
+            if let skError = error as? SKError {
+                return skError.code == .paymentCancelled
+            }
+
+            let nsError = error as NSError
+            return nsError.domain == SKError.errorDomain &&
+                nsError.code == SKError.Code.paymentCancelled.rawValue
+        }
+
         // If already a PurchaseError, return as-is
         if let purchaseError = error as? PurchaseError {
             return purchaseError
         }
 
-        // Map StoreKitError to PurchaseError
+        if isStoreKitCancellation(error) {
+            return make(code: .userCancelled, productId: productId, message: error.localizedDescription)
+        }
+
+        // Map StoreKit 2 errors to PurchaseError
         if let storeKitError = error as? StoreKitError {
             let errorCode: ErrorCode
             switch storeKitError {

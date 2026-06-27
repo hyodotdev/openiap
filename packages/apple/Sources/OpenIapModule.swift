@@ -1149,7 +1149,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             try await AppStore.sync()
             return true
         } catch {
-            throw makePurchaseError(code: .serviceError, message: error.localizedDescription)
+            throw PurchaseError.wrap(error, fallback: .serviceError)
         }
     }
 

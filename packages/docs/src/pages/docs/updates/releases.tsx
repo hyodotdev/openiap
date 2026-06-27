@@ -26,6 +26,225 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // June 28, 2026 — iOS syncIOS cancellation error hotfix
+    {
+      id: 'ios-syncios-cancellation-error-hotfix-2026-06-28',
+      date: new Date('2026-06-28'),
+      element: (
+        <div
+          key="ios-syncios-cancellation-error-hotfix-2026-06-28"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="ios-syncios-cancellation-error-hotfix-2026-06-28"
+            level="h4"
+          >
+            June 28, 2026 — iOS syncIOS cancellation error hotfix
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes an iOS hotfix for{' '}
+            <Link to="/docs/apis/ios/sync-ios">
+              <code>syncIOS()</code>
+            </Link>{' '}
+            so user-cancelled App Store sign-in prompts surface as{' '}
+            <code>user-cancelled</code> instead of <code>service-error</code>.
+            The <strong>OpenIAP Spec remains 2.0.2</strong>; this release
+            updates the native Apple package and framework-library iOS
+            integrations that consume it. Track the fix in{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/issues/194"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              issue #194
+            </a>{' '}
+            and{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/195"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #195
+            </a>
+            .
+          </p>
+
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>syncIOS cancellation preserved</strong> —{' '}
+              <code>AppStore.sync()</code> failures now pass through{' '}
+              <code>PurchaseError.wrap</code> so StoreKit cancellation errors
+              retain <code>ErrorCode.UserCancelled</code> across the native
+              Apple package and framework bridges.
+            </li>
+            <li>
+              <strong>StoreKit error shapes normalized</strong> — cancellation
+              is detected from <code>StoreKitError.userCancelled</code>,{' '}
+              <code>SKError.paymentCancelled</code>, matching{' '}
+              <code>NSError</code> values, and{' '}
+              <code>StoreKitError.systemError</code> wrappers.
+            </li>
+            <li>
+              <strong>Framework helper behavior restored</strong> — React Native
+              and Expo apps can rely on <code>isUserCancelledError()</code> for
+              cancelled <code>syncIOS()</code> prompts instead of treating the
+              flow as a service failure.
+            </li>
+            <li>
+              <strong>Wrapper rollout</strong> — React Native, Expo, Flutter,
+              KMP, Godot, and MAUI patch releases carry the native Apple
+              cancellation mapping through their iOS integrations.
+            </li>
+            <li>
+              <strong>Regression coverage</strong> — Apple package tests cover
+              direct StoreKit 2 cancellation, StoreKit 1 payment cancellation,
+              raw <code>NSError</code> bridging, and nested system-error
+              cancellation.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/2.2.3"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-apple 2.2.3
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/react-native-iap-15.3.4"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  react-native-iap 15.3.4
+                </a>{' '}
+                (
+                <a
+                  href="https://www.npmjs.com/package/react-native-iap/v/15.3.4"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  npm
+                </a>
+                )
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/expo-iap-4.3.5"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  expo-iap 4.3.5
+                </a>{' '}
+                (
+                <a
+                  href="https://www.npmjs.com/package/expo-iap/v/4.3.5"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  npm
+                </a>
+                )
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.3.6"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  flutter_inapp_purchase 9.3.6
+                </a>{' '}
+                (
+                <a
+                  href="https://pub.dev/packages/flutter_inapp_purchase/versions/9.3.6"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  pub.dev
+                </a>
+                )
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/kmp-iap-2.3.4"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  kmp-iap 2.3.4
+                </a>{' '}
+                (
+                <a
+                  href="https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap/2.3.4"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Maven Central
+                </a>
+                )
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/godot-iap-2.3.3"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  godot-iap 2.3.3
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/maui-iap-1.1.6"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  OpenIap.Maui 1.1.6
+                </a>{' '}
+                (
+                <a
+                  href="https://www.nuget.org/packages/OpenIap.Maui/1.1.6"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  NuGet
+                </a>
+                )
+              </li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // June 26, 2026 — fetchProducts all mixed-result parity hotfix
     {
       id: 'fetch-products-all-parity-hotfix-2026-06-26',
