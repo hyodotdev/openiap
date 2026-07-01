@@ -32,8 +32,8 @@ function SubscriptionBillingPlanIOS() {
           <strong>Availability:</strong> billing plan selection requires iOS,
           iPadOS, macOS, tvOS, or visionOS 26.4+ and an app compiled with the
           StoreKit billing-plan APIs available in Xcode 26.4+ / Swift 6.3+. On
-          older runtimes, omit <code>billingPlanType</code> and use the store's
-          default billing plan.
+          older runtimes, omit <code>billingPlanType</code> and use the
+          store&apos;s default billing plan.
         </p>
       </div>
 
