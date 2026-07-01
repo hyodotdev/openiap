@@ -48,9 +48,8 @@ function Releases() {
               color: 'var(--text-secondary)',
             }}
           >
-            Publishes <strong>OpenIAP Spec 2.0.4</strong> and SDK releases for
-            StoreKit 26.4 subscription billing plans, including monthly billing
-            with a 12-month commitment. Apps can pass{' '}
+            Publishes SDK releases for StoreKit 26.4 subscription billing plans,
+            including monthly billing with a 12-month commitment. Apps can pass{' '}
             <code>RequestSubscriptionIosProps.billingPlanType</code> during
             subscription purchase requests and inspect pricing terms,
             transaction commitment progress, and renewal billing-plan metadata
@@ -67,7 +66,9 @@ function Releases() {
             <Link to="/docs/features/subscription#ios-commitment-billing-plans">
               iOS commitment billing plans guide
             </Link>{' '}
-            for usage examples and field references.
+            for usage examples and field references. The OpenIAP spec version is
+            tracked in <code>openiap-versions.json</code> and is not a
+            separately published package release.
           </p>
 
           <ul
@@ -83,8 +84,8 @@ function Releases() {
               <code>monthly</code> and <code>up-front</code> values, mapping to
               StoreKit&apos;s{' '}
               <code>Product.PurchaseOption.billingPlanType</code> on iOS,
-              iPadOS, macOS, tvOS, and visionOS 26.4+ when compiled with the
-              26.5 SDK or later.
+              iPadOS, macOS, tvOS, and visionOS 26.4+ when compiled with Xcode
+              26.4+ / Swift 6.3+.
             </li>
             <li>
               <strong>Introductory offer eligibility correction</strong> —{' '}
@@ -143,15 +144,6 @@ function Releases() {
                 fontSize: '0.9rem',
               }}
             >
-              <li>
-                <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/gql-2.0.4"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  openiap-spec 2.0.4
-                </a>
-              </li>
               <li>
                 <a
                   href="https://github.com/hyodotdev/openiap/releases/tag/2.2.4"
@@ -947,7 +939,6 @@ function Releases() {
                 fontSize: '0.9rem',
               }}
             >
-              <li>OpenIAP Spec 2.0.2</li>
               <li>
                 <a
                   href="https://github.com/hyodotdev/openiap/releases/tag/google-2.2.2"
@@ -1093,9 +1084,8 @@ function Releases() {
               color: 'var(--text-secondary)',
             }}
           >
-            Publishes <strong>OpenIAP Spec 2.0.3</strong> and SDK patch releases
-            so iOS subscription products expose the App Store subscription group
-            identifier directly as{' '}
+            Publishes SDK patch releases so iOS subscription products expose the
+            App Store subscription group identifier directly as{' '}
             <code>ProductSubscriptionIOS.subscriptionGroupIdIOS</code>.{' '}
             <code>subscriptionInfoIOS</code> remains deprecated: apps should use{' '}
             <code>subscriptionOffers</code> for offer metadata and{' '}
@@ -1165,15 +1155,6 @@ function Releases() {
                 fontSize: '0.9rem',
               }}
             >
-              <li>
-                <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/gql-2.0.3"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  openiap-spec 2.0.3
-                </a>
-              </li>
               <li>
                 <a
                   href="https://github.com/hyodotdev/openiap/releases/tag/2.2.2"
@@ -1352,7 +1333,6 @@ function Releases() {
                 fontSize: '0.9rem',
               }}
             >
-              <li>OpenIAP Spec 2.0.2</li>
               <li>
                 <a
                   href="https://github.com/hyodotdev/openiap/releases/tag/google-2.2.1"
@@ -1599,7 +1579,7 @@ function Releases() {
               color: 'var(--text-secondary)',
             }}
           >
-            Publishes <strong>OpenIAP Spec 2.0.2</strong> with{' '}
+            Tracks <strong>OpenIAP Spec 2.0.2</strong> with{' '}
             <code>PurchaseUpdatedListenerOptions</code> and an iOS-only{' '}
             <code>dedupeTransactionIOS</code> flag. StoreKit can replay the same
             unfinished transaction through request and transaction-update paths
@@ -1686,7 +1666,6 @@ function Releases() {
                 fontSize: '0.9rem',
               }}
             >
-              <li>OpenIAP Spec 2.0.2</li>
               <li>
                 <a
                   href="https://github.com/hyodotdev/openiap/releases/tag/2.1.9"
@@ -3453,15 +3432,6 @@ function Releases() {
                 fontSize: '0.9rem',
               }}
             >
-              <li>
-                <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/gql-2.0.1"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  openiap-spec 2.0.1
-                </a>
-              </li>
               <li>
                 <a
                   href="https://github.com/hyodotdev/openiap/releases/tag/2.1.2"
