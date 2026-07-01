@@ -59,9 +59,20 @@ function Subscription() {
           <p>
             <strong>Availability:</strong> billing plan selection requires iOS,
             iPadOS, macOS, tvOS, or visionOS 26.4+ and an app compiled with the
-            26.5 SDK or later. If the app runs on an older Apple OS version,
-            omit <code>billingPlanType</code> and let StoreKit purchase the
-            default plan. Never send <code>unknown</code> as a purchase option.
+            StoreKit billing-plan APIs available in Xcode 26.4+ / Swift 6.3+. If
+            the app runs on an older Apple OS version, omit{' '}
+            <code>billingPlanType</code> and let StoreKit purchase the default
+            plan. Never send <code>unknown</code> as a purchase option.
+          </p>
+        </div>
+
+        <div className="alert-card alert-card--info">
+          <p>
+            Treat <code>pricingTermsIOS</code> as the source of truth before
+            showing a commitment option. If StoreKit does not return a term for
+            the user&apos;s selected <code>billingPlanType</code>, fall back to
+            the default subscription purchase and leave{' '}
+            <code>billingPlanType</code> unset.
           </p>
         </div>
 
