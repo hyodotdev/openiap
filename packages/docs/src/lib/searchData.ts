@@ -572,6 +572,14 @@ export const apiData: ApiItem[] = [
     path: '/docs/features/validation',
   },
   {
+    id: 'ios-commitment-billing-plans',
+    title: 'iOS Commitment Billing Plans',
+    category: 'Subscription',
+    description:
+      'StoreKit 26.4 monthly billing with 12-month commitment, up-front billing, pricingTermsIOS, billingPlanType, and commitmentInfoIOS',
+    path: '/docs/features/subscription#ios-commitment-billing-plans',
+  },
+  {
     id: 'debugging-page',
     title: 'Debugging',
     category: 'Documentation',
@@ -677,7 +685,7 @@ export const apiData: ApiItem[] = [
     title: 'iOS Types',
     category: 'Types',
     description:
-      'DiscountOffer, SubscriptionStatusIOS, PaymentMode, AppTransaction',
+      'DiscountOffer, SubscriptionStatusIOS, PaymentMode, AppTransaction, SubscriptionBillingPlanTypeIOS',
     path: '/docs/types#ios-types',
   },
   {
@@ -719,6 +727,22 @@ export const apiData: ApiItem[] = [
     category: 'Types (iOS)',
     description: 'iOS subscription period units: Day, Week, Month, Year',
     path: '/docs/types/ios/subscription-period-ios',
+  },
+  {
+    id: 'subscription-billing-plan-ios',
+    title: 'Subscription Billing Plan iOS',
+    category: 'Types (iOS)',
+    description:
+      'StoreKit 26.4 billing plan and commitment types: SubscriptionBillingPlanTypeIOS, SubscriptionPricingTermsIOS, TransactionCommitmentInfoIOS, RenewalCommitmentInfoIOS',
+    path: '/docs/types/ios/subscription-billing-plan-ios',
+  },
+  {
+    id: 'subscription-billing-plan-type-ios',
+    title: 'SubscriptionBillingPlanTypeIOS',
+    category: 'Types (iOS)',
+    description:
+      'iOS subscription billing plan values: unknown, monthly, up-front',
+    path: '/docs/types/ios/subscription-billing-plan-ios#subscription-billing-plan-type-ios',
   },
   {
     id: 'payment-mode',

@@ -240,6 +240,19 @@ function Product() {
                     </tr>
                     <tr>
                       <td>
+                        <code>pricingTermsIOS</code>
+                      </td>
+                      <td>
+                        StoreKit 26.4 subscription billing plans, including
+                        monthly commitment and up-front pricing terms. See{' '}
+                        <Link to="/docs/types/ios/subscription-billing-plan-ios#subscription-pricing-terms-ios">
+                          <code>SubscriptionPricingTermsIOS</code>
+                        </Link>
+                        .
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
                         <code>jsonRepresentationIOS</code>
                       </td>
                       <td>Raw StoreKit 2 JWS payload as a JSON string.</td>

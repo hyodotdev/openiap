@@ -26,6 +26,255 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // July 2, 2026 — iOS subscription commitment billing plans
+    {
+      id: 'ios-subscription-commitment-billing-plans-2026-07-02',
+      date: new Date('2026-07-02'),
+      element: (
+        <div
+          key="ios-subscription-commitment-billing-plans-2026-07-02"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="ios-subscription-commitment-billing-plans-2026-07-02"
+            level="h4"
+          >
+            July 2, 2026 — iOS subscription commitment billing plans
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes <strong>OpenIAP Spec 2.0.4</strong> and SDK releases for
+            StoreKit 26.4 subscription billing plans, including monthly billing
+            with a 12-month commitment. Apps can pass{' '}
+            <code>RequestSubscriptionIosProps.billingPlanType</code> during
+            subscription purchase requests and inspect pricing terms,
+            transaction commitment progress, and renewal billing-plan metadata
+            from iOS product and purchase payloads. Track the feature request in{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/issues/198"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              issue #198
+            </a>
+            . See the{' '}
+            <Link to="/docs/features/subscription#ios-commitment-billing-plans">
+              iOS commitment billing plans guide
+            </Link>{' '}
+            for usage examples and field references.
+          </p>
+
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>Billing plan selection</strong> — iOS subscription
+              purchases now accept <code>billingPlanType</code> with{' '}
+              <code>monthly</code> and <code>up-front</code> values, mapping to
+              StoreKit&apos;s{' '}
+              <code>Product.PurchaseOption.billingPlanType</code> on iOS, macOS,
+              tvOS, watchOS, and visionOS 26.4+.
+            </li>
+            <li>
+              <strong>Pricing terms exposed</strong> — iOS subscription products
+              expose <code>pricingTermsIOS</code> and{' '}
+              <code>SubscriptionInfoIOS.pricingTerms</code>, including billing
+              price, billing period, commitment period, commitment price, and
+              subscription offers associated with each pricing term.
+            </li>
+            <li>
+              <strong>Transaction commitment metadata</strong> —{' '}
+              <code>PurchaseIOS.billingPlanTypeIOS</code> and{' '}
+              <code>PurchaseIOS.commitmentInfoIOS</code> report the selected
+              billing plan, current billing-period number, total billing
+              periods, commitment price, and commitment expiration date when
+              StoreKit returns that data.
+            </li>
+            <li>
+              <strong>Renewal plan visibility</strong> —{' '}
+              <code>RenewalInfoIOS.renewalBillingPlanType</code> and{' '}
+              <code>RenewalInfoIOS.commitmentInfo</code> surface upcoming
+              renewal billing-plan and commitment metadata for active
+              subscriptions.
+            </li>
+            <li>
+              <strong>Framework parity</strong> — React Native, Expo, Flutter,
+              KMP, Godot, and MAUI receive regenerated types; React Native,
+              Flutter, KMP, and Godot also forward the new iOS subscription
+              request option through their purchase bridges.
+            </li>
+            <li>
+              <strong>Android behavior unchanged</strong> — openiap-google is
+              regenerated for schema parity, but this release does not change
+              Google Play or Horizon billing behavior.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/gql-2.0.4"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-spec 2.0.4
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/2.2.4"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-apple 2.2.4
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/google-2.2.4"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-google 2.2.4
+                </a>{' '}
+                (
+                <a
+                  href="https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google/2.2.4"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Maven Central
+                </a>
+                )
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/react-native-iap-15.3.5"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  react-native-iap 15.3.5
+                </a>{' '}
+                (
+                <a
+                  href="https://www.npmjs.com/package/react-native-iap/v/15.3.5"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  npm
+                </a>
+                )
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/expo-iap-4.3.6"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  expo-iap 4.3.6
+                </a>{' '}
+                (
+                <a
+                  href="https://www.npmjs.com/package/expo-iap/v/4.3.6"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  npm
+                </a>
+                )
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.3.7"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  flutter_inapp_purchase 9.3.7
+                </a>{' '}
+                (
+                <a
+                  href="https://pub.dev/packages/flutter_inapp_purchase/versions/9.3.7"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  pub.dev
+                </a>
+                )
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/godot-iap-2.3.4"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  godot-iap 2.3.4
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/kmp-iap-2.3.5"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  kmp-iap 2.3.5
+                </a>{' '}
+                (
+                <a
+                  href="https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap/2.3.5"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Maven Central
+                </a>
+                )
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/maui-iap-1.1.7"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  OpenIap.Maui 1.1.7
+                </a>{' '}
+                (
+                <a
+                  href="https://www.nuget.org/packages/OpenIap.Maui/1.1.7"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  NuGet
+                </a>
+                )
+              </li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // June 28, 2026 — iOS syncIOS cancellation error hotfix
     {
       id: 'ios-syncios-cancellation-error-hotfix-2026-06-28',

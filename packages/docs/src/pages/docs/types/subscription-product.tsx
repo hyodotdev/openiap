@@ -229,6 +229,22 @@ function SubscriptionProduct() {
                     </tr>
                     <tr>
                       <td>
+                        <code>pricingTermsIOS</code>
+                      </td>
+                      <td>
+                        StoreKit 26.4 billing plan choices for this
+                        subscription. Each term includes billing price, billing
+                        period, <code>monthly</code> or <code>up-front</code>{' '}
+                        plan type, commitment info, and plan-specific
+                        subscription offers. See{' '}
+                        <Link to="/docs/types/ios/subscription-billing-plan-ios#subscription-pricing-terms-ios">
+                          <code>SubscriptionPricingTermsIOS</code>
+                        </Link>
+                        .
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
                         <code>typeIOS</code>
                       </td>
                       <td>

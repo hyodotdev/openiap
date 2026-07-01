@@ -372,6 +372,30 @@ function Purchase() {
                     </tr>
                     <tr>
                       <td>
+                        <code>billingPlanTypeIOS</code>
+                      </td>
+                      <td>
+                        StoreKit 26.4 billing plan selected for a subscription
+                        transaction: <code>monthly</code>, <code>up-front</code>
+                        , or <code>unknown</code>.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>commitmentInfoIOS</code>
+                      </td>
+                      <td>
+                        Commitment state for the transaction, including current
+                        billing period, total periods, expiration, and price.
+                        See{' '}
+                        <Link to="/docs/types/ios/subscription-billing-plan-ios#transaction-commitment-info-ios">
+                          <code>TransactionCommitmentInfoIOS</code>
+                        </Link>
+                        .
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
                         <code>currencyCodeIOS</code>
                       </td>
                       <td>ISO 4217 currency code</td>

@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
 import SEO from '../../../../components/SEO';
 import { useScrollToHash } from '../../../../hooks/useScrollToHash';
@@ -127,6 +128,29 @@ function RenewalInfoIOS() {
               <td>
                 Offer type: <code>"PROMOTIONAL"</code>,{' '}
                 <code>"SUBSCRIPTION_OFFER_CODE"</code>, <code>"WIN_BACK"</code>.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>renewalBillingPlanType</code>
+              </td>
+              <td>
+                StoreKit 26.4 billing plan type for the next renewal when
+                available: <code>monthly</code>, <code>up-front</code>, or{' '}
+                <code>unknown</code>.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>commitmentInfo</code>
+              </td>
+              <td>
+                Commitment renewal details, including auto-renew product,
+                renewal billing plan type, renewal date, and renewal price. See{' '}
+                <Link to="/docs/types/ios/subscription-billing-plan-ios#renewal-commitment-info-ios">
+                  <code>RenewalCommitmentInfoIOS</code>
+                </Link>
+                .
               </td>
             </tr>
             <tr>

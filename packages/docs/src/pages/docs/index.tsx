@@ -31,6 +31,7 @@ import TypesVerifyPurchaseWithProviderResult from './types/verify-purchase-with-
 import TypesDiscountOfferIOS from './types/ios/discount-offer-ios';
 import TypesDiscountIOS from './types/ios/discount-ios';
 import TypesSubscriptionPeriodIOS from './types/ios/subscription-period-ios';
+import TypesSubscriptionBillingPlanIOS from './types/ios/subscription-billing-plan-ios';
 import TypesPaymentModeIOS from './types/ios/payment-mode-ios';
 import TypesSubscriptionStatusIOS from './types/ios/subscription-status-ios';
 import TypesAppTransactionIOS from './types/ios/app-transaction-ios';
@@ -308,6 +309,10 @@ function Docs() {
                     {
                       to: '/docs/types/ios/subscription-period-ios',
                       label: 'SubscriptionPeriodIOS',
+                    },
+                    {
+                      to: '/docs/types/ios/subscription-billing-plan-ios',
+                      label: 'SubscriptionBillingPlanIOS',
                     },
                     {
                       to: '/docs/types/ios/payment-mode-ios',
@@ -876,6 +881,10 @@ function Docs() {
           <Route
             path="types/ios/subscription-period-ios"
             element={<TypesSubscriptionPeriodIOS />}
+          />
+          <Route
+            path="types/ios/subscription-billing-plan-ios"
+            element={<TypesSubscriptionBillingPlanIOS />}
           />
           <Route
             path="types/ios/payment-mode-ios"

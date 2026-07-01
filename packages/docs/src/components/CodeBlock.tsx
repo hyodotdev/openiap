@@ -93,10 +93,20 @@ const TYPE_LINKS: Record<string, string> = {
   PaymentModeIOS: '/docs/types/ios/payment-mode-ios',
   RenewalInfo: '/docs/types/ios/renewal-info-ios',
   RenewalInfoIOS: '/docs/types/ios/renewal-info-ios',
+  RenewalCommitmentInfoIOS:
+    '/docs/types/ios/subscription-billing-plan-ios#renewal-commitment-info-ios',
+  SubscriptionBillingPlanTypeIOS:
+    '/docs/types/ios/subscription-billing-plan-ios#subscription-billing-plan-type-ios',
+  SubscriptionCommitmentInfoIOS:
+    '/docs/types/ios/subscription-billing-plan-ios#subscription-commitment-info-ios',
   SubscriptionPeriod: '/docs/types/ios/subscription-period-ios',
   SubscriptionPeriodIOS: '/docs/types/ios/subscription-period-ios',
+  SubscriptionPricingTermsIOS:
+    '/docs/types/ios/subscription-billing-plan-ios#subscription-pricing-terms-ios',
   SubscriptionStatus: '/docs/types/ios/subscription-status-ios',
   SubscriptionStatusIOS: '/docs/types/ios/subscription-status-ios',
+  TransactionCommitmentInfoIOS:
+    '/docs/types/ios/subscription-billing-plan-ios#transaction-commitment-info-ios',
   // Android-only
   OneTimePurchaseOfferDetailAndroid:
     '/docs/types/android/one-time-purchase-offer-detail-android',

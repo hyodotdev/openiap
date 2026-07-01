@@ -573,6 +573,22 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                     </tr>
                     <tr>
                       <td>
+                        <code>billingPlanType</code>
+                      </td>
+                      <td>
+                        StoreKit 26.4 billing plan for auto-renewable
+                        subscriptions: <code>monthly</code> for monthly billing
+                        with commitment or <code>up-front</code> for full-period
+                        payment. Omit on older OS versions and do not pass{' '}
+                        <code>unknown</code>. See{' '}
+                        <Link to="/docs/types/ios/subscription-billing-plan-ios">
+                          SubscriptionBillingPlanTypeIOS
+                        </Link>
+                        .
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
                         <code>introductoryOfferEligibility</code>
                       </td>
                       <td>
