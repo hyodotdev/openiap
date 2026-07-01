@@ -399,8 +399,8 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 		purchase_error.emit({ "code": "not-prepared", "message": "Native plugin not available" })
 		return { "success": false, "error": "Native plugin not available" }
 
-	# Support both "requestPurchase" (from to_dict) and "request" (legacy)
-	var request = args.get("requestPurchase", args.get("request", {}))
+	# Support "requestPurchase", "requestSubscription", and legacy "request".
+	var request = args.get("requestPurchase", args.get("requestSubscription", args.get("request", {})))
 	var purchase_type = args.get("type", "in-app")
 
 	var result_raw = null
@@ -429,7 +429,12 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 		var sku = apple_props.get("sku", "")
 		if sku.is_empty():
 			return { "success": false, "error": "Invalid request: SKU is required" }
-		result_raw = _native_plugin.call("requestPurchase", sku)
+		var ios_payload = { "type": purchase_type }
+		if purchase_type == "subs":
+			ios_payload["requestSubscription"] = { "ios": apple_props }
+		else:
+			ios_payload["requestPurchase"] = { "ios": apple_props }
+		result_raw = _native_plugin.call("requestPurchaseWithPayload", JSON.stringify(ios_payload))
 	else:
 		return { "success": false, "error": "Unsupported platform" }
 

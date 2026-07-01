@@ -82,6 +82,11 @@ Map<String, dynamic>? buildIosPurchasePayload(
     payload['advancedCommerceData'] = advancedCommerceData;
   }
 
+  final String? billingPlanType = propsJson['billingPlanType'] as String?;
+  if (billingPlanType != null && billingPlanType.isNotEmpty) {
+    payload['billingPlanType'] = billingPlanType;
+  }
+
   final dynamic introductoryOfferEligibility =
       propsJson['introductoryOfferEligibility'];
   if (introductoryOfferEligibility is bool) {

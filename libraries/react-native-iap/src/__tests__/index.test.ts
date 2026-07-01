@@ -860,6 +860,7 @@ describe('Public API (src/index.ts)', () => {
         request: {
           apple: {
             sku: 'premium_sub',
+            billingPlanType: 'monthly',
             introductoryOfferEligibility: false,
             promotionalOfferJWS: {
               offerId: 'promo-offer',
@@ -873,6 +874,7 @@ describe('Public API (src/index.ts)', () => {
         type: 'subs',
       });
       const passed = mockIap.requestPurchase.mock.calls.pop()?.[0];
+      expect(passed.ios.billingPlanType).toBe('monthly');
       expect(passed.ios.introductoryOfferEligibility).toBe(false);
       expect(passed.ios.promotionalOfferJWS).toEqual({
         offerId: 'promo-offer',

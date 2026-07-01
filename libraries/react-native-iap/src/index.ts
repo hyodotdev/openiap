@@ -1721,6 +1721,9 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
       }
       if (isSubs) {
         const subscriptionRequest = iosRequest as RequestSubscriptionIosProps;
+        if (subscriptionRequest.billingPlanType) {
+          iosPayload.billingPlanType = subscriptionRequest.billingPlanType;
+        }
         if (
           subscriptionRequest.introductoryOfferEligibility !== undefined
         ) {

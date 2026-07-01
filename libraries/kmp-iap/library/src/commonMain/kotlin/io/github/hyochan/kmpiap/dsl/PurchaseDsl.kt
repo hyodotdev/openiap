@@ -13,6 +13,7 @@ import io.github.hyochan.kmpiap.openiap.RequestSubscriptionIosProps
 import io.github.hyochan.kmpiap.openiap.RequestSubscriptionPropsByPlatforms
 import io.github.hyochan.kmpiap.openiap.DiscountOfferInputIOS
 import io.github.hyochan.kmpiap.openiap.PromotionalOfferJWSInputIOS
+import io.github.hyochan.kmpiap.openiap.SubscriptionBillingPlanTypeIOS
 import io.github.hyochan.kmpiap.openiap.WinBackOfferInputIOS
 
 /**
@@ -141,6 +142,10 @@ class IosOptionsBuilder {
      */
     var advancedCommerceData: String? = null
     /**
+     * Billing plan for annual subscriptions with monthly commitment (iOS 26.4+).
+     */
+    var billingPlanType: SubscriptionBillingPlanTypeIOS? = null
+    /**
      * Override introductory offer eligibility (iOS 15+, WWDC 2025).
      * Set to true to indicate the user is eligible for introductory offer,
      * or false to indicate they are not. When null, the system determines eligibility.
@@ -180,6 +185,7 @@ class IosOptionsBuilder {
             andDangerouslyFinishTransactionAutomatically = andDangerouslyFinishTransactionAutomatically,
             withOffer = withOffer,
             advancedCommerceData = advancedCommerceData,
+            billingPlanType = billingPlanType,
             introductoryOfferEligibility = introductoryOfferEligibility,
             promotionalOfferJWS = promotionalOfferJWS,
             winBackOffer = winBackOffer

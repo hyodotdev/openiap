@@ -49,6 +49,7 @@ import type {
   RequestPurchaseIosProps,
   RequestPurchaseResult,
   RequestSubscriptionAndroidProps,
+  RequestSubscriptionIosProps,
   UserChoiceBillingDetails,
   PaymentModeIOS,
   SubscriptionProductReplacementParamsAndroid,
@@ -174,6 +175,12 @@ export interface NitroRequestPurchaseIos {
    * @platform iOS
    */
   advancedCommerceData?: RequestPurchaseIosProps['advancedCommerceData'];
+  /**
+   * Billing plan to use for annual subscriptions that offer monthly billing with
+   * a 12-month commitment (iOS 26.4+).
+   * @platform iOS
+   */
+  billingPlanType?: RequestSubscriptionIosProps['billingPlanType'];
   /**
    * Override introductory offer eligibility (iOS 15+, WWDC 2025).
    * Set to true to indicate the user is eligible for introductory offer,

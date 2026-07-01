@@ -1101,6 +1101,12 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 PurchaseIOS(
                     appAccountToken = map["appAccountToken"] as? String,
                     appBundleIdIOS = map["appBundleIdIOS"] as? String,
+                    billingPlanTypeIOS = (map["billingPlanTypeIOS"] as? String)?.let {
+                        SubscriptionBillingPlanTypeIOS.fromJson(it)
+                    },
+                    commitmentInfoIOS = convertAnyToTransactionCommitmentInfoIOS(
+                        map["commitmentInfoIOS"]
+                    ),
                     countryCodeIOS = map["countryCodeIOS"] as? String,
                     currencyCodeIOS = map["currencyCodeIOS"] as? String,
                     currencySymbolIOS = map["currencySymbolIOS"] as? String,
@@ -1125,6 +1131,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     quantityIOS = (map["quantityIOS"] as? Number)?.toInt(),
                     reasonIOS = map["reasonIOS"] as? String,
                     reasonStringRepresentationIOS = map["reasonStringRepresentationIOS"] as? String,
+                    renewalInfoIOS = convertAnyToRenewalInfoIOS(map["renewalInfoIOS"]),
                     revocationDateIOS = (map["revocationDateIOS"] as? Number)?.toDouble(),
                     revocationReasonIOS = map["revocationReasonIOS"] as? String,
                     storefrontCountryCodeIOS = map["storefrontCountryCodeIOS"] as? String,
@@ -1140,6 +1147,32 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         } catch (e: Exception) {
             null
         }
+    }
+
+    private fun mapFromAny(data: Any?): Map<String, Any?>? {
+        val dict = data as? Map<*, *> ?: return null
+        return dict.entries.associate { (key, value) -> key.toString() to value }
+    }
+
+    private fun convertAnyToTransactionCommitmentInfoIOS(data: Any?): TransactionCommitmentInfoIOS? {
+        return mapFromAny(data)?.let { map ->
+            runCatching { TransactionCommitmentInfoIOS.fromJson(map) }.getOrNull()
+        }
+    }
+
+    private fun convertAnyToRenewalInfoIOS(data: Any?): RenewalInfoIOS? {
+        return mapFromAny(data)?.let { map ->
+            runCatching { RenewalInfoIOS.fromJson(map) }.getOrNull()
+        }
+    }
+
+    private fun convertAnyListToSubscriptionPricingTermsIOS(data: Any?): List<SubscriptionPricingTermsIOS>? {
+        val list = data as? List<*> ?: return null
+        return list.mapNotNull { item ->
+            mapFromAny(item)?.let { map ->
+                runCatching { SubscriptionPricingTermsIOS.fromJson(map) }.getOrNull()
+            }
+        }.ifEmpty { null }
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -1205,6 +1238,9 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     jsonRepresentationIOS = map["jsonRepresentationIOS"] as? String ?: "",
                     platform = IapPlatform.Ios,
                     price = (map["price"] as? Number)?.toDouble(),
+                    pricingTermsIOS = convertAnyListToSubscriptionPricingTermsIOS(
+                        map["pricingTermsIOS"]
+                    ),
                     subscriptionInfoIOS = null, // Complex object, handle separately if needed
                     subscriptionOffers = subscriptionOffers.ifEmpty { null },
                     title = map["title"] as? String ?: "",
@@ -1253,6 +1289,9 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     jsonRepresentationIOS = map["jsonRepresentationIOS"] as? String ?: "",
                     platform = IapPlatform.Ios,
                     price = (map["price"] as? Number)?.toDouble(),
+                    pricingTermsIOS = convertAnyListToSubscriptionPricingTermsIOS(
+                        map["pricingTermsIOS"]
+                    ),
                     subscriptionInfoIOS = null, // Complex object
                     subscriptionOffers = subscriptionOffers.ifEmpty { null },
                     subscriptionGroupIdIOS = map["subscriptionGroupIdIOS"] as? String,
@@ -1315,7 +1354,13 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 jsonRepresentationIOS = map["jsonRepresentationIOS"] as? String ?: "",
                 platform = IapPlatform.Ios,
                 price = (map["price"] as? Number)?.toDouble(),
+                pricingTermsIOS = convertAnyListToSubscriptionPricingTermsIOS(
+                    map["pricingTermsIOS"]
+                ),
                 subscriptionInfoIOS = null, // Complex object
+                subscriptionOffers = convertAnyListToSubscriptionOffers(
+                    map["subscriptionOffers"] ?: map["offers"]
+                ).ifEmpty { null },
                 title = map["title"] as? String ?: "",
                 type = (map["type"] as? String)?.let { ProductType.fromJson(it) }
                     ?: ProductType.InApp,
