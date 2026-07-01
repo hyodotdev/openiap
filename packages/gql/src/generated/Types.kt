@@ -901,6 +901,38 @@ public enum class SubResponseCodeAndroid(val rawValue: String) {
     fun toJson(): String = rawValue
 }
 
+public enum class SubscriptionBillingPlanTypeIOS(val rawValue: String) {
+    /**
+     * Unknown or unsupported billing plan type.
+     */
+    Unknown("unknown"),
+    /**
+     * Monthly billing with a 12-month commitment.
+     */
+    Monthly("monthly"),
+    /**
+     * Up-front billing for the full subscription period.
+     */
+    UpFront("up-front")
+
+    companion object {
+        fun fromJson(value: String): SubscriptionBillingPlanTypeIOS = when (value) {
+            "unknown" -> SubscriptionBillingPlanTypeIOS.Unknown
+            "UNKNOWN" -> SubscriptionBillingPlanTypeIOS.Unknown
+            "Unknown" -> SubscriptionBillingPlanTypeIOS.Unknown
+            "monthly" -> SubscriptionBillingPlanTypeIOS.Monthly
+            "MONTHLY" -> SubscriptionBillingPlanTypeIOS.Monthly
+            "Monthly" -> SubscriptionBillingPlanTypeIOS.Monthly
+            "up-front" -> SubscriptionBillingPlanTypeIOS.UpFront
+            "UP_FRONT" -> SubscriptionBillingPlanTypeIOS.UpFront
+            "UpFront" -> SubscriptionBillingPlanTypeIOS.UpFront
+            else -> throw IllegalArgumentException("Unknown SubscriptionBillingPlanTypeIOS value: $value")
+        }
+    }
+
+    fun toJson(): String = rawValue
+}
+
 public enum class SubscriptionOfferTypeIOS(val rawValue: String) {
     Introductory("introductory"),
     Promotional("promotional"),
@@ -2684,6 +2716,11 @@ public data class ProductIOS(
     override val platform: IapPlatform = IapPlatform.Ios,
     override val price: Double? = null,
     /**
+     * iOS 26.4+ subscription pricing terms, including billing plan metadata for
+     * monthly subscriptions with a 12-month commitment.
+     */
+    val pricingTermsIOS: List<SubscriptionPricingTermsIOS>? = null,
+    /**
      * @deprecated Use subscriptionOffers instead for cross-platform compatibility.
      */
     val subscriptionInfoIOS: SubscriptionInfoIOS? = null,
@@ -2713,6 +2750,7 @@ public data class ProductIOS(
                 jsonRepresentationIOS = json["jsonRepresentationIOS"] as? String ?: "",
                 platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: IapPlatform.Ios,
                 price = (json["price"] as? Number)?.toDouble(),
+                pricingTermsIOS = (json["pricingTermsIOS"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { SubscriptionPricingTermsIOS.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionPricingTermsIOS") },
                 subscriptionInfoIOS = (json["subscriptionInfoIOS"] as? Map<String, Any?>)?.let { SubscriptionInfoIOS.fromJson(it) },
                 subscriptionOffers = (json["subscriptionOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { SubscriptionOffer.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionOffer") },
                 title = json["title"] as? String ?: "",
@@ -2735,6 +2773,7 @@ public data class ProductIOS(
         "jsonRepresentationIOS" to jsonRepresentationIOS,
         "platform" to platform.toJson(),
         "price" to price,
+        "pricingTermsIOS" to pricingTermsIOS?.map { it.toJson() },
         "subscriptionInfoIOS" to subscriptionInfoIOS?.toJson(),
         "subscriptionOffers" to subscriptionOffers?.map { it.toJson() },
         "title" to title,
@@ -2896,6 +2935,11 @@ public data class ProductSubscriptionIOS(
     override val platform: IapPlatform = IapPlatform.Ios,
     override val price: Double? = null,
     /**
+     * iOS 26.4+ subscription pricing terms, including billing plan metadata for
+     * monthly subscriptions with a 12-month commitment.
+     */
+    val pricingTermsIOS: List<SubscriptionPricingTermsIOS>? = null,
+    /**
      * App Store subscription group identifier for intro-offer eligibility checks.
      */
     val subscriptionGroupIdIOS: String? = null,
@@ -2936,6 +2980,7 @@ public data class ProductSubscriptionIOS(
                 jsonRepresentationIOS = json["jsonRepresentationIOS"] as? String ?: "",
                 platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: IapPlatform.Ios,
                 price = (json["price"] as? Number)?.toDouble(),
+                pricingTermsIOS = (json["pricingTermsIOS"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { SubscriptionPricingTermsIOS.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionPricingTermsIOS") },
                 subscriptionGroupIdIOS = json["subscriptionGroupIdIOS"] as? String,
                 subscriptionInfoIOS = (json["subscriptionInfoIOS"] as? Map<String, Any?>)?.let { SubscriptionInfoIOS.fromJson(it) },
                 subscriptionOffers = (json["subscriptionOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { SubscriptionOffer.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionOffer") },
@@ -2967,6 +3012,7 @@ public data class ProductSubscriptionIOS(
         "jsonRepresentationIOS" to jsonRepresentationIOS,
         "platform" to platform.toJson(),
         "price" to price,
+        "pricingTermsIOS" to pricingTermsIOS?.map { it.toJson() },
         "subscriptionGroupIdIOS" to subscriptionGroupIdIOS,
         "subscriptionInfoIOS" to subscriptionInfoIOS?.toJson(),
         "subscriptionOffers" to subscriptionOffers?.map { it.toJson() },
@@ -3123,6 +3169,14 @@ public data class PurchaseIOS(
     val advancedCommerceInfoIOS: AdvancedCommerceInfoIOS? = null,
     val appAccountToken: String? = null,
     val appBundleIdIOS: String? = null,
+    /**
+     * iOS 26.4+ billing plan selected for this transaction.
+     */
+    val billingPlanTypeIOS: SubscriptionBillingPlanTypeIOS? = null,
+    /**
+     * iOS 26.4+ progress information for monthly subscriptions with a 12-month commitment.
+     */
+    val commitmentInfoIOS: TransactionCommitmentInfoIOS? = null,
     val countryCodeIOS: String? = null,
     val currencyCodeIOS: String? = null,
     val currencySymbolIOS: String? = null,
@@ -3166,6 +3220,8 @@ public data class PurchaseIOS(
                 advancedCommerceInfoIOS = (json["advancedCommerceInfoIOS"] as? Map<String, Any?>)?.let { AdvancedCommerceInfoIOS.fromJson(it) },
                 appAccountToken = json["appAccountToken"] as? String,
                 appBundleIdIOS = json["appBundleIdIOS"] as? String,
+                billingPlanTypeIOS = (json["billingPlanTypeIOS"] as? String)?.let { SubscriptionBillingPlanTypeIOS.fromJson(it) },
+                commitmentInfoIOS = (json["commitmentInfoIOS"] as? Map<String, Any?>)?.let { TransactionCommitmentInfoIOS.fromJson(it) },
                 countryCodeIOS = json["countryCodeIOS"] as? String,
                 currencyCodeIOS = json["currencyCodeIOS"] as? String,
                 currencySymbolIOS = json["currencySymbolIOS"] as? String,
@@ -3207,6 +3263,8 @@ public data class PurchaseIOS(
         "advancedCommerceInfoIOS" to advancedCommerceInfoIOS?.toJson(),
         "appAccountToken" to appAccountToken,
         "appBundleIdIOS" to appBundleIdIOS,
+        "billingPlanTypeIOS" to billingPlanTypeIOS?.toJson(),
+        "commitmentInfoIOS" to commitmentInfoIOS?.toJson(),
         "countryCodeIOS" to countryCodeIOS,
         "currencyCodeIOS" to currencyCodeIOS,
         "currencySymbolIOS" to currencySymbolIOS,
@@ -3287,12 +3345,47 @@ public data class RefundResultIOS(
     )
 }
 
+public data class RenewalCommitmentInfoIOS(
+    val commitmentAutoRenewProductId: String,
+    val commitmentAutoRenewStatus: Boolean,
+    val commitmentRenewalBillingPlanType: SubscriptionBillingPlanTypeIOS,
+    val commitmentRenewalDate: Double,
+    val commitmentRenewalPrice: Double
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): RenewalCommitmentInfoIOS {
+            return RenewalCommitmentInfoIOS(
+                commitmentAutoRenewProductId = json["commitmentAutoRenewProductId"] as? String ?: "",
+                commitmentAutoRenewStatus = json["commitmentAutoRenewStatus"] as? Boolean ?: false,
+                commitmentRenewalBillingPlanType = (json["commitmentRenewalBillingPlanType"] as? String)?.let { SubscriptionBillingPlanTypeIOS.fromJson(it) } ?: SubscriptionBillingPlanTypeIOS.Unknown,
+                commitmentRenewalDate = (json["commitmentRenewalDate"] as? Number)?.toDouble() ?: 0.0,
+                commitmentRenewalPrice = (json["commitmentRenewalPrice"] as? Number)?.toDouble() ?: 0.0,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "RenewalCommitmentInfoIOS",
+        "commitmentAutoRenewProductId" to commitmentAutoRenewProductId,
+        "commitmentAutoRenewStatus" to commitmentAutoRenewStatus,
+        "commitmentRenewalBillingPlanType" to commitmentRenewalBillingPlanType.toJson(),
+        "commitmentRenewalDate" to commitmentRenewalDate,
+        "commitmentRenewalPrice" to commitmentRenewalPrice,
+    )
+}
+
 /**
  * Subscription renewal information from Product.SubscriptionInfo.RenewalInfo
  * https://developer.apple.com/documentation/storekit/product/subscriptioninfo/renewalinfo
  */
 public data class RenewalInfoIOS(
     val autoRenewPreference: String? = null,
+    /**
+     * iOS 26.4+ renewal commitment metadata for monthly subscriptions with a
+     * 12-month commitment.
+     */
+    val commitmentInfo: RenewalCommitmentInfoIOS? = null,
     /**
      * When subscription expires due to cancellation/billing issue
      * Possible values: "VOLUNTARY", "BILLING_ERROR", "DID_NOT_AGREE_TO_PRICE_INCREASE", "PRODUCT_NOT_AVAILABLE", "UNKNOWN"
@@ -3320,6 +3413,10 @@ public data class RenewalInfoIOS(
      */
     val priceIncreaseStatus: String? = null,
     /**
+     * iOS 26.4+ billing plan that will renew after the current period.
+     */
+    val renewalBillingPlanType: SubscriptionBillingPlanTypeIOS? = null,
+    /**
      * Expected renewal date (milliseconds since epoch)
      * For active subscriptions, when the next renewal/charge will occur
      */
@@ -3340,12 +3437,14 @@ public data class RenewalInfoIOS(
         fun fromJson(json: Map<String, Any?>): RenewalInfoIOS {
             return RenewalInfoIOS(
                 autoRenewPreference = json["autoRenewPreference"] as? String,
+                commitmentInfo = (json["commitmentInfo"] as? Map<String, Any?>)?.let { RenewalCommitmentInfoIOS.fromJson(it) },
                 expirationReason = json["expirationReason"] as? String,
                 gracePeriodExpirationDate = (json["gracePeriodExpirationDate"] as? Number)?.toDouble(),
                 isInBillingRetry = json["isInBillingRetry"] as? Boolean,
                 jsonRepresentation = json["jsonRepresentation"] as? String,
                 pendingUpgradeProductId = json["pendingUpgradeProductId"] as? String,
                 priceIncreaseStatus = json["priceIncreaseStatus"] as? String,
+                renewalBillingPlanType = (json["renewalBillingPlanType"] as? String)?.let { SubscriptionBillingPlanTypeIOS.fromJson(it) },
                 renewalDate = (json["renewalDate"] as? Number)?.toDouble(),
                 renewalOfferId = json["renewalOfferId"] as? String,
                 renewalOfferType = json["renewalOfferType"] as? String,
@@ -3357,12 +3456,14 @@ public data class RenewalInfoIOS(
     fun toJson(): Map<String, Any?> = mapOf(
         "__typename" to "RenewalInfoIOS",
         "autoRenewPreference" to autoRenewPreference,
+        "commitmentInfo" to commitmentInfo?.toJson(),
         "expirationReason" to expirationReason,
         "gracePeriodExpirationDate" to gracePeriodExpirationDate,
         "isInBillingRetry" to isInBillingRetry,
         "jsonRepresentation" to jsonRepresentation,
         "pendingUpgradeProductId" to pendingUpgradeProductId,
         "priceIncreaseStatus" to priceIncreaseStatus,
+        "renewalBillingPlanType" to renewalBillingPlanType?.toJson(),
         "renewalDate" to renewalDate,
         "renewalOfferId" to renewalOfferId,
         "renewalOfferType" to renewalOfferType,
@@ -3438,8 +3539,33 @@ public data class RequestVerifyPurchaseWithIapkitResult(
     )
 }
 
+public data class SubscriptionCommitmentInfoIOS(
+    val displayPrice: String,
+    val period: SubscriptionPeriodValueIOS,
+    val price: Double
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): SubscriptionCommitmentInfoIOS {
+            return SubscriptionCommitmentInfoIOS(
+                displayPrice = json["displayPrice"] as? String ?: "",
+                period = (json["period"] as? Map<String, Any?>)?.let { SubscriptionPeriodValueIOS.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionPeriodValueIOS"),
+                price = (json["price"] as? Number)?.toDouble() ?: 0.0,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "SubscriptionCommitmentInfoIOS",
+        "displayPrice" to displayPrice,
+        "period" to period.toJson(),
+        "price" to price,
+    )
+}
+
 public data class SubscriptionInfoIOS(
     val introductoryOffer: SubscriptionOfferIOS? = null,
+    val pricingTerms: List<SubscriptionPricingTermsIOS>? = null,
     val promotionalOffers: List<SubscriptionOfferIOS>? = null,
     val subscriptionGroupId: String,
     val subscriptionPeriod: SubscriptionPeriodValueIOS
@@ -3449,6 +3575,7 @@ public data class SubscriptionInfoIOS(
         fun fromJson(json: Map<String, Any?>): SubscriptionInfoIOS {
             return SubscriptionInfoIOS(
                 introductoryOffer = (json["introductoryOffer"] as? Map<String, Any?>)?.let { SubscriptionOfferIOS.fromJson(it) },
+                pricingTerms = (json["pricingTerms"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { SubscriptionPricingTermsIOS.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionPricingTermsIOS") },
                 promotionalOffers = (json["promotionalOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { SubscriptionOfferIOS.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionOfferIOS") },
                 subscriptionGroupId = json["subscriptionGroupId"] as? String ?: "",
                 subscriptionPeriod = (json["subscriptionPeriod"] as? Map<String, Any?>)?.let { SubscriptionPeriodValueIOS.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionPeriodValueIOS"),
@@ -3459,6 +3586,7 @@ public data class SubscriptionInfoIOS(
     fun toJson(): Map<String, Any?> = mapOf(
         "__typename" to "SubscriptionInfoIOS",
         "introductoryOffer" to introductoryOffer?.toJson(),
+        "pricingTerms" to pricingTerms?.map { it.toJson() },
         "promotionalOffers" to promotionalOffers?.map { it.toJson() },
         "subscriptionGroupId" to subscriptionGroupId,
         "subscriptionPeriod" to subscriptionPeriod.toJson(),
@@ -3708,6 +3836,39 @@ public data class SubscriptionPeriodValueIOS(
     )
 }
 
+public data class SubscriptionPricingTermsIOS(
+    val billingDisplayPrice: String,
+    val billingPeriod: SubscriptionPeriodValueIOS,
+    val billingPlanType: SubscriptionBillingPlanTypeIOS,
+    val billingPrice: Double,
+    val commitmentInfo: SubscriptionCommitmentInfoIOS,
+    val subscriptionOffers: List<SubscriptionOffer>? = null
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): SubscriptionPricingTermsIOS {
+            return SubscriptionPricingTermsIOS(
+                billingDisplayPrice = json["billingDisplayPrice"] as? String ?: "",
+                billingPeriod = (json["billingPeriod"] as? Map<String, Any?>)?.let { SubscriptionPeriodValueIOS.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionPeriodValueIOS"),
+                billingPlanType = (json["billingPlanType"] as? String)?.let { SubscriptionBillingPlanTypeIOS.fromJson(it) } ?: SubscriptionBillingPlanTypeIOS.Unknown,
+                billingPrice = (json["billingPrice"] as? Number)?.toDouble() ?: 0.0,
+                commitmentInfo = (json["commitmentInfo"] as? Map<String, Any?>)?.let { SubscriptionCommitmentInfoIOS.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionCommitmentInfoIOS"),
+                subscriptionOffers = (json["subscriptionOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { SubscriptionOffer.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionOffer") },
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "SubscriptionPricingTermsIOS",
+        "billingDisplayPrice" to billingDisplayPrice,
+        "billingPeriod" to billingPeriod.toJson(),
+        "billingPlanType" to billingPlanType.toJson(),
+        "billingPrice" to billingPrice,
+        "commitmentInfo" to commitmentInfo.toJson(),
+        "subscriptionOffers" to subscriptionOffers?.map { it.toJson() },
+    )
+}
+
 public data class SubscriptionStatusIOS(
     val renewalInfo: RenewalInfoIOS? = null,
     val state: String
@@ -3726,6 +3887,33 @@ public data class SubscriptionStatusIOS(
         "__typename" to "SubscriptionStatusIOS",
         "renewalInfo" to renewalInfo?.toJson(),
         "state" to state,
+    )
+}
+
+public data class TransactionCommitmentInfoIOS(
+    val billingPeriodNumber: Int,
+    val commitmentExpiresDate: Double,
+    val commitmentPrice: Double,
+    val totalBillingPeriods: Int
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): TransactionCommitmentInfoIOS {
+            return TransactionCommitmentInfoIOS(
+                billingPeriodNumber = (json["billingPeriodNumber"] as? Number)?.toInt() ?: 0,
+                commitmentExpiresDate = (json["commitmentExpiresDate"] as? Number)?.toDouble() ?: 0.0,
+                commitmentPrice = (json["commitmentPrice"] as? Number)?.toDouble() ?: 0.0,
+                totalBillingPeriods = (json["totalBillingPeriods"] as? Number)?.toInt() ?: 0,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "TransactionCommitmentInfoIOS",
+        "billingPeriodNumber" to billingPeriodNumber,
+        "commitmentExpiresDate" to commitmentExpiresDate,
+        "commitmentPrice" to commitmentPrice,
+        "totalBillingPeriods" to totalBillingPeriods,
     )
 }
 
@@ -4752,6 +4940,11 @@ public data class RequestSubscriptionIosProps(
     val andDangerouslyFinishTransactionAutomatically: Boolean? = null,
     val appAccountToken: String? = null,
     /**
+     * Billing plan to use when purchasing an annual subscription that offers
+     * monthly billing with a 12-month commitment (iOS 26.4+).
+     */
+    val billingPlanType: SubscriptionBillingPlanTypeIOS? = null,
+    /**
      * Override introductory offer eligibility (iOS 15+, WWDC 2025).
      * Set to true to indicate the user is eligible for introductory offer,
      * or false to indicate they are not. When nil, the system determines eligibility.
@@ -4784,6 +4977,7 @@ public data class RequestSubscriptionIosProps(
             val advancedCommerceData = json["advancedCommerceData"] as? String
             val andDangerouslyFinishTransactionAutomatically = json["andDangerouslyFinishTransactionAutomatically"] as? Boolean
             val appAccountToken = json["appAccountToken"] as? String
+            val billingPlanType = (json["billingPlanType"] as? String)?.let { SubscriptionBillingPlanTypeIOS.fromJson(it) }
             val introductoryOfferEligibility = json["introductoryOfferEligibility"] as? Boolean
             val promotionalOfferJWS = (json["promotionalOfferJWS"] as? Map<String, Any?>)?.let { PromotionalOfferJWSInputIOS.fromJson(it) }
             val quantity = (json["quantity"] as? Number)?.toInt()
@@ -4795,6 +4989,7 @@ public data class RequestSubscriptionIosProps(
                 advancedCommerceData = advancedCommerceData,
                 andDangerouslyFinishTransactionAutomatically = andDangerouslyFinishTransactionAutomatically,
                 appAccountToken = appAccountToken,
+                billingPlanType = billingPlanType,
                 introductoryOfferEligibility = introductoryOfferEligibility,
                 promotionalOfferJWS = promotionalOfferJWS,
                 quantity = quantity,
@@ -4809,6 +5004,7 @@ public data class RequestSubscriptionIosProps(
         "advancedCommerceData" to advancedCommerceData,
         "andDangerouslyFinishTransactionAutomatically" to andDangerouslyFinishTransactionAutomatically,
         "appAccountToken" to appAccountToken,
+        "billingPlanType" to billingPlanType?.toJson(),
         "introductoryOfferEligibility" to introductoryOfferEligibility,
         "promotionalOfferJWS" to promotionalOfferJWS?.toJson(),
         "quantity" to quantity,

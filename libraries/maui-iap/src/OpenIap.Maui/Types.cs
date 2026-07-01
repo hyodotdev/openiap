@@ -1524,6 +1524,62 @@ public static class SubResponseCodeAndroidExtensions
     public static SubResponseCodeAndroid FromJson(string value) => SubResponseCodeAndroidJsonConverter.FromRawString(value);
 }
 
+[JsonConverter(typeof(SubscriptionBillingPlanTypeIOSJsonConverter))]
+public enum SubscriptionBillingPlanTypeIOS
+{
+    /// <summary>Unknown or unsupported billing plan type.</summary>
+    Unknown,
+    /// <summary>Monthly billing with a 12-month commitment.</summary>
+    Monthly,
+    /// <summary>Up-front billing for the full subscription period.</summary>
+    UpFront
+}
+
+public sealed class SubscriptionBillingPlanTypeIOSJsonConverter : JsonConverter<SubscriptionBillingPlanTypeIOS>
+{
+    private static readonly Dictionary<string, SubscriptionBillingPlanTypeIOS> _fromString = new()
+    {
+        ["unknown"] = SubscriptionBillingPlanTypeIOS.Unknown,
+        ["UNKNOWN"] = SubscriptionBillingPlanTypeIOS.Unknown,
+        ["Unknown"] = SubscriptionBillingPlanTypeIOS.Unknown,
+        ["monthly"] = SubscriptionBillingPlanTypeIOS.Monthly,
+        ["MONTHLY"] = SubscriptionBillingPlanTypeIOS.Monthly,
+        ["Monthly"] = SubscriptionBillingPlanTypeIOS.Monthly,
+        ["up-front"] = SubscriptionBillingPlanTypeIOS.UpFront,
+        ["UP_FRONT"] = SubscriptionBillingPlanTypeIOS.UpFront,
+        ["UpFront"] = SubscriptionBillingPlanTypeIOS.UpFront,
+    };
+
+    private static readonly Dictionary<SubscriptionBillingPlanTypeIOS, string> _toString = new()
+    {
+        [SubscriptionBillingPlanTypeIOS.Unknown] = "unknown",
+        [SubscriptionBillingPlanTypeIOS.Monthly] = "monthly",
+        [SubscriptionBillingPlanTypeIOS.UpFront] = "up-front",
+    };
+
+    public override SubscriptionBillingPlanTypeIOS Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        var raw = reader.GetString();
+        if (raw is not null && _fromString.TryGetValue(raw, out var value)) return value;
+        throw new JsonException($"Unknown SubscriptionBillingPlanTypeIOS value: {raw}");
+    }
+
+    public override void Write(Utf8JsonWriter writer, SubscriptionBillingPlanTypeIOS value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(_toString[value]);
+    }
+
+    internal static string ToRawString(SubscriptionBillingPlanTypeIOS value) => _toString[value];
+    internal static SubscriptionBillingPlanTypeIOS FromRawString(string value) =>
+        _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown SubscriptionBillingPlanTypeIOS value: {value}");
+}
+
+public static class SubscriptionBillingPlanTypeIOSExtensions
+{
+    public static string ToJson(this SubscriptionBillingPlanTypeIOS value) => SubscriptionBillingPlanTypeIOSJsonConverter.ToRawString(value);
+    public static SubscriptionBillingPlanTypeIOS FromJson(string value) => SubscriptionBillingPlanTypeIOSJsonConverter.FromRawString(value);
+}
+
 [JsonConverter(typeof(SubscriptionOfferTypeIOSJsonConverter))]
 public enum SubscriptionOfferTypeIOS
 {
@@ -2910,6 +2966,10 @@ public sealed record ProductIOS : Product, ProductCommon
     public IapPlatform Platform { get; init; } = IapPlatform.IOS;
     [JsonPropertyName("price")]
     public double? Price { get; init; }
+    /// <summary>iOS 26.4+ subscription pricing terms, including billing plan metadata for</summary>
+    /// <summary>monthly subscriptions with a 12-month commitment.</summary>
+    [JsonPropertyName("pricingTermsIOS")]
+    public IReadOnlyList<SubscriptionPricingTermsIOS>? PricingTermsIOS { get; init; }
     /// <summary>@deprecated Use subscriptionOffers instead for cross-platform compatibility.</summary>
     [JsonPropertyName("subscriptionInfoIOS")]
     public SubscriptionInfoIOS? SubscriptionInfoIOS { get; init; }
@@ -3037,6 +3097,10 @@ public sealed record ProductSubscriptionIOS : ProductSubscription, ProductCommon
     public IapPlatform Platform { get; init; } = IapPlatform.IOS;
     [JsonPropertyName("price")]
     public double? Price { get; init; }
+    /// <summary>iOS 26.4+ subscription pricing terms, including billing plan metadata for</summary>
+    /// <summary>monthly subscriptions with a 12-month commitment.</summary>
+    [JsonPropertyName("pricingTermsIOS")]
+    public IReadOnlyList<SubscriptionPricingTermsIOS>? PricingTermsIOS { get; init; }
     /// <summary>App Store subscription group identifier for intro-offer eligibility checks.</summary>
     [JsonPropertyName("subscriptionGroupIdIOS")]
     public string? SubscriptionGroupIdIOS { get; init; }
@@ -3149,6 +3213,12 @@ public sealed record PurchaseIOS : Purchase, PurchaseCommon
     public string? AppAccountToken { get; init; }
     [JsonPropertyName("appBundleIdIOS")]
     public string? AppBundleIdIOS { get; init; }
+    /// <summary>iOS 26.4+ billing plan selected for this transaction.</summary>
+    [JsonPropertyName("billingPlanTypeIOS")]
+    public SubscriptionBillingPlanTypeIOS? BillingPlanTypeIOS { get; init; }
+    /// <summary>iOS 26.4+ progress information for monthly subscriptions with a 12-month commitment.</summary>
+    [JsonPropertyName("commitmentInfoIOS")]
+    public TransactionCommitmentInfoIOS? CommitmentInfoIOS { get; init; }
     [JsonPropertyName("countryCodeIOS")]
     public string? CountryCodeIOS { get; init; }
     [JsonPropertyName("currencyCodeIOS")]
@@ -3234,12 +3304,30 @@ public sealed record RefundResultIOS
     public required string Status { get; init; }
 }
 
+public sealed record RenewalCommitmentInfoIOS
+{
+    [JsonPropertyName("commitmentAutoRenewProductId")]
+    public required string CommitmentAutoRenewProductId { get; init; }
+    [JsonPropertyName("commitmentAutoRenewStatus")]
+    public required bool CommitmentAutoRenewStatus { get; init; }
+    [JsonPropertyName("commitmentRenewalBillingPlanType")]
+    public required SubscriptionBillingPlanTypeIOS CommitmentRenewalBillingPlanType { get; init; }
+    [JsonPropertyName("commitmentRenewalDate")]
+    public required double CommitmentRenewalDate { get; init; }
+    [JsonPropertyName("commitmentRenewalPrice")]
+    public required double CommitmentRenewalPrice { get; init; }
+}
+
 /// <summary>Subscription renewal information from Product.SubscriptionInfo.RenewalInfo</summary>
 /// <summary>https://developer.apple.com/documentation/storekit/product/subscriptioninfo/renewalinfo</summary>
 public sealed record RenewalInfoIOS
 {
     [JsonPropertyName("autoRenewPreference")]
     public string? AutoRenewPreference { get; init; }
+    /// <summary>iOS 26.4+ renewal commitment metadata for monthly subscriptions with a</summary>
+    /// <summary>12-month commitment.</summary>
+    [JsonPropertyName("commitmentInfo")]
+    public RenewalCommitmentInfoIOS? CommitmentInfo { get; init; }
     /// <summary>When subscription expires due to cancellation/billing issue</summary>
     /// <summary>Possible values: &quot;VOLUNTARY&quot;, &quot;BILLING_ERROR&quot;, &quot;DID_NOT_AGREE_TO_PRICE_INCREASE&quot;, &quot;PRODUCT_NOT_AVAILABLE&quot;, &quot;UNKNOWN&quot;</summary>
     [JsonPropertyName("expirationReason")]
@@ -3262,6 +3350,9 @@ public sealed record RenewalInfoIOS
     /// <summary>Possible values: &quot;AGREED&quot;, &quot;PENDING&quot;, null (no price increase)</summary>
     [JsonPropertyName("priceIncreaseStatus")]
     public string? PriceIncreaseStatus { get; init; }
+    /// <summary>iOS 26.4+ billing plan that will renew after the current period.</summary>
+    [JsonPropertyName("renewalBillingPlanType")]
+    public SubscriptionBillingPlanTypeIOS? RenewalBillingPlanType { get; init; }
     /// <summary>Expected renewal date (milliseconds since epoch)</summary>
     /// <summary>For active subscriptions, when the next renewal/charge will occur</summary>
     [JsonPropertyName("renewalDate")]
@@ -3308,10 +3399,22 @@ public sealed record RequestVerifyPurchaseWithIapkitResult
     public required IapStore Store { get; init; }
 }
 
+public sealed record SubscriptionCommitmentInfoIOS
+{
+    [JsonPropertyName("displayPrice")]
+    public required string DisplayPrice { get; init; }
+    [JsonPropertyName("period")]
+    public required SubscriptionPeriodValueIOS Period { get; init; }
+    [JsonPropertyName("price")]
+    public required double Price { get; init; }
+}
+
 public sealed record SubscriptionInfoIOS
 {
     [JsonPropertyName("introductoryOffer")]
     public SubscriptionOfferIOS? IntroductoryOffer { get; init; }
+    [JsonPropertyName("pricingTerms")]
+    public IReadOnlyList<SubscriptionPricingTermsIOS>? PricingTerms { get; init; }
     [JsonPropertyName("promotionalOffers")]
     public IReadOnlyList<SubscriptionOfferIOS>? PromotionalOffers { get; init; }
     [JsonPropertyName("subscriptionGroupId")]
@@ -3441,12 +3544,40 @@ public sealed record SubscriptionPeriodValueIOS
     public required int Value { get; init; }
 }
 
+public sealed record SubscriptionPricingTermsIOS
+{
+    [JsonPropertyName("billingDisplayPrice")]
+    public required string BillingDisplayPrice { get; init; }
+    [JsonPropertyName("billingPeriod")]
+    public required SubscriptionPeriodValueIOS BillingPeriod { get; init; }
+    [JsonPropertyName("billingPlanType")]
+    public required SubscriptionBillingPlanTypeIOS BillingPlanType { get; init; }
+    [JsonPropertyName("billingPrice")]
+    public required double BillingPrice { get; init; }
+    [JsonPropertyName("commitmentInfo")]
+    public required SubscriptionCommitmentInfoIOS CommitmentInfo { get; init; }
+    [JsonPropertyName("subscriptionOffers")]
+    public IReadOnlyList<SubscriptionOffer>? SubscriptionOffers { get; init; }
+}
+
 public sealed record SubscriptionStatusIOS
 {
     [JsonPropertyName("renewalInfo")]
     public RenewalInfoIOS? RenewalInfo { get; init; }
     [JsonPropertyName("state")]
     public required string State { get; init; }
+}
+
+public sealed record TransactionCommitmentInfoIOS
+{
+    [JsonPropertyName("billingPeriodNumber")]
+    public required int BillingPeriodNumber { get; init; }
+    [JsonPropertyName("commitmentExpiresDate")]
+    public required double CommitmentExpiresDate { get; init; }
+    [JsonPropertyName("commitmentPrice")]
+    public required double CommitmentPrice { get; init; }
+    [JsonPropertyName("totalBillingPeriods")]
+    public required int TotalBillingPeriods { get; init; }
 }
 
 /// <summary>User Choice Billing event details (Android)</summary>
@@ -3925,6 +4056,10 @@ public sealed record RequestSubscriptionIosProps
     /// <summary>Back-deployed to iOS 15.</summary>
     [JsonPropertyName("promotionalOfferJWS")]
     public PromotionalOfferJWSInputIOS? PromotionalOfferJws { get; init; }
+    /// <summary>Billing plan to use when purchasing an annual subscription that offers</summary>
+    /// <summary>monthly billing with a 12-month commitment (iOS 26.4+).</summary>
+    [JsonPropertyName("billingPlanType")]
+    public SubscriptionBillingPlanTypeIOS? BillingPlanType { get; init; }
     /// <summary>Override introductory offer eligibility (iOS 15+, WWDC 2025).</summary>
     /// <summary>Set to true to indicate the user is eligible for introductory offer,</summary>
     /// <summary>or false to indicate they are not. When nil, the system determines eligibility.</summary>

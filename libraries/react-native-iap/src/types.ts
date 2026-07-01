@@ -986,6 +986,11 @@ export interface ProductIOS extends ProductCommon {
   platform: 'ios';
   price?: (number | null);
   /**
+   * iOS 26.4+ subscription pricing terms, including billing plan metadata for
+   * monthly subscriptions with a 12-month commitment.
+   */
+  pricingTermsIOS?: (SubscriptionPricingTermsIOS[] | null);
+  /**
    * @deprecated Use subscriptionOffers instead for cross-platform compatibility.
    * @deprecated Use subscriptionOffers instead
    */
@@ -1108,6 +1113,11 @@ export interface ProductSubscriptionIOS extends ProductCommon {
   jsonRepresentationIOS: string;
   platform: 'ios';
   price?: (number | null);
+  /**
+   * iOS 26.4+ subscription pricing terms, including billing plan metadata for
+   * monthly subscriptions with a 12-month commitment.
+   */
+  pricingTermsIOS?: (SubscriptionPricingTermsIOS[] | null);
   /** App Store subscription group identifier for intro-offer eligibility checks. */
   subscriptionGroupIdIOS?: (string | null);
   /**
@@ -1234,6 +1244,10 @@ export interface PurchaseIOS extends PurchaseCommon {
   advancedCommerceInfoIOS?: (AdvancedCommerceInfoIOS | null);
   appAccountToken?: (string | null);
   appBundleIdIOS?: (string | null);
+  /** iOS 26.4+ billing plan selected for this transaction. */
+  billingPlanTypeIOS?: (SubscriptionBillingPlanTypeIOS | null);
+  /** iOS 26.4+ progress information for monthly subscriptions with a 12-month commitment. */
+  commitmentInfoIOS?: (TransactionCommitmentInfoIOS | null);
   countryCodeIOS?: (string | null);
   currencyCodeIOS?: (string | null);
   currencySymbolIOS?: (string | null);
@@ -1454,12 +1468,25 @@ export interface RefundResultIOS {
   status: string;
 }
 
+export interface RenewalCommitmentInfoIOS {
+  commitmentAutoRenewProductId: string;
+  commitmentAutoRenewStatus: boolean;
+  commitmentRenewalBillingPlanType: SubscriptionBillingPlanTypeIOS;
+  commitmentRenewalDate: number;
+  commitmentRenewalPrice: number;
+}
+
 /**
  * Subscription renewal information from Product.SubscriptionInfo.RenewalInfo
  * https://developer.apple.com/documentation/storekit/product/subscriptioninfo/renewalinfo
  */
 export interface RenewalInfoIOS {
   autoRenewPreference?: (string | null);
+  /**
+   * iOS 26.4+ renewal commitment metadata for monthly subscriptions with a
+   * 12-month commitment.
+   */
+  commitmentInfo?: (RenewalCommitmentInfoIOS | null);
   /**
    * When subscription expires due to cancellation/billing issue
    * Possible values: "VOLUNTARY", "BILLING_ERROR", "DID_NOT_AGREE_TO_PRICE_INCREASE", "PRODUCT_NOT_AVAILABLE", "UNKNOWN"
@@ -1486,6 +1513,8 @@ export interface RenewalInfoIOS {
    * Possible values: "AGREED", "PENDING", null (no price increase)
    */
   priceIncreaseStatus?: (string | null);
+  /** iOS 26.4+ billing plan that will renew after the current period. */
+  renewalBillingPlanType?: (SubscriptionBillingPlanTypeIOS | null);
   /**
    * Expected renewal date (milliseconds since epoch)
    * For active subscriptions, when the next renewal/charge will occur
@@ -1646,6 +1675,11 @@ export interface RequestSubscriptionIosProps {
   andDangerouslyFinishTransactionAutomatically?: (boolean | null);
   appAccountToken?: (string | null);
   /**
+   * Billing plan to use when purchasing an annual subscription that offers
+   * monthly billing with a 12-month commitment (iOS 26.4+).
+   */
+  billingPlanType?: (SubscriptionBillingPlanTypeIOS | null);
+  /**
    * Override introductory offer eligibility (iOS 15+, WWDC 2025).
    * Set to true to indicate the user is eligible for introductory offer,
    * or false to indicate they are not. When nil, the system determines eligibility.
@@ -1777,8 +1811,17 @@ export interface Subscription {
 
 export type SubscriptionPurchaseUpdatedArgs = (PurchaseUpdatedListenerOptions | null) | undefined;
 
+export type SubscriptionBillingPlanTypeIOS = 'unknown' | 'monthly' | 'up-front';
+
+export interface SubscriptionCommitmentInfoIOS {
+  displayPrice: string;
+  period: SubscriptionPeriodValueIOS;
+  price: number;
+}
+
 export interface SubscriptionInfoIOS {
   introductoryOffer?: (SubscriptionOfferIOS | null);
+  pricingTerms?: (SubscriptionPricingTermsIOS[] | null);
   promotionalOffers?: (SubscriptionOfferIOS[] | null);
   subscriptionGroupId: string;
   subscriptionPeriod: SubscriptionPeriodValueIOS;
@@ -1900,6 +1943,15 @@ export interface SubscriptionPeriodValueIOS {
   value: number;
 }
 
+export interface SubscriptionPricingTermsIOS {
+  billingDisplayPrice: string;
+  billingPeriod: SubscriptionPeriodValueIOS;
+  billingPlanType: SubscriptionBillingPlanTypeIOS;
+  billingPrice: number;
+  commitmentInfo: SubscriptionCommitmentInfoIOS;
+  subscriptionOffers?: (SubscriptionOffer[] | null);
+}
+
 /**
  * Product-level subscription replacement parameters (Android)
  * Used with setSubscriptionProductReplacementParams in BillingFlowParams.ProductDetailsParams
@@ -1924,6 +1976,13 @@ export type SubscriptionState = 'active' | 'expired' | 'in-billing-retry' | 'in-
 export interface SubscriptionStatusIOS {
   renewalInfo?: (RenewalInfoIOS | null);
   state: string;
+}
+
+export interface TransactionCommitmentInfoIOS {
+  billingPeriodNumber: number;
+  commitmentExpiresDate: number;
+  commitmentPrice: number;
+  totalBillingPeriods: number;
 }
 
 /**
