@@ -4060,12 +4060,12 @@ public sealed record RequestSubscriptionIosProps
     /// <summary>monthly billing with a 12-month commitment (iOS 26.4+).</summary>
     [JsonPropertyName("billingPlanType")]
     public SubscriptionBillingPlanTypeIOS? BillingPlanType { get; init; }
-    /// <summary>Override introductory offer eligibility (iOS 15+, WWDC 2025).</summary>
-    /// <summary>Set to true to indicate the user is eligible for introductory offer,</summary>
-    /// <summary>or false to indicate they are not. When nil, the system determines eligibility.</summary>
-    /// <summary>Back-deployed to iOS 15.</summary>
-    [JsonPropertyName("introductoryOfferEligibility")]
-    public bool? IntroductoryOfferEligibility { get; init; }
+    /// <summary>Compact JWS string for overriding introductory offer eligibility</summary>
+    /// <summary>(iOS 15+, WWDC 2025). When nil, the system determines eligibility.</summary>
+    /// <summary>Generate the JWS on your server and pass it to StoreKit&apos;s</summary>
+    /// <summary>introductoryOfferEligibility(compactJWS:) purchase option.</summary>
+    [JsonPropertyName("compactJWS")]
+    public string? CompactJws { get; init; }
     /// <summary>Advanced commerce data token (iOS 15+).</summary>
     /// <summary>Used with StoreKit 2&apos;s Product.PurchaseOption.custom API for passing</summary>
     /// <summary>campaign tokens, affiliate IDs, or other attribution data.</summary>

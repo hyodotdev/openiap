@@ -1680,12 +1680,12 @@ export interface RequestSubscriptionIosProps {
    */
   billingPlanType?: (SubscriptionBillingPlanTypeIOS | null);
   /**
-   * Override introductory offer eligibility (iOS 15+, WWDC 2025).
-   * Set to true to indicate the user is eligible for introductory offer,
-   * or false to indicate they are not. When nil, the system determines eligibility.
-   * Back-deployed to iOS 15.
+   * Compact JWS string for overriding introductory offer eligibility
+   * (iOS 15+, WWDC 2025). When nil, the system determines eligibility.
+   * Generate the JWS on your server and pass it to StoreKit's
+   * introductoryOfferEligibility(compactJWS:) purchase option.
    */
-  introductoryOfferEligibility?: (boolean | null);
+  compactJWS?: (string | null);
   /**
    * JWS promotional offer (iOS 15+, WWDC 2025).
    * New signature format using compact JWS string for promotional offers.

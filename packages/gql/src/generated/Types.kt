@@ -4945,12 +4945,12 @@ public data class RequestSubscriptionIosProps(
      */
     val billingPlanType: SubscriptionBillingPlanTypeIOS? = null,
     /**
-     * Override introductory offer eligibility (iOS 15+, WWDC 2025).
-     * Set to true to indicate the user is eligible for introductory offer,
-     * or false to indicate they are not. When nil, the system determines eligibility.
-     * Back-deployed to iOS 15.
+     * Compact JWS string for overriding introductory offer eligibility
+     * (iOS 15+, WWDC 2025). When nil, the system determines eligibility.
+     * Generate the JWS on your server and pass it to StoreKit's
+     * introductoryOfferEligibility(compactJWS:) purchase option.
      */
-    val introductoryOfferEligibility: Boolean? = null,
+    val compactJWS: String? = null,
     /**
      * JWS promotional offer (iOS 15+, WWDC 2025).
      * New signature format using compact JWS string for promotional offers.
@@ -4978,7 +4978,7 @@ public data class RequestSubscriptionIosProps(
             val andDangerouslyFinishTransactionAutomatically = json["andDangerouslyFinishTransactionAutomatically"] as? Boolean
             val appAccountToken = json["appAccountToken"] as? String
             val billingPlanType = (json["billingPlanType"] as? String)?.let { SubscriptionBillingPlanTypeIOS.fromJson(it) }
-            val introductoryOfferEligibility = json["introductoryOfferEligibility"] as? Boolean
+            val compactJWS = json["compactJWS"] as? String
             val promotionalOfferJWS = (json["promotionalOfferJWS"] as? Map<String, Any?>)?.let { PromotionalOfferJWSInputIOS.fromJson(it) }
             val quantity = (json["quantity"] as? Number)?.toInt()
             val sku = json["sku"] as? String
@@ -4990,7 +4990,7 @@ public data class RequestSubscriptionIosProps(
                 andDangerouslyFinishTransactionAutomatically = andDangerouslyFinishTransactionAutomatically,
                 appAccountToken = appAccountToken,
                 billingPlanType = billingPlanType,
-                introductoryOfferEligibility = introductoryOfferEligibility,
+                compactJWS = compactJWS,
                 promotionalOfferJWS = promotionalOfferJWS,
                 quantity = quantity,
                 sku = sku,
@@ -5005,7 +5005,7 @@ public data class RequestSubscriptionIosProps(
         "andDangerouslyFinishTransactionAutomatically" to andDangerouslyFinishTransactionAutomatically,
         "appAccountToken" to appAccountToken,
         "billingPlanType" to billingPlanType?.toJson(),
-        "introductoryOfferEligibility" to introductoryOfferEligibility,
+        "compactJWS" to compactJWS,
         "promotionalOfferJWS" to promotionalOfferJWS?.toJson(),
         "quantity" to quantity,
         "sku" to sku,

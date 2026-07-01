@@ -20,9 +20,9 @@ class RequestPurchaseIosBuilder {
   /// Billing plan for annual subscriptions with monthly commitment (iOS 26.4+)
   SubscriptionBillingPlanTypeIOS? billingPlanType;
 
-  /// Override introductory offer eligibility when this builder is used with
-  /// subscriptions (iOS 15+)
-  bool? introductoryOfferEligibility;
+  /// Compact JWS for overriding introductory offer eligibility when this
+  /// builder is used with subscriptions (iOS 15+)
+  String? compactJWS;
 
   RequestPurchaseIosBuilder();
 
@@ -57,8 +57,8 @@ class RequestSubscriptionIosBuilder {
   /// Billing plan for annual subscriptions with monthly commitment (iOS 26.4+)
   SubscriptionBillingPlanTypeIOS? billingPlanType;
 
-  /// Override introductory offer eligibility (iOS 15+)
-  bool? introductoryOfferEligibility;
+  /// Compact JWS for overriding introductory offer eligibility (iOS 15+)
+  String? compactJWS;
 
   RequestSubscriptionIosBuilder();
 
@@ -74,7 +74,7 @@ class RequestSubscriptionIosBuilder {
       billingPlanType: billingPlanType,
       winBackOffer: winBackOffer,
       promotionalOfferJWS: promotionalOfferJWS,
-      introductoryOfferEligibility: introductoryOfferEligibility,
+      compactJWS: compactJWS,
     );
   }
 }
@@ -196,7 +196,7 @@ class RequestPurchaseBuilder {
               billingPlanType: ios.billingPlanType,
               winBackOffer: ios.winBackOffer,
               promotionalOfferJWS: ios.promotionalOfferJWS,
-              introductoryOfferEligibility: ios.introductoryOfferEligibility,
+              compactJWS: ios.compactJWS,
             );
 
       final androidSub = androidProps == null

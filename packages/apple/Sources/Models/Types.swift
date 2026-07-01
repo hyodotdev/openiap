@@ -1986,11 +1986,11 @@ public struct RequestSubscriptionIosProps: Codable {
     /// Billing plan to use when purchasing an annual subscription that offers
     /// monthly billing with a 12-month commitment (iOS 26.4+).
     public var billingPlanType: SubscriptionBillingPlanTypeIOS?
-    /// Override introductory offer eligibility (iOS 15+, WWDC 2025).
-    /// Set to true to indicate the user is eligible for introductory offer,
-    /// or false to indicate they are not. When nil, the system determines eligibility.
-    /// Back-deployed to iOS 15.
-    public var introductoryOfferEligibility: Bool?
+    /// Compact JWS string for overriding introductory offer eligibility
+    /// (iOS 15+, WWDC 2025). When nil, the system determines eligibility.
+    /// Generate the JWS on your server and pass it to StoreKit's
+    /// introductoryOfferEligibility(compactJWS:) purchase option.
+    public var compactJWS: String?
     /// JWS promotional offer (iOS 15+, WWDC 2025).
     /// New signature format using compact JWS string for promotional offers.
     /// Back-deployed to iOS 15.
@@ -2011,7 +2011,7 @@ public struct RequestSubscriptionIosProps: Codable {
         andDangerouslyFinishTransactionAutomatically: Bool? = nil,
         appAccountToken: String? = nil,
         billingPlanType: SubscriptionBillingPlanTypeIOS? = nil,
-        introductoryOfferEligibility: Bool? = nil,
+        compactJWS: String? = nil,
         promotionalOfferJWS: PromotionalOfferJWSInputIOS? = nil,
         quantity: Int? = nil,
         sku: String,
@@ -2022,7 +2022,7 @@ public struct RequestSubscriptionIosProps: Codable {
         self.andDangerouslyFinishTransactionAutomatically = andDangerouslyFinishTransactionAutomatically
         self.appAccountToken = appAccountToken
         self.billingPlanType = billingPlanType
-        self.introductoryOfferEligibility = introductoryOfferEligibility
+        self.compactJWS = compactJWS
         self.promotionalOfferJWS = promotionalOfferJWS
         self.quantity = quantity
         self.sku = sku

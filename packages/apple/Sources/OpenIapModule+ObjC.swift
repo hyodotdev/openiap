@@ -199,7 +199,7 @@ import StoreKit
         requestSubscriptionWithSku(
             sku,
             offer: offer,
-            introductoryOfferEligibility: nil,
+            compactJWS: nil,
             promotionalOfferJWS: nil,
             winBackOfferId: nil,
             billingPlanType: nil,
@@ -211,7 +211,7 @@ import StoreKit
     /// - Parameters:
     ///   - sku: The product SKU
     ///   - offer: Legacy promotional offer (DiscountOfferInputIOS)
-    ///   - introductoryOfferEligibility: Override introductory offer eligibility (iOS 15+, WWDC 2025)
+    ///   - compactJWS: JWS for introductory offer eligibility override (iOS 15+, WWDC 2025)
     ///   - promotionalOfferJWS: JWS promotional offer dict with "offerId" and "jws" keys (iOS 15+, WWDC 2025)
     ///   - winBackOfferId: Win-back offer ID (iOS 18+)
     ///   - billingPlanType: Billing plan type ("monthly" or "up-front", iOS 26.4+)
@@ -219,7 +219,7 @@ import StoreKit
     @objc func requestSubscriptionWithSku(
         _ sku: String,
         offer: [String: Any]?,
-        introductoryOfferEligibility: NSNumber?,
+        compactJWS: String?,
         promotionalOfferJWS: [String: Any]?,
         winBackOfferId: String?,
         billingPlanType: String?,
@@ -261,15 +261,30 @@ import StoreKit
                     nil
                 }
 
-                let billingPlan = billingPlanType.map {
-                    SubscriptionBillingPlanTypeIOS(rawValue: $0) ?? .unknown
+                let billingPlan: SubscriptionBillingPlanTypeIOS?
+                if let billingPlanType {
+                    guard let parsedBillingPlan = SubscriptionBillingPlanTypeIOS(rawValue: billingPlanType),
+                        parsedBillingPlan != .unknown else {
+                        completion(
+                            nil,
+                            PurchaseError.make(
+                                code: .developerError,
+                                productId: sku,
+                                message: "billingPlanType must be \"monthly\" or \"up-front\"."
+                            )
+                        )
+                        return
+                    }
+                    billingPlan = parsedBillingPlan
+                } else {
+                    billingPlan = nil
                 }
 
                 let iosProps = RequestSubscriptionIosProps(
                     andDangerouslyFinishTransactionAutomatically: nil,
                     appAccountToken: nil,
                     billingPlanType: billingPlan,
-                    introductoryOfferEligibility: introductoryOfferEligibility?.boolValue,
+                    compactJWS: compactJWS,
                     promotionalOfferJWS: jwsOffer,
                     sku: sku,
                     winBackOffer: winBack,

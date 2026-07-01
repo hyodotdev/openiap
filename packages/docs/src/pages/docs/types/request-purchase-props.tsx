@@ -589,12 +589,12 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                     </tr>
                     <tr>
                       <td>
-                        <code>introductoryOfferEligibility</code>
+                        <code>compactJWS</code>
                       </td>
                       <td>
-                        Override introductory offer eligibility (iOS 15+, WWDC
-                        2025). Pass <code>true</code>/<code>false</code> to
-                        force, omit to let the system decide.
+                        Compact JWS string for overriding introductory offer
+                        eligibility (iOS 15+, WWDC 2025). Generate it on your
+                        server and omit it to let the system decide.
                       </td>
                     </tr>
                   </tbody>

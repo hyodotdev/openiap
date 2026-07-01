@@ -861,7 +861,7 @@ describe('Public API (src/index.ts)', () => {
           apple: {
             sku: 'premium_sub',
             billingPlanType: 'monthly',
-            introductoryOfferEligibility: false,
+            compactJWS: 'intro-eligibility-jws',
             promotionalOfferJWS: {
               offerId: 'promo-offer',
               jws: 'compact-jws',
@@ -875,7 +875,7 @@ describe('Public API (src/index.ts)', () => {
       });
       const passed = mockIap.requestPurchase.mock.calls.pop()?.[0];
       expect(passed.ios.billingPlanType).toBe('monthly');
-      expect(passed.ios.introductoryOfferEligibility).toBe(false);
+      expect(passed.ios.compactJWS).toBe('intro-eligibility-jws');
       expect(passed.ios.promotionalOfferJWS).toEqual({
         offerId: 'promo-offer',
         jws: 'compact-jws',

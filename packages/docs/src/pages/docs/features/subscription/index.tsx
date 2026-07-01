@@ -57,11 +57,11 @@ function Subscription() {
 
         <div className="alert-card alert-card--warning">
           <p>
-            <strong>Availability:</strong> billing plan selection requires
-            StoreKit 26.4 runtime support. If the app runs on an older Apple OS
-            version, omit <code>billingPlanType</code> and let StoreKit purchase
-            the default plan. Never send <code>unknown</code> as a purchase
-            option.
+            <strong>Availability:</strong> billing plan selection requires iOS,
+            iPadOS, macOS, tvOS, or visionOS 26.4+ and an app compiled with the
+            26.5 SDK or later. If the app runs on an older Apple OS version,
+            omit <code>billingPlanType</code> and let StoreKit purchase the
+            default plan. Never send <code>unknown</code> as a purchase option.
           </p>
         </div>
 

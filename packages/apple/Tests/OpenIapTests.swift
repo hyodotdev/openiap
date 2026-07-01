@@ -546,7 +546,7 @@ final class OpenIapTests: XCTestCase {
             advancedCommerceData: nil,
             andDangerouslyFinishTransactionAutomatically: nil,
             appAccountToken: nil,
-            introductoryOfferEligibility: nil,
+            compactJWS: nil,
             promotionalOfferJWS: nil,
             quantity: nil,
             sku: "dev.hyo.subscription.monthly",
@@ -570,7 +570,7 @@ final class OpenIapTests: XCTestCase {
             advancedCommerceData: nil,
             andDangerouslyFinishTransactionAutomatically: nil,
             appAccountToken: nil,
-            introductoryOfferEligibility: nil,
+            compactJWS: nil,
             promotionalOfferJWS: jwsOffer,
             quantity: nil,
             sku: "dev.hyo.subscription.yearly",
@@ -590,12 +590,12 @@ final class OpenIapTests: XCTestCase {
         XCTAssertEqual(decoded.promotionalOfferJWS?.jws, "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9...")
     }
 
-    func testRequestSubscriptionIosPropsWithIntroductoryOfferEligibility() throws {
+    func testRequestSubscriptionIosPropsWithIntroductoryOfferEligibilityCompactJWS() throws {
         let props = RequestSubscriptionIosProps(
             advancedCommerceData: nil,
             andDangerouslyFinishTransactionAutomatically: nil,
             appAccountToken: nil,
-            introductoryOfferEligibility: true,
+            compactJWS: "intro-eligibility-jws",
             promotionalOfferJWS: nil,
             quantity: nil,
             sku: "dev.hyo.subscription.monthly",
@@ -604,12 +604,12 @@ final class OpenIapTests: XCTestCase {
         )
 
         XCTAssertEqual(props.sku, "dev.hyo.subscription.monthly")
-        XCTAssertEqual(props.introductoryOfferEligibility, true)
+        XCTAssertEqual(props.compactJWS, "intro-eligibility-jws")
 
         // Test encoding/decoding
         let data = try JSONEncoder().encode(props)
         let decoded = try JSONDecoder().decode(RequestSubscriptionIosProps.self, from: data)
-        XCTAssertEqual(decoded.introductoryOfferEligibility, true)
+        XCTAssertEqual(decoded.compactJWS, "intro-eligibility-jws")
     }
 
     func testRequestSubscriptionIosPropsWithAllSubscriptionOnlyFields() throws {
@@ -628,7 +628,7 @@ final class OpenIapTests: XCTestCase {
             andDangerouslyFinishTransactionAutomatically: false,
             appAccountToken: "user-uuid-123",
             billingPlanType: .monthly,
-            introductoryOfferEligibility: true,
+            compactJWS: "intro-eligibility-jws",
             promotionalOfferJWS: jwsOffer,
             quantity: 1,
             sku: "dev.hyo.subscription.premium",
@@ -643,7 +643,7 @@ final class OpenIapTests: XCTestCase {
         XCTAssertEqual(props.advancedCommerceData, "campaign_data")
         XCTAssertEqual(props.andDangerouslyFinishTransactionAutomatically, false)
         XCTAssertEqual(props.billingPlanType, .monthly)
-        XCTAssertEqual(props.introductoryOfferEligibility, true)
+        XCTAssertEqual(props.compactJWS, "intro-eligibility-jws")
         XCTAssertEqual(props.winBackOffer?.offerId, "winback_offer")
         XCTAssertEqual(props.promotionalOfferJWS?.offerId, "promo_offer")
         XCTAssertEqual(props.withOffer?.keyIdentifier, "key123")
@@ -654,7 +654,7 @@ final class OpenIapTests: XCTestCase {
 
         XCTAssertEqual(decoded.sku, props.sku)
         XCTAssertEqual(decoded.billingPlanType, props.billingPlanType)
-        XCTAssertEqual(decoded.introductoryOfferEligibility, props.introductoryOfferEligibility)
+        XCTAssertEqual(decoded.compactJWS, props.compactJWS)
         XCTAssertEqual(decoded.winBackOffer?.offerId, props.winBackOffer?.offerId)
         XCTAssertEqual(decoded.promotionalOfferJWS?.offerId, props.promotionalOfferJWS?.offerId)
     }
@@ -666,7 +666,7 @@ final class OpenIapTests: XCTestCase {
             andDangerouslyFinishTransactionAutomatically: nil,
             appAccountToken: nil,
             billingPlanType: .upFront,
-            introductoryOfferEligibility: true,
+            compactJWS: "intro-eligibility-jws",
             promotionalOfferJWS: PromotionalOfferJWSInputIOS(jws: "jws", offerId: "offer"),
             quantity: nil,
             sku: "sub_sku",
@@ -675,7 +675,7 @@ final class OpenIapTests: XCTestCase {
         )
 
         // These fields exist on RequestSubscriptionIosProps
-        XCTAssertEqual(subscriptionProps.introductoryOfferEligibility, true)
+        XCTAssertEqual(subscriptionProps.compactJWS, "intro-eligibility-jws")
         XCTAssertEqual(subscriptionProps.billingPlanType, .upFront)
         XCTAssertNotNil(subscriptionProps.promotionalOfferJWS)
         XCTAssertNotNil(subscriptionProps.winBackOffer)

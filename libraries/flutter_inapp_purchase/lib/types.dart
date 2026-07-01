@@ -4854,7 +4854,7 @@ class RequestSubscriptionIosProps {
     this.andDangerouslyFinishTransactionAutomatically,
     this.appAccountToken,
     this.billingPlanType,
-    this.introductoryOfferEligibility,
+    this.compactJWS,
     this.promotionalOfferJWS,
     this.quantity,
     required this.sku,
@@ -4872,11 +4872,11 @@ class RequestSubscriptionIosProps {
   /// Billing plan to use when purchasing an annual subscription that offers
   /// monthly billing with a 12-month commitment (iOS 26.4+).
   final SubscriptionBillingPlanTypeIOS? billingPlanType;
-  /// Override introductory offer eligibility (iOS 15+, WWDC 2025).
-  /// Set to true to indicate the user is eligible for introductory offer,
-  /// or false to indicate they are not. When nil, the system determines eligibility.
-  /// Back-deployed to iOS 15.
-  final bool? introductoryOfferEligibility;
+  /// Compact JWS string for overriding introductory offer eligibility
+  /// (iOS 15+, WWDC 2025). When nil, the system determines eligibility.
+  /// Generate the JWS on your server and pass it to StoreKit's
+  /// introductoryOfferEligibility(compactJWS:) purchase option.
+  final String? compactJWS;
   /// JWS promotional offer (iOS 15+, WWDC 2025).
   /// New signature format using compact JWS string for promotional offers.
   /// Back-deployed to iOS 15.
@@ -4898,7 +4898,7 @@ class RequestSubscriptionIosProps {
       andDangerouslyFinishTransactionAutomatically: json['andDangerouslyFinishTransactionAutomatically'] as bool?,
       appAccountToken: json['appAccountToken'] as String?,
       billingPlanType: json['billingPlanType'] != null ? SubscriptionBillingPlanTypeIOS.fromJson(json['billingPlanType'] as String) : null,
-      introductoryOfferEligibility: json['introductoryOfferEligibility'] as bool?,
+      compactJWS: json['compactJWS'] as String?,
       promotionalOfferJWS: json['promotionalOfferJWS'] != null ? PromotionalOfferJWSInputIOS.fromJson(json['promotionalOfferJWS'] as Map<String, dynamic>) : null,
       quantity: json['quantity'] as int?,
       sku: json['sku'] as String,
@@ -4913,7 +4913,7 @@ class RequestSubscriptionIosProps {
       'andDangerouslyFinishTransactionAutomatically': andDangerouslyFinishTransactionAutomatically,
       'appAccountToken': appAccountToken,
       'billingPlanType': billingPlanType?.toJson(),
-      'introductoryOfferEligibility': introductoryOfferEligibility,
+      'compactJWS': compactJWS,
       'promotionalOfferJWS': promotionalOfferJWS?.toJson(),
       'quantity': quantity,
       'sku': sku,

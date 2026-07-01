@@ -560,7 +560,7 @@ function checkFlutter() {
     'Alternative Billing',
   ], `${base} widget tests`);
   expectIncludes('libraries/flutter_inapp_purchase/lib/utils.dart', [
-    'introductoryOfferEligibility',
+    'compactJWS',
     'promotionalOfferJWS',
     'winBackOffer',
   ], 'Flutter iOS purchase payload');

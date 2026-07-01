@@ -30,8 +30,8 @@ function SubscriptionBillingPlanIOS() {
       <div className="alert-card alert-card--info">
         <p>
           <strong>Availability:</strong> billing plan selection requires iOS,
-          macOS, tvOS, watchOS, or visionOS 26.4+ and an SDK compiled with
-          StoreKit 26.4 symbols. On older runtimes, omit{' '}
+          iPadOS, macOS, tvOS, or visionOS 26.4+ and an app compiled with the
+          26.5 SDK or later. On older runtimes, omit{' '}
           <code>billingPlanType</code> and use the store's default billing plan.
         </p>
       </div>

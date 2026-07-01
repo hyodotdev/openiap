@@ -146,13 +146,10 @@ class IosOptionsBuilder {
      */
     var billingPlanType: SubscriptionBillingPlanTypeIOS? = null
     /**
-     * Override introductory offer eligibility (iOS 15+, WWDC 2025).
-     * Set to true to indicate the user is eligible for introductory offer,
-     * or false to indicate they are not. When null, the system determines eligibility.
-     * Back-deployed to iOS 15. Requires Xcode 16.4+ to compile.
-     * Added in openiap-gql v1.3.13 / openiap-apple v1.3.11
+     * Compact JWS string for overriding introductory offer eligibility
+     * (iOS 15+, WWDC 2025). When null, the system determines eligibility.
      */
-    var introductoryOfferEligibility: Boolean? = null
+    var compactJWS: String? = null
     /**
      * JWS promotional offer (iOS 15+, WWDC 2025).
      * New signature format using compact JWS string for promotional offers.
@@ -186,7 +183,7 @@ class IosOptionsBuilder {
             withOffer = withOffer,
             advancedCommerceData = advancedCommerceData,
             billingPlanType = billingPlanType,
-            introductoryOfferEligibility = introductoryOfferEligibility,
+            compactJWS = compactJWS,
             promotionalOfferJWS = promotionalOfferJWS,
             winBackOffer = winBackOffer
         )

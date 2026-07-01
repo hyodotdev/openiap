@@ -523,7 +523,7 @@ void main() {
         apple: types.RequestSubscriptionIosProps(
           sku: 'ios.sub',
           billingPlanType: types.SubscriptionBillingPlanTypeIOS.Monthly,
-          introductoryOfferEligibility: true,
+          compactJWS: 'intro-eligibility-jws',
           promotionalOfferJWS: types.PromotionalOfferJWSInputIOS(
             offerId: 'promo-offer',
             jws: 'header.payload.signature',
@@ -548,7 +548,7 @@ void main() {
       expect(payload['sku'], 'ios.sub');
       expect(payload['type'], 'subs');
       expect(payload['billingPlanType'], 'monthly');
-      expect(payload['introductoryOfferEligibility'], isTrue);
+      expect(payload['compactJWS'], 'intro-eligibility-jws');
       final promotionalOfferJWS = Map<String, dynamic>.from(
         payload['promotionalOfferJWS'] as Map<dynamic, dynamic>,
       );

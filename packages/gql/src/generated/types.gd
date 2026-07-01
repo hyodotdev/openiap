@@ -4462,8 +4462,8 @@ class RequestSubscriptionIosProps:
 	var promotional_offer_jws: PromotionalOfferJWSInputIOS
 	## Billing plan to use when purchasing an annual subscription that offers
 	var billing_plan_type: SubscriptionBillingPlanTypeIOS
-	## Override introductory offer eligibility (iOS 15+, WWDC 2025).
-	var introductory_offer_eligibility: Variant = null
+	## Compact JWS string for overriding introductory offer eligibility
+	var compact_jws: Variant = null
 	## Advanced commerce data token (iOS 15+).
 	var advanced_commerce_data: Variant = null
 
@@ -4498,8 +4498,8 @@ class RequestSubscriptionIosProps:
 				obj.billing_plan_type = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING.get(enum_str, SubscriptionBillingPlanTypeIOS.UNKNOWN)
 			else:
 				obj.billing_plan_type = enum_str
-		if data.has("introductoryOfferEligibility") and data["introductoryOfferEligibility"] != null:
-			obj.introductory_offer_eligibility = data["introductoryOfferEligibility"]
+		if data.has("compactJWS") and data["compactJWS"] != null:
+			obj.compact_jws = data["compactJWS"]
 		if data.has("advancedCommerceData") and data["advancedCommerceData"] != null:
 			obj.advanced_commerce_data = data["advancedCommerceData"]
 		return obj
@@ -4534,8 +4534,8 @@ class RequestSubscriptionIosProps:
 				dict["billingPlanType"] = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_VALUES[billing_plan_type]
 			else:
 				dict["billingPlanType"] = billing_plan_type
-		if introductory_offer_eligibility != null:
-			dict["introductoryOfferEligibility"] = introductory_offer_eligibility
+		if compact_jws != null:
+			dict["compactJWS"] = compact_jws
 		if advanced_commerce_data != null:
 			dict["advancedCommerceData"] = advanced_commerce_data
 		return dict

@@ -505,13 +505,13 @@ enum StoreKitTypesBridge {
             }
 
             // Introductory Offer Eligibility Override (iOS 15+, WWDC 2025)
-            // Allows overriding the system's eligibility check for introductory offers
+            // Allows overriding the system's eligibility check with a server-signed JWS
             // Back-deployed to iOS 15, but requires Xcode 16.4+ / Swift 6.1+ to compile
-            if let eligibility = subscriptionProps.introductoryOfferEligibility {
+            if let compactJWS = subscriptionProps.compactJWS {
                 #if swift(>=6.1)
                 // Swift 6.1+ implementation
-                options.insert(.introductoryOfferEligibility(eligibility))
-                OpenIapLog.debug("✅ Added introductory offer eligibility override: \(eligibility)")
+                options.insert(.introductoryOfferEligibility(compactJWS: compactJWS))
+                OpenIapLog.debug("✅ Added introductory offer eligibility override")
                 #else
                 // Swift < 6.1: API not available, throw error to fail fast
                 OpenIapLog.error("❌ Introductory offer eligibility override requires Xcode 16.4+ / Swift 6.1+")

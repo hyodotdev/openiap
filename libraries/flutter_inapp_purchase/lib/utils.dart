@@ -87,10 +87,9 @@ Map<String, dynamic>? buildIosPurchasePayload(
     payload['billingPlanType'] = billingPlanType;
   }
 
-  final dynamic introductoryOfferEligibility =
-      propsJson['introductoryOfferEligibility'];
-  if (introductoryOfferEligibility is bool) {
-    payload['introductoryOfferEligibility'] = introductoryOfferEligibility;
+  final String? compactJWS = propsJson['compactJWS'] as String?;
+  if (compactJWS != null && compactJWS.isNotEmpty) {
+    payload['compactJWS'] = compactJWS;
   }
 
   final dynamic promotionalOfferJWS = propsJson['promotionalOfferJWS'];

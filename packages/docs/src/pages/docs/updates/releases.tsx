@@ -82,8 +82,17 @@ function Releases() {
               purchases now accept <code>billingPlanType</code> with{' '}
               <code>monthly</code> and <code>up-front</code> values, mapping to
               StoreKit&apos;s{' '}
-              <code>Product.PurchaseOption.billingPlanType</code> on iOS, macOS,
-              tvOS, watchOS, and visionOS 26.4+.
+              <code>Product.PurchaseOption.billingPlanType</code> on iOS,
+              iPadOS, macOS, tvOS, and visionOS 26.4+ when compiled with the
+              26.5 SDK or later.
+            </li>
+            <li>
+              <strong>Introductory offer eligibility correction</strong> —{' '}
+              <code>RequestSubscriptionIosProps.compactJWS</code> replaces the
+              previous boolean-shaped eligibility override and maps to
+              StoreKit&apos;s{' '}
+              <code>introductoryOfferEligibility(compactJWS:)</code> purchase
+              option.
             </li>
             <li>
               <strong>Pricing terms exposed</strong> — iOS subscription products

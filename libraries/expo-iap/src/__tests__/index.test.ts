@@ -873,7 +873,7 @@ describe('Public API (index.ts)', () => {
           apple: {
             sku: 'com.example.subscription.monthly',
             billingPlanType: 'monthly',
-            introductoryOfferEligibility: true,
+            compactJWS: 'intro-eligibility-jws',
             promotionalOfferJWS: {
               offerId: 'promo-offer',
               jws: 'compact-jws',
@@ -892,7 +892,7 @@ describe('Public API (index.ts)', () => {
           ios: {
             sku: 'com.example.subscription.monthly',
             billingPlanType: 'monthly',
-            introductoryOfferEligibility: true,
+            compactJWS: 'intro-eligibility-jws',
             promotionalOfferJWS: {
               offerId: 'promo-offer',
               jws: 'compact-jws',

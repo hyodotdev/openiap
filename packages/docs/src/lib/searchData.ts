@@ -848,7 +848,7 @@ export const apiData: ApiItem[] = [
     title: 'RequestSubscriptionIosProps',
     category: 'Types (iOS)',
     description:
-      'iOS subscription request parameters (same as RequestPurchaseIosProps)',
+      'iOS subscription request parameters: billingPlanType, compactJWS, promotionalOfferJWS, winBackOffer',
     path: '/docs/types/request-purchase-props',
   },
   {

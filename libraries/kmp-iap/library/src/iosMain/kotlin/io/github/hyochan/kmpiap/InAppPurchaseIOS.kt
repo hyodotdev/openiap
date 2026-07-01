@@ -1168,11 +1168,13 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
 
     private fun convertAnyListToSubscriptionPricingTermsIOS(data: Any?): List<SubscriptionPricingTermsIOS>? {
         val list = data as? List<*> ?: return null
-        return list.mapNotNull { item ->
-            mapFromAny(item)?.let { map ->
-                runCatching { SubscriptionPricingTermsIOS.fromJson(map) }.getOrNull()
-            }
-        }.ifEmpty { null }
+        val decoded = mutableListOf<SubscriptionPricingTermsIOS>()
+        for (item in list) {
+            val map = mapFromAny(item) ?: return null
+            val term = runCatching { SubscriptionPricingTermsIOS.fromJson(map) }.getOrElse { return null }
+            decoded += term
+        }
+        return decoded.ifEmpty { null }
     }
 
     @Suppress("UNCHECKED_CAST")
