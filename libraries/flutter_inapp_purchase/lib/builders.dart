@@ -9,6 +9,21 @@ class RequestPurchaseIosBuilder {
   DiscountOfferInputIOS? withOffer;
   String? advancedCommerceData;
 
+  /// Win-back offer to apply when this builder is used with subscriptions
+  /// (iOS 18+)
+  WinBackOfferInputIOS? winBackOffer;
+
+  /// JWS promotional offer when this builder is used with subscriptions
+  /// (iOS 15+, WWDC 2025)
+  PromotionalOfferJWSInputIOS? promotionalOfferJWS;
+
+  /// Billing plan for annual subscriptions with monthly commitment (iOS 26.4+)
+  SubscriptionBillingPlanTypeIOS? billingPlanType;
+
+  /// Compact JWS for overriding introductory offer eligibility when this
+  /// builder is used with subscriptions (iOS 15+)
+  String? compactJWS;
+
   RequestPurchaseIosBuilder();
 
   RequestPurchaseIosProps build() {
@@ -39,8 +54,11 @@ class RequestSubscriptionIosBuilder {
   /// JWS promotional offer (iOS 15+, WWDC 2025)
   PromotionalOfferJWSInputIOS? promotionalOfferJWS;
 
-  /// Override introductory offer eligibility (iOS 15+)
-  bool? introductoryOfferEligibility;
+  /// Billing plan for annual subscriptions with monthly commitment (iOS 26.4+)
+  SubscriptionBillingPlanTypeIOS? billingPlanType;
+
+  /// Compact JWS for overriding introductory offer eligibility (iOS 15+)
+  String? compactJWS;
 
   RequestSubscriptionIosBuilder();
 
@@ -53,9 +71,10 @@ class RequestSubscriptionIosBuilder {
       quantity: quantity,
       withOffer: withOffer,
       advancedCommerceData: advancedCommerceData,
+      billingPlanType: billingPlanType,
       winBackOffer: winBackOffer,
       promotionalOfferJWS: promotionalOfferJWS,
-      introductoryOfferEligibility: introductoryOfferEligibility,
+      compactJWS: compactJWS,
     );
   }
 }
@@ -174,6 +193,10 @@ class RequestPurchaseBuilder {
               quantity: iosProps.quantity,
               withOffer: iosProps.withOffer,
               advancedCommerceData: iosProps.advancedCommerceData,
+              billingPlanType: ios.billingPlanType,
+              winBackOffer: ios.winBackOffer,
+              promotionalOfferJWS: ios.promotionalOfferJWS,
+              compactJWS: ios.compactJWS,
             );
 
       final androidSub = androidProps == null

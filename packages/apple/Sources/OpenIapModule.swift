@@ -195,6 +195,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                     jsonRepresentationIOS: String(data: product.jsonRepresentation, encoding: .utf8) ?? "",
                     platform: .ios,
                     price: NSDecimalNumber(decimal: product.price).doubleValue,
+                    pricingTermsIOS: nil,
                     subscriptionGroupIdIOS: nil,
                     subscriptionInfoIOS: nil,  // StoreKit: Non-renewing subscriptions have no subscription metadata
                     subscriptionPeriodNumberIOS: nil,
@@ -1029,7 +1030,9 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                     let jsonString = String(data: info.jsonRepresentation, encoding: .utf8) ?? info.jsonRepresentation.base64EncodedString()
                     renewalInfo = RenewalInfoIOS(
                         autoRenewPreference: info.autoRenewPreference,
+                        commitmentInfo: StoreKitTypesBridge.renewalCommitmentInfoIOS(from: info),
                         jsonRepresentation: jsonString,
+                        renewalBillingPlanType: StoreKitTypesBridge.renewalBillingPlanTypeIOS(from: info),
                         willAutoRenew: info.willAutoRenew
                     )
                 case .unverified:

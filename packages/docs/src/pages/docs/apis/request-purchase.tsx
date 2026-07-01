@@ -161,6 +161,19 @@ type RequestPurchaseProps =
           — <strong>iOS.</strong> Quantity for consumable bulk purchases.
         </li>
         <li>
+          <code>request.apple.billingPlanType</code>{' '}
+          <em>
+            (subscriptions only, optional,{' '}
+            <code>&apos;monthly&apos; | &apos;up-front&apos;</code>)
+          </em>{' '}
+          — <strong>iOS 26.4+.</strong> Selects the StoreKit subscription
+          billing plan, such as monthly billing with a 12-month commitment. See{' '}
+          <Link to="/docs/features/subscription#ios-commitment-billing-plans">
+            iOS commitment billing plans
+          </Link>
+          .
+        </li>
+        <li>
           <code>request.google.skus</code>{' '}
           <em>
             (Android only, <code>string[]</code>)
@@ -245,6 +258,17 @@ await requestPurchase({
     google: {
       skus: ['com.app.monthly'],
       subscriptionOffers: [{ sku: 'com.app.monthly', offerToken: 'offer-token' }],
+    },
+  },
+  type: 'subs',
+});
+
+// iOS subscription with monthly billing and a 12-month commitment
+await requestPurchase({
+  request: {
+    apple: {
+      sku: 'com.app.annual',
+      billingPlanType: 'monthly',
     },
   },
   type: 'subs',

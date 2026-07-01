@@ -13,6 +13,7 @@ import io.github.hyochan.kmpiap.openiap.RequestSubscriptionIosProps
 import io.github.hyochan.kmpiap.openiap.RequestSubscriptionPropsByPlatforms
 import io.github.hyochan.kmpiap.openiap.DiscountOfferInputIOS
 import io.github.hyochan.kmpiap.openiap.PromotionalOfferJWSInputIOS
+import io.github.hyochan.kmpiap.openiap.SubscriptionBillingPlanTypeIOS
 import io.github.hyochan.kmpiap.openiap.WinBackOfferInputIOS
 
 /**
@@ -141,13 +142,14 @@ class IosOptionsBuilder {
      */
     var advancedCommerceData: String? = null
     /**
-     * Override introductory offer eligibility (iOS 15+, WWDC 2025).
-     * Set to true to indicate the user is eligible for introductory offer,
-     * or false to indicate they are not. When null, the system determines eligibility.
-     * Back-deployed to iOS 15. Requires Xcode 16.4+ to compile.
-     * Added in openiap-gql v1.3.13 / openiap-apple v1.3.11
+     * Billing plan for annual subscriptions with monthly commitment (iOS 26.4+).
      */
-    var introductoryOfferEligibility: Boolean? = null
+    var billingPlanType: SubscriptionBillingPlanTypeIOS? = null
+    /**
+     * Compact JWS string for overriding introductory offer eligibility
+     * (iOS 15+, WWDC 2025). When null, the system determines eligibility.
+     */
+    var compactJWS: String? = null
     /**
      * JWS promotional offer (iOS 15+, WWDC 2025).
      * New signature format using compact JWS string for promotional offers.
@@ -180,7 +182,8 @@ class IosOptionsBuilder {
             andDangerouslyFinishTransactionAutomatically = andDangerouslyFinishTransactionAutomatically,
             withOffer = withOffer,
             advancedCommerceData = advancedCommerceData,
-            introductoryOfferEligibility = introductoryOfferEligibility,
+            billingPlanType = billingPlanType,
+            compactJWS = compactJWS,
             promotionalOfferJWS = promotionalOfferJWS,
             winBackOffer = winBackOffer
         )

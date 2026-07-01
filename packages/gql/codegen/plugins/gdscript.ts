@@ -302,6 +302,33 @@ export class GDScriptPlugin extends CodegenPlugin {
     this.emit('');
   }
 
+  private getEnumUnknownFallback(typeName: string): string | null {
+    const irEnum = this.schema.enums.find(e => e.name === typeName);
+    const unknown = irEnum?.values.find(
+      (value) => value.name.toLowerCase() === 'unknown' || value.rawValue.toLowerCase() === 'unknown'
+    );
+    return unknown ? `${typeName}.${this.enumValueCase(unknown.name)}` : null;
+  }
+
+  private emitEnumFromDictAssignment(indent: string, target: string, typeName: string, sourceExpression: string): void {
+    const enumReverseLookup = toConstantCase(typeName) + '_FROM_STRING';
+    const fallback = this.getEnumUnknownFallback(typeName);
+
+    this.emit(`${indent}var enum_str = ${sourceExpression}`);
+    if (fallback) {
+      this.emit(`${indent}if enum_str is String:`);
+      this.emit(`${indent}\t${target} = ${enumReverseLookup}.get(enum_str, ${fallback})`);
+      this.emit(`${indent}else:`);
+      this.emit(`${indent}\t${target} = enum_str`);
+      return;
+    }
+
+    this.emit(`${indent}if enum_str is String and ${enumReverseLookup}.has(enum_str):`);
+    this.emit(`${indent}\t${target} = ${enumReverseLookup}[enum_str]`);
+    this.emit(`${indent}else:`);
+    this.emit(`${indent}\t${target} = enum_str`);
+  }
+
   // ============================================================================
   // Interfaces (not used in GDScript, but required by base class)
   // ============================================================================
@@ -392,12 +419,7 @@ export class GDScriptPlugin extends CodegenPlugin {
       this.emit(`\t\t\telse:`);
       this.emit(`\t\t\t\tobj.${fieldName} = data["${graphqlName}"]`);
     } else if (type.kind === 'enum') {
-      const enumReverseLookup = toConstantCase(type.name!) + '_FROM_STRING';
-      this.emit(`\t\t\tvar enum_str = data["${graphqlName}"]`);
-      this.emit(`\t\t\tif enum_str is String and ${enumReverseLookup}.has(enum_str):`);
-      this.emit(`\t\t\t\tobj.${fieldName} = ${enumReverseLookup}[enum_str]`);
-      this.emit(`\t\t\telse:`);
-      this.emit(`\t\t\t\tobj.${fieldName} = enum_str`);
+      this.emitEnumFromDictAssignment('\t\t\t', `obj.${fieldName}`, type.name!, `data["${graphqlName}"]`);
     } else {
       this.emit(`\t\t\tobj.${fieldName} = data["${graphqlName}"]`);
     }
@@ -543,12 +565,7 @@ export class GDScriptPlugin extends CodegenPlugin {
       this.emit(`\t\t\telse:`);
       this.emit(`\t\t\t\tobj.${fieldName} = data["${graphqlName}"]`);
     } else if (type.kind === 'enum') {
-      const enumReverseLookup = toConstantCase(type.name!) + '_FROM_STRING';
-      this.emit(`\t\t\tvar enum_str = data["${graphqlName}"]`);
-      this.emit(`\t\t\tif enum_str is String and ${enumReverseLookup}.has(enum_str):`);
-      this.emit(`\t\t\t\tobj.${fieldName} = ${enumReverseLookup}[enum_str]`);
-      this.emit(`\t\t\telse:`);
-      this.emit(`\t\t\t\tobj.${fieldName} = enum_str`);
+      this.emitEnumFromDictAssignment('\t\t\t', `obj.${fieldName}`, type.name!, `data["${graphqlName}"]`);
     } else {
       this.emit(`\t\t\tobj.${fieldName} = data["${graphqlName}"]`);
     }
@@ -631,12 +648,12 @@ export class GDScriptPlugin extends CodegenPlugin {
             const argSnakeName = this.escapeKeyword(toSnakeCase(arg.name));
             this.emit(`\t\t\t\tif data.has("${arg.name}") and data["${arg.name}"] != null:`);
             if (arg.type.kind === 'enum') {
-              const enumReverseLookup = toConstantCase(arg.type.name!) + '_FROM_STRING';
-              this.emit(`\t\t\t\t\tvar enum_str = data["${arg.name}"]`);
-              this.emit(`\t\t\t\t\tif enum_str is String and ${enumReverseLookup}.has(enum_str):`);
-              this.emit(`\t\t\t\t\t\tobj.${argSnakeName} = ${enumReverseLookup}[enum_str]`);
-              this.emit(`\t\t\t\t\telse:`);
-              this.emit(`\t\t\t\t\t\tobj.${argSnakeName} = enum_str`);
+              this.emitEnumFromDictAssignment(
+                '\t\t\t\t\t',
+                `obj.${argSnakeName}`,
+                arg.type.name!,
+                `data["${arg.name}"]`
+              );
             } else {
               this.emit(`\t\t\t\t\tobj.${argSnakeName} = data["${arg.name}"]`);
             }

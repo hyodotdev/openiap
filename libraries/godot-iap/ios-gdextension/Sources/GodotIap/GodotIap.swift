@@ -276,6 +276,56 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     }
 
     @Callable
+    public func requestPurchaseWithPayload(argsJson: String) -> String {
+        GodotIapLog.payload("requestPurchaseWithPayload", payload: argsJson)
+
+        guard let data = argsJson.data(using: .utf8),
+              let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return jsonString([
+                "success": false,
+                "code": ErrorCode.developerError.rawValue,
+                "error": "Invalid request payload"
+            ])
+        }
+
+        let purchaseProps: RequestPurchaseProps
+        do {
+            purchaseProps = try GodotIapHelper.decodeRequestPurchaseProps(from: payload)
+        } catch {
+            return jsonString([
+                "success": false,
+                "code": ErrorCode.developerError.rawValue,
+                "error": error.localizedDescription
+            ])
+        }
+
+        Task { [weak self] in
+            do {
+                let result = try await self?.openIap.requestPurchase(purchaseProps)
+
+                switch result {
+                case .purchase(let purchase):
+                    if purchase == nil {
+                        await self?.emitPurchaseError(code: ErrorCode.userCancelled.rawValue, message: "Purchase was cancelled")
+                    }
+                case .purchases(let purchases):
+                    if purchases?.isEmpty ?? true {
+                        await self?.emitPurchaseError(code: ErrorCode.userCancelled.rawValue, message: "Purchase was cancelled")
+                    }
+                case .none:
+                    await self?.emitPurchaseError(code: ErrorCode.userCancelled.rawValue, message: "Purchase was cancelled")
+                }
+            } catch let error as PurchaseError {
+                await self?.emitPurchaseError(code: error.code.rawValue, message: error.message)
+            } catch {
+                await self?.emitPurchaseError(code: ErrorCode.purchaseError.rawValue, message: error.localizedDescription)
+            }
+        }
+
+        return "{\"status\": \"pending\"}"
+    }
+
+    @Callable
     public func finishTransaction(argsJson: String) -> String {
         GodotIapLog.payload("finishTransaction", payload: argsJson)
 
@@ -1519,6 +1569,14 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             dictionary["subscriptionGroupIdIOS"] = groupId
         }
         return dictionary
+    }
+
+    private func jsonString(_ object: [String: Any]) -> String {
+        guard let data = try? JSONSerialization.data(withJSONObject: object),
+              let string = String(data: data, encoding: .utf8) else {
+            return "{\"success\": false, \"code\": \"unknown\", \"error\": \"JSON serialization failed\"}"
+        }
+        return string
     }
 
     private func purchaseToDictionary(_ purchase: Purchase) -> [String: Any] {

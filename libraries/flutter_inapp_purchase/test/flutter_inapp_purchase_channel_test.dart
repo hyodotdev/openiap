@@ -522,7 +522,8 @@ void main() {
       const props = types.RequestPurchaseProps.subs((
         apple: types.RequestSubscriptionIosProps(
           sku: 'ios.sub',
-          introductoryOfferEligibility: true,
+          billingPlanType: types.SubscriptionBillingPlanTypeIOS.Monthly,
+          compactJWS: 'intro-eligibility-jws',
           promotionalOfferJWS: types.PromotionalOfferJWSInputIOS(
             offerId: 'promo-offer',
             jws: 'header.payload.signature',
@@ -546,7 +547,8 @@ void main() {
 
       expect(payload['sku'], 'ios.sub');
       expect(payload['type'], 'subs');
-      expect(payload['introductoryOfferEligibility'], isTrue);
+      expect(payload['billingPlanType'], 'monthly');
+      expect(payload['compactJWS'], 'intro-eligibility-jws');
       final promotionalOfferJWS = Map<String, dynamic>.from(
         payload['promotionalOfferJWS'] as Map<dynamic, dynamic>,
       );

@@ -34,6 +34,18 @@ const LEGACY_ANCHOR_REDIRECTS: Record<string, string> = {
   'discount-offer-ios': '/docs/types/ios/discount-offer-ios',
   'discount-ios': '/docs/types/ios/discount-ios',
   'subscription-period-ios': '/docs/types/ios/subscription-period-ios',
+  'subscription-billing-plan-ios':
+    '/docs/types/ios/subscription-billing-plan-ios',
+  'subscription-billing-plan-type-ios':
+    '/docs/types/ios/subscription-billing-plan-ios#subscription-billing-plan-type-ios',
+  'subscription-pricing-terms-ios':
+    '/docs/types/ios/subscription-billing-plan-ios#subscription-pricing-terms-ios',
+  'subscription-commitment-info-ios':
+    '/docs/types/ios/subscription-billing-plan-ios#subscription-commitment-info-ios',
+  'transaction-commitment-info-ios':
+    '/docs/types/ios/subscription-billing-plan-ios#transaction-commitment-info-ios',
+  'renewal-commitment-info-ios':
+    '/docs/types/ios/subscription-billing-plan-ios#renewal-commitment-info-ios',
   'payment-mode-ios': '/docs/types/ios/payment-mode-ios',
   'subscription-status-ios': '/docs/types/ios/subscription-status-ios',
   'app-transaction-ios': '/docs/types/ios/app-transaction-ios',
@@ -191,6 +203,12 @@ const IOS_TYPES: TypeRow[] = [
     to: '/docs/types/ios/subscription-period-ios',
     name: 'SubscriptionPeriodIOS',
     description: 'iOS subscription period units (Day/Week/Month/Year).',
+  },
+  {
+    to: '/docs/types/ios/subscription-billing-plan-ios',
+    name: 'SubscriptionBillingPlanIOS',
+    description:
+      'StoreKit 26.4 billing plan and commitment types for iOS subscriptions.',
   },
   {
     to: '/docs/types/ios/payment-mode-ios',

@@ -1721,11 +1721,11 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
       }
       if (isSubs) {
         const subscriptionRequest = iosRequest as RequestSubscriptionIosProps;
-        if (
-          subscriptionRequest.introductoryOfferEligibility !== undefined
-        ) {
-          iosPayload.introductoryOfferEligibility =
-            subscriptionRequest.introductoryOfferEligibility;
+        if (subscriptionRequest.billingPlanType) {
+          iosPayload.billingPlanType = subscriptionRequest.billingPlanType;
+        }
+        if (subscriptionRequest.compactJWS !== undefined) {
+          iosPayload.compactJWS = subscriptionRequest.compactJWS;
         }
         if (subscriptionRequest.promotionalOfferJWS) {
           iosPayload.promotionalOfferJWS =

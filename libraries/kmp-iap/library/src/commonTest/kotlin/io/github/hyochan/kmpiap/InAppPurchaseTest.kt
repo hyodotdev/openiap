@@ -168,11 +168,19 @@ class InAppPurchaseTest {
     fun testRequestSubscriptionIosPropsWithAdvancedCommerceData() {
         val props = RequestSubscriptionIosProps(
             sku = "com.example.subscription.monthly",
-            advancedCommerceData = "campaign_q4_2025"
+            advancedCommerceData = "campaign_q4_2025",
+            billingPlanType = SubscriptionBillingPlanTypeIOS.Monthly
         )
 
         assertEquals("com.example.subscription.monthly", props.sku)
         assertEquals("campaign_q4_2025", props.advancedCommerceData)
+        assertEquals(SubscriptionBillingPlanTypeIOS.Monthly, props.billingPlanType)
+
+        val decoded = RequestSubscriptionIosProps.fromJson(props.toJson())!!
+
+        assertEquals("com.example.subscription.monthly", decoded.sku)
+        assertEquals("campaign_q4_2025", decoded.advancedCommerceData)
+        assertEquals(SubscriptionBillingPlanTypeIOS.Monthly, decoded.billingPlanType)
     }
 
     // =========================================================================

@@ -795,6 +795,33 @@ enum SubResponseCodeAndroid {
   String toJson() => value;
 }
 
+enum SubscriptionBillingPlanTypeIOS {
+  /// Unknown or unsupported billing plan type.
+  Unknown('unknown'),
+  /// Monthly billing with a 12-month commitment.
+  Monthly('monthly'),
+  /// Up-front billing for the full subscription period.
+  UpFront('up-front');
+
+  const SubscriptionBillingPlanTypeIOS(this.value);
+  final String value;
+
+  factory SubscriptionBillingPlanTypeIOS.fromJson(String value) {
+    final normalized = value.toLowerCase().replaceAll('_', '-');
+    switch (normalized) {
+      case 'unknown':
+        return SubscriptionBillingPlanTypeIOS.Unknown;
+      case 'monthly':
+        return SubscriptionBillingPlanTypeIOS.Monthly;
+      case 'up-front':
+        return SubscriptionBillingPlanTypeIOS.UpFront;
+    }
+    throw ArgumentError('Unknown SubscriptionBillingPlanTypeIOS value: $value');
+  }
+
+  String toJson() => value;
+}
+
 enum SubscriptionOfferTypeIOS {
   Introductory('introductory'),
   Promotional('promotional'),
@@ -2500,6 +2527,7 @@ class ProductIOS extends Product implements ProductCommon {
     required this.jsonRepresentationIOS,
     this.platform = IapPlatform.IOS,
     this.price,
+    this.pricingTermsIOS,
     this.subscriptionInfoIOS,
     this.subscriptionOffers,
     required this.title,
@@ -2518,6 +2546,9 @@ class ProductIOS extends Product implements ProductCommon {
   final String jsonRepresentationIOS;
   final IapPlatform platform;
   final double? price;
+  /// iOS 26.4+ subscription pricing terms, including billing plan metadata for
+  /// monthly subscriptions with a 12-month commitment.
+  final List<SubscriptionPricingTermsIOS>? pricingTermsIOS;
   /// @deprecated Use subscriptionOffers instead for cross-platform compatibility.
   final SubscriptionInfoIOS? subscriptionInfoIOS;
   /// Standardized subscription offers.
@@ -2542,6 +2573,7 @@ class ProductIOS extends Product implements ProductCommon {
       jsonRepresentationIOS: json['jsonRepresentationIOS'] as String,
       platform: IapPlatform.fromJson(json['platform'] as String),
       price: (json['price'] as num?)?.toDouble(),
+      pricingTermsIOS: (json['pricingTermsIOS'] as List<dynamic>?) == null ? null : (json['pricingTermsIOS'] as List<dynamic>?)!.map((e) => SubscriptionPricingTermsIOS.fromJson(e as Map<String, dynamic>)).toList(),
       subscriptionInfoIOS: json['subscriptionInfoIOS'] != null ? SubscriptionInfoIOS.fromJson(json['subscriptionInfoIOS'] as Map<String, dynamic>) : null,
       subscriptionOffers: (json['subscriptionOffers'] as List<dynamic>?) == null ? null : (json['subscriptionOffers'] as List<dynamic>?)!.map((e) => SubscriptionOffer.fromJson(e as Map<String, dynamic>)).toList(),
       title: json['title'] as String,
@@ -2565,6 +2597,7 @@ class ProductIOS extends Product implements ProductCommon {
       'jsonRepresentationIOS': jsonRepresentationIOS,
       'platform': platform.toJson(),
       'price': price,
+      'pricingTermsIOS': pricingTermsIOS == null ? null : pricingTermsIOS!.map((e) => e.toJson()).toList(),
       'subscriptionInfoIOS': subscriptionInfoIOS?.toJson(),
       'subscriptionOffers': subscriptionOffers == null ? null : subscriptionOffers!.map((e) => e.toJson()).toList(),
       'title': title,
@@ -2737,6 +2770,7 @@ class ProductSubscriptionIOS extends ProductSubscription implements ProductCommo
     required this.jsonRepresentationIOS,
     this.platform = IapPlatform.IOS,
     this.price,
+    this.pricingTermsIOS,
     this.subscriptionGroupIdIOS,
     this.subscriptionInfoIOS,
     this.subscriptionOffers,
@@ -2765,6 +2799,9 @@ class ProductSubscriptionIOS extends ProductSubscription implements ProductCommo
   final String jsonRepresentationIOS;
   final IapPlatform platform;
   final double? price;
+  /// iOS 26.4+ subscription pricing terms, including billing plan metadata for
+  /// monthly subscriptions with a 12-month commitment.
+  final List<SubscriptionPricingTermsIOS>? pricingTermsIOS;
   /// App Store subscription group identifier for intro-offer eligibility checks.
   final String? subscriptionGroupIdIOS;
   /// @deprecated Use subscriptionOffers for offer metadata and subscriptionGroupIdIOS for the App Store subscription group identifier.
@@ -2798,6 +2835,7 @@ class ProductSubscriptionIOS extends ProductSubscription implements ProductCommo
       jsonRepresentationIOS: json['jsonRepresentationIOS'] as String,
       platform: IapPlatform.fromJson(json['platform'] as String),
       price: (json['price'] as num?)?.toDouble(),
+      pricingTermsIOS: (json['pricingTermsIOS'] as List<dynamic>?) == null ? null : (json['pricingTermsIOS'] as List<dynamic>?)!.map((e) => SubscriptionPricingTermsIOS.fromJson(e as Map<String, dynamic>)).toList(),
       subscriptionGroupIdIOS: json['subscriptionGroupIdIOS'] as String?,
       subscriptionInfoIOS: json['subscriptionInfoIOS'] != null ? SubscriptionInfoIOS.fromJson(json['subscriptionInfoIOS'] as Map<String, dynamic>) : null,
       subscriptionOffers: (json['subscriptionOffers'] as List<dynamic>?) == null ? null : (json['subscriptionOffers'] as List<dynamic>?)!.map((e) => SubscriptionOffer.fromJson(e as Map<String, dynamic>)).toList(),
@@ -2830,6 +2868,7 @@ class ProductSubscriptionIOS extends ProductSubscription implements ProductCommo
       'jsonRepresentationIOS': jsonRepresentationIOS,
       'platform': platform.toJson(),
       'price': price,
+      'pricingTermsIOS': pricingTermsIOS == null ? null : pricingTermsIOS!.map((e) => e.toJson()).toList(),
       'subscriptionGroupIdIOS': subscriptionGroupIdIOS,
       'subscriptionInfoIOS': subscriptionInfoIOS?.toJson(),
       'subscriptionOffers': subscriptionOffers == null ? null : subscriptionOffers!.map((e) => e.toJson()).toList(),
@@ -3016,6 +3055,8 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
     this.advancedCommerceInfoIOS,
     this.appAccountToken,
     this.appBundleIdIOS,
+    this.billingPlanTypeIOS,
+    this.commitmentInfoIOS,
     this.countryCodeIOS,
     this.currencyCodeIOS,
     this.currencySymbolIOS,
@@ -3057,6 +3098,10 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
   final AdvancedCommerceInfoIOS? advancedCommerceInfoIOS;
   final String? appAccountToken;
   final String? appBundleIdIOS;
+  /// iOS 26.4+ billing plan selected for this transaction.
+  final SubscriptionBillingPlanTypeIOS? billingPlanTypeIOS;
+  /// iOS 26.4+ progress information for monthly subscriptions with a 12-month commitment.
+  final TransactionCommitmentInfoIOS? commitmentInfoIOS;
   final String? countryCodeIOS;
   final String? currencyCodeIOS;
   final String? currencySymbolIOS;
@@ -3097,6 +3142,8 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
       advancedCommerceInfoIOS: json['advancedCommerceInfoIOS'] != null ? AdvancedCommerceInfoIOS.fromJson(json['advancedCommerceInfoIOS'] as Map<String, dynamic>) : null,
       appAccountToken: json['appAccountToken'] as String?,
       appBundleIdIOS: json['appBundleIdIOS'] as String?,
+      billingPlanTypeIOS: json['billingPlanTypeIOS'] != null ? SubscriptionBillingPlanTypeIOS.fromJson(json['billingPlanTypeIOS'] as String) : null,
+      commitmentInfoIOS: json['commitmentInfoIOS'] != null ? TransactionCommitmentInfoIOS.fromJson(json['commitmentInfoIOS'] as Map<String, dynamic>) : null,
       countryCodeIOS: json['countryCodeIOS'] as String?,
       currencyCodeIOS: json['currencyCodeIOS'] as String?,
       currencySymbolIOS: json['currencySymbolIOS'] as String?,
@@ -3140,6 +3187,8 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
       'advancedCommerceInfoIOS': advancedCommerceInfoIOS?.toJson(),
       'appAccountToken': appAccountToken,
       'appBundleIdIOS': appBundleIdIOS,
+      'billingPlanTypeIOS': billingPlanTypeIOS?.toJson(),
+      'commitmentInfoIOS': commitmentInfoIOS?.toJson(),
       'countryCodeIOS': countryCodeIOS,
       'currencyCodeIOS': currencyCodeIOS,
       'currencySymbolIOS': currencySymbolIOS,
@@ -3231,17 +3280,56 @@ class RefundResultIOS {
   }
 }
 
+class RenewalCommitmentInfoIOS {
+  const RenewalCommitmentInfoIOS({
+    required this.commitmentAutoRenewProductId,
+    required this.commitmentAutoRenewStatus,
+    required this.commitmentRenewalBillingPlanType,
+    required this.commitmentRenewalDate,
+    required this.commitmentRenewalPrice,
+  });
+
+  final String commitmentAutoRenewProductId;
+  final bool commitmentAutoRenewStatus;
+  final SubscriptionBillingPlanTypeIOS commitmentRenewalBillingPlanType;
+  final double commitmentRenewalDate;
+  final double commitmentRenewalPrice;
+
+  factory RenewalCommitmentInfoIOS.fromJson(Map<String, dynamic> json) {
+    return RenewalCommitmentInfoIOS(
+      commitmentAutoRenewProductId: json['commitmentAutoRenewProductId'] as String,
+      commitmentAutoRenewStatus: json['commitmentAutoRenewStatus'] as bool,
+      commitmentRenewalBillingPlanType: SubscriptionBillingPlanTypeIOS.fromJson(json['commitmentRenewalBillingPlanType'] as String),
+      commitmentRenewalDate: (json['commitmentRenewalDate'] as num).toDouble(),
+      commitmentRenewalPrice: (json['commitmentRenewalPrice'] as num).toDouble(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '__typename': 'RenewalCommitmentInfoIOS',
+      'commitmentAutoRenewProductId': commitmentAutoRenewProductId,
+      'commitmentAutoRenewStatus': commitmentAutoRenewStatus,
+      'commitmentRenewalBillingPlanType': commitmentRenewalBillingPlanType.toJson(),
+      'commitmentRenewalDate': commitmentRenewalDate,
+      'commitmentRenewalPrice': commitmentRenewalPrice,
+    };
+  }
+}
+
 /// Subscription renewal information from Product.SubscriptionInfo.RenewalInfo
 /// https://developer.apple.com/documentation/storekit/product/subscriptioninfo/renewalinfo
 class RenewalInfoIOS {
   const RenewalInfoIOS({
     this.autoRenewPreference,
+    this.commitmentInfo,
     this.expirationReason,
     this.gracePeriodExpirationDate,
     this.isInBillingRetry,
     this.jsonRepresentation,
     this.pendingUpgradeProductId,
     this.priceIncreaseStatus,
+    this.renewalBillingPlanType,
     this.renewalDate,
     this.renewalOfferId,
     this.renewalOfferType,
@@ -3249,6 +3337,9 @@ class RenewalInfoIOS {
   });
 
   final String? autoRenewPreference;
+  /// iOS 26.4+ renewal commitment metadata for monthly subscriptions with a
+  /// 12-month commitment.
+  final RenewalCommitmentInfoIOS? commitmentInfo;
   /// When subscription expires due to cancellation/billing issue
   /// Possible values: "VOLUNTARY", "BILLING_ERROR", "DID_NOT_AGREE_TO_PRICE_INCREASE", "PRODUCT_NOT_AVAILABLE", "UNKNOWN"
   final String? expirationReason;
@@ -3265,6 +3356,8 @@ class RenewalInfoIOS {
   /// User's response to subscription price increase
   /// Possible values: "AGREED", "PENDING", null (no price increase)
   final String? priceIncreaseStatus;
+  /// iOS 26.4+ billing plan that will renew after the current period.
+  final SubscriptionBillingPlanTypeIOS? renewalBillingPlanType;
   /// Expected renewal date (milliseconds since epoch)
   /// For active subscriptions, when the next renewal/charge will occur
   final double? renewalDate;
@@ -3278,12 +3371,14 @@ class RenewalInfoIOS {
   factory RenewalInfoIOS.fromJson(Map<String, dynamic> json) {
     return RenewalInfoIOS(
       autoRenewPreference: json['autoRenewPreference'] as String?,
+      commitmentInfo: json['commitmentInfo'] != null ? RenewalCommitmentInfoIOS.fromJson(json['commitmentInfo'] as Map<String, dynamic>) : null,
       expirationReason: json['expirationReason'] as String?,
       gracePeriodExpirationDate: (json['gracePeriodExpirationDate'] as num?)?.toDouble(),
       isInBillingRetry: json['isInBillingRetry'] as bool?,
       jsonRepresentation: json['jsonRepresentation'] as String?,
       pendingUpgradeProductId: json['pendingUpgradeProductId'] as String?,
       priceIncreaseStatus: json['priceIncreaseStatus'] as String?,
+      renewalBillingPlanType: json['renewalBillingPlanType'] != null ? SubscriptionBillingPlanTypeIOS.fromJson(json['renewalBillingPlanType'] as String) : null,
       renewalDate: (json['renewalDate'] as num?)?.toDouble(),
       renewalOfferId: json['renewalOfferId'] as String?,
       renewalOfferType: json['renewalOfferType'] as String?,
@@ -3295,12 +3390,14 @@ class RenewalInfoIOS {
     return {
       '__typename': 'RenewalInfoIOS',
       'autoRenewPreference': autoRenewPreference,
+      'commitmentInfo': commitmentInfo?.toJson(),
       'expirationReason': expirationReason,
       'gracePeriodExpirationDate': gracePeriodExpirationDate,
       'isInBillingRetry': isInBillingRetry,
       'jsonRepresentation': jsonRepresentation,
       'pendingUpgradeProductId': pendingUpgradeProductId,
       'priceIncreaseStatus': priceIncreaseStatus,
+      'renewalBillingPlanType': renewalBillingPlanType?.toJson(),
       'renewalDate': renewalDate,
       'renewalOfferId': renewalOfferId,
       'renewalOfferType': renewalOfferType,
@@ -3384,15 +3481,46 @@ class RequestVerifyPurchaseWithIapkitResult {
   }
 }
 
+class SubscriptionCommitmentInfoIOS {
+  const SubscriptionCommitmentInfoIOS({
+    required this.displayPrice,
+    required this.period,
+    required this.price,
+  });
+
+  final String displayPrice;
+  final SubscriptionPeriodValueIOS period;
+  final double price;
+
+  factory SubscriptionCommitmentInfoIOS.fromJson(Map<String, dynamic> json) {
+    return SubscriptionCommitmentInfoIOS(
+      displayPrice: json['displayPrice'] as String,
+      period: SubscriptionPeriodValueIOS.fromJson(json['period'] as Map<String, dynamic>),
+      price: (json['price'] as num).toDouble(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '__typename': 'SubscriptionCommitmentInfoIOS',
+      'displayPrice': displayPrice,
+      'period': period.toJson(),
+      'price': price,
+    };
+  }
+}
+
 class SubscriptionInfoIOS {
   const SubscriptionInfoIOS({
     this.introductoryOffer,
+    this.pricingTerms,
     this.promotionalOffers,
     required this.subscriptionGroupId,
     required this.subscriptionPeriod,
   });
 
   final SubscriptionOfferIOS? introductoryOffer;
+  final List<SubscriptionPricingTermsIOS>? pricingTerms;
   final List<SubscriptionOfferIOS>? promotionalOffers;
   final String subscriptionGroupId;
   final SubscriptionPeriodValueIOS subscriptionPeriod;
@@ -3400,6 +3528,7 @@ class SubscriptionInfoIOS {
   factory SubscriptionInfoIOS.fromJson(Map<String, dynamic> json) {
     return SubscriptionInfoIOS(
       introductoryOffer: json['introductoryOffer'] != null ? SubscriptionOfferIOS.fromJson(json['introductoryOffer'] as Map<String, dynamic>) : null,
+      pricingTerms: (json['pricingTerms'] as List<dynamic>?) == null ? null : (json['pricingTerms'] as List<dynamic>?)!.map((e) => SubscriptionPricingTermsIOS.fromJson(e as Map<String, dynamic>)).toList(),
       promotionalOffers: (json['promotionalOffers'] as List<dynamic>?) == null ? null : (json['promotionalOffers'] as List<dynamic>?)!.map((e) => SubscriptionOfferIOS.fromJson(e as Map<String, dynamic>)).toList(),
       subscriptionGroupId: json['subscriptionGroupId'] as String,
       subscriptionPeriod: SubscriptionPeriodValueIOS.fromJson(json['subscriptionPeriod'] as Map<String, dynamic>),
@@ -3410,6 +3539,7 @@ class SubscriptionInfoIOS {
     return {
       '__typename': 'SubscriptionInfoIOS',
       'introductoryOffer': introductoryOffer?.toJson(),
+      'pricingTerms': pricingTerms == null ? null : pricingTerms!.map((e) => e.toJson()).toList(),
       'promotionalOffers': promotionalOffers == null ? null : promotionalOffers!.map((e) => e.toJson()).toList(),
       'subscriptionGroupId': subscriptionGroupId,
       'subscriptionPeriod': subscriptionPeriod.toJson(),
@@ -3650,6 +3780,47 @@ class SubscriptionPeriodValueIOS {
   }
 }
 
+class SubscriptionPricingTermsIOS {
+  const SubscriptionPricingTermsIOS({
+    required this.billingDisplayPrice,
+    required this.billingPeriod,
+    required this.billingPlanType,
+    required this.billingPrice,
+    required this.commitmentInfo,
+    this.subscriptionOffers,
+  });
+
+  final String billingDisplayPrice;
+  final SubscriptionPeriodValueIOS billingPeriod;
+  final SubscriptionBillingPlanTypeIOS billingPlanType;
+  final double billingPrice;
+  final SubscriptionCommitmentInfoIOS commitmentInfo;
+  final List<SubscriptionOffer>? subscriptionOffers;
+
+  factory SubscriptionPricingTermsIOS.fromJson(Map<String, dynamic> json) {
+    return SubscriptionPricingTermsIOS(
+      billingDisplayPrice: json['billingDisplayPrice'] as String,
+      billingPeriod: SubscriptionPeriodValueIOS.fromJson(json['billingPeriod'] as Map<String, dynamic>),
+      billingPlanType: SubscriptionBillingPlanTypeIOS.fromJson(json['billingPlanType'] as String),
+      billingPrice: (json['billingPrice'] as num).toDouble(),
+      commitmentInfo: SubscriptionCommitmentInfoIOS.fromJson(json['commitmentInfo'] as Map<String, dynamic>),
+      subscriptionOffers: (json['subscriptionOffers'] as List<dynamic>?) == null ? null : (json['subscriptionOffers'] as List<dynamic>?)!.map((e) => SubscriptionOffer.fromJson(e as Map<String, dynamic>)).toList(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '__typename': 'SubscriptionPricingTermsIOS',
+      'billingDisplayPrice': billingDisplayPrice,
+      'billingPeriod': billingPeriod.toJson(),
+      'billingPlanType': billingPlanType.toJson(),
+      'billingPrice': billingPrice,
+      'commitmentInfo': commitmentInfo.toJson(),
+      'subscriptionOffers': subscriptionOffers == null ? null : subscriptionOffers!.map((e) => e.toJson()).toList(),
+    };
+  }
+}
+
 class SubscriptionStatusIOS {
   const SubscriptionStatusIOS({
     this.renewalInfo,
@@ -3671,6 +3842,39 @@ class SubscriptionStatusIOS {
       '__typename': 'SubscriptionStatusIOS',
       'renewalInfo': renewalInfo?.toJson(),
       'state': state,
+    };
+  }
+}
+
+class TransactionCommitmentInfoIOS {
+  const TransactionCommitmentInfoIOS({
+    required this.billingPeriodNumber,
+    required this.commitmentExpiresDate,
+    required this.commitmentPrice,
+    required this.totalBillingPeriods,
+  });
+
+  final int billingPeriodNumber;
+  final double commitmentExpiresDate;
+  final double commitmentPrice;
+  final int totalBillingPeriods;
+
+  factory TransactionCommitmentInfoIOS.fromJson(Map<String, dynamic> json) {
+    return TransactionCommitmentInfoIOS(
+      billingPeriodNumber: json['billingPeriodNumber'] as int,
+      commitmentExpiresDate: (json['commitmentExpiresDate'] as num).toDouble(),
+      commitmentPrice: (json['commitmentPrice'] as num).toDouble(),
+      totalBillingPeriods: json['totalBillingPeriods'] as int,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '__typename': 'TransactionCommitmentInfoIOS',
+      'billingPeriodNumber': billingPeriodNumber,
+      'commitmentExpiresDate': commitmentExpiresDate,
+      'commitmentPrice': commitmentPrice,
+      'totalBillingPeriods': totalBillingPeriods,
     };
   }
 }
@@ -4649,7 +4853,8 @@ class RequestSubscriptionIosProps {
     this.advancedCommerceData,
     this.andDangerouslyFinishTransactionAutomatically,
     this.appAccountToken,
-    this.introductoryOfferEligibility,
+    this.billingPlanType,
+    this.compactJWS,
     this.promotionalOfferJWS,
     this.quantity,
     required this.sku,
@@ -4664,11 +4869,14 @@ class RequestSubscriptionIosProps {
   final String? advancedCommerceData;
   final bool? andDangerouslyFinishTransactionAutomatically;
   final String? appAccountToken;
-  /// Override introductory offer eligibility (iOS 15+, WWDC 2025).
-  /// Set to true to indicate the user is eligible for introductory offer,
-  /// or false to indicate they are not. When nil, the system determines eligibility.
-  /// Back-deployed to iOS 15.
-  final bool? introductoryOfferEligibility;
+  /// Billing plan to use when purchasing an annual subscription that offers
+  /// monthly billing with a 12-month commitment (iOS 26.4+).
+  final SubscriptionBillingPlanTypeIOS? billingPlanType;
+  /// Compact JWS string for overriding introductory offer eligibility
+  /// (iOS 15+, WWDC 2025). When nil, the system determines eligibility.
+  /// Generate the JWS on your server and pass it to StoreKit's
+  /// introductoryOfferEligibility(compactJWS:) purchase option.
+  final String? compactJWS;
   /// JWS promotional offer (iOS 15+, WWDC 2025).
   /// New signature format using compact JWS string for promotional offers.
   /// Back-deployed to iOS 15.
@@ -4689,7 +4897,8 @@ class RequestSubscriptionIosProps {
       advancedCommerceData: json['advancedCommerceData'] as String?,
       andDangerouslyFinishTransactionAutomatically: json['andDangerouslyFinishTransactionAutomatically'] as bool?,
       appAccountToken: json['appAccountToken'] as String?,
-      introductoryOfferEligibility: json['introductoryOfferEligibility'] as bool?,
+      billingPlanType: json['billingPlanType'] != null ? SubscriptionBillingPlanTypeIOS.fromJson(json['billingPlanType'] as String) : null,
+      compactJWS: json['compactJWS'] as String?,
       promotionalOfferJWS: json['promotionalOfferJWS'] != null ? PromotionalOfferJWSInputIOS.fromJson(json['promotionalOfferJWS'] as Map<String, dynamic>) : null,
       quantity: json['quantity'] as int?,
       sku: json['sku'] as String,
@@ -4703,7 +4912,8 @@ class RequestSubscriptionIosProps {
       'advancedCommerceData': advancedCommerceData,
       'andDangerouslyFinishTransactionAutomatically': andDangerouslyFinishTransactionAutomatically,
       'appAccountToken': appAccountToken,
-      'introductoryOfferEligibility': introductoryOfferEligibility,
+      'billingPlanType': billingPlanType?.toJson(),
+      'compactJWS': compactJWS,
       'promotionalOfferJWS': promotionalOfferJWS?.toJson(),
       'quantity': quantity,
       'sku': sku,

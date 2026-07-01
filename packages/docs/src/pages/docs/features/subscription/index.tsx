@@ -24,6 +24,216 @@ function Subscription() {
       </p>
 
       <section>
+        <AnchorLink id="ios-commitment-billing-plans" level="h2">
+          iOS Commitment Billing Plans
+        </AnchorLink>
+        <p>
+          StoreKit 26.4 supports auto-renewable subscriptions that can be paid
+          monthly while committing the customer to a longer period, such as a
+          12-month commitment, or paid up front for the full subscription
+          period. OpenIAP exposes these iOS billing plans without changing the
+          Android subscription-offer flow.
+        </p>
+        <ul>
+          <li>
+            Fetch products first and read <code>pricingTermsIOS</code> to show
+            the available <code>monthly</code> and <code>up-front</code> plans.
+          </li>
+          <li>
+            Pass <code>billingPlanType: &apos;monthly&apos;</code> when the user
+            chooses monthly billing with commitment.
+          </li>
+          <li>
+            Read <code>PurchaseIOS.billingPlanTypeIOS</code> and{' '}
+            <code>PurchaseIOS.commitmentInfoIOS</code> after purchase to record
+            the selected commitment.
+          </li>
+          <li>
+            Use <code>RenewalInfoIOS.renewalBillingPlanType</code> and{' '}
+            <code>RenewalInfoIOS.commitmentInfo</code> for upcoming commitment
+            renewal state when StoreKit returns it.
+          </li>
+        </ul>
+
+        <div className="alert-card alert-card--warning">
+          <p>
+            <strong>Availability:</strong> billing plan selection requires iOS,
+            iPadOS, macOS, tvOS, or visionOS 26.4+ and an app compiled with the
+            26.5 SDK or later. If the app runs on an older Apple OS version,
+            omit <code>billingPlanType</code> and let StoreKit purchase the
+            default plan. Never send <code>unknown</code> as a purchase option.
+          </p>
+        </div>
+
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>OpenIAP field</th>
+              <th>Use it for</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>ProductSubscriptionIOS.pricingTermsIOS</code>
+              </td>
+              <td>Displaying StoreKit billing choices before purchase.</td>
+            </tr>
+            <tr>
+              <td>
+                <code>RequestSubscriptionIosProps.billingPlanType</code>
+              </td>
+              <td>
+                Selecting <code>monthly</code> or <code>up-front</code>.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>PurchaseIOS.billingPlanTypeIOS</code>
+              </td>
+              <td>
+                Persisting the plan selected on the completed transaction.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>PurchaseIOS.commitmentInfoIOS</code>
+              </td>
+              <td>
+                Tracking current billing period, total periods, expiration, and
+                commitment price.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>RenewalInfoIOS.commitmentInfo</code>
+              </td>
+              <td>Inspecting the next commitment renewal state.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`import { fetchProducts, requestPurchase } from 'expo-iap';
+// Same API in react-native-iap.
+
+const [subscription] = await fetchProducts({
+  skus: ['premium_annual'],
+  type: 'subs',
+});
+
+const monthlyPlan = subscription.pricingTermsIOS?.find(
+  (term) => term.billingPlanType === 'monthly',
+);
+
+if (monthlyPlan) {
+  console.log('Billed:', monthlyPlan.billingDisplayPrice);
+  console.log('Commitment:', monthlyPlan.commitmentInfo.displayPrice);
+}
+
+await requestPurchase({
+  type: 'subs',
+  request: {
+    apple: {
+      sku: 'premium_annual',
+      billingPlanType: 'monthly',
+    },
+  },
+});`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`import OpenIap
+
+try await OpenIapModule.shared.requestPurchase(
+    RequestPurchaseProps(
+        request: .subscription(
+            RequestSubscriptionPropsByPlatforms(
+                apple: RequestSubscriptionIosProps(
+                    sku: "premium_annual",
+                    billingPlanType: .monthly
+                )
+            )
+        ),
+        type: .subs
+    )
+)`}</CodeBlock>
+            ),
+            kmp: (
+              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.requestPurchase
+import io.github.hyochan.kmpiap.openiap.ProductType
+import io.github.hyochan.kmpiap.openiap.SubscriptionBillingPlanTypeIOS
+
+val kmpIAP = KmpIAP()
+
+kmpIAP.requestPurchase {
+    type = ProductType.Subs
+    ios {
+        sku = "premium_annual"
+        billingPlanType = SubscriptionBillingPlanTypeIOS.Monthly
+    }
+}`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+
+await FlutterInappPurchase.instance.requestPurchaseWithBuilder(
+  build: (builder) {
+    builder
+      ..type = ProductQueryType.Subs
+      ..ios.sku = 'premium_annual'
+      ..ios.billingPlanType = SubscriptionBillingPlanTypeIOS.Monthly;
+  },
+);`}</CodeBlock>
+            ),
+            csharp: (
+              <CodeBlock language="csharp">{`using OpenIap;
+using OpenIap.Maui;
+
+await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(
+    new RequestPurchaseProps
+    {
+        RequestSubscription = new RequestSubscriptionPropsByPlatforms
+        {
+            Apple = new RequestSubscriptionIosProps
+            {
+                Sku = "premium_annual",
+                BillingPlanType = SubscriptionBillingPlanTypeIOS.Monthly,
+            },
+        },
+        Type = ProductQueryType.Subs,
+    });`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`var props = RequestPurchaseProps.new()
+props.request = RequestSubscriptionPropsByPlatforms.new()
+props.request.apple = RequestSubscriptionIosProps.new()
+props.request.apple.sku = "premium_annual"
+props.request.apple.billing_plan_type = SubscriptionBillingPlanTypeIOS.MONTHLY
+props.type = ProductQueryType.SUBS
+
+await iap.request_purchase(props)`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
+
+        <p className="type-link">
+          See:{' '}
+          <Link to="/docs/types/ios/subscription-billing-plan-ios">
+            Subscription Billing Plan iOS types
+          </Link>
+          {' · '}
+          <Link to="/docs/types/request-purchase-props#request-subscription-ios-props">
+            RequestSubscriptionIosProps
+          </Link>
+          {' · '}
+          <Link to="/docs/types/purchase#purchase-ios">PurchaseIOS</Link>
+        </p>
+      </section>
+
+      <section>
         <AnchorLink id="subscription-offers" level="h2">
           Subscription Offers
         </AnchorLink>

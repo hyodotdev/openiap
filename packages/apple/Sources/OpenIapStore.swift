@@ -259,7 +259,8 @@ public final class OpenIapStore: ObservableObject {
         quantity: Int? = nil,
         appAccountToken: String? = nil,
         withOffer: DiscountOfferInputIOS? = nil,
-        advancedCommerceData: String? = nil
+        advancedCommerceData: String? = nil,
+        billingPlanType: SubscriptionBillingPlanTypeIOS? = nil
     ) async throws -> OpenIAP.Purchase? {
         switch type {
         case .subs:
@@ -267,6 +268,7 @@ public final class OpenIapStore: ObservableObject {
                 advancedCommerceData: advancedCommerceData,
                 andDangerouslyFinishTransactionAutomatically: autoFinish,
                 appAccountToken: appAccountToken,
+                billingPlanType: billingPlanType,
                 quantity: quantity,
                 sku: sku,
                 withOffer: withOffer

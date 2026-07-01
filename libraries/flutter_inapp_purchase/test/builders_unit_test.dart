@@ -38,7 +38,8 @@ void main() {
         ..sku = 'com.example.subscription'
         ..appAccountToken = 'user456'
         ..quantity = 1
-        ..advancedCommerceData = 'sub_campaign';
+        ..advancedCommerceData = 'sub_campaign'
+        ..billingPlanType = SubscriptionBillingPlanTypeIOS.Monthly;
 
       final props = builder.build();
 
@@ -46,6 +47,7 @@ void main() {
       expect(props.appAccountToken, 'user456');
       expect(props.quantity, 1);
       expect(props.advancedCommerceData, 'sub_campaign');
+      expect(props.billingPlanType, SubscriptionBillingPlanTypeIOS.Monthly);
     });
   });
 
@@ -243,6 +245,18 @@ void main() {
         json['requestSubscription']['ios']['advancedCommerceData'],
         'campaign',
       );
+    });
+
+    test('builds subscription with iOS billing plan type', () {
+      final builder = RequestPurchaseBuilder()
+        ..ios.sku = 'sub'
+        ..ios.billingPlanType = SubscriptionBillingPlanTypeIOS.Monthly
+        ..type = ProductQueryType.Subs;
+
+      final props = builder.build();
+      final json = props.toJson();
+
+      expect(json['requestSubscription']['ios']['billingPlanType'], 'monthly');
     });
   });
 

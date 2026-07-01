@@ -573,12 +573,28 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                     </tr>
                     <tr>
                       <td>
-                        <code>introductoryOfferEligibility</code>
+                        <code>billingPlanType</code>
                       </td>
                       <td>
-                        Override introductory offer eligibility (iOS 15+, WWDC
-                        2025). Pass <code>true</code>/<code>false</code> to
-                        force, omit to let the system decide.
+                        StoreKit 26.4 billing plan for auto-renewable
+                        subscriptions: <code>monthly</code> for monthly billing
+                        with commitment or <code>up-front</code> for full-period
+                        payment. Omit on older OS versions and do not pass{' '}
+                        <code>unknown</code>. See{' '}
+                        <Link to="/docs/types/ios/subscription-billing-plan-ios">
+                          SubscriptionBillingPlanTypeIOS
+                        </Link>
+                        .
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>compactJWS</code>
+                      </td>
+                      <td>
+                        Compact JWS string for overriding introductory offer
+                        eligibility (iOS 15+, WWDC 2025). Generate it on your
+                        server and omit it to let the system decide.
                       </td>
                     </tr>
                   </tbody>

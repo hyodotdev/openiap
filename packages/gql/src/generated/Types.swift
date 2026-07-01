@@ -379,6 +379,15 @@ public enum SubResponseCodeAndroid: String, Codable, CaseIterable {
     case userIneligible = "user-ineligible"
 }
 
+public enum SubscriptionBillingPlanTypeIOS: String, Codable, CaseIterable {
+    /// Unknown or unsupported billing plan type.
+    case unknown = "unknown"
+    /// Monthly billing with a 12-month commitment.
+    case monthly = "monthly"
+    /// Up-front billing for the full subscription period.
+    case upFront = "up-front"
+}
+
 public enum SubscriptionOfferTypeIOS: String, Codable, CaseIterable {
     case introductory = "introductory"
     case promotional = "promotional"
@@ -1012,6 +1021,9 @@ public struct ProductIOS: Codable, ProductCommon {
     public var jsonRepresentationIOS: String
     public var platform: IapPlatform = .ios
     public var price: Double? = nil
+    /// iOS 26.4+ subscription pricing terms, including billing plan metadata for
+    /// monthly subscriptions with a 12-month commitment.
+    public var pricingTermsIOS: [SubscriptionPricingTermsIOS]? = nil
     /// @deprecated Use subscriptionOffers instead for cross-platform compatibility.
     public var subscriptionInfoIOS: SubscriptionInfoIOS? = nil
     /// Standardized subscription offers.
@@ -1092,6 +1104,9 @@ public struct ProductSubscriptionIOS: Codable, ProductCommon {
     public var jsonRepresentationIOS: String
     public var platform: IapPlatform = .ios
     public var price: Double? = nil
+    /// iOS 26.4+ subscription pricing terms, including billing plan metadata for
+    /// monthly subscriptions with a 12-month commitment.
+    public var pricingTermsIOS: [SubscriptionPricingTermsIOS]? = nil
     /// App Store subscription group identifier for intro-offer eligibility checks.
     public var subscriptionGroupIdIOS: String? = nil
     /// @deprecated Use subscriptionOffers for offer metadata and subscriptionGroupIdIOS for the App Store subscription group identifier.
@@ -1160,6 +1175,10 @@ public struct PurchaseIOS: Codable, PurchaseCommon {
     public var advancedCommerceInfoIOS: AdvancedCommerceInfoIOS? = nil
     public var appAccountToken: String? = nil
     public var appBundleIdIOS: String? = nil
+    /// iOS 26.4+ billing plan selected for this transaction.
+    public var billingPlanTypeIOS: SubscriptionBillingPlanTypeIOS? = nil
+    /// iOS 26.4+ progress information for monthly subscriptions with a 12-month commitment.
+    public var commitmentInfoIOS: TransactionCommitmentInfoIOS? = nil
     public var countryCodeIOS: String? = nil
     public var currencyCodeIOS: String? = nil
     public var currencySymbolIOS: String? = nil
@@ -1206,10 +1225,21 @@ public struct RefundResultIOS: Codable {
     public var status: String
 }
 
+public struct RenewalCommitmentInfoIOS: Codable {
+    public var commitmentAutoRenewProductId: String
+    public var commitmentAutoRenewStatus: Bool
+    public var commitmentRenewalBillingPlanType: SubscriptionBillingPlanTypeIOS
+    public var commitmentRenewalDate: Double
+    public var commitmentRenewalPrice: Double
+}
+
 /// Subscription renewal information from Product.SubscriptionInfo.RenewalInfo
 /// https://developer.apple.com/documentation/storekit/product/subscriptioninfo/renewalinfo
 public struct RenewalInfoIOS: Codable {
     public var autoRenewPreference: String? = nil
+    /// iOS 26.4+ renewal commitment metadata for monthly subscriptions with a
+    /// 12-month commitment.
+    public var commitmentInfo: RenewalCommitmentInfoIOS? = nil
     /// When subscription expires due to cancellation/billing issue
     /// Possible values: "VOLUNTARY", "BILLING_ERROR", "DID_NOT_AGREE_TO_PRICE_INCREASE", "PRODUCT_NOT_AVAILABLE", "UNKNOWN"
     public var expirationReason: String? = nil
@@ -1226,6 +1256,8 @@ public struct RenewalInfoIOS: Codable {
     /// User's response to subscription price increase
     /// Possible values: "AGREED", "PENDING", null (no price increase)
     public var priceIncreaseStatus: String? = nil
+    /// iOS 26.4+ billing plan that will renew after the current period.
+    public var renewalBillingPlanType: SubscriptionBillingPlanTypeIOS? = nil
     /// Expected renewal date (milliseconds since epoch)
     /// For active subscriptions, when the next renewal/charge will occur
     public var renewalDate: Double? = nil
@@ -1260,8 +1292,15 @@ public struct RequestVerifyPurchaseWithIapkitResult: Codable {
     public var store: IapStore
 }
 
+public struct SubscriptionCommitmentInfoIOS: Codable {
+    public var displayPrice: String
+    public var period: SubscriptionPeriodValueIOS
+    public var price: Double
+}
+
 public struct SubscriptionInfoIOS: Codable {
     public var introductoryOffer: SubscriptionOfferIOS? = nil
+    public var pricingTerms: [SubscriptionPricingTermsIOS]? = nil
     public var promotionalOffers: [SubscriptionOfferIOS]? = nil
     public var subscriptionGroupId: String
     public var subscriptionPeriod: SubscriptionPeriodValueIOS
@@ -1354,9 +1393,25 @@ public struct SubscriptionPeriodValueIOS: Codable {
     public var value: Int
 }
 
+public struct SubscriptionPricingTermsIOS: Codable {
+    public var billingDisplayPrice: String
+    public var billingPeriod: SubscriptionPeriodValueIOS
+    public var billingPlanType: SubscriptionBillingPlanTypeIOS
+    public var billingPrice: Double
+    public var commitmentInfo: SubscriptionCommitmentInfoIOS
+    public var subscriptionOffers: [SubscriptionOffer]? = nil
+}
+
 public struct SubscriptionStatusIOS: Codable {
     public var renewalInfo: RenewalInfoIOS? = nil
     public var state: String
+}
+
+public struct TransactionCommitmentInfoIOS: Codable {
+    public var billingPeriodNumber: Int
+    public var commitmentExpiresDate: Double
+    public var commitmentPrice: Double
+    public var totalBillingPeriods: Int
 }
 
 /// User Choice Billing event details (Android)
@@ -1928,11 +1983,14 @@ public struct RequestSubscriptionIosProps: Codable {
     public var advancedCommerceData: String?
     public var andDangerouslyFinishTransactionAutomatically: Bool?
     public var appAccountToken: String?
-    /// Override introductory offer eligibility (iOS 15+, WWDC 2025).
-    /// Set to true to indicate the user is eligible for introductory offer,
-    /// or false to indicate they are not. When nil, the system determines eligibility.
-    /// Back-deployed to iOS 15.
-    public var introductoryOfferEligibility: Bool?
+    /// Billing plan to use when purchasing an annual subscription that offers
+    /// monthly billing with a 12-month commitment (iOS 26.4+).
+    public var billingPlanType: SubscriptionBillingPlanTypeIOS?
+    /// Compact JWS string for overriding introductory offer eligibility
+    /// (iOS 15+, WWDC 2025). When nil, the system determines eligibility.
+    /// Generate the JWS on your server and pass it to StoreKit's
+    /// introductoryOfferEligibility(compactJWS:) purchase option.
+    public var compactJWS: String?
     /// JWS promotional offer (iOS 15+, WWDC 2025).
     /// New signature format using compact JWS string for promotional offers.
     /// Back-deployed to iOS 15.
@@ -1952,7 +2010,8 @@ public struct RequestSubscriptionIosProps: Codable {
         advancedCommerceData: String? = nil,
         andDangerouslyFinishTransactionAutomatically: Bool? = nil,
         appAccountToken: String? = nil,
-        introductoryOfferEligibility: Bool? = nil,
+        billingPlanType: SubscriptionBillingPlanTypeIOS? = nil,
+        compactJWS: String? = nil,
         promotionalOfferJWS: PromotionalOfferJWSInputIOS? = nil,
         quantity: Int? = nil,
         sku: String,
@@ -1962,7 +2021,8 @@ public struct RequestSubscriptionIosProps: Codable {
         self.advancedCommerceData = advancedCommerceData
         self.andDangerouslyFinishTransactionAutomatically = andDangerouslyFinishTransactionAutomatically
         self.appAccountToken = appAccountToken
-        self.introductoryOfferEligibility = introductoryOfferEligibility
+        self.billingPlanType = billingPlanType
+        self.compactJWS = compactJWS
         self.promotionalOfferJWS = promotionalOfferJWS
         self.quantity = quantity
         self.sku = sku
