@@ -56,7 +56,7 @@ interface OpenIapModule
     [Async]
     void RequestSubscription(string sku, [NullAllowed] NSDictionary offer, Action<NSObject?, NSError?> completion);
 
-    [Export("requestSubscriptionWithSku:offer:introductoryOfferEligibility:promotionalOfferJWS:winBackOfferId:completion:")]
+    [Export("requestSubscriptionWithSku:offer:introductoryOfferEligibility:promotionalOfferJWS:winBackOfferId:billingPlanType:completion:")]
     [Async]
     void RequestSubscriptionExtended(
         string sku,
@@ -64,6 +64,7 @@ interface OpenIapModule
         [NullAllowed] NSNumber introductoryOfferEligibility,
         [NullAllowed] NSDictionary promotionalOfferJWS,
         [NullAllowed] string winBackOfferId,
+        [NullAllowed] string billingPlanType,
         Action<NSObject?, NSError?> completion);
 
     [Export("restorePurchasesWithCompletion:")]

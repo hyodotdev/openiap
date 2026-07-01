@@ -27,6 +27,7 @@ enum StoreKitTypesBridge {
             jsonRepresentationIOS: String(data: product.jsonRepresentation, encoding: .utf8) ?? "",
             platform: .ios,
             price: NSDecimalNumber(decimal: product.price).doubleValue,
+            pricingTermsIOS: makeSubscriptionPricingTerms(from: product.subscription),
             subscriptionInfoIOS: makeSubscriptionInfo(from: product.subscription),
             title: product.displayName,
             type: productType(from: product.type),
@@ -92,6 +93,7 @@ enum StoreKitTypesBridge {
             jsonRepresentationIOS: String(data: product.jsonRepresentation, encoding: .utf8) ?? "",
             platform: .ios,
             price: NSDecimalNumber(decimal: product.price).doubleValue,
+            pricingTermsIOS: makeSubscriptionPricingTerms(from: subscription),
             subscriptionGroupIdIOS: subscription.subscriptionGroupID,
             subscriptionInfoIOS: makeSubscriptionInfo(from: product.subscription),
             subscriptionOffers: standardizedOffers.isEmpty ? nil : standardizedOffers,
@@ -136,6 +138,8 @@ enum StoreKitTypesBridge {
             advancedCommerceInfoIOS: advancedCommerceInfo,
             appAccountToken: transaction.appAccountToken?.uuidString,
             appBundleIdIOS: transaction.appBundleID,
+            billingPlanTypeIOS: billingPlanTypeIOS(from: transaction),
+            commitmentInfoIOS: transactionCommitmentInfoIOS(from: transaction),
             countryCodeIOS: {
                 if #available(iOS 17.0, tvOS 17.0, watchOS 10.0, *) {
                     transaction.storefront.countryCode
@@ -292,12 +296,14 @@ enum StoreKitTypesBridge {
                     }()
                     let renewalInfo = RenewalInfoIOS(
                         autoRenewPreference: info.autoRenewPreference,
+                        commitmentInfo: renewalCommitmentInfoIOS(from: info),
                         expirationReason: info.expirationReason?.rawValue.description,
                         gracePeriodExpirationDate: info.gracePeriodExpirationDate?.milliseconds,
                         isInBillingRetry: nil,  // Not available in RenewalInfo, available in Status
                         jsonRepresentation: nil,
                         pendingUpgradeProductId: pendingProductId,
                         priceIncreaseStatus: priceIncrease,
+                        renewalBillingPlanType: renewalBillingPlanTypeIOS(from: info),
                         renewalDate: info.renewalDate?.milliseconds,
                         renewalOfferId: offerInfo?.id,
                         renewalOfferType: offerInfo?.type,
@@ -344,12 +350,14 @@ enum StoreKitTypesBridge {
                     }()
                     let renewalInfo = RenewalInfoIOS(
                         autoRenewPreference: info.autoRenewPreference,
+                        commitmentInfo: renewalCommitmentInfoIOS(from: info),
                         expirationReason: info.expirationReason?.rawValue.description,
                         gracePeriodExpirationDate: info.gracePeriodExpirationDate?.milliseconds,
                         isInBillingRetry: nil,  // Not available in RenewalInfo, available in Status
                         jsonRepresentation: nil,
                         pendingUpgradeProductId: pendingProductId,
                         priceIncreaseStatus: priceIncrease,
+                        renewalBillingPlanType: renewalBillingPlanTypeIOS(from: info),
                         renewalDate: info.renewalDate?.milliseconds,
                         renewalOfferId: offerInfo?.id,
                         renewalOfferType: offerInfo?.type,
@@ -398,6 +406,38 @@ enum StoreKitTypesBridge {
 
         // Subscription-only options (only available on RequestSubscriptionIosProps)
         if let subscriptionProps = props as? RequestSubscriptionIosProps {
+            // Billing plan selection for annual subscriptions with monthly commitment (iOS 26.4+)
+            if let billingPlanType = subscriptionProps.billingPlanType {
+                #if swift(>=6.3)
+                if #available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *) {
+                    switch billingPlanType {
+                    case .monthly:
+                        options.insert(.billingPlanType(.monthly))
+                    case .upFront:
+                        options.insert(.billingPlanType(.upFront))
+                    case .unknown:
+                        throw PurchaseError.make(
+                            code: .developerError,
+                            productId: props.sku,
+                            message: "billingPlanType must be monthly or up-front."
+                        )
+                    }
+                } else {
+                    throw PurchaseError.make(
+                        code: .featureNotSupported,
+                        productId: props.sku,
+                        message: "billingPlanType requires iOS 26.4+ / macOS 26.4+ / tvOS 26.4+ / watchOS 26.4+ / visionOS 26.4+."
+                    )
+                }
+                #else
+                throw PurchaseError.make(
+                    code: .featureNotSupported,
+                    productId: props.sku,
+                    message: "billingPlanType requires Xcode 26.4+ / Swift 6.3+."
+                )
+                #endif
+            }
+
             // Win-back offers (iOS 18+)
             // Used to re-engage churned subscribers
             if let winBackInput = subscriptionProps.winBackOffer {
@@ -519,6 +559,31 @@ enum StoreKitTypesBridge {
         }
         #endif
     }
+
+    static func renewalCommitmentInfoIOS(from info: StoreKit.Product.SubscriptionInfo.RenewalInfo) -> RenewalCommitmentInfoIOS? {
+        #if swift(>=6.3)
+        if #available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *) {
+            guard let commitment = info.commitmentInfo else { return nil }
+            return RenewalCommitmentInfoIOS(
+                commitmentAutoRenewProductId: commitment.autoRenewPreference,
+                commitmentAutoRenewStatus: commitment.willAutoRenew,
+                commitmentRenewalBillingPlanType: billingPlanTypeIOS(from: commitment.renewalBillingPlanType),
+                commitmentRenewalDate: commitment.renewalDate.milliseconds,
+                commitmentRenewalPrice: NSDecimalNumber(decimal: commitment.renewalPrice).doubleValue
+            )
+        }
+        #endif
+        return nil
+    }
+
+    static func renewalBillingPlanTypeIOS(from info: StoreKit.Product.SubscriptionInfo.RenewalInfo) -> SubscriptionBillingPlanTypeIOS? {
+        #if swift(>=6.3)
+        if #available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *) {
+            return info.renewalBillingPlanType.map { billingPlanTypeIOS(from: $0) }
+        }
+        #endif
+        return nil
+    }
 }
 
 @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
@@ -529,6 +594,7 @@ private extension StoreKitTypesBridge {
         let promos = makeSubscriptionOffers(from: info.promotionalOffers, type: .promotional)
         return SubscriptionInfoIOS(
             introductoryOffer: intro,
+            pricingTerms: makeSubscriptionPricingTerms(from: info),
             promotionalOffers: promos.isEmpty ? nil : promos,
             subscriptionGroupId: info.subscriptionGroupID,
             subscriptionPeriod: SubscriptionPeriodValueIOS(
@@ -555,6 +621,85 @@ private extension StoreKitTypesBridge {
             price: NSDecimalNumber(decimal: offer.price).doubleValue,
             type: type
         )
+    }
+
+    static func makeSubscriptionPricingTerms(from info: StoreKit.Product.SubscriptionInfo?) -> [SubscriptionPricingTermsIOS]? {
+        guard let info else { return nil }
+        #if swift(>=6.3)
+        if #available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *) {
+            let terms = info.pricingTerms.map { makeSubscriptionPricingTerm(from: $0) }
+            return terms.isEmpty ? nil : terms
+        }
+        #endif
+        return nil
+    }
+
+    #if swift(>=6.3)
+    @available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *)
+    static func makeSubscriptionPricingTerm(from terms: StoreKit.Product.SubscriptionInfo.PricingTerms) -> SubscriptionPricingTermsIOS {
+        let offers = terms.subscriptionOffers.map { offer in
+            makeStandardizedSubscriptionOffer(from: offer, type: discountOfferType(from: offer))
+        }
+        return SubscriptionPricingTermsIOS(
+            billingDisplayPrice: terms.billingDisplayPrice,
+            billingPeriod: SubscriptionPeriodValueIOS(
+                unit: terms.billingPeriod.unit.subscriptionPeriodIOS,
+                value: terms.billingPeriod.value
+            ),
+            billingPlanType: billingPlanTypeIOS(from: terms.billingPlanType),
+            billingPrice: NSDecimalNumber(decimal: terms.billingPrice).doubleValue,
+            commitmentInfo: SubscriptionCommitmentInfoIOS(
+                displayPrice: terms.commitmentInfo.displayPrice,
+                period: SubscriptionPeriodValueIOS(
+                    unit: terms.commitmentInfo.period.unit.subscriptionPeriodIOS,
+                    value: terms.commitmentInfo.period.value
+                ),
+                price: NSDecimalNumber(decimal: terms.commitmentInfo.price).doubleValue
+            ),
+            subscriptionOffers: offers.isEmpty ? nil : offers
+        )
+    }
+    #endif
+
+    #if swift(>=6.3)
+    @available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *)
+    static func billingPlanTypeIOS(from type: StoreKit.Product.SubscriptionInfo.BillingPlanType) -> SubscriptionBillingPlanTypeIOS {
+        if type == .monthly {
+            return .monthly
+        }
+        if type == .upFront {
+            return .upFront
+        }
+        return SubscriptionBillingPlanTypeIOS(rawValue: type.rawValue) ?? .unknown
+    }
+    #endif
+
+    static func billingPlanTypeIOS(from transaction: StoreKit.Transaction) -> SubscriptionBillingPlanTypeIOS? {
+        #if swift(>=6.3)
+        if #available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *) {
+            return transaction.billingPlanType.map { billingPlanTypeIOS(from: $0) }
+        }
+        #endif
+        return nil
+    }
+
+    static func transactionCommitmentInfoIOS(from transaction: StoreKit.Transaction) -> TransactionCommitmentInfoIOS? {
+        #if swift(>=6.3)
+        if #available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *) {
+            guard let commitment = transaction.commitmentInfo else { return nil }
+            return TransactionCommitmentInfoIOS(
+                billingPeriodNumber: intClamping(commitment.billingPeriodNumber),
+                commitmentExpiresDate: commitment.expirationDate.milliseconds,
+                commitmentPrice: NSDecimalNumber(decimal: commitment.price).doubleValue,
+                totalBillingPeriods: intClamping(commitment.totalBillingPeriods)
+            )
+        }
+        #endif
+        return nil
+    }
+
+    static func intClamping(_ value: UInt64) -> Int {
+        value > UInt64(Int.max) ? Int.max : Int(value)
     }
 
     /// Converts StoreKit subscription offers to standardized cross-platform SubscriptionOffer type.
@@ -600,6 +745,15 @@ private extension StoreKitTypesBridge {
             timestampIOS: nil,
             type: type
         )
+    }
+
+    static func discountOfferType(from offer: StoreKit.Product.SubscriptionOffer) -> DiscountOfferType {
+        #if swift(>=6.1)
+        if #available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *) {
+            return offer.type == .introductory ? .introductory : .promotional
+        }
+        #endif
+        return .promotional
     }
 
     static func makeDiscounts(from subscription: StoreKit.Product.SubscriptionInfo, product: StoreKit.Product) -> [DiscountIOS]? {

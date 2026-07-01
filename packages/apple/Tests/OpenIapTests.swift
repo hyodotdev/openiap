@@ -627,6 +627,7 @@ final class OpenIapTests: XCTestCase {
             advancedCommerceData: "campaign_data",
             andDangerouslyFinishTransactionAutomatically: false,
             appAccountToken: "user-uuid-123",
+            billingPlanType: .monthly,
             introductoryOfferEligibility: true,
             promotionalOfferJWS: jwsOffer,
             quantity: 1,
@@ -641,6 +642,7 @@ final class OpenIapTests: XCTestCase {
         XCTAssertEqual(props.appAccountToken, "user-uuid-123")
         XCTAssertEqual(props.advancedCommerceData, "campaign_data")
         XCTAssertEqual(props.andDangerouslyFinishTransactionAutomatically, false)
+        XCTAssertEqual(props.billingPlanType, .monthly)
         XCTAssertEqual(props.introductoryOfferEligibility, true)
         XCTAssertEqual(props.winBackOffer?.offerId, "winback_offer")
         XCTAssertEqual(props.promotionalOfferJWS?.offerId, "promo_offer")
@@ -651,6 +653,7 @@ final class OpenIapTests: XCTestCase {
         let decoded = try JSONDecoder().decode(RequestSubscriptionIosProps.self, from: data)
 
         XCTAssertEqual(decoded.sku, props.sku)
+        XCTAssertEqual(decoded.billingPlanType, props.billingPlanType)
         XCTAssertEqual(decoded.introductoryOfferEligibility, props.introductoryOfferEligibility)
         XCTAssertEqual(decoded.winBackOffer?.offerId, props.winBackOffer?.offerId)
         XCTAssertEqual(decoded.promotionalOfferJWS?.offerId, props.promotionalOfferJWS?.offerId)
@@ -662,6 +665,7 @@ final class OpenIapTests: XCTestCase {
             advancedCommerceData: nil,
             andDangerouslyFinishTransactionAutomatically: nil,
             appAccountToken: nil,
+            billingPlanType: .upFront,
             introductoryOfferEligibility: true,
             promotionalOfferJWS: PromotionalOfferJWSInputIOS(jws: "jws", offerId: "offer"),
             quantity: nil,
@@ -672,6 +676,7 @@ final class OpenIapTests: XCTestCase {
 
         // These fields exist on RequestSubscriptionIosProps
         XCTAssertEqual(subscriptionProps.introductoryOfferEligibility, true)
+        XCTAssertEqual(subscriptionProps.billingPlanType, .upFront)
         XCTAssertNotNil(subscriptionProps.promotionalOfferJWS)
         XCTAssertNotNil(subscriptionProps.winBackOffer)
 

@@ -202,6 +202,7 @@ import StoreKit
             introductoryOfferEligibility: nil,
             promotionalOfferJWS: nil,
             winBackOfferId: nil,
+            billingPlanType: nil,
             completion: completion
         )
     }
@@ -213,6 +214,7 @@ import StoreKit
     ///   - introductoryOfferEligibility: Override introductory offer eligibility (iOS 15+, WWDC 2025)
     ///   - promotionalOfferJWS: JWS promotional offer dict with "offerId" and "jws" keys (iOS 15+, WWDC 2025)
     ///   - winBackOfferId: Win-back offer ID (iOS 18+)
+    ///   - billingPlanType: Billing plan type ("monthly" or "up-front", iOS 26.4+)
     ///   - completion: Completion handler
     @objc func requestSubscriptionWithSku(
         _ sku: String,
@@ -220,6 +222,7 @@ import StoreKit
         introductoryOfferEligibility: NSNumber?,
         promotionalOfferJWS: [String: Any]?,
         winBackOfferId: String?,
+        billingPlanType: String?,
         completion: @escaping (Any?, Error?) -> Void
     ) {
         Task {
@@ -258,9 +261,14 @@ import StoreKit
                     nil
                 }
 
+                let billingPlan = billingPlanType.map {
+                    SubscriptionBillingPlanTypeIOS(rawValue: $0) ?? .unknown
+                }
+
                 let iosProps = RequestSubscriptionIosProps(
                     andDangerouslyFinishTransactionAutomatically: nil,
                     appAccountToken: nil,
+                    billingPlanType: billingPlan,
                     introductoryOfferEligibility: introductoryOfferEligibility?.boolValue,
                     promotionalOfferJWS: jwsOffer,
                     sku: sku,
