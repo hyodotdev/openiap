@@ -431,9 +431,9 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 			return { "success": false, "error": "Invalid request: SKU is required" }
 		var ios_payload = { "type": purchase_type }
 		if purchase_type == "subs":
-			ios_payload["requestSubscription"] = { "ios": apple_props }
+			ios_payload["requestSubscription"] = { "apple": apple_props }
 		else:
-			ios_payload["requestPurchase"] = { "ios": apple_props }
+			ios_payload["requestPurchase"] = { "apple": apple_props }
 		result_raw = _native_plugin.call("requestPurchaseWithPayload", JSON.stringify(ios_payload))
 	else:
 		return { "success": false, "error": "Unsupported platform" }

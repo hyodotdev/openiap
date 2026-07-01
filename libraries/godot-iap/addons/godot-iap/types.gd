@@ -1412,8 +1412,8 @@ class ProductAndroid:
 			obj.name_android = data["nameAndroid"]
 		if data.has("productStatusAndroid") and data["productStatusAndroid"] != null:
 			var enum_str = data["productStatusAndroid"]
-			if enum_str is String and PRODUCT_STATUS_ANDROID_FROM_STRING.has(enum_str):
-				obj.product_status_android = PRODUCT_STATUS_ANDROID_FROM_STRING[enum_str]
+			if enum_str is String:
+				obj.product_status_android = PRODUCT_STATUS_ANDROID_FROM_STRING.get(enum_str, ProductStatusAndroid.UNKNOWN)
 			else:
 				obj.product_status_android = enum_str
 		if data.has("discountOffers") and data["discountOffers"] != null:
@@ -1822,8 +1822,8 @@ class ProductSubscriptionAndroid:
 			obj.name_android = data["nameAndroid"]
 		if data.has("productStatusAndroid") and data["productStatusAndroid"] != null:
 			var enum_str = data["productStatusAndroid"]
-			if enum_str is String and PRODUCT_STATUS_ANDROID_FROM_STRING.has(enum_str):
-				obj.product_status_android = PRODUCT_STATUS_ANDROID_FROM_STRING[enum_str]
+			if enum_str is String:
+				obj.product_status_android = PRODUCT_STATUS_ANDROID_FROM_STRING.get(enum_str, ProductStatusAndroid.UNKNOWN)
 			else:
 				obj.product_status_android = enum_str
 		if data.has("discountOffers") and data["discountOffers"] != null:
@@ -2240,8 +2240,8 @@ class PurchaseAndroid:
 			obj.purchase_token = data["purchaseToken"]
 		if data.has("store") and data["store"] != null:
 			var enum_str = data["store"]
-			if enum_str is String and IAP_STORE_FROM_STRING.has(enum_str):
-				obj.store = IAP_STORE_FROM_STRING[enum_str]
+			if enum_str is String:
+				obj.store = IAP_STORE_FROM_STRING.get(enum_str, IapStore.UNKNOWN)
 			else:
 				obj.store = enum_str
 		if data.has("platform") and data["platform"] != null:
@@ -2254,8 +2254,8 @@ class PurchaseAndroid:
 			obj.quantity = data["quantity"]
 		if data.has("purchaseState") and data["purchaseState"] != null:
 			var enum_str = data["purchaseState"]
-			if enum_str is String and PURCHASE_STATE_FROM_STRING.has(enum_str):
-				obj.purchase_state = PURCHASE_STATE_FROM_STRING[enum_str]
+			if enum_str is String:
+				obj.purchase_state = PURCHASE_STATE_FROM_STRING.get(enum_str, PurchaseState.UNKNOWN)
 			else:
 				obj.purchase_state = enum_str
 		if data.has("isAutoRenewing") and data["isAutoRenewing"] != null:
@@ -2351,8 +2351,8 @@ class PurchaseError:
 		var obj = PurchaseError.new()
 		if data.has("code") and data["code"] != null:
 			var enum_str = data["code"]
-			if enum_str is String and ERROR_CODE_FROM_STRING.has(enum_str):
-				obj.code = ERROR_CODE_FROM_STRING[enum_str]
+			if enum_str is String:
+				obj.code = ERROR_CODE_FROM_STRING.get(enum_str, ErrorCode.UNKNOWN)
 			else:
 				obj.code = enum_str
 		if data.has("message") and data["message"] != null:
@@ -2448,8 +2448,8 @@ class PurchaseIOS:
 			obj.purchase_token = data["purchaseToken"]
 		if data.has("store") and data["store"] != null:
 			var enum_str = data["store"]
-			if enum_str is String and IAP_STORE_FROM_STRING.has(enum_str):
-				obj.store = IAP_STORE_FROM_STRING[enum_str]
+			if enum_str is String:
+				obj.store = IAP_STORE_FROM_STRING.get(enum_str, IapStore.UNKNOWN)
 			else:
 				obj.store = enum_str
 		if data.has("platform") and data["platform"] != null:
@@ -2462,8 +2462,8 @@ class PurchaseIOS:
 			obj.quantity = data["quantity"]
 		if data.has("purchaseState") and data["purchaseState"] != null:
 			var enum_str = data["purchaseState"]
-			if enum_str is String and PURCHASE_STATE_FROM_STRING.has(enum_str):
-				obj.purchase_state = PURCHASE_STATE_FROM_STRING[enum_str]
+			if enum_str is String:
+				obj.purchase_state = PURCHASE_STATE_FROM_STRING.get(enum_str, PurchaseState.UNKNOWN)
 			else:
 				obj.purchase_state = enum_str
 		if data.has("isAutoRenewing") and data["isAutoRenewing"] != null:
@@ -2524,8 +2524,8 @@ class PurchaseIOS:
 				obj.renewal_info_ios = data["renewalInfoIOS"]
 		if data.has("billingPlanTypeIOS") and data["billingPlanTypeIOS"] != null:
 			var enum_str = data["billingPlanTypeIOS"]
-			if enum_str is String and SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING.has(enum_str):
-				obj.billing_plan_type_ios = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING[enum_str]
+			if enum_str is String:
+				obj.billing_plan_type_ios = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING.get(enum_str, SubscriptionBillingPlanTypeIOS.UNKNOWN)
 			else:
 				obj.billing_plan_type_ios = enum_str
 		if data.has("commitmentInfoIOS") and data["commitmentInfoIOS"] != null:
@@ -2683,8 +2683,8 @@ class RenewalCommitmentInfoIOS:
 			obj.commitment_auto_renew_status = data["commitmentAutoRenewStatus"]
 		if data.has("commitmentRenewalBillingPlanType") and data["commitmentRenewalBillingPlanType"] != null:
 			var enum_str = data["commitmentRenewalBillingPlanType"]
-			if enum_str is String and SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING.has(enum_str):
-				obj.commitment_renewal_billing_plan_type = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING[enum_str]
+			if enum_str is String:
+				obj.commitment_renewal_billing_plan_type = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING.get(enum_str, SubscriptionBillingPlanTypeIOS.UNKNOWN)
 			else:
 				obj.commitment_renewal_billing_plan_type = enum_str
 		if data.has("commitmentRenewalDate") and data["commitmentRenewalDate"] != null:
@@ -2757,8 +2757,8 @@ class RenewalInfoIOS:
 			obj.renewal_offer_type = data["renewalOfferType"]
 		if data.has("renewalBillingPlanType") and data["renewalBillingPlanType"] != null:
 			var enum_str = data["renewalBillingPlanType"]
-			if enum_str is String and SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING.has(enum_str):
-				obj.renewal_billing_plan_type = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING[enum_str]
+			if enum_str is String:
+				obj.renewal_billing_plan_type = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING.get(enum_str, SubscriptionBillingPlanTypeIOS.UNKNOWN)
 			else:
 				obj.renewal_billing_plan_type = enum_str
 		if data.has("commitmentInfo") and data["commitmentInfo"] != null:
@@ -2834,16 +2834,16 @@ class RequestVerifyPurchaseWithIapkitResult:
 		var obj = RequestVerifyPurchaseWithIapkitResult.new()
 		if data.has("store") and data["store"] != null:
 			var enum_str = data["store"]
-			if enum_str is String and IAP_STORE_FROM_STRING.has(enum_str):
-				obj.store = IAP_STORE_FROM_STRING[enum_str]
+			if enum_str is String:
+				obj.store = IAP_STORE_FROM_STRING.get(enum_str, IapStore.UNKNOWN)
 			else:
 				obj.store = enum_str
 		if data.has("isValid") and data["isValid"] != null:
 			obj.is_valid = data["isValid"]
 		if data.has("state") and data["state"] != null:
 			var enum_str = data["state"]
-			if enum_str is String and IAPKIT_PURCHASE_STATE_FROM_STRING.has(enum_str):
-				obj.state = IAPKIT_PURCHASE_STATE_FROM_STRING[enum_str]
+			if enum_str is String:
+				obj.state = IAPKIT_PURCHASE_STATE_FROM_STRING.get(enum_str, IapkitPurchaseState.UNKNOWN)
 			else:
 				obj.state = enum_str
 		return obj
@@ -3027,8 +3027,8 @@ class SubscriptionOffer:
 			obj.period_count = data["periodCount"]
 		if data.has("paymentMode") and data["paymentMode"] != null:
 			var enum_str = data["paymentMode"]
-			if enum_str is String and PAYMENT_MODE_FROM_STRING.has(enum_str):
-				obj.payment_mode = PAYMENT_MODE_FROM_STRING[enum_str]
+			if enum_str is String:
+				obj.payment_mode = PAYMENT_MODE_FROM_STRING.get(enum_str, PaymentMode.UNKNOWN)
 			else:
 				obj.payment_mode = enum_str
 		if data.has("keyIdentifierIOS") and data["keyIdentifierIOS"] != null:
@@ -3179,8 +3179,8 @@ class SubscriptionPeriod:
 		var obj = SubscriptionPeriod.new()
 		if data.has("unit") and data["unit"] != null:
 			var enum_str = data["unit"]
-			if enum_str is String and SUBSCRIPTION_PERIOD_UNIT_FROM_STRING.has(enum_str):
-				obj.unit = SUBSCRIPTION_PERIOD_UNIT_FROM_STRING[enum_str]
+			if enum_str is String:
+				obj.unit = SUBSCRIPTION_PERIOD_UNIT_FROM_STRING.get(enum_str, SubscriptionPeriodUnit.UNKNOWN)
 			else:
 				obj.unit = enum_str
 		if data.has("value") and data["value"] != null:
@@ -3240,8 +3240,8 @@ class SubscriptionPricingTermsIOS:
 				obj.billing_period = data["billingPeriod"]
 		if data.has("billingPlanType") and data["billingPlanType"] != null:
 			var enum_str = data["billingPlanType"]
-			if enum_str is String and SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING.has(enum_str):
-				obj.billing_plan_type = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING[enum_str]
+			if enum_str is String:
+				obj.billing_plan_type = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING.get(enum_str, SubscriptionBillingPlanTypeIOS.UNKNOWN)
 			else:
 				obj.billing_plan_type = enum_str
 		if data.has("billingPrice") and data["billingPrice"] != null:
@@ -3676,8 +3676,8 @@ class WebhookEvent:
 			obj.product_id = data["productId"]
 		if data.has("subscriptionState") and data["subscriptionState"] != null:
 			var enum_str = data["subscriptionState"]
-			if enum_str is String and SUBSCRIPTION_STATE_FROM_STRING.has(enum_str):
-				obj.subscription_state = SUBSCRIPTION_STATE_FROM_STRING[enum_str]
+			if enum_str is String:
+				obj.subscription_state = SUBSCRIPTION_STATE_FROM_STRING.get(enum_str, SubscriptionState.UNKNOWN)
 			else:
 				obj.subscription_state = enum_str
 		if data.has("expiresAt") and data["expiresAt"] != null:
@@ -4046,8 +4046,8 @@ class PurchaseInput:
 			obj.purchase_token = data["purchaseToken"]
 		if data.has("store") and data["store"] != null:
 			var enum_str = data["store"]
-			if enum_str is String and IAP_STORE_FROM_STRING.has(enum_str):
-				obj.store = IAP_STORE_FROM_STRING[enum_str]
+			if enum_str is String:
+				obj.store = IAP_STORE_FROM_STRING.get(enum_str, IapStore.UNKNOWN)
 			else:
 				obj.store = enum_str
 		if data.has("platform") and data["platform"] != null:
@@ -4060,8 +4060,8 @@ class PurchaseInput:
 			obj.quantity = data["quantity"]
 		if data.has("purchaseState") and data["purchaseState"] != null:
 			var enum_str = data["purchaseState"]
-			if enum_str is String and PURCHASE_STATE_FROM_STRING.has(enum_str):
-				obj.purchase_state = PURCHASE_STATE_FROM_STRING[enum_str]
+			if enum_str is String:
+				obj.purchase_state = PURCHASE_STATE_FROM_STRING.get(enum_str, PurchaseState.UNKNOWN)
 			else:
 				obj.purchase_state = enum_str
 		if data.has("isAutoRenewing") and data["isAutoRenewing"] != null:
@@ -4494,8 +4494,8 @@ class RequestSubscriptionIosProps:
 				obj.promotional_offer_jws = data["promotionalOfferJWS"]
 		if data.has("billingPlanType") and data["billingPlanType"] != null:
 			var enum_str = data["billingPlanType"]
-			if enum_str is String and SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING.has(enum_str):
-				obj.billing_plan_type = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING[enum_str]
+			if enum_str is String:
+				obj.billing_plan_type = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING.get(enum_str, SubscriptionBillingPlanTypeIOS.UNKNOWN)
 			else:
 				obj.billing_plan_type = enum_str
 		if data.has("introductoryOfferEligibility") and data["introductoryOfferEligibility"] != null:
