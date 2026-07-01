@@ -208,8 +208,8 @@ class HybridRnIap: HybridRnIapSpec {
                 if case .second(let advancedCommerceData) = iosRequest.advancedCommerceData {
                     iosPayload["advancedCommerceData"] = advancedCommerceData
                 }
-                if case .second(let billingPlanType) = iosRequest.billingPlanType {
-                    iosPayload["billingPlanType"] = billingPlanType
+                if let billingPlanType = iosRequest.billingPlanType {
+                    iosPayload["billingPlanType"] = billingPlanType.stringValue
                 }
                 // WWDC 2025 / iOS 18+ subscription offer fields
                 if case .second(let compactJWS) = iosRequest.compactJWS {
