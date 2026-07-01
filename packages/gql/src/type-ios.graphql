@@ -37,6 +37,21 @@ enum SubscriptionOfferTypeIOS {
   WinBack
 }
 
+enum SubscriptionBillingPlanTypeIOS {
+  """
+  Unknown or unsupported billing plan type.
+  """
+  Unknown
+  """
+  Monthly billing with a 12-month commitment.
+  """
+  Monthly
+  """
+  Up-front billing for the full subscription period.
+  """
+  UpFront
+}
+
 # iOS subscription period (unit + value)
 type SubscriptionPeriodValueIOS {
   unit: SubscriptionPeriodIOS!
@@ -61,9 +76,25 @@ type SubscriptionOfferIOS
 
 type SubscriptionInfoIOS {
   introductoryOffer: SubscriptionOfferIOS
+  pricingTerms: [SubscriptionPricingTermsIOS!]
   promotionalOffers: [SubscriptionOfferIOS!]
   subscriptionGroupId: String!
   subscriptionPeriod: SubscriptionPeriodValueIOS!
+}
+
+type SubscriptionCommitmentInfoIOS {
+  displayPrice: String!
+  period: SubscriptionPeriodValueIOS!
+  price: Float!
+}
+
+type SubscriptionPricingTermsIOS {
+  billingDisplayPrice: String!
+  billingPeriod: SubscriptionPeriodValueIOS!
+  billingPlanType: SubscriptionBillingPlanTypeIOS!
+  billingPrice: Float!
+  commitmentInfo: SubscriptionCommitmentInfoIOS!
+  subscriptionOffers: [SubscriptionOffer!]
 }
 
 # iOS product
@@ -94,6 +125,12 @@ type ProductIOS implements ProductCommon {
   @see https://openiap.dev/docs/types#subscription-offer
   """
   subscriptionOffers: [SubscriptionOffer!]
+
+  """
+  iOS 26.4+ subscription pricing terms, including billing plan metadata for
+  monthly subscriptions with a 12-month commitment.
+  """
+  pricingTermsIOS: [SubscriptionPricingTermsIOS!]
 
   # Deprecated platform-specific field
   """
@@ -130,6 +167,12 @@ type ProductSubscriptionIOS implements ProductCommon {
   @see https://openiap.dev/docs/types#subscription-offer
   """
   subscriptionOffers: [SubscriptionOffer!]
+
+  """
+  iOS 26.4+ subscription pricing terms, including billing plan metadata for
+  monthly subscriptions with a 12-month commitment.
+  """
+  pricingTermsIOS: [SubscriptionPricingTermsIOS!]
 
   """
   App Store subscription group identifier for intro-offer eligibility checks.
@@ -218,6 +261,14 @@ type PurchaseIOS implements PurchaseCommon {
   countryCodeIOS: String
   renewalInfoIOS: RenewalInfoIOS
   """
+  iOS 26.4+ billing plan selected for this transaction.
+  """
+  billingPlanTypeIOS: SubscriptionBillingPlanTypeIOS
+  """
+  iOS 26.4+ progress information for monthly subscriptions with a 12-month commitment.
+  """
+  commitmentInfoIOS: TransactionCommitmentInfoIOS
+  """
   Advanced Commerce API metadata (iOS 18.4+).
   Present only for transactions that use the Advanced Commerce API.
   Contains item details, tax information, and refund data for generic SKU purchases.
@@ -287,6 +338,11 @@ input RequestSubscriptionIosProps {
   Back-deployed to iOS 15.
   """
   promotionalOfferJWS: PromotionalOfferJWSInputIOS
+  """
+  Billing plan to use when purchasing an annual subscription that offers
+  monthly billing with a 12-month commitment (iOS 26.4+).
+  """
+  billingPlanType: SubscriptionBillingPlanTypeIOS
   """
   Override introductory offer eligibility (iOS 15+, WWDC 2025).
   Set to true to indicate the user is eligible for introductory offer,
@@ -445,6 +501,30 @@ type RenewalInfoIOS {
   Possible values: "PROMOTIONAL", "SUBSCRIPTION_OFFER_CODE", "WIN_BACK", etc.
   """
   renewalOfferType: String
+  """
+  iOS 26.4+ billing plan that will renew after the current period.
+  """
+  renewalBillingPlanType: SubscriptionBillingPlanTypeIOS
+  """
+  iOS 26.4+ renewal commitment metadata for monthly subscriptions with a
+  12-month commitment.
+  """
+  commitmentInfo: RenewalCommitmentInfoIOS
+}
+
+type TransactionCommitmentInfoIOS {
+  billingPeriodNumber: Int!
+  commitmentExpiresDate: Float!
+  commitmentPrice: Float!
+  totalBillingPeriods: Int!
+}
+
+type RenewalCommitmentInfoIOS {
+  commitmentAutoRenewProductId: String!
+  commitmentAutoRenewStatus: Boolean!
+  commitmentRenewalBillingPlanType: SubscriptionBillingPlanTypeIOS!
+  commitmentRenewalDate: Float!
+  commitmentRenewalPrice: Float!
 }
 
 type SubscriptionStatusIOS {
