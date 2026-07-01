@@ -565,7 +565,7 @@ enum StoreKitTypesBridge {
         if #available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *) {
             guard let commitment = info.commitmentInfo else { return nil }
             return RenewalCommitmentInfoIOS(
-                commitmentAutoRenewProductId: commitment.autoRenewPreference,
+                commitmentAutoRenewProductId: commitmentAutoRenewProductId(from: commitment.autoRenewPreference),
                 commitmentAutoRenewStatus: commitment.willAutoRenew,
                 commitmentRenewalBillingPlanType: billingPlanTypeIOS(from: commitment.renewalBillingPlanType),
                 commitmentRenewalDate: commitment.renewalDate.milliseconds,
@@ -574,6 +574,14 @@ enum StoreKitTypesBridge {
         }
         #endif
         return nil
+    }
+
+    private static func commitmentAutoRenewProductId(from preference: String) -> String {
+        preference
+    }
+
+    private static func commitmentAutoRenewProductId(from preference: String?) -> String {
+        preference ?? ""
     }
 
     static func renewalBillingPlanTypeIOS(from info: StoreKit.Product.SubscriptionInfo.RenewalInfo) -> SubscriptionBillingPlanTypeIOS? {
