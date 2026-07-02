@@ -228,6 +228,14 @@ var is_empty_product_list: Variant = null # Android returned no products`}</Code
         </table>
 
         <div className="info-note">
+          <strong>User cancellation:</strong> The canonical serialized value is{' '}
+          <code>user-cancelled</code>. Some wrappers still normalize legacy{' '}
+          <code>E_USER_CANCELLED</code> aliases for compatibility, but new app
+          code should compare the generated <code>ErrorCode.UserCancelled</code>{' '}
+          enum value or the <code>user-cancelled</code> wire value.
+        </div>
+
+        <div className="info-note">
           <strong>Android diagnostics:</strong> <code>QueryProduct</code> errors
           from <code>openiap-google</code> 2.1.4 and later include the Google
           Play Billing <code>responseCode</code>, <code>debugMessage</code>,
@@ -450,6 +458,40 @@ var is_empty_product_list: Variant = null # Android returned no products`}</Code
           </li>
         </ul>
 
+        <h3>User Cancellation</h3>
+        <p>
+          Treat user cancellation as an expected result of the purchase flow. Do
+          not show an error alert, retry automatically, or report it as a
+          service failure.
+        </p>
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`import { ErrorCode } from 'react-native-iap';
+
+function isUserCancellation(error: { code?: unknown }) {
+  return error.code === ErrorCode.UserCancelled || error.code === 'user-cancelled';
+}`}</CodeBlock>
+            ),
+            kmp: (
+              <CodeBlock language="kotlin">{`try {
+    // Call a purchase or iOS-only API.
+} catch (error: PurchaseException) {
+    if (error.error.code == ErrorCode.UserCancelled) return
+    throw error
+}`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`try {
+  // Call a purchase or iOS-only API.
+} on PurchaseError catch (error) {
+  if (error.code == ErrorCode.UserCancelled) return;
+  rethrow;
+}`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
+
         <h3>Retry Strategy</h3>
         <p>Implement retry logic for transient errors:</p>
         <div className="info-note">
@@ -643,48 +685,48 @@ var is_empty_product_list: Variant = null # Android returned no products`}</Code
           {{
             typescript: (
               <CodeBlock language="typescript">{`enum ErrorCode {
-  Unknown = 'E_UNKNOWN',
-  UserCancelled = 'E_USER_CANCELLED',
-  UserError = 'E_USER_ERROR',
-  ItemUnavailable = 'E_ITEM_UNAVAILABLE',
-  RemoteError = 'E_REMOTE_ERROR',
-  NetworkError = 'E_NETWORK_ERROR',
-  ServiceError = 'E_SERVICE_ERROR',
+  Unknown = 'unknown',
+  UserCancelled = 'user-cancelled',
+  UserError = 'user-error',
+  ItemUnavailable = 'item-unavailable',
+  RemoteError = 'remote-error',
+  NetworkError = 'network-error',
+  ServiceError = 'service-error',
   // @deprecated Use PurchaseVerificationFailed instead
-  ReceiptFailed = 'E_RECEIPT_FAILED',
+  ReceiptFailed = 'receipt-failed',
   // @deprecated Use PurchaseVerificationFinished instead
-  ReceiptFinished = 'E_RECEIPT_FINISHED',
+  ReceiptFinished = 'receipt-finished',
   // @deprecated Use PurchaseVerificationFinishFailed instead
-  ReceiptFinishedFailed = 'E_RECEIPT_FINISHED_FAILED',
-  PurchaseVerificationFailed = 'E_PURCHASE_VERIFICATION_FAILED',
-  PurchaseVerificationFinished = 'E_PURCHASE_VERIFICATION_FINISHED',
-  PurchaseVerificationFinishFailed = 'E_PURCHASE_VERIFICATION_FINISH_FAILED',
-  NotPrepared = 'E_NOT_PREPARED',
-  NotEnded = 'E_NOT_ENDED',
-  AlreadyOwned = 'E_ALREADY_OWNED',
-  DeveloperError = 'E_DEVELOPER_ERROR',
-  BillingResponseJsonParseError = 'E_BILLING_RESPONSE_JSON_PARSE_ERROR',
-  DeferredPayment = 'E_DEFERRED_PAYMENT',
-  Interrupted = 'E_INTERRUPTED',
-  IapNotAvailable = 'E_IAP_NOT_AVAILABLE',
-  PurchaseError = 'E_PURCHASE_ERROR',
-  SyncError = 'E_SYNC_ERROR',
-  TransactionValidationFailed = 'E_TRANSACTION_VALIDATION_FAILED',
-  ActivityUnavailable = 'E_ACTIVITY_UNAVAILABLE',
-  AlreadyPrepared = 'E_ALREADY_PREPARED',
-  Pending = 'E_PENDING',
-  ConnectionClosed = 'E_CONNECTION_CLOSED',
-  InitConnection = 'E_INIT_CONNECTION',
-  ServiceDisconnected = 'E_SERVICE_DISCONNECTED',
-  ServiceTimeout = 'E_SERVICE_TIMEOUT',
-  QueryProduct = 'E_QUERY_PRODUCT',
-  SkuNotFound = 'E_SKU_NOT_FOUND',
-  SkuOfferMismatch = 'E_SKU_OFFER_MISMATCH',
-  ItemNotOwned = 'E_ITEM_NOT_OWNED',
-  BillingUnavailable = 'E_BILLING_UNAVAILABLE',
-  FeatureNotSupported = 'E_FEATURE_NOT_SUPPORTED',
-  EmptySkuList = 'E_EMPTY_SKU_LIST',
-  DuplicatePurchase = 'E_DUPLICATE_PURCHASE',
+  ReceiptFinishedFailed = 'receipt-finished-failed',
+  PurchaseVerificationFailed = 'purchase-verification-failed',
+  PurchaseVerificationFinished = 'purchase-verification-finished',
+  PurchaseVerificationFinishFailed = 'purchase-verification-finish-failed',
+  NotPrepared = 'not-prepared',
+  NotEnded = 'not-ended',
+  AlreadyOwned = 'already-owned',
+  DeveloperError = 'developer-error',
+  BillingResponseJsonParseError = 'billing-response-json-parse-error',
+  DeferredPayment = 'deferred-payment',
+  Interrupted = 'interrupted',
+  IapNotAvailable = 'iap-not-available',
+  PurchaseError = 'purchase-error',
+  SyncError = 'sync-error',
+  TransactionValidationFailed = 'transaction-validation-failed',
+  ActivityUnavailable = 'activity-unavailable',
+  AlreadyPrepared = 'already-prepared',
+  Pending = 'pending',
+  ConnectionClosed = 'connection-closed',
+  InitConnection = 'init-connection',
+  ServiceDisconnected = 'service-disconnected',
+  ServiceTimeout = 'service-timeout',
+  QueryProduct = 'query-product',
+  SkuNotFound = 'sku-not-found',
+  SkuOfferMismatch = 'sku-offer-mismatch',
+  ItemNotOwned = 'item-not-owned',
+  BillingUnavailable = 'billing-unavailable',
+  FeatureNotSupported = 'feature-not-supported',
+  EmptySkuList = 'empty-sku-list',
+  DuplicatePurchase = 'duplicate-purchase',
 }`}</CodeBlock>
             ),
             swift: (

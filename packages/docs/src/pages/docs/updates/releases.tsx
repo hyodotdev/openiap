@@ -26,6 +26,144 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // July 2, 2026 — iOS cancellation error bridge hotfix
+    {
+      id: 'ios-cancellation-error-bridge-hotfix-2026-07-02',
+      date: new Date('2026-07-02'),
+      element: (
+        <div
+          key="ios-cancellation-error-bridge-hotfix-2026-07-02"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="ios-cancellation-error-bridge-hotfix-2026-07-02"
+            level="h4"
+          >
+            July 2, 2026 — iOS cancellation error bridge hotfix
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes React Native and KMP patch releases for iOS cancellation
+            errors reported in{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/issues/202"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              issue #202
+            </a>{' '}
+            and fixed in{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/203"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #203
+            </a>
+            . The OpenIAP spec and native Apple package versions are unchanged;
+            this release updates the framework bridges that were dropping or
+            obscuring the original iOS <code>user-cancelled</code> error code.
+          </p>
+
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>React Native Nitro error parsing</strong> — iOS{' '}
+              <code>NSError</code> messages from Nitro are parsed for embedded
+              OpenIAP JSON payloads so <code>syncIOS()</code> and other iOS
+              calls preserve <code>ErrorCode.UserCancelled</code> instead of
+              falling back to <code>unknown</code> or logging expected user
+              cancellation as an error.
+            </li>
+            <li>
+              <strong>KMP iOS completion errors</strong> — KMP now converts iOS
+              completion <code>NSError</code> values into{' '}
+              <code>PurchaseException</code> with the original{' '}
+              <code>PurchaseError.code</code>, message, product ID, and debug
+              message metadata from the native bridge.
+            </li>
+            <li>
+              <strong>Cross-SDK audit</strong> — Expo, Flutter, Godot, and MAUI
+              were checked for the same iOS error-code loss. They already use
+              typed error payloads or preserve native{' '}
+              <code>NSError.userInfo</code> metadata, so no matching release
+              change was required.
+            </li>
+            <li>
+              <strong>User cancellation behavior</strong> — Apps should continue
+              treating <code>UserCancelled</code> / <code>user-cancelled</code>{' '}
+              as expected user action, not a service failure.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/react-native-iap-15.3.6"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  react-native-iap 15.3.6
+                </a>{' '}
+                (
+                <a
+                  href="https://www.npmjs.com/package/react-native-iap/v/15.3.6"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  npm
+                </a>
+                )
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/kmp-iap-2.3.6"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  kmp-iap 2.3.6
+                </a>{' '}
+                (
+                <a
+                  href="https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap/2.3.6"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Maven Central
+                </a>
+                )
+              </li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // July 2, 2026 — iOS subscription commitment billing plans
     {
       id: 'ios-subscription-commitment-billing-plans-2026-07-02',
