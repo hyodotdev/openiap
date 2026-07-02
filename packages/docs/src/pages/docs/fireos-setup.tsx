@@ -16,6 +16,12 @@ function FireOSSetup() {
         keywords="Fire OS IAP, Amazon Appstore SDK, Amazon App Tester, OpenIAP Amazon, fireOsEnabled, openiap-google-amazon"
       />
       <h1>Fire OS Setup Guide</h1>
+      <div className="alert-card alert-card--warning">
+        <strong>Experimental support:</strong> Fire OS support is currently
+        experimental. Use the <code>next</code> / <code>rc</code> package
+        versions for validation, and expect setup details or platform behavior
+        to change before the stable release.
+      </div>
       <p>
         Fire OS support targets Android apps distributed through the Amazon
         Appstore. OpenIAP supports it through the Fire OS flavor: the Android{' '}

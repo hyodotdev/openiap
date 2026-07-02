@@ -45,6 +45,7 @@ const calloutStyle = {
 interface Announcement {
   id: string;
   date: Date;
+  hidden?: boolean;
   element: React.ReactNode;
 }
 
@@ -56,6 +57,7 @@ function Announcements() {
     {
       id: '2026-06-09-amazon-fireos-vega',
       date: new Date('2026-06-09'),
+      hidden: true,
       element: (
         <div key="2026-06-09-amazon-fireos-vega" style={cardStyle}>
           <div style={headerStyle}>
@@ -1013,10 +1015,9 @@ function Announcements() {
     },
   ];
 
-  // Sort by date (newest first)
-  const sortedAnnouncements = [...announcements].sort(
-    (a, b) => b.date.getTime() - a.date.getTime()
-  );
+  const sortedAnnouncements = announcements
+    .filter((announcement) => !announcement.hidden)
+    .sort((a, b) => b.date.getTime() - a.date.getTime());
 
   return (
     <div className="doc-page">

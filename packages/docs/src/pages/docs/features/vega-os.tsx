@@ -17,6 +17,14 @@ function VegaOSRuntime() {
       />
       <h1>Vega OS Runtime</h1>
 
+      <div className="alert-card alert-card--warning">
+        <strong>Experimental support:</strong> Vega OS support is currently
+        experimental and limited to React Native for Vega / compatible Expo Vega
+        targets. Use the <code>next</code> / <code>rc</code> package versions
+        for validation, and expect runtime integration details to change before
+        the stable release.
+      </div>
+
       <p>
         Vega OS is not Fire OS and it is not an Android flavor. OpenIAP supports
         Vega OS as a runtime-selected JavaScript adapter for React Native for
