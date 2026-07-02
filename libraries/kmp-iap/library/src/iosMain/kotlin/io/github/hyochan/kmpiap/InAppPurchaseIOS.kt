@@ -81,6 +81,30 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     private var promotedProductSubscription: NSObject? = null
     private var subscriptionBillingIssueSubscription: NSObject? = null
 
+    private fun NSError.toPurchaseException(
+        fallbackCode: ErrorCode = ErrorCode.Unknown
+    ): PurchaseException {
+        val code = stringFromUserInfo("code")
+            ?.let { raw -> runCatching { ErrorCode.fromJson(raw) }.getOrNull() }
+            ?: fallbackCode
+        val message = stringFromUserInfo("message")
+            ?: localizedDescription.ifBlank { "iOS error" }
+
+        return PurchaseException(
+            PurchaseError(
+                code = code,
+                message = message,
+                productId = stringFromUserInfo("productId"),
+                debugMessage = stringFromUserInfo("debugMessage")
+            )
+        )
+    }
+
+    private fun NSError.stringFromUserInfo(key: String): String? {
+        val value = userInfo[key] ?: userInfo[NSString.create(string = key)]
+        return value?.toString()?.takeIf { it.isNotBlank() }
+    }
+
     init {
         // Register listeners
         setupListeners()
@@ -162,7 +186,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         // iOS doesn't use alternative billing config, it's Android only
         openIapModule.initConnectionWithCompletion { success, error ->
             if (error != null) {
-                continuation.resumeWithException(Exception(error.localizedDescription))
+                continuation.resumeWithException(error.toPurchaseException())
             } else {
                 isConnected = success
                 // Re-register listeners after endConnection()/initConnection() cycles.
@@ -195,7 +219,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
 
         openIapModule.endConnectionWithCompletion { success, error ->
             if (error != null) {
-                continuation.resumeWithException(Exception(error.localizedDescription))
+                continuation.resumeWithException(error.toPurchaseException())
             } else {
                 isConnected = false
                 continuation.resume(success)
@@ -228,7 +252,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
 
             openIapModule.requestPurchaseWithPayload(params.toJson().toObjCMap()) { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    continuation.resumeWithException(error.toPurchaseException())
                 } else if (result != null) {
                     val purchase = convertAnyToPurchase(result)
                     continuation.resume(purchase?.let { RequestPurchaseResultPurchase(it) })
@@ -283,7 +307,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         suspendCoroutine { continuation ->
             openIapModule.requestPurchaseOnPromotedProductIOSWithCompletion { success, error ->
                 if (error != null) {
-                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    continuation.resumeWithException(error.toPurchaseException())
                 } else {
                     continuation.resume(success)
                 }
@@ -298,7 +322,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     override suspend fun restorePurchases(): Unit = suspendCoroutine { continuation ->
         openIapModule.restorePurchasesWithCompletion { error ->
             if (error != null) {
-                continuation.resumeWithException(Exception(error.localizedDescription))
+                continuation.resumeWithException(error.toPurchaseException())
             } else {
                 continuation.resume(Unit)
             }
@@ -329,7 +353,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 isConsumable = isConsumable ?: false
             ) { error ->
                 if (error != null) {
-                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    continuation.resumeWithException(error.toPurchaseException())
                 } else {
                     continuation.resume(Unit)
                 }
@@ -345,7 +369,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         suspendCoroutine { continuation ->
             openIapModule.deepLinkToSubscriptionsWithCompletion { error ->
                 if (error != null) {
-                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    continuation.resumeWithException(error.toPurchaseException())
                 } else {
                     continuation.resume(Unit)
                 }
@@ -361,7 +385,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         suspendCoroutine { continuation ->
             openIapModule.presentCodeRedemptionSheetIOSWithCompletion { success, error ->
                 if (error != null) {
-                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    continuation.resumeWithException(error.toPurchaseException())
                 } else {
                     continuation.resume(success)
                 }
@@ -377,7 +401,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         suspendCoroutine { continuation ->
             openIapModule.beginRefundRequestIOSWithSku(sku) { status, error ->
                 if (error != null) {
-                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    continuation.resumeWithException(error.toPurchaseException())
                 } else {
                     continuation.resume(status)
                 }
@@ -392,7 +416,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     override suspend fun clearTransactionIOS(): Boolean = suspendCoroutine { continuation ->
         openIapModule.clearTransactionIOSWithCompletion { success, error ->
             if (error != null) {
-                continuation.resumeWithException(Exception(error.localizedDescription))
+                continuation.resumeWithException(error.toPurchaseException())
             } else {
                 continuation.resume(success)
             }
@@ -408,7 +432,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         suspendCoroutine { continuation ->
             openIapModule.showManageSubscriptionsIOSWithCompletion { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    continuation.resumeWithException(error.toPurchaseException())
                 } else if (result != null) {
                     val purchases = convertAnyListToPurchaseIOSList(result)
                     continuation.resume(purchases)
@@ -426,7 +450,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     override suspend fun syncIOS(): Boolean = suspendCoroutine { continuation ->
         openIapModule.syncIOSWithCompletion { success, error ->
             if (error != null) {
-                continuation.resumeWithException(Exception(error.localizedDescription))
+                continuation.resumeWithException(error.toPurchaseException())
             } else {
                 continuation.resume(success)
             }
@@ -466,7 +490,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
 
             openIapModule.fetchProductsWithSkus(skus, type = type) { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    continuation.resumeWithException(error.toPurchaseException())
                 } else if (result != null) {
                     // Convert [Any] to products or subscriptions based on type
                     when (params.type) {
@@ -508,7 +532,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         suspendCoroutine { continuation ->
             openIapModule.getAvailablePurchasesWithCompletion { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    continuation.resumeWithException(error.toPurchaseException())
                 } else if (result != null) {
                     val purchases = convertAnyListToPurchases(result)
                     continuation.resume(purchases)
@@ -551,7 +575,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         suspendCoroutine { continuation ->
             openIapModule.getPendingTransactionsIOSWithCompletion { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    continuation.resumeWithException(error.toPurchaseException())
                 } else if (result != null) {
                     val purchases = convertAnyListToPurchaseIOSList(result)
                     continuation.resume(purchases)
@@ -570,7 +594,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         suspendCoroutine { continuation ->
             openIapModule.getAllTransactionsIOSWithCompletion { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    continuation.resumeWithException(error.toPurchaseException())
                 } else if (result != null) {
                     val purchases = convertAnyListToPurchaseIOSList(result)
                     continuation.resume(purchases)
@@ -603,7 +627,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     override suspend fun getPromotedProductIOS(): ProductIOS? = suspendCoroutine { continuation ->
         openIapModule.getPromotedProductIOSWithCompletion { result, error ->
             if (error != null) {
-                continuation.resumeWithException(Exception(error.localizedDescription))
+                continuation.resumeWithException(error.toPurchaseException())
             } else if (result != null) {
                 val product = convertAnyToProductIOS(result)
                 continuation.resume(product)
@@ -622,7 +646,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         suspendCoroutine { continuation ->
             openIapModule.getActiveSubscriptionsWithCompletion { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    continuation.resumeWithException(error.toPurchaseException())
                     return@getActiveSubscriptionsWithCompletion
                 }
 
@@ -641,7 +665,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             // The @available annotation on the Swift side handles version checking
             openIapModule.getAppTransactionIOSWithCompletion { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    continuation.resumeWithException(error.toPurchaseException())
                     return@getAppTransactionIOSWithCompletion
                 }
 
@@ -667,7 +691,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         suspendCoroutine { continuation ->
             openIapModule.currentEntitlementIOSWithSku(sku) { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    continuation.resumeWithException(error.toPurchaseException())
                     return@currentEntitlementIOSWithSku
                 }
 
@@ -685,7 +709,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         suspendCoroutine { continuation ->
             openIapModule.getTransactionJwsIOSWithSku(sku) { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    continuation.resumeWithException(error.toPurchaseException())
                     return@getTransactionJwsIOSWithSku
                 }
 
@@ -703,7 +727,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             if (subscriptionIds.isNullOrEmpty()) {
                 openIapModule.hasActiveSubscriptionsWithCompletion { hasActive, error ->
                     if (error != null) {
-                        continuation.resumeWithException(Exception(error.localizedDescription))
+                        continuation.resumeWithException(error.toPurchaseException())
                         return@hasActiveSubscriptionsWithCompletion
                     }
 
@@ -714,7 +738,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
 
             openIapModule.getActiveSubscriptionsWithCompletion { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    continuation.resumeWithException(error.toPurchaseException())
                     return@getActiveSubscriptionsWithCompletion
                 }
 
@@ -752,7 +776,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         suspendCoroutine { continuation ->
             openIapModule.isEligibleForIntroOfferIOSWithGroupID(groupID) { isEligible, error ->
                 if (error != null) {
-                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    continuation.resumeWithException(error.toPurchaseException())
                     return@isEligibleForIntroOfferIOSWithGroupID
                 }
 
@@ -769,7 +793,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         suspendCoroutine { continuation ->
             openIapModule.isEligibleForExternalPurchaseCustomLinkIOSWithCompletion { isEligible, error ->
                 if (error != null) {
-                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    continuation.resumeWithException(error.toPurchaseException())
                     return@isEligibleForExternalPurchaseCustomLinkIOSWithCompletion
                 }
 
@@ -788,7 +812,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         suspendCoroutine { continuation ->
             openIapModule.showExternalPurchaseCustomLinkNoticeIOSWithNoticeType(noticeType.rawValue) { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    continuation.resumeWithException(error.toPurchaseException())
                     return@showExternalPurchaseCustomLinkNoticeIOSWithNoticeType
                 }
 
@@ -823,7 +847,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         suspendCoroutine { continuation ->
             openIapModule.getExternalPurchaseCustomLinkTokenIOSWithTokenType(tokenType.rawValue) { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    continuation.resumeWithException(error.toPurchaseException())
                     return@getExternalPurchaseCustomLinkTokenIOSWithTokenType
                 }
 
@@ -856,7 +880,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         suspendCoroutine { continuation ->
             openIapModule.isTransactionVerifiedIOSWithSku(sku) { isVerified, error ->
                 if (error != null) {
-                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    continuation.resumeWithException(error.toPurchaseException())
                     return@isTransactionVerifiedIOSWithSku
                 }
 
@@ -873,7 +897,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         suspendCoroutine { continuation ->
             openIapModule.latestTransactionIOSWithSku(sku) { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    continuation.resumeWithException(error.toPurchaseException())
                     return@latestTransactionIOSWithSku
                 }
 
@@ -891,7 +915,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         suspendCoroutine { continuation ->
             openIapModule.subscriptionStatusIOSWithSku(sku) { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    continuation.resumeWithException(error.toPurchaseException())
                     return@subscriptionStatusIOSWithSku
                 }
 
@@ -927,7 +951,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         return suspendCoroutine { continuation ->
             openIapModule.verifyPurchaseWithSku(sku) { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    continuation.resumeWithException(error.toPurchaseException())
                     return@verifyPurchaseWithSku
                 }
 
