@@ -4,7 +4,7 @@ import { useSeoMeta, SITE_ORIGIN } from "@/hooks/useSeoMeta";
 import { POSTS } from "./posts";
 
 const BLOG_DESCRIPTION =
-  "Announcements, roadmap, and engineering notes from IAPKit — the OpenIAP receipt-validation service for App Store, Google Play, and Meta Horizon.";
+  "Announcements, roadmap, and engineering notes from IAPKit — the OpenIAP receipt-validation service for App Store, Google Play, Meta Horizon, and Amazon Appstore.";
 
 export default function BlogIndex() {
   const jsonLd = useMemo(

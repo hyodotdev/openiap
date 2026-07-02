@@ -2,7 +2,15 @@ import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/Badge";
 import { cn } from "@/lib/utils";
-import { Apple, CheckCircle2, Loader2, Play, XCircle } from "lucide-react";
+import {
+  Apple,
+  CheckCircle2,
+  Headset,
+  Loader2,
+  Play,
+  ShoppingBag,
+  XCircle,
+} from "lucide-react";
 import { formatReceiptDate, getPurchaseStateDisplay } from "./receipt-utils";
 
 const storeIndicatorConfig = {
@@ -13,6 +21,14 @@ const storeIndicatorConfig = {
   google: {
     icon: Play,
     label: "Google Play",
+  },
+  horizon: {
+    icon: Headset,
+    label: "Meta Horizon",
+  },
+  amazon: {
+    icon: ShoppingBag,
+    label: "Amazon Appstore",
   },
 } as const;
 

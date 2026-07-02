@@ -64,6 +64,23 @@ describe('OfferCode Component', () => {
     ).toBeDefined();
   });
 
+  it('should show Vega unsupported guidance without calling platform redemption APIs', () => {
+    Object.defineProperty(Platform, 'OS', {
+      get: jest.fn(() => 'kepler'),
+      configurable: true,
+    });
+
+    const {getByText} = render(<OfferCode />);
+
+    fireEvent.press(getByText('Amazon Vega IAP'));
+
+    expect(ExpoIap.presentCodeRedemptionSheetIOS).not.toHaveBeenCalled();
+    expect(ExpoIap.openRedeemOfferCodeAndroid).not.toHaveBeenCalled();
+    expect(
+      getByText(/Offer code redemption is not supported on Amazon Vega/),
+    ).toBeDefined();
+  });
+
   it('should handle redeem button press on iOS', async () => {
     Object.defineProperty(Platform, 'OS', {
       get: jest.fn(() => 'ios'),

@@ -570,6 +570,32 @@ import StoreKit
         }
     }
 
+    /// Verify purchase with external provider using the generated OpenIAP payload shape.
+    /// - Parameters:
+    ///   - payload: VerifyPurchaseWithProviderProps encoded as NSDictionary
+    ///   - completion: Callback with full verification result dictionary or error
+    @objc(verifyPurchaseWithProviderObjCWithPayload:completion:)
+    func verifyPurchaseWithProviderPayloadObjC(
+        payload: NSDictionary,
+        completion: @escaping ([String: Any]?, Error?) -> Void
+    ) {
+        Task {
+            do {
+                guard JSONSerialization.isValidJSONObject(payload) else {
+                    throw PurchaseError(code: .developerError, message: "Invalid verification payload")
+                }
+
+                let data = try JSONSerialization.data(withJSONObject: payload, options: [])
+                let props = try JSONDecoder().decode(VerifyPurchaseWithProviderProps.self, from: data)
+                let result = try await verifyPurchaseWithProvider(props)
+                let dictionary = OpenIapSerialization.encode(result)
+                completion(dictionary, nil)
+            } catch {
+                completion(nil, error)
+            }
+        }
+    }
+
     // MARK: - Store Information
 
     @objc func getStorefrontWithCompletion(_ completion: @escaping (String?, Error?) -> Void) {

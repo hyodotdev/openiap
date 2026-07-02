@@ -3,6 +3,12 @@ import {Platform, ActionSheetIOS, Alert} from 'react-native';
 
 export type VerificationMethod = 'ignore' | 'local' | 'iapkit';
 
+export function getDefaultVerificationMethod(
+  iapkitApiKey?: string | null,
+): VerificationMethod {
+  return iapkitApiKey?.trim() ? 'iapkit' : 'ignore';
+}
+
 interface UseVerificationMethodReturn {
   verificationMethod: VerificationMethod;
   verificationMethodRef: React.MutableRefObject<VerificationMethod>;

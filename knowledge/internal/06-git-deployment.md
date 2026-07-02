@@ -30,7 +30,9 @@ Requirements:
   clearly labeled attached `Preview` comment.
 - Do not commit one-off PR preview recordings. Only commit preview media when
   the media itself is a product documentation or example asset that should ship
-  with the repository.
+  with the repository. If PR attachment upload is blocked by local browser or
+  extension permissions, commit a compressed asset under `.github/pr-previews/`
+  and link the GitHub-hosted raw/blob URL from the preview comment.
 - Link or embed the uploaded preview in the PR body or a clearly labeled
   `Preview` PR comment.
 - If the change has no visual or interactive surface, include a short note in
@@ -213,7 +215,7 @@ Use these checks before writing a release list:
 If the release is not published yet, use planned wording and plain text. If the
 release is published, verify the tag exists with `gh release view <tag>` before
 linking it. This prevents stale Package Releases tables such as documenting
-`maui-iap 1.0.1` when the actual release tag is `maui-iap-1.0.2`.
+`maui-iap 1.0.1` when the actual release tag is `maui-iap-1.0.3`.
 
 ---
 

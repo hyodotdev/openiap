@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.AlternativeBillingOnlyReportingDetails
 import com.android.billingclient.api.BillingClient
@@ -94,11 +96,13 @@ import io.github.hyochan.kmpiap.openiap.ExternalLinkTypeAndroid
 import io.github.hyochan.kmpiap.openiap.LaunchExternalLinkParamsAndroid
 import io.github.hyochan.kmpiap.openiap.SubscriptionProductReplacementParamsAndroid
 import io.github.hyochan.kmpiap.openiap.SubscriptionReplacementModeAndroid
-import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps as GoogleVerifyPurchaseWithIapkitProps
-import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitGoogleProps as GoogleVerifyPurchaseWithIapkitGoogleProps
-import dev.hyo.openiap.utils.verifyPurchaseWithIapkit as verifyPurchaseWithIapkitGoogle
+import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitAmazonProps as AndroidVerifyPurchaseWithIapkitAmazonProps
+import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitGoogleProps as AndroidVerifyPurchaseWithIapkitGoogleProps
+import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps as AndroidVerifyPurchaseWithIapkitProps
+import dev.hyo.openiap.utils.verifyPurchaseWithIapkit as verifyPurchaseWithIapkitAndroid
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -112,6 +116,10 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 private const val KMP_IAP_LOG_TAG = "KmpIAP"
+private const val PURCHASE_RESUME_FALLBACK_DELAY_MS = 2_000L
+private const val PURCHASE_FOCUS_POLL_INTERVAL_MS = 500L
+private const val PURCHASE_PROXY_CLOSED_FALLBACK_DELAY_MS = 1_000L
+private const val PURCHASE_CALLBACK_TIMEOUT_MS = 60_000L
 
 private fun logWarning(message: String) {
     if (android.util.Log.isLoggable(KMP_IAP_LOG_TAG, android.util.Log.WARN)) {
@@ -134,6 +142,14 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     private var activityCallbacksDisposer: (() -> Unit)? = null
     private val cachedProductDetails = ConcurrentHashMap<String, ProductDetails>()
     private var currentPurchaseCallback: ((Result<List<Purchase>>) -> Unit)? = null
+    private val mainHandler by lazy(LazyThreadSafetyMode.NONE) {
+        Handler(Looper.getMainLooper())
+    }
+    private var pendingPurchaseSkus: List<String> = emptyList()
+    private var pendingPurchaseProductType: String? = null
+    private var purchaseFlowLaunched = false
+    private var purchaseFallbackRunnable: Runnable? = null
+    private var purchaseTimeoutRunnable: Runnable? = null
     private var alternativeBillingMode: AlternativeBillingModeAndroid = AlternativeBillingModeAndroid.None
     private var enabledBillingProgram: BillingProgramAndroid? = null
 
@@ -276,6 +292,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                 billingClient?.endConnection()
                 billingClient = null
                 isConnected = false
+                clearPendingPurchaseFlow()
                 activityCallbacksDisposer?.invoke()
                 activityCallbacksDisposer = null
                 _connectionStateListener.tryEmit(ConnectionResult(connected = false, message = "Disconnected"))
@@ -362,9 +379,15 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                 return@withContext emptyList()
             }
 
-            suspendCancellableCoroutine<List<Purchase>> { continuation ->
+            withTimeoutOrNull(PURCHASE_CALLBACK_TIMEOUT_MS) {
+                suspendCancellableCoroutine<List<Purchase>> { continuation ->
                 currentPurchaseCallback = { result ->
-                    if (continuation.isActive) continuation.resume(result.getOrDefault(emptyList()))
+                    if (continuation.isActive) {
+                        result.fold(
+                            onSuccess = { continuation.resume(it) },
+                            onFailure = { continuation.resumeWithException(it) }
+                        )
+                    }
                 }
 
                 val paramsList = mutableListOf<BillingFlowParams.ProductDetailsParams>()
@@ -454,17 +477,29 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
 
                 val launchResult = billingClient?.launchBillingFlow(activity, flowBuilder.build())
                 if (launchResult?.responseCode != BillingClient.BillingResponseCode.OK) {
+                    val code = mapBillingResponseCode(launchResult?.responseCode ?: -1)
                     val error = PurchaseError(
-                        code = mapBillingResponseCode(launchResult?.responseCode ?: -1),
-                        message = launchResult?.debugMessage ?: "Failed to launch billing flow"
+                        code = code,
+                        message = launchResult?.debugMessage
+                            ?.takeIf { it.isNotBlank() }
+                            ?: if (code == ErrorCode.UserCancelled) {
+                                "User cancelled the operation"
+                            } else {
+                                "Failed to launch billing flow"
+                            }
                     )
                     _purchaseErrorListener.tryEmit(error)
-                    currentPurchaseCallback?.invoke(Result.success(emptyList()))
-                    currentPurchaseCallback = null
+                    completePendingPurchaseFlow(Result.failure(PurchaseException(error)))
+                } else {
+                    pendingPurchaseSkus = targetSkus
+                    pendingPurchaseProductType = desiredProductType
+                    purchaseFlowLaunched = true
+                    schedulePurchaseResumeFallback()
                 }
 
                 continuation.invokeOnCancellation { currentPurchaseCallback = null }
-            }
+                }
+            } ?: recoverPendingPurchaseAfterTimeout(client)
         }
 
         RequestPurchaseResultPurchases(purchases)
@@ -1162,28 +1197,46 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                 message = "IAPKit options are required for Android verification"
             )
         )
-        val googleOptions = iapkitOptions.google ?: failWith(
-            PurchaseError(
-                code = ErrorCode.PurchaseVerificationFailed,
-                message = "Google purchaseToken is required for Android verification"
-            )
-        )
-
-        return try {
-            val openIapProps = GoogleVerifyPurchaseWithIapkitProps(
-                apiKey = iapkitOptions.apiKey,
-                apple = null,
-                google = GoogleVerifyPurchaseWithIapkitGoogleProps(
-                    purchaseToken = googleOptions.purchaseToken
+        val payloadCount = listOfNotNull(
+            iapkitOptions.apple,
+            iapkitOptions.google,
+            iapkitOptions.amazon
+        ).size
+        val googleOptions = iapkitOptions.google
+        val amazonOptions = iapkitOptions.amazon
+        if (payloadCount != 1 || (googleOptions == null && amazonOptions == null)) {
+            failWith(
+                PurchaseError(
+                    code = ErrorCode.PurchaseVerificationFailed,
+                    message = "IAPKit verification on KMP Android requires exactly one google or amazon payload"
                 )
             )
+        }
 
-            val googleResult = verifyPurchaseWithIapkitGoogle(openIapProps, "kmp-iap-android")
+        return try {
+            val openIapProps = AndroidVerifyPurchaseWithIapkitProps(
+                apiKey = iapkitOptions.apiKey,
+                apple = null,
+                amazon = amazonOptions?.let { amazon ->
+                    AndroidVerifyPurchaseWithIapkitAmazonProps(
+                        receiptId = amazon.receiptId,
+                        sandbox = amazon.sandbox,
+                        userId = amazon.userId
+                    )
+                },
+                google = googleOptions?.let { google ->
+                    AndroidVerifyPurchaseWithIapkitGoogleProps(
+                        purchaseToken = google.purchaseToken
+                    )
+                }
+            )
+
+            val androidResult = verifyPurchaseWithIapkitAndroid(openIapProps, "kmp-iap-android")
 
             val iapkitResult = RequestVerifyPurchaseWithIapkitResult(
-                isValid = googleResult.isValid,
-                state = IapkitPurchaseState.fromJson(googleResult.state.toJson()),
-                store = IapStore.fromJson(googleResult.store.toJson())
+                isValid = androidResult.isValid,
+                state = IapkitPurchaseState.fromJson(androidResult.state.toJson()),
+                store = IapStore.fromJson(androidResult.store.toJson())
             )
 
             VerifyPurchaseWithProviderResult(
@@ -1214,16 +1267,162 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
             val mapped = purchases.orEmpty().map { it.toPurchase() }
             mapped.forEach { _purchaseUpdatedListener.tryEmit(it) }
-            currentPurchaseCallback?.invoke(Result.success(mapped))
+            completePendingPurchaseFlow(Result.success(mapped))
         } else {
+            val code = mapBillingResponseCode(billingResult.responseCode)
             val error = PurchaseError(
-                code = mapBillingResponseCode(billingResult.responseCode),
-                message = billingResult.debugMessage.takeIf { it.isNotBlank() } ?: "Purchase failed"
+                code = code,
+                message = billingResult.debugMessage
+                    .takeIf { it.isNotBlank() }
+                    ?: if (code == ErrorCode.UserCancelled) {
+                        "User cancelled the operation"
+                    } else {
+                        "Purchase failed"
+                    }
             )
             _purchaseErrorListener.tryEmit(error)
-            currentPurchaseCallback?.invoke(Result.success(emptyList()))
+            completePendingPurchaseFlow(Result.failure(PurchaseException(error)))
         }
+    }
+
+    private fun clearPendingPurchaseFlow() {
+        purchaseFallbackRunnable?.let(mainHandler::removeCallbacks)
+        purchaseTimeoutRunnable?.let(mainHandler::removeCallbacks)
+        purchaseFallbackRunnable = null
+        purchaseTimeoutRunnable = null
         currentPurchaseCallback = null
+        pendingPurchaseSkus = emptyList()
+        pendingPurchaseProductType = null
+        purchaseFlowLaunched = false
+    }
+
+    private fun completePendingPurchaseFlow(result: Result<List<Purchase>>) {
+        purchaseFallbackRunnable?.let(mainHandler::removeCallbacks)
+        purchaseTimeoutRunnable?.let(mainHandler::removeCallbacks)
+        purchaseFallbackRunnable = null
+        purchaseTimeoutRunnable = null
+        val callback = currentPurchaseCallback
+        currentPurchaseCallback = null
+        pendingPurchaseSkus = emptyList()
+        pendingPurchaseProductType = null
+        purchaseFlowLaunched = false
+        callback?.invoke(result)
+    }
+
+    private fun schedulePurchaseResumeFallback() {
+        if (!purchaseFlowLaunched) return
+        purchaseFallbackRunnable?.let(mainHandler::removeCallbacks)
+        val runnable = object : Runnable {
+            override fun run() {
+                if (!purchaseFlowLaunched) return
+
+                val activity = currentActivity
+                if (activity == null || !activity.hasWindowFocus()) {
+                    mainHandler.postDelayed(this, PURCHASE_FOCUS_POLL_INTERVAL_MS)
+                    return
+                }
+
+                resolvePendingPurchaseAfterResume()
+            }
+        }
+        purchaseFallbackRunnable = runnable
+        mainHandler.postDelayed(runnable, PURCHASE_RESUME_FALLBACK_DELAY_MS)
+        schedulePurchaseTimeoutFallback()
+    }
+
+    private fun schedulePurchaseTimeoutFallback() {
+        purchaseTimeoutRunnable?.let(mainHandler::removeCallbacks)
+        val runnable = Runnable {
+            if (purchaseFlowLaunched) resolvePendingPurchaseAfterResume()
+        }
+        purchaseTimeoutRunnable = runnable
+        mainHandler.postDelayed(runnable, PURCHASE_CALLBACK_TIMEOUT_MS)
+    }
+
+    private fun resolvePendingPurchaseAfterResume() {
+        val client = billingClient ?: return
+        if (!purchaseFlowLaunched) return
+
+        val productType = pendingPurchaseProductType ?: BillingClient.ProductType.INAPP
+        val requestedSkus = pendingPurchaseSkus.toSet()
+        val params = QueryPurchasesParams.newBuilder()
+            .setProductType(productType)
+            .build()
+
+        client.queryPurchasesAsync(params) { result, purchases ->
+            if (!purchaseFlowLaunched) return@queryPurchasesAsync
+
+            if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+                val matched = purchases
+                    .filter { purchase ->
+                        requestedSkus.isEmpty() || purchase.products.any { it in requestedSkus }
+                    }
+                    .map { it.toPurchase() }
+
+                if (matched.isNotEmpty()) {
+                    matched.forEach { _purchaseUpdatedListener.tryEmit(it) }
+                    completePendingPurchaseFlow(Result.success(matched))
+                    return@queryPurchasesAsync
+                }
+            }
+
+            val error = PurchaseError(
+                code = ErrorCode.UserCancelled,
+                message = "User cancelled the operation"
+            )
+            _purchaseErrorListener.tryEmit(error)
+            completePendingPurchaseFlow(Result.failure(PurchaseException(error)))
+        }
+    }
+
+    private suspend fun recoverPendingPurchaseAfterTimeout(client: BillingClient): List<Purchase> {
+        val matched = queryPendingPurchaseMatches(client)
+        if (matched.isNotEmpty()) {
+            matched.forEach { _purchaseUpdatedListener.tryEmit(it) }
+            clearPendingPurchaseFlow()
+            return matched
+        }
+
+        val error = PurchaseError(
+            code = ErrorCode.UserCancelled,
+            message = "User cancelled the operation"
+        )
+        _purchaseErrorListener.tryEmit(error)
+        clearPendingPurchaseFlow()
+        throw PurchaseException(error)
+    }
+
+    private suspend fun queryPendingPurchaseMatches(client: BillingClient): List<Purchase> =
+        suspendCancellableCoroutine { continuation ->
+            val productType = pendingPurchaseProductType ?: BillingClient.ProductType.INAPP
+            val requestedSkus = pendingPurchaseSkus.toSet()
+            val params = QueryPurchasesParams.newBuilder()
+                .setProductType(productType)
+                .build()
+
+            client.queryPurchasesAsync(params) { result, purchases ->
+                val matched = if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+                    purchases
+                        .filter { purchase ->
+                            requestedSkus.isEmpty() || purchase.products.any { it in requestedSkus }
+                        }
+                        .map { it.toPurchase() }
+                } else {
+                    emptyList()
+                }
+                continuation.resume(matched)
+            }
+        }
+
+    private fun isBillingProxyActivity(activity: Activity): Boolean =
+        activity.javaClass.name == "com.android.billingclient.api.ProxyBillingActivity"
+
+    private fun schedulePurchaseProxyClosedFallback() {
+        if (!purchaseFlowLaunched) return
+        purchaseFallbackRunnable?.let(mainHandler::removeCallbacks)
+        val runnable = Runnable { resolvePendingPurchaseAfterResume() }
+        purchaseFallbackRunnable = runnable
+        mainHandler.postDelayed(runnable, PURCHASE_PROXY_CLOSED_FALLBACK_DELAY_MS)
     }
 
     private fun launchDeepLinkToSubscriptions(options: DeepLinkOptions) {
@@ -1711,14 +1910,22 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     // Activity lifecycle
     // ---------------------------------------------------------------------
     override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
-        if (currentActivity == null) currentActivity = activity
+        if (currentActivity == null && !isBillingProxyActivity(activity)) currentActivity = activity
     }
     override fun onActivityStarted(activity: Activity) {}
-    override fun onActivityResumed(activity: Activity) { currentActivity = activity }
+    override fun onActivityResumed(activity: Activity) {
+        if (isBillingProxyActivity(activity)) return
+        currentActivity = activity
+        schedulePurchaseResumeFallback()
+    }
     override fun onActivityPaused(activity: Activity) {}
     override fun onActivityStopped(activity: Activity) {}
     override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
     override fun onActivityDestroyed(activity: Activity) {
+        if (isBillingProxyActivity(activity)) {
+            schedulePurchaseProxyClosedFallback()
+            return
+        }
         if (currentActivity == activity) currentActivity = null
     }
 

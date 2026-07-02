@@ -245,6 +245,23 @@ await iap.request_purchase(props)`}</CodeBlock>
       </section>
 
       <section>
+        <AnchorLink id="subscription-state" level="h2">
+          Subscription State
+        </AnchorLink>
+        <p>
+          After purchase, use{' '}
+          <Link to="/docs/features/subscription/active-subscriptions">
+            Active Subscriptions
+          </Link>{' '}
+          to check which product or plan is currently active across Apple,
+          Google Play, Meta Horizon, and Amazon Fire OS. That page explains how
+          OpenIAP normalizes store-specific subscription group behavior into{' '}
+          <code>productId</code>, <code>currentPlanId</code>, and purchase-token
+          based entitlement checks.
+        </p>
+      </section>
+
+      <section>
         <AnchorLink id="subscription-offers" level="h2">
           Subscription Offers
         </AnchorLink>

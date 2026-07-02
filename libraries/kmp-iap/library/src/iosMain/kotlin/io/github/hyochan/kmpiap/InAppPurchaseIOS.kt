@@ -975,11 +975,35 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      *
      * @see <a href="https://openiap.dev/docs/features/validation#verify-purchase-with-provider">https://openiap.dev/docs/features/validation#verify-purchase-with-provider</a>
      */
-    override suspend fun verifyPurchaseWithProvider(options: VerifyPurchaseWithProviderProps): VerifyPurchaseWithProviderResult =
-        suspendCoroutine { continuation ->
+    override suspend fun verifyPurchaseWithProvider(options: VerifyPurchaseWithProviderProps): VerifyPurchaseWithProviderResult {
+        if (options.provider != PurchaseVerificationProvider.Iapkit) {
+            throw PurchaseException(
+                PurchaseError(
+                    code = ErrorCode.FeatureNotSupported,
+                    message = "Verification provider ${options.provider.rawValue} is not supported on iOS"
+                )
+            )
+        }
+        val iapkit = options.iapkit ?: throw PurchaseException(
+            PurchaseError(
+                code = ErrorCode.PurchaseVerificationFailed,
+                message = "IAPKit options are required for iOS verification"
+            )
+        )
+        val payloadCount = listOfNotNull(iapkit.apple, iapkit.google, iapkit.amazon).size
+        if (payloadCount != 1 || iapkit.apple == null) {
+            throw PurchaseException(
+                PurchaseError(
+                    code = ErrorCode.PurchaseVerificationFailed,
+                    message = "IAPKit verification on KMP iOS requires exactly one apple payload"
+                )
+            )
+        }
+
+        return suspendCoroutine { continuation ->
             val provider = options.provider.rawValue
-            val apiKey = options.iapkit?.apiKey
-            val jws = options.iapkit?.apple?.jws
+            val apiKey = iapkit.apiKey
+            val jws = iapkit.apple.jws
 
             openIapModule.verifyPurchaseWithProviderObjCWithProvider(
                 provider = provider,
@@ -1013,30 +1037,25 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
 
                 try {
                     val map = (result as? Map<*, *>)?.mapKeys { it.key.toString() }
-
-                    val iapkitResult = if (map != null) {
-                        val isValid = map["isValid"] as? Boolean ?: false
-                        val stateString = map["state"] as? String ?: "unknown"
-                        val storeString = map["store"] as? String ?: "apple"
-
-                        val state = try {
-                            IapkitPurchaseState.fromJson(stateString)
-                        } catch (e: IllegalArgumentException) {
-                            IapkitPurchaseState.Unknown
-                        }
-
-                        val store = try {
-                            IapStore.fromJson(storeString)
-                        } catch (e: IllegalArgumentException) {
-                            IapStore.Apple
-                        }
-
-                        RequestVerifyPurchaseWithIapkitResult(
-                            isValid = isValid,
-                            state = state,
-                            store = store
-                        )
-                    } else null
+                        ?: throw IllegalArgumentException("IAPKit result must be an object")
+                    val isValid = map["isValid"] as? Boolean
+                        ?: throw IllegalArgumentException("IAPKit result missing isValid")
+                    val stateString = map["state"] as? String
+                        ?: throw IllegalArgumentException("IAPKit result missing state")
+                    val storeString = map["store"] as? String
+                        ?: throw IllegalArgumentException("IAPKit result missing store")
+                    val state = runCatching {
+                        IapkitPurchaseState.fromJson(stateString)
+                    }.getOrDefault(IapkitPurchaseState.Unknown)
+                    val store = IapStore.fromJson(storeString)
+                    if (store != IapStore.Apple) {
+                        throw IllegalArgumentException("IAPKit result store mismatch: $storeString")
+                    }
+                    val iapkitResult = RequestVerifyPurchaseWithIapkitResult(
+                        isValid = isValid,
+                        state = state,
+                        store = store
+                    )
 
                     continuation.resume(
                         VerifyPurchaseWithProviderResult(
@@ -1056,6 +1075,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 }
             }
         }
+    }
 
     // -------------------------------------------------------------------------
     // SubscriptionResolver Implementation

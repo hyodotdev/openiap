@@ -198,6 +198,16 @@ describe('PurchaseFlow Screen', () => {
     const fetchProducts = jest.fn(() => Promise.resolve());
     const getAvailablePurchases = jest.fn(() => Promise.resolve());
     const finishTransaction = jest.fn(() => Promise.resolve());
+    const verifyPurchase = jest.fn(() => Promise.resolve({}));
+    const verifyPurchaseWithProvider = jest.fn(() =>
+      Promise.resolve({
+        iapkit: {
+          isValid: true,
+          state: 'purchased',
+          store: 'amazon',
+        },
+      }),
+    );
 
     (RNIap.useIAP as jest.Mock).mockImplementation((options) => {
       onPurchaseSuccess = options?.onPurchaseSuccess;
@@ -211,11 +221,19 @@ describe('PurchaseFlow Screen', () => {
         fetchProducts,
         finishTransaction,
         getAvailablePurchases,
+        verifyPurchase,
+        verifyPurchaseWithProvider,
         ...overrides,
       };
     });
 
-    return {fetchProducts, getAvailablePurchases, finishTransaction};
+    return {
+      fetchProducts,
+      getAvailablePurchases,
+      finishTransaction,
+      verifyPurchase,
+      verifyPurchaseWithProvider,
+    };
   };
 
   beforeEach(() => {
@@ -272,11 +290,11 @@ describe('PurchaseFlow Screen', () => {
   });
 
   it('updates state on purchase success callback', async () => {
-    mockIapState();
+    const {finishTransaction} = mockIapState();
 
     const {getByText, queryByText} = render(<PurchaseFlow />);
 
-    expect(queryByText(/Purchase completed successfully/)).toBeNull();
+    expect(queryByText(/Purchase completed and finished successfully/)).toBeNull();
 
     await act(async () => {
       await onPurchaseSuccess?.({
@@ -288,7 +306,16 @@ describe('PurchaseFlow Screen', () => {
     });
 
     await waitFor(() => {
-      expect(getByText(/Purchase completed successfully/)).toBeTruthy();
+      expect(
+        getByText(/Purchase completed and finished successfully/),
+      ).toBeTruthy();
+    });
+    expect(finishTransaction).toHaveBeenCalledWith({
+      purchase: expect.objectContaining({
+        productId: 'dev.hyo.martie.10bulbs',
+        purchaseToken: 'token-123',
+      }),
+      isConsumable: true,
     });
 
     expect(alertSpy).toHaveBeenCalledWith(

@@ -105,7 +105,7 @@ Before installing React Native IAP, make sure you have:
 
 #### Android Configuration
 
-**Kotlin Version Requirement:** This library requires Kotlin 2.0+. Configure your project's Kotlin version:
+**Kotlin Version Requirement:** This library requires Kotlin 2.2+. Configure your project's Kotlin version:
 
 In your root `android/build.gradle`:
 

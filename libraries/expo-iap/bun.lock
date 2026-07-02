@@ -20,10 +20,16 @@
         "ts-jest": "^29.4.1",
       },
       "peerDependencies": {
+        "@amazon-devices/keplerscript-appstore-iap-lib": "~2.12.13",
+        "@amazon-devices/package-manager-lib": "~1.0.1767254401",
         "expo": "*",
         "react": "*",
         "react-native": "*",
       },
+      "optionalPeers": [
+        "@amazon-devices/keplerscript-appstore-iap-lib",
+        "@amazon-devices/package-manager-lib",
+      ],
     },
   },
   "packages": {

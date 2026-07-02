@@ -240,7 +240,13 @@ public final class ExpoIapModule: Module {
         }
 
         AsyncFunction("verifyPurchaseWithProvider") { (params: [String: Any]) async throws -> [String: Any] in
-            ExpoIapLog.payload("verifyPurchaseWithProvider", payload: params)
+            ExpoIapLog.payload(
+                "verifyPurchaseWithProvider",
+                payload: [
+                    "provider": params["provider"] ?? "unknown",
+                    "hasIapkit": params["iapkit"] != nil
+                ]
+            )
             do {
                 let jsonData = try JSONSerialization.data(withJSONObject: params)
                 let props = try JSONDecoder().decode(VerifyPurchaseWithProviderProps.self, from: jsonData)

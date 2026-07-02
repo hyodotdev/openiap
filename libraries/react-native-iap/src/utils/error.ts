@@ -32,6 +32,37 @@ export function parseErrorStringToJsonObj(
 ): IapError {
   // Handle Error objects
   if (errorString instanceof Error) {
+    const errorWithFields = errorString as Error & Partial<IapError>;
+    if (
+      errorWithFields.code != null ||
+      errorWithFields.responseCode != null ||
+      errorWithFields.debugMessage != null ||
+      errorWithFields.productId != null
+    ) {
+      const parsed: IapError = {
+        code: String(errorWithFields.code ?? ErrorCode.Unknown),
+        message: errorString.message,
+      };
+      if (errorWithFields.responseCode !== undefined) {
+        parsed.responseCode = errorWithFields.responseCode;
+      }
+      if (errorWithFields.debugMessage !== undefined) {
+        parsed.debugMessage = errorWithFields.debugMessage;
+      }
+      if (errorWithFields.productId !== undefined) {
+        parsed.productId = errorWithFields.productId;
+      }
+      if (errorWithFields.productIds !== undefined) {
+        parsed.productIds = errorWithFields.productIds;
+      }
+      if (errorWithFields.productType !== undefined) {
+        parsed.productType = errorWithFields.productType;
+      }
+      if (errorWithFields.isEmptyProductList !== undefined) {
+        parsed.isEmptyProductList = errorWithFields.isEmptyProductList;
+      }
+      return parsed;
+    }
     errorString = errorString.message;
   }
 

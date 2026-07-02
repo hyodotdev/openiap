@@ -1,0 +1,1131 @@
+package dev.hyo.openiap
+
+import android.app.Activity
+import android.app.Application
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import com.amazon.device.iap.PurchasingListener
+import com.amazon.device.iap.PurchasingService
+import com.amazon.device.iap.model.FulfillmentResult
+import com.amazon.device.iap.model.ProductDataResponse
+import com.amazon.device.iap.model.PurchaseResponse
+import com.amazon.device.iap.model.PurchaseUpdatesResponse
+import com.amazon.device.iap.model.UserData
+import com.amazon.device.iap.model.UserDataResponse
+import dev.hyo.openiap.helpers.onPurchaseError
+import dev.hyo.openiap.helpers.onPurchaseUpdated
+import dev.hyo.openiap.helpers.toAndroidPurchaseArgs
+import dev.hyo.openiap.listener.DeveloperProvidedBillingListener
+import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
+import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
+import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
+import dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener
+import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
+import dev.hyo.openiap.listener.UserChoiceBillingListener
+import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import java.lang.ref.WeakReference
+import java.text.NumberFormat
+import java.text.ParsePosition
+import java.util.Currency
+import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
+import com.amazon.device.iap.model.Product as AmazonProduct
+import com.amazon.device.iap.model.ProductType as AmazonProductType
+import com.amazon.device.iap.model.Receipt as AmazonReceipt
+
+private const val TAG = "OpenIapAmazon"
+private const val AMAZON_REQUEST_TIMEOUT_MS = 60_000L
+private const val AMAZON_PURCHASE_REQUEST_TIMEOUT_MS = 5 * 60_000L
+private const val AMAZON_PURCHASE_CANCEL_FALLBACK_MS = 2_000L
+private const val AMAZON_PRODUCT_DATA_BATCH_SIZE = 100
+private const val AMAZON_PURCHASE_UPDATES_MAX_PAGES = 100
+
+internal object AmazonPriceParser {
+    fun toPriceAmount(displayPrice: String?): Double {
+        val value = displayPrice?.trim().orEmpty()
+        if (value.isEmpty()) return 0.0
+
+        parseLocalizedPrice(value)?.let { return it }
+
+        val numeric = value.replace(Regex("[^0-9,.-]"), "")
+        if (numeric.isBlank()) return 0.0
+
+        val lastDot = numeric.lastIndexOf('.')
+        val lastComma = numeric.lastIndexOf(',')
+        val decimalIndex = maxOf(lastDot, lastComma)
+        val hasMixedSeparators = lastDot >= 0 && lastComma >= 0
+        val fractionLength = if (decimalIndex >= 0) {
+            numeric.length - decimalIndex - 1
+        } else {
+            0
+        }
+        val currencyFractionDigits = value.currencyFractionDigits()
+        val separatorMatchesCurrency = currencyFractionDigits != null &&
+            fractionLength == currencyFractionDigits
+        val hasDecimalSeparator = decimalIndex >= 0 &&
+            (hasMixedSeparators || fractionLength in 1..2 || separatorMatchesCurrency)
+        val normalized = if (hasDecimalSeparator) {
+            val integerPart = numeric.substring(0, decimalIndex).replace(Regex("[^0-9-]"), "")
+            val fractionPart = numeric.substring(decimalIndex + 1).replace(Regex("[^0-9]"), "")
+            "$integerPart.$fractionPart"
+        } else {
+            numeric.replace(Regex("[^0-9-]"), "")
+        }
+        return normalized.toDoubleOrNull() ?: 0.0
+    }
+
+    private fun parseLocalizedPrice(value: String): Double? {
+        val locale = Locale.getDefault()
+        return listOf(
+            NumberFormat.getCurrencyInstance(locale),
+            NumberFormat.getNumberInstance(locale)
+        ).firstNotNullOfOrNull { format ->
+            val position = ParsePosition(0)
+            val parsed = format.parse(value, position)
+            if (
+                parsed != null &&
+                position.index > 0 &&
+                !value.hasUnparsedPriceCharacters(position.index)
+            ) {
+                parsed.toDouble()
+            } else {
+                null
+            }
+        }
+    }
+
+    private fun String.hasUnparsedPriceCharacters(startIndex: Int): Boolean {
+        return drop(startIndex).any { it.isDigit() || it == '.' || it == ',' || it == '-' }
+    }
+
+    private fun String.currencyFractionDigits(): Int? {
+        val code = Regex("\\b[A-Z]{3}\\b").find(this)?.value ?: return null
+        return runCatching { Currency.getInstance(code).defaultFractionDigits }
+            .getOrNull()
+            ?.takeIf { it >= 0 }
+    }
+}
+
+internal fun buildAmazonPurchase(
+    packageName: String,
+    receiptId: String,
+    receiptSku: String,
+    isSubscription: Boolean,
+    purchaseDateMillis: Double,
+    isCanceled: Boolean,
+    isDeferred: Boolean,
+    productIdOverride: String? = null
+): PurchaseAndroid {
+    val resolvedProductId = productIdOverride?.takeIf { it.isNotBlank() } ?: receiptSku
+    val state = when {
+        isDeferred -> PurchaseState.Pending
+        isCanceled -> PurchaseState.Unknown
+        else -> PurchaseState.Purchased
+    }
+    return PurchaseAndroid(
+        autoRenewingAndroid = isSubscription && !isCanceled && !isDeferred,
+        currentPlanId = if (isSubscription) resolvedProductId else null,
+        dataAndroid = "",
+        id = receiptId,
+        ids = listOf(resolvedProductId),
+        isAcknowledgedAndroid = null,
+        isAutoRenewing = isSubscription && !isCanceled && !isDeferred,
+        packageNameAndroid = packageName,
+        platform = IapPlatform.Android,
+        productId = resolvedProductId,
+        purchaseState = state,
+        purchaseToken = receiptId,
+        quantity = 1,
+        signatureAndroid = null,
+        store = IapStore.Amazon,
+        transactionDate = purchaseDateMillis,
+        transactionId = receiptId,
+        isSuspendedAndroid = isDeferred
+    )
+}
+
+/**
+ * OpenIapModule for Amazon Appstore SDK IAP.
+ *
+ * Amazon's native IAP API is listener based instead of connection based. The
+ * OpenIAP connection lifecycle registers the listener, while individual API
+ * calls await the matching RequestId callback.
+ */
+class OpenIapModule(
+    private val context: Context,
+    @Suppress("UNUSED_PARAMETER")
+    private var alternativeBillingMode: AlternativeBillingMode = AlternativeBillingMode.NONE,
+    @Suppress("UNUSED_PARAMETER")
+    private var userChoiceBillingListener: UserChoiceBillingListener? = null,
+    @Suppress("UNUSED_PARAMETER")
+    private var developerProvidedBillingListener: DeveloperProvidedBillingListener? = null
+) : OpenIapProtocol, PurchasingListener {
+
+    constructor(context: Context, enableAlternativeBilling: Boolean) : this(
+        context,
+        if (enableAlternativeBilling) AlternativeBillingMode.ALTERNATIVE_ONLY else AlternativeBillingMode.NONE,
+        null
+    )
+
+    private var currentActivityRef: WeakReference<Activity>? = null
+    private var isRegistered = false
+    private var storefrontCode: String = ""
+    private val mainHandler by lazy(LazyThreadSafetyMode.NONE) { Handler(Looper.getMainLooper()) }
+    private var pendingPurchaseRequestId: String? = null
+    private var purchaseCancelFallback: Runnable? = null
+    private var purchaseLifecycleCallbacks: Application.ActivityLifecycleCallbacks? = null
+
+    private val productDataRequests = ConcurrentHashMap<String, CompletableDeferred<ProductDataResponse>>()
+    private val purchaseRequests = ConcurrentHashMap<String, CompletableDeferred<PurchaseResponse>>()
+    private val purchaseUpdatesRequests = ConcurrentHashMap<String, CompletableDeferred<PurchaseUpdatesResponse>>()
+    private val userDataRequests = ConcurrentHashMap<String, CompletableDeferred<UserDataResponse>>()
+    private val earlyProductDataResponses = ConcurrentHashMap<String, ProductDataResponse>()
+    private val earlyPurchaseResponses = ConcurrentHashMap<String, PurchaseResponse>()
+    private val earlyPurchaseUpdatesResponses = ConcurrentHashMap<String, PurchaseUpdatesResponse>()
+    private val earlyUserDataResponses = ConcurrentHashMap<String, UserDataResponse>()
+    private val timedOutRequestIds = ConcurrentHashMap.newKeySet<String>()
+    private val purchaseTypeByReceiptId = ConcurrentHashMap<String, AmazonProductType>()
+    private val purchaseSkuByReceiptId = ConcurrentHashMap<String, String>()
+    private val productTypeBySku = ConcurrentHashMap<String, AmazonProductType>()
+
+    private val purchaseUpdateListeners = ConcurrentHashMap.newKeySet<OpenIapPurchaseUpdateListener>()
+    private val purchaseErrorListeners = ConcurrentHashMap.newKeySet<OpenIapPurchaseErrorListener>()
+
+    private fun ensureRegistered() {
+        if (isRegistered) return
+        PurchasingService.registerListener(context.applicationContext, this)
+        isRegistered = true
+    }
+
+    override fun setActivity(activity: Activity?) {
+        currentActivityRef = activity?.let { WeakReference(it) }
+        if (activity != null) schedulePurchaseCancelFallback()
+    }
+
+    override val initConnection: MutationInitConnectionHandler = {
+        withContext(Dispatchers.Main) {
+            runCatching {
+                ensureRegistered()
+                val response = requestUserData()
+                when (response.requestStatus) {
+                    UserDataResponse.RequestStatus.SUCCESSFUL -> true
+                    UserDataResponse.RequestStatus.NOT_SUPPORTED -> {
+                        OpenIapLog.w("Amazon initConnection not supported on this device", TAG)
+                        false
+                    }
+                    UserDataResponse.RequestStatus.FAILED -> {
+                        OpenIapLog.w("Amazon initConnection user data request failed", TAG)
+                        false
+                    }
+                }
+            }.getOrElse { error ->
+                OpenIapLog.e("Amazon initConnection failed: ${error.message}", error, TAG)
+                false
+            }
+        }
+    }
+
+    override val endConnection: MutationEndConnectionHandler = {
+        withContext(Dispatchers.IO) {
+            productDataRequests.clear()
+            purchaseRequests.clear()
+            purchaseUpdatesRequests.clear()
+            userDataRequests.clear()
+            earlyProductDataResponses.clear()
+            earlyPurchaseResponses.clear()
+            earlyPurchaseUpdatesResponses.clear()
+            earlyUserDataResponses.clear()
+            timedOutRequestIds.clear()
+            purchaseTypeByReceiptId.clear()
+            purchaseSkuByReceiptId.clear()
+            productTypeBySku.clear()
+            clearPurchaseRequestTracking()
+            storefrontCode = ""
+            true
+        }
+    }
+
+    override val fetchProducts: QueryFetchProductsHandler = { params ->
+        withContext(Dispatchers.IO) {
+            val queryType = params.type ?: ProductQueryType.All
+            if (params.skus.isEmpty() && queryType != ProductQueryType.All) {
+                throw OpenIapError.EmptySkuList
+            }
+
+            val responses = params.skus
+                .chunked(AMAZON_PRODUCT_DATA_BATCH_SIZE)
+                .let { batches ->
+                    coroutineScope {
+                        batches.map { batch ->
+                            async { requestProductData(batch) }
+                        }.awaitAll()
+                    }
+                }
+            val failedResponse = responses.firstOrNull {
+                it.requestStatus != ProductDataResponse.RequestStatus.SUCCESSFUL
+            }
+
+            when (failedResponse?.requestStatus ?: ProductDataResponse.RequestStatus.SUCCESSFUL) {
+                ProductDataResponse.RequestStatus.SUCCESSFUL -> {
+                    val products = responses.flatMap { response ->
+                        response.productData.orEmpty().values
+                    }
+                        .sortedWith(compareBy { product ->
+                            params.skus.indexOf(product.sku).takeIf { it >= 0 } ?: Int.MAX_VALUE
+                        })
+                    products.forEach(::cacheProductType)
+
+                    val inApps = products
+                        .filter { it.productType != AmazonProductType.SUBSCRIPTION }
+                        .map { it.toInAppProduct() }
+                    val subscriptions = products
+                        .filter { it.productType == AmazonProductType.SUBSCRIPTION }
+                        .map { it.toSubscriptionProduct() }
+
+                    when (queryType) {
+                        ProductQueryType.InApp -> FetchProductsResultProducts(inApps)
+                        ProductQueryType.Subs -> FetchProductsResultSubscriptions(subscriptions)
+                        ProductQueryType.All -> {
+                            val allItems = buildList {
+                                inApps.forEach { add(ProductOrSubscription.ProductItem(it)) }
+                                subscriptions.forEach { add(ProductOrSubscription.ProductSubscriptionItem(it)) }
+                            }
+                            FetchProductsResultAll(allItems)
+                        }
+                    }
+                }
+                ProductDataResponse.RequestStatus.NOT_SUPPORTED -> {
+                    throw OpenIapError.FeatureNotSupported("Amazon Appstore IAP is not supported on this device")
+                }
+                ProductDataResponse.RequestStatus.FAILED -> {
+                    throw OpenIapError.QueryProduct.withDiagnostics(
+                        debugMessage = "Amazon getProductData failed",
+                        productIds = params.skus,
+                        productType = queryType.rawValue,
+                        isEmptyProductList = responses.all { it.productData.isNullOrEmpty() }
+                    )
+                }
+            }
+        }
+    }
+
+    override val getAvailablePurchases: QueryGetAvailablePurchasesHandler = { options ->
+        withContext(Dispatchers.IO) {
+            val purchases = getAvailableItems(ProductQueryType.All)
+            if (options?.includeSuspendedAndroid == true) {
+                purchases
+            } else {
+                purchases.filterNot { (it as? PurchaseAndroid)?.isSuspendedAndroid == true }
+            }
+        }
+    }
+
+    override val getActiveSubscriptions: QueryGetActiveSubscriptionsHandler = { subscriptionIds ->
+        withContext(Dispatchers.IO) {
+            val ids = subscriptionIds.orEmpty().toSet()
+            getAvailablePurchases(null)
+                .filterIsInstance<PurchaseAndroid>()
+                .filter { purchase ->
+                    purchase.isAutoRenewing && (ids.isEmpty() || purchase.productId in ids)
+                }
+                .map { purchase ->
+                    ActiveSubscription(
+                        autoRenewingAndroid = purchase.autoRenewingAndroid,
+                        basePlanIdAndroid = purchase.currentPlanId,
+                        currentPlanId = purchase.currentPlanId,
+                        isActive = purchase.purchaseState == PurchaseState.Purchased,
+                        productId = purchase.productId,
+                        purchaseToken = purchase.purchaseToken,
+                        purchaseTokenAndroid = purchase.purchaseToken,
+                        transactionDate = purchase.transactionDate,
+                        transactionId = purchase.transactionId ?: purchase.id
+                    )
+                }
+        }
+    }
+
+    override val hasActiveSubscriptions: QueryHasActiveSubscriptionsHandler = { subscriptionIds ->
+        getActiveSubscriptions(subscriptionIds).isNotEmpty()
+    }
+
+    override val requestPurchase: MutationRequestPurchaseHandler = { props ->
+        val purchases = withContext(Dispatchers.IO) {
+            ensureRegistered()
+            val androidArgs = props.toAndroidPurchaseArgs()
+            if (androidArgs.skus.isEmpty()) {
+                emitPurchaseErrorAndThrow(OpenIapError.EmptySkuList)
+            }
+            if (androidArgs.skus.size != 1) {
+                emitPurchaseErrorAndThrow(
+                    OpenIapError.DeveloperError("Amazon Appstore SDK purchases one SKU at a time")
+                )
+            }
+
+            val sku = androidArgs.skus.first()
+            val response = runCatching { requestAmazonPurchase(sku) }
+                .getOrElse { error ->
+                    emitPurchaseErrorAndThrow(
+                        error.toOpenIapError("Amazon purchase request failed")
+                    )
+                }
+            when (response.requestStatus) {
+                PurchaseResponse.RequestStatus.SUCCESSFUL -> {
+                    val receipt = response.receipt ?: run {
+                        emitPurchaseErrorAndThrow(
+                            OpenIapError.PurchaseFailed("Amazon purchase response did not include a receipt")
+                        )
+                    }
+                    if (!receipt.sku.isNullOrBlank() && receipt.sku != sku) {
+                        OpenIapLog.w(
+                            "Amazon receipt SKU '${receipt.sku}' differs from requested SKU '$sku'. " +
+                                "Using the requested SKU for the OpenIAP purchase productId; " +
+                                "align the Amazon catalog and App Tester data for restore and server verification.",
+                            TAG
+                        )
+                    }
+                    // This response is correlated by Amazon requestId, so the
+                    // local request SKU is safe even when callbacks arrive out
+                    // of order.
+                    cacheReceiptProduct(receipt, receipt.productTypeOrNull(), sku)
+                    val purchase = receipt.toPurchase(
+                        productTypeOverride = receipt.productTypeOrNull(),
+                        productIdOverride = sku
+                    )
+                    purchaseUpdateListeners.forEach { listener ->
+                        runCatching { listener.onPurchaseUpdated(purchase) }
+                    }
+                    listOf(purchase)
+                }
+                PurchaseResponse.RequestStatus.ALREADY_PURCHASED -> {
+                    val error = OpenIapError.ItemAlreadyOwned("Amazon reported the item is already purchased")
+                    emitPurchaseErrorAndThrow(error)
+                }
+                PurchaseResponse.RequestStatus.INVALID_SKU -> {
+                    val error = OpenIapError.SkuNotFound(sku)
+                    emitPurchaseErrorAndThrow(error)
+                }
+                PurchaseResponse.RequestStatus.NOT_SUPPORTED -> {
+                    val error = OpenIapError.FeatureNotSupported("Amazon Appstore IAP is not supported on this device")
+                    emitPurchaseErrorAndThrow(error)
+                }
+                PurchaseResponse.RequestStatus.PENDING -> {
+                    val error = OpenIapError.PurchaseDeferred
+                    emitPurchaseErrorAndThrow(error)
+                }
+                PurchaseResponse.RequestStatus.FAILED -> {
+                    val error = OpenIapError.UserCancelled("Amazon purchase failed or was cancelled")
+                    emitPurchaseErrorAndThrow(error)
+                }
+            }
+        }
+        RequestPurchaseResultPurchases(purchases)
+    }
+
+    suspend fun getAvailableItems(type: ProductQueryType): List<Purchase> = withContext(Dispatchers.IO) {
+        requestPurchaseUpdates(reset = true).filter { purchase ->
+            val receiptId = purchase.purchaseToken ?: purchase.id
+            val productType = purchaseTypeByReceiptId[receiptId]
+                ?: productTypeBySku[purchase.productId]
+            when (type) {
+                ProductQueryType.All -> true
+                ProductQueryType.Subs -> productType == AmazonProductType.SUBSCRIPTION
+                ProductQueryType.InApp -> productType != AmazonProductType.SUBSCRIPTION
+            }
+        }
+    }
+
+    override val finishTransaction: MutationFinishTransactionHandler = { purchase, _ ->
+        withContext(Dispatchers.IO) {
+            ensureRegistered()
+            val receiptId = purchase.purchaseToken ?: purchase.id
+            if (receiptId.isBlank()) {
+                throw OpenIapError.PurchaseFailed("Missing Amazon receiptId")
+            }
+            PurchasingService.notifyFulfillment(receiptId, FulfillmentResult.FULFILLED)
+        }
+    }
+
+    override val acknowledgePurchaseAndroid: MutationAcknowledgePurchaseAndroidHandler = { purchaseToken ->
+        acknowledgePurchase(purchaseToken)
+    }
+
+    override val consumePurchaseAndroid: MutationConsumePurchaseAndroidHandler = { purchaseToken ->
+        consumePurchase(purchaseToken)
+    }
+
+    override val restorePurchases: MutationRestorePurchasesHandler = {
+        withContext(Dispatchers.IO) {
+            requestPurchaseUpdates(reset = true)
+            Unit
+        }
+    }
+
+    override val deepLinkToSubscriptions: MutationDeepLinkToSubscriptionsHandler = {
+        withContext(Dispatchers.Main) {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("amzn://apps/android?p=${context.packageName}"))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            runCatching { context.startActivity(intent) }
+                .onFailure { OpenIapLog.w("Amazon subscription deep link unavailable: ${it.message}", TAG) }
+            Unit
+        }
+    }
+
+    @Deprecated("Use verifyPurchase")
+    override val validateReceipt: MutationValidateReceiptHandler = {
+        verifyPurchase(it)
+    }
+
+    override val verifyPurchase: MutationVerifyPurchaseHandler = {
+        throw OpenIapError.FeatureNotSupported(
+            "Amazon receipt verification requires server-side RVS integration"
+        )
+    }
+
+    override val verifyPurchaseWithProvider: MutationVerifyPurchaseWithProviderHandler = {
+        if (it.provider != PurchaseVerificationProvider.Iapkit) {
+            throw OpenIapError.FeatureNotSupported()
+        }
+        val options = it.iapkit ?: throw OpenIapError.DeveloperError(
+            "Missing IAPKit verification parameters"
+        )
+        val payloadCount = listOfNotNull(options.apple, options.google, options.amazon).size
+        val amazon = options.amazon
+        if (payloadCount != 1 || amazon == null) {
+            throw OpenIapError.DeveloperError(
+                "Amazon IAPKit verification requires exactly one amazon payload"
+            )
+        }
+        val resolvedOptions = if (amazon.userId.isNullOrBlank()) {
+            val userDataResponse = requestUserData()
+            val userId = userDataResponse.userData?.userId
+                ?: throw OpenIapError.DeveloperError("Amazon IAPKit verification could not resolve userId")
+            options.copy(amazon = amazon.copy(userId = userId))
+        } else {
+            options
+        }
+
+        VerifyPurchaseWithProviderResult(
+            iapkit = verifyPurchaseWithIapkit(resolvedOptions, TAG),
+            provider = it.provider
+        )
+    }
+
+    private val purchaseError: SubscriptionPurchaseErrorHandler = {
+        onPurchaseError(this::addPurchaseErrorListener, this::removePurchaseErrorListener)
+    }
+
+    private val purchaseUpdated: SubscriptionPurchaseUpdatedHandler = {
+        onPurchaseUpdated(this::addPurchaseUpdateListener, this::removePurchaseUpdateListener)
+    }
+
+    private val subscriptionBillingIssue: SubscriptionSubscriptionBillingIssueHandler = {
+        // Amazon Appstore SDK does not expose a suspended-subscription event, so
+        // fail immediately instead of leaving consumers waiting forever.
+        throw OpenIapError.FeatureNotSupported()
+    }
+
+    override val queryHandlers: QueryHandlers = QueryHandlers(
+        fetchProducts = fetchProducts,
+        getActiveSubscriptions = getActiveSubscriptions,
+        getAvailablePurchases = getAvailablePurchases,
+        getStorefront = { getStorefront() },
+        getStorefrontIOS = { getStorefront() },
+        hasActiveSubscriptions = hasActiveSubscriptions
+    )
+
+    @Suppress("DEPRECATION")
+    override val mutationHandlers: MutationHandlers = MutationHandlers(
+        acknowledgePurchaseAndroid = acknowledgePurchaseAndroid,
+        checkAlternativeBillingAvailabilityAndroid = { checkAlternativeBillingAvailability() },
+        consumePurchaseAndroid = consumePurchaseAndroid,
+        createAlternativeBillingTokenAndroid = { createAlternativeBillingReportingToken() },
+        createBillingProgramReportingDetailsAndroid = { program ->
+            createBillingProgramReportingDetails(program)
+        },
+        deepLinkToSubscriptions = deepLinkToSubscriptions,
+        endConnection = endConnection,
+        finishTransaction = finishTransaction,
+        initConnection = initConnection,
+        isBillingProgramAvailableAndroid = { program -> isBillingProgramAvailable(program) },
+        launchExternalLinkAndroid = { params ->
+            val activity = currentActivityRef?.get()
+                ?: throw OpenIapError.MissingCurrentActivity
+            launchExternalLink(activity, params)
+        },
+        requestPurchase = requestPurchase,
+        restorePurchases = restorePurchases,
+        showAlternativeBillingDialogAndroid = {
+            val activity = currentActivityRef?.get()
+                ?: throw OpenIapError.MissingCurrentActivity
+            showAlternativeBillingInformationDialog(activity)
+        },
+        validateReceipt = validateReceipt,
+        verifyPurchase = verifyPurchase,
+        verifyPurchaseWithProvider = verifyPurchaseWithProvider
+    )
+
+    override val subscriptionHandlers: SubscriptionHandlers = SubscriptionHandlers(
+        purchaseError = purchaseError,
+        purchaseUpdated = purchaseUpdated,
+        subscriptionBillingIssue = subscriptionBillingIssue
+    )
+
+    suspend fun getStorefront(): String = withContext(Dispatchers.IO) {
+        if (storefrontCode.isNotBlank()) return@withContext storefrontCode
+        runCatching { requestUserData() }
+        storefrontCode
+    }
+
+    override fun addPurchaseUpdateListener(listener: OpenIapPurchaseUpdateListener) {
+        purchaseUpdateListeners.add(listener)
+    }
+
+    override fun removePurchaseUpdateListener(listener: OpenIapPurchaseUpdateListener) {
+        purchaseUpdateListeners.remove(listener)
+    }
+
+    override fun addPurchaseErrorListener(listener: OpenIapPurchaseErrorListener) {
+        purchaseErrorListeners.add(listener)
+    }
+
+    override fun removePurchaseErrorListener(listener: OpenIapPurchaseErrorListener) {
+        purchaseErrorListeners.remove(listener)
+    }
+
+    override fun addUserChoiceBillingListener(listener: OpenIapUserChoiceBillingListener) = Unit
+
+    override fun removeUserChoiceBillingListener(listener: OpenIapUserChoiceBillingListener) = Unit
+
+    override fun addDeveloperProvidedBillingListener(listener: OpenIapDeveloperProvidedBillingListener) = Unit
+
+    override fun removeDeveloperProvidedBillingListener(listener: OpenIapDeveloperProvidedBillingListener) = Unit
+
+    override fun addSubscriptionBillingIssueListener(listener: OpenIapSubscriptionBillingIssueListener) = Unit
+
+    override fun removeSubscriptionBillingIssueListener(listener: OpenIapSubscriptionBillingIssueListener) = Unit
+
+    override fun setUserChoiceBillingListener(listener: UserChoiceBillingListener?) {
+        userChoiceBillingListener = listener
+    }
+
+    override fun setDeveloperProvidedBillingListener(listener: DeveloperProvidedBillingListener?) {
+        developerProvidedBillingListener = listener
+    }
+
+    @Deprecated("Amazon Appstore does not support Google Play alternative billing")
+    override suspend fun checkAlternativeBillingAvailability(): Boolean = false
+
+    @Deprecated("Amazon Appstore does not support Google Play alternative billing")
+    override suspend fun showAlternativeBillingInformationDialog(activity: Activity): Boolean = false
+
+    @Deprecated("Amazon Appstore does not support Google Play alternative billing")
+    override suspend fun createAlternativeBillingReportingToken(): String? = null
+
+    override suspend fun isBillingProgramAvailable(
+        program: BillingProgramAndroid
+    ): BillingProgramAvailabilityResultAndroid = BillingProgramAvailabilityResultAndroid(
+        billingProgram = program,
+        isAvailable = false
+    )
+
+    override suspend fun createBillingProgramReportingDetails(
+        program: BillingProgramAndroid
+    ): BillingProgramReportingDetailsAndroid {
+        throw OpenIapError.FeatureNotSupported("Amazon Appstore does not support Google Play billing programs")
+    }
+
+    override suspend fun launchExternalLink(
+        activity: Activity,
+        params: LaunchExternalLinkParamsAndroid
+    ): Boolean = false
+
+    override fun onUserDataResponse(userDataResponse: UserDataResponse) {
+        updateStorefront(userDataResponse.userData)
+        completeOrCache(
+            userDataRequests,
+            earlyUserDataResponses,
+            userDataResponse.requestId.toString(),
+            userDataResponse
+        )
+    }
+
+    override fun onProductDataResponse(productDataResponse: ProductDataResponse) {
+        completeOrCache(
+            productDataRequests,
+            earlyProductDataResponses,
+            productDataResponse.requestId.toString(),
+            productDataResponse
+        )
+    }
+
+    override fun onPurchaseResponse(purchaseResponse: PurchaseResponse) {
+        clearPurchaseRequestTracking(purchaseResponse.requestId.toString())
+        completeOrCache(
+            purchaseRequests,
+            earlyPurchaseResponses,
+            purchaseResponse.requestId.toString(),
+            purchaseResponse
+        )
+    }
+
+    private fun trackPurchaseRequest(requestId: String) {
+        pendingPurchaseRequestId = requestId
+        registerPurchaseLifecycleCallbacks()
+    }
+
+    private fun registerPurchaseLifecycleCallbacks() {
+        if (purchaseLifecycleCallbacks != null) return
+        val application = context.applicationContext as? Application ?: return
+        val callbacks = object : Application.ActivityLifecycleCallbacks {
+            override fun onActivityResumed(activity: Activity) {
+                schedulePurchaseCancelFallback()
+            }
+
+            override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = Unit
+            override fun onActivityStarted(activity: Activity) = Unit
+            override fun onActivityPaused(activity: Activity) = Unit
+            override fun onActivityStopped(activity: Activity) = Unit
+            override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) = Unit
+            override fun onActivityDestroyed(activity: Activity) = Unit
+        }
+        application.registerActivityLifecycleCallbacks(callbacks)
+        purchaseLifecycleCallbacks = callbacks
+    }
+
+    private fun schedulePurchaseCancelFallback() {
+        val requestId = pendingPurchaseRequestId ?: return
+        purchaseCancelFallback?.let(mainHandler::removeCallbacks)
+        val fallback = Runnable {
+            val pending = purchaseRequests[requestId] ?: return@Runnable
+            if (!pending.isCompleted) {
+                pending.completeExceptionally(
+                    OpenIapError.UserCancelled("Amazon purchase failed or was cancelled")
+                )
+            }
+        }
+        purchaseCancelFallback = fallback
+        mainHandler.postDelayed(fallback, AMAZON_PURCHASE_CANCEL_FALLBACK_MS)
+    }
+
+    private fun clearPurchaseRequestTracking(requestId: String? = null) {
+        val pendingRequestId = pendingPurchaseRequestId
+        if (requestId != null && pendingRequestId != null && requestId != pendingRequestId) {
+            return
+        }
+        purchaseCancelFallback?.let(mainHandler::removeCallbacks)
+        purchaseCancelFallback = null
+        pendingPurchaseRequestId = null
+        val callbacks = purchaseLifecycleCallbacks ?: return
+        (context.applicationContext as? Application)?.unregisterActivityLifecycleCallbacks(callbacks)
+        purchaseLifecycleCallbacks = null
+    }
+
+    override fun onPurchaseUpdatesResponse(purchaseUpdatesResponse: PurchaseUpdatesResponse) {
+        purchaseUpdatesResponse.receipts.orEmpty().forEach { receipt ->
+            cacheReceiptProduct(receipt, receipt.productTypeOrNull())
+        }
+        completeOrCache(
+            purchaseUpdatesRequests,
+            earlyPurchaseUpdatesResponses,
+            purchaseUpdatesResponse.requestId.toString(),
+            purchaseUpdatesResponse
+        )
+    }
+
+    private fun emitPurchaseError(error: OpenIapError) {
+        purchaseErrorListeners.forEach { listener ->
+            runCatching { listener.onPurchaseError(error) }
+        }
+    }
+
+    private fun emitPurchaseErrorAndThrow(error: OpenIapError): Nothing {
+        emitPurchaseError(error)
+        throw error
+    }
+
+    private suspend fun requestUserData(): UserDataResponse {
+        val requestId = withContext(Dispatchers.Main) {
+            ensureRegistered()
+            val request = runCatching { PurchasingService.getUserData() }
+                .getOrElse {
+                    throw OpenIapError.InitConnection
+                }
+                ?: throw OpenIapError.InitConnection
+            request.toString()
+        }
+        return awaitAmazonResponse(requestId, userDataRequests, earlyUserDataResponses)
+    }
+
+    private suspend fun requestProductData(skus: List<String>): ProductDataResponse {
+        val requestId = withContext(Dispatchers.Main) {
+            ensureRegistered()
+            val request = runCatching {
+                PurchasingService.getProductData(skus.toSet())
+            }
+                .getOrElse { error ->
+                    throw error.toOpenIapError("Amazon getProductData request failed")
+                }
+                ?: throw OpenIapError.QueryProduct.withDiagnostics(
+                    debugMessage = "Amazon getProductData failed to return a requestId",
+                    productIds = skus
+                )
+            request.toString()
+        }
+        return awaitAmazonResponse(requestId, productDataRequests, earlyProductDataResponses)
+    }
+
+    private suspend fun requestAmazonPurchase(sku: String): PurchaseResponse {
+        val requestId = withContext(Dispatchers.Main) {
+            ensureRegistered()
+            val request = runCatching { PurchasingService.purchase(sku) }
+                .getOrElse { error ->
+                    throw error.toOpenIapError("Amazon purchase request failed")
+                }
+            if (request == null) {
+                throw OpenIapError.PurchaseFailed("Amazon purchase request did not return a requestId")
+            }
+            request.toString().also(::trackPurchaseRequest)
+        }
+        return try {
+            awaitAmazonResponse(
+                requestId,
+                purchaseRequests,
+                earlyPurchaseResponses,
+                timeoutMs = AMAZON_PURCHASE_REQUEST_TIMEOUT_MS
+            )
+        } finally {
+            clearPurchaseRequestTracking(requestId)
+        }
+    }
+
+    private suspend fun requestPurchaseUpdates(reset: Boolean): List<Purchase> {
+        val receipts = mutableListOf<AmazonReceipt>()
+        var shouldReset = reset
+        var pageCount = 0
+        var hasMore = false
+        do {
+            if (pageCount >= AMAZON_PURCHASE_UPDATES_MAX_PAGES) {
+                throw OpenIapError.ServiceTimeout(
+                    "Amazon purchase updates exceeded pagination limit ($AMAZON_PURCHASE_UPDATES_MAX_PAGES pages)"
+                )
+            }
+            pageCount += 1
+            val response = awaitPurchaseUpdates(shouldReset)
+            shouldReset = false
+            when (response.requestStatus) {
+                PurchaseUpdatesResponse.RequestStatus.SUCCESSFUL -> {
+                    receipts += response.receipts.orEmpty()
+                        .filter { it.cancelDate == null }
+                }
+                PurchaseUpdatesResponse.RequestStatus.NOT_SUPPORTED -> {
+                    throw OpenIapError.FeatureNotSupported("Amazon Appstore IAP is not supported on this device")
+                }
+                PurchaseUpdatesResponse.RequestStatus.FAILED -> {
+                    throw OpenIapError.RestoreFailed
+                }
+            }
+            hasMore = response.hasMore()
+        } while (hasMore)
+        hydrateProductTypesForReceipts(receipts)
+        return receipts.map { receipt ->
+            val productType = receipt.productTypeOrNull()
+                ?: productTypeBySku[receipt.sku.orEmpty()]
+            cacheReceiptProduct(receipt, productType)
+            receipt.toPurchase(
+                productTypeOverride = productType,
+                productIdOverride = canonicalSkuForReceipt(receipt)
+            )
+        }
+    }
+
+    private suspend fun hydrateProductTypesForReceipts(receipts: List<AmazonReceipt>) {
+        val missingSkus = linkedSetOf<String>()
+        receipts.forEach { receipt ->
+            val sku = receipt.sku.orEmpty()
+            if (sku.isBlank()) return@forEach
+
+            val productType = receipt.productTypeOrNull()
+            if (productType != null) {
+                cacheReceiptProduct(receipt, productType)
+            } else if (!productTypeBySku.containsKey(sku)) {
+                missingSkus += sku
+            }
+        }
+        if (missingSkus.isEmpty()) return
+
+        missingSkus.chunked(AMAZON_PRODUCT_DATA_BATCH_SIZE).forEach { batch ->
+            val response = requestProductData(batch)
+            when (response.requestStatus) {
+                ProductDataResponse.RequestStatus.SUCCESSFUL -> {
+                    response.productData.orEmpty().values.forEach { product ->
+                        cacheProductType(product)
+                    }
+                }
+                ProductDataResponse.RequestStatus.NOT_SUPPORTED -> {
+                    throw OpenIapError.FeatureNotSupported("Amazon Appstore IAP is not supported on this device")
+                }
+                ProductDataResponse.RequestStatus.FAILED -> {
+                    throw OpenIapError.QueryProduct.withDiagnostics(
+                        debugMessage = "Amazon getProductData failed while hydrating purchase types",
+                        productIds = batch,
+                        productType = ProductQueryType.All.rawValue,
+                        isEmptyProductList = response.productData.isNullOrEmpty()
+                    )
+                }
+            }
+        }
+    }
+
+    private fun cacheReceiptProduct(
+        receipt: AmazonReceipt,
+        productType: AmazonProductType?,
+        requestedSku: String? = null
+    ) {
+        val receiptId = receipt.receiptId.orEmpty()
+        val sku = receipt.sku.orEmpty()
+        if (receiptId.isNotBlank() && !requestedSku.isNullOrBlank()) {
+            purchaseSkuByReceiptId[receiptId] = requestedSku
+        }
+        if (productType != null && receiptId.isNotBlank()) {
+            purchaseTypeByReceiptId[receiptId] = productType
+        }
+        if (productType != null && sku.isNotBlank()) {
+            productTypeBySku[sku] = productType
+        }
+    }
+
+    private fun canonicalSkuForReceipt(receipt: AmazonReceipt): String? {
+        val receiptId = receipt.receiptId.orEmpty()
+        if (receiptId.isBlank()) return null
+        return purchaseSkuByReceiptId[receiptId]
+    }
+
+    private fun cacheProductType(product: AmazonProduct) {
+        val sku = runCatching { product.sku }.getOrNull()
+            ?.takeIf { it.isNotBlank() }
+            ?: return
+        val productType = runCatching { product.productType }.getOrNull() ?: return
+        productTypeBySku[sku] = productType
+    }
+
+    private fun AmazonReceipt.productTypeOrNull(): AmazonProductType? {
+        return runCatching { productType }.getOrNull()
+    }
+
+    private fun Throwable.toOpenIapError(defaultMessage: String): OpenIapError {
+        return this as? OpenIapError
+            ?: OpenIapError.PurchaseFailed("$defaultMessage: ${message ?: javaClass.simpleName}")
+    }
+
+    private suspend fun awaitPurchaseUpdates(reset: Boolean): PurchaseUpdatesResponse {
+        val requestId = withContext(Dispatchers.Main) {
+            ensureRegistered()
+            val request = runCatching {
+                PurchasingService.getPurchaseUpdates(reset)
+            }
+                .getOrElse {
+                    throw OpenIapError.RestoreFailed
+                }
+                ?: throw OpenIapError.RestoreFailed
+            request.toString()
+        }
+        return awaitAmazonResponse(
+            requestId,
+            purchaseUpdatesRequests,
+            earlyPurchaseUpdatesResponses
+        )
+    }
+
+    private suspend fun <T> awaitAmazonResponse(
+        requestId: String,
+        pending: ConcurrentHashMap<String, CompletableDeferred<T>>,
+        earlyResponses: ConcurrentHashMap<String, T>,
+        timeoutMs: Long = AMAZON_REQUEST_TIMEOUT_MS
+    ): T {
+        val earlyResponse = earlyResponses.remove(requestId)
+        if (earlyResponse != null) return earlyResponse
+
+        val deferred = CompletableDeferred<T>()
+        pending[requestId] = deferred
+        earlyResponses.remove(requestId)?.let { response ->
+            pending.remove(requestId)
+            return response
+        }
+
+        return try {
+            withTimeout(timeoutMs) { deferred.await() }
+        } catch (_: TimeoutCancellationException) {
+            timedOutRequestIds.add(requestId)
+            throw OpenIapError.ServiceTimeout("Amazon Appstore request timed out")
+        } finally {
+            pending.remove(requestId)
+        }
+    }
+
+    private fun <T> completeOrCache(
+        pending: ConcurrentHashMap<String, CompletableDeferred<T>>,
+        earlyResponses: ConcurrentHashMap<String, T>,
+        requestId: String,
+        value: T
+    ) {
+        val deferred = pending.remove(requestId)
+        if (deferred != null) {
+            if (!deferred.isCompleted) deferred.complete(value)
+        } else if (timedOutRequestIds.remove(requestId)) {
+            OpenIapLog.w(
+                "Ignoring late Amazon Appstore response for timed-out request $requestId",
+                TAG
+            )
+        } else {
+            earlyResponses[requestId] = value
+        }
+    }
+
+    private fun updateStorefront(userData: UserData?) {
+        val countryCode = userData?.countryCode
+        storefrontCode = countryCode
+            ?: userData?.marketplace
+            ?: storefrontCode
+    }
+
+    private suspend fun acknowledgePurchase(purchaseToken: String): Boolean = fulfillPurchase(
+        purchaseToken = purchaseToken,
+        operation = "acknowledge"
+    )
+
+    private suspend fun consumePurchase(purchaseToken: String): Boolean = fulfillPurchase(
+        purchaseToken = purchaseToken,
+        operation = "consume"
+    )
+
+    private suspend fun fulfillPurchase(
+        purchaseToken: String,
+        operation: String
+    ): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            ensureRegistered()
+            PurchasingService.notifyFulfillment(purchaseToken, FulfillmentResult.FULFILLED)
+            true
+        }.getOrElse {
+            OpenIapLog.w("Amazon $operation failed: ${it.message}", TAG)
+            false
+        }
+    }
+
+    private fun AmazonProduct.toInAppProduct(): ProductAndroid {
+        return ProductAndroid(
+            currency = "",
+            description = description.orEmpty(),
+            displayName = title,
+            displayPrice = price.orEmpty(),
+            id = sku,
+            nameAndroid = title.orEmpty(),
+            platform = IapPlatform.Android,
+            price = price.toPriceAmount(),
+            productStatusAndroid = ProductStatusAndroid.Ok,
+            title = title.orEmpty(),
+            type = ProductType.InApp
+        )
+    }
+
+    private fun AmazonProduct.toSubscriptionProduct(): ProductSubscriptionAndroid {
+        val subscriptionPeriod = this.subscriptionPeriod.toIsoBillingPeriod()
+        val priceAmount = price.toPriceAmount()
+        val phase = PricingPhaseAndroid(
+            billingCycleCount = 0,
+            billingPeriod = subscriptionPeriod,
+            formattedPrice = price.orEmpty(),
+            priceAmountMicros = "0",
+            priceCurrencyCode = "",
+            recurrenceMode = 1
+        )
+        val phases = PricingPhasesAndroid(listOf(phase))
+        val legacyOffer = ProductSubscriptionAndroidOfferDetails(
+            basePlanId = sku,
+            offerId = null,
+            offerTags = emptyList(),
+            offerToken = "",
+            pricingPhases = phases
+        )
+        val standardizedOffer = SubscriptionOffer(
+            basePlanIdAndroid = sku,
+            currency = "",
+            displayPrice = price.orEmpty(),
+            id = sku,
+            offerTagsAndroid = emptyList(),
+            offerTokenAndroid = "",
+            paymentMode = PaymentMode.PayAsYouGo,
+            period = null,
+            price = priceAmount,
+            pricingPhasesAndroid = phases,
+            type = DiscountOfferType.Introductory
+        )
+        return ProductSubscriptionAndroid(
+            currency = "",
+            description = description.orEmpty(),
+            displayName = title,
+            displayPrice = price.orEmpty(),
+            id = sku,
+            nameAndroid = title.orEmpty(),
+            platform = IapPlatform.Android,
+            price = priceAmount,
+            productStatusAndroid = ProductStatusAndroid.Ok,
+            subscriptionOfferDetailsAndroid = listOf(legacyOffer),
+            subscriptionOffers = listOf(standardizedOffer),
+            title = title.orEmpty(),
+            type = ProductType.Subs
+        )
+    }
+
+    private fun String?.toIsoBillingPeriod(): String {
+        val value = this?.trim().orEmpty()
+        if (value.isEmpty() || value.startsWith("P")) return value
+
+        return when (value.lowercase(Locale.ROOT)) {
+            "weekly", "week", "1 week" -> "P1W"
+            "biweekly", "bi-weekly", "bi weekly", "2 week", "2 weeks" -> "P2W"
+            "monthly", "month", "1 month" -> "P1M"
+            "bi-monthly", "bimonthly", "2 month", "2 months" -> "P2M"
+            "quarterly", "quarter", "3 months" -> "P3M"
+            "semiannual", "semiannually", "semi-annual", "semi-annually", "6 months" -> "P6M"
+            "annual", "annually", "yearly", "year", "1 year" -> "P1Y"
+            else -> value
+        }
+    }
+
+    private fun String?.toPriceAmount(): Double {
+        return AmazonPriceParser.toPriceAmount(this)
+    }
+
+    private fun AmazonReceipt.toPurchase(
+        productTypeOverride: AmazonProductType? = productTypeOrNull(),
+        productIdOverride: String? = null
+    ): PurchaseAndroid {
+        val dateMillis = purchaseDate?.time?.toDouble() ?: 0.0
+        val receiptCanceled = isCanceled || cancelDate != null
+        val receiptDeferred = isDeferred
+        return buildAmazonPurchase(
+            packageName = context.packageName,
+            receiptId = receiptId,
+            receiptSku = sku,
+            isSubscription = productTypeOverride == AmazonProductType.SUBSCRIPTION,
+            purchaseDateMillis = dateMillis,
+            isCanceled = receiptCanceled,
+            isDeferred = receiptDeferred,
+            productIdOverride = productIdOverride
+        ).copy(dataAndroid = toJSON().toString())
+    }
+
+}

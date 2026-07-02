@@ -1,59 +1,75 @@
 import {requireNativeModule, UnavailabilityError} from 'expo-modules-core';
 import {installedFromOnside} from './onside';
+import {getVegaIapModule, isVegaOS} from './vega';
 
-type NativeIapModuleName = 'ExpoIapOnside' | 'ExpoIap';
+type NativeIapModuleName = 'ExpoIapVega' | 'ExpoIapOnside' | 'ExpoIap';
 const ONSIDE_MARKETPLACE_ID = 'com.onside.marketplace-app';
 
 let cached: {module: any; name: NativeIapModuleName} | null = null;
 let expoIapFallback: any | null | undefined;
 let onsideModuleUnavailable = false;
 
-function isOnsideInstallation(): boolean {
-  if (installedFromOnside === true) {
-    return true;
-  }
-
-  if (typeof installedFromOnside !== 'string') {
-    return false;
-  }
-
-  const normalized = installedFromOnside.trim().toLowerCase();
-  return normalized === 'true' || normalized === ONSIDE_MARKETPLACE_ID;
-}
-
-function shouldUseOnsideModule(): boolean {
-  return isOnsideInstallation() && !onsideModuleUnavailable;
-}
-
 function getResolved(): {module: any; name: NativeIapModuleName} {
-  const expectedName: NativeIapModuleName = shouldUseOnsideModule()
-    ? 'ExpoIapOnside'
-    : 'ExpoIap';
+  function shouldUseOnsideModule(): boolean {
+    if (installedFromOnside === true) {
+      return true;
+    }
+
+    if (typeof installedFromOnside !== 'string') {
+      return false;
+    }
+
+    const normalized = installedFromOnside.trim().toLowerCase();
+    return normalized === 'true' || normalized === ONSIDE_MARKETPLACE_ID;
+  }
+
+  function getExpectedModuleName(): NativeIapModuleName {
+    if (isVegaOS()) {
+      return 'ExpoIapVega';
+    }
+
+    return shouldUseOnsideModule() && !onsideModuleUnavailable
+      ? 'ExpoIapOnside'
+      : 'ExpoIap';
+  }
+
+  function resolveNativeModule(): {
+    module: any;
+    name: NativeIapModuleName;
+  } {
+    if (isVegaOS()) {
+      const vegaModule = getVegaIapModule();
+      if (!vegaModule) {
+        throw new UnavailabilityError(
+          'expo-iap',
+          'Amazon Vega IAP module is unavailable. Install @amazon-devices/keplerscript-appstore-iap-lib in the Vega app target and build with the React Native for Vega kepler platform.',
+        );
+      }
+      return {module: vegaModule, name: 'ExpoIapVega'};
+    }
+
+    if (shouldUseOnsideModule()) {
+      try {
+        return {
+          module: requireNativeModule('ExpoIapOnside'),
+          name: 'ExpoIapOnside',
+        };
+      } catch (error) {
+        if (!isMissingModuleError(error, 'ExpoIapOnside')) {
+          throw error;
+        }
+        onsideModuleUnavailable = true;
+      }
+    }
+
+    return {module: requireNativeModule('ExpoIap'), name: 'ExpoIap'};
+  }
+
+  const expectedName = getExpectedModuleName();
   if (!cached || cached.name !== expectedName) {
     cached = resolveNativeModule();
   }
   return cached;
-}
-
-function resolveNativeModule(): {
-  module: any;
-  name: NativeIapModuleName;
-} {
-  if (isOnsideInstallation()) {
-    try {
-      return {
-        module: requireNativeModule('ExpoIapOnside'),
-        name: 'ExpoIapOnside',
-      };
-    } catch (error) {
-      if (!isMissingModuleError(error, 'ExpoIapOnside')) {
-        throw error;
-      }
-      onsideModuleUnavailable = true;
-    }
-  }
-
-  return {module: requireNativeModule('ExpoIap'), name: 'ExpoIap'};
 }
 
 function isMissingModuleError(error: unknown, moduleName: string): boolean {
@@ -66,6 +82,24 @@ function isMissingModuleError(error: unknown, moduleName: string): boolean {
   }
 
   return false;
+}
+
+function getExpoIapFallbackModule(): any | null {
+  if (expoIapFallback !== undefined) {
+    return expoIapFallback;
+  }
+
+  try {
+    expoIapFallback = requireNativeModule('ExpoIap');
+  } catch (error) {
+    if (isMissingModuleError(error, 'ExpoIap')) {
+      expoIapFallback = null;
+    } else {
+      throw error;
+    }
+  }
+
+  return expoIapFallback;
 }
 
 export const NATIVE_ERROR_CODES: Record<string, unknown> = new Proxy(
@@ -88,30 +122,15 @@ export function getNativeModule() {
   return getResolved().module;
 }
 
-function getExpoIapFallbackModule(): any | null {
-  if (expoIapFallback !== undefined) {
-    return expoIapFallback;
-  }
-
-  try {
-    expoIapFallback = requireNativeModule('ExpoIap');
-  } catch (error) {
-    if (isMissingModuleError(error, 'ExpoIap')) {
-      expoIapFallback = null;
-    } else {
-      throw error;
-    }
-  }
-
-  return expoIapFallback;
-}
-
 export default new Proxy({} as any, {
   get(target, prop) {
     if (typeof prop === 'symbol') return Reflect.get(target, prop);
     const resolved = getResolved();
     if (prop === 'USING_ONSIDE_SDK') {
       return resolved.name === 'ExpoIapOnside';
+    }
+    if (prop === 'USING_VEGA_SDK') {
+      return resolved.name === 'ExpoIapVega';
     }
 
     const value = resolved.module[prop];

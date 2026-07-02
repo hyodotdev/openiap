@@ -1,5 +1,8 @@
 import {fireEvent, render, waitFor} from '@testing-library/react-native';
 import WebhookStream, {base64EncodeUtf8} from '../../screens/WebhookStream';
+import * as RNIap from 'react-native-iap';
+
+const mockConnectWebhookStream = RNIap.connectWebhookStream as jest.Mock;
 
 describe('WebhookStream Screen', () => {
   beforeEach(() => {
@@ -42,6 +45,53 @@ describe('WebhookStream Screen', () => {
       expect(
         getByText('Cannot trigger test: IAPKIT_API_KEY is missing.'),
       ).toBeTruthy();
+    });
+  });
+
+  it('connects, renders incoming events, and triggers a test notification when configured', async () => {
+    mockConnectWebhookStream.mockImplementationOnce((options) => {
+      options.onEvent({
+        id: 'event-1',
+        type: 'TestNotification',
+        source: 'google-play-real-time-developer-notifications',
+        platform: 'Android',
+        environment: 'Sandbox',
+        projectId: 'project-1',
+        occurredAt: Date.now(),
+        receivedAt: Date.now(),
+        productId: 'dev.hyo.martie.premium',
+      });
+      return {close: jest.fn()};
+    });
+
+    const {getByText} = render(
+      <WebhookStream apiKey="test-key" baseUrl="http://localhost:8787" />,
+    );
+
+    fireEvent.press(getByText('Connect'));
+
+    await waitFor(() => {
+      expect(mockConnectWebhookStream).toHaveBeenCalledWith(
+        expect.objectContaining({
+          apiKey: 'test-key',
+          baseUrl: 'http://localhost:8787',
+        }),
+      );
+      expect(getByText('TestNotification')).toBeTruthy();
+      expect(getByText(/productId: dev.hyo.martie.premium/)).toBeTruthy();
+    });
+
+    fireEvent.press(getByText('Trigger test notification'));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://localhost:8787/v1/webhooks/test-key',
+        expect.objectContaining({
+          method: 'POST',
+          headers: {'content-type': 'application/json'},
+        }),
+      );
+      expect(getByText('Test notification accepted.')).toBeTruthy();
     });
   });
 

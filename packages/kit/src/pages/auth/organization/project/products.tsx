@@ -23,7 +23,10 @@ import { Tooltip } from "@/components/Tooltip";
 import { Badge, PlatformBadge } from "../../../../components/Badge";
 import { usdPriceToMicros } from "./productPrice";
 
-type DashboardProject = Omit<Doc<"projects">, "apiKey" | "horizonAppSecret">;
+type DashboardProject = Omit<
+  Doc<"projects">,
+  "apiKey" | "horizonAppSecret" | "amazonSharedSecret"
+>;
 type ProjectContext = { project: DashboardProject };
 type SyncJob = Doc<"productSyncJobs">;
 

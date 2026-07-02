@@ -15,7 +15,10 @@ import { api } from "@/convex";
 import { PageLoading } from "@/components/LoadingSpinner";
 
 type ProjectContext = {
-  project: Omit<Doc<"projects">, "apiKey" | "horizonAppSecret">;
+  project: Omit<
+    Doc<"projects">,
+    "apiKey" | "horizonAppSecret" | "amazonSharedSecret"
+  >;
 };
 
 export default function ProjectWebhooks() {
@@ -70,7 +73,7 @@ export default function ProjectWebhooks() {
       </div>
 
       {setup ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
           <SetupBadge
             label="iOS"
             configured={setup.ios.configured}
@@ -87,6 +90,12 @@ export default function ProjectWebhooks() {
             label="Horizon (polling)"
             configured={setup.horizon.configured}
             missing={setup.horizon.missing}
+            settingsHref={settingsHref}
+          />
+          <SetupBadge
+            label="Amazon RVS"
+            configured={setup.amazon.configured}
+            missing={setup.amazon.missing}
             settingsHref={settingsHref}
           />
         </div>

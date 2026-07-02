@@ -251,7 +251,7 @@ kotlin {
     }
 
     androidTarget {
-        publishLibraryVariants("release")
+        publishLibraryVariants("playRelease", "horizonRelease", "amazonRelease")
         @OptIn(ExperimentalKotlinGradlePluginApi::class)
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_11)
@@ -298,11 +298,6 @@ kotlin {
                 implementation(libs.kotlinx.coroutines.test)
             }
         }
-        val androidMain by getting {
-            dependencies {
-                implementation("io.github.hyochan.openiap:openiap-google:$googleVersion")
-            }
-        }
     }
 }
 
@@ -318,10 +313,42 @@ android {
     defaultConfig {
         minSdk = libs.versions.android.minSdk.get().toInt()
     }
+    flavorDimensions += "platform"
+    productFlavors {
+        create("play") {
+            dimension = "platform"
+            buildConfigField("String", "OPENIAP_STORE", "\"play\"")
+            isDefault = true
+        }
+        create("horizon") {
+            dimension = "platform"
+            buildConfigField("String", "OPENIAP_STORE", "\"horizon\"")
+        }
+        create("amazon") {
+            dimension = "platform"
+            buildConfigField("String", "OPENIAP_STORE", "\"amazon\"")
+        }
+    }
+    buildFeatures {
+        buildConfig = true
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+}
+
+dependencies {
+    val playBillingVersion = "8.3.0"
+    add("playImplementation", "io.github.hyochan.openiap:openiap-google:$googleVersion")
+    add("horizonImplementation", "io.github.hyochan.openiap:openiap-google-horizon:$googleVersion")
+    add("amazonImplementation", "io.github.hyochan.openiap:openiap-google-amazon:$googleVersion")
+    // androidMain still contains the Play Billing implementation. Amazon uses
+    // the OpenIAP module delegate at runtime, but these symbols must be present
+    // while compiling the shared Android source set for non-Play variants.
+    add("horizonCompileOnly", "com.android.billingclient:billing-ktx:$playBillingVersion")
+    add("amazonCompileOnly", "com.android.billingclient:billing-ktx:$playBillingVersion")
+    add("androidUnitTestImplementation", "com.android.billingclient:billing-ktx:$playBillingVersion")
 }
 
 // Only configure publishing when we have signing credentials

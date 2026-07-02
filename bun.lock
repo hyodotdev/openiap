@@ -56,7 +56,7 @@
     },
     "packages/google": {
       "name": "@hyodotdev/openiap-android",
-      "version": "2.2.1",
+      "version": "2.3.0-rc.1",
       "dependencies": {
         "@hyodotdev/openiap-gql": "workspace:*",
       },

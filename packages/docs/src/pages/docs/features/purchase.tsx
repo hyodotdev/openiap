@@ -874,8 +874,7 @@ Future<bool> verifyOnServer(ProductPurchase purchase) async {
           Verify Purchase with IAPKit
         </AnchorLink>
         <p>
-          Don&apos;t want to implement App Store / Google Play verification
-          yourself?{' '}
+          Don&apos;t want to implement store receipt verification yourself?{' '}
           <a
             href="https://kit.openiap.dev"
             target="_blank"
@@ -884,15 +883,16 @@ Future<bool> verifyOnServer(ProductPurchase purchase) async {
           >
             IAPKit
           </a>{' '}
-          is a hosted purchase verification service that validates App Store and
-          Google Play purchases for you. Use{' '}
+          is a hosted purchase verification service that validates App Store,
+          Google Play, Amazon Appstore, and Meta Horizon purchases for you. Use{' '}
           <code>verifyPurchaseWithProvider</code> with the{' '}
           <code>&apos;iapkit&apos;</code> provider and pass the
-          platform-specific token (iOS JWS or Android purchase token) — no
-          store-verification code required. If your own backend serves protected
-          paid resources, have that backend authenticate the user and query
-          IAPKit before serving them; direct app-to-IAPKit calls are fine for
-          in-app or local feature unlocks, but they cannot authorize backend
+          platform-specific token or receipt payload. Fire OS and Vega OS use
+          <code>iapkit.amazon</code> with the Amazon receipt id, and no
+          app-owned Amazon RVS server is required. If your own backend serves
+          protected paid resources, have that backend authenticate the user and
+          query IAPKit before serving them; direct app-to-IAPKit calls are fine
+          for in-app or local feature unlocks, but they cannot authorize backend
           resources by themselves.
         </p>
 
@@ -922,15 +922,35 @@ import { verifyPurchaseWithProvider, type Purchase } from 'expo-iap';
 // Same API in react-native-iap:
 // import { verifyPurchaseWithProvider, type Purchase } from 'react-native-iap';
 
+const iapkitPayloadFor = async (purchase: Purchase) => {
+  const token = purchase.purchaseToken ?? '';
+  const runtimeOS = Platform.OS as string;
+  const isFireOSBuild = process.env.EXPO_PUBLIC_STORE === 'amazon';
+  const isAmazonRuntime = runtimeOS === 'kepler' || isFireOSBuild;
+
+  if (Platform.OS === 'ios') {
+    return { apple: { jws: token } };
+  }
+
+  if (isAmazonRuntime) {
+    return {
+      amazon: {
+        receiptId: token,
+        sandbox: __DEV__,
+      },
+    };
+  }
+
+  return { google: { purchaseToken: token } };
+};
+
 const verifyWithIapkit = async (purchase: Purchase) => {
   const result = await verifyPurchaseWithProvider({
     provider: 'iapkit',
     iapkit: {
       // apiKey is optional when configured via app config / Info.plist / AndroidManifest
       apiKey: process.env.EXPO_PUBLIC_IAPKIT_API_KEY,
-      ...(Platform.OS === 'ios'
-        ? { apple: { jws: purchase.purchaseToken ?? '' } }
-        : { google: { purchaseToken: purchase.purchaseToken ?? '' } }),
+      ...(await iapkitPayloadFor(purchase)),
     },
   });
 
@@ -953,9 +973,7 @@ function PurchaseScreen() {
         provider: 'iapkit',
         iapkit: {
           apiKey: process.env.EXPO_PUBLIC_IAPKIT_API_KEY,
-          ...(Platform.OS === 'ios'
-            ? { apple: { jws: purchase.purchaseToken ?? '' } }
-            : { google: { purchaseToken: purchase.purchaseToken ?? '' } }),
+          ...(await iapkitPayloadFor(purchase)),
         },
       });
       if (!result.iapkit?.isValid) console.error('IAPKit verification failed');
@@ -1010,6 +1028,7 @@ suspend fun verifyWithIapkit(purchase: PurchaseAndroid): Boolean {
                     google = RequestVerifyPurchaseWithIapkitGoogleProps(
                         purchaseToken = purchase.purchaseToken.orEmpty()
                     )
+                    // Fire OS: replace google with amazon(userId, receiptId, sandbox).
                 )
             )
         )
@@ -1041,6 +1060,7 @@ suspend fun verifyWithIapkit(purchase: PurchaseAndroid): Boolean {
                     google = RequestVerifyPurchaseWithIapkitGoogleProps(
                         purchaseToken = purchase.purchaseToken.orEmpty()
                     )
+                    // Fire OS builds use amazon(userId, receiptId, sandbox).
                 )
             )
         )
@@ -1081,6 +1101,7 @@ Future<bool> verifyWithIapkit(ProductPurchase purchase) async {
                   purchaseToken: purchase.purchaseToken ?? '',
                 )
               : null,
+          // Fire OS builds can pass amazon with userId, receiptId, and sandbox.
         ),
       ),
     );

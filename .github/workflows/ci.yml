@@ -201,6 +201,10 @@ jobs:
         working-directory: packages/google
         run: ./gradlew :openiap:assembleHorizonDebug
 
+      - name: Build Fire OS flavor
+        working-directory: packages/google
+        run: ./gradlew :openiap:assembleAmazonDebug
+
   test-ios:
     name: Test iOS
     runs-on: macos-15

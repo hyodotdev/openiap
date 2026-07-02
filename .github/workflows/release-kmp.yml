@@ -53,7 +53,13 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build Android targets
-        run: ./gradlew :library:compileDebugKotlinAndroid --no-daemon --stacktrace
+        run: |
+          ./gradlew \
+            :library:compilePlayDebugKotlinAndroid \
+            :library:compileHorizonDebugKotlinAndroid \
+            :library:compileAmazonDebugKotlinAndroid \
+            --no-daemon \
+            --stacktrace
 
   validate-ios:
     runs-on: macos-15

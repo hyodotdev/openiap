@@ -5,6 +5,9 @@
   "scripts": {
     "android": "RN_IAP_DEV_MODE=true react-native run-android",
     "ios": "RN_IAP_DEV_MODE=true react-native run-ios",
+    "build:vega:debug": "node scripts/build-vega-example.mjs Debug",
+    "build:vega:release": "node scripts/build-vega-example.mjs Release",
+    "run:vega:firetv": "node scripts/run-vega-firetv.mjs",
     "lint": "eslint .",
     "start": "RN_IAP_DEV_MODE=true react-native start",
     "test": "jest",

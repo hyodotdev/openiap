@@ -17,7 +17,7 @@ import {
   getStorefront,
   ErrorCode,
 } from 'react-native-iap';
-import {IAPKIT_API_KEY} from '@env';
+import {IAPKIT_API_KEY, IAPKIT_BASE_URL} from '@env';
 import Loading from '../src/components/Loading';
 import {
   CONSUMABLE_PRODUCT_IDS,
@@ -26,9 +26,15 @@ import {
 } from '../src/utils/constants';
 import {getErrorMessage} from '../src/utils/errorUtils';
 import {
+  getDefaultVerificationMethod,
   useVerificationMethod,
   type VerificationMethod,
 } from '../src/hooks/useVerificationMethod';
+import {
+  createIapkitVerificationPayload,
+  getPurchaseCleanupKey,
+  showNativeAlert,
+} from '../src/utils/vegaRuntime';
 import type {
   Product,
   Purchase,
@@ -39,6 +45,13 @@ import PurchaseSummaryRow from '../src/components/PurchaseSummaryRow';
 
 const CONSUMABLE_PRODUCT_ID_SET = new Set(CONSUMABLE_PRODUCT_IDS);
 const NON_CONSUMABLE_PRODUCT_ID_SET = new Set(NON_CONSUMABLE_PRODUCT_IDS);
+
+function isPurchaseFlowProduct(productId: string): boolean {
+  return (
+    CONSUMABLE_PRODUCT_ID_SET.has(productId) ||
+    NON_CONSUMABLE_PRODUCT_ID_SET.has(productId)
+  );
+}
 
 type PurchaseFlowProps = {
   connected: boolean;
@@ -127,7 +140,7 @@ function PurchaseFlow({
         Alert.alert('App Transaction', 'No app transaction found');
       }
     } catch (error) {
-      console.error('Failed to get app transaction:', error);
+      console.log('Failed to get app transaction:', error);
       Alert.alert('Error', 'Failed to get app transaction');
     }
   };
@@ -217,7 +230,7 @@ function PurchaseFlow({
                 : 'Loading products...'}
           </Text>
 
-          {visibleProducts.map((product) => (
+          {visibleProducts.map((product, index) => (
             <View key={product.id} style={styles.productCard}>
               <View style={styles.productHeader}>
                 <Text style={styles.productTitle}>{product.title}</Text>
@@ -244,6 +257,8 @@ function PurchaseFlow({
               </Text>
               <View style={styles.productActions}>
                 <TouchableOpacity
+                  focusable={true}
+                  hasTVPreferredFocus={index === 0}
                   style={[
                     styles.purchaseButton,
                     isProcessing && {opacity: 0.5},
@@ -256,6 +271,7 @@ function PurchaseFlow({
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
+                  focusable={true}
                   style={styles.detailsButton}
                   onPress={() => handleShowDetails(product)}
                 >
@@ -576,7 +592,7 @@ function PurchaseFlowContainer() {
     verificationMethod,
     verificationMethodRef,
     showVerificationMethodSelector,
-  } = useVerificationMethod('ignore');
+  } = useVerificationMethod(getDefaultVerificationMethod(IAPKIT_API_KEY));
 
   // ──────────────────────────────────────────────────────────────────────────
   // Step 1: INIT CONNECTION
@@ -589,8 +605,10 @@ function PurchaseFlowContainer() {
   const {
     connected,
     products,
+    availablePurchases,
     fetchProducts,
     finishTransaction,
+    getAvailablePurchases,
     verifyPurchase,
     verifyPurchaseWithProvider,
   } = useIAP({
@@ -605,27 +623,27 @@ function PurchaseFlowContainer() {
       };
       console.log('Purchase successful:', masked);
       console.log('[PurchaseFlow] purchaseState:', purchase.purchaseState);
+      const productId = purchase.productId ?? '';
+      if (!isPurchaseFlowProduct(productId)) {
+        console.log('[PurchaseFlow] ignoring non-purchase-flow product:', {
+          productId,
+        });
+        return;
+      }
+
       setLastPurchase(purchase);
       setIsProcessing(false);
 
       setPurchaseResult(
-        `Purchase completed successfully (state: ${purchase.purchaseState}).`,
+        `Purchase received (state: ${purchase.purchaseState}). Finishing transaction...`,
       );
 
-      const productId = purchase.productId ?? '';
       const isConsumablePurchase = CONSUMABLE_PRODUCT_ID_SET.has(productId);
-      if (!isConsumablePurchase && productId) {
-        if (NON_CONSUMABLE_PRODUCT_ID_SET.has(productId)) {
-          console.log(
-            '[PurchaseFlow] Non-consumable purchase recorded:',
-            productId,
-          );
-        } else {
-          console.warn(
-            '[PurchaseFlow] Purchase for product not listed in constants:',
-            productId,
-          );
-        }
+      if (!isConsumablePurchase) {
+        console.log(
+          '[PurchaseFlow] Non-consumable purchase recorded:',
+          productId,
+        );
       }
 
       // ──────────────────────────────────────────────────────────────────────
@@ -695,7 +713,7 @@ function PurchaseFlowContainer() {
 
             const jwsOrToken = purchase.purchaseToken ?? '';
             if (!jwsOrToken) {
-              console.warn(
+              console.log(
                 '[PurchaseFlow] No purchaseToken/JWS available for verification',
               );
               throw new Error(
@@ -703,17 +721,19 @@ function PurchaseFlowContainer() {
               );
             }
 
+            const iapkitPayload = createIapkitVerificationPayload(
+              purchase,
+              jwsOrToken,
+              apiKey,
+              IAPKIT_BASE_URL,
+            );
             const verifyRequest: VerifyPurchaseWithProviderProps = {
               provider: 'iapkit',
-              iapkit: {
-                apiKey,
-                apple: {
-                  jws: jwsOrToken,
-                },
-                google: {
-                  purchaseToken: jwsOrToken,
-                },
-              },
+              iapkit: iapkitPayload,
+            };
+            const iapkitLogPayload = {
+              ...iapkitPayload,
+              apiKey: '***hidden***',
             };
 
             console.log(
@@ -721,16 +741,7 @@ function PurchaseFlowContainer() {
               JSON.stringify(
                 {
                   provider: verifyRequest.provider,
-                  iapkit: {
-                    apiKey: '***hidden***',
-                    ...(Platform.OS === 'ios'
-                      ? {apple: {jws: jwsOrToken}}
-                      : {
-                          google: {
-                            purchaseToken: jwsOrToken,
-                          },
-                        }),
-                  },
+                  iapkit: iapkitLogPayload,
                 },
                 null,
                 2,
@@ -745,7 +756,7 @@ function PurchaseFlowContainer() {
               const statusEmoji = result.iapkit.isValid ? '✅' : '⚠️';
               const stateText = result.iapkit.state || 'unknown';
 
-              Alert.alert(
+              showNativeAlert(
                 `${statusEmoji} IAPKit Verification`,
                 `Valid: ${result.iapkit.isValid}\nState: ${stateText}\nStore: ${
                   result.iapkit.store || 'unknown'
@@ -755,12 +766,12 @@ function PurchaseFlowContainer() {
               const errorMessages = result.errors
                 .map((e) => `${e.code ? `[${e.code}] ` : ''}${e.message}`)
                 .join('\n');
-              Alert.alert('⚠️ IAPKit Verification Error', errorMessages);
+              showNativeAlert('⚠️ IAPKit Verification Error', errorMessages);
             }
           }
         } catch (error) {
-          console.warn('[PurchaseFlow] Verification failed:', error);
-          Alert.alert(
+          console.log('[PurchaseFlow] Verification failed:', error);
+          showNativeAlert(
             'Verification Failed',
             `Purchase verification failed: ${getErrorMessage(error)}`,
           );
@@ -790,23 +801,29 @@ function PurchaseFlowContainer() {
           purchase,
           isConsumable: isConsumablePurchase,
         });
+        setPurchaseResult(
+          `Purchase completed and finished successfully (state: ${purchase.purchaseState}).`,
+        );
+        showNativeAlert('Success', 'Purchase completed successfully!');
       } catch (error) {
-        console.warn('[PurchaseFlow] finishTransaction failed:', error);
+        console.log('[PurchaseFlow] finishTransaction failed:', error);
+        const message = getErrorMessage(error);
+        setPurchaseResult(
+          `Purchase completed, but finishTransaction failed: ${message}`,
+        );
+        showNativeAlert('Finish Transaction Failed', message);
       }
-
-      Alert.alert('Success', 'Purchase completed successfully!');
     },
 
     // ────────────────────────────────────────────────────────────────────────
     // Step 2b: Purchase Error Handler
     // ────────────────────────────────────────────────────────────────────────
     onPurchaseError: (error: PurchaseError) => {
-      console.error('Purchase failed:', error);
-      console.error('Error code:', error.code);
-      console.error(
-        'Is user cancelled:',
-        error.code === ErrorCode.UserCancelled,
-      );
+      console.log('Purchase failed:', {
+        code: error.code,
+        message: error.message,
+        userCancelled: error.code === ErrorCode.UserCancelled,
+      });
 
       setIsProcessing(false);
 
@@ -826,6 +843,7 @@ function PurchaseFlowContainer() {
   // Helpers
   // ──────────────────────────────────────────────────────────────────────────
   const didFetchRef = useRef(false);
+  const cleanupPurchaseKeysRef = useRef(new Set<string>());
 
   const fetchStorefront = useCallback(async () => {
     setFetchingStorefront(true);
@@ -833,7 +851,7 @@ function PurchaseFlowContainer() {
       const code = await getStorefront();
       setStorefront(code?.trim() ? code : null);
     } catch (error) {
-      console.warn('[PurchaseFlow] getStorefront failed:', error);
+      console.log('[PurchaseFlow] getStorefront failed:', error);
       setStorefront(null);
     } finally {
       setFetchingStorefront(false);
@@ -854,16 +872,65 @@ function PurchaseFlowContainer() {
           console.log('[PurchaseFlow] fetchProducts completed');
         })
         .catch((error) => {
-          console.error('[PurchaseFlow] fetchProducts error:', error);
+          const message = getErrorMessage(error);
+          console.log('[PurchaseFlow] fetchProducts error:', message);
+          setPurchaseResult(`Product loading failed: ${message}`);
+        });
+
+      getAvailablePurchases()
+        .then(() => {
+          console.log('[PurchaseFlow] getAvailablePurchases completed');
+        })
+        .catch((error) => {
+          console.log('[PurchaseFlow] getAvailablePurchases error:', error);
         });
 
       void fetchStorefront();
     } else if (!connected) {
       didFetchRef.current = false;
+      cleanupPurchaseKeysRef.current.clear();
       console.log('[PurchaseFlow] Not fetching products - not connected');
       setStorefront(null);
     }
-  }, [connected, fetchProducts, fetchStorefront]);
+  }, [connected, fetchProducts, fetchStorefront, getAvailablePurchases]);
+
+  useEffect(() => {
+    if (!connected || availablePurchases.length === 0) return;
+
+    for (const purchase of availablePurchases) {
+      const productId = purchase.productId ?? '';
+      if (!isPurchaseFlowProduct(productId)) {
+        console.log(
+          '[PurchaseFlow] skipping cleanup for non-purchase-flow product:',
+          {productId},
+        );
+        continue;
+      }
+
+      const cleanupKey = getPurchaseCleanupKey(purchase);
+      if (cleanupPurchaseKeysRef.current.has(cleanupKey)) continue;
+      cleanupPurchaseKeysRef.current.add(cleanupKey);
+
+      const isConsumablePurchase = CONSUMABLE_PRODUCT_ID_SET.has(productId);
+      finishTransaction({
+        purchase,
+        isConsumable: isConsumablePurchase,
+      })
+        .then(() => {
+          console.log('[PurchaseFlow] cleaned up available purchase:', {
+            productId,
+            isConsumable: isConsumablePurchase,
+          });
+        })
+        .catch((error) => {
+          cleanupPurchaseKeysRef.current.delete(cleanupKey);
+          console.log(
+            '[PurchaseFlow] available purchase cleanup failed:',
+            error,
+          );
+        });
+    }
+  }, [availablePurchases, connected, finishTransaction]);
 
   // ──────────────────────────────────────────────────────────────────────────
   // Step 3: REQUEST PURCHASE
@@ -888,13 +955,6 @@ function PurchaseFlowContainer() {
     setIsProcessing(true);
     setPurchaseResult('Processing purchase...');
 
-    if (typeof requestPurchase !== 'function') {
-      console.warn('[PurchaseFlow] requestPurchase missing (test/mock env)');
-      setIsProcessing(false);
-      setPurchaseResult('Cannot start purchase in test/mock environment.');
-      return;
-    }
-
     // Using Option C: Cross-platform request
     void requestPurchase({
       request: {
@@ -907,6 +967,18 @@ function PurchaseFlowContainer() {
         },
       },
       type: 'in-app',
+    }).catch((err: PurchaseError) => {
+      console.log('requestPurchase failed:', {
+        code: err.code,
+        message: err.message,
+      });
+      setIsProcessing(false);
+      if (err.code === ErrorCode.UserCancelled) {
+        setPurchaseResult('Purchase cancelled by user');
+        return;
+      }
+
+      setPurchaseResult(`Purchase failed: ${err.message}`);
     });
   }, []);
 

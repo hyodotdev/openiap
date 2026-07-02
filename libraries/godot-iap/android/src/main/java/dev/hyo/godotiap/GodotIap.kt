@@ -6,6 +6,10 @@ import dev.hyo.openiap.store.OpenIapStore
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.godotengine.godot.Godot
 import org.godotengine.godot.plugin.GodotPlugin
@@ -28,6 +32,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
     private lateinit var openIap: OpenIapModule
     private lateinit var store: OpenIapStore
     private var isInitialized = false
+    private val pluginScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     // Listeners
     private val purchaseUpdateListener = OpenIapPurchaseUpdateListener { purchase ->
@@ -224,109 +229,83 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
             }.toString()
         }
 
-        return runBlocking {
+        val requestProps = try {
+            // Parse params using helper (like expo-iap)
+            val params = GodotIapHelper.parseRequestPurchaseParams(paramsJson)
+
+            // Determine product type
+            val productType = GodotIapHelper.parseProductQueryType(params.type)
+
+            // Build request props based on product type (exactly like expo-iap)
+            when (productType) {
+                ProductQueryType.Subs -> {
+                    val android = RequestSubscriptionAndroidProps(
+                        isOfferPersonalized = params.isOfferPersonalized,
+                        obfuscatedAccountId = params.obfuscatedAccountId,
+                        obfuscatedProfileId = params.obfuscatedProfileId,
+                        purchaseToken = params.purchaseToken,
+                        replacementMode = params.replacementMode,
+                        skus = params.skus,
+                        subscriptionOffers = params.subscriptionOffers.takeIf { it.isNotEmpty() },
+                        subscriptionProductReplacementParams = params.subscriptionProductReplacementParams
+                    )
+                    RequestPurchaseProps(
+                        request = RequestPurchaseProps.Request.Subscription(
+                            RequestSubscriptionPropsByPlatforms(android = android)
+                        ),
+                        type = ProductQueryType.Subs
+                    )
+                }
+                else -> {
+                    val android = RequestPurchaseAndroidProps(
+                        isOfferPersonalized = params.isOfferPersonalized,
+                        obfuscatedAccountId = params.obfuscatedAccountId,
+                        obfuscatedProfileId = params.obfuscatedProfileId,
+                        offerToken = params.offerTokenArr.firstOrNull(),
+                        skus = params.skus
+                    )
+                    RequestPurchaseProps(
+                        request = RequestPurchaseProps.Request.Purchase(
+                            RequestPurchasePropsByPlatforms(android = android)
+                        ),
+                        type = ProductQueryType.InApp
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            GodotIapLog.failure("requestPurchase", e)
+            return JSONObject().apply {
+                put("success", false)
+                put("error", e.message)
+            }.toString()
+        }
+
+        pluginScope.launch {
             try {
-                // Parse params using helper (like expo-iap)
-                val params = GodotIapHelper.parseRequestPurchaseParams(paramsJson)
-
-                // Determine product type
-                val productType = GodotIapHelper.parseProductQueryType(params.type)
-
-                // Build request props based on product type (exactly like expo-iap)
-                val requestProps = when (productType) {
-                    ProductQueryType.Subs -> {
-                        val android = RequestSubscriptionAndroidProps(
-                            isOfferPersonalized = params.isOfferPersonalized,
-                            obfuscatedAccountId = params.obfuscatedAccountId,
-                            obfuscatedProfileId = params.obfuscatedProfileId,
-                            purchaseToken = params.purchaseToken,
-                            replacementMode = params.replacementMode,
-                            skus = params.skus,
-                            subscriptionOffers = params.subscriptionOffers.takeIf { it.isNotEmpty() },
-                            subscriptionProductReplacementParams = params.subscriptionProductReplacementParams
-                        )
-                        RequestPurchaseProps(
-                            request = RequestPurchaseProps.Request.Subscription(
-                                RequestSubscriptionPropsByPlatforms(android = android)
-                            ),
-                            type = ProductQueryType.Subs
-                        )
-                    }
-                    else -> {
-                        val android = RequestPurchaseAndroidProps(
-                            isOfferPersonalized = params.isOfferPersonalized,
-                            obfuscatedAccountId = params.obfuscatedAccountId,
-                            obfuscatedProfileId = params.obfuscatedProfileId,
-                            offerToken = params.offerTokenArr.firstOrNull(),
-                            skus = params.skus
-                        )
-                        RequestPurchaseProps(
-                            request = RequestPurchaseProps.Request.Purchase(
-                                RequestPurchasePropsByPlatforms(android = android)
-                            ),
-                            type = ProductQueryType.InApp
-                        )
-                    }
-                }
-
-                val result = store.requestPurchase(requestProps)
-
-                when (result) {
-                    is RequestPurchaseResultPurchase -> {
-                        result.value?.let { purchase ->
-                            JSONObject().apply {
-                                put("success", true)
-                                put("productId", purchase.productId)
-                                put("purchaseToken", purchase.purchaseToken)
-                                put("purchaseState", purchase.purchaseState.rawValue)
-                            }.toString()
-                        } ?: JSONObject().apply {
-                            put("success", false)
-                            put("userCancelled", true)
-                        }.toString()
-                    }
-                    is RequestPurchaseResultPurchases -> {
-                        result.value?.firstOrNull()?.let { purchase ->
-                            JSONObject().apply {
-                                put("success", true)
-                                put("productId", purchase.productId)
-                                put("purchaseToken", purchase.purchaseToken)
-                                put("purchaseState", purchase.purchaseState.rawValue)
-                            }.toString()
-                        } ?: JSONObject().apply {
-                            put("success", false)
-                            put("userCancelled", true)
-                        }.toString()
-                    }
-                    null -> {
-                        JSONObject().apply {
-                            put("success", false)
-                            put("userCancelled", true)
-                        }.toString()
-                    }
-                }
-            } catch (e: OpenIapError.PurchaseCancelled) {
-                GodotIapLog.debug("requestPurchase cancelled by user")
-                JSONObject().apply {
-                    put("success", false)
-                    put("userCancelled", true)
-                }.toString()
+                store.requestPurchase(requestProps)
             } catch (e: OpenIapError) {
                 GodotIapLog.failure("requestPurchase", e)
-                JSONObject().apply {
-                    put("success", false)
-                    put("error", e.message)
-                    put("errorCode", e.code)
-                }.toString()
+                emitSignal("purchase_error", JSONObject(e.toJSON()).toString())
             } catch (e: Exception) {
                 GodotIapLog.failure("requestPurchase", e)
-                JSONObject().apply {
-                    put("success", false)
-                    put("error", e.message)
-                }.toString()
+                emitSignal(
+                    "purchase_error",
+                    JSONObject().apply {
+                        put("code", "unknown")
+                        put("message", e.message ?: "Unknown purchase error")
+                    }.toString()
+                )
             }
         }
+
+        return JSONObject().apply {
+            put("success", true)
+            put("pending", true)
+        }.toString()
     }
+
+    @UsedByGodot
+    fun requestPurchaseJson(paramsJson: String): String = requestPurchase(paramsJson)
 
     @UsedByGodot
     fun finishTransaction(purchaseJson: String, isConsumable: Boolean): String {
@@ -922,68 +901,90 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
     @UsedByGodot
     fun verifyPurchaseWithProvider(propsJson: String): String {
-        GodotIapLog.payload("verifyPurchaseWithProvider", propsJson)
+        GodotIapLog.payload(
+            "verifyPurchaseWithProvider",
+            mapOf("hasIapkit" to propsJson.contains("\"iapkit\""))
+        )
 
-        if (!isInitialized) {
+        fun errorResponse(message: String): String {
             return JSONObject().apply {
                 put("success", false)
-                put("error", "Not initialized")
+                put("provider", PurchaseVerificationProvider.Iapkit.toJson())
+                put(
+                    "errors",
+                    JSONArray().apply {
+                        put(JSONObject().apply {
+                            put("code", ErrorCode.PurchaseVerificationFailed.toJson())
+                            put("message", message)
+                        })
+                    }
+                )
             }.toString()
+        }
+
+        if (!isInitialized) {
+            return errorResponse("Not initialized")
         }
 
         return runBlocking {
             try {
-                val json = JSONObject(propsJson)
-
-                // Build IAPKit props
-                val iapkitProps = RequestVerifyPurchaseWithIapkitProps(
-                    apiKey = json.optString("apiKey").takeIf { it.isNotEmpty() },
-                    apple = json.optJSONObject("apple")?.let { appleJson ->
-                        RequestVerifyPurchaseWithIapkitAppleProps(
-                            jws = appleJson.getString("jws")
-                        )
-                    },
-                    google = json.optJSONObject("google")?.let { googleJson ->
-                        RequestVerifyPurchaseWithIapkitGoogleProps(
-                            purchaseToken = googleJson.getString("purchaseToken")
-                        )
+                val jsonBridge = object {
+                    fun objectToMap(json: JSONObject): Map<String, Any?> {
+                        val map = linkedMapOf<String, Any?>()
+                        val keys = json.keys()
+                        while (keys.hasNext()) {
+                            val key = keys.next()
+                            map[key] = valueToAny(json.opt(key))
+                        }
+                        return map
                     }
-                )
 
-                val providerProps = VerifyPurchaseWithProviderProps(
-                    iapkit = iapkitProps,
-                    provider = PurchaseVerificationProvider.Iapkit
-                )
+                    fun arrayToList(json: JSONArray): List<Any?> {
+                        return (0 until json.length()).map { index ->
+                            valueToAny(json.opt(index))
+                        }
+                    }
+
+                    fun valueToAny(value: Any?): Any? {
+                        if (value == null || value == JSONObject.NULL) return null
+                        return when (value) {
+                            is JSONObject -> objectToMap(value)
+                            is JSONArray -> arrayToList(value)
+                            else -> value
+                        }
+                    }
+                }
+
+                fun normalizeProviderProps(props: Map<String, Any?>): Map<String, Any?> {
+                    if (props["iapkit"] != null) return props
+
+                    val legacyIapkit = linkedMapOf<String, Any?>()
+                    listOf("amazon", "apiKey", "apple", "google").forEach { key ->
+                        if (props[key] != null) {
+                            legacyIapkit[key] = props[key]
+                        }
+                    }
+                    if (legacyIapkit.isEmpty()) return props
+
+                    return linkedMapOf(
+                        "provider" to (props["provider"] ?: PurchaseVerificationProvider.Iapkit.toJson()),
+                        "iapkit" to legacyIapkit
+                    )
+                }
+
+                val propsMap = normalizeProviderProps(jsonBridge.objectToMap(JSONObject(propsJson)))
+                val providerProps = VerifyPurchaseWithProviderProps.fromJson(propsMap)
+                    ?: throw IllegalArgumentException("Invalid verifyPurchaseWithProvider options")
 
                 val result = openIap.verifyPurchaseWithProvider(providerProps)
-
-                val response = JSONObject().apply {
-                    put("success", true)
-                    put("provider", result.provider.toJson())
-                    result.iapkit?.let { iapkit ->
-                        put("isValid", iapkit.isValid)
-                        put("state", iapkit.state.toJson())
-                        put("store", iapkit.store.toJson())
-                    }
-                    result.errors?.let { errors ->
-                        val errorsArray = JSONArray()
-                        errors.forEach { error ->
-                            errorsArray.put(JSONObject().apply {
-                                put("code", error.code)
-                                put("message", error.message)
-                            })
-                        }
-                        put("errors", errorsArray)
-                    }
-                }.toString()
+                val response = JSONObject(GodotIapHelper.sanitizeDictionary(result.toJson()))
+                    .apply { put("success", true) }
+                    .toString()
                 GodotIapLog.result("verifyPurchaseWithProvider", "verified")
                 response
             } catch (e: Exception) {
                 GodotIapLog.failure("verifyPurchaseWithProvider", e)
-                JSONObject().apply {
-                    put("success", false)
-                    put("error", e.message)
-                }.toString()
+                errorResponse(e.message ?: "Verification failed")
             }
         }
     }

@@ -173,8 +173,11 @@ function FlutterSetup() {
         >
           <strong>Note:</strong> The <code>missingDimensionStrategy</code>{' '}
           configuration is required since v7.1.14 due to product flavor support
-          for Meta Horizon OS. For Meta Quest support, see the{' '}
-          <a href="/docs/horizon-setup">Horizon OS Setup Guide</a>.
+          for Meta Horizon OS and Fire OS. For Meta Quest support, see the{' '}
+          <a href="/docs/horizon-setup">Horizon OS Setup Guide</a>. For Amazon
+          Fire OS builds, map <code>fireOsEnabled=true</code> to the{' '}
+          <code>amazon</code> flavor in your app Gradle file and see the{' '}
+          <a href="/docs/fireos-setup">Fire OS Setup Guide</a>.
         </div>
 
         <h4>ProGuard Rules (if using ProGuard)</h4>
@@ -355,6 +358,14 @@ final allPurchases = await iap.getAvailablePurchases(
           <li>
             <a href="/docs/horizon-setup">Horizon OS Setup</a> — Meta Quest
             in-app purchase configuration
+          </li>
+          <li>
+            <a href="/docs/fireos-setup">Fire OS Setup</a> — Fire OS Android
+            flavor configuration
+          </li>
+          <li>
+            <a href="/docs/features/vega-os">Vega OS Runtime</a> — React Native
+            / Expo only; not a Flutter target
           </li>
           <li>
             <a

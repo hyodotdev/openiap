@@ -23,7 +23,6 @@ import dev.hyo.martie.IapConstants
 import dev.hyo.martie.models.AppColors
 import dev.hyo.martie.screens.uis.*
 import dev.hyo.openiap.IapContext
-import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.store.OpenIapStore
 import dev.hyo.openiap.store.PurchaseResultStatus
 import kotlinx.coroutines.CoroutineScope
@@ -103,6 +102,46 @@ fun PurchaseFlowScreen(
     // IAPKit API Key from BuildConfig
     val iapkitApiKey: String? = remember {
         runCatching { BuildConfig.IAPKIT_API_KEY.takeIf { it.isNotBlank() } }.getOrNull()
+    }
+
+    fun purchasePropsFor(product: ProductAndroid): RequestPurchaseProps =
+        if (product.type == ProductType.Subs) {
+            RequestPurchaseProps(
+                request = RequestPurchaseProps.Request.Subscription(
+                    RequestSubscriptionPropsByPlatforms(
+                        android = RequestSubscriptionAndroidProps(
+                            skus = listOf(product.id)
+                        )
+                    )
+                ),
+                type = ProductQueryType.Subs
+            )
+        } else {
+            RequestPurchaseProps(
+                request = RequestPurchaseProps.Request.Purchase(
+                    RequestPurchasePropsByPlatforms(
+                        android = RequestPurchaseAndroidProps(
+                            skus = listOf(product.id)
+                        )
+                    )
+                ),
+                type = ProductQueryType.InApp
+            )
+        }
+
+    fun launchPurchase(product: ProductAndroid) {
+        uiScope.launch {
+            iapStore.setActivity(activity)
+            try {
+                iapStore.requestPurchase(purchasePropsFor(product))
+            } catch (e: Exception) {
+                iapStore.postStatusMessage(
+                    message = e.message ?: "Purchase failed",
+                    status = PurchaseResultStatus.Error,
+                    productId = product.id
+                )
+            }
+        }
     }
 
     // Use a dedicated scope for cleanup that won't be cancelled with composition
@@ -448,36 +487,7 @@ fun PurchaseFlowScreen(
                     ProductCard(
                         product = androidProduct,
                         isPurchasing = status.isPurchasing(androidProduct.id),
-                        onPurchase = {
-                            scope.launch {
-                                iapStore.setActivity(activity)
-                                if (androidProduct.type == ProductType.Subs) {
-                                    val props = RequestPurchaseProps(
-                                        request = RequestPurchaseProps.Request.Subscription(
-                                            RequestSubscriptionPropsByPlatforms(
-                                                android = RequestSubscriptionAndroidProps(
-                                                    skus = listOf(androidProduct.id)
-                                                )
-                                            )
-                                        ),
-                                        type = ProductQueryType.Subs
-                                    )
-                                    iapStore.requestPurchase(props)
-                                } else {
-                                    val props = RequestPurchaseProps(
-                                        request = RequestPurchaseProps.Request.Purchase(
-                                            RequestPurchasePropsByPlatforms(
-                                                android = RequestPurchaseAndroidProps(
-                                                    skus = listOf(androidProduct.id)
-                                                )
-                                            )
-                                        ),
-                                        type = ProductQueryType.InApp
-                                    )
-                                    iapStore.requestPurchase(props)
-                                }
-                            }
-                        },
+                        onPurchase = { launchPurchase(androidProduct) },
                         onClick = {
                             selectedProduct = androidProduct
                         },
@@ -724,36 +734,7 @@ fun PurchaseFlowScreen(
         ProductDetailModal(
             product = product,
             onDismiss = { selectedProduct = null },
-            onPurchase = {
-                uiScope.launch {
-                    iapStore.setActivity(activity)
-                    if (product.type == ProductType.Subs) {
-                        val props = RequestPurchaseProps(
-                            request = RequestPurchaseProps.Request.Subscription(
-                                RequestSubscriptionPropsByPlatforms(
-                                    android = RequestSubscriptionAndroidProps(
-                                        skus = listOf(product.id)
-                                    )
-                                )
-                            ),
-                            type = ProductQueryType.Subs
-                        )
-                        iapStore.requestPurchase(props)
-                    } else {
-                        val props = RequestPurchaseProps(
-                            request = RequestPurchaseProps.Request.Purchase(
-                                RequestPurchasePropsByPlatforms(
-                                    android = RequestPurchaseAndroidProps(
-                                        skus = listOf(product.id)
-                                    )
-                                )
-                            ),
-                            type = ProductQueryType.InApp
-                        )
-                        iapStore.requestPurchase(props)
-                    }
-                }
-            },
+            onPurchase = { launchPurchase(product) },
             isPurchasing = status.isPurchasing(product.id)
         )
     }

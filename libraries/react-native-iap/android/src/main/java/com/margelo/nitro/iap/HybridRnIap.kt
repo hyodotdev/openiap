@@ -43,13 +43,13 @@ import dev.hyo.openiap.ExternalLinkLaunchModeAndroid as OpenIapExternalLinkLaunc
 import dev.hyo.openiap.ExternalLinkTypeAndroid as OpenIapExternalLinkType
 import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import dev.hyo.openiap.store.OpenIapStore
+import java.util.Locale
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CompletableDeferred
 import org.json.JSONArray
 import org.json.JSONObject
-import java.util.Locale
 
 /**
  * Custom exception for OpenIAP errors that only includes the error JSON without stack traces.
@@ -575,7 +575,7 @@ class HybridRnIap : HybridRnIapSpec() {
                 mapOf("type" to androidOptions?.type?.name, "includeSuspended" to includeSuspended)
             )
 
-            val typeName = androidOptions?.type?.name?.lowercase()
+            val typeName = androidOptions?.type?.name?.lowercase(java.util.Locale.ROOT)
             val normalizedType = when (typeName) {
                 "inapp" -> {
                     RnIapLog.warn("getAvailablePurchases received legacy type 'inapp'; forwarding as 'in-app'")
@@ -1279,6 +1279,7 @@ class HybridRnIap : HybridRnIapSpec() {
             dev.hyo.openiap.IapStore.Apple -> IapStore.APPLE
             dev.hyo.openiap.IapStore.Google -> IapStore.GOOGLE
             dev.hyo.openiap.IapStore.Horizon -> IapStore.HORIZON
+            dev.hyo.openiap.IapStore.Amazon -> IapStore.AMAZON
             dev.hyo.openiap.IapStore.Unknown -> IapStore.UNKNOWN
         }
     }
@@ -1469,7 +1470,7 @@ class HybridRnIap : HybridRnIapSpec() {
         return Promise.async {
             try {
                 // Convert Nitro enum to string (e.g., IAPKIT -> "iapkit")
-                val providerString = params.provider.name.lowercase()
+                val providerString = params.provider.name.lowercase(java.util.Locale.ROOT)
                 RnIapLog.payload("verifyPurchaseWithProvider", mapOf("provider" to providerString))
 
                 // Build the props map for OpenIAP - use string value for provider
@@ -1481,6 +1482,14 @@ class HybridRnIap : HybridRnIapSpec() {
                     apiKey?.let { iapkitMap["apiKey"] = it }
                     (iapkit.google as? Variant_NullType_NitroVerifyPurchaseWithIapkitGoogleProps.Second)?.value?.let { google ->
                         iapkitMap["google"] = mapOf("purchaseToken" to google.purchaseToken)
+                    }
+                    (iapkit.amazon as? Variant_NullType_NitroVerifyPurchaseWithIapkitAmazonProps.Second)?.value?.let { amazon ->
+                        val amazonMap = mutableMapOf<String, Any?>(
+                            "receiptId" to amazon.receiptId
+                        )
+                        amazon.userId.unwrapString()?.let { amazonMap["userId"] = it }
+                        amazon.sandbox.unwrapBool()?.let { amazonMap["sandbox"] = it }
+                        iapkitMap["amazon"] = amazonMap
                     }
                     (iapkit.apple as? Variant_NullType_NitroVerifyPurchaseWithIapkitAppleProps.Second)?.value?.let { apple ->
                         iapkitMap["apple"] = mapOf("jws" to apple.jws)
@@ -1609,6 +1618,7 @@ class HybridRnIap : HybridRnIapSpec() {
     // Alternative Billing (Android)
     // -------------------------------------------------------------------------
 
+    @Suppress("DEPRECATION")
     override fun checkAlternativeBillingAvailabilityAndroid(): Promise<Boolean> {
         return Promise.async {
             RnIapLog.payload("checkAlternativeBillingAvailabilityAndroid", null)
@@ -1626,6 +1636,7 @@ class HybridRnIap : HybridRnIapSpec() {
         }
     }
 
+    @Suppress("DEPRECATION")
     override fun showAlternativeBillingDialogAndroid(): Promise<Boolean> {
         return Promise.async {
             RnIapLog.payload("showAlternativeBillingDialogAndroid", null)
@@ -1647,6 +1658,7 @@ class HybridRnIap : HybridRnIapSpec() {
         }
     }
 
+    @Suppress("DEPRECATION")
     override fun createAlternativeBillingTokenAndroid(sku: Variant_NullType_String?): Promise<Variant_NullType_String> {
         return Promise.async {
             val skuValue = sku.unwrapString()
@@ -2000,6 +2012,7 @@ class HybridRnIap : HybridRnIapSpec() {
             "APPLE" -> IapStore.APPLE
             "GOOGLE" -> IapStore.GOOGLE
             "HORIZON" -> IapStore.HORIZON
+            "AMAZON" -> IapStore.AMAZON
             else -> IapStore.UNKNOWN
         }
     }

@@ -4,25 +4,39 @@ import LanguageTabs from '../../components/LanguageTabs';
 import SEO from '../../components/SEO';
 import { useScrollToHash } from '../../hooks/useScrollToHash';
 
+const IAPKIT_URL = 'https://kit.openiap.dev';
+
 function KitBackend() {
   useScrollToHash();
 
   return (
     <div className="doc-page">
       <SEO
-        title="kit backend"
-        description="OpenIAP kit is the hosted backend that handles Apple StoreKit 2 and Google Play receipt validation, lifecycle webhooks, subscription state, revenue metrics, and App Store Connect / Play Console product sync — without the host app needing to operate its own server."
+        title="Purchase Verification with IAPKit"
+        description="Purchase verification with IAPKit at kit.openiap.dev handles Apple StoreKit 2, Google Play, Amazon Appstore, and Meta Horizon verification, lifecycle webhooks, subscription state, revenue metrics, and store product sync — without the host app needing to operate its own server."
         path="/docs/kit-backend"
-        keywords="OpenIAP kit, hosted backend, receipt validation, subscription state, App Store Connect, Play Console, MCP server"
+        keywords="IAPKit, kit.openiap.dev, OpenIAP kit, hosted backend, purchase verification, receipt validation, Amazon Fire OS, Vega OS, subscription state, App Store Connect, Play Console, MCP server"
       />
-      <h1>kit backend</h1>
+      <h1>Purchase Verification</h1>
       <p>
-        kit (<code>kit.openiap.dev</code>) is the hosted backend you can drop in
-        instead of running your own server. It handles every step that comes
-        after a user taps "buy" — receipt validation, lifecycle webhooks,
-        subscription state, revenue metrics, and App Store Connect / Play
-        Console product sync — and exposes everything through one URL surface
-        that the framework SDKs and MCP server speak.
+        Purchase verification is the step that proves a store transaction is
+        real before your app grants paid access, and IAPKit (
+        <a href={IAPKIT_URL} target="_blank" rel="noopener noreferrer">
+          <code>kit.openiap.dev</code>
+        </a>
+        ) is OpenIAP's hosted backend for that flow. Drop it in instead of
+        running your own server for the steps that come after a user taps "buy":
+        store verification, lifecycle webhooks, subscription state, revenue
+        metrics, and App Store Connect / Play Console product sync. Everything
+        is exposed through one URL surface that the framework SDKs and MCP
+        server speak.
+      </p>
+      <p>
+        Amazon targets use the same IAPKit Amazon verification shape. Fire OS
+        purchases from the Android <code>amazon</code> flavor and Vega OS
+        purchases from the Kepler runtime both resolve an Amazon user id and
+        receipt id through <code>iapkit.amazon</code>, then IAPKit verifies them
+        through Amazon RVS and stores the result under <code>amazon</code>.
       </p>
 
       <section>
@@ -30,7 +44,7 @@ function KitBackend() {
           Surface map
         </AnchorLink>
         <p>
-          Receipt verification uses an <code>Authorization: Bearer</code> API
+          Purchase verification uses an <code>Authorization: Bearer</code> API
           key header. Webhook, subscription, product, and MCP-friendly endpoints
           carry the project API key as a path segment so store consoles, SDK
           helpers, and stdio MCP tools can call them without custom bearer
@@ -38,8 +52,9 @@ function KitBackend() {
         </p>
         <ul>
           <li>
-            <code>POST /v1/purchase/verify</code> — receipt validation (Apple
-            JWS, Google purchaseToken, Meta Horizon) with a Bearer API key.
+            <code>POST /v1/purchase/verify</code> — purchase verification (Apple
+            JWS, Google purchaseToken, Amazon RVS receiptId for Fire OS and Vega
+            OS, Meta Horizon) with a Bearer API key.
           </li>
           <li>
             <code>POST /v1/webhooks/&#123;apiKey&#125;</code> — unified App
@@ -123,8 +138,11 @@ function KitBackend() {
           Dashboard UX
         </AnchorLink>
         <p>
-          The hosted dashboard at <code>kit.openiap.dev</code> wires every
-          project-scoped endpoint into a UI:
+          The hosted dashboard at{' '}
+          <a href={IAPKIT_URL} target="_blank" rel="noopener noreferrer">
+            <code>kit.openiap.dev</code>
+          </a>{' '}
+          wires every project-scoped endpoint into a UI:
         </p>
         <ul>
           <li>
@@ -141,9 +159,193 @@ function KitBackend() {
           <li>
             <strong>Webhooks</strong> — copyable lifecycle webhook URL, the SSE
             stream URL, and a curl recipe for emitting a synthetic test
-            notification without going through the App Store / Play Console.
+            notification without opening a store console.
           </li>
         </ul>
+      </section>
+
+      <section>
+        <AnchorLink id="purchase-verification" level="h2">
+          Purchase verification from SDKs
+        </AnchorLink>
+        <p>
+          Most app flows should use the framework SDK's{' '}
+          <code>verifyPurchaseWithProvider</code> helper instead of constructing{' '}
+          <code>POST /v1/purchase/verify</code> payloads by hand. The helper
+          sends the store token to IAPKit and returns a typed{' '}
+          <code>VerifyPurchaseWithProviderResult</code>. The API is named{' '}
+          <code>verifyPurchaseWithProvider</code> in the SDKs; the snippets
+          below call it directly.
+        </p>
+        <p>
+          For Fire OS and Vega OS, choose the Amazon branch and pass the Amazon
+          receipt ID. The SDK resolves the Amazon user ID from the runtime when
+          available. Set <code>sandbox: true</code> when validating Amazon App
+          Tester sandbox receipts.
+        </p>
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`import { Platform } from 'react-native';
+import { verifyPurchaseWithProvider } from 'expo-iap';
+// Same API in react-native-iap.
+
+const token = purchase.purchaseToken ?? '';
+const runtimeOS = Platform.OS as string;
+const isFireOSBuild = process.env.EXPO_PUBLIC_STORE === 'amazon';
+const isAmazonRuntime = runtimeOS === 'kepler' || isFireOSBuild;
+const result = await verifyPurchaseWithProvider({
+  provider: 'iapkit',
+  iapkit: {
+    // Optional when configured via Expo config / Info.plist / AndroidManifest.
+    apiKey: process.env.EXPO_PUBLIC_IAPKIT_API_KEY,
+    ...(Platform.OS === 'ios'
+      ? { apple: { jws: token } }
+      : isAmazonRuntime
+        ? {
+            amazon: {
+              receiptId: token,
+              sandbox: __DEV__,
+            },
+          }
+      : { google: { purchaseToken: token } }),
+  },
+});
+
+if (result.iapkit?.isValid === true) {
+  await grantEntitlement(purchase.productId);
+}`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`import OpenIap
+
+let result = try await OpenIapStore.shared.verifyPurchaseWithProvider(
+    VerifyPurchaseWithProviderProps(
+        iapkit: RequestVerifyPurchaseWithIapkitProps(
+            apiKey: iapkitApiKey,
+            apple: RequestVerifyPurchaseWithIapkitAppleProps(
+                jws: purchase.purchaseToken ?? ""
+            )
+        ),
+        provider: .iapkit
+    )
+)
+
+if result?.isValid == true {
+    unlockEntitlement(productId: purchase.productId)
+}`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`import dev.hyo.openiap.*
+
+val result = module.verifyPurchaseWithProvider(
+    VerifyPurchaseWithProviderProps(
+        provider = PurchaseVerificationProvider.Iapkit,
+        iapkit = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = iapkitApiKey,
+            google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                purchaseToken = purchase.purchaseToken.orEmpty(),
+            ),
+            // Fire OS: use amazon = RequestVerifyPurchaseWithIapkitAmazonProps(...)
+            // with userId, receiptId, and sandbox for Amazon App Tester.
+        ),
+    ),
+)
+
+if (result.iapkit?.isValid == true) {
+    unlockEntitlement(purchase.productId)
+}`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`import 'dart:io';
+import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+
+final result = await FlutterInappPurchase.instance.verifyPurchaseWithProvider(
+  VerifyPurchaseWithProviderProps(
+    provider: PurchaseVerificationProvider.iapkit,
+    iapkit: RequestVerifyPurchaseWithIapkitProps(
+      apiKey: IapConstants.iapkitApiKey,
+      apple: Platform.isIOS
+          ? RequestVerifyPurchaseWithIapkitAppleProps(
+              jws: purchase.purchaseToken ?? '',
+            )
+          : null,
+      google: Platform.isAndroid
+          ? RequestVerifyPurchaseWithIapkitGoogleProps(
+              purchaseToken: purchase.purchaseToken ?? '',
+            )
+          : null,
+      // Fire OS builds can pass amazon with userId, receiptId, and sandbox.
+    ),
+  ),
+);
+
+if (result.iapkit?.isValid == true) {
+  unlockEntitlement(purchase.productId);
+}`}</CodeBlock>
+            ),
+            csharp: (
+              <CodeBlock language="csharp">{`using OpenIap;
+using OpenIap.Maui;
+
+var token = purchase.PurchaseToken ?? string.Empty;
+var mutate = (MutationResolver)Iap.Instance;
+var result = await mutate.VerifyPurchaseWithProviderAsync(
+    new VerifyPurchaseWithProviderProps
+    {
+        Provider = PurchaseVerificationProvider.Iapkit,
+        Iapkit = new RequestVerifyPurchaseWithIapkitProps
+        {
+            ApiKey = iapkitApiKey,
+            Apple = new RequestVerifyPurchaseWithIapkitAppleProps { Jws = token },
+            Google = new RequestVerifyPurchaseWithIapkitGoogleProps { PurchaseToken = token },
+            // Amazon Fire OS uses Amazon = new RequestVerifyPurchaseWithIapkitAmazonProps { ... }.
+        },
+    });
+
+if (result.Iapkit?.IsValid == true)
+{
+    UnlockEntitlement(purchase.ProductId);
+}`}</CodeBlock>
+            ),
+            kmp: (
+              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.*
+
+val token = purchase.purchaseToken.orEmpty()
+val result = kmpIAP.verifyPurchaseWithProvider(
+    VerifyPurchaseWithProviderProps(
+        provider = PurchaseVerificationProvider.Iapkit,
+        iapkit = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = iapkitApiKey,
+            apple = if (isIos) RequestVerifyPurchaseWithIapkitAppleProps(jws = token) else null,
+            google = if (!isIos) RequestVerifyPurchaseWithIapkitGoogleProps(purchaseToken = token) else null,
+            // Amazon Fire OS builds use amazon with userId, receiptId, and sandbox.
+        ),
+    ),
+)
+
+if (result.iapkit?.isValid == true) {
+    unlockEntitlement(purchase.productId)
+}`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`var result = await iap.verify_purchase_with_provider({
+	"provider": "iapkit",
+	"iapkit": {
+		"apiKey": iapkit_api_key,
+		"google": {
+			"purchaseToken": purchase.get("purchaseToken", ""),
+		},
+		# iOS: use "apple": { "jws": token }
+		# Fire OS: use "amazon": { "userId": user_id, "receiptId": receipt_id }
+	},
+})
+
+if result.iapkit != null and result.iapkit.is_valid:
+	unlock_entitlement(purchase.get("productId", ""))`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
       </section>
 
       <section>
@@ -160,7 +362,8 @@ function KitBackend() {
           public identifiers like email addresses.
         </p>
         <p>
-          SDK helpers are available so you don't have to construct URLs by hand:
+          Status and entitlement helpers are available in the TypeScript and
+          MAUI SDKs so those clients do not have to construct URLs by hand:
         </p>
         <LanguageTabs>
           {{

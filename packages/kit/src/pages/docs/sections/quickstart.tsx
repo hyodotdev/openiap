@@ -124,7 +124,7 @@ export default function QuickstartPage() {
       </h2>
       <p>
         From your app, send the receipt to IAPKit. Here's the raw HTTP shape for
-        each of the three stores:
+        each supported store:
       </p>
 
       <CodeBlock title="Apple App Store" language="bash">
@@ -160,9 +160,22 @@ export default function QuickstartPage() {
   }'`}
       </CodeBlock>
 
+      <CodeBlock title="Amazon Appstore" language="bash">
+        {`curl -X POST https://kit.openiap.dev/v1/purchase/verify \\
+  -H "Authorization: Bearer openiap-kit_<your-key>" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "store": "amazon",
+    "userId": "amzn1.account.ABC123",
+    "receiptId": "amzn1.receipt.ABC123456789",
+    "sandbox": true
+  }'`}
+      </CodeBlock>
+
       <p>Expected response:</p>
       <CodeBlock title="200 OK" language="json">
         {`{
+  "store": "amazon",
   "isValid": true,
   "state": "ENTITLED",
   "productId": "premium_monthly"

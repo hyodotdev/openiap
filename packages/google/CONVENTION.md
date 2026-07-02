@@ -7,6 +7,7 @@
 **IMPORTANT**: Since this is an Android-only package, **DO NOT add `Android` suffix** to function names, even for Android-specific APIs.
 
 **✅ Correct**:
+
 ```kotlin
 fun acknowledgePurchase()
 fun consumePurchase()
@@ -16,6 +17,7 @@ fun isHorizonEnvironment(context: Context)
 ```
 
 **❌ Incorrect**:
+
 ```kotlin
 fun acknowledgePurchaseAndroid()  // Don't add Android suffix
 fun consumePurchaseAndroid()      // Don't add Android suffix
@@ -35,6 +37,7 @@ types that contrast with iOS types), or when it is a generated GraphQL
 operation/handler identifier that must match the schema.
 
 ### Enum Values
+
 - Enum values in this codebase must use **kebab-case** (e.g., `non-consumable`, `in-app`, `user-cancelled`)
 - This matches the convention used in the auto-generated Types.kt from GraphQL schemas
 - Do not use snake_case (e.g., `non_consumable`) or camelCase for enum raw values
@@ -57,33 +60,36 @@ operation/handler identifier that must match the schema.
 - `OpenIapStore` and other consumers must call the module through these handler properties rather than direct suspend functions, unpacking any wrapper results (such as `RequestPurchaseResultPurchases`) as needed.
 - Keep helper wiring inside `OpenIapModule`—avoid reintroducing extension builders like `createQueryHandlers`; the module itself owns `queryHandlers`, `mutationHandlers`, and `subscriptionHandlers` values so wiring stays localized and in sync with the typealiases.
 
-## Build Flavors (Play vs Horizon)
+## Build Flavors
 
-This package supports **two build flavors**:
+This package supports **three build flavors**:
 
-| Flavor | Store | Source Directory |
-|--------|-------|------------------|
-| `play` (default) | Google Play Store | `src/play/` |
-| `horizon` | Meta Quest Store | `src/horizon/` |
+| Flavor           | Store                  | Source Directory |
+| ---------------- | ---------------------- | ---------------- |
+| `play` (default) | Google Play Store      | `src/play/`      |
+| `horizon`        | Meta Quest Store       | `src/horizon/`   |
+| `amazon`         | Fire OS                | `src/amazon/`    |
 
 ### Source Directory Structure
 
 ```text
 openiap/src/
-├── main/      # Shared code (used by both flavors)
+├── main/      # Shared code (used by every flavor)
 ├── play/      # Play Store specific implementations
-└── horizon/   # Meta Horizon specific implementations
+├── horizon/   # Meta Horizon specific implementations
+└── amazon/    # Fire OS specific implementations
 ```
 
 ### When to Use Each Directory
 
-- **`src/main/`**: Code that works for BOTH Play and Horizon
+- **`src/main/`**: Code that works for Play, Horizon, and Fire OS
 - **`src/play/`**: Play Store specific code (Google Play Billing API)
 - **`src/horizon/`**: Horizon specific code (Meta S2S API)
+- **`src/amazon/`**: Fire OS specific code (Amazon Appstore SDK)
 
-### Critical: Test Both Flavors
+### Critical: Test All Flavors
 
-When modifying shared code in `src/main/`, **ALWAYS test both flavors**:
+When modifying shared code in `src/main/`, **ALWAYS test every flavor**:
 
 ```bash
 # Play flavor
@@ -91,21 +97,25 @@ When modifying shared code in `src/main/`, **ALWAYS test both flavors**:
 
 # Horizon flavor
 ./gradlew :openiap:compileHorizonDebugKotlin
+
+# Fire OS flavor
+./gradlew :openiap:compileAmazonDebugKotlin
 ```
 
-### Horizon-Specific APIs
+### Flavor-Specific Helpers
 
-Some APIs exist only in Horizon flavor:
+Some implementation helpers exist only on specific Android flavors:
 
-- `getAvailableItems` - Fetch catalog items (Horizon only)
+- `getAvailableItems` - Fetch available purchases for Play, Horizon, and Amazon
 - `VerifyPurchaseHorizonOptions` - Horizon verification parameters
 - `VerifyPurchaseResultHorizon` - Horizon verification result
 
 ## Regeneration Checklist
 
 - Run `./scripts/generate-types.sh` whenever GraphQL schema definitions change.
-- After regenerating, run the relevant Gradle targets for **BOTH flavors**:
+- After regenerating, run the relevant Gradle targets for every flavor:
   ```bash
   ./gradlew :openiap:compilePlayDebugKotlin
   ./gradlew :openiap:compileHorizonDebugKotlin
+  ./gradlew :openiap:compileAmazonDebugKotlin
   ```

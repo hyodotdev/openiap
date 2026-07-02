@@ -101,6 +101,7 @@ import Errors from './errors';
 import Purchase from './features/purchase';
 import SubscriptionFeature from './features/subscription/index';
 import SubscriptionUpgradeDowngrade from './features/subscription/upgrade-downgrade';
+import SubscriptionActiveSubscriptions from './features/subscription/active-subscriptions';
 import Discount from './features/discount';
 import OfferCodeRedemption from './features/offer-code-redemption';
 import ExternalPurchase from './features/external-purchase';
@@ -108,11 +109,14 @@ import SubscriptionBillingIssue from './features/subscription-billing-issue';
 import Refund from './features/refund';
 import Validation from './features/validation';
 import Debugging from './features/debugging';
+import RuntimeIntegrations from './features/runtime-integrations';
 import AlternativeMarketplace from './features/alternative-marketplace/index';
 import AlternativeMarketplaceOnside from './features/alternative-marketplace/onside';
+import VegaOSRuntime from './features/vega-os';
 import IOSSetup from './ios-setup';
 import AndroidSetup from './android-setup';
 import HorizonSetup from './horizon-setup';
+import FireOSSetup from './fireos-setup';
 import SetupIndex from './setup/index';
 import ReactNativeSetup from './setup/react-native';
 import ExpoSetup from './setup/expo';
@@ -602,7 +606,7 @@ function Docs() {
                 className={({ isActive }) => (isActive ? 'active' : '')}
                 onClick={closeSidebar}
               >
-                Kit Backend
+                Purchase Verification
               </NavLink>
             </li>
             <li>
@@ -629,7 +633,10 @@ function Docs() {
             <MenuDropdown
               title="Android Setup"
               titleTo="/docs/android-setup"
-              items={[{ to: '/docs/horizon-setup', label: 'Horizon OS' }]}
+              items={[
+                { to: '/docs/horizon-setup', label: 'Horizon OS' },
+                { to: '/docs/fireos-setup', label: 'Fire OS' },
+              ]}
               onItemClick={closeSidebar}
             />
             <MenuDropdown
@@ -684,6 +691,10 @@ function Docs() {
                 {
                   to: '/docs/features/subscription/upgrade-downgrade',
                   label: 'Upgrade/Downgrade',
+                },
+                {
+                  to: '/docs/features/subscription/active-subscriptions',
+                  label: 'Active Subscriptions',
                 },
               ]}
               onItemClick={closeSidebar}
@@ -743,12 +754,16 @@ function Docs() {
               </NavLink>
             </li>
             <MenuDropdown
-              title="Alternative Marketplace"
-              titleTo="/docs/features/alternative-marketplace"
+              title="Runtime Integrations"
+              titleTo="/docs/features/runtime-integrations"
               items={[
                 {
                   to: '/docs/features/alternative-marketplace/onside',
                   label: 'Onside',
+                },
+                {
+                  to: '/docs/features/vega-os',
+                  label: 'Vega OS',
                 },
               ]}
               onItemClick={closeSidebar}
@@ -1186,6 +1201,10 @@ function Docs() {
             path="features/subscription/upgrade-downgrade"
             element={<SubscriptionUpgradeDowngrade />}
           />
+          <Route
+            path="features/subscription/active-subscriptions"
+            element={<SubscriptionActiveSubscriptions />}
+          />
           <Route path="features/discount" element={<Discount />} />
           <Route
             path="features/offer-code-redemption"
@@ -1203,6 +1222,10 @@ function Docs() {
           <Route path="features/validation" element={<Validation />} />
           <Route path="features/debugging" element={<Debugging />} />
           <Route
+            path="features/runtime-integrations"
+            element={<RuntimeIntegrations />}
+          />
+          <Route
             path="features/alternative-marketplace"
             element={<AlternativeMarketplace />}
           />
@@ -1210,9 +1233,11 @@ function Docs() {
             path="features/alternative-marketplace/onside"
             element={<AlternativeMarketplaceOnside />}
           />
+          <Route path="features/vega-os" element={<VegaOSRuntime />} />
           <Route path="ios-setup" element={<IOSSetup />} />
           <Route path="android-setup" element={<AndroidSetup />} />
           <Route path="horizon-setup" element={<HorizonSetup />} />
+          <Route path="fireos-setup" element={<FireOSSetup />} />
           <Route path="setup" element={<SetupIndex />} />
           <Route path="setup/react-native" element={<ReactNativeSetup />} />
           <Route path="setup/expo" element={<ExpoSetup />} />
@@ -1221,6 +1246,26 @@ function Docs() {
           <Route path="setup/kmp" element={<KmpSetup />} />
           <Route path="setup/maui" element={<MauiSetup />} />
           <Route path="example" element={<Example />} />
+          <Route
+            path="example/ios"
+            element={<Navigate to="/docs/example" replace />}
+          />
+          <Route
+            path="example/android"
+            element={<Navigate to="/docs/example" replace />}
+          />
+          <Route
+            path="example/horizon"
+            element={<Navigate to="/docs/example" replace />}
+          />
+          <Route
+            path="example/fireos"
+            element={<Navigate to="/docs/example" replace />}
+          />
+          <Route
+            path="example/amazon"
+            element={<Navigate to="/docs/example" replace />}
+          />
           <Route path="guides/ai-assistants" element={<AIAssistants />} />
           <Route path="guides/mcp-server" element={<MCPServer />} />
           <Route path="guides/testing" element={<Testing />} />

@@ -26,6 +26,11 @@ function base64EncodeUtf8(input: string): string {
   return btoa(unescape(encodeURIComponent(input)));
 }
 
+type WebhookStreamScreenProps = {
+  apiKey?: string;
+  baseUrl?: string;
+};
+
 /**
  * Webhook Stream Demo
  *
@@ -35,12 +40,21 @@ function base64EncodeUtf8(input: string): string {
  * so the round-trip can be exercised without going through Apple ASN v2 or
  * Google RTDN.
  */
-export default function WebhookStreamScreen() {
-  const apiKey: string | undefined =
-    (Constants.expoConfig?.extra as {iapkitApiKey?: string} | undefined)
-      ?.iapkitApiKey ?? process.env.EXPO_PUBLIC_IAPKIT_API_KEY;
-  const baseUrl =
-    process.env.EXPO_PUBLIC_IAPKIT_BASE_URL ?? 'https://kit.openiap.dev';
+export default function WebhookStreamScreen({
+  apiKey: apiKeyOverride,
+  baseUrl: baseUrlOverride,
+}: WebhookStreamScreenProps = {}) {
+  const expoExtra = Constants.expoConfig?.extra as
+    | {iapkitApiKey?: string; iapkitBaseUrl?: string}
+    | undefined;
+  const configuredApiKey: string | undefined =
+    expoExtra?.iapkitApiKey ?? process.env.EXPO_PUBLIC_IAPKIT_API_KEY;
+  const configuredBaseUrl =
+    expoExtra?.iapkitBaseUrl ??
+    process.env.EXPO_PUBLIC_IAPKIT_BASE_URL ??
+    'https://kit.openiap.dev';
+  const apiKey = apiKeyOverride ?? configuredApiKey;
+  const baseUrl = baseUrlOverride ?? configuredBaseUrl;
 
   const [events, setEvents] = useState<WebhookEventPayload[]>([]);
   const [status, setStatus] = useState<

@@ -137,6 +137,7 @@ public final class OpenIapStore: ObservableObject {
 
                     let newSubscription = ActiveSubscription(
                         autoRenewingAndroid: nil,
+                        currentPlanId: ios.productId,
                         daysUntilExpirationIOS: nil,
                         environmentIOS: ios.environmentIOS,
                         expirationDateIOS: expirationDate,

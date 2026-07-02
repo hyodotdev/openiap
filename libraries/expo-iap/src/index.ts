@@ -3,6 +3,7 @@ import {Platform} from 'react-native';
 
 // Internal modules
 import ExpoIapModule, {getNativeModule} from './ExpoIapModule';
+import {isVegaOS} from './vega';
 import {
   isProductIOS,
   validateReceiptIOS,
@@ -48,6 +49,7 @@ export * from './types';
 export * from './modules/android';
 export * from './modules/ios';
 export * from './onside';
+export * from './vega';
 
 // Get the native constant value
 export enum OpenIapEvent {
@@ -103,6 +105,9 @@ type NativePurchaseUpdatedOptionsModule = {
 
 const isStorePlatform = (): boolean =>
   Platform.OS === 'ios' || Platform.OS === 'android';
+
+const isStoreRuntime = (): boolean =>
+  Platform.OS === 'ios' || isAndroidStoreRuntime();
 
 const unsupportedPlatformError = (): Error =>
   new Error(`Unsupported platform: ${Platform.OS}`);
@@ -265,6 +270,10 @@ const normalizePurchasePlatform = (purchase: Purchase): Purchase => {
 
 const normalizePurchaseArray = (purchases: Purchase[]): Purchase[] =>
   purchases.map((purchase) => normalizePurchasePlatform(purchase));
+
+const isAndroidStoreRuntime = (): boolean => {
+  return Platform.OS === 'android' || isVegaOS();
+};
 
 export const purchaseUpdatedListener = (
   listener: (event: Purchase) => void,
@@ -572,7 +581,9 @@ export const subscriptionBillingIssueListener = (
  *
  * @see {@link https://openiap.dev/docs/apis/init-connection}
  */
-export const initConnection: MutationField<'initConnection'> = async (config) => {
+export const initConnection: MutationField<'initConnection'> = async (
+  config,
+) => {
   const result = await ExpoIapModule.initConnection(config ?? null);
   if (
     result === true &&
@@ -681,7 +692,7 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
     return castResult(filterIosItems(rawItems));
   }
 
-  if (Platform.OS === 'android') {
+  if (isAndroidStoreRuntime()) {
     const rawItems = await ExpoIapModule.fetchProducts(native, skus);
     return castResult(filterAndroidItems(rawItems));
   }
@@ -717,6 +728,11 @@ export const getAvailablePurchases: QueryField<
     onlyIncludeActiveItemsIOS: options?.onlyIncludeActiveItemsIOS ?? true,
     includeSuspendedAndroid: options?.includeSuspendedAndroid ?? false,
   };
+
+  if (isVegaOS()) {
+    const purchases = await ExpoIapModule.getAvailableItems(normalizedOptions);
+    return normalizePurchaseArray(purchases as Purchase[]);
+  }
 
   let purchases: Purchase[];
 
@@ -769,7 +785,7 @@ export const getAvailablePurchases: QueryField<
 export const getActiveSubscriptions: QueryField<
   'getActiveSubscriptions'
 > = async (subscriptionIds) => {
-  if (!isStorePlatform()) {
+  if (!isStoreRuntime()) {
     throw unsupportedPlatformError();
   }
 
@@ -799,7 +815,7 @@ export const getActiveSubscriptions: QueryField<
 export const hasActiveSubscriptions: QueryField<
   'hasActiveSubscriptions'
 > = async (subscriptionIds) => {
-  if (!isStorePlatform()) {
+  if (!isStoreRuntime()) {
     throw unsupportedPlatformError();
   }
 
@@ -814,7 +830,7 @@ export const hasActiveSubscriptions: QueryField<
  * @see {@link https://openiap.dev/docs/apis/get-storefront}
  */
 export const getStorefront: QueryField<'getStorefront'> = async () => {
-  if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
+  if (Platform.OS !== 'ios' && !isAndroidStoreRuntime()) {
     return '';
   }
   return ExpoIapModule.getStorefront();
@@ -930,7 +946,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
     return canonical === 'subs' ? [] : null;
   }
 
-  if (Platform.OS === 'android') {
+  if (isAndroidStoreRuntime()) {
     if (isInAppPurchase) {
       const normalizedRequest = normalizeRequestProps(
         request as RequestPurchasePropsByPlatforms,
@@ -1070,7 +1086,7 @@ export const finishTransaction: MutationField<'finishTransaction'> = async ({
     return;
   }
 
-  if (Platform.OS === 'android') {
+  if (isAndroidStoreRuntime()) {
     const token = purchase.purchaseToken ?? undefined;
 
     if (!token) {
@@ -1246,11 +1262,13 @@ export const verifyPurchase: MutationField<'verifyPurchase'> = async (
  *   provider: 'iapkit',
  *   iapkit: {
  *     apiKey: 'your-api-key',
- *     apple: {
- *       jws: purchase.purchaseToken // JWS from purchase
- *     },
- *     google: {
- *       purchaseToken: purchase.purchaseToken
+ *     // Choose exactly one store payload.
+ *     // apple: { jws: purchase.purchaseToken },
+ *     // google: { purchaseToken: purchase.purchaseToken },
+ *     amazon: {
+ *       userId: amazonUserId,
+ *       receiptId: purchase.purchaseToken,
+ *       sandbox: __DEV__,
  *     }
  *   }
  * });
@@ -1261,7 +1279,7 @@ export const verifyPurchase: MutationField<'verifyPurchase'> = async (
 export const verifyPurchaseWithProvider: MutationField<
   'verifyPurchaseWithProvider'
 > = async (options) => {
-  if (!isStorePlatform()) {
+  if (!isStoreRuntime()) {
     throw unsupportedPlatformError();
   }
 

@@ -126,6 +126,12 @@ export default function PurchaseDetail() {
     if (store === "google") {
       return "Google Play";
     }
+    if (store === "horizon") {
+      return "Meta Horizon";
+    }
+    if (store === "amazon") {
+      return "Amazon Appstore";
+    }
     return store ?? FALLBACK_VALUE;
   };
 

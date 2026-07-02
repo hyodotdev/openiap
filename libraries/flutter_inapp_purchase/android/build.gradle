@@ -134,17 +134,21 @@ android {
     }
     compileSdk = openIapCompileSdkVersion
 
-    // Read horizonEnabled from gradle.properties, default to false (play)
     def horizonEnabled = project.findProperty('horizonEnabled')?.toBoolean() ?: false
+    def fireOsEnabled = project.findProperty('fireOsEnabled')?.toBoolean() ?: false
+    if (horizonEnabled && fireOsEnabled) {
+        throw new GradleException("flutter_inapp_purchase: horizonEnabled and fireOsEnabled cannot both be true")
+    }
+    def openiapFlavor = fireOsEnabled ? 'amazon' : (horizonEnabled ? 'horizon' : 'play')
 
     defaultConfig {
         minSdkVersion = openIapMinSdkVersion
         targetSdkVersion = openIapTargetSdkVersion
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Select the local :openiap flavor when developing inside the monorepo.
-        def flavor = horizonEnabled ? 'horizon' : 'play'
-        missingDimensionStrategy "platform", flavor
+        // Select the matching openiap-google flavor.
+        missingDimensionStrategy "platform", openiapFlavor
+        buildConfigField "String", "OPENIAP_STORE", "\"${openiapFlavor}\""
     }
     sourceSets {
         main.java.srcDirs += 'src/main/kotlin'
@@ -157,6 +161,9 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
+    buildFeatures {
+        buildConfig true
+    }
 }
 
 kotlin {
@@ -168,9 +175,12 @@ kotlin {
 dependencies {
     // In monorepo: use local packages/google source if available
     def horizonEnabled = project.findProperty('horizonEnabled')?.toBoolean() ?: false
+    def fireOsEnabled = project.findProperty('fireOsEnabled')?.toBoolean() ?: false
     def localGoogleProject = findProject(':openiap')
     if (localGoogleProject != null) {
         implementation project(':openiap')
+    } else if (fireOsEnabled) {
+        implementation "io.github.hyochan.openiap:openiap-google-amazon:${openiapGoogleVersion}"
     } else if (horizonEnabled) {
         implementation "io.github.hyochan.openiap:openiap-google-horizon:${openiapGoogleVersion}"
     } else {
@@ -178,6 +188,7 @@ dependencies {
     }
 
     implementation "androidx.annotation:annotation:${readRequiredAndroidGradleProperty(projectDir, 'openIapAndroidAnnotationVersion')}"
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0'
 
     // Google Play Billing comes transitively from openiap-google so its
     // version stays centralized in packages/google.

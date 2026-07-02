@@ -10,16 +10,23 @@ const LOCAL_OPENIAP_PATHS = {
 // Read library version mode from libraries-versions.jsonc
 const parseJsonc = (text: string) =>
   JSON.parse(text.replace(/^\s*\/\/.*$/gm, ''));
-const versionsPath = path.resolve(__dirname, '../../../libraries-versions.jsonc');
+const versionsPath = path.resolve(
+  __dirname,
+  '../../../libraries-versions.jsonc',
+);
 const librariesVersions: Record<string, string> = fs.existsSync(versionsPath)
   ? parseJsonc(fs.readFileSync(versionsPath, 'utf8'))
   : {'expo-iap': 'local'};
-const useLocalDev = !librariesVersions['expo-iap'] || librariesVersions['expo-iap'] === 'local';
+const useLocalDev =
+  !librariesVersions['expo-iap'] || librariesVersions['expo-iap'] === 'local';
 
 export default ({config}: ConfigContext): ExpoConfig => {
   // Check if building for TV (set EXPO_TV=1 before prebuild)
   const isTV = process.env.EXPO_TV === '1';
-  const isOnsideEnabled = false;
+  const isFireOsEnabled = process.env.EXPO_IAP_FIREOS === '1';
+  const isVegaEnabled = process.env.EXPO_IAP_VEGA === '1';
+  const isHorizonEnabled = process.env.EXPO_IAP_HORIZON === '1';
+  const isOnsideEnabled = process.env.EXPO_IAP_ONSIDE === '1';
 
   const pluginEntries: NonNullable<ExpoConfig['plugins']> = [
     // TV config plugin (must be first for TV builds)
@@ -41,7 +48,19 @@ export default ({config}: ConfigContext): ExpoConfig => {
           // Onside module: iOS only (alternative billing for Korea)
           onside: isOnsideEnabled,
           // Horizon module: Android only (Meta Quest/VR devices)
-          horizon: false,
+          horizon: isHorizonEnabled,
+        },
+        amazon: {
+          // Fire OS: Android amazon flavor
+          fireOS: isFireOsEnabled,
+          // Vega OS: Kepler runtime target
+          vegaOS: isVegaEnabled,
+        },
+        vega: {
+          packageId: 'dev.hyo.openiap.expo.example',
+          title: 'Expo IAP Example',
+          appName: 'ExpoIAPExample',
+          icon: './assets/images/icon.png',
         },
         android: {
           // Horizon App ID for Meta Quest/VR devices (required when modules.horizon is true)
@@ -141,6 +160,11 @@ export default ({config}: ConfigContext): ExpoConfig => {
     experiments: {
       ...config.experiments,
       typedRoutes: true,
+    },
+    extra: {
+      ...config.extra,
+      iapkitApiKey: process.env.EXPO_PUBLIC_IAPKIT_API_KEY,
+      iapkitBaseUrl: process.env.EXPO_PUBLIC_IAPKIT_BASE_URL,
     },
   };
 

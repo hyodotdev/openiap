@@ -66,6 +66,35 @@ export class MetaHorizonVerificationError extends ReceiptVerificationError {
   }
 }
 
+export class AmazonSharedSecretNotConfiguredError extends ReceiptVerificationError {
+  constructor() {
+    super(
+      "AMAZON_SHARED_SECRET_NOT_CONFIGURED",
+      "Amazon RVS shared secret is not set for this project. Configure it in project settings before verifying production Amazon receipts.",
+    );
+  }
+}
+
+export class AmazonReceiptInvalidError extends ReceiptVerificationError {
+  constructor(status: number, detail: string) {
+    super(
+      "AMAZON_RECEIPT_INVALID",
+      `Amazon RVS rejected the receipt: ${detail}`,
+      { status },
+    );
+  }
+}
+
+export class AmazonReceiptVerificationError extends ReceiptVerificationError {
+  constructor(detail: string, details?: Record<string, any>) {
+    super(
+      "AMAZON_RECEIPT_VERIFICATION_ERROR",
+      `Amazon RVS verification failed: ${detail}`,
+      { originalError: detail, ...details },
+    );
+  }
+}
+
 export class PlayStoreServiceAccountNotFoundError extends ReceiptVerificationError {
   constructor() {
     super(
