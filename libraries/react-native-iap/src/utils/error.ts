@@ -50,57 +50,32 @@ const extractBalancedJsonObject = (
   value: string,
   startIndex: number,
 ): string | null => {
-  let depth = 0;
-  let isInsideString = false;
-  let isEscaped = false;
-
   for (let index = startIndex; index < value.length; index += 1) {
-    const char = value[index];
-
-    if (isInsideString) {
-      if (isEscaped) {
-        isEscaped = false;
-      } else if (char === '\\') {
-        isEscaped = true;
-      } else if (char === '"') {
-        isInsideString = false;
-      }
+    if (value[index] !== '}') {
       continue;
     }
 
-    if (char === '\\' && value[index + 1] === '"') {
-      index += 1;
-      continue;
-    }
-
-    if (char === '"') {
-      isInsideString = true;
-    } else if (char === '{') {
-      depth += 1;
-    } else if (char === '}') {
-      depth -= 1;
-      if (depth === 0) {
-        return value.substring(startIndex, index + 1);
-      }
+    const candidate = value.substring(startIndex, index + 1);
+    if (parseJsonPayload(candidate, value)) {
+      return candidate;
     }
   }
 
   return null;
 };
 
-const parseNSErrorJsonPayload = (
-  rawString: string,
-): IapError | null => {
+const parseNSErrorJsonPayload = (rawString: string): IapError | null => {
   const payloads: string[] = [];
   const quotedPayloadMatch = /Code=-?\d+\s+"/.exec(rawString);
 
   if (quotedPayloadMatch?.index !== undefined) {
-    const contentStart = quotedPayloadMatch.index + quotedPayloadMatch[0].length;
+    const contentStart =
+      quotedPayloadMatch.index + quotedPayloadMatch[0].length;
     const userInfoIndex = rawString.indexOf('UserInfo=', contentStart);
     const contentEnd =
       userInfoIndex > contentStart
         ? rawString.lastIndexOf('"', userInfoIndex)
-        : -1;
+        : rawString.lastIndexOf('"');
 
     if (contentEnd > contentStart) {
       payloads.push(rawString.substring(contentStart, contentEnd));
@@ -135,15 +110,18 @@ const parseNSErrorJsonPayload = (
 };
 
 const parseStructuredError = (error: Error): IapError | null => {
-  const errorWithCode = error as Error & {code?: unknown};
+  const errorWithCode = error as Error & {code?: unknown} & Record<
+      string,
+      unknown
+    >;
 
-  if (
-    typeof errorWithCode.code === 'string' &&
-    errorWithCode.code.length > 0
-  ) {
+  if (typeof errorWithCode.code === 'string' && errorWithCode.code.length > 0) {
+    const {code, message, ...extraFields} = errorWithCode;
+
     return {
-      code: errorWithCode.code,
-      message: error.message,
+      ...extraFields,
+      code,
+      message: typeof message === 'string' ? message : error.message,
     };
   }
 
@@ -182,19 +160,9 @@ export function parseErrorStringToJsonObj(
     };
   }
 
-  // Try to parse as JSON first
-  try {
-    const parsed = JSON.parse(errorString);
-    if (typeof parsed === 'object' && parsed !== null) {
-      // Ensure it has at least code and message
-      return {
-        code: parsed.code || ErrorCode.Unknown,
-        message: parsed.message || errorString,
-        ...parsed,
-      };
-    }
-  } catch {
-    // Not JSON, continue with other formats
+  const jsonPayload = parseJsonPayload(errorString, errorString);
+  if (jsonPayload) {
+    return jsonPayload;
   }
 
   const nsErrorPayload = parseNSErrorJsonPayload(errorString);
