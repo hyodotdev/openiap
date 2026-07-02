@@ -844,16 +844,18 @@ export function createExpoIapVegaModule(
       }
 
       const matchesRequestedSku = receiptMatchesRequestedSku(receipt, sku);
+      if (!matchesRequestedSku) {
+        continue;
+      }
+
       const purchase = mapReceipt(
         receipt,
         receipt.productType ??
           getCachedProductType(receipt, productTypesBySku, sku) ??
-          (matchesRequestedSku ? fallbackProductType : undefined),
-        resolveReceiptProductId(receipt, matchesRequestedSku ? sku : undefined),
+          fallbackProductType,
+        resolveReceiptProductId(receipt, sku),
       );
-      if (matchesRequestedSku) {
-        requestedPurchases.push(purchase);
-      }
+      requestedPurchases.push(purchase);
       emit('purchase-updated', purchase);
     }
 

@@ -411,7 +411,7 @@ describe('Amazon Vega Expo adapter', () => {
     expect(service.notifyFulfillment).not.toHaveBeenCalled();
   });
 
-  it('emits other recovered receipts while preserving the original purchase failure', async () => {
+  it('ignores unrelated recovered receipts while preserving the original purchase failure', async () => {
     const service = createService();
     service.purchase.mockResolvedValueOnce({
       responseCode: 'FAILED',
@@ -442,12 +442,7 @@ describe('Amazon Vega Expo adapter', () => {
     });
     expect(service.notifyFulfillment).not.toHaveBeenCalled();
     expect(service.purchase).toHaveBeenCalledTimes(1);
-    expect(listener).toHaveBeenCalledWith(
-      expect.objectContaining({
-        productId: 'premium_monthly',
-        purchaseToken: 'previous-sub-receipt',
-      }),
-    );
+    expect(listener).not.toHaveBeenCalled();
   });
 
   it('treats subscription base receipts as the requested subscription purchase', async () => {

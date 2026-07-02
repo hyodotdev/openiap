@@ -1365,13 +1365,6 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                     return@queryPurchasesAsync
                 }
             }
-
-            val error = PurchaseError(
-                code = ErrorCode.UserCancelled,
-                message = "User cancelled the operation"
-            )
-            _purchaseErrorListener.tryEmit(error)
-            completePendingPurchaseFlow(Result.failure(PurchaseException(error)))
         }
     }
 
