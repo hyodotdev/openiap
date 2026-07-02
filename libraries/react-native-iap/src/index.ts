@@ -1765,10 +1765,6 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
         if (subscriptionRequest.compactJWS !== undefined) {
           iosPayload.compactJWS = subscriptionRequest.compactJWS;
         }
-        if (subscriptionRequest.introductoryOfferEligibility !== undefined) {
-          iosPayload.introductoryOfferEligibility =
-            subscriptionRequest.introductoryOfferEligibility;
-        }
         if (subscriptionRequest.promotionalOfferJWS) {
           iosPayload.promotionalOfferJWS =
             subscriptionRequest.promotionalOfferJWS;
