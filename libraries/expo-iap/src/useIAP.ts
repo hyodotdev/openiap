@@ -583,7 +583,9 @@ export function useIAP(options?: UseIAPOptions): UseIap {
           continue;
         }
 
-        await refreshSubscriptionStatus(purchase.productId);
+        if (purchase.productId) {
+          await refreshSubscriptionStatus(purchase.productId);
+        }
         if (optionsRef.current?.onPurchaseSuccess) {
           optionsRef.current.onPurchaseSuccess(purchase);
         }

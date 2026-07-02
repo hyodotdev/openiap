@@ -73,18 +73,34 @@ function AllProducts() {
       console.log('[AllProducts] Fetching product groups');
       setLoadError(null);
 
-      Promise.all([
-        fetchProducts({skus: PRODUCT_IDS, type: 'in-app'}),
-        fetchProducts({skus: SUBSCRIPTION_PRODUCT_IDS, type: 'subs'}),
-      ])
-        .then(() => {
-          console.log('[AllProducts] fetchProducts completed');
-        })
-        .catch((error) => {
+      const fetchProductGroup = async (
+        label: string,
+        skus: string[],
+        type: 'in-app' | 'subs',
+      ): Promise<string | null> => {
+        try {
+          await fetchProducts({skus, type});
+          return null;
+        } catch (error) {
           const message = extractErrorMessage(error);
-          console.log('[AllProducts] fetchProducts error:', message);
-          setLoadError(message);
-        });
+          console.log(`[AllProducts] ${label} fetch error:`, message);
+          return `${label}: ${message}`;
+        }
+      };
+
+      Promise.all([
+        fetchProductGroup('in-app products', PRODUCT_IDS, 'in-app'),
+        fetchProductGroup('subscriptions', SUBSCRIPTION_PRODUCT_IDS, 'subs'),
+      ]).then((errors) => {
+        const messages = errors.filter(
+          (message): message is string => message != null,
+        );
+        if (messages.length === 0) {
+          console.log('[AllProducts] fetchProducts completed');
+          return;
+        }
+        setLoadError(messages.join('\n'));
+      });
     }
   }, [connected, fetchProducts]);
 

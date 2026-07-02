@@ -273,14 +273,26 @@ internal class AmazonInAppPurchaseAndroid(
 
     private fun buildOpenIapModule(ctx: Context): AndroidOpenIapProtocol {
         val clazz = Class.forName("dev.hyo.openiap.OpenIapModule")
-        val alternativeBillingModeClass = Class.forName("dev.hyo.openiap.AlternativeBillingMode")
-        val noneMode = alternativeBillingModeClass.enumConstants?.first { (it as Enum<*>).name == "NONE" }
-        val userChoiceBillingListenerClass = Class.forName("dev.hyo.openiap.listener.UserChoiceBillingListener")
+        val alternativeBillingModeClass = runCatching {
+            Class.forName("dev.hyo.openiap.AlternativeBillingMode")
+        }.getOrNull()
+        val noneMode = alternativeBillingModeClass?.enumConstants
+            ?.firstOrNull { (it as Enum<*>).name == "NONE" }
+        val userChoiceBillingListenerClass = runCatching {
+            Class.forName("dev.hyo.openiap.listener.UserChoiceBillingListener")
+        }.getOrNull()
         val developerProvidedBillingListenerClass = runCatching {
             Class.forName("dev.hyo.openiap.listener.DeveloperProvidedBillingListener")
         }.getOrNull()
 
-        val constructorArgs = listOfNotNull(
+        val constructorArgs = mutableListOf<Pair<java.lang.reflect.Constructor<*>, Array<Any?>>>()
+
+        if (
+            alternativeBillingModeClass != null &&
+            noneMode != null &&
+            userChoiceBillingListenerClass != null &&
+            developerProvidedBillingListenerClass != null
+        ) {
             runCatching {
                 val constructor = clazz.getConstructor(
                     Context::class.java,
@@ -289,7 +301,14 @@ internal class AmazonInAppPurchaseAndroid(
                     developerProvidedBillingListenerClass
                 )
                 constructor to arrayOf(ctx, noneMode, null, null)
-            }.getOrNull(),
+            }.getOrNull()?.let(constructorArgs::add)
+        }
+
+        if (
+            alternativeBillingModeClass != null &&
+            noneMode != null &&
+            userChoiceBillingListenerClass != null
+        ) {
             runCatching {
                 val constructor = clazz.getConstructor(
                     Context::class.java,
@@ -297,12 +316,13 @@ internal class AmazonInAppPurchaseAndroid(
                     userChoiceBillingListenerClass
                 )
                 constructor to arrayOf(ctx, noneMode, null)
-            }.getOrNull(),
-            runCatching {
-                val constructor = clazz.getConstructor(Context::class.java)
-                constructor to arrayOf(ctx)
-            }.getOrNull()
-        )
+            }.getOrNull()?.let(constructorArgs::add)
+        }
+
+        runCatching {
+            val constructor = clazz.getConstructor(Context::class.java)
+            constructor to arrayOf<Any?>(ctx)
+        }.getOrNull()?.let(constructorArgs::add)
 
         val (constructor, args) = constructorArgs.firstOrNull()
             ?: error("Failed to find $storeName OpenIapModule constructor")
