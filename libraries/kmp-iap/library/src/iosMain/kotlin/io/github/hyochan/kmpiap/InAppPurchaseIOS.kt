@@ -46,7 +46,8 @@ internal fun NSError.toPurchaseException(
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
 internal fun NSError.stringFromUserInfo(key: String): String? {
     val value = userInfo[key]
-    return value?.toString()?.takeIf { it.isNotBlank() }
+    if (value == null || value is NSNull) return null
+    return value.toString().takeIf { it.isNotBlank() }
 }
 
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
