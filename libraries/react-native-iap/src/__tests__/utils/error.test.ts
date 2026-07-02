@@ -135,6 +135,20 @@ describe('Error utilities', () => {
       });
     });
 
+    it('should parse quoted localized description JSON', () => {
+      const error = new Error(
+        'Error Domain=SKErrorDomain Code=-1 "The operation failed." ' +
+          'UserInfo={NSLocalizedDescription="{\\"message\\":\\"Request Canceled\\",\\"code\\":\\"user-cancelled\\"}"}',
+      );
+
+      const result = parseErrorStringToJsonObj(error);
+
+      expect(result).toEqual({
+        code: ErrorCode.UserCancelled,
+        message: 'Request Canceled',
+      });
+    });
+
     it('should handle non-JSON string', () => {
       const errorString = 'Not a JSON string';
 

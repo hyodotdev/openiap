@@ -91,8 +91,9 @@ const parseNSErrorJsonPayload = (rawString: string): IapError | null => {
       valueStart += 1;
     }
 
-    if (rawString[valueStart] === '{') {
-      const payload = extractBalancedJsonObject(rawString, valueStart);
+    const firstBraceIndex = rawString.indexOf('{', valueStart);
+    if (firstBraceIndex >= 0 && firstBraceIndex <= valueStart + 2) {
+      const payload = extractBalancedJsonObject(rawString, firstBraceIndex);
       if (payload) {
         payloads.push(payload);
       }
