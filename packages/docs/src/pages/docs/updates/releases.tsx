@@ -1388,10 +1388,10 @@ function Releases() {
             }}
           >
             Adds Amazon Fire OS support to OpenIAP. Starting with{' '}
-            <code>openiap-google 2.3.0</code>, Android builds can target Google
-            Play, Meta Horizon, or Amazon Appstore from the same native package
-            family. The <strong>OpenIAP Spec remains 2.0.3</strong>; this
-            rollout adds the Fire OS runtime flavor, framework build flags,
+            <code>openiap-google 2.3.0-rc.1</code>, Android builds can target
+            Google Play, Meta Horizon, or Amazon Appstore from the same native
+            package family. The <strong>OpenIAP Spec remains 2.0.3</strong>;
+            this rollout adds the Fire OS runtime flavor, framework build flags,
             Amazon Appstore receipt verification paths, and shared subscription
             state mapping.
           </p>
@@ -1465,66 +1465,66 @@ function Releases() {
               <li>OpenIAP Spec 2.0.3</li>
               <li>
                 <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/google-2.3.0"
+                  href="https://github.com/hyodotdev/openiap/releases/tag/google-2.3.0-rc.1"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  openiap-google 2.3.0
+                  openiap-google 2.3.0-rc.1
                 </a>{' '}
                 including <code>openiap-google-amazon</code>
               </li>
               <li>
                 <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/react-native-iap-15.4.0"
+                  href="https://github.com/hyodotdev/openiap/releases/tag/react-native-iap-15.4.0-rc.1"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  react-native-iap 15.4.0
+                  react-native-iap 15.4.0-rc.1
                 </a>
               </li>
               <li>
                 <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/expo-iap-4.4.0"
+                  href="https://github.com/hyodotdev/openiap/releases/tag/expo-iap-4.4.0-rc.5"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  expo-iap 4.4.0
+                  expo-iap 4.4.0-rc.5
                 </a>
               </li>
               <li>
                 <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.4.0"
+                  href="https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.4.0-rc.1"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  flutter_inapp_purchase 9.4.0
+                  flutter_inapp_purchase 9.4.0-rc.1
                 </a>
               </li>
               <li>
                 <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/godot-iap-2.4.0"
+                  href="https://github.com/hyodotdev/openiap/releases/tag/godot-iap-2.4.0-rc.1"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  godot-iap 2.4.0
+                  godot-iap 2.4.0-rc.1
                 </a>
               </li>
               <li>
                 <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/kmp-iap-2.4.0"
+                  href="https://github.com/hyodotdev/openiap/releases/tag/kmp-iap-2.4.0-rc.1"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  kmp-iap 2.4.0
+                  kmp-iap 2.4.0-rc.1
                 </a>
               </li>
               <li>
                 <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/maui-iap-1.2.0"
+                  href="https://github.com/hyodotdev/openiap/releases/tag/maui-iap-1.2.0-rc.1"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  OpenIap.Maui 1.2.0
+                  OpenIap.Maui 1.2.0-rc.1
                 </a>
               </li>
             </ul>
