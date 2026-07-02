@@ -18,6 +18,37 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
+internal fun errorCodeFromRawValue(
+    raw: String?,
+    fallback: ErrorCode = ErrorCode.Unknown
+): ErrorCode =
+    raw?.let { runCatching { ErrorCode.fromJson(it) }.getOrNull() } ?: fallback
+
+// Completion handlers from the Swift bridge surface typed PurchaseError values
+// through NSError.userInfo; use the same code resolver as listener dictionaries.
+internal fun NSError.toPurchaseException(
+    fallbackCode: ErrorCode = ErrorCode.Unknown
+): PurchaseException {
+    val code = errorCodeFromRawValue(stringFromUserInfo("code"), fallbackCode)
+    val message = stringFromUserInfo("message")
+        ?: localizedDescription.ifBlank { "iOS error" }
+
+    return PurchaseException(
+        PurchaseError(
+            code = code,
+            message = message,
+            productId = stringFromUserInfo("productId"),
+            debugMessage = stringFromUserInfo("debugMessage")
+        )
+    )
+}
+
+@OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
+internal fun NSError.stringFromUserInfo(key: String): String? {
+    val value = userInfo[key] ?: userInfo[NSString.create(string = key)]
+    return value?.toString()?.takeIf { it.isNotBlank() }
+}
+
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
 internal class InAppPurchaseIOS : KmpInAppPurchase {
     // OpenIAP module instance - use constructor, not shared()
@@ -81,30 +112,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     private var promotedProductSubscription: NSObject? = null
     private var subscriptionBillingIssueSubscription: NSObject? = null
 
-    private fun NSError.toPurchaseException(
-        fallbackCode: ErrorCode = ErrorCode.Unknown
-    ): PurchaseException {
-        val code = stringFromUserInfo("code")
-            ?.let { raw -> runCatching { ErrorCode.fromJson(raw) }.getOrNull() }
-            ?: fallbackCode
-        val message = stringFromUserInfo("message")
-            ?: localizedDescription.ifBlank { "iOS error" }
-
-        return PurchaseException(
-            PurchaseError(
-                code = code,
-                message = message,
-                productId = stringFromUserInfo("productId"),
-                debugMessage = stringFromUserInfo("debugMessage")
-            )
-        )
-    }
-
-    private fun NSError.stringFromUserInfo(key: String): String? {
-        val value = userInfo[key] ?: userInfo[NSString.create(string = key)]
-        return value?.toString()?.takeIf { it.isNotBlank() }
-    }
-
     init {
         // Register listeners
         setupListeners()
@@ -128,8 +135,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         // Purchase error listener
         errorSubscription = openIapModule.addPurchaseErrorListener { dictionary ->
             val map = (dictionary as? Map<*, *>)?.mapKeys { it.key.toString() } ?: return@addPurchaseErrorListener
-            val codeString = map["code"] as? String ?: "unknown"
-            val errorCode = ErrorCode.entries.find { it.rawValue == codeString } ?: ErrorCode.Unknown
+            val errorCode = errorCodeFromRawValue(map["code"] as? String)
             val error = PurchaseError(
                 code = errorCode,
                 message = map["message"] as? String ?: "",
