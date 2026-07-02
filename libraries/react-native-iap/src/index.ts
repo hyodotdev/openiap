@@ -55,7 +55,7 @@ import {
   validateNitroPurchase,
   convertNitroSubscriptionStatusToSubscriptionStatusIOS,
 } from './utils/type-bridge';
-import {parseErrorStringToJsonObj} from './utils/error';
+import {isUserCancelledError, parseErrorStringToJsonObj} from './utils/error';
 import {
   normalizeErrorCodeFromNative,
   createPurchaseError,
@@ -119,6 +119,17 @@ const toErrorMessage = (error: unknown): string => {
     return String((error as {message?: unknown}).message);
   }
   return String(error ?? '');
+};
+
+const parseErrorAndLogIfNeeded = (
+  message: string,
+  error: unknown,
+): ReturnType<typeof parseErrorStringToJsonObj> => {
+  const parsedError = parseErrorStringToJsonObj(error);
+  if (!isUserCancelledError(parsedError)) {
+    RnIapConsole.error(message, error);
+  }
+  return parsedError;
 };
 
 const unsupportedPlatformError = (): Error =>
@@ -905,8 +916,10 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
 
     return convertedProducts as FetchProductsResult;
   } catch (error) {
-    RnIapConsole.error('[fetchProducts] Failed:', error);
-    const parsedError = parseErrorStringToJsonObj(error);
+    const parsedError = parseErrorAndLogIfNeeded(
+      '[fetchProducts] Failed:',
+      error,
+    );
     throw createPurchaseError({
       code: parsedError.code,
       message: parsedError.message,
@@ -1027,8 +1040,10 @@ export const getPromotedProductIOS: QueryField<
     const converted = convertNitroProductToProduct(nitroProduct);
     return converted.platform === 'ios' ? (converted as ProductIOS) : null;
   } catch (error) {
-    RnIapConsole.error('[getPromotedProductIOS] Failed:', error);
-    const parsedError = parseErrorStringToJsonObj(error);
+    const parsedError = parseErrorAndLogIfNeeded(
+      '[getPromotedProductIOS] Failed:',
+      error,
+    );
     throw createPurchaseError({
       code: parsedError.code,
       message: parsedError.message,
@@ -1181,8 +1196,10 @@ export const subscriptionStatusIOS: QueryField<
       .filter((status): status is NitroSubscriptionStatus => status != null)
       .map(convertNitroSubscriptionStatusToSubscriptionStatusIOS);
   } catch (error) {
-    RnIapConsole.error('[subscriptionStatusIOS] Failed:', error);
-    const parsedError = parseErrorStringToJsonObj(error);
+    const parsedError = parseErrorAndLogIfNeeded(
+      '[subscriptionStatusIOS] Failed:',
+      error,
+    );
     throw createPurchaseError({
       code: parsedError.code,
       message: parsedError.message,
@@ -1215,8 +1232,10 @@ export const currentEntitlementIOS: QueryField<
     }
     return null;
   } catch (error) {
-    RnIapConsole.error('[currentEntitlementIOS] Failed:', error);
-    const parsedError = parseErrorStringToJsonObj(error);
+    const parsedError = parseErrorAndLogIfNeeded(
+      '[currentEntitlementIOS] Failed:',
+      error,
+    );
     throw createPurchaseError({
       code: parsedError.code,
       message: parsedError.message,
@@ -1249,8 +1268,10 @@ export const latestTransactionIOS: QueryField<'latestTransactionIOS'> = async (
     }
     return null;
   } catch (error) {
-    RnIapConsole.error('[latestTransactionIOS] Failed:', error);
-    const parsedError = parseErrorStringToJsonObj(error);
+    const parsedError = parseErrorAndLogIfNeeded(
+      '[latestTransactionIOS] Failed:',
+      error,
+    );
     throw createPurchaseError({
       code: parsedError.code,
       message: parsedError.message,
@@ -1282,8 +1303,10 @@ export const getPendingTransactionsIOS: QueryField<
         (purchase): purchase is PurchaseIOS => purchase.platform === 'ios',
       );
   } catch (error) {
-    RnIapConsole.error('[getPendingTransactionsIOS] Failed:', error);
-    const parsedError = parseErrorStringToJsonObj(error);
+    const parsedError = parseErrorAndLogIfNeeded(
+      '[getPendingTransactionsIOS] Failed:',
+      error,
+    );
     throw createPurchaseError({
       code: parsedError.code,
       message: parsedError.message,
@@ -1313,8 +1336,10 @@ export const getAllTransactionsIOS: QueryField<
         (purchase): purchase is PurchaseIOS => purchase.platform === 'ios',
       );
   } catch (error) {
-    RnIapConsole.error('[getAllTransactionsIOS] Failed:', error);
-    const parsedError = parseErrorStringToJsonObj(error);
+    const parsedError = parseErrorAndLogIfNeeded(
+      '[getAllTransactionsIOS] Failed:',
+      error,
+    );
     throw createPurchaseError({
       code: parsedError.code,
       message: parsedError.message,
@@ -1346,8 +1371,10 @@ export const showManageSubscriptionsIOS: MutationField<
         (purchase): purchase is PurchaseIOS => purchase.platform === 'ios',
       );
   } catch (error) {
-    RnIapConsole.error('[showManageSubscriptionsIOS] Failed:', error);
-    const parsedError = parseErrorStringToJsonObj(error);
+    const parsedError = parseErrorAndLogIfNeeded(
+      '[showManageSubscriptionsIOS] Failed:',
+      error,
+    );
     throw createPurchaseError({
       code: parsedError.code,
       message: parsedError.message,
@@ -1375,8 +1402,10 @@ export const isEligibleForIntroOfferIOS: QueryField<
   try {
     return await IAP.instance.isEligibleForIntroOfferIOS(groupID);
   } catch (error) {
-    RnIapConsole.error('[isEligibleForIntroOfferIOS] Failed:', error);
-    const parsedError = parseErrorStringToJsonObj(error);
+    const parsedError = parseErrorAndLogIfNeeded(
+      '[isEligibleForIntroOfferIOS] Failed:',
+      error,
+    );
     throw createPurchaseError({
       code: parsedError.code,
       message: parsedError.message,
@@ -1407,8 +1436,10 @@ export const getReceiptDataIOS: QueryField<'getReceiptDataIOS'> = async () => {
   try {
     return await IAP.instance.getReceiptDataIOS();
   } catch (error) {
-    RnIapConsole.error('[getReceiptDataIOS] Failed:', error);
-    const parsedError = parseErrorStringToJsonObj(error);
+    const parsedError = parseErrorAndLogIfNeeded(
+      '[getReceiptDataIOS] Failed:',
+      error,
+    );
     throw createPurchaseError({
       code: parsedError.code,
       message: parsedError.message,
@@ -1435,8 +1466,10 @@ export const getReceiptIOS = async (): Promise<string> => {
     }
     return await IAP.instance.getReceiptDataIOS();
   } catch (error) {
-    RnIapConsole.error('[getReceiptIOS] Failed:', error);
-    const parsedError = parseErrorStringToJsonObj(error);
+    const parsedError = parseErrorAndLogIfNeeded(
+      '[getReceiptIOS] Failed:',
+      error,
+    );
     throw createPurchaseError({
       code: parsedError.code,
       message: parsedError.message,
@@ -1463,8 +1496,10 @@ export const requestReceiptRefreshIOS = async (): Promise<string> => {
     }
     return await IAP.instance.getReceiptDataIOS();
   } catch (error) {
-    RnIapConsole.error('[requestReceiptRefreshIOS] Failed:', error);
-    const parsedError = parseErrorStringToJsonObj(error);
+    const parsedError = parseErrorAndLogIfNeeded(
+      '[requestReceiptRefreshIOS] Failed:',
+      error,
+    );
     throw createPurchaseError({
       code: parsedError.code,
       message: parsedError.message,
@@ -1492,8 +1527,10 @@ export const isTransactionVerifiedIOS: QueryField<
   try {
     return await IAP.instance.isTransactionVerifiedIOS(sku);
   } catch (error) {
-    RnIapConsole.error('[isTransactionVerifiedIOS] Failed:', error);
-    const parsedError = parseErrorStringToJsonObj(error);
+    const parsedError = parseErrorAndLogIfNeeded(
+      '[isTransactionVerifiedIOS] Failed:',
+      error,
+    );
     throw createPurchaseError({
       code: parsedError.code,
       message: parsedError.message,
@@ -1521,8 +1558,10 @@ export const getTransactionJwsIOS: QueryField<'getTransactionJwsIOS'> = async (
   try {
     return await IAP.instance.getTransactionJwsIOS(sku);
   } catch (error) {
-    RnIapConsole.error('[getTransactionJwsIOS] Failed:', error);
-    const parsedError = parseErrorStringToJsonObj(error);
+    const parsedError = parseErrorAndLogIfNeeded(
+      '[getTransactionJwsIOS] Failed:',
+      error,
+    );
     throw createPurchaseError({
       code: parsedError.code,
       message: parsedError.message,
@@ -1563,8 +1602,10 @@ export const initConnection: MutationField<'initConnection'> = async (
       config as Record<string, unknown> | undefined,
     );
   } catch (error) {
-    RnIapConsole.error('Failed to initialize IAP connection:', error);
-    const parsedError = parseErrorStringToJsonObj(error);
+    const parsedError = parseErrorAndLogIfNeeded(
+      'Failed to initialize IAP connection:',
+      error,
+    );
     throw createPurchaseError({
       code: parsedError.code,
       message: parsedError.message,
@@ -1586,8 +1627,10 @@ export const endConnection: MutationField<'endConnection'> = async () => {
     resetListenerState();
     return result;
   } catch (error) {
-    RnIapConsole.error('Failed to end IAP connection:', error);
-    const parsedError = parseErrorStringToJsonObj(error);
+    const parsedError = parseErrorAndLogIfNeeded(
+      'Failed to end IAP connection:',
+      error,
+    );
     throw createPurchaseError({
       code: parsedError.code,
       message: parsedError.message,
@@ -1613,8 +1656,10 @@ export const restorePurchases: MutationField<'restorePurchases'> = async () => {
       onlyIncludeActiveItemsIOS: true,
     });
   } catch (error) {
-    RnIapConsole.error('Failed to restore purchases:', error);
-    const parsedError = parseErrorStringToJsonObj(error);
+    const parsedError = parseErrorAndLogIfNeeded(
+      'Failed to restore purchases:',
+      error,
+    );
     throw createPurchaseError({
       code: parsedError.code,
       message: parsedError.message,
@@ -1798,8 +1843,10 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
 
     return await IAP.instance.requestPurchase(unifiedRequest);
   } catch (error) {
-    RnIapConsole.error('Failed to request purchase:', error);
-    const parsedError = parseErrorStringToJsonObj(error);
+    const parsedError = parseErrorAndLogIfNeeded(
+      'Failed to request purchase:',
+      error,
+    );
     throw createPurchaseError({
       code: parsedError.code,
       message: parsedError.message,
@@ -1921,8 +1968,10 @@ export const acknowledgePurchaseAndroid: MutationField<
     });
     return getSuccessFromPurchaseVariant(result, 'acknowledgePurchaseAndroid');
   } catch (error) {
-    RnIapConsole.error('Failed to acknowledge purchase Android:', error);
-    const parsedError = parseErrorStringToJsonObj(error);
+    const parsedError = parseErrorAndLogIfNeeded(
+      'Failed to acknowledge purchase Android:',
+      error,
+    );
     throw createPurchaseError({
       code: parsedError.code,
       message: parsedError.message,
@@ -1960,8 +2009,10 @@ export const consumePurchaseAndroid: MutationField<
     });
     return getSuccessFromPurchaseVariant(result, 'consumePurchaseAndroid');
   } catch (error) {
-    RnIapConsole.error('Failed to consume purchase Android:', error);
-    const parsedError = parseErrorStringToJsonObj(error);
+    const parsedError = parseErrorAndLogIfNeeded(
+      'Failed to consume purchase Android:',
+      error,
+    );
     throw createPurchaseError({
       code: parsedError.code,
       message: parsedError.message,
@@ -2109,8 +2160,10 @@ export const validateReceipt: MutationField<'validateReceipt'> = async (
       return result;
     }
   } catch (error) {
-    RnIapConsole.error('[validateReceipt] Failed:', error);
-    const parsedError = parseErrorStringToJsonObj(error);
+    const parsedError = parseErrorAndLogIfNeeded(
+      '[validateReceipt] Failed:',
+      error,
+    );
     throw createPurchaseError({
       code: parsedError.code,
       message: parsedError.message,
@@ -2203,8 +2256,10 @@ export const verifyPurchaseWithProvider: MutationField<
       errors: result.errors ?? null,
     };
   } catch (error) {
-    RnIapConsole.error('[verifyPurchaseWithProvider] Failed:', error);
-    const parsedError = parseErrorStringToJsonObj(error);
+    const parsedError = parseErrorAndLogIfNeeded(
+      '[verifyPurchaseWithProvider] Failed:',
+      error,
+    );
     throw createPurchaseError({
       code: parsedError.code,
       message: parsedError.message,
@@ -2230,8 +2285,7 @@ export const syncIOS: MutationField<'syncIOS'> = async () => {
     const result = await IAP.instance.syncIOS();
     return Boolean(result);
   } catch (error) {
-    RnIapConsole.error('[syncIOS] Failed:', error);
-    const parsedError = parseErrorStringToJsonObj(error);
+    const parsedError = parseErrorAndLogIfNeeded('[syncIOS] Failed:', error);
     throw createPurchaseError({
       code: parsedError.code,
       message: parsedError.message,
@@ -2259,8 +2313,10 @@ export const presentCodeRedemptionSheetIOS: MutationField<
     const result = await IAP.instance.presentCodeRedemptionSheetIOS();
     return Boolean(result);
   } catch (error) {
-    RnIapConsole.error('[presentCodeRedemptionSheetIOS] Failed:', error);
-    const parsedError = parseErrorStringToJsonObj(error);
+    const parsedError = parseErrorAndLogIfNeeded(
+      '[presentCodeRedemptionSheetIOS] Failed:',
+      error,
+    );
     throw createPurchaseError({
       code: parsedError.code,
       message: parsedError.message,
@@ -2315,11 +2371,10 @@ export const requestPurchaseOnPromotedProductIOS =
 
       return true;
     } catch (error) {
-      RnIapConsole.error(
+      const parsedError = parseErrorAndLogIfNeeded(
         '[requestPurchaseOnPromotedProductIOS] Failed:',
         error,
       );
-      const parsedError = parseErrorStringToJsonObj(error);
       throw createPurchaseError({
         code: parsedError.code,
         message: parsedError.message,
@@ -2347,8 +2402,10 @@ export const clearTransactionIOS: MutationField<
     await IAP.instance.clearTransactionIOS();
     return true;
   } catch (error) {
-    RnIapConsole.error('[clearTransactionIOS] Failed:', error);
-    const parsedError = parseErrorStringToJsonObj(error);
+    const parsedError = parseErrorAndLogIfNeeded(
+      '[clearTransactionIOS] Failed:',
+      error,
+    );
     throw createPurchaseError({
       code: parsedError.code,
       message: parsedError.message,
@@ -2377,8 +2434,10 @@ export const beginRefundRequestIOS: MutationField<
     const status = await IAP.instance.beginRefundRequestIOS(sku);
     return status ?? null;
   } catch (error) {
-    RnIapConsole.error('[beginRefundRequestIOS] Failed:', error);
-    const parsedError = parseErrorStringToJsonObj(error);
+    const parsedError = parseErrorAndLogIfNeeded(
+      '[beginRefundRequestIOS] Failed:',
+      error,
+    );
     throw createPurchaseError({
       code: parsedError.code,
       message: parsedError.message,
@@ -2430,8 +2489,10 @@ export const deepLinkToSubscriptionsIOS = async (): Promise<boolean> => {
     await IAP.instance.showManageSubscriptionsIOS();
     return true;
   } catch (error) {
-    RnIapConsole.error('[deepLinkToSubscriptionsIOS] Failed:', error);
-    const parsedError = parseErrorStringToJsonObj(error);
+    const parsedError = parseErrorAndLogIfNeeded(
+      '[deepLinkToSubscriptionsIOS] Failed:',
+      error,
+    );
     throw createPurchaseError({
       code: parsedError.code,
       message: parsedError.message,
@@ -2512,8 +2573,10 @@ export const getActiveSubscriptions: QueryField<
       RnIapConsole.error('IAP connection not initialized:', error);
       throw error;
     }
-    RnIapConsole.error('Failed to get active subscriptions:', error);
-    const parsedError = parseErrorStringToJsonObj(error);
+    const parsedError = parseErrorAndLogIfNeeded(
+      'Failed to get active subscriptions:',
+      error,
+    );
     throw createPurchaseError({
       code: parsedError.code,
       message: parsedError.message,

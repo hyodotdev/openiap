@@ -47,6 +47,108 @@ describe('Error utilities', () => {
       });
     });
 
+    it('should preserve structured code from Error objects', () => {
+      const error = Object.assign(new Error('Request Canceled'), {
+        code: ErrorCode.UserCancelled,
+      });
+
+      const result = parseErrorStringToJsonObj(error);
+
+      expect(result).toEqual({
+        code: ErrorCode.UserCancelled,
+        message: 'Request Canceled',
+      });
+    });
+
+    it('should preserve structured fields from Error objects', () => {
+      const error = Object.assign(new Error('Request Canceled'), {
+        code: ErrorCode.UserCancelled,
+        productId: 'premium_monthly',
+        responseCode: 1,
+      });
+
+      const result = parseErrorStringToJsonObj(error);
+
+      expect(result).toEqual({
+        code: ErrorCode.UserCancelled,
+        message: 'Request Canceled',
+        productId: 'premium_monthly',
+        responseCode: 1,
+      });
+    });
+
+    it('should parse Nitro NSError string with embedded JSON payload', () => {
+      const error = new Error(
+        'Error Domain=com.margelo.nitro.rniap Code=-1 ' +
+          '"{\\"message\\":\\"Request Canceled\\",\\"code\\":\\"user-cancelled\\"}" ' +
+          'UserInfo={NSLocalizedDescription={\\"message\\":\\"Request Canceled\\",\\"code\\":\\"user-cancelled\\"}}',
+      );
+
+      const result = parseErrorStringToJsonObj(error);
+
+      expect(result).toEqual({
+        code: ErrorCode.UserCancelled,
+        message: 'Request Canceled',
+      });
+      expect(isUserCancelledError(error)).toBe(true);
+    });
+
+    it('should parse quoted NSError JSON without UserInfo', () => {
+      const error = new Error(
+        'Error Domain=com.margelo.nitro.rniap Code=-1 ' +
+          '"{\\"message\\":\\"Request Canceled\\",\\"code\\":\\"user-cancelled\\"}"',
+      );
+
+      const result = parseErrorStringToJsonObj(error);
+
+      expect(result).toEqual({
+        code: ErrorCode.UserCancelled,
+        message: 'Request Canceled',
+      });
+    });
+
+    it('should parse escaped UserInfo JSON when NSError quoted payload is plain text', () => {
+      const error = new Error(
+        'Error Domain=SKErrorDomain Code=-1 "The operation failed." ' +
+          'UserInfo={NSLocalizedDescription={\\"message\\":\\"Request Canceled\\",\\"code\\":\\"user-cancelled\\"}}',
+      );
+
+      const result = parseErrorStringToJsonObj(error);
+
+      expect(result).toEqual({
+        code: ErrorCode.UserCancelled,
+        message: 'Request Canceled',
+      });
+    });
+
+    it('should parse escaped UserInfo JSON with braces in message', () => {
+      const error = new Error(
+        'Error Domain=SKErrorDomain Code=-1 "The operation failed." ' +
+          'UserInfo={NSLocalizedDescription={\\"message\\":\\"Request {Canceled}\\",\\"code\\":\\"user-cancelled\\"}}',
+      );
+
+      const result = parseErrorStringToJsonObj(error);
+
+      expect(result).toEqual({
+        code: ErrorCode.UserCancelled,
+        message: 'Request {Canceled}',
+      });
+    });
+
+    it('should parse quoted localized description JSON', () => {
+      const error = new Error(
+        'Error Domain=SKErrorDomain Code=-1 "The operation failed." ' +
+          'UserInfo={NSLocalizedDescription="{\\"message\\":\\"Request Canceled\\",\\"code\\":\\"user-cancelled\\"}"}',
+      );
+
+      const result = parseErrorStringToJsonObj(error);
+
+      expect(result).toEqual({
+        code: ErrorCode.UserCancelled,
+        message: 'Request Canceled',
+      });
+    });
+
     it('should handle non-JSON string', () => {
       const errorString = 'Not a JSON string';
 

@@ -1240,6 +1240,23 @@ describe('Public API (src/index.ts)', () => {
       await expect(IAP.syncIOS()).resolves.toBe(true);
     });
 
+    it('syncIOS preserves Nitro user cancellation without error logging', async () => {
+      (Platform as any).OS = 'ios';
+      mockIap.syncIOS = jest.fn(async () => {
+        throw new Error(
+          'Error Domain=com.margelo.nitro.rniap Code=-1 ' +
+            '"{\\"message\\":\\"Request Canceled\\",\\"code\\":\\"user-cancelled\\"}" ' +
+            'UserInfo={NSLocalizedDescription={\\"message\\":\\"Request Canceled\\",\\"code\\":\\"user-cancelled\\"}}',
+        );
+      });
+
+      await expect(IAP.syncIOS()).rejects.toMatchObject({
+        code: ErrorCode.UserCancelled,
+        message: 'Request Canceled',
+      });
+      expect(console.error).not.toHaveBeenCalled();
+    });
+
     it('restorePurchases on iOS calls syncIOS first', async () => {
       (Platform as any).OS = 'ios';
       mockIap.syncIOS = jest.fn(async () => true);

@@ -16,12 +16,125 @@ export interface IapError {
   [key: string]: any; // Allow additional platform-specific fields
 }
 
+const parseJsonPayload = (
+  payload: string,
+  fallbackMessage: string,
+): IapError | null => {
+  const trimmed = payload.trim();
+  const candidates = [trimmed];
+
+  if (trimmed.includes('\\"')) {
+    candidates.push(trimmed.replace(/\\"/g, '"'));
+  }
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate);
+      if (typeof parsed === 'object' && parsed !== null) {
+        const parsedError = parsed as Partial<IapError>;
+        return {
+          code: parsedError.code || ErrorCode.Unknown,
+          message: parsedError.message || fallbackMessage,
+          ...parsedError,
+        };
+      }
+    } catch {
+      // Try the next candidate.
+    }
+  }
+
+  return null;
+};
+
+const extractBalancedJsonObject = (
+  value: string,
+  startIndex: number,
+): string | null => {
+  for (let index = startIndex; index < value.length; index += 1) {
+    if (value[index] !== '}') {
+      continue;
+    }
+
+    const candidate = value.substring(startIndex, index + 1);
+    if (parseJsonPayload(candidate, value)) {
+      return candidate;
+    }
+  }
+
+  return null;
+};
+
+const parseNSErrorJsonPayload = (rawString: string): IapError | null => {
+  const payloads: string[] = [];
+  const quotedPayloadMatch = /Code=-?\d+\s+"/.exec(rawString);
+
+  if (quotedPayloadMatch?.index !== undefined) {
+    const contentStart =
+      quotedPayloadMatch.index + quotedPayloadMatch[0].length;
+    const userInfoIndex = rawString.indexOf('UserInfo=', contentStart);
+    const contentEnd =
+      userInfoIndex > contentStart
+        ? rawString.lastIndexOf('"', userInfoIndex)
+        : rawString.lastIndexOf('"');
+
+    if (contentEnd > contentStart) {
+      payloads.push(rawString.substring(contentStart, contentEnd));
+    }
+  }
+
+  const localizedDescription = 'NSLocalizedDescription=';
+  const descriptionIndex = rawString.indexOf(localizedDescription);
+
+  if (descriptionIndex >= 0) {
+    let valueStart = descriptionIndex + localizedDescription.length;
+    while (/\s/.test(rawString[valueStart] ?? '')) {
+      valueStart += 1;
+    }
+
+    const firstBraceIndex = rawString.indexOf('{', valueStart);
+    if (firstBraceIndex >= 0 && firstBraceIndex <= valueStart + 2) {
+      const payload = extractBalancedJsonObject(rawString, firstBraceIndex);
+      if (payload) {
+        payloads.push(payload);
+      }
+    }
+  }
+
+  for (const payload of payloads) {
+    const parsed = parseJsonPayload(payload, rawString);
+    if (parsed?.code && parsed.code !== ErrorCode.Unknown) {
+      return parsed;
+    }
+  }
+
+  return null;
+};
+
+const parseStructuredError = (error: Error): IapError | null => {
+  const errorWithCode = error as Error & {code?: unknown} & Record<
+      string,
+      unknown
+    >;
+
+  if (typeof errorWithCode.code === 'string' && errorWithCode.code.length > 0) {
+    const {code, message, ...extraFields} = errorWithCode;
+
+    return {
+      ...extraFields,
+      code,
+      message: typeof message === 'string' ? message : error.message,
+    };
+  }
+
+  return null;
+};
+
 /**
  * Parses error string from native modules into a structured error object
  *
  * Native modules return errors in different formats:
  * - Android: JSON string like '{"code":"E_USER_CANCELLED","message":"User cancelled the purchase","responseCode":1}'
- * - iOS: JSON string or plain message
+ * - iOS: JSON string, Nitro NSError string with embedded JSON, or plain message
  * - Legacy: "CODE: message" format
  *
  * @param errorString - The error string from native module
@@ -32,6 +145,11 @@ export function parseErrorStringToJsonObj(
 ): IapError {
   // Handle Error objects
   if (errorString instanceof Error) {
+    const structuredError = parseStructuredError(errorString);
+    if (structuredError) {
+      return structuredError;
+    }
+
     errorString = errorString.message;
   }
 
@@ -43,19 +161,14 @@ export function parseErrorStringToJsonObj(
     };
   }
 
-  // Try to parse as JSON first
-  try {
-    const parsed = JSON.parse(errorString);
-    if (typeof parsed === 'object' && parsed !== null) {
-      // Ensure it has at least code and message
-      return {
-        code: parsed.code || ErrorCode.Unknown,
-        message: parsed.message || errorString,
-        ...parsed,
-      };
-    }
-  } catch {
-    // Not JSON, continue with other formats
+  const jsonPayload = parseJsonPayload(errorString, errorString);
+  if (jsonPayload) {
+    return jsonPayload;
+  }
+
+  const nsErrorPayload = parseNSErrorJsonPayload(errorString);
+  if (nsErrorPayload) {
+    return nsErrorPayload;
   }
 
   // Try to parse "CODE: message" format
