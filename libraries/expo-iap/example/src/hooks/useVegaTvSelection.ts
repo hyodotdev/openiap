@@ -1,6 +1,7 @@
 import {
   type Dispatch,
   type SetStateAction,
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -30,6 +31,19 @@ export function useVegaTvSelection({
 } {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const suppressUntilRef = useRef(0);
+  const stateRef = useRef({
+    isItemDisabled,
+    itemCount,
+    onSelect,
+    selectedIndex,
+  });
+
+  stateRef.current = {
+    isItemDisabled,
+    itemCount,
+    onSelect,
+    selectedIndex,
+  };
 
   useEffect(() => {
     setSelectedIndex((currentIndex) =>
@@ -43,14 +57,15 @@ export function useVegaTvSelection({
     }
   }, [suppressSelection]);
 
-  useTVEventHandler((event: TvRemoteEvent) => {
+  const handleTvEvent = useCallback((event: TvRemoteEvent) => {
     if (!isVegaTvShortcutEnabled() || !isTvKeyRelease(event)) {
       return;
     }
 
+    const state = stateRef.current;
     if (event.eventType === 'down' || event.eventType === 'right') {
       setSelectedIndex((currentIndex) =>
-        Math.min(currentIndex + 1, Math.max(itemCount - 1, 0)),
+        Math.min(currentIndex + 1, Math.max(state.itemCount - 1, 0)),
       );
       return;
     }
@@ -68,12 +83,17 @@ export function useVegaTvSelection({
       return;
     }
 
-    if (selectedIndex >= itemCount || isItemDisabled?.(selectedIndex)) {
+    if (
+      state.selectedIndex >= state.itemCount ||
+      state.isItemDisabled?.(state.selectedIndex)
+    ) {
       return;
     }
 
-    onSelect(selectedIndex);
-  });
+    state.onSelect(state.selectedIndex);
+  }, []);
+
+  useTVEventHandler(handleTvEvent);
 
   return {selectedIndex, setSelectedIndex};
 }
