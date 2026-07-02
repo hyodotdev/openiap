@@ -104,7 +104,7 @@ func _clear_pending_purchases() -> void:
 func _purchase_to_dict(purchase: Variant) -> Dictionary:
 	if purchase is Dictionary:
 		return purchase
-	if purchase != null and purchase.has_method("to_dict"):
+	if typeof(purchase) == TYPE_OBJECT and purchase != null and purchase.has_method("to_dict"):
 		var data = purchase.to_dict()
 		if data is Dictionary:
 			return data
@@ -116,7 +116,7 @@ func _purchase_product_id(purchase: Variant, purchase_dict: Dictionary) -> Strin
 		return str(purchase_dict["productId"])
 	if purchase_dict.has("product_id") and purchase_dict["product_id"] != null:
 		return str(purchase_dict["product_id"])
-	if purchase != null:
+	if typeof(purchase) == TYPE_OBJECT and purchase != null:
 		var product_id = purchase.get("product_id")
 		if product_id != null:
 			return str(product_id)
@@ -133,7 +133,7 @@ func _purchase_is_acknowledged(purchase: Variant, purchase_dict: Dictionary) -> 
 	for key in keys:
 		if purchase_dict.has(key) and purchase_dict[key] != null:
 			return _variant_to_bool(purchase_dict[key])
-	if purchase != null:
+	if typeof(purchase) == TYPE_OBJECT and purchase != null:
 		var acknowledged = purchase.get("is_acknowledged_android")
 		if acknowledged != null:
 			return _variant_to_bool(acknowledged)
@@ -388,10 +388,11 @@ func _field(source: Variant, keys: Array) -> Variant:
 			if source.has(key):
 				return source[key]
 		return null
-	for key in keys:
-		var value = source.get(key)
-		if value != null:
-			return value
+	if typeof(source) == TYPE_OBJECT:
+		for key in keys:
+			var value = source.get(key)
+			if value != null:
+				return value
 	return null
 
 

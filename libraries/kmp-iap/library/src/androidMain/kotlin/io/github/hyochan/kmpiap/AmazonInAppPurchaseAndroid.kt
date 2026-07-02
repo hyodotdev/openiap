@@ -168,7 +168,16 @@ internal class AmazonInAppPurchaseAndroid(
                 message = "IAPKit options are required for Android verification"
             )
         )
-        val androidOptions = dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps.fromJson(iapkitOptions.toJson())
+        val androidOptions = runCatching {
+            dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps.fromJson(iapkitOptions.toJson())
+        }.getOrElse {
+            failWith(
+                PurchaseError(
+                    code = ErrorCode.PurchaseVerificationFailed,
+                    message = "Invalid IAPKit options for Android verification"
+                )
+            )
+        }
         val androidResult = verifyPurchaseWithIapkitAndroid(androidOptions, "kmp-iap-android-$storeName")
         return VerifyPurchaseWithProviderResult(
             iapkit = RequestVerifyPurchaseWithIapkitResult.fromJson(androidResult.toJson()),
