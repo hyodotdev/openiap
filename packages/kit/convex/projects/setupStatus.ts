@@ -30,6 +30,7 @@ export const getSetupStatus = query({
     ios: platformShape,
     android: platformShape,
     horizon: platformShape,
+    amazon: platformShape,
     appleP8Uploaded: v.boolean(),
     googleServiceAccountUploaded: v.boolean(),
   }),
@@ -49,6 +50,7 @@ export const getSetupStatus = query({
         ios: empty,
         android: empty,
         horizon: empty,
+        amazon: empty,
         appleP8Uploaded: false,
         googleServiceAccountUploaded: false,
       };
@@ -78,6 +80,11 @@ export const getSetupStatus = query({
     if (!project.horizonAppId) horizonMissing.push("horizonAppId");
     if (!project.horizonAppSecret) horizonMissing.push("horizonAppSecret");
 
+    const amazonMissing: string[] = [];
+    if (!project.amazonSharedSecret) {
+      amazonMissing.push("amazonSharedSecret");
+    }
+
     return {
       found: true,
       projectId: project._id,
@@ -92,6 +99,10 @@ export const getSetupStatus = query({
       horizon: {
         configured: horizonMissing.length === 0,
         missing: horizonMissing,
+      },
+      amazon: {
+        configured: amazonMissing.length === 0,
+        missing: amazonMissing,
       },
       // The webhook receivers ALSO need the .p8 / service-account JSON
       // file uploaded to the project; check the `files` table directly

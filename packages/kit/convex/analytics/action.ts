@@ -38,6 +38,7 @@ export const trackFirstReceiptVerified = internalAction({
       v.literal("apple"),
       v.literal("google"),
       v.literal("horizon"),
+      v.literal("amazon"),
     ),
   },
   handler: async (_ctx, args) => {

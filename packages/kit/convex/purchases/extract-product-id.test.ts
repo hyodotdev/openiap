@@ -38,6 +38,35 @@ describe("extractProductIdFromRemoteResponse (horizon)", () => {
   });
 });
 
+describe("extractProductIdFromRemoteResponse (amazon)", () => {
+  test("returns the Amazon RVS productId from the persisted payload", () => {
+    const remote = JSON.stringify({
+      productId: "dev.hyo.martie.premium",
+      productType: "SUBSCRIPTION",
+      receiptId: "receipt-123",
+    });
+
+    expect(extractProductIdFromRemoteResponse("amazon", remote)).toBe(
+      "dev.hyo.martie.premium",
+    );
+  });
+
+  test("returns null when the Amazon productId is missing or wrong type", () => {
+    expect(
+      extractProductIdFromRemoteResponse(
+        "amazon",
+        JSON.stringify({ receiptId: "receipt-123" }),
+      ),
+    ).toBeNull();
+    expect(
+      extractProductIdFromRemoteResponse(
+        "amazon",
+        JSON.stringify({ productId: 42 }),
+      ),
+    ).toBeNull();
+  });
+});
+
 describe("extractProductIdFromRemoteResponse", () => {
   it("returns null when remoteResponse is missing", () => {
     expect(extractProductIdFromRemoteResponse("apple", undefined)).toBeNull();

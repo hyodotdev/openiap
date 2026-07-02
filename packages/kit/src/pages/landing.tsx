@@ -117,7 +117,7 @@ export default function LandingPage() {
               {"Purpose-built for fraud-resistant IAP validation"}
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              {"One API to confirm every App Store and Play Store purchase."}
+              {"One API to confirm every supported store purchase."}
             </p>
           </div>
 
@@ -145,7 +145,7 @@ export default function LandingPage() {
               </h3>
               <p className="text-muted-foreground break-words">
                 {
-                  "Add one IAPKit call and handle both stores with the same payload. You'll be up and running in minutes."
+                  "Add one IAPKit call and handle every supported store with the same payload. You'll be up and running in minutes."
                 }
               </p>
             </div>
@@ -177,7 +177,7 @@ export default function LandingPage() {
               </h2>
               <p className="text-xl text-muted-foreground mb-8">
                 {
-                  "Collect the receipt on-device, send it to IAPKit, and unlock the item once we confirm it with Apple or Google."
+                  "Collect the receipt on-device, send it to IAPKit, and unlock the item once the source store confirms it."
                 }
               </p>
               <ul className="space-y-4">
@@ -185,7 +185,7 @@ export default function LandingPage() {
                   <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
                   <span>
                     {
-                      "Collect the App Store / Play receipt with your existing billing library."
+                      "Collect the App Store, Play, Horizon, or Amazon receipt with your existing billing library."
                     }
                   </span>
                 </li>

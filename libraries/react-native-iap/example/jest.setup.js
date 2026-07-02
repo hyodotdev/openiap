@@ -6,6 +6,15 @@ global.__fbBatchedBridgeConfig = {
   localModulesConfig: [],
 };
 
+jest.mock(
+  '@env',
+  () => ({
+    IAPKIT_API_KEY: '',
+    IAPKIT_BASE_URL: '',
+  }),
+  {virtual: true},
+);
+
 // Mock react-native-nitro-modules
 jest.mock('react-native-nitro-modules', () => ({
   NitroModules: {
@@ -39,6 +48,16 @@ jest.mock('../src/index', () => {
   const mockFinishTransaction = jest.fn(() => Promise.resolve());
   const mockGetActiveSubscriptions = jest.fn(() => Promise.resolve([]));
   const mockRequestPurchase = jest.fn(() => Promise.resolve());
+  const mockVerifyPurchase = jest.fn(() => Promise.resolve({}));
+  const mockVerifyPurchaseWithProvider = jest.fn(() =>
+    Promise.resolve({
+      iapkit: {
+        isValid: true,
+        state: 'purchased',
+        store: 'amazon',
+      },
+    }),
+  );
 
   const mockUseIAP = jest.fn(() => ({
     connected: false,
@@ -50,6 +69,8 @@ jest.mock('../src/index', () => {
     finishTransaction: mockFinishTransaction,
     getAvailablePurchases: mockGetAvailablePurchases,
     getActiveSubscriptions: mockGetActiveSubscriptions,
+    verifyPurchase: mockVerifyPurchase,
+    verifyPurchaseWithProvider: mockVerifyPurchaseWithProvider,
   }));
 
   return {
@@ -68,6 +89,8 @@ jest.mock('../src/index', () => {
     connectWebhookStream: jest.fn(() => ({
       close: jest.fn(),
     })),
+    verifyPurchase: mockVerifyPurchase,
+    verifyPurchaseWithProvider: mockVerifyPurchaseWithProvider,
 
     // Android specific
     acknowledgePurchaseAndroid: jest.fn(() => Promise.resolve(true)),
@@ -231,6 +254,7 @@ console.error = (...args) => {
   if (
     args[0]?.includes?.('Warning: ReactTestRenderer') ||
     args[0]?.includes?.('Warning: An update to') ||
+    args[0]?.includes?.('An update to') ||
     args[0]?.includes?.('Warning: You called act')
   ) {
     return;

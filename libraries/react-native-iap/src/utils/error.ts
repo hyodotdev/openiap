@@ -116,12 +116,12 @@ const parseStructuredError = (error: Error): IapError | null => {
       unknown
     >;
 
-  if (typeof errorWithCode.code === 'string' && errorWithCode.code.length > 0) {
+  if (errorWithCode.code != null) {
     const {code, message, ...extraFields} = errorWithCode;
 
     return {
       ...extraFields,
-      code,
+      code: String(code),
       message: typeof message === 'string' ? message : error.message,
     };
   }

@@ -14,6 +14,7 @@ jest.mock('react-native', () => ({
 import * as React from 'react';
 import * as ReactTestRenderer from 'react-test-renderer';
 import ExpoIapModule from '../ExpoIapModule';
+import {ErrorCode} from '../types';
 import {useIAP, UseIAPOptions} from '../useIAP';
 /* eslint-enable import/first */
 
@@ -53,6 +54,7 @@ function TestComponent({
 
 // Helper to wait for async operations
 const flushPromises = () => new Promise((resolve) => setTimeout(resolve, 0));
+const purchaseErrorEvent = 'purchase-error';
 
 describe('useIAP hook', () => {
   beforeEach(() => {
@@ -425,6 +427,65 @@ describe('useIAP hook', () => {
 
       // Test passes if no unhandled exception is thrown
       expect(ExpoIapModule.initConnection).toHaveBeenCalled();
+    });
+  });
+
+  describe('purchase error listener', () => {
+    const renderWithCapturedListeners = async () => {
+      const listeners: Record<string, (payload: any) => void> = {};
+      (ExpoIapModule.addListener as jest.Mock) = jest.fn(
+        (eventName: string, listener: (payload: any) => void) => {
+          listeners[eventName] = listener;
+          return {remove: jest.fn()};
+        },
+      );
+
+      await ReactTestRenderer.act(async () => {
+        ReactTestRenderer.create(<TestComponent onHookReady={() => {}} />);
+        await flushPromises();
+      });
+
+      await ReactTestRenderer.act(async () => {
+        await flushPromises();
+      });
+
+      return listeners;
+    };
+
+    it('does not warn for already-owned purchase errors', async () => {
+      const listeners = await renderWithCapturedListeners();
+      consoleWarnSpy.mockClear();
+
+      listeners[purchaseErrorEvent]({
+        code: ErrorCode.AlreadyOwned,
+        message: 'Already owned',
+      });
+
+      expect(consoleWarnSpy).not.toHaveBeenCalled();
+    });
+
+    it('does not warn for service-timeout purchase errors', async () => {
+      const listeners = await renderWithCapturedListeners();
+      consoleWarnSpy.mockClear();
+
+      listeners[purchaseErrorEvent]({
+        code: ErrorCode.ServiceTimeout,
+        message: 'Service timeout',
+      });
+
+      expect(consoleWarnSpy).not.toHaveBeenCalled();
+    });
+
+    it('warns for non-recoverable purchase errors', async () => {
+      const listeners = await renderWithCapturedListeners();
+      consoleWarnSpy.mockClear();
+
+      listeners[purchaseErrorEvent]({
+        code: ErrorCode.DeveloperError,
+        message: 'Developer error',
+      });
+
+      expect(consoleWarnSpy).toHaveBeenCalledTimes(1);
     });
   });
 });

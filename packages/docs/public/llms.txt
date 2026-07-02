@@ -24,7 +24,9 @@ npm install react-native-iap
 
 ```kotlin
 // Gradle
-implementation("io.github.hyochan.openiap:openiap-google:2.2.2")
+implementation("io.github.hyochan.openiap:openiap-google:2.3.0-rc.1")
+implementation("io.github.hyochan.openiap:openiap-google-horizon:2.3.0-rc.1")
+implementation("io.github.hyochan.openiap:openiap-google-amazon:2.3.0-rc.1")
 ```
 
 ```bash
@@ -34,20 +36,20 @@ flutter pub add flutter_inapp_purchase
 
 ```gdscript
 # Godot
-# Install godot-iap 2.3.2 to addons/godot-iap and enable the plugin
+# Install godot-iap 2.4.0-rc.1 to addons/godot-iap and enable the plugin
 ```
 
 ```kotlin
 // Kotlin Multiplatform
-implementation("io.github.hyochan:kmp-iap:2.3.2")
+implementation("io.github.hyochan:kmp-iap:2.4.0-rc.1")
 ```
 
-```bash
-# .NET MAUI
-dotnet add package OpenIap.Maui
+```xml
+<!-- .NET MAUI -->
+<PackageReference Include="OpenIap.Maui" Version="1.2.0-rc.1" />
 ```
 
-Current NuGet package version: 1.1.5
+Current NuGet package version: 1.2.0-rc.1
 
 ## Framework Libraries
 
@@ -82,7 +84,7 @@ await endConnection();
 ```typescript
 const products = await fetchProducts({
   products: [
-    { id: 'com.app.premium', type: 'inapp' },
+    { id: 'com.app.premium', type: 'in-app' },
     { id: 'com.app.monthly', type: 'subs' },
   ],
 });
@@ -97,7 +99,7 @@ await requestPurchase({
     apple: { sku: 'com.app.premium' },
     google: { skus: ['com.app.premium'] },
   },
-  type: 'inapp', // 'inapp' | 'subs'
+  type: 'in-app', // 'in-app' | 'subs'
 });
 ```
 
@@ -105,7 +107,7 @@ await requestPurchase({
 ```typescript
 // CRITICAL: Must call after verification
 // Android: purchases auto-refund after 3 days if not acknowledged
-await finishTransaction(purchase, isConsumable);
+await finishTransaction({ purchase, isConsumable });
 ```
 
 ### Get Available Purchases
@@ -130,7 +132,7 @@ const purchaseUpdateSubscription = purchaseUpdatedListener(async (purchase) => {
   // 1. Verify purchase on server
   // 2. Grant entitlement
   // 3. Finish transaction
-  await finishTransaction(purchase);
+  await finishTransaction({ purchase, isConsumable: false });
 });
 
 const purchaseErrorSubscription = purchaseErrorListener((error) => {
@@ -154,7 +156,7 @@ interface Product {
   price: string;        // Formatted price string
   priceAmount: number;  // Price as number
   currency: string;     // ISO 4217 currency code
-  type: 'inapp' | 'subs';
+  type: 'in-app' | 'subs';
 }
 ```
 

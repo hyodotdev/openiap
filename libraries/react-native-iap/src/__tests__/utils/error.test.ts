@@ -47,6 +47,29 @@ describe('Error utilities', () => {
       });
     });
 
+    it('should preserve structured fields on Error objects', () => {
+      const error = new Error('Network error') as Error & {
+        code?: ErrorCode;
+        debugMessage?: string;
+        productId?: string;
+        responseCode?: number;
+      };
+      error.code = ErrorCode.NetworkError;
+      error.debugMessage = 'Network error';
+      error.productId = 'premium_monthly';
+      error.responseCode = 503;
+
+      const result = parseErrorStringToJsonObj(error);
+
+      expect(result).toEqual({
+        code: ErrorCode.NetworkError,
+        message: 'Network error',
+        debugMessage: 'Network error',
+        productId: 'premium_monthly',
+        responseCode: 503,
+      });
+    });
+
     it('should preserve structured code from Error objects', () => {
       const error = Object.assign(new Error('Request Canceled'), {
         code: ErrorCode.UserCancelled,

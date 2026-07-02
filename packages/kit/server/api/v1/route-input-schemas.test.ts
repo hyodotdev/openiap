@@ -12,6 +12,8 @@ function parse(input: unknown) {
 // a URL-safe blob ≥ 20 chars.
 const VALID_APPLE_JWS = `${"a".repeat(40)}.${"b".repeat(40)}.${"c".repeat(40)}`;
 const VALID_GOOGLE_TOKEN = "a".repeat(40);
+const VALID_AMAZON_USER_ID = "amzn1.account.ABC123";
+const VALID_AMAZON_RECEIPT_ID = "amzn1.receipt.ABC123456789=:1";
 
 describe("verifyPurchaseInputSchema", () => {
   test("accepts a well-formed Apple payload", () => {
@@ -76,6 +78,50 @@ describe("verifyPurchaseInputSchema", () => {
       sku: "coin_pack_100",
     });
     expect(result.success).toBe(true);
+  });
+
+  test("accepts a well-formed Amazon payload", () => {
+    const result = parse({
+      store: "amazon",
+      userId: VALID_AMAZON_USER_ID,
+      receiptId: VALID_AMAZON_RECEIPT_ID,
+      sandbox: true,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  test("rejects empty Amazon userId / receiptId", () => {
+    expect(
+      parse({
+        store: "amazon",
+        userId: "",
+        receiptId: VALID_AMAZON_RECEIPT_ID,
+      }).success,
+    ).toBe(false);
+    expect(
+      parse({
+        store: "amazon",
+        userId: VALID_AMAZON_USER_ID,
+        receiptId: "",
+      }).success,
+    ).toBe(false);
+  });
+
+  test("rejects Amazon payloads past their ceilings", () => {
+    expect(
+      parse({
+        store: "amazon",
+        userId: "a".repeat(513),
+        receiptId: VALID_AMAZON_RECEIPT_ID,
+      }).success,
+    ).toBe(false);
+    expect(
+      parse({
+        store: "amazon",
+        userId: VALID_AMAZON_USER_ID,
+        receiptId: "a".repeat(4_097),
+      }).success,
+    ).toBe(false);
   });
 
   test("rejects empty Horizon userId / sku", () => {
@@ -179,6 +225,23 @@ describe("verifyPurchaseInputSchema", () => {
         store: "horizon",
         userId: "1234567890",
         sku: "bad sku",
+      }).success,
+    ).toBe(false);
+  });
+
+  test("rejects Amazon userId / receiptId with invalid characters", () => {
+    expect(
+      parse({
+        store: "amazon",
+        userId: "bad user",
+        receiptId: VALID_AMAZON_RECEIPT_ID,
+      }).success,
+    ).toBe(false);
+    expect(
+      parse({
+        store: "amazon",
+        userId: VALID_AMAZON_USER_ID,
+        receiptId: "<script>alert(1)</script>",
       }).success,
     ).toBe(false);
   });

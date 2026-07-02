@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import dev.hyo.martie.BuildConfig
 import dev.hyo.martie.models.AppColors
 import dev.hyo.martie.screens.uis.*
 import dev.hyo.martie.util.PREMIUM_SUBSCRIPTION_PRODUCT_ID
@@ -47,6 +48,13 @@ fun AvailablePurchasesScreen(
     val statusMessage = status.lastPurchaseResult
 
     val androidPurchases = remember(purchases) { purchases.filterIsInstance<PurchaseAndroid>() }
+    val accountStoreName = remember {
+        when (BuildConfig.OPENIAP_STORE) {
+            "amazon" -> "Amazon Appstore"
+            "horizon" -> "Meta Horizon"
+            else -> "Google"
+        }
+    }
 
     // Modal state
     var selectedPurchase by remember { mutableStateOf<PurchaseAndroid?>(null) }
@@ -177,7 +185,7 @@ fun AvailablePurchasesScreen(
                         }
                         
                         Text(
-                            "View all your active purchases including consumables not yet consumed, non-consumables, and active subscriptions. Tap 'Restore' to recover purchases from your Google account.",
+                            "View all your active purchases including consumables not yet consumed, non-consumables, and active subscriptions. Tap 'Restore' to recover purchases from your $accountStoreName account.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = AppColors.textSecondary
                         )
@@ -381,7 +389,7 @@ fun AvailablePurchasesScreen(
             if (androidPurchases.isEmpty() && !isInitializing && !status.isLoading) {
                 item {
                     EmptyStateCard(
-                        message = "No purchases found. Try restoring purchases from your Google account.",
+                        message = "No purchases found. Try restoring purchases from your $accountStoreName account.",
                         icon = Icons.Default.ShoppingBag
                     )
                 }

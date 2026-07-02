@@ -32,6 +32,16 @@ describe('SubscriptionFlow Screen', () => {
     const defaultGetAvailablePurchases = jest.fn(() => Promise.resolve([]));
     const getActiveSubscriptions = jest.fn(() => Promise.resolve([]));
     const finishTransaction = jest.fn(() => Promise.resolve());
+    const verifyPurchase = jest.fn(() => Promise.resolve({}));
+    const verifyPurchaseWithProvider = jest.fn(() =>
+      Promise.resolve({
+        iapkit: {
+          isValid: true,
+          state: 'purchased',
+          store: 'amazon',
+        },
+      }),
+    );
 
     // Use the override if provided, otherwise use default
     const getAvailablePurchases =
@@ -50,6 +60,8 @@ describe('SubscriptionFlow Screen', () => {
         finishTransaction,
         getAvailablePurchases,
         getActiveSubscriptions,
+        verifyPurchase,
+        verifyPurchaseWithProvider,
         ...overrides,
       };
       // Ensure getAvailablePurchases uses our mock
@@ -62,6 +74,8 @@ describe('SubscriptionFlow Screen', () => {
       getAvailablePurchases,
       getActiveSubscriptions,
       finishTransaction,
+      verifyPurchase,
+      verifyPurchaseWithProvider,
     };
   };
 

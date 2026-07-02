@@ -52,6 +52,142 @@ function Announcements() {
   useScrollToHash();
 
   const announcements: Announcement[] = [
+    // 2026-06-09: Amazon Fire OS / Vega OS
+    {
+      id: '2026-06-09-amazon-fireos-vega',
+      date: new Date('2026-06-09'),
+      element: (
+        <div key="2026-06-09-amazon-fireos-vega" style={cardStyle}>
+          <div style={headerStyle}>
+            <img
+              src="/announcements/amazon-fireos-vega.webp"
+              alt="Amazon Fire OS and Vega OS support"
+              style={{ width: '48px', height: '48px', borderRadius: '10px' }}
+            />
+            <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
+              OpenIAP is Now Backed by Amazon
+            </h2>
+            <a
+              href="#2026-06-09-amazon-fireos-vega"
+              style={linkIconStyle}
+              title="Link to this announcement"
+            >
+              🔗
+            </a>
+          </div>
+          <p style={dateStyle}>June 9, 2026</p>
+          <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
+            Today marks a meaningful milestone for OpenIAP. OpenIAP is now
+            backed by Amazon sponsorship and technical support, and that support
+            is helping us bring Amazon Fire OS and Vega OS purchase support into
+            the OpenIAP ecosystem.
+          </p>
+          <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
+            Fire OS support starts with OpenIAP's Fire OS flavor: the Android{' '}
+            <code>amazon</code> flavor and <code>openiap-google-amazon</code>{' '}
+            artifact backed by the Amazon Appstore SDK. Vega OS support is a
+            separate React Native for Vega runtime path, with{' '}
+            <code>react-native-iap</code> runtime support and{' '}
+            <code>expo-iap</code> config-plugin support for compatible Expo
+            projects. Together, they help developers keep one familiar OpenIAP
+            purchase flow while reaching Amazon-specific purchase environments.
+            IAPKit uses the same Amazon verification path for Fire OS and Vega
+            OS receipts, so apps can keep managed receipt checks and entitlement
+            state in the same OpenIAP backend flow. The implementation is
+            tracked in{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/162"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR 162
+            </a>
+            .
+          </p>
+          <h3 style={{ marginTop: '1.25rem', marginBottom: '0.5rem' }}>
+            Key Points
+          </h3>
+          <ul
+            style={{
+              paddingLeft: '1.5rem',
+              marginBottom: '1rem',
+              lineHeight: '1.7',
+            }}
+          >
+            <li>
+              <strong>Open source sponsorship</strong>: Amazon's support helps
+              sustain OpenIAP's work toward vendor-neutral purchase
+              interoperability across stores, runtimes, and frameworks.
+            </li>
+            <li>
+              <strong>Fire OS flavor</strong>: Android apps select the{' '}
+              <code>amazon</code> flavor with <code>fireOsEnabled=true</code> or
+              the matching framework config-plugin option.
+            </li>
+            <li>
+              <strong>Amazon Appstore IAP</strong>: OpenIAP maps Amazon
+              consumables, entitlements, subscriptions, purchase updates, and
+              fulfillment into the standard OpenIAP API shape.
+            </li>
+            <li>
+              <strong>IAPKit verification</strong>: Fire OS and Vega OS
+              purchases can verify through IAPKit's Amazon receipt path with the
+              same <code>iapkit.amazon</code> payload.
+            </li>
+            <li>
+              <strong>Catalog identity</strong>: Product IDs stay aligned across
+              Amazon Appstore, Amazon App Tester, app code, and Kit entitlement
+              checks.
+            </li>
+            <li>
+              <strong>Vega OS runtime</strong>: Vega OS is not Fire OS and is
+              not an Android flavor. The Vega adapter is selected only in the
+              Kepler runtime for React Native for Vega apps.
+            </li>
+          </ul>
+          <a
+            href="/docs/fireos-setup"
+            style={{
+              display: 'block',
+              width: '100%',
+              maxWidth: '400px',
+              borderRadius: '0.75rem',
+              margin: '1.5rem auto 0',
+              border: '1px solid var(--border-color)',
+              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.25)',
+              overflow: 'hidden',
+            }}
+          >
+            <img
+              src="/announcements/amazon-fireos-vega.webp"
+              alt="OpenIAP Amazon Fire OS and Vega OS announcement"
+              style={{
+                width: '100%',
+                height: 'auto',
+                display: 'block',
+              }}
+            />
+          </a>
+          <div style={calloutStyle}>
+            <strong>Get started:</strong> Read the{' '}
+            <a href="/docs/fireos-setup" className="external-link">
+              Fire OS setup guide
+            </a>{' '}
+            for Amazon Appstore IAP integration, or open the{' '}
+            <a href="/docs/features/vega-os" className="external-link">
+              Vega OS runtime guide
+            </a>{' '}
+            for React Native for Vega apps and compatible Expo projects. Use the{' '}
+            <a href="/docs/kit-backend" className="external-link">
+              IAPKit backend guide
+            </a>{' '}
+            for Amazon receipt verification and entitlement checks.
+          </div>
+        </div>
+      ),
+    },
+
     // 2026-05-07: maui-iap
     {
       id: '2026-05-07',

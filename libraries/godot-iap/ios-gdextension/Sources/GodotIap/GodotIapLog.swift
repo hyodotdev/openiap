@@ -41,6 +41,22 @@ import os
 /// - Note: `setEnabled` and `setHandler` should be called once at app startup
 ///   before any logging occurs. They are not thread-safe for concurrent writes.
 enum GodotIapLog {
+    private static let sensitiveKeyFragments: Set<String> = [
+        "token",
+        "apikey",
+        "secret",
+        "jws",
+        "receiptid",
+        "userid",
+        "password",
+        "bearer",
+    ]
+    private static let sensitiveAuthKeys: Set<String> = [
+        "auth",
+        "authorization",
+        "authheader",
+    ]
+
     enum Level: String {
         case debug
         case info
@@ -128,7 +144,25 @@ enum GodotIapLog {
     }
 
     private static func sanitize(_ value: Any?) -> Any? {
+        func sanitizeJSONString(_ value: String) -> Any {
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard trimmed.first == "{" || trimmed.first == "[" else {
+                return value
+            }
+
+            guard let data = trimmed.data(using: .utf8),
+                  let json = try? JSONSerialization.jsonObject(with: data) else {
+                return value
+            }
+
+            return sanitize(json) ?? value
+        }
+
         guard let value else { return nil }
+
+        if let string = value as? String {
+            return sanitizeJSONString(string)
+        }
 
         if let dictionary = value as? [String: Any] {
             return sanitizeDictionary(dictionary)
@@ -156,9 +190,16 @@ enum GodotIapLog {
     }
 
     private static func sanitizeDictionary(_ dictionary: [String: Any]) -> [String: Any] {
+        func isSensitiveKey(_ key: String) -> Bool {
+            let normalized = key.lowercased()
+                .filter { $0.isLetter || $0.isNumber }
+            return sensitiveKeyFragments.contains { normalized.contains($0) } ||
+                sensitiveAuthKeys.contains(normalized)
+        }
+
         var sanitized: [String: Any] = [:]
         for (key, value) in dictionary {
-            if key.lowercased().contains("token") {
+            if isSensitiveKey(key) {
                 sanitized[key] = "hidden"
             } else if let sanitizedValue = sanitize(value) {
                 sanitized[key] = sanitizedValue

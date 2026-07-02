@@ -13,3 +13,7 @@ __tests__
 /android/build/
 /example/
 /docs/
+/coverage/
+/.nyc_output/
+*.lcov
+*.tsbuildinfo

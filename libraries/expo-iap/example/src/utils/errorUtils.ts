@@ -8,6 +8,14 @@ export function extractErrorMessage(error: unknown): string {
   }
 
   if (
+    typeof error === 'string' ||
+    typeof error === 'number' ||
+    typeof error === 'boolean'
+  ) {
+    return String(error);
+  }
+
+  if (
     error &&
     typeof error === 'object' &&
     'errors' in error &&
@@ -17,5 +25,9 @@ export function extractErrorMessage(error: unknown): string {
     return errors[0]?.message || JSON.stringify(errors[0]) || 'Unknown error';
   }
 
-  return 'Unknown error';
+  if (error && typeof error === 'object' && 'message' in error) {
+    return String((error as {message: unknown}).message);
+  }
+
+  return String(error ?? 'Unknown error');
 }

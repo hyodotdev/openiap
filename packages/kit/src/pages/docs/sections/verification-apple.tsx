@@ -177,6 +177,7 @@ if (revocationDate !== undefined) {
         language="json"
       >
         {`{
+  "store": "apple",
   "isValid": false,
   "state": "CANCELED",
   "productId": "premium_monthly"

@@ -65,6 +65,32 @@ val googleMinSdk = readGoogleAndroidInt("minSdk")
 val mauiAndroidMinSdk = readMauiAndroidMinSdk()
 val googleCoreKtxVersion = readGoogleDependencyVersion("androidx.core:core-ktx")
 val googleCoroutinesVersion = readGoogleVariable("coroutinesVersion")
+val horizonEnabled = providers.gradleProperty("horizonEnabled").orNull?.toBooleanStrictOrNull() ?: false
+val fireOsEnabled = providers.gradleProperty("fireOsEnabled").orNull?.toBooleanStrictOrNull() ?: false
+if (horizonEnabled && fireOsEnabled) {
+    error("maui-iap Android: horizonEnabled and fireOsEnabled cannot both be true")
+}
+
+fun normalizeOpenIapStore(value: String?): String =
+    when (value?.lowercase()) {
+        null, "", "play", "google", "gms", "googleplay", "google-play" -> "play"
+        "horizon", "meta", "quest" -> "horizon"
+        "amazon", "fire", "fireos", "fire-os" -> "amazon"
+        else -> error("maui-iap Android: unsupported openIapAndroidStore '$value'")
+    }
+
+val requestedOpenIapStore = providers.gradleProperty("openIapAndroidStore").orNull
+    ?: providers.gradleProperty("OpenIapAndroidStore").orNull
+val openIapAndroidStore = when {
+    fireOsEnabled -> "amazon"
+    horizonEnabled -> "horizon"
+    else -> normalizeOpenIapStore(requestedOpenIapStore)
+}
+val openIapGoogleArtifact = when (openIapAndroidStore) {
+    "amazon" -> "openiap-google-amazon"
+    "horizon" -> "openiap-google-horizon"
+    else -> "openiap-google"
+}
 
 android {
     namespace = "dev.hyo.openiap.maui"
@@ -72,7 +98,7 @@ android {
 
     defaultConfig {
         minSdk = maxOf(googleMinSdk, mauiAndroidMinSdk)
-        missingDimensionStrategy("platform", "play")
+        missingDimensionStrategy("platform", openIapAndroidStore)
     }
 
     buildTypes {
@@ -95,7 +121,7 @@ kotlin {
 }
 
 dependencies {
-    compileOnly("io.github.hyochan.openiap:openiap-google:$openIapGoogleVersion")
+    compileOnly("io.github.hyochan.openiap:$openIapGoogleArtifact:$openIapGoogleVersion")
 
     implementation("androidx.core:core-ktx:$googleCoreKtxVersion")
     implementation("com.google.code.gson:gson:$gsonVersion")

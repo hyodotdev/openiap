@@ -91,20 +91,31 @@ export default function ApiReferencePage() {
 }`}
       </CodeBlock>
 
+      <h3 className="mt-6 text-lg font-semibold">Amazon Appstore variant</h3>
+      <CodeBlock language="javascript">
+        {`{
+  "store": "amazon",
+  "userId": "amzn1.account.ABC123",        // Amazon user id   (≤ 512 chars)
+  "receiptId": "amzn1.receipt.ABC123",     // Amazon receipt id (≤ 4 KB)
+  "sandbox": true                          // App Tester / RVS sandbox
+}`}
+      </CodeBlock>
+
       <Callout kind="note" title="Malformed inputs stop at the edge">
         <p>
           The JSON body is capped at 32 KB before parsing. Every string field is
           then validated server-side for non-empty + per-field length bounds.
           Oversized fields return <code>400 INVALID_INPUT</code>; oversized
           request bodies return <code>413 PAYLOAD_TOO_LARGE</code>. Neither path
-          calls Apple / Google / Meta, so malformed clients don't burn your
-          upstream quota.
+          calls Apple / Google / Horizon / Amazon, so malformed clients don't
+          burn your upstream quota.
         </p>
       </Callout>
 
       <h2 className="mt-10 text-2xl font-semibold">Success response</h2>
       <CodeBlock title="200 OK" language="json">
         {`{
+  "store": "amazon",
   "isValid": true,
   "state": "ENTITLED",
   "productId": "premium_monthly"
@@ -112,11 +123,12 @@ export default function ApiReferencePage() {
       </CodeBlock>
 
       <p>
-        Your app can unlock premium state when <code>isValid === true</code>.{" "}
-        <code>state</code> carries the harmonized lifecycle position across all
-        three stores, and <code>productId</code> is the product id verified by
-        the upstream store. For Meta Horizon, <code>productId</code> is the SKU
-        IAPKit checked.
+        Your app can unlock local premium state, or your backend can grant its
+        own entitlement, when <code>isValid === true</code>. <code>state</code>{" "}
+        carries the harmonized lifecycle position across all supported stores,
+        and <code>productId</code> is the product id verified by the upstream
+        store. For Meta Horizon, <code>productId</code> is the SKU IAPKit
+        checked.
       </p>
       <p>
         If your own backend keeps an entitlement ledger, do not trust a
@@ -234,7 +246,7 @@ export default function ApiReferencePage() {
             <tr>
               <td className="px-3 py-2 font-mono text-xs">200</td>
               <td className="px-3 py-2">
-                <code>{`{ isValid, state, productId? }`}</code>
+                <code>{`{ store, isValid, state, productId? }`}</code>
               </td>
               <td className="px-3 py-2">Verification completed.</td>
             </tr>
@@ -242,7 +254,7 @@ export default function ApiReferencePage() {
               <td className="px-3 py-2 font-mono text-xs">400</td>
               <td className="px-3 py-2 font-mono text-xs">INVALID_INPUT</td>
               <td className="px-3 py-2">
-                Malformed body / unknown store / input exceeds size cap.
+                Malformed body / unknown store / oversized field.
               </td>
             </tr>
             <tr>

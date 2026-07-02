@@ -583,6 +583,35 @@ let userId = '123';
 var config = { timeout: 5000 };
 ```
 
+### Keep Single-Use Helpers Local
+
+Private helper functions used by only one function should be declared inside
+that function so their scope matches their real ownership. Keep helpers at file
+scope only when they are exported, reused by multiple call sites, or need a
+stable top-level identity for tests, recursion, or platform registration.
+
+```typescript
+// ✅ CORRECT - helper is owned by getResolved()
+function getResolved(): ResolvedModule {
+    function getExpectedModuleName(): NativeModuleName {
+        return isVegaOS() ? 'ExpoIapVega' : 'ExpoIap';
+    }
+
+    const expectedName = getExpectedModuleName();
+    return resolve(expectedName);
+}
+
+// ❌ INCORRECT - helper has only one call site but lives at file scope
+function getExpectedModuleName(): NativeModuleName {
+    return isVegaOS() ? 'ExpoIapVega' : 'ExpoIap';
+}
+
+function getResolved(): ResolvedModule {
+    const expectedName = getExpectedModuleName();
+    return resolve(expectedName);
+}
+```
+
 ### Prefer Interface Over Type for Objects
 
 ```typescript
@@ -1004,6 +1033,13 @@ The Google package supports **two build flavors**:
 2. Put reusable Kotlin helpers in `openiap/src/main/java/dev/hyo/openiap/utils/`
 3. Run `./scripts/generate-types.sh` to regenerate types
 4. **Test BOTH flavors** when making changes to shared code
+5. **Never persist local receipt-to-SKU aliases as entitlement identity**:
+   store-specific adapters may cache data for performance or correlate an
+   in-flight request by request ID, but they must not permanently rewrite
+   `productId`, `currentPlanId`, or entitlement state from app-local alias
+   storage. Subscription and entitlement state must come from the store response,
+   restore/query APIs, or Kit/server verification so client state cannot drift
+   from server truth.
 
 ### Build Commands
 
@@ -1798,7 +1834,7 @@ Use these checks before writing a release list:
 If the release is not published yet, use planned wording and plain text. If the
 release is published, verify the tag exists with `gh release view <tag>` before
 linking it. This prevents stale Package Releases tables such as documenting
-`maui-iap 1.0.1` when the actual release tag is `maui-iap-1.0.2`.
+`maui-iap 1.0.1` when the actual release tag is `maui-iap-1.0.3`.
 
 ---
 

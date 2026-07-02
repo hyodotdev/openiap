@@ -60,6 +60,7 @@ describe("apiRoutes", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
+      store: "google",
       isValid: true,
       state: "ENTITLED",
       productId: "premium.monthly",

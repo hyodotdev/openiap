@@ -13,6 +13,15 @@ pluginManagement {
             ?: error("maui-iap Android: missing $pluginId version in ${googleRootBuildFile.path}")
     }
 
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id == "com.android.library") {
+                val version = requested.version ?: return@eachPlugin
+                useModule("com.android.tools.build:gradle:$version")
+            }
+        }
+    }
+
     plugins {
         id("com.android.library") version googlePluginVersion("com.android.library")
         id("org.jetbrains.kotlin.android") version googlePluginVersion("org.jetbrains.kotlin.android")
@@ -40,5 +49,7 @@ include(":openiap")
 includeBuild("../../../packages/google") {
     dependencySubstitution {
         substitute(module("io.github.hyochan.openiap:openiap-google")).using(project(":openiap"))
+        substitute(module("io.github.hyochan.openiap:openiap-google-horizon")).using(project(":openiap"))
+        substitute(module("io.github.hyochan.openiap:openiap-google-amazon")).using(project(":openiap"))
     }
 }

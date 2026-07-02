@@ -29,7 +29,12 @@ function AndroidSetup() {
         <a href="/docs/horizon-setup" className="external-link">
           Horizon OS Setup Guide
         </a>{' '}
-        for Quest-specific configuration using the same Android SDK.
+        for Quest-specific configuration using the same Android SDK. For Amazon
+        Fire OS distribution, see the{' '}
+        <a href="/docs/fireos-setup" className="external-link">
+          Fire OS Setup Guide
+        </a>
+        .
       </div>
 
       <section>

@@ -16,7 +16,8 @@ function ReactNativeSetup() {
       <p>
         <code>react-native-iap</code> provides in-app purchase support for React
         Native apps using Nitro Modules. It supports StoreKit 2 on iOS and
-        Google Play Billing {GOOGLE_PLAY_BILLING.version}+ on Android.
+        Google Play Billing {GOOGLE_PLAY_BILLING.version}+ on Android by
+        default, with optional Horizon and Fire OS Android flavors.
       </p>
 
       <div
@@ -190,7 +191,81 @@ end`}
             Uses Google Play Billing {GOOGLE_PLAY_BILLING.version}+ with
             automatic service reconnection
           </li>
+          <li>
+            For Fire OS builds, use <code>amazon.fireOS=true</code> with the{' '}
+            <code>react-native-iap</code> config plugin, or set{' '}
+            <code>fireOsEnabled=true</code> in{' '}
+            <code>android/gradle.properties</code> when configuring Gradle
+            directly. See the{' '}
+            <a href="/docs/fireos-setup">Fire OS Setup Guide</a>.
+          </li>
+          <li>
+            For Vega OS, do not use an Android flavor. Create a React Native for
+            Vega target with its own package manifest, install Amazon's Vega
+            packages only in that target, and follow the{' '}
+            <a href="/docs/features/vega-os">Vega OS Runtime</a> guide.
+          </li>
         </ul>
+
+        <h3 id="vega-os" className="anchor-heading">
+          Vega OS
+          <a href="#vega-os" className="anchor-link">
+            #
+          </a>
+        </h3>
+        <p>
+          <code>react-native-iap</code> declares Amazon Vega runtime packages as
+          optional peer dependencies, so normal iOS, Android, Fire OS, and
+          Horizon installs do not need to install them. Unlike{' '}
+          <code>expo-iap</code>, the <code>react-native-iap</code> config plugin
+          does not generate a Vega <code>manifest.toml</code>, entry file, build
+          scripts, or package dependency sync during prebuild.
+        </p>
+        <p>
+          Plain React Native apps should keep Vega dependencies in a Vega-only
+          package manifest. The Kepler CLI package must be available as a
+          development dependency in that Vega target so the React Native CLI can
+          discover <code>build-vega</code>. Keep{' '}
+          <code>@amazon-devices/react-native-kepler</code> out of normal
+          iOS/Android <code>dependencies</code> and <code>devDependencies</code>{' '}
+          to avoid regular React Native Codegen scanning it.
+        </p>
+        <CodeBlock language="bash">{`# In the Vega-only React Native for Vega target
+yarn add react-native-iap
+yarn add @amazon-devices/keplerscript-appstore-iap-lib@~2.12.13 @amazon-devices/react-native-kepler@^2.0.0
+yarn add -D @amazon-devices/kepler-cli-platform@~0.22.0 @react-native-community/cli@11.3.2 @react-native/metro-config@^0.72.6`}</CodeBlock>
+        <p>
+          A Vega-only package manifest can keep the React Native for Vega
+          runtime as a direct dependency because that manifest is not used by
+          normal iOS or Android builds:
+        </p>
+        <CodeBlock language="json">{`{
+  "dependencies": {
+    "@amazon-devices/keplerscript-appstore-iap-lib": "~2.12.13",
+    "@amazon-devices/react-native-kepler": "^2.0.0",
+    "react": "18.2.0",
+    "react-native": "0.72.0"
+  },
+  "devDependencies": {
+    "@amazon-devices/kepler-cli-platform": "~0.22.0",
+    "@react-native-community/cli": "11.3.2",
+    "@react-native/metro-config": "^0.72.6"
+  },
+  "kepler": {
+    "projectType": "application",
+    "appName": "MyVegaApp",
+    "targets": ["tv"],
+    "os": ["vega"]
+  }
+}`}</CodeBlock>
+        <p>
+          The repository example follows this isolation model by generating a
+          temporary React Native 0.72 Vega project before running{' '}
+          <code>react-native build-vega</code>:
+        </p>
+        <CodeBlock language="bash">{`cd libraries/react-native-iap/example
+yarn build:vega:debug
+yarn run:vega:firetv`}</CodeBlock>
       </section>
 
       <section>
@@ -228,7 +303,7 @@ function Store() {
       // 2. Grant entitlement
       // 3. CRITICAL: Finish the transaction
       //    (Android auto-refunds after 3 days if not called!)
-      await finishTransaction(purchase, false); // true for consumables
+      await finishTransaction({ purchase, isConsumable: false }); // true for consumables
     },
     onPurchaseError: (error) => {
       if (error.code === ErrorCode.UserCancelled) return;
@@ -339,7 +414,7 @@ await initConnection();
 const purchaseSub = purchaseUpdatedListener(async (purchase) => {
   // Validate on server, then finish transaction
   // CRITICAL: Android auto-refunds after 3 days if not called!
-  await finishTransaction(purchase, false); // true for consumables
+  await finishTransaction({ purchase, isConsumable: false }); // true for consumables
 });
 
 const errorSub = purchaseErrorListener((error) => {
@@ -424,6 +499,14 @@ switch (error.code) {
           <li>
             <a href="/docs/horizon-setup">Horizon OS Setup</a> — Meta Quest
             in-app purchase configuration
+          </li>
+          <li>
+            <a href="/docs/fireos-setup">Fire OS Setup</a> — Fire OS Android
+            flavor configuration
+          </li>
+          <li>
+            <a href="/docs/features/vega-os">Vega OS Runtime</a> — React Native
+            for Vega runtime adapter
           </li>
           <li>
             <a

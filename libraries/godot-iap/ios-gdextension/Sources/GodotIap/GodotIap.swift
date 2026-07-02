@@ -1018,6 +1018,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     @Callable
     public func verifyPurchase(propsJson: String) -> String {
         GodotIapLog.payload("Verifying purchase", payload: nil)
+        let requestId = UUID().uuidString
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -1026,6 +1027,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                     await MainActor.run { [self] in
                         let dict = VariantDictionary()
+                        dict["method"] = Variant("verifyPurchase")
+                        dict["requestId"] = Variant(requestId)
                         dict["success"] = Variant(false)
                         dict["error"] = Variant("Invalid arguments")
                         self.productsFetched.emit(dict)
@@ -1039,6 +1042,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
+                    dict["method"] = Variant("verifyPurchase")
+                    dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(true)
                     let resultDict = OpenIapSerialization.encode(result)
                     if let jsonData = try? JSONSerialization.data(withJSONObject: resultDict),
@@ -1051,6 +1056,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 GodotIapLog.debug("[GodotIap] verifyPurchase error: \(error.localizedDescription)")
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
+                    dict["method"] = Variant("verifyPurchase")
+                    dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(false)
                     dict["error"] = Variant(error.localizedDescription)
                     self.productsFetched.emit(dict)
@@ -1058,7 +1065,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             }
         }
 
-        return "{\"status\": \"pending\"}"
+        return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
     }
 
     @Callable
@@ -1130,6 +1137,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     @Callable
     public func verifyPurchaseWithProvider(propsJson: String) -> String {
         GodotIapLog.payload("Verifying purchase with provider", payload: nil)
+        let requestId = UUID().uuidString
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -1138,6 +1146,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                     await MainActor.run { [self] in
                         let dict = VariantDictionary()
+                        dict["method"] = Variant("verifyPurchaseWithProvider")
+                        dict["requestId"] = Variant(requestId)
                         dict["success"] = Variant(false)
                         dict["error"] = Variant("Invalid arguments")
                         self.productsFetched.emit(dict)
@@ -1152,6 +1162,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
+                    dict["method"] = Variant("verifyPurchaseWithProvider")
+                    dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(true)
                     let resultDict = OpenIapSerialization.encode(result)
                     if let jsonData = try? JSONSerialization.data(withJSONObject: resultDict),
@@ -1164,6 +1176,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 GodotIapLog.debug("[GodotIap] verifyPurchaseWithProvider error: \(error.localizedDescription)")
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
+                    dict["method"] = Variant("verifyPurchaseWithProvider")
+                    dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(false)
                     dict["error"] = Variant(error.localizedDescription)
                     self.productsFetched.emit(dict)
@@ -1171,7 +1185,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             }
         }
 
-        return "{\"status\": \"pending\"}"
+        return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
     }
 
     // MARK: - StoreKit 2 Deprecated / Alias APIs

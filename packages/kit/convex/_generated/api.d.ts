@@ -41,6 +41,7 @@ import type * as projects_mutation from "../projects/mutation.js";
 import type * as projects_query from "../projects/query.js";
 import type * as projects_setupStatus from "../projects/setupStatus.js";
 import type * as purchases_action from "../purchases/action.js";
+import type * as purchases_amazon from "../purchases/amazon.js";
 import type * as purchases_android from "../purchases/android.js";
 import type * as purchases_cleanup from "../purchases/cleanup.js";
 import type * as purchases_errors from "../purchases/errors.js";
@@ -121,6 +122,7 @@ declare const fullApi: ApiFromModules<{
   "projects/query": typeof projects_query;
   "projects/setupStatus": typeof projects_setupStatus;
   "purchases/action": typeof purchases_action;
+  "purchases/amazon": typeof purchases_amazon;
   "purchases/android": typeof purchases_android;
   "purchases/cleanup": typeof purchases_cleanup;
   "purchases/errors": typeof purchases_errors;

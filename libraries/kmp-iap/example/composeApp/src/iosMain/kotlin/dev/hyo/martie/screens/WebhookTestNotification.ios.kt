@@ -3,6 +3,7 @@ package dev.hyo.martie.screens
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.suspendCancellableCoroutine
+import platform.CoreFoundation.CFAbsoluteTimeGetCurrent
 import platform.Foundation.NSError
 import platform.Foundation.NSHTTPURLResponse
 import platform.Foundation.NSMutableURLRequest
@@ -25,6 +26,11 @@ import platform.Foundation.setHTTPMethod
 import platform.Foundation.setValue
 import platform.darwin.NSObject
 import kotlin.coroutines.resume
+
+private const val CF_ABSOLUTE_TIME_UNIX_EPOCH_OFFSET_SECONDS = 978_307_200.0
+
+internal actual fun currentTimeMillis(): Long =
+    ((CFAbsoluteTimeGetCurrent() + CF_ABSOLUTE_TIME_UNIX_EPOCH_OFFSET_SECONDS) * 1000).toLong()
 
 @OptIn(BetaInteropApi::class)
 internal actual suspend fun triggerWebhookTestNotification(

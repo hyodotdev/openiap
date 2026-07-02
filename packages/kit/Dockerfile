@@ -77,6 +77,8 @@ COPY --from=builder --chown=openiap:openiap /app/packages/kit/dist ./public
 
 ENV STATIC_ROOT=/srv/public
 ENV PORT=3000
+ENV NODE_ENV=production
+ENV APP_ENV=production
 EXPOSE 3000/tcp
 
 USER openiap

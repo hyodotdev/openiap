@@ -30,7 +30,10 @@ import { api } from "@/convex";
 import { PageLoading } from "@/components/LoadingSpinner";
 import { cn, formatMicros, normalizeCurrencyCode } from "@/lib/utils";
 
-type DashboardProject = Omit<Doc<"projects">, "apiKey" | "horizonAppSecret">;
+type DashboardProject = Omit<
+  Doc<"projects">,
+  "apiKey" | "horizonAppSecret" | "amazonSharedSecret"
+>;
 type ProjectContext = { project: DashboardProject };
 
 type Platform = "IOS" | "Android";

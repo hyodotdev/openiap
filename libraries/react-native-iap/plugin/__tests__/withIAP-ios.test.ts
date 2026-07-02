@@ -17,6 +17,16 @@ jest.mock('expo/config-plugins', () => ({
     const updated = {...original, contents: result.modResults.contents};
     return {...config, modResults: updated};
   },
+  withGradleProperties: (config: any, action: any) => {
+    const original = config.modResults;
+    const cfg = {...config, modResults: original.gradleProperties ?? []};
+    const result = action(cfg);
+    const updated = {
+      ...original,
+      gradleProperties: result.modResults,
+    };
+    return {...config, modResults: updated};
+  },
   withInfoPlist: (config: any, action: any) => {
     const original = config.modResults;
     const cfg = {...config, modResults: original.plist ?? {}};
@@ -70,6 +80,7 @@ describe('withIAP config plugin (iOS)', () => {
       modResults: {
         contents: options?.gradle ?? 'dependencies {\n}',
         manifest: options?.manifest ?? {manifest: {application: [{}]}},
+        gradleProperties: [],
         plist: options?.plist ?? {},
         entitlements: options?.entitlements ?? {},
         podfile: options?.podfile ?? '',

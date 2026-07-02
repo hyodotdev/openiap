@@ -1,16 +1,34 @@
 import type {ExpoConfig} from '@expo/config-types';
-import {
+import plugin, {
   computeAutolinkModules,
   ensureOnsidePodIOS,
   modifyAppBuildGradle,
+  normalizeGeneratedGroovyAppBuildGradle,
+  normalizeGeneratedGroovyProjectBuildGradle,
+  resolveAmazonPlatformFlags,
   resolveModuleSelection,
+  syncHorizonAppIdMetaData,
 } from '../src/withIAP';
+import {getAndroidLocalPathInput} from '../src/withLocalOpenIAP';
 import type {AutolinkState} from '../src/withIAP';
 import type {ExpoIapPluginCommonOptions} from '../src/expoConfig.augmentation';
+import {
+  createVegaAppJson,
+  createVegaEntryPoint,
+  createVegaManifest,
+  mergeVegaPackageJson,
+  normalizeVegaPackageId,
+  resolveVegaProjectSettings,
+} from '../src/withVega';
 
 // Type-level expectations
 const autoModeOptions: ExpoIapPluginCommonOptions = {
+  amazon: {fireOS: false, vegaOS: false},
   modules: {onside: true},
+};
+
+const groupedAmazonOptions: ExpoIapPluginCommonOptions = {
+  amazon: {fireOS: true, vegaOS: true},
 };
 
 const explicitModeOptions: ExpoIapPluginCommonOptions = {
@@ -21,6 +39,7 @@ const invalidExplicitOptions: ExpoIapPluginCommonOptions = {
   modules: {onside: false},
 };
 void autoModeOptions;
+void groupedAmazonOptions;
 void explicitModeOptions;
 void invalidExplicitOptions;
 
@@ -56,6 +75,276 @@ describe('android configuration', () => {
     const matches = result.match(dependencyRegex) ?? [];
     expect(matches).toHaveLength(1);
     expect(result).not.toContain('openiap-google:0.0.1');
+  });
+
+  it('uses Fire OS artifact and flavor when Fire OS is enabled', () => {
+    const baseGradle = [
+      'android {',
+      '    defaultConfig {',
+      '    }',
+      '}',
+      'dependencies {',
+      '    implementation "io.github.hyochan.openiap:openiap-google-horizon:0.0.1"',
+      '}',
+      '',
+    ].join('\n');
+    const result = modifyAppBuildGradle(baseGradle, 'groovy', false, true);
+
+    expect(result).toContain(
+      `    implementation "io.github.hyochan.openiap:openiap-google-amazon:${dependencyVersion}"`,
+    );
+    expect(result).toContain(
+      '        missingDimensionStrategy "platform", "amazon"',
+    );
+    expect(result).not.toContain('openiap-google-horizon:0.0.1');
+  });
+
+  it('prefers Fire OS over Horizon when both store flags are enabled', () => {
+    const baseGradle = [
+      'android {',
+      '    defaultConfig {',
+      '    }',
+      '}',
+      'dependencies {',
+      '}',
+      '',
+    ].join('\n');
+    const result = modifyAppBuildGradle(baseGradle, 'kotlin', true, true);
+
+    expect(result).toContain(
+      `    implementation("io.github.hyochan.openiap:openiap-google-amazon:${dependencyVersion}")`,
+    );
+    expect(result).toContain(
+      '        missingDimensionStrategy("platform", "amazon")',
+    );
+  });
+
+  it('replaces stale platform strategy when returning to Play', () => {
+    const baseGradle = [
+      'android {',
+      '    defaultConfig {',
+      '        missingDimensionStrategy "platform", "amazon"',
+      '    }',
+      '}',
+      'dependencies {',
+      '    implementation "io.github.hyochan.openiap:openiap-google-amazon:0.0.1"',
+      '}',
+      '',
+    ].join('\n');
+    const result = modifyAppBuildGradle(baseGradle, 'groovy');
+
+    expect(result).toContain(
+      `    implementation "io.github.hyochan.openiap:openiap-google:${dependencyVersion}"`,
+    );
+    expect(result).not.toContain('openiap-google-amazon:0.0.1');
+    expect(result).toContain('missingDimensionStrategy "platform", "play"');
+  });
+
+  it('normalizes Expo generated Groovy root Gradle syntax', () => {
+    const result = normalizeGeneratedGroovyProjectBuildGradle(
+      "allprojects {\n  repositories {\n    maven { url 'https://www.jitpack.io' }\n  }\n}\n",
+    );
+
+    expect(result).toContain("maven { url = uri('https://www.jitpack.io') }");
+    expect(result).not.toContain("url 'https://www.jitpack.io'");
+  });
+
+  it('normalizes Expo generated Groovy app Gradle assignment syntax', () => {
+    const result = normalizeGeneratedGroovyAppBuildGradle(
+      [
+        'android {',
+        '    ndkVersion rootProject.ext.ndkVersion',
+        '    buildToolsVersion rootProject.ext.buildToolsVersion',
+        '    compileSdk rootProject.ext.compileSdkVersion',
+        "    namespace 'dev.hyo.openiap.expo.example'",
+        '    defaultConfig {',
+        "        applicationId 'dev.hyo.openiap.expo.example'",
+        '        minSdkVersion rootProject.ext.minSdkVersion',
+        '        targetSdkVersion rootProject.ext.targetSdkVersion',
+        '    }',
+        '    buildTypes {',
+        '        debug {',
+        '            signingConfig signingConfigs.debug',
+        '        }',
+        '        release {',
+        '            shrinkResources enableShrinkResources.toBoolean()',
+        '            crunchPngs enablePngCrunchInRelease.toBoolean()',
+        '        }',
+        '    }',
+        '    packagingOptions {',
+        '        jniLibs {',
+        '            useLegacyPackaging enableLegacyPackaging.toBoolean()',
+        '        }',
+        '    }',
+        '    androidResources {',
+        "        ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'",
+        '    }',
+        '}',
+      ].join('\n'),
+    );
+
+    expect(result).toContain('ndkVersion = rootProject.ext.ndkVersion');
+    expect(result).toContain('compileSdk = rootProject.ext.compileSdkVersion');
+    expect(result).toContain("namespace = 'dev.hyo.openiap.expo.example'");
+    expect(result).toContain('minSdk = rootProject.ext.minSdkVersion');
+    expect(result).toContain('targetSdk = rootProject.ext.targetSdkVersion');
+    expect(result).toContain('signingConfig = signingConfigs.debug');
+    expect(result).toContain(
+      'shrinkResources = enableShrinkResources.toBoolean()',
+    );
+    expect(result).toContain(
+      'crunchPngs = enablePngCrunchInRelease.toBoolean()',
+    );
+    expect(result).toContain(
+      'useLegacyPackaging = enableLegacyPackaging.toBoolean()',
+    );
+    expect(result).toContain("ignoreAssetsPattern = '!.svn");
+    expect(result).not.toContain(
+      'compileSdk rootProject.ext.compileSdkVersion',
+    );
+    expect(result).not.toContain('minSdkVersion rootProject.ext.minSdkVersion');
+  });
+
+  it('allows Fire OS and Vega OS to be enabled as Amazon targets', () => {
+    expect(
+      resolveAmazonPlatformFlags({
+        amazon: {fireOS: true, vegaOS: true},
+      }),
+    ).toEqual({
+      isFireOsEnabled: true,
+      isVegaEnabled: true,
+      isHorizonEnabled: false,
+      isOnsideEnabled: false,
+    });
+  });
+
+  it('keeps Onside and Horizon selection outside the Amazon group', () => {
+    expect(
+      resolveAmazonPlatformFlags({
+        modules: {horizon: true, onside: true},
+      }),
+    ).toEqual({
+      isFireOsEnabled: false,
+      isVegaEnabled: false,
+      isHorizonEnabled: true,
+      isOnsideEnabled: true,
+    });
+  });
+
+  it('lets Fire OS take precedence over Horizon for Android flavor selection', () => {
+    expect(
+      resolveAmazonPlatformFlags({
+        amazon: {fireOS: true, vegaOS: false},
+        modules: {horizon: true},
+      }),
+    ).toEqual({
+      isFireOsEnabled: true,
+      isVegaEnabled: false,
+      isHorizonEnabled: false,
+      isOnsideEnabled: false,
+    });
+  });
+
+  it('removes Horizon App ID metadata outside Horizon builds', () => {
+    const manifest = {
+      manifest: {
+        application: [
+          {
+            'meta-data': [
+              {
+                $: {
+                  'android:name': 'com.meta.horizon.platform.ovr.OCULUS_APP_ID',
+                  'android:value': '123',
+                },
+              },
+              {
+                $: {
+                  'android:name': 'dev.iapkit.API_KEY',
+                  'android:value': 'key',
+                },
+              },
+            ],
+          },
+        ],
+      },
+    };
+
+    expect(syncHorizonAppIdMetaData(manifest, false, '123')).toBe('removed');
+    expect(manifest.manifest.application[0]!['meta-data']).toEqual([
+      {
+        $: {
+          'android:name': 'dev.iapkit.API_KEY',
+          'android:value': 'key',
+        },
+      },
+    ]);
+  });
+
+  it('adds Horizon App ID metadata only for Horizon builds', () => {
+    const manifest = {manifest: {}};
+
+    expect(syncHorizonAppIdMetaData(manifest, false, '123')).toBe('unchanged');
+    expect(manifest.manifest).not.toHaveProperty('application');
+
+    expect(syncHorizonAppIdMetaData(manifest, true, '123')).toBe('added');
+    expect(manifest.manifest.application?.[0]?.['meta-data']).toEqual([
+      {
+        $: {
+          'android:name': 'com.meta.horizon.platform.ovr.OCULUS_APP_ID',
+          'android:value': '123',
+        },
+      },
+    ]);
+  });
+
+  it('normalizes a single meta-data object before adding Horizon metadata', () => {
+    const manifest = {
+      manifest: {
+        application: [
+          {
+            'meta-data': {
+              $: {
+                'android:name': 'dev.iapkit.API_KEY',
+                'android:value': 'key',
+              },
+            },
+          },
+        ],
+      },
+    };
+
+    expect(syncHorizonAppIdMetaData(manifest, true, '123')).toBe('added');
+    expect(manifest.manifest.application[0]!['meta-data']).toEqual([
+      {
+        $: {
+          'android:name': 'dev.iapkit.API_KEY',
+          'android:value': 'key',
+        },
+      },
+      {
+        $: {
+          'android:name': 'com.meta.horizon.platform.ovr.OCULUS_APP_ID',
+          'android:value': '123',
+        },
+      },
+    ]);
+  });
+});
+
+describe('local OpenIAP configuration', () => {
+  it('uses string localPath for Android local module resolution', () => {
+    expect(getAndroidLocalPathInput('/repo/packages/google')).toBe(
+      '/repo/packages/google',
+    );
+  });
+
+  it('uses android localPath when platform paths are split', () => {
+    expect(
+      getAndroidLocalPathInput({
+        ios: '/repo/packages/apple',
+        android: '/repo/packages/google',
+      }),
+    ).toBe('/repo/packages/google');
   });
 });
 
@@ -235,5 +524,153 @@ describe('ensureOnsidePodIOS', () => {
 
     expect(content).not.toBe(basePodfile);
     expect(content).toContain("ENV['EXPO_IAP_ONSIDE'] = '1'");
+  });
+});
+
+describe('vega project generation', () => {
+  it('normalizes derived Vega package ids', () => {
+    expect(normalizeVegaPackageId('dev.hyo.martie')).toBe('dev.hyo.martie');
+    expect(normalizeVegaPackageId('123 bad id')).toBe('app_123.bad.id');
+  });
+
+  it('creates a manifest from Expo config defaults', () => {
+    const settings = resolveVegaProjectSettings({
+      name: 'Expo IAP Example',
+      slug: 'expo-iap-example',
+      version: '1.0.0',
+      icon: './assets/images/icon.png',
+      android: {package: 'dev.hyo.martie'},
+    } as ExpoConfig);
+    const manifest = createVegaManifest(settings);
+
+    expect(settings.packageId).toBe('dev.hyo.martie');
+    expect(settings.componentId).toBe('dev.hyo.martie.main');
+    expect(settings.appName).toBe('ExpoIAPExample');
+    expect(manifest).toContain('id = "dev.hyo.martie"');
+    expect(manifest).toContain('icon = "@image/icon.png"');
+    expect(manifest).toContain('id = "com.amazon.iap.core.service"');
+    expect(manifest).toContain(
+      'id = "/com.amazon.kepler.appstore.iap.purchase.core@IAppstoreIAPPurchaseCoreService"',
+    );
+    expect(createVegaEntryPoint()).toContain(
+      'AppRegistry.registerComponent(appName, () => App);',
+    );
+    expect(createVegaAppJson(settings)).toEqual({
+      name: 'ExpoIAPExample',
+      displayName: 'Expo IAP Example',
+      expoIapGenerated: true,
+    });
+  });
+
+  it('merges Vega scripts, dependency buckets, and kepler metadata', () => {
+    const settings = resolveVegaProjectSettings({
+      name: 'Expo IAP Example',
+      slug: 'expo-iap-example',
+      android: {package: 'dev.hyo.martie'},
+    } as ExpoConfig);
+    const result = mergeVegaPackageJson(
+      {
+        scripts: {start: 'expo start'},
+        dependencies: {expo: '^54.0.0'},
+        devDependencies: {typescript: '~5.9.2'},
+      },
+      settings,
+    );
+
+    expect(result.scripts?.start).toBe('expo start');
+    expect(result.scripts?.['vega:prebuild']).toContain('expo prebuild');
+    expect(result.scripts?.['build:vega:release']).toContain('expo prebuild');
+    expect(result.scripts?.['build:vega:release']).toContain('build-vega');
+    expect(result.scripts?.['run:vega:firetv']).toContain('armv7-debug');
+    expect(result.scripts?.['run:vega:firetv']).toContain(
+      'vega device install-app',
+    );
+    expect(result.scripts?.['run:vega:firetv']).toContain(
+      'vega device launch-app',
+    );
+    expect(result.dependencies?.expo).toBe('^54.0.0');
+    expect(
+      result.dependencies?.['@amazon-devices/keplerscript-appstore-iap-lib'],
+    ).toBe('~2.12.13');
+    expect(
+      result.devDependencies?.['@amazon-devices/kepler-cli-platform'],
+    ).toBe('~0.22.0');
+    expect(
+      result.devDependencies?.['@amazon-devices/react-native-kepler'],
+    ).toBeUndefined();
+    expect(
+      result.optionalDependencies?.['@amazon-devices/react-native-kepler'],
+    ).toBe('^2.0.0');
+    expect(result.kepler?.appName).toBe('ExpoIAPExample');
+  });
+
+  it('moves existing react-native-kepler direct dependency into optionalDependencies', () => {
+    const settings = resolveVegaProjectSettings({
+      name: 'Expo IAP Example',
+      slug: 'expo-iap-example',
+      android: {package: 'dev.hyo.martie'},
+    } as ExpoConfig);
+    const result = mergeVegaPackageJson(
+      {
+        dependencies: {
+          '@amazon-devices/keplerscript-appstore-iap-lib': '~2.12.13',
+        },
+        devDependencies: {
+          '@amazon-devices/kepler-cli-platform': '~0.22.0',
+          '@amazon-devices/react-native-kepler': '^2.0.0',
+        },
+      },
+      settings,
+    );
+
+    expect(
+      result.dependencies?.['@amazon-devices/keplerscript-appstore-iap-lib'],
+    ).toBe('~2.12.13');
+    expect(
+      result.devDependencies?.['@amazon-devices/kepler-cli-platform'],
+    ).toBe('~0.22.0');
+    expect(
+      result.devDependencies?.['@amazon-devices/react-native-kepler'],
+    ).toBeUndefined();
+    expect(
+      result.optionalDependencies?.['@amazon-devices/react-native-kepler'],
+    ).toBe('^2.0.0');
+  });
+
+  it('moves Vega CLI tooling out of optionalDependencies for command discovery', () => {
+    const settings = resolveVegaProjectSettings({
+      name: 'Expo IAP Example',
+      slug: 'expo-iap-example',
+      android: {package: 'dev.hyo.martie'},
+    } as ExpoConfig);
+    const result = mergeVegaPackageJson(
+      {
+        optionalDependencies: {
+          '@amazon-devices/kepler-cli-platform': '~0.22.0',
+          '@amazon-devices/kepler-compatibility-metro-config': '^0.0.6',
+          '@amazon-devices/kepler-module-resolver-preset': '^0.1.15',
+          '@amazon-devices/react-native-kepler': '^2.0.0',
+        },
+      },
+      settings,
+    );
+
+    expect(
+      result.devDependencies?.['@amazon-devices/kepler-cli-platform'],
+    ).toBe('~0.22.0');
+    expect(
+      result.devDependencies?.[
+        '@amazon-devices/kepler-compatibility-metro-config'
+      ],
+    ).toBe('^0.0.6');
+    expect(
+      result.devDependencies?.['@amazon-devices/kepler-module-resolver-preset'],
+    ).toBe('^0.1.15');
+    expect(
+      result.optionalDependencies?.['@amazon-devices/kepler-cli-platform'],
+    ).toBeUndefined();
+    expect(
+      result.optionalDependencies?.['@amazon-devices/react-native-kepler'],
+    ).toBe('^2.0.0');
   });
 });

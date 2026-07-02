@@ -155,6 +155,27 @@ function normalizeHorizonAppSecret(input: string): string {
   return normalized;
 }
 
+function normalizeAmazonSharedSecret(input: string): string {
+  const normalized = input.trim();
+  if (!normalized) {
+    throw createError(
+      ErrorCode.INVALID_INPUT,
+      "Amazon RVS shared secret cannot be empty.",
+    );
+  }
+  // Amazon shared secrets are opaque strings copied from the Amazon
+  // Developer Console and may contain punctuation such as ':' and '='.
+  // Validate only a sane size envelope so we don't reject legitimate
+  // production secrets or sandbox placeholders.
+  if (normalized.length > 2_048) {
+    throw createError(
+      ErrorCode.INVALID_INPUT,
+      "Amazon RVS shared secret looks malformed (expected 1–2048 characters).",
+    );
+  }
+  return normalized;
+}
+
 // Helper to generate URL-friendly slug
 function generateSlug(name: string): string {
   return name
@@ -280,6 +301,7 @@ export const updateProject = mutation({
     horizonEnabled: v.optional(v.boolean()),
     horizonAppId: v.optional(v.string()),
     horizonAppSecret: v.optional(v.string()),
+    amazonSharedSecret: v.optional(v.union(v.string(), v.null())),
     reportingCurrency: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -369,6 +391,12 @@ export const updateProject = mutation({
       updates.horizonAppSecret = normalizeHorizonAppSecret(
         args.horizonAppSecret,
       );
+    }
+    if (args.amazonSharedSecret !== undefined) {
+      updates.amazonSharedSecret =
+        args.amazonSharedSecret === null
+          ? null
+          : normalizeAmazonSharedSecret(args.amazonSharedSecret);
     }
 
     // Invariant: enabling Horizon without both credentials leaves the

@@ -319,7 +319,7 @@ func fetch_products(request) -> Array:
 		for product_dict in result["products"]:
 			if product_dict is Dictionary:
 				if _platform == "Android":
-					products.append(Types.ProductAndroid.from_dict(product_dict))
+					products.append(Types.ProductAndroid.from_dict(_normalize_android_product_dict(product_dict)))
 				elif _platform == "iOS":
 					products.append(Types.ProductIOS.from_dict(product_dict))
 
@@ -386,9 +386,9 @@ func request_purchase(props) -> Variant:
 	var result = _request_purchase_raw(props.to_dict())
 	if result.get("success", false):
 		if _platform == "Android":
-			return Types.PurchaseAndroid.from_dict(result)
+			return Types.PurchaseAndroid.from_dict(_normalize_android_purchase_dict(result))
 		elif _platform == "iOS":
-			return Types.PurchaseIOS.from_dict(result)
+			return Types.PurchaseIOS.from_dict(_normalize_purchase_dict(result))
 	return null
 
 ## Internal: Request a purchase with raw Dictionary
@@ -405,25 +405,33 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 
 	var result_raw = null
 	if _platform == "Android":
-		# Android requestPurchase is async — returns null, result comes via purchase_updated signal
+		# Android requestPurchase is async — returns a pending response, then
+		# delivers the final state via purchase_updated / purchase_error.
 		var google_props = request.get("google", request.get("android", {}))
+		var offer_token = google_props.get("offerToken", google_props.get("offer_token", ""))
+		var offer_token_arr: Array = []
+		if not str(offer_token).is_empty():
+			offer_token_arr.append(str(offer_token))
+		var subscription_offers = google_props.get("subscriptionOffers", [])
+		if subscription_offers.is_empty() and not str(offer_token).is_empty() and not google_props.get("skus", []).is_empty():
+			subscription_offers = [{
+				"sku": google_props.get("skus", [])[0],
+				"offerToken": str(offer_token),
+			}]
 		var params = {
 			"type": purchase_type,
 			"skus": google_props.get("skus", []),
 			"obfuscatedAccountIdAndroid": google_props.get("obfuscatedAccountIdAndroid", ""),
 			"obfuscatedProfileIdAndroid": google_props.get("obfuscatedProfileIdAndroid", ""),
 			"isOfferPersonalized": google_props.get("isOfferPersonalized", false),
-			"subscriptionOffers": google_props.get("subscriptionOffers", []),
+			"offerTokenArr": offer_token_arr,
+			"subscriptionOffers": subscription_offers,
 			"purchaseTokenAndroid": google_props.get("purchaseTokenAndroid", ""),
 			"replacementModeAndroid": google_props.get("replacementModeAndroid", 0),
 		}
 		var params_json = JSON.stringify(params)
 		print("[GodotIap] Calling Android requestPurchase: type=", purchase_type, ", skus=", params["skus"].size(), ", subscriptionOffers=", params["subscriptionOffers"].size(), ", hasPurchaseToken=", not str(params["purchaseTokenAndroid"]).is_empty())
-		result_raw = _native_plugin.call("requestPurchase", params_json)
-		# Android: null means the purchase dialog was launched, result comes via signal
-		if result_raw == null:
-			print("[GodotIap] Android purchase dialog launched. Awaiting purchase_updated signal.")
-			return { "success": true, "pending": true }
+		result_raw = _native_plugin.call("requestPurchaseJson", params_json)
 	elif _platform == "iOS":
 		var apple_props = request.get("apple", request.get("ios", {}))
 		var sku = apple_props.get("sku", "")
@@ -564,11 +572,38 @@ func get_available_purchases(options = null) -> Array:
 	for purchase_dict in raw_purchases:
 		if purchase_dict is Dictionary:
 			if _platform == "Android":
-				purchases.append(Types.PurchaseAndroid.from_dict(purchase_dict))
+				purchases.append(Types.PurchaseAndroid.from_dict(_normalize_android_purchase_dict(purchase_dict)))
 			elif _platform == "iOS":
-				purchases.append(Types.PurchaseIOS.from_dict(purchase_dict))
+				purchases.append(Types.PurchaseIOS.from_dict(_normalize_purchase_dict(purchase_dict)))
 
 	return purchases
+
+
+func _normalize_purchase_dict(purchase_dict: Dictionary) -> Dictionary:
+	var normalized := purchase_dict.duplicate()
+	if normalized.has("ids") and normalized["ids"] is Array:
+		var typed_ids: Array[String] = []
+		for id in normalized["ids"]:
+			if id != null:
+				typed_ids.append(str(id))
+		normalized["ids"] = typed_ids
+	return normalized
+
+
+func _normalize_android_purchase_dict(purchase_dict: Dictionary) -> Dictionary:
+	var normalized := _normalize_purchase_dict(purchase_dict)
+	if not normalized.has("isAcknowledgedAndroid") and normalized.has("isAcknowledged"):
+		normalized["isAcknowledgedAndroid"] = normalized["isAcknowledged"]
+	return normalized
+
+
+func _normalize_android_product_dict(product_dict: Dictionary) -> Dictionary:
+	var normalized := product_dict.duplicate()
+	normalized.erase("discountOffers")
+	normalized.erase("subscriptionOffers")
+	normalized.erase("oneTimePurchaseOfferDetailsAndroid")
+	normalized.erase("subscriptionOfferDetailsAndroid")
+	return normalized
 
 ## Internal: Get available purchases raw
 func _get_available_purchases_raw() -> Array:
@@ -672,17 +707,30 @@ func get_storefront() -> String:
 ## See: https://openiap.dev/docs/features/validation#verify-purchase
 func verify_purchase(props) -> Variant:
 	print("[GodotIap] verify_purchase called")
-	var result = _verify_purchase_raw(props.to_dict())
+	var props_dict: Dictionary = props.to_dict() if props is Object and props.has_method("to_dict") else (props if props is Dictionary else {})
+	if _native_plugin and _platform == "iOS":
+		var pending = _native_plugin.call("verifyPurchase", JSON.stringify(props_dict))
+		var request_id = _parse_request_id(pending)
+		if request_id.is_empty():
+			push_warning("[GodotIap] verify_purchase missing requestId")
+			return null
+		var payload = await _await_products_fetched_for("verifyPurchase", request_id)
+		if payload is Dictionary and payload.get("success", false):
+			var payload_json = payload.get("resultJson", "")
+			var decoded = JSON.parse_string(payload_json)
+			if decoded is Dictionary:
+				return Types.VerifyPurchaseResultIOS.from_dict(decoded)
+		return null
+
+	var result = _verify_purchase_raw(props_dict)
 	if result.get("success", false) or result.get("isValid", false):
-		if _platform == "iOS":
-			return Types.VerifyPurchaseResultIOS.from_dict(result)
-		elif _platform == "Android":
+		if _platform == "Android":
 			return Types.VerifyPurchaseResultAndroid.from_dict(result)
 	return null
 
 ## Internal: Verify purchase with raw Dictionary
 func _verify_purchase_raw(props: Dictionary) -> Dictionary:
-	if _native_plugin and (_platform == "Android" or _platform == "iOS"):
+	if _native_plugin and _platform == "Android":
 		var props_json = JSON.stringify(props)
 		var result_json = _native_plugin.call("verifyPurchase", props_json)
 		var result = JSON.parse_string(result_json)
@@ -698,19 +746,58 @@ func _verify_purchase_raw(props: Dictionary) -> Dictionary:
 ## See: https://openiap.dev/docs/features/validation#verify-purchase-with-provider
 func verify_purchase_with_provider(props) -> Variant:
 	print("[GodotIap] verify_purchase_with_provider called")
-	var result = _verify_purchase_with_provider_raw(props.to_dict())
+	var props_dict: Dictionary = props.to_dict() if props is Object and props.has_method("to_dict") else (props if props is Dictionary else {})
+	if _native_plugin and _platform == "iOS":
+		var pending = _native_plugin.call("verifyPurchaseWithProvider", JSON.stringify(props_dict))
+		var request_id = _parse_request_id(pending)
+		if request_id.is_empty():
+			push_warning("[GodotIap] verify_purchase_with_provider missing requestId")
+			return Types.VerifyPurchaseWithProviderResult.from_dict({
+				"provider": props_dict.get("provider", "iapkit"),
+				"errors": [
+					{
+						"code": "purchase-verification-failed",
+						"message": "Missing requestId",
+					},
+				],
+			})
+		var payload = await _await_products_fetched_for("verifyPurchaseWithProvider", request_id)
+		if payload is Dictionary and payload.get("success", false):
+			var payload_json = payload.get("resultJson", "")
+			var decoded = JSON.parse_string(payload_json)
+			if decoded is Dictionary:
+				return Types.VerifyPurchaseWithProviderResult.from_dict(decoded)
+		return Types.VerifyPurchaseWithProviderResult.from_dict({
+			"provider": props_dict.get("provider", "iapkit"),
+			"errors": [
+				{
+					"code": "purchase-verification-failed",
+					"message": payload.get("error", "Verification failed") if payload is Dictionary else "Verification failed",
+				},
+			],
+		})
+
+	var result = _verify_purchase_with_provider_raw(props_dict)
 	return Types.VerifyPurchaseWithProviderResult.from_dict(result)
 
 ## Internal: Verify purchase with provider raw Dictionary
 func _verify_purchase_with_provider_raw(props: Dictionary) -> Dictionary:
-	if _native_plugin and (_platform == "Android" or _platform == "iOS"):
+	if _native_plugin and _platform == "Android":
 		var props_json = JSON.stringify(props)
 		var result_json = _native_plugin.call("verifyPurchaseWithProvider", props_json)
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
 			return result
 	# No native plugin
-	return { "success": false, "isValid": false, "error": "Not available in no native plugin" }
+	return {
+		"provider": props.get("provider", "iapkit"),
+		"errors": [
+			{
+				"code": "feature-not-supported",
+				"message": "Not available in no native plugin",
+			},
+		],
+	}
 
 
 # ==========================================

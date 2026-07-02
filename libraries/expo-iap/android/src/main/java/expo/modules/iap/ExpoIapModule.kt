@@ -496,7 +496,13 @@ class ExpoIapModule : Module() {
             }
 
             AsyncFunction("verifyPurchaseWithProvider") { params: Map<String, Any?>, promise: Promise ->
-                ExpoIapLog.payload("verifyPurchaseWithProvider", params)
+                ExpoIapLog.payload(
+                    "verifyPurchaseWithProvider",
+                    mapOf(
+                        "provider" to params["provider"],
+                        "hasIapkit" to (params["iapkit"] != null),
+                    ),
+                )
                 scope.launch {
                     try {
                         val props =

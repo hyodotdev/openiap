@@ -119,16 +119,23 @@ if git diff --cached --name-only --diff-filter=ACMR \
   fi
 fi
 
-# Paths-aware KMP compile check. Uses the existing `:library:compileDebugKotlinAndroid`
-# task because that's the same target CI runs. With a warm gradle daemon
-# this finishes in 5-10s; first run after `./gradlew --stop` can take 30-40s.
+# Paths-aware KMP compile check. Compiles each Android store flavor because
+# `compileDebugKotlinAndroid` is ambiguous once play/horizon/amazon flavors exist.
+# With a warm gradle daemon this finishes in 5-10s; first run after
+# `./gradlew --stop` can take 30-40s.
 # Catches the redeclaration / interface-method-missing class of failure
 # that hit PR #124.
 if git diff --cached --name-only --diff-filter=ACMR \
   | grep -qE '^(libraries/kmp-iap/library/src|packages/gql/src/)' ; then
   if [ -x libraries/kmp-iap/gradlew ]; then
-    echo "🎯 kmp/gql-touched commit — running ./gradlew :library:compileDebugKotlinAndroid…"
-    (cd libraries/kmp-iap && ./gradlew :library:compileDebugKotlinAndroid -q)
+    echo "🎯 kmp/gql-touched commit — running KMP Android flavor compiles…"
+    (
+      cd libraries/kmp-iap && ./gradlew \
+        :library:compilePlayDebugKotlinAndroid \
+        :library:compileHorizonDebugKotlinAndroid \
+        :library:compileAmazonDebugKotlinAndroid \
+        -q
+    )
   else
     echo "⚠️  libraries/kmp-iap/gradlew not executable — skipping KMP compile."
   fi

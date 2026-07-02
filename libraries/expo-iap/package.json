@@ -1,6 +1,6 @@
 {
   "name": "expo-iap",
-  "version": "4.3.6",
+  "version": "4.4.0-rc.5",
   "description": "In App Purchase module in Expo",
   "main": "build/index.js",
   "types": "build/index.d.ts",
@@ -65,9 +65,19 @@
     "ts-jest": "^29.4.1"
   },
   "peerDependencies": {
+    "@amazon-devices/keplerscript-appstore-iap-lib": "~2.12.13",
+    "@amazon-devices/package-manager-lib": "~1.0.1767254401",
     "expo": "*",
     "react": "*",
     "react-native": "*"
+  },
+  "peerDependenciesMeta": {
+    "@amazon-devices/keplerscript-appstore-iap-lib": {
+      "optional": true
+    },
+    "@amazon-devices/package-manager-lib": {
+      "optional": true
+    }
   },
   "expo": {
     "plugin": "./app.plugin.js"

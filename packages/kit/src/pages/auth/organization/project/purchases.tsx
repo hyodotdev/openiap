@@ -46,6 +46,7 @@ type PurchaseStats = {
 };
 
 type CardKey = "total" | "apple" | "google" | "valid" | "invalid";
+type StoreFilter = "apple" | "google" | "horizon" | "amazon";
 
 const STATS_LABELS: Record<CardKey, string> = {
   total: "Total Purchases",
@@ -87,7 +88,12 @@ export default function ProjectPurchases() {
   const requestIpQuery = searchParams.get("ip") ?? "";
   const storeParam = searchParams.get("store");
   const storeFilter =
-    storeParam === "apple" || storeParam === "google" ? storeParam : undefined;
+    storeParam === "apple" ||
+    storeParam === "google" ||
+    storeParam === "horizon" ||
+    storeParam === "amazon"
+      ? storeParam
+      : undefined;
   const sortFieldParam = searchParams.get("sortField") ?? "_creationTime";
   const sortDirectionParam = searchParams.get("sortDirection") ?? "desc";
   const sortField: "_creationTime" | "updatedAt" | "verificationDurationMs" =
@@ -237,7 +243,7 @@ export default function ProjectPurchases() {
     setExclusiveFilters({});
   };
 
-  const applyStoreFilter = (store: "apple" | "google") => {
+  const applyStoreFilter = (store: StoreFilter) => {
     setExclusiveFilters({ store });
   };
 
@@ -417,6 +423,14 @@ export default function ProjectPurchases() {
                 {
                   value: "google",
                   label: "Google Play",
+                },
+                {
+                  value: "horizon",
+                  label: "Meta Horizon",
+                },
+                {
+                  value: "amazon",
+                  label: "Amazon Appstore",
                 },
               ]}
             />

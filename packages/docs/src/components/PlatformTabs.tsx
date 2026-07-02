@@ -1,57 +1,80 @@
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, useMemo, ReactNode } from 'react';
+
+type Platform = 'ios' | 'android' | 'amazon' | 'horizon';
 
 interface PlatformTabsProps {
   children: {
     ios?: ReactNode;
     android?: ReactNode;
+    amazon?: ReactNode;
+    horizon?: ReactNode;
   };
 }
 
+const PLATFORM_LABELS: Record<Platform, string> = {
+  ios: 'iOS',
+  android: 'Android',
+  amazon: 'Fire OS',
+  horizon: 'Horizon OS',
+};
+
+const PLATFORM_ORDER: Platform[] = ['ios', 'android', 'horizon', 'amazon'];
+
+function platformFromHash(availablePlatforms: Platform[]): Platform | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const hash = window.location.hash.toLowerCase();
+  return availablePlatforms.find((platform) => hash.includes(platform)) ?? null;
+}
+
 function PlatformTabs({ children }: PlatformTabsProps) {
-  const [activeTab, setActiveTab] = useState<'ios' | 'android'>(() => {
-    // Check URL hash to determine initial tab
-    const hash = window.location.hash.toLowerCase();
-    if (hash.includes('android')) {
-      return 'android';
-    }
-    return 'ios';
-  });
+  const availablePlatforms = useMemo(
+    () => PLATFORM_ORDER.filter((platform) => children[platform] !== undefined),
+    [
+      children.ios !== undefined,
+      children.android !== undefined,
+      children.horizon !== undefined,
+      children.amazon !== undefined,
+    ]
+  );
+
+  const [activeTab, setActiveTab] = useState<Platform>(
+    () => availablePlatforms[0] ?? 'ios'
+  );
 
   useEffect(() => {
-    // Handle hash changes for tab switching
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     const handleHashChange = () => {
-      const hash = window.location.hash.toLowerCase();
-      if (hash.includes('android')) {
-        setActiveTab('android');
-      } else if (hash.includes('ios')) {
-        setActiveTab('ios');
+      const next = platformFromHash(availablePlatforms);
+      if (next) {
+        setActiveTab(next);
       }
     };
 
+    handleHashChange();
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
+  }, [availablePlatforms]);
 
   return (
     <div className="platform-tabs">
       <div className="platform-tabs-header">
-        <button
-          className={`platform-tab ${activeTab === 'ios' ? 'active' : ''}`}
-          onClick={() => setActiveTab('ios')}
-        >
-          iOS
-        </button>
-        <button
-          className={`platform-tab ${activeTab === 'android' ? 'active' : ''}`}
-          onClick={() => setActiveTab('android')}
-        >
-          Android
-        </button>
+        {availablePlatforms.map((platform) => (
+          <button
+            key={platform}
+            className={`platform-tab ${activeTab === platform ? 'active' : ''}`}
+            onClick={() => setActiveTab(platform)}
+          >
+            {PLATFORM_LABELS[platform]}
+          </button>
+        ))}
       </div>
-      <div className="platform-tabs-content">
-        {activeTab === 'ios' && children.ios}
-        {activeTab === 'android' && children.android}
-      </div>
+      <div className="platform-tabs-content">{children[activeTab]}</div>
     </div>
   );
 }

@@ -125,6 +125,12 @@ interface OpenIapModule
         [NullAllowed] string jws,
         Action<NSDictionary?, NSError?> completion);
 
+    [Export("verifyPurchaseWithProviderObjCWithPayload:completion:")]
+    [Async]
+    void VerifyPurchaseWithProviderPayload(
+        NSDictionary payload,
+        Action<NSDictionary?, NSError?> completion);
+
     // -- Storefront / Subscriptions ----------------------------------------
 
     [Export("getStorefrontWithCompletion:")]

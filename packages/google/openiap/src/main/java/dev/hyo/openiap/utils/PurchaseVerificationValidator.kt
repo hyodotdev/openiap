@@ -4,6 +4,7 @@ import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
 import com.google.gson.reflect.TypeToken
 import dev.hyo.openiap.IapStore
+import dev.hyo.openiap.IapkitPurchaseState
 import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapLog
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps
@@ -17,6 +18,7 @@ import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
+import java.util.Locale
 
 private const val DEFAULT_IAPKIT_ENDPOINT = "https://kit.openiap.dev/v1/purchase/verify"
 private val gson = Gson()
@@ -168,16 +170,100 @@ suspend fun verifyPurchaseWithIapkit(
     tag: String,
     connectionFactory: (String) -> HttpURLConnection = ::openConnection
 ): RequestVerifyPurchaseWithIapkitResult = withContext(Dispatchers.IO) {
+    fun malformedIapkitResponse(): OpenIapError.PurchaseVerificationFailed =
+        OpenIapError.PurchaseVerificationFailed("IAPKit returned malformed response")
+
     val endpoint = DEFAULT_IAPKIT_ENDPOINT
 
-    // On Android, only Google verification is supported via IAPKit
-    // Note: Horizon verification requires direct S2S API calls to Meta (not yet supported)
-    if (props.google == null) {
-        throw IllegalArgumentException("IAPKit verification on Android requires google payload")
+    val hasApple = props.apple != null
+    val hasGoogle = props.google != null
+    val hasAmazon = props.amazon != null
+    if (listOf(hasApple, hasGoogle, hasAmazon).count { it } != 1 || hasApple) {
+        throw IllegalArgumentException(
+            "IAPKit verification on Android requires exactly one google or amazon payload"
+        )
     }
 
-    val store = IapStore.Google
-    val payload = buildGooglePayload(props)
+    fun buildGooglePayload(): Map<String, Any?> {
+        val google = props.google
+            ?: throw IllegalArgumentException("IAPKit Google verification requires google options")
+        if (google.purchaseToken.isBlank()) {
+            throw IllegalArgumentException("IAPKit Google verification requires purchaseToken")
+        }
+        return mutableMapOf<String, Any?>(
+            "store" to IapStore.Google.rawValue,
+            "purchaseToken" to google.purchaseToken
+        )
+    }
+
+    fun buildAmazonPayload(): Map<String, Any?> {
+        val amazon = props.amazon
+            ?: throw IllegalArgumentException("IAPKit Amazon verification requires amazon options")
+        val userId = amazon.userId?.trim().orEmpty()
+        val receiptId = amazon.receiptId.trim()
+        if (userId.isBlank() || receiptId.isBlank()) {
+            throw IllegalArgumentException("IAPKit Amazon verification requires userId and receiptId")
+        }
+        return mutableMapOf<String, Any?>(
+            "store" to IapStore.Amazon.rawValue,
+            "userId" to userId,
+            "receiptId" to receiptId
+        ).apply {
+            amazon.sandbox?.let { put("sandbox", it) }
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    fun extractIapkitErrorMessage(json: Map<String, Any?>): String? {
+        fun extractStringMessage(value: String): String {
+            return try {
+                val nested = gson.fromJson(value, Map::class.java) as? Map<String, Any?>
+                if (nested != null) {
+                    extractIapkitErrorMessage(nested) ?: value
+                } else {
+                    value
+                }
+            } catch (e: Exception) {
+                value
+            }
+        }
+
+        val errorsRaw = json["errors"]
+        if (errorsRaw is List<*>) {
+            val firstError = errorsRaw.firstOrNull()
+            if (firstError is Map<*, *>) {
+                return extractIapkitErrorMessage(firstError as Map<String, Any?>)
+            }
+        }
+
+        val detailsRaw = json["details"]
+        if (detailsRaw is Map<*, *>) {
+            val details = detailsRaw as Map<String, Any?>
+            val originalError = details["originalError"]
+            if (originalError is String) {
+                return extractStringMessage(originalError)
+            }
+        }
+
+        val message = json["message"] as? String
+        if (message != null) {
+            return extractStringMessage(message)
+        }
+
+        val error = json["error"] as? String
+        if (error != null) {
+            return extractStringMessage(error)
+        }
+
+        return null
+    }
+
+    val store = if (hasAmazon) IapStore.Amazon else IapStore.Google
+    val payload = when (store) {
+        IapStore.Amazon -> buildAmazonPayload()
+        IapStore.Google -> buildGooglePayload()
+        else -> throw IllegalArgumentException("IAPKit verification on Android does not support ${store.rawValue}")
+    }
 
     val connection = connectionFactory(endpoint).apply {
         requestMethod = "POST"
@@ -190,6 +276,47 @@ suspend fun verifyPurchaseWithIapkit(
 
     try {
         val body = gson.toJson(payload)
+        val mapType = object : TypeToken<Map<String, Any?>>() {}.type
+
+        fun parseIapkitObject(responseBody: String): Map<String, Any?> {
+            return try {
+                gson.fromJson<Map<String, Any?>>(responseBody, mapType)
+                    ?: throw malformedIapkitResponse()
+            } catch (error: JsonSyntaxException) {
+                OpenIapLog.warn("Failed to parse IAPKit verification response: ${error.message}", tag)
+                throw OpenIapError.PurchaseVerificationFailed("Failed to parse response")
+            }
+        }
+
+        fun readIapkitResult(parsed: Map<String, Any?>): RequestVerifyPurchaseWithIapkitResult {
+            val errorsRaw = parsed["errors"]
+            if (errorsRaw is List<*> && errorsRaw.isNotEmpty()) {
+                val errorMessage = extractIapkitErrorMessage(parsed) ?: "IAPKit verification failed"
+                throw OpenIapError.PurchaseVerificationFailed(errorMessage)
+            }
+
+            val isValid = parsed["isValid"] as? Boolean
+                ?: throw malformedIapkitResponse()
+            val state = parsed["state"] as? String
+                ?: throw malformedIapkitResponse()
+            val responseStore = (parsed["store"] as? String)
+                ?.let { runCatching { IapStore.fromJson(it) }.getOrNull() }
+                ?: throw malformedIapkitResponse()
+            if (responseStore != store) {
+                throw malformedIapkitResponse()
+            }
+
+            val normalizedState = state.lowercase(Locale.ROOT).replace("_", "-")
+            val parsedState = runCatching {
+                IapkitPurchaseState.fromJson(normalizedState)
+            }.getOrDefault(IapkitPurchaseState.Unknown)
+
+            return RequestVerifyPurchaseWithIapkitResult(
+                isValid = isValid,
+                state = parsedState,
+                store = responseStore
+            )
+        }
 
         connection.outputStream.use { stream ->
             stream.write(body.toByteArray(Charsets.UTF_8))
@@ -206,7 +333,6 @@ suspend fun verifyPurchaseWithIapkit(
             // Extract concise error message from IAPKit response
             // IAPKit returns nested error format - extract the deepest originalError
             val errorMessage = try {
-                val mapType = object : TypeToken<Map<String, Any?>>() {}.type
                 val errorJson = gson.fromJson<Map<String, Any?>>(responseBody, mapType)
                 extractIapkitErrorMessage(errorJson) ?: "HTTP $statusCode"
             } catch (e: Exception) {
@@ -215,102 +341,13 @@ suspend fun verifyPurchaseWithIapkit(
             throw OpenIapError.PurchaseVerificationFailed(errorMessage)
         }
 
-        try {
-            val mapType = object : TypeToken<Map<String, Any?>>() {}.type
-            val parsed = gson.fromJson<Map<String, Any?>>(responseBody, mapType)
-            // IAPKit API returns UPPER_SNAKE_CASE (e.g., "PURCHASED", "PENDING_ACKNOWLEDGMENT")
-            // Types.kt expects lower-kebab-case (e.g., "purchased", "pending-acknowledgment")
-            val normalizedParsed = parsed.toMutableMap().apply {
-                val state = this["state"] as? String
-                if (state != null) {
-                    this["state"] = state.lowercase().replace("_", "-")
-                }
-                // IAPKit response doesn't include store, add it from request
-                if (this["store"] == null) {
-                    this["store"] = store.toJson()
-                }
-            }
-            RequestVerifyPurchaseWithIapkitResult.fromJson(normalizedParsed)
-        } catch (jsonError: Exception) {
-            OpenIapLog.warn("Failed to parse IAPKit verification response: ${jsonError.message}", tag)
-            throw OpenIapError.PurchaseVerificationFailed("Failed to parse response")
-        }
+        readIapkitResult(parseIapkitObject(responseBody))
     } catch (io: IOException) {
         OpenIapLog.warn("Network error during IAPKit verification: ${io.message}", tag)
-        throw OpenIapError.PurchaseVerificationFailed("Network error: ${io.message}")
+        throw OpenIapError.NetworkError
     } finally {
         connection.disconnect()
     }
 }
 
-/**
- * Build payload for Google Play Store verification via IAPKit.
- */
-private fun buildGooglePayload(props: RequestVerifyPurchaseWithIapkitProps): Map<String, Any?> {
-    val google = props.google
-        ?: throw IllegalArgumentException("IAPKit Google verification requires google options")
-    if (google.purchaseToken.isBlank()) {
-        throw IllegalArgumentException("IAPKit Google verification requires purchaseToken")
-    }
-    return mutableMapOf<String, Any?>(
-        "store" to IapStore.Google.rawValue,
-        "purchaseToken" to google.purchaseToken
-    )
-}
-
-
 private fun String?.orElse(fallback: String): String = this ?: fallback
-
-/**
- * Extract concise error message from IAPKit error response.
- * IAPKit returns nested error structures - we extract the deepest originalError for clarity.
- *
- * Example input:
- * {"error":"PLAY_STORE_VERIFICATION_ERROR","message":"Failed to verify Google Play purchase: {...}",
- *  "details":{"originalError":"..."}}
- *
- * Returns: "The purchase token is no longer valid." (the deepest originalError)
- */
-@Suppress("UNCHECKED_CAST")
-private fun extractIapkitErrorMessage(json: Map<String, Any?>): String? {
-    // Try errors array format first: { "errors": [{ "code": "...", "message": "..." }] }
-    val errorsRaw = json["errors"]
-    if (errorsRaw is List<*>) {
-        val firstError = errorsRaw.firstOrNull()
-        if (firstError is Map<*, *>) {
-            val errorMap = firstError as Map<String, Any?>
-            // Recursively extract from first error
-            return extractIapkitErrorMessage(errorMap)
-        }
-    }
-
-    // Try to get details.originalError (deepest level)
-    val detailsRaw = json["details"]
-    if (detailsRaw is Map<*, *>) {
-        val details = detailsRaw as Map<String, Any?>
-        val originalError = details["originalError"]
-        if (originalError is String) {
-            // originalError might be a JSON string, try to parse it
-            return try {
-                val nested = gson.fromJson(originalError, Map::class.java) as? Map<String, Any?>
-                if (nested != null) {
-                    extractIapkitErrorMessage(nested) ?: originalError
-                } else {
-                    originalError
-                }
-            } catch (e: Exception) {
-                // Not JSON, use as-is
-                originalError
-            }
-        }
-    }
-
-    // Try message field, but avoid the verbose nested JSON string
-    val message = json["message"] as? String
-    if (message != null && !message.contains("{\"error\"")) {
-        return message
-    }
-
-    // Fallback to error code
-    return json["error"] as? String
-}

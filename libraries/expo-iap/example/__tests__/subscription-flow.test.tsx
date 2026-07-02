@@ -1,7 +1,6 @@
 import React from 'react';
-import {render, fireEvent} from '@testing-library/react-native';
+import {render, fireEvent, waitFor} from '@testing-library/react-native';
 import {Alert, Platform} from 'react-native';
-import SubscriptionFlow from '../app/subscription-flow';
 
 // Mock expo-constants
 jest.mock('expo-constants', () => ({
@@ -18,7 +17,7 @@ jest.spyOn(Alert, 'alert');
 // Mock the functions
 const mockInitConnection = jest.fn().mockResolvedValue(true);
 const mockFetchProducts = jest.fn();
-const mockRequestPurchase = jest.fn();
+const mockRequestPurchase = jest.fn().mockResolvedValue(undefined);
 const mockFinishTransaction = jest.fn();
 const mockGetActiveSubscriptions = jest.fn();
 const mockGetAvailablePurchases = jest.fn().mockResolvedValue([]);
@@ -71,6 +70,14 @@ jest.mock('../../src', () => ({
   useIAP: () => mockUseIAP(),
 }));
 
+const SubscriptionFlow = require('../app/subscription-flow').default;
+
+async function renderConnectedSubscriptionFlow() {
+  const result = render(<SubscriptionFlow />);
+  await waitFor(() => expect(mockGetActiveSubscriptions).toHaveBeenCalled());
+  return result;
+}
+
 describe('SubscriptionFlow Component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -92,26 +99,26 @@ describe('SubscriptionFlow Component', () => {
     });
   });
 
-  it('should render without crashing', () => {
-    const {getByText} = render(<SubscriptionFlow />);
+  it('should render without crashing', async () => {
+    const {getByText} = await renderConnectedSubscriptionFlow();
     expect(getByText('Subscription Flow')).toBeDefined();
   });
 
-  it('should show connected status', () => {
-    const {getByText} = render(<SubscriptionFlow />);
+  it('should show connected status', async () => {
+    const {getByText} = await renderConnectedSubscriptionFlow();
     // Look for the text that contains "Connected"
     expect(getByText(/✅ Connected/)).toBeDefined();
   });
 
-  it('should display subscriptions', () => {
-    const {getByText} = render(<SubscriptionFlow />);
+  it('should display subscriptions', async () => {
+    const {getByText} = await renderConnectedSubscriptionFlow();
     expect(getByText('Test Subscription')).toBeDefined();
     // The subscription might show different price format
     expect(getByText('Test Description')).toBeDefined();
   });
 
-  it('should handle subscribe button click', () => {
-    const {getByText} = render(<SubscriptionFlow />);
+  it('should handle subscribe button click', async () => {
+    const {getByText} = await renderConnectedSubscriptionFlow();
     const subscribeButton = getByText('Subscribe');
 
     fireEvent.press(subscribeButton);
@@ -120,12 +127,12 @@ describe('SubscriptionFlow Component', () => {
     expect(mockFetchProducts).toHaveBeenCalled();
   });
 
-  it('should call fetchProducts on mount', () => {
-    render(<SubscriptionFlow />);
+  it('should call fetchProducts on mount', async () => {
+    await renderConnectedSubscriptionFlow();
     expect(mockFetchProducts).toHaveBeenCalled();
   });
 
-  it('should display active subscriptions when available', () => {
+  it('should display active subscriptions when available', async () => {
     const activeSubscription = {
       productId: 'test.subscription.1',
       isActive: true,
@@ -146,13 +153,13 @@ describe('SubscriptionFlow Component', () => {
       activeSubscriptions: [activeSubscription],
     });
 
-    const {getByText} = render(<SubscriptionFlow />);
+    const {getByText} = await renderConnectedSubscriptionFlow();
     expect(getByText('Current Subscription Status')).toBeDefined();
     expect(getByText('✅ Active')).toBeDefined();
     expect(getByText('test.subscription.1')).toBeDefined();
   });
 
-  it('should show expiration warning for soon-to-expire subscriptions', () => {
+  it('should show expiration warning for soon-to-expire subscriptions', async () => {
     const expiringSubscription = {
       productId: 'test.subscription.1',
       isActive: true,
@@ -172,12 +179,12 @@ describe('SubscriptionFlow Component', () => {
       activeSubscriptions: [expiringSubscription],
     });
 
-    const {getByText} = render(<SubscriptionFlow />);
+    const {getByText} = await renderConnectedSubscriptionFlow();
     expect(getByText(/Your subscription will expire soon/)).toBeDefined();
     expect(getByText(/3 days remaining/)).toBeDefined();
   });
 
-  it('should handle Android subscriptions correctly', () => {
+  it('should handle Android subscriptions correctly', async () => {
     Object.defineProperty(Platform, 'OS', {
       value: 'android',
       writable: true,
@@ -201,12 +208,12 @@ describe('SubscriptionFlow Component', () => {
       activeSubscriptions: [androidActiveSubscription],
     });
 
-    const {getByText} = render(<SubscriptionFlow />);
+    const {getByText} = await renderConnectedSubscriptionFlow();
     expect(getByText('⚠️ Cancelled')).toBeDefined();
     expect(getByText(/Your subscription will not auto-renew/)).toBeDefined();
   });
 
-  it('should show active subscription status section', () => {
+  it('should show active subscription status section', async () => {
     mockUseIAP.mockReturnValue({
       connected: true,
       subscriptions: [createMockSubscription()],
@@ -224,7 +231,7 @@ describe('SubscriptionFlow Component', () => {
       ],
     });
 
-    const {getByText} = render(<SubscriptionFlow />);
+    const {getByText} = await renderConnectedSubscriptionFlow();
     // The status section should be present when there are active subscriptions
     expect(getByText('Current Subscription Status')).toBeDefined();
     expect(getByText('✅ Active')).toBeDefined();
@@ -287,16 +294,16 @@ describe('SubscriptionFlow Component', () => {
     expect(getByText('Connecting to store...')).toBeDefined();
   });
 
-  it('should display introductory offer for iOS', () => {
+  it('should display introductory offer for iOS', async () => {
     Object.defineProperty(Platform, 'OS', {
       value: 'ios',
       writable: true,
     });
-    const {getByText} = render(<SubscriptionFlow />);
+    const {getByText} = await renderConnectedSubscriptionFlow();
     expect(getByText('7 day(s) free trial')).toBeDefined();
   });
 
-  it('should have subscribe button for each subscription', () => {
+  it('should have subscribe button for each subscription', async () => {
     mockUseIAP.mockReturnValue({
       connected: true,
       subscriptions: [createMockSubscription()],
@@ -308,14 +315,14 @@ describe('SubscriptionFlow Component', () => {
       activeSubscriptions: [],
     });
 
-    const {getByText} = render(<SubscriptionFlow />);
+    const {getByText} = await renderConnectedSubscriptionFlow();
     const subscribeButton = getByText('Subscribe');
 
     // Test that the button exists
     expect(subscribeButton).toBeDefined();
   });
 
-  it('should show check status link when no active subscriptions', () => {
+  it('should show check status link when no active subscriptions', async () => {
     mockUseIAP.mockReturnValue({
       connected: true,
       subscriptions: [createMockSubscription()],
@@ -327,7 +334,7 @@ describe('SubscriptionFlow Component', () => {
       activeSubscriptions: [],
     });
 
-    const {getByText} = render(<SubscriptionFlow />);
+    const {getByText} = await renderConnectedSubscriptionFlow();
 
     // When there are no active subscriptions but connected, show check status link
     expect(getByText('Check Status')).toBeDefined();

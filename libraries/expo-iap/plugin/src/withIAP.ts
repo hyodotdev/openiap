@@ -7,25 +7,23 @@ import {
   withGradleProperties,
   withInfoPlist,
   withPodfile,
+  withProjectBuildGradle,
 } from 'expo/config-plugins';
 import type {ExpoConfig} from '@expo/config-types';
 import * as fs from 'fs';
 import * as path from 'path';
 import withLocalOpenIAP from './withLocalOpenIAP';
+import withVega, {type VegaProjectOptions} from './withVega';
 import {
   withIosAlternativeBilling,
   type IOSAlternativeBillingConfig,
 } from './withIosAlternativeBilling';
-import type {ExpoIapPluginCommonOptions} from './expoConfig.augmentation';
+import type {
+  AmazonPlatformOptions,
+  ExpoIapPluginCommonOptions,
+} from './expoConfig.augmentation';
 
 const pkg = require('../../package.json');
-const openiapVersions = JSON.parse(
-  fs.readFileSync(
-    path.resolve(__dirname, '../../openiap-versions.json'),
-    'utf8',
-  ),
-);
-const OPENIAP_ANDROID_VERSION = openiapVersions.google;
 const AUTOLINKING_CONFIG_PATH = path.resolve(
   __dirname,
   '../../expo-module.config.json',
@@ -62,18 +60,195 @@ const addLineToGradle = (
   return lines.join('\n');
 };
 
+const HORIZON_APP_ID_META_DATA_NAME =
+  'com.meta.horizon.platform.ovr.OCULUS_APP_ID';
+
+type AndroidManifestLike = {
+  manifest: {
+    application?: Record<string, any>[];
+  };
+};
+
+type HorizonAppIdSyncResult = 'added' | 'updated' | 'removed' | 'unchanged';
+
+export const normalizeGeneratedGroovyProjectBuildGradle = (
+  gradle: string,
+): string =>
+  gradle.replace(
+    /maven\s*\{\s*url\s+(['"])https:\/\/www\.jitpack\.io\1\s*\}/g,
+    "maven { url = uri('https://www.jitpack.io') }",
+  );
+
+export const normalizeGeneratedGroovyAppBuildGradle = (
+  gradle: string,
+): string => {
+  let modified = gradle;
+  const replacements: Array<[RegExp, string]> = [
+    [
+      /^(\s*)ndkVersion\s+rootProject\.ext\.ndkVersion\s*$/gm,
+      '$1ndkVersion = rootProject.ext.ndkVersion',
+    ],
+    [
+      /^(\s*)buildToolsVersion\s+rootProject\.ext\.buildToolsVersion\s*$/gm,
+      '$1buildToolsVersion = rootProject.ext.buildToolsVersion',
+    ],
+    [
+      /^(\s*)compileSdk\s+rootProject\.ext\.compileSdkVersion\s*$/gm,
+      '$1compileSdk = rootProject.ext.compileSdkVersion',
+    ],
+    [/^(\s*)namespace\s+(['"][^'"]+['"])\s*$/gm, '$1namespace = $2'],
+    [/^(\s*)applicationId\s+(['"][^'"]+['"])\s*$/gm, '$1applicationId = $2'],
+    [
+      /^(\s*)minSdkVersion\s+rootProject\.ext\.minSdkVersion\s*$/gm,
+      '$1minSdk = rootProject.ext.minSdkVersion',
+    ],
+    [
+      /^(\s*)targetSdkVersion\s+rootProject\.ext\.targetSdkVersion\s*$/gm,
+      '$1targetSdk = rootProject.ext.targetSdkVersion',
+    ],
+    [
+      /^(\s*)signingConfig\s+signingConfigs\.debug\s*$/gm,
+      '$1signingConfig = signingConfigs.debug',
+    ],
+    [
+      /^(\s*)shrinkResources\s+enableShrinkResources\.toBoolean\(\)\s*$/gm,
+      '$1shrinkResources = enableShrinkResources.toBoolean()',
+    ],
+    [
+      /^(\s*)crunchPngs\s+enablePngCrunchInRelease\.toBoolean\(\)\s*$/gm,
+      '$1crunchPngs = enablePngCrunchInRelease.toBoolean()',
+    ],
+    [
+      /^(\s*)useLegacyPackaging\s+enableLegacyPackaging\.toBoolean\(\)\s*$/gm,
+      '$1useLegacyPackaging = enableLegacyPackaging.toBoolean()',
+    ],
+    [
+      /^(\s*)ignoreAssetsPattern\s+(['"][^'"]+['"])\s*$/gm,
+      '$1ignoreAssetsPattern = $2',
+    ],
+  ];
+
+  for (const [pattern, replacement] of replacements) {
+    modified = modified.replace(pattern, replacement);
+  }
+
+  return modified;
+};
+
+export function syncHorizonAppIdMetaData(
+  manifest: AndroidManifestLike,
+  isHorizonEnabled?: boolean,
+  horizonAppId?: string,
+): HorizonAppIdSyncResult {
+  const application = manifest.manifest.application?.[0];
+  if (application?.['meta-data'] && !Array.isArray(application['meta-data'])) {
+    application['meta-data'] = [application['meta-data']];
+  }
+  const existingMetaData = application?.['meta-data'];
+
+  if (!isHorizonEnabled) {
+    if (!Array.isArray(existingMetaData)) return 'unchanged';
+
+    const nextMetaData = existingMetaData.filter(
+      (m) => m.$?.['android:name'] !== HORIZON_APP_ID_META_DATA_NAME,
+    );
+    if (nextMetaData.length === existingMetaData.length || !application) {
+      return 'unchanged';
+    }
+
+    application['meta-data'] = nextMetaData;
+    return 'removed';
+  }
+
+  if (!horizonAppId) return 'unchanged';
+
+  if (
+    !manifest.manifest.application ||
+    manifest.manifest.application.length === 0
+  ) {
+    manifest.manifest.application = [{$: {}}];
+  }
+
+  const horizonApplication = manifest.manifest.application[0]!;
+  if (!horizonApplication['meta-data']) {
+    horizonApplication['meta-data'] = [];
+  }
+
+  const metaData = horizonApplication['meta-data'];
+  const horizonAppIdMeta = {
+    $: {
+      'android:name': HORIZON_APP_ID_META_DATA_NAME,
+      'android:value': horizonAppId,
+    },
+  };
+
+  const existingIndex = metaData.findIndex(
+    (m: any) => m.$?.['android:name'] === HORIZON_APP_ID_META_DATA_NAME,
+  );
+
+  if (existingIndex !== -1) {
+    metaData[existingIndex] = horizonAppIdMeta;
+    return 'updated';
+  }
+
+  metaData.push(horizonAppIdMeta);
+  return 'added';
+}
+
 export const modifyAppBuildGradle = (
   gradle: string,
   language: 'groovy' | 'kotlin',
   isHorizonEnabled?: boolean,
+  isFireOsEnabled?: boolean,
 ): string => {
-  let modified = gradle;
+  function loadOpenIapAndroidVersion(): string {
+    try {
+      const parsed = require('../../openiap-versions.json');
+      const googleVersion =
+        typeof parsed?.google === 'string' ? parsed.google.trim() : '';
+      if (!googleVersion) {
+        throw new Error(
+          'expo-iap: "google" version missing or invalid in openiap-versions.json',
+        );
+      }
+      return googleVersion;
+    } catch (error) {
+      throw new Error(
+        `expo-iap: Unable to load openiap-versions.json (${
+          error instanceof Error ? error.message : error
+        })`,
+      );
+    }
+  }
 
-  // Determine which flavor to use based on isHorizonEnabled
-  const flavor = isHorizonEnabled ? 'horizon' : 'play';
+  let modified =
+    language === 'groovy'
+      ? normalizeGeneratedGroovyAppBuildGradle(gradle)
+      : gradle;
 
-  // Use openiap-google-horizon artifact when horizon is enabled
-  const artifactId = isHorizonEnabled
+  let openIapAndroidVersion: string;
+  try {
+    openIapAndroidVersion = loadOpenIapAndroidVersion();
+  } catch (error) {
+    WarningAggregator.addWarningAndroid(
+      'expo-iap',
+      `expo-iap: Failed to resolve OpenIAP version (${
+        error instanceof Error ? error.message : error
+      })`,
+    );
+    return gradle;
+  }
+
+  // Determine which flavor to use based on store flags.
+  const flavor = isFireOsEnabled
+    ? 'amazon'
+    : isHorizonEnabled
+    ? 'horizon'
+    : 'play';
+
+  const artifactId = isFireOsEnabled
+    ? 'openiap-google-amazon'
+    : isHorizonEnabled
     ? 'openiap-google-horizon'
     : 'openiap-google';
 
@@ -84,62 +259,57 @@ export const modifyAppBuildGradle = (
       : `    implementation "${ga}:${v}"`;
   const openiapDep = impl(
     `io.github.hyochan.openiap:${artifactId}`,
-    OPENIAP_ANDROID_VERSION,
+    openIapAndroidVersion,
   );
 
-  // Remove any existing openiap-google or openiap-google-horizon lines (any version, groovy/kotlin, implementation/api)
+  // Remove any existing openiap-google flavor lines (any version, groovy/kotlin, implementation/api)
   const openiapAnyLine =
-    /^\s*(?:implementation|api)\s*\(?\s*["']io\.github\.hyochan\.openiap:openiap-google(?:-horizon)?:[^"']+["']\s*\)?\s*$/gm;
-  const hadExisting = openiapAnyLine.test(modified);
+    /^\s*(?:implementation|api)\s*\(?\s*["']io\.github\.hyochan\.openiap:openiap-google(?:-(?:horizon|amazon))?:[^"']+["']\s*\)?\s*$/gm;
+  const withoutExistingOpeniap = modified.replace(openiapAnyLine, '');
+  const hadExisting = withoutExistingOpeniap !== modified;
   if (hadExisting) {
-    modified = modified.replace(openiapAnyLine, '').replace(/\n{3,}/g, '\n\n');
+    modified = withoutExistingOpeniap.replace(/\n{3,}/g, '\n\n');
   }
 
   // Ensure the desired dependency line is present
   if (
     !new RegExp(
-      String.raw`io\.github\.hyochan\.openiap:${artifactId}:${OPENIAP_ANDROID_VERSION}`,
+      String.raw`io\.github\.hyochan\.openiap:${artifactId}:${openIapAndroidVersion}`,
     ).test(modified)
   ) {
     // Insert just after the opening `dependencies {` line
     modified = addLineToGradle(modified, /dependencies\s*{/, openiapDep, 1);
     logOnce(
       hadExisting
-        ? `🛠️ expo-iap: Replaced OpenIAP dependency with ${OPENIAP_ANDROID_VERSION}`
-        : `🛠️ expo-iap: Added OpenIAP dependency (${OPENIAP_ANDROID_VERSION}) to build.gradle`,
+        ? `🛠️ expo-iap: Replaced OpenIAP dependency with ${openIapAndroidVersion}`
+        : `🛠️ expo-iap: Added OpenIAP dependency (${openIapAndroidVersion}) to build.gradle`,
     );
   }
 
-  // Add flavor dimension and default config for OpenIAP if horizon is enabled
-  if (isHorizonEnabled) {
-    // Add missingDimensionStrategy to select horizon flavor
-    const defaultConfigRegex = /defaultConfig\s*{/;
-    if (defaultConfigRegex.test(modified)) {
-      const strategyLine =
-        language === 'kotlin'
-          ? `        missingDimensionStrategy("platform", "${flavor}")`
-          : `        missingDimensionStrategy "platform", "${flavor}"`;
+  // Remove stale OpenIAP platform strategies even when returning to the default
+  // Play artifact. Otherwise a previous Fire OS/Horizon prebuild can keep
+  // selecting the wrong local flavor.
+  const strategyPattern =
+    /^\s*missingDimensionStrategy\s*\(?\s*["']platform["']\s*,\s*["'](play|horizon|amazon)["']\s*\)?\s*$/gm;
+  const withoutExistingStrategy = modified.replace(strategyPattern, '');
+  if (withoutExistingStrategy !== modified) {
+    modified = withoutExistingStrategy;
+    logOnce('🧹 Removed existing missingDimensionStrategy for platform');
+  }
 
-      // Remove any existing platform strategies first to avoid duplicates
-      const strategyPattern =
-        /^\s*missingDimensionStrategy\s*\(?\s*["']platform["']\s*,\s*["'](play|horizon)["']\s*\)?\s*$/gm;
-      if (strategyPattern.test(modified)) {
-        modified = modified.replace(strategyPattern, '');
-        logOnce('🧹 Removed existing missingDimensionStrategy for platform');
-      }
+  const defaultConfigRegex = /defaultConfig\s*{/;
+  if (defaultConfigRegex.test(modified)) {
+    const strategyLine =
+      language === 'kotlin'
+        ? `        missingDimensionStrategy("platform", "${flavor}")`
+        : `        missingDimensionStrategy "platform", "${flavor}"`;
 
-      // Add the new strategy
-      if (!/missingDimensionStrategy.*platform/.test(modified)) {
-        modified = addLineToGradle(
-          modified,
-          defaultConfigRegex,
-          strategyLine,
-          1,
-        );
-        logOnce(
-          `🛠️ expo-iap: Added missingDimensionStrategy for ${flavor} flavor`,
-        );
-      }
+    // Add the new strategy
+    if (!/missingDimensionStrategy.*platform/.test(modified)) {
+      modified = addLineToGradle(modified, defaultConfigRegex, strategyLine, 1);
+      logOnce(
+        `🛠️ expo-iap: Added missingDimensionStrategy for ${flavor} flavor`,
+      );
     }
   }
 
@@ -151,40 +321,64 @@ const withIapAndroid: ConfigPlugin<
     addDeps?: boolean;
     horizonAppId?: string;
     isHorizonEnabled?: boolean;
+    isFireOsEnabled?: boolean;
   } | void
 > = (config, props) => {
   const addDeps = props?.addDeps ?? true;
 
-  // Add dependencies if needed (only when not using local module)
-  if (addDeps) {
-    config = withAppBuildGradle(config, (config) => {
-      const language = (config.modResults as any).language || 'groovy';
-      config.modResults.contents = modifyAppBuildGradle(
+  config = withProjectBuildGradle(config, (config) => {
+    const language = (config.modResults as any).language || 'groovy';
+    if (language === 'groovy') {
+      config.modResults.contents = normalizeGeneratedGroovyProjectBuildGradle(
         config.modResults.contents,
-        language,
-        props?.isHorizonEnabled,
       );
-      return config;
-    });
-  }
+    }
+    return config;
+  });
 
-  // Set horizonEnabled property in gradle.properties so expo-iap module can pick it up
+  config = withAppBuildGradle(config, (config) => {
+    const language = (config.modResults as any).language || 'groovy';
+    const normalized =
+      language === 'groovy'
+        ? normalizeGeneratedGroovyAppBuildGradle(config.modResults.contents)
+        : config.modResults.contents;
+
+    config.modResults.contents = addDeps
+      ? modifyAppBuildGradle(
+          normalized,
+          language,
+          props?.isHorizonEnabled,
+          props?.isFireOsEnabled,
+        )
+      : normalized;
+
+    return config;
+  });
+
+  // Set store flags in gradle.properties so expo-iap module can pick them up.
   config = withGradleProperties(config, (config) => {
     const horizonValue = props?.isHorizonEnabled ?? false;
+    const fireOsValue = props?.isFireOsEnabled ?? false;
 
-    // Remove any existing horizonEnabled entries
     config.modResults = config.modResults.filter(
-      (item) => item.type !== 'property' || item.key !== 'horizonEnabled',
+      (item) =>
+        item.type !== 'property' ||
+        !['horizonEnabled', 'fireOsEnabled'].includes(item.key),
     );
 
-    // Add the horizonEnabled property
     config.modResults.push({
       type: 'property',
       key: 'horizonEnabled',
       value: String(horizonValue),
     });
+    config.modResults.push({
+      type: 'property',
+      key: 'fireOsEnabled',
+      value: String(fireOsValue),
+    });
 
     logOnce(`✅ Set horizonEnabled=${horizonValue} in gradle.properties`);
+    logOnce(`✅ Set fireOsEnabled=${fireOsValue} in gradle.properties`);
 
     return config;
   });
@@ -193,67 +387,56 @@ const withIapAndroid: ConfigPlugin<
 
   config = withAndroidManifest(config, (config) => {
     const manifest = config.modResults;
-    if (!manifest.manifest['uses-permission']) {
-      manifest.manifest['uses-permission'] = [];
-    }
-
-    const permissions = manifest.manifest['uses-permission'];
+    const existingPermissions = manifest.manifest['uses-permission'];
+    const permissions = Array.isArray(existingPermissions)
+      ? existingPermissions
+      : existingPermissions
+      ? [existingPermissions]
+      : [];
+    manifest.manifest['uses-permission'] = permissions;
     const billingPerm = {$: {'android:name': 'com.android.vending.BILLING'}};
 
-    const alreadyExists = permissions.some(
-      (p) => p.$['android:name'] === 'com.android.vending.BILLING',
-    );
-    if (!alreadyExists) {
-      permissions.push(billingPerm);
-      logOnce('✅ Added com.android.vending.BILLING to AndroidManifest.xml');
-    } else {
-      logOnce(
-        'ℹ️ com.android.vending.BILLING already exists in AndroidManifest.xml',
+    if (props?.isFireOsEnabled) {
+      const nextPermissions = permissions.filter(
+        (p) => p.$['android:name'] !== 'com.android.vending.BILLING',
       );
+      if (nextPermissions.length !== permissions.length) {
+        manifest.manifest['uses-permission'] = nextPermissions;
+        logOnce(
+          '🧹 Removed com.android.vending.BILLING from AndroidManifest.xml',
+        );
+      }
+    } else {
+      const alreadyExists = permissions.some(
+        (p) => p.$['android:name'] === 'com.android.vending.BILLING',
+      );
+      if (!alreadyExists) {
+        permissions.push(billingPerm);
+        logOnce('✅ Added com.android.vending.BILLING to AndroidManifest.xml');
+      } else {
+        logOnce(
+          'ℹ️ com.android.vending.BILLING already exists in AndroidManifest.xml',
+        );
+      }
     }
 
-    // Add Meta Horizon App ID if provided
-    if (props?.horizonAppId) {
-      if (
-        !manifest.manifest.application ||
-        manifest.manifest.application.length === 0
-      ) {
-        manifest.manifest.application = [
-          {$: {'android:name': '.MainApplication'}},
-        ];
-      }
-
-      const application = manifest.manifest.application![0];
-      if (!application['meta-data']) {
-        application['meta-data'] = [];
-      }
-
-      const metaData = application['meta-data'];
-
-      // Use the correct meta-data name for Horizon Platform SDK
-      const horizonMetaDataName = 'com.meta.horizon.platform.ovr.OCULUS_APP_ID';
-      const horizonAppIdMeta = {
-        $: {
-          'android:name': horizonMetaDataName,
-          'android:value': props.horizonAppId,
-        },
-      };
-
-      const existingIndex = metaData.findIndex(
-        (m) => m.$['android:name'] === horizonMetaDataName,
+    const horizonAppIdSync = syncHorizonAppIdMetaData(
+      manifest,
+      props?.isHorizonEnabled,
+      props?.horizonAppId,
+    );
+    if (horizonAppIdSync === 'removed') {
+      logOnce(
+        `🧹 Removed ${HORIZON_APP_ID_META_DATA_NAME} from AndroidManifest.xml`,
       );
-
-      if (existingIndex !== -1) {
-        metaData[existingIndex] = horizonAppIdMeta;
-        logOnce(
-          `✅ Updated ${horizonMetaDataName} to ${props.horizonAppId} in AndroidManifest.xml`,
-        );
-      } else {
-        metaData.push(horizonAppIdMeta);
-        logOnce(
-          `✅ Added ${horizonMetaDataName}: ${props.horizonAppId} to AndroidManifest.xml`,
-        );
-      }
+    } else if (horizonAppIdSync === 'updated') {
+      logOnce(
+        `✅ Updated ${HORIZON_APP_ID_META_DATA_NAME} to ${props?.horizonAppId} in AndroidManifest.xml`,
+      );
+    } else if (horizonAppIdSync === 'added') {
+      logOnce(
+        `✅ Added ${HORIZON_APP_ID_META_DATA_NAME}: ${props?.horizonAppId} to AndroidManifest.xml`,
+      );
     }
 
     return config;
@@ -538,7 +721,19 @@ export interface ExpoIapPluginOptions {
   /** Enable local development mode */
   enableLocalDev?: boolean;
   /**
-   * Optional modules configuration
+   * Horizon OS app ID for Quest devices.
+   * @deprecated Use android.horizonAppId instead.
+   * @platform android
+   */
+  horizonAppId?: string;
+  /**
+   * iOS Alternative Billing configuration.
+   * @deprecated Use ios.alternativeBilling instead.
+   * @platform ios
+   */
+  iosAlternativeBilling?: IOSAlternativeBillingConfig;
+  /**
+   * Non-Amazon optional modules configuration.
    */
   modules?: {
     /**
@@ -575,12 +770,47 @@ export interface ExpoIapPluginOptions {
      */
     horizonAppId?: string;
   };
+  /**
+   * Amazon platform targets. Fire OS and Vega OS can both be enabled in the
+   * same config, but they still produce separate build artifacts.
+   */
+  amazon?: AmazonPlatformOptions;
+  /**
+   * Vega-specific project generation options.
+   */
+  vega?: VegaProjectOptions;
 }
 
 export interface ModuleSelectionResult {
   selection: 'auto' | 'expo-iap' | 'onside';
   includeExpoIap: boolean;
   includeOnside: boolean;
+}
+
+export type AmazonPlatformFlags = {
+  isFireOsEnabled: boolean;
+  isVegaEnabled: boolean;
+  isHorizonEnabled: boolean;
+  isOnsideEnabled: boolean;
+};
+
+export function resolveAmazonPlatformFlags(
+  options?: Pick<ExpoIapPluginOptions, 'amazon' | 'modules'> | void,
+): AmazonPlatformFlags {
+  const amazon = options?.amazon;
+  const isFireOsEnabled = amazon?.fireOS ?? false;
+  const isVegaEnabled = amazon?.vegaOS ?? false;
+  const isHorizonEnabled = isFireOsEnabled
+    ? false
+    : options?.modules?.horizon ?? false;
+  const isOnsideEnabled = options?.modules?.onside ?? false;
+
+  return {
+    isFireOsEnabled,
+    isVegaEnabled,
+    isHorizonEnabled,
+    isOnsideEnabled,
+  };
 }
 
 /**
@@ -626,6 +856,9 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
   config,
   options,
 ) => {
+  const {isFireOsEnabled, isVegaEnabled, isHorizonEnabled, isOnsideEnabled} =
+    resolveAmazonPlatformFlags(options);
+
   try {
     // Add iapkitApiKey to extra if provided
     if (options?.iapkitApiKey) {
@@ -636,15 +869,13 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
       logOnce('🔑 [expo-iap] Added iapkitApiKey to config.extra');
     }
 
-    // Read Horizon configuration from modules
-    const isHorizonEnabled = options?.modules?.horizon ?? false;
-    const isOnsideEnabled = options?.modules?.onside ?? false;
-
-    const horizonAppId = options?.android?.horizonAppId;
-    const iosAlternativeBilling = options?.ios?.alternativeBilling;
+    const horizonAppId =
+      options?.android?.horizonAppId ?? options?.horizonAppId;
+    const iosAlternativeBilling =
+      options?.ios?.alternativeBilling ?? options?.iosAlternativeBilling;
 
     logOnce(
-      `🔍 [expo-iap] Config values: horizonAppId=${horizonAppId}, isHorizonEnabled=${isHorizonEnabled}, isOnsideEnabled=${isOnsideEnabled}`,
+      `🔍 [expo-iap] Config values: horizonAppId=${horizonAppId}, isHorizonEnabled=${isHorizonEnabled}, isFireOsEnabled=${isFireOsEnabled}, isVegaEnabled=${isVegaEnabled}, isOnsideEnabled=${isOnsideEnabled}`,
     );
 
     const {includeExpoIap, includeOnside} = resolveModuleSelection(
@@ -676,6 +907,7 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
       addDeps: !isLocalDev,
       horizonAppId,
       isHorizonEnabled,
+      isFireOsEnabled,
     });
 
     // iOS: choose one path to avoid overlap
@@ -706,7 +938,8 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
           localPath: resolved,
           iosAlternativeBilling,
           horizonAppId,
-          isHorizonEnabled, // Resolved from modules.horizon (line 467)
+          isHorizonEnabled,
+          isFireOsEnabled,
         });
       }
     } else {
@@ -721,6 +954,10 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
     }
 
     syncAutolinking(autolinkState);
+
+    if (isVegaEnabled) {
+      result = withVega(result, options?.vega);
+    }
 
     return result;
   } catch (error) {

@@ -534,7 +534,8 @@ enum IapStore {
   Unknown('unknown'),
   Apple('apple'),
   Google('google'),
-  Horizon('horizon');
+  Horizon('horizon'),
+  Amazon('amazon');
 
   const IapStore(this.value);
   final String value;
@@ -550,6 +551,8 @@ enum IapStore {
         return IapStore.Google;
       case 'horizon':
         return IapStore.Horizon;
+      case 'amazon':
+        return IapStore.Amazon;
     }
     throw ArgumentError('Unknown IapStore value: $value');
   }
@@ -4744,7 +4747,8 @@ class _SubsPurchase extends RequestPurchaseProps {
 /// 
 /// Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
 /// - apple: Always targets App Store
-/// - google: Targets Play Store by default, or Horizon when built with horizon flavor
+/// - google: Targets Play Store by default, Horizon when built with horizon flavor,
+///   or Fire OS when built with amazon flavor
 ///   (determined at build time, not runtime)
 class RequestPurchasePropsByPlatforms {
   const RequestPurchasePropsByPlatforms({
@@ -4927,7 +4931,8 @@ class RequestSubscriptionIosProps {
 /// 
 /// Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
 /// - apple: Always targets App Store
-/// - google: Targets Play Store by default, or Horizon when built with horizon flavor
+/// - google: Targets Play Store by default, Horizon when built with horizon flavor,
+///   or Fire OS when built with amazon flavor
 ///   (determined at build time, not runtime)
 class RequestSubscriptionPropsByPlatforms {
   const RequestSubscriptionPropsByPlatforms({
@@ -4961,6 +4966,37 @@ class RequestSubscriptionPropsByPlatforms {
       'apple': apple?.toJson(),
       'google': google?.toJson(),
       'ios': ios?.toJson(),
+    };
+  }
+}
+
+class RequestVerifyPurchaseWithIapkitAmazonProps {
+  const RequestVerifyPurchaseWithIapkitAmazonProps({
+    required this.receiptId,
+    this.sandbox,
+    this.userId,
+  });
+
+  /// Amazon Appstore receipt id returned by PurchaseResponse.getReceipt().getReceiptId().
+  final String receiptId;
+  /// Use Amazon RVS Cloud Sandbox for App Tester receipts.
+  final bool? sandbox;
+  /// Amazon Appstore user id returned by PurchaseResponse.getUserData().getUserId().
+  final String? userId;
+
+  factory RequestVerifyPurchaseWithIapkitAmazonProps.fromJson(Map<String, dynamic> json) {
+    return RequestVerifyPurchaseWithIapkitAmazonProps(
+      receiptId: json['receiptId'] as String,
+      sandbox: json['sandbox'] as bool?,
+      userId: json['userId'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'receiptId': receiptId,
+      'sandbox': sandbox,
+      'userId': userId,
     };
   }
 }
@@ -5011,13 +5047,17 @@ class RequestVerifyPurchaseWithIapkitGoogleProps {
 /// 
 /// - apple: Verifies via App Store (JWS token)
 /// - google: Verifies via Play Store (purchase token)
+/// - amazon: Verifies via Amazon Appstore RVS (userId + receiptId)
 class RequestVerifyPurchaseWithIapkitProps {
   const RequestVerifyPurchaseWithIapkitProps({
+    this.amazon,
     this.apiKey,
     this.apple,
     this.google,
   });
 
+  /// Amazon Appstore verification parameters.
+  final RequestVerifyPurchaseWithIapkitAmazonProps? amazon;
   /// API key used for the Authorization header (Bearer {apiKey}).
   final String? apiKey;
   /// Apple App Store verification parameters.
@@ -5027,6 +5067,7 @@ class RequestVerifyPurchaseWithIapkitProps {
 
   factory RequestVerifyPurchaseWithIapkitProps.fromJson(Map<String, dynamic> json) {
     return RequestVerifyPurchaseWithIapkitProps(
+      amazon: json['amazon'] != null ? RequestVerifyPurchaseWithIapkitAmazonProps.fromJson(json['amazon'] as Map<String, dynamic>) : null,
       apiKey: json['apiKey'] as String?,
       apple: json['apple'] != null ? RequestVerifyPurchaseWithIapkitAppleProps.fromJson(json['apple'] as Map<String, dynamic>) : null,
       google: json['google'] != null ? RequestVerifyPurchaseWithIapkitGoogleProps.fromJson(json['google'] as Map<String, dynamic>) : null,
@@ -5035,6 +5076,7 @@ class RequestVerifyPurchaseWithIapkitProps {
 
   Map<String, dynamic> toJson() {
     return {
+      'amazon': amazon?.toJson(),
       'apiKey': apiKey,
       'apple': apple?.toJson(),
       'google': google?.toJson(),

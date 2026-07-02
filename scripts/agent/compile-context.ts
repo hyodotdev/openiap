@@ -41,54 +41,75 @@ const CONFIG = {
   },
 };
 
-function readInstallationVersions(): {
+type LlmsVersions = {
   apple: string;
+  flutter: string;
   google: string;
   godot: string;
   kmp: string;
   maui: string;
   mauiPackageId: string;
-} {
-  const versionsPath = path.join(CONFIG.projectRoot, "openiap-versions.json");
-  const versions = JSON.parse(fs.readFileSync(versionsPath, "utf-8")) as {
-    apple?: string;
-    google?: string;
-  };
-  const kmpProperties = fs.readFileSync(
-    path.join(CONFIG.projectRoot, "libraries/kmp-iap/gradle.properties"),
-    "utf-8",
-  );
-  const godotPlugin = fs.readFileSync(
-    path.join(CONFIG.projectRoot, "libraries/godot-iap/addons/godot-iap/plugin.cfg"),
-    "utf-8",
-  );
-  const mauiProject = fs.readFileSync(
-    path.join(CONFIG.projectRoot, "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj"),
-    "utf-8",
-  );
-  const kmpVersion = kmpProperties.match(/^libraryVersion=(.+)$/m)?.[1]?.trim();
-  const godotVersion = godotPlugin.match(/^version="([^"]+)"$/m)?.[1]?.trim();
-  const mauiPackageId = mauiProject.match(/<PackageId>([^<]+)<\/PackageId>/)?.[1]?.trim();
-  const mauiVersion = mauiProject.match(/<PackageVersion>([^<]+)<\/PackageVersion>/)?.[1]?.trim();
+};
 
-  if (!versions.apple || !versions.google) {
-    throw new Error("openiap-versions.json must include apple and google versions");
+function readJsonFile<T>(relativePath: string): T {
+  return JSON.parse(
+    fs.readFileSync(path.join(CONFIG.projectRoot, relativePath), "utf-8"),
+  ) as T;
+}
+
+function readRegexVersion(
+  relativePath: string,
+  pattern: RegExp,
+  label: string,
+): string {
+  const content = fs.readFileSync(
+    path.join(CONFIG.projectRoot, relativePath),
+    "utf-8",
+  );
+  const version = content.match(pattern)?.[1]?.trim();
+  if (!version) {
+    throw new Error(`Unable to resolve ${label} version from ${relativePath}`);
   }
-  if (!godotVersion || !kmpVersion || !mauiPackageId || !mauiVersion) {
-    throw new Error("Framework package metadata is missing godot, kmp, or maui values");
-  }
+  return version;
+}
+
+function readInstallationVersions(): LlmsVersions {
+  const openiapVersions = readJsonFile<{ apple: string; google: string }>(
+    "openiap-versions.json",
+  );
 
   return {
-    apple: versions.apple,
-    godot: godotVersion,
-    google: versions.google,
-    kmp: kmpVersion,
-    maui: mauiVersion,
-    mauiPackageId,
+    apple: openiapVersions.apple,
+    google: openiapVersions.google,
+    flutter: readRegexVersion(
+      "libraries/flutter_inapp_purchase/pubspec.yaml",
+      /^version:\s*([^\s]+)/m,
+      "flutter_inapp_purchase",
+    ),
+    godot: readRegexVersion(
+      "libraries/godot-iap/addons/godot-iap/plugin.cfg",
+      /^version="([^"]+)"$/m,
+      "godot-iap",
+    ),
+    kmp: readRegexVersion(
+      "libraries/kmp-iap/gradle.properties",
+      /^libraryVersion=(.+)$/m,
+      "kmp-iap",
+    ),
+    maui: readRegexVersion(
+      "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
+      /<PackageVersion>([^<]+)<\/PackageVersion>/,
+      "OpenIap.Maui",
+    ),
+    mauiPackageId: readRegexVersion(
+      "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
+      /<PackageId>([^<]+)<\/PackageId>/,
+      "OpenIap.Maui package id",
+    ),
   };
 }
 
-function withSingleTrailingNewline(content: string): string {
+function withFinalNewline(content: string): string {
   return `${content.trimEnd()}\n`;
 }
 
@@ -119,6 +140,7 @@ function ensureSymlink(linkPath: string, targetPath: string): void {
 async function generateLlmsTxt(): Promise<{ quick: number; full: number }> {
   console.log(chalk.blue("\n🤖 Generating llms.txt files...\n"));
   const versions = readInstallationVersions();
+  const generatedAt = new Date().toISOString();
 
   // Read all external API docs
   const externalFiles = await glob(
@@ -132,15 +154,16 @@ async function generateLlmsTxt(): Promise<{ quick: number; full: number }> {
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: ${new Date().toISOString()}
+> Generated: ${generatedAt}
 
 ## Table of Contents
 1. Installation
 2. Core APIs (Connection, Products, Purchase, Subscription)
 3. Platform-Specific APIs (iOS, Android)
-4. Types Reference
-5. Error Codes & Handling
-6. Implementation Patterns
+4. Store Targets (Play, Horizon, Fire OS, Vega OS)
+5. Types Reference
+6. Error Codes & Handling
+7. Implementation Patterns
 
 ---
 
@@ -172,6 +195,9 @@ implementation("io.github.hyochan.openiap:openiap-google:${versions.google}")
 
 // For Meta Horizon OS
 implementation("io.github.hyochan.openiap:openiap-google-horizon:${versions.google}")
+
+// For Fire OS (Amazon Appstore)
+implementation("io.github.hyochan.openiap:openiap-google-amazon:${versions.google}")
 \`\`\`
 
 ### Flutter
@@ -212,6 +238,9 @@ Requires .NET 9 or .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
   \`packages/google\`.
 - Public surface: generated OpenIAP types plus \`useIAP\`, listener helpers,
   and platform-suffixed iOS/Android APIs.
+- Android builds can select Play, Horizon, or Fire OS artifacts.
+  Vega OS resolves a \`kepler\` JavaScript adapter before creating the Nitro
+  HybridObject.
 - Example app: \`libraries/react-native-iap/example\`.
 
 ### expo-iap
@@ -219,6 +248,9 @@ Requires .NET 9 or .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
 - Implementation: Expo Modules wrapper over the same native OpenIAP packages.
 - Public surface: same hook, listener, query, mutation, and platform API
   shape as \`react-native-iap\`, adapted for Expo managed/bare workflows.
+- Config plugins can select Horizon or Fire OS Android flavors;
+  Vega OS follows the Onside-style runtime selector pattern with a JavaScript
+  adapter.
 - Example app: \`libraries/expo-iap/example\`.
 
 ### flutter_inapp_purchase
@@ -227,6 +259,7 @@ Requires .NET 9 or .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
   iOS and Android method channels.
 - Public surface: singleton \`FlutterInappPurchase.instance\`, typed
   \`fetchProducts<T>\`, purchase streams, and resolver-style methods.
+- Android builds can select Play, Horizon, or Fire OS flavors.
 
 ### godot-iap
 - Package: \`godot-iap\` for Godot 4.x.
@@ -265,6 +298,51 @@ Requires .NET 9 or .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
   \`OpenIapClient.WebhookEventTypes\`.
 - Example app: \`libraries/maui-iap/example/OpenIap.Maui.Example\`, mirroring
   the \`expo-iap\` example flows.
+
+---
+
+## Store Targets
+
+- Google Play: default Android artifact, \`openiap-google\`.
+- Meta Horizon: Android \`horizon\` flavor, \`openiap-google-horizon\`.
+- Fire OS: Android \`amazon\` flavor,
+  \`openiap-google-amazon\`; set \`amazon.fireOS=true\`,
+  \`fireOsEnabled=true\`, or
+  \`missingDimensionStrategy("platform", "amazon")\`.
+  Runtime adapters are wired for native Android, \`react-native-iap\`,
+  \`expo-iap\`, and \`flutter_inapp_purchase\`; Godot, KMP, and MAUI have schema
+  type parity but still need Android wrapper flavor switches.
+- Vega OS: not an Android flavor. Target React Native for Vega / Expo only,
+  using Amazon's JavaScript IAP API through the runtime-selected \`kepler\`
+  adapter at the same runtime integration layer as Onside. In Expo or React
+  Native config plugin options, use \`amazon.vegaOS=true\`. It marks the Vega
+  runtime target and does not select an Android flavor. \`amazon.fireOS\` and
+  \`amazon.vegaOS\` can both be enabled when an app produces separate Fire OS
+  and Vega OS artifacts.
+
+### Fire OS
+
+Fire OS is an Android target for Amazon Appstore distribution. It uses the
+\`amazon\` Gradle flavor and Amazon Appstore SDK.
+
+Fire OS maps OpenIAP calls to the Amazon Appstore SDK:
+
+| OpenIAP API | Amazon Appstore SDK mapping |
+|-------------|--------------------------|
+| \`initConnection()\` | Register \`PurchasingListener\`, request user data |
+| \`fetchProducts()\` | \`PurchasingService.getProductData\` |
+| \`requestPurchase()\` | \`PurchasingService.purchase\` |
+| \`getAvailablePurchases()\` | \`PurchasingService.getPurchaseUpdates(reset=true)\` |
+| \`finishTransaction()\` | \`PurchasingService.notifyFulfillment(..., FULFILLED)\` |
+
+### Vega OS Runtime
+
+Vega OS is not Fire OS and is not selected with \`fireOsEnabled=true\`; that
+flag is only for Android Fire OS builds. Use \`amazon.vegaOS=true\` for the
+Vega runtime target and \`amazon.fireOS=true\` for separate Fire OS Android
+artifacts. Install \`@amazon-devices/keplerscript-appstore-iap-lib\` and let
+\`react-native-iap\` / \`expo-iap\` select the \`kepler\` adapter at runtime,
+similar to how Onside is selected at the runtime integration layer.
 
 ---
 
@@ -378,7 +456,7 @@ await ((QueryResolver)iap).FetchProductsAsync(new ProductRequest
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Full Reference: https://openiap.dev/llms-full.txt
-> Generated: ${new Date().toISOString()}
+> Generated: ${generatedAt}
 
 ## Installation
 
@@ -400,6 +478,8 @@ npm install react-native-iap
 \`\`\`kotlin
 // Gradle
 implementation("io.github.hyochan.openiap:openiap-google:${versions.google}")
+implementation("io.github.hyochan.openiap:openiap-google-horizon:${versions.google}")
+implementation("io.github.hyochan.openiap:openiap-google-amazon:${versions.google}")
 \`\`\`
 
 \`\`\`bash
@@ -417,9 +497,9 @@ flutter pub add flutter_inapp_purchase
 implementation("io.github.hyochan:kmp-iap:${versions.kmp}")
 \`\`\`
 
-\`\`\`bash
-# .NET MAUI
-dotnet add package ${versions.mauiPackageId}
+\`\`\`xml
+<!-- .NET MAUI -->
+<PackageReference Include="${versions.mauiPackageId}" Version="${versions.maui}" />
 \`\`\`
 
 Current NuGet package version: ${versions.maui}
@@ -457,7 +537,7 @@ await endConnection();
 \`\`\`typescript
 const products = await fetchProducts({
   products: [
-    { id: 'com.app.premium', type: 'inapp' },
+    { id: 'com.app.premium', type: 'in-app' },
     { id: 'com.app.monthly', type: 'subs' },
   ],
 });
@@ -472,7 +552,7 @@ await requestPurchase({
     apple: { sku: 'com.app.premium' },
     google: { skus: ['com.app.premium'] },
   },
-  type: 'inapp', // 'inapp' | 'subs'
+  type: 'in-app', // 'in-app' | 'subs'
 });
 \`\`\`
 
@@ -480,7 +560,7 @@ await requestPurchase({
 \`\`\`typescript
 // CRITICAL: Must call after verification
 // Android: purchases auto-refund after 3 days if not acknowledged
-await finishTransaction(purchase, isConsumable);
+await finishTransaction({ purchase, isConsumable });
 \`\`\`
 
 ### Get Available Purchases
@@ -505,7 +585,7 @@ const purchaseUpdateSubscription = purchaseUpdatedListener(async (purchase) => {
   // 1. Verify purchase on server
   // 2. Grant entitlement
   // 3. Finish transaction
-  await finishTransaction(purchase);
+  await finishTransaction({ purchase, isConsumable: false });
 });
 
 const purchaseErrorSubscription = purchaseErrorListener((error) => {
@@ -529,7 +609,7 @@ interface Product {
   price: string;        // Formatted price string
   priceAmount: number;  // Price as number
   currency: string;     // ISO 4217 currency code
-  type: 'inapp' | 'subs';
+  type: 'in-app' | 'subs';
 }
 \`\`\`
 
@@ -611,11 +691,11 @@ interface PurchaseError {
   fs.mkdirSync(CONFIG.llmsOutputDir, { recursive: true });
   fs.writeFileSync(
     path.join(CONFIG.llmsOutputDir, "llms.txt"),
-    withSingleTrailingNewline(quickContent),
+    withFinalNewline(quickContent),
   );
   fs.writeFileSync(
     path.join(CONFIG.llmsOutputDir, "llms-full.txt"),
-    withSingleTrailingNewline(fullContent),
+    withFinalNewline(fullContent),
   );
   for (const [filename, targetPath] of Object.entries(CONFIG.rootLlmsSymlinks)) {
     ensureSymlink(path.join(CONFIG.projectRoot, filename), targetPath);
@@ -768,7 +848,7 @@ openiap/
   // =========================================================================
 
   const outputPath = path.join(CONFIG.outputDir, CONFIG.outputFile);
-  fs.writeFileSync(outputPath, withSingleTrailingNewline(output));
+  fs.writeFileSync(outputPath, withFinalNewline(output));
 
   // =========================================================================
   // Generate LLMs.txt Files

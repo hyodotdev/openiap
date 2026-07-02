@@ -115,7 +115,7 @@ class OpenIapMauiModule(context: Context) {
     // -----------------------------------------------------------------
 
     fun fetchProducts(paramsJson: String, callback: ResultCallback) = run(callback) {
-        val params = ProductRequest.fromJson(parseMap(paramsJson)) ?: throw badInput("ProductRequest", paramsJson)
+        val params = ProductRequest.fromJson(parseMap(paramsJson)) ?: throw badInput("ProductRequest")
         encodeFetchProductsResult(module.fetchProducts(params))
     }
 
@@ -183,7 +183,7 @@ class OpenIapMauiModule(context: Context) {
 
     fun verifyPurchaseWithProvider(propsJson: String, callback: ResultCallback) = run(callback) {
         val props = VerifyPurchaseWithProviderProps.fromJson(parseMap(propsJson))
-            ?: throw badInput("VerifyPurchaseWithProviderProps", propsJson)
+            ?: throw badInput("VerifyPurchaseWithProviderProps")
         gson.toJson(module.verifyPurchaseWithProvider(props).toJson())
     }
 
@@ -224,7 +224,7 @@ class OpenIapMauiModule(context: Context) {
 
     fun launchExternalLinkAndroid(paramsJson: String, callback: ResultCallback) = run(callback) {
         val params = LaunchExternalLinkParamsAndroid.fromJson(parseMap(paramsJson))
-            ?: throw badInput("LaunchExternalLinkParamsAndroid", paramsJson)
+            ?: throw badInput("LaunchExternalLinkParamsAndroid")
         val activity = currentActivityOrThrow("launchExternalLinkAndroid")
         wrapBool(module.launchExternalLink(activity, params))
     }
@@ -431,9 +431,9 @@ class OpenIapMauiModule(context: Context) {
         return gson.toJson(payload)
     }
 
-    private fun badInput(typeName: String, json: String): IllegalArgumentException {
+    private fun badInput(typeName: String): IllegalArgumentException {
         // The generated `Type.fromJson(Map)` returns null when required fields are missing.
         // Surface this as a typed error so the C# side can map it to OpenIapError.DeveloperError.
-        return IllegalArgumentException("Could not decode $typeName from JSON: $json")
+        return IllegalArgumentException("Could not decode $typeName from JSON")
     }
 }

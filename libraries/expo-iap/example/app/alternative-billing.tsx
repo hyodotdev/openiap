@@ -61,6 +61,8 @@ const EXTERNAL_BILLING_PROGRAMS: BillingProgramAndroid[] = [
   'external-content-link',
 ];
 
+const isVegaOS = (): boolean => String(Platform.OS) === 'kepler';
+
 function AlternativeBillingScreen() {
   const [externalUrl, setExternalUrl] = useState('https://openiap.dev');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -74,6 +76,7 @@ function AlternativeBillingScreen() {
   const [lastPurchase, setLastPurchase] = useState<Purchase | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
+  const isVega = isVegaOS();
 
   // Initialize with billing program config (new API)
   const {connected, products, fetchProducts, finishTransaction} = useIAP({
@@ -105,13 +108,13 @@ function AlternativeBillingScreen() {
         });
         console.log('Transaction finished');
       } catch (error) {
-        console.warn('Failed to finish transaction:', error);
+        console.log('Failed to finish transaction:', error);
       }
 
       Alert.alert('Success', 'Purchase completed successfully!');
     },
     onPurchaseError: (error: PurchaseError) => {
-      console.error('Purchase failed:', error);
+      console.log('Purchase failed:', error);
       setIsProcessing(false);
       setPurchaseResult(`❌ Purchase failed: ${error.message}`);
 
@@ -123,15 +126,15 @@ function AlternativeBillingScreen() {
 
   // Load products when connected
   useEffect(() => {
-    if (connected) {
+    if (connected && !isVega) {
       fetchProducts({skus: CONSUMABLE_PRODUCT_IDS, type: 'in-app'}).catch(
         (error) => {
-          console.error('Failed to load products:', error);
+          console.log('Failed to load products:', error);
           Alert.alert('Error', 'Failed to load products');
         },
       );
     }
-  }, [connected, fetchProducts]);
+  }, [connected, fetchProducts, isVega]);
 
   // Reconnect with new billing program
   const reconnectWithProgram = useCallback(
@@ -168,7 +171,7 @@ function AlternativeBillingScreen() {
         // Reload products
         await fetchProducts({skus: CONSUMABLE_PRODUCT_IDS, type: 'in-app'});
       } catch (error: any) {
-        console.error('Reconnection error:', error);
+        console.log('Reconnection error:', error);
         setPurchaseResult(`❌ Reconnection failed: ${error.message}`);
       } finally {
         setIsReconnecting(false);
@@ -210,7 +213,7 @@ function AlternativeBillingScreen() {
           );
         }
       } catch (error: any) {
-        console.error('[iOS] Alternative billing error:', error);
+        console.log('[iOS] Alternative billing error:', error);
         setPurchaseResult(`❌ Error: ${error.message}`);
         Alert.alert('Error', error.message);
       } finally {
@@ -281,7 +284,7 @@ function AlternativeBillingScreen() {
           'Billing Programs API flow completed.\n\nIn production, report the token to Google Play backend within 24 hours.',
         );
       } catch (error: any) {
-        console.error('[Android] Billing Programs API error:', error);
+        console.log('[Android] Billing Programs API error:', error);
         setPurchaseResult(`❌ Error: ${error.message}`);
         Alert.alert('Error', error.message);
       } finally {
@@ -317,7 +320,7 @@ function AlternativeBillingScreen() {
         );
       })
       .catch((error) => {
-        console.error('[Android] User choice billing error:', error);
+        console.log('[Android] User choice billing error:', error);
         setPurchaseResult(`❌ Error: ${error.message}`);
         Alert.alert('Error', error.message);
       });
@@ -326,6 +329,13 @@ function AlternativeBillingScreen() {
   // Handle purchase based on platform and mode
   const handlePurchase = useCallback(
     (product: Product) => {
+      if (isVega) {
+        setPurchaseResult(
+          'Alternative billing is not supported on Amazon Vega. Use the standard Amazon IAP Purchase Flow or Subscription Flow screens instead.',
+        );
+        return;
+      }
+
       if (Platform.OS === 'ios') {
         handleIOSAlternativeBillingPurchase(product);
       } else if (Platform.OS === 'android') {
@@ -344,6 +354,7 @@ function AlternativeBillingScreen() {
       handleIOSAlternativeBillingPurchase,
       handleAndroidBillingPrograms,
       handleAndroidUserChoiceBilling,
+      isVega,
     ],
   );
 
@@ -356,9 +367,11 @@ function AlternativeBillingScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Alternative Billing</Text>
         <Text style={styles.subtitle}>
-          {Platform.OS === 'ios'
-            ? 'External purchase links (iOS 16.0+)'
-            : 'Google Play alternative billing'}
+          {isVega
+            ? 'Not supported on Amazon Vega'
+            : Platform.OS === 'ios'
+              ? 'External purchase links (iOS 16.0+)'
+              : 'Google Play alternative billing'}
         </Text>
       </View>
 
@@ -366,7 +379,20 @@ function AlternativeBillingScreen() {
         {/* Info Card */}
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>ℹ️ How It Works</Text>
-          {Platform.OS === 'ios' ? (
+          {isVega ? (
+            <>
+              <Text style={styles.infoText}>
+                • Vega OS uses Amazon Appstore IAP through the Vega JavaScript
+                runtime{'\n'}• Google Play alternative billing and iOS external
+                purchase links do not apply{'\n'}• Test Amazon IAP in the
+                Purchase Flow and Subscription Flow screens
+              </Text>
+              <Text style={styles.warningText}>
+                ⚠️ Alternative billing APIs are intentionally unsupported on
+                Amazon Vega.
+              </Text>
+            </>
+          ) : Platform.OS === 'ios' ? (
             <>
               <Text style={styles.infoText}>
                 • Enter your external purchase URL{'\n'}• Tap Purchase on any
@@ -478,7 +504,11 @@ function AlternativeBillingScreen() {
           >
             {connected ? '✅ Connected' : '❌ Disconnected'}
           </Text>
-          {Platform.OS === 'android' ? (
+          {isVega ? (
+            <Text style={styles.statusSubtext}>
+              Current mode: Amazon Vega standard IAP
+            </Text>
+          ) : Platform.OS === 'android' ? (
             <Text style={styles.statusSubtext}>
               Current program: {billingProgram.toUpperCase().replace(/-/g, '_')}
             </Text>
@@ -548,18 +578,23 @@ function AlternativeBillingScreen() {
             </View>
 
             <TouchableOpacity
-              style={[styles.purchaseButton, isProcessing && {opacity: 0.5}]}
+              style={[
+                styles.purchaseButton,
+                (isProcessing || isVega) && {opacity: 0.5},
+              ]}
               onPress={() => handlePurchase(selectedProduct)}
-              disabled={isProcessing || !connected}
+              disabled={isProcessing || !connected || isVega}
             >
               <Text style={styles.purchaseButtonText}>
                 {isProcessing
                   ? 'Processing...'
-                  : Platform.OS === 'ios'
-                    ? '🛒 Buy (External URL)'
-                    : androidBillingFlow === 'billing-programs'
-                      ? '🛒 Buy (Billing Programs)'
-                      : '🛒 Buy (User Choice Billing)'}
+                  : isVega
+                    ? 'Not supported on Vega'
+                    : Platform.OS === 'ios'
+                      ? '🛒 Buy (External URL)'
+                      : androidBillingFlow === 'billing-programs'
+                        ? '🛒 Buy (Billing Programs)'
+                        : '🛒 Buy (User Choice Billing)'}
               </Text>
             </TouchableOpacity>
           </View>

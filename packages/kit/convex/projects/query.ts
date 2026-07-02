@@ -10,23 +10,27 @@ import {
 
 function projectWithSecretState(project: Doc<"projects">): Omit<
   Doc<"projects">,
-  "horizonAppSecret"
+  "horizonAppSecret" | "amazonSharedSecret"
 > & {
   hasHorizonAppSecret: boolean;
+  hasAmazonSharedSecret: boolean;
 } {
-  const { horizonAppSecret, ...rest } = project;
+  const { horizonAppSecret, amazonSharedSecret, ...rest } = project;
   return {
     ...rest,
     hasHorizonAppSecret:
       typeof horizonAppSecret === "string" && horizonAppSecret.length > 0,
+    hasAmazonSharedSecret:
+      typeof amazonSharedSecret === "string" && amazonSharedSecret.length > 0,
   };
 }
 
 function projectForApiKeyLookup(project: Doc<"projects">): Omit<
   Doc<"projects">,
-  "apiKey" | "horizonAppSecret"
+  "apiKey" | "horizonAppSecret" | "amazonSharedSecret"
 > & {
   hasHorizonAppSecret: boolean;
+  hasAmazonSharedSecret: boolean;
 } {
   const { apiKey, ...rest } = projectWithSecretState(project);
   void apiKey;
@@ -35,9 +39,10 @@ function projectForApiKeyLookup(project: Doc<"projects">): Omit<
 
 function projectForDashboard(project: Doc<"projects">): Omit<
   Doc<"projects">,
-  "apiKey" | "horizonAppSecret"
+  "apiKey" | "horizonAppSecret" | "amazonSharedSecret"
 > & {
   hasHorizonAppSecret: boolean;
+  hasAmazonSharedSecret: boolean;
 } {
   return projectForApiKeyLookup(project);
 }
@@ -46,9 +51,13 @@ function projectForList(
   project: Doc<"projects">,
   projectIdsWithAnyKey: Set<string>,
   projectIdsWithActiveKey: Set<string>,
-): Omit<Doc<"projects">, "apiKey" | "horizonAppSecret"> & {
+): Omit<
+  Doc<"projects">,
+  "apiKey" | "horizonAppSecret" | "amazonSharedSecret"
+> & {
   hasApiKey: boolean;
   hasHorizonAppSecret: boolean;
+  hasAmazonSharedSecret: boolean;
 } {
   const { apiKey, ...rest } = projectWithSecretState(project);
   return {

@@ -52,9 +52,19 @@ jest.mock('../../src', () => {
     initConnection: jest.fn(),
     endConnection: jest.fn(),
     fetchProducts: jest.fn(),
-    requestPurchase: jest.fn(),
+    requestPurchase: jest.fn(() => Promise.resolve()),
     finishTransaction: jest.fn(),
     getAvailablePurchases: jest.fn(),
+    verifyPurchase: jest.fn(() => Promise.resolve({})),
+    verifyPurchaseWithProvider: jest.fn(() =>
+      Promise.resolve({
+        iapkit: {
+          isValid: true,
+          state: 'purchased',
+          store: 'amazon',
+        },
+      }),
+    ),
 
     // iOS functions with IOS suffix
     syncIOS: jest.fn(),
@@ -68,11 +78,15 @@ jest.mock('../../src', () => {
     isTransactionVerifiedIOS: jest.fn(),
     getTransactionJwsIOS: jest.fn(),
     presentCodeRedemptionSheetIOS: jest.fn(),
+    presentExternalPurchaseLinkIOS: jest.fn(() =>
+      Promise.resolve({success: true}),
+    ),
     getAppTransactionIOS: jest.fn(),
     validateReceiptIOS: jest.fn(),
 
     // Cross-platform storefront helper
     getStorefront: jest.fn(),
+    deepLinkToSubscriptions: jest.fn(() => Promise.resolve(true)),
     connectWebhookStream: jest.fn(() => ({
       close: jest.fn(),
     })),
@@ -101,10 +115,20 @@ jest.mock('../../src', () => {
       currentPurchase: null,
       currentPurchaseError: null,
       fetchProducts: jest.fn(),
-      requestPurchase: jest.fn(),
+      requestPurchase: jest.fn(() => Promise.resolve()),
       getAvailablePurchases: jest.fn(),
       finishTransaction: jest.fn(),
       getActiveSubscriptions: jest.fn(),
+      verifyPurchase: jest.fn(() => Promise.resolve({})),
+      verifyPurchaseWithProvider: jest.fn(() =>
+        Promise.resolve({
+          iapkit: {
+            isValid: true,
+            state: 'purchased',
+            store: 'amazon',
+          },
+        }),
+      ),
     })),
 
     // Enums
@@ -142,7 +166,7 @@ jest.mock('expo-iap', () => {
   const mockGetAvailablePurchases = jest.fn();
   const mockFinishTransaction = jest.fn();
   const mockGetActiveSubscriptions = jest.fn();
-  const mockRequestPurchase = jest.fn();
+  const mockRequestPurchase = jest.fn(() => Promise.resolve());
 
   return {
     // Core functions
@@ -154,6 +178,16 @@ jest.mock('expo-iap', () => {
     finishTransaction: mockFinishTransaction,
 
     getAvailablePurchases: mockGetAvailablePurchases,
+    verifyPurchase: jest.fn(() => Promise.resolve({})),
+    verifyPurchaseWithProvider: jest.fn(() =>
+      Promise.resolve({
+        iapkit: {
+          isValid: true,
+          state: 'purchased',
+          store: 'amazon',
+        },
+      }),
+    ),
 
     // iOS functions with IOS suffix
     syncIOS: jest.fn(),
@@ -167,11 +201,15 @@ jest.mock('expo-iap', () => {
     isTransactionVerifiedIOS: jest.fn(),
     getTransactionJwsIOS: jest.fn(),
     presentCodeRedemptionSheetIOS: jest.fn(),
+    presentExternalPurchaseLinkIOS: jest.fn(() =>
+      Promise.resolve({success: true}),
+    ),
     getAppTransactionIOS: jest.fn(),
     validateReceiptIOS: jest.fn(),
 
     // Cross-platform storefront helper
     getStorefront: jest.fn(),
+    deepLinkToSubscriptions: jest.fn(() => Promise.resolve(true)),
     connectWebhookStream: jest.fn(() => ({
       close: jest.fn(),
     })),
@@ -205,6 +243,16 @@ jest.mock('expo-iap', () => {
       getAvailablePurchases: mockGetAvailablePurchases,
       finishTransaction: mockFinishTransaction,
       getActiveSubscriptions: mockGetActiveSubscriptions,
+      verifyPurchase: jest.fn(() => Promise.resolve({})),
+      verifyPurchaseWithProvider: jest.fn(() =>
+        Promise.resolve({
+          iapkit: {
+            isValid: true,
+            state: 'purchased',
+            store: 'amazon',
+          },
+        }),
+      ),
     })),
 
     // Enums

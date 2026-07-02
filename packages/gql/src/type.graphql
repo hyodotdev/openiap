@@ -49,6 +49,7 @@ enum IapStore {
   Apple
   Google
   Horizon
+  Amazon
 }
 
 # Common product fields
@@ -219,7 +220,8 @@ Platform-specific purchase request parameters.
 
 Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
 - apple: Always targets App Store
-- google: Targets Play Store by default, or Horizon when built with horizon flavor
+- google: Targets Play Store by default, Horizon when built with horizon flavor,
+  or Fire OS when built with amazon flavor
   (determined at build time, not runtime)
 """
 input RequestPurchasePropsByPlatforms {
@@ -246,7 +248,8 @@ Platform-specific subscription request parameters.
 
 Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
 - apple: Always targets App Store
-- google: Targets Play Store by default, or Horizon when built with horizon flavor
+- google: Targets Play Store by default, Horizon when built with horizon flavor,
+  or Fire OS when built with amazon flavor
   (determined at build time, not runtime)
 """
 input RequestSubscriptionPropsByPlatforms {
@@ -292,7 +295,7 @@ input VerifyPurchaseProps {
 }
 
 union VerifyPurchaseResult =
-    VerifyPurchaseResultAndroid
+  | VerifyPurchaseResultAndroid
   | VerifyPurchaseResultIOS
   | VerifyPurchaseResultHorizon
 
@@ -310,11 +313,27 @@ input RequestVerifyPurchaseWithIapkitGoogleProps {
   purchaseToken: String!
 }
 
+input RequestVerifyPurchaseWithIapkitAmazonProps {
+  """
+  Amazon Appstore user id returned by PurchaseResponse.getUserData().getUserId().
+  """
+  userId: String
+  """
+  Amazon Appstore receipt id returned by PurchaseResponse.getReceipt().getReceiptId().
+  """
+  receiptId: String!
+  """
+  Use Amazon RVS Cloud Sandbox for App Tester receipts.
+  """
+  sandbox: Boolean
+}
+
 """
 Platform-specific verification parameters for IAPKit.
 
 - apple: Verifies via App Store (JWS token)
 - google: Verifies via Play Store (purchase token)
+- amazon: Verifies via Amazon Appstore RVS (userId + receiptId)
 """
 input RequestVerifyPurchaseWithIapkitProps {
   """
@@ -329,6 +348,10 @@ input RequestVerifyPurchaseWithIapkitProps {
   Google Play Store verification parameters.
   """
   google: RequestVerifyPurchaseWithIapkitGoogleProps
+  """
+  Amazon Appstore verification parameters.
+  """
+  amazon: RequestVerifyPurchaseWithIapkitAmazonProps
 }
 
 """

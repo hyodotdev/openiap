@@ -57,7 +57,7 @@ import kotlinx.coroutines.launch
 
 /**
  * OpenIapStore (Android)
- * Convenience store that wraps an [OpenIapProtocol] implementation (Play Store or Horizon)
+ * Convenience store that wraps an [OpenIapProtocol] implementation (Play, Horizon, or Amazon)
  * and exposes suspend APIs with observable StateFlows for UI layers to consume.
  */
 class OpenIapStore(private val module: OpenIapProtocol) {
@@ -748,6 +748,10 @@ private fun buildModule(context: Context, store: String?, appId: String?): OpenI
             OpenIapLog.d("Loading OpenIapModule (Horizon flavor)", "OpenIapStore")
             loadHorizonModule(context)
         }
+        "amazon", "fireos", "fire" -> {
+            OpenIapLog.d("Loading OpenIapModule (Amazon flavor)", "OpenIapStore")
+            loadAmazonModule(context)
+        }
         else -> {
             // Default to Play Store (includes "play", "google", "gplay", "googleplay", "gms")
             OpenIapLog.d("Loading OpenIapModule (Play flavor)", "OpenIapStore")
@@ -784,6 +788,36 @@ private fun loadHorizonModule(context: Context): OpenIapProtocol {
         instance
     } catch (e: Throwable) {
         throw IllegalStateException("Failed to load OpenIapModule (Horizon flavor). Make sure you're using the Horizon flavor.", e)
+    }
+}
+
+/**
+ * Load OpenIapModule (Amazon flavor) via reflection
+ * Note: Amazon flavor uses the same package and class name as Play flavor
+ */
+private fun loadAmazonModule(context: Context): OpenIapProtocol {
+    return try {
+        val clazz = Class.forName("dev.hyo.openiap.OpenIapModule")
+        val alternativeBillingModeClass = Class.forName("dev.hyo.openiap.AlternativeBillingMode")
+        val userChoiceBillingListenerClass = Class.forName("dev.hyo.openiap.listener.UserChoiceBillingListener")
+        val developerProvidedBillingListenerClass = Class.forName("dev.hyo.openiap.listener.DeveloperProvidedBillingListener")
+
+        val constructor = clazz.getConstructor(
+            Context::class.java,
+            alternativeBillingModeClass,
+            userChoiceBillingListenerClass,
+            developerProvidedBillingListenerClass
+        )
+
+        val noneMode = alternativeBillingModeClass.enumConstants?.first {
+            (it as Enum<*>).name == "NONE"
+        }
+
+        val instance = constructor.newInstance(context, noneMode, null, null) as OpenIapProtocol
+        OpenIapLog.d("Successfully loaded OpenIapModule (Amazon flavor)", "OpenIapStore")
+        instance
+    } catch (e: Throwable) {
+        throw IllegalStateException("Failed to load OpenIapModule (Amazon flavor). Make sure you're using the Amazon flavor.", e)
     }
 }
 

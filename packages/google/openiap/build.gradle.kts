@@ -1,5 +1,18 @@
 import groovy.json.JsonSlurper
+import java.io.File
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
+fun locateOpeniapVersionsFile(startDir: File): File {
+    var current: File? = startDir
+    while (current != null) {
+        val candidate = File(current, "openiap-versions.json")
+        if (candidate.isFile) {
+            return candidate
+        }
+        current = current.parentFile
+    }
+    throw GradleException("packages/google: missing openiap-versions.json from ${startDir.absolutePath}")
+}
 
 plugins {
     id("com.android.library")
@@ -8,14 +21,18 @@ plugins {
     id("com.vanniktech.maven.publish")
 }
 
-// Read version from monorepo root openiap-versions.json
-val versionsFile = File(rootDir.parentFile.parentFile, "openiap-versions.json")
-if (!versionsFile.isFile) {
-    error("packages/google: missing openiap-versions.json at ${versionsFile.path}")
-}
+// Read version from Gradle property first, then from monorepo root openiap-versions.json.
+// Release and local publish scripts pass -P/ORG_GRADLE_PROJECT_openIapVersion;
+// normal development builds use the repository SSOT file.
+val versionsFile = locateOpeniapVersionsFile(projectDir)
 val versionsJson = JsonSlurper().parseText(versionsFile.readText()) as Map<*, *>
-val openIapVersion: String = versionsJson["google"]?.toString()
-    ?: error("packages/google: 'google' version missing in openiap-versions.json")
+val openIapVersion: String = project.findProperty("openIapVersion")?.toString()?.takeIf { it.isNotBlank() }
+    ?: versionsJson["google"]?.toString()?.takeIf { it.isNotBlank() }
+    ?: throw GradleException("packages/google: 'google' version missing in openiap-versions.json")
+val isPublishTaskRequested = gradle.startParameter.taskNames.any { taskName ->
+    taskName.contains("publish", ignoreCase = true) ||
+        taskName.contains("mavenCentral", ignoreCase = true)
+}
 
 android {
     namespace = "io.github.hyochan.openiap"
@@ -51,6 +68,11 @@ android {
             dimension = "platform"
             buildConfigField("String", "OPENIAP_STORE", "\"horizon\"")
         }
+        // Amazon flavor - Amazon Appstore SDK IAP only
+        create("amazon") {
+            dimension = "platform"
+            buildConfigField("String", "OPENIAP_STORE", "\"amazon\"")
+        }
     }
 
     compileOptions {
@@ -75,11 +97,18 @@ android {
         named("horizon") {
             java.srcDirs("src/horizon/java")
         }
+        named("amazon") {
+            java.srcDirs("src/amazon/java")
+            manifest.srcFile("src/amazon/AndroidManifest.xml")
+        }
         named("testPlay") {
             java.srcDirs("src/testPlay/java")
         }
         named("testHorizon") {
             java.srcDirs("src/testHorizon/java")
+        }
+        named("testAmazon") {
+            java.srcDirs("src/testAmazon/java")
         }
     }
 
@@ -119,6 +148,10 @@ dependencies {
     add("horizonApi", "com.meta.horizon.platform.ovr:android-platform-sdk:$horizonPlatformVersion")
     add("horizonCompileOnly", "com.meta.horizon.billingclient.api:horizon-billing-compatibility:$horizonBillingCompatibilityVersion")
     add("horizonApi", "com.meta.horizon.billingclient.api:horizon-billing-compatibility:$horizonBillingCompatibilityVersion")
+
+    // Amazon flavor: Amazon Appstore SDK for Fire OS IAP
+    add("amazonCompileOnly", "com.amazon.device:amazon-appstore-sdk:3.0.8")
+    add("amazonApi", "com.amazon.device:amazon-appstore-sdk:3.0.8")
 
     // Kotlin Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
@@ -170,6 +203,22 @@ mavenPublishing {
                 url.set("https://github.com/hyodotdev/openiap")
             }
         }
+        "amazon" -> {
+            coordinates(groupId, "openiap-google-amazon", openIapVersion)
+
+            // Publish the Amazon flavor (Amazon Appstore SDK)
+            configure(com.vanniktech.maven.publish.AndroidSingleVariantLibrary(
+                variant = "amazonRelease",
+                sourcesJar = true,
+                publishJavadocJar = true
+            ))
+
+            pom {
+                name.set("OpenIAP Amazon")
+                description.set("OpenIAP Android library using Amazon Appstore SDK IAP")
+                url.set("https://github.com/hyodotdev/openiap")
+            }
+        }
         else -> { // "play" is default
             coordinates(groupId, "openiap-google", openIapVersion)
 
@@ -188,9 +237,11 @@ mavenPublishing {
         }
     }
 
-    // Central Portal is the default Maven Central target on Vanniktech 0.33+.
-    publishToMavenCentral()
-    signAllPublications()
+    if (isPublishTaskRequested) {
+        // Use the Central Portal publishing path only for publishing tasks.
+        publishToMavenCentral()
+        signAllPublications()
+    }
 
     pom {
         licenses {

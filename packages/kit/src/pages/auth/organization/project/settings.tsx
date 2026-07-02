@@ -50,6 +50,10 @@ interface ProjectData {
   // whether one is configured, so the UI can show "Configured /
   // Replace" instead of a prefilled password field.
   hasHorizonAppSecret?: boolean;
+  // Amazon RVS shared secret is also write-only. The dashboard only
+  // receives this boolean so the browser never sees the production
+  // secret after setup.
+  hasAmazonSharedSecret?: boolean;
 }
 
 interface OutletContext {
@@ -115,9 +119,13 @@ export default function ProjectSettings() {
   const [horizonAppSecret, setHorizonAppSecret] = useState("");
   const [isReplacingHorizonAppSecret, setIsReplacingHorizonAppSecret] =
     useState(false);
+  const [amazonSharedSecret, setAmazonSharedSecret] = useState("");
+  const [isReplacingAmazonSharedSecret, setIsReplacingAmazonSharedSecret] =
+    useState(false);
   const [savingMetadata, setSavingMetadata] = useState(false);
   const [savingReportingCurrency, setSavingReportingCurrency] = useState(false);
   const [savingHorizon, setSavingHorizon] = useState(false);
+  const [savingAmazon, setSavingAmazon] = useState(false);
 
   // Convex mutations for file upload
   const generateUploadUrl = useMutation(api.files.mutation.generateUploadUrl);
@@ -168,6 +176,9 @@ export default function ProjectSettings() {
   const originalHorizonEnabled = Boolean(project?.horizonEnabled);
   const originalHorizonAppId = project?.horizonAppId ?? "";
   const hasHorizonAppSecretConfigured = Boolean(project?.hasHorizonAppSecret);
+  const hasAmazonSharedSecretConfigured = Boolean(
+    project?.hasAmazonSharedSecret,
+  );
 
   useEffect(() => {
     if (!project) {
@@ -187,6 +198,8 @@ export default function ProjectSettings() {
     // user-typed input silently being re-submitted.
     setHorizonAppSecret("");
     setIsReplacingHorizonAppSecret(false);
+    setAmazonSharedSecret("");
+    setIsReplacingAmazonSharedSecret(false);
   }, [
     project,
     originalAndroidPackageName,
@@ -199,6 +212,7 @@ export default function ProjectSettings() {
     originalHorizonEnabled,
     originalHorizonAppId,
     hasHorizonAppSecretConfigured,
+    hasAmazonSharedSecretConfigured,
   ]);
 
   const trimmedAndroidPackageName = androidPackageName.trim();
@@ -210,6 +224,7 @@ export default function ProjectSettings() {
   const trimmedReportingCurrency = reportingCurrency.trim().toUpperCase();
   const trimmedHorizonAppId = horizonAppId.trim();
   const trimmedHorizonAppSecret = horizonAppSecret.trim();
+  const trimmedAmazonSharedSecret = amazonSharedSecret.trim();
 
   // Query existing files
   const files = useQuery(
@@ -378,6 +393,17 @@ export default function ProjectSettings() {
     !horizonAppSecretValid ||
     savingHorizon;
 
+  const amazonSharedSecretNeeded =
+    !hasAmazonSharedSecretConfigured || isReplacingAmazonSharedSecret;
+  const amazonSharedSecretValid =
+    !amazonSharedSecretNeeded ||
+    (trimmedAmazonSharedSecret.length > 0 &&
+      trimmedAmazonSharedSecret.length <= 2_048);
+  const amazonHasChanges =
+    amazonSharedSecretNeeded && trimmedAmazonSharedSecret.length > 0;
+  const disableSaveAmazon =
+    !amazonHasChanges || !amazonSharedSecretValid || savingAmazon;
+
   const handleMetadataSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!project || disableSaveMetadata) {
@@ -473,6 +499,54 @@ export default function ProjectSettings() {
       toast.error(error.message || "Failed to save Horizon configuration.");
     } finally {
       setSavingHorizon(false);
+    }
+  };
+
+  const handleAmazonSubmit = async () => {
+    if (!project || disableSaveAmazon) {
+      return;
+    }
+
+    setSavingAmazon(true);
+    try {
+      await updateProject({
+        projectId: project._id,
+        amazonSharedSecret: trimmedAmazonSharedSecret,
+      });
+
+      setAmazonSharedSecret("");
+      setIsReplacingAmazonSharedSecret(false);
+      toast.success("Amazon RVS configuration saved.");
+    } catch (error: any) {
+      console.error("Amazon RVS config update error:", error);
+      toast.error(error.message || "Failed to save Amazon RVS configuration.");
+    } finally {
+      setSavingAmazon(false);
+    }
+  };
+
+  const handleAmazonClear = async () => {
+    if (!project || !hasAmazonSharedSecretConfigured || savingAmazon) {
+      return;
+    }
+
+    setSavingAmazon(true);
+    try {
+      await updateProject({
+        projectId: project._id,
+        amazonSharedSecret: null,
+      });
+
+      setAmazonSharedSecret("");
+      setIsReplacingAmazonSharedSecret(false);
+      toast.success("Amazon RVS configuration removed.");
+    } catch (error: any) {
+      console.error("Amazon RVS config clear error:", error);
+      toast.error(
+        error.message || "Failed to remove Amazon RVS configuration.",
+      );
+    } finally {
+      setSavingAmazon(false);
     }
   };
 
@@ -1788,6 +1862,105 @@ export default function ProjectSettings() {
                         </button>
                       </div>
                     )}
+                  </div>
+
+                  {/* Amazon Appstore subsection — Fire OS builds use
+                    Amazon's Appstore SDK and IAPKit verifies receipts
+                    server-side through RVS with a project-level shared
+                    secret. */}
+                  <div className="pt-4 border-t">
+                    <div>
+                      <label
+                        htmlFor="amazon-shared-secret"
+                        className="block text-sm font-medium mb-2"
+                      >
+                        {"Amazon RVS Shared Secret"}
+                      </label>
+                      {hasAmazonSharedSecretConfigured &&
+                      !isReplacingAmazonSharedSecret ? (
+                        <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-500" />
+                            <span className="text-sm text-green-700 dark:text-green-400">
+                              {"Shared Secret configured"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsReplacingAmazonSharedSecret(true);
+                                setAmazonSharedSecret("");
+                              }}
+                              disabled={savingAmazon}
+                              className="px-3 py-1 text-sm font-medium text-primary hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed rounded transition-colors"
+                            >
+                              {"Replace"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleAmazonClear()}
+                              disabled={savingAmazon}
+                              className="px-3 py-1 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 disabled:opacity-50 disabled:cursor-not-allowed rounded transition-colors"
+                            >
+                              {"Remove"}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <input
+                          id="amazon-shared-secret"
+                          type="password"
+                          autoComplete="off"
+                          spellCheck={false}
+                          placeholder="Amazon RVS shared secret"
+                          value={amazonSharedSecret}
+                          onChange={(e) =>
+                            setAmazonSharedSecret(e.target.value)
+                          }
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              void handleAmazonSubmit();
+                            }
+                          }}
+                          className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      )}
+                      <p className="text-sm text-muted-foreground mt-1 break-words">
+                        {
+                          "Required for production Amazon Appstore receipt verification. App Tester sandbox requests can run without exposing this secret to clients."
+                        }
+                      </p>
+                      {!amazonSharedSecretValid &&
+                        trimmedAmazonSharedSecret.length > 0 && (
+                          <p className="text-sm text-red-500 mt-1">
+                            {
+                              "Shared Secret must be 1–2048 characters after trimming."
+                            }
+                          </p>
+                        )}
+                    </div>
+
+                    <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <a
+                        href="https://developer.amazon.com/docs/in-app-purchasing/iap-rvs-for-android-apps.html"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                      >
+                        {"Amazon RVS docs"}
+                        <FileText className="w-3 h-3" />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => void handleAmazonSubmit()}
+                        disabled={disableSaveAmazon}
+                        className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {savingAmazon ? "Saving…" : "Save Amazon config"}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

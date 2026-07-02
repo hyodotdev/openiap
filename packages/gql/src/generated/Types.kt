@@ -627,7 +627,8 @@ public enum class IapStore(val rawValue: String) {
     Unknown("unknown"),
     Apple("apple"),
     Google("google"),
-    Horizon("horizon")
+    Horizon("horizon"),
+    Amazon("amazon")
 
     companion object {
         fun fromJson(value: String): IapStore = when (value) {
@@ -643,6 +644,9 @@ public enum class IapStore(val rawValue: String) {
             "horizon" -> IapStore.Horizon
             "HORIZON" -> IapStore.Horizon
             "Horizon" -> IapStore.Horizon
+            "amazon" -> IapStore.Amazon
+            "AMAZON" -> IapStore.Amazon
+            "Amazon" -> IapStore.Amazon
             else -> throw IllegalArgumentException("Unknown IapStore value: $value")
         }
     }
@@ -4807,7 +4811,8 @@ public data class RequestPurchaseProps(
  * 
  * Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
  * - apple: Always targets App Store
- * - google: Targets Play Store by default, or Horizon when built with horizon flavor
+ * - google: Targets Play Store by default, Horizon when built with horizon flavor,
+ *   or Fire OS when built with amazon flavor
  *   (determined at build time, not runtime)
  */
 public data class RequestPurchasePropsByPlatforms(
@@ -5019,7 +5024,8 @@ public data class RequestSubscriptionIosProps(
  * 
  * Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
  * - apple: Always targets App Store
- * - google: Targets Play Store by default, or Horizon when built with horizon flavor
+ * - google: Targets Play Store by default, Horizon when built with horizon flavor,
+ *   or Fire OS when built with amazon flavor
  *   (determined at build time, not runtime)
  */
 public data class RequestSubscriptionPropsByPlatforms(
@@ -5056,6 +5062,41 @@ public data class RequestSubscriptionPropsByPlatforms(
         "apple" to apple?.toJson(),
         "google" to google?.toJson(),
         "ios" to ios?.toJson(),
+    )
+}
+
+public data class RequestVerifyPurchaseWithIapkitAmazonProps(
+    /**
+     * Amazon Appstore receipt id returned by PurchaseResponse.getReceipt().getReceiptId().
+     */
+    val receiptId: String,
+    /**
+     * Use Amazon RVS Cloud Sandbox for App Tester receipts.
+     */
+    val sandbox: Boolean? = null,
+    /**
+     * Amazon Appstore user id returned by PurchaseResponse.getUserData().getUserId().
+     */
+    val userId: String? = null
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitAmazonProps? {
+            val receiptId = json["receiptId"] as? String
+            val sandbox = json["sandbox"] as? Boolean
+            val userId = json["userId"] as? String
+            if (receiptId == null) return null
+            return RequestVerifyPurchaseWithIapkitAmazonProps(
+                receiptId = receiptId,
+                sandbox = sandbox,
+                userId = userId,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "receiptId" to receiptId,
+        "sandbox" to sandbox,
+        "userId" to userId,
     )
 }
 
@@ -5106,8 +5147,13 @@ public data class RequestVerifyPurchaseWithIapkitGoogleProps(
  * 
  * - apple: Verifies via App Store (JWS token)
  * - google: Verifies via Play Store (purchase token)
+ * - amazon: Verifies via Amazon Appstore RVS (userId + receiptId)
  */
 public data class RequestVerifyPurchaseWithIapkitProps(
+    /**
+     * Amazon Appstore verification parameters.
+     */
+    val amazon: RequestVerifyPurchaseWithIapkitAmazonProps? = null,
     /**
      * API key used for the Authorization header (Bearer {apiKey}).
      */
@@ -5124,6 +5170,7 @@ public data class RequestVerifyPurchaseWithIapkitProps(
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitProps {
             return RequestVerifyPurchaseWithIapkitProps(
+                amazon = (json["amazon"] as? Map<String, Any?>)?.let { RequestVerifyPurchaseWithIapkitAmazonProps.fromJson(it) },
                 apiKey = json["apiKey"] as? String,
                 apple = (json["apple"] as? Map<String, Any?>)?.let { RequestVerifyPurchaseWithIapkitAppleProps.fromJson(it) },
                 google = (json["google"] as? Map<String, Any?>)?.let { RequestVerifyPurchaseWithIapkitGoogleProps.fromJson(it) },
@@ -5132,6 +5179,7 @@ public data class RequestVerifyPurchaseWithIapkitProps(
     }
 
     fun toJson(): Map<String, Any?> = mapOf(
+        "amazon" to amazon?.toJson(),
         "apiKey" to apiKey,
         "apple" to apple?.toJson(),
         "google" to google?.toJson(),

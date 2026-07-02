@@ -161,7 +161,7 @@ function Store() {
   const { products, fetchProducts, requestPurchase } = useIAP({
     onPurchaseSuccess: async (purchase) => {
       // Works with both Apple and Onside purchases
-      await finishTransaction(purchase, false);
+      await finishTransaction({ purchase, isConsumable: false });
     },
     onPurchaseError: (error) => {
       console.error(error.message);

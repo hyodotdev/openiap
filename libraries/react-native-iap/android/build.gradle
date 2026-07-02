@@ -107,8 +107,13 @@ def getExtOrIntegerDefault(name) {
   return getExtOrDefault(name).toString().toInteger()
 }
 
-// Read horizonEnabled from gradle.properties, default to false (play)
+// Read store flags from gradle.properties, default to play
 def horizonEnabled = project.findProperty('horizonEnabled')?.toBoolean() ?: false
+def fireOsEnabled = project.findProperty('fireOsEnabled')?.toBoolean() ?: false
+if (horizonEnabled && fireOsEnabled) {
+  throw new GradleException("react-native-iap: horizonEnabled and fireOsEnabled cannot both be true")
+}
+def openiapFlavor = fireOsEnabled ? 'amazon' : (horizonEnabled ? 'horizon' : 'play')
 
 def resolveOpenIapGoogleBuildFile() {
   def candidates = [
@@ -155,9 +160,8 @@ android {
     // Ship consumer keep rules so Nitro HybridObjects aren't stripped in app release builds
     consumerProguardFiles 'consumer-rules.pro'
 
-    // Use horizonEnabled to determine platform flavor
-    def flavor = horizonEnabled ? 'horizon' : 'play'
-    missingDimensionStrategy "platform", flavor
+    // Use explicit store flags to determine platform flavor
+    missingDimensionStrategy "platform", openiapFlavor
 
     externalNativeBuild {
       cmake {
@@ -251,7 +255,9 @@ dependencies {
   }
 
   // Google Play Services
-  implementation "com.google.android.gms:play-services-base:$playServicesBaseVersion"
+  if (!fireOsEnabled && !horizonEnabled) {
+    implementation "com.google.android.gms:play-services-base:$playServicesBaseVersion"
+  }
 
   // Kotlin coroutines
   implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutinesVersion"
@@ -261,6 +267,8 @@ dependencies {
   def localGoogleProject = findProject(':openiap')
   if (localGoogleProject != null) {
     implementation project(':openiap')
+  } else if (fireOsEnabled) {
+    implementation "io.github.hyochan.openiap:openiap-google-amazon:${googleVersionString}"
   } else if (horizonEnabled) {
     implementation "io.github.hyochan.openiap:openiap-google-horizon:${googleVersionString}"
   } else {

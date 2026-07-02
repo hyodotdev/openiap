@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Apple, Smartphone, Headset } from "lucide-react";
+import { Apple, Smartphone, Headset, ShoppingBag } from "lucide-react";
 
 import { Callout } from "../components/Callout";
 import { DocsPage } from "../components/DocsPage";
@@ -9,16 +9,16 @@ export default function IntroductionPage() {
     <DocsPage
       slug=""
       title="Introduction"
-      description="IAPKit is a hosted receipt-validation API for Apple, Google, and Meta Horizon purchases. Managed by OpenIAP."
+      description="IAPKit is a hosted receipt-validation API for Apple, Google, Meta Horizon, and Amazon Appstore purchases. Managed by OpenIAP."
     >
       <p>
-        <strong>IAPKit</strong>, managed by OpenIAP, is a hosted
-        receipt-validation service for mobile and VR apps that need server-side
-        store verification without building their own receipt server. Your app
-        sends a store-specific receipt to <code>/v1/purchase/verify</code>,
-        IAPKit calls the upstream store with credentials it already holds for
-        your project, and returns a normalized{" "}
-        <code>{`{ isValid, state, productId }`}</code> result your app can use.
+        <strong>IAPKit</strong>, managed by OpenIAP, is a receipt-validation
+        backend for mobile and VR apps that need server-side store verification
+        without building their own receipt server. You send a store-specific
+        receipt to <code>/v1/purchase/verify</code>, IAPKit calls the upstream
+        store with credentials it already holds for your project, and returns a
+        normalized <code>{`{ store, isValid, state, productId? }`}</code> result
+        your app can use.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">When to reach for IAPKit</h2>
@@ -28,20 +28,20 @@ export default function IntroductionPage() {
         user <em>still has an entitlement</em> — a refund, a chargeback, a
         revoked subscription, or a replayed receipt on a jailbroken device all
         look identical to a fresh purchase from the client's perspective.
-        Validating server-to-server against Apple / Google / Meta is the only
-        way to be certain, and that validation needs store credentials that must
-        stay inside IAPKit, not on a customer device.
+        Validating server-to-server against Apple / Google / Horizon / Amazon is
+        the only way to be certain, and that validation needs store credentials
+        that must stay inside IAPKit, not on a customer device.
       </p>
       <p>
-        IAPKit centralizes those credentials in one place, exposes one managed
-        API your app can call directly with a project API key, and harmonizes
-        the three stores' very different response shapes into a single
-        lifecycle: <code>ENTITLED</code>, <code>PENDING_ACKNOWLEDGMENT</code>,{" "}
+        IAPKit centralizes those credentials in one place, exposes one API your
+        app calls with a project API key, and harmonizes the supported stores'
+        very different response shapes into a single lifecycle:{" "}
+        <code>ENTITLED</code>, <code>PENDING_ACKNOWLEDGMENT</code>,{" "}
         <code>CANCELED</code>, and friends.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Supported stores</h2>
-      <div className="my-6 grid gap-4 sm:grid-cols-3">
+      <div className="my-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StoreCard
           icon={<Apple className="h-5 w-5" />}
           title="Apple App Store"
@@ -60,6 +60,12 @@ export default function IntroductionPage() {
           detail="Quest entitlements verified via Meta Graph API. App Secret stays server-side; clients send only (userId, sku)."
           slug="verification/horizon"
         />
+        <StoreCard
+          icon={<ShoppingBag className="h-5 w-5" />}
+          title="Amazon Appstore"
+          detail="Fire OS receipts verified through Amazon RVS using the project's shared secret. Clients send only (userId, receiptId)."
+          slug="api"
+        />
       </div>
 
       <h2 className="mt-10 text-2xl font-semibold">Architecture</h2>
@@ -75,10 +81,10 @@ export default function IntroductionPage() {
   ─────────────────────         ──────────────────            ─────────────────
      POST /v1/purchase/verify     apiKey → project
       Bearer <apiKey>    ───►     verify action      ───►     App Store / Play /
-      { store, ... }                                           Meta Graph API
+      { store, ... }                                           Horizon / Amazon
                                                           ◄── verified receipt
-      { isValid, state,
-        productId }      ◄───     harmonized state
+      { store, isValid, state,
+        productId? }     ◄───     harmonized state
 `}</code>
       </pre>
 

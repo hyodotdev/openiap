@@ -1919,6 +1919,14 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                   if (iapkit.apple != null) 'apple': {'jws': iapkit.apple!.jws},
                   if (iapkit.google != null)
                     'google': {'purchaseToken': iapkit.google!.purchaseToken},
+                  if (iapkit.amazon != null)
+                    'amazon': {
+                      'receiptId': iapkit.amazon!.receiptId,
+                      if (iapkit.amazon!.sandbox != null)
+                        'sandbox': iapkit.amazon!.sandbox,
+                      if (iapkit.amazon!.userId != null)
+                        'userId': iapkit.amazon!.userId,
+                    },
                 };
               }
 
@@ -1951,22 +1959,51 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               }
 
               // Parse iapkit result (single object, not array)
+              gentype.RequestVerifyPurchaseWithIapkitResult parseIapkitResult(
+                  dynamic value) {
+                if (value is! Map) {
+                  throw PurchaseError(
+                    code: gentype.ErrorCode.PurchaseVerificationFailed,
+                    message:
+                        'Malformed IAPKit verification result: iapkit must be an object',
+                  );
+                }
+
+                final itemMap = value.map<String, dynamic>(
+                  (key, value) => MapEntry(key.toString(), value),
+                );
+                final isValid = itemMap['isValid'];
+                final state = itemMap['state'];
+                final store = itemMap['store'];
+                if (isValid is! bool || state == null || store == null) {
+                  throw PurchaseError(
+                    code: gentype.ErrorCode.PurchaseVerificationFailed,
+                    message:
+                        'Malformed IAPKit verification result: missing isValid, state, or store',
+                  );
+                }
+
+                return gentype.RequestVerifyPurchaseWithIapkitResult(
+                  isValid: isValid,
+                  state: gentype.IapkitPurchaseState.fromJson(
+                    state.toString(),
+                  ),
+                  store: gentype.IapStore.fromJson(store.toString()),
+                );
+              }
+
               gentype.RequestVerifyPurchaseWithIapkitResult? iapkitResult;
               final iapkitData = resultMap['iapkit'];
               if (iapkitData != null) {
-                final itemMap = iapkitData is Map
-                    ? iapkitData.map<String, dynamic>(
-                        (k, v) => MapEntry(k.toString(), v),
-                      )
-                    : <String, dynamic>{};
-                iapkitResult = gentype.RequestVerifyPurchaseWithIapkitResult(
-                  isValid: itemMap['isValid'] as bool? ?? false,
-                  state: gentype.IapkitPurchaseState.fromJson(
-                    itemMap['state']?.toString() ?? 'unknown',
-                  ),
-                  store: gentype.IapStore.fromJson(
-                    itemMap['store']?.toString() ?? 'apple',
-                  ),
+                iapkitResult = parseIapkitResult(iapkitData);
+              }
+
+              final providerValue = resultMap['provider'];
+              if (providerValue == null) {
+                throw PurchaseError(
+                  code: gentype.ErrorCode.PurchaseVerificationFailed,
+                  message:
+                      'Malformed IAPKit verification result: missing provider',
                 );
               }
 
@@ -1987,7 +2024,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                 iapkit: iapkitResult,
                 errors: errors,
                 provider: gentype.PurchaseVerificationProvider.fromJson(
-                  resultMap['provider']?.toString() ?? 'iapkit',
+                  providerValue.toString(),
                 ),
               );
             } on PlatformException catch (error) {

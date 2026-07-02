@@ -1,0 +1,36 @@
+schema-version = 1
+
+[package]
+id = "dev.hyo.openiap.rniap.example"
+title = "React Native IAP Example"
+version = "1.0.0"
+
+[components]
+[[components.interactive]]
+id = "dev.hyo.openiap.rniap.example.main"
+runtime-module = "/com.amazon.kepler.keplerscript.runtime.loader_2@IKeplerScript_2_0"
+launch-type = "singleton"
+categories = ["com.amazon.category.main"]
+
+[wants]
+[[wants.service]]
+id = "com.amazon.inputmethod.service"
+
+[[wants.service]]
+id = "com.amazon.network.service"
+
+[[wants.service]]
+id = "com.amazon.iap.core.service"
+
+[[wants.service]]
+id = "com.amazon.iap.tester.service"
+
+[[wants.module]]
+id = "/com.amazon.iap.core@IIAPCoreUI"
+
+[[wants.module]]
+id = "/com.amazonappstore.iap.tester@IIAPTesterUI"
+
+[needs]
+[[needs.module]]
+id = "/com.amazon.kepler.appstore.iap.purchase.core@IAppstoreIAPPurchaseCoreService"

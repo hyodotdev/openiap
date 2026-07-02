@@ -19,6 +19,8 @@ import type {PurchaseError} from '../../src/utils/errorMapping';
 import PurchaseDetails from '../src/components/PurchaseDetails';
 import PurchaseSummaryRow from '../src/components/PurchaseSummaryRow';
 
+const isVegaOS = (): boolean => String(Platform.OS) === 'kepler';
+
 export default function AvailablePurchases() {
   const [loading, setLoading] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
@@ -30,6 +32,10 @@ export default function AvailablePurchases() {
   );
   const [purchaseDetailsVisible, setPurchaseDetailsVisible] = useState(false);
   const [storefront, setStorefront] = useState<string>('');
+  const [subscriptionLinkMessage, setSubscriptionLinkMessage] = useState<
+    string | null
+  >(null);
+  const isVega = isVegaOS();
 
   // Deduplicate purchases by productId, keeping the most recent transaction
   const deduplicatePurchases = (purchases: Purchase[]): Purchase[] => {
@@ -81,7 +87,7 @@ export default function AvailablePurchases() {
       checkSubscriptionStatus();
     },
     onPurchaseError: (error: PurchaseError) => {
-      console.error('[AVAILABLE-PURCHASES] Purchase failed:', error);
+      console.log('[AVAILABLE-PURCHASES] Purchase failed:', error);
       Alert.alert('Purchase Failed', error.message);
     },
   });
@@ -105,11 +111,11 @@ export default function AvailablePurchases() {
         'items',
       );
     } catch (error) {
-      console.error(
+      console.log(
         '[AVAILABLE-PURCHASES] Error checking subscription status:',
         error,
       );
-      console.warn(
+      console.log(
         '[AVAILABLE-PURCHASES] Subscription status check failed, but existing state preserved',
       );
     } finally {
@@ -139,7 +145,7 @@ export default function AvailablePurchases() {
         '[AVAILABLE-PURCHASES] Available purchases and active subscriptions loaded',
       );
     } catch (error) {
-      console.error('[AVAILABLE-PURCHASES] Error loading purchases:', error);
+      console.log('[AVAILABLE-PURCHASES] Error loading purchases:', error);
       Alert.alert('Error', 'Failed to load purchase data');
     } finally {
       setLoading(false);
@@ -153,13 +159,20 @@ export default function AvailablePurchases() {
       setStorefront(code || '');
       Alert.alert('Storefront', code || '(empty)');
     } catch (e: any) {
-      console.warn('Failed to get storefront:', e?.message);
+      console.log('Failed to get storefront:', e?.message);
       Alert.alert('Storefront', 'Failed to get storefront');
     }
   };
 
   const handleOpenSubscriptions = async () => {
     try {
+      if (isVega) {
+        setSubscriptionLinkMessage(
+          'Subscription management deep links are not exposed through the Amazon Vega OpenIAP adapter. Use this screen to inspect active subscriptions and purchase history.',
+        );
+        return;
+      }
+
       if (Platform.OS === 'android') {
         // Use first known subscription id if available, else fall back to constant
         const sku = subscriptions[0]?.id ?? SUBSCRIPTION_PRODUCT_IDS[0];
@@ -174,7 +187,9 @@ export default function AvailablePurchases() {
         await deepLinkToSubscriptions({});
       }
     } catch (e: any) {
-      Alert.alert('Deep Link Error', e?.message || 'Failed to open');
+      const message = e?.message || 'Failed to open';
+      setSubscriptionLinkMessage(message);
+      Alert.alert('Deep Link Error', message);
     }
   };
 
@@ -184,8 +199,14 @@ export default function AvailablePurchases() {
       console.log(
         '[AVAILABLE-PURCHASES] Connected to store, loading subscription products...',
       );
-      // Request products first - this is event-based, not promise-based
-      fetchProducts({skus: SUBSCRIPTION_PRODUCT_IDS, type: 'subs'});
+      fetchProducts({skus: SUBSCRIPTION_PRODUCT_IDS, type: 'subs'}).catch(
+        (error) => {
+          console.log(
+            '[AVAILABLE-PURCHASES] Failed to load subscription products:',
+            error,
+          );
+        },
+      );
       console.log(
         '[AVAILABLE-PURCHASES] Product loading request sent - waiting for results...',
       );
@@ -196,7 +217,7 @@ export default function AvailablePurchases() {
       );
       Promise.all([getAvailablePurchases(), getActiveSubscriptions()]).catch(
         (error) => {
-          console.warn(
+          console.log(
             '[AVAILABLE-PURCHASES] Failed to load purchase data:',
             error,
           );
@@ -396,6 +417,9 @@ export default function AvailablePurchases() {
         >
           <Text style={styles.buttonText}>🔗 Manage Subscriptions</Text>
         </TouchableOpacity>
+        {subscriptionLinkMessage ? (
+          <Text style={styles.helperText}>{subscriptionLinkMessage}</Text>
+        ) : null}
       </View>
       {/* Subscription Details Modal */}
       <Modal
@@ -430,7 +454,9 @@ export default function AvailablePurchases() {
                 {selectedSubscription.purchaseToken && (
                   <View style={styles.purchaseRow}>
                     <Text style={styles.label}>Purchase Token</Text>
-                    <Text style={styles.value}>{selectedSubscription.purchaseToken}</Text>
+                    <Text style={styles.value}>
+                      {selectedSubscription.purchaseToken}
+                    </Text>
                   </View>
                 )}
                 <View style={styles.purchaseRow}>
@@ -687,6 +713,12 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  helperText: {
+    color: '#666',
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 10,
   },
   // Modal styles
   modalOverlay: {

@@ -3,9 +3,25 @@ package expo.modules.iap
 import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.Locale
 
 internal object ExpoIapLog {
     private const val TAG = "ExpoIap"
+    private val SENSITIVE_KEY_FRAGMENTS = setOf(
+        "token",
+        "apikey",
+        "secret",
+        "jws",
+        "receiptid",
+        "userid",
+        "password",
+        "bearer"
+    )
+    private val SENSITIVE_AUTH_KEYS = setOf(
+        "auth",
+        "authorization",
+        "authheader"
+    )
 
     fun payload(
         name: String,
@@ -61,10 +77,16 @@ internal object ExpoIapLog {
     }
 
     private fun sanitizeMap(source: Map<*, *>): Map<String, Any?> {
+        fun isSensitiveKey(key: String): Boolean {
+            val normalized = key.lowercase(Locale.ROOT).filter { it.isLetterOrDigit() }
+            return SENSITIVE_KEY_FRAGMENTS.any { normalized.contains(it) } ||
+                normalized in SENSITIVE_AUTH_KEYS
+        }
+
         val sanitized = linkedMapOf<String, Any?>()
         for ((rawKey, rawValue) in source) {
             val key = rawKey as? String ?: continue
-            if (key.lowercase().contains("token")) {
+            if (isSensitiveKey(key)) {
                 sanitized[key] = "hidden"
                 continue
             }

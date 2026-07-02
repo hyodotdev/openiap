@@ -87,6 +87,18 @@ describe('OfferCode Screen', () => {
     expect(getByText('🎁 Open Play Store')).toBeTruthy();
   });
 
+  it('shows Vega unsupported guidance without calling platform redemption APIs', () => {
+    (Platform as any).OS = 'kepler';
+    const {getByText} = render(<OfferCode />);
+
+    fireEvent.press(getByText('Amazon Vega IAP'));
+
+    expect(mockPresentCodeRedemptionSheetIOS).not.toHaveBeenCalled();
+    expect(
+      getByText(/Offer code redemption is not supported on Amazon Vega/),
+    ).toBeTruthy();
+  });
+
   it('shows testing offer codes section', () => {
     const {getByText} = render(<OfferCode />);
 

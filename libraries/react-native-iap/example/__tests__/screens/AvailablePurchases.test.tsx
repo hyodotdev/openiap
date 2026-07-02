@@ -1,6 +1,6 @@
 import {type ReactElement} from 'react';
 import {render, fireEvent, waitFor} from '@testing-library/react-native';
-import {Alert} from 'react-native';
+import {Alert, Platform} from 'react-native';
 import AvailablePurchases from '../../screens/AvailablePurchases';
 import * as RNIap from 'react-native-iap';
 import {DataModalProvider} from '../../src/contexts/DataModalContext';
@@ -106,6 +106,24 @@ describe('AvailablePurchases Screen', () => {
     const {getByText} = renderWithProviders(<AvailablePurchases />);
 
     expect(getByText('🔄 Active Subscriptions')).toBeTruthy();
+  });
+
+  it('shows Vega guidance instead of opening unsupported subscription management deep links', () => {
+    const originalPlatform = Platform.OS;
+    (Platform as any).OS = 'kepler';
+
+    try {
+      const {getByText} = renderWithProviders(<AvailablePurchases />);
+
+      fireEvent.press(getByText('👤 Manage Subscriptions'));
+
+      expect(
+        getByText(/Subscription management deep links are not exposed/),
+      ).toBeTruthy();
+      expect(RNIap.deepLinkToSubscriptions).not.toHaveBeenCalled();
+    } finally {
+      (Platform as any).OS = originalPlatform;
+    }
   });
 
   it.skip('handles error when fetching purchases fails', async () => {

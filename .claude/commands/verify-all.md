@@ -87,8 +87,9 @@ All release workflows exist and have valid YAML:
 ls .github/workflows/release-{apple,google,react-native,expo,flutter,godot,kmp}.yml
 ```
 
-### 8. CLAUDE.md
-- Root CLAUDE.md lists all 5 library CLAUDE.md files
+### 8. Agent instructions
+- Root AGENTS.md lists all framework library CLAUDE.md files
+- Root CLAUDE.md and GEMINI.md are symlinks to AGENTS.md
 - `knowledge/internal/02-architecture.md` includes `libraries/` in structure
 - Auto-generated files list includes library types
 

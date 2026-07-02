@@ -182,6 +182,7 @@ enum IapStore {
 	APPLE = 1,
 	GOOGLE = 2,
 	HORIZON = 3,
+	AMAZON = 4,
 }
 
 ## Payment mode for subscription offers. Determines how the user pays during the offer period.
@@ -4302,7 +4303,7 @@ class RequestPurchaseProps:
 			dict["useAlternativeBilling"] = use_alternative_billing
 		return dict
 
-## Platform-specific purchase request parameters.  Note: "Platforms" refers to the SDK/OS level (apple, google), not the store. - apple: Always targets App Store - google: Targets Play Store by default, or Horizon when built with horizon flavor   (determined at build time, not runtime)
+## Platform-specific purchase request parameters.  Note: "Platforms" refers to the SDK/OS level (apple, google), not the store. - apple: Always targets App Store - google: Targets Play Store by default, Horizon when built with horizon flavor,   or Fire OS when built with amazon flavor   (determined at build time, not runtime)
 class RequestPurchasePropsByPlatforms:
 	## Apple-specific purchase parameters
 	var apple: RequestPurchaseIosProps
@@ -4540,7 +4541,7 @@ class RequestSubscriptionIosProps:
 			dict["advancedCommerceData"] = advanced_commerce_data
 		return dict
 
-## Platform-specific subscription request parameters.  Note: "Platforms" refers to the SDK/OS level (apple, google), not the store. - apple: Always targets App Store - google: Targets Play Store by default, or Horizon when built with horizon flavor   (determined at build time, not runtime)
+## Platform-specific subscription request parameters.  Note: "Platforms" refers to the SDK/OS level (apple, google), not the store. - apple: Always targets App Store - google: Targets Play Store by default, Horizon when built with horizon flavor,   or Fire OS when built with amazon flavor   (determined at build time, not runtime)
 class RequestSubscriptionPropsByPlatforms:
 	## Apple-specific subscription parameters
 	var apple: RequestSubscriptionIosProps
@@ -4599,6 +4600,34 @@ class RequestSubscriptionPropsByPlatforms:
 				dict["android"] = android
 		return dict
 
+class RequestVerifyPurchaseWithIapkitAmazonProps:
+	## Amazon Appstore user id returned by PurchaseResponse.getUserData().getUserId().
+	var user_id: Variant = null
+	## Amazon Appstore receipt id returned by PurchaseResponse.getReceipt().getReceiptId().
+	var receipt_id: String = ""
+	## Use Amazon RVS Cloud Sandbox for App Tester receipts.
+	var sandbox: Variant = null
+
+	static func from_dict(data: Dictionary) -> RequestVerifyPurchaseWithIapkitAmazonProps:
+		var obj = RequestVerifyPurchaseWithIapkitAmazonProps.new()
+		if data.has("userId") and data["userId"] != null:
+			obj.user_id = data["userId"]
+		if data.has("receiptId") and data["receiptId"] != null:
+			obj.receipt_id = data["receiptId"]
+		if data.has("sandbox") and data["sandbox"] != null:
+			obj.sandbox = data["sandbox"]
+		return obj
+
+	func to_dict() -> Dictionary:
+		var dict = {}
+		if user_id != null:
+			dict["userId"] = user_id
+		if receipt_id != null:
+			dict["receiptId"] = receipt_id
+		if sandbox != null:
+			dict["sandbox"] = sandbox
+		return dict
+
 class RequestVerifyPurchaseWithIapkitAppleProps:
 	## The JWS token returned with the purchase response.
 	var jws: String = ""
@@ -4631,7 +4660,7 @@ class RequestVerifyPurchaseWithIapkitGoogleProps:
 			dict["purchaseToken"] = purchase_token
 		return dict
 
-## Platform-specific verification parameters for IAPKit.  - apple: Verifies via App Store (JWS token) - google: Verifies via Play Store (purchase token)
+## Platform-specific verification parameters for IAPKit.  - apple: Verifies via App Store (JWS token) - google: Verifies via Play Store (purchase token) - amazon: Verifies via Amazon Appstore RVS (userId + receiptId)
 class RequestVerifyPurchaseWithIapkitProps:
 	## API key used for the Authorization header (Bearer {apiKey}).
 	var api_key: Variant = null
@@ -4639,6 +4668,8 @@ class RequestVerifyPurchaseWithIapkitProps:
 	var apple: RequestVerifyPurchaseWithIapkitAppleProps
 	## Google Play Store verification parameters.
 	var google: RequestVerifyPurchaseWithIapkitGoogleProps
+	## Amazon Appstore verification parameters.
+	var amazon: RequestVerifyPurchaseWithIapkitAmazonProps
 
 	static func from_dict(data: Dictionary) -> RequestVerifyPurchaseWithIapkitProps:
 		var obj = RequestVerifyPurchaseWithIapkitProps.new()
@@ -4654,6 +4685,11 @@ class RequestVerifyPurchaseWithIapkitProps:
 				obj.google = RequestVerifyPurchaseWithIapkitGoogleProps.from_dict(data["google"])
 			else:
 				obj.google = data["google"]
+		if data.has("amazon") and data["amazon"] != null:
+			if data["amazon"] is Dictionary:
+				obj.amazon = RequestVerifyPurchaseWithIapkitAmazonProps.from_dict(data["amazon"])
+			else:
+				obj.amazon = data["amazon"]
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -4670,6 +4706,11 @@ class RequestVerifyPurchaseWithIapkitProps:
 				dict["google"] = google.to_dict()
 			else:
 				dict["google"] = google
+		if amazon != null:
+			if amazon.has_method("to_dict"):
+				dict["amazon"] = amazon.to_dict()
+			else:
+				dict["amazon"] = amazon
 		return dict
 
 ## Product-level subscription replacement parameters (Android) Used with setSubscriptionProductReplacementParams in BillingFlowParams.ProductDetailsParams Available in Google Play Billing Library 8.1.0+
@@ -5014,7 +5055,8 @@ const IAP_STORE_VALUES = {
 	IapStore.UNKNOWN: "unknown",
 	IapStore.APPLE: "apple",
 	IapStore.GOOGLE: "google",
-	IapStore.HORIZON: "horizon"
+	IapStore.HORIZON: "horizon",
+	IapStore.AMAZON: "amazon"
 }
 
 const PAYMENT_MODE_VALUES = {
@@ -5289,7 +5331,8 @@ const IAP_STORE_FROM_STRING = {
 	"unknown": IapStore.UNKNOWN,
 	"apple": IapStore.APPLE,
 	"google": IapStore.GOOGLE,
-	"horizon": IapStore.HORIZON
+	"horizon": IapStore.HORIZON,
+	"amazon": IapStore.AMAZON
 }
 
 const PAYMENT_MODE_FROM_STRING = {

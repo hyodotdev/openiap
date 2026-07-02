@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useState} from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ type Props = {
 };
 
 const Home: React.FC<Props> = ({navigation}) => {
+  const [focusedIndex, setFocusedIndex] = useState(0);
   const menuItems = [
     {
       title: 'All Products',
@@ -75,7 +76,14 @@ const Home: React.FC<Props> = ({navigation}) => {
         {menuItems.map((item, index) => (
           <TouchableOpacity
             key={index}
-            style={[styles.menuItem, !item.enabled && styles.menuItemDisabled]}
+            focusable={item.enabled}
+            hasTVPreferredFocus={focusedIndex === index}
+            style={[
+              styles.menuItem,
+              focusedIndex === index && styles.menuItemFocused,
+              !item.enabled && styles.menuItemDisabled,
+            ]}
+            onFocus={() => setFocusedIndex(index)}
             onPress={() => {
               if (item.enabled) {
                 navigation.navigate(item.route as keyof RootStackParamList);
@@ -146,6 +154,8 @@ const styles = StyleSheet.create({
   },
   menuItem: {
     backgroundColor: '#fff',
+    borderColor: 'transparent',
+    borderWidth: 2,
     borderRadius: 12,
     padding: 20,
     marginBottom: 12,
@@ -160,6 +170,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 5,
+  },
+  menuItemFocused: {
+    borderColor: '#2563eb',
   },
   menuItemDisabled: {
     opacity: 0.6,

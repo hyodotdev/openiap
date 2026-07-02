@@ -38,4 +38,9 @@ jobs:
           cache-read-only: true
 
       - name: Compile check
-        run: chmod +x gradlew && ./gradlew :library:compileDebugKotlinAndroid
+        run: |
+          chmod +x gradlew
+          ./gradlew \
+            :library:compilePlayDebugKotlinAndroid \
+            :library:compileHorizonDebugKotlinAndroid \
+            :library:compileAmazonDebugKotlinAndroid

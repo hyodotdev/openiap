@@ -133,18 +133,18 @@ function ExpoSetup() {
           </a>
         </h3>
         <p>
-          expo-iap uses Google Play Billing Library v
-          {GOOGLE_PLAY_BILLING.version}, which requires{' '}
-          <strong>Kotlin 2.0+</strong>.
+          expo-iap uses OpenIAP Android artifacts backed by Google Play Billing
+          Library v{GOOGLE_PLAY_BILLING.version}. Use{' '}
+          <strong>Kotlin 2.2+</strong> for Android builds.
         </p>
         <ul>
           <li>
-            <strong>Expo SDK 54+:</strong> No configuration needed — Kotlin 2.0+
-            is included by default.
+            <strong>Expo SDK 54+:</strong> Use the default toolchain when it is
+            already Kotlin 2.2 compatible, or set the version explicitly below.
           </li>
           <li>
-            <strong>Expo SDK 53:</strong> Kotlin 2.0+ is included natively, but
-            if you encounter build issues, explicitly set the Kotlin version:
+            <strong>Expo SDK 53:</strong> Explicitly set the Kotlin version when
+            building Android apps:
           </li>
         </ul>
         <CodeBlock language="json">
@@ -288,7 +288,11 @@ cd ios && pod install`}
             "onside": true,
             "horizon": true
           },
-          "google": {
+          "amazon": {
+            "fireOS": false,
+            "vegaOS": false
+          },
+          "android": {
             "horizonAppId": "YOUR_HORIZON_APP_ID"
           }
         }
@@ -297,6 +301,24 @@ cd ios && pod install`}
   }
 }`}
         </CodeBlock>
+        <p>
+          Amazon targets are grouped under <code>amazon</code>.{' '}
+          <code>amazon.fireOS</code> selects the Android Amazon Appstore flavor,
+          while <code>amazon.vegaOS</code> prepares Kepler/Vega project files.
+          They can both be <code>true</code> in one config, but Fire OS and Vega
+          OS are still built as separate artifacts.
+        </p>
+        <p>
+          Vega OS support uses optional peer dependencies. Install Amazon's Vega
+          IAP package only in the Vega app target. When{' '}
+          <code>amazon.vegaOS</code> is enabled, the plugin keeps the Kepler
+          CLI, Metro, and Babel packages available for <code>build-vega</code>,
+          but syncs <code>@amazon-devices/react-native-kepler</code> as an{' '}
+          <code>optionalDependency</code>. Keep that package out of normal{' '}
+          <code>dependencies</code> and <code>devDependencies</code> used by
+          regular Expo iOS or Android builds, and make sure Vega CI installs
+          optional dependencies before running <code>build-vega</code>.
+        </p>
         <table>
           <thead>
             <tr>
@@ -338,7 +360,29 @@ cd ios && pod install`}
             </tr>
             <tr>
               <td>
-                <code>google.horizonAppId</code>
+                <code>amazon.fireOS</code>
+              </td>
+              <td>boolean</td>
+              <td>
+                Enable the Fire OS Android <code>amazon</code> flavor (see{' '}
+                <a href="/docs/fireos-setup">Fire OS Setup</a>)
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>amazon.vegaOS</code>
+              </td>
+              <td>boolean</td>
+              <td>
+                Enables Vega OS runtime setup. This prepares Vega manifest and
+                Kepler project metadata, but it does not select an Android
+                flavor. Follow the{' '}
+                <a href="/docs/features/vega-os">Vega OS Runtime</a> guide.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>android.horizonAppId</code>
               </td>
               <td>string</td>
               <td>Meta Horizon App ID for Quest/VR devices</td>
@@ -383,7 +427,7 @@ function Store() {
       // 2. Grant entitlement
       // 3. CRITICAL: Finish the transaction
       //    (Android auto-refunds after 3 days if not called!)
-      await finishTransaction(purchase, false); // true for consumables
+      await finishTransaction({ purchase, isConsumable: false }); // true for consumables
     },
     onPurchaseError: (error) => {
       if (error.code === ErrorCode.UserCancelled) return;
@@ -654,9 +698,9 @@ EXPO_TV=1 npx expo run:ios --device "Apple TV 4K (3rd generation)"`}
           }}
         >
           <strong>Warning:</strong> Expo SDK 52 (React Native 0.76.x) uses
-          Kotlin 1.9.x, which is incompatible with Google Play Billing Library
-          v8 (requires Kotlin 2.0+). Upgrading to <strong>SDK 53+</strong> is
-          the recommended solution.
+          Kotlin 1.9.x, which is incompatible with the current OpenIAP Android
+          artifacts. Upgrading to <strong>SDK 53+</strong> and setting Kotlin
+          2.2.0 is the recommended solution.
         </div>
 
         <p>

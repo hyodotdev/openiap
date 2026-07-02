@@ -18,8 +18,23 @@ import {presentCodeRedemptionSheetIOS, useIAP} from 'react-native-iap';
  * functionality for both iOS and Android platforms.
  */
 
+const isVegaOS = (): boolean => String(Platform.OS) === 'kepler';
+
 // Platform-specific content helpers
 const getPlatformContent = () => {
+  if (isVegaOS()) {
+    return {
+      buttonText: 'Amazon Vega IAP',
+      buttonSubtext: 'Offer code redemption is unavailable',
+      howItWorks:
+        '• Vega OS uses Amazon App Tester or Amazon Appstore catalog data\n• iOS offer codes and Google Play promo codes do not apply\n• Use the Purchase Flow or Subscription Flow screens to test Amazon IAP',
+      platformNote:
+        'Vega OS does not expose an OpenIAP offer-code redemption API.',
+      testingInfo:
+        '• Configure amazon.sdktester.json for sandbox products\n• Enable sandbox mode with amazon.config.json\n• Test purchases through the Amazon App Tester flow',
+    };
+  }
+
   const isIOS = Platform.OS === 'ios';
   return {
     buttonText: isIOS ? '🎁 Redeem Offer Code' : '🎁 Open Play Store',
@@ -39,10 +54,19 @@ const getPlatformContent = () => {
 export default function OfferCodeScreen() {
   const {connected} = useIAP();
   const [isRedeeming, setIsRedeeming] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const platformContent = getPlatformContent();
   const isIOS = Platform.OS === 'ios';
+  const isVega = isVegaOS();
 
   const handleRedeemCode = async () => {
+    if (isVega) {
+      setStatusMessage(
+        'Offer code redemption is not supported on Amazon Vega. Use Amazon App Tester catalog entries and the standard purchase or subscription flows instead.',
+      );
+      return;
+    }
+
     if (!connected) {
       Alert.alert('Not Connected', 'Please wait for store connection');
       return;
@@ -73,7 +97,7 @@ export default function OfferCodeScreen() {
         );
       }
     } catch (error) {
-      console.error('Error redeeming code:', error);
+      console.log('Error redeeming code:', error);
       Alert.alert(
         'Error',
         `Failed to redeem code: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -118,10 +142,16 @@ export default function OfferCodeScreen() {
 
         <View style={styles.platformNote}>
           <Text style={styles.noteTitle}>
-            Platform: {isIOS ? 'iOS' : 'Android'}
+            Platform: {isVega ? 'Vega OS' : isIOS ? 'iOS' : 'Android'}
           </Text>
           <Text style={styles.noteText}>{platformContent.platformNote}</Text>
         </View>
+
+        {statusMessage ? (
+          <View style={styles.statusMessageBox}>
+            <Text style={styles.statusMessageText}>{statusMessage}</Text>
+          </View>
+        ) : null}
 
         <View style={styles.testingSection}>
           <Text style={styles.sectionTitle}>Testing Offer Codes</Text>
@@ -299,6 +329,19 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 14,
     color: '#555',
+  },
+  statusMessageBox: {
+    backgroundColor: '#fff7ed',
+    borderColor: '#fed7aa',
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 20,
+    padding: 16,
+  },
+  statusMessageText: {
+    color: '#9a3412',
+    fontSize: 14,
+    lineHeight: 20,
   },
   androidNote: {
     backgroundColor: '#fff3cd',

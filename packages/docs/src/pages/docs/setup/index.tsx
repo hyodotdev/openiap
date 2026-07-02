@@ -87,6 +87,14 @@ function SetupIndex() {
             <Link to="/docs/horizon-setup">Horizon OS Setup</Link> — Meta Quest
             developer dashboard for the Horizon Store
           </li>
+          <li>
+            <Link to="/docs/fireos-setup">Fire OS Setup</Link> — Android{' '}
+            <code>amazon</code> flavor for Amazon Appstore distribution
+          </li>
+          <li>
+            <Link to="/docs/features/vega-os">Vega OS Runtime</Link> — React
+            Native / Expo JavaScript adapter for Amazon Vega apps
+          </li>
         </ul>
       </section>
 

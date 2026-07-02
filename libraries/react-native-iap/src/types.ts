@@ -511,7 +511,7 @@ export type IapEvent = 'purchase-updated' | 'purchase-error' | 'promoted-product
 
 export type IapPlatform = 'ios' | 'android';
 
-export type IapStore = 'unknown' | 'apple' | 'google' | 'horizon';
+export type IapStore = 'unknown' | 'apple' | 'google' | 'horizon' | 'amazon';
 
 /** Unified purchase states from IAPKit verification response. */
 export type IapkitPurchaseState = 'entitled' | 'pending-acknowledgment' | 'pending' | 'canceled' | 'expired' | 'ready-to-consume' | 'consumed' | 'unknown' | 'inauthentic';
@@ -1614,7 +1614,8 @@ export type RequestPurchaseProps =
  *
  * Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
  * - apple: Always targets App Store
- * - google: Targets Play Store by default, or Horizon when built with horizon flavor
+ * - google: Targets Play Store by default, Horizon when built with horizon flavor,
+ *   or Fire OS when built with amazon flavor
  *   (determined at build time, not runtime)
  */
 export interface RequestPurchasePropsByPlatforms {
@@ -1713,7 +1714,8 @@ export interface RequestSubscriptionIosProps {
  *
  * Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
  * - apple: Always targets App Store
- * - google: Targets Play Store by default, or Horizon when built with horizon flavor
+ * - google: Targets Play Store by default, Horizon when built with horizon flavor,
+ *   or Fire OS when built with amazon flavor
  *   (determined at build time, not runtime)
  */
 export interface RequestSubscriptionPropsByPlatforms {
@@ -1725,6 +1727,15 @@ export interface RequestSubscriptionPropsByPlatforms {
   google?: (RequestSubscriptionAndroidProps | null);
   /** @deprecated Use apple instead */
   ios?: (RequestSubscriptionIosProps | null);
+}
+
+export interface RequestVerifyPurchaseWithIapkitAmazonProps {
+  /** Amazon Appstore receipt id returned by PurchaseResponse.getReceipt().getReceiptId(). */
+  receiptId: string;
+  /** Use Amazon RVS Cloud Sandbox for App Tester receipts. */
+  sandbox?: (boolean | null);
+  /** Amazon Appstore user id returned by PurchaseResponse.getUserData().getUserId(). */
+  userId?: (string | null);
 }
 
 export interface RequestVerifyPurchaseWithIapkitAppleProps {
@@ -1742,8 +1753,11 @@ export interface RequestVerifyPurchaseWithIapkitGoogleProps {
  *
  * - apple: Verifies via App Store (JWS token)
  * - google: Verifies via Play Store (purchase token)
+ * - amazon: Verifies via Amazon Appstore RVS (userId + receiptId)
  */
 export interface RequestVerifyPurchaseWithIapkitProps {
+  /** Amazon Appstore verification parameters. */
+  amazon?: (RequestVerifyPurchaseWithIapkitAmazonProps | null);
   /** API key used for the Authorization header (Bearer {apiKey}). */
   apiKey?: (string | null);
   /** Apple App Store verification parameters. */

@@ -1,4 +1,4 @@
-import {useEffect, useState, useMemo} from 'react';
+import {useCallback, useEffect, useMemo, useState} from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import {
   CONSUMABLE_PRODUCT_IDS,
   NON_CONSUMABLE_PRODUCT_IDS,
 } from '../src/utils/constants';
+import {getErrorMessage} from '../src/utils/errorUtils';
 import type {
   Product,
   ProductAndroid,
@@ -25,13 +26,11 @@ import type {
 } from 'react-native-iap';
 import AndroidOneTimeOfferDetails from '../src/components/AndroidOneTimeOfferDetails';
 
-const ALL_PRODUCT_IDS = [...PRODUCT_IDS, ...SUBSCRIPTION_PRODUCT_IDS];
-
 /**
  * All Products Example - Show All Products and Subscriptions
  *
  * Demonstrates fetching all products (both in-app and subscriptions):
- * - Uses fetchProducts with 'all' type to get everything
+ * - Fetches in-app products and subscriptions separately
  * - Displays products and subscriptions as they come from the API
  * - Single view for all product types
  *
@@ -72,28 +71,39 @@ function AllProducts() {
     Product | ProductSubscription | null
   >(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const {connected, products, subscriptions, fetchProducts} = useIAP();
+  const handleLoadError = useCallback((error: unknown) => {
+    const message = getErrorMessage(error);
+    console.log('[AllProducts] fetchProducts error:', message);
+    setLoadError(message);
+  }, []);
+
+  const {connected, products, subscriptions, fetchProducts} = useIAP({
+    onError: handleLoadError,
+  });
 
   useEffect(() => {
     console.log('[AllProducts] useEffect - connected:', connected);
 
     if (connected) {
       console.log(
-        '[AllProducts] Fetching all products with SKUs:',
-        ALL_PRODUCT_IDS,
+        '[AllProducts] Fetching product groups with SKUs:',
+        PRODUCT_IDS,
+        SUBSCRIPTION_PRODUCT_IDS,
       );
+      setLoadError(null);
 
-      // Fetch all products with type 'all'
-      fetchProducts({skus: ALL_PRODUCT_IDS, type: 'all'})
+      Promise.all([
+        fetchProducts({skus: PRODUCT_IDS, type: 'in-app'}),
+        fetchProducts({skus: SUBSCRIPTION_PRODUCT_IDS, type: 'subs'}),
+      ])
         .then(() => {
           console.log('[AllProducts] fetchProducts completed');
         })
-        .catch((error) => {
-          console.error('[AllProducts] fetchProducts error:', error);
-        });
+        .catch(handleLoadError);
     }
-  }, [connected, fetchProducts]);
+  }, [connected, fetchProducts, handleLoadError]);
 
   // Prepare sections for SectionList
   const sections = useMemo(() => {
@@ -264,6 +274,12 @@ function AllProducts() {
           {connected ? '✅ Connected' : '❌ Disconnected'}
         </Text>
       </View>
+      {loadError ? (
+        <View style={styles.errorBox}>
+          <Text style={styles.errorTitle}>Product loading failed</Text>
+          <Text style={styles.errorText}>{loadError}</Text>
+        </View>
+      ) : null}
     </>
   );
 
@@ -696,6 +712,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     textAlign: 'center',
+  },
+  errorBox: {
+    backgroundColor: '#FFF3E0',
+    borderColor: '#FF9800',
+    borderRadius: 8,
+    borderWidth: 1,
+    marginHorizontal: 15,
+    marginBottom: 15,
+    padding: 12,
+  },
+  errorTitle: {
+    color: '#E65100',
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  errorText: {
+    color: '#5D4037',
+    fontSize: 13,
+    lineHeight: 18,
   },
   modalOverlay: {
     flex: 1,

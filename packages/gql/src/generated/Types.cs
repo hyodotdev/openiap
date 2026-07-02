@@ -978,7 +978,8 @@ public enum IapStore
     Unknown,
     Apple,
     Google,
-    Horizon
+    Horizon,
+    Amazon
 }
 
 public sealed class IapStoreJsonConverter : JsonConverter<IapStore>
@@ -997,6 +998,9 @@ public sealed class IapStoreJsonConverter : JsonConverter<IapStore>
         ["horizon"] = IapStore.Horizon,
         ["HORIZON"] = IapStore.Horizon,
         ["Horizon"] = IapStore.Horizon,
+        ["amazon"] = IapStore.Amazon,
+        ["AMAZON"] = IapStore.Amazon,
+        ["Amazon"] = IapStore.Amazon,
     };
 
     private static readonly Dictionary<IapStore, string> _toString = new()
@@ -1005,6 +1009,7 @@ public sealed class IapStoreJsonConverter : JsonConverter<IapStore>
         [IapStore.Apple] = "apple",
         [IapStore.Google] = "google",
         [IapStore.Horizon] = "horizon",
+        [IapStore.Amazon] = "amazon",
     };
 
     public override IapStore Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
@@ -3977,7 +3982,8 @@ public sealed record RequestPurchaseProps
 /// <summary></summary>
 /// <summary>Note: &quot;Platforms&quot; refers to the SDK/OS level (apple, google), not the store.</summary>
 /// <summary>- apple: Always targets App Store</summary>
-/// <summary>- google: Targets Play Store by default, or Horizon when built with horizon flavor</summary>
+/// <summary>- google: Targets Play Store by default, Horizon when built with horizon flavor,</summary>
+/// <summary>  or Fire OS when built with amazon flavor</summary>
 /// <summary>  (determined at build time, not runtime)</summary>
 public sealed record RequestPurchasePropsByPlatforms
 {
@@ -4078,7 +4084,8 @@ public sealed record RequestSubscriptionIosProps
 /// <summary></summary>
 /// <summary>Note: &quot;Platforms&quot; refers to the SDK/OS level (apple, google), not the store.</summary>
 /// <summary>- apple: Always targets App Store</summary>
-/// <summary>- google: Targets Play Store by default, or Horizon when built with horizon flavor</summary>
+/// <summary>- google: Targets Play Store by default, Horizon when built with horizon flavor,</summary>
+/// <summary>  or Fire OS when built with amazon flavor</summary>
 /// <summary>  (determined at build time, not runtime)</summary>
 public sealed record RequestSubscriptionPropsByPlatforms
 {
@@ -4094,6 +4101,19 @@ public sealed record RequestSubscriptionPropsByPlatforms
     /// <summary>@deprecated Use google instead</summary>
     [JsonPropertyName("android")]
     public RequestSubscriptionAndroidProps? Android { get; init; }
+}
+
+public sealed record RequestVerifyPurchaseWithIapkitAmazonProps
+{
+    /// <summary>Amazon Appstore user id returned by PurchaseResponse.getUserData().getUserId().</summary>
+    [JsonPropertyName("userId")]
+    public string? UserId { get; init; }
+    /// <summary>Amazon Appstore receipt id returned by PurchaseResponse.getReceipt().getReceiptId().</summary>
+    [JsonPropertyName("receiptId")]
+    public required string ReceiptId { get; init; }
+    /// <summary>Use Amazon RVS Cloud Sandbox for App Tester receipts.</summary>
+    [JsonPropertyName("sandbox")]
+    public bool? Sandbox { get; init; }
 }
 
 public sealed record RequestVerifyPurchaseWithIapkitAppleProps
@@ -4114,6 +4134,7 @@ public sealed record RequestVerifyPurchaseWithIapkitGoogleProps
 /// <summary></summary>
 /// <summary>- apple: Verifies via App Store (JWS token)</summary>
 /// <summary>- google: Verifies via Play Store (purchase token)</summary>
+/// <summary>- amazon: Verifies via Amazon Appstore RVS (userId + receiptId)</summary>
 public sealed record RequestVerifyPurchaseWithIapkitProps
 {
     /// <summary>API key used for the Authorization header (Bearer {apiKey}).</summary>
@@ -4125,6 +4146,9 @@ public sealed record RequestVerifyPurchaseWithIapkitProps
     /// <summary>Google Play Store verification parameters.</summary>
     [JsonPropertyName("google")]
     public RequestVerifyPurchaseWithIapkitGoogleProps? Google { get; init; }
+    /// <summary>Amazon Appstore verification parameters.</summary>
+    [JsonPropertyName("amazon")]
+    public RequestVerifyPurchaseWithIapkitAmazonProps? Amazon { get; init; }
 }
 
 /// <summary>Product-level subscription replacement parameters (Android)</summary>

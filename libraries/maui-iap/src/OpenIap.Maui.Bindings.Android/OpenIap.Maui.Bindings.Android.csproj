@@ -31,12 +31,20 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <OpenIapAndroidStore Condition="'$(OpenIapAndroidStore)' == ''">play</OpenIapAndroidStore>
+    <OpenIapGoogleAarFlavor Condition="'$(OpenIapAndroidStore)' == 'amazon' or '$(OpenIapAndroidStore)' == 'fire' or '$(OpenIapAndroidStore)' == 'fireos' or '$(OpenIapAndroidStore)' == 'fire-os'">amazon</OpenIapGoogleAarFlavor>
+    <OpenIapGoogleAarFlavor Condition="'$(OpenIapAndroidStore)' == 'horizon' or '$(OpenIapAndroidStore)' == 'meta' or '$(OpenIapAndroidStore)' == 'quest'">horizon</OpenIapGoogleAarFlavor>
+    <OpenIapGoogleAarFlavor Condition="'$(OpenIapGoogleAarFlavor)' == ''">play</OpenIapGoogleAarFlavor>
+    <OpenIapGoogleAarPath>..\..\..\..\packages\google\openiap\build\outputs\aar\openiap-$(OpenIapGoogleAarFlavor)-release.aar</OpenIapGoogleAarPath>
+  </PropertyGroup>
+
   <ItemGroup>
     <!-- Bind only the MAUI-owned Java facade. The underlying OpenIAP Google
          AAR is included as a runtime library but not bound into C#, keeping
          OpenIap.Maui's public Android surface centered on OpenIapMauiModule. -->
     <AndroidLibrary Include="..\..\android\openiap\build\outputs\aar\openiap-release.aar" Bind="true" />
-    <AndroidLibrary Include="..\..\..\..\packages\google\openiap\build\outputs\aar\openiap-play-release.aar" Bind="false" />
+    <AndroidLibrary Include="$(OpenIapGoogleAarPath)" Bind="false" />
   </ItemGroup>
 
   <!-- Google dependencies are NuGet PackageReferences, not embedded Maven
@@ -50,6 +58,15 @@
     <PackageReference Include="Xamarin.KotlinX.Coroutines.Core" Version="$(MauiKotlinCoroutinesVersion)" />
     <PackageReference Include="Xamarin.KotlinX.Coroutines.Core.Jvm" Version="$(MauiKotlinCoroutinesVersion)" />
     <PackageReference Include="Xamarin.KotlinX.Coroutines.Android" Version="$(MauiKotlinCoroutinesVersion)" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(OpenIapGoogleAarFlavor)' == 'amazon'">
+    <AndroidMavenLibrary Include="com.amazon.device:amazon-appstore-sdk" Version="$(MauiAmazonAppstoreSdkVersion)" Bind="false" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(OpenIapGoogleAarFlavor)' == 'horizon'">
+    <AndroidMavenLibrary Include="com.meta.horizon.platform.ovr:android-platform-sdk" Version="$(MauiHorizonPlatformSdkVersion)" Bind="false" />
+    <AndroidMavenLibrary Include="com.meta.horizon.billingclient.api:horizon-billing-compatibility" Version="$(MauiHorizonBillingCompatibilityVersion)" Bind="false" />
   </ItemGroup>
 
   <!-- AndroidX (Activity, Core, Annotation, Fragment, Collection, etc.) come

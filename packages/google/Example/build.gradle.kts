@@ -96,6 +96,12 @@ android {
                 ?: ""
             manifestPlaceholders["OCULUS_APP_ID"] = appId
         }
+
+        // Amazon flavor - Amazon Appstore SDK IAP
+        create("amazon") {
+            dimension = "platform"
+            buildConfigField("String", "OPENIAP_STORE", "\"amazon\"")
+        }
     }
 
     buildTypes {

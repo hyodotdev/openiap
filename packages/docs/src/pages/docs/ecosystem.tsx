@@ -95,9 +95,16 @@ function Ecosystem() {
             >
               <code>openiap-google-horizon</code>
             </a>{' '}
-            flavor to support Meta HorizonOS. Distributed to third party
-            libraries for consistent bug fixes and features. Of course, third
-            party libraries can also support HorizonOS thanks to this.
+            flavor to support Meta HorizonOS and{' '}
+            <a
+              href="https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-amazon"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <code>openiap-google-amazon</code>
+            </a>{' '}
+            flavor to support Fire OS. Distributed to third party libraries for
+            consistent bug fixes and features.
           </li>
           <li style={{ marginBottom: '1rem' }}>
             <a
