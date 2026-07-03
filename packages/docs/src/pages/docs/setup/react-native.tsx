@@ -205,6 +205,11 @@ end`}
             packages only in that target, and follow the{' '}
             <a href="/docs/features/vega-os">Vega OS Runtime</a> guide.
           </li>
+          <li>
+            Amazon Fire OS and Vega OS support is currently available from the{' '}
+            <code>next</code> / <code>rc</code> package versions while it
+            remains experimental.
+          </li>
         </ul>
 
         <h3 id="vega-os" className="anchor-heading">
@@ -289,7 +294,7 @@ yarn run:vega:firetv`}</CodeBlock>
         </p>
         <CodeBlock language="typescript">
           {`import React, { useEffect } from 'react';
-import { Alert, FlatList, Button } from 'react-native';
+import { Alert, Button, FlatList } from 'react-native';
 import { useIAP, ErrorCode, finishTransaction } from 'react-native-iap';
 
 function Store() {
@@ -318,6 +323,7 @@ function Store() {
   return (
     <FlatList
       data={products}
+      keyExtractor={(product) => product.productId}
       renderItem={({ item }) => (
         <Button
           title={\`\${item.title} - \${item.localizedPrice}\`}

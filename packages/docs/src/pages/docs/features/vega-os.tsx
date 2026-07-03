@@ -18,11 +18,12 @@ function VegaOSRuntime() {
       <h1>Vega OS Runtime</h1>
 
       <div className="alert-card alert-card--warning">
-        <strong>Experimental support:</strong> Vega OS support is currently
-        experimental and limited to React Native for Vega / compatible Expo Vega
-        targets. Use the <code>next</code> / <code>rc</code> package versions
-        for validation, and expect runtime integration details to change before
-        the stable release.
+        <strong>Experimental RC support:</strong> Amazon Vega OS support is
+        available in the current <code>next</code> / <code>rc</code> package
+        versions and is limited to React Native for Vega / compatible Expo Vega
+        targets. Use those prerelease packages for validation until the stable
+        release lands, and expect runtime integration details to change before
+        then.
       </div>
 
       <p>

@@ -53,7 +53,9 @@ function Releases() {
             Onside and Horizon. Apps should configure{' '}
             <code>modules.amazon.fireOS</code> and{' '}
             <code>modules.amazon.vegaOS</code>; top-level <code>amazon</code>{' '}
-            plugin options are not part of the new config shape.
+            plugin options are not part of the new config shape. Amazon targets
+            are available in the current <code>next</code> / <code>rc</code>{' '}
+            package versions while this support remains experimental.
           </p>
 
           <CodeBlock language="typescript">{`plugins: [

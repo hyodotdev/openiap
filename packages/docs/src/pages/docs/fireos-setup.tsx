@@ -17,10 +17,11 @@ function FireOSSetup() {
       />
       <h1>Fire OS Setup Guide</h1>
       <div className="alert-card alert-card--warning">
-        <strong>Experimental support:</strong> Fire OS support is currently
-        experimental. Use the <code>next</code> / <code>rc</code> package
-        versions for validation, and expect setup details or platform behavior
-        to change before the stable release.
+        <strong>Experimental RC support:</strong> Amazon Fire OS support is
+        available in the current <code>next</code> / <code>rc</code> package
+        versions. Use those prerelease packages for validation until the stable
+        release lands, and expect setup details or platform behavior to change
+        before then.
       </div>
       <p>
         Fire OS support targets Android apps distributed through the Amazon

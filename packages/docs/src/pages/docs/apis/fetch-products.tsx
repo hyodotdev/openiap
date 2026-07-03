@@ -368,6 +368,8 @@ const subscriptions = await fetchProducts({
 // --- Or via the useIAP() hook (also exported from react-native-iap) ---
 // The hook exposes fetchProducts plus a reactive products array that is
 // populated whenever fetchProducts resolves.
+import { useEffect } from 'react';
+import { FlatList, Text } from 'react-native';
 import { useIAP } from 'expo-iap';
 
 function ProductList() {
@@ -381,11 +383,13 @@ function ProductList() {
   }, [fetchProducts]);
 
   return (
-    <View>
-      {products.map((p) => (
-        <Text key={p.id}>{p.title} — {p.displayPrice}</Text>
-      ))}
-    </View>
+    <FlatList
+      data={products}
+      keyExtractor={(product) => product.id}
+      renderItem={({ item }) => (
+        <Text>{item.title} — {item.displayPrice}</Text>
+      )}
+    />
   );
 }`}</CodeBlock>
           ),

@@ -181,6 +181,8 @@ for (const sub of subscriptions) {
 // --- Or via the useIAP() hook (also exported from react-native-iap) ---
 // useIAP exposes getActiveSubscriptions plus a reactive activeSubscriptions
 // list that is refreshed whenever the call resolves.
+import { useEffect } from 'react';
+import { FlatList, Text } from 'react-native';
 import { useIAP } from 'expo-iap';
 
 function SubscriptionStatus() {
@@ -191,11 +193,11 @@ function SubscriptionStatus() {
   }, [getActiveSubscriptions]);
 
   return (
-    <View>
-      {activeSubscriptions.map((sub) => (
-        <Text key={sub.productId}>{sub.productId}</Text>
-      ))}
-    </View>
+    <FlatList
+      data={activeSubscriptions}
+      keyExtractor={(subscription) => subscription.productId}
+      renderItem={({ item }) => <Text>{item.productId}</Text>}
+    />
   );
 }`}</CodeBlock>
           ),

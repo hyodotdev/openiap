@@ -309,6 +309,11 @@ cd ios && pod install`}
           Fire OS and Vega OS are still built as separate artifacts.
         </p>
         <p>
+          Amazon Fire OS and Vega OS support is currently available from the{' '}
+          <code>next</code> / <code>rc</code> package versions. Use the RC
+          packages while validating Amazon targets before the stable release.
+        </p>
+        <p>
           Vega OS support uses optional peer dependencies. Install Amazon's Vega
           IAP package only in the Vega app target. When{' '}
           <code>modules.amazon.vegaOS</code> is enabled, the plugin keeps the
@@ -413,7 +418,7 @@ cd ios && pod install`}
         </p>
         <CodeBlock language="typescript">
           {`import React, { useEffect } from 'react';
-import { Alert, View, Button } from 'react-native';
+import { Alert, Button, FlatList } from 'react-native';
 import { useIAP, ErrorCode, finishTransaction } from 'expo-iap';
 
 function Store() {
@@ -441,23 +446,24 @@ function Store() {
   }, []);
 
   return (
-    <View>
-      {products.map((product) => (
+    <FlatList
+      data={products}
+      keyExtractor={(product) => product.productId}
+      renderItem={({ item }) => (
         <Button
-          key={product.productId}
-          title={\`\${product.title} - \${product.localizedPrice}\`}
+          title={\`\${item.title} - \${item.localizedPrice}\`}
           onPress={() =>
             requestPurchase({
               request: {
-                apple: { sku: product.productId },
-                google: { skus: [product.productId] },
+                apple: { sku: item.productId },
+                google: { skus: [item.productId] },
               },
               type: 'in-app',
             })
           }
         />
-      ))}
-    </View>
+      )}
+    />
   );
 }`}
         </CodeBlock>
