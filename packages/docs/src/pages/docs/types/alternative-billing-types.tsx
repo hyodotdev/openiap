@@ -324,14 +324,15 @@ await iap.init_connection()`}</CodeBlock>
 // Step 1: Set up listener for when user selects alternative billing
 const userChoiceSubscription = userChoiceBillingListenerAndroid(async (details) => {
   console.log('User chose alternative billing');
-  for (const product of details.products) {
+  const products = details.products ?? [];
+  for (const product of products) {
     console.log('Product:', product.productId);
   }
   console.log('External transaction token received; send it to your backend without logging it.');
 
   // Process payment with your backend using the token
   const paymentResult = await yourBackend.processPayment({
-    products: details.products,
+    products,
     token: details.externalTransactionToken,
   });
 
