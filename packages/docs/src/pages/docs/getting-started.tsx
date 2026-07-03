@@ -47,8 +47,10 @@ function GettingStarted() {
             account, license testers, billing permission
           </li>
           <li>
-            <Link to="/docs/horizon-setup">Horizon OS Setup</Link> — Meta
-            Horizon Store dashboard
+            <Link to="/docs/features/store-integrations">
+              Store Integrations
+            </Link>{' '}
+            — Horizon OS, Fire OS, Vega OS, and alternative marketplaces
           </li>
         </ul>
       </section>
@@ -420,7 +422,10 @@ await iap.request_purchase(props)`}</CodeBlock>
             <Link to="/docs/setup/godot">Godot</Link>) plus the store-side
             configuration (<Link to="/docs/ios-setup">iOS</Link>,{' '}
             <Link to="/docs/android-setup">Android</Link>,{' '}
-            <Link to="/docs/horizon-setup">Horizon OS</Link>).
+            <Link to="/docs/features/store-integrations">
+              store integrations
+            </Link>
+            ).
           </li>
           <li>
             <strong>

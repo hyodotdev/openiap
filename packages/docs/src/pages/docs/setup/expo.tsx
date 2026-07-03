@@ -361,7 +361,7 @@ cd ios && pod install`}
               <td>boolean</td>
               <td>
                 Enable Horizon module for Meta Quest (see{' '}
-                <a href="/docs/horizon-setup">Horizon OS Setup</a>)
+                <a href="/docs/features/horizon-os">Horizon OS Setup</a>)
               </td>
             </tr>
             <tr>
@@ -371,7 +371,7 @@ cd ios && pod install`}
               <td>boolean</td>
               <td>
                 Enable the Fire OS Android <code>amazon</code> flavor (see{' '}
-                <a href="/docs/fireos-setup">Fire OS Setup</a>)
+                <a href="/docs/features/fire-os">Fire OS Setup</a>)
               </td>
             </tr>
             <tr>

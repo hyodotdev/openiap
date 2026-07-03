@@ -149,7 +149,7 @@ function Announcements() {
             </li>
           </ul>
           <a
-            href="/docs/fireos-setup"
+            href="/docs/features/fire-os"
             style={{
               display: 'block',
               width: '100%',
@@ -173,7 +173,7 @@ function Announcements() {
           </a>
           <div style={calloutStyle}>
             <strong>Get started:</strong> Read the{' '}
-            <a href="/docs/fireos-setup" className="external-link">
+            <a href="/docs/features/fire-os" className="external-link">
               Fire OS setup guide
             </a>{' '}
             for Amazon Appstore IAP integration, or open the{' '}
@@ -767,7 +767,7 @@ function Announcements() {
             </li>
           </ul>
           <a
-            href="/docs/horizon-setup"
+            href="/docs/features/horizon-os"
             style={{
               display: 'block',
               width: '100%',
@@ -792,7 +792,7 @@ function Announcements() {
           <div style={calloutStyle}>
             <strong>Getting Started:</strong> Available in{' '}
             <code>openiap-google@1.3.0</code> and later. Check out the{' '}
-            <a href="/docs/horizon-setup" className="external-link">
+            <a href="/docs/features/horizon-os" className="external-link">
               Horizon OS guide
             </a>{' '}
             for details.

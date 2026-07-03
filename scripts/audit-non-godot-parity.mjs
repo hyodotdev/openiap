@@ -2591,11 +2591,11 @@ function checkFrameworkDependencyHygiene() {
       'minSdkVersion {ANDROID_SDK.minSdk}+',
       'compileSdkVersion {ANDROID_SDK.compileSdk}+',
     ], 'React Native setup Android requirements');
-    expectIncludes('packages/docs/src/pages/docs/horizon-setup.tsx', [
+    expectIncludes('packages/docs/src/pages/docs/features/horizon-os.tsx', [
       'OPENIAP_VERSIONS',
       'OPENIAP_VERSIONS.google',
     ], 'Horizon setup docs must use current openiap-google version metadata');
-    expectNotIncludes('packages/docs/src/pages/docs/horizon-setup.tsx', [
+    expectNotIncludes('packages/docs/src/pages/docs/features/horizon-os.tsx', [
       'openiap-google@1.3.2',
     ], 'Horizon setup docs must not hardcode stale openiap-google versions');
     expectNotIncludes('packages/docs/src/pages/docs/setup/react-native.tsx', [

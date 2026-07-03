@@ -1,6 +1,6 @@
-import CodeBlock from '../../components/CodeBlock';
-import SEO from '../../components/SEO';
-import { OPENIAP_VERSIONS } from '../../lib/versioning';
+import CodeBlock from '../../../components/CodeBlock';
+import SEO from '../../../components/SEO';
+import { OPENIAP_VERSIONS } from '../../../lib/versioning';
 
 function HorizonSetup() {
   return (
@@ -8,7 +8,7 @@ function HorizonSetup() {
       <SEO
         title="Horizon OS Setup"
         description="Meta Quest in-app purchase setup guide. Configure Horizon OS IAP for Quest 2, Quest 3, and Quest Pro using OpenIAP's unified Android SDK with Meta's billing system."
-        path="/docs/horizon-setup"
+        path="/docs/features/horizon-os"
         keywords="Meta Quest IAP, Horizon OS setup, VR in-app purchase, Quest 3 billing, Meta Quest Store, XR monetization, Quest subscription"
       />
       <h1>Horizon OS Setup Guide</h1>

@@ -1580,8 +1580,8 @@ function Releases() {
             </li>
             <li>
               <strong>Setup guide</strong> — see{' '}
-              <Link to="/docs/fireos-setup">Fire OS Setup</Link> for Amazon App
-              Tester, public key, and framework flag details.
+              <Link to="/docs/features/fire-os">Fire OS Setup</Link> for Amazon
+              App Tester, public key, and framework flag details.
             </li>
           </ul>
 

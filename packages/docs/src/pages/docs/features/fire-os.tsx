@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
-import AnchorLink from '../../components/AnchorLink';
-import CodeBlock from '../../components/CodeBlock';
-import SEO from '../../components/SEO';
-import { useScrollToHash } from '../../hooks/useScrollToHash';
+import AnchorLink from '../../../components/AnchorLink';
+import CodeBlock from '../../../components/CodeBlock';
+import SEO from '../../../components/SEO';
+import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
 function FireOSSetup() {
   useScrollToHash();
@@ -12,7 +12,7 @@ function FireOSSetup() {
       <SEO
         title="Fire OS Setup"
         description="Fire OS in-app purchase setup guide for OpenIAP using the Android amazon flavor and Amazon Appstore SDK."
-        path="/docs/fireos-setup"
+        path="/docs/features/fire-os"
         keywords="Fire OS IAP, Amazon Appstore SDK, Amazon App Tester, OpenIAP Amazon, fireOsEnabled, openiap-google-amazon"
       />
       <h1>Fire OS Setup Guide</h1>

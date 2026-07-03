@@ -197,7 +197,7 @@ end`}
             <code>fireOsEnabled=true</code> in{' '}
             <code>android/gradle.properties</code> when configuring Gradle
             directly. See the{' '}
-            <a href="/docs/fireos-setup">Fire OS Setup Guide</a>.
+            <a href="/docs/features/fire-os">Fire OS Setup Guide</a>.
           </li>
           <li>
             For Vega OS, do not use an Android flavor. Create a React Native for
@@ -503,11 +503,11 @@ switch (error.code) {
             multi-language examples
           </li>
           <li>
-            <a href="/docs/horizon-setup">Horizon OS Setup</a> — Meta Quest
-            in-app purchase configuration
+            <a href="/docs/features/horizon-os">Horizon OS Setup</a> — Meta
+            Quest in-app purchase configuration
           </li>
           <li>
-            <a href="/docs/fireos-setup">Fire OS Setup</a> — Fire OS Android
+            <a href="/docs/features/fire-os">Fire OS Setup</a> — Fire OS Android
             flavor configuration
           </li>
           <li>

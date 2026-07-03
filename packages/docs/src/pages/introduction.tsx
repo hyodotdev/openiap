@@ -61,8 +61,8 @@ function Introduction() {
             >
               Vision Pro
             </a>{' '}
-            and <Link to="/docs/horizon-setup">Horizon OS</Link> compound this
-            fragmentation.
+            and <Link to="/docs/features/horizon-os">Horizon OS</Link> compound
+            this fragmentation.
           </p>
         </section>
 
@@ -637,7 +637,7 @@ await iap.end_connection()`}</CodeBlock>
                 <tr>
                   <td>Meta Quest</td>
                   <td>
-                    <Link to="/docs/horizon-setup">Horizon OS</Link>
+                    <Link to="/docs/features/horizon-os">Horizon OS</Link>
                   </td>
                   <td>Quest 2+</td>
                 </tr>

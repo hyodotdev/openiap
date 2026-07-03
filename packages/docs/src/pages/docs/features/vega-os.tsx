@@ -71,7 +71,7 @@ function VegaOSRuntime() {
               <td>
                 Build-time Android <code>amazon</code> flavor; not the Vega
                 runtime path. See{' '}
-                <Link to="/docs/fireos-setup">Fire OS Setup</Link>.
+                <Link to="/docs/features/fire-os">Fire OS Setup</Link>.
               </td>
             </tr>
             <tr>
