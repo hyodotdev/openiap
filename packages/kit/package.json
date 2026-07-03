@@ -22,7 +22,7 @@
     "clean:cache": "rm -rf node_modules/.vite",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,css,json}\" \"server/**/*.{ts,json}\" \"convex/**/*.{ts,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,css,json}\" \"server/**/*.{ts,json}\" \"convex/**/*.{ts,json}\"",
-    "smoke:server": "bun run build:all && ./scripts/smoke-server.sh",
+    "smoke:server": "VITE_KIT_CONVEX_URL=https://placeholder-build-1.convex.cloud bun run build:all && ./scripts/smoke-server.sh",
     "precommit": "bunx lint-staged && bun run lint && bun run test && bun run smoke:server",
     "update-apple-certs": "node scripts/update-apple-certificates.js",
     "convex:deploy": "npx convex deploy",

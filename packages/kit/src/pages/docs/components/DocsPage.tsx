@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 
 import { DOCS_NAV, flattenDocsNav, type DocsNavEntry } from "../nav";
+import { useSeoMeta } from "@/hooks/useSeoMeta";
 
 // `DOCS_NAV` is a module-level constant, so flatten once at module
 // load instead of on every `DocsPage` render. Each docs page mounts
@@ -28,6 +29,14 @@ export function DocsPage({
   children: ReactNode;
 }) {
   const crumbs = buildBreadcrumbs(slug);
+  const canonicalPath = slug ? `/docs/${slug}` : "/docs";
+
+  useSeoMeta({
+    title: `${title} - IAPKit Docs`,
+    description,
+    canonicalPath,
+    keywords: ["IAPKit", "OpenIAP", "receipt validation", "in-app purchases"],
+  });
 
   return (
     <article className="w-full max-w-3xl px-4 pt-8 md:px-8">
