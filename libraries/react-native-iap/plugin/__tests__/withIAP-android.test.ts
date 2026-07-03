@@ -218,7 +218,9 @@ describe('withIAP config plugin (Android)', () => {
       },
     };
     const config = makeConfig(initial, manifest);
-    const res: any = plugin(config as any, {amazon: {fireOS: true}});
+    const res: any = plugin(config as any, {
+      modules: {amazon: {fireOS: true}},
+    });
 
     expect(res.modResults.contents).toContain(
       `io.github.hyochan.openiap:openiap-google-amazon:${OPENIAP_VERSION}`,
@@ -242,8 +244,7 @@ describe('withIAP config plugin (Android)', () => {
     const initial = `android {\n    defaultConfig {\n    }\n}\n\ndependencies {\n}`;
     const config = makeConfig(initial, {manifest: {}});
     const res: any = plugin(config as any, {
-      amazon: {fireOS: true},
-      modules: {horizon: true},
+      modules: {horizon: true, amazon: {fireOS: true}},
     });
 
     expect(res.modResults.contents).toContain(
@@ -264,7 +265,7 @@ describe('withIAP config plugin (Android)', () => {
     const initial = `android {\n    defaultConfig {\n    }\n}\n\ndependencies {\n}`;
     const config = makeConfig(initial, {manifest: {}});
     const res: any = plugin(config as any, {
-      amazon: {fireOS: true, vegaOS: true},
+      modules: {amazon: {fireOS: true, vegaOS: true}},
     });
 
     expect(res.modResults.contents).toContain(
@@ -273,15 +274,18 @@ describe('withIAP config plugin (Android)', () => {
     expect(res.modResults.contents).toContain(
       'missingDimensionStrategy "platform", "amazon"',
     );
-    expect(resolveAmazonPlatformFlags({amazon: {fireOS: true, vegaOS: true}}))
-      .toEqual({
-        isFireOsEnabled: true,
-        isVegaEnabled: true,
-        isHorizonEnabled: false,
-      });
+    expect(
+      resolveAmazonPlatformFlags({
+        modules: {amazon: {fireOS: true, vegaOS: true}},
+      }),
+    ).toEqual({
+      isFireOsEnabled: true,
+      isVegaEnabled: true,
+      isHorizonEnabled: false,
+    });
   });
 
-  it('keeps Horizon outside the Amazon platform group', () => {
+  it('keeps Horizon and Amazon under modules', () => {
     expect(resolveAmazonPlatformFlags({modules: {horizon: true}})).toEqual({
       isFireOsEnabled: false,
       isVegaEnabled: false,

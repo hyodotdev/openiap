@@ -26,6 +26,141 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // July 3, 2026 — Amazon config plugin option shape
+    {
+      id: 'amazon-config-plugin-option-shape-2026-07-03',
+      date: new Date('2026-07-03'),
+      element: (
+        <div
+          key="amazon-config-plugin-option-shape-2026-07-03"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="amazon-config-plugin-option-shape-2026-07-03"
+            level="h4"
+          >
+            July 3, 2026 — Amazon config plugin option shape
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes Expo and React Native prereleases that keep Amazon Fire OS
+            and Vega OS options under the same <code>modules</code> block as
+            Onside and Horizon. Apps should configure{' '}
+            <code>modules.amazon.fireOS</code> and{' '}
+            <code>modules.amazon.vegaOS</code>; top-level <code>amazon</code>{' '}
+            plugin options are not part of the new config shape.
+          </p>
+
+          <CodeBlock language="typescript">{`plugins: [
+  [
+    'expo-iap',
+    {
+      modules: {
+        onside: true,
+        horizon: true,
+        amazon: {
+          fireOS: true,
+          vegaOS: true,
+        },
+      },
+    },
+  ],
+]`}</CodeBlock>
+
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>Expo config plugin</strong> — <code>expo-iap</code> now
+              resolves Fire OS and Vega OS from <code>modules.amazon</code>, and
+              the docs example no longer shows a top-level Amazon block beside{' '}
+              <code>modules</code>.
+            </li>
+            <li>
+              <strong>React Native config plugin</strong> —{' '}
+              <code>react-native-iap</code> accepts the same{' '}
+              <code>modules.amazon.fireOS</code> shape for Fire OS Android
+              flavor selection.
+            </li>
+            <li>
+              <strong>Vega OS scope</strong> — Vega remains experimental and
+              limited to React Native for Vega / compatible Expo Vega targets.
+              Flutter, KMP, MAUI, and Godot do not expose a Kepler runtime
+              target.
+            </li>
+            <li>
+              <strong>Fire OS scope</strong> — Fire OS remains the Android{' '}
+              <code>amazon</code> flavor across native Android, Expo, React
+              Native, Flutter, KMP, and MAUI. Godot currently exposes shared
+              Amazon API payloads but no separate Fire OS flavor switch.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/react-native-iap-15.4.0-rc.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  react-native-iap 15.4.0-rc.2
+                </a>{' '}
+                (
+                <a
+                  href="https://www.npmjs.com/package/react-native-iap/v/15.4.0-rc.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  npm
+                </a>
+                )
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/expo-iap-4.4.0-rc.6"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  expo-iap 4.4.0-rc.6
+                </a>{' '}
+                (
+                <a
+                  href="https://www.npmjs.com/package/expo-iap/v/4.4.0-rc.6"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  npm
+                </a>
+                )
+              </li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // July 2, 2026 — iOS cancellation error bridge hotfix
     {
       id: 'ios-cancellation-error-bridge-hotfix-2026-07-02',

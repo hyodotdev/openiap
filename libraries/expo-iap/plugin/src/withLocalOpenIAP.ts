@@ -155,7 +155,7 @@ const withLocalOpenIAP: ConfigPlugin<
     horizonAppId?: string;
     /** Resolved from modules.horizon by withIAP */
     isHorizonEnabled?: boolean;
-    /** Resolved from amazon.fireOS by withIAP */
+    /** Resolved from modules.amazon.fireOS by withIAP */
     isFireOsEnabled?: boolean;
   } | void
 > = (config, props) => {
@@ -276,8 +276,7 @@ const withLocalOpenIAP: ConfigPlugin<
       settingsLanguage === 'kotlin'
         ? `project(":openiap-google").projectDir = File(settingsDir, "${relativeAndroidModulePath}")`
         : `project(':openiap-google').projectDir = new File(settingsDir, '${relativeAndroidModulePath}')`;
-    const includePattern =
-      /include\s*(?:\(\s*)?["']:openiap-google["']\s*\)?/;
+    const includePattern = /include\s*(?:\(\s*)?["']:openiap-google["']\s*\)?/;
     const projectDirPattern =
       /^\s*project\(["']:openiap-google["']\)\.projectDir\s*=.*$/gm;
     let contents = settings.contents ?? '';
@@ -467,9 +466,7 @@ const withLocalOpenIAP: ConfigPlugin<
       flavor,
       normalizeGradleLanguage(config.modResults.language),
     );
-    logOnce(
-      `🛠️ expo-iap: Added local OpenIAP flavor strategy for ${flavor}`,
-    );
+    logOnce(`🛠️ expo-iap: Added local OpenIAP flavor strategy for ${flavor}`);
     return config;
   });
 

@@ -82,6 +82,92 @@ function VegaOSRuntime() {
             </tr>
           </tbody>
         </table>
+        <p>
+          Vega OS support is intentionally narrow. It depends on the React
+          Native for Vega <code>kepler</code> runtime and Amazon's JavaScript
+          IAP package, so framework wrappers without that runtime do not expose
+          a Vega target.
+        </p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Framework library</th>
+              <th>Vega OS status</th>
+              <th>How to confirm in this repository</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>react-native-iap</code>
+              </td>
+              <td>Supported experimentally for React Native for Vega apps</td>
+              <td>
+                Look for <code>src/vega.kepler.ts</code>,{' '}
+                <code>src/index.kepler.ts</code>,{' '}
+                <code>src/vega-adapter.ts</code>, and the example{' '}
+                <code>build:vega</code> scripts.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>expo-iap</code>
+              </td>
+              <td>
+                Supported experimentally for compatible Expo projects that
+                prebuild a Vega target
+              </td>
+              <td>
+                Look for <code>src/vega.kepler.ts</code>,{' '}
+                <code>src/vega-adapter.ts</code>, the <code>withVega</code>{' '}
+                config plugin, and generated <code>manifest.toml</code> support.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>flutter_inapp_purchase</code>
+              </td>
+              <td>Not a Vega OS target</td>
+              <td>
+                Fire OS uses the Android <code>amazon</code> flavor through{' '}
+                <code>fireOsEnabled</code>; there is no Kepler runtime entry or
+                Amazon React Native for Vega dependency.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>kmp-iap</code>
+              </td>
+              <td>Not a Vega OS target</td>
+              <td>
+                Fire OS uses the Android <code>amazonRelease</code> variant and{' '}
+                <code>OPENIAP_STORE="amazon"</code>; there is no Kepler runtime
+                adapter.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>OpenIap.Maui</code>
+              </td>
+              <td>Not a Vega OS target</td>
+              <td>
+                Fire OS uses <code>OpenIapAndroidStore=amazon</code> to select
+                the Android Amazon AAR flavor; there is no Vega build target.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>godot-iap</code>
+              </td>
+              <td>Not a Vega OS target</td>
+              <td>
+                The generated API includes the shared Amazon store and IAPKit
+                payload types, but the Godot wrapper does not include a Kepler
+                runtime adapter.
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </section>
 
       <section>
@@ -131,9 +217,9 @@ id = "/com.amazon.kepler.appstore.iap.purchase.core@IAppstoreIAPPurchaseCoreServ
         <p>
           Do not use <code>fireOsEnabled=true</code> as the Vega OS selector.
           That Gradle property selects the Fire OS Android flavor only. Use{' '}
-          <code>amazon.vegaOS</code> for the Amazon Vega runtime target and{' '}
-          <code>amazon.fireOS</code> only when the same config should also
-          prepare Fire OS Android builds.
+          <code>modules.amazon.vegaOS</code> for the Amazon Vega runtime target
+          and <code>modules.amazon.fireOS</code> only when the same config
+          should also prepare Fire OS Android builds.
         </p>
         <p>
           Vega apps need a Kepler-compatible React Native project, a{' '}
@@ -147,6 +233,17 @@ id = "/com.amazon.kepler.appstore.iap.purchase.core@IAppstoreIAPPurchaseCoreServ
           truth for <code>kepler</code> runtime dependencies. OpenIAP provides
           the IAP adapter and package integration for that Vega target.
         </p>
+        <p>
+          A quick repository check should find Vega or Kepler files only in{' '}
+          <code>react-native-iap</code> and <code>expo-iap</code>. Hits in other
+          libraries should be limited to docs, shared Amazon verification
+          payloads, or generated store enum text:
+        </p>
+        <CodeBlock language="bash">{`rg -n "vegaOS|Vega OS|Vega|Kepler|kepler|amazon-devices" \\
+  libraries/react-native-iap libraries/expo-iap
+
+rg -n "vegaOS|Vega OS|Vega|Kepler|kepler|amazon-devices" \\
+  libraries/flutter_inapp_purchase libraries/godot-iap libraries/kmp-iap libraries/maui-iap`}</CodeBlock>
 
         <h3 id="react-native-iap" className="anchor-heading">
           react-native-iap
@@ -184,11 +281,12 @@ id = "/com.amazon.kepler.appstore.iap.purchase.core@IAppstoreIAPPurchaseCoreServ
         </p>
         <p>
           In <code>react-native-iap</code>, the config plugin can select the
-          Fire OS Android flavor with <code>amazon.fireOS</code>, but it does
-          not generate Vega project files or automatically sync package.json
-          dependencies. A plain React Native Vega target should provide its own{' '}
-          <code>manifest.toml</code>, Kepler entry point, Metro/Babel resolver,
-          package dependencies, and <code>kepler</code> metadata directly.
+          Fire OS Android flavor with <code>modules.amazon.fireOS</code>, but it
+          does not generate Vega project files or automatically sync
+          package.json dependencies. A plain React Native Vega target should
+          provide its own <code>manifest.toml</code>, Kepler entry point,
+          Metro/Babel resolver, package dependencies, and <code>kepler</code>{' '}
+          metadata directly.
         </p>
         <CodeBlock language="bash">{`# In the Vega-only React Native for Vega target
 yarn add react-native-iap
@@ -254,9 +352,11 @@ yarn run:vega:firetv`}</CodeBlock>
         <CodeBlock language="typescript">{`[
   'expo-iap',
   {
-    amazon: {
-      fireOS: true,
-      vegaOS: true,
+    modules: {
+      amazon: {
+        fireOS: true,
+        vegaOS: true,
+      },
     },
     vega: {
       packageId: 'dev.example.app',
@@ -266,16 +366,16 @@ yarn run:vega:firetv`}</CodeBlock>
   },
 ]`}</CodeBlock>
         <p>
-          When <code>amazon.vegaOS</code> is enabled, the Expo plugin prepares
-          the Vega manifest, entry point, generated app metadata, app icon
-          assets, Kepler package metadata, and Vega build scripts during
+          When <code>modules.amazon.vegaOS</code> is enabled, the Expo plugin
+          prepares the Vega manifest, entry point, generated app metadata, app
+          icon assets, Kepler package metadata, and Vega build scripts during
           prebuild. It keeps the Amazon IAP package as a runtime dependency and
           the Kepler CLI/Metro/Babel packages as development dependencies, but
           syncs <code>@amazon-devices/react-native-kepler</code> as an{' '}
           <code>optionalDependency</code> so regular iOS and Android Codegen do
           not scan it as a direct React Native dependency.{' '}
-          <code>amazon.fireOS</code> can be enabled in the same config, but Fire
-          OS and Vega OS still produce separate build artifacts.
+          <code>modules.amazon.fireOS</code> can be enabled in the same config,
+          but Fire OS and Vega OS still produce separate build artifacts.
         </p>
         <CodeBlock language="bash">{`EXPO_IAP_VEGA=1 expo prebuild --platform android --no-install
 EXPO_IAP_VEGA=1 react-native build-vega --build-type Debug`}</CodeBlock>
@@ -591,9 +691,10 @@ await finishTransaction({ purchase, isConsumable: true });`}</CodeBlock>
           <li>
             Complete <code>build-vega</code> bundling requires a React Native
             version supported by the installed Amazon Vega CLI. If the CLI
-            rejects the app's React Native version, <code>amazon.vegaOS</code>{' '}
-            can still prepare and validate the Vega project files, but the app
-            needs an Amazon-supported React Native for Vega build target.
+            rejects the app's React Native version,{' '}
+            <code>modules.amazon.vegaOS</code> can still prepare and validate
+            the Vega project files, but the app needs an Amazon-supported React
+            Native for Vega build target.
           </li>
           <li>
             The repository Vega examples intentionally build through temporary

@@ -146,11 +146,11 @@ function FireOSSetup() {
           Framework Setup
         </AnchorLink>
         <p>
-          Expo and React Native config plugins use <code>amazon.fireOS</code>.
-          Flutter builds, or React Native builds that do not run a config
-          plugin, can select the same Android flavor through the{' '}
-          <code>fireOsEnabled</code> Gradle property and the app module's{' '}
-          <code>missingDimensionStrategy</code>:
+          Expo and React Native config plugins use{' '}
+          <code>modules.amazon.fireOS</code>. Flutter builds, or React Native
+          builds that do not run a config plugin, can select the same Android
+          flavor through the <code>fireOsEnabled</code> Gradle property and the
+          app module's <code>missingDimensionStrategy</code>:
         </p>
         <CodeBlock language="properties">{`fireOsEnabled=true
 # Do not set horizonEnabled=true in the same build.`}</CodeBlock>
@@ -159,10 +159,10 @@ function FireOSSetup() {
           selection during prebuild:
         </p>
         <CodeBlock language="typescript">{`// Expo
-plugins: [['expo-iap', { amazon: { fireOS: true } }]]
+plugins: [['expo-iap', { modules: { amazon: { fireOS: true } } }]]
 
 // React Native config plugin
-plugins: [['react-native-iap', { amazon: { fireOS: true } }]]`}</CodeBlock>
+plugins: [['react-native-iap', { modules: { amazon: { fireOS: true } } }]]`}</CodeBlock>
         <p>
           For Flutter, read the property from{' '}
           <code>android/gradle.properties</code> in{' '}
@@ -184,10 +184,113 @@ plugins: [['react-native-iap', { amazon: { fireOS: true } }]]`}</CodeBlock>
           KMP builds publish the Android <code>amazonRelease</code> variant,
           which sets <code>OPENIAP_STORE</code> to <code>amazon</code> and pulls
           <code>openiap-google-amazon</code>. MAUI Android builds can select the
-          same path with <code>OpenIapAndroidStore=amazon</code> or{' '}
-          <code>fireOsEnabled=true</code>; the binding includes the matching
-          Amazon Appstore SDK dependency for that store selection.
+          same path with <code>OpenIapAndroidStore=amazon</code>,{' '}
+          <code>fire</code>, <code>fireos</code>, or <code>fire-os</code>; the
+          binding includes the matching Amazon Appstore SDK dependency for that
+          store selection.
         </p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Library</th>
+              <th>Fire OS selector</th>
+              <th>Expected repository signal</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Native Android package</td>
+              <td>
+                <code>missingDimensionStrategy("platform", "amazon")</code> or
+                the published <code>openiap-google-amazon</code> artifact
+              </td>
+              <td>
+                The Android dependency resolves the <code>amazon</code> flavor.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>expo-iap</code>
+              </td>
+              <td>
+                <code>modules.amazon.fireOS: true</code>
+              </td>
+              <td>
+                The config plugin injects <code>openiap-google-amazon</code> and
+                sets the Android platform dimension to <code>amazon</code>.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>react-native-iap</code>
+              </td>
+              <td>
+                <code>modules.amazon.fireOS: true</code> when using the config
+                plugin; otherwise use the Android Gradle flavor directly
+              </td>
+              <td>
+                The config plugin selects the <code>openiap-google-amazon</code>{' '}
+                dependency.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>flutter_inapp_purchase</code>
+              </td>
+              <td>
+                <code>fireOsEnabled=true</code> in{' '}
+                <code>android/gradle.properties</code>
+              </td>
+              <td>
+                The Flutter Android Gradle script maps that property to the{' '}
+                <code>amazon</code> flavor and rejects simultaneous{' '}
+                <code>horizonEnabled=true</code>.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>kmp-iap</code>
+              </td>
+              <td>
+                Android <code>amazonRelease</code> variant
+              </td>
+              <td>
+                The variant sets <code>OPENIAP_STORE="amazon"</code> and pulls{' '}
+                <code>openiap-google-amazon</code>.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>OpenIap.Maui</code>
+              </td>
+              <td>
+                <code>OpenIapAndroidStore=amazon</code>, <code>fire</code>,{' '}
+                <code>fireos</code>, or <code>fire-os</code>
+              </td>
+              <td>
+                MSBuild selects the <code>amazon</code> Android AAR flavor and
+                includes the Amazon Appstore SDK dependency.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>godot-iap</code>
+              </td>
+              <td>No dedicated Fire OS selector yet</td>
+              <td>
+                The generated API includes the shared Amazon store enum and
+                IAPKit Amazon payload, but the wrapper does not expose a
+                separate Fire OS flavor switch.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          To audit Fire OS coverage across framework libraries, search for the
+          Android Amazon selectors rather than <code>Vega</code> or{' '}
+          <code>Kepler</code>:
+        </p>
+        <CodeBlock language="bash">{`rg -n "fireOS|Fire OS|fireOsEnabled|amazonRelease|OPENIAP_STORE|OpenIapAndroidStore|openiap-google-amazon" libraries`}</CodeBlock>
       </section>
 
       <section>

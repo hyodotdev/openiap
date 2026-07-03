@@ -15,6 +15,11 @@ export type ExpoIapModuleOverrides = {
    * @default false
    */
   horizon?: boolean;
+  /**
+   * Amazon platform targets. Fire OS and Vega OS can both be enabled in the
+   * same config, but they still produce separate build artifacts.
+   */
+  amazon?: AmazonPlatformOptions;
 };
 
 export type AmazonPlatformOptions = {
@@ -67,12 +72,7 @@ type BaseExpoIapOptions = {
     horizonAppId?: string;
   };
   /**
-   * Amazon platform targets. Fire OS and Vega OS can both be enabled in the
-   * same config, but they still produce separate build artifacts.
-   */
-  amazon?: AmazonPlatformOptions;
-  /**
-   * Vega project generation options used when amazon.vegaOS is true.
+   * Vega project generation options used when modules.amazon.vegaOS is true.
    */
   vega?: VegaProjectOptions;
 };
@@ -88,8 +88,7 @@ type ExplicitModuleOptions = BaseExpoIapOptions & {
 };
 
 export type ExpoIapPluginCommonOptions =
-  | AutoModuleOptions
-  | ExplicitModuleOptions;
+  AutoModuleOptions | ExplicitModuleOptions;
 
 declare module '@expo/config-types' {
   interface IOS {

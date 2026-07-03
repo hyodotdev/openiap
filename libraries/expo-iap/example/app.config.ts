@@ -49,12 +49,11 @@ export default ({config}: ConfigContext): ExpoConfig => {
           onside: isOnsideEnabled,
           // Horizon module: Android only (Meta Quest/VR devices)
           horizon: isHorizonEnabled,
-        },
-        amazon: {
-          // Fire OS: Android amazon flavor
-          fireOS: isFireOsEnabled,
-          // Vega OS: Kepler runtime target
-          vegaOS: isVegaEnabled,
+          // Amazon modules: Fire OS Android flavor and Vega OS runtime target
+          amazon: {
+            fireOS: isFireOsEnabled,
+            vegaOS: isVegaEnabled,
+          },
         },
         vega: {
           packageId: 'dev.hyo.openiap.expo.example',

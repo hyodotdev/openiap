@@ -443,33 +443,30 @@ type IapPluginProps = {
    * Get your project key from https://kit.openiap.dev
    */
   iapkitApiKey?: string;
-  /**
-   * Amazon platform targets.
-   *
-   * Fire OS selects the Android Amazon Appstore flavor. Vega OS is selected by
-   * the Kepler runtime and does not change the Android Gradle flavor.
-   */
-  amazon?: {
-    /**
-     * Fire OS module for Amazon-distributed Android builds.
-     * @platform android
-     */
-    fireOS?: boolean;
-    /**
-     * Vega OS runtime target. This is not an Android flavor.
-     */
-    vegaOS?: boolean;
-  };
-  /**
-   * Optional non-Amazon Android store modules.
-   * Fire OS takes precedence when both Fire OS and Horizon are enabled.
-   */
+  /** Optional Android store modules. */
   modules?: {
     /**
      * Horizon module for Meta Quest/VR devices.
      * @platform android
      */
     horizon?: boolean;
+    /**
+     * Amazon platform targets.
+     *
+     * Fire OS selects the Android Amazon Appstore flavor. Vega OS is selected
+     * by the Kepler runtime and does not change the Android Gradle flavor.
+     */
+    amazon?: {
+      /**
+       * Fire OS module for Amazon-distributed Android builds.
+       * @platform android
+       */
+      fireOS?: boolean;
+      /**
+       * Vega OS runtime target. This is not an Android flavor.
+       */
+      vegaOS?: boolean;
+    };
   };
 };
 
@@ -478,8 +475,8 @@ export function resolveAmazonPlatformFlags(props?: IapPluginProps): {
   isVegaEnabled: boolean;
   isHorizonEnabled: boolean;
 } {
-  const isFireOsEnabled = props?.amazon?.fireOS ?? false;
-  const isVegaEnabled = props?.amazon?.vegaOS ?? false;
+  const isFireOsEnabled = props?.modules?.amazon?.fireOS ?? false;
+  const isVegaEnabled = props?.modules?.amazon?.vegaOS ?? false;
   const isHorizonEnabled = isFireOsEnabled
     ? false
     : (props?.modules?.horizon ?? false);

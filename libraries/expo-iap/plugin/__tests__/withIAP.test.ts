@@ -23,12 +23,11 @@ import {
 
 // Type-level expectations
 const autoModeOptions: ExpoIapPluginCommonOptions = {
-  amazon: {fireOS: false, vegaOS: false},
-  modules: {onside: true},
+  modules: {onside: true, amazon: {fireOS: false, vegaOS: false}},
 };
 
 const groupedAmazonOptions: ExpoIapPluginCommonOptions = {
-  amazon: {fireOS: true, vegaOS: true},
+  modules: {amazon: {fireOS: true, vegaOS: true}},
 };
 
 const explicitModeOptions: ExpoIapPluginCommonOptions = {
@@ -208,7 +207,7 @@ describe('android configuration', () => {
   it('allows Fire OS and Vega OS to be enabled as Amazon targets', () => {
     expect(
       resolveAmazonPlatformFlags({
-        amazon: {fireOS: true, vegaOS: true},
+        modules: {amazon: {fireOS: true, vegaOS: true}},
       }),
     ).toEqual({
       isFireOsEnabled: true,
@@ -218,7 +217,7 @@ describe('android configuration', () => {
     });
   });
 
-  it('keeps Onside and Horizon selection outside the Amazon group', () => {
+  it('keeps Onside, Horizon, and Amazon under modules', () => {
     expect(
       resolveAmazonPlatformFlags({
         modules: {horizon: true, onside: true},
@@ -234,8 +233,10 @@ describe('android configuration', () => {
   it('lets Fire OS take precedence over Horizon for Android flavor selection', () => {
     expect(
       resolveAmazonPlatformFlags({
-        amazon: {fireOS: true, vegaOS: false},
-        modules: {horizon: true},
+        modules: {
+          horizon: true,
+          amazon: {fireOS: true, vegaOS: false},
+        },
       }),
     ).toEqual({
       isFireOsEnabled: true,
@@ -350,7 +351,7 @@ describe('local OpenIAP configuration', () => {
 
 describe('ios module selection', () => {
   const createConfig = (ios?: ExpoConfig['ios']): ExpoConfig =>
-    ({name: 'test-app', slug: 'test-app', ios} as ExpoConfig);
+    ({name: 'test-app', slug: 'test-app', ios}) as ExpoConfig;
 
   it('defaults to Expo IAP only when no options provided', () => {
     const result = resolveModuleSelection(createConfig(), undefined);

@@ -243,14 +243,14 @@ export const modifyAppBuildGradle = (
   const flavor = isFireOsEnabled
     ? 'amazon'
     : isHorizonEnabled
-    ? 'horizon'
-    : 'play';
+      ? 'horizon'
+      : 'play';
 
   const artifactId = isFireOsEnabled
     ? 'openiap-google-amazon'
     : isHorizonEnabled
-    ? 'openiap-google-horizon'
-    : 'openiap-google';
+      ? 'openiap-google-horizon'
+      : 'openiap-google';
 
   // Ensure OpenIAP dependency exists at desired version in app-level build.gradle(.kts)
   const impl = (ga: string, v: string) =>
@@ -391,8 +391,8 @@ const withIapAndroid: ConfigPlugin<
     const permissions = Array.isArray(existingPermissions)
       ? existingPermissions
       : existingPermissions
-      ? [existingPermissions]
-      : [];
+        ? [existingPermissions]
+        : [];
     manifest.manifest['uses-permission'] = permissions;
     const billingPerm = {$: {'android:name': 'com.android.vending.BILLING'}};
 
@@ -732,9 +732,7 @@ export interface ExpoIapPluginOptions {
    * @platform ios
    */
   iosAlternativeBilling?: IOSAlternativeBillingConfig;
-  /**
-   * Non-Amazon optional modules configuration.
-   */
+  /** Optional module configuration. */
   modules?: {
     /**
      * Onside module for iOS alternative billing (Korea market)
@@ -746,6 +744,11 @@ export interface ExpoIapPluginOptions {
      * @platform android
      */
     horizon?: boolean;
+    /**
+     * Amazon platform targets. Fire OS and Vega OS can both be enabled in the
+     * same config, but they still produce separate build artifacts.
+     */
+    amazon?: AmazonPlatformOptions;
   };
   /**
    * iOS-specific configuration
@@ -771,11 +774,6 @@ export interface ExpoIapPluginOptions {
     horizonAppId?: string;
   };
   /**
-   * Amazon platform targets. Fire OS and Vega OS can both be enabled in the
-   * same config, but they still produce separate build artifacts.
-   */
-  amazon?: AmazonPlatformOptions;
-  /**
    * Vega-specific project generation options.
    */
   vega?: VegaProjectOptions;
@@ -795,14 +793,14 @@ export type AmazonPlatformFlags = {
 };
 
 export function resolveAmazonPlatformFlags(
-  options?: Pick<ExpoIapPluginOptions, 'amazon' | 'modules'> | void,
+  options?: Pick<ExpoIapPluginOptions, 'modules'> | void,
 ): AmazonPlatformFlags {
-  const amazon = options?.amazon;
+  const amazon = options?.modules?.amazon;
   const isFireOsEnabled = amazon?.fireOS ?? false;
   const isVegaEnabled = amazon?.vegaOS ?? false;
   const isHorizonEnabled = isFireOsEnabled
     ? false
-    : options?.modules?.horizon ?? false;
+    : (options?.modules?.horizon ?? false);
   const isOnsideEnabled = options?.modules?.onside ?? false;
 
   return {
@@ -823,8 +821,7 @@ export function resolveModuleSelection(
   options?: ExpoIapPluginCommonOptions | void,
 ): ModuleSelectionResult {
   const normalizedOptions = (options ?? undefined) as
-    | ExpoIapPluginCommonOptions
-    | undefined;
+    ExpoIapPluginCommonOptions | undefined;
 
   const selection = normalizedOptions?.module ?? 'auto';
 

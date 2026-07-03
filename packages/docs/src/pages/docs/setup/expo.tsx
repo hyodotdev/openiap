@@ -286,11 +286,11 @@ cd ios && pod install`}
           "iapkitApiKey": "openiap-kit_<your-key>",
           "modules": {
             "onside": true,
-            "horizon": true
-          },
-          "amazon": {
-            "fireOS": false,
-            "vegaOS": false
+            "horizon": true,
+            "amazon": {
+              "fireOS": false,
+              "vegaOS": false
+            }
           },
           "android": {
             "horizonAppId": "YOUR_HORIZON_APP_ID"
@@ -302,18 +302,19 @@ cd ios && pod install`}
 }`}
         </CodeBlock>
         <p>
-          Amazon targets are grouped under <code>amazon</code>.{' '}
-          <code>amazon.fireOS</code> selects the Android Amazon Appstore flavor,
-          while <code>amazon.vegaOS</code> prepares Kepler/Vega project files.
-          They can both be <code>true</code> in one config, but Fire OS and Vega
-          OS are still built as separate artifacts.
+          Optional store modules are grouped under <code>modules</code>.
+          <code>modules.amazon.fireOS</code> selects the Android Amazon Appstore
+          flavor, while <code>modules.amazon.vegaOS</code> prepares Kepler/Vega
+          project files. They can both be <code>true</code> in one config, but
+          Fire OS and Vega OS are still built as separate artifacts.
         </p>
         <p>
           Vega OS support uses optional peer dependencies. Install Amazon's Vega
           IAP package only in the Vega app target. When{' '}
-          <code>amazon.vegaOS</code> is enabled, the plugin keeps the Kepler
-          CLI, Metro, and Babel packages available for <code>build-vega</code>,
-          but syncs <code>@amazon-devices/react-native-kepler</code> as an{' '}
+          <code>modules.amazon.vegaOS</code> is enabled, the plugin keeps the
+          Kepler CLI, Metro, and Babel packages available for{' '}
+          <code>build-vega</code>, but syncs{' '}
+          <code>@amazon-devices/react-native-kepler</code> as an{' '}
           <code>optionalDependency</code>. Keep that package out of normal{' '}
           <code>dependencies</code> and <code>devDependencies</code> used by
           regular Expo iOS or Android builds, and make sure Vega CI installs
@@ -360,7 +361,7 @@ cd ios && pod install`}
             </tr>
             <tr>
               <td>
-                <code>amazon.fireOS</code>
+                <code>modules.amazon.fireOS</code>
               </td>
               <td>boolean</td>
               <td>
@@ -370,7 +371,7 @@ cd ios && pod install`}
             </tr>
             <tr>
               <td>
-                <code>amazon.vegaOS</code>
+                <code>modules.amazon.vegaOS</code>
               </td>
               <td>boolean</td>
               <td>

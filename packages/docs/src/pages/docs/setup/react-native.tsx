@@ -192,8 +192,8 @@ end`}
             automatic service reconnection
           </li>
           <li>
-            For Fire OS builds, use <code>amazon.fireOS=true</code> with the{' '}
-            <code>react-native-iap</code> config plugin, or set{' '}
+            For Fire OS builds, use <code>modules.amazon.fireOS=true</code> with
+            the <code>react-native-iap</code> config plugin, or set{' '}
             <code>fireOsEnabled=true</code> in{' '}
             <code>android/gradle.properties</code> when configuring Gradle
             directly. See the{' '}
