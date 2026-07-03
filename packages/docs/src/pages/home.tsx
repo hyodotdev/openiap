@@ -27,9 +27,9 @@ function Home() {
     <div className="home">
       <SEO
         title="Unified In-App Purchase Specification"
-        description="OpenIAP standardizes in-app purchases across iOS, Android, Expo, React Native, Flutter, Kotlin Multiplatform, .NET MAUI, and Godot. One API, every platform. StoreKit 2, Google Play Billing, Vision Pro, Horizon OS."
+        description="OpenIAP standardizes in-app purchases across iOS, Android, Expo, React Native, Flutter, Kotlin Multiplatform, .NET MAUI, and Godot. One API, every platform. StoreKit 2, Google Play Billing, Vision Pro, Horizon OS, Fire OS, and Vega OS."
         path="/"
-        keywords="in-app purchase, IAP, StoreKit 2, Google Play Billing, Expo IAP, React Native IAP, Flutter IAP, Kotlin Multiplatform, .NET MAUI, cross-platform payments, mobile monetization"
+        keywords="in-app purchase, IAP, StoreKit 2, Google Play Billing, Expo IAP, React Native IAP, Flutter IAP, Kotlin Multiplatform, .NET MAUI, Amazon Fire OS, Vega OS, cross-platform payments, mobile monetization"
         includeAppSchema
       />
       <section className="hero">
@@ -64,7 +64,7 @@ function Home() {
           </div>
           <p className="hero-subtitle">
             Stop rewriting IAP code for every platform. One API for iOS,
-            Android, Vision Pro, and Meta Quest.
+            Android, Vision Pro, Meta Quest, Amazon Fire OS, and Vega OS.
           </p>
           {/* Quick Stats */}
           <div className="quick-stats">
@@ -355,8 +355,9 @@ function Home() {
             <div className="benefit">
               <h3>XR-Compatible</h3>
               <p>
-                Horizon OS and Vision Pro supported. Android XR coming soon.
-                OpenIAP is ready for the spatial computing era.
+                Horizon OS, Vision Pro, Amazon Fire OS, and Vega OS supported.
+                Android XR coming soon. OpenIAP is ready for the spatial
+                computing era.
               </p>
             </div>
           </div>

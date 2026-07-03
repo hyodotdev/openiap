@@ -254,10 +254,10 @@ await iap.request_purchase(props)`}</CodeBlock>
             Active Subscriptions
           </Link>{' '}
           to check which product or plan is currently active across Apple,
-          Google Play, Meta Horizon, and Amazon Fire OS. That page explains how
-          OpenIAP normalizes store-specific subscription group behavior into{' '}
-          <code>productId</code>, <code>currentPlanId</code>, and purchase-token
-          based entitlement checks.
+          Google Play, Meta Horizon, Amazon Fire OS, and Vega OS. That page
+          explains how OpenIAP normalizes store-specific subscription group
+          behavior into <code>productId</code>, <code>currentPlanId</code>, and
+          purchase-token based entitlement checks.
         </p>
       </section>
 

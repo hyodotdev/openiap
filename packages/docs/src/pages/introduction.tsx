@@ -53,16 +53,19 @@ function Introduction() {
             </li>
           </ul>
           <p className="intro-text-secondary">
-            New platforms like{' '}
+            New platforms and store runtimes like{' '}
             <a
               href="https://developer.apple.com/visionos/"
               target="_blank"
               rel="noopener noreferrer"
             >
               Vision Pro
-            </a>{' '}
-            and <Link to="/docs/features/horizon-os">Horizon OS</Link> compound
-            this fragmentation.
+            </a>
+            {', '}
+            <Link to="/docs/features/horizon-os">Horizon OS</Link>,{' '}
+            <Link to="/docs/features/fire-os">Amazon Fire OS</Link>, and{' '}
+            <Link to="/docs/features/vega-os">Vega OS</Link> compound this
+            fragmentation.
           </p>
         </section>
 
@@ -640,6 +643,22 @@ await iap.end_connection()`}</CodeBlock>
                     <Link to="/docs/features/horizon-os">Horizon OS</Link>
                   </td>
                   <td>Quest 2+</td>
+                </tr>
+                <tr>
+                  <td>Amazon Fire OS</td>
+                  <td>
+                    <Link to="/docs/features/fire-os">Amazon Appstore SDK</Link>
+                  </td>
+                  <td>Fire OS devices</td>
+                </tr>
+                <tr>
+                  <td>Amazon Vega OS</td>
+                  <td>
+                    <Link to="/docs/features/vega-os">
+                      Vega JavaScript IAP runtime
+                    </Link>
+                  </td>
+                  <td>React Native for Vega apps</td>
                 </tr>
               </tbody>
             </table>

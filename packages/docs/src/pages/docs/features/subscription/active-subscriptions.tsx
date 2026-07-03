@@ -13,7 +13,7 @@ function ActiveSubscriptions() {
     <div className="doc-page">
       <SEO
         title="Active Subscriptions"
-        description="Check active subscription state across Apple, Google Play, Meta Horizon, and Amazon Fire OS using OpenIAP."
+        description="Check active subscription state across Apple, Google Play, Meta Horizon, Amazon Fire OS, and Vega OS using OpenIAP."
         path="/docs/features/subscription/active-subscriptions"
         keywords="active subscriptions, subscription group, currentPlanId, productId, Fire OS subscription"
       />
@@ -22,10 +22,10 @@ function ActiveSubscriptions() {
       <p>
         Active subscription checks answer the runtime question: which paid plan
         should this user receive right now? OpenIAP keeps that workflow
-        consistent across Apple, Google Play, Meta Horizon, and Amazon Fire OS
-        by returning <code>ActiveSubscription</code> objects keyed by store
-        product identity instead of requiring app code to branch on each store's
-        subscription-group model.
+        consistent across Apple, Google Play, Meta Horizon, Amazon Fire OS, and
+        Vega OS by returning <code>ActiveSubscription</code> objects keyed by
+        store product identity instead of requiring app code to branch on each
+        store's subscription-group model.
       </p>
 
       <section>
