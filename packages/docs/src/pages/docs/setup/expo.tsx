@@ -448,15 +448,15 @@ function Store() {
   return (
     <FlatList
       data={products}
-      keyExtractor={(product) => product.productId}
+      keyExtractor={(product) => product.id}
       renderItem={({ item }) => (
         <Button
           title={\`\${item.title} - \${item.localizedPrice}\`}
           onPress={() =>
             requestPurchase({
               request: {
-                apple: { sku: item.productId },
-                google: { skus: [item.productId] },
+                apple: { sku: item.id },
+                google: { skus: [item.id] },
               },
               type: 'in-app',
             })

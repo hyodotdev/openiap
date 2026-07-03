@@ -1240,7 +1240,7 @@ function Docs() {
           <Route
             path="features/runtime-integrations"
             element={
-              <Navigate to="/docs/features/store-integrations" replace />
+              <NavigatePreservingHash to="/docs/features/store-integrations" />
             }
           />
           <Route
@@ -1258,11 +1258,11 @@ function Docs() {
           <Route path="android-setup" element={<AndroidSetup />} />
           <Route
             path="horizon-setup"
-            element={<Navigate to="/docs/features/horizon-os" replace />}
+            element={<NavigatePreservingHash to="/docs/features/horizon-os" />}
           />
           <Route
             path="fireos-setup"
-            element={<Navigate to="/docs/features/fire-os" replace />}
+            element={<NavigatePreservingHash to="/docs/features/fire-os" />}
           />
           <Route path="setup" element={<SetupIndex />} />
           <Route path="setup/react-native" element={<ReactNativeSetup />} />
