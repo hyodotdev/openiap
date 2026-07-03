@@ -759,6 +759,10 @@ function Docs() {
               titleTo="/docs/features/runtime-integrations"
               items={[
                 {
+                  to: '/docs/features/alternative-marketplace',
+                  label: 'Alternative Marketplace',
+                },
+                {
                   to: '/docs/features/alternative-marketplace/onside',
                   label: 'Onside',
                 },
