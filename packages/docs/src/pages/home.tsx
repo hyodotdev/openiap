@@ -79,16 +79,19 @@ function Home() {
             </div>
           </div>
           <div className="hero-actions">
-            <Link to="/introduction" className="btn btn-primary">
+            <Link
+              to="/introduction"
+              className="btn btn-primary hero-cta-primary"
+            >
               Get Started
             </Link>
             <a
               href="https://github.com/hyodotdev/openiap"
-              className="btn btn-secondary"
+              className="btn btn-secondary hero-cta-secondary"
               target="_blank"
               rel="noopener noreferrer"
             >
-              View on Github
+              View on GitHub
             </a>
           </div>
           <div className="hero-divider" role="separator" aria-hidden="true" />
