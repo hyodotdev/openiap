@@ -636,6 +636,7 @@ function Docs() {
               items={[
                 { to: '/docs/horizon-setup', label: 'Horizon OS' },
                 { to: '/docs/fireos-setup', label: 'Fire OS' },
+                { to: '/docs/features/vega-os', label: 'Vega OS' },
               ]}
               onItemClick={closeSidebar}
             />
