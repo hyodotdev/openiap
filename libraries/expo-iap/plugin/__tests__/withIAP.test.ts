@@ -6,7 +6,9 @@ import plugin, {
   normalizeGeneratedGroovyAppBuildGradle,
   normalizeGeneratedGroovyProjectBuildGradle,
   resolveAmazonPlatformFlags,
+  resolveHorizonAppId,
   resolveModuleSelection,
+  resolveVegaProjectOptions,
   syncHorizonAppIdMetaData,
 } from '../src/withIAP';
 import {getAndroidLocalPathInput} from '../src/withLocalOpenIAP';
@@ -23,11 +25,12 @@ import {
 
 // Type-level expectations
 const autoModeOptions: ExpoIapPluginCommonOptions = {
-  modules: {onside: true, amazon: {fireOS: false, vegaOS: false}},
+  modules: {onside: true},
+  android: {amazon: {fireOS: false, vegaOS: false}},
 };
 
 const groupedAmazonOptions: ExpoIapPluginCommonOptions = {
-  modules: {amazon: {fireOS: true, vegaOS: true}},
+  android: {amazon: {fireOS: true, vegaOS: true}},
 };
 
 const explicitModeOptions: ExpoIapPluginCommonOptions = {
@@ -207,7 +210,7 @@ describe('android configuration', () => {
   it('allows Fire OS and Vega OS to be enabled as Amazon targets', () => {
     expect(
       resolveAmazonPlatformFlags({
-        modules: {amazon: {fireOS: true, vegaOS: true}},
+        android: {amazon: {fireOS: true, vegaOS: true}},
       }),
     ).toEqual({
       isFireOsEnabled: true,
@@ -217,7 +220,7 @@ describe('android configuration', () => {
     });
   });
 
-  it('keeps Onside, Horizon, and Amazon under modules', () => {
+  it('keeps Onside and Horizon under modules', () => {
     expect(
       resolveAmazonPlatformFlags({
         modules: {horizon: true, onside: true},
@@ -235,6 +238,8 @@ describe('android configuration', () => {
       resolveAmazonPlatformFlags({
         modules: {
           horizon: true,
+        },
+        android: {
           amazon: {fireOS: true, vegaOS: false},
         },
       }),
@@ -244,6 +249,114 @@ describe('android configuration', () => {
       isHorizonEnabled: false,
       isOnsideEnabled: false,
     });
+  });
+
+  it('uses Expo IAP platform env flags when module options are absent', () => {
+    const previous = {
+      fireOS: process.env.EXPO_IAP_FIREOS,
+      vega: process.env.EXPO_IAP_VEGA,
+      horizon: process.env.EXPO_IAP_HORIZON,
+      onside: process.env.EXPO_IAP_ONSIDE,
+    };
+
+    process.env.EXPO_IAP_FIREOS = '1';
+    process.env.EXPO_IAP_VEGA = '1';
+    process.env.EXPO_IAP_HORIZON = '1';
+    process.env.EXPO_IAP_ONSIDE = '1';
+
+    try {
+      expect(resolveAmazonPlatformFlags(undefined)).toEqual({
+        isFireOsEnabled: true,
+        isVegaEnabled: true,
+        isHorizonEnabled: false,
+        isOnsideEnabled: true,
+      });
+    } finally {
+      if (previous.fireOS === undefined) {
+        delete process.env.EXPO_IAP_FIREOS;
+      } else {
+        process.env.EXPO_IAP_FIREOS = previous.fireOS;
+      }
+      if (previous.vega === undefined) {
+        delete process.env.EXPO_IAP_VEGA;
+      } else {
+        process.env.EXPO_IAP_VEGA = previous.vega;
+      }
+      if (previous.horizon === undefined) {
+        delete process.env.EXPO_IAP_HORIZON;
+      } else {
+        process.env.EXPO_IAP_HORIZON = previous.horizon;
+      }
+      if (previous.onside === undefined) {
+        delete process.env.EXPO_IAP_ONSIDE;
+      } else {
+        process.env.EXPO_IAP_ONSIDE = previous.onside;
+      }
+    }
+  });
+
+  it('keeps explicit module flags ahead of Expo IAP platform env flags', () => {
+    const previous = process.env.EXPO_IAP_FIREOS;
+    process.env.EXPO_IAP_FIREOS = '1';
+
+    try {
+      expect(
+        resolveAmazonPlatformFlags({
+          android: {amazon: {fireOS: false}},
+        }),
+      ).toEqual({
+        isFireOsEnabled: false,
+        isVegaEnabled: false,
+        isHorizonEnabled: false,
+        isOnsideEnabled: false,
+      });
+    } finally {
+      if (previous === undefined) {
+        delete process.env.EXPO_IAP_FIREOS;
+      } else {
+        process.env.EXPO_IAP_FIREOS = previous;
+      }
+    }
+  });
+
+  it('keeps legacy modules.amazon as a fallback', () => {
+    expect(
+      resolveAmazonPlatformFlags({
+        modules: {amazon: {fireOS: true, vegaOS: true}},
+      }),
+    ).toEqual({
+      isFireOsEnabled: true,
+      isVegaEnabled: true,
+      isHorizonEnabled: false,
+      isOnsideEnabled: false,
+    });
+  });
+
+  it('resolves canonical Horizon app id before deprecated fields', () => {
+    expect(
+      resolveHorizonAppId({
+        android: {
+          horizon: {appId: 'canonical'},
+          horizonAppId: 'deprecated-android',
+        },
+        horizonAppId: 'deprecated-top-level',
+      }),
+    ).toBe('canonical');
+  });
+
+  it('resolves canonical Vega options before the unpublished legacy field', () => {
+    expect(
+      resolveVegaProjectOptions({
+        android: {
+          amazon: {
+            vegaOS: true,
+            vega: {
+              packageId: 'dev.example.vega',
+            },
+          },
+        },
+      }),
+    ).toEqual({packageId: 'dev.example.vega'});
   });
 
   it('removes Horizon App ID metadata outside Horizon builds', () => {
@@ -404,6 +517,26 @@ describe('ios module selection', () => {
       includeExpoIap: true,
       includeOnside: true,
     });
+  });
+
+  it('enables Onside from env fallback in auto mode', () => {
+    const previous = process.env.EXPO_IAP_ONSIDE;
+    process.env.EXPO_IAP_ONSIDE = '1';
+
+    try {
+      const result = resolveModuleSelection(createConfig(), undefined);
+      expect(result).toEqual({
+        selection: 'auto',
+        includeExpoIap: true,
+        includeOnside: true,
+      });
+    } finally {
+      if (previous === undefined) {
+        delete process.env.EXPO_IAP_ONSIDE;
+      } else {
+        process.env.EXPO_IAP_ONSIDE = previous;
+      }
+    }
   });
 
   it('disables Onside when modules.onside is false', () => {

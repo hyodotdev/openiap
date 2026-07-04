@@ -109,15 +109,13 @@ import SubscriptionBillingIssue from './features/subscription-billing-issue';
 import Refund from './features/refund';
 import Validation from './features/validation';
 import Debugging from './features/debugging';
-import StoreIntegrations from './features/store-integrations';
-import AlternativeMarketplace from './features/alternative-marketplace/index';
-import AlternativeMarketplaceOnside from './features/alternative-marketplace/onside';
-import HorizonOSFeature from './features/horizon-os';
-import FireOSFeature from './features/fire-os';
-import VegaOSRuntime from './features/vega-os';
 import IOSSetup from './ios-setup';
 import AndroidSetup from './android-setup';
 import SetupIndex from './setup/index';
+import StoreSetup from './setup/store/index';
+import HorizonStoreSetup from './setup/store/horizon';
+import AmazonStoreSetup from './setup/store/amazon';
+import OnsideStoreSetup from './setup/store/onside';
 import ReactNativeSetup from './setup/react-native';
 import ExpoSetup from './setup/expo';
 import FlutterSetup from './setup/flutter';
@@ -649,6 +647,25 @@ function Docs() {
               onItemClick={closeSidebar}
             />
             <MenuDropdown
+              title="Store Setup"
+              titleTo="/docs/setup/store"
+              items={[
+                {
+                  to: '/docs/setup/store/horizon',
+                  label: 'Horizon OS',
+                },
+                {
+                  to: '/docs/setup/store/amazon',
+                  label: 'Amazon',
+                },
+                {
+                  to: '/docs/setup/store/onside',
+                  label: 'Onside',
+                },
+              ]}
+              onItemClick={closeSidebar}
+            />
+            <MenuDropdown
               title="AI Assistants"
               titleTo="/docs/guides/ai-assistants"
               items={[{ to: '/docs/guides/mcp-server', label: 'MCP Server' }]}
@@ -753,33 +770,6 @@ function Docs() {
                 Debugging
               </NavLink>
             </li>
-            <MenuDropdown
-              title="Store Integrations"
-              titleTo="/docs/features/store-integrations"
-              items={[
-                {
-                  to: '/docs/features/horizon-os',
-                  label: 'Horizon OS',
-                },
-                {
-                  to: '/docs/features/fire-os',
-                  label: 'Fire OS',
-                },
-                {
-                  to: '/docs/features/vega-os',
-                  label: 'Vega OS',
-                },
-                {
-                  to: '/docs/features/alternative-marketplace',
-                  label: 'Alternative Marketplace',
-                },
-                {
-                  to: '/docs/features/alternative-marketplace/onside',
-                  label: 'Onside',
-                },
-              ]}
-              onItemClick={closeSidebar}
-            />
             <li>
               <NavLink
                 to="/docs/features/discount"
@@ -1235,36 +1225,47 @@ function Docs() {
           <Route path="features/debugging" element={<Debugging />} />
           <Route
             path="features/store-integrations"
-            element={<StoreIntegrations />}
+            element={<NavigatePreservingHash to="/docs/setup/store" />}
           />
           <Route
             path="features/runtime-integrations"
-            element={
-              <NavigatePreservingHash to="/docs/features/store-integrations" />
-            }
+            element={<NavigatePreservingHash to="/docs/setup/store" />}
           />
           <Route
             path="features/alternative-marketplace"
-            element={<AlternativeMarketplace />}
+            element={<NavigatePreservingHash to="/docs/setup/store/onside" />}
           />
           <Route
             path="features/alternative-marketplace/onside"
-            element={<AlternativeMarketplaceOnside />}
+            element={<NavigatePreservingHash to="/docs/setup/store/onside" />}
           />
-          <Route path="features/horizon-os" element={<HorizonOSFeature />} />
-          <Route path="features/fire-os" element={<FireOSFeature />} />
-          <Route path="features/vega-os" element={<VegaOSRuntime />} />
+          <Route
+            path="features/horizon-os"
+            element={<NavigatePreservingHash to="/docs/setup/store/horizon" />}
+          />
+          <Route
+            path="features/fire-os"
+            element={<Navigate to="/docs/setup/store/amazon#fire-os" replace />}
+          />
+          <Route
+            path="features/vega-os"
+            element={<Navigate to="/docs/setup/store/amazon#vega-os" replace />}
+          />
           <Route path="ios-setup" element={<IOSSetup />} />
           <Route path="android-setup" element={<AndroidSetup />} />
           <Route
             path="horizon-setup"
-            element={<NavigatePreservingHash to="/docs/features/horizon-os" />}
+            element={<NavigatePreservingHash to="/docs/setup/store/horizon" />}
           />
           <Route
             path="fireos-setup"
-            element={<NavigatePreservingHash to="/docs/features/fire-os" />}
+            element={<Navigate to="/docs/setup/store/amazon#fire-os" replace />}
           />
           <Route path="setup" element={<SetupIndex />} />
+          <Route path="setup/store" element={<StoreSetup />} />
+          <Route path="setup/store/horizon" element={<HorizonStoreSetup />} />
+          <Route path="setup/store/amazon" element={<AmazonStoreSetup />} />
+          <Route path="setup/store/onside" element={<OnsideStoreSetup />} />
           <Route path="setup/react-native" element={<ReactNativeSetup />} />
           <Route path="setup/expo" element={<ExpoSetup />} />
           <Route path="setup/flutter" element={<FlutterSetup />} />

@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-06-23T15:25:38.042Z
+> Last updated: 2026-07-04T10:52:01.931Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -1651,7 +1651,9 @@ Requirements:
   clearly labeled attached `Preview` comment.
 - Do not commit one-off PR preview recordings. Only commit preview media when
   the media itself is a product documentation or example asset that should ship
-  with the repository.
+  with the repository. If PR attachment upload is blocked by local browser or
+  extension permissions, commit a compressed asset under `.github/pr-previews/`
+  and link the GitHub-hosted raw/blob URL from the preview comment.
 - Link or embed the uploaded preview in the PR body or a clearly labeled
   `Preview` PR comment.
 - If the change has no visual or interactive surface, include a short note in

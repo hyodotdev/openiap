@@ -48,14 +48,17 @@ function Releases() {
               color: 'var(--text-secondary)',
             }}
           >
-            Publishes Expo and React Native prereleases that keep Amazon Fire OS
-            and Vega OS options under the same <code>modules</code> block as
-            Onside and Horizon. Apps should configure{' '}
-            <code>modules.amazon.fireOS</code> and{' '}
-            <code>modules.amazon.vegaOS</code>; top-level <code>amazon</code>{' '}
-            plugin options are not part of the new config shape. Amazon targets
-            are available in the current <code>next</code> / <code>rc</code>{' '}
-            package versions while this support remains experimental.
+            Publishes Expo prereleases that group Android Amazon targets under{' '}
+            <code>android.amazon</code>. Expo apps should configure{' '}
+            <code>android.amazon.fireOS</code> and{' '}
+            <code>android.amazon.vegaOS</code>; top-level <code>amazon</code>{' '}
+            plugin options are not part of the config shape, and the older{' '}
+            <code>modules.amazon</code> path is kept only as a compatibility
+            fallback. React Native remains a bare RN/Nitro package that selects
+            Fire OS through Android Gradle and Vega OS through a separate React
+            Native for Vega target. Amazon targets are available in the current{' '}
+            <code>next</code> / <code>rc</code> package versions while this
+            support remains experimental.
           </p>
 
           <CodeBlock language="typescript">{`plugins: [
@@ -65,6 +68,11 @@ function Releases() {
       modules: {
         onside: true,
         horizon: true,
+      },
+      android: {
+        horizon: {
+          appId: 'YOUR_HORIZON_APP_ID',
+        },
         amazon: {
           fireOS: true,
           vegaOS: true,
@@ -83,15 +91,16 @@ function Releases() {
           >
             <li>
               <strong>Expo config plugin</strong> — <code>expo-iap</code> now
-              resolves Fire OS and Vega OS from <code>modules.amazon</code>, and
-              the docs example no longer shows a top-level Amazon block beside{' '}
-              <code>modules</code>.
+              resolves Fire OS and Vega OS from <code>android.amazon</code>,
+              resolves Horizon app ids from <code>android.horizon.appId</code>,
+              and derives Vega metadata from the Expo config unless{' '}
+              <code>android.amazon.vega</code> overrides are provided.
             </li>
             <li>
-              <strong>React Native config plugin</strong> —{' '}
-              <code>react-native-iap</code> accepts the same{' '}
-              <code>modules.amazon.fireOS</code> shape for Fire OS Android
-              flavor selection.
+              <strong>React Native</strong> — <code>react-native-iap</code>{' '}
+              remains a bare React Native/Nitro package. Fire OS uses direct
+              Android Gradle flavor selection, and Vega uses a separate React
+              Native for Vega target with its own Kepler metadata.
             </li>
             <li>
               <strong>Vega OS scope</strong> — Vega remains experimental and
@@ -1580,8 +1589,8 @@ function Releases() {
             </li>
             <li>
               <strong>Setup guide</strong> — see{' '}
-              <Link to="/docs/features/fire-os">Fire OS Setup</Link> for Amazon
-              App Tester, public key, and framework flag details.
+              <Link to="/docs/setup/store/amazon#fire-os">Fire OS Setup</Link>{' '}
+              for Amazon App Tester, public key, and framework flag details.
             </li>
           </ul>
 

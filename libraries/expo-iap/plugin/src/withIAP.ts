@@ -722,7 +722,7 @@ export interface ExpoIapPluginOptions {
   enableLocalDev?: boolean;
   /**
    * Horizon OS app ID for Quest devices.
-   * @deprecated Use android.horizonAppId instead.
+   * @deprecated Use android.horizon.appId instead.
    * @platform android
    */
   horizonAppId?: string;
@@ -747,6 +747,7 @@ export interface ExpoIapPluginOptions {
     /**
      * Amazon platform targets. Fire OS and Vega OS can both be enabled in the
      * same config, but they still produce separate build artifacts.
+     * @deprecated Use android.amazon instead.
      */
     amazon?: AmazonPlatformOptions;
   };
@@ -768,15 +769,32 @@ export interface ExpoIapPluginOptions {
    */
   android?: {
     /**
+     * Horizon options for Meta Quest/VR devices.
+     */
+    horizon?: {
+      /**
+       * Meta Horizon App ID for Quest/VR devices.
+       * Required when modules.horizon is true.
+       */
+      appId?: string;
+    };
+    /**
      * Meta Horizon App ID for Quest/VR devices.
      * Required when modules.horizon is true.
+     * @deprecated Use android.horizon.appId instead.
      */
     horizonAppId?: string;
+    /**
+     * Amazon Android targets and Vega project generation overrides.
+     */
+    amazon?: AmazonPlatformOptions & {
+      /**
+       * Vega-specific project generation overrides. All fields are optional;
+       * packageId, title, appName, and icon default from the Expo config.
+       */
+      vega?: VegaProjectOptions;
+    };
   };
-  /**
-   * Vega-specific project generation options.
-   */
-  vega?: VegaProjectOptions;
 }
 
 export interface ModuleSelectionResult {
@@ -792,16 +810,33 @@ export type AmazonPlatformFlags = {
   isOnsideEnabled: boolean;
 };
 
+type AmazonPlatformFlagOptions = Pick<
+  ExpoIapPluginOptions,
+  'android' | 'modules'
+>;
+
+function isEnvFlagEnabled(name: string): boolean {
+  return process.env[name] === '1';
+}
+
 export function resolveAmazonPlatformFlags(
-  options?: Pick<ExpoIapPluginOptions, 'modules'> | void,
+  options?: AmazonPlatformFlagOptions | void,
 ): AmazonPlatformFlags {
-  const amazon = options?.modules?.amazon;
-  const isFireOsEnabled = amazon?.fireOS ?? false;
-  const isVegaEnabled = amazon?.vegaOS ?? false;
+  const androidAmazon = options?.android?.amazon;
+  const legacyModuleAmazon = options?.modules?.amazon;
+  const isFireOsEnabled =
+    androidAmazon?.fireOS ??
+    legacyModuleAmazon?.fireOS ??
+    isEnvFlagEnabled('EXPO_IAP_FIREOS');
+  const isVegaEnabled =
+    androidAmazon?.vegaOS ??
+    legacyModuleAmazon?.vegaOS ??
+    isEnvFlagEnabled('EXPO_IAP_VEGA');
   const isHorizonEnabled = isFireOsEnabled
     ? false
-    : (options?.modules?.horizon ?? false);
-  const isOnsideEnabled = options?.modules?.onside ?? false;
+    : (options?.modules?.horizon ?? isEnvFlagEnabled('EXPO_IAP_HORIZON'));
+  const isOnsideEnabled =
+    options?.modules?.onside ?? isEnvFlagEnabled('EXPO_IAP_ONSIDE');
 
   return {
     isFireOsEnabled,
@@ -809,6 +844,25 @@ export function resolveAmazonPlatformFlags(
     isHorizonEnabled,
     isOnsideEnabled,
   };
+}
+
+export function resolveHorizonAppId(
+  options?: ExpoIapPluginOptions | void,
+): string | undefined {
+  return (
+    options?.android?.horizon?.appId ??
+    options?.android?.horizonAppId ??
+    options?.horizonAppId
+  );
+}
+
+export function resolveVegaProjectOptions(
+  options?: ExpoIapPluginOptions | void,
+): VegaProjectOptions | undefined {
+  const legacyOptions = options as
+    (ExpoIapPluginOptions & {vega?: VegaProjectOptions}) | undefined;
+
+  return options?.android?.amazon?.vega ?? legacyOptions?.vega;
 }
 
 /**
@@ -843,6 +897,7 @@ export function resolveModuleSelection(
     includeOnside =
       normalizedOptions?.modules?.onside ??
       config.ios?.onside?.enabled ??
+      isEnvFlagEnabled('EXPO_IAP_ONSIDE') ??
       false;
   }
 
@@ -866,8 +921,7 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
       logOnce('🔑 [expo-iap] Added iapkitApiKey to config.extra');
     }
 
-    const horizonAppId =
-      options?.android?.horizonAppId ?? options?.horizonAppId;
+    const horizonAppId = resolveHorizonAppId(options);
     const iosAlternativeBilling =
       options?.ios?.alternativeBilling ?? options?.iosAlternativeBilling;
 
@@ -953,7 +1007,7 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
     syncAutolinking(autolinkState);
 
     if (isVegaEnabled) {
-      result = withVega(result, options?.vega);
+      result = withVega(result, resolveVegaProjectOptions(options));
     }
 
     return result;

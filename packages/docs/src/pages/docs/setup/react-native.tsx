@@ -192,18 +192,17 @@ end`}
             automatic service reconnection
           </li>
           <li>
-            For Fire OS builds, use <code>modules.amazon.fireOS=true</code> with
-            the <code>react-native-iap</code> config plugin, or set{' '}
-            <code>fireOsEnabled=true</code> in{' '}
-            <code>android/gradle.properties</code> when configuring Gradle
-            directly. See the{' '}
-            <a href="/docs/features/fire-os">Fire OS Setup Guide</a>.
+            For Fire OS builds, set <code>fireOsEnabled=true</code> in{' '}
+            <code>android/gradle.properties</code> and configure the app
+            module's Android flavor selection directly. See the{' '}
+            <a href="/docs/setup/store/amazon#fire-os">Fire OS Setup Guide</a>.
           </li>
           <li>
             For Vega OS, do not use an Android flavor. Create a React Native for
             Vega target with its own package manifest, install Amazon's Vega
             packages only in that target, and follow the{' '}
-            <a href="/docs/features/vega-os">Vega OS Runtime</a> guide.
+            <a href="/docs/setup/store/amazon#vega-os">Vega OS Runtime</a>{' '}
+            guide.
           </li>
           <li>
             Amazon Fire OS and Vega OS support is currently available from the{' '}
@@ -221,10 +220,10 @@ end`}
         <p>
           <code>react-native-iap</code> declares Amazon Vega runtime packages as
           optional peer dependencies, so normal iOS, Android, Fire OS, and
-          Horizon installs do not need to install them. Unlike{' '}
-          <code>expo-iap</code>, the <code>react-native-iap</code> config plugin
-          does not generate a Vega <code>manifest.toml</code>, entry file, build
-          scripts, or package dependency sync during prebuild.
+          Horizon installs do not need to install them. This package targets
+          bare React Native/Nitro projects, so it does not provide an Expo
+          config plugin or generate Vega <code>manifest.toml</code>, entry file,
+          build scripts, or package dependency sync during prebuild.
         </p>
         <p>
           Plain React Native apps should keep Vega dependencies in a Vega-only
@@ -503,16 +502,16 @@ switch (error.code) {
             multi-language examples
           </li>
           <li>
-            <a href="/docs/features/horizon-os">Horizon OS Setup</a> — Meta
+            <a href="/docs/setup/store/horizon">Horizon OS Setup</a> — Meta
             Quest in-app purchase configuration
           </li>
           <li>
-            <a href="/docs/features/fire-os">Fire OS Setup</a> — Fire OS Android
-            flavor configuration
+            <a href="/docs/setup/store/amazon#fire-os">Fire OS Setup</a> — Fire
+            OS Android flavor configuration
           </li>
           <li>
-            <a href="/docs/features/vega-os">Vega OS Runtime</a> — React Native
-            for Vega runtime adapter
+            <a href="/docs/setup/store/amazon#vega-os">Vega OS Runtime</a> —
+            React Native for Vega runtime adapter
           </li>
           <li>
             <a

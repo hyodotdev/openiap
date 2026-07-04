@@ -83,9 +83,9 @@ export const LIBRARIES: LibraryInfo[] = [
     homeLabel: 'React Native',
     setupPath: '/docs/setup/react-native',
     language: 'TypeScript',
-    description: 'React Native & Expo (Nitro Modules)',
+    description: 'Bare React Native (Nitro Modules)',
     languagesDescription:
-      'React Native & Expo implementation of OpenIAP specification (Nitro Modules)',
+      'Bare React Native implementation of OpenIAP specification (Nitro Modules)',
     setupDescription:
       'Bare React Native CLI projects (RN 0.79+). Built on Nitro Modules with the `useIAP` hook, error normalization, and full StoreKit 2 / Play Billing 8 coverage.',
     installCommand: REACT_NATIVE_PACKAGE.installCommand,

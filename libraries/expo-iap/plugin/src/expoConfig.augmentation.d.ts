@@ -18,6 +18,7 @@ export type ExpoIapModuleOverrides = {
   /**
    * Amazon platform targets. Fire OS and Vega OS can both be enabled in the
    * same config, but they still produce separate build artifacts.
+   * @deprecated Use android.amazon instead.
    */
   amazon?: AmazonPlatformOptions;
 };
@@ -61,20 +62,40 @@ type BaseExpoIapOptions = {
   /**
    * Horizon OS app ID for Quest devices
    * @platform android
-   * @deprecated Use android.horizonAppId instead
+   * @deprecated Use android.horizon.appId instead
    */
   horizonAppId?: string;
   android?: {
     /**
-     * Horizon OS app ID for Quest devices
+     * Horizon OS options for Quest devices.
      * @platform android
      */
+    horizon?: {
+      /**
+       * Horizon OS app ID for Quest devices.
+       */
+      appId?: string;
+    };
+    /**
+     * Horizon OS app ID for Quest devices
+     * @platform android
+     * @deprecated Use android.horizon.appId instead
+     */
     horizonAppId?: string;
+    /**
+     * Amazon Android platform targets and Vega-specific project overrides.
+     * Fire OS selects the Android Amazon Appstore flavor. Vega OS prepares the
+     * Kepler/Vega runtime target and can override generated Vega metadata.
+     */
+    amazon?: AmazonPlatformOptions & {
+      /**
+       * Vega project generation overrides used when android.amazon.vegaOS is true.
+       * packageId defaults to android.package, title defaults to expo.name,
+       * appName defaults from title, and icon defaults to expo.icon.
+       */
+      vega?: VegaProjectOptions;
+    };
   };
-  /**
-   * Vega project generation options used when modules.amazon.vegaOS is true.
-   */
-  vega?: VegaProjectOptions;
 };
 
 type AutoModuleOptions = BaseExpoIapOptions & {

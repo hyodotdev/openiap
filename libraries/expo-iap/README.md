@@ -42,7 +42,7 @@ Quick links:
 
 - [llms.txt](https://openiap.dev/llms.txt) - Quick reference
 - [llms-full.txt](https://openiap.dev/llms-full.txt) - Full API reference
-- [Onside Integration](https://openiap.dev/docs/features/alternative-marketplace/onside) - Using Onside marketplace payments on iOS
+- [Onside Integration](https://openiap.dev/docs/setup/store/onside) - Using Onside marketplace payments on iOS
 
 ## Notice
 

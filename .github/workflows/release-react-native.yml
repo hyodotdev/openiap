@@ -166,7 +166,7 @@ jobs:
       - name: Lint
         run: |
           node .yarn/releases/yarn-3.6.1.cjs lint:tsc
-          npx eslint --ext .ts,.tsx,.js,.jsx src plugin/src
+          npx eslint --ext .ts,.tsx,.js,.jsx src
 
       - name: Configure Git user
         run: |

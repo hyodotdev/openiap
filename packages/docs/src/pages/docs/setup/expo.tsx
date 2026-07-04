@@ -286,14 +286,16 @@ cd ios && pod install`}
           "iapkitApiKey": "openiap-kit_<your-key>",
           "modules": {
             "onside": true,
-            "horizon": true,
+            "horizon": true
+          },
+          "android": {
+            "horizon": {
+              "appId": "YOUR_HORIZON_APP_ID"
+            },
             "amazon": {
               "fireOS": false,
               "vegaOS": false
             }
-          },
-          "android": {
-            "horizonAppId": "YOUR_HORIZON_APP_ID"
           }
         }
       ]
@@ -302,11 +304,13 @@ cd ios && pod install`}
 }`}
         </CodeBlock>
         <p>
-          Optional store modules are grouped under <code>modules</code>.
-          <code>modules.amazon.fireOS</code> selects the Android Amazon Appstore
-          flavor, while <code>modules.amazon.vegaOS</code> prepares Kepler/Vega
-          project files. They can both be <code>true</code> in one config, but
-          Fire OS and Vega OS are still built as separate artifacts.
+          Optional Onside and Horizon modules are grouped under{' '}
+          <code>modules</code>. Android store targets are grouped under{' '}
+          <code>android.amazon</code>. <code>android.amazon.fireOS</code>{' '}
+          selects the Android Amazon Appstore flavor, while{' '}
+          <code>android.amazon.vegaOS</code> prepares Kepler/Vega project files.
+          They can both be <code>true</code> in one config, but Fire OS and Vega
+          OS are still built as separate artifacts.
         </p>
         <p>
           Amazon Fire OS and Vega OS support is currently available from the{' '}
@@ -316,7 +320,7 @@ cd ios && pod install`}
         <p>
           Vega OS support uses optional peer dependencies. Install Amazon's Vega
           IAP package only in the Vega app target. When{' '}
-          <code>modules.amazon.vegaOS</code> is enabled, the plugin keeps the
+          <code>android.amazon.vegaOS</code> is enabled, the plugin keeps the
           Kepler CLI, Metro, and Babel packages available for{' '}
           <code>build-vega</code>, but syncs{' '}
           <code>@amazon-devices/react-native-kepler</code> as an{' '}
@@ -348,10 +352,7 @@ cd ios && pod install`}
               <td>boolean</td>
               <td>
                 Enable Onside alternative marketplace for iOS (see{' '}
-                <a href="/docs/features/alternative-marketplace/onside">
-                  Onside Integration
-                </a>
-                )
+                <a href="/docs/setup/store/onside">Onside Store Setup</a>)
               </td>
             </tr>
             <tr>
@@ -361,34 +362,35 @@ cd ios && pod install`}
               <td>boolean</td>
               <td>
                 Enable Horizon module for Meta Quest (see{' '}
-                <a href="/docs/features/horizon-os">Horizon OS Setup</a>)
+                <a href="/docs/setup/store/horizon">Horizon OS Setup</a>)
               </td>
             </tr>
             <tr>
               <td>
-                <code>modules.amazon.fireOS</code>
+                <code>android.amazon.fireOS</code>
               </td>
               <td>boolean</td>
               <td>
                 Enable the Fire OS Android <code>amazon</code> flavor (see{' '}
-                <a href="/docs/features/fire-os">Fire OS Setup</a>)
+                <a href="/docs/setup/store/amazon#fire-os">Fire OS Setup</a>)
               </td>
             </tr>
             <tr>
               <td>
-                <code>modules.amazon.vegaOS</code>
+                <code>android.amazon.vegaOS</code>
               </td>
               <td>boolean</td>
               <td>
                 Enables Vega OS runtime setup. This prepares Vega manifest and
                 Kepler project metadata, but it does not select an Android
                 flavor. Follow the{' '}
-                <a href="/docs/features/vega-os">Vega OS Runtime</a> guide.
+                <a href="/docs/setup/store/amazon#vega-os">Vega OS Runtime</a>{' '}
+                guide.
               </td>
             </tr>
             <tr>
               <td>
-                <code>android.horizonAppId</code>
+                <code>android.horizon.appId</code>
               </td>
               <td>string</td>
               <td>Meta Horizon App ID for Quest/VR devices</td>

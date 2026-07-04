@@ -62,10 +62,10 @@ function Introduction() {
               Vision Pro
             </a>
             {', '}
-            <Link to="/docs/features/horizon-os">Horizon OS</Link>,{' '}
-            <Link to="/docs/features/fire-os">Amazon Fire OS</Link>, and{' '}
-            <Link to="/docs/features/vega-os">Vega OS</Link> compound this
-            fragmentation.
+            <Link to="/docs/setup/store/horizon">Horizon OS</Link>,{' '}
+            <Link to="/docs/setup/store/amazon#fire-os">Amazon Fire OS</Link>,
+            and <Link to="/docs/setup/store/amazon#vega-os">Vega OS</Link>{' '}
+            compound this fragmentation.
           </p>
         </section>
 
@@ -640,21 +640,23 @@ await iap.end_connection()`}</CodeBlock>
                 <tr>
                   <td>Meta Quest</td>
                   <td>
-                    <Link to="/docs/features/horizon-os">Horizon OS</Link>
+                    <Link to="/docs/setup/store/horizon">Horizon OS</Link>
                   </td>
                   <td>Quest 2+</td>
                 </tr>
                 <tr>
                   <td>Amazon Fire OS</td>
                   <td>
-                    <Link to="/docs/features/fire-os">Amazon Appstore SDK</Link>
+                    <Link to="/docs/setup/store/amazon#fire-os">
+                      Amazon Appstore SDK
+                    </Link>
                   </td>
                   <td>Fire OS devices</td>
                 </tr>
                 <tr>
                   <td>Amazon Vega OS</td>
                   <td>
-                    <Link to="/docs/features/vega-os">
+                    <Link to="/docs/setup/store/amazon#vega-os">
                       Vega JavaScript IAP runtime
                     </Link>
                   </td>

@@ -26,8 +26,8 @@ function AndroidSetup() {
         }}
       >
         <strong>📱 Building for another Android-compatible store?</strong> See{' '}
-        <a href="/docs/features/store-integrations" className="external-link">
-          Store Integrations
+        <a href="/docs/setup/store" className="external-link">
+          Store Setup
         </a>
         for Horizon OS, Fire OS, Vega OS, and alternative marketplace targets.
       </div>

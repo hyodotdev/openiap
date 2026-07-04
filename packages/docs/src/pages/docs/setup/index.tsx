@@ -84,10 +84,8 @@ function SetupIndex() {
             account, license testers, billing permission
           </li>
           <li>
-            <Link to="/docs/features/store-integrations">
-              Store Integrations
-            </Link>{' '}
-            — Horizon OS, Fire OS, Vega OS, and alternative marketplace targets
+            <Link to="/docs/setup/store">Store Setup</Link> — Horizon OS, Fire
+            OS, Vega OS, and alternative marketplace targets
           </li>
         </ul>
       </section>

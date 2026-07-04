@@ -124,8 +124,9 @@ function Announcements() {
             </li>
             <li>
               <strong>Fire OS flavor</strong>: Android apps select the{' '}
-              <code>amazon</code> flavor with <code>fireOsEnabled=true</code> or
-              the matching framework config-plugin option.
+              <code>amazon</code> flavor directly. Expo apps can use{' '}
+              <code>android.amazon.fireOS</code> in the <code>expo-iap</code>{' '}
+              config plugin.
             </li>
             <li>
               <strong>Amazon Appstore IAP</strong>: OpenIAP maps Amazon
@@ -149,7 +150,7 @@ function Announcements() {
             </li>
           </ul>
           <a
-            href="/docs/features/fire-os"
+            href="/docs/setup/store/amazon#fire-os"
             style={{
               display: 'block',
               width: '100%',
@@ -173,11 +174,17 @@ function Announcements() {
           </a>
           <div style={calloutStyle}>
             <strong>Get started:</strong> Read the{' '}
-            <a href="/docs/features/fire-os" className="external-link">
+            <a
+              href="/docs/setup/store/amazon#fire-os"
+              className="external-link"
+            >
               Fire OS setup guide
             </a>{' '}
             for Amazon Appstore IAP integration, or open the{' '}
-            <a href="/docs/features/vega-os" className="external-link">
+            <a
+              href="/docs/setup/store/amazon#vega-os"
+              className="external-link"
+            >
               Vega OS runtime guide
             </a>{' '}
             for React Native for Vega apps and compatible Expo projects. Use the{' '}
@@ -767,7 +774,7 @@ function Announcements() {
             </li>
           </ul>
           <a
-            href="/docs/features/horizon-os"
+            href="/docs/setup/store/horizon"
             style={{
               display: 'block',
               width: '100%',
@@ -792,7 +799,7 @@ function Announcements() {
           <div style={calloutStyle}>
             <strong>Getting Started:</strong> Available in{' '}
             <code>openiap-google@1.3.0</code> and later. Check out the{' '}
-            <a href="/docs/features/horizon-os" className="external-link">
+            <a href="/docs/setup/store/horizon" className="external-link">
               Horizon OS guide
             </a>{' '}
             for details.
