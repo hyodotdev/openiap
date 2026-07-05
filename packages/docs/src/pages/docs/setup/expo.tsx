@@ -304,114 +304,33 @@ cd ios && pod install`}
 }`}
         </CodeBlock>
         <p>
-          Optional Onside, Horizon, and Amazon modules are grouped under{' '}
-          <code>modules</code>. <code>modules.amazon.fireOS</code> selects the
-          Android Amazon Appstore flavor, while{' '}
-          <code>modules.amazon.vegaOS</code> prepares Kepler/Vega project files.
-          They can both be <code>true</code> in one config, but Fire OS and Vega
-          OS are still built as separate artifacts. Android-specific details
-          such as <code>android.horizon.appId</code> stay under{' '}
-          <code>android</code>. Vega metadata defaults from the normal Expo app
-          config; use optional <code>android.amazon.vegaOS</code> overrides only
-          when the Vega package metadata needs to differ.
+          Use this page for the Expo plugin shape. Store-specific values,
+          required developer-console fields, supported targets, and artifact
+          rules live in Store Setup:
         </p>
+        <ul>
+          <li>
+            <a href="/docs/setup/store/onside">Onside Store Setup</a> — iOS
+            alternative marketplace support
+          </li>
+          <li>
+            <a href="/docs/setup/store/horizon">Horizon OS Store Setup</a> —
+            Meta Quest app id and Android flavor configuration
+          </li>
+          <li>
+            <a href="/docs/setup/store/amazon">Amazon Store Setup</a> — Fire OS
+            Android artifacts and Vega OS runtime targets
+          </li>
+        </ul>
         <p>
-          Amazon Fire OS and Vega OS support is currently available from the{' '}
-          <code>next</code> / <code>rc</code> package versions. Use the RC
-          packages while validating Amazon targets before the stable release.
+          Keep module enable flags under <code>modules</code> and
+          platform-specific values under <code>android</code> or{' '}
+          <code>ios</code>. For Amazon targets, use{' '}
+          <code>modules.amazon.fireOS</code> and{' '}
+          <code>modules.amazon.vegaOS</code>; use{' '}
+          <code>android.amazon.vegaOS</code> only when Vega metadata must differ
+          from the normal Expo app config.
         </p>
-        <p>
-          Vega OS support uses optional peer dependencies. Install Amazon's Vega
-          IAP package only in the Vega app target. When{' '}
-          <code>modules.amazon.vegaOS</code> is enabled, the plugin keeps the
-          Kepler CLI, Metro, and Babel packages available for{' '}
-          <code>build-vega</code>, but syncs{' '}
-          <code>@amazon-devices/react-native-kepler</code> as an{' '}
-          <code>optionalDependency</code>. Keep that package out of normal{' '}
-          <code>dependencies</code> and <code>devDependencies</code> used by
-          regular Expo iOS or Android builds, and make sure Vega CI installs
-          optional dependencies before running <code>build-vega</code>.
-        </p>
-        <table>
-          <thead>
-            <tr>
-              <th>Option</th>
-              <th>Type</th>
-              <th>Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                <code>iapkitApiKey</code>
-              </td>
-              <td>string</td>
-              <td>IAPKit project key for managed receipt verification</td>
-            </tr>
-            <tr>
-              <td>
-                <code>modules.onside</code>
-              </td>
-              <td>boolean</td>
-              <td>
-                Enable Onside alternative marketplace for iOS (see{' '}
-                <a href="/docs/setup/store/onside">Onside Store Setup</a>)
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <code>modules.horizon</code>
-              </td>
-              <td>boolean</td>
-              <td>
-                Enable Horizon module for Meta Quest (see{' '}
-                <a href="/docs/setup/store/horizon">Horizon OS Setup</a>)
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <code>modules.amazon.fireOS</code>
-              </td>
-              <td>boolean</td>
-              <td>
-                Enable the Fire OS Android <code>amazon</code> flavor (see{' '}
-                <a href="/docs/setup/store/amazon#fire-os">Fire OS Setup</a>)
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <code>modules.amazon.vegaOS</code>
-              </td>
-              <td>boolean</td>
-              <td>
-                Enables Vega OS runtime setup. This prepares Vega manifest and
-                Kepler project metadata, but it does not select an Android
-                flavor. Follow the{' '}
-                <a href="/docs/setup/store/amazon#vega-os">Vega OS Runtime</a>{' '}
-                guide.
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <code>android.horizon.appId</code>
-              </td>
-              <td>string</td>
-              <td>Meta Horizon App ID for Quest/VR devices</td>
-            </tr>
-            <tr>
-              <td>
-                <code>android.amazon.vegaOS</code>
-              </td>
-              <td>object</td>
-              <td>
-                Optional Vega metadata overrides for apps that need values
-                different from the Expo app config. <code>packageId</code>,{' '}
-                <code>title</code>, <code>appName</code>, and <code>icon</code>{' '}
-                are automatic by default.
-              </td>
-            </tr>
-          </tbody>
-        </table>
       </section>
 
       <section>

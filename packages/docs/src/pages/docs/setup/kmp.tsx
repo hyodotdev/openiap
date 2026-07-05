@@ -361,6 +361,10 @@ kmpIAP.endConnection()`}
             multi-language examples
           </li>
           <li>
+            <a href="/docs/setup/store">Store Setup</a> — Horizon OS, Fire OS,
+            Vega OS support boundaries, and store target configuration
+          </li>
+          <li>
             <a
               href="https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap"
               target="_blank"

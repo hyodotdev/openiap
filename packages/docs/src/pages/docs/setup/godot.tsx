@@ -578,6 +578,10 @@ func _on_purchase_error(error):
             multi-language examples
           </li>
           <li>
+            <a href="/docs/setup/store">Store Setup</a> — Horizon OS, Fire OS,
+            Vega OS support boundaries, and store target configuration
+          </li>
+          <li>
             <a
               href="https://github.com/hyodotdev/openiap/tree/main/libraries/godot-iap"
               target="_blank"

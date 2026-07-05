@@ -192,22 +192,10 @@ end`}
             automatic service reconnection
           </li>
           <li>
-            For Fire OS builds, set <code>fireOsEnabled=true</code> in{' '}
-            <code>android/gradle.properties</code> and configure the app
-            module's Android flavor selection directly. See the{' '}
-            <a href="/docs/setup/store/amazon#fire-os">Fire OS Setup Guide</a>.
-          </li>
-          <li>
-            For Vega OS, do not use an Android flavor. Create a React Native for
-            Vega target with its own package manifest, install Amazon's Vega
-            packages only in that target, and follow the{' '}
-            <a href="/docs/setup/store/amazon#vega-os">Vega OS Runtime</a>{' '}
-            guide.
-          </li>
-          <li>
-            Amazon Fire OS and Vega OS support is currently available from the{' '}
-            <code>next</code> / <code>rc</code> package versions while it
-            remains experimental.
+            Store-specific Android targets such as Horizon OS, Fire OS, and Vega
+            OS have separate build artifacts. Keep the React Native setup here,
+            then use Store Setup for target-specific Gradle, manifest, and
+            runtime details.
           </li>
         </ul>
 
@@ -218,68 +206,11 @@ end`}
           </a>
         </h3>
         <p>
-          <code>react-native-iap</code> declares Amazon Vega runtime packages as
-          optional peer dependencies, so normal iOS, Android, Fire OS, and
-          Horizon installs do not need to install them. This package targets
-          bare React Native/Nitro projects, so it does not provide an Expo
-          config plugin or generate Vega <code>manifest.toml</code>, entry file,
-          build scripts, or package dependency sync during prebuild.
+          Bare React Native does not use an Expo config plugin. For Vega OS,
+          keep Amazon Kepler packages in a Vega-only React Native target and
+          follow Store Setup for package, manifest, and supported-version
+          details.
         </p>
-        <p>
-          Plain React Native apps should keep Vega dependencies in a Vega-only
-          package manifest. The Kepler CLI package must be available as a
-          development dependency in that Vega target so the React Native CLI can
-          discover <code>build-vega</code>. Keep{' '}
-          <code>@amazon-devices/react-native-kepler</code> out of normal
-          iOS/Android <code>dependencies</code> and <code>devDependencies</code>{' '}
-          to avoid regular React Native Codegen scanning it.
-        </p>
-        <CodeBlock language="bash">{`# In the Vega-only React Native for Vega target
-yarn add react-native-iap
-yarn add @amazon-devices/keplerscript-appstore-iap-lib@~2.12.13 @amazon-devices/react-native-kepler@^2.0.0
-yarn add -D @amazon-devices/kepler-cli-platform@~0.22.0 @react-native-community/cli@<vega-cli-compatible-version> @react-native/metro-config@<matching-react-native-version>`}</CodeBlock>
-        <p>
-          A Vega-only package manifest can keep the React Native for Vega
-          runtime as a direct dependency because that manifest is not used by
-          normal iOS or Android builds. Check the{' '}
-          <a
-            href="https://developer.amazon.com/docs/vega/0.23/vega-release-notes.html"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="external-link"
-          >
-            Vega SDK release notes
-          </a>{' '}
-          before copying package versions so the Vega target matches the
-          currently supported React Native for Vega release:
-        </p>
-        <CodeBlock language="json">{`{
-  "dependencies": {
-    "@amazon-devices/keplerscript-appstore-iap-lib": "~2.12.13",
-    "@amazon-devices/react-native-kepler": "^2.0.0",
-    "react": "18.2.0",
-    "react-native": "<react-native-for-vega-version>"
-  },
-  "devDependencies": {
-    "@amazon-devices/kepler-cli-platform": "~0.22.0",
-    "@react-native-community/cli": "<vega-cli-compatible-version>",
-    "@react-native/metro-config": "<matching-react-native-version>"
-  },
-  "kepler": {
-    "projectType": "application",
-    "appName": "MyVegaApp",
-    "targets": ["tv"],
-    "os": ["vega"]
-  }
-}`}</CodeBlock>
-        <p>
-          The repository example follows this isolation model by generating a
-          temporary React Native for Vega project with the Vega-compatible
-          package set before running <code>react-native build-vega</code>:
-        </p>
-        <CodeBlock language="bash">{`cd libraries/react-native-iap/example
-yarn build:vega:debug
-yarn run:vega:firetv`}</CodeBlock>
       </section>
 
       <section>
@@ -512,16 +443,8 @@ switch (error.code) {
             multi-language examples
           </li>
           <li>
-            <a href="/docs/setup/store/horizon">Horizon OS Setup</a> — Meta
-            Quest in-app purchase configuration
-          </li>
-          <li>
-            <a href="/docs/setup/store/amazon#fire-os">Fire OS Setup</a> — Fire
-            OS Android flavor configuration
-          </li>
-          <li>
-            <a href="/docs/setup/store/amazon#vega-os">Vega OS Runtime</a> —
-            React Native for Vega runtime adapter
+            <a href="/docs/setup/store">Store Setup</a> — Horizon OS, Fire OS,
+            Vega OS, and other store target configuration
           </li>
           <li>
             <a

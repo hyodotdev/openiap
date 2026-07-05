@@ -519,6 +519,10 @@ dotnet build -t:Run -f net9.0-android`}
             <a href="/docs/apis">API Reference</a> - generated API reference
           </li>
           <li>
+            <a href="/docs/setup/store">Store Setup</a> - Horizon OS, Fire OS,
+            Vega OS support boundaries, and store target configuration
+          </li>
+          <li>
             <a
               href="https://github.com/hyodotdev/openiap/tree/main/libraries/maui-iap"
               target="_blank"
