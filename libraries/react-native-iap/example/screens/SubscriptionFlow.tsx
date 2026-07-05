@@ -58,9 +58,19 @@ function isSubscriptionFlowProduct(productId: string): boolean {
 }
 
 function formatPurchaseDate(transactionDate: Purchase['transactionDate']) {
-  return transactionDate
-    ? new Date(transactionDate).toLocaleDateString()
-    : 'N/A';
+  if (!transactionDate) {
+    return 'N/A';
+  }
+
+  const normalizedDate =
+    typeof transactionDate === 'string' &&
+    transactionDate.trim() !== '' &&
+    !Number.isNaN(Number(transactionDate))
+      ? Number(transactionDate)
+      : transactionDate;
+  const date = new Date(normalizedDate);
+
+  return Number.isNaN(date.getTime()) ? 'N/A' : date.toLocaleDateString();
 }
 
 // Extended type for ActiveSubscription with additional fields that may be present
@@ -1915,11 +1925,6 @@ function SubscriptionFlowContainer() {
         );
         const started = Date.now();
         const tryFinish = async () => {
-          if (!mountedRef.current) {
-            cleanupPurchaseKeysRef.current.delete(finishCleanupKey);
-            return;
-          }
-
           if (connectedRef.current) {
             try {
               await finishTransaction({
@@ -1949,6 +1954,12 @@ function SubscriptionFlowContainer() {
             }
             return;
           }
+
+          if (!mountedRef.current) {
+            cleanupPurchaseKeysRef.current.delete(finishCleanupKey);
+            return;
+          }
+
           if (Date.now() - started < 30000) {
             setTimeout(() => {
               void tryFinish();
