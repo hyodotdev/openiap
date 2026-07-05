@@ -62,12 +62,13 @@ function formatPurchaseDate(transactionDate: Purchase['transactionDate']) {
     return 'N/A';
   }
 
+  const rawDate = transactionDate as string | number | Date;
   const normalizedDate =
-    typeof transactionDate === 'string' &&
-    transactionDate.trim() !== '' &&
-    !Number.isNaN(Number(transactionDate))
-      ? Number(transactionDate)
-      : transactionDate;
+    typeof rawDate === 'string' &&
+    rawDate.trim() !== '' &&
+    !Number.isNaN(Number(rawDate))
+      ? Number(rawDate)
+      : rawDate;
   const date = new Date(normalizedDate);
 
   return Number.isNaN(date.getTime()) ? 'N/A' : date.toLocaleDateString();
