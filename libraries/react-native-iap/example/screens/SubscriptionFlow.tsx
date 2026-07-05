@@ -1954,6 +1954,11 @@ function SubscriptionFlowContainer() {
               void tryFinish();
             }, 500);
           } else {
+            if (mountedRef.current) {
+              setPurchaseResult(
+                'Connection timeout: finishTransaction could not run because the store connection was not restored. Reconnect and refresh subscription status.',
+              );
+            }
             cleanupPurchaseKeysRef.current.delete(finishCleanupKey);
           }
         };
