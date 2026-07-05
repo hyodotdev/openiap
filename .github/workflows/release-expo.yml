@@ -121,7 +121,7 @@ jobs:
           set -o pipefail
           xcodebuild build \
             -workspace expoiapexample.xcworkspace \
-            -scheme expoiapexample \
+            -scheme ExpoIAPExample \
             -destination 'generic/platform=iOS Simulator' \
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO \
