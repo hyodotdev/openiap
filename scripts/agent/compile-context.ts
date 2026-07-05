@@ -252,8 +252,8 @@ Requires .NET 9 or .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
   shape as \`react-native-iap\`, adapted for Expo managed/bare workflows.
 - Config plugins can select Horizon, Fire OS, Vega OS, and Onside:
   \`modules.horizon\` + \`android.horizon.appId\`,
-  \`android.amazon.fireOS\`, \`android.amazon.vegaOS\`, and
-  \`modules.onside\`.
+  \`modules.amazon.fireOS\`, \`modules.amazon.vegaOS\`, optional
+  \`android.amazon.vegaOS\` metadata, and \`modules.onside\`.
 - Example app: \`libraries/expo-iap/example\`.
 
 ### flutter_inapp_purchase
@@ -323,7 +323,7 @@ Canonical setup docs live under \`/docs/setup/store\`:
   values such as \`horizon.sku\`, \`horizon.userId\`, and
   \`horizon.accessToken\` when validating Horizon purchases.
 - Fire OS: Android \`amazon\` flavor,
-  \`openiap-google-amazon\`; use \`android.amazon.fireOS=true\`
+  \`openiap-google-amazon\`; use \`modules.amazon.fireOS=true\`
   in the Expo config plugin, or
   \`missingDimensionStrategy("platform", "amazon")\` in bare Android /
   React Native / Flutter app Gradle config.
@@ -339,15 +339,15 @@ Canonical setup docs live under \`/docs/setup/store\`:
 - Vega OS: not an Android flavor. Target React Native for Vega and compatible
   Expo Vega targets only, using Amazon's JavaScript IAP API through the
   runtime-selected \`kepler\` adapter at the same runtime integration layer as
-  Onside. In Expo config plugin options, use \`android.amazon.vegaOS=true\`.
+  Onside. In Expo config plugin options, use \`modules.amazon.vegaOS=true\`.
   Bare React Native Vega targets
   provide their own \`manifest.toml\`, Kepler package metadata, and runtime
   dependencies.
-  \`android.amazon.fireOS\` and \`android.amazon.vegaOS\` can both be enabled
+  \`modules.amazon.fireOS\` and \`modules.amazon.vegaOS\` can both be enabled
   when an app produces separate Fire OS and Vega OS artifacts.
   Required values: Vega \`manifest.toml\` package id, title, interactive
   component id, Kepler runtime/module declarations, Amazon product ids, and
-  Vega runtime dependencies. In Expo, optional \`android.amazon.vega\` overrides
+  Vega runtime dependencies. In Expo, optional \`android.amazon.vegaOS\` overrides
   (\`packageId\`, \`title\`, \`appName\`, \`icon\`) default from the normal Expo
   app config unless Vega metadata must differ.
 - Onside: currently \`expo-iap\` only. Enable \`modules.onside=true\` and run
@@ -373,8 +373,8 @@ Fire OS maps OpenIAP calls to the Amazon Appstore SDK:
 ### Vega OS Runtime
 
 Vega OS is not Fire OS and is not selected with \`fireOsEnabled=true\`; that
-flag is only for Android Fire OS builds. Use \`android.amazon.vegaOS=true\`
-for the Vega runtime target in Expo, and \`android.amazon.fireOS=true\` for
+flag is only for Android Fire OS builds. Use \`modules.amazon.vegaOS=true\`
+for the Vega runtime target in Expo, and \`modules.amazon.fireOS=true\` for
 separate Fire OS Android artifacts in the Expo config plugin. Bare React Native
 uses direct Gradle flavor selection for Fire OS and a separate Kepler target for
 Vega. Install

@@ -12,7 +12,7 @@ import plugin, {
   syncHorizonAppIdMetaData,
 } from '../src/withIAP';
 import {getAndroidLocalPathInput} from '../src/withLocalOpenIAP';
-import type {AutolinkState} from '../src/withIAP';
+import type {AutolinkState, ExpoIapPluginOptions} from '../src/withIAP';
 import type {ExpoIapPluginCommonOptions} from '../src/expoConfig.augmentation';
 import {
   createVegaAppJson,
@@ -32,6 +32,17 @@ const groupedAmazonOptions: ExpoIapPluginCommonOptions = {
   modules: {amazon: {fireOS: true, vegaOS: true}},
 };
 
+const typedPluginOptions: ExpoIapPluginOptions = {
+  iapkitApiKey: 'openiap-kit_test',
+  module: 'auto',
+  modules: {amazon: {fireOS: false, vegaOS: true}},
+  android: {
+    amazon: {
+      vegaOS: {packageId: 'dev.example.vega'},
+    },
+  },
+};
+
 const explicitModeOptions: ExpoIapPluginCommonOptions = {
   module: 'onside',
 };
@@ -41,6 +52,7 @@ const invalidExplicitOptions: ExpoIapPluginCommonOptions = {
 };
 void autoModeOptions;
 void groupedAmazonOptions;
+void typedPluginOptions;
 void explicitModeOptions;
 void invalidExplicitOptions;
 
@@ -329,6 +341,25 @@ describe('android configuration', () => {
     });
   });
 
+  it('does not enable Vega OS from metadata overrides alone', () => {
+    expect(
+      resolveAmazonPlatformFlags({
+        android: {
+          amazon: {
+            vegaOS: {
+              packageId: 'dev.example.vega',
+            },
+          },
+        },
+      }),
+    ).toEqual({
+      isFireOsEnabled: false,
+      isVegaEnabled: false,
+      isHorizonEnabled: false,
+      isOnsideEnabled: false,
+    });
+  });
+
   it('resolves canonical Horizon app id before deprecated fields', () => {
     expect(
       resolveHorizonAppId({
@@ -341,12 +372,12 @@ describe('android configuration', () => {
     ).toBe('canonical');
   });
 
-  it('resolves canonical Vega options before the unpublished legacy field', () => {
+  it('resolves Vega OS project options from android.amazon.vegaOS', () => {
     expect(
       resolveVegaProjectOptions({
         android: {
           amazon: {
-            vega: {
+            vegaOS: {
               packageId: 'dev.example.vega',
             },
           },
@@ -354,6 +385,14 @@ describe('android configuration', () => {
         modules: {amazon: {vegaOS: true}},
       }),
     ).toEqual({packageId: 'dev.example.vega'});
+  });
+
+  it('uses Expo config defaults when Vega OS has no project overrides', () => {
+    expect(
+      resolveVegaProjectOptions({
+        modules: {amazon: {vegaOS: true}},
+      }),
+    ).toBeUndefined();
   });
 
   it('removes Horizon App ID metadata outside Horizon builds', () => {

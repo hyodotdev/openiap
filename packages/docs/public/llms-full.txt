@@ -101,8 +101,8 @@ Requires .NET 9 or .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
   shape as `react-native-iap`, adapted for Expo managed/bare workflows.
 - Config plugins can select Horizon, Fire OS, Vega OS, and Onside:
   `modules.horizon` + `android.horizon.appId`,
-  `modules.amazon.fireOS`, `modules.amazon.vegaOS`, and
-  `modules.onside`.
+  `modules.amazon.fireOS`, `modules.amazon.vegaOS`, optional
+  `android.amazon.vegaOS` metadata, and `modules.onside`.
 - Example app: `libraries/expo-iap/example`.
 
 ### flutter_inapp_purchase
@@ -198,7 +198,7 @@ Canonical setup docs live under `/docs/setup/store`:
   when an app produces separate Fire OS and Vega OS artifacts.
   Required values: Vega `manifest.toml` package id, title, interactive
   component id, Kepler runtime/module declarations, Amazon product ids, and
-  Vega runtime dependencies. In Expo, optional `android.amazon.vega` overrides
+  Vega runtime dependencies. In Expo, optional `android.amazon.vegaOS` overrides
   (`packageId`, `title`, `appName`, `icon`) default from the normal Expo
   app config unless Vega metadata must differ.
 - Onside: currently `expo-iap` only. Enable `modules.onside=true` and run

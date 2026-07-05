@@ -18,10 +18,7 @@ import {
   withIosAlternativeBilling,
   type IOSAlternativeBillingConfig,
 } from './withIosAlternativeBilling';
-import type {
-  AmazonPlatformOptions,
-  ExpoIapPluginCommonOptions,
-} from './expoConfig.augmentation';
+import type {ExpoIapPluginCommonOptions} from './expoConfig.augmentation';
 
 const pkg = require('../../package.json');
 const AUTOLINKING_CONFIG_PATH = path.resolve(
@@ -239,18 +236,17 @@ export const modifyAppBuildGradle = (
     return gradle;
   }
 
-  // Determine which flavor to use based on store flags.
-  const flavor = isFireOsEnabled
-    ? 'amazon'
-    : isHorizonEnabled
-      ? 'horizon'
-      : 'play';
-
-  const artifactId = isFireOsEnabled
-    ? 'openiap-google-amazon'
-    : isHorizonEnabled
-      ? 'openiap-google-horizon'
-      : 'openiap-google';
+  let flavor: 'amazon' | 'horizon' | 'play' = 'play';
+  let artifactId:
+    'openiap-google-amazon' | 'openiap-google-horizon' | 'openiap-google' =
+    'openiap-google';
+  if (isFireOsEnabled) {
+    flavor = 'amazon';
+    artifactId = 'openiap-google-amazon';
+  } else if (isHorizonEnabled) {
+    flavor = 'horizon';
+    artifactId = 'openiap-google-horizon';
+  }
 
   // Ensure OpenIAP dependency exists at desired version in app-level build.gradle(.kts)
   const impl = (ga: string, v: string) =>
@@ -390,9 +386,10 @@ const withIapAndroid: ConfigPlugin<
     const existingPermissions = manifest.manifest['uses-permission'];
     const permissions = Array.isArray(existingPermissions)
       ? existingPermissions
-      : existingPermissions
-        ? [existingPermissions]
-        : [];
+      : [];
+    if (!Array.isArray(existingPermissions) && existingPermissions) {
+      permissions.push(existingPermissions);
+    }
     manifest.manifest['uses-permission'] = permissions;
     const billingPerm = {$: {'android:name': 'com.android.vending.BILLING'}};
 
@@ -704,107 +701,7 @@ const withIapIOS: ConfigPlugin<WithIapIosOptions | undefined> = (
   });
 };
 
-export interface ExpoIapPluginOptions {
-  /**
-   * IAPKit project key for managed receipt verification.
-   * Get your project key from https://kit.openiap.dev
-   * This will be available via `Constants.expoConfig?.extra?.iapkitApiKey`
-   */
-  iapkitApiKey?: string;
-  /** Local development path for OpenIAP library */
-  localPath?:
-    | string
-    | {
-        ios?: string;
-        android?: string;
-      };
-  /** Enable local development mode */
-  enableLocalDev?: boolean;
-  /**
-   * Horizon OS app ID for Quest devices.
-   * @deprecated Use android.horizon.appId instead.
-   * @platform android
-   */
-  horizonAppId?: string;
-  /**
-   * iOS Alternative Billing configuration.
-   * @deprecated Use ios.alternativeBilling instead.
-   * @platform ios
-   */
-  iosAlternativeBilling?: IOSAlternativeBillingConfig;
-  /** Optional module configuration. */
-  modules?: {
-    /**
-     * Onside module for iOS alternative billing (Korea market)
-     * @platform ios
-     */
-    onside?: boolean;
-    /**
-     * Horizon module for Meta Quest/VR devices
-     * @platform android
-     */
-    horizon?: boolean;
-    /**
-     * Amazon platform targets. Fire OS and Vega OS can both be enabled in the
-     * same config, but they still produce separate build artifacts.
-     */
-    amazon?: AmazonPlatformOptions;
-  };
-  /**
-   * iOS-specific configuration
-   * @platform ios
-   */
-  ios?: {
-    /**
-     * iOS Alternative Billing configuration.
-     * Configure external purchase countries, links, and entitlements.
-     * Requires approval from Apple.
-     */
-    alternativeBilling?: IOSAlternativeBillingConfig;
-  };
-  /**
-   * Android-specific configuration
-   * @platform android
-   */
-  android?: {
-    /**
-     * Horizon options for Meta Quest/VR devices.
-     */
-    horizon?: {
-      /**
-       * Meta Horizon App ID for Quest/VR devices.
-       * Required when modules.horizon is true.
-       */
-      appId?: string;
-    };
-    /**
-     * Meta Horizon App ID for Quest/VR devices.
-     * Required when modules.horizon is true.
-     * @deprecated Use android.horizon.appId instead.
-     */
-    horizonAppId?: string;
-    /**
-     * Amazon Android and Vega project generation overrides.
-     */
-    amazon?: {
-      /**
-       * Enable Fire OS support for Amazon-distributed Android builds.
-       * @deprecated Use modules.amazon.fireOS instead.
-       */
-      fireOS?: boolean;
-      /**
-       * Enable Vega OS project generation for Amazon's Kepler runtime.
-       * @deprecated Use modules.amazon.vegaOS instead.
-       */
-      vegaOS?: boolean;
-      /**
-       * Vega-specific project generation overrides. All fields are optional;
-       * packageId, title, appName, and icon default from the Expo config.
-       */
-      vega?: VegaProjectOptions;
-    };
-  };
-}
+export type ExpoIapPluginOptions = ExpoIapPluginCommonOptions;
 
 export interface ModuleSelectionResult {
   selection: 'auto' | 'expo-iap' | 'onside';
@@ -824,22 +721,43 @@ type AmazonPlatformFlagOptions = Pick<
   'android' | 'modules'
 >;
 
+interface LegacyAndroidAmazonOptions {
+  fireOS?: boolean;
+  vegaOS?: boolean | VegaProjectOptions;
+}
+
+interface LegacyAmazonPlatformFlagOptions {
+  android?: {
+    amazon?: LegacyAndroidAmazonOptions;
+  };
+  modules?: ExpoIapPluginOptions['modules'];
+}
+
+type AmazonPlatformFlagInput =
+  AmazonPlatformFlagOptions | LegacyAmazonPlatformFlagOptions;
+
 function isEnvFlagEnabled(name: string): boolean {
   return process.env[name] === '1';
 }
 
 export function resolveAmazonPlatformFlags(
-  options?: AmazonPlatformFlagOptions | void,
+  options?: AmazonPlatformFlagInput | void,
 ): AmazonPlatformFlags {
   const androidAmazon = options?.android?.amazon;
+  const legacyAndroidAmazon: LegacyAndroidAmazonOptions | undefined =
+    androidAmazon;
   const moduleAmazon = options?.modules?.amazon;
   const isFireOsEnabled =
     moduleAmazon?.fireOS ??
-    androidAmazon?.fireOS ??
+    legacyAndroidAmazon?.fireOS ??
     isEnvFlagEnabled('EXPO_IAP_FIREOS');
+  const legacyAndroidVegaFlag =
+    typeof legacyAndroidAmazon?.vegaOS === 'boolean'
+      ? legacyAndroidAmazon.vegaOS
+      : undefined;
   const isVegaEnabled =
     moduleAmazon?.vegaOS ??
-    androidAmazon?.vegaOS ??
+    legacyAndroidVegaFlag ??
     isEnvFlagEnabled('EXPO_IAP_VEGA');
   const isHorizonEnabled = isFireOsEnabled
     ? false
@@ -868,10 +786,11 @@ export function resolveHorizonAppId(
 export function resolveVegaProjectOptions(
   options?: ExpoIapPluginOptions | void,
 ): VegaProjectOptions | undefined {
-  const legacyOptions = options as
-    (ExpoIapPluginOptions & {vega?: VegaProjectOptions}) | undefined;
+  const androidAmazon = options?.android?.amazon;
 
-  return options?.android?.amazon?.vega ?? legacyOptions?.vega;
+  return typeof androidAmazon?.vegaOS === 'object'
+    ? androidAmazon.vegaOS
+    : undefined;
 }
 
 /**

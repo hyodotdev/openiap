@@ -310,9 +310,10 @@ cd ios && pod install`}
           <code>modules.amazon.vegaOS</code> prepares Kepler/Vega project files.
           They can both be <code>true</code> in one config, but Fire OS and Vega
           OS are still built as separate artifacts. Android-specific details
-          such as <code>android.horizon.appId</code> and optional{' '}
-          <code>android.amazon.vega</code> metadata stay under{' '}
-          <code>android</code>.
+          such as <code>android.horizon.appId</code> stay under{' '}
+          <code>android</code>. Vega metadata defaults from the normal Expo app
+          config; use optional <code>android.amazon.vegaOS</code> overrides only
+          when the Vega package metadata needs to differ.
         </p>
         <p>
           Amazon Fire OS and Vega OS support is currently available from the{' '}
@@ -396,6 +397,18 @@ cd ios && pod install`}
               </td>
               <td>string</td>
               <td>Meta Horizon App ID for Quest/VR devices</td>
+            </tr>
+            <tr>
+              <td>
+                <code>android.amazon.vegaOS</code>
+              </td>
+              <td>object</td>
+              <td>
+                Optional Vega metadata overrides for apps that need values
+                different from the Expo app config. <code>packageId</code>,{' '}
+                <code>title</code>, <code>appName</code>, and <code>icon</code>{' '}
+                are automatic by default.
+              </td>
             </tr>
           </tbody>
         </table>

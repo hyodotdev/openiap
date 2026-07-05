@@ -1,4 +1,5 @@
 import type {ConfigContext, ExpoConfig} from '@expo/config';
+import type {ExpoIapPluginOptions} from '../plugin/src/withIAP';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -28,82 +29,89 @@ export default ({config}: ConfigContext): ExpoConfig => {
   const isHorizonEnabled = process.env.EXPO_IAP_HORIZON === '1';
   const isOnsideEnabled = process.env.EXPO_IAP_ONSIDE === '1';
 
+  const iapPluginOptions: ExpoIapPluginOptions = {
+    // IAPKit API key for server-side receipt verification
+    // Get your API key from https://kit.openiap.dev
+    iapkitApiKey: process.env.EXPO_PUBLIC_IAPKIT_API_KEY,
+    enableLocalDev: useLocalDev,
+    localPath: {
+      ios: LOCAL_OPENIAP_PATHS.ios,
+      android: LOCAL_OPENIAP_PATHS.android,
+    },
+    modules: {
+      // Onside module: iOS only (alternative billing for Korea)
+      onside: isOnsideEnabled,
+      // Horizon module: Android only (Meta Quest/VR devices)
+      horizon: isHorizonEnabled,
+      // Amazon modules: Fire OS Android flavor and Vega OS runtime target
+      amazon: {
+        fireOS: isFireOsEnabled,
+        vegaOS: isVegaEnabled,
+      },
+    },
+    android: {
+      // Horizon App ID for Meta Quest/VR devices (required when modules.horizon is true)
+      horizon: {
+        appId: '31705015229097839',
+      },
+    },
+    ios: {
+      // iOS Alternative Billing configuration (optional)
+      // Uncomment and configure for external purchase support
+      // NOTE: Requires Apple approval and proper provisioning profile
+      // alternativeBilling: {
+      //   // Required: Countries where external purchases are supported (ISO 3166-1 alpha-2)
+      //   countries: ['kr', 'nl'],
+      //   //   countries: ['kr', 'nl', 'de', 'fr', 'it', 'es'],
+      //
+      //   // Optional: External purchase URLs per country (iOS 15.4+)
+      //   links: {
+      //     kr: 'https://openiap.dev/kr',
+      //     nl: 'https://openiap.dev/nl',
+      //   },
+      //   //   links: {
+      //   //     kr: 'https://your-site.com/kr/checkout',
+      //   //     nl: 'https://your-site.com/nl/checkout',
+      //   //     de: 'https://your-site.com/de/checkout',
+      //   //   },
+      //
+      //   // Optional: Multiple URLs per country (iOS 17.5+, up to 5)
+      //   //   multiLinks: {
+      //   //     fr: [
+      //   //       'https://your-site.com/fr',
+      //   //       'https://your-site.com/global-sale',
+      //   //     ],
+      //   //     it: ['https://your-site.com/global-sale'],
+      //   //   },
+      //
+      //   // Optional: Custom link regions (iOS 18.1+)
+      //   //   customLinkRegions: ['de', 'fr', 'nl'],
+      //
+      //   // Optional: Streaming regions for music apps (iOS 18.2+)
+      //   //   streamingLinkRegions: ['at', 'de', 'fr', 'nl', 'is', 'no'],
+      //
+      //   // Enable external purchase link entitlement
+      //   enableExternalPurchaseLink: true,
+      //
+      //   // Enable streaming entitlement (music apps only)
+      //   //   enableExternalPurchaseLinkStreaming: false,
+      // },
+    },
+  };
+
   const pluginEntries: NonNullable<ExpoConfig['plugins']> = [
     // TV config plugin (must be first for TV builds)
     ...(isTV
-      ? [['@react-native-tvos/config-tv', {isTV: true}] as [string, any]]
+      ? [
+          ['@react-native-tvos/config-tv', {isTV: true}] satisfies [
+            string,
+            {isTV: boolean},
+          ],
+        ]
       : []),
-    [
-      '../app.plugin.js',
-      {
-        // IAPKit API key for server-side receipt verification
-        // Get your API key from https://kit.openiap.dev
-        iapkitApiKey: process.env.EXPO_PUBLIC_IAPKIT_API_KEY,
-        enableLocalDev: useLocalDev,
-        localPath: {
-          ios: LOCAL_OPENIAP_PATHS.ios,
-          android: LOCAL_OPENIAP_PATHS.android,
-        },
-        modules: {
-          // Onside module: iOS only (alternative billing for Korea)
-          onside: isOnsideEnabled,
-          // Horizon module: Android only (Meta Quest/VR devices)
-          horizon: isHorizonEnabled,
-          // Amazon modules: Fire OS Android flavor and Vega OS runtime target
-          amazon: {
-            fireOS: isFireOsEnabled,
-            vegaOS: isVegaEnabled,
-          },
-        },
-        android: {
-          // Horizon App ID for Meta Quest/VR devices (required when modules.horizon is true)
-          horizon: {
-            appId: '31705015229097839',
-          },
-        },
-        ios: {
-          // iOS Alternative Billing configuration (optional)
-          // Uncomment and configure for external purchase support
-          // NOTE: Requires Apple approval and proper provisioning profile
-          // alternativeBilling: {
-          //   // Required: Countries where external purchases are supported (ISO 3166-1 alpha-2)
-          //   countries: ['kr', 'nl'],
-          //   //   countries: ['kr', 'nl', 'de', 'fr', 'it', 'es'],
-          //
-          //   // Optional: External purchase URLs per country (iOS 15.4+)
-          //   links: {
-          //     kr: 'https://openiap.dev/kr',
-          //     nl: 'https://openiap.dev/nl',
-          //   },
-          //   //   links: {
-          //   //     kr: 'https://your-site.com/kr/checkout',
-          //   //     nl: 'https://your-site.com/nl/checkout',
-          //   //     de: 'https://your-site.com/de/checkout',
-          //   //   },
-          //
-          //   // Optional: Multiple URLs per country (iOS 17.5+, up to 5)
-          //   //   multiLinks: {
-          //   //     fr: [
-          //   //       'https://your-site.com/fr',
-          //   //       'https://your-site.com/global-sale',
-          //   //     ],
-          //   //     it: ['https://your-site.com/global-sale'],
-          //   //   },
-          //
-          //   // Optional: Custom link regions (iOS 18.1+)
-          //   //   customLinkRegions: ['de', 'fr', 'nl'],
-          //
-          //   // Optional: Streaming regions for music apps (iOS 18.2+)
-          //   //   streamingLinkRegions: ['at', 'de', 'fr', 'nl', 'is', 'no'],
-          //
-          //   // Enable external purchase link entitlement
-          //   enableExternalPurchaseLink: true,
-          //
-          //   // Enable streaming entitlement (music apps only)
-          //   //   enableExternalPurchaseLinkStreaming: false,
-          // },
-        },
-      },
+    ['../app.plugin.js', iapPluginOptions] satisfies [
+      string,
+      ExpoIapPluginOptions,
     ],
     'expo-font',
     'expo-router',

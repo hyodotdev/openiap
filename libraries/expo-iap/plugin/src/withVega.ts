@@ -395,7 +395,7 @@ const syncIconAsset = (
   if (!rawIcon) {
     WarningAggregator.addWarningAndroid(
       'expo-iap',
-      'Vega manifest requires an icon. Set expo.icon or android.amazon.vega.icon.',
+      'Vega manifest requires an icon. Set expo.icon or android.amazon.vegaOS.icon.',
     );
     return false;
   }

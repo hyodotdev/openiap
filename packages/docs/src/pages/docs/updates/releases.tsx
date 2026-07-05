@@ -93,7 +93,7 @@ function Releases() {
               resolves Fire OS and Vega OS from <code>modules.amazon</code>,
               resolves Horizon app ids from <code>android.horizon.appId</code>,
               and derives Vega metadata from the Expo config unless{' '}
-              <code>android.amazon.vega</code> overrides are provided.
+              <code>android.amazon.vegaOS</code> overrides are provided.
             </li>
             <li>
               <strong>React Native</strong> — <code>react-native-iap</code>{' '}

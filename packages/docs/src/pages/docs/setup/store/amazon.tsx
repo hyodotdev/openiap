@@ -66,7 +66,7 @@ function AmazonStoreSetup() {
               <td>
                 Vega <code>title</code>, <code>appName</code>, and{' '}
                 <code>icon</code>. In Expo these default from the Expo config
-                unless optional <code>android.amazon.vega</code> overrides are
+                unless optional <code>android.amazon.vegaOS</code> overrides are
                 provided.
               </td>
             </tr>
@@ -171,7 +171,7 @@ function AmazonStoreSetup() {
               </td>
               <td>
                 <code>modules.amazon.vegaOS</code>, with optional{' '}
-                <code>android.amazon.vega</code> metadata overrides.
+                <code>android.amazon.vegaOS</code> metadata overrides.
               </td>
             </tr>
             <tr>
@@ -342,8 +342,9 @@ dotnet build -f net9.0-android -p:OpenIapAndroidStore=amazon`}</CodeBlock>
           Expo can prepare the Vega target from config. <code>fireOS</code> and
           <code>vegaOS</code> can both be present, but they still produce
           separate artifacts. Keep the enable flags in{' '}
-          <code>modules.amazon</code>; use <code>android.amazon.vega</code> only
-          when Vega metadata needs to differ from the normal Expo app config.
+          <code>modules.amazon</code>; use <code>android.amazon.vegaOS</code>{' '}
+          only when Vega metadata needs to differ from the normal Expo app
+          config.
         </p>
         <CodeBlock language="typescript">{`plugins: [
   [
@@ -355,26 +356,16 @@ dotnet build -f net9.0-android -p:OpenIapAndroidStore=amazon`}</CodeBlock>
           vegaOS: true,
         },
       },
-      android: {
-        amazon: {
-          vega: {
-            packageId: 'dev.your.app',
-            title: 'Your App',
-            appName: 'YourApp',
-            icon: './assets/icon.png',
-          },
-        },
-      },
     },
   ],
 ]`}</CodeBlock>
         <p>
-          The <code>vega</code> fields are optional. <code>packageId</code>{' '}
-          defaults from the Android package or iOS bundle id, <code>title</code>{' '}
-          defaults from the Expo app name, <code>appName</code> defaults from
-          the title, and <code>icon</code> defaults from the Expo icon. Only set
-          these overrides when the Vega package metadata needs to differ from
-          the normal Expo app metadata.
+          Vega metadata is automatic by default. <code>packageId</code> defaults
+          from the Android package or iOS bundle id, <code>title</code> defaults
+          from the Expo app name, <code>appName</code> defaults from the title,
+          and <code>icon</code> defaults from the Expo icon. Only set optional{' '}
+          <code>android.amazon.vegaOS</code> overrides when the Vega package
+          metadata needs to differ from the normal Expo app metadata.
         </p>
 
         <AnchorLink id="react-native-vega-os" level="h3">

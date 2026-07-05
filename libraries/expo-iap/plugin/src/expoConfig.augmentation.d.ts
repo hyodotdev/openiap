@@ -40,6 +40,12 @@ export type AmazonPlatformOptions = {
 };
 
 type BaseExpoIapOptions = {
+  /**
+   * IAPKit project key for managed receipt verification.
+   * Get your project key from https://kit.openiap.dev.
+   * This will be available via `Constants.expoConfig?.extra?.iapkitApiKey`.
+   */
+  iapkitApiKey?: string;
   enableLocalDev?: boolean;
   localPath?:
     | string
@@ -82,25 +88,16 @@ type BaseExpoIapOptions = {
      */
     horizonAppId?: string;
     /**
-     * Amazon Android and Vega-specific project overrides.
+     * Amazon target configuration. Module selection lives under
+     * modules.amazon; this object only contains per-target settings.
      */
     amazon?: {
       /**
-       * Enable Fire OS support for Amazon-distributed Android builds.
-       * @deprecated Use modules.amazon.fireOS instead.
-       */
-      fireOS?: boolean;
-      /**
-       * Enable Vega OS project generation for Amazon's Kepler runtime.
-       * @deprecated Use modules.amazon.vegaOS instead.
-       */
-      vegaOS?: boolean;
-      /**
-       * Vega project generation overrides used when modules.amazon.vegaOS is true.
+       * Vega OS project generation overrides used when modules.amazon.vegaOS is true.
        * packageId defaults to android.package, title defaults to expo.name,
        * appName defaults from title, and icon defaults to expo.icon.
        */
-      vega?: VegaProjectOptions;
+      vegaOS?: VegaProjectOptions;
     };
   };
 };
