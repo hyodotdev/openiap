@@ -1926,17 +1926,21 @@ function SubscriptionFlowContainer() {
                 purchase,
                 isConsumable,
               });
-              setPurchaseResult(
-                `Subscription activated and finished successfully.\n` +
-                  `Product: ${purchase.productId}\n` +
-                  `Transaction ID: ${purchase.id}\n` +
-                  `Date: ${formatPurchaseDate(purchase.transactionDate)}`,
-              );
+              if (mountedRef.current) {
+                setPurchaseResult(
+                  `Subscription activated and finished successfully.\n` +
+                    `Product: ${purchase.productId}\n` +
+                    `Transaction ID: ${purchase.id}\n` +
+                    `Date: ${formatPurchaseDate(purchase.transactionDate)}`,
+                );
+              }
             } catch (err) {
               const message = getErrorMessage(err);
-              setPurchaseResult(
-                `Subscription activated, but finishTransaction failed: ${message}`,
-              );
+              if (mountedRef.current) {
+                setPurchaseResult(
+                  `Subscription activated, but finishTransaction failed: ${message}`,
+                );
+              }
               console.log(
                 '[SubscriptionFlow] Delayed finishTransaction failed:',
                 err,
@@ -1963,17 +1967,21 @@ function SubscriptionFlowContainer() {
             isConsumable,
           });
           didFinishTransaction = true;
-          setPurchaseResult(
-            `Subscription activated and finished successfully.\n` +
-              `Product: ${purchase.productId}\n` +
-              `Transaction ID: ${purchase.id}\n` +
-              `Date: ${formatPurchaseDate(purchase.transactionDate)}`,
-          );
+          if (mountedRef.current) {
+            setPurchaseResult(
+              `Subscription activated and finished successfully.\n` +
+                `Product: ${purchase.productId}\n` +
+                `Transaction ID: ${purchase.id}\n` +
+                `Date: ${formatPurchaseDate(purchase.transactionDate)}`,
+            );
+          }
         } catch (err) {
           const message = getErrorMessage(err);
-          setPurchaseResult(
-            `Subscription activated, but finishTransaction failed: ${message}`,
-          );
+          if (mountedRef.current) {
+            setPurchaseResult(
+              `Subscription activated, but finishTransaction failed: ${message}`,
+            );
+          }
           cleanupPurchaseKeysRef.current.delete(finishCleanupKey);
           console.log('[SubscriptionFlow] finishTransaction failed:', message);
         }
