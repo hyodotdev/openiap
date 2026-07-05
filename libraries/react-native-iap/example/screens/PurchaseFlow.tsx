@@ -593,6 +593,7 @@ function PurchaseFlowContainer() {
     verificationMethodRef,
     showVerificationMethodSelector,
   } = useVerificationMethod(getDefaultVerificationMethod(IAPKIT_API_KEY));
+  const cleanupPurchaseKeysRef = useRef(new Set<string>());
 
   // ──────────────────────────────────────────────────────────────────────────
   // Step 1: INIT CONNECTION
@@ -796,6 +797,8 @@ function PurchaseFlowContainer() {
       // - Consumables: Set isConsumable: true to allow re-purchase
       // - Non-consumables: Set isConsumable: false
       // - Failing to finish will cause issues on next app launch
+      const finishCleanupKey = getPurchaseCleanupKey(purchase);
+      cleanupPurchaseKeysRef.current.add(finishCleanupKey);
       try {
         await finishTransaction({
           purchase,
@@ -811,6 +814,7 @@ function PurchaseFlowContainer() {
         setPurchaseResult(
           `Purchase completed, but finishTransaction failed: ${message}`,
         );
+        cleanupPurchaseKeysRef.current.delete(finishCleanupKey);
         showNativeAlert('Finish Transaction Failed', message);
       }
     },
@@ -843,7 +847,6 @@ function PurchaseFlowContainer() {
   // Helpers
   // ──────────────────────────────────────────────────────────────────────────
   const didFetchRef = useRef(false);
-  const cleanupPurchaseKeysRef = useRef(new Set<string>());
 
   const fetchStorefront = useCallback(async () => {
     setFetchingStorefront(true);

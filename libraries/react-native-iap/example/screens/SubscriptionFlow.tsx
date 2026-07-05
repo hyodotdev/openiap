@@ -57,6 +57,23 @@ function isSubscriptionFlowProduct(productId: string): boolean {
   );
 }
 
+function formatPurchaseDate(transactionDate: Purchase['transactionDate']) {
+  if (!transactionDate) {
+    return 'N/A';
+  }
+
+  const rawDate = transactionDate as string | number | Date;
+  const normalizedDate =
+    typeof rawDate === 'string' &&
+    rawDate.trim() !== '' &&
+    !Number.isNaN(Number(rawDate))
+      ? Number(rawDate)
+      : rawDate;
+  const date = new Date(normalizedDate);
+
+  return Number.isNaN(date.getTime()) ? 'N/A' : date.toLocaleDateString();
+}
+
 // Extended type for ActiveSubscription with additional fields that may be present
 // but are not officially part of the ActiveSubscription type definition.
 // These fields are either:
@@ -1643,6 +1660,7 @@ function SubscriptionFlowContainer() {
   const fetchedProductsOnceRef = useRef(false);
   const statusAutoCheckedRef = useRef(false);
   const cleanupPurchaseKeysRef = useRef(new Set<string>());
+  const mountedRef = useRef(true);
 
   // ──────────────────────────────────────────────────────────────────────────
   // STEP 1: INIT CONNECTION + SUBSCRIBE TO EVENTS
@@ -1737,7 +1755,7 @@ function SubscriptionFlowContainer() {
         `Subscription received; finishing transaction...\n` +
           `Product: ${purchase.productId}\n` +
           `Transaction ID: ${purchase.id}\n` +
-          `Date: ${new Date(purchase.transactionDate).toLocaleDateString()}`,
+          `Date: ${formatPurchaseDate(purchase.transactionDate)}`,
       );
 
       // ──────────────────────────────────────────────────────────────────────
@@ -1896,6 +1914,8 @@ function SubscriptionFlowContainer() {
       // - Subscriptions are NOT consumable (isConsumable: false)
       const isConsumable = false;
       let didFinishTransaction = false;
+      const finishCleanupKey = getPurchaseCleanupKey(purchase);
+      cleanupPurchaseKeysRef.current.add(finishCleanupKey);
 
       if (!connectedRef.current) {
         console.log(
@@ -1905,39 +1925,58 @@ function SubscriptionFlowContainer() {
           'Subscription received, waiting for store connection to finish transaction.',
         );
         const started = Date.now();
-        const tryFinish = () => {
+        const tryFinish = async () => {
           if (connectedRef.current) {
-            finishTransaction({
-              purchase,
-              isConsumable,
-            })
-              .then(() => {
+            try {
+              await finishTransaction({
+                purchase,
+                isConsumable,
+              });
+              if (mountedRef.current) {
                 setPurchaseResult(
                   `Subscription activated and finished successfully.\n` +
                     `Product: ${purchase.productId}\n` +
                     `Transaction ID: ${purchase.id}\n` +
-                    `Date: ${new Date(
-                      purchase.transactionDate,
-                    ).toLocaleDateString()}`,
+                    `Date: ${formatPurchaseDate(purchase.transactionDate)}`,
                 );
-              })
-              .catch((err) => {
-                const message = getErrorMessage(err);
+              }
+            } catch (err) {
+              const message = getErrorMessage(err);
+              if (mountedRef.current) {
                 setPurchaseResult(
                   `Subscription activated, but finishTransaction failed: ${message}`,
                 );
-                console.log(
-                  '[SubscriptionFlow] Delayed finishTransaction failed:',
-                  err,
-                );
-              });
+              }
+              console.log(
+                '[SubscriptionFlow] Delayed finishTransaction failed:',
+                err,
+              );
+              cleanupPurchaseKeysRef.current.delete(finishCleanupKey);
+            }
             return;
           }
+
+          if (!mountedRef.current) {
+            cleanupPurchaseKeysRef.current.delete(finishCleanupKey);
+            return;
+          }
+
           if (Date.now() - started < 30000) {
-            setTimeout(tryFinish, 500);
+            setTimeout(() => {
+              void tryFinish();
+            }, 500);
+          } else {
+            if (mountedRef.current) {
+              setPurchaseResult(
+                'Connection timeout: finishTransaction could not run because the store connection was not restored. Reconnect and refresh subscription status.',
+              );
+            }
+            cleanupPurchaseKeysRef.current.delete(finishCleanupKey);
           }
         };
-        setTimeout(tryFinish, 500);
+        setTimeout(() => {
+          void tryFinish();
+        }, 500);
       } else {
         try {
           await finishTransaction({
@@ -1945,17 +1984,22 @@ function SubscriptionFlowContainer() {
             isConsumable,
           });
           didFinishTransaction = true;
-          setPurchaseResult(
-            `Subscription activated and finished successfully.\n` +
-              `Product: ${purchase.productId}\n` +
-              `Transaction ID: ${purchase.id}\n` +
-              `Date: ${new Date(purchase.transactionDate).toLocaleDateString()}`,
-          );
+          if (mountedRef.current) {
+            setPurchaseResult(
+              `Subscription activated and finished successfully.\n` +
+                `Product: ${purchase.productId}\n` +
+                `Transaction ID: ${purchase.id}\n` +
+                `Date: ${formatPurchaseDate(purchase.transactionDate)}`,
+            );
+          }
         } catch (err) {
           const message = getErrorMessage(err);
-          setPurchaseResult(
-            `Subscription activated, but finishTransaction failed: ${message}`,
-          );
+          if (mountedRef.current) {
+            setPurchaseResult(
+              `Subscription activated, but finishTransaction failed: ${message}`,
+            );
+          }
+          cleanupPurchaseKeysRef.current.delete(finishCleanupKey);
           console.log('[SubscriptionFlow] finishTransaction failed:', message);
         }
       }
@@ -1998,6 +2042,12 @@ function SubscriptionFlowContainer() {
       showNativeAlert('Subscription Failed', error.message);
     },
   });
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     connectedRef.current = connected;

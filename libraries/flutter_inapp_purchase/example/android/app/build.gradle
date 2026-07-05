@@ -9,11 +9,20 @@ plugins {
 apply from: rootProject.file('../../android/openiap-android-sdk.gradle')
 
 def openIapCompileSdkVersion = openIapResolveAndroidSdkVersion('compileSdkVersion', 'compileSdk', 35)
-def openIapMinSdkVersion = openIapResolveAndroidSdkVersion('minSdkVersion', 'minSdk', 23)
+def openIapResolvedMinSdkVersion = (openIapResolveAndroidSdkVersion('minSdkVersion', 'minSdk', 23) ?: 23) as Integer
 def openIapTargetSdkVersion = openIapResolveAndroidSdkVersion('targetSdkVersion', 'compileSdk', 35)
 def openIapJunitVersion = openIapResolveDependencyVersion('junit:junit', 'openIapJunitVersion')
 def openIapAndroidTestRunnerVersion = openIapResolveDependencyVersion('androidx.test:runner', 'openIapAndroidTestRunnerVersion')
 def openIapEspressoCoreVersion = openIapResolveDependencyVersion('androidx.test.espresso:espresso-core', 'openIapEspressoCoreVersion')
+
+// Read store flags from gradle.properties (default: Play)
+def horizonEnabled = project.findProperty('horizonEnabled')?.toBoolean() ?: false
+def fireOsEnabled = project.findProperty('fireOsEnabled')?.toBoolean() ?: false
+if (horizonEnabled && fireOsEnabled) {
+    throw new GradleException("flutter_inapp_purchase example: horizonEnabled and fireOsEnabled cannot both be true")
+}
+def openIapMinSdkVersion = fireOsEnabled ? Math.max(openIapResolvedMinSdkVersion, 24) : openIapResolvedMinSdkVersion
+def openIapFlavor = fireOsEnabled ? 'amazon' : (horizonEnabled ? 'horizon' : 'play')
 
 def localProperties = new Properties()
 def localPropertiesFile = rootProject.file('local.properties')
@@ -43,7 +52,7 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
-    lintOptions {
+    lint {
         disable 'InvalidPackage'
     }
 
@@ -56,16 +65,8 @@ android {
         versionName = flutterVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Read store flags from gradle.properties (default: Play)
-        def horizonEnabled = project.findProperty('horizonEnabled')?.toBoolean() ?: false
-        def fireOsEnabled = project.findProperty('fireOsEnabled')?.toBoolean() ?: false
-        if (horizonEnabled && fireOsEnabled) {
-            throw new GradleException("flutter_inapp_purchase example: horizonEnabled and fireOsEnabled cannot both be true")
-        }
-        def flavor = fireOsEnabled ? 'amazon' : (horizonEnabled ? 'horizon' : 'play')
-
         // Select platform flavor from plugin's product flavors
-        missingDimensionStrategy 'platform', flavor
+        missingDimensionStrategy 'platform', openIapFlavor
 
         // Configure Horizon App ID if enabled
         def horizonAppId = ""
