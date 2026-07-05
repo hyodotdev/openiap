@@ -93,7 +93,7 @@ describe('withIap config plugin - iapkitApiKey option', () => {
         onside: false,
       },
       android: {
-        horizonAppId: '12345',
+        horizon: {appId: '12345'},
       },
     });
 

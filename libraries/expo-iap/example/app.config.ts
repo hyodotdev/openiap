@@ -50,21 +50,16 @@ export default ({config}: ConfigContext): ExpoConfig => {
           // Horizon module: Android only (Meta Quest/VR devices)
           horizon: isHorizonEnabled,
         },
-        amazon: {
-          // Fire OS: Android amazon flavor
-          fireOS: isFireOsEnabled,
-          // Vega OS: Kepler runtime target
-          vegaOS: isVegaEnabled,
-        },
-        vega: {
-          packageId: 'dev.hyo.openiap.expo.example',
-          title: 'Expo IAP Example',
-          appName: 'ExpoIAPExample',
-          icon: './assets/images/icon.png',
-        },
         android: {
           // Horizon App ID for Meta Quest/VR devices (required when modules.horizon is true)
-          horizonAppId: '31705015229097839',
+          horizon: {
+            appId: '31705015229097839',
+          },
+          // Amazon targets: Fire OS Android flavor and Vega OS runtime target
+          amazon: {
+            fireOS: isFireOsEnabled,
+            vegaOS: isVegaEnabled,
+          },
         },
         ios: {
           // iOS Alternative Billing configuration (optional)
@@ -136,7 +131,7 @@ export default ({config}: ConfigContext): ExpoConfig => {
 
   const expoConfig: ExpoConfig = {
     ...config,
-    name: 'expo-iap-example',
+    name: 'Expo IAP Example',
     slug: 'expo-iap-example',
     version: '1.0.0',
     orientation: 'portrait',

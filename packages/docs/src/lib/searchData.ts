@@ -981,4 +981,36 @@ export const apiData: ApiItem[] = [
     description: 'Error codes and error handling',
     path: '/docs/errors',
   },
+  {
+    id: 'store-setup',
+    title: 'Store Setup',
+    category: 'Setup Guide',
+    description:
+      'Configure Horizon OS, Amazon Fire OS, Vega OS, and Onside store targets',
+    path: '/docs/setup/store',
+  },
+  {
+    id: 'horizon-store-setup',
+    title: 'Horizon OS Store Setup',
+    category: 'Setup Guide',
+    description:
+      'Meta Quest app id, Android horizon flavor, and framework-specific Horizon setup',
+    path: '/docs/setup/store/horizon',
+  },
+  {
+    id: 'amazon-store-setup',
+    title: 'Amazon Store Setup',
+    category: 'Setup Guide',
+    description:
+      'Amazon Fire OS Android flavor, Vega OS runtime target, and Amazon receipt verification',
+    path: '/docs/setup/store/amazon',
+  },
+  {
+    id: 'onside-store-setup',
+    title: 'Onside Store Setup',
+    category: 'Setup Guide',
+    description:
+      'Expo-only iOS Onside alternative marketplace setup and required values',
+    path: '/docs/setup/store/onside',
+  },
 ];

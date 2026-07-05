@@ -243,14 +243,14 @@ export const modifyAppBuildGradle = (
   const flavor = isFireOsEnabled
     ? 'amazon'
     : isHorizonEnabled
-    ? 'horizon'
-    : 'play';
+      ? 'horizon'
+      : 'play';
 
   const artifactId = isFireOsEnabled
     ? 'openiap-google-amazon'
     : isHorizonEnabled
-    ? 'openiap-google-horizon'
-    : 'openiap-google';
+      ? 'openiap-google-horizon'
+      : 'openiap-google';
 
   // Ensure OpenIAP dependency exists at desired version in app-level build.gradle(.kts)
   const impl = (ga: string, v: string) =>
@@ -391,8 +391,8 @@ const withIapAndroid: ConfigPlugin<
     const permissions = Array.isArray(existingPermissions)
       ? existingPermissions
       : existingPermissions
-      ? [existingPermissions]
-      : [];
+        ? [existingPermissions]
+        : [];
     manifest.manifest['uses-permission'] = permissions;
     const billingPerm = {$: {'android:name': 'com.android.vending.BILLING'}};
 
@@ -722,7 +722,7 @@ export interface ExpoIapPluginOptions {
   enableLocalDev?: boolean;
   /**
    * Horizon OS app ID for Quest devices.
-   * @deprecated Use android.horizonAppId instead.
+   * @deprecated Use android.horizon.appId instead.
    * @platform android
    */
   horizonAppId?: string;
@@ -732,9 +732,7 @@ export interface ExpoIapPluginOptions {
    * @platform ios
    */
   iosAlternativeBilling?: IOSAlternativeBillingConfig;
-  /**
-   * Non-Amazon optional modules configuration.
-   */
+  /** Optional module configuration. */
   modules?: {
     /**
      * Onside module for iOS alternative billing (Korea market)
@@ -746,6 +744,12 @@ export interface ExpoIapPluginOptions {
      * @platform android
      */
     horizon?: boolean;
+    /**
+     * Amazon platform targets. Fire OS and Vega OS can both be enabled in the
+     * same config, but they still produce separate build artifacts.
+     * @deprecated Use android.amazon instead.
+     */
+    amazon?: AmazonPlatformOptions;
   };
   /**
    * iOS-specific configuration
@@ -765,20 +769,32 @@ export interface ExpoIapPluginOptions {
    */
   android?: {
     /**
+     * Horizon options for Meta Quest/VR devices.
+     */
+    horizon?: {
+      /**
+       * Meta Horizon App ID for Quest/VR devices.
+       * Required when modules.horizon is true.
+       */
+      appId?: string;
+    };
+    /**
      * Meta Horizon App ID for Quest/VR devices.
      * Required when modules.horizon is true.
+     * @deprecated Use android.horizon.appId instead.
      */
     horizonAppId?: string;
+    /**
+     * Amazon Android targets and Vega project generation overrides.
+     */
+    amazon?: AmazonPlatformOptions & {
+      /**
+       * Vega-specific project generation overrides. All fields are optional;
+       * packageId, title, appName, and icon default from the Expo config.
+       */
+      vega?: VegaProjectOptions;
+    };
   };
-  /**
-   * Amazon platform targets. Fire OS and Vega OS can both be enabled in the
-   * same config, but they still produce separate build artifacts.
-   */
-  amazon?: AmazonPlatformOptions;
-  /**
-   * Vega-specific project generation options.
-   */
-  vega?: VegaProjectOptions;
 }
 
 export interface ModuleSelectionResult {
@@ -794,16 +810,33 @@ export type AmazonPlatformFlags = {
   isOnsideEnabled: boolean;
 };
 
+type AmazonPlatformFlagOptions = Pick<
+  ExpoIapPluginOptions,
+  'android' | 'modules'
+>;
+
+function isEnvFlagEnabled(name: string): boolean {
+  return process.env[name] === '1';
+}
+
 export function resolveAmazonPlatformFlags(
-  options?: Pick<ExpoIapPluginOptions, 'amazon' | 'modules'> | void,
+  options?: AmazonPlatformFlagOptions | void,
 ): AmazonPlatformFlags {
-  const amazon = options?.amazon;
-  const isFireOsEnabled = amazon?.fireOS ?? false;
-  const isVegaEnabled = amazon?.vegaOS ?? false;
+  const androidAmazon = options?.android?.amazon;
+  const legacyModuleAmazon = options?.modules?.amazon;
+  const isFireOsEnabled =
+    androidAmazon?.fireOS ??
+    legacyModuleAmazon?.fireOS ??
+    isEnvFlagEnabled('EXPO_IAP_FIREOS');
+  const isVegaEnabled =
+    androidAmazon?.vegaOS ??
+    legacyModuleAmazon?.vegaOS ??
+    isEnvFlagEnabled('EXPO_IAP_VEGA');
   const isHorizonEnabled = isFireOsEnabled
     ? false
-    : options?.modules?.horizon ?? false;
-  const isOnsideEnabled = options?.modules?.onside ?? false;
+    : (options?.modules?.horizon ?? isEnvFlagEnabled('EXPO_IAP_HORIZON'));
+  const isOnsideEnabled =
+    options?.modules?.onside ?? isEnvFlagEnabled('EXPO_IAP_ONSIDE');
 
   return {
     isFireOsEnabled,
@@ -811,6 +844,25 @@ export function resolveAmazonPlatformFlags(
     isHorizonEnabled,
     isOnsideEnabled,
   };
+}
+
+export function resolveHorizonAppId(
+  options?: ExpoIapPluginOptions | void,
+): string | undefined {
+  return (
+    options?.android?.horizon?.appId ??
+    options?.android?.horizonAppId ??
+    options?.horizonAppId
+  );
+}
+
+export function resolveVegaProjectOptions(
+  options?: ExpoIapPluginOptions | void,
+): VegaProjectOptions | undefined {
+  const legacyOptions = options as
+    (ExpoIapPluginOptions & {vega?: VegaProjectOptions}) | undefined;
+
+  return options?.android?.amazon?.vega ?? legacyOptions?.vega;
 }
 
 /**
@@ -823,8 +875,7 @@ export function resolveModuleSelection(
   options?: ExpoIapPluginCommonOptions | void,
 ): ModuleSelectionResult {
   const normalizedOptions = (options ?? undefined) as
-    | ExpoIapPluginCommonOptions
-    | undefined;
+    ExpoIapPluginCommonOptions | undefined;
 
   const selection = normalizedOptions?.module ?? 'auto';
 
@@ -846,6 +897,7 @@ export function resolveModuleSelection(
     includeOnside =
       normalizedOptions?.modules?.onside ??
       config.ios?.onside?.enabled ??
+      isEnvFlagEnabled('EXPO_IAP_ONSIDE') ??
       false;
   }
 
@@ -869,8 +921,7 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
       logOnce('🔑 [expo-iap] Added iapkitApiKey to config.extra');
     }
 
-    const horizonAppId =
-      options?.android?.horizonAppId ?? options?.horizonAppId;
+    const horizonAppId = resolveHorizonAppId(options);
     const iosAlternativeBilling =
       options?.ios?.alternativeBilling ?? options?.iosAlternativeBilling;
 
@@ -956,7 +1007,7 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
     syncAutolinking(autolinkState);
 
     if (isVegaEnabled) {
-      result = withVega(result, options?.vega);
+      result = withVega(result, resolveVegaProjectOptions(options));
     }
 
     return result;

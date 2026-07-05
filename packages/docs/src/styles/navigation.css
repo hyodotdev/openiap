@@ -9,9 +9,10 @@
 }
 
 .nav-container {
-  max-width: var(--max-width);
-  margin: 0 auto;
-  padding: 0 var(--spacing-lg);
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0 clamp(var(--spacing-md), 2vw, var(--spacing-xl));
   height: 100%;
   display: flex;
   justify-content: space-between;

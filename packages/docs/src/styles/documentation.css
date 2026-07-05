@@ -1,5 +1,6 @@
 /* Documentation - Expo style layout */
 .docs-container {
+  --docs-sidebar-width: 340px;
   display: flex;
   max-width: var(--max-width);
   margin: 0 auto;
@@ -11,11 +12,12 @@
    there's a gap between the viewport's left edge and the sidebar's
    start. Pull the sidebar leftward by exactly that gap so the
    background and active border start at the viewport edge while the
-   link text keeps normal padding inside the 280px column. */
+   link text keeps normal padding inside the sidebar column. */
 .docs-sidebar {
+  --docs-sidebar-gutter: 2rem;
   --sidebar-edge-fill: max(0px, calc((100vw - var(--max-width)) / 2));
-  width: 280px;
-  flex-shrink: 0;
+  width: var(--docs-sidebar-width);
+  flex: 0 0 var(--docs-sidebar-width);
   align-self: flex-start;
   position: sticky;
   top: 56px;
@@ -36,9 +38,8 @@
   box-sizing: border-box;
 }
 
-/* Sidebar items: truncate long identifiers with an ellipsis so the
-   sidebar stays fixed-width and visually clean. The active item wraps
-   to its full label so the reader always sees the page they're on. */
+/* Sidebar items keep a stable inline start and truncate long identifiers
+   instead of changing row geometry per active/hovered link. */
 .docs-sidebar .menu-dropdown-item,
 .docs-sidebar .menu-dropdown-title,
 .docs-sidebar .docs-nav a {
@@ -49,21 +50,14 @@
 }
 
 .docs-sidebar .menu-dropdown-item.active,
-.docs-sidebar .docs-nav a.active {
-  white-space: normal;
-  overflow: visible;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-/* Hovering an inactive item briefly expands it so the full identifier
-   is reachable without having to navigate first. */
+.docs-sidebar .docs-nav a.active,
 .docs-sidebar .menu-dropdown-item:hover,
 .docs-sidebar .docs-nav a:hover {
-  white-space: normal;
-  overflow: visible;
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 :root.dark .docs-sidebar {
@@ -71,9 +65,9 @@
   border-right-color: rgba(255, 255, 255, 0.06);
 }
 
-/* Scrollbar styling for sidebar */
 .docs-sidebar::-webkit-scrollbar {
-  width: 6px;
+  width: 0;
+  height: 0;
 }
 
 .docs-sidebar::-webkit-scrollbar-track {
@@ -81,20 +75,20 @@
 }
 
 .docs-sidebar::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.15);
-  border-radius: 3px;
+  background: transparent;
+  border-radius: 4px;
 }
 
-.docs-sidebar::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.25);
+.docs-sidebar.is-sidebar-scrolling::-webkit-scrollbar {
+  width: 8px;
 }
 
-:root.dark .docs-sidebar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+.docs-sidebar.is-sidebar-scrolling::-webkit-scrollbar-thumb {
+  background: var(--border-color);
 }
 
-:root.dark .docs-sidebar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+.docs-sidebar.is-sidebar-scrolling::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
 }
 
 .docs-nav {
@@ -103,7 +97,8 @@
 
 /* Sidebar section headers */
 .docs-nav h3 {
-  margin: var(--spacing-lg) var(--spacing-lg) var(--spacing-sm);
+  margin: var(--spacing-lg) var(--spacing-lg) var(--spacing-sm)
+    var(--docs-sidebar-gutter);
   color: var(--text-secondary);
   text-transform: uppercase;
   font-size: var(--font-size-xs);
@@ -139,8 +134,11 @@
 .docs-nav a {
   color: var(--text-secondary);
   text-decoration: none;
-  padding: var(--spacing-sm) var(--spacing-lg);
+  padding: var(--spacing-sm) var(--spacing-lg) var(--spacing-sm)
+    var(--docs-sidebar-gutter);
   display: block;
+  width: 100%;
+  box-sizing: border-box;
   font-size: var(--font-size-sm);
   transition: all 0.15s ease;
   border-left: 2px solid transparent;
@@ -179,6 +177,7 @@
   display: flex;
   align-items: center;
   width: 100%;
+  box-sizing: border-box;
   background: none;
   border: none;
   border-left: 2px solid transparent;
@@ -186,7 +185,8 @@
   font: inherit;
   text-align: left;
   color: inherit;
-  padding: var(--spacing-sm) var(--spacing-lg);
+  padding: var(--spacing-sm) var(--spacing-lg) var(--spacing-sm)
+    var(--docs-sidebar-gutter);
   transition: all 0.15s ease;
 }
 
@@ -209,6 +209,7 @@
 
 .menu-dropdown-title {
   flex: 1;
+  min-width: 0;
   background: none;
   border: none;
   cursor: pointer;
@@ -287,8 +288,10 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
+  width: 100%;
+  box-sizing: border-box;
   padding: var(--spacing-xs) var(--spacing-lg) var(--spacing-xs)
-    calc(var(--spacing-lg) + 0.5rem);
+    calc(var(--docs-sidebar-gutter) + 0.75rem);
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
   text-decoration: none;
@@ -330,6 +333,48 @@
   color: #666;
 }
 
+.docs-sidebar-resizer {
+  display: none;
+}
+
+@media (min-width: 769px) {
+  .docs-sidebar-resizer {
+    position: sticky;
+    top: 56px;
+    z-index: 2;
+    display: block;
+    flex: 0 0 18px;
+    width: 18px;
+    height: calc(100vh - 56px);
+    max-height: calc(100vh - 56px);
+    align-self: flex-start;
+    margin-left: -9px;
+    margin-right: 9px;
+    cursor: col-resize;
+    touch-action: none;
+    outline: none;
+  }
+
+  .docs-sidebar-resizer::after {
+    content: '';
+    position: absolute;
+    top: var(--spacing-md);
+    left: 8px;
+    bottom: var(--spacing-md);
+    width: 2px;
+    border-radius: 999px;
+    background: var(--primary-color);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  .docs-sidebar-resizer:hover::after,
+  .docs-sidebar-resizer:focus-visible::after,
+  .docs-sidebar-resizer.is-resizing::after {
+    opacity: 0.8;
+  }
+}
+
 /* Nested sub-menu (used inside an outer MenuDropdown's items) */
 .menu-dropdown.menu-dropdown--nested {
   list-style: none;
@@ -341,7 +386,7 @@
    sub-group → sub-group rows. The inner row indent stays even deeper
    via `.menu-dropdown-items--nested .menu-dropdown-item`. */
 .menu-dropdown--nested > .menu-dropdown-header {
-  padding-left: calc(var(--spacing-lg) + 1rem);
+  padding-left: calc(var(--docs-sidebar-gutter) + 1.25rem);
 }
 
 .menu-dropdown-title.menu-dropdown-title--nested {
@@ -357,7 +402,7 @@
 }
 
 .menu-dropdown-items--nested .menu-dropdown-item {
-  padding-left: calc(var(--spacing-lg) + 2rem);
+  padding-left: calc(var(--docs-sidebar-gutter) + 2.5rem);
 }
 
 /* Main content area */
@@ -561,18 +606,20 @@
   opacity: 1;
 }
 
-/* Tables — full-width layout, but allow horizontal scrolling when the
-   minimum content width exceeds the available space (rare, but
-   prevents catastrophic squeeze on phones). The `display: block`
-   trick + `overflow-x: auto` is the most portable way to scope the
-   scroll to the table without needing a wrapper element. */
+/* Tables use the same mobile pattern as mature docs systems: keep the page
+   fixed-width, but let the table viewport scroll horizontally when its
+   readable minimum width exceeds the content column. */
 .error-table,
 .doc-page table {
   display: block;
   width: 100%;
   max-width: 100%;
   overflow-x: auto;
-  border-collapse: collapse;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  table-layout: auto;
+  border-collapse: separate;
+  border-spacing: 0;
   margin: 1.5rem 0;
   background: var(--bg-primary);
   border-radius: 0.5rem;
@@ -587,6 +634,7 @@
 
 .error-table th,
 .doc-page table th {
+  min-width: 10rem;
   padding: 0.75rem 1rem;
   text-align: left;
   font-weight: 600;
@@ -594,40 +642,56 @@
   font-size: 0.875rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .error-table td,
 .doc-page table td {
+  min-width: 10rem;
   padding: 0.75rem 1rem;
   color: var(--text-secondary);
   border-bottom: 1px solid var(--border-color);
 }
 
-/* Only the FIRST column (identifier name) stays on one line — applying
-   `nowrap; width:1%` to every non-last column also forced middle
-   columns like Description to refuse to wrap, which then squeezed the
-   last column (e.g. Availability `iOS 17.4+`) to per-character width
-   on narrow viewports. */
+/* Headers stay compact, but body cells wrap at word boundaries so a long
+   first-column label cannot push every other column off-screen on phones. */
 .error-table th:first-child,
-.error-table td:first-child,
-.doc-page table th:first-child,
-.doc-page table td:first-child {
-  width: 1%;
+.doc-page table th:first-child {
+  min-width: 9rem;
   white-space: nowrap;
   vertical-align: top;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
-/* All other columns wrap at word boundaries; long fields like
-   identifiers stay readable thanks to overflow-wrap: anywhere as a
-   safety net (no per-character wrap unless absolutely necessary). */
+.error-table td:first-child,
+.doc-page table td:first-child {
+  min-width: 10rem;
+  white-space: normal;
+  vertical-align: top;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+/* Other body columns wrap at word boundaries; long identifiers can still
+   break when needed, without collapsing into one-character columns. */
 .error-table th:not(:first-child),
 .error-table td:not(:first-child),
 .doc-page table th:not(:first-child),
 .doc-page table td:not(:first-child) {
+  min-width: 13rem;
   white-space: normal;
   vertical-align: top;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   word-break: normal;
+}
+
+.error-table th:not(:first-child),
+.doc-page table th:not(:first-child) {
+  white-space: nowrap;
+  overflow-wrap: normal;
 }
 
 .error-table tbody tr:last-child td,
@@ -841,30 +905,35 @@
 }
 
 /* Scrollbar Styles */
-.docs-sidebar::-webkit-scrollbar,
 .docs-content::-webkit-scrollbar {
   width: 8px;
 }
 
-.docs-sidebar::-webkit-scrollbar-track,
 .docs-content::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.docs-sidebar::-webkit-scrollbar-thumb,
 .docs-content::-webkit-scrollbar-thumb {
   background: var(--border-color);
   border-radius: 4px;
 }
 
-.docs-sidebar::-webkit-scrollbar-thumb:hover,
 .docs-content::-webkit-scrollbar-thumb:hover {
   background: var(--text-secondary);
 }
 
 /* Firefox scrollbar */
-.docs-sidebar,
 .docs-content {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) transparent;
+}
+
+.docs-sidebar {
+  scrollbar-width: none;
+  scrollbar-color: transparent transparent;
+}
+
+.docs-sidebar.is-sidebar-scrolling {
   scrollbar-width: thin;
   scrollbar-color: var(--border-color) transparent;
 }

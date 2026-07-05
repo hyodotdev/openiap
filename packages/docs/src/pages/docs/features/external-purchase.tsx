@@ -3145,10 +3145,8 @@ func _ready_user_choice() -> void:
             - Type definitions and parameters
           </li>
           <li>
-            <Link to="/docs/features/alternative-marketplace">
-              Alternative Marketplace
-            </Link>{' '}
-            - Onside &amp; alternative billing flows
+            <Link to="/docs/setup/store/onside">Onside Store Setup</Link> -
+            alternative marketplace flow for <code>expo-iap</code>
           </li>
           <li>
             <Link to="/docs/types/alternative-billing-types">

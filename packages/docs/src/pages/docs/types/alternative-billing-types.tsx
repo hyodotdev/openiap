@@ -324,12 +324,15 @@ await iap.init_connection()`}</CodeBlock>
 // Step 1: Set up listener for when user selects alternative billing
 const userChoiceSubscription = userChoiceBillingListenerAndroid(async (details) => {
   console.log('User chose alternative billing');
-  console.log('Products:', details.products.map(p => p.productId));
+  const products = details.products ?? [];
+  for (const product of products) {
+    console.log('Product:', product.productId);
+  }
   console.log('External transaction token received; send it to your backend without logging it.');
 
   // Process payment with your backend using the token
   const paymentResult = await yourBackend.processPayment({
-    products: details.products,
+    products,
     token: details.externalTransactionToken,
   });
 
@@ -375,7 +378,9 @@ val iapStore = OpenIapStore(context)
 iapStore.addUserChoiceBillingListener(object : OpenIapUserChoiceBillingListener {
     override fun onUserChoiceBilling(details: UserChoiceBillingDetails) {
         Log.d("IAP", "User chose alternative billing")
-        Log.d("IAP", "Products: \${details.products.map { it.productId }}")
+        for (product in details.products) {
+            Log.d("IAP", "Product: \${product.productId}")
+        }
         Log.d("IAP", "External transaction token received; send it to your backend without logging it.")
 
         // Process payment with your backend using the token
@@ -430,7 +435,9 @@ iapStore.requestPurchase(
 final userChoiceSubscription = FlutterInappPurchase.userChoiceBillingStream
     .listen((details) async {
   print('User chose alternative billing');
-  print('Products: \${details.products.map((p) => p.productId).toList()}');
+  for (final product in details.products) {
+    print('Product: \${product.productId}');
+  }
   print('External transaction token received; send it to your backend without logging it.');
 
   // Process payment with your backend using the token

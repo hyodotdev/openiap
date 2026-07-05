@@ -434,7 +434,7 @@ class HybridRnIap: HybridRnIapSpec {
                 var propsDict: [String: Any] = ["provider": params.provider.stringValue]
                 if case .second(let iapkit) = params.iapkit {
                     var iapkitDict: [String: Any] = [:]
-                    // Use provided apiKey, or fallback to Info.plist IAPKitAPIKey (set by config plugin)
+                    // Use provided apiKey, or fallback to the host app's Info.plist IAPKitAPIKey.
                     if case .second(let apiKey) = iapkit.apiKey {
                         iapkitDict["apiKey"] = apiKey
                     } else if let plistApiKey = Bundle.main.object(forInfoDictionaryKey: "IAPKitAPIKey") as? String {

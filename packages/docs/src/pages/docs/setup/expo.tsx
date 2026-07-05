@@ -288,12 +288,14 @@ cd ios && pod install`}
             "onside": true,
             "horizon": true
           },
-          "amazon": {
-            "fireOS": false,
-            "vegaOS": false
-          },
           "android": {
-            "horizonAppId": "YOUR_HORIZON_APP_ID"
+            "horizon": {
+              "appId": "YOUR_HORIZON_APP_ID"
+            },
+            "amazon": {
+              "fireOS": false,
+              "vegaOS": false
+            }
           }
         }
       ]
@@ -302,18 +304,26 @@ cd ios && pod install`}
 }`}
         </CodeBlock>
         <p>
-          Amazon targets are grouped under <code>amazon</code>.{' '}
-          <code>amazon.fireOS</code> selects the Android Amazon Appstore flavor,
-          while <code>amazon.vegaOS</code> prepares Kepler/Vega project files.
+          Optional Onside and Horizon modules are grouped under{' '}
+          <code>modules</code>. Android store targets are grouped under{' '}
+          <code>android.amazon</code>. <code>android.amazon.fireOS</code>{' '}
+          selects the Android Amazon Appstore flavor, while{' '}
+          <code>android.amazon.vegaOS</code> prepares Kepler/Vega project files.
           They can both be <code>true</code> in one config, but Fire OS and Vega
           OS are still built as separate artifacts.
         </p>
         <p>
+          Amazon Fire OS and Vega OS support is currently available from the{' '}
+          <code>next</code> / <code>rc</code> package versions. Use the RC
+          packages while validating Amazon targets before the stable release.
+        </p>
+        <p>
           Vega OS support uses optional peer dependencies. Install Amazon's Vega
           IAP package only in the Vega app target. When{' '}
-          <code>amazon.vegaOS</code> is enabled, the plugin keeps the Kepler
-          CLI, Metro, and Babel packages available for <code>build-vega</code>,
-          but syncs <code>@amazon-devices/react-native-kepler</code> as an{' '}
+          <code>android.amazon.vegaOS</code> is enabled, the plugin keeps the
+          Kepler CLI, Metro, and Babel packages available for{' '}
+          <code>build-vega</code>, but syncs{' '}
+          <code>@amazon-devices/react-native-kepler</code> as an{' '}
           <code>optionalDependency</code>. Keep that package out of normal{' '}
           <code>dependencies</code> and <code>devDependencies</code> used by
           regular Expo iOS or Android builds, and make sure Vega CI installs
@@ -342,10 +352,7 @@ cd ios && pod install`}
               <td>boolean</td>
               <td>
                 Enable Onside alternative marketplace for iOS (see{' '}
-                <a href="/docs/features/alternative-marketplace/onside">
-                  Onside Integration
-                </a>
-                )
+                <a href="/docs/setup/store/onside">Onside Store Setup</a>)
               </td>
             </tr>
             <tr>
@@ -355,34 +362,35 @@ cd ios && pod install`}
               <td>boolean</td>
               <td>
                 Enable Horizon module for Meta Quest (see{' '}
-                <a href="/docs/horizon-setup">Horizon OS Setup</a>)
+                <a href="/docs/setup/store/horizon">Horizon OS Setup</a>)
               </td>
             </tr>
             <tr>
               <td>
-                <code>amazon.fireOS</code>
+                <code>android.amazon.fireOS</code>
               </td>
               <td>boolean</td>
               <td>
                 Enable the Fire OS Android <code>amazon</code> flavor (see{' '}
-                <a href="/docs/fireos-setup">Fire OS Setup</a>)
+                <a href="/docs/setup/store/amazon#fire-os">Fire OS Setup</a>)
               </td>
             </tr>
             <tr>
               <td>
-                <code>amazon.vegaOS</code>
+                <code>android.amazon.vegaOS</code>
               </td>
               <td>boolean</td>
               <td>
                 Enables Vega OS runtime setup. This prepares Vega manifest and
                 Kepler project metadata, but it does not select an Android
                 flavor. Follow the{' '}
-                <a href="/docs/features/vega-os">Vega OS Runtime</a> guide.
+                <a href="/docs/setup/store/amazon#vega-os">Vega OS Runtime</a>{' '}
+                guide.
               </td>
             </tr>
             <tr>
               <td>
-                <code>android.horizonAppId</code>
+                <code>android.horizon.appId</code>
               </td>
               <td>string</td>
               <td>Meta Horizon App ID for Quest/VR devices</td>
@@ -412,7 +420,7 @@ cd ios && pod install`}
         </p>
         <CodeBlock language="typescript">
           {`import React, { useEffect } from 'react';
-import { Alert, View, Button } from 'react-native';
+import { Alert, Button, FlatList } from 'react-native';
 import { useIAP, ErrorCode, finishTransaction } from 'expo-iap';
 
 function Store() {
@@ -440,23 +448,24 @@ function Store() {
   }, []);
 
   return (
-    <View>
-      {products.map((product) => (
+    <FlatList
+      data={products}
+      keyExtractor={(product) => product.id}
+      renderItem={({ item }) => (
         <Button
-          key={product.productId}
-          title={\`\${product.title} - \${product.localizedPrice}\`}
+          title={\`\${item.title} - \${item.localizedPrice}\`}
           onPress={() =>
             requestPurchase({
               request: {
-                apple: { sku: product.productId },
-                google: { skus: [product.productId] },
+                apple: { sku: item.id },
+                google: { skus: [item.id] },
               },
               type: 'in-app',
             })
           }
         />
-      ))}
-    </View>
+      )}
+    />
   );
 }`}
         </CodeBlock>

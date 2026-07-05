@@ -1,4 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import type {
+  CSSProperties,
+  KeyboardEvent,
+  PointerEvent as ReactPointerEvent,
+} from 'react';
 import { createPortal } from 'react-dom';
 import {
   Route,
@@ -109,15 +114,13 @@ import SubscriptionBillingIssue from './features/subscription-billing-issue';
 import Refund from './features/refund';
 import Validation from './features/validation';
 import Debugging from './features/debugging';
-import RuntimeIntegrations from './features/runtime-integrations';
-import AlternativeMarketplace from './features/alternative-marketplace/index';
-import AlternativeMarketplaceOnside from './features/alternative-marketplace/onside';
-import VegaOSRuntime from './features/vega-os';
 import IOSSetup from './ios-setup';
 import AndroidSetup from './android-setup';
-import HorizonSetup from './horizon-setup';
-import FireOSSetup from './fireos-setup';
 import SetupIndex from './setup/index';
+import StoreSetup from './setup/store/index';
+import HorizonStoreSetup from './setup/store/horizon';
+import AmazonStoreSetup from './setup/store/amazon';
+import OnsideStoreSetup from './setup/store/onside';
 import ReactNativeSetup from './setup/react-native';
 import ExpoSetup from './setup/expo';
 import FlutterSetup from './setup/flutter';
@@ -148,9 +151,40 @@ function NavigatePreservingHash({ to }: { to: string }) {
   return <Navigate to={`${to}${hash || ''}`} replace />;
 }
 
+const SIDEBAR_WIDTH_STORAGE_KEY = 'openiap-docs-sidebar-width-v2';
+const SIDEBAR_DEFAULT_WIDTH = 340;
+const SIDEBAR_MIN_WIDTH = 300;
+const SIDEBAR_MAX_WIDTH = 480;
+const SIDEBAR_KEYBOARD_STEP = 16;
+
+function clampSidebarWidth(width: number) {
+  return Math.min(
+    SIDEBAR_MAX_WIDTH,
+    Math.max(SIDEBAR_MIN_WIDTH, Math.round(width))
+  );
+}
+
+function readSavedSidebarWidth() {
+  if (typeof window === 'undefined') {
+    return SIDEBAR_DEFAULT_WIDTH;
+  }
+
+  const saved = window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY);
+  const parsed = saved ? Number(saved) : Number.NaN;
+
+  return Number.isFinite(parsed)
+    ? clampSidebarWidth(parsed)
+    : SIDEBAR_DEFAULT_WIDTH;
+}
+
 function Docs() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(readSavedSidebarWidth);
+  const [isResizingSidebar, setIsResizingSidebar] = useState(false);
+  const [isSidebarScrolling, setIsSidebarScrolling] = useState(false);
+  const sidebarRef = useRef<HTMLElement | null>(null);
+  const sidebarScrollTimeoutRef = useRef<number | null>(null);
 
   const closeSidebar = () => setIsSidebarOpen(false);
 
@@ -162,6 +196,110 @@ function Docs() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      SIDEBAR_WIDTH_STORAGE_KEY,
+      String(sidebarWidth)
+    );
+  }, [sidebarWidth]);
+
+  useEffect(() => {
+    return () => {
+      if (sidebarScrollTimeoutRef.current !== null) {
+        window.clearTimeout(sidebarScrollTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isResizingSidebar) {
+      return;
+    }
+
+    const previousCursor = document.body.style.cursor;
+    const previousUserSelect = document.body.style.userSelect;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const sidebarLeft = sidebarRef.current?.getBoundingClientRect().left ?? 0;
+      setSidebarWidth(clampSidebarWidth(event.clientX - sidebarLeft));
+    };
+
+    const stopResizing = () => {
+      setIsResizingSidebar(false);
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', stopResizing);
+    window.addEventListener('pointercancel', stopResizing);
+
+    return () => {
+      document.body.style.cursor = previousCursor;
+      document.body.style.userSelect = previousUserSelect;
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', stopResizing);
+      window.removeEventListener('pointercancel', stopResizing);
+    };
+  }, [isResizingSidebar]);
+
+  const startSidebarResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (window.innerWidth <= 768) {
+      return;
+    }
+
+    event.preventDefault();
+    setIsResizingSidebar(true);
+  };
+
+  const handleSidebarScroll = () => {
+    setIsSidebarScrolling(true);
+
+    if (sidebarScrollTimeoutRef.current !== null) {
+      window.clearTimeout(sidebarScrollTimeoutRef.current);
+    }
+
+    sidebarScrollTimeoutRef.current = window.setTimeout(() => {
+      setIsSidebarScrolling(false);
+      sidebarScrollTimeoutRef.current = null;
+    }, 700);
+  };
+
+  const handleSidebarResizerKeyDown = (
+    event: KeyboardEvent<HTMLDivElement>
+  ) => {
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      event.preventDefault();
+      setSidebarWidth((width) =>
+        clampSidebarWidth(
+          width +
+            (event.key === 'ArrowRight'
+              ? SIDEBAR_KEYBOARD_STEP
+              : -SIDEBAR_KEYBOARD_STEP)
+        )
+      );
+    }
+
+    if (event.key === 'Home') {
+      event.preventDefault();
+      setSidebarWidth(SIDEBAR_MIN_WIDTH);
+    }
+
+    if (event.key === 'End') {
+      event.preventDefault();
+      setSidebarWidth(SIDEBAR_MAX_WIDTH);
+    }
+
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      setSidebarWidth(SIDEBAR_DEFAULT_WIDTH);
+    }
+  };
+
+  const sidebarStyle = {
+    '--docs-sidebar-width': `${sidebarWidth}px`,
+  } as CSSProperties;
 
   // Portal the sidebar toggle to document.body so it sits OUTSIDE any
   // ancestor's stacking context, AND fully unmount it while the drawer
@@ -211,7 +349,14 @@ function Docs() {
         <div className="sidebar-overlay" onClick={closeSidebar}></div>
       )}
 
-      <aside className={`docs-sidebar ${isSidebarOpen ? 'open' : ''}`}>
+      <aside
+        ref={sidebarRef}
+        className={`docs-sidebar ${isSidebarOpen ? 'open' : ''} ${
+          isResizingSidebar ? 'is-resizing' : ''
+        } ${isSidebarScrolling ? 'is-sidebar-scrolling' : ''}`}
+        style={sidebarStyle}
+        onScroll={handleSidebarScroll}
+      >
         <nav className="docs-nav">
           <ul>
             <li>
@@ -630,15 +775,15 @@ function Docs() {
                 iOS Setup
               </NavLink>
             </li>
-            <MenuDropdown
-              title="Android Setup"
-              titleTo="/docs/android-setup"
-              items={[
-                { to: '/docs/horizon-setup', label: 'Horizon OS' },
-                { to: '/docs/fireos-setup', label: 'Fire OS' },
-              ]}
-              onItemClick={closeSidebar}
-            />
+            <li>
+              <NavLink
+                to="/docs/android-setup"
+                className={({ isActive }) => (isActive ? 'active' : '')}
+                onClick={closeSidebar}
+              >
+                Android Setup
+              </NavLink>
+            </li>
             <MenuDropdown
               title="Framework Setup"
               titleTo="/docs/setup"
@@ -646,6 +791,25 @@ function Docs() {
                 to: library.setupPath,
                 label: library.frameworkName,
               }))}
+              onItemClick={closeSidebar}
+            />
+            <MenuDropdown
+              title="Store Setup"
+              titleTo="/docs/setup/store"
+              items={[
+                {
+                  to: '/docs/setup/store/horizon',
+                  label: 'Horizon OS',
+                },
+                {
+                  to: '/docs/setup/store/amazon',
+                  label: 'Amazon',
+                },
+                {
+                  to: '/docs/setup/store/onside',
+                  label: 'Onside',
+                },
+              ]}
               onItemClick={closeSidebar}
             />
             <MenuDropdown
@@ -753,21 +917,6 @@ function Docs() {
                 Debugging
               </NavLink>
             </li>
-            <MenuDropdown
-              title="Runtime Integrations"
-              titleTo="/docs/features/runtime-integrations"
-              items={[
-                {
-                  to: '/docs/features/alternative-marketplace/onside',
-                  label: 'Onside',
-                },
-                {
-                  to: '/docs/features/vega-os',
-                  label: 'Vega OS',
-                },
-              ]}
-              onItemClick={closeSidebar}
-            />
             <li>
               <NavLink
                 to="/docs/features/discount"
@@ -830,6 +979,21 @@ function Docs() {
           </ul>
         </nav>
       </aside>
+      <div
+        className={`docs-sidebar-resizer ${
+          isResizingSidebar ? 'is-resizing' : ''
+        }`}
+        role="separator"
+        aria-label="Resize documentation navigation"
+        aria-orientation="vertical"
+        aria-valuemin={SIDEBAR_MIN_WIDTH}
+        aria-valuemax={SIDEBAR_MAX_WIDTH}
+        aria-valuenow={sidebarWidth}
+        tabIndex={0}
+        onPointerDown={startSidebarResize}
+        onDoubleClick={() => setSidebarWidth(SIDEBAR_DEFAULT_WIDTH)}
+        onKeyDown={handleSidebarResizerKeyDown}
+      />
       <main className="docs-content">
         <Routes>
           <Route
@@ -1222,23 +1386,48 @@ function Docs() {
           <Route path="features/validation" element={<Validation />} />
           <Route path="features/debugging" element={<Debugging />} />
           <Route
+            path="features/store-integrations"
+            element={<NavigatePreservingHash to="/docs/setup/store" />}
+          />
+          <Route
             path="features/runtime-integrations"
-            element={<RuntimeIntegrations />}
+            element={<NavigatePreservingHash to="/docs/setup/store" />}
           />
           <Route
             path="features/alternative-marketplace"
-            element={<AlternativeMarketplace />}
+            element={<NavigatePreservingHash to="/docs/setup/store/onside" />}
           />
           <Route
             path="features/alternative-marketplace/onside"
-            element={<AlternativeMarketplaceOnside />}
+            element={<NavigatePreservingHash to="/docs/setup/store/onside" />}
           />
-          <Route path="features/vega-os" element={<VegaOSRuntime />} />
+          <Route
+            path="features/horizon-os"
+            element={<NavigatePreservingHash to="/docs/setup/store/horizon" />}
+          />
+          <Route
+            path="features/fire-os"
+            element={<Navigate to="/docs/setup/store/amazon#fire-os" replace />}
+          />
+          <Route
+            path="features/vega-os"
+            element={<Navigate to="/docs/setup/store/amazon#vega-os" replace />}
+          />
           <Route path="ios-setup" element={<IOSSetup />} />
           <Route path="android-setup" element={<AndroidSetup />} />
-          <Route path="horizon-setup" element={<HorizonSetup />} />
-          <Route path="fireos-setup" element={<FireOSSetup />} />
+          <Route
+            path="horizon-setup"
+            element={<NavigatePreservingHash to="/docs/setup/store/horizon" />}
+          />
+          <Route
+            path="fireos-setup"
+            element={<Navigate to="/docs/setup/store/amazon#fire-os" replace />}
+          />
           <Route path="setup" element={<SetupIndex />} />
+          <Route path="setup/store" element={<StoreSetup />} />
+          <Route path="setup/store/horizon" element={<HorizonStoreSetup />} />
+          <Route path="setup/store/amazon" element={<AmazonStoreSetup />} />
+          <Route path="setup/store/onside" element={<OnsideStoreSetup />} />
           <Route path="setup/react-native" element={<ReactNativeSetup />} />
           <Route path="setup/expo" element={<ExpoSetup />} />
           <Route path="setup/flutter" element={<FlutterSetup />} />

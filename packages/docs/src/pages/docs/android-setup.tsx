@@ -25,16 +25,11 @@ function AndroidSetup() {
           margin: '1rem 0',
         }}
       >
-        <strong>📱 Building for Meta Quest?</strong> Also see the{' '}
-        <a href="/docs/horizon-setup" className="external-link">
-          Horizon OS Setup Guide
-        </a>{' '}
-        for Quest-specific configuration using the same Android SDK. For Amazon
-        Fire OS distribution, see the{' '}
-        <a href="/docs/fireos-setup" className="external-link">
-          Fire OS Setup Guide
+        <strong>📱 Building for another Android-compatible store?</strong> See{' '}
+        <a href="/docs/setup/store" className="external-link">
+          Store Setup
         </a>
-        .
+        for Horizon OS, Fire OS, Vega OS, and alternative marketplace targets.
       </div>
 
       <section>

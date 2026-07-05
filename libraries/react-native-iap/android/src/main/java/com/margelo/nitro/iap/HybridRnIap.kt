@@ -1477,7 +1477,7 @@ class HybridRnIap : HybridRnIapSpec() {
                 val propsMap = mutableMapOf<String, Any?>("provider" to providerString)
                 (params.iapkit as? Variant_NullType_NitroVerifyPurchaseWithIapkitProps.Second)?.value?.let { iapkit ->
                     val iapkitMap = mutableMapOf<String, Any?>()
-                    // Use provided apiKey, or fallback to AndroidManifest meta-data (set by config plugin)
+                    // Use provided apiKey, or fallback to host app AndroidManifest meta-data.
                     val apiKey = iapkit.apiKey.unwrapString() ?: getIapkitApiKeyFromManifest()
                     apiKey?.let { iapkitMap["apiKey"] = it }
                     (iapkit.google as? Variant_NullType_NitroVerifyPurchaseWithIapkitGoogleProps.Second)?.value?.let { google ->
@@ -2025,8 +2025,8 @@ class HybridRnIap : HybridRnIapSpec() {
     }
 
     /**
-     * Read IAPKit API key from AndroidManifest.xml meta-data (set by config plugin).
-     * Config plugin sets: <meta-data android:name="dev.iapkit.API_KEY" android:value="..." />
+     * Read IAPKit API key from AndroidManifest.xml meta-data.
+     * Host app sets: <meta-data android:name="dev.iapkit.API_KEY" android:value="..." />
      */
     private fun getIapkitApiKeyFromManifest(): String? {
         return try {

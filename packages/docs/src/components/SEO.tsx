@@ -38,7 +38,7 @@ function SEO({
     description: pageDescription,
     url: canonicalUrl,
     applicationCategory: 'DeveloperApplication',
-    operatingSystem: 'iOS, Android, visionOS, Horizon OS',
+    operatingSystem: 'iOS, Android, visionOS, Horizon OS, Fire OS, Vega OS',
     offers: {
       '@type': 'Offer',
       price: '0',

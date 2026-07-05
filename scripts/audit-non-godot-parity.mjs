@@ -1179,7 +1179,7 @@ function checkFrameworkDependencyHygiene() {
     'https://openiap.dev/docs/setup/expo',
     'https://openiap.dev/docs/guides/ai-assistants',
     'https://openiap.dev/llms.txt',
-    'https://openiap.dev/docs/features/alternative-marketplace/onside',
+    'https://openiap.dev/docs/setup/store/onside',
     'https://github.com/hyodotdev/openiap/discussions/categories/expo-iap',
     'https://openiap.dev/sponsors/nami.webp',
     'https://openiap.dev/sponsors/courier.webp',
@@ -2591,11 +2591,11 @@ function checkFrameworkDependencyHygiene() {
       'minSdkVersion {ANDROID_SDK.minSdk}+',
       'compileSdkVersion {ANDROID_SDK.compileSdk}+',
     ], 'React Native setup Android requirements');
-    expectIncludes('packages/docs/src/pages/docs/horizon-setup.tsx', [
+    expectIncludes('packages/docs/src/pages/docs/setup/store/horizon.tsx', [
       'OPENIAP_VERSIONS',
       'OPENIAP_VERSIONS.google',
     ], 'Horizon setup docs must use current openiap-google version metadata');
-    expectNotIncludes('packages/docs/src/pages/docs/horizon-setup.tsx', [
+    expectNotIncludes('packages/docs/src/pages/docs/setup/store/horizon.tsx', [
       'openiap-google@1.3.2',
     ], 'Horizon setup docs must not hardcode stale openiap-google versions');
     expectNotIncludes('packages/docs/src/pages/docs/setup/react-native.tsx', [

@@ -73,7 +73,7 @@
        the binding projects out of the generated nuspec dependencies; this package
        intentionally ships as the single public NuGet ID, OpenIap.Maui. -->
   <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
-    <ProjectReference Include="..\OpenIap.Maui.Bindings.Android\OpenIap.Maui.Bindings.Android.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\OpenIap.Maui.Bindings.Android\OpenIap.Maui.Bindings.Android.csproj" PrivateAssets="all" OutputItemType="Reference" />
     <PackageReference Include="Xamarin.Android.Google.BillingClient" Version="$(MauiBillingClientNuGetVersion)" />
     <PackageReference Include="GoogleGson" Version="$(MauiGoogleGsonNuGetVersion)" />
     <PackageReference Include="Xamarin.AndroidX.Activity.Ktx" Version="$(MauiAndroidXActivityVersion)" />

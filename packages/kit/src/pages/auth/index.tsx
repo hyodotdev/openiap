@@ -116,22 +116,8 @@ export default function AuthenticatedPages() {
         {docsChildRoutes}
       </Route>
       <Route path="blog" element={<BlogLayout />}>
-        <Route
-          index
-          element={
-            <PageWithTitle title="IAPKit Blog">
-              <BlogIndex />
-            </PageWithTitle>
-          }
-        />
-        <Route
-          path="iapkit-joins-openiap"
-          element={
-            <PageWithTitle title="IAPKit joins OpenIAP">
-              <IapkitJoinsOpenIap />
-            </PageWithTitle>
-          }
-        />
+        <Route index element={<BlogIndex />} />
+        <Route path="iapkit-joins-openiap" element={<IapkitJoinsOpenIap />} />
       </Route>
       <Route
         path="about"

@@ -88,13 +88,6 @@
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
-  <url>
-    <loc>https://openiap.dev/docs/horizon-setup</loc>
-    <lastmod>2026-02-11</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-
   <!-- Features -->
   <url>
     <loc>https://openiap.dev/docs/features/purchase</loc>
@@ -119,6 +112,30 @@
     <lastmod>2026-02-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://openiap.dev/docs/setup/store</loc>
+    <lastmod>2026-07-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://openiap.dev/docs/setup/store/horizon</loc>
+    <lastmod>2026-07-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://openiap.dev/docs/setup/store/amazon</loc>
+    <lastmod>2026-07-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://openiap.dev/docs/setup/store/onside</loc>
+    <lastmod>2026-07-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
   </url>
   <url>
     <loc>https://openiap.dev/docs/features/subscription-upgrade-downgrade</loc>
