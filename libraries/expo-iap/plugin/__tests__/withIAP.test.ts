@@ -25,12 +25,11 @@ import {
 
 // Type-level expectations
 const autoModeOptions: ExpoIapPluginCommonOptions = {
-  modules: {onside: true},
-  android: {amazon: {fireOS: false, vegaOS: false}},
+  modules: {onside: true, amazon: {fireOS: false, vegaOS: false}},
 };
 
 const groupedAmazonOptions: ExpoIapPluginCommonOptions = {
-  android: {amazon: {fireOS: true, vegaOS: true}},
+  modules: {amazon: {fireOS: true, vegaOS: true}},
 };
 
 const explicitModeOptions: ExpoIapPluginCommonOptions = {
@@ -210,7 +209,7 @@ describe('android configuration', () => {
   it('allows Fire OS and Vega OS to be enabled as Amazon targets', () => {
     expect(
       resolveAmazonPlatformFlags({
-        android: {amazon: {fireOS: true, vegaOS: true}},
+        modules: {amazon: {fireOS: true, vegaOS: true}},
       }),
     ).toEqual({
       isFireOsEnabled: true,
@@ -238,8 +237,6 @@ describe('android configuration', () => {
       resolveAmazonPlatformFlags({
         modules: {
           horizon: true,
-        },
-        android: {
           amazon: {fireOS: true, vegaOS: false},
         },
       }),
@@ -302,7 +299,7 @@ describe('android configuration', () => {
     try {
       expect(
         resolveAmazonPlatformFlags({
-          android: {amazon: {fireOS: false}},
+          modules: {amazon: {fireOS: false}},
         }),
       ).toEqual({
         isFireOsEnabled: false,
@@ -319,10 +316,10 @@ describe('android configuration', () => {
     }
   });
 
-  it('keeps legacy modules.amazon as a fallback', () => {
+  it('keeps deprecated android.amazon flags as a fallback', () => {
     expect(
       resolveAmazonPlatformFlags({
-        modules: {amazon: {fireOS: true, vegaOS: true}},
+        android: {amazon: {fireOS: true, vegaOS: true}},
       }),
     ).toEqual({
       isFireOsEnabled: true,
@@ -349,12 +346,12 @@ describe('android configuration', () => {
       resolveVegaProjectOptions({
         android: {
           amazon: {
-            vegaOS: true,
             vega: {
               packageId: 'dev.example.vega',
             },
           },
         },
+        modules: {amazon: {vegaOS: true}},
       }),
     ).toEqual({packageId: 'dev.example.vega'});
   });

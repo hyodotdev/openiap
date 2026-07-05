@@ -48,13 +48,12 @@ function Releases() {
               color: 'var(--text-secondary)',
             }}
           >
-            Publishes Expo prereleases that group Android Amazon targets under{' '}
-            <code>android.amazon</code>. Expo apps should configure{' '}
-            <code>android.amazon.fireOS</code> and{' '}
-            <code>android.amazon.vegaOS</code>; top-level <code>amazon</code>{' '}
-            plugin options are not part of the config shape, and the older{' '}
-            <code>modules.amazon</code> path is kept only as a compatibility
-            fallback. React Native remains a bare RN/Nitro package that selects
+            Publishes Expo prereleases that group optional store modules under{' '}
+            <code>modules</code>. Expo apps should configure{' '}
+            <code>modules.amazon.fireOS</code> and{' '}
+            <code>modules.amazon.vegaOS</code>; <code>android.amazon</code>{' '}
+            remains for Android-specific details such as optional Vega metadata
+            overrides. React Native remains a bare RN/Nitro package that selects
             Fire OS through Android Gradle and Vega OS through a separate React
             Native for Vega target. Amazon targets are available in the current{' '}
             <code>next</code> / <code>rc</code> package versions while this
@@ -68,14 +67,14 @@ function Releases() {
       modules: {
         onside: true,
         horizon: true,
+        amazon: {
+          fireOS: true,
+          vegaOS: true,
+        },
       },
       android: {
         horizon: {
           appId: 'YOUR_HORIZON_APP_ID',
-        },
-        amazon: {
-          fireOS: true,
-          vegaOS: true,
         },
       },
     },
@@ -91,7 +90,7 @@ function Releases() {
           >
             <li>
               <strong>Expo config plugin</strong> — <code>expo-iap</code> now
-              resolves Fire OS and Vega OS from <code>android.amazon</code>,
+              resolves Fire OS and Vega OS from <code>modules.amazon</code>,
               resolves Horizon app ids from <code>android.horizon.appId</code>,
               and derives Vega metadata from the Expo config unless{' '}
               <code>android.amazon.vega</code> overrides are provided.

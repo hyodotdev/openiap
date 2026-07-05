@@ -66,7 +66,8 @@ function AmazonStoreSetup() {
               <td>
                 Vega <code>title</code>, <code>appName</code>, and{' '}
                 <code>icon</code>. In Expo these default from the Expo config
-                unless <code>android.amazon.vega</code> overrides are provided.
+                unless optional <code>android.amazon.vega</code> overrides are
+                provided.
               </td>
             </tr>
             <tr>
@@ -165,11 +166,11 @@ function AmazonStoreSetup() {
             <tr>
               <td>Expo</td>
               <td>
-                <code>android.amazon.fireOS</code> in the <code>expo-iap</code>{' '}
+                <code>modules.amazon.fireOS</code> in the <code>expo-iap</code>{' '}
                 config plugin.
               </td>
               <td>
-                <code>android.amazon.vegaOS</code>, with optional{' '}
+                <code>modules.amazon.vegaOS</code>, with optional{' '}
                 <code>android.amazon.vega</code> metadata overrides.
               </td>
             </tr>
@@ -251,7 +252,7 @@ android {
   [
     'expo-iap',
     {
-      android: {
+      modules: {
         amazon: {
           fireOS: true,
         },
@@ -340,16 +341,22 @@ dotnet build -f net9.0-android -p:OpenIapAndroidStore=amazon`}</CodeBlock>
         <p>
           Expo can prepare the Vega target from config. <code>fireOS</code> and
           <code>vegaOS</code> can both be present, but they still produce
-          separate artifacts.
+          separate artifacts. Keep the enable flags in{' '}
+          <code>modules.amazon</code>; use <code>android.amazon.vega</code> only
+          when Vega metadata needs to differ from the normal Expo app config.
         </p>
         <CodeBlock language="typescript">{`plugins: [
   [
     'expo-iap',
     {
-      android: {
+      modules: {
         amazon: {
           fireOS: true,
           vegaOS: true,
+        },
+      },
+      android: {
+        amazon: {
           vega: {
             packageId: 'dev.your.app',
             title: 'Your App',

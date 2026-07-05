@@ -747,7 +747,6 @@ export interface ExpoIapPluginOptions {
     /**
      * Amazon platform targets. Fire OS and Vega OS can both be enabled in the
      * same config, but they still produce separate build artifacts.
-     * @deprecated Use android.amazon instead.
      */
     amazon?: AmazonPlatformOptions;
   };
@@ -785,9 +784,19 @@ export interface ExpoIapPluginOptions {
      */
     horizonAppId?: string;
     /**
-     * Amazon Android targets and Vega project generation overrides.
+     * Amazon Android and Vega project generation overrides.
      */
-    amazon?: AmazonPlatformOptions & {
+    amazon?: {
+      /**
+       * Enable Fire OS support for Amazon-distributed Android builds.
+       * @deprecated Use modules.amazon.fireOS instead.
+       */
+      fireOS?: boolean;
+      /**
+       * Enable Vega OS project generation for Amazon's Kepler runtime.
+       * @deprecated Use modules.amazon.vegaOS instead.
+       */
+      vegaOS?: boolean;
       /**
        * Vega-specific project generation overrides. All fields are optional;
        * packageId, title, appName, and icon default from the Expo config.
@@ -823,14 +832,14 @@ export function resolveAmazonPlatformFlags(
   options?: AmazonPlatformFlagOptions | void,
 ): AmazonPlatformFlags {
   const androidAmazon = options?.android?.amazon;
-  const legacyModuleAmazon = options?.modules?.amazon;
+  const moduleAmazon = options?.modules?.amazon;
   const isFireOsEnabled =
+    moduleAmazon?.fireOS ??
     androidAmazon?.fireOS ??
-    legacyModuleAmazon?.fireOS ??
     isEnvFlagEnabled('EXPO_IAP_FIREOS');
   const isVegaEnabled =
+    moduleAmazon?.vegaOS ??
     androidAmazon?.vegaOS ??
-    legacyModuleAmazon?.vegaOS ??
     isEnvFlagEnabled('EXPO_IAP_VEGA');
   const isHorizonEnabled = isFireOsEnabled
     ? false

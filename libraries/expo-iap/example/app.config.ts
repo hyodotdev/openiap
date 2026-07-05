@@ -49,16 +49,16 @@ export default ({config}: ConfigContext): ExpoConfig => {
           onside: isOnsideEnabled,
           // Horizon module: Android only (Meta Quest/VR devices)
           horizon: isHorizonEnabled,
+          // Amazon modules: Fire OS Android flavor and Vega OS runtime target
+          amazon: {
+            fireOS: isFireOsEnabled,
+            vegaOS: isVegaEnabled,
+          },
         },
         android: {
           // Horizon App ID for Meta Quest/VR devices (required when modules.horizon is true)
           horizon: {
             appId: '31705015229097839',
-          },
-          // Amazon targets: Fire OS Android flavor and Vega OS runtime target
-          amazon: {
-            fireOS: isFireOsEnabled,
-            vegaOS: isVegaEnabled,
           },
         },
         ios: {

@@ -286,15 +286,15 @@ cd ios && pod install`}
           "iapkitApiKey": "openiap-kit_<your-key>",
           "modules": {
             "onside": true,
-            "horizon": true
+            "horizon": true,
+            "amazon": {
+              "fireOS": false,
+              "vegaOS": false
+            }
           },
           "android": {
             "horizon": {
               "appId": "YOUR_HORIZON_APP_ID"
-            },
-            "amazon": {
-              "fireOS": false,
-              "vegaOS": false
             }
           }
         }
@@ -304,13 +304,15 @@ cd ios && pod install`}
 }`}
         </CodeBlock>
         <p>
-          Optional Onside and Horizon modules are grouped under{' '}
-          <code>modules</code>. Android store targets are grouped under{' '}
-          <code>android.amazon</code>. <code>android.amazon.fireOS</code>{' '}
-          selects the Android Amazon Appstore flavor, while{' '}
-          <code>android.amazon.vegaOS</code> prepares Kepler/Vega project files.
+          Optional Onside, Horizon, and Amazon modules are grouped under{' '}
+          <code>modules</code>. <code>modules.amazon.fireOS</code> selects the
+          Android Amazon Appstore flavor, while{' '}
+          <code>modules.amazon.vegaOS</code> prepares Kepler/Vega project files.
           They can both be <code>true</code> in one config, but Fire OS and Vega
-          OS are still built as separate artifacts.
+          OS are still built as separate artifacts. Android-specific details
+          such as <code>android.horizon.appId</code> and optional{' '}
+          <code>android.amazon.vega</code> metadata stay under{' '}
+          <code>android</code>.
         </p>
         <p>
           Amazon Fire OS and Vega OS support is currently available from the{' '}
@@ -320,7 +322,7 @@ cd ios && pod install`}
         <p>
           Vega OS support uses optional peer dependencies. Install Amazon's Vega
           IAP package only in the Vega app target. When{' '}
-          <code>android.amazon.vegaOS</code> is enabled, the plugin keeps the
+          <code>modules.amazon.vegaOS</code> is enabled, the plugin keeps the
           Kepler CLI, Metro, and Babel packages available for{' '}
           <code>build-vega</code>, but syncs{' '}
           <code>@amazon-devices/react-native-kepler</code> as an{' '}
@@ -367,7 +369,7 @@ cd ios && pod install`}
             </tr>
             <tr>
               <td>
-                <code>android.amazon.fireOS</code>
+                <code>modules.amazon.fireOS</code>
               </td>
               <td>boolean</td>
               <td>
@@ -377,7 +379,7 @@ cd ios && pod install`}
             </tr>
             <tr>
               <td>
-                <code>android.amazon.vegaOS</code>
+                <code>modules.amazon.vegaOS</code>
               </td>
               <td>boolean</td>
               <td>
