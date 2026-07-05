@@ -1706,6 +1706,8 @@ function SubscriptionFlowContainer() {
         );
 
         // Step 6: finish transaction (restoration)
+        const finishCleanupKey = getPurchaseCleanupKey(purchase);
+        cleanupPurchaseKeysRef.current.add(finishCleanupKey);
         try {
           await finishTransaction({
             purchase,
@@ -1719,6 +1721,7 @@ function SubscriptionFlowContainer() {
             )}`,
           );
           console.log('finishTransaction failed during restoration:', error);
+          cleanupPurchaseKeysRef.current.delete(finishCleanupKey);
         }
 
         console.log('✅ Subscription restoration completed');
@@ -1860,6 +1863,8 @@ function SubscriptionFlowContainer() {
       // Subscriptions are NOT consumable (isConsumable: false)
       // ------------------------------------------------------------
       let didFinishTransaction = false;
+      const finishCleanupKey = getPurchaseCleanupKey(purchase);
+      cleanupPurchaseKeysRef.current.add(finishCleanupKey);
       try {
         await finishTransaction({
           purchase,
@@ -1874,6 +1879,7 @@ function SubscriptionFlowContainer() {
           )}`,
         );
         console.log('finishTransaction failed (new purchase):', error);
+        cleanupPurchaseKeysRef.current.delete(finishCleanupKey);
       }
 
       if (didFinishTransaction) {

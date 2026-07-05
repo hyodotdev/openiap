@@ -949,6 +949,8 @@ function PurchaseFlowContainer() {
       // IMPORTANT: Must call finishTransaction to complete the purchase
       // ------------------------------------------------------------
       let didFinishTransaction = false;
+      const finishCleanupKey = getPurchaseCleanupKey(purchase);
+      cleanupPurchaseKeysRef.current.add(finishCleanupKey);
       try {
         await finishTransaction({
           purchase,
@@ -964,6 +966,7 @@ function PurchaseFlowContainer() {
           `Purchase completed, but finishTransaction failed: ${message}`,
         );
         console.log('[PurchaseFlow] finishTransaction failed:', error);
+        cleanupPurchaseKeysRef.current.delete(finishCleanupKey);
       }
 
       // ------------------------------------------------------------

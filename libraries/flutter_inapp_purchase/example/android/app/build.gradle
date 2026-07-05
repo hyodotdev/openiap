@@ -9,7 +9,7 @@ plugins {
 apply from: rootProject.file('../../android/openiap-android-sdk.gradle')
 
 def openIapCompileSdkVersion = openIapResolveAndroidSdkVersion('compileSdkVersion', 'compileSdk', 35)
-def openIapMinSdkVersion = openIapResolveAndroidSdkVersion('minSdkVersion', 'minSdk', 23)
+def openIapMinSdkVersion = Math.max(openIapResolveAndroidSdkVersion('minSdkVersion', 'minSdk', 23), 24)
 def openIapTargetSdkVersion = openIapResolveAndroidSdkVersion('targetSdkVersion', 'compileSdk', 35)
 def openIapJunitVersion = openIapResolveDependencyVersion('junit:junit', 'openIapJunitVersion')
 def openIapAndroidTestRunnerVersion = openIapResolveDependencyVersion('androidx.test:runner', 'openIapAndroidTestRunnerVersion')
@@ -43,7 +43,7 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
-    lintOptions {
+    lint {
         disable 'InvalidPackage'
     }
 

@@ -1907,6 +1907,8 @@ function SubscriptionFlowContainer() {
         const started = Date.now();
         const tryFinish = () => {
           if (connectedRef.current) {
+            const finishCleanupKey = getPurchaseCleanupKey(purchase);
+            cleanupPurchaseKeysRef.current.add(finishCleanupKey);
             finishTransaction({
               purchase,
               isConsumable,
@@ -1930,6 +1932,7 @@ function SubscriptionFlowContainer() {
                   '[SubscriptionFlow] Delayed finishTransaction failed:',
                   err,
                 );
+                cleanupPurchaseKeysRef.current.delete(finishCleanupKey);
               });
             return;
           }
@@ -1939,6 +1942,8 @@ function SubscriptionFlowContainer() {
         };
         setTimeout(tryFinish, 500);
       } else {
+        const finishCleanupKey = getPurchaseCleanupKey(purchase);
+        cleanupPurchaseKeysRef.current.add(finishCleanupKey);
         try {
           await finishTransaction({
             purchase,
@@ -1956,6 +1961,7 @@ function SubscriptionFlowContainer() {
           setPurchaseResult(
             `Subscription activated, but finishTransaction failed: ${message}`,
           );
+          cleanupPurchaseKeysRef.current.delete(finishCleanupKey);
           console.log('[SubscriptionFlow] finishTransaction failed:', message);
         }
       }
