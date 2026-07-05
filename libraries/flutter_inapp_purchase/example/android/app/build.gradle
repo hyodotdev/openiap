@@ -9,7 +9,7 @@ plugins {
 apply from: rootProject.file('../../android/openiap-android-sdk.gradle')
 
 def openIapCompileSdkVersion = openIapResolveAndroidSdkVersion('compileSdkVersion', 'compileSdk', 35)
-def openIapResolvedMinSdkVersion = openIapResolveAndroidSdkVersion('minSdkVersion', 'minSdk', 23) as Integer
+def openIapResolvedMinSdkVersion = (openIapResolveAndroidSdkVersion('minSdkVersion', 'minSdk', 23) ?: 23) as Integer
 def openIapTargetSdkVersion = openIapResolveAndroidSdkVersion('targetSdkVersion', 'compileSdk', 35)
 def openIapJunitVersion = openIapResolveDependencyVersion('junit:junit', 'openIapJunitVersion')
 def openIapAndroidTestRunnerVersion = openIapResolveDependencyVersion('androidx.test:runner', 'openIapAndroidTestRunnerVersion')

@@ -57,6 +57,12 @@ function isSubscriptionFlowProduct(productId: string): boolean {
   );
 }
 
+function formatPurchaseDate(transactionDate: Purchase['transactionDate']) {
+  return transactionDate
+    ? new Date(transactionDate).toLocaleDateString()
+    : 'N/A';
+}
+
 // Extended type for ActiveSubscription with additional fields that may be present
 // but are not officially part of the ActiveSubscription type definition.
 // These fields are either:
@@ -1643,6 +1649,7 @@ function SubscriptionFlowContainer() {
   const fetchedProductsOnceRef = useRef(false);
   const statusAutoCheckedRef = useRef(false);
   const cleanupPurchaseKeysRef = useRef(new Set<string>());
+  const mountedRef = useRef(true);
 
   // ──────────────────────────────────────────────────────────────────────────
   // STEP 1: INIT CONNECTION + SUBSCRIBE TO EVENTS
@@ -1737,7 +1744,7 @@ function SubscriptionFlowContainer() {
         `Subscription received; finishing transaction...\n` +
           `Product: ${purchase.productId}\n` +
           `Transaction ID: ${purchase.id}\n` +
-          `Date: ${new Date(purchase.transactionDate).toLocaleDateString()}`,
+          `Date: ${formatPurchaseDate(purchase.transactionDate)}`,
       );
 
       // ──────────────────────────────────────────────────────────────────────
@@ -1908,6 +1915,11 @@ function SubscriptionFlowContainer() {
         );
         const started = Date.now();
         const tryFinish = async () => {
+          if (!mountedRef.current) {
+            cleanupPurchaseKeysRef.current.delete(finishCleanupKey);
+            return;
+          }
+
           if (connectedRef.current) {
             try {
               await finishTransaction({
@@ -1918,9 +1930,7 @@ function SubscriptionFlowContainer() {
                 `Subscription activated and finished successfully.\n` +
                   `Product: ${purchase.productId}\n` +
                   `Transaction ID: ${purchase.id}\n` +
-                  `Date: ${new Date(
-                    purchase.transactionDate,
-                  ).toLocaleDateString()}`,
+                  `Date: ${formatPurchaseDate(purchase.transactionDate)}`,
               );
             } catch (err) {
               const message = getErrorMessage(err);
@@ -1957,7 +1967,7 @@ function SubscriptionFlowContainer() {
             `Subscription activated and finished successfully.\n` +
               `Product: ${purchase.productId}\n` +
               `Transaction ID: ${purchase.id}\n` +
-              `Date: ${new Date(purchase.transactionDate).toLocaleDateString()}`,
+              `Date: ${formatPurchaseDate(purchase.transactionDate)}`,
           );
         } catch (err) {
           const message = getErrorMessage(err);
@@ -2007,6 +2017,12 @@ function SubscriptionFlowContainer() {
       showNativeAlert('Subscription Failed', error.message);
     },
   });
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     connectedRef.current = connected;
