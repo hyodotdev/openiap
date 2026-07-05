@@ -1896,6 +1896,8 @@ function SubscriptionFlowContainer() {
       // - Subscriptions are NOT consumable (isConsumable: false)
       const isConsumable = false;
       let didFinishTransaction = false;
+      const finishCleanupKey = getPurchaseCleanupKey(purchase);
+      cleanupPurchaseKeysRef.current.add(finishCleanupKey);
 
       if (!connectedRef.current) {
         console.log(
@@ -1905,45 +1907,46 @@ function SubscriptionFlowContainer() {
           'Subscription received, waiting for store connection to finish transaction.',
         );
         const started = Date.now();
-        const tryFinish = () => {
+        const tryFinish = async () => {
           if (connectedRef.current) {
-            const finishCleanupKey = getPurchaseCleanupKey(purchase);
-            cleanupPurchaseKeysRef.current.add(finishCleanupKey);
-            finishTransaction({
-              purchase,
-              isConsumable,
-            })
-              .then(() => {
-                setPurchaseResult(
-                  `Subscription activated and finished successfully.\n` +
-                    `Product: ${purchase.productId}\n` +
-                    `Transaction ID: ${purchase.id}\n` +
-                    `Date: ${new Date(
-                      purchase.transactionDate,
-                    ).toLocaleDateString()}`,
-                );
-              })
-              .catch((err) => {
-                const message = getErrorMessage(err);
-                setPurchaseResult(
-                  `Subscription activated, but finishTransaction failed: ${message}`,
-                );
-                console.log(
-                  '[SubscriptionFlow] Delayed finishTransaction failed:',
-                  err,
-                );
-                cleanupPurchaseKeysRef.current.delete(finishCleanupKey);
+            try {
+              await finishTransaction({
+                purchase,
+                isConsumable,
               });
+              setPurchaseResult(
+                `Subscription activated and finished successfully.\n` +
+                  `Product: ${purchase.productId}\n` +
+                  `Transaction ID: ${purchase.id}\n` +
+                  `Date: ${new Date(
+                    purchase.transactionDate,
+                  ).toLocaleDateString()}`,
+              );
+            } catch (err) {
+              const message = getErrorMessage(err);
+              setPurchaseResult(
+                `Subscription activated, but finishTransaction failed: ${message}`,
+              );
+              console.log(
+                '[SubscriptionFlow] Delayed finishTransaction failed:',
+                err,
+              );
+              cleanupPurchaseKeysRef.current.delete(finishCleanupKey);
+            }
             return;
           }
           if (Date.now() - started < 30000) {
-            setTimeout(tryFinish, 500);
+            setTimeout(() => {
+              void tryFinish();
+            }, 500);
+          } else {
+            cleanupPurchaseKeysRef.current.delete(finishCleanupKey);
           }
         };
-        setTimeout(tryFinish, 500);
+        setTimeout(() => {
+          void tryFinish();
+        }, 500);
       } else {
-        const finishCleanupKey = getPurchaseCleanupKey(purchase);
-        cleanupPurchaseKeysRef.current.add(finishCleanupKey);
         try {
           await finishTransaction({
             purchase,
