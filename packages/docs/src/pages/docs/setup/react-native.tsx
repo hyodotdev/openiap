@@ -237,23 +237,33 @@ end`}
         <CodeBlock language="bash">{`# In the Vega-only React Native for Vega target
 yarn add react-native-iap
 yarn add @amazon-devices/keplerscript-appstore-iap-lib@~2.12.13 @amazon-devices/react-native-kepler@^2.0.0
-yarn add -D @amazon-devices/kepler-cli-platform@~0.22.0 @react-native-community/cli@11.3.2 @react-native/metro-config@^0.72.6`}</CodeBlock>
+yarn add -D @amazon-devices/kepler-cli-platform@~0.22.0 @react-native-community/cli@<vega-cli-compatible-version> @react-native/metro-config@<matching-react-native-version>`}</CodeBlock>
         <p>
           A Vega-only package manifest can keep the React Native for Vega
           runtime as a direct dependency because that manifest is not used by
-          normal iOS or Android builds:
+          normal iOS or Android builds. Check the{' '}
+          <a
+            href="https://developer.amazon.com/docs/vega/0.23/vega-release-notes.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="external-link"
+          >
+            Vega SDK release notes
+          </a>{' '}
+          before copying package versions so the Vega target matches the
+          currently supported React Native for Vega release:
         </p>
         <CodeBlock language="json">{`{
   "dependencies": {
     "@amazon-devices/keplerscript-appstore-iap-lib": "~2.12.13",
     "@amazon-devices/react-native-kepler": "^2.0.0",
     "react": "18.2.0",
-    "react-native": "0.72.0"
+    "react-native": "<react-native-for-vega-version>"
   },
   "devDependencies": {
     "@amazon-devices/kepler-cli-platform": "~0.22.0",
-    "@react-native-community/cli": "11.3.2",
-    "@react-native/metro-config": "^0.72.6"
+    "@react-native-community/cli": "<vega-cli-compatible-version>",
+    "@react-native/metro-config": "<matching-react-native-version>"
   },
   "kepler": {
     "projectType": "application",
@@ -264,8 +274,8 @@ yarn add -D @amazon-devices/kepler-cli-platform@~0.22.0 @react-native-community/
 }`}</CodeBlock>
         <p>
           The repository example follows this isolation model by generating a
-          temporary React Native 0.72 Vega project before running{' '}
-          <code>react-native build-vega</code>:
+          temporary React Native for Vega project with the Vega-compatible
+          package set before running <code>react-native build-vega</code>:
         </p>
         <CodeBlock language="bash">{`cd libraries/react-native-iap/example
 yarn build:vega:debug

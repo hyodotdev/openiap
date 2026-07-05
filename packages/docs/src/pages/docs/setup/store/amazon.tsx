@@ -320,6 +320,19 @@ dotnet build -f net9.0-android -p:OpenIapAndroidStore=amazon`}</CodeBlock>
           Vega target so regular iOS, Android, Fire OS, and Horizon builds do
           not install Amazon Kepler packages.
         </p>
+        <p>
+          Check the{' '}
+          <a
+            href="https://developer.amazon.com/docs/vega/0.23/vega-release-notes.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="external-link"
+          >
+            Vega SDK release notes
+          </a>{' '}
+          for the current supported React Native for Vega version before
+          choosing Kepler package versions.
+        </p>
 
         <AnchorLink id="expo-vega-os" level="h3">
           Expo
@@ -368,7 +381,7 @@ dotnet build -f net9.0-android -p:OpenIapAndroidStore=amazon`}</CodeBlock>
         <CodeBlock language="bash">{`# In the Vega-only React Native target
 yarn add react-native-iap
 yarn add @amazon-devices/keplerscript-appstore-iap-lib@~2.12.13 @amazon-devices/react-native-kepler@^2.0.0
-yarn add -D @amazon-devices/kepler-cli-platform@~0.22.0 @react-native-community/cli@11.3.2 @react-native/metro-config@^0.72.6`}</CodeBlock>
+yarn add -D @amazon-devices/kepler-cli-platform@~0.22.0 @react-native-community/cli@<vega-cli-compatible-version> @react-native/metro-config@<matching-react-native-version>`}</CodeBlock>
         <CodeBlock language="toml">{`schema-version = 1
 
 [package]

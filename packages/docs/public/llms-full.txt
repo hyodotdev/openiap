@@ -191,7 +191,9 @@ Canonical setup docs live under `/docs/setup/store`:
   Onside. In Expo config plugin options, use `android.amazon.vegaOS=true`.
   Bare React Native Vega targets
   provide their own `manifest.toml`, Kepler package metadata, and runtime
-  dependencies.
+  dependencies. Check the Vega SDK release notes for the current supported
+  React Native for Vega version before choosing Kepler package versions:
+  https://developer.amazon.com/docs/vega/0.23/vega-release-notes.html
   `android.amazon.fireOS` and `android.amazon.vegaOS` can both be enabled
   when an app produces separate Fire OS and Vega OS artifacts.
   Required values: Vega `manifest.toml` package id, title, interactive
@@ -229,7 +231,10 @@ uses direct Gradle flavor selection for Fire OS and a separate Kepler target for
 Vega. Install
 `@amazon-devices/keplerscript-appstore-iap-lib` and let `react-native-iap`
 / `expo-iap` select the `kepler` adapter at runtime, similar to how Onside
-is selected at the runtime integration layer.
+is selected at the runtime integration layer. Check the Vega SDK release notes
+for the current supported React Native for Vega version before choosing Kepler
+package versions:
+https://developer.amazon.com/docs/vega/0.23/vega-release-notes.html
 
 ---
 

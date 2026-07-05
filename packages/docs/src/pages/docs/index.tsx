@@ -1,4 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import type {
+  CSSProperties,
+  KeyboardEvent,
+  PointerEvent as ReactPointerEvent,
+} from 'react';
 import { createPortal } from 'react-dom';
 import {
   Route,
@@ -146,9 +151,40 @@ function NavigatePreservingHash({ to }: { to: string }) {
   return <Navigate to={`${to}${hash || ''}`} replace />;
 }
 
+const SIDEBAR_WIDTH_STORAGE_KEY = 'openiap-docs-sidebar-width-v2';
+const SIDEBAR_DEFAULT_WIDTH = 340;
+const SIDEBAR_MIN_WIDTH = 300;
+const SIDEBAR_MAX_WIDTH = 480;
+const SIDEBAR_KEYBOARD_STEP = 16;
+
+function clampSidebarWidth(width: number) {
+  return Math.min(
+    SIDEBAR_MAX_WIDTH,
+    Math.max(SIDEBAR_MIN_WIDTH, Math.round(width))
+  );
+}
+
+function readSavedSidebarWidth() {
+  if (typeof window === 'undefined') {
+    return SIDEBAR_DEFAULT_WIDTH;
+  }
+
+  const saved = window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY);
+  const parsed = saved ? Number(saved) : Number.NaN;
+
+  return Number.isFinite(parsed)
+    ? clampSidebarWidth(parsed)
+    : SIDEBAR_DEFAULT_WIDTH;
+}
+
 function Docs() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(readSavedSidebarWidth);
+  const [isResizingSidebar, setIsResizingSidebar] = useState(false);
+  const [isSidebarScrolling, setIsSidebarScrolling] = useState(false);
+  const sidebarRef = useRef<HTMLElement | null>(null);
+  const sidebarScrollTimeoutRef = useRef<number | null>(null);
 
   const closeSidebar = () => setIsSidebarOpen(false);
 
@@ -160,6 +196,110 @@ function Docs() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      SIDEBAR_WIDTH_STORAGE_KEY,
+      String(sidebarWidth)
+    );
+  }, [sidebarWidth]);
+
+  useEffect(() => {
+    return () => {
+      if (sidebarScrollTimeoutRef.current !== null) {
+        window.clearTimeout(sidebarScrollTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isResizingSidebar) {
+      return;
+    }
+
+    const previousCursor = document.body.style.cursor;
+    const previousUserSelect = document.body.style.userSelect;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const sidebarLeft = sidebarRef.current?.getBoundingClientRect().left ?? 0;
+      setSidebarWidth(clampSidebarWidth(event.clientX - sidebarLeft));
+    };
+
+    const stopResizing = () => {
+      setIsResizingSidebar(false);
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', stopResizing);
+    window.addEventListener('pointercancel', stopResizing);
+
+    return () => {
+      document.body.style.cursor = previousCursor;
+      document.body.style.userSelect = previousUserSelect;
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', stopResizing);
+      window.removeEventListener('pointercancel', stopResizing);
+    };
+  }, [isResizingSidebar]);
+
+  const startSidebarResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (window.innerWidth <= 768) {
+      return;
+    }
+
+    event.preventDefault();
+    setIsResizingSidebar(true);
+  };
+
+  const handleSidebarScroll = () => {
+    setIsSidebarScrolling(true);
+
+    if (sidebarScrollTimeoutRef.current !== null) {
+      window.clearTimeout(sidebarScrollTimeoutRef.current);
+    }
+
+    sidebarScrollTimeoutRef.current = window.setTimeout(() => {
+      setIsSidebarScrolling(false);
+      sidebarScrollTimeoutRef.current = null;
+    }, 700);
+  };
+
+  const handleSidebarResizerKeyDown = (
+    event: KeyboardEvent<HTMLDivElement>
+  ) => {
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      event.preventDefault();
+      setSidebarWidth((width) =>
+        clampSidebarWidth(
+          width +
+            (event.key === 'ArrowRight'
+              ? SIDEBAR_KEYBOARD_STEP
+              : -SIDEBAR_KEYBOARD_STEP)
+        )
+      );
+    }
+
+    if (event.key === 'Home') {
+      event.preventDefault();
+      setSidebarWidth(SIDEBAR_MIN_WIDTH);
+    }
+
+    if (event.key === 'End') {
+      event.preventDefault();
+      setSidebarWidth(SIDEBAR_MAX_WIDTH);
+    }
+
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      setSidebarWidth(SIDEBAR_DEFAULT_WIDTH);
+    }
+  };
+
+  const sidebarStyle = {
+    '--docs-sidebar-width': `${sidebarWidth}px`,
+  } as CSSProperties;
 
   // Portal the sidebar toggle to document.body so it sits OUTSIDE any
   // ancestor's stacking context, AND fully unmount it while the drawer
@@ -209,7 +349,14 @@ function Docs() {
         <div className="sidebar-overlay" onClick={closeSidebar}></div>
       )}
 
-      <aside className={`docs-sidebar ${isSidebarOpen ? 'open' : ''}`}>
+      <aside
+        ref={sidebarRef}
+        className={`docs-sidebar ${isSidebarOpen ? 'open' : ''} ${
+          isResizingSidebar ? 'is-resizing' : ''
+        } ${isSidebarScrolling ? 'is-sidebar-scrolling' : ''}`}
+        style={sidebarStyle}
+        onScroll={handleSidebarScroll}
+      >
         <nav className="docs-nav">
           <ul>
             <li>
@@ -832,6 +979,21 @@ function Docs() {
           </ul>
         </nav>
       </aside>
+      <div
+        className={`docs-sidebar-resizer ${
+          isResizingSidebar ? 'is-resizing' : ''
+        }`}
+        role="separator"
+        aria-label="Resize documentation navigation"
+        aria-orientation="vertical"
+        aria-valuemin={SIDEBAR_MIN_WIDTH}
+        aria-valuemax={SIDEBAR_MAX_WIDTH}
+        aria-valuenow={sidebarWidth}
+        tabIndex={0}
+        onPointerDown={startSidebarResize}
+        onDoubleClick={() => setSidebarWidth(SIDEBAR_DEFAULT_WIDTH)}
+        onKeyDown={handleSidebarResizerKeyDown}
+      />
       <main className="docs-content">
         <Routes>
           <Route
