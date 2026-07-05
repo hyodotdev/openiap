@@ -1,5 +1,10 @@
 # Changelog
 
+## 9.4.0-rc.3 (2026-07-05)
+
+- Initial release
+
+
 ## 9.4.0-rc.2 (2026-07-05)
 
 - Initial release
