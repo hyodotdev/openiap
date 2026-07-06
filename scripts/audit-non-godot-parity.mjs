@@ -160,8 +160,14 @@ function expectNoMatch(relativePath, regex, label = relativePath) {
   expectFile(relativePath);
   if (!exists(relativePath)) return;
   const text = read(relativePath);
-  regex.lastIndex = 0;
-  if (regex.test(text)) {
+  let matched = false;
+  if (regex instanceof RegExp) {
+    regex.lastIndex = 0;
+    matched = regex.test(text);
+  } else {
+    matched = text.includes(regex);
+  }
+  if (matched) {
     fail(`${label} must not match ${regex}`);
   }
 }
