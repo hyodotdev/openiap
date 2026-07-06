@@ -160,6 +160,7 @@ function expectNoMatch(relativePath, regex, label = relativePath) {
   expectFile(relativePath);
   if (!exists(relativePath)) return;
   const text = read(relativePath);
+  regex.lastIndex = 0;
   if (regex.test(text)) {
     fail(`${label} must not match ${regex}`);
   }
@@ -1305,7 +1306,7 @@ function checkFrameworkDependencyHygiene() {
   ], 'Flutter changelog release SSOT links');
   expectNoMatch(
     'libraries/flutter_inapp_purchase/CHANGELOG.md',
-    /^## 9\.[^\n]*\n\n- Initial release$/m,
+    /^## 9\.[^\r\n]*\r?\n\r?\n- Initial release\r?$/m,
     'Flutter v9 changelog entries must not be placeholders',
   );
   expectIncludes('.github/workflows/release-flutter.yml', [
