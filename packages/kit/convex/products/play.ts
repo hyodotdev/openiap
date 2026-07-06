@@ -266,6 +266,13 @@ async function performAndroidSync(
     // AED happens to be a regional override. New endpoint runs
     // first; legacy only fills in skus the new endpoint missed.
     const seenOneTimeSkus = new Set<string>();
+    const existingTypeRows = await ctx.runQuery(
+      internal.products.sync.listExistingProductTypes,
+      { projectId: project._id, platform: "Android" },
+    );
+    const existingTypesByProductId = new Map(
+      existingTypeRows.map((row) => [row.productId, row.type]),
+    );
     try {
       // Defensive guard: the new monetization API isn't surfaced in
       // any typed shape by `googleapis` yet, so we cast through
@@ -388,13 +395,8 @@ async function performAndroidSync(
                   nanos: preferred.nanos,
                 })
               : undefined;
-            const existingType = await ctx.runQuery(
-              internal.products.sync.getExistingProductType,
-              {
-                projectId: project._id,
-                platform: "Android",
-                productId: product.productId,
-              },
+            const existingType = existingTypesByProductId.get(
+              product.productId,
             );
             await ctx.runMutation(internal.products.sync.upsertFromStore, {
               projectId: project._id,
@@ -405,7 +407,7 @@ async function performAndroidSync(
               // at purchase time. Preserve any kit-authored type so
               // pull-sync doesn't turn consumables into
               // non-consumables, and default only for first imports.
-              type: existingType ?? "NonConsumable",
+              type: preservePlayOneTimeType(existingType, "NonConsumable"),
               title: listing?.title ?? product.productId,
               description: listing?.description ?? undefined,
               priceAmountMicros,
@@ -445,19 +447,15 @@ async function performAndroidSync(
           if (seenOneTimeSkus.has(product.sku)) continue;
           seenOneTimeSkus.add(product.sku);
           if (product.purchaseType === "subscription") continue;
-          const existingType = await ctx.runQuery(
-            internal.products.sync.getExistingProductType,
-            {
-              projectId: project._id,
-              platform: "Android",
-              productId: product.sku,
-            },
-          );
+          const existingType = existingTypesByProductId.get(product.sku);
           await ctx.runMutation(internal.products.sync.upsertFromStore, {
             projectId: project._id,
             productId: product.sku,
             platform: "Android",
-            type: existingType ?? mapPlayOneTimeType(product),
+            type: preservePlayOneTimeType(
+              existingType,
+              mapPlayOneTimeType(product),
+            ),
             title: pickPlayTitle(product) ?? product.sku,
             description: pickPlayDescription(product),
             priceAmountMicros: parsePlayPriceMicros(product),
@@ -927,9 +925,20 @@ async function performAndroidSync(
 
 function googleErrorStatus(error: unknown): number | undefined {
   if (!error || typeof error !== "object") return undefined;
-  const candidate = error as { code?: unknown; status?: unknown };
+  const candidate = error as {
+    code?: unknown;
+    status?: unknown;
+    response?: { status?: unknown };
+  };
   if (typeof candidate.code === "number") return candidate.code;
+  if (typeof candidate.code === "string") {
+    const parsed = Number.parseInt(candidate.code, 10);
+    if (Number.isFinite(parsed)) return parsed;
+  }
   if (typeof candidate.status === "number") return candidate.status;
+  if (typeof candidate.response?.status === "number") {
+    return candidate.response.status;
+  }
   return undefined;
 }
 
@@ -954,27 +963,19 @@ async function upsertAndroidOneTimeProduct(
 ): Promise<void> {
   validateAndroidOneTimePrice(args);
 
-  const onetime = androidpublisher.monetization.onetimeproducts;
-  if (onetime?.patch) {
-    await onetime.patch({
-      packageName: args.packageName,
-      productId: args.productId,
-      allowMissing: options.allowCreate,
-      updateMask: "listings,purchaseOptions",
-      "regionsVersion.version": "2022/01",
-      requestBody: buildAndroidOneTimeProduct(args),
-    });
+  try {
+    await upsertModernAndroidOneTimeProduct(auth, args, options);
     await activateAndroidOneTimePurchaseOption(auth, args);
     return;
+  } catch (error) {
+    if (!shouldFallbackToLegacyOneTimeProduct(error)) throw error;
   }
 
   if (options.allowCreate) {
     await insertLegacyAndroidOneTimeProduct(androidpublisher, args);
-    await activateAndroidOneTimePurchaseOption(auth, args);
     return;
   }
   await patchLegacyAndroidOneTimeProduct(androidpublisher, args);
-  await activateAndroidOneTimePurchaseOption(auth, args);
 }
 
 function validateAndroidOneTimePrice(
@@ -1029,6 +1030,27 @@ function buildAndroidOneTimeProduct(
   };
 }
 
+async function upsertModernAndroidOneTimeProduct(
+  auth: Auth.GoogleAuth,
+  args: AndroidOneTimeProductUpsertArgs,
+  options: { allowCreate: boolean },
+): Promise<void> {
+  const client = await auth.getClient();
+  await client.request({
+    method: "PATCH",
+    url:
+      `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/` +
+      `${encodeURIComponent(args.packageName)}/oneTimeProducts/` +
+      `${encodeURIComponent(args.productId)}`,
+    params: {
+      allowMissing: options.allowCreate,
+      updateMask: "listings,purchaseOptions",
+      "regionsVersion.version": "2022/01",
+    },
+    data: buildAndroidOneTimeProduct(args),
+  });
+}
+
 async function insertLegacyAndroidOneTimeProduct(
   androidpublisher: androidpublisher_v3.Androidpublisher,
   args: AndroidOneTimeProductUpsertArgs,
@@ -1078,6 +1100,17 @@ async function patchLegacyAndroidOneTimeProduct(
       },
     },
   });
+}
+
+function shouldFallbackToLegacyOneTimeProduct(error: unknown): boolean {
+  const status = googleErrorStatus(error);
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    status === 404 ||
+    message.includes("inappproducts") ||
+    message.includes("InAppProduct") ||
+    message.includes("Please use the InAppProducts API")
+  );
 }
 
 async function activateAndroidOneTimePurchaseOption(
@@ -1170,9 +1203,19 @@ async function deleteModernAndroidOneTimeProduct(
 
 function mapPlayOneTimeType(
   product: androidpublisher_v3.Schema$InAppProduct,
-): "Subscription" | "NonConsumable" | "Consumable" {
+): "NonConsumable" | "Consumable" {
   if (product.purchaseType === "managedUser") return "NonConsumable";
   return "Consumable";
+}
+
+function preservePlayOneTimeType(
+  existingType: "Subscription" | "NonConsumable" | "Consumable" | undefined,
+  fallback: "NonConsumable" | "Consumable",
+): "NonConsumable" | "Consumable" {
+  if (existingType === "Consumable" || existingType === "NonConsumable") {
+    return existingType;
+  }
+  return fallback;
 }
 
 function mapPlayStatus(

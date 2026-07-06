@@ -73,9 +73,7 @@ async function resolveAscCredentials(
     : project.iosAppStoreIssuerId;
   const keyId = useAsc ? project.iosAscKeyId : project.iosAppStoreKeyId;
   if (!keyId) {
-    const missing = [
-      ...(!keyId ? [useAsc ? "iosAscKeyId" : "iosAppStoreKeyId"] : []),
-    ];
+    const missing = [useAsc ? "iosAscKeyId" : "iosAppStoreKeyId"];
     throw new Error(
       options.detailedErrors
         ? `App Store Connect API ${missing.join(", ")} not configured. ` +

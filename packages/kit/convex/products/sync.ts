@@ -307,6 +307,31 @@ export const getExistingProductType = internalQuery({
   },
 });
 
+export const listExistingProductTypes = internalQuery({
+  args: {
+    projectId: v.id("projects"),
+    platform: platformValidator,
+  },
+  returns: v.array(
+    v.object({
+      productId: v.string(),
+      type: typeValidator,
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const rows = await ctx.db
+      .query("products")
+      .withIndex("by_project_and_platform", (q) =>
+        q.eq("projectId", args.projectId).eq("platform", args.platform),
+      )
+      .collect();
+    return rows.map((row) => ({
+      productId: row.productId,
+      type: row.type,
+    }));
+  },
+});
+
 // Pull every Draft iOS row that the push pass should attempt. We do
 // NOT gate on `storeRef === undefined` here: a previous sync may have
 // successfully created the upstream resource (storeRef now populated)
