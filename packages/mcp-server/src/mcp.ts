@@ -650,7 +650,7 @@ function registerIapKitTools(server: McpServer) {
   registerTool(
     server,
     "manage_product",
-    "Update or remove a product in IAPKit's catalog. `action: 'remove'` soft-removes via the product state endpoint.",
+    "Update or remove a product in IAPKit's catalog. `action: 'remove'` marks the row Removed; the next product sync push/both deletes the upstream store product when the platform allows it.",
     {
       productId: PRODUCT_ID_PARAM,
       platform: z.enum(["IOS", "Android"]),
@@ -699,7 +699,7 @@ function registerIapKitTools(server: McpServer) {
         .enum(["pull", "push", "both", "purge-local"])
         .optional()
         .describe(
-          "pull imports from the store, push writes IAPKit catalog rows to the store, both does both, purge-local removes local rows missing from the store.",
+          "pull imports from the store, push writes IAPKit catalog rows to the store (including eligible Removed-row deletes), both does both, purge-local deletes kit's local catalog cache only.",
         ),
       dryRun: z
         .boolean()

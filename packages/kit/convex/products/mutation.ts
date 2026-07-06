@@ -19,6 +19,13 @@ const stateValidator = v.union(
   v.literal("Active"),
   v.literal("Removed"),
 );
+type ProductState = "Draft" | "Ready" | "Active" | "Removed";
+
+export function nextStateForKitProductUpsert(
+  requestedState?: ProductState,
+): ProductState {
+  return requestedState ?? "Draft";
+}
 
 async function resolveProjectForMutationArgs(
   ctx: MutationCtx,
@@ -137,7 +144,12 @@ export const upsertProduct = mutation({
         subscriptionGroupName:
           args.subscriptionGroupName ?? existing.subscriptionGroupName,
         reviewNote: args.reviewNote ?? existing.reviewNote,
-        state: args.state ?? existing.state,
+        // A dashboard / MCP edit is a new kit-authored version that
+        // needs another push pass even if the previous version was
+        // already Ready or Active. `listDraft*Products` is the worker
+        // queue, so move edited rows back to Draft unless the caller
+        // explicitly requested a state.
+        state: nextStateForKitProductUpsert(args.state),
         storeRef: args.storeRef ?? existing.storeRef,
         updatedAt: now,
         // ALWAYS claim kit-management on dashboard / MCP edits —
@@ -212,6 +224,11 @@ export const setProductState = mutation({
 
     await ctx.db.patch(existing._id, {
       state: args.state,
+      // State flips are operator intent too. In particular, marking a
+      // pulled row Removed must turn it into a kit-authored deletion
+      // request so pull-sync does not resurrect it before push-sync can
+      // remove it from the store.
+      origin: "kit" as const,
       updatedAt: Date.now(),
     });
     return { id: existing._id, state: args.state };
@@ -245,6 +262,7 @@ export const removeProduct = mutation({
     // dashboard and preserves any webhook events that reference this productId.
     await ctx.db.patch(existing._id, {
       state: "Removed",
+      origin: "kit" as const,
       updatedAt: Date.now(),
     });
     return { ok: true };

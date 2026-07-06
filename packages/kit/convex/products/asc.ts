@@ -30,7 +30,7 @@ class ProductSyncCancelledError extends Error {
 // slot for projects mid-migration). Throws on missing config or
 // missing .p8 with the operator-actionable message we want surfaced.
 type AscCredentials = {
-  issuerId: string;
+  issuerId?: string;
   keyId: string;
   keyContent: string;
 };
@@ -72,16 +72,19 @@ async function resolveAscCredentials(
     ? (project.iosAscIssuerId ?? project.iosAppStoreIssuerId)
     : project.iosAppStoreIssuerId;
   const keyId = useAsc ? project.iosAscKeyId : project.iosAppStoreKeyId;
-  if (!issuerId || !keyId) {
+  if (!keyId) {
+    const missing = [
+      ...(!keyId ? [useAsc ? "iosAscKeyId" : "iosAppStoreKeyId"] : []),
+    ];
     throw new Error(
       options.detailedErrors
-        ? "App Store Connect API Issuer ID / Key ID not configured. " +
+        ? `App Store Connect API ${missing.join(", ")} not configured. ` +
             "Generate them at App Store Connect → Users and Access → " +
             "Integrations → App Store Connect API (NOT under In-App " +
             "Purchase — those credentials are scoped to receipt " +
             "verification only). Save them in Settings → iOS " +
             "Configuration → 'App Store Connect API (push-sync)'."
-        : "App Store Connect API Issuer ID / Key ID not configured",
+        : `App Store Connect API ${missing.join(", ")} not configured`,
     );
   }
   // Prefer the dedicated ASC .p8 file; fall back to the Server API
@@ -179,12 +182,14 @@ async function getProjectForActionArgs(
 //
 // Surface area implemented (matches what `@onesub/providers` exposes):
 //   - listInAppPurchases(appId)  → GET /v1/apps/{id}/inAppPurchasesV2
-//   - createInAppPurchase(args)  → POST /v1/inAppPurchases
-//   - patchInAppPurchase(id,...) → PATCH /v1/inAppPurchases/{id}
+//   - createInAppPurchase(args)  → POST /v2/inAppPurchases
+//   - patchInAppPurchase(id,...) → PATCH /v2/inAppPurchases/{id}
+//   - deleteInAppPurchase(id)    → DELETE /v2/inAppPurchases/{id}
 //   - listSubscriptionGroups(appId) → GET /v1/apps/{id}/subscriptionGroups
 //   - listSubscriptions(groupId) → GET /v1/subscriptionGroups/{id}/subscriptions
 //   - createSubscription(...)    → POST /v1/subscriptions
 //   - patchSubscription(...)     → PATCH /v1/subscriptions/{id}
+//   - deleteSubscription(id)     → DELETE /v1/subscriptions/{id}
 // The `pushSyncProducts` action drives kit→ASC sync for a project.
 //
 // Failure model: ASC returns an `errors[]` array per the JSON:API
@@ -215,11 +220,28 @@ export class AscApiError extends Error {
   }
 }
 
+function isBenignAscRetryConflict(error: unknown): boolean {
+  if (!(error instanceof AscApiError) || error.status !== 409) return false;
+  const message = error.message.toLowerCase();
+  if (
+    message.includes("missing a required") ||
+    message.includes("invalid format") ||
+    message.includes("invalid")
+  ) {
+    return false;
+  }
+  return (
+    message.includes("already") ||
+    message.includes("duplicate") ||
+    message.includes("exists")
+  );
+}
+
 class AscClient {
   private cached: AscToken | null = null;
 
   constructor(
-    private readonly issuerId: string,
+    private readonly issuerId: string | undefined,
     private readonly keyId: string,
     private readonly privateKey: string,
   ) {}
@@ -412,7 +434,7 @@ class AscClient {
     // stays on `/v1/inAppPurchasePriceSchedules/...`.
     try {
       const schedule = await this.call<AscIapPriceScheduleResponse>(
-        `/v2/inAppPurchases/${encodeURIComponent(iapId)}/iapPriceSchedule`,
+        `/v2/inAppPurchases/${encodeURIComponent(iapId)}/relationships/iapPriceSchedule`,
       );
       if (!schedule?.data?.id) {
         return new Error(
@@ -473,7 +495,7 @@ class AscClient {
     const list = await this.collectAllPages<
       AscPricePointListResponse["data"][number]
     >(
-      `/v1/inAppPurchases/${encodeURIComponent(iapId)}/pricePoints?filter[territory]=USA&limit=200`,
+      `/v2/inAppPurchases/${encodeURIComponent(iapId)}/pricePoints?filter[territory]=USA&limit=200`,
     );
     return pickPricePointIdMatching(list, targetMicros);
   }
@@ -498,7 +520,7 @@ class AscClient {
     pricePointId: string;
     startDate?: string; // YYYY-MM-DD; omit for "effective immediately"
   }) {
-    const priceLid = "newPrice";
+    const priceLid = "${newPrice}";
     const today = args.startDate ?? new Date().toISOString().slice(0, 10);
     return this.call<{ data: { id: string } }>(
       `/v1/inAppPurchasePriceSchedules`,
@@ -510,6 +532,9 @@ class AscClient {
             relationships: {
               inAppPurchase: {
                 data: { type: "inAppPurchases", id: args.iapId },
+              },
+              baseTerritory: {
+                data: { type: "territories", id: "USA" },
               },
               manualPrices: {
                 data: [{ type: "inAppPurchasePrices", id: priceLid }],
@@ -543,15 +568,62 @@ class AscClient {
     pricePointId: string;
     startDate?: string;
   }) {
-    const priceLid = "newSubPrice";
-    const today = args.startDate ?? new Date().toISOString().slice(0, 10);
+    const attributes =
+      args.startDate === undefined ? {} : { startDate: args.startDate };
+    const priceLid = "${newSubPrice}";
+    return this.call<{ data: { id: string } }>(
+      `/v1/subscriptions/${encodeURIComponent(args.subId)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          data: {
+            type: "subscriptions",
+            id: args.subId,
+            relationships: {
+              prices: {
+                data: [{ type: "subscriptionPrices", id: priceLid }],
+              },
+            },
+          },
+          included: [
+            {
+              type: "subscriptionPrices",
+              id: priceLid,
+              attributes,
+              relationships: {
+                subscription: {
+                  data: { type: "subscriptions", id: args.subId },
+                },
+                subscriptionPricePoint: {
+                  data: {
+                    type: "subscriptionPricePoints",
+                    id: args.pricePointId,
+                  },
+                },
+                territory: {
+                  data: { type: "territories", id: "USA" },
+                },
+              },
+            },
+          ],
+        }),
+      },
+    );
+  }
+
+  createSubPriceChange(args: {
+    subId: string;
+    pricePointId: string;
+    startDate?: string;
+  }) {
+    const attributes =
+      args.startDate === undefined ? {} : { startDate: args.startDate };
     return this.call<{ data: { id: string } }>(`/v1/subscriptionPrices`, {
       method: "POST",
       body: JSON.stringify({
         data: {
           type: "subscriptionPrices",
-          id: priceLid,
-          attributes: { startDate: today },
+          attributes,
           relationships: {
             subscription: {
               data: { type: "subscriptions", id: args.subId },
@@ -561,6 +633,9 @@ class AscClient {
                 type: "subscriptionPricePoints",
                 id: args.pricePointId,
               },
+            },
+            territory: {
+              data: { type: "territories", id: "USA" },
             },
           },
         },
@@ -600,6 +675,39 @@ class AscClient {
       },
     );
   }
+  async upsertIapLocalization(args: {
+    iapId: string;
+    name: string;
+    description: string;
+    locale?: string;
+  }) {
+    const locale = args.locale ?? "en-US";
+    const existing = await this.call<AscLocalizationListResponse>(
+      `/v2/inAppPurchases/${encodeURIComponent(args.iapId)}/inAppPurchaseLocalizations?limit=200`,
+    );
+    const match = existing.data.find(
+      (item) => item.attributes.locale === locale,
+    );
+    if (!match) {
+      return await this.createIapLocalization(args);
+    }
+    return this.call<{ data: { id: string } }>(
+      `/v1/inAppPurchaseLocalizations/${encodeURIComponent(match.id)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          data: {
+            type: "inAppPurchaseLocalizations",
+            id: match.id,
+            attributes: {
+              name: args.name,
+              description: args.description,
+            },
+          },
+        }),
+      },
+    );
+  }
   createSubLocalization(args: {
     subId: string;
     name: string;
@@ -622,6 +730,39 @@ class AscClient {
               subscription: {
                 data: { type: "subscriptions", id: args.subId },
               },
+            },
+          },
+        }),
+      },
+    );
+  }
+  async upsertSubLocalization(args: {
+    subId: string;
+    name: string;
+    description: string;
+    locale?: string;
+  }) {
+    const locale = args.locale ?? "en-US";
+    const existing = await this.call<AscLocalizationListResponse>(
+      `/v1/subscriptions/${encodeURIComponent(args.subId)}/subscriptionLocalizations?limit=200`,
+    );
+    const match = existing.data.find(
+      (item) => item.attributes.locale === locale,
+    );
+    if (!match) {
+      return await this.createSubLocalization(args);
+    }
+    return this.call<{ data: { id: string } }>(
+      `/v1/subscriptionLocalizations/${encodeURIComponent(match.id)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          data: {
+            type: "subscriptionLocalizations",
+            id: match.id,
+            attributes: {
+              name: args.name,
+              description: args.description,
             },
           },
         }),
@@ -668,7 +809,7 @@ class AscClient {
     type: "CONSUMABLE" | "NON_CONSUMABLE" | "NON_RENEWING_SUBSCRIPTION";
     reviewNote?: string;
   }) {
-    return this.call<AscIapResource>(`/v1/inAppPurchases`, {
+    return this.call<AscIapResource>(`/v2/inAppPurchases`, {
       method: "POST",
       body: JSON.stringify({
         data: {
@@ -692,7 +833,7 @@ class AscClient {
     attributes: { name?: string; reviewNote?: string },
   ) {
     return this.call<AscIapResource>(
-      `/v1/inAppPurchases/${encodeURIComponent(id)}`,
+      `/v2/inAppPurchases/${encodeURIComponent(id)}`,
       {
         method: "PATCH",
         body: JSON.stringify({
@@ -700,6 +841,12 @@ class AscClient {
         }),
       },
     );
+  }
+
+  async deleteInAppPurchase(id: string): Promise<void> {
+    await this.call<unknown>(`/v2/inAppPurchases/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
   }
 
   createSubscription(args: {
@@ -750,6 +897,12 @@ class AscClient {
       },
     );
   }
+
+  async deleteSubscription(id: string): Promise<void> {
+    await this.call<unknown>(`/v1/subscriptions/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
+  }
 }
 
 type AscIapResource = {
@@ -786,6 +939,15 @@ type AscSubResource = {
 
 type AscSubListResponse = {
   data: AscSubResource["data"][];
+};
+
+type AscLocalizationListResponse = {
+  data: Array<{
+    id: string;
+    attributes: {
+      locale?: string;
+    };
+  }>;
 };
 
 type AscSubGroupListResponse = {
@@ -1074,6 +1236,7 @@ export const runProductSyncIOS = internalAction({
         jobId: args.jobId,
         pulled: result.pulled,
         pushed: result.pushed,
+        deleted: result.deleted,
         failures: result.failures,
         plannedWrites: result.plannedWrites,
       });
@@ -1117,6 +1280,7 @@ interface IosSyncOptions {
 interface SyncResult {
   pulled: number;
   pushed: number;
+  deleted?: number;
   failures: Array<{ productId: string; reason: string }>;
   plannedWrites?: Array<{ productId: string; step: string; detail?: string }>;
 }
@@ -1174,6 +1338,7 @@ async function performIosSync(
   }> = [];
 
   const appIdStr = String(project.iosAppAppleId);
+  let deleted = 0;
 
   // ── PULL: ASC → kit catalog ────────────────────────────────────
   if (direction === "pull" || direction === "both") {
@@ -1336,6 +1501,70 @@ async function performIosSync(
   // dashboard upload slot we haven't built yet — see TODO below.
   if (direction === "push" || direction === "both") {
     await checkCancelled();
+    await reportPhase("push-removals", {
+      current: pulled,
+      failuresCount: failures.length,
+    });
+    const removals = await ctx.runQuery(
+      internal.products.sync.listRemovedIosProducts,
+      { projectId: project._id },
+    );
+    for (const row of removals) {
+      await checkCancelled();
+      const deleteStep =
+        row.storeRef === undefined
+          ? "delete local product row"
+          : row.type === "Subscription"
+            ? "delete subscription"
+            : "delete in-app purchase";
+      if (dryRun) {
+        plannedWrites.push({
+          productId: row.productId,
+          step: deleteStep,
+          detail: row.storeRef
+            ? `storeRef=${row.storeRef}; Apple product IDs cannot be reused after deletion`
+            : "kit-only row has no upstream storeRef",
+        });
+        continue;
+      }
+      try {
+        if (row.storeRef) {
+          if (row.type === "Subscription") {
+            await client.deleteSubscription(row.storeRef);
+          } else {
+            await client.deleteInAppPurchase(row.storeRef);
+          }
+        }
+        const didDelete = await ctx.runMutation(
+          internal.products.sync.deleteRemovedProductRow,
+          {
+            projectId: project._id,
+            productId: row.productId,
+            platform: "IOS",
+          },
+        );
+        if (didDelete) deleted += 1;
+      } catch (error) {
+        if (error instanceof AscApiError && error.status === 404) {
+          const didDelete = await ctx.runMutation(
+            internal.products.sync.deleteRemovedProductRow,
+            {
+              projectId: project._id,
+              productId: row.productId,
+              platform: "IOS",
+            },
+          );
+          if (didDelete) deleted += 1;
+          continue;
+        }
+        failures.push({
+          productId: `${row.productId} (delete)`,
+          reason: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    await checkCancelled();
     await reportPhase("push-drafts", {
       current: pulled,
       failuresCount: failures.length,
@@ -1464,6 +1693,16 @@ async function performIosSync(
                 step: "skip create (resuming partial sync)",
                 detail: `existing storeRef=${storeRef}`,
               });
+              plannedWrites.push({
+                productId: row.productId,
+                step: "patch subscription",
+                detail: row.title,
+              });
+            } else {
+              await client.patchSubscription(storeRef, {
+                name: row.title,
+                reviewNote: row.reviewNote,
+              });
             }
           } else {
             let groupId: string;
@@ -1533,12 +1772,14 @@ async function performIosSync(
           if (dryRun) {
             plannedWrites.push({
               productId: row.productId,
-              step: "create en-US localization",
+              step: row.storeRef
+                ? "patch en-US localization"
+                : "create en-US localization",
               detail: row.description ?? row.title,
             });
           } else {
             try {
-              await client.createSubLocalization({
+              await client.upsertSubLocalization({
                 subId: storeRef,
                 name: row.title,
                 description: row.description ?? row.title,
@@ -1577,30 +1818,36 @@ async function performIosSync(
               });
             } else {
               try {
-                const pricePointId = await client.findSubUsaPricePointId(
-                  storeRef,
-                  row.priceAmountMicros,
-                );
-                if (!pricePointId) {
-                  recordFailure({
-                    productId: `${row.productId} (price)`,
-                    reason: `No ASC price tier matches USD ${(row.priceAmountMicros / 1_000_000).toFixed(2)} — pick a published tier amount.`,
-                  });
-                } else {
-                  await client.setSubPriceSchedule({
-                    subId: storeRef,
-                    pricePointId,
-                  });
+                const currentPrice = await client.subCurrentPrice(storeRef);
+                const assigned =
+                  currentPrice instanceof Error
+                    ? {}
+                    : parseAssignedPrice(
+                        currentPrice,
+                        "subscriptionPricePoint",
+                      );
+                if (assigned.priceAmountMicros !== row.priceAmountMicros) {
+                  const pricePointId = await client.findSubUsaPricePointId(
+                    storeRef,
+                    row.priceAmountMicros,
+                  );
+                  if (!pricePointId) {
+                    recordFailure({
+                      productId: `${row.productId} (price)`,
+                      reason: `No ASC price tier matches USD ${(row.priceAmountMicros / 1_000_000).toFixed(2)} — pick a published tier amount.`,
+                    });
+                  } else {
+                    await client.setSubPriceSchedule({
+                      subId: storeRef,
+                      pricePointId,
+                    });
+                  }
                 }
               } catch (error) {
-                // 409 Conflict means a price schedule already exists
-                // for the (subscription, startDate=today) pair from a
-                // prior partial sync — Apple keys schedules by date,
-                // not by id. Treat as benign retry so the subsequent
-                // markPushed step still runs (PR #124
-                // (https://github.com/hyodotdev/openiap/pull/124)
-                // review).
-                if (!(error instanceof AscApiError && error.status === 409)) {
+                // Treat only duplicate/existing conflicts as benign
+                // retries. ASC also reports malformed price payloads
+                // as 409 ENTITY_ERROR, and those must stay visible.
+                if (!isBenignAscRetryConflict(error)) {
                   recordFailure({
                     productId: `${row.productId} (price)`,
                     reason:
@@ -1637,6 +1884,16 @@ async function performIosSync(
                 step: "skip create (resuming partial sync)",
                 detail: `existing storeRef=${storeRef}`,
               });
+              plannedWrites.push({
+                productId: row.productId,
+                step: "patch in-app purchase",
+                detail: row.title,
+              });
+            } else {
+              await client.patchInAppPurchase(storeRef, {
+                name: row.title,
+                reviewNote: row.reviewNote,
+              });
             }
           } else if (dryRun) {
             storeRef = "(would-create)";
@@ -1667,12 +1924,14 @@ async function performIosSync(
           if (dryRun) {
             plannedWrites.push({
               productId: row.productId,
-              step: "create en-US localization",
+              step: row.storeRef
+                ? "patch en-US localization"
+                : "create en-US localization",
               detail: row.description ?? row.title,
             });
           } else {
             try {
-              await client.createIapLocalization({
+              await client.upsertIapLocalization({
                 iapId: storeRef,
                 name: row.title,
                 description: row.description ?? row.title,
@@ -1702,28 +1961,36 @@ async function performIosSync(
               });
             } else {
               try {
-                const pricePointId = await client.findIapUsaPricePointId(
-                  storeRef,
-                  row.priceAmountMicros,
-                );
-                if (!pricePointId) {
-                  recordFailure({
-                    productId: `${row.productId} (price)`,
-                    reason: `No ASC price tier matches USD ${(row.priceAmountMicros / 1_000_000).toFixed(2)} — pick a published tier amount.`,
-                  });
-                } else {
-                  await client.setIapPriceSchedule({
-                    iapId: storeRef,
-                    pricePointId,
-                  });
+                const currentPrice = await client.iapCurrentPrice(storeRef);
+                const assigned =
+                  currentPrice instanceof Error
+                    ? {}
+                    : parseAssignedPrice(
+                        currentPrice,
+                        "inAppPurchasePricePoint",
+                      );
+                if (assigned.priceAmountMicros !== row.priceAmountMicros) {
+                  const pricePointId = await client.findIapUsaPricePointId(
+                    storeRef,
+                    row.priceAmountMicros,
+                  );
+                  if (!pricePointId) {
+                    recordFailure({
+                      productId: `${row.productId} (price)`,
+                      reason: `No ASC price tier matches USD ${(row.priceAmountMicros / 1_000_000).toFixed(2)} — pick a published tier amount.`,
+                    });
+                  } else {
+                    await client.setIapPriceSchedule({
+                      iapId: storeRef,
+                      pricePointId,
+                    });
+                  }
                 }
               } catch (error) {
-                // Same 409-is-benign rationale as the subscription
-                // price schedule path above — Apple keys IAP price
-                // schedules by (iapId, startDate) so a same-day
-                // retry hits Conflict. Allow the row to proceed to
-                // markPushed instead of stalling in Draft.
-                if (!(error instanceof AscApiError && error.status === 409)) {
+                // Treat only duplicate/existing conflicts as benign
+                // retries. ASC also reports malformed price payloads
+                // as 409 ENTITY_ERROR, and those must stay visible.
+                if (!isBenignAscRetryConflict(error)) {
                   recordFailure({
                     productId: `${row.productId} (price)`,
                     reason:
@@ -1772,6 +2039,7 @@ async function performIosSync(
   return {
     pulled,
     pushed,
+    ...(deleted > 0 ? { deleted } : {}),
     failures,
     plannedWrites: dryRun ? plannedWrites : undefined,
   };

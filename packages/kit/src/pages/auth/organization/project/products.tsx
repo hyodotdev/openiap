@@ -154,9 +154,13 @@ export default function ProjectProducts() {
       const result = job.result;
       if (job.status === "succeeded" && result) {
         const summary =
-          result.deleted !== undefined
+          job.direction === "purge-local" && result.deleted !== undefined
             ? `Deleted ${result.deleted} row${result.deleted === 1 ? "" : "s"}`
-            : `Pulled ${result.pulled}, pushed ${result.pushed}`;
+            : `Pulled ${result.pulled}, pushed ${result.pushed}${
+                result.deleted !== undefined
+                  ? `, deleted ${result.deleted}`
+                  : ""
+              }`;
         const plannedLines = result.plannedWrites?.length
           ? result.plannedWrites
               .map(
@@ -501,12 +505,15 @@ export default function ProjectProducts() {
             <Plus className="w-4 h-4" /> Add product
           </button>
         </div>
-        <p className="text-[11px] text-muted-foreground">
-          On Sync, kit pushes the row to App Store Connect / Play Console,
-          creates an en-US localization, and sets the USA price tier — leaving
-          the IAP in &quot;Ready to Submit&quot; state. Final review submission
-          (screenshot upload) is still done in App Store Connect web.
-        </p>
+        {draft.platform === "IOS" && (
+          <div className="rounded border border-border/80 bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
+            On iOS, Sync pushes the row to App Store Connect, creates an en-US
+            localization, and sets the USA price tier. App Store Connect may
+            still show &quot;Missing Metadata&quot; until review metadata and
+            screenshots are added and the product is attached to an app version
+            for review.
+          </div>
+        )}
       </div>
 
       <ProductGroup
@@ -791,10 +798,10 @@ function groupRowsByHierarchy(
 // Dry-run skips every POST/PATCH against the upstream store and
 // returns a `plannedWrites` list the toast/banner renders so the
 // operator can verify group, price tier, base plan, billing
-// period, etc. before committing. Apple's ASC catalog can't be
-// fully deleted (Removed != gone from catalog); Play archive is
-// reversible but still affects live billing. Either way, previewing
-// is the safer first step.
+// period, deletions, etc. before committing. Store deletes have
+// platform-specific constraints (Apple product IDs cannot be reused;
+// Play subscriptions can only be deleted before a base plan has been
+// published), so previewing is the safer first step.
 function DryRunButton({
   onDryRun,
   disabled,
@@ -807,8 +814,8 @@ function DryRunButton({
   const storeLabel = platform === "IOS" ? "App Store Connect" : "Play Console";
   const constraint =
     platform === "IOS"
-      ? "Apple won't let you fully delete an IAP once it's in the catalog, so this is the safety check."
-      : "Play archive is reversible but still affects live billing, so this is the safety check.";
+      ? "Apple deletes eligible IAPs/subscriptions irreversibly and product IDs cannot be reused."
+      : "Play only deletes eligible products; subscriptions with published base plans will report a sync failure.";
   return (
     <Tooltip
       content={
@@ -1095,9 +1102,13 @@ function ProductGroup({
             {job.status === "succeeded" && job.result ? (
               <div>
                 {job.result.deleted !== undefined
-                  ? `Reset — deleted ${job.result.deleted} row${
-                      job.result.deleted === 1 ? "" : "s"
-                    }`
+                  ? job.direction === "purge-local"
+                    ? `Reset — deleted ${job.result.deleted} row${
+                        job.result.deleted === 1 ? "" : "s"
+                      }`
+                    : `Last sync — pulled ${job.result.pulled}, pushed ${
+                        job.result.pushed
+                      }, deleted ${job.result.deleted}`
                   : `Last sync — pulled ${job.result.pulled}, pushed ${job.result.pushed}`}
                 {job.result.failures.length
                   ? `, ${job.result.failures.length} failure${

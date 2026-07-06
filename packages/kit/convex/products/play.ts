@@ -1,6 +1,6 @@
 "use node";
 import { v } from "convex/values";
-import { google } from "googleapis";
+import { google, type Auth } from "googleapis";
 import type { androidpublisher_v3 } from "googleapis";
 
 import { internalAction, type ActionCtx } from "../_generated/server";
@@ -117,6 +117,7 @@ export const runProductSyncAndroid = internalAction({
         jobId: args.jobId,
         pulled: result.pulled,
         pushed: result.pushed,
+        deleted: result.deleted,
         failures: result.failures,
         plannedWrites: result.plannedWrites,
       });
@@ -159,6 +160,7 @@ interface AndroidSyncOptions {
 interface AndroidSyncResult {
   pulled: number;
   pushed: number;
+  deleted?: number;
   failures: ProductSyncFailure[];
   plannedWrites?: Array<{ productId: string; step: string; detail?: string }>;
 }
@@ -230,6 +232,7 @@ async function performAndroidSync(
   }> = [];
   let pulled = 0;
   let pushed = 0;
+  let deleted = 0;
 
   // ── PULL: Play → kit ─────────────────────────────────────────
   if (direction === "pull" || direction === "both") {
@@ -385,15 +388,24 @@ async function performAndroidSync(
                   nanos: preferred.nanos,
                 })
               : undefined;
+            const existingType = await ctx.runQuery(
+              internal.products.sync.getExistingProductType,
+              {
+                projectId: project._id,
+                platform: "Android",
+                productId: product.productId,
+              },
+            );
             await ctx.runMutation(internal.products.sync.upsertFromStore, {
               projectId: project._id,
               productId: product.productId,
               platform: "Android",
               // The new API doesn't carry a "consumable vs.
-              // non-consumable" distinction the same way — Play
-              // tracks consumption at purchase time. Default to
-              // NonConsumable; operators can edit on the kit side.
-              type: "NonConsumable",
+              // non-consumable" distinction; Play tracks consumption
+              // at purchase time. Preserve any kit-authored type so
+              // pull-sync doesn't turn consumables into
+              // non-consumables, and default only for first imports.
+              type: existingType ?? "NonConsumable",
               title: listing?.title ?? product.productId,
               description: listing?.description ?? undefined,
               priceAmountMicros,
@@ -433,11 +445,19 @@ async function performAndroidSync(
           if (seenOneTimeSkus.has(product.sku)) continue;
           seenOneTimeSkus.add(product.sku);
           if (product.purchaseType === "subscription") continue;
+          const existingType = await ctx.runQuery(
+            internal.products.sync.getExistingProductType,
+            {
+              projectId: project._id,
+              platform: "Android",
+              productId: product.sku,
+            },
+          );
           await ctx.runMutation(internal.products.sync.upsertFromStore, {
             projectId: project._id,
             productId: product.sku,
             platform: "Android",
-            type: mapPlayOneTimeType(product),
+            type: existingType ?? mapPlayOneTimeType(product),
             title: pickPlayTitle(product) ?? product.sku,
             description: pickPlayDescription(product),
             priceAmountMicros: parsePlayPriceMicros(product),
@@ -530,6 +550,70 @@ async function performAndroidSync(
   // ── PUSH: kit → Play for Draft rows ──────────────────────────
   if (direction === "push" || direction === "both") {
     await checkCancelled();
+    await reportPhase("push-removals", {
+      current: pulled,
+      failuresCount: failures.length,
+    });
+    const removals = await ctx.runQuery(
+      internal.products.sync.listRemovedAndroidProducts,
+      { projectId: project._id },
+    );
+    for (const row of removals) {
+      await checkCancelled();
+      const deleteStep =
+        row.storeRef === undefined
+          ? "delete local product row"
+          : row.type === "Subscription"
+            ? "delete subscription"
+            : "delete one-time product";
+      if (dryRun) {
+        plannedWrites.push({
+          productId: row.productId,
+          step: deleteStep,
+          detail: row.storeRef
+            ? `storeRef=${row.storeRef}`
+            : "kit-only row has no upstream storeRef",
+        });
+        continue;
+      }
+      try {
+        if (row.storeRef) {
+          if (row.type === "Subscription") {
+            try {
+              await androidpublisher.monetization.subscriptions.delete({
+                packageName,
+                productId: row.storeRef,
+              });
+            } catch (error) {
+              if (!isGoogleNotFoundError(error)) throw error;
+            }
+          } else {
+            await deleteAndroidOneTimeProduct(
+              androidpublisher,
+              auth,
+              packageName,
+              row.storeRef,
+            );
+          }
+        }
+        const didDelete = await ctx.runMutation(
+          internal.products.sync.deleteRemovedProductRow,
+          {
+            projectId: project._id,
+            productId: row.productId,
+            platform: "Android",
+          },
+        );
+        if (didDelete) deleted += 1;
+      } catch (error) {
+        failures.push({
+          productId: `${row.productId} (delete)`,
+          reason: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    await checkCancelled();
     await reportPhase("push-drafts", {
       current: pulled,
       failuresCount: failures.length,
@@ -613,9 +697,10 @@ async function performAndroidSync(
               }
             }
           } else {
-            // One-time product: patch listings + price via the
-            // legacy inappproducts.patch endpoint, which accepts a
-            // partial body and merges it.
+            // One-time product: modern Play Console apps use
+            // monetization.onetimeproducts, while older apps still
+            // accept the legacy inappproducts endpoint. Prefer the
+            // modern API and let the helper fall back when needed.
             if (dryRun) {
               plannedWrites.push({
                 productId: row.productId,
@@ -628,29 +713,19 @@ async function performAndroidSync(
               });
             } else {
               try {
-                await androidpublisher.inappproducts.patch({
-                  packageName,
-                  sku: row.storeRef,
-                  requestBody: {
+                await upsertAndroidOneTimeProduct(
+                  androidpublisher,
+                  auth,
+                  {
                     packageName,
-                    sku: row.storeRef,
-                    purchaseType: "managedUser",
-                    listings: {
-                      "en-US": {
-                        title: row.title,
-                        description: row.description ?? row.title,
-                      },
-                    },
-                    ...(row.priceAmountMicros !== undefined && row.currency
-                      ? {
-                          defaultPrice: {
-                            priceMicros: String(row.priceAmountMicros),
-                            currency: row.currency,
-                          },
-                        }
-                      : {}),
+                    productId: row.storeRef,
+                    title: row.title,
+                    description: row.description ?? row.title,
+                    priceAmountMicros: row.priceAmountMicros,
+                    currency: row.currency,
                   },
-                });
+                  { allowCreate: false },
+                );
               } catch (error) {
                 patchOk = false;
                 failures.push({
@@ -794,35 +869,19 @@ async function performAndroidSync(
                   : " · no price set"),
             });
           } else {
-            await androidpublisher.inappproducts.insert({
-              packageName,
-              requestBody: {
+            await upsertAndroidOneTimeProduct(
+              androidpublisher,
+              auth,
+              {
                 packageName,
-                sku: row.productId,
-                // Play API uses `managedUser` for both consumable and
-                // non-consumable; the difference is consumed at
-                // purchase time via `consumeAsync`. Subscriptions go
-                // through `monetization.subscriptions.*` (see branch
-                // above), not this endpoint.
-                purchaseType: "managedUser",
-                status: "active",
-                defaultLanguage: "en-US",
-                listings: {
-                  "en-US": {
-                    title: row.title,
-                    description: row.description ?? row.title,
-                  },
-                },
-                ...(row.priceAmountMicros !== undefined && row.currency
-                  ? {
-                      defaultPrice: {
-                        priceMicros: String(row.priceAmountMicros),
-                        currency: row.currency,
-                      },
-                    }
-                  : {}),
+                productId: row.productId,
+                title: row.title,
+                description: row.description ?? row.title,
+                priceAmountMicros: row.priceAmountMicros,
+                currency: row.currency,
               },
-            });
+              { allowCreate: true },
+            );
           }
         }
         if (!dryRun) {
@@ -860,9 +919,253 @@ async function performAndroidSync(
   return {
     pulled,
     pushed,
+    ...(deleted > 0 ? { deleted } : {}),
     failures,
     plannedWrites: dryRun ? plannedWrites : undefined,
   };
+}
+
+function googleErrorStatus(error: unknown): number | undefined {
+  if (!error || typeof error !== "object") return undefined;
+  const candidate = error as { code?: unknown; status?: unknown };
+  if (typeof candidate.code === "number") return candidate.code;
+  if (typeof candidate.status === "number") return candidate.status;
+  return undefined;
+}
+
+function isGoogleNotFoundError(error: unknown): boolean {
+  return googleErrorStatus(error) === 404;
+}
+
+interface AndroidOneTimeProductUpsertArgs {
+  packageName: string;
+  productId: string;
+  title: string;
+  description: string;
+  priceAmountMicros?: number;
+  currency?: string;
+}
+
+async function upsertAndroidOneTimeProduct(
+  androidpublisher: androidpublisher_v3.Androidpublisher,
+  auth: Auth.GoogleAuth,
+  args: AndroidOneTimeProductUpsertArgs,
+  options: { allowCreate: boolean },
+): Promise<void> {
+  validateAndroidOneTimePrice(args);
+
+  const onetime = androidpublisher.monetization.onetimeproducts;
+  if (onetime?.patch) {
+    await onetime.patch({
+      packageName: args.packageName,
+      productId: args.productId,
+      allowMissing: options.allowCreate,
+      updateMask: "listings,purchaseOptions",
+      "regionsVersion.version": "2022/01",
+      requestBody: buildAndroidOneTimeProduct(args),
+    });
+    await activateAndroidOneTimePurchaseOption(auth, args);
+    return;
+  }
+
+  if (options.allowCreate) {
+    await insertLegacyAndroidOneTimeProduct(androidpublisher, args);
+    await activateAndroidOneTimePurchaseOption(auth, args);
+    return;
+  }
+  await patchLegacyAndroidOneTimeProduct(androidpublisher, args);
+  await activateAndroidOneTimePurchaseOption(auth, args);
+}
+
+function validateAndroidOneTimePrice(
+  args: AndroidOneTimeProductUpsertArgs,
+): void {
+  if (!args.priceAmountMicros || !args.currency) {
+    throw new Error(
+      "One-time product requires priceAmountMicros + currency to mint a Play purchase option; otherwise the product will not be purchasable.",
+    );
+  }
+  if (args.currency !== "USD") {
+    throw new Error(
+      `One-time product "${args.productId}" has currency "${args.currency}" but the kit→Play push currently only supports the US region (USD). Set the price in USD on the dashboard, or pre-create the product in Play Console with your preferred regional pricing and let the next pull-sync mirror it back into kit.`,
+    );
+  }
+}
+
+function buildAndroidOneTimeProduct(
+  args: AndroidOneTimeProductUpsertArgs,
+): androidpublisher_v3.Schema$OneTimeProduct {
+  if (args.priceAmountMicros === undefined || !args.currency) {
+    throw new Error(
+      "One-time product requires priceAmountMicros + currency to mint a Play purchase option; otherwise the product will not be purchasable.",
+    );
+  }
+  return {
+    packageName: args.packageName,
+    productId: args.productId,
+    listings: [
+      {
+        languageCode: "en-US",
+        title: args.title,
+        description: args.description,
+      },
+    ],
+    purchaseOptions: [
+      {
+        purchaseOptionId: "buy",
+        buyOption: {
+          legacyCompatible: true,
+          multiQuantityEnabled: false,
+        },
+        regionalPricingAndAvailabilityConfigs: [
+          {
+            regionCode: "US",
+            availability: "AVAILABLE",
+            price: microsToGoogleMoney(args.priceAmountMicros, args.currency),
+          },
+        ],
+      },
+    ],
+  };
+}
+
+async function insertLegacyAndroidOneTimeProduct(
+  androidpublisher: androidpublisher_v3.Androidpublisher,
+  args: AndroidOneTimeProductUpsertArgs,
+): Promise<void> {
+  await androidpublisher.inappproducts.insert({
+    packageName: args.packageName,
+    requestBody: {
+      packageName: args.packageName,
+      sku: args.productId,
+      purchaseType: "managedUser",
+      status: "active",
+      defaultLanguage: "en-US",
+      listings: {
+        "en-US": {
+          title: args.title,
+          description: args.description,
+        },
+      },
+      defaultPrice: {
+        priceMicros: String(args.priceAmountMicros),
+        currency: args.currency,
+      },
+    },
+  });
+}
+
+async function patchLegacyAndroidOneTimeProduct(
+  androidpublisher: androidpublisher_v3.Androidpublisher,
+  args: AndroidOneTimeProductUpsertArgs,
+): Promise<void> {
+  await androidpublisher.inappproducts.patch({
+    packageName: args.packageName,
+    sku: args.productId,
+    requestBody: {
+      packageName: args.packageName,
+      sku: args.productId,
+      purchaseType: "managedUser",
+      listings: {
+        "en-US": {
+          title: args.title,
+          description: args.description,
+        },
+      },
+      defaultPrice: {
+        priceMicros: String(args.priceAmountMicros),
+        currency: args.currency,
+      },
+    },
+  });
+}
+
+async function activateAndroidOneTimePurchaseOption(
+  auth: Auth.GoogleAuth,
+  args: AndroidOneTimeProductUpsertArgs,
+): Promise<void> {
+  const client = await auth.getClient();
+  await client.request({
+    method: "POST",
+    url:
+      `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/` +
+      `${encodeURIComponent(args.packageName)}/oneTimeProducts/` +
+      `${encodeURIComponent(args.productId)}/purchaseOptions:batchUpdateStates`,
+    data: {
+      requests: [
+        {
+          activatePurchaseOptionRequest: {
+            packageName: args.packageName,
+            productId: args.productId,
+            purchaseOptionId: "buy",
+            latencyTolerance:
+              "PRODUCT_UPDATE_LATENCY_TOLERANCE_LATENCY_TOLERANT",
+          },
+        },
+      ],
+    },
+  });
+}
+
+async function deleteAndroidOneTimeProduct(
+  androidpublisher: androidpublisher_v3.Androidpublisher,
+  auth: Auth.GoogleAuth,
+  packageName: string,
+  productId: string,
+): Promise<void> {
+  try {
+    await deleteModernAndroidOneTimeProduct(auth, packageName, productId);
+    return;
+  } catch (error) {
+    if (isGoogleNotFoundError(error)) return;
+  }
+
+  const monetizationApi = androidpublisher.monetization as
+    | { onetimeproducts?: unknown }
+    | undefined;
+  const onetime = (
+    monetizationApi as unknown as {
+      onetimeproducts?: {
+        delete?: (params: {
+          packageName: string;
+          productId: string;
+        }) => Promise<unknown>;
+      };
+    }
+  ).onetimeproducts;
+
+  if (onetime?.delete) {
+    try {
+      await onetime.delete({ packageName, productId });
+      return;
+    } catch (error) {
+      if (!isGoogleNotFoundError(error)) throw error;
+    }
+  }
+
+  try {
+    await androidpublisher.inappproducts.delete({
+      packageName,
+      sku: productId,
+    });
+  } catch (error) {
+    if (!isGoogleNotFoundError(error)) throw error;
+  }
+}
+
+async function deleteModernAndroidOneTimeProduct(
+  auth: Auth.GoogleAuth,
+  packageName: string,
+  productId: string,
+): Promise<void> {
+  const client = await auth.getClient();
+  await client.request({
+    method: "DELETE",
+    url:
+      `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/` +
+      `${encodeURIComponent(packageName)}/oneTimeProducts/` +
+      `${encodeURIComponent(productId)}`,
+  });
 }
 
 function mapPlayOneTimeType(
@@ -1130,6 +1433,17 @@ export function moneyToMicros(
   } catch {
     return undefined;
   }
+}
+
+function microsToGoogleMoney(
+  priceAmountMicros: number,
+  currency: string,
+): androidpublisher_v3.Schema$Money {
+  return {
+    currencyCode: currency,
+    units: String(Math.trunc(priceAmountMicros / 1_000_000)),
+    nanos: (priceAmountMicros % 1_000_000) * 1_000,
+  };
 }
 
 function moneyUnitsToMicros(units: string): bigint | undefined {
