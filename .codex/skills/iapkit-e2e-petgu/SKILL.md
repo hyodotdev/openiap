@@ -11,10 +11,11 @@ Google Play Console.
 
 ## Default Targets
 
-- OpenIAP repo: `/Users/hyo/Github/hyodotdev/openiap`
-- Kit package: `/Users/hyo/Github/hyodotdev/openiap/packages/kit`
-- Petgu app: `/Users/hyo/Github/hyodotdev/Petgu`
-- Local dashboard: `http://127.0.0.1:5174/hyo-dev/project/petgu/products`
+- OpenIAP repo: `$OPENIAP_REPO` (current checkout; this repo)
+- Kit package: `$OPENIAP_REPO/packages/kit`
+- Petgu app: `$PETGU_REPO`
+- Local dashboard: `$IAPKIT_LOCAL_URL`, default
+  `http://127.0.0.1:5174/hyo-dev/project/petgu/products`
 - IAPKit project: organization `hyo-dev`, project `petgu`
 - iOS app: App Store Connect app `6755113628`
 - Android app: Play Console app `4975127121389308944`, package
@@ -39,8 +40,8 @@ Google Play Console.
 ## Standard Workflow
 
 1. Read repository rules before changing code:
-   - `/Users/hyo/Github/hyodotdev/openiap/AGENTS.md`
-   - `/Users/hyo/Github/hyodotdev/openiap/packages/kit/CONVENTION.md`
+   - `$OPENIAP_REPO/AGENTS.md`
+   - `$OPENIAP_REPO/packages/kit/CONVENTION.md`
 2. Start or use the local kit dashboard on `127.0.0.1:5174`.
 3. Use Petgu as the React Native fixture app for product IDs and native billing
    capability checks.
@@ -61,11 +62,11 @@ Google Play Console.
    - Re-run pull to confirm temporary SKUs are gone.
    - Leave real Petgu SKUs intact unless the user confirms irreversible deletion.
 8. Run focused verification:
-   - `cd /Users/hyo/Github/hyodotdev/openiap/packages/kit`
+   - `cd $OPENIAP_REPO/packages/kit`
    - `bun run typecheck`
    - `bun run test -- convex/products`
    - `bun run lint:eslint`
-   - `cd /Users/hyo/Github/hyodotdev/Petgu`
+   - `cd $PETGU_REPO`
    - `bun install --frozen-lockfile`
    - `bun run type-check`
 

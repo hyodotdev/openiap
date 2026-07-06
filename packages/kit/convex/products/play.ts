@@ -1150,7 +1150,7 @@ async function deleteAndroidOneTimeProduct(
     await deleteModernAndroidOneTimeProduct(auth, packageName, productId);
     return;
   } catch (error) {
-    if (isGoogleNotFoundError(error)) return;
+    if (!isGoogleNotFoundError(error)) throw error;
   }
 
   const monetizationApi = androidpublisher.monetization as

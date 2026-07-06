@@ -551,7 +551,13 @@ export const deleteRemovedProductRow = internalMutation({
           .eq("productId", args.productId),
       )
       .unique();
-    if (!existing || existing.state !== "Removed") return false;
+    if (
+      !existing ||
+      existing.state !== "Removed" ||
+      !(existing.origin === "kit" || existing.storeRef === undefined)
+    ) {
+      return false;
+    }
     await ctx.db.delete(existing._id);
     return true;
   },

@@ -566,47 +566,7 @@ class AscClient {
     pricePointId: string;
     startDate?: string;
   }) {
-    const attributes =
-      args.startDate === undefined ? {} : { startDate: args.startDate };
-    const priceLid = "${newSubPrice}";
-    return this.call<{ data: { id: string } }>(
-      `/v1/subscriptions/${encodeURIComponent(args.subId)}`,
-      {
-        method: "PATCH",
-        body: JSON.stringify({
-          data: {
-            type: "subscriptions",
-            id: args.subId,
-            relationships: {
-              prices: {
-                data: [{ type: "subscriptionPrices", id: priceLid }],
-              },
-            },
-          },
-          included: [
-            {
-              type: "subscriptionPrices",
-              id: priceLid,
-              attributes,
-              relationships: {
-                subscription: {
-                  data: { type: "subscriptions", id: args.subId },
-                },
-                subscriptionPricePoint: {
-                  data: {
-                    type: "subscriptionPricePoints",
-                    id: args.pricePointId,
-                  },
-                },
-                territory: {
-                  data: { type: "territories", id: "USA" },
-                },
-              },
-            },
-          ],
-        }),
-      },
-    );
+    return this.createSubPriceChange(args);
   }
 
   createSubPriceChange(args: {
