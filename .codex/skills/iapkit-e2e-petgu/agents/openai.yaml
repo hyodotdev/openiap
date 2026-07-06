@@ -1,0 +1,4 @@
+interface:
+  display_name: "IAPKit Petgu E2E"
+  short_description: "Run IAPKit E2E checks with Petgu"
+  default_prompt: "Use $iapkit-e2e-petgu to verify IAPKit product sync locally with Petgu."

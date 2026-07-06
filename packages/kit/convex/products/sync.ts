@@ -75,6 +75,12 @@ function assertSafePriceAmountMicros(
   }
 }
 
+export function shouldPreserveKitRemovedDuringPull(
+  existing: Pick<Doc<"products">, "state" | "origin"> | null | undefined,
+): boolean {
+  return existing?.state === "Removed" && existing.origin === "kit";
+}
+
 // Internal mutation called by the ASC / Play push-sync actions when a
 // row is mirrored from the upstream store. Distinct from the public
 // `upsertProduct` mutation in mutation.ts so server-driven sync can't
@@ -139,6 +145,13 @@ export const upsertFromStore = internalMutation({
       )
       .unique();
     const now = Date.now();
+    if (existing && shouldPreserveKitRemovedDuringPull(existing)) {
+      // A kit-authored removal is an upstream delete request. Pull
+      // runs before push for direction="both", so without this guard
+      // the still-existing store row would resurrect the local row to
+      // Active/Ready and the delete pass would never see it.
+      return existing._id;
+    }
     // Subscription group metadata only applies to subscriptions —
     // explicitly null it out for non-Subscription rows so a row
     // that flipped types (or that the operator typed a group name
@@ -270,6 +283,52 @@ export const markPushed = internalMutation({
       updatedAt: Date.now(),
     });
     return existing._id;
+  },
+});
+
+export const getExistingProductType = internalQuery({
+  args: {
+    projectId: v.id("projects"),
+    platform: platformValidator,
+    productId: v.string(),
+  },
+  returns: v.union(typeValidator, v.null()),
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("products")
+      .withIndex("by_project_and_platform_and_product", (q) =>
+        q
+          .eq("projectId", args.projectId)
+          .eq("platform", args.platform)
+          .eq("productId", args.productId),
+      )
+      .unique();
+    return existing?.type ?? null;
+  },
+});
+
+export const listExistingProductTypes = internalQuery({
+  args: {
+    projectId: v.id("projects"),
+    platform: platformValidator,
+  },
+  returns: v.array(
+    v.object({
+      productId: v.string(),
+      type: typeValidator,
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const rows = await ctx.db
+      .query("products")
+      .withIndex("by_project_and_platform", (q) =>
+        q.eq("projectId", args.projectId).eq("platform", args.platform),
+      )
+      .collect();
+    return rows.map((row) => ({
+      productId: row.productId,
+      type: row.type,
+    }));
   },
 });
 
@@ -417,14 +476,100 @@ export const listDraftAndroidProducts = internalQuery({
   },
 });
 
+const removedProductReturnValidator = v.object({
+  productId: v.string(),
+  platform: platformValidator,
+  type: typeValidator,
+  storeRef: v.optional(v.string()),
+});
+
+function removedProductsForPush(rows: Doc<"products">[]): Array<{
+  productId: string;
+  platform: "IOS" | "Android";
+  type: "Subscription" | "NonConsumable" | "Consumable";
+  storeRef?: string;
+}> {
+  return rows
+    .filter(
+      (row) =>
+        row.state === "Removed" &&
+        // Only push deletes that were authored in kit. Store-imported
+        // removed/draft-ish rows are cache state, not an operator's
+        // instruction to delete upstream resources.
+        (row.origin === "kit" || row.storeRef === undefined),
+    )
+    .map((row) => ({
+      productId: row.productId,
+      platform: row.platform,
+      type: row.type,
+      storeRef: row.storeRef,
+    }));
+}
+
+export const listRemovedIosProducts = internalQuery({
+  args: { projectId: v.id("projects") },
+  returns: v.array(removedProductReturnValidator),
+  handler: async (ctx, args) => {
+    const all = await ctx.db
+      .query("products")
+      .withIndex("by_project_and_platform", (q) =>
+        q.eq("projectId", args.projectId).eq("platform", "IOS"),
+      )
+      .collect();
+    return removedProductsForPush(all);
+  },
+});
+
+export const listRemovedAndroidProducts = internalQuery({
+  args: { projectId: v.id("projects") },
+  returns: v.array(removedProductReturnValidator),
+  handler: async (ctx, args) => {
+    const all = await ctx.db
+      .query("products")
+      .withIndex("by_project_and_platform", (q) =>
+        q.eq("projectId", args.projectId).eq("platform", "Android"),
+      )
+      .collect();
+    return removedProductsForPush(all);
+  },
+});
+
+export const deleteRemovedProductRow = internalMutation({
+  args: {
+    projectId: v.id("projects"),
+    productId: v.string(),
+    platform: platformValidator,
+  },
+  returns: v.boolean(),
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("products")
+      .withIndex("by_project_and_platform_and_product", (q) =>
+        q
+          .eq("projectId", args.projectId)
+          .eq("platform", args.platform)
+          .eq("productId", args.productId),
+      )
+      .unique();
+    if (
+      !existing ||
+      existing.state !== "Removed" ||
+      !(existing.origin === "kit" || existing.storeRef === undefined)
+    ) {
+      return false;
+    }
+    await ctx.db.delete(existing._id);
+    return true;
+  },
+});
+
 // Bounded delete used by the `purge-local` sync direction. Deletes
 // the project's kit-side product rows for one platform and returns
 // `{ deleted, hasMore }` so the worker can loop until empty without
 // blowing past Convex's per-mutation document budget. Does NOT touch
-// App Store Connect / Play Console — purging upstream is intentionally
-// out of scope (Apple can't fully delete IAPs via API; Play archive
-// risks live-billing breakage). The operator does that in the
-// store's web console if they really need it.
+// App Store Connect / Play Console — upstream deletion is handled by
+// marking individual rows Removed and running push/both sync so the
+// platform-specific delete constraints can be reported per product.
 export const deletePlatformCatalog = internalMutation({
   args: {
     projectId: v.id("projects"),

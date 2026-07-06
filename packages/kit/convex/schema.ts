@@ -985,8 +985,8 @@ const schema = defineSchema({
       v.object({
         pulled: v.number(),
         pushed: v.number(),
-        // Number of kit-side rows the purge-local direction removed.
-        // Always 0 (or unset) for pull/push/both directions.
+        // Number of kit-side product rows removed by purge-local or
+        // by a successful upstream delete during push/both sync.
         deleted: v.optional(v.number()),
         failures: v.array(
           v.object({ productId: v.string(), reason: v.string() }),

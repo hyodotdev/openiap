@@ -55,6 +55,22 @@ describe("mintAscJwt", () => {
     expect(payload.exp - payload.iat).toBe(1_200);
   });
 
+  it("mints individual-key payloads without issuer id", () => {
+    const pem = generateP8();
+    const token = mintAscJwt({
+      keyId: "INDIVIDUAL1",
+      privateKey: pem,
+      nowSeconds: () => 1_711_000_000,
+    });
+
+    const payload = JSON.parse(
+      Buffer.from(token.split(".")[1], "base64url").toString("utf-8"),
+    );
+    expect(payload.iss).toBeUndefined();
+    expect(payload.sub).toBe("user");
+    expect(payload.aud).toBe("appstoreconnect-v1");
+  });
+
   it("produces a signature that verifies against the public key with the JOSE r||s format", () => {
     const pem = generateP8();
     const token = mintAscJwt({

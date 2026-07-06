@@ -1,7 +1,8 @@
 "use node";
 // Minimal ES256 JWT minter for App Store Connect API authentication.
 // ASC requires every request to carry a JWT in `Authorization: Bearer`
-// signed with the project's downloaded `.p8` key (kid + issuerId).
+// signed with the project's downloaded `.p8` key. Team keys include an
+// issuer id; individual keys omit it and identify the user subject.
 //
 // We do NOT reach for `jose` / `jsonwebtoken` here — both pull
 // substantial node-only dependency trees into the Convex action
@@ -15,7 +16,8 @@
 import { createPrivateKey, createSign } from "node:crypto";
 
 export type AscJwtClaims = {
-  iss: string; // issuerId — ASC > Users and Access > Keys
+  iss?: string; // issuerId — ASC > Users and Access > Keys
+  sub?: "user"; // Individual API keys use a user subject instead of iss.
   scope?: string[]; // optional ASC scope claim
   // aud is fixed to "appstoreconnect-v1" by ASC.
   // iat / exp are computed from `nowSeconds`.
@@ -24,7 +26,7 @@ export type AscJwtClaims = {
 export type AscJwtOptions = {
   keyId: string; // ASC > Keys > Key ID
   privateKey: string; // PKCS#8 PEM (the .p8 file content)
-  issuerId: string;
+  issuerId?: string;
   // Token TTL in seconds. ASC enforces ≤ 1200s (20 min); default to a
   // conservative 600s to leave headroom for clock skew.
   ttlSeconds?: number;
@@ -43,11 +45,15 @@ export function mintAscJwt(opts: AscJwtOptions): string {
     typ: "JWT",
   };
   const payload: Record<string, unknown> = {
-    iss: opts.issuerId,
     iat: now,
     exp: now + ttl,
     aud: "appstoreconnect-v1",
   };
+  if (opts.issuerId) {
+    payload.iss = opts.issuerId;
+  } else {
+    payload.sub = "user";
+  }
 
   const headerB64 = base64UrlEncode(Buffer.from(JSON.stringify(header)));
   const payloadB64 = base64UrlEncode(Buffer.from(JSON.stringify(payload)));
