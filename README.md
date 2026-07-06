@@ -60,10 +60,6 @@ Have a question or need help? Ask in the relevant [GitHub Discussions](https://g
 
 For bug reports, please [open an issue](https://github.com/hyodotdev/openiap/issues).
 
-## Contributing
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup, workflows, and contribution guidelines.
-
 ## Sponsors
 
 <p align="center">
@@ -73,3 +69,27 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup, workflows, and c
 </p>
 
 Thank you to our sponsors for supporting the OpenIAP initiative. [Become a sponsor](https://openiap.dev/sponsors)
+
+### OpenCollective Sponsorship
+
+We also recognize sponsors and backers through OpenCollective. The original react-native-iap collective now supports the broader OpenIAP ecosystem and is managed separately from the main sponsor program.
+
+**Sponsors:** <a href="https://opencollective.com/openiap#sponsors" target="_blank"><img src="https://opencollective.com/openiap/sponsors.svg?width=890&cache=20260706" alt="OpenCollective sponsors" /></a>
+
+**Backers:** <a href="https://opencollective.com/openiap#backers" target="_blank"><img src="https://opencollective.com/openiap/backers.svg?width=890&cache=20260706" alt="OpenCollective backers" /></a>
+
+[Become a sponsor](https://opencollective.com/openiap#sponsor) | [Become a backer](https://opencollective.com/openiap#backer)
+
+## Contributing
+
+<a href="https://github.com/hyodotdev/openiap/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=hyodotdev/openiap" alt="OpenIAP contributors" />
+</a>
+
+OpenIAP began with the original [react-native-iap](https://github.com/hyochan/react-native-iap) community and carries that work forward across the broader ecosystem:
+
+<a href="https://github.com/hyochan/react-native-iap/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=hyochan/react-native-iap" alt="react-native-iap contributors" />
+</a>
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup, workflows, and contribution guidelines.

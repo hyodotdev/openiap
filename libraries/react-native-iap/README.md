@@ -2,18 +2,12 @@
 
 <div align="center">
   <img src="https://openiap.dev/frameworks/react-native.webp" alt="React Native IAP Logo" width="150" />
-  
-[![Version](http://img.shields.io/npm/v/react-native-iap.svg?style=flat-square)](https://npmjs.org/package/react-native-iap)
-[![Download](http://img.shields.io/npm/dm/react-native-iap.svg?style=flat-square)](https://npmjs.org/package/react-native-iap)
-[![OpenIAP](https://img.shields.io/badge/OpenIAP-Compliant-green?style=flat-square)](https://openiap.dev)
-[![Backers and Sponsors](https://img.shields.io/opencollective/all/react-native-iap.svg)](https://opencollective.com/react-native-iap)
-[![CI - Test](https://github.com/hyodotdev/openiap/actions/workflows/ci-test.yml/badge.svg)](https://github.com/hyodotdev/openiap/actions/workflows/ci-test.yml)
-[![codecov](https://codecov.io/gh/hyodotdev/openiap/graph/badge.svg?token=KSYo4rC6cU)](https://codecov.io/gh/hyodotdev/openiap)
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fhyochan%2Freact-native-iap.svg?type=shield&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2Fhyochan%2Freact-native-iap?ref=badge_shield&issueType=license)
-  
-  **React Native IAP** is a high-performance in-app purchase library using Nitro Modules that **conforms to the [Open IAP specification](https://openiap.dev)**. It provides a unified API for handling in-app purchases across iOS and Android platforms with comprehensive error handling and modern TypeScript support.
-  
-  <a href="https://openiap.dev"><img src="https://raw.githubusercontent.com/hyodotdev/openiap/main/logo.png" alt="Open IAP" height="40" /></a>
+
+[![Version](http://img.shields.io/npm/v/react-native-iap.svg?style=flat-square)](https://npmjs.org/package/react-native-iap) [![Download](http://img.shields.io/npm/dm/react-native-iap.svg?style=flat-square)](https://npmjs.org/package/react-native-iap) [![OpenIAP](https://img.shields.io/badge/OpenIAP-Compliant-green?style=flat-square)](https://openiap.dev) [![Backers and Sponsors](https://img.shields.io/opencollective/all/openiap.svg)](https://opencollective.com/openiap) [![CI - Test](https://github.com/hyodotdev/openiap/actions/workflows/ci-test.yml/badge.svg)](https://github.com/hyodotdev/openiap/actions/workflows/ci-test.yml) [![codecov](https://codecov.io/gh/hyodotdev/openiap/graph/badge.svg?token=KSYo4rC6cU)](https://codecov.io/gh/hyodotdev/openiap) [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fhyochan%2Freact-native-iap.svg?type=shield&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2Fhyochan%2Freact-native-iap?ref=badge_shield&issueType=license)
+
+**React Native IAP** is a high-performance in-app purchase library using Nitro Modules that **conforms to the [Open IAP specification](https://openiap.dev)**. It provides a unified API for handling in-app purchases across iOS and Android platforms with comprehensive error handling and modern TypeScript support.
+
+<a href="https://openiap.dev"><img src="https://raw.githubusercontent.com/hyodotdev/openiap/main/logo.png" alt="Open IAP" height="40" /></a>
 </div>
 
 ## 🎨 Promotion
@@ -82,13 +76,13 @@ React Native IAP is built with a modern architecture that emphasizes:
 
 ## 📱 Platform Support
 
-| Platform          | Support | Notes                             |
-| ----------------- | ------- | --------------------------------- |
-| iOS               | ✅      | StoreKit 2 (requires iOS 15+)     |
-| Android           | ✅      | Google Play Billing v8.0.0+       |
-| Expo Go           | ❌      | Use `expo-iap` for Expo projects  |
-| Expo Dev Client   | ❌      | Use `expo-iap` for Expo projects  |
-| Bare React Native | ✅      | Full support                      |
+| Platform          | Support | Notes                            |
+| ----------------- | ------- | -------------------------------- |
+| iOS               | ✅      | StoreKit 2 (requires iOS 15+)    |
+| Android           | ✅      | Google Play Billing v8.0.0+      |
+| Expo Go           | ❌      | Use `expo-iap` for Expo projects |
+| Expo Dev Client   | ❌      | Use `expo-iap` for Expo projects |
+| Bare React Native | ✅      | Full support                     |
 
 ## 📦 Installation & Configuration
 
@@ -210,13 +204,13 @@ Support this project by becoming a sponsor. Your logo will show up here with a l
 
 ### OpenCollective Sponsorship
 
-We also manage sponsorships through OpenCollective, which operates separately from our main sponsor program.
+We also recognize sponsors and backers through OpenCollective. The original react-native-iap collective now supports the broader OpenIAP ecosystem and is managed separately from our main sponsor program.
 
-**Sponsors:** <a href="https://opencollective.com/react-native-iap#sponsors" target="_blank"><img src="https://opencollective.com/react-native-iap/sponsors.svg?width=890" /></a>
+**Sponsors:** <a href="https://opencollective.com/openiap#sponsors" target="_blank"><img src="https://opencollective.com/openiap/sponsors.svg?width=890&cache=20260706" alt="OpenCollective sponsors" /></a>
 
-**Backers:** <a href="https://opencollective.com/react-native-iap#backers" target="_blank"><img src="https://opencollective.com/react-native-iap/backers.svg?width=890" /></a>
+**Backers:** <a href="https://opencollective.com/openiap#backers" target="_blank"><img src="https://opencollective.com/openiap/backers.svg?width=890&cache=20260706" alt="OpenCollective backers" /></a>
 
-[Become a sponsor](https://opencollective.com/react-native-iap#sponsor) | [Become a backer](https://opencollective.com/react-native-iap#backer)
+[Become a sponsor](https://opencollective.com/openiap#sponsor) | [Become a backer](https://opencollective.com/openiap#backer)
 
 ## Community
 
@@ -226,6 +220,10 @@ For bug reports, please [open an issue](https://github.com/hyodotdev/openiap/iss
 
 ## Contributing
 
-<a href="graphs/contributors"><img src="https://opencollective.com/react-native-iap/contributors.svg?width=890" /></a>
+<a href="https://github.com/hyochan/react-native-iap/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=hyochan/react-native-iap" alt="react-native-iap contributors" />
+</a>
+
+Thank you to everyone who contributed to [hyochan/react-native-iap](https://github.com/hyochan/react-native-iap), the community where OpenIAP began.
 
 See our [Contributing Guide](./CONTRIBUTING.md) for development setup and guidelines.
