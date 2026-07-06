@@ -1,7 +1,6 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+OpenIAP keeps detailed release history centralized to avoid package-local drift.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-Check out [Releases](https://github.com/hyochan/react-native-iap/releases).
+- Consolidated release notes: [openiap.dev/docs/updates/releases](https://openiap.dev/docs/updates/releases)
+- React Native package releases: [hyodotdev/openiap/releases?q=react-native-iap](https://github.com/hyodotdev/openiap/releases?q=react-native-iap&expanded=true)

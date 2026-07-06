@@ -156,6 +156,15 @@ function expectNotIncludes(relativePath, needles, label = relativePath) {
   }
 }
 
+function expectNoMatch(relativePath, regex, label = relativePath) {
+  expectFile(relativePath);
+  if (!exists(relativePath)) return;
+  const text = read(relativePath);
+  if (regex.test(text)) {
+    fail(`${label} must not match ${regex}`);
+  }
+}
+
 function expectOptionalIncludes(relativePath, needles, label = relativePath) {
   if (!exists(relativePath)) return;
   expectIncludes(relativePath, needles, label);
@@ -1174,6 +1183,13 @@ function checkFrameworkDependencyHygiene() {
     "documentationUrl: 'https://hyochan.github.io/kmp-iap'",
     "documentationUrl: 'https://hyochan.github.io/godot-iap'",
   ], 'docs library cards must not point at legacy standalone docs');
+  expectIncludes('CHANGELOG.md', [
+    'https://openiap.dev/docs/updates/releases',
+    'https://github.com/hyodotdev/openiap/releases',
+  ], 'root changelog should point at OpenIAP release SSOT');
+  expectNotIncludes('CHANGELOG.md', [
+    'https://www.openiap.dev/docs/updates/notes',
+  ], 'root changelog must not point at redirected release notes URL');
   expectIncludes('libraries/expo-iap/README.md', [
     'https://openiap.dev/frameworks/expo.svg',
     'https://openiap.dev/docs/setup/expo',
@@ -1206,6 +1222,13 @@ function checkFrameworkDependencyHygiene() {
     'https://github.com/user-attachments/assets/319d8966-6839-498d-8ead-ce8cc72c3bca',
     'https://www.openiap.dev',
   ], 'Expo README must not point at legacy standalone docs');
+  expectIncludes('libraries/expo-iap/CHANGELOG.md', [
+    'https://openiap.dev/docs/updates/releases',
+    'https://github.com/hyodotdev/openiap/releases?q=expo-iap&expanded=true',
+  ], 'Expo changelog release SSOT links');
+  expectNotIncludes('libraries/expo-iap/CHANGELOG.md', [
+    'github.com/hyochan/expo-iap',
+  ], 'Expo changelog must not point at the legacy standalone repository');
   for (const expoDocsFile of [
     'libraries/expo-iap/CONTRIBUTING.md',
     'libraries/expo-iap/src/index.ts',
@@ -1239,6 +1262,13 @@ function checkFrameworkDependencyHygiene() {
     'https://github.com/user-attachments/assets/319d8966-6839-498d-8ead-ce8cc72c3bca',
     'https://www.openiap.dev',
   ], 'React Native README must not point at legacy standalone docs');
+  expectIncludes('libraries/react-native-iap/CHANGELOG.md', [
+    'https://openiap.dev/docs/updates/releases',
+    'https://github.com/hyodotdev/openiap/releases?q=react-native-iap&expanded=true',
+  ], 'React Native changelog release SSOT links');
+  expectNotIncludes('libraries/react-native-iap/CHANGELOG.md', [
+    'github.com/hyochan/react-native-iap',
+  ], 'React Native changelog must not point at the legacy standalone repository');
   expectNotIncludes('libraries/react-native-iap/CONTRIBUTING.md', [
     'hyochan.github.io/react-native-iap',
     'Recent highlights (',
@@ -1269,6 +1299,19 @@ function checkFrameworkDependencyHygiene() {
   expectNotIncludes('libraries/flutter_inapp_purchase/CONTRIBUTING.md', [
     'github.com/hyochan/openiap.dev',
   ], 'Flutter contributing links must point at the monorepo');
+  expectIncludes('libraries/flutter_inapp_purchase/CHANGELOG.md', [
+    'https://openiap.dev/docs/updates/releases',
+    'https://github.com/hyodotdev/openiap/releases?q=flutter-iap&expanded=true',
+  ], 'Flutter changelog release SSOT links');
+  expectNoMatch(
+    'libraries/flutter_inapp_purchase/CHANGELOG.md',
+    /^## 9\.[^\n]*\n\n- Initial release$/m,
+    'Flutter v9 changelog entries must not be placeholders',
+  );
+  expectIncludes('.github/workflows/release-flutter.yml', [
+    'flutter-iap-$PREV_VERSION',
+    'CONSOLIDATED_RELEASE_NOTES="https://openiap.dev/docs/updates/releases"',
+  ], 'Flutter release workflow should generate changelog entries from prefixed tags');
   expectIncludes('libraries/godot-iap/README.md', [
     'https://openiap.dev/docs/setup/godot',
     'https://openiap.dev/docs/guides/ai-assistants',

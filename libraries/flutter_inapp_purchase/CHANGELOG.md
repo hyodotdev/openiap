@@ -1,134 +1,139 @@
 # Changelog
 
+Flutter keeps this file for pub.dev, while detailed release history remains
+centralized in the OpenIAP release notes and GitHub Releases.
+
+- Consolidated release notes: https://openiap.dev/docs/updates/releases
+- Flutter package releases: https://github.com/hyodotdev/openiap/releases?q=flutter-iap&expanded=true
+
 ## 9.4.0-rc.3 (2026-07-05)
 
-- Initial release
-
+- See the Flutter GitHub Release for package-specific changes: https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.4.0-rc.3
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
 
 ## 9.4.0-rc.2 (2026-07-05)
 
-- Initial release
-
+- See the Flutter GitHub Release for package-specific changes: https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.4.0-rc.2
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
 
 ## 9.3.7 (2026-07-01)
 
-- Initial release
-
+- See the Flutter GitHub Release for package-specific changes: https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.3.7
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
 
 ## 9.3.6 (2026-06-27)
 
-- Initial release
-
+- See the Flutter GitHub Release for package-specific changes: https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.3.6
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
 
 ## 9.3.5 (2026-06-25)
 
-- Initial release
-
+- See the Flutter GitHub Release for package-specific changes: https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.3.5
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
 
 ## 9.3.4 (2026-06-23)
 
-- Initial release
-
+- See the Flutter GitHub Release for package-specific changes: https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.3.4
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
 
 ## 9.3.3 (2026-06-23)
 
-- Initial release
-
+- See the Flutter GitHub Release for package-specific changes: https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.3.3
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
 
 ## 9.3.2 (2026-06-11)
 
-- Initial release
-
+- See the Flutter GitHub Release for package-specific changes: https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.3.2
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
 
 ## 9.3.1 (2026-05-19)
 
-- Initial release
-
+- See the Flutter GitHub Release for package-specific changes: https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.3.1
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
 
 ## 9.3.0 (2026-05-16)
 
-- Initial release
-
+- See the Flutter GitHub Release for package-specific changes: https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.3.0
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
 
 ## 9.2.8 (2026-05-13)
 
-- Initial release
-
+- See the Flutter GitHub Release for package-specific changes: https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.2.8
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
 
 ## 9.2.7 (2026-05-08)
 
-- Initial release
-
+- See the Flutter GitHub Release for package-specific changes: https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.2.7
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
 
 ## 9.2.6 (2026-05-08)
 
-- Initial release
-
+- See the Flutter GitHub Release for package-specific changes: https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.2.6
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
 
 ## 9.2.5 (2026-05-07)
 
-- Initial release
-
+- See the Flutter GitHub Release for package-specific changes: https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.2.5
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
 
 ## 9.2.4 (2026-05-04)
 
-- Initial release
-
+- See the Flutter GitHub Release for package-specific changes: https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.2.4
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
 
 ## 9.2.3 (2026-04-24)
 
-- Initial release
-
+- See the Flutter GitHub Release for package-specific changes: https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.2.3
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
 
 ## 9.2.2 (2026-04-24)
 
-- Initial release
-
+- See the Flutter GitHub Release for package-specific changes: https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.2.2
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
 
 ## 9.2.1 (2026-04-16)
 
-- Initial release
-
+- See the Flutter GitHub Release for package-specific changes: https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.2.1
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
 
 ## 9.2.0 (2026-04-16)
 
-- Initial release
-
+- See the Flutter GitHub Release for package-specific changes: https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.2.0
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
 
 ## 9.1.0 (2026-04-15)
 
-- Initial release
-
+- See the Flutter GitHub Release for package-specific changes: https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.1.0
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
 
 ## 9.0.3 (2026-04-15)
 
-- Initial release
-
+- See the Flutter GitHub Release for package-specific changes: https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.0.3
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
 
 ## 9.0.2 (2026-04-14)
 
-- Initial release
-
+- See the Flutter GitHub Release for package-specific changes: https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.0.2
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
 
 ## 9.0.1 (2026-04-13)
 
-- Initial release
-
+- See the Flutter GitHub Release for package-specific changes: https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.0.1
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
 
 ## 9.0.0 (2026-04-10)
 
-- Initial release
-
+- See the Flutter GitHub Release for package-specific changes: https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.0.0
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
 
 ## 9.0.0-rc.1 (2026-04-10)
 
-- Initial release
-
+- See the Flutter release tag for the source snapshot: https://github.com/hyodotdev/openiap/tree/flutter-iap-9.0.0-rc.1
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
 
 ## 8.2.10 (2026-03-25)
 
 - Initial release
-
 
 ## 8.2.9 (2026-03-25)
 
@@ -138,7 +143,6 @@
 - chore(deps): bump ajv in /docs (#620)
 - fix(errors): support macOS in getCurrentPlatform — return IapPlatform.IOS for StoreKit platforms (#626)
 - fix: publish directly from deploy workflow
-
 
 ## 8.2.8 (2026-02-27)
 

@@ -262,9 +262,18 @@ jobs:
           PREV_VERSION: ${{ steps.bump.outputs.prev_version }}
         run: |
           DATE=$(date +%Y-%m-%d)
+          CONSOLIDATED_RELEASE_NOTES="https://openiap.dev/docs/updates/releases"
           CHANGES=""
-          if git rev-parse "$PREV_VERSION" >/dev/null 2>&1; then
-            PR_LINES=$(git log "${PREV_VERSION}..HEAD" --merges --pretty=format:"%s" | \
+          PREV_TAG=""
+          for CANDIDATE in "flutter-iap-$PREV_VERSION" "$PREV_VERSION"; do
+            if [ -n "$CANDIDATE" ] && git rev-parse "$CANDIDATE" >/dev/null 2>&1; then
+              PREV_TAG="$CANDIDATE"
+              break
+            fi
+          done
+
+          if [ -n "$PREV_TAG" ]; then
+            PR_LINES=$(git log "${PREV_TAG}..HEAD" --merges --pretty=format:"%s" -- libraries/flutter_inapp_purchase/ packages/google/ packages/apple/ | \
               sed -n 's/^Merge pull request #\([0-9]*\) from .*/\1/p')
             for PR_NUM in $PR_LINES; do
               PR_TITLE=$(git log --all --grep="Merge pull request #${PR_NUM}" --pretty=format:"%s" | head -1 | sed "s|Merge pull request #${PR_NUM} from [^ ]* ||")
@@ -273,12 +282,16 @@ jobs:
               fi
             done
             if [ -z "$CHANGES" ]; then
-              CHANGES=$(git log "${PREV_VERSION}..HEAD" --no-merges --pretty=format:"- %s" | head -20)
-              CHANGES="${CHANGES}\n"
+              LOG_LINES=$(git log "${PREV_TAG}..HEAD" --no-merges --pretty=format:"- %s" -- libraries/flutter_inapp_purchase/ packages/google/ packages/apple/ | head -20)
+              if [ -n "$LOG_LINES" ]; then
+                CHANGES="${LOG_LINES}\n"
+              fi
             fi
-          else
-            CHANGES="- Initial release\n"
           fi
+          if [ -z "$CHANGES" ]; then
+            CHANGES="- No direct Flutter package changes found between releases; this release picks up the latest OpenIAP native package updates.\n"
+          fi
+          CHANGES="${CHANGES}- See the consolidated OpenIAP release notes: ${CONSOLIDATED_RELEASE_NOTES}\n"
           ENTRY="## ${NEW_VERSION} (${DATE})\n\n${CHANGES}"
           if [ -f CHANGELOG.md ]; then
             EXISTING=$(cat CHANGELOG.md)
