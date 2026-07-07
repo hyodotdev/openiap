@@ -1,5 +1,6 @@
+import { useMemo } from 'react';
 import SEO from '../../../components/SEO';
-import { useScrollToHash } from '../../../hooks/useScrollToHash';
+import { useScrollToHash, getHashId } from '../../../hooks/useScrollToHash';
 import Pagination from '../../../components/Pagination';
 import { IAPKIT_URL, trackIapKitClick } from '../../../lib/config';
 
@@ -67,7 +68,7 @@ function Announcements() {
               style={{ width: '48px', height: '48px', borderRadius: '10px' }}
             />
             <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
-              OpenIAP is Now Backed by Amazon Developer!
+              We are now backed by Amazon Developer!
             </h2>
             <a
               href="#2026-06-09-amazon-fireos-vega"
@@ -108,8 +109,8 @@ function Announcements() {
             }}
           >
             <img
-              src="/announcements/amazon-fireos-vega.webp"
-              alt="OpenIAP Amazon Fire OS and Vega OS announcement"
+              src="/announcements/amazon-fire-tv-ui.webp"
+              alt="Fire TV sports interface displayed on a living room TV"
               style={{
                 width: '100%',
                 height: 'auto',
@@ -146,18 +147,6 @@ function Announcements() {
             for <code>react-native-iap</code> and compatible{' '}
             <code>expo-iap</code> apps.
           </p>
-          <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
-            The implementation is tracked in{' '}
-            <a
-              href="https://github.com/hyodotdev/openiap/pull/162"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="external-link"
-            >
-              PR 162
-            </a>
-            .
-          </p>
           <h3 style={{ marginTop: '1.25rem', marginBottom: '0.5rem' }}>
             Key Points
           </h3>
@@ -169,11 +158,19 @@ function Announcements() {
             }}
           >
             <li>
-              The Amazon Store Setup guide shows how Fire OS apps select the
-              Android <code>amazon</code> flavor, including{' '}
-              <code>modules.amazon.fireOS</code> for Expo and Gradle flavor
-              selection for bare React Native, Flutter, KMP, and MAUI where
-              supported.
+              The{' '}
+              <strong>
+                <a
+                  href="/docs/setup/store/amazon#fire-os"
+                  className="external-link"
+                >
+                  Amazon Store Setup guide
+                </a>
+              </strong>{' '}
+              shows how Fire OS apps can select the Android <code>amazon</code>{' '}
+              flavor, including <code>modules.amazon.fireOS</code> for Expo and
+              Gradle flavor selection for bare React Native, Flutter, KMP, and
+              MAUI where supported.
             </li>
             <li>
               The same Amazon Store Setup guide also covers Vega OS as a Kepler
@@ -192,20 +189,6 @@ function Announcements() {
               checks.
             </li>
           </ul>
-          <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
-            The Amazon Developer support helps sustain OpenIAP&apos;s work
-            toward vendor-neutral purchase interoperability across stores,
-            runtimes, and frameworks. You can check out the updates tracked in{' '}
-            <a
-              href="https://github.com/hyodotdev/openiap/pull/162"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="external-link"
-            >
-              PR 162
-            </a>{' '}
-            and let us know on GitHub what you need!
-          </p>
           <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
             <strong>Note:</strong> OpenIAP will continue to operate
             independently with the same commitment to developer experience and
@@ -960,11 +943,6 @@ function Announcements() {
             <div
               style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}
             >
-              <img
-                src="/logo.webp"
-                alt="OpenIAP Apple"
-                style={{ width: '56px', height: '56px', borderRadius: '10px' }}
-              />
               <div>
                 <div style={{ fontWeight: 600 }}>openiap-apple</div>
                 <a
@@ -980,11 +958,6 @@ function Announcements() {
             <div
               style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}
             >
-              <img
-                src="/logo.webp"
-                alt="OpenIAP Google"
-                style={{ width: '56px', height: '56px', borderRadius: '10px' }}
-              />
               <div>
                 <div style={{ fontWeight: 600 }}>openiap-google</div>
                 <a
@@ -1062,6 +1035,20 @@ function Announcements() {
     .filter((announcement) => !announcement.hidden)
     .sort((a, b) => b.date.getTime() - a.date.getTime());
 
+  const itemsPerPage = 5;
+
+  const initialPage = useMemo(() => {
+    const hashId = getHashId();
+    if (!hashId) return 1;
+
+    const announcementIndex = sortedAnnouncements.findIndex(
+      (announcement) => announcement.id === hashId
+    );
+    if (announcementIndex === -1) return 1;
+
+    return Math.floor(announcementIndex / itemsPerPage) + 1;
+  }, [sortedAnnouncements]);
+
   return (
     <div className="doc-page">
       <SEO
@@ -1072,7 +1059,7 @@ function Announcements() {
       <h1>📢 Announcements</h1>
       <p>Important news and updates about OpenIAP</p>
 
-      <Pagination itemsPerPage={5}>
+      <Pagination itemsPerPage={itemsPerPage} initialPage={initialPage}>
         {sortedAnnouncements.map((a) => (
           <section key={a.id} id={a.id}>
             {a.element}
