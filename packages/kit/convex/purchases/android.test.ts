@@ -462,6 +462,44 @@ describe("recordGooglePlayVerifiedSubscription", () => {
     });
   });
 
+  it("persists pending-acknowledgment subscriptions as bindable rows", async () => {
+    const { ctx, calls } = makeRunMutationRecorder();
+
+    await recordGooglePlayVerifiedSubscription(ctx, {
+      projectId: "projects_1" as never,
+      purchaseState: HarmonizedPurchaseState.PENDING_ACKNOWLEDGMENT,
+      receiptData: {
+        transactionId: "GPA.1234-5678-9012-34567",
+        packageName,
+        productId: "premium_monthly",
+        purchaseToken: "pending-sub-token",
+        purchaseDate: 1_700_000_000_000,
+        quantity: 1,
+        type: "Subscription",
+        subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+        acknowledgementState: "ACKNOWLEDGEMENT_STATE_PENDING",
+        expiryTime: 1_769_904_000_000,
+        renewsAt: 1_769_904_000_000,
+        currency: "USD",
+        priceAmountMicros: 9_990_000,
+      },
+    });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      projectId: "projects_1",
+      platform: "Android",
+      purchaseToken: "pending-sub-token",
+      productId: "premium_monthly",
+      purchaseState: HarmonizedPurchaseState.PENDING_ACKNOWLEDGMENT,
+      subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+      expiresAt: 1_769_904_000_000,
+      renewsAt: 1_769_904_000_000,
+      currency: "USD",
+      priceAmountMicros: 9_990_000,
+    });
+  });
+
   it("skips one-time product receipts", async () => {
     const { ctx, calls } = makeRunMutationRecorder();
 
