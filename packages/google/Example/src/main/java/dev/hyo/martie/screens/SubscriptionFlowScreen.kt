@@ -57,6 +57,12 @@ import dev.hyo.martie.util.PREMIUM_SUBSCRIPTION_PRODUCT_ID
 import dev.hyo.martie.util.SUBSCRIPTION_PREFS_NAME
 import dev.hyo.martie.util.resolvePremiumOfferInfo
 import dev.hyo.martie.util.savePremiumOffer
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 // Google Play Billing SubscriptionReplacementMode values
 // See: https://developer.android.com/reference/com/android/billingclient/api/BillingFlowParams.SubscriptionUpdateParams.ReplacementMode
@@ -69,6 +75,15 @@ private object ReplacementMode {
     const val DEFERRED = 6                // Change at next billing cycle
     const val KEEP_EXISTING = 7           // Keep existing payment schedule (8.1.0+)
 }
+
+private const val IAPKIT_BASE_URL = "https://kit.openiap.dev"
+private const val IAPKIT_EXAMPLE_USER_ID = "martie-e2e-user"
+
+private data class IapkitSubscriptionBindResult(
+    val bound: Boolean,
+    val active: Boolean,
+    val productId: String?
+)
 
 // Helper to format remaining time like "3d 4h" / "2h 12m" / "35m"
 private fun formatRemaining(deltaMillis: Long): String {
@@ -857,7 +872,7 @@ fun SubscriptionFlowScreen(
                                                                 return@launch
                                                             }
 
-                                                            println("SubscriptionFlow [Horizon/Play]: Changing from ${currentOffer.basePlanId} to ${targetOffer.basePlanId} with token: $purchaseToken")
+                                                            println("SubscriptionFlow [Horizon/Play]: Changing from ${currentOffer.basePlanId} to ${targetOffer.basePlanId} with token: present")
 
                                                             // Request subscription offer change (same product, different offer)
                                                             // Using new subscriptionProductReplacementParams API (8.1.0+)
@@ -950,7 +965,7 @@ fun SubscriptionFlowScreen(
                                     }
 
                                     // Log purchase details for debugging
-                                    println("SubscriptionFlow: Current purchase details - productId: ${subscription.productId}, token: ${subscription.purchaseToken}")
+                                    println("SubscriptionFlow: Current purchase details - productId: ${subscription.productId}, token: present")
                                     println("SubscriptionFlow: Purchase state: ${subscription.purchaseState}")
 
                                     // Resolve the active offer for this subscription
@@ -1084,7 +1099,7 @@ fun SubscriptionFlowScreen(
                                                                 return@launch
                                                             }
 
-                                                            println("SubscriptionFlow: Changing from ${currentOffer.basePlanId} to ${targetOffer.basePlanId} with token: $purchaseToken")
+                                                            println("SubscriptionFlow: Changing from ${currentOffer.basePlanId} to ${targetOffer.basePlanId} with token: present")
 
                                                             // For same subscription with different offers, use CHARGE_FULL_PRICE
                                                             // This is often the only supported mode for offer changes
@@ -1363,7 +1378,7 @@ fun SubscriptionFlowScreen(
             ?: throw IllegalStateException("Purchase token is required for IAPKit verification")
 
         println("SubscriptionFlow: IAPKit verification params:")
-        println("  - purchaseToken: $token")
+        println("  - purchaseToken: present")
 
         val props = RequestVerifyPurchaseWithIapkitProps(
             apiKey = apiKey,
@@ -1438,7 +1453,31 @@ fun SubscriptionFlowScreen(
                     try {
                         val result = verifyWithIapkit(purchase, apiKey)
                         println("SubscriptionFlow: IAPKit verification result: $result")
-                        verificationResultMessage = if (result) "✅ IAPKit verification passed" else "❌ IAPKit verification failed"
+                        verificationResultMessage = if (result) {
+                            val bindResult = runCatching {
+                                val token = purchase.purchaseToken
+                                    ?: throw IllegalStateException("Purchase token is required for IAPKit bindUser")
+                                bindIapkitSubscriptionUser(apiKey, token)
+                            }.getOrElse { error ->
+                                println("SubscriptionFlow: IAPKit bindUser error: ${error.message}")
+                                null
+                            }
+
+                            if (bindResult == null) {
+                                "✅ IAPKit verification passed\n❌ bindUser failed"
+                            } else {
+                                println(
+                                    "SubscriptionFlow: IAPKit bindUser result: " +
+                                        "bound=${bindResult.bound}, active=${bindResult.active}, " +
+                                        "productId=${bindResult.productId ?: "-"}"
+                                )
+                                "✅ IAPKit verification passed\n" +
+                                    "✅ bindUser($IAPKIT_EXAMPLE_USER_ID): bound=${bindResult.bound}, " +
+                                    "active=${bindResult.active}, product=${bindResult.productId ?: "-"}"
+                            }
+                        } else {
+                            "❌ IAPKit verification failed"
+                        }
                         if (!result) {
                             // Post error with auto-refund notice
                             iapStore.postStatusMessage(
@@ -1571,5 +1610,73 @@ fun SubscriptionFlowScreen(
         )
     }
 }
+
+private suspend fun bindIapkitSubscriptionUser(
+    apiKey: String,
+    purchaseToken: String
+): IapkitSubscriptionBindResult = withContext(Dispatchers.IO) {
+    val bindPayload = JSONObject()
+        .put("purchaseToken", purchaseToken)
+        .put("userId", IAPKIT_EXAMPLE_USER_ID)
+        .toString()
+    val bindResponse = requestIapkitJson(
+        url = "$IAPKIT_BASE_URL/v1/subscriptions/bind-user/${apiKey.urlEncode()}",
+        method = "POST",
+        body = bindPayload
+    )
+    val statusResponse = requestIapkitJson(
+        url = "$IAPKIT_BASE_URL/v1/subscriptions/status/${apiKey.urlEncode()}" +
+            "?userId=${IAPKIT_EXAMPLE_USER_ID.urlEncode()}",
+        method = "GET"
+    )
+    val subscription = statusResponse.optJSONObject("subscription")
+    IapkitSubscriptionBindResult(
+        bound = bindResponse.optBoolean("bound", false),
+        active = statusResponse.optBoolean("active", false),
+        productId = subscription?.optString("productId")?.takeIf { it.isNotBlank() }
+    )
+}
+
+private fun requestIapkitJson(
+    url: String,
+    method: String,
+    body: String? = null
+): JSONObject {
+    val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+        requestMethod = method
+        connectTimeout = 15_000
+        readTimeout = 15_000
+        setRequestProperty("Accept", "application/json")
+        if (body != null) {
+            setRequestProperty("Content-Type", "application/json")
+            doOutput = true
+        }
+    }
+
+    try {
+        if (body != null) {
+            connection.outputStream.use { output ->
+                output.write(body.toByteArray(StandardCharsets.UTF_8))
+            }
+        }
+
+        val statusCode = connection.responseCode
+        val stream = if (statusCode in 200..299) {
+            connection.inputStream
+        } else {
+            connection.errorStream ?: connection.inputStream
+        }
+        val responseBody = stream.bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
+        if (statusCode !in 200..299) {
+            error("IAPKit request failed with HTTP $statusCode")
+        }
+        return JSONObject(responseBody)
+    } finally {
+        connection.disconnect()
+    }
+}
+
+private fun String.urlEncode(): String =
+    URLEncoder.encode(this, StandardCharsets.UTF_8.name())
 
 // Moved to reusable component at: screens/uis/ActiveSubscriptionListItem.kt

@@ -72,6 +72,28 @@ describe("extractOrderIdFromRemoteResponse", () => {
     );
   });
 
+  it("uses the longest-dated subscription line item order id", () => {
+    const raw = JSON.stringify({
+      kind: "androidpublisher#subscriptionPurchaseV2",
+      latestOrderId: "GPA.sub-latest-top",
+      lineItems: [
+        {
+          productId: "pro_monthly",
+          expiryTime: "2026-01-01T00:00:00.000Z",
+          latestSuccessfulOrderId: "GPA.sub-line-soon",
+        },
+        {
+          productId: "pro_yearly",
+          expiryTime: "2026-02-01T00:00:00.000Z",
+          latestSuccessfulOrderId: "GPA.sub-line-later",
+        },
+      ],
+    });
+    expect(extractOrderIdFromRemoteResponse("google", raw)).toBe(
+      "GPA.sub-line-later",
+    );
+  });
+
   it("falls back to top-level latestOrderId when line items lack an order id", () => {
     const raw = JSON.stringify({
       kind: "androidpublisher#subscriptionPurchaseV2",

@@ -42,6 +42,17 @@ describe("mapGooglePlayPurchaseState", () => {
     expect(state).toBe(HarmonizedPurchaseState.EXPIRED);
   });
 
+  it("keeps canceled-but-not-expired subscriptions entitled", () => {
+    const state = mapGooglePlayPurchaseState({
+      type: "Subscription",
+      subscriptionState: "SUBSCRIPTION_STATE_CANCELED",
+      acknowledgementState: "ACKNOWLEDGED",
+      expiryTime: Date.now() + 1000,
+    });
+
+    expect(state).toBe(HarmonizedPurchaseState.ENTITLED);
+  });
+
   it("marks in-app purchases as consumed when Google Play reports it", () => {
     const state = mapGooglePlayPurchaseState({
       type: "InApp",

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { applyExpectedProductId, mapToAppStoreReceiptResponse } from "./shared";
+import { recordAppStoreVerifiedSubscription } from "./ios";
+import {
+  applyExpectedProductId,
+  AppStoreProductType,
+  mapToAppStoreReceiptResponse,
+} from "./shared";
 import { HarmonizedPurchaseState } from "./purchaseState";
 
 describe("App Store mappings (real data)", () => {
@@ -172,5 +177,78 @@ describe("App Store mappings (real data)", () => {
       state: HarmonizedPurchaseState.INAUTHENTIC,
       productId: "dev.hyo.martie.premium",
     });
+  });
+});
+
+describe("recordAppStoreVerifiedSubscription", () => {
+  function makeRunMutationRecorder(): {
+    ctx: Parameters<typeof recordAppStoreVerifiedSubscription>[0];
+    calls: Record<string, unknown>[];
+  } {
+    const calls: Record<string, unknown>[] = [];
+    const ctx = {
+      runMutation: async (
+        _mutation: unknown,
+        args: Record<string, unknown>,
+      ) => {
+        calls.push(args);
+        return null;
+      },
+    } as unknown as Parameters<typeof recordAppStoreVerifiedSubscription>[0];
+    return { ctx, calls };
+  }
+
+  it("records subscription transactions with store-verified state and micros pricing", async () => {
+    const { ctx, calls } = makeRunMutationRecorder();
+
+    await recordAppStoreVerifiedSubscription(ctx, {
+      projectId: "projects_1" as never,
+      remoteId: "original-transaction-1",
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      transactionData: {
+        transactionId: "transaction-1",
+        originalTransactionId: "original-transaction-1",
+        bundleId: "dev.hyo.martie",
+        productId: "dev.hyo.martie.premium",
+        type: AppStoreProductType.AUTO_RENEWABLE_SUBSCRIPTION,
+        environment: "Sandbox",
+        expiresDate: 1_769_904_000_000,
+        currency: "USD",
+        price: 9990,
+      },
+    });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      projectId: "projects_1",
+      platform: "IOS",
+      purchaseToken: "original-transaction-1",
+      productId: "dev.hyo.martie.premium",
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      expiresAt: 1_769_904_000_000,
+      currency: "USD",
+      priceAmountMicros: 9_990_000,
+    });
+  });
+
+  it("skips non-subscription transactions", async () => {
+    const { ctx, calls } = makeRunMutationRecorder();
+
+    await recordAppStoreVerifiedSubscription(ctx, {
+      projectId: "projects_1" as never,
+      remoteId: "transaction-1",
+      purchaseState: HarmonizedPurchaseState.READY_TO_CONSUME,
+      transactionData: {
+        transactionId: "transaction-1",
+        bundleId: "dev.hyo.martie",
+        productId: "dev.hyo.martie.10bulbs",
+        type: AppStoreProductType.CONSUMABLE,
+        environment: "Sandbox",
+        currency: "USD",
+        price: 9990,
+      },
+    });
+
+    expect(calls).toHaveLength(0);
   });
 });

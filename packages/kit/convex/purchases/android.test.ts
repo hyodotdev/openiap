@@ -4,6 +4,7 @@ import {
   mapProductResponseToReceiptData,
   mapSubscriptionResponseToReceiptData,
   parseTimeToMillis,
+  recordGooglePlayVerifiedSubscription,
 } from "./android";
 import { HarmonizedPurchaseState } from "./purchaseState";
 import { mapToGooglePlayReceiptResponse } from "./shared";
@@ -129,6 +130,57 @@ describe("Google Play v2 mappings", () => {
       state: HarmonizedPurchaseState.ENTITLED,
       productId: "untold_premium",
     });
+  });
+
+  it("selects the longest-dated subscription line item and preserves renewal price", () => {
+    const soon = "2026-01-01T00:00:00.000Z";
+    const later = "2026-02-01T00:00:00.000Z";
+    const subscriptionResponse = {
+      kind: "androidpublisher#subscriptionPurchaseV2",
+      latestOrderId: "GPA.1234-5678-9012-34567",
+      startTime: "2025-10-13T20:13:42.748Z",
+      subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+      acknowledgementState: "ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED",
+      lineItems: [
+        {
+          productId: "premium_monthly",
+          expiryTime: soon,
+          latestSuccessfulOrderId: "GPA.1111-1111-1111-11111",
+          autoRenewingPlan: {
+            recurringPrice: {
+              currencyCode: "USD",
+              units: "4",
+              nanos: 990_000_000,
+            },
+          },
+        },
+        {
+          productId: "premium_yearly",
+          expiryTime: later,
+          latestSuccessfulOrderId: "GPA.2222-2222-2222-22222",
+          autoRenewingPlan: {
+            recurringPrice: {
+              currencyCode: "USD",
+              units: "49",
+              nanos: 990_000_000,
+            },
+          },
+        },
+      ],
+    };
+
+    const receipt = mapSubscriptionResponseToReceiptData({
+      packageName,
+      purchaseToken: "sub-token",
+      subscriptionResponse,
+    });
+
+    expect(receipt.productId).toBe("premium_yearly");
+    expect(receipt.orderId).toBe("GPA.2222-2222-2222-22222");
+    expect(receipt.expiryTime).toBe(Date.parse(later));
+    expect(receipt.renewsAt).toBe(Date.parse(later));
+    expect(receipt.currency).toBe("USD");
+    expect(receipt.priceAmountMicros).toBe(49_990_000);
   });
 
   it("maps productsv2.get purchased consumable that has been consumed to CONSUMED", () => {
@@ -352,6 +404,120 @@ describe("Google Play v2 mappings", () => {
       state: HarmonizedPurchaseState.UNKNOWN,
       productId: "test.product",
     });
+  });
+});
+
+describe("recordGooglePlayVerifiedSubscription", () => {
+  function makeRunMutationRecorder(): {
+    ctx: Parameters<typeof recordGooglePlayVerifiedSubscription>[0];
+    calls: Record<string, unknown>[];
+  } {
+    const calls: Record<string, unknown>[] = [];
+    const ctx = {
+      runMutation: async (
+        _mutation: unknown,
+        args: Record<string, unknown>,
+      ) => {
+        calls.push(args);
+        return null;
+      },
+    } as unknown as Parameters<typeof recordGooglePlayVerifiedSubscription>[0];
+    return { ctx, calls };
+  }
+
+  it("uses the store-verified state for canonical subscription persistence", async () => {
+    const { ctx, calls } = makeRunMutationRecorder();
+
+    await recordGooglePlayVerifiedSubscription(ctx, {
+      projectId: "projects_1" as never,
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      receiptData: {
+        transactionId: "GPA.1234-5678-9012-34567",
+        packageName,
+        productId: "premium_monthly",
+        purchaseToken: "sub-token",
+        purchaseDate: 1_700_000_000_000,
+        quantity: 1,
+        type: "Subscription",
+        subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+        expiryTime: 1_769_904_000_000,
+        renewsAt: 1_769_904_000_000,
+        currency: "USD",
+        priceAmountMicros: 9_990_000,
+      },
+    });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      projectId: "projects_1",
+      platform: "Android",
+      purchaseToken: "sub-token",
+      productId: "premium_monthly",
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+      expiresAt: 1_769_904_000_000,
+      renewsAt: 1_769_904_000_000,
+      currency: "USD",
+      priceAmountMicros: 9_990_000,
+    });
+  });
+
+  it("persists pending-acknowledgment subscriptions as bindable rows", async () => {
+    const { ctx, calls } = makeRunMutationRecorder();
+
+    await recordGooglePlayVerifiedSubscription(ctx, {
+      projectId: "projects_1" as never,
+      purchaseState: HarmonizedPurchaseState.PENDING_ACKNOWLEDGMENT,
+      receiptData: {
+        transactionId: "GPA.1234-5678-9012-34567",
+        packageName,
+        productId: "premium_monthly",
+        purchaseToken: "pending-sub-token",
+        purchaseDate: 1_700_000_000_000,
+        quantity: 1,
+        type: "Subscription",
+        subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+        acknowledgementState: "ACKNOWLEDGEMENT_STATE_PENDING",
+        expiryTime: 1_769_904_000_000,
+        renewsAt: 1_769_904_000_000,
+        currency: "USD",
+        priceAmountMicros: 9_990_000,
+      },
+    });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      projectId: "projects_1",
+      platform: "Android",
+      purchaseToken: "pending-sub-token",
+      productId: "premium_monthly",
+      purchaseState: HarmonizedPurchaseState.PENDING_ACKNOWLEDGMENT,
+      subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+      expiresAt: 1_769_904_000_000,
+      renewsAt: 1_769_904_000_000,
+      currency: "USD",
+      priceAmountMicros: 9_990_000,
+    });
+  });
+
+  it("skips one-time product receipts", async () => {
+    const { ctx, calls } = makeRunMutationRecorder();
+
+    await recordGooglePlayVerifiedSubscription(ctx, {
+      projectId: "projects_1" as never,
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      receiptData: {
+        transactionId: "GPA.1234-5678-9012-34567",
+        packageName,
+        productId: "coins_pack",
+        purchaseToken: "product-token",
+        purchaseDate: 1_700_000_000_000,
+        quantity: 1,
+        type: "InApp",
+      },
+    });
+
+    expect(calls).toHaveLength(0);
   });
 });
 

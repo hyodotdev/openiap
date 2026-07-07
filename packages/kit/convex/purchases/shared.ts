@@ -41,6 +41,9 @@ export const googlePlayReceiptDataValidator = v.object({
   acknowledgementState: v.optional(v.string()),
   consumptionState: v.optional(v.string()),
   expiryTime: v.optional(v.number()),
+  renewsAt: v.optional(v.number()),
+  currency: v.optional(v.string()),
+  priceAmountMicros: v.optional(v.number()),
 });
 
 export type GooglePlayReceiptData = Infer<
@@ -271,7 +274,9 @@ export function mapGooglePlayPurchaseState(
 
     switch (subscriptionState) {
       case "SUBSCRIPTION_STATE_CANCELED":
-        return HarmonizedPurchaseState.CANCELED;
+        return isAcknowledged(receipt.acknowledgementState)
+          ? HarmonizedPurchaseState.ENTITLED
+          : HarmonizedPurchaseState.PENDING_ACKNOWLEDGMENT;
       case "SUBSCRIPTION_STATE_EXPIRED":
         return HarmonizedPurchaseState.EXPIRED;
       case "SUBSCRIPTION_STATE_PENDING":
@@ -473,14 +478,13 @@ export function extractOrderIdFromRemoteResponse(
     // Subscriptions V2: the top-level identifier is `latestOrderId`,
     // with `lineItems[].latestSuccessfulOrderId` as the per-line
     // fallback. `mapSubscriptionResponseToReceiptData` in android.ts
-    // already prefers the per-line id, so mirror that precedence here
-    // to keep the write-time column and the response-extracted id in
-    // sync.
+    // selects the longest-dated line item, so mirror that selection
+    // here to keep the write-time column and the receipt-derived id
+    // in sync.
     if ("lineItems" in parsed && Array.isArray(parsed.lineItems)) {
-      const lineItem = parsed.lineItems[0];
+      const lineItem = selectGoogleSubscriptionLineItem(parsed.lineItems);
       if (
         lineItem &&
-        typeof lineItem === "object" &&
         "latestSuccessfulOrderId" in lineItem &&
         typeof lineItem.latestSuccessfulOrderId === "string" &&
         lineItem.latestSuccessfulOrderId.length > 0
@@ -551,10 +555,9 @@ export function extractProductIdFromRemoteResponse(
         }
 
         if ("lineItems" in parsed && Array.isArray(parsed.lineItems)) {
-          const lineItem = parsed.lineItems[0];
+          const lineItem = selectGoogleSubscriptionLineItem(parsed.lineItems);
           if (
             lineItem &&
-            typeof lineItem === "object" &&
             "productId" in lineItem &&
             typeof lineItem.productId === "string"
           ) {
@@ -589,4 +592,30 @@ export function extractProductIdFromRemoteResponse(
   }
 
   return null;
+}
+
+function selectGoogleSubscriptionLineItem(
+  lineItems: unknown[],
+): Record<string, unknown> | null {
+  let fallback: Record<string, unknown> | null = null;
+  let selected: Record<string, unknown> | null = null;
+  let selectedScore = -Infinity;
+
+  for (const lineItem of lineItems) {
+    if (!isRecord(lineItem)) continue;
+    fallback ??= lineItem;
+
+    if (typeof lineItem.expiryTime !== "string") continue;
+    const score = Date.parse(lineItem.expiryTime);
+    if (!Number.isFinite(score) || score <= selectedScore) continue;
+
+    selected = lineItem;
+    selectedScore = score;
+  }
+
+  return selected ?? fallback;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object";
 }

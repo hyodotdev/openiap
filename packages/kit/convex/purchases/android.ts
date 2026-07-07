@@ -6,6 +6,7 @@ import { androidpublisher_v3 } from "googleapis";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { Id } from "../_generated/dataModel";
+import { moneyToMicros } from "../products/play";
 import {
   getProjectByApiKey,
   mapToGooglePlayReceiptResponse,
@@ -129,6 +130,11 @@ export const verifyGooglePlayReceiptInternalV1 = action({
         requestIp: args.requestIp,
         verificationDurationMs: Date.now() - verificationStart,
       });
+      await recordGooglePlayVerifiedSubscription(ctx, {
+        projectId: project._id,
+        receiptData,
+        purchaseState: storeReceiptResponse.state,
+      });
 
       return receiptResponse;
     } catch (error) {
@@ -205,6 +211,33 @@ export const verifyGooglePlayReceiptInternalV1 = action({
     }
   },
 });
+
+export async function recordGooglePlayVerifiedSubscription(
+  ctx: Pick<ActionCtx, "runMutation">,
+  params: {
+    projectId: Id<"projects">;
+    receiptData: GooglePlayReceiptData;
+    purchaseState: HarmonizedPurchaseState;
+  },
+): Promise<void> {
+  if (params.receiptData.type !== "Subscription") return;
+
+  await ctx.runMutation(
+    internal.subscriptions.internal.recordVerifiedSubscription,
+    {
+      projectId: params.projectId,
+      platform: "Android",
+      purchaseToken: params.receiptData.purchaseToken,
+      productId: params.receiptData.productId,
+      purchaseState: params.purchaseState,
+      subscriptionState: params.receiptData.subscriptionState,
+      expiresAt: params.receiptData.expiryTime,
+      renewsAt: params.receiptData.renewsAt,
+      currency: params.receiptData.currency,
+      priceAmountMicros: params.receiptData.priceAmountMicros,
+    },
+  );
+}
 
 interface GoogleServiceAccountKey {
   type: "service_account";
@@ -308,11 +341,14 @@ export function mapSubscriptionResponseToReceiptData(args: {
   purchaseToken: string;
   subscriptionResponse: androidpublisher_v3.Schema$SubscriptionPurchaseV2;
 }): GooglePlayReceiptData {
-  const lineItem = args.subscriptionResponse.lineItems?.[0];
+  const lineItem = selectSubscriptionLineItem(
+    args.subscriptionResponse.lineItems ?? [],
+  );
   const purchaseDate =
     parseTimeToMillis(args.subscriptionResponse.startTime) ?? Date.now();
   const expiryTime = parseTimeToMillis(lineItem?.expiryTime);
   const productId = lineItem?.productId || "unknown";
+  const recurringPrice = lineItem?.autoRenewingPlan?.recurringPrice;
 
   return {
     transactionId: args.purchaseToken,
@@ -330,7 +366,30 @@ export function mapSubscriptionResponseToReceiptData(args: {
     acknowledgementState:
       args.subscriptionResponse.acknowledgementState || undefined,
     expiryTime: expiryTime,
+    renewsAt: lineItem?.autoRenewingPlan ? expiryTime : undefined,
+    currency: recurringPrice?.currencyCode ?? undefined,
+    priceAmountMicros: moneyToMicros(recurringPrice),
   };
+}
+
+function selectSubscriptionLineItem(
+  lineItems: NonNullable<
+    androidpublisher_v3.Schema$SubscriptionPurchaseV2["lineItems"]
+  >,
+): androidpublisher_v3.Schema$SubscriptionPurchaseLineItem | undefined {
+  return (
+    lineItems.reduce<
+      androidpublisher_v3.Schema$SubscriptionPurchaseLineItem | undefined
+    >((selected, candidate) => {
+      if (!candidate.expiryTime) return selected;
+      const score = Date.parse(candidate.expiryTime);
+      if (!Number.isFinite(score)) return selected;
+      const selectedScore = selected?.expiryTime
+        ? Date.parse(selected.expiryTime)
+        : -Infinity;
+      return score > selectedScore ? candidate : selected;
+    }, undefined) ?? lineItems[0]
+  );
 }
 
 export function mapProductResponseToReceiptData(args: {
