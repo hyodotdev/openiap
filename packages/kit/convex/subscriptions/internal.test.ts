@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { HarmonizedPurchaseState } from "../purchases/purchaseState";
 import {
+  bindSubscriptionToUserHandler,
   buildVerifiedSubscriptionSnapshot,
   mergeVerifiedSubscriptionSnapshot,
   recordVerifiedSubscriptionHandler,
@@ -509,6 +510,54 @@ describe("recordVerifiedSubscriptionHandler", () => {
         currency: "USD",
         activeSubs: 1,
         mrrMicros: 9_990_000,
+      },
+    ]);
+  });
+
+  it("supports the verify -> bind flow for SDK clients", async () => {
+    const db = new MemDb();
+    db.seedProduct({
+      projectId: PROJECT_ID,
+      platform: "Android",
+      productId: "premium_monthly",
+      billingPeriod: "P1M",
+    });
+
+    const subscriptionId = await recordVerifiedSubscriptionHandler(
+      makeCtx(db),
+      {
+        projectId: PROJECT_ID as never,
+        platform: "Android",
+        purchaseToken: TOKEN,
+        productId: "premium_monthly",
+        purchaseState: HarmonizedPurchaseState.ENTITLED,
+        subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+        expiresAt: 1_769_904_000_000,
+        renewsAt: 1_769_904_000_000,
+        currency: "USD",
+        priceAmountMicros: 9_990_000,
+      },
+    );
+
+    const boundId = await bindSubscriptionToUserHandler(makeCtx(db), {
+      projectId: PROJECT_ID as never,
+      purchaseToken: TOKEN,
+      userId: "user-1",
+    });
+
+    expect(boundId).toBe(subscriptionId);
+    expect(db.rows("subscriptions")).toMatchObject([
+      {
+        _id: subscriptionId,
+        projectId: PROJECT_ID,
+        purchaseToken: TOKEN,
+        productId: "premium_monthly",
+        platform: "Android",
+        state: "Active",
+        userId: "user-1",
+        willRenew: true,
+        currency: "USD",
+        priceAmountMicros: 9_990_000,
       },
     ]);
   });

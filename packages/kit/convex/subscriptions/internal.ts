@@ -92,6 +92,12 @@ type RecordVerifiedSubscriptionArgs = {
   priceAmountMicros?: number;
 };
 
+type BindSubscriptionToUserArgs = {
+  projectId: Id<"projects">;
+  purchaseToken: string;
+  userId: string;
+};
+
 interface PersistSubscriptionSnapshotArgs {
   projectId: Id<"projects">;
   platform: SubscriptionPlatform;
@@ -545,18 +551,23 @@ export const bindSubscriptionToUser = internalMutation({
     userId: v.string(),
   },
   returns: v.union(v.id("subscriptions"), v.null()),
-  handler: async (ctx, args) => {
-    const sub = await findSubscriptionByToken(
-      ctx,
-      args.projectId,
-      args.purchaseToken,
-    );
-    if (!sub) return null;
-    if (sub.userId === args.userId) return sub._id;
-    await ctx.db.patch(sub._id, {
-      userId: args.userId,
-      updatedAt: Date.now(),
-    });
-    return sub._id;
-  },
+  handler: async (ctx, args) => bindSubscriptionToUserHandler(ctx, args),
 });
+
+export async function bindSubscriptionToUserHandler(
+  ctx: MutationCtx,
+  args: BindSubscriptionToUserArgs,
+): Promise<Id<"subscriptions"> | null> {
+  const sub = await findSubscriptionByToken(
+    ctx,
+    args.projectId,
+    args.purchaseToken,
+  );
+  if (!sub) return null;
+  if (sub.userId === args.userId) return sub._id;
+  await ctx.db.patch(sub._id, {
+    userId: args.userId,
+    updatedAt: Date.now(),
+  });
+  return sub._id;
+}
