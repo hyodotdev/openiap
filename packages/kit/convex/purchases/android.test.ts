@@ -131,6 +131,57 @@ describe("Google Play v2 mappings", () => {
     });
   });
 
+  it("selects the longest-dated subscription line item and preserves renewal price", () => {
+    const soon = "2026-01-01T00:00:00.000Z";
+    const later = "2026-02-01T00:00:00.000Z";
+    const subscriptionResponse = {
+      kind: "androidpublisher#subscriptionPurchaseV2",
+      latestOrderId: "GPA.1234-5678-9012-34567",
+      startTime: "2025-10-13T20:13:42.748Z",
+      subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+      acknowledgementState: "ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED",
+      lineItems: [
+        {
+          productId: "premium_monthly",
+          expiryTime: soon,
+          latestSuccessfulOrderId: "GPA.1111-1111-1111-11111",
+          autoRenewingPlan: {
+            recurringPrice: {
+              currencyCode: "USD",
+              units: "4",
+              nanos: 990_000_000,
+            },
+          },
+        },
+        {
+          productId: "premium_yearly",
+          expiryTime: later,
+          latestSuccessfulOrderId: "GPA.2222-2222-2222-22222",
+          autoRenewingPlan: {
+            recurringPrice: {
+              currencyCode: "USD",
+              units: "49",
+              nanos: 990_000_000,
+            },
+          },
+        },
+      ],
+    };
+
+    const receipt = mapSubscriptionResponseToReceiptData({
+      packageName,
+      purchaseToken: "sub-token",
+      subscriptionResponse,
+    });
+
+    expect(receipt.productId).toBe("premium_yearly");
+    expect(receipt.orderId).toBe("GPA.2222-2222-2222-22222");
+    expect(receipt.expiryTime).toBe(Date.parse(later));
+    expect(receipt.renewsAt).toBe(Date.parse(later));
+    expect(receipt.currency).toBe("USD");
+    expect(receipt.priceAmountMicros).toBe(49_990_000);
+  });
+
   it("maps productsv2.get purchased consumable that has been consumed to CONSUMED", () => {
     const productPurchaseV2Response = {
       kind: "androidpublisher#productPurchaseV2",

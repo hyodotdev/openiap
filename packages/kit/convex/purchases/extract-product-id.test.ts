@@ -115,6 +115,26 @@ describe("extractProductIdFromRemoteResponse", () => {
     ).toBe("pro_monthly");
   });
 
+  it("uses the longest-dated google subscription line item productId", () => {
+    expect(
+      extractProductIdFromRemoteResponse(
+        "google",
+        JSON.stringify({
+          lineItems: [
+            {
+              productId: "pro_monthly",
+              expiryTime: "2026-01-01T00:00:00.000Z",
+            },
+            {
+              productId: "pro_yearly",
+              expiryTime: "2026-02-01T00:00:00.000Z",
+            },
+          ],
+        }),
+      ),
+    ).toBe("pro_yearly");
+  });
+
   it("is null-safe when google line-item arrays are empty", () => {
     expect(
       extractProductIdFromRemoteResponse(

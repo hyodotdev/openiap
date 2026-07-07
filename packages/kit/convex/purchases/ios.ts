@@ -20,6 +20,7 @@ import {
   mapToAppStoreReceiptResponse,
   applyExpectedProductId,
   AppStoreReceiptData,
+  AppStoreProductType,
   receiptResponseValidator,
   isValidState,
 } from "./shared";
@@ -37,6 +38,22 @@ import { retryOnTransient } from "./retry";
 
 function describeError(error: unknown): string {
   return error instanceof Error ? error.name : typeof error;
+}
+
+function isAppStoreSubscriptionType(type: string | undefined): boolean {
+  if (
+    type === AppStoreProductType.AUTO_RENEWABLE_SUBSCRIPTION ||
+    type === AppStoreProductType.NON_RENEWING_SUBSCRIPTION
+  ) {
+    return true;
+  }
+  return type?.toLowerCase().includes("subscription") ?? false;
+}
+
+function appStorePriceToMicros(price: number | undefined): number | undefined {
+  if (typeof price !== "number" || !Number.isFinite(price)) return undefined;
+  // Apple transaction `price` is in milliunits; kit stores micros.
+  return price * 1000;
 }
 
 export const verifyAppStoreReceiptInternalV1 = action({
@@ -139,6 +156,21 @@ export const verifyAppStoreReceiptInternalV1 = action({
       requestIp: args.requestIp,
       verificationDurationMs: Date.now() - verificationStart,
     });
+    if (isAppStoreSubscriptionType(transactionData.type)) {
+      await ctx.runMutation(
+        internal.subscriptions.internal.recordVerifiedSubscription,
+        {
+          projectId: project._id,
+          platform: "IOS",
+          purchaseToken: remoteId,
+          productId: transactionData.productId ?? "unknown",
+          purchaseState: receiptResponse.state,
+          expiresAt: transactionData.expiresDate,
+          currency: transactionData.currency,
+          priceAmountMicros: appStorePriceToMicros(transactionData.price),
+        },
+      );
+    }
 
     return receiptResponse;
   },
