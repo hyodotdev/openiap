@@ -130,23 +130,11 @@ export const verifyGooglePlayReceiptInternalV1 = action({
         requestIp: args.requestIp,
         verificationDurationMs: Date.now() - verificationStart,
       });
-      if (receiptData.type === "Subscription") {
-        await ctx.runMutation(
-          internal.subscriptions.internal.recordVerifiedSubscription,
-          {
-            projectId: project._id,
-            platform: "Android",
-            purchaseToken: receiptData.purchaseToken,
-            productId: receiptData.productId,
-            purchaseState: receiptResponse.state,
-            subscriptionState: receiptData.subscriptionState,
-            expiresAt: receiptData.expiryTime,
-            renewsAt: receiptData.renewsAt,
-            currency: receiptData.currency,
-            priceAmountMicros: receiptData.priceAmountMicros,
-          },
-        );
-      }
+      await recordGooglePlayVerifiedSubscription(ctx, {
+        projectId: project._id,
+        receiptData,
+        purchaseState: storeReceiptResponse.state,
+      });
 
       return receiptResponse;
     } catch (error) {
@@ -223,6 +211,33 @@ export const verifyGooglePlayReceiptInternalV1 = action({
     }
   },
 });
+
+export async function recordGooglePlayVerifiedSubscription(
+  ctx: Pick<ActionCtx, "runMutation">,
+  params: {
+    projectId: Id<"projects">;
+    receiptData: GooglePlayReceiptData;
+    purchaseState: HarmonizedPurchaseState;
+  },
+): Promise<void> {
+  if (params.receiptData.type !== "Subscription") return;
+
+  await ctx.runMutation(
+    internal.subscriptions.internal.recordVerifiedSubscription,
+    {
+      projectId: params.projectId,
+      platform: "Android",
+      purchaseToken: params.receiptData.purchaseToken,
+      productId: params.receiptData.productId,
+      purchaseState: params.purchaseState,
+      subscriptionState: params.receiptData.subscriptionState,
+      expiresAt: params.receiptData.expiryTime,
+      renewsAt: params.receiptData.renewsAt,
+      currency: params.receiptData.currency,
+      priceAmountMicros: params.receiptData.priceAmountMicros,
+    },
+  );
+}
 
 interface GoogleServiceAccountKey {
   type: "service_account";

@@ -201,6 +201,7 @@ export function buildVerifiedSubscriptionSnapshot(
           ...base,
           state: "Active",
           cancellationReason: undefined,
+          clearCancellationReason: true,
         };
       case HarmonizedPurchaseState.EXPIRED:
         return {
@@ -270,6 +271,7 @@ export function buildVerifiedSubscriptionSnapshot(
         state: "InGracePeriod",
         willRenew: true,
         cancellationReason: undefined,
+        clearCancellationReason: true,
       };
     case "SUBSCRIPTION_STATE_ON_HOLD":
       return {

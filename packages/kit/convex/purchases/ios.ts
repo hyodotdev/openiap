@@ -156,25 +156,42 @@ export const verifyAppStoreReceiptInternalV1 = action({
       requestIp: args.requestIp,
       verificationDurationMs: Date.now() - verificationStart,
     });
-    if (isAppStoreSubscriptionType(transactionData.type)) {
-      await ctx.runMutation(
-        internal.subscriptions.internal.recordVerifiedSubscription,
-        {
-          projectId: project._id,
-          platform: "IOS",
-          purchaseToken: remoteId,
-          productId: transactionData.productId ?? "unknown",
-          purchaseState: receiptResponse.state,
-          expiresAt: transactionData.expiresDate,
-          currency: transactionData.currency,
-          priceAmountMicros: appStorePriceToMicros(transactionData.price),
-        },
-      );
-    }
+    await recordAppStoreVerifiedSubscription(ctx, {
+      projectId: project._id,
+      remoteId,
+      transactionData,
+      purchaseState: storeReceiptResponse.state,
+    });
 
     return receiptResponse;
   },
 });
+
+export async function recordAppStoreVerifiedSubscription(
+  ctx: Pick<ActionCtx, "runMutation">,
+  params: {
+    projectId: Id<"projects">;
+    remoteId: string;
+    transactionData: AppStoreReceiptData;
+    purchaseState: HarmonizedPurchaseState;
+  },
+): Promise<void> {
+  if (!isAppStoreSubscriptionType(params.transactionData.type)) return;
+
+  await ctx.runMutation(
+    internal.subscriptions.internal.recordVerifiedSubscription,
+    {
+      projectId: params.projectId,
+      platform: "IOS",
+      purchaseToken: params.remoteId,
+      productId: params.transactionData.productId ?? "unknown",
+      purchaseState: params.purchaseState,
+      expiresAt: params.transactionData.expiresDate,
+      currency: params.transactionData.currency,
+      priceAmountMicros: appStorePriceToMicros(params.transactionData.price),
+    },
+  );
+}
 
 function decodeJwsPayload(jws: string): JWSTransactionDecodedPayload {
   const parts = jws.split(".");

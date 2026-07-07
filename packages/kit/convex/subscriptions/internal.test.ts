@@ -242,6 +242,7 @@ describe("buildVerifiedSubscriptionSnapshot", () => {
       expiresAt: 2_000_000_000_000,
       renewsAt: undefined,
       cancellationReason: undefined,
+      clearCancellationReason: true,
       currency: "USD",
       priceAmountMicros: 9_990_000,
     });
@@ -278,27 +279,42 @@ describe("mergeVerifiedSubscriptionSnapshot", () => {
     });
   });
 
-  it("clears stale cancellation reason when verify confirms active state", () => {
-    const snapshot = mergeVerifiedSubscriptionSnapshot(
-      {
-        expiresAt: undefined,
-        renewsAt: undefined,
-        willRenew: false,
-        cancellationReason: "UserCanceled",
-        currency: undefined,
-        priceAmountMicros: undefined,
-      },
-      {
-        productId: "premium_monthly",
-        state: "Active",
-        willRenew: true,
-        cancellationReason: undefined,
-        clearCancellationReason: true,
-      },
+  it("clears stale cancellation reason when verified snapshots request it", () => {
+    const existing = {
+      expiresAt: undefined,
+      renewsAt: undefined,
+      willRenew: false,
+      cancellationReason: "UserCanceled" as const,
+      currency: undefined,
+      priceAmountMicros: undefined,
+    };
+    const appleSnapshot = buildVerifiedSubscriptionSnapshot({
+      platform: "IOS",
+      productId: "premium_monthly",
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+    });
+    const graceSnapshot = buildVerifiedSubscriptionSnapshot({
+      platform: "Android",
+      productId: "premium_monthly",
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      subscriptionState: "SUBSCRIPTION_STATE_IN_GRACE_PERIOD",
+    });
+
+    expect(appleSnapshot?.clearCancellationReason).toBe(true);
+    expect(graceSnapshot?.clearCancellationReason).toBe(true);
+
+    const appleMerged = mergeVerifiedSubscriptionSnapshot(
+      existing,
+      appleSnapshot!,
+    );
+    const graceMerged = mergeVerifiedSubscriptionSnapshot(
+      existing,
+      graceSnapshot!,
     );
 
-    expect(snapshot.cancellationReason).toBeUndefined();
-    expect(snapshot.willRenew).toBe(true);
+    expect(appleMerged.cancellationReason).toBeUndefined();
+    expect(graceMerged.cancellationReason).toBeUndefined();
+    expect(graceMerged.willRenew).toBe(true);
   });
 
   it("preserves cancellation reason when verify cannot prove auto-renew is enabled", () => {

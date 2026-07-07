@@ -4,6 +4,7 @@ import {
   mapProductResponseToReceiptData,
   mapSubscriptionResponseToReceiptData,
   parseTimeToMillis,
+  recordGooglePlayVerifiedSubscription,
 } from "./android";
 import { HarmonizedPurchaseState } from "./purchaseState";
 import { mapToGooglePlayReceiptResponse } from "./shared";
@@ -403,6 +404,82 @@ describe("Google Play v2 mappings", () => {
       state: HarmonizedPurchaseState.UNKNOWN,
       productId: "test.product",
     });
+  });
+});
+
+describe("recordGooglePlayVerifiedSubscription", () => {
+  function makeRunMutationRecorder(): {
+    ctx: Parameters<typeof recordGooglePlayVerifiedSubscription>[0];
+    calls: Record<string, unknown>[];
+  } {
+    const calls: Record<string, unknown>[] = [];
+    const ctx = {
+      runMutation: async (
+        _mutation: unknown,
+        args: Record<string, unknown>,
+      ) => {
+        calls.push(args);
+        return null;
+      },
+    } as unknown as Parameters<typeof recordGooglePlayVerifiedSubscription>[0];
+    return { ctx, calls };
+  }
+
+  it("uses the store-verified state for canonical subscription persistence", async () => {
+    const { ctx, calls } = makeRunMutationRecorder();
+
+    await recordGooglePlayVerifiedSubscription(ctx, {
+      projectId: "projects_1" as never,
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      receiptData: {
+        transactionId: "GPA.1234-5678-9012-34567",
+        packageName,
+        productId: "premium_monthly",
+        purchaseToken: "sub-token",
+        purchaseDate: 1_700_000_000_000,
+        quantity: 1,
+        type: "Subscription",
+        subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+        expiryTime: 1_769_904_000_000,
+        renewsAt: 1_769_904_000_000,
+        currency: "USD",
+        priceAmountMicros: 9_990_000,
+      },
+    });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      projectId: "projects_1",
+      platform: "Android",
+      purchaseToken: "sub-token",
+      productId: "premium_monthly",
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+      expiresAt: 1_769_904_000_000,
+      renewsAt: 1_769_904_000_000,
+      currency: "USD",
+      priceAmountMicros: 9_990_000,
+    });
+  });
+
+  it("skips one-time product receipts", async () => {
+    const { ctx, calls } = makeRunMutationRecorder();
+
+    await recordGooglePlayVerifiedSubscription(ctx, {
+      projectId: "projects_1" as never,
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      receiptData: {
+        transactionId: "GPA.1234-5678-9012-34567",
+        packageName,
+        productId: "coins_pack",
+        purchaseToken: "product-token",
+        purchaseDate: 1_700_000_000_000,
+        quantity: 1,
+        type: "InApp",
+      },
+    });
+
+    expect(calls).toHaveLength(0);
   });
 });
 
