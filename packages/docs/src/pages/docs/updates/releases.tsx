@@ -1535,10 +1535,11 @@ function Releases() {
             Adds Amazon Fire OS support to OpenIAP. Starting with{' '}
             <code>openiap-google 2.3.0-rc.1</code>, Android builds can target
             Google Play, Meta Horizon, or Amazon Appstore from the same native
-            package family. The <strong>OpenIAP Spec remains 2.0.3</strong>;
-            this rollout adds the Fire OS runtime flavor, framework build flags,
-            Amazon Appstore receipt verification paths, and shared subscription
-            state mapping.
+            package family. The{' '}
+            <strong>OpenIAP Spec remains stable at 2.0.3</strong>; this rollout
+            adds the Fire OS runtime flavor, framework build flags, Amazon
+            Appstore receipt verification paths, and shared subscription state
+            mapping without publishing a spec prerelease.
           </p>
 
           <ul
@@ -1599,7 +1600,9 @@ function Releases() {
               borderTop: '1px solid var(--border-color)',
             }}
           >
-            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>
+              Spec and Package Releases
+            </h5>
             <ul
               style={{
                 margin: 0,
@@ -1607,7 +1610,7 @@ function Releases() {
                 fontSize: '0.9rem',
               }}
             >
-              <li>OpenIAP Spec 2.0.3</li>
+              <li>OpenIAP Spec 2.0.3 (stable; no prerelease)</li>
               <li>
                 <a
                   href="https://github.com/hyodotdev/openiap/releases/tag/google-2.3.0-rc.1"
