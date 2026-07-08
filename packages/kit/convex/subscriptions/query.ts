@@ -1,5 +1,5 @@
 import { query, type QueryCtx } from "../_generated/server";
-import { v } from "convex/values";
+import { v, type Infer } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 
 import {
@@ -38,8 +38,10 @@ const subscriptionShape = v.object({
   startedAt: v.number(),
   updatedAt: v.number(),
   purchaseToken: v.string(),
+  originalTransactionId: v.optional(v.string()),
   userId: v.optional(v.string()),
 });
+type SubscriptionRow = Infer<typeof subscriptionShape>;
 
 function isActive(sub: Doc<"subscriptions">, now: number): boolean {
   const entitled = sub.state === "Active" || sub.state === "InGracePeriod";
@@ -48,8 +50,10 @@ function isActive(sub: Doc<"subscriptions">, now: number): boolean {
   return true;
 }
 
-function shapeRow(sub: Doc<"subscriptions">) {
-  return {
+export function shapeSubscriptionRow(
+  sub: Doc<"subscriptions">,
+): SubscriptionRow {
+  const row: SubscriptionRow = {
     id: sub._id,
     productId: sub.productId,
     platform: sub.platform,
@@ -65,6 +69,15 @@ function shapeRow(sub: Doc<"subscriptions">) {
     purchaseToken: sub.purchaseToken,
     userId: sub.userId,
   };
+
+  if (sub.platform === "IOS") {
+    return {
+      ...row,
+      originalTransactionId: sub.purchaseToken,
+    };
+  }
+
+  return row;
 }
 
 async function projectByApiKey(
@@ -173,7 +186,7 @@ export const subscriptionStatus = query({
 
     return {
       active: activeSubs.length > 0,
-      subscription: shapeRow(sub),
+      subscription: shapeSubscriptionRow(sub),
     };
   },
 });
@@ -207,7 +220,7 @@ export const entitlements = query({
     return {
       userId: args.userId,
       productIds: Array.from(new Set(active.map((sub) => sub.productId))),
-      subscriptions: active.map(shapeRow),
+      subscriptions: active.map(shapeSubscriptionRow),
     };
   },
 });
@@ -255,7 +268,7 @@ export const listSubscriptions = query({
         return true;
       });
       return {
-        items: filtered.slice(0, limit).map(shapeRow),
+        items: filtered.slice(0, limit).map(shapeSubscriptionRow),
         total: filtered.length,
       };
     }
@@ -314,7 +327,10 @@ export const listSubscriptions = query({
     // we just put in. The dashboard treats `total` as "rows shown
     // matching the current filter" and surfaces "+ more" affordances
     // via the next page request.
-    return { items: rows.slice(0, limit).map(shapeRow), total: rows.length };
+    return {
+      items: rows.slice(0, limit).map(shapeSubscriptionRow),
+      total: rows.length,
+    };
   },
 });
 

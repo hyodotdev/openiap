@@ -138,6 +138,30 @@ export default function ApiReferencePage() {
         <code>state: "INAUTHENTIC"</code> on mismatch.
       </p>
 
+      <h2 className="mt-10 text-2xl font-semibold">
+        Subscription identity fields
+      </h2>
+      <p>
+        Subscription state endpoints such as{" "}
+        <code>GET /v1/subscriptions/list/{"{apiKey}"}</code> keep the legacy{" "}
+        <code>purchaseToken</code> field for the stable store identity. On
+        Google this is the Play purchase token. On iOS this is the StoreKit{" "}
+        <code>originalTransactionId</code> (falling back to{" "}
+        <code>transactionId</code>), not the raw JWS. iOS rows also expose{" "}
+        <code>originalTransactionId</code> explicitly.
+      </p>
+      <CodeBlock title="iOS subscription row" language="json">
+        {`{
+  "platform": "IOS",
+  "purchaseToken": "2000001177054625",
+  "originalTransactionId": "2000001177054625"
+}`}
+      </CodeBlock>
+      <p>
+        Send the raw StoreKit JWS only to verification or user-binding endpoints
+        that explicitly ask for a JWS. Do not log or publish JWS values.
+      </p>
+
       <div className="my-4 overflow-hidden rounded-lg border border-border">
         <table className="w-full text-sm">
           <thead className="bg-muted/40">
