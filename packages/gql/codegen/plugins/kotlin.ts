@@ -813,6 +813,9 @@ export class KotlinPlugin extends CodegenPlugin {
         return `${enumRead} ?: ${defaultExpression}`;
       }
       if (unknownFallback) {
+        if (type.nullable) {
+          return `(${sourceExpr} as? String)?.let { runCatching { ${type.name}.fromJson(it) }.getOrNull() ?: ${unknownFallback} }`;
+        }
         return `runCatching { ${enumRead} }.getOrNull() ?: ${unknownFallback}`;
       }
       if (type.nullable) {
