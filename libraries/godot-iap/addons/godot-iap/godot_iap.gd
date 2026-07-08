@@ -1377,19 +1377,17 @@ func get_billing_choice_info_android(params) -> Variant:
 
 ## Launch external link (Android 8.2.0+).
 ## @param params: Types.LaunchExternalLinkParamsAndroid - external link parameters
-## @return Types.VoidResult
+## @return bool - true if the external link flow was accepted/launched
 ##
 ## See: https://openiap.dev/docs/apis/android/launch-external-link-android
-func launch_external_link_android(params) -> Variant:
+func launch_external_link_android(params) -> bool:
 	if _native_plugin and _platform == "Android":
 		var params_json = JSON.stringify(params.to_dict())
 		var result_json = _native_plugin.call("launchExternalLinkAndroid", params_json)
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
-			return Types.VoidResult.from_dict(result)
-	var default_result = Types.VoidResult.new()
-	default_result.success = false
-	return default_result
+			return bool(result.get("launched", result.get("success", false)))
+	return false
 
 ## Create billing program reporting details (Android 8.2.0+).
 ## @param billing_program: Types.BillingProgramAndroid - billing program enum value
