@@ -204,11 +204,11 @@ func test_finish_transaction_mock() -> void:
 func test_ios_methods_mock() -> void:
 	# sync_ios
 	var sync_result = GodotIapPlugin.sync_ios()
-	_assert_true(sync_result is Types.VoidResult, "sync_ios should return VoidResult")
+	_assert_true(sync_result is bool, "sync_ios should return bool")
 
 	# clear_transaction_ios
 	var clear_result = GodotIapPlugin.clear_transaction_ios()
-	_assert_true(clear_result is Types.VoidResult, "clear_transaction_ios should return VoidResult")
+	_assert_true(clear_result is bool, "clear_transaction_ios should return bool")
 
 	# get_pending_transactions_ios
 	var pending = GodotIapPlugin.get_pending_transactions_ios()
@@ -216,7 +216,11 @@ func test_ios_methods_mock() -> void:
 
 	# present_code_redemption_sheet_ios
 	var redemption_result = GodotIapPlugin.present_code_redemption_sheet_ios()
-	_assert_true(redemption_result is Types.VoidResult, "present_code_redemption_sheet_ios should return VoidResult")
+	_assert_true(redemption_result is bool, "present_code_redemption_sheet_ios should return bool")
+
+	# request_purchase_on_promoted_product_ios
+	var promoted_result = GodotIapPlugin.request_purchase_on_promoted_product_ios()
+	_assert_true(promoted_result is bool, "request_purchase_on_promoted_product_ios should return bool")
 
 	# current_entitlement_ios
 	var entitlement = GodotIapPlugin.current_entitlement_ios("test_sku")
@@ -238,11 +242,19 @@ func test_ios_methods_mock() -> void:
 func test_android_methods_mock() -> void:
 	# acknowledge_purchase_android
 	var ack_result = GodotIapPlugin.acknowledge_purchase_android("mock_token")
-	_assert_true(ack_result is Types.VoidResult, "acknowledge_purchase_android should return VoidResult")
+	_assert_true(ack_result is bool, "acknowledge_purchase_android should return bool")
 
 	# consume_purchase_android
 	var consume_result = GodotIapPlugin.consume_purchase_android("mock_token")
-	_assert_true(consume_result is Types.VoidResult, "consume_purchase_android should return VoidResult")
+	_assert_true(consume_result is bool, "consume_purchase_android should return bool")
+
+	# check_alternative_billing_availability_android
+	var alternative_available = GodotIapPlugin.check_alternative_billing_availability_android()
+	_assert_true(alternative_available is bool, "check_alternative_billing_availability_android should return bool")
+
+	# show_alternative_billing_dialog_android
+	var alternative_accepted = GodotIapPlugin.show_alternative_billing_dialog_android()
+	_assert_true(alternative_accepted is bool, "show_alternative_billing_dialog_android should return bool")
 
 	# get_package_name_android
 	var package_name = GodotIapPlugin.get_package_name_android()

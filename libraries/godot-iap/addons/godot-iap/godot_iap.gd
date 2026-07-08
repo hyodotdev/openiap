@@ -812,32 +812,28 @@ func _verify_purchase_with_provider_raw(props: Dictionary) -> Dictionary:
 # ==========================================
 
 ## Sync with App Store (iOS only).
-## @return Types.VoidResult
+## @return bool - true if the sync request completed successfully
 ##
 ## See: https://openiap.dev/docs/apis/ios/sync-ios
-func sync_ios() -> Variant:
-	var result = Types.VoidResult.new()
-	result.success = false
-	if _native_plugin and _platform == "iOS":
-		var result_json = _native_plugin.call("syncIOS")
-		var parsed = JSON.parse_string(result_json)
-		if parsed is Dictionary:
-			return Types.VoidResult.from_dict(parsed)
-	return result
+func sync_ios() -> bool:
+	if not (_native_plugin and _platform == "iOS"):
+		return false
+	var pending = _native_plugin.call("syncIOS")
+	var request_id = _parse_request_id(pending)
+	var payload = await _await_products_fetched_for("syncIOS", request_id)
+	return payload.get("success", false)
 
 ## Clear pending transactions from the StoreKit payment queue (iOS only).
-## @return Types.VoidResult
+## @return bool - true if pending transactions were cleared successfully
 ##
 ## See: https://openiap.dev/docs/apis/ios/clear-transaction-ios
-func clear_transaction_ios() -> Variant:
-	var result = Types.VoidResult.new()
-	result.success = false
-	if _native_plugin and _platform == "iOS":
-		var result_json = _native_plugin.call("clearTransactionIOS")
-		var parsed = JSON.parse_string(result_json)
-		if parsed is Dictionary:
-			return Types.VoidResult.from_dict(parsed)
-	return result
+func clear_transaction_ios() -> bool:
+	if not (_native_plugin and _platform == "iOS"):
+		return false
+	var pending = _native_plugin.call("clearTransactionIOS")
+	var request_id = _parse_request_id(pending)
+	var payload = await _await_products_fetched_for("clearTransactionIOS", request_id)
+	return payload.get("success", false)
 
 ## Get pending transactions (iOS only).
 ## @return Array[Types.PurchaseIOS]
@@ -877,18 +873,16 @@ func get_all_transactions_ios() -> Array:
 	return purchases
 
 ## Present code redemption sheet (iOS only).
-## @return Types.VoidResult
+## @return bool - true if the sheet was presented successfully
 ##
 ## See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
-func present_code_redemption_sheet_ios() -> Variant:
-	var result = Types.VoidResult.new()
-	result.success = false
-	if _native_plugin and _platform == "iOS":
-		var result_json = _native_plugin.call("presentCodeRedemptionSheetIOS")
-		var parsed = JSON.parse_string(result_json)
-		if parsed is Dictionary:
-			return Types.VoidResult.from_dict(parsed)
-	return result
+func present_code_redemption_sheet_ios() -> bool:
+	if not (_native_plugin and _platform == "iOS"):
+		return false
+	var pending = _native_plugin.call("presentCodeRedemptionSheetIOS")
+	var request_id = _parse_request_id(pending)
+	var payload = await _await_products_fetched_for("presentCodeRedemptionSheetIOS", request_id)
+	return payload.get("success", false)
 
 ## Show manage subscriptions UI (iOS only).
 ## @return Array[Types.PurchaseIOS] - changed purchases
@@ -1020,18 +1014,16 @@ func get_promoted_product_ios() -> Variant:
 	return null
 
 ## Request purchase on promoted product (iOS only).
-## @return Types.VoidResult
+## @return bool - true if the promoted product purchase request succeeded
 ##
 ## See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios
-func request_purchase_on_promoted_product_ios() -> Variant:
-	var result = Types.VoidResult.new()
-	result.success = false
-	if _native_plugin and _platform == "iOS":
-		var result_json = _native_plugin.call("requestPurchaseOnPromotedProductIOS")
-		var parsed = JSON.parse_string(result_json)
-		if parsed is Dictionary:
-			return Types.VoidResult.from_dict(parsed)
-	return result
+func request_purchase_on_promoted_product_ios() -> bool:
+	if not (_native_plugin and _platform == "iOS"):
+		return false
+	var pending = _native_plugin.call("requestPurchaseOnPromotedProductIOS")
+	var request_id = _parse_request_id(pending)
+	var payload = await _await_products_fetched_for("requestPurchaseOnPromotedProductIOS", request_id)
+	return payload.get("success", false)
 
 ## Check if can present external purchase notice (iOS 18.2+).
 ## @return bool - true if external purchase notice can be presented
@@ -1255,12 +1247,12 @@ func show_external_purchase_custom_link_notice_ios(notice_type: String) -> Varia
 
 ## Acknowledge a purchase (Android only, for non-consumables).
 ## @param purchase_token: String - the purchase token to acknowledge
-## @return Types.VoidResult
+## @return bool - true if the purchase was acknowledged successfully
 ##
 ## See: https://openiap.dev/docs/apis/android/acknowledge-purchase-android
-func acknowledge_purchase_android(purchase_token: String) -> Variant:
+func acknowledge_purchase_android(purchase_token: String) -> bool:
 	var result = _acknowledge_purchase_android_raw(purchase_token)
-	return Types.VoidResult.from_dict(result)
+	return result.get("success", false)
 
 ## Internal: Acknowledge purchase raw
 func _acknowledge_purchase_android_raw(purchase_token: String) -> Dictionary:
@@ -1276,12 +1268,12 @@ func _acknowledge_purchase_android_raw(purchase_token: String) -> Dictionary:
 
 ## Consume a purchase (Android only, for consumables).
 ## @param purchase_token: String - the purchase token to consume
-## @return Types.VoidResult
+## @return bool - true if the purchase was consumed successfully
 ##
 ## See: https://openiap.dev/docs/apis/android/consume-purchase-android
-func consume_purchase_android(purchase_token: String) -> Variant:
+func consume_purchase_android(purchase_token: String) -> bool:
 	var result = _consume_purchase_android_raw(purchase_token)
-	return Types.VoidResult.from_dict(result)
+	return result.get("success", false)
 
 ## Internal: Consume purchase raw
 func _consume_purchase_android_raw(purchase_token: String) -> Dictionary:
@@ -1296,31 +1288,28 @@ func _consume_purchase_android_raw(purchase_token: String) -> Dictionary:
 	return { "success": false, "error": "Not available" }
 
 ## Check alternative billing availability (Android).
-## @return Types.BillingProgramAvailabilityResultAndroid
+## @return bool - true if alternative billing is available
 ##
 ## See: https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android
-func check_alternative_billing_availability_android() -> Variant:
+func check_alternative_billing_availability_android() -> bool:
 	if _native_plugin and _platform == "Android":
 		var result_json = _native_plugin.call("checkAlternativeBillingAvailabilityAndroid")
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
-			return Types.BillingProgramAvailabilityResultAndroid.from_dict(result)
-	var default_result = Types.BillingProgramAvailabilityResultAndroid.new()
-	default_result.is_available = false
-	return default_result
+			return result.get("isAvailable", false)
+	return false
 
 ## Show alternative billing dialog (Android).
-## @return Types.UserChoiceBillingDetails
+## @return bool - true if the user accepted the dialog
 ##
 ## See: https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android
-func show_alternative_billing_dialog_android() -> Variant:
+func show_alternative_billing_dialog_android() -> bool:
 	if _native_plugin and _platform == "Android":
 		var result_json = _native_plugin.call("showAlternativeBillingDialogAndroid")
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
-			return Types.UserChoiceBillingDetails.from_dict(result)
-	var default_result = Types.UserChoiceBillingDetails.new()
-	return default_result
+			return result.get("userAccepted", false)
+	return false
 
 ## Create alternative billing token (Android).
 ## @return Types.BillingProgramReportingDetailsAndroid

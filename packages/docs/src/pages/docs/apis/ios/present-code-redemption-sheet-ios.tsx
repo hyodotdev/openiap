@@ -55,7 +55,7 @@ function PresentCodeRedemptionSheetIOS() {
             <CodeBlock language="csharp">{`Task<bool> PresentCodeRedemptionSheetIOSAsync();`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`func present_code_redemption_sheet_ios() -> Types.VoidResult`}</CodeBlock>
+            <CodeBlock language="gdscript">{`func present_code_redemption_sheet_ios() -> bool`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

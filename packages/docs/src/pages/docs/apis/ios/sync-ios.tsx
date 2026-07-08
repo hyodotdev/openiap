@@ -52,7 +52,7 @@ function SyncIOS() {
             <CodeBlock language="csharp">{`Task<bool> SyncIOSAsync();`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`func sync_ios() -> Types.VoidResult`}</CodeBlock>
+            <CodeBlock language="gdscript">{`func sync_ios() -> bool`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
