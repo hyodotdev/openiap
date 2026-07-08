@@ -3016,13 +3016,10 @@ export const createBillingProgramReportingDetailsAndroid = async (
       typeof programOrArgs === 'string'
         ? developerBillingType
         : (programOrArgs.developerBillingType ?? developerBillingType);
-    const result =
-      resolvedDeveloperBillingType == null
-        ? await IAP.instance.createBillingProgramReportingDetailsAndroid(program)
-        : await IAP.instance.createBillingProgramReportingDetailsAndroid(
-            program,
-            resolvedDeveloperBillingType,
-          );
+    const result = await IAP.instance.createBillingProgramReportingDetailsAndroid(
+      program,
+      resolvedDeveloperBillingType ?? null,
+    );
     return {
       billingProgram: result.billingProgram as unknown as BillingProgramAndroid,
       externalTransactionToken: result.externalTransactionToken,

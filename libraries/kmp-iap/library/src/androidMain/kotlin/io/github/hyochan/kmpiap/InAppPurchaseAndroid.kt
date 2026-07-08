@@ -2099,13 +2099,6 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                     paramsClass,
                     listenerClass
                 ).invoke(client, activity, requestParams, listener)
-                    ?.let { it as? BillingResult }
-                    ?.takeIf { it.responseCode != BillingClient.BillingResponseCode.OK }
-                    ?.let {
-                        if (continuation.isActive) {
-                            continuation.resume(it.toBillingResultAndroid())
-                        }
-                    }
             } catch (e: NoSuchMethodException) {
                 if (continuation.isActive) {
                     continuation.resumeWithException(PurchaseException(

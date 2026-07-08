@@ -2226,7 +2226,7 @@ describe('Public API (src/index.ts)', () => {
 
         expect(
           mockIap.createBillingProgramReportingDetailsAndroid,
-        ).toHaveBeenCalledWith('external-offer');
+        ).toHaveBeenCalledWith('external-offer', null);
         expect(result.billingProgram).toBe('external-offer');
         expect(result.externalTransactionToken).toBe('token-abc-123');
       });
