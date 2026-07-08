@@ -42,7 +42,29 @@ flutter create --platforms=android -t app --project-name openiap_consumer_smoke 
 google_root_build="$repo_root/packages/google/build.gradle.kts"
 read_google_plugin_version() {
   local plugin_id="$1"
-  sed -nE "s/.*id\\(\"${plugin_id}\"\\) version \"([^\"]+)\".*/\\1/p" "$google_root_build" | head -n 1
+  local version
+  version="$(sed -nE "s/.*id\\(\"${plugin_id}\"\\) version \"([^\"]+)\".*/\\1/p" "$google_root_build" | head -n 1)"
+  if [ -z "$version" ]; then
+    echo "Failed to read Gradle plugin version for $plugin_id from $google_root_build" >&2
+    return 1
+  fi
+  printf '%s\n' "$version"
+}
+
+replace_once() {
+  local file="$1"
+  local expression="$2"
+  local description="$3"
+  local before_file
+  before_file="$(mktemp "$tmp_root/perl-before.XXXXXX")"
+  cp "$file" "$before_file"
+  perl -0pi -e "$expression" "$file"
+  if cmp -s "$before_file" "$file"; then
+    echo "Failed to update $description in $file" >&2
+    rm -f "$before_file"
+    return 1
+  fi
+  rm -f "$before_file"
 }
 
 android_library_version="$(read_google_plugin_version "com.android.library")"
@@ -51,7 +73,7 @@ maven_publish_version="$(read_google_plugin_version "com.vanniktech.maven.publis
 
 if [ -f "$consumer_app/android/settings.gradle.kts" ]; then
   settings_file="$consumer_app/android/settings.gradle.kts"
-  perl -0pi -e "s/plugins \\{\\n/plugins {\\n    id(\"com.android.library\") version \"$android_library_version\" apply false\\n    id(\"org.jetbrains.kotlin.plugin.compose\") version \"$compose_plugin_version\" apply false\\n    id(\"com.vanniktech.maven.publish\") version \"$maven_publish_version\" apply false\\n/" "$settings_file"
+  replace_once "$settings_file" "s/plugins \\{\\n/plugins {\\n    id(\"com.android.library\") version \"$android_library_version\" apply false\\n    id(\"org.jetbrains.kotlin.plugin.compose\") version \"$compose_plugin_version\" apply false\\n    id(\"com.vanniktech.maven.publish\") version \"$maven_publish_version\" apply false\\n/" "Gradle plugin versions"
   cat >> "$settings_file" <<'EOF'
 
 include(":openiap")
@@ -59,12 +81,15 @@ project(":openiap").projectDir = file("../../packages/google/openiap")
 EOF
 elif [ -f "$consumer_app/android/settings.gradle" ]; then
   settings_file="$consumer_app/android/settings.gradle"
-  perl -0pi -e "s/plugins \\{\\n/plugins {\\n    id 'com.android.library' version '$android_library_version' apply false\\n    id 'org.jetbrains.kotlin.plugin.compose' version '$compose_plugin_version' apply false\\n    id 'com.vanniktech.maven.publish' version '$maven_publish_version' apply false\\n/" "$settings_file"
+  replace_once "$settings_file" "s/plugins \\{\\n/plugins {\\n    id 'com.android.library' version '$android_library_version' apply false\\n    id 'org.jetbrains.kotlin.plugin.compose' version '$compose_plugin_version' apply false\\n    id 'com.vanniktech.maven.publish' version '$maven_publish_version' apply false\\n/" "Gradle plugin versions"
   cat >> "$settings_file" <<'EOF'
 
 include ':openiap'
 project(':openiap').projectDir = file('../../packages/google/openiap')
 EOF
+else
+  echo "Failed to locate generated Android settings.gradle(.kts) in $consumer_app/android" >&2
+  exit 1
 fi
 
 (
@@ -92,16 +117,16 @@ fi
 
   if [ -n "$preferred_ndk_version" ]; then
     if [ -f android/app/build.gradle.kts ]; then
-      perl -pi -e "s/ndkVersion\\s*=\\s*flutter\\.ndkVersion/ndkVersion = \"$preferred_ndk_version\"/" android/app/build.gradle.kts
+      replace_once android/app/build.gradle.kts "s/ndkVersion\\s*=\\s*flutter\\.ndkVersion/ndkVersion = \"$preferred_ndk_version\"/" "NDK version"
     elif [ -f android/app/build.gradle ]; then
-      perl -pi -e "s/ndkVersion\\s*=?\\s*flutter\\.ndkVersion/ndkVersion = \"$preferred_ndk_version\"/" android/app/build.gradle
+      replace_once android/app/build.gradle "s/ndkVersion\\s*=?\\s*flutter\\.ndkVersion/ndkVersion = \"$preferred_ndk_version\"/" "NDK version"
     fi
   fi
 
   if [ -f android/app/build.gradle.kts ]; then
-    perl -0pi -e 's/defaultConfig \{\n/defaultConfig {\n        missingDimensionStrategy("platform", "play")\n/' android/app/build.gradle.kts
+    replace_once android/app/build.gradle.kts 's/defaultConfig \{\n/defaultConfig {\n        missingDimensionStrategy("platform", "play")\n/' "OpenIAP platform flavor"
   elif [ -f android/app/build.gradle ]; then
-    perl -0pi -e 's/defaultConfig \{\n/defaultConfig {\n        missingDimensionStrategy "platform", "play"\n/' android/app/build.gradle
+    replace_once android/app/build.gradle 's/defaultConfig \{\n/defaultConfig {\n        missingDimensionStrategy "platform", "play"\n/' "OpenIAP platform flavor"
   fi
 
   flutter build apk --debug
