@@ -489,8 +489,6 @@ async function clearBrowserCache(page) {
 }
 
 async function checkPerformanceWithRetry(page, siteName, route) {
-  let lastError;
-
   for (let attempt = 1; attempt <= PERFORMANCE_ATTEMPTS; attempt += 1) {
     if (attempt > 1) {
       await clearBrowserCache(page);
@@ -506,7 +504,6 @@ async function checkPerformanceWithRetry(page, siteName, route) {
       const metrics = await checkPerformance(page, siteName, route);
       return { metrics, attempts: attempt };
     } catch (error) {
-      lastError = error;
       if (
         !isRetryablePerformanceError(error) ||
         attempt === PERFORMANCE_ATTEMPTS
@@ -515,8 +512,6 @@ async function checkPerformanceWithRetry(page, siteName, route) {
       }
     }
   }
-
-  throw lastError;
 }
 
 async function checkImages(page, siteName, route) {
