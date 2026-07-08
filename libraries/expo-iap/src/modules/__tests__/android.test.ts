@@ -294,6 +294,24 @@ describe('Android Module Functions', () => {
         });
         expect(result).toEqual(mockResult);
       });
+
+      it('applies Billing Choice defaults when params are omitted', async () => {
+        const mockResult = {
+          playBillingChoiceImageUrl: 'https://play.google.com/image.png',
+          playBillingLoyaltyInfo: null,
+        };
+        (ExpoIapModule.getBillingChoiceInfoAndroid as jest.Mock)
+          .mockResolvedValue(mockResult);
+
+        const result = await (getBillingChoiceInfoAndroid as any)();
+
+        expect(ExpoIapModule.getBillingChoiceInfoAndroid).toHaveBeenCalledWith({
+          billingProgram: 'billing-choice',
+          playBillingChoiceImageLayout: 'rectangular-four-by-one',
+          userLocale: null,
+        });
+        expect(result).toEqual(mockResult);
+      });
     });
 
     describe('launchExternalLinkAndroid', () => {

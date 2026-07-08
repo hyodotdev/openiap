@@ -2958,7 +2958,7 @@ export const isBillingProgramAvailableAndroid: MutationField<
 export const getBillingChoiceInfoAndroid: QueryField<
   'getBillingChoiceInfoAndroid'
 > = async (
-  params: GetBillingChoiceInfoParamsAndroid,
+  params: GetBillingChoiceInfoParamsAndroid = {},
 ): Promise<BillingChoiceInfoAndroid> => {
   if (Platform.OS !== 'android') {
     throw new Error('Billing Choice API is only supported on Android');

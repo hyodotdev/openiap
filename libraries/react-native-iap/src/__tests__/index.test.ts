@@ -2187,6 +2187,20 @@ describe('Public API (src/index.ts)', () => {
         );
       });
 
+      it('should request Billing Choice info with defaults when params are omitted', async () => {
+        (Platform as any).OS = 'android';
+        const result = await (IAP.getBillingChoiceInfoAndroid as any)();
+
+        expect(mockIap.getBillingChoiceInfoAndroid).toHaveBeenCalledWith({
+          billingProgram: 'billing-choice',
+          playBillingChoiceImageLayout: 'rectangular-four-by-one',
+          userLocale: null,
+        });
+        expect(result.playBillingChoiceImageUrl).toBe(
+          'https://play.google.com/billing-choice.png',
+        );
+      });
+
       it('should throw on non-Android', async () => {
         (Platform as any).OS = 'ios';
         await expect(IAP.getBillingChoiceInfoAndroid({})).rejects.toThrow(

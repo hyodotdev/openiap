@@ -340,7 +340,7 @@ export const isBillingProgramAvailableAndroid: MutationField<
 export const getBillingChoiceInfoAndroid: QueryField<
   'getBillingChoiceInfoAndroid'
 > = async (
-  params: GetBillingChoiceInfoParamsAndroid,
+  params: GetBillingChoiceInfoParamsAndroid = {},
 ): Promise<BillingChoiceInfoAndroid> => {
   return ExpoIapModule.getBillingChoiceInfoAndroid({
     billingProgram: params.billingProgram ?? 'billing-choice',
