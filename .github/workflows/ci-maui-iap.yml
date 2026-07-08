@@ -4,31 +4,25 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'libraries/maui-iap/**'
-      - 'packages/gql/**'
-      - 'packages/google/openiap/**'
-      - 'packages/google/build.gradle.kts'
-      - 'packages/google/settings.gradle.kts'
-      - 'packages/google/gradle.properties'
-      - 'packages/apple/Sources/OpenIapModule+ObjC.swift'
-      - 'packages/apple/wrapper/**'
-      - 'packages/apple/scripts/build-xcframework.sh'
-      - 'openiap-versions.json'
-      - '.github/workflows/ci-maui-iap.yml'
+      - "libraries/maui-iap/**"
+      - "packages/gql/**"
+      - "packages/google/**"
+      - "packages/apple/Sources/OpenIapModule+ObjC.swift"
+      - "packages/apple/wrapper/**"
+      - "packages/apple/scripts/build-xcframework.sh"
+      - "openiap-versions.json"
+      - ".github/workflows/ci-maui-iap.yml"
   push:
     branches: [main]
     paths:
-      - 'libraries/maui-iap/**'
-      - 'packages/gql/**'
-      - 'packages/google/openiap/**'
-      - 'packages/google/build.gradle.kts'
-      - 'packages/google/settings.gradle.kts'
-      - 'packages/google/gradle.properties'
-      - 'packages/apple/Sources/OpenIapModule+ObjC.swift'
-      - 'packages/apple/wrapper/**'
-      - 'packages/apple/scripts/build-xcframework.sh'
-      - 'openiap-versions.json'
-      - '.github/workflows/ci-maui-iap.yml'
+      - "libraries/maui-iap/**"
+      - "packages/gql/**"
+      - "packages/google/**"
+      - "packages/apple/Sources/OpenIapModule+ObjC.swift"
+      - "packages/apple/wrapper/**"
+      - "packages/apple/scripts/build-xcframework.sh"
+      - "openiap-versions.json"
+      - ".github/workflows/ci-maui-iap.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -78,6 +72,8 @@ jobs:
     name: Android binding (net9.0-android + net10.0-android)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7
         with:
@@ -86,8 +82,8 @@ jobs:
       - name: Setup JDK 17
         uses: actions/setup-java@v5
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          distribution: "temurin"
+          java-version: "17"
 
       - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
@@ -97,15 +93,18 @@ jobs:
       - name: Install MAUI workload
         run: dotnet workload install maui-android --skip-sign-check
 
-      # The Android binding consumes the Google Play AAR as an unbound runtime
-      # dependency, plus the MAUI-owned OpenIapMauiModule AAR as the bound facade.
-      - name: Build Play AAR (Google)
+      # The Android binding consumes the selected Google AAR as an unbound
+      # runtime dependency, plus the MAUI-owned OpenIapMauiModule AAR as the
+      # bound facade. Build all Google store artifacts up front, then rebuild
+      # the MAUI facade/binding/library for each store because the facade AAR
+      # output path is shared across store selections.
+      - name: Build Google AARs
         working-directory: packages/google
-        run: ./gradlew :openiap:assemblePlayRelease
-
-      - name: Build MAUI Android module AAR
-        working-directory: libraries/maui-iap/android
-        run: ../../../packages/google/gradlew :openiap:assembleRelease
+        run: |
+          ./gradlew \
+            :openiap:assemblePlayRelease \
+            :openiap:assembleAmazonRelease \
+            :openiap:assembleHorizonRelease
 
       # `-p:TargetFrameworks=net9.0-android` (PLURAL) is required for the
       # second build — the singular `-f net9.0-android` filters the inner
@@ -117,10 +116,27 @@ jobs:
       - name: Build Android binding + library
         working-directory: libraries/maui-iap
         run: |
-          dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj -p:TargetFrameworks=net9.0-android --nologo
-          dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj -p:TargetFrameworks=net10.0-android --nologo
-          dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0-android --nologo
-          dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0-android --nologo
+          DOTNET_BUILD_ARGS=(/m:1 /nr:false -p:UseSharedCompilation=false --nologo)
+          dotnet build-server shutdown || true
+          rm -rf \
+            src/OpenIap.Maui.Bindings.Android/bin \
+            src/OpenIap.Maui.Bindings.Android/obj
+          (cd android && ../../../packages/google/gradlew :openiap:assembleRelease -PopenIapAndroidStore=play)
+          dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj -p:TargetFrameworks=net9.0-android -p:OpenIapAndroidStore=play "${DOTNET_BUILD_ARGS[@]}"
+          dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj -p:TargetFrameworks=net10.0-android -p:OpenIapAndroidStore=play "${DOTNET_BUILD_ARGS[@]}"
+          dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0-android -p:OpenIapAndroidStore=play -p:BuildProjectReferences=false "${DOTNET_BUILD_ARGS[@]}"
+          dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0-android -p:OpenIapAndroidStore=play -p:BuildProjectReferences=false "${DOTNET_BUILD_ARGS[@]}"
+
+          for store in amazon horizon; do
+            printf '\n== Building MAUI Android store: %s (net9.0) ==\n' "$store"
+            dotnet build-server shutdown || true
+            rm -rf \
+              src/OpenIap.Maui.Bindings.Android/bin \
+              src/OpenIap.Maui.Bindings.Android/obj
+            (cd android && ../../../packages/google/gradlew :openiap:assembleRelease -PopenIapAndroidStore="$store")
+            dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj -p:TargetFrameworks=net9.0-android -p:OpenIapAndroidStore="$store" "${DOTNET_BUILD_ARGS[@]}"
+            dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0-android -p:OpenIapAndroidStore="$store" -p:BuildProjectReferences=false "${DOTNET_BUILD_ARGS[@]}"
+          done
 
   ios-binding:
     name: iOS binding (net9.0/net10.0 ios + maccatalyst)

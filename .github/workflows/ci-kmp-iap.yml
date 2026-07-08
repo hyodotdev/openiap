@@ -4,11 +4,17 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'libraries/kmp-iap/**'
+      - "libraries/kmp-iap/**"
+      - "packages/google/**"
+      - "openiap-versions.json"
+      - ".github/workflows/ci-kmp-iap.yml"
   push:
     branches: [main]
     paths:
-      - 'libraries/kmp-iap/**'
+      - "libraries/kmp-iap/**"
+      - "packages/google/**"
+      - "openiap-versions.json"
+      - ".github/workflows/ci-kmp-iap.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -30,8 +36,8 @@ jobs:
 
       - uses: actions/setup-java@v5
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          distribution: "temurin"
+          java-version: "17"
 
       - uses: gradle/gradle-build-action@v3
         with:
@@ -43,4 +49,7 @@ jobs:
           ./gradlew \
             :library:compilePlayDebugKotlinAndroid \
             :library:compileHorizonDebugKotlinAndroid \
-            :library:compileAmazonDebugKotlinAndroid
+            :library:compileAmazonDebugKotlinAndroid \
+            :example:composeApp:assemblePlayDebug \
+            :example:composeApp:assembleHorizonDebug \
+            :example:composeApp:assembleAmazonDebug
