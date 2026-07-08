@@ -329,6 +329,44 @@ export class GDScriptPlugin extends CodegenPlugin {
     this.emit(`${indent}\t${target} = enum_str`);
   }
 
+  private emitEnumListFromDictAssignment(indent: string, target: string, typeName: string, sourceExpression: string): void {
+    const enumReverseLookup = toConstantCase(typeName) + '_FROM_STRING';
+    const fallback = this.getEnumUnknownFallback(typeName);
+
+    this.emit(`${indent}var arr: Array[${typeName}] = []`);
+    this.emit(`${indent}for item in ${sourceExpression}:`);
+    if (fallback) {
+      this.emit(`${indent}\tif item is String:`);
+      this.emit(`${indent}\t\tarr.append(${enumReverseLookup}.get(item, ${fallback}))`);
+      this.emit(`${indent}\telse:`);
+      this.emit(`${indent}\t\tarr.append(item)`);
+    } else {
+      this.emit(`${indent}\tif item is String and ${enumReverseLookup}.has(item):`);
+      this.emit(`${indent}\t\tarr.append(${enumReverseLookup}[item])`);
+      this.emit(`${indent}\telse:`);
+      this.emit(`${indent}\t\tarr.append(item)`);
+    }
+    this.emit(`${indent}${target} = arr`);
+  }
+
+  private emitEnumListToDictAssignment(indent: string, graphqlName: string, fieldName: string, typeName: string): void {
+    const enumConstName = toConstantCase(typeName) + '_VALUES';
+
+    this.emit(`${indent}var arr = []`);
+    this.emit(`${indent}for item in ${fieldName}:`);
+    this.emit(`${indent}\tif ${enumConstName}.has(item):`);
+    this.emit(`${indent}\t\tarr.append(${enumConstName}[item])`);
+    this.emit(`${indent}\telse:`);
+    this.emit(`${indent}\t\tarr.append(item)`);
+    this.emit(`${indent}dict["${graphqlName}"] = arr`);
+  }
+
+  private isEnumList(type: IRType): boolean {
+    return type.kind === 'list' &&
+      !!type.elementType &&
+      (type.elementType.kind === 'enum' || this.enumNames.has(type.elementType.name!));
+  }
+
   // ============================================================================
   // Interfaces (not used in GDScript, but required by base class)
   // ============================================================================
@@ -485,7 +523,12 @@ export class GDScriptPlugin extends CodegenPlugin {
     const type = field.type;
     const enumConstName = type.name ? toConstantCase(type.name) + '_VALUES' : '';
 
-    if (this.isObjectOrInput(type) && type.kind === 'list') {
+    if (this.isEnumList(type)) {
+      this.emit(`\t\tif ${fieldName} != null:`);
+      this.emitEnumListToDictAssignment('\t\t\t', graphqlName, fieldName, type.elementType!.name!);
+      this.emit(`\t\telse:`);
+      this.emit(`\t\t\tdict["${graphqlName}"] = null`);
+    } else if (this.isObjectOrInput(type) && type.kind === 'list') {
       this.emit(`\t\tif ${fieldName} != null:`);
       this.emit(`\t\t\tvar arr = []`);
       this.emit(`\t\t\tfor item in ${fieldName}:`);
@@ -626,7 +669,9 @@ export class GDScriptPlugin extends CodegenPlugin {
 
     this.emit(`\t\tif ${fieldName} != null:`);
 
-    if (this.isObjectOrInput(type) && type.kind === 'list') {
+    if (this.isEnumList(type)) {
+      this.emitEnumListToDictAssignment('\t\t\t', graphqlName, fieldName, type.elementType!.name!);
+    } else if (this.isObjectOrInput(type) && type.kind === 'list') {
       this.emit(`\t\t\tvar arr = []`);
       this.emit(`\t\t\tfor item in ${fieldName}:`);
       this.emit(`\t\t\t\tif item.has_method("to_dict"):`);

@@ -4139,13 +4139,25 @@ class InAppMessageParamsAndroid:
 	static func from_dict(data: Dictionary) -> InAppMessageParamsAndroid:
 		var obj = InAppMessageParamsAndroid.new()
 		if data.has("categories") and data["categories"] != null:
-			obj.categories = data["categories"]
+			var arr: Array[InAppMessageCategoryAndroid] = []
+			for item in data["categories"]:
+				if item is String and IN_APP_MESSAGE_CATEGORY_ANDROID_FROM_STRING.has(item):
+					arr.append(IN_APP_MESSAGE_CATEGORY_ANDROID_FROM_STRING[item])
+				else:
+					arr.append(item)
+			obj.categories = arr
 		return obj
 
 	func to_dict() -> Dictionary:
 		var dict = {}
 		if categories != null:
-			dict["categories"] = categories
+			var arr = []
+			for item in categories:
+				if IN_APP_MESSAGE_CATEGORY_ANDROID_VALUES.has(item):
+					arr.append(IN_APP_MESSAGE_CATEGORY_ANDROID_VALUES[item])
+				else:
+					arr.append(item)
+			dict["categories"] = arr
 		return dict
 
 ## Connection initialization configuration

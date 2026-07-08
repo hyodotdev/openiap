@@ -1066,6 +1066,9 @@ class OpenIapModule(
                     paramsClass,
                     listenerClass
                 ).invoke(client, activity, requestParams, listener)
+                    ?.let { it as? BillingResult }
+                    ?.takeIf { it.responseCode != BillingClient.BillingResponseCode.OK }
+                    ?.let { resumer.resume(it.toOpenIapBillingResult()) }
             } catch (e: NoSuchMethodException) {
                 OpenIapLog.e("showBillingProgramInformationDialog not found. Requires Billing Library 9.1.0+", e, TAG)
                 resumer.resumeWithException(OpenIapError.FeatureNotSupported())
