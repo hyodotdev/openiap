@@ -327,6 +327,78 @@ fun AlternativeBillingScreen(navController: NavController) {
         }
     }
 
+    // Handle Android Billing Choice (9.1.0+)
+    fun handleAndroidBillingChoice(product: ProductCommon) {
+        scope.launch {
+            isProcessing = true
+            purchaseResult = "Checking Billing Choice availability..."
+
+            try {
+                val availability = kmpIapInstance.isBillingProgramAvailableAndroid(
+                    BillingProgramAndroid.BillingChoice
+                )
+
+                if (!availability.isAvailable) {
+                    purchaseResult = "❌ Billing Choice not available for this user or product"
+                    isProcessing = false
+                    return@launch
+                }
+
+                purchaseResult = "Fetching Billing Choice display metadata..."
+                val choiceInfo = kmpIapInstance.getBillingChoiceInfoAndroid(
+                    GetBillingChoiceInfoParamsAndroid(
+                        billingProgram = BillingProgramAndroid.BillingChoice,
+                        playBillingChoiceImageLayout = BillingChoiceImageLayoutAndroid.RectangularFourByOne
+                    )
+                )
+
+                val developerBillingType = if (availability.isExternalLinkAvailable == true) {
+                    DeveloperBillingTypeAndroid.ExternalLink
+                } else {
+                    DeveloperBillingTypeAndroid.InApp
+                }
+
+                purchaseResult = "Creating Billing Choice reporting token..."
+                val details = kmpIapInstance.createBillingProgramReportingDetailsAndroid(
+                    BillingProgramAndroid.BillingChoice,
+                    developerBillingType
+                )
+
+                purchaseResult = "Showing Billing Choice information dialog..."
+                val dialogResult = kmpIapInstance.showBillingProgramInformationDialogAndroid(
+                    BillingProgramInformationDialogParamsAndroid(
+                        billingProgram = BillingProgramAndroid.BillingChoice,
+                        externalTransactionToken = details.externalTransactionToken
+                    )
+                )
+
+                purchaseResult = "Showing Play billing in-app messages..."
+                val messageResult = kmpIapInstance.showInAppMessagesAndroid(
+                    InAppMessageParamsAndroid(
+                        categories = listOf(InAppMessageCategoryAndroid.Transactional)
+                    )
+                )
+
+                purchaseResult = """
+                    ✅ Billing Choice API flow completed
+
+                    Product: ${product.id}
+                    Billing type: ${developerBillingType.rawValue}
+                    Choice image: ${choiceInfo.playBillingChoiceImageUrl}
+                    Token: ${details.externalTransactionToken}
+                    Dialog response: ${dialogResult.responseCode}
+                    In-app message response: ${messageResult.responseCode.rawValue}
+
+                    ⚠️ Complete the selected payment flow and report the token to Google Play backend within 24 hours.
+                """.trimIndent()
+            } catch (e: Exception) {
+                purchaseResult = "❌ Error: ${e.message}"
+            } finally {
+                isProcessing = false
+            }
+        }
+    }
+
     // Handle Android User Choice Billing (7.0+)
     fun handleAndroidUserChoiceBilling(product: ProductCommon) {
         scope.launch {
@@ -366,7 +438,7 @@ fun AlternativeBillingScreen(navController: NavController) {
         } else if (currentPlatform == "Android") {
             when (billingProgram) {
                 BillingProgramAndroid.UserChoiceBilling -> handleAndroidUserChoiceBilling(product)
-                BillingProgramAndroid.BillingChoice,
+                BillingProgramAndroid.BillingChoice -> handleAndroidBillingChoice(product)
                 BillingProgramAndroid.ExternalOffer,
                 BillingProgramAndroid.ExternalPayments,
                 BillingProgramAndroid.ExternalContentLink -> handleAndroidBillingPrograms(product)

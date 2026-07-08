@@ -1924,6 +1924,12 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                 message = "BillingClient not initialized"
             )
         )
+        if (!client.isReady) throw PurchaseException(
+            PurchaseError(
+                code = ErrorCode.NotPrepared,
+                message = "BillingClient not ready"
+            )
+        )
         val program = if (params.billingProgram == BillingProgramAndroid.Unspecified) {
             BillingProgramAndroid.BillingChoice
         } else {
@@ -2035,6 +2041,12 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                 message = "BillingClient not initialized"
             )
         )
+        if (!client.isReady) throw PurchaseException(
+            PurchaseError(
+                code = ErrorCode.NotPrepared,
+                message = "BillingClient not ready"
+            )
+        )
         val activity = currentActivity ?: throw PurchaseException(
             PurchaseError(
                 code = ErrorCode.NotPrepared,
@@ -2132,6 +2144,12 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                 message = "BillingClient not initialized"
             )
         )
+        if (!client.isReady) throw PurchaseException(
+            PurchaseError(
+                code = ErrorCode.NotPrepared,
+                message = "BillingClient not ready"
+            )
+        )
         val activity = currentActivity ?: throw PurchaseException(
             PurchaseError(
                 code = ErrorCode.NotPrepared,
@@ -2143,7 +2161,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
             try {
                 val paramsClass = Class.forName("com.android.billingclient.api.InAppMessageParams")
                 val builderClass = Class.forName("com.android.billingclient.api.InAppMessageParams\$Builder")
-                val builder = builderClass.getConstructor().newInstance()
+                val builder = paramsClass.getMethod("newBuilder").invoke(null)
                 val categories = params?.categories?.takeIf { it.isNotEmpty() }
                     ?: listOf(InAppMessageCategoryAndroid.Transactional)
                 for (category in categories) {
@@ -2183,9 +2201,11 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                     submitResult.responseCode != BillingClient.BillingResponseCode.OK &&
                     continuation.isActive
                 ) {
-                    continuation.resume(InAppMessageResultAndroid(
-                        responseCode = InAppMessageResponseCodeAndroid.NoActionNeeded,
-                        purchaseToken = null
+                    continuation.resumeWithException(PurchaseException(
+                        PurchaseError(
+                            code = ErrorCode.Unknown,
+                            message = "showInAppMessages failed: ${submitResult.debugMessage}"
+                        )
                     ))
                 }
             } catch (e: NoSuchMethodException) {

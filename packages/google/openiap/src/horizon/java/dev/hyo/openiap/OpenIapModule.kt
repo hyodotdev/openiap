@@ -1215,10 +1215,7 @@ class OpenIapModule(
         params: BillingProgramInformationDialogParamsAndroid
     ): BillingResultAndroid {
         OpenIapLog.w("showBillingProgramInformationDialog is not supported on Meta Horizon", TAG)
-        return BillingResultAndroid(
-            responseCode = 2,
-            debugMessage = "Meta Horizon does not support Google Play Billing Choice"
-        )
+        throw OpenIapError.FeatureNotSupported("Meta Horizon does not support Google Play Billing Choice")
     }
 
     override suspend fun showInAppMessages(
@@ -1226,9 +1223,6 @@ class OpenIapModule(
         params: InAppMessageParamsAndroid?
     ): InAppMessageResultAndroid {
         OpenIapLog.w("showInAppMessages is not supported on Meta Horizon", TAG)
-        return InAppMessageResultAndroid(
-            responseCode = InAppMessageResponseCodeAndroid.NoActionNeeded,
-            purchaseToken = null
-        )
+        throw OpenIapError.FeatureNotSupported("Meta Horizon does not support Google Play billing in-app messages")
     }
 }

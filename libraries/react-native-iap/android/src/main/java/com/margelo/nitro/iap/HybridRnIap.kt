@@ -63,7 +63,7 @@ import org.json.JSONObject
  * Custom exception for OpenIAP errors that only includes the error JSON without stack traces.
  * This ensures clean error messages are passed to JavaScript without Java/Kotlin stack traces.
  */
-class OpenIapException(private val errorJson: String) : Exception() {
+class OpenIapException(private val errorJson: String, cause: Throwable? = null) : Exception(cause) {
     override val message: String
         get() = errorJson
 
@@ -1497,7 +1497,7 @@ class HybridRnIap : HybridRnIapSpec() {
             } catch (err: Throwable) {
                 RnIapLog.failure("checkAlternativeBillingAvailabilityAndroid", err)
                 val errorType = parseOpenIapError(err)
-                throw OpenIapException(toErrorJson(errorType, debugMessage = err.message))
+                throw OpenIapException(toErrorJson(errorType, debugMessage = err.message), err)
             }
         }
     }
@@ -1519,7 +1519,7 @@ class HybridRnIap : HybridRnIapSpec() {
             } catch (err: Throwable) {
                 RnIapLog.failure("showAlternativeBillingDialogAndroid", err)
                 val errorType = parseOpenIapError(err)
-                throw OpenIapException(toErrorJson(errorType, debugMessage = err.message))
+                throw OpenIapException(toErrorJson(errorType, debugMessage = err.message), err)
             }
         }
     }
@@ -1540,7 +1540,7 @@ class HybridRnIap : HybridRnIapSpec() {
             } catch (err: Throwable) {
                 RnIapLog.failure("createAlternativeBillingTokenAndroid", err)
                 val errorType = parseOpenIapError(err)
-                throw OpenIapException(toErrorJson(errorType, debugMessage = err.message))
+                throw OpenIapException(toErrorJson(errorType, debugMessage = err.message), err)
             }
         }
     }
@@ -1669,7 +1669,7 @@ class HybridRnIap : HybridRnIapSpec() {
             } catch (err: Throwable) {
                 RnIapLog.failure("isBillingProgramAvailableAndroid", err)
                 val errorType = parseOpenIapError(err)
-                throw OpenIapException(toErrorJson(errorType, debugMessage = err.message))
+                throw OpenIapException(toErrorJson(errorType, debugMessage = err.message), err)
             }
         }
     }
@@ -1699,7 +1699,7 @@ class HybridRnIap : HybridRnIapSpec() {
             } catch (err: Throwable) {
                 RnIapLog.failure("getBillingChoiceInfoAndroid", err)
                 val errorType = parseOpenIapError(err)
-                throw OpenIapException(toErrorJson(errorType, debugMessage = err.message))
+                throw OpenIapException(toErrorJson(errorType, debugMessage = err.message), err)
             }
         }
     }
@@ -1729,7 +1729,7 @@ class HybridRnIap : HybridRnIapSpec() {
             } catch (err: Throwable) {
                 RnIapLog.failure("createBillingProgramReportingDetailsAndroid", err)
                 val errorType = parseOpenIapError(err)
-                throw OpenIapException(toErrorJson(errorType, debugMessage = err.message))
+                throw OpenIapException(toErrorJson(errorType, debugMessage = err.message), err)
             }
         }
     }
@@ -1761,7 +1761,7 @@ class HybridRnIap : HybridRnIapSpec() {
             } catch (err: Throwable) {
                 RnIapLog.failure("showBillingProgramInformationDialogAndroid", err)
                 val errorType = parseOpenIapError(err)
-                throw OpenIapException(toErrorJson(errorType, debugMessage = err.message))
+                throw OpenIapException(toErrorJson(errorType, debugMessage = err.message), err)
             }
         }
     }
@@ -1796,7 +1796,7 @@ class HybridRnIap : HybridRnIapSpec() {
             } catch (err: Throwable) {
                 RnIapLog.failure("showInAppMessagesAndroid", err)
                 val errorType = parseOpenIapError(err)
-                throw OpenIapException(toErrorJson(errorType, debugMessage = err.message))
+                throw OpenIapException(toErrorJson(errorType, debugMessage = err.message), err)
             }
         }
     }

@@ -275,7 +275,8 @@ export class SwiftPlugin extends CodegenPlugin {
         .map((field) => {
           const propertyType = this.getPropertyType(field.type);
           const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
-          const defaultValue = field.type.nullable ? ' = nil' : '';
+          const schemaDefault = this.buildDefaultValueExpression(field);
+          const defaultValue = schemaDefault ? ` = ${schemaDefault}` : field.type.nullable ? ' = nil' : '';
           return `        ${propertyName}: ${propertyType}${defaultValue}`;
         })
         .join(',\n');
@@ -308,6 +309,31 @@ export class SwiftPlugin extends CodegenPlugin {
         this.generateRequestPurchaseProps(irInput);
         break;
     }
+  }
+
+  private buildDefaultValueExpression(field: IRField): string | null {
+    if (field.defaultValue === undefined) return null;
+    return this.buildDefaultValueForType(field.type, field.defaultValue);
+  }
+
+  private buildDefaultValueForType(type: IRType, defaultValue: unknown): string | null {
+    if (type.kind === 'list') {
+      if (!Array.isArray(defaultValue)) return null;
+      const items = defaultValue
+        .map((value) => this.buildDefaultValueForType(type.elementType!, value))
+        .filter((value): value is string => value !== null);
+      return `[${items.join(', ')}]`;
+    }
+    if (type.kind === 'enum' && typeof defaultValue === 'string') {
+      return `.${this.escapeKeyword(this.enumValueCase(defaultValue))}`;
+    }
+    if (type.kind === 'scalar') {
+      if (typeof defaultValue === 'string') return `"${defaultValue}"`;
+      if (typeof defaultValue === 'number' || typeof defaultValue === 'boolean') {
+        return String(defaultValue);
+      }
+    }
+    return null;
   }
 
   private generateDiscountOfferInputIOS(irInput: IRInput): void {

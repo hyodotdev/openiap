@@ -4084,7 +4084,7 @@ public sealed record BillingProgramInformationDialogParamsAndroid
 {
     /// <summary>Billing program. Currently only BILLING_CHOICE is supported.</summary>
     [JsonPropertyName("billingProgram")]
-    public required BillingProgramAndroid BillingProgram { get; init; }
+    public BillingProgramAndroid BillingProgram { get; init; } = BillingProgramAndroid.BillingChoice;
     /// <summary>External transaction token returned by the Billing Choice reporting-details flow.</summary>
     [JsonPropertyName("externalTransactionToken")]
     public required string ExternalTransactionToken { get; init; }
@@ -4141,10 +4141,10 @@ public sealed record GetBillingChoiceInfoParamsAndroid
 {
     /// <summary>Billing program. Currently only BILLING_CHOICE is supported.</summary>
     [JsonPropertyName("billingProgram")]
-    public required BillingProgramAndroid BillingProgram { get; init; }
+    public BillingProgramAndroid BillingProgram { get; init; } = BillingProgramAndroid.BillingChoice;
     /// <summary>Desired Play Billing choice image layout.</summary>
     [JsonPropertyName("playBillingChoiceImageLayout")]
-    public required BillingChoiceImageLayoutAndroid PlayBillingChoiceImageLayout { get; init; }
+    public BillingChoiceImageLayoutAndroid PlayBillingChoiceImageLayout { get; init; } = BillingChoiceImageLayoutAndroid.RectangularFourByOne;
     /// <summary>BCP 47 locale tag. If omitted, Play Billing uses the user&apos;s default locale.</summary>
     [JsonPropertyName("userLocale")]
     public string? UserLocale { get; init; }
@@ -4156,7 +4156,7 @@ public sealed record InAppMessageParamsAndroid
 {
     /// <summary>In-app message categories to show. Defaults to transactional messages.</summary>
     [JsonPropertyName("categories")]
-    public IReadOnlyList<InAppMessageCategoryAndroid>? Categories { get; init; }
+    public IReadOnlyList<InAppMessageCategoryAndroid>? Categories { get; init; } = new List<InAppMessageCategoryAndroid> { InAppMessageCategoryAndroid.Transactional };
 }
 
 /// <summary>Connection initialization configuration</summary>
@@ -4202,7 +4202,7 @@ public sealed record ProductRequest
     [JsonPropertyName("skus")]
     public required IReadOnlyList<string> Skus { get; init; }
     [JsonPropertyName("type")]
-    public ProductQueryType? Type { get; init; }
+    public ProductQueryType? Type { get; init; } = ProductQueryType.InApp;
 }
 
 /// <summary>JWS promotional offer input for iOS 15+ (StoreKit 2, WWDC 2025).</summary>
@@ -4634,6 +4634,8 @@ public interface MutationResolver
     /// <summary>Create the reporting payload Google requires after a Developer-Provided Billing transaction (Play Billing 8.3.0+).</summary>
     /// <summary>Replaces the deprecated createExternalOfferReportingDetailsAsync API.</summary>
     /// <summary>Returns external transaction token needed for reporting external transactions.</summary>
+    /// <summary>developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted,</summary>
+    /// <summary>native Android defaults it to IN_APP.</summary>
     /// <summary>Throws OpenIapError.NotPrepared if billing client not ready.</summary>
     /// <summary>See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android</summary>
     Task<BillingProgramReportingDetailsAndroid> CreateBillingProgramReportingDetailsAndroidAsync(BillingProgramAndroid program, DeveloperBillingTypeAndroid? developerBillingType = null);

@@ -2222,6 +2222,9 @@ describe('Public API (src/index.ts)', () => {
         await expect(
           IAP.createBillingProgramReportingDetailsAndroid('external-offer'),
         ).rejects.toThrow('Billing Programs API is only supported on Android');
+        expect(
+          mockIap.createBillingProgramReportingDetailsAndroid,
+        ).not.toHaveBeenCalled();
       });
 
       it('should handle native errors', async () => {
@@ -2289,6 +2292,18 @@ describe('Public API (src/index.ts)', () => {
         });
         expect(result.responseCode).toBe(0);
       });
+
+      it('should throw on non-Android', async () => {
+        (Platform as any).OS = 'ios';
+        await expect(
+          IAP.showBillingProgramInformationDialogAndroid({
+            externalTransactionToken: 'choice-token-123',
+          }),
+        ).rejects.toThrow('Billing Choice API is only supported on Android');
+        expect(
+          mockIap.showBillingProgramInformationDialogAndroid,
+        ).not.toHaveBeenCalled();
+      });
     });
 
     describe('showInAppMessagesAndroid', () => {
@@ -2302,6 +2317,14 @@ describe('Public API (src/index.ts)', () => {
           categories: ['transactional'],
         });
         expect(result.responseCode).toBe('no-action-needed');
+      });
+
+      it('should throw on non-Android', async () => {
+        (Platform as any).OS = 'ios';
+        await expect(
+          IAP.showInAppMessagesAndroid({categories: ['transactional']}),
+        ).rejects.toThrow('In-app messages are only supported on Android');
+        expect(mockIap.showInAppMessagesAndroid).not.toHaveBeenCalled();
       });
     });
 

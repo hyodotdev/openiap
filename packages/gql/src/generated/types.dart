@@ -4509,7 +4509,7 @@ class AndroidSubscriptionOfferInput {
 /// Available in Google Play Billing Library 9.1.0+
 class BillingProgramInformationDialogParamsAndroid {
   const BillingProgramInformationDialogParamsAndroid({
-    required this.billingProgram,
+    this.billingProgram = BillingProgramAndroid.BillingChoice,
     required this.externalTransactionToken,
   });
 
@@ -4520,7 +4520,7 @@ class BillingProgramInformationDialogParamsAndroid {
 
   factory BillingProgramInformationDialogParamsAndroid.fromJson(Map<String, dynamic> json) {
     return BillingProgramInformationDialogParamsAndroid(
-      billingProgram: BillingProgramAndroid.fromJson(json['billingProgram'] as String),
+      billingProgram: json['billingProgram'] != null ? BillingProgramAndroid.fromJson(json['billingProgram'] as String) : BillingProgramAndroid.BillingChoice,
       externalTransactionToken: json['externalTransactionToken'] as String,
     );
   }
@@ -4638,8 +4638,8 @@ class DiscountOfferInputIOS {
 /// Available in Google Play Billing Library 9.1.0+
 class GetBillingChoiceInfoParamsAndroid {
   const GetBillingChoiceInfoParamsAndroid({
-    required this.billingProgram,
-    required this.playBillingChoiceImageLayout,
+    this.billingProgram = BillingProgramAndroid.BillingChoice,
+    this.playBillingChoiceImageLayout = BillingChoiceImageLayoutAndroid.RectangularFourByOne,
     this.userLocale,
   });
 
@@ -4652,8 +4652,8 @@ class GetBillingChoiceInfoParamsAndroid {
 
   factory GetBillingChoiceInfoParamsAndroid.fromJson(Map<String, dynamic> json) {
     return GetBillingChoiceInfoParamsAndroid(
-      billingProgram: BillingProgramAndroid.fromJson(json['billingProgram'] as String),
-      playBillingChoiceImageLayout: BillingChoiceImageLayoutAndroid.fromJson(json['playBillingChoiceImageLayout'] as String),
+      billingProgram: json['billingProgram'] != null ? BillingProgramAndroid.fromJson(json['billingProgram'] as String) : BillingProgramAndroid.BillingChoice,
+      playBillingChoiceImageLayout: json['playBillingChoiceImageLayout'] != null ? BillingChoiceImageLayoutAndroid.fromJson(json['playBillingChoiceImageLayout'] as String) : BillingChoiceImageLayoutAndroid.RectangularFourByOne,
       userLocale: json['userLocale'] as String?,
     );
   }
@@ -4671,7 +4671,7 @@ class GetBillingChoiceInfoParamsAndroid {
 /// Available in Google Play Billing Library 4.1.0+
 class InAppMessageParamsAndroid {
   const InAppMessageParamsAndroid({
-    this.categories,
+    this.categories = const [InAppMessageCategoryAndroid.Transactional],
   });
 
   /// In-app message categories to show. Defaults to transactional messages.
@@ -4679,7 +4679,7 @@ class InAppMessageParamsAndroid {
 
   factory InAppMessageParamsAndroid.fromJson(Map<String, dynamic> json) {
     return InAppMessageParamsAndroid(
-      categories: (json['categories'] as List<dynamic>?) == null ? null : (json['categories'] as List<dynamic>?)!.map((e) => InAppMessageCategoryAndroid.fromJson(e as String)).toList(),
+      categories: (json['categories'] as List<dynamic>?) == null ? const [InAppMessageCategoryAndroid.Transactional] : (json['categories'] as List<dynamic>?)!.map((e) => InAppMessageCategoryAndroid.fromJson(e as String)).toList(),
     );
   }
 
@@ -4767,7 +4767,7 @@ class LaunchExternalLinkParamsAndroid {
 class ProductRequest {
   const ProductRequest({
     required this.skus,
-    this.type,
+    this.type = ProductQueryType.InApp,
   });
 
   final List<String> skus;
@@ -4776,7 +4776,7 @@ class ProductRequest {
   factory ProductRequest.fromJson(Map<String, dynamic> json) {
     return ProductRequest(
       skus: (json['skus'] as List<dynamic>).map((e) => e as String).toList(),
-      type: json['type'] != null ? ProductQueryType.fromJson(json['type'] as String) : null,
+      type: json['type'] != null ? ProductQueryType.fromJson(json['type'] as String) : ProductQueryType.InApp,
     );
   }
 
@@ -5813,6 +5813,8 @@ abstract class MutationResolver {
   /// Create the reporting payload Google requires after a Developer-Provided Billing transaction (Play Billing 8.3.0+).
   /// Replaces the deprecated createExternalOfferReportingDetailsAsync API.
   /// Returns external transaction token needed for reporting external transactions.
+  /// developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted,
+  /// native Android defaults it to IN_APP.
   /// Throws OpenIapError.NotPrepared if billing client not ready.
   /// See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
   Future<BillingProgramReportingDetailsAndroid> createBillingProgramReportingDetailsAndroid({

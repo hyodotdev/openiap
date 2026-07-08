@@ -689,7 +689,12 @@ class ExpoIapModule : Module() {
                             }
                         val categories =
                             (params?.get("categories") as? List<*>)
-                                ?.mapNotNull { (it as? String)?.let(::mapInAppMessageCategory) }
+                                ?.map { entry ->
+                                    val category = entry as? String
+                                        ?: throw IllegalArgumentException("In-app message category must be a string: $entry")
+                                    mapInAppMessageCategory(category)
+                                        ?: throw IllegalArgumentException("Unknown in-app message category: $category")
+                                }
                         val result =
                             openIapStore.showInAppMessages(
                                 activity,

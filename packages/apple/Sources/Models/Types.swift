@@ -1637,7 +1637,7 @@ public struct BillingProgramInformationDialogParamsAndroid: Codable {
     public var externalTransactionToken: String
 
     public init(
-        billingProgram: BillingProgramAndroid,
+        billingProgram: BillingProgramAndroid = .billingChoice,
         externalTransactionToken: String
     ) {
         self.billingProgram = billingProgram
@@ -1744,8 +1744,8 @@ public struct GetBillingChoiceInfoParamsAndroid: Codable {
     public var userLocale: String?
 
     public init(
-        billingProgram: BillingProgramAndroid,
-        playBillingChoiceImageLayout: BillingChoiceImageLayoutAndroid,
+        billingProgram: BillingProgramAndroid = .billingChoice,
+        playBillingChoiceImageLayout: BillingChoiceImageLayoutAndroid = .rectangularFourByOne,
         userLocale: String? = nil
     ) {
         self.billingProgram = billingProgram
@@ -1761,7 +1761,7 @@ public struct InAppMessageParamsAndroid: Codable {
     public var categories: [InAppMessageCategoryAndroid]?
 
     public init(
-        categories: [InAppMessageCategoryAndroid]? = nil
+        categories: [InAppMessageCategoryAndroid]? = [.transactional]
     ) {
         self.categories = categories
     }
@@ -1823,7 +1823,7 @@ public struct ProductRequest: Codable {
 
     public init(
         skus: [String],
-        type: ProductQueryType? = nil
+        type: ProductQueryType? = .inApp
     ) {
         self.skus = skus
         self.type = type
@@ -2747,6 +2747,8 @@ public protocol MutationResolver {
     /// Create the reporting payload Google requires after a Developer-Provided Billing transaction (Play Billing 8.3.0+).
     /// Replaces the deprecated createExternalOfferReportingDetailsAsync API.
     /// Returns external transaction token needed for reporting external transactions.
+    /// developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted,
+    /// native Android defaults it to IN_APP.
     /// Throws OpenIapError.NotPrepared if billing client not ready.
     /// See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
     func createBillingProgramReportingDetailsAndroid(program: BillingProgramAndroid, developerBillingType: DeveloperBillingTypeAndroid?) async throws -> BillingProgramReportingDetailsAndroid

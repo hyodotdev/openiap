@@ -672,18 +672,16 @@ class OpenIapModule(
     override suspend fun showBillingProgramInformationDialog(
         activity: Activity,
         params: BillingProgramInformationDialogParamsAndroid
-    ): BillingResultAndroid = BillingResultAndroid(
-        responseCode = 2,
-        debugMessage = "Amazon Appstore does not support Google Play Billing Choice"
-    )
+    ): BillingResultAndroid {
+        throw OpenIapError.FeatureNotSupported("Amazon Appstore does not support Google Play Billing Choice")
+    }
 
     override suspend fun showInAppMessages(
         activity: Activity,
         params: InAppMessageParamsAndroid?
-    ): InAppMessageResultAndroid = InAppMessageResultAndroid(
-        responseCode = InAppMessageResponseCodeAndroid.NoActionNeeded,
-        purchaseToken = null
-    )
+    ): InAppMessageResultAndroid {
+        throw OpenIapError.FeatureNotSupported("Amazon Appstore does not support Google Play billing in-app messages")
+    }
 
     override fun onUserDataResponse(userDataResponse: UserDataResponse) {
         updateStorefront(userDataResponse.userData)

@@ -16,6 +16,7 @@ import type {
   GetBillingChoiceInfoParamsAndroid,
   InAppMessageParamsAndroid,
   InAppMessageResultAndroid,
+  MutationCreateBillingProgramReportingDetailsAndroidArgs,
   MutationField,
   QueryField,
   VerifyPurchaseResultAndroid,
@@ -393,26 +394,35 @@ export const launchExternalLinkAndroid: MutationField<
  *
  * @see {@link https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android}
  */
-export const createBillingProgramReportingDetailsAndroid = async (
+const createBillingProgramReportingDetailsAndroidField: MutationField<
+  'createBillingProgramReportingDetailsAndroid'
+> = async (
+  args: MutationCreateBillingProgramReportingDetailsAndroidArgs,
+): Promise<BillingProgramReportingDetailsAndroid> =>
+  ExpoIapModule.createBillingProgramReportingDetailsAndroid(
+    args.program,
+    args.developerBillingType ?? null,
+  );
+
+export function createBillingProgramReportingDetailsAndroid(
+  args: MutationCreateBillingProgramReportingDetailsAndroidArgs,
+): Promise<BillingProgramReportingDetailsAndroid>;
+export function createBillingProgramReportingDetailsAndroid(
+  program: BillingProgramAndroid,
+  developerBillingType?: DeveloperBillingTypeAndroid | null,
+): Promise<BillingProgramReportingDetailsAndroid>;
+export function createBillingProgramReportingDetailsAndroid(
   programOrArgs:
     | BillingProgramAndroid
-    | {
-        program: BillingProgramAndroid;
-        developerBillingType?: DeveloperBillingTypeAndroid | null;
-      },
+    | MutationCreateBillingProgramReportingDetailsAndroidArgs,
   developerBillingType?: DeveloperBillingTypeAndroid | null,
-): Promise<BillingProgramReportingDetailsAndroid> => {
-  const program =
-    typeof programOrArgs === 'string' ? programOrArgs : programOrArgs.program;
-  const resolvedDeveloperBillingType =
+): Promise<BillingProgramReportingDetailsAndroid> {
+  const args =
     typeof programOrArgs === 'string'
-      ? developerBillingType
-      : (programOrArgs.developerBillingType ?? developerBillingType);
-  return ExpoIapModule.createBillingProgramReportingDetailsAndroid(
-    program,
-    resolvedDeveloperBillingType ?? null,
-  );
-};
+      ? {program: programOrArgs, developerBillingType}
+      : programOrArgs;
+  return createBillingProgramReportingDetailsAndroidField(args);
+}
 
 /**
  * Show Google's information dialog for a Billing Choice external transaction.

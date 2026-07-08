@@ -68,8 +68,8 @@ export interface IRField {
   type: IRType;
   /** Whether this field overrides an interface field */
   isOverride: boolean;
-  /** Default value for discriminated unions (e.g., platform: 'ios') */
-  defaultValue?: string;
+  /** Default value from SDL or generated discriminated union defaults. */
+  defaultValue?: unknown;
 }
 
 // ============================================================================

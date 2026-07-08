@@ -1097,7 +1097,7 @@ class OpenIapModule(
             try {
                 val paramsClass = Class.forName("com.android.billingclient.api.InAppMessageParams")
                 val builderClass = Class.forName("com.android.billingclient.api.InAppMessageParams\$Builder")
-                val builder = builderClass.getConstructor().newInstance()
+                val builder = paramsClass.getMethod("newBuilder").invoke(null)
                 val categories = params?.categories?.takeIf { it.isNotEmpty() }
                     ?: listOf(InAppMessageCategoryAndroid.Transactional)
 
@@ -1136,10 +1136,7 @@ class OpenIapModule(
                 ).invoke(client, activity, requestParams, listener) as? BillingResult
 
                 if (submitResult != null && submitResult.responseCode != BillingClient.BillingResponseCode.OK) {
-                    resumer.resume(InAppMessageResultAndroid(
-                        responseCode = InAppMessageResponseCodeAndroid.NoActionNeeded,
-                        purchaseToken = null
-                    ))
+                    resumer.resumeWithException(OpenIapError.PurchaseFailed(submitResult.debugMessage))
                 }
             } catch (e: NoSuchMethodException) {
                 OpenIapLog.e("showInAppMessages not found. Requires Billing Library 4.1.0+", e, TAG)

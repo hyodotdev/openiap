@@ -23,6 +23,7 @@ import {
   type GraphQLField,
   type GraphQLInputField,
   type GraphQLArgument,
+  valueFromASTUntyped,
 } from 'graphql';
 import type {
   IRSchema,
@@ -288,6 +289,9 @@ export class SchemaTransformer {
       description: field.description ?? undefined,
       type: this.transformType(field.type),
       isOverride: false,
+      defaultValue: field.astNode?.defaultValue
+        ? valueFromASTUntyped(field.astNode.defaultValue)
+        : undefined,
     }));
 
     return {
@@ -388,6 +392,9 @@ export class SchemaTransformer {
       description: field.description ?? undefined,
       type: this.transformType(field.type),
       isOverride: false,
+      defaultValue: field.astNode?.defaultValue
+        ? valueFromASTUntyped(field.astNode.defaultValue)
+        : undefined,
     }));
 
     const hasRequiredFields = graphqlFields.some(

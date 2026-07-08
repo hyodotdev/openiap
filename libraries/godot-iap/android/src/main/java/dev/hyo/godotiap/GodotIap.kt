@@ -860,6 +860,12 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
             try {
                 val json = JSONObject(paramsJson)
                 val token = json.optString("externalTransactionToken", "")
+                if (token.isBlank()) {
+                    return@runBlocking JSONObject().apply {
+                        put("success", false)
+                        put("error", "externalTransactionToken is required")
+                    }.toString()
+                }
                 val result = store.showBillingProgramInformationDialog(
                     activity,
                     BillingProgramInformationDialogParamsAndroid(

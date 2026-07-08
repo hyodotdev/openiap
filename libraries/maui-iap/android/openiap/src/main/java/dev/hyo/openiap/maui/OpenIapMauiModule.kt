@@ -223,14 +223,11 @@ class OpenIapMauiModule(context: Context) {
 
     fun getBillingChoiceInfoAndroid(paramsJson: String, callback: ResultCallback) = run(callback) {
         val params = GetBillingChoiceInfoParamsAndroid.fromJson(parseMap(paramsJson))
-            ?: throw badInput("GetBillingChoiceInfoParamsAndroid")
         gson.toJson(module.getBillingChoiceInfo(params).toJson())
     }
 
-    fun createBillingProgramReportingDetailsAndroid(programJson: String, callback: ResultCallback) = run(callback) {
-        val program = parseProgram(programJson)
-        gson.toJson(module.createBillingProgramReportingDetails(program).toJson())
-    }
+    fun createBillingProgramReportingDetailsAndroid(programJson: String, callback: ResultCallback) =
+        createBillingProgramReportingDetailsAndroidWithType(programJson, null, callback)
 
     fun createBillingProgramReportingDetailsAndroidWithType(
         programJson: String,
