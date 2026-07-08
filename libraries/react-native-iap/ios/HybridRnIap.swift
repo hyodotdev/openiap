@@ -1403,7 +1403,7 @@ class HybridRnIap: HybridRnIapSpec {
         }
     }
 
-    func showInAppMessagesAndroid(params: NitroInAppMessageParamsAndroid?) throws -> Promise<NitroInAppMessageResultAndroid> {
+    func showInAppMessagesAndroid(params: Variant_NullType_NitroInAppMessageParamsAndroid?) throws -> Promise<NitroInAppMessageResultAndroid> {
         return Promise.async {
             throw OpenIapException.make(code: .featureNotSupported, message: "In-app messages are Android-only")
         }
