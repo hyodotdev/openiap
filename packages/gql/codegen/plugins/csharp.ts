@@ -414,7 +414,11 @@ export class CSharpPlugin extends CodegenPlugin {
         this.emit(`    public ${propType} ${propName} { get; init; }${initializer}`);
       } else if (field.defaultValue !== undefined) {
         const defaultValue = this.buildDefaultValueExpression(field);
-        this.emit(`    public ${propType} ${propName} { get; init; }${defaultValue ? ` = ${defaultValue};` : ''}`);
+        if (defaultValue) {
+          this.emit(`    public ${propType} ${propName} { get; init; } = ${defaultValue};`);
+        } else {
+          this.emit(`    public required ${propType} ${propName} { get; init; }`);
+        }
       } else if (defaults && field.name === 'platform') {
         const defaultValue = `IapPlatform.${toPascalCasePreserveIOS(defaults.platform)}`;
         this.emit(`    public ${propType} ${propName} { get; init; } = ${defaultValue};`);
@@ -445,12 +449,21 @@ export class CSharpPlugin extends CodegenPlugin {
       return `${type.name}.${this.enumValueCase(defaultValue)}`;
     }
     if (type.kind === 'scalar') {
-      if (typeof defaultValue === 'string') return `"${defaultValue}"`;
+      if (typeof defaultValue === 'string') return this.csharpStringLiteral(defaultValue);
       if (typeof defaultValue === 'number' || typeof defaultValue === 'boolean') {
         return String(defaultValue).toLowerCase();
       }
     }
     return null;
+  }
+
+  private csharpStringLiteral(value: string): string {
+    return `"${value
+      .replace(/\\/g, '\\\\')
+      .replace(/"/g, '\\"')
+      .replace(/\r/g, '\\r')
+      .replace(/\n/g, '\\n')
+      .replace(/\t/g, '\\t')}"`;
   }
 
   private generateResultUnionObject(irObject: IRObject): void {

@@ -894,7 +894,11 @@ export class KotlinPlugin extends CodegenPlugin {
     }
     if (type.kind === 'scalar') {
       if (typeof defaultValue === 'string') return `"${defaultValue}"`;
-      if (typeof defaultValue === 'number' || typeof defaultValue === 'boolean') {
+      if (typeof defaultValue === 'boolean') return String(defaultValue);
+      if (typeof defaultValue === 'number') {
+        if (type.name === 'Float' && Number.isInteger(defaultValue)) {
+          return `${defaultValue}.0`;
+        }
         return String(defaultValue);
       }
     }
