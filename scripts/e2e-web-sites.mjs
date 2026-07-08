@@ -488,10 +488,11 @@ async function clearBrowserCache(page) {
   }
 }
 
-async function checkPerformanceWithRetry(page, siteName, route) {
+async function checkPerformanceWithRetry(page, siteName, route, pageErrors) {
   for (let attempt = 1; attempt <= PERFORMANCE_ATTEMPTS; attempt += 1) {
     if (attempt > 1) {
       await clearBrowserCache(page);
+      pageErrors.length = 0;
       await page.reload({
         waitUntil: "domcontentloaded",
         timeout: DEFAULT_TIMEOUT_MS,
@@ -628,6 +629,7 @@ async function checkSite(browser, request, site) {
             page,
             site.name,
             route,
+            pageErrors,
           );
           const linkCount = await checkInternalLinks(page, site);
           const retryLabel =
