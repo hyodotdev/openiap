@@ -86,6 +86,10 @@ appropriate labels before merging.
   web/docs/dashboard previews when applicable.
 - Keep commits in Angular Conventional Commits format:
   `<type>(<scope>): <subject>`.
+- When creating branches for commit/push/PR workflows, follow
+  `.claude/commands/commit.md`: use meaningful semantic prefixes such as
+  `feat/`, `fix/`, `ci/`, `docs/`, `test/`, `chore/`, or `refactor/`. Do not
+  use generic agent/tool prefixes such as `codex/`.
 
 ## GitHub Review Threads
 
