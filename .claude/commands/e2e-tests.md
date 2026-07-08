@@ -27,16 +27,16 @@ When `e2e-tests` is requested without a narrower scope, run every applicable
 row and report every unavailable row as `BLOCKED` or `UNSUPPORTED` with the
 exact missing command, tool, device, or store prerequisite.
 
-| Target | Android / Play | FireOS / Amazon | Horizon | iOS | VegaOS | Onside |
-| ------ | -------------- | --------------- | ------- | --- | ------ | ------ |
-| `packages/google` native | build + tests | build + tests | build-only | n/a | n/a | n/a |
-| `packages/apple` native | n/a | n/a | n/a | build + tests | n/a | n/a |
-| `react-native-iap` | build + device flow | build + device flow | build-only | build + device flow | RN only | n/a |
-| `expo-iap` | build + device flow | build + device flow | build-only | build + device flow | Expo only | build-only |
-| `flutter_inapp_purchase` | build + device flow | build + device flow | build-only | build + device flow | n/a | n/a |
-| `kmp-iap` | build + device flow | required row; currently blocked unless a FireOS flavor is wired | required row; currently blocked unless a Horizon flavor is wired | build + device flow | n/a | n/a |
-| `maui-iap` | build + device flow | required row; currently blocked unless an Amazon binding flavor is wired | required row; currently blocked unless a Horizon binding flavor is wired | build + device flow | n/a | n/a |
-| `godot-iap` | build + device flow | n/a | n/a | build + device flow | n/a | n/a |
+| Target                   | Android / Play      | FireOS / Amazon     | Horizon    | iOS                 | VegaOS    | Onside     |
+| ------------------------ | ------------------- | ------------------- | ---------- | ------------------- | --------- | ---------- |
+| `packages/google` native | build + tests       | build + tests       | build-only | n/a                 | n/a       | n/a        |
+| `packages/apple` native  | n/a                 | n/a                 | n/a        | build + tests       | n/a       | n/a        |
+| `react-native-iap`       | build + device flow | build + device flow | build-only | build + device flow | RN only   | n/a        |
+| `expo-iap`               | build + device flow | build + device flow | build-only | build + device flow | Expo only | build-only |
+| `flutter_inapp_purchase` | build + device flow | build + device flow | build-only | build + device flow | n/a       | n/a        |
+| `kmp-iap`                | build + device flow | build + device flow | build-only | build + device flow | n/a       | n/a        |
+| `maui-iap`               | build + device flow | build + device flow | build-only | build + device flow | n/a       | n/a        |
+| `godot-iap`              | build + device flow | n/a                 | n/a        | build + device flow | n/a       | n/a        |
 
 Notes:
 
@@ -45,9 +45,9 @@ Notes:
 - Horizon is build-only unless the user explicitly provides a Horizon device and
   the library has a runnable Horizon example.
 - Onside is Expo-only and build-only; do not require Onside purchase approval.
-- KMP and MAUI must still appear in the final report for FireOS/Horizon. If the
-  repo has no flavor switch for those libraries, mark the row blocked instead of
-  treating the Play Android build as coverage.
+- KMP and MAUI must still appear in the final report for FireOS/Horizon. Use
+  the store-specific commands below; do not count the Play Android build as
+  FireOS or Horizon coverage.
 
 ## Rules
 
@@ -497,15 +497,39 @@ cd libraries/kmp-iap
 ./gradlew :library:build :library:test :library:podspec :library:generateDummyFramework
 ```
 
-Normal Android build and launch smoke:
+Normal Android / Play build and launch smoke:
 
 ```bash
-cd libraries/kmp-iap/example
-./gradlew :composeApp:assembleDebug
+cd libraries/kmp-iap
+./gradlew \
+  :library:compilePlayDebugKotlinAndroid \
+  :example:composeApp:assemblePlayDebug
 # Build-only regression can stop here.
 : "${ANDROID_SERIAL:?Set ANDROID_SERIAL to the target Android device serial}"
-adb -s "$ANDROID_SERIAL" install -r composeApp/build/outputs/apk/debug/composeApp-debug.apk
+adb -s "$ANDROID_SERIAL" install -r example/composeApp/build/outputs/apk/play/debug/composeApp-play-debug.apk
 adb -s "$ANDROID_SERIAL" shell monkey -p dev.hyo.martie 1
+```
+
+FireOS/Amazon Android build and launch smoke:
+
+```bash
+cd libraries/kmp-iap
+./gradlew \
+  :library:compileAmazonDebugKotlinAndroid \
+  :example:composeApp:assembleAmazonDebug
+# Build-only regression can stop here.
+: "${FIREOS_SERIAL:?Set FIREOS_SERIAL to the target FireOS device serial}"
+adb -s "$FIREOS_SERIAL" install -r example/composeApp/build/outputs/apk/amazon/debug/composeApp-amazon-debug.apk
+adb -s "$FIREOS_SERIAL" shell monkey -p dev.hyo.martie 1
+```
+
+Horizon Android build-only path:
+
+```bash
+cd libraries/kmp-iap
+./gradlew \
+  :library:compileHorizonDebugKotlinAndroid \
+  :example:composeApp:assembleHorizonDebug
 ```
 
 iOS physical-device build and launch smoke:
@@ -525,37 +549,108 @@ xcodebuild \
   -allowProvisioningDeviceRegistration
 ```
 
-FireOS/Amazon and Horizon rows:
-
-```text
-KMP currently has no FireOS/Amazon or Horizon flavor switch in
-libraries/kmp-iap/library/build.gradle.kts or example/composeApp/build.gradle.kts.
-Report these rows as BLOCKED until the flavor is wired; do not count the normal
-Android build as FireOS or Horizon coverage.
-```
-
 ## MAUI Checks
 
 Library build and native binding prerequisites:
 
 ```bash
 cd packages/google
-./gradlew :openiap:assemblePlayRelease
-cd ../../libraries/maui-iap/android
-../../../packages/google/gradlew :openiap:assembleRelease
+./gradlew \
+  :openiap:assemblePlayRelease \
+  :openiap:assembleAmazonRelease \
+  :openiap:assembleHorizonRelease
 cd ../../..
 bash packages/apple/scripts/build-xcframework.sh
 cd libraries/maui-iap
-dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -f net9.0
-dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -f net9.0-android
-dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -f net9.0-ios
+dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0 --nologo
+dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0-ios --nologo
 ```
 
-Normal Android build and launch smoke:
+Normal Android / Play build and launch smoke:
 
 ```bash
-cd libraries/maui-iap/example/OpenIap.Maui.Example
-dotnet build -t:Run -f net9.0-android
+# The MAUI-owned Android facade AAR output path is shared, so build it for the
+# requested store immediately before the matching dotnet build. The library
+# build disables ProjectReference rebuilds because the Android binding is built
+# explicitly first.
+cd libraries/maui-iap/android
+../../../packages/google/gradlew :openiap:assembleRelease -PopenIapAndroidStore=play
+cd ..
+dotnet build-server shutdown || true
+rm -rf src/OpenIap.Maui.Bindings.Android/bin src/OpenIap.Maui.Bindings.Android/obj
+dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj \
+  -p:TargetFrameworks=net9.0-android \
+  -p:OpenIapAndroidStore=play \
+  --nologo
+dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj \
+  -p:TargetFrameworks=net9.0-android \
+  -p:OpenIapAndroidStore=play \
+  -p:BuildProjectReferences=false \
+  --nologo
+dotnet build example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj \
+  -f net9.0-android \
+  -p:OpenIapAndroidStore=play \
+  --nologo
+# Build-only regression can stop here.
+: "${ANDROID_SERIAL:?Set ANDROID_SERIAL to the target Android device serial}"
+ANDROID_SERIAL="$ANDROID_SERIAL" dotnet build example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj \
+  -t:Run \
+  -f net9.0-android \
+  -p:OpenIapAndroidStore=play \
+  --nologo
+```
+
+FireOS/Amazon Android build and launch smoke:
+
+```bash
+cd libraries/maui-iap/android
+../../../packages/google/gradlew :openiap:assembleRelease -PopenIapAndroidStore=amazon
+cd ..
+dotnet build-server shutdown || true
+rm -rf src/OpenIap.Maui.Bindings.Android/bin src/OpenIap.Maui.Bindings.Android/obj
+dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj \
+  -p:TargetFrameworks=net9.0-android \
+  -p:OpenIapAndroidStore=amazon \
+  --nologo
+dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj \
+  -p:TargetFrameworks=net9.0-android \
+  -p:OpenIapAndroidStore=amazon \
+  -p:BuildProjectReferences=false \
+  --nologo
+dotnet build example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj \
+  -f net9.0-android \
+  -p:OpenIapAndroidStore=amazon \
+  --nologo
+# Build-only regression can stop here.
+: "${FIREOS_SERIAL:?Set FIREOS_SERIAL to the target FireOS device serial}"
+ANDROID_SERIAL="$FIREOS_SERIAL" dotnet build example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj \
+  -t:Run \
+  -f net9.0-android \
+  -p:OpenIapAndroidStore=amazon \
+  --nologo
+```
+
+Horizon Android build-only path:
+
+```bash
+cd libraries/maui-iap/android
+../../../packages/google/gradlew :openiap:assembleRelease -PopenIapAndroidStore=horizon
+cd ..
+dotnet build-server shutdown || true
+rm -rf src/OpenIap.Maui.Bindings.Android/bin src/OpenIap.Maui.Bindings.Android/obj
+dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj \
+  -p:TargetFrameworks=net9.0-android \
+  -p:OpenIapAndroidStore=horizon \
+  --nologo
+dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj \
+  -p:TargetFrameworks=net9.0-android \
+  -p:OpenIapAndroidStore=horizon \
+  -p:BuildProjectReferences=false \
+  --nologo
+dotnet build example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj \
+  -f net9.0-android \
+  -p:OpenIapAndroidStore=horizon \
+  --nologo
 ```
 
 iOS physical-device build and launch smoke:
@@ -564,14 +659,6 @@ iOS physical-device build and launch smoke:
 cd libraries/maui-iap/example/OpenIap.Maui.Example
 : "${IOS_UDID:?Set IOS_UDID to the target iOS device UDID}"
 dotnet build -t:Run -f net9.0-ios -p:_DeviceName="$IOS_UDID"
-```
-
-FireOS/Amazon and Horizon rows:
-
-```text
-MAUI currently builds its Android binding against the Play flavor. It has no
-Amazon or Horizon binding flavor switch. Report FireOS/Horizon rows as BLOCKED
-until libraries/maui-iap/android and the binding csproj expose those variants.
 ```
 
 ## Godot Checks
@@ -665,12 +752,12 @@ Flutter FireOS        | {serial}      | build/install/purchase | PASS | ...
 Flutter Horizon       | local Gradle  | build        | PASS   | build-only
 Flutter iOS           | {UDID}        | build/install/purchase | PASS | ...
 KMP Android           | {serial}      | build/install/purchase | PASS | ...
-KMP FireOS            | n/a           | flavor check | BLOCKED | not wired
-KMP Horizon           | n/a           | flavor check | BLOCKED | not wired
+KMP FireOS            | {serial}      | build/install/purchase | PASS | ...
+KMP Horizon           | local Gradle  | build        | PASS   | build-only
 KMP iOS               | {UDID}        | build/install/purchase | PASS | ...
 MAUI Android          | {serial}      | build/run/purchase | PASS | ...
-MAUI FireOS           | n/a           | flavor check | BLOCKED | not wired
-MAUI Horizon          | n/a           | flavor check | BLOCKED | not wired
+MAUI FireOS           | {serial}      | build/run/purchase | PASS | ...
+MAUI Horizon          | local dotnet  | build        | PASS   | build-only
 MAUI iOS              | {UDID}        | build/run/purchase | PASS | ...
 Godot Android         | {serial}      | build/install/purchase | PASS | ...
 Godot iOS             | {UDID}        | build/install/purchase | PASS | ...

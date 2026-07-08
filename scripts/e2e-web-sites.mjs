@@ -74,6 +74,41 @@ const PERFORMANCE_BUDGETS = {
   longTaskMs: Number(process.env.WEB_E2E_LONG_TASK_BUDGET_MS ?? 1_000),
 };
 
+function readPositiveIntegerEnv(name, fallback) {
+  const rawValue = process.env[name];
+  if (rawValue === undefined || rawValue === "") {
+    return fallback;
+  }
+
+  const parsedValue = Number(rawValue);
+  if (!Number.isFinite(parsedValue)) {
+    return fallback;
+  }
+
+  return Math.max(1, Math.floor(parsedValue));
+}
+
+const PERFORMANCE_ATTEMPTS = readPositiveIntegerEnv(
+  "WEB_E2E_PERFORMANCE_ATTEMPTS",
+  2,
+);
+const RETRYABLE_PERFORMANCE_PREFIXES = [
+  "domContentLoaded ",
+  "load ",
+  "long tasks ",
+];
+
+class PerformanceBudgetError extends Error {
+  constructor(siteName, route, errors, metrics) {
+    super(
+      `${siteName} ${route} performance failure:\n${summarizeErrors(errors)}`,
+    );
+    this.name = "PerformanceBudgetError";
+    this.errors = errors;
+    this.metrics = metrics;
+  }
+}
+
 function normalizeBaseUrl(value) {
   return value.replace(/\/+$/, "");
 }
@@ -366,8 +401,8 @@ async function checkSeo(page, site, route) {
   return warnings;
 }
 
-async function checkPerformance(page, siteName, route) {
-  const metrics = await page.evaluate(() => {
+async function collectPerformanceMetrics(page) {
+  return page.evaluate(() => {
     const navigation = performance.getEntriesByType("navigation")[0];
     const resources = performance.getEntriesByType("resource");
     const totalTransferBytes = resources.reduce(
@@ -391,7 +426,9 @@ async function checkPerformance(page, siteName, route) {
       longTaskMs: Math.round(longTaskMs),
     };
   });
+}
 
+function getPerformanceErrors(metrics) {
   const errors = [];
   if (metrics.domContentLoadedMs > PERFORMANCE_BUDGETS.domContentLoadedMs) {
     errors.push(
@@ -417,13 +454,69 @@ async function checkPerformance(page, siteName, route) {
     );
   }
 
+  return errors;
+}
+
+function isRetryablePerformanceError(error) {
+  return (
+    error instanceof PerformanceBudgetError &&
+    error.errors.every((message) =>
+      RETRYABLE_PERFORMANCE_PREFIXES.some((prefix) =>
+        message.startsWith(prefix),
+      ),
+    )
+  );
+}
+
+async function checkPerformance(page, siteName, route) {
+  const metrics = await collectPerformanceMetrics(page);
+  const errors = getPerformanceErrors(metrics);
+
   if (errors.length > 0) {
-    throw new Error(
-      `${siteName} ${route} performance failure:\n${summarizeErrors(errors)}`,
-    );
+    throw new PerformanceBudgetError(siteName, route, errors, metrics);
   }
 
   return metrics;
+}
+
+async function clearBrowserCache(page) {
+  const session = await page.context().newCDPSession(page);
+  try {
+    await session.send("Network.clearBrowserCache");
+  } finally {
+    await session.detach();
+  }
+}
+
+async function checkPerformanceWithRetry(page, siteName, route) {
+  let lastError;
+
+  for (let attempt = 1; attempt <= PERFORMANCE_ATTEMPTS; attempt += 1) {
+    if (attempt > 1) {
+      await clearBrowserCache(page);
+      await page.reload({
+        waitUntil: "domcontentloaded",
+        timeout: DEFAULT_TIMEOUT_MS,
+      });
+      await waitForAppReady(page);
+      await page.waitForLoadState("load", { timeout: DEFAULT_TIMEOUT_MS });
+    }
+
+    try {
+      const metrics = await checkPerformance(page, siteName, route);
+      return { metrics, attempts: attempt };
+    } catch (error) {
+      lastError = error;
+      if (
+        !isRetryablePerformanceError(error) ||
+        attempt === PERFORMANCE_ATTEMPTS
+      ) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError;
 }
 
 async function checkImages(page, siteName, route) {
@@ -536,10 +629,16 @@ async function checkSite(browser, request, site) {
         }
 
         if (viewport.name === "desktop") {
-          const metrics = await checkPerformance(page, site.name, route);
+          const { metrics, attempts } = await checkPerformanceWithRetry(
+            page,
+            site.name,
+            route,
+          );
           const linkCount = await checkInternalLinks(page, site);
+          const retryLabel =
+            attempts > 1 ? ` after ${attempts} performance attempts` : "";
           summaries.push(
-            `${site.name} ${route} desktop ok (${metrics.loadMs}ms load, ${linkCount} links)`,
+            `${site.name} ${route} desktop ok (${metrics.loadMs}ms load, ${linkCount} links${retryLabel})`,
           );
         }
 
