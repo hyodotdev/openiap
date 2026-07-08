@@ -559,7 +559,7 @@ cd packages/google
   :openiap:assemblePlayRelease \
   :openiap:assembleAmazonRelease \
   :openiap:assembleHorizonRelease
-cd ../../..
+cd ../..
 bash packages/apple/scripts/build-xcframework.sh
 cd libraries/maui-iap
 dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0 --nologo
