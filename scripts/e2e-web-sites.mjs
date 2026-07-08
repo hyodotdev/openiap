@@ -507,6 +507,7 @@ async function checkPerformanceWithRetry(page, siteName, route, pageErrors) {
     } catch (error) {
       if (
         !isRetryablePerformanceError(error) ||
+        pageErrors.length > 0 ||
         attempt === PERFORMANCE_ATTEMPTS
       ) {
         throw error;
