@@ -1469,10 +1469,21 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
     async isBillingProgramAvailableAndroid(): Promise<never> {
       return throwUnsupportedFeature('isBillingProgramAvailableAndroid');
     },
+    async getBillingChoiceInfoAndroid(): Promise<never> {
+      return throwUnsupportedFeature('getBillingChoiceInfoAndroid');
+    },
     async createBillingProgramReportingDetailsAndroid(): Promise<never> {
       return throwUnsupportedFeature(
         'createBillingProgramReportingDetailsAndroid',
       );
+    },
+    async showBillingProgramInformationDialogAndroid(): Promise<never> {
+      return throwUnsupportedFeature(
+        'showBillingProgramInformationDialogAndroid',
+      );
+    },
+    async showInAppMessagesAndroid(): Promise<never> {
+      return throwUnsupportedFeature('showInAppMessagesAndroid');
     },
     async launchExternalLinkAndroid(): Promise<boolean> {
       return throwUnsupportedFeature('launchExternalLinkAndroid');

@@ -1342,7 +1342,7 @@ func create_alternative_billing_token_android() -> Variant:
 ## See: https://openiap.dev/docs/apis/android/is-billing-program-available-android
 func is_billing_program_available_android(billing_program) -> Variant:
 	if _native_plugin and _platform == "Android":
-		var result_json = _native_plugin.call("isBillingProgramAvailableAndroid", billing_program)
+		var result_json = _native_plugin.call("isBillingProgramAvailableAndroid", _billing_program_to_raw(billing_program))
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
 			return Types.BillingProgramAvailabilityResultAndroid.from_dict(result)
@@ -1350,6 +1350,30 @@ func is_billing_program_available_android(billing_program) -> Variant:
 	default_result.is_available = false
 	default_result.billing_program = billing_program
 	return default_result
+
+func _billing_program_to_raw(billing_program) -> Variant:
+	if typeof(billing_program) == TYPE_INT and Types.BILLING_PROGRAM_ANDROID_VALUES.has(billing_program):
+		return Types.BILLING_PROGRAM_ANDROID_VALUES[billing_program]
+	return billing_program
+
+func _developer_billing_type_to_raw(developer_billing_type) -> Variant:
+	if typeof(developer_billing_type) == TYPE_INT and Types.DEVELOPER_BILLING_TYPE_ANDROID_VALUES.has(developer_billing_type):
+		return Types.DEVELOPER_BILLING_TYPE_ANDROID_VALUES[developer_billing_type]
+	return developer_billing_type
+
+## Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens (Android 9.1.0+).
+## @param params: Types.GetBillingChoiceInfoParamsAndroid - Billing Choice info parameters
+## @return Types.BillingChoiceInfoAndroid
+##
+## See: https://openiap.dev/docs/apis/android/get-billing-choice-info-android
+func get_billing_choice_info_android(params) -> Variant:
+	if _native_plugin and _platform == "Android":
+		var params_json = JSON.stringify(params.to_dict())
+		var result_json = _native_plugin.call("getBillingChoiceInfoAndroid", params_json)
+		var result = JSON.parse_string(result_json)
+		if result is Dictionary:
+			return Types.BillingChoiceInfoAndroid.from_dict(result)
+	return Types.BillingChoiceInfoAndroid.new()
 
 ## Launch external link (Android 8.2.0+).
 ## @param params: Types.LaunchExternalLinkParamsAndroid - external link parameters
@@ -1369,17 +1393,54 @@ func launch_external_link_android(params) -> Variant:
 
 ## Create billing program reporting details (Android 8.2.0+).
 ## @param billing_program: Types.BillingProgramAndroid - billing program enum value
+## @param developer_billing_type: Types.DeveloperBillingTypeAndroid or null
 ## @return Types.BillingProgramReportingDetailsAndroid
 ##
 ## See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
-func create_billing_program_reporting_details_android(billing_program) -> Variant:
+func create_billing_program_reporting_details_android(billing_program, developer_billing_type = null) -> Variant:
 	if _native_plugin and _platform == "Android":
-		var result_json = _native_plugin.call("createBillingProgramReportingDetailsAndroid", billing_program)
+		var result_json: String
+		if developer_billing_type == null:
+			result_json = _native_plugin.call("createBillingProgramReportingDetailsAndroid", _billing_program_to_raw(billing_program))
+		else:
+			result_json = _native_plugin.call("createBillingProgramReportingDetailsAndroidWithType", JSON.stringify({
+				"billingProgram": _billing_program_to_raw(billing_program),
+				"developerBillingType": _developer_billing_type_to_raw(developer_billing_type)
+			}))
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
 			return Types.BillingProgramReportingDetailsAndroid.from_dict(result)
 	var default_result = Types.BillingProgramReportingDetailsAndroid.new()
 	default_result.billing_program = billing_program
+	return default_result
+
+## Show Google's information dialog for a Billing Choice external transaction (Android 9.1.0+).
+## @param params: Types.BillingProgramInformationDialogParamsAndroid
+## @return Types.BillingResultAndroid
+##
+## See: https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android
+func show_billing_program_information_dialog_android(params) -> Variant:
+	if _native_plugin and _platform == "Android":
+		var result_json = _native_plugin.call("showBillingProgramInformationDialogAndroid", JSON.stringify(params.to_dict()))
+		var result = JSON.parse_string(result_json)
+		if result is Dictionary:
+			return Types.BillingResultAndroid.from_dict(result)
+	return Types.BillingResultAndroid.new()
+
+## Show Play Billing in-app messages (Android).
+## @param params: Types.InAppMessageParamsAndroid or null
+## @return Types.InAppMessageResultAndroid
+##
+## See: https://openiap.dev/docs/apis/android/show-in-app-messages-android
+func show_in_app_messages_android(params = null) -> Variant:
+	if _native_plugin and _platform == "Android":
+		var params_dict = params.to_dict() if params != null and params is Object and params.has_method("to_dict") else {}
+		var result_json = _native_plugin.call("showInAppMessagesAndroid", JSON.stringify(params_dict))
+		var result = JSON.parse_string(result_json)
+		if result is Dictionary:
+			return Types.InAppMessageResultAndroid.from_dict(result)
+	var default_result = Types.InAppMessageResultAndroid.new()
+	default_result.response_code = Types.InAppMessageResponseCodeAndroid.NO_ACTION_NEEDED
 	return default_result
 
 ## Get the package name (Android only).

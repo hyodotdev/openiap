@@ -35,10 +35,24 @@ pluginManagement {
             "org.jetbrains.kotlin.android",
             "kotlinVersion",
         )
+        id("org.jetbrains.kotlin.plugin.compose") version googlePluginVersion(
+            "org.jetbrains.kotlin.plugin.compose",
+            "kotlinVersion",
+        )
+        id("com.vanniktech.maven.publish") version googlePluginVersion(
+            "com.vanniktech.maven.publish",
+            "vanniktechMavenPublishVersion",
+        )
     }
 }
 
 rootProject.name = "godot-iap"
+
+val localOpenIapProject = file("../../../packages/google/openiap")
+if (localOpenIapProject.exists()) {
+    include(":openiap")
+    project(":openiap").projectDir = localOpenIapProject
+}
 
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)

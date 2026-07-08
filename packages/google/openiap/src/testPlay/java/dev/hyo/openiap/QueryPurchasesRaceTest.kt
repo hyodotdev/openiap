@@ -13,6 +13,8 @@ import com.android.billingclient.api.BillingClientStateListener
 import com.android.billingclient.api.BillingConfigResponseListener
 import com.android.billingclient.api.BillingFlowParams
 import com.android.billingclient.api.BillingProgramAvailabilityListener
+import com.android.billingclient.api.BillingProgramInformationDialogListener
+import com.android.billingclient.api.BillingProgramInformationDialogParams
 import com.android.billingclient.api.BillingProgramReportingDetailsListener
 import com.android.billingclient.api.BillingProgramReportingDetailsParams
 import com.android.billingclient.api.BillingResult
@@ -21,7 +23,9 @@ import com.android.billingclient.api.ConsumeResponseListener
 import com.android.billingclient.api.ExternalOfferAvailabilityListener
 import com.android.billingclient.api.ExternalOfferInformationDialogListener
 import com.android.billingclient.api.ExternalOfferReportingDetailsListener
+import com.android.billingclient.api.GetBillingChoiceInfoParams
 import com.android.billingclient.api.GetBillingConfigParams
+import com.android.billingclient.api.BillingChoiceInfoResponseListener
 import com.android.billingclient.api.InAppMessageParams
 import com.android.billingclient.api.InAppMessageResponseListener
 import com.android.billingclient.api.LaunchExternalLinkParams
@@ -318,6 +322,12 @@ class QueryPurchasesRaceTest {
             listener: InAppMessageResponseListener
         ): BillingResult = unsupported()
 
+        override fun showBillingProgramInformationDialog(
+            activity: Activity,
+            params: BillingProgramInformationDialogParams,
+            listener: BillingProgramInformationDialogListener
+        ) = unsupportedUnit()
+
         override fun acknowledgePurchase(
             params: AcknowledgePurchaseParams,
             listener: AcknowledgePurchaseResponseListener
@@ -346,6 +356,11 @@ class QueryPurchasesRaceTest {
         override fun getBillingConfigAsync(
             params: GetBillingConfigParams,
             listener: BillingConfigResponseListener
+        ) = unsupportedUnit()
+
+        override fun getBillingChoiceInfoAsync(
+            params: GetBillingChoiceInfoParams,
+            listener: BillingChoiceInfoResponseListener
         ) = unsupportedUnit()
 
         override fun isAlternativeBillingOnlyAvailableAsync(

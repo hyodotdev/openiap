@@ -179,6 +179,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                 purchaseResult = "✅ Reconnected with ${
                     when (program) {
                         BillingProgramAndroid.UserChoiceBilling -> "User Choice Billing"
+                        BillingProgramAndroid.BillingChoice -> "Billing Choice"
                         BillingProgramAndroid.ExternalOffer -> "External Offer"
                         BillingProgramAndroid.ExternalPayments -> "External Payments (Japan)"
                         BillingProgramAndroid.ExternalContentLink -> "External Content Link"
@@ -365,6 +366,7 @@ fun AlternativeBillingScreen(navController: NavController) {
         } else if (currentPlatform == "Android") {
             when (billingProgram) {
                 BillingProgramAndroid.UserChoiceBilling -> handleAndroidUserChoiceBilling(product)
+                BillingProgramAndroid.BillingChoice,
                 BillingProgramAndroid.ExternalOffer,
                 BillingProgramAndroid.ExternalPayments,
                 BillingProgramAndroid.ExternalContentLink -> handleAndroidBillingPrograms(product)
@@ -533,6 +535,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                                 isProcessing -> "Processing..."
                                 currentPlatform == "iOS" -> "🛒 Buy (External URL)"
                                 billingProgram == BillingProgramAndroid.UserChoiceBilling -> "🛒 Buy (User Choice)"
+                                billingProgram == BillingProgramAndroid.BillingChoice -> "🛒 Buy (Billing Choice)"
                                 billingProgram == BillingProgramAndroid.ExternalOffer -> "🛒 Buy (External Offer)"
                                 billingProgram == BillingProgramAndroid.ExternalPayments -> "🛒 Buy (External Payments)"
                                 billingProgram == BillingProgramAndroid.ExternalContentLink -> "🛒 Buy (External Link)"
@@ -585,6 +588,17 @@ fun AlternativeBillingScreen(navController: NavController) {
                             billingProgram = BillingProgramAndroid.UserChoiceBilling
                             showModeSelector = false
                             reconnectWithProgram(BillingProgramAndroid.UserChoiceBilling)
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    ModeSelectorOption(
+                        title = "Billing Choice (9.1.0+)",
+                        description = "Use Google or developer-rendered billing choice screens.",
+                        isSelected = billingProgram == BillingProgramAndroid.BillingChoice,
+                        onClick = {
+                            billingProgram = BillingProgramAndroid.BillingChoice
+                            showModeSelector = false
+                            reconnectWithProgram(BillingProgramAndroid.BillingChoice)
                         }
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -683,6 +697,13 @@ private fun InfoCard(platform: String, billingProgram: BillingProgramAndroid) {
                         • If Google Play: onPurchaseUpdated
                         • If alternative: userChoiceBillingListener
                     """.trimIndent()
+                    BillingProgramAndroid.BillingChoice -> """
+                        • Billing Choice (9.1.0+)
+                        • Get Google/developer-rendered choice metadata
+                        • Show the required program information dialog
+                        • Request reporting details with billing type
+                        • Show Play billing in-app messages
+                    """.trimIndent()
                     BillingProgramAndroid.ExternalOffer -> """
                         • External Offer Mode (8.2.0+)
                         • Users CANNOT use Google Play billing
@@ -717,6 +738,11 @@ private fun InfoCard(platform: String, billingProgram: BillingProgramAndroid) {
                         ⚠️ Billing Library 7.0+ required
                         ⚠️ Requires approval from Google
                         ⚠️ Must report tokens within 24 hours
+                    """.trimIndent()
+                    BillingProgramAndroid.BillingChoice -> """
+                        ⚠️ Billing Library 9.1.0+ required
+                        ⚠️ Requires Billing Choice enrollment
+                        ⚠️ Availability depends on region and product
                     """.trimIndent()
                     BillingProgramAndroid.ExternalOffer -> """
                         ⚠️ Billing Library 8.2.0+ required
@@ -780,6 +806,7 @@ private fun ModeSelectorCard(
                 Text(
                     text = when (billingProgram) {
                         BillingProgramAndroid.UserChoiceBilling -> "User Choice Billing (7.0+)"
+                        BillingProgramAndroid.BillingChoice -> "Billing Choice (9.1.0+)"
                         BillingProgramAndroid.ExternalOffer -> "External Offer (8.2.0+)"
                         BillingProgramAndroid.ExternalPayments -> "External Payments (8.3.0+, Japan)"
                         BillingProgramAndroid.ExternalContentLink -> "External Content Link (8.2.0+)"

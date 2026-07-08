@@ -98,7 +98,10 @@ interface OpenIapProtocol {
      * @param program The billing program (EXTERNAL_CONTENT_LINK or EXTERNAL_OFFER)
      * @return Reporting details containing the external transaction token
      */
-    suspend fun createBillingProgramReportingDetails(program: BillingProgramAndroid): BillingProgramReportingDetailsAndroid
+    suspend fun createBillingProgramReportingDetails(
+        program: BillingProgramAndroid,
+        developerBillingType: DeveloperBillingTypeAndroid? = null
+    ): BillingProgramReportingDetailsAndroid
 
     /**
      * Launch an external link for external offer or app download.
@@ -109,4 +112,25 @@ interface OpenIapProtocol {
      * @return true if launch was successful, false otherwise
      */
     suspend fun launchExternalLink(activity: Activity, params: LaunchExternalLinkParamsAndroid): Boolean
+
+    /**
+     * Fetch Play Billing choice display assets for developer-rendered Billing Choice.
+     */
+    suspend fun getBillingChoiceInfo(params: GetBillingChoiceInfoParamsAndroid): BillingChoiceInfoAndroid
+
+    /**
+     * Show the Billing Choice information dialog for an external transaction.
+     */
+    suspend fun showBillingProgramInformationDialog(
+        activity: Activity,
+        params: BillingProgramInformationDialogParamsAndroid
+    ): BillingResultAndroid
+
+    /**
+     * Show Play billing in-app messages such as payment issues or price-change confirmations.
+     */
+    suspend fun showInAppMessages(
+        activity: Activity,
+        params: InAppMessageParamsAndroid? = null
+    ): InAppMessageResultAndroid
 }

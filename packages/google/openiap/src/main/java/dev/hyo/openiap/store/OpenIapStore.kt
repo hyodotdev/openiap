@@ -35,7 +35,14 @@ import dev.hyo.openiap.MutationInitConnectionHandler
 import dev.hyo.openiap.MutationEndConnectionHandler
 import dev.hyo.openiap.BillingProgramAndroid
 import dev.hyo.openiap.BillingProgramAvailabilityResultAndroid
+import dev.hyo.openiap.BillingProgramInformationDialogParamsAndroid
 import dev.hyo.openiap.BillingProgramReportingDetailsAndroid
+import dev.hyo.openiap.BillingChoiceInfoAndroid
+import dev.hyo.openiap.BillingResultAndroid
+import dev.hyo.openiap.DeveloperBillingTypeAndroid
+import dev.hyo.openiap.GetBillingChoiceInfoParamsAndroid
+import dev.hyo.openiap.InAppMessageParamsAndroid
+import dev.hyo.openiap.InAppMessageResultAndroid
 import dev.hyo.openiap.LaunchExternalLinkParamsAndroid
 import android.app.Activity
 import android.content.Context
@@ -550,8 +557,11 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      *
      * @see <a href="https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android">https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android</a>
      */
-    suspend fun createBillingProgramReportingDetails(program: BillingProgramAndroid): BillingProgramReportingDetailsAndroid =
-        module.createBillingProgramReportingDetails(program)
+    suspend fun createBillingProgramReportingDetails(
+        program: BillingProgramAndroid,
+        developerBillingType: DeveloperBillingTypeAndroid? = null
+    ): BillingProgramReportingDetailsAndroid =
+        module.createBillingProgramReportingDetails(program, developerBillingType)
 
     /**
      * Launch an external content/offer link from inside the Billing Programs flow (Play Billing 8.2.0+).
@@ -560,6 +570,36 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      */
     suspend fun launchExternalLink(activity: Activity, params: LaunchExternalLinkParamsAndroid): Boolean =
         module.launchExternalLink(activity, params)
+
+    /**
+     * Fetch Billing Choice display assets for developer-rendered choice screens (Play Billing 9.1.0+).
+     *
+     * @see <a href="https://openiap.dev/docs/apis/android/get-billing-choice-info-android">https://openiap.dev/docs/apis/android/get-billing-choice-info-android</a>
+     */
+    suspend fun getBillingChoiceInfo(params: GetBillingChoiceInfoParamsAndroid): BillingChoiceInfoAndroid =
+        module.getBillingChoiceInfo(params)
+
+    /**
+     * Show the Billing Choice information dialog for an external transaction (Play Billing 9.1.0+).
+     *
+     * @see <a href="https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android">https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android</a>
+     */
+    suspend fun showBillingProgramInformationDialog(
+        activity: Activity,
+        params: BillingProgramInformationDialogParamsAndroid
+    ): BillingResultAndroid =
+        module.showBillingProgramInformationDialog(activity, params)
+
+    /**
+     * Show Play billing in-app messages such as payment issues or price-change confirmations.
+     *
+     * @see <a href="https://openiap.dev/docs/apis/android/show-in-app-messages-android">https://openiap.dev/docs/apis/android/show-in-app-messages-android</a>
+     */
+    suspend fun showInAppMessages(
+        activity: Activity,
+        params: InAppMessageParamsAndroid? = null
+    ): InAppMessageResultAndroid =
+        module.showInAppMessages(activity, params)
 
     /**
      * Enable a billing program for external content links or external offers (8.2.0+).

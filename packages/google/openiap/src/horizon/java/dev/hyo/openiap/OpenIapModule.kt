@@ -769,6 +769,9 @@ class OpenIapModule(
         fetchProducts = fetchProducts,
         getActiveSubscriptions = getActiveSubscriptions,
         getAvailablePurchases = getAvailablePurchases,
+        getBillingChoiceInfoAndroid = { params ->
+            getBillingChoiceInfo(params)
+        },
         getStorefront = { getStorefront() },
         getStorefrontIOS = { getStorefront() },
         hasActiveSubscriptions = hasActiveSubscriptions
@@ -784,8 +787,8 @@ class OpenIapModule(
         createAlternativeBillingTokenAndroid = {
             createAlternativeBillingReportingToken()
         },
-        createBillingProgramReportingDetailsAndroid = { program ->
-            createBillingProgramReportingDetails(program)
+        createBillingProgramReportingDetailsAndroid = { program, developerBillingType ->
+            createBillingProgramReportingDetails(program, developerBillingType)
         },
         deepLinkToSubscriptions = deepLinkToSubscriptions,
         endConnection = endConnection,
@@ -803,6 +806,28 @@ class OpenIapModule(
         showAlternativeBillingDialogAndroid = {
             val activity = currentActivityRef?.get() ?: fallbackActivity
             if (activity == null) false else showAlternativeBillingInformationDialog(activity)
+        },
+        showBillingProgramInformationDialogAndroid = { params ->
+            val activity = currentActivityRef?.get() ?: fallbackActivity
+            if (activity == null) {
+                BillingResultAndroid(
+                    responseCode = 5,
+                    debugMessage = "Missing current activity"
+                )
+            } else {
+                showBillingProgramInformationDialog(activity, params)
+            }
+        },
+        showInAppMessagesAndroid = { params ->
+            val activity = currentActivityRef?.get() ?: fallbackActivity
+            if (activity == null) {
+                InAppMessageResultAndroid(
+                    responseCode = InAppMessageResponseCodeAndroid.NoActionNeeded,
+                    purchaseToken = null
+                )
+            } else {
+                showInAppMessages(activity, params)
+            }
         },
         validateReceipt = validateReceipt,
         verifyPurchase = verifyPurchase,
@@ -1162,7 +1187,10 @@ class OpenIapModule(
         )
     }
 
-    override suspend fun createBillingProgramReportingDetails(program: BillingProgramAndroid): BillingProgramReportingDetailsAndroid {
+    override suspend fun createBillingProgramReportingDetails(
+        program: BillingProgramAndroid,
+        developerBillingType: DeveloperBillingTypeAndroid?
+    ): BillingProgramReportingDetailsAndroid {
         // No-op: Billing Programs is a Google Play 8.2.0+ feature, not supported on Meta Horizon
         OpenIapLog.w("createBillingProgramReportingDetails is not supported on Meta Horizon (no-op)", TAG)
         return BillingProgramReportingDetailsAndroid(
@@ -1175,5 +1203,32 @@ class OpenIapModule(
         // No-op: Billing Programs is a Google Play 8.2.0+ feature, not supported on Meta Horizon
         OpenIapLog.w("launchExternalLink is not supported on Meta Horizon (no-op)", TAG)
         return false
+    }
+
+    override suspend fun getBillingChoiceInfo(params: GetBillingChoiceInfoParamsAndroid): BillingChoiceInfoAndroid {
+        OpenIapLog.w("getBillingChoiceInfo is not supported on Meta Horizon", TAG)
+        throw OpenIapError.FeatureNotSupported("Meta Horizon does not support Google Play Billing Choice")
+    }
+
+    override suspend fun showBillingProgramInformationDialog(
+        activity: Activity,
+        params: BillingProgramInformationDialogParamsAndroid
+    ): BillingResultAndroid {
+        OpenIapLog.w("showBillingProgramInformationDialog is not supported on Meta Horizon", TAG)
+        return BillingResultAndroid(
+            responseCode = 2,
+            debugMessage = "Meta Horizon does not support Google Play Billing Choice"
+        )
+    }
+
+    override suspend fun showInAppMessages(
+        activity: Activity,
+        params: InAppMessageParamsAndroid?
+    ): InAppMessageResultAndroid {
+        OpenIapLog.w("showInAppMessages is not supported on Meta Horizon", TAG)
+        return InAppMessageResultAndroid(
+            responseCode = InAppMessageResponseCodeAndroid.NoActionNeeded,
+            purchaseToken = null
+        )
     }
 }

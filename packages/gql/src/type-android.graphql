@@ -683,8 +683,9 @@ type UserChoiceBillingDetails {
 
 # External Billing Programs (Google Play Billing Library 8.2.0+)
 """
-Billing program types for external content links, external offers, and external payments (Android)
-Available in Google Play Billing Library 8.2.0+, EXTERNAL_PAYMENTS added in 8.3.0
+Billing program types for Google Play Billing Programs (Android)
+Available in Google Play Billing Library 8.2.0+, EXTERNAL_PAYMENTS added in 8.3.0,
+BILLING_CHOICE added in 9.1.0.
 """
 enum BillingProgramAndroid {
   """
@@ -716,6 +717,103 @@ enum BillingProgramAndroid {
   Available in Google Play Billing Library 8.3.0+
   """
   EXTERNAL_PAYMENTS
+  """
+  Billing Choice program.
+  Allows presenting Google Play Billing alongside an alternative in-app billing system or external web link.
+  Available in Google Play Billing Library 9.1.0+
+  """
+  BILLING_CHOICE
+}
+
+"""
+Choice screen renderer for Billing Choice availability (Android)
+Available in Google Play Billing Library 9.1.0+
+"""
+enum BillingChoiceScreenTypeAndroid {
+  """
+  Unspecified choice screen type.
+  """
+  UNSPECIFIED
+  """
+  Choice screen is rendered by the developer app.
+  """
+  DEVELOPER_RENDERED
+  """
+  Choice screen is rendered by Google Play.
+  """
+  GOOGLE_RENDERED
+}
+
+"""
+Play Billing choice image layout (Android)
+Available in Google Play Billing Library 9.1.0+
+"""
+enum BillingChoiceImageLayoutAndroid {
+  """
+  Rectangular image with a 4:1 aspect ratio.
+  """
+  RECTANGULAR_FOUR_BY_ONE
+  """
+  Rectangular image with a 3:1 aspect ratio.
+  """
+  RECTANGULAR_THREE_BY_ONE
+  """
+  Rectangular image with a 2:2 aspect ratio.
+  """
+  RECTANGULAR_TWO_BY_TWO
+}
+
+"""
+Parameters for fetching Billing Choice display information (Android)
+Available in Google Play Billing Library 9.1.0+
+"""
+input GetBillingChoiceInfoParamsAndroid {
+  """
+  Billing program. Currently only BILLING_CHOICE is supported.
+  """
+  billingProgram: BillingProgramAndroid! = BILLING_CHOICE
+  """
+  Desired Play Billing choice image layout.
+  """
+  playBillingChoiceImageLayout: BillingChoiceImageLayoutAndroid! = RECTANGULAR_FOUR_BY_ONE
+  """
+  BCP 47 locale tag. If omitted, Play Billing uses the user's default locale.
+  """
+  userLocale: String
+}
+
+"""
+Developer-provided billing destination type for Billing Program reporting details (Android)
+Available in Google Play Billing Library 9.1.0+
+"""
+enum DeveloperBillingTypeAndroid {
+  """
+  Unspecified developer billing type. Do not use.
+  """
+  DEVELOPER_BILLING_TYPE_UNSPECIFIED
+  """
+  Developer-provided billing via native in-app experience.
+  """
+  IN_APP
+  """
+  Developer-provided billing via external link or embedded web browsing.
+  """
+  EXTERNAL_LINK
+}
+
+"""
+Display information for developer-rendered Billing Choice screens (Android)
+Available in Google Play Billing Library 9.1.0+
+"""
+type BillingChoiceInfoAndroid {
+  """
+  URL for the Play Billing choice image matching the requested layout.
+  """
+  playBillingChoiceImageUrl: String!
+  """
+  Play Loyalty information for the user.
+  """
+  playBillingLoyaltyInfo: String
 }
 
 """
@@ -812,6 +910,86 @@ type BillingProgramAvailabilityResultAndroid {
   The billing program that was checked
   """
   billingProgram: BillingProgramAndroid!
+  """
+  Billing Choice screen renderer. Populated only for available BILLING_CHOICE results.
+  """
+  choiceScreenType: BillingChoiceScreenTypeAndroid
+  """
+  Whether external-link payment is available for Billing Choice.
+  Populated only for available BILLING_CHOICE results.
+  """
+  isExternalLinkAvailable: Boolean
+}
+
+"""
+Parameters for showing a billing program information dialog (Android)
+Available in Google Play Billing Library 9.1.0+
+"""
+input BillingProgramInformationDialogParamsAndroid {
+  """
+  Billing program. Currently only BILLING_CHOICE is supported.
+  """
+  billingProgram: BillingProgramAndroid! = BILLING_CHOICE
+  """
+  External transaction token returned by the Billing Choice reporting-details flow.
+  """
+  externalTransactionToken: String!
+}
+
+"""
+High-level in-app message category (Android)
+Available in Google Play Billing Library 4.1.0+
+"""
+enum InAppMessageCategoryAndroid {
+  """
+  Unknown in-app message category.
+  """
+  UNKNOWN_IN_APP_MESSAGE_CATEGORY_ID
+  """
+  Transactional billing messages, such as payment issues or pending price-change confirmations.
+  """
+  TRANSACTIONAL
+}
+
+"""
+Parameters for showing Play billing in-app messages (Android)
+Available in Google Play Billing Library 4.1.0+
+"""
+input InAppMessageParamsAndroid {
+  """
+  In-app message categories to show. Defaults to transactional messages.
+  """
+  categories: [InAppMessageCategoryAndroid!] = [TRANSACTIONAL]
+}
+
+"""
+Result from showing Play billing in-app messages (Android)
+Available in Google Play Billing Library 4.1.0+
+"""
+type InAppMessageResultAndroid {
+  """
+  Response code for the in-app messaging flow.
+  """
+  responseCode: InAppMessageResponseCodeAndroid!
+  """
+  Purchase token returned when a subscription status changed.
+  """
+  purchaseToken: String
+}
+
+"""
+Response code from Play billing in-app messages (Android)
+Available in Google Play Billing Library 4.1.0+
+"""
+enum InAppMessageResponseCodeAndroid {
+  """
+  Flow finished and no developer action is needed.
+  """
+  NO_ACTION_NEEDED
+  """
+  Subscription status changed and the purchase token should be checked.
+  """
+  SUBSCRIPTION_STATUS_UPDATED
 }
 
 # External Payments Program (Google Play Billing Library 8.3.0+)

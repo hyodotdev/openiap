@@ -1,14 +1,14 @@
 import SEO from '../../components/SEO';
-import { OPENIAP_VERSIONS } from '../../lib/versioning';
+import { GOOGLE_PLAY_BILLING, OPENIAP_VERSIONS } from '../../lib/versioning';
 
 function AndroidSetup() {
   return (
     <div className="doc-page">
       <SEO
         title="Android Setup"
-        description="Complete Android in-app purchase setup guide. Configure Google Play Console, integrate Play Billing Library v8, create products, and test purchases with license testers."
+        description="Complete Android in-app purchase setup guide. Configure Google Play Console, integrate Play Billing Library 9.1.0, create products, and test purchases with license testers."
         path="/docs/android-setup"
-        keywords="Android IAP setup, Google Play Billing, Play Console setup, Play Billing Library 8, Android subscription setup, license tester, IAP testing"
+        keywords="Android IAP setup, Google Play Billing, Play Console setup, Play Billing Library 9.1.0, Android subscription setup, license tester, IAP testing"
       />
       <h1>Android Setup Guide</h1>
       <p>
@@ -212,9 +212,10 @@ function AndroidSetup() {
         <p>
           The OpenIAP Android core library (<code>openiap-google</code>)
           requires <strong>minSdk 23</strong> (Android 6.0) with Google Play
-          Billing 8.x. Each framework library may require a higher minimum —
-          check the <a href="#integration">framework-specific setup page</a> for
-          the exact value.
+          Billing {GOOGLE_PLAY_BILLING.version}. Each framework library may
+          require a higher minimum — check the{' '}
+          <a href="#integration">framework-specific setup page</a> for the exact
+          value.
         </p>
 
         <h3 id="add-billing-permission" className="anchor-heading">
@@ -436,6 +437,59 @@ dependencies {
           Google Play Developer API, either your backend or IAPKit, to prevent
           fraud and ensure purchase validity.
         </p>
+
+        <h3 id="billing-choice" className="anchor-heading">
+          Billing Choice and Billing Programs
+          <a href="#billing-choice" className="anchor-link">
+            #
+          </a>
+        </h3>
+        <p>
+          OpenIAP&apos;s Android core uses Google Play Billing{' '}
+          {GOOGLE_PLAY_BILLING.version}. Billing Choice is exposed through the
+          Billing Programs API with{' '}
+          <code>BillingProgramAndroid.BillingChoice</code> in native Kotlin and{' '}
+          <code>'billing-choice'</code> in TypeScript.
+        </p>
+        <ul>
+          <li>
+            Enable Billing Choice through{' '}
+            <a href="/docs/apis/android/enable-billing-program-android">
+              <code>enableBillingProgramAndroid</code>
+            </a>{' '}
+            before connecting.
+          </li>
+          <li>
+            Check availability and renderer type with{' '}
+            <a href="/docs/apis/android/is-billing-program-available-android">
+              <code>isBillingProgramAvailableAndroid</code>
+            </a>
+            .
+          </li>
+          <li>
+            For developer-rendered screens, fetch Play assets with{' '}
+            <a href="/docs/apis/android/get-billing-choice-info-android">
+              <code>getBillingChoiceInfoAndroid</code>
+            </a>
+            .
+          </li>
+          <li>
+            Create reporting details with{' '}
+            <a href="/docs/apis/android/create-billing-program-reporting-details-android">
+              <code>createBillingProgramReportingDetailsAndroid</code>
+            </a>{' '}
+            and pass <code>'in-app'</code> or <code>'external-link'</code> as
+            the developer billing type when required by your flow.
+          </li>
+          <li>
+            For Google-rendered flows, show the Billing Choice information
+            dialog with{' '}
+            <a href="/docs/apis/android/show-billing-program-information-dialog-android">
+              <code>showBillingProgramInformationDialogAndroid</code>
+            </a>
+            .
+          </li>
+        </ul>
 
         <h3 id="subscription-management" className="anchor-heading">
           Subscription Management

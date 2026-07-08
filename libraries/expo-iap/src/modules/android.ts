@@ -6,8 +6,18 @@ import ExpoIapModule from '../ExpoIapModule';
 
 // Types
 import type {
+  BillingChoiceInfoAndroid,
+  BillingProgramAndroid,
+  BillingProgramInformationDialogParamsAndroid,
+  BillingProgramReportingDetailsAndroid,
+  BillingResultAndroid,
   DeepLinkOptions,
+  DeveloperBillingTypeAndroid,
+  GetBillingChoiceInfoParamsAndroid,
+  InAppMessageParamsAndroid,
+  InAppMessageResultAndroid,
   MutationField,
+  QueryField,
   VerifyPurchaseResultAndroid,
 } from '../types';
 
@@ -318,6 +328,28 @@ export const isBillingProgramAvailableAndroid: MutationField<
 };
 
 /**
+ * Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens.
+ * Available in Google Play Billing Library 9.1.0+.
+ *
+ * @param params - Billing Choice info request parameters
+ * @returns Promise resolving to Play Billing Choice display information
+ *
+ * @see {@link https://openiap.dev/docs/apis/android/get-billing-choice-info-android}
+ */
+export const getBillingChoiceInfoAndroid: QueryField<
+  'getBillingChoiceInfoAndroid'
+> = async (
+  params: GetBillingChoiceInfoParamsAndroid,
+): Promise<BillingChoiceInfoAndroid> => {
+  return ExpoIapModule.getBillingChoiceInfoAndroid({
+    billingProgram: params.billingProgram ?? 'billing-choice',
+    playBillingChoiceImageLayout:
+      params.playBillingChoiceImageLayout ?? 'rectangular-four-by-one',
+    userLocale: params.userLocale ?? null,
+  });
+};
+
+/**
  * Launch an external link for the specified billing program (Android only).
  * Available in Google Play Billing Library 8.2.0+.
  *
@@ -361,8 +393,60 @@ export const launchExternalLinkAndroid: MutationField<
  *
  * @see {@link https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android}
  */
-export const createBillingProgramReportingDetailsAndroid: MutationField<
-  'createBillingProgramReportingDetailsAndroid'
-> = async (program) => {
-  return ExpoIapModule.createBillingProgramReportingDetailsAndroid(program);
+export const createBillingProgramReportingDetailsAndroid = async (
+  programOrArgs:
+    | BillingProgramAndroid
+    | {
+        program: BillingProgramAndroid;
+        developerBillingType?: DeveloperBillingTypeAndroid | null;
+      },
+  developerBillingType?: DeveloperBillingTypeAndroid | null,
+): Promise<BillingProgramReportingDetailsAndroid> => {
+  const program =
+    typeof programOrArgs === 'string' ? programOrArgs : programOrArgs.program;
+  const resolvedDeveloperBillingType =
+    typeof programOrArgs === 'string'
+      ? developerBillingType
+      : (programOrArgs.developerBillingType ?? developerBillingType);
+  return ExpoIapModule.createBillingProgramReportingDetailsAndroid(
+    program,
+    resolvedDeveloperBillingType ?? null,
+  );
+};
+
+/**
+ * Show Google's information dialog for a Billing Choice external transaction.
+ * Available in Google Play Billing Library 9.1.0+.
+ *
+ * @param params - Dialog parameters with the external transaction token
+ * @returns Promise resolving to BillingResult
+ *
+ * @see {@link https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android}
+ */
+export const showBillingProgramInformationDialogAndroid: MutationField<
+  'showBillingProgramInformationDialogAndroid'
+> = async (
+  params: BillingProgramInformationDialogParamsAndroid,
+): Promise<BillingResultAndroid> => {
+  return ExpoIapModule.showBillingProgramInformationDialogAndroid({
+    billingProgram: params.billingProgram ?? 'billing-choice',
+    externalTransactionToken: params.externalTransactionToken,
+  });
+};
+
+/**
+ * Show Play Billing in-app messages, such as transactional subscription updates.
+ * Available in Google Play Billing Library 4.1.0+.
+ *
+ * @param params - Optional in-app message categories
+ * @returns Promise resolving to in-app message result
+ *
+ * @see {@link https://openiap.dev/docs/apis/android/show-in-app-messages-android}
+ */
+export const showInAppMessagesAndroid: MutationField<
+  'showInAppMessagesAndroid'
+> = async (
+  params?: InAppMessageParamsAndroid | null,
+): Promise<InAppMessageResultAndroid> => {
+  return ExpoIapModule.showInAppMessagesAndroid(params ?? null);
 };

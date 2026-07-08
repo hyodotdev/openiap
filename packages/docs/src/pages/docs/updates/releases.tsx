@@ -26,6 +26,227 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // July 8, 2026 — Play Billing 9.1.0 Billing Choice support
+    {
+      id: 'play-billing-9-1-billing-choice-2026-07-08',
+      date: new Date('2026-07-08'),
+      element: (
+        <div
+          key="play-billing-9-1-billing-choice-2026-07-08"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="play-billing-9-1-billing-choice-2026-07-08"
+            level="h4"
+          >
+            July 8, 2026 — Play Billing 9.1.0 Billing Choice support
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Ships Google Play Billing Library 9.1.0 support across Android
+            implementations. The OpenIAP spec adds <code>BILLING_CHOICE</code>{' '}
+            plus Billing Choice display, dialog, reporting, and in-app message
+            types; framework packages expose the same Android APIs while Apple
+            remains behavior-compatible with the existing StoreKit surface.
+          </p>
+
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>Billing Choice</strong> —{' '}
+              <code>BillingProgramAndroid.BILLING_CHOICE</code> is available in
+              the Billing Programs API. Availability now reports{' '}
+              <code>choiceScreenType</code> and{' '}
+              <code>isExternalLinkAvailable</code> when Play returns Billing
+              Choice details.
+            </li>
+            <li>
+              <strong>New Android APIs</strong> —{' '}
+              <Link to="/docs/apis/android/get-billing-choice-info-android">
+                <code>getBillingChoiceInfoAndroid</code>
+              </Link>
+              ,{' '}
+              <Link to="/docs/apis/android/show-billing-program-information-dialog-android">
+                <code>showBillingProgramInformationDialogAndroid</code>
+              </Link>
+              , and{' '}
+              <Link to="/docs/apis/android/show-in-app-messages-android">
+                <code>showInAppMessagesAndroid</code>
+              </Link>{' '}
+              are wired through native Android, React Native, Expo, Flutter,
+              KMP, Godot, and MAUI.
+            </li>
+            <li>
+              <strong>Reporting details</strong> —{' '}
+              <code>createBillingProgramReportingDetailsAndroid</code> now
+              accepts an optional <code>developerBillingType</code> so Billing
+              Choice flows can distinguish in-app developer billing from
+              external-link developer billing.
+            </li>
+            <li>
+              <strong>Framework parity</strong> — generated types and wrapper
+              APIs are synced for React Native, Expo, Flutter, KMP, Godot, and
+              MAUI; Android non-Play variants return unsupported/default results
+              where Google Play Billing APIs are unavailable.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/2.2.5"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-apple 2.2.5
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/google-2.3.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-google 2.3.0
+                </a>{' '}
+                (
+                <a
+                  href="https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google/2.3.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Maven Central
+                </a>
+                )
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/react-native-iap-15.4.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  react-native-iap 15.4.0
+                </a>{' '}
+                (
+                <a
+                  href="https://www.npmjs.com/package/react-native-iap/v/15.4.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  npm
+                </a>
+                )
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/expo-iap-4.4.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  expo-iap 4.4.0
+                </a>{' '}
+                (
+                <a
+                  href="https://www.npmjs.com/package/expo-iap/v/4.4.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  npm
+                </a>
+                )
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.4.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  flutter_inapp_purchase 9.4.0
+                </a>{' '}
+                (
+                <a
+                  href="https://pub.dev/packages/flutter_inapp_purchase/versions/9.4.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  pub.dev
+                </a>
+                )
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/godot-iap-2.4.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  godot-iap 2.4.0
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/kmp-iap-2.4.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  kmp-iap 2.4.0
+                </a>{' '}
+                (
+                <a
+                  href="https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap/2.4.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Maven Central
+                </a>
+                )
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/maui-iap-1.2.1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  OpenIap.Maui 1.2.1
+                </a>{' '}
+                (
+                <a
+                  href="https://www.nuget.org/packages/OpenIap.Maui/1.2.1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  NuGet
+                </a>
+                )
+              </li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // July 3, 2026 — Amazon config plugin option shape
     {
       id: 'amazon-config-plugin-option-shape-2026-07-03',

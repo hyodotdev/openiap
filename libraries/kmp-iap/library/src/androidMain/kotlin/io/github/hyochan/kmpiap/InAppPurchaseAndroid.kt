@@ -86,14 +86,25 @@ import io.github.hyochan.kmpiap.openiap.PurchaseVerificationProvider
 import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitResult
 import io.github.hyochan.kmpiap.openiap.IapStore
 import io.github.hyochan.kmpiap.openiap.IapkitPurchaseState
+import io.github.hyochan.kmpiap.openiap.BillingChoiceImageLayoutAndroid
+import io.github.hyochan.kmpiap.openiap.BillingChoiceInfoAndroid
+import io.github.hyochan.kmpiap.openiap.BillingChoiceScreenTypeAndroid
 import io.github.hyochan.kmpiap.openiap.BillingProgramAndroid
 import io.github.hyochan.kmpiap.openiap.BillingProgramAvailabilityResultAndroid
+import io.github.hyochan.kmpiap.openiap.BillingProgramInformationDialogParamsAndroid
 import io.github.hyochan.kmpiap.openiap.BillingProgramReportingDetailsAndroid
+import io.github.hyochan.kmpiap.openiap.BillingResultAndroid
 import io.github.hyochan.kmpiap.openiap.DeveloperBillingLaunchModeAndroid
 import io.github.hyochan.kmpiap.openiap.DeveloperBillingOptionParamsAndroid
+import io.github.hyochan.kmpiap.openiap.DeveloperBillingTypeAndroid
 import io.github.hyochan.kmpiap.openiap.DeveloperProvidedBillingDetailsAndroid
 import io.github.hyochan.kmpiap.openiap.ExternalLinkLaunchModeAndroid
 import io.github.hyochan.kmpiap.openiap.ExternalLinkTypeAndroid
+import io.github.hyochan.kmpiap.openiap.GetBillingChoiceInfoParamsAndroid
+import io.github.hyochan.kmpiap.openiap.InAppMessageCategoryAndroid
+import io.github.hyochan.kmpiap.openiap.InAppMessageParamsAndroid
+import io.github.hyochan.kmpiap.openiap.InAppMessageResponseCodeAndroid
+import io.github.hyochan.kmpiap.openiap.InAppMessageResultAndroid
 import io.github.hyochan.kmpiap.openiap.LaunchExternalLinkParamsAndroid
 import io.github.hyochan.kmpiap.openiap.SubscriptionProductReplacementParamsAndroid
 import io.github.hyochan.kmpiap.openiap.SubscriptionReplacementModeAndroid
@@ -261,10 +272,10 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                         }
                     }
 
-                    // Enable billing program from config (8.2.0+, EXTERNAL_PAYMENTS requires 8.3.0+)
+                    // Enable billing program from config (8.2.0+, EXTERNAL_PAYMENTS requires 8.3.0+, BILLING_CHOICE requires 9.1.0+)
                     config?.enableBillingProgramAndroid?.let { program ->
-                        if (program == BillingProgramAndroid.ExternalPayments) {
-                            enableExternalPaymentsProgram(builder)
+                        if (program == BillingProgramAndroid.ExternalPayments || program == BillingProgramAndroid.BillingChoice) {
+                            enableDeveloperProvidedBillingProgram(builder, program)
                         } else {
                             enableBillingProgram(builder, program)
                         }
@@ -1104,6 +1115,65 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     // ---------------------------------------------------------------------
     // Android specific overrides
     // ---------------------------------------------------------------------
+    private fun billingProgramConstant(program: BillingProgramAndroid, operation: String): Int =
+        when (program) {
+            BillingProgramAndroid.ExternalContentLink -> 1
+            BillingProgramAndroid.UserChoiceBilling -> 2
+            BillingProgramAndroid.ExternalOffer -> 3
+            BillingProgramAndroid.ExternalPayments -> 4
+            BillingProgramAndroid.BillingChoice -> 5
+            BillingProgramAndroid.Unspecified -> throw PurchaseException(
+                PurchaseError(
+                    code = ErrorCode.DeveloperError,
+                    message = "Cannot $operation with UNSPECIFIED program"
+                )
+            )
+        }
+
+    private fun billingChoiceImageLayout(layout: BillingChoiceImageLayoutAndroid): String =
+        when (layout) {
+            BillingChoiceImageLayoutAndroid.RectangularFourByOne -> "RECTANGULAR_FOUR_BY_ONE"
+            BillingChoiceImageLayoutAndroid.RectangularThreeByOne -> "RECTANGULAR_THREE_BY_ONE"
+            BillingChoiceImageLayoutAndroid.RectangularTwoByTwo -> "RECTANGULAR_TWO_BY_TWO"
+        }
+
+    private fun developerBillingTypeConstant(
+        program: BillingProgramAndroid,
+        developerBillingType: DeveloperBillingTypeAndroid?
+    ): Int? =
+        when (developerBillingType) {
+            DeveloperBillingTypeAndroid.InApp -> 1
+            DeveloperBillingTypeAndroid.ExternalLink -> 2
+            DeveloperBillingTypeAndroid.DeveloperBillingTypeUnspecified, null ->
+                if (program == BillingProgramAndroid.BillingChoice) 1 else null
+        }
+
+    private fun billingChoiceScreenTypeFromConstant(value: Int?): BillingChoiceScreenTypeAndroid? =
+        when (value) {
+            1 -> BillingChoiceScreenTypeAndroid.DeveloperRendered
+            2 -> BillingChoiceScreenTypeAndroid.GoogleRendered
+            0 -> BillingChoiceScreenTypeAndroid.Unspecified
+            else -> null
+        }
+
+    private fun inAppMessageCategoryConstant(category: InAppMessageCategoryAndroid): Int =
+        when (category) {
+            InAppMessageCategoryAndroid.UnknownInAppMessageCategoryId -> 0
+            InAppMessageCategoryAndroid.Transactional -> 2
+        }
+
+    private fun inAppMessageResponseCodeFromConstant(value: Int?): InAppMessageResponseCodeAndroid =
+        when (value) {
+            1 -> InAppMessageResponseCodeAndroid.SubscriptionStatusUpdated
+            else -> InAppMessageResponseCodeAndroid.NoActionNeeded
+        }
+
+    private fun BillingResult.toBillingResultAndroid(): BillingResultAndroid =
+        BillingResultAndroid(
+            responseCode = responseCode,
+            debugMessage = debugMessage
+        )
+
     /**
      * Acknowledge a non-consumable purchase. Required within 3 days or Google auto-refunds.
      *
@@ -1664,19 +1734,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
             )
         )
 
-        // Convert our enum to BillingClient.BillingProgram constant
-        val billingProgramConstant = when (program) {
-            BillingProgramAndroid.UserChoiceBilling -> 2 // USER_CHOICE_BILLING (7.0+)
-            BillingProgramAndroid.ExternalContentLink -> 1 // EXTERNAL_CONTENT_LINK
-            BillingProgramAndroid.ExternalOffer -> 3 // EXTERNAL_OFFER
-            BillingProgramAndroid.ExternalPayments -> 4 // EXTERNAL_PAYMENTS (8.3.0+)
-            BillingProgramAndroid.Unspecified -> throw PurchaseException(
-                PurchaseError(
-                    code = ErrorCode.DeveloperError,
-                    message = "Cannot check availability for UNSPECIFIED program"
-                )
-            )
-        }
+        val billingProgramConstant = billingProgramConstant(program, "check availability")
 
         return suspendCancellableCoroutine { continuation ->
             try {
@@ -1689,10 +1747,33 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                     if (method.name == "onBillingProgramAvailabilityResponse") {
                         val result = args?.get(0) as? BillingResult
                         val isAvailable = result?.responseCode == BillingClient.BillingResponseCode.OK
+                        val availabilityDetails = args?.getOrNull(1)
+                        val choiceDetails =
+                            if (program == BillingProgramAndroid.BillingChoice) {
+                                runCatching {
+                                    availabilityDetails?.javaClass
+                                        ?.getMethod("getBillingChoiceAvailabilityDetails")
+                                        ?.invoke(availabilityDetails)
+                                }.getOrNull()
+                            } else {
+                                null
+                            }
+                        val choiceScreenType = runCatching {
+                            choiceDetails?.javaClass
+                                ?.getMethod("getChoiceScreenType")
+                                ?.invoke(choiceDetails) as? Int
+                        }.getOrNull()
+                        val isExternalLinkAvailable = runCatching {
+                            choiceDetails?.javaClass
+                                ?.getMethod("isExternalLinkAvailable")
+                                ?.invoke(choiceDetails) as? Boolean
+                        }.getOrNull()
                         if (continuation.isActive) {
                             continuation.resume(BillingProgramAvailabilityResultAndroid(
                                 billingProgram = program,
-                                isAvailable = isAvailable
+                                choiceScreenType = billingChoiceScreenTypeFromConstant(choiceScreenType),
+                                isAvailable = isAvailable,
+                                isExternalLinkAvailable = isExternalLinkAvailable
                             ))
                         }
                     }
@@ -1733,7 +1814,8 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
      * @see <a href="https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android">https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android</a>
      */
     override suspend fun createBillingProgramReportingDetailsAndroid(
-        program: BillingProgramAndroid
+        program: BillingProgramAndroid,
+        developerBillingType: DeveloperBillingTypeAndroid?
     ): BillingProgramReportingDetailsAndroid {
         val client = billingClient ?: throw PurchaseException(
             PurchaseError(
@@ -1742,21 +1824,20 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
             )
         )
 
-        val billingProgramConstant = when (program) {
-            BillingProgramAndroid.UserChoiceBilling -> 2
-            BillingProgramAndroid.ExternalContentLink -> 1
-            BillingProgramAndroid.ExternalOffer -> 3
-            BillingProgramAndroid.ExternalPayments -> 4
-            BillingProgramAndroid.Unspecified -> throw PurchaseException(
-                PurchaseError(
-                    code = ErrorCode.DeveloperError,
-                    message = "Cannot create reporting details for UNSPECIFIED program"
-                )
-            )
-        }
+        val billingProgramConstant = billingProgramConstant(program, "create reporting details")
 
         return suspendCancellableCoroutine { continuation ->
             try {
+                val paramsClass = Class.forName("com.android.billingclient.api.BillingProgramReportingDetailsParams")
+                val builderClass = Class.forName("com.android.billingclient.api.BillingProgramReportingDetailsParams\$Builder")
+                val builder = paramsClass.getMethod("newBuilder").invoke(null)
+                builderClass.getMethod("setBillingProgram", Int::class.javaPrimitiveType)
+                    .invoke(builder, billingProgramConstant)
+                developerBillingTypeConstant(program, developerBillingType)?.let { typeConstant ->
+                    builderClass.getMethod("setDeveloperBillingType", Int::class.javaPrimitiveType)
+                        .invoke(builder, typeConstant)
+                }
+                val requestParams = builderClass.getMethod("build").invoke(builder)
                 val listenerClass = Class.forName("com.android.billingclient.api.BillingProgramReportingDetailsListener")
                 val listener = java.lang.reflect.Proxy.newProxyInstance(
                     listenerClass.classLoader,
@@ -1808,10 +1889,10 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
 
                 val method = client.javaClass.getMethod(
                     "createBillingProgramReportingDetailsAsync",
-                    Int::class.javaPrimitiveType,
+                    paramsClass,
                     listenerClass
                 )
-                method.invoke(client, billingProgramConstant, listener)
+                method.invoke(client, requestParams, listener)
             } catch (e: NoSuchMethodException) {
                 if (continuation.isActive) {
                     continuation.resumeWithException(PurchaseException(
@@ -1827,6 +1908,303 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                         PurchaseError(
                             code = ErrorCode.Unknown,
                             message = "Failed to create billing program reporting details: ${e.message}"
+                        )
+                    ))
+                }
+            }
+        }
+    }
+
+    override suspend fun getBillingChoiceInfoAndroid(
+        params: GetBillingChoiceInfoParamsAndroid
+    ): BillingChoiceInfoAndroid {
+        val client = billingClient ?: throw PurchaseException(
+            PurchaseError(
+                code = ErrorCode.NotPrepared,
+                message = "BillingClient not initialized"
+            )
+        )
+        val program = if (params.billingProgram == BillingProgramAndroid.Unspecified) {
+            BillingProgramAndroid.BillingChoice
+        } else {
+            params.billingProgram
+        }
+        if (program != BillingProgramAndroid.BillingChoice) {
+            throw PurchaseException(
+                PurchaseError(
+                    code = ErrorCode.DeveloperError,
+                    message = "getBillingChoiceInfoAndroid only supports BillingChoice"
+                )
+            )
+        }
+
+        return suspendCancellableCoroutine { continuation ->
+            try {
+                val paramsClass = Class.forName("com.android.billingclient.api.GetBillingChoiceInfoParams")
+                val builderClass = Class.forName("com.android.billingclient.api.GetBillingChoiceInfoParams\$Builder")
+                val builder = paramsClass.getMethod("newBuilder").invoke(null)
+                builderClass.getMethod("setBillingProgram", Int::class.javaPrimitiveType)
+                    .invoke(builder, billingProgramConstant(program, "get Billing Choice info"))
+                builderClass.getMethod("setPlayBillingChoiceImageLayout", String::class.java)
+                    .invoke(builder, billingChoiceImageLayout(params.playBillingChoiceImageLayout))
+                params.userLocale?.takeIf { it.isNotBlank() }?.let { languageTag ->
+                    builderClass.getMethod("setUserLocale", java.util.Locale::class.java)
+                        .invoke(builder, java.util.Locale.forLanguageTag(languageTag))
+                }
+                val requestParams = builderClass.getMethod("build").invoke(builder)
+                val listenerClass = Class.forName("com.android.billingclient.api.BillingChoiceInfoResponseListener")
+                val listener = java.lang.reflect.Proxy.newProxyInstance(
+                    listenerClass.classLoader,
+                    arrayOf(listenerClass)
+                ) { _, method, args ->
+                    if (method.name == "onBillingChoiceInfoResponse") {
+                        val result = args?.get(0) as? BillingResult
+                        val choiceInfo = args?.getOrNull(1)
+                        if (result?.responseCode == BillingClient.BillingResponseCode.OK && choiceInfo != null) {
+                            val imageUrl = choiceInfo.javaClass
+                                .getMethod("getPlayBillingChoiceImageUrl")
+                                .invoke(choiceInfo) as? String
+                            val loyaltyInfo = choiceInfo.javaClass
+                                .getMethod("getPlayBillingLoyaltyInfo")
+                                .invoke(choiceInfo) as? String
+                            if (imageUrl.isNullOrBlank()) {
+                                if (continuation.isActive) {
+                                    continuation.resumeWithException(PurchaseException(
+                                        PurchaseError(
+                                            code = ErrorCode.Unknown,
+                                            message = "Missing Play Billing choice image URL"
+                                        )
+                                    ))
+                                }
+                            } else if (continuation.isActive) {
+                                continuation.resume(BillingChoiceInfoAndroid(
+                                    playBillingChoiceImageUrl = imageUrl,
+                                    playBillingLoyaltyInfo = loyaltyInfo
+                                ))
+                            }
+                        } else if (continuation.isActive) {
+                            continuation.resumeWithException(PurchaseException(
+                                PurchaseError(
+                                    code = ErrorCode.Unknown,
+                                    message = "Billing Choice info failed: ${result?.debugMessage}"
+                                )
+                            ))
+                        }
+                    }
+                    null
+                }
+                client.javaClass.getMethod("getBillingChoiceInfoAsync", paramsClass, listenerClass)
+                    .invoke(client, requestParams, listener)
+            } catch (e: NoSuchMethodException) {
+                if (continuation.isActive) {
+                    continuation.resumeWithException(PurchaseException(
+                        PurchaseError(
+                            code = ErrorCode.FeatureNotSupported,
+                            message = "getBillingChoiceInfoAsync requires Billing Library 9.1.0+"
+                        )
+                    ))
+                }
+            } catch (e: ClassNotFoundException) {
+                if (continuation.isActive) {
+                    continuation.resumeWithException(PurchaseException(
+                        PurchaseError(
+                            code = ErrorCode.FeatureNotSupported,
+                            message = "GetBillingChoiceInfoParams requires Billing Library 9.1.0+"
+                        )
+                    ))
+                }
+            } catch (e: Exception) {
+                if (continuation.isActive) {
+                    continuation.resumeWithException(PurchaseException(
+                        PurchaseError(
+                            code = ErrorCode.Unknown,
+                            message = "Failed to get Billing Choice info: ${e.message}"
+                        )
+                    ))
+                }
+            }
+        }
+    }
+
+    override suspend fun showBillingProgramInformationDialogAndroid(
+        params: BillingProgramInformationDialogParamsAndroid
+    ): BillingResultAndroid {
+        val client = billingClient ?: throw PurchaseException(
+            PurchaseError(
+                code = ErrorCode.NotPrepared,
+                message = "BillingClient not initialized"
+            )
+        )
+        val activity = currentActivity ?: throw PurchaseException(
+            PurchaseError(
+                code = ErrorCode.NotPrepared,
+                message = "Activity not available"
+            )
+        )
+        val program = if (params.billingProgram == BillingProgramAndroid.Unspecified) {
+            BillingProgramAndroid.BillingChoice
+        } else {
+            params.billingProgram
+        }
+        if (program != BillingProgramAndroid.BillingChoice) {
+            throw PurchaseException(
+                PurchaseError(
+                    code = ErrorCode.DeveloperError,
+                    message = "showBillingProgramInformationDialogAndroid only supports BillingChoice"
+                )
+            )
+        }
+
+        return suspendCancellableCoroutine { continuation ->
+            try {
+                val paramsClass = Class.forName("com.android.billingclient.api.BillingProgramInformationDialogParams")
+                val builderClass = Class.forName("com.android.billingclient.api.BillingProgramInformationDialogParams\$Builder")
+                val builder = paramsClass.getMethod("newBuilder").invoke(null)
+                builderClass.getMethod("setBillingProgram", Int::class.javaPrimitiveType)
+                    .invoke(builder, billingProgramConstant(program, "show Billing Choice information dialog"))
+                builderClass.getMethod("setExternalTransactionToken", String::class.java)
+                    .invoke(builder, params.externalTransactionToken)
+                val requestParams = builderClass.getMethod("build").invoke(builder)
+                val listenerClass = Class.forName("com.android.billingclient.api.BillingProgramInformationDialogListener")
+                val listener = java.lang.reflect.Proxy.newProxyInstance(
+                    listenerClass.classLoader,
+                    arrayOf(listenerClass)
+                ) { _, method, args ->
+                    if (method.name == "onBillingProgramInformationDialogResponse") {
+                        val result = args?.get(0) as? BillingResult
+                        if (continuation.isActive) {
+                            continuation.resume(
+                                result?.toBillingResultAndroid()
+                                    ?: BillingResultAndroid(responseCode = BillingClient.BillingResponseCode.ERROR)
+                            )
+                        }
+                    }
+                    null
+                }
+                client.javaClass.getMethod(
+                    "showBillingProgramInformationDialog",
+                    Activity::class.java,
+                    paramsClass,
+                    listenerClass
+                ).invoke(client, activity, requestParams, listener)
+            } catch (e: NoSuchMethodException) {
+                if (continuation.isActive) {
+                    continuation.resumeWithException(PurchaseException(
+                        PurchaseError(
+                            code = ErrorCode.FeatureNotSupported,
+                            message = "showBillingProgramInformationDialog requires Billing Library 9.1.0+"
+                        )
+                    ))
+                }
+            } catch (e: ClassNotFoundException) {
+                if (continuation.isActive) {
+                    continuation.resumeWithException(PurchaseException(
+                        PurchaseError(
+                            code = ErrorCode.FeatureNotSupported,
+                            message = "BillingProgramInformationDialogParams requires Billing Library 9.1.0+"
+                        )
+                    ))
+                }
+            } catch (e: Exception) {
+                if (continuation.isActive) {
+                    continuation.resumeWithException(PurchaseException(
+                        PurchaseError(
+                            code = ErrorCode.Unknown,
+                            message = "Failed to show Billing Choice information dialog: ${e.message}"
+                        )
+                    ))
+                }
+            }
+        }
+    }
+
+    override suspend fun showInAppMessagesAndroid(params: InAppMessageParamsAndroid?): InAppMessageResultAndroid {
+        val client = billingClient ?: throw PurchaseException(
+            PurchaseError(
+                code = ErrorCode.NotPrepared,
+                message = "BillingClient not initialized"
+            )
+        )
+        val activity = currentActivity ?: throw PurchaseException(
+            PurchaseError(
+                code = ErrorCode.NotPrepared,
+                message = "Activity not available"
+            )
+        )
+
+        return suspendCancellableCoroutine { continuation ->
+            try {
+                val paramsClass = Class.forName("com.android.billingclient.api.InAppMessageParams")
+                val builderClass = Class.forName("com.android.billingclient.api.InAppMessageParams\$Builder")
+                val builder = builderClass.getConstructor().newInstance()
+                val categories = params?.categories?.takeIf { it.isNotEmpty() }
+                    ?: listOf(InAppMessageCategoryAndroid.Transactional)
+                for (category in categories) {
+                    builderClass.getMethod("addInAppMessageCategoryToShow", Int::class.javaPrimitiveType)
+                        .invoke(builder, inAppMessageCategoryConstant(category))
+                }
+                val requestParams = builderClass.getMethod("build").invoke(builder)
+                val listenerClass = Class.forName("com.android.billingclient.api.InAppMessageResponseListener")
+                val listener = java.lang.reflect.Proxy.newProxyInstance(
+                    listenerClass.classLoader,
+                    arrayOf(listenerClass)
+                ) { _, method, args ->
+                    if (method.name == "onInAppMessageResponse") {
+                        val result = args?.get(0)
+                        val responseCode = runCatching {
+                            result?.javaClass?.getMethod("getResponseCode")?.invoke(result) as? Int
+                        }.getOrNull()
+                        val purchaseToken = runCatching {
+                            result?.javaClass?.getMethod("getPurchaseToken")?.invoke(result) as? String
+                        }.getOrNull()
+                        if (continuation.isActive) {
+                            continuation.resume(InAppMessageResultAndroid(
+                                responseCode = inAppMessageResponseCodeFromConstant(responseCode),
+                                purchaseToken = purchaseToken
+                            ))
+                        }
+                    }
+                    null
+                }
+                val submitResult = client.javaClass.getMethod(
+                    "showInAppMessages",
+                    Activity::class.java,
+                    paramsClass,
+                    listenerClass
+                ).invoke(client, activity, requestParams, listener) as? BillingResult
+                if (submitResult != null &&
+                    submitResult.responseCode != BillingClient.BillingResponseCode.OK &&
+                    continuation.isActive
+                ) {
+                    continuation.resume(InAppMessageResultAndroid(
+                        responseCode = InAppMessageResponseCodeAndroid.NoActionNeeded,
+                        purchaseToken = null
+                    ))
+                }
+            } catch (e: NoSuchMethodException) {
+                if (continuation.isActive) {
+                    continuation.resumeWithException(PurchaseException(
+                        PurchaseError(
+                            code = ErrorCode.FeatureNotSupported,
+                            message = "showInAppMessages requires Billing Library 4.1.0+"
+                        )
+                    ))
+                }
+            } catch (e: ClassNotFoundException) {
+                if (continuation.isActive) {
+                    continuation.resumeWithException(PurchaseException(
+                        PurchaseError(
+                            code = ErrorCode.FeatureNotSupported,
+                            message = "InAppMessageParams requires Billing Library 4.1.0+"
+                        )
+                    ))
+                }
+            } catch (e: Exception) {
+                if (continuation.isActive) {
+                    continuation.resumeWithException(PurchaseException(
+                        PurchaseError(
+                            code = ErrorCode.Unknown,
+                            message = "Failed to show in-app messages: ${e.message}"
                         )
                     ))
                 }
@@ -1855,18 +2233,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         )
 
         // Convert enums to BillingClient constants
-        val billingProgramConstant = when (params.billingProgram) {
-            BillingProgramAndroid.UserChoiceBilling -> 2
-            BillingProgramAndroid.ExternalContentLink -> 1
-            BillingProgramAndroid.ExternalOffer -> 3
-            BillingProgramAndroid.ExternalPayments -> 4
-            BillingProgramAndroid.Unspecified -> throw PurchaseException(
-                PurchaseError(
-                    code = ErrorCode.DeveloperError,
-                    message = "Cannot launch with UNSPECIFIED program"
-                )
-            )
-        }
+        val billingProgramConstant = billingProgramConstant(params.billingProgram, "launch")
 
         val launchModeConstant = when (params.launchMode) {
             ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp -> 1
@@ -2005,18 +2372,20 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
      * This sets up the DeveloperProvidedBillingListener to receive callbacks
      * when the user selects developer billing in the external payments flow.
      */
-    private fun enableExternalPaymentsProgram(builder: BillingClient.Builder) {
+    private fun enableDeveloperProvidedBillingProgram(
+        builder: BillingClient.Builder,
+        program: BillingProgramAndroid
+    ) {
         try {
             // Get the EnableBillingProgramParams class
             val enableParamsClass = Class.forName("com.android.billingclient.api.EnableBillingProgramParams")
             val enableParamsBuilderClass = Class.forName("com.android.billingclient.api.EnableBillingProgramParams\$Builder")
 
-            // Create EnableBillingProgramParams for EXTERNAL_PAYMENTS (constant value 4)
             val newBuilderMethod = enableParamsClass.getMethod("newBuilder")
             val enableParamsBuilder = newBuilderMethod.invoke(null)
 
             val setBillingProgramMethod = enableParamsBuilderClass.getMethod("setBillingProgram", Int::class.javaPrimitiveType)
-            setBillingProgramMethod.invoke(enableParamsBuilder, 4) // EXTERNAL_PAYMENTS = 4
+            setBillingProgramMethod.invoke(enableParamsBuilder, billingProgramConstant(program, "enable billing program"))
 
             // Create the DeveloperProvidedBillingListener proxy
             val listenerClass = Class.forName("com.android.billingclient.api.DeveloperProvidedBillingListener")
@@ -2057,11 +2426,11 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
             enableMethod.invoke(builder, enableParams)
 
         } catch (e: NoSuchMethodException) {
-            logWarning("External Payments requires Billing Library 8.3.0+")
+            logWarning("$program requires Billing Library support for developer-provided billing programs")
         } catch (e: ClassNotFoundException) {
-            logWarning("External Payments requires Billing Library 8.3.0+")
+            logWarning("$program requires Billing Library support for developer-provided billing programs")
         } catch (e: Exception) {
-            logError("Failed to enable External Payments program: ${e.message}", e)
+            logError("Failed to enable $program program: ${e.message}", e)
         }
     }
 
@@ -2085,6 +2454,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
             }
             BillingProgramAndroid.ExternalContentLink -> 1
             BillingProgramAndroid.ExternalOffer -> 3
+            BillingProgramAndroid.BillingChoice -> 5
             BillingProgramAndroid.ExternalPayments -> {
                 logWarning("ExternalPayments should use enableExternalPaymentsProgram()")
                 return
@@ -2122,6 +2492,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
             val billingProgramConstant = when (option.billingProgram) {
                 BillingProgramAndroid.UserChoiceBilling -> 2
                 BillingProgramAndroid.ExternalPayments -> 4
+                BillingProgramAndroid.BillingChoice -> 5
                 BillingProgramAndroid.ExternalContentLink -> 1
                 BillingProgramAndroid.ExternalOffer -> 3
                 BillingProgramAndroid.Unspecified -> 0

@@ -78,8 +78,119 @@ public static class AlternativeBillingModeAndroidExtensions
     public static AlternativeBillingModeAndroid FromJson(string value) => AlternativeBillingModeAndroidJsonConverter.FromRawString(value);
 }
 
-/// <summary>Billing program types for external content links, external offers, and external payments (Android)</summary>
-/// <summary>Available in Google Play Billing Library 8.2.0+, EXTERNAL_PAYMENTS added in 8.3.0</summary>
+/// <summary>Play Billing choice image layout (Android)</summary>
+/// <summary>Available in Google Play Billing Library 9.1.0+</summary>
+[JsonConverter(typeof(BillingChoiceImageLayoutAndroidJsonConverter))]
+public enum BillingChoiceImageLayoutAndroid
+{
+    /// <summary>Rectangular image with a 4:1 aspect ratio.</summary>
+    RectangularFourByOne,
+    /// <summary>Rectangular image with a 3:1 aspect ratio.</summary>
+    RectangularThreeByOne,
+    /// <summary>Rectangular image with a 2:2 aspect ratio.</summary>
+    RectangularTwoByTwo
+}
+
+public sealed class BillingChoiceImageLayoutAndroidJsonConverter : JsonConverter<BillingChoiceImageLayoutAndroid>
+{
+    private static readonly Dictionary<string, BillingChoiceImageLayoutAndroid> _fromString = new()
+    {
+        ["rectangular-four-by-one"] = BillingChoiceImageLayoutAndroid.RectangularFourByOne,
+        ["RECTANGULAR_FOUR_BY_ONE"] = BillingChoiceImageLayoutAndroid.RectangularFourByOne,
+        ["rectangular-three-by-one"] = BillingChoiceImageLayoutAndroid.RectangularThreeByOne,
+        ["RECTANGULAR_THREE_BY_ONE"] = BillingChoiceImageLayoutAndroid.RectangularThreeByOne,
+        ["rectangular-two-by-two"] = BillingChoiceImageLayoutAndroid.RectangularTwoByTwo,
+        ["RECTANGULAR_TWO_BY_TWO"] = BillingChoiceImageLayoutAndroid.RectangularTwoByTwo,
+    };
+
+    private static readonly Dictionary<BillingChoiceImageLayoutAndroid, string> _toString = new()
+    {
+        [BillingChoiceImageLayoutAndroid.RectangularFourByOne] = "rectangular-four-by-one",
+        [BillingChoiceImageLayoutAndroid.RectangularThreeByOne] = "rectangular-three-by-one",
+        [BillingChoiceImageLayoutAndroid.RectangularTwoByTwo] = "rectangular-two-by-two",
+    };
+
+    public override BillingChoiceImageLayoutAndroid Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        var raw = reader.GetString();
+        if (raw is not null && _fromString.TryGetValue(raw, out var value)) return value;
+        throw new JsonException($"Unknown BillingChoiceImageLayoutAndroid value: {raw}");
+    }
+
+    public override void Write(Utf8JsonWriter writer, BillingChoiceImageLayoutAndroid value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(_toString[value]);
+    }
+
+    internal static string ToRawString(BillingChoiceImageLayoutAndroid value) => _toString[value];
+    internal static BillingChoiceImageLayoutAndroid FromRawString(string value) =>
+        _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown BillingChoiceImageLayoutAndroid value: {value}");
+}
+
+public static class BillingChoiceImageLayoutAndroidExtensions
+{
+    public static string ToJson(this BillingChoiceImageLayoutAndroid value) => BillingChoiceImageLayoutAndroidJsonConverter.ToRawString(value);
+    public static BillingChoiceImageLayoutAndroid FromJson(string value) => BillingChoiceImageLayoutAndroidJsonConverter.FromRawString(value);
+}
+
+/// <summary>Choice screen renderer for Billing Choice availability (Android)</summary>
+/// <summary>Available in Google Play Billing Library 9.1.0+</summary>
+[JsonConverter(typeof(BillingChoiceScreenTypeAndroidJsonConverter))]
+public enum BillingChoiceScreenTypeAndroid
+{
+    /// <summary>Unspecified choice screen type.</summary>
+    Unspecified,
+    /// <summary>Choice screen is rendered by the developer app.</summary>
+    DeveloperRendered,
+    /// <summary>Choice screen is rendered by Google Play.</summary>
+    GoogleRendered
+}
+
+public sealed class BillingChoiceScreenTypeAndroidJsonConverter : JsonConverter<BillingChoiceScreenTypeAndroid>
+{
+    private static readonly Dictionary<string, BillingChoiceScreenTypeAndroid> _fromString = new()
+    {
+        ["unspecified"] = BillingChoiceScreenTypeAndroid.Unspecified,
+        ["UNSPECIFIED"] = BillingChoiceScreenTypeAndroid.Unspecified,
+        ["developer-rendered"] = BillingChoiceScreenTypeAndroid.DeveloperRendered,
+        ["DEVELOPER_RENDERED"] = BillingChoiceScreenTypeAndroid.DeveloperRendered,
+        ["google-rendered"] = BillingChoiceScreenTypeAndroid.GoogleRendered,
+        ["GOOGLE_RENDERED"] = BillingChoiceScreenTypeAndroid.GoogleRendered,
+    };
+
+    private static readonly Dictionary<BillingChoiceScreenTypeAndroid, string> _toString = new()
+    {
+        [BillingChoiceScreenTypeAndroid.Unspecified] = "unspecified",
+        [BillingChoiceScreenTypeAndroid.DeveloperRendered] = "developer-rendered",
+        [BillingChoiceScreenTypeAndroid.GoogleRendered] = "google-rendered",
+    };
+
+    public override BillingChoiceScreenTypeAndroid Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        var raw = reader.GetString();
+        if (raw is not null && _fromString.TryGetValue(raw, out var value)) return value;
+        throw new JsonException($"Unknown BillingChoiceScreenTypeAndroid value: {raw}");
+    }
+
+    public override void Write(Utf8JsonWriter writer, BillingChoiceScreenTypeAndroid value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(_toString[value]);
+    }
+
+    internal static string ToRawString(BillingChoiceScreenTypeAndroid value) => _toString[value];
+    internal static BillingChoiceScreenTypeAndroid FromRawString(string value) =>
+        _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown BillingChoiceScreenTypeAndroid value: {value}");
+}
+
+public static class BillingChoiceScreenTypeAndroidExtensions
+{
+    public static string ToJson(this BillingChoiceScreenTypeAndroid value) => BillingChoiceScreenTypeAndroidJsonConverter.ToRawString(value);
+    public static BillingChoiceScreenTypeAndroid FromJson(string value) => BillingChoiceScreenTypeAndroidJsonConverter.FromRawString(value);
+}
+
+/// <summary>Billing program types for Google Play Billing Programs (Android)</summary>
+/// <summary>Available in Google Play Billing Library 8.2.0+, EXTERNAL_PAYMENTS added in 8.3.0,</summary>
+/// <summary>BILLING_CHOICE added in 9.1.0.</summary>
 [JsonConverter(typeof(BillingProgramAndroidJsonConverter))]
 public enum BillingProgramAndroid
 {
@@ -101,7 +212,11 @@ public enum BillingProgramAndroid
     /// <summary>Allows presenting a side-by-side choice between Google Play Billing and developer&apos;s external payment option.</summary>
     /// <summary>Users can choose to complete the purchase on the developer&apos;s website.</summary>
     /// <summary>Available in Google Play Billing Library 8.3.0+</summary>
-    ExternalPayments
+    ExternalPayments,
+    /// <summary>Billing Choice program.</summary>
+    /// <summary>Allows presenting Google Play Billing alongside an alternative in-app billing system or external web link.</summary>
+    /// <summary>Available in Google Play Billing Library 9.1.0+</summary>
+    BillingChoice
 }
 
 public sealed class BillingProgramAndroidJsonConverter : JsonConverter<BillingProgramAndroid>
@@ -118,6 +233,8 @@ public sealed class BillingProgramAndroidJsonConverter : JsonConverter<BillingPr
         ["EXTERNAL_OFFER"] = BillingProgramAndroid.ExternalOffer,
         ["external-payments"] = BillingProgramAndroid.ExternalPayments,
         ["EXTERNAL_PAYMENTS"] = BillingProgramAndroid.ExternalPayments,
+        ["billing-choice"] = BillingProgramAndroid.BillingChoice,
+        ["BILLING_CHOICE"] = BillingProgramAndroid.BillingChoice,
     };
 
     private static readonly Dictionary<BillingProgramAndroid, string> _toString = new()
@@ -127,6 +244,7 @@ public sealed class BillingProgramAndroidJsonConverter : JsonConverter<BillingPr
         [BillingProgramAndroid.ExternalContentLink] = "external-content-link",
         [BillingProgramAndroid.ExternalOffer] = "external-offer",
         [BillingProgramAndroid.ExternalPayments] = "external-payments",
+        [BillingProgramAndroid.BillingChoice] = "billing-choice",
     };
 
     public override BillingProgramAndroid Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
@@ -208,6 +326,61 @@ public static class DeveloperBillingLaunchModeAndroidExtensions
 {
     public static string ToJson(this DeveloperBillingLaunchModeAndroid value) => DeveloperBillingLaunchModeAndroidJsonConverter.ToRawString(value);
     public static DeveloperBillingLaunchModeAndroid FromJson(string value) => DeveloperBillingLaunchModeAndroidJsonConverter.FromRawString(value);
+}
+
+/// <summary>Developer-provided billing destination type for Billing Program reporting details (Android)</summary>
+/// <summary>Available in Google Play Billing Library 9.1.0+</summary>
+[JsonConverter(typeof(DeveloperBillingTypeAndroidJsonConverter))]
+public enum DeveloperBillingTypeAndroid
+{
+    /// <summary>Unspecified developer billing type. Do not use.</summary>
+    DeveloperBillingTypeUnspecified,
+    /// <summary>Developer-provided billing via native in-app experience.</summary>
+    InApp,
+    /// <summary>Developer-provided billing via external link or embedded web browsing.</summary>
+    ExternalLink
+}
+
+public sealed class DeveloperBillingTypeAndroidJsonConverter : JsonConverter<DeveloperBillingTypeAndroid>
+{
+    private static readonly Dictionary<string, DeveloperBillingTypeAndroid> _fromString = new()
+    {
+        ["developer-billing-type-unspecified"] = DeveloperBillingTypeAndroid.DeveloperBillingTypeUnspecified,
+        ["DEVELOPER_BILLING_TYPE_UNSPECIFIED"] = DeveloperBillingTypeAndroid.DeveloperBillingTypeUnspecified,
+        ["in-app"] = DeveloperBillingTypeAndroid.InApp,
+        ["IN_APP"] = DeveloperBillingTypeAndroid.InApp,
+        ["external-link"] = DeveloperBillingTypeAndroid.ExternalLink,
+        ["EXTERNAL_LINK"] = DeveloperBillingTypeAndroid.ExternalLink,
+    };
+
+    private static readonly Dictionary<DeveloperBillingTypeAndroid, string> _toString = new()
+    {
+        [DeveloperBillingTypeAndroid.DeveloperBillingTypeUnspecified] = "developer-billing-type-unspecified",
+        [DeveloperBillingTypeAndroid.InApp] = "in-app",
+        [DeveloperBillingTypeAndroid.ExternalLink] = "external-link",
+    };
+
+    public override DeveloperBillingTypeAndroid Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        var raw = reader.GetString();
+        if (raw is not null && _fromString.TryGetValue(raw, out var value)) return value;
+        throw new JsonException($"Unknown DeveloperBillingTypeAndroid value: {raw}");
+    }
+
+    public override void Write(Utf8JsonWriter writer, DeveloperBillingTypeAndroid value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(_toString[value]);
+    }
+
+    internal static string ToRawString(DeveloperBillingTypeAndroid value) => _toString[value];
+    internal static DeveloperBillingTypeAndroid FromRawString(string value) =>
+        _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown DeveloperBillingTypeAndroid value: {value}");
+}
+
+public static class DeveloperBillingTypeAndroidExtensions
+{
+    public static string ToJson(this DeveloperBillingTypeAndroid value) => DeveloperBillingTypeAndroidJsonConverter.ToRawString(value);
+    public static DeveloperBillingTypeAndroid FromJson(string value) => DeveloperBillingTypeAndroidJsonConverter.FromRawString(value);
 }
 
 /// <summary>Discount offer type enumeration.</summary>
@@ -1033,6 +1206,106 @@ public static class IapStoreExtensions
 {
     public static string ToJson(this IapStore value) => IapStoreJsonConverter.ToRawString(value);
     public static IapStore FromJson(string value) => IapStoreJsonConverter.FromRawString(value);
+}
+
+/// <summary>High-level in-app message category (Android)</summary>
+/// <summary>Available in Google Play Billing Library 4.1.0+</summary>
+[JsonConverter(typeof(InAppMessageCategoryAndroidJsonConverter))]
+public enum InAppMessageCategoryAndroid
+{
+    /// <summary>Unknown in-app message category.</summary>
+    UnknownInAppMessageCategoryId,
+    /// <summary>Transactional billing messages, such as payment issues or pending price-change confirmations.</summary>
+    Transactional
+}
+
+public sealed class InAppMessageCategoryAndroidJsonConverter : JsonConverter<InAppMessageCategoryAndroid>
+{
+    private static readonly Dictionary<string, InAppMessageCategoryAndroid> _fromString = new()
+    {
+        ["unknown-in-app-message-category-id"] = InAppMessageCategoryAndroid.UnknownInAppMessageCategoryId,
+        ["UNKNOWN_IN_APP_MESSAGE_CATEGORY_ID"] = InAppMessageCategoryAndroid.UnknownInAppMessageCategoryId,
+        ["transactional"] = InAppMessageCategoryAndroid.Transactional,
+        ["TRANSACTIONAL"] = InAppMessageCategoryAndroid.Transactional,
+    };
+
+    private static readonly Dictionary<InAppMessageCategoryAndroid, string> _toString = new()
+    {
+        [InAppMessageCategoryAndroid.UnknownInAppMessageCategoryId] = "unknown-in-app-message-category-id",
+        [InAppMessageCategoryAndroid.Transactional] = "transactional",
+    };
+
+    public override InAppMessageCategoryAndroid Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        var raw = reader.GetString();
+        if (raw is not null && _fromString.TryGetValue(raw, out var value)) return value;
+        throw new JsonException($"Unknown InAppMessageCategoryAndroid value: {raw}");
+    }
+
+    public override void Write(Utf8JsonWriter writer, InAppMessageCategoryAndroid value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(_toString[value]);
+    }
+
+    internal static string ToRawString(InAppMessageCategoryAndroid value) => _toString[value];
+    internal static InAppMessageCategoryAndroid FromRawString(string value) =>
+        _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown InAppMessageCategoryAndroid value: {value}");
+}
+
+public static class InAppMessageCategoryAndroidExtensions
+{
+    public static string ToJson(this InAppMessageCategoryAndroid value) => InAppMessageCategoryAndroidJsonConverter.ToRawString(value);
+    public static InAppMessageCategoryAndroid FromJson(string value) => InAppMessageCategoryAndroidJsonConverter.FromRawString(value);
+}
+
+/// <summary>Response code from Play billing in-app messages (Android)</summary>
+/// <summary>Available in Google Play Billing Library 4.1.0+</summary>
+[JsonConverter(typeof(InAppMessageResponseCodeAndroidJsonConverter))]
+public enum InAppMessageResponseCodeAndroid
+{
+    /// <summary>Flow finished and no developer action is needed.</summary>
+    NoActionNeeded,
+    /// <summary>Subscription status changed and the purchase token should be checked.</summary>
+    SubscriptionStatusUpdated
+}
+
+public sealed class InAppMessageResponseCodeAndroidJsonConverter : JsonConverter<InAppMessageResponseCodeAndroid>
+{
+    private static readonly Dictionary<string, InAppMessageResponseCodeAndroid> _fromString = new()
+    {
+        ["no-action-needed"] = InAppMessageResponseCodeAndroid.NoActionNeeded,
+        ["NO_ACTION_NEEDED"] = InAppMessageResponseCodeAndroid.NoActionNeeded,
+        ["subscription-status-updated"] = InAppMessageResponseCodeAndroid.SubscriptionStatusUpdated,
+        ["SUBSCRIPTION_STATUS_UPDATED"] = InAppMessageResponseCodeAndroid.SubscriptionStatusUpdated,
+    };
+
+    private static readonly Dictionary<InAppMessageResponseCodeAndroid, string> _toString = new()
+    {
+        [InAppMessageResponseCodeAndroid.NoActionNeeded] = "no-action-needed",
+        [InAppMessageResponseCodeAndroid.SubscriptionStatusUpdated] = "subscription-status-updated",
+    };
+
+    public override InAppMessageResponseCodeAndroid Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        var raw = reader.GetString();
+        if (raw is not null && _fromString.TryGetValue(raw, out var value)) return value;
+        throw new JsonException($"Unknown InAppMessageResponseCodeAndroid value: {raw}");
+    }
+
+    public override void Write(Utf8JsonWriter writer, InAppMessageResponseCodeAndroid value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(_toString[value]);
+    }
+
+    internal static string ToRawString(InAppMessageResponseCodeAndroid value) => _toString[value];
+    internal static InAppMessageResponseCodeAndroid FromRawString(string value) =>
+        _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown InAppMessageResponseCodeAndroid value: {value}");
+}
+
+public static class InAppMessageResponseCodeAndroidExtensions
+{
+    public static string ToJson(this InAppMessageResponseCodeAndroid value) => InAppMessageResponseCodeAndroidJsonConverter.ToRawString(value);
+    public static InAppMessageResponseCodeAndroid FromJson(string value) => InAppMessageResponseCodeAndroidJsonConverter.FromRawString(value);
 }
 
 /// <summary>Payment mode for subscription offers.</summary>
@@ -2479,6 +2752,18 @@ public sealed record AppTransaction
     public required double SignedDate { get; init; }
 }
 
+/// <summary>Display information for developer-rendered Billing Choice screens (Android)</summary>
+/// <summary>Available in Google Play Billing Library 9.1.0+</summary>
+public sealed record BillingChoiceInfoAndroid
+{
+    /// <summary>URL for the Play Billing choice image matching the requested layout.</summary>
+    [JsonPropertyName("playBillingChoiceImageUrl")]
+    public required string PlayBillingChoiceImageUrl { get; init; }
+    /// <summary>Play Loyalty information for the user.</summary>
+    [JsonPropertyName("playBillingLoyaltyInfo")]
+    public string? PlayBillingLoyaltyInfo { get; init; }
+}
+
 /// <summary>Result of checking billing program availability (Android)</summary>
 /// <summary>Available in Google Play Billing Library 8.2.0+</summary>
 public sealed record BillingProgramAvailabilityResultAndroid
@@ -2486,9 +2771,16 @@ public sealed record BillingProgramAvailabilityResultAndroid
     /// <summary>The billing program that was checked</summary>
     [JsonPropertyName("billingProgram")]
     public required BillingProgramAndroid BillingProgram { get; init; }
+    /// <summary>Billing Choice screen renderer. Populated only for available BILLING_CHOICE results.</summary>
+    [JsonPropertyName("choiceScreenType")]
+    public BillingChoiceScreenTypeAndroid? ChoiceScreenType { get; init; }
     /// <summary>Whether the billing program is available for the user</summary>
     [JsonPropertyName("isAvailable")]
     public required bool IsAvailable { get; init; }
+    /// <summary>Whether external-link payment is available for Billing Choice.</summary>
+    /// <summary>Populated only for available BILLING_CHOICE results.</summary>
+    [JsonPropertyName("isExternalLinkAvailable")]
+    public bool? IsExternalLinkAvailable { get; init; }
 }
 
 /// <summary>Reporting details for transactions made outside of Google Play Billing (Android)</summary>
@@ -2763,6 +3055,18 @@ public sealed record FetchProductsResultAll(IReadOnlyList<ProductOrSubscription>
 public sealed record FetchProductsResultProducts(IReadOnlyList<Product>? Value) : FetchProductsResult;
 
 public sealed record FetchProductsResultSubscriptions(IReadOnlyList<ProductSubscription>? Value) : FetchProductsResult;
+
+/// <summary>Result from showing Play billing in-app messages (Android)</summary>
+/// <summary>Available in Google Play Billing Library 4.1.0+</summary>
+public sealed record InAppMessageResultAndroid
+{
+    /// <summary>Purchase token returned when a subscription status changed.</summary>
+    [JsonPropertyName("purchaseToken")]
+    public string? PurchaseToken { get; init; }
+    /// <summary>Response code for the in-app messaging flow.</summary>
+    [JsonPropertyName("responseCode")]
+    public required InAppMessageResponseCodeAndroid ResponseCode { get; init; }
+}
 
 /// <summary>Installment plan details for subscription offers (Android)</summary>
 /// <summary>Contains information about the installment plan commitment.</summary>
@@ -3774,6 +4078,18 @@ public sealed record AndroidSubscriptionOfferInput
     public required string OfferToken { get; init; }
 }
 
+/// <summary>Parameters for showing a billing program information dialog (Android)</summary>
+/// <summary>Available in Google Play Billing Library 9.1.0+</summary>
+public sealed record BillingProgramInformationDialogParamsAndroid
+{
+    /// <summary>Billing program. Currently only BILLING_CHOICE is supported.</summary>
+    [JsonPropertyName("billingProgram")]
+    public required BillingProgramAndroid BillingProgram { get; init; }
+    /// <summary>External transaction token returned by the Billing Choice reporting-details flow.</summary>
+    [JsonPropertyName("externalTransactionToken")]
+    public required string ExternalTransactionToken { get; init; }
+}
+
 public sealed record DeepLinkOptions
 {
     /// <summary>Android SKU to open (required on Android)</summary>
@@ -3817,6 +4133,30 @@ public sealed record DiscountOfferInputIOS
     /// <summary>Timestamp of discount offer</summary>
     [JsonPropertyName("timestamp")]
     public required double Timestamp { get; init; }
+}
+
+/// <summary>Parameters for fetching Billing Choice display information (Android)</summary>
+/// <summary>Available in Google Play Billing Library 9.1.0+</summary>
+public sealed record GetBillingChoiceInfoParamsAndroid
+{
+    /// <summary>Billing program. Currently only BILLING_CHOICE is supported.</summary>
+    [JsonPropertyName("billingProgram")]
+    public required BillingProgramAndroid BillingProgram { get; init; }
+    /// <summary>Desired Play Billing choice image layout.</summary>
+    [JsonPropertyName("playBillingChoiceImageLayout")]
+    public required BillingChoiceImageLayoutAndroid PlayBillingChoiceImageLayout { get; init; }
+    /// <summary>BCP 47 locale tag. If omitted, Play Billing uses the user&apos;s default locale.</summary>
+    [JsonPropertyName("userLocale")]
+    public string? UserLocale { get; init; }
+}
+
+/// <summary>Parameters for showing Play billing in-app messages (Android)</summary>
+/// <summary>Available in Google Play Billing Library 4.1.0+</summary>
+public sealed record InAppMessageParamsAndroid
+{
+    /// <summary>In-app message categories to show. Defaults to transactional messages.</summary>
+    [JsonPropertyName("categories")]
+    public IReadOnlyList<InAppMessageCategoryAndroid>? Categories { get; init; }
 }
 
 /// <summary>Connection initialization configuration</summary>
@@ -4270,7 +4610,6 @@ public interface MutationResolver
     Task<string?> BeginRefundRequestIOSAsync(string sku);
 
     /// <summary>Check whether alternative billing is available for the user. Step 1 of the alternative billing flow.</summary>
-    /// <summary></summary>
     /// <summary>Returns true if available, false otherwise.</summary>
     /// <summary>Throws OpenIapError.NotPrepared if billing client not ready.</summary>
     /// <summary>See: https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android</summary>
@@ -4287,7 +4626,6 @@ public interface MutationResolver
     /// <summary>Create a reporting token for an alternative billing flow. Step 3 of the alternative billing flow.</summary>
     /// <summary>Must be called AFTER successful payment in your payment system.</summary>
     /// <summary>Token must be reported to Google Play backend within 24 hours.</summary>
-    /// <summary></summary>
     /// <summary>Returns token string, or null if creation failed.</summary>
     /// <summary>Throws OpenIapError.NotPrepared if billing client not ready.</summary>
     /// <summary>See: https://openiap.dev/docs/apis/android/create-alternative-billing-token-android</summary>
@@ -4295,11 +4633,10 @@ public interface MutationResolver
 
     /// <summary>Create the reporting payload Google requires after a Developer-Provided Billing transaction (Play Billing 8.3.0+).</summary>
     /// <summary>Replaces the deprecated createExternalOfferReportingDetailsAsync API.</summary>
-    /// <summary></summary>
     /// <summary>Returns external transaction token needed for reporting external transactions.</summary>
     /// <summary>Throws OpenIapError.NotPrepared if billing client not ready.</summary>
     /// <summary>See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android</summary>
-    Task<BillingProgramReportingDetailsAndroid> CreateBillingProgramReportingDetailsAndroidAsync(BillingProgramAndroid program);
+    Task<BillingProgramReportingDetailsAndroid> CreateBillingProgramReportingDetailsAndroidAsync(BillingProgramAndroid program, DeveloperBillingTypeAndroid? developerBillingType = null);
 
     /// <summary>Open the platform&apos;s subscription management UI.</summary>
     /// <summary>See: https://openiap.dev/docs/apis/deep-link-to-subscriptions</summary>
@@ -4319,7 +4656,6 @@ public interface MutationResolver
 
     /// <summary>Check whether a billing program (e.g., External Payments) is available for the current user.</summary>
     /// <summary>Replaces the deprecated isExternalOfferAvailableAsync API.</summary>
-    /// <summary></summary>
     /// <summary>Available in Google Play Billing Library 8.2.0+.</summary>
     /// <summary>Returns availability result with isAvailable flag.</summary>
     /// <summary>Throws OpenIapError.NotPrepared if billing client not ready.</summary>
@@ -4328,7 +4664,6 @@ public interface MutationResolver
 
     /// <summary>Launch an external content/offer link from inside the Billing Programs flow (Play Billing 8.2.0+).</summary>
     /// <summary>Replaces the deprecated showExternalOfferInformationDialog API.</summary>
-    /// <summary></summary>
     /// <summary>Shows Play Store dialog and optionally launches external URL.</summary>
     /// <summary>Throws OpenIapError.NotPrepared if billing client not ready.</summary>
     /// <summary>See: https://openiap.dev/docs/apis/android/launch-external-link-android</summary>
@@ -4366,17 +4701,29 @@ public interface MutationResolver
 
     /// <summary>Display Google&apos;s alternative billing information dialog. Step 2 of the alternative billing flow.</summary>
     /// <summary>Must be called BEFORE processing payment in your payment system.</summary>
-    /// <summary></summary>
     /// <summary>Returns true if user accepted, false if user canceled.</summary>
     /// <summary>Throws OpenIapError.NotPrepared if billing client not ready.</summary>
     /// <summary>See: https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android</summary>
     Task<bool> ShowAlternativeBillingDialogAndroidAsync();
+
+    /// <summary>Show Google&apos;s information dialog for a Billing Choice external transaction.</summary>
+    /// <summary>Available in Google Play Billing Library 9.1.0+.</summary>
+    /// <summary>Throws OpenIapError.NotPrepared if billing client not ready.</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android</summary>
+    Task<BillingResultAndroid> ShowBillingProgramInformationDialogAndroidAsync(BillingProgramInformationDialogParamsAndroid @params);
 
     /// <summary>Present the disclosure sheet required before linking out via ExternalPurchaseCustomLink (iOS 18.1+).</summary>
     /// <summary>Call this after a deliberate customer interaction before linking out to external purchases.</summary>
     /// <summary>Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/shownotice(type:)</summary>
     /// <summary>See: https://openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios</summary>
     Task<ExternalPurchaseCustomLinkNoticeResultIOS> ShowExternalPurchaseCustomLinkNoticeIOSAsync(ExternalPurchaseCustomLinkNoticeTypeIOS noticeType);
+
+    /// <summary>Overlay Play billing in-app messages, such as payment issues or subscription price-change confirmations.</summary>
+    /// <summary>Available in Google Play Billing Library 4.1.0+.</summary>
+    /// <summary>Returns a response code and, when the subscription status changes, the related purchase token.</summary>
+    /// <summary>Throws OpenIapError.NotPrepared if billing client not ready.</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/android/show-in-app-messages-android</summary>
+    Task<InAppMessageResultAndroid> ShowInAppMessagesAndroidAsync(InAppMessageParamsAndroid? @params = null);
 
     /// <summary>Present the manage-subscriptions sheet and return changed purchases (iOS 15+).</summary>
     /// <summary>See: https://openiap.dev/docs/apis/ios/show-manage-subscriptions-ios</summary>
@@ -4439,6 +4786,12 @@ public interface QueryResolver
     /// <summary>List active purchases for the current user.</summary>
     /// <summary>See: https://openiap.dev/docs/apis/get-available-purchases</summary>
     Task<IReadOnlyList<Purchase>> GetAvailablePurchasesAsync(PurchaseOptions? options = null);
+
+    /// <summary>Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens.</summary>
+    /// <summary>Available in Google Play Billing Library 9.1.0+.</summary>
+    /// <summary>Throws OpenIapError.NotPrepared if billing client is not ready.</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/android/get-billing-choice-info-android</summary>
+    Task<BillingChoiceInfoAndroid> GetBillingChoiceInfoAndroidAsync(GetBillingChoiceInfoParamsAndroid @params);
 
     /// <summary>Fetch a token for Apple&apos;s External Purchase Server reporting API (iOS 18.1+).</summary>
     /// <summary>Use this token to report transactions made through ExternalPurchaseCustomLink.</summary>

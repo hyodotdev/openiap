@@ -126,7 +126,7 @@ kotlin {
 }
 
 dependencies {
-    val playBillingVersion = "8.3.0"
+    val playBillingVersion = "9.1.0"
     val coroutinesVersion = "1.9.0"
     val horizonPlatformVersion = "77.0.1"
     val horizonBillingCompatibilityVersion = "1.1.1"
@@ -139,7 +139,7 @@ dependencies {
     // - Horizon flavor uses Meta Horizon Billing Compatibility Library
 
     // Play flavor: Google Play Billing API (compile + runtime)
-    // Version 8.3.0 adds External Payments Program support (Japan only)
+    // Version 9.1.0 adds Billing Choice and keeps 8.3.0 External Payments support.
     add("playCompileOnly", "com.android.billingclient:billing-ktx:$playBillingVersion")
     add("playApi", "com.android.billingclient:billing-ktx:$playBillingVersion")
 

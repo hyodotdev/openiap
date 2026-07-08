@@ -8,16 +8,22 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import dev.hyo.openiap.AndroidSubscriptionOfferInput
+import dev.hyo.openiap.BillingChoiceImageLayoutAndroid
+import dev.hyo.openiap.BillingProgramInformationDialogParamsAndroid
 import dev.hyo.openiap.BillingProgramAndroid
 import dev.hyo.openiap.DeepLinkOptions
 import dev.hyo.openiap.DeveloperBillingLaunchModeAndroid
 import dev.hyo.openiap.DeveloperBillingOptionParamsAndroid
+import dev.hyo.openiap.DeveloperBillingTypeAndroid
 import dev.hyo.openiap.ExternalLinkLaunchModeAndroid
 import dev.hyo.openiap.ExternalLinkTypeAndroid
 import dev.hyo.openiap.FetchProductsResult
 import dev.hyo.openiap.FetchProductsResultAll
 import dev.hyo.openiap.FetchProductsResultProducts
 import dev.hyo.openiap.FetchProductsResultSubscriptions
+import dev.hyo.openiap.GetBillingChoiceInfoParamsAndroid
+import dev.hyo.openiap.InAppMessageCategoryAndroid
+import dev.hyo.openiap.InAppMessageParamsAndroid
 import dev.hyo.openiap.InitConnectionConfig
 import dev.hyo.openiap.LaunchExternalLinkParamsAndroid
 import dev.hyo.openiap.OpenIapError
@@ -783,7 +789,36 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                         val result = iap.isBillingProgramAvailable(program)
                         val response = JSONObject().apply {
                             put("billingProgram", result.billingProgram.toJson())
+                            put("choiceScreenType", result.choiceScreenType?.toJson())
                             put("isAvailable", result.isAvailable)
+                            put("isExternalLinkAvailable", result.isExternalLinkAvailable)
+                        }
+                        safe.success(response.toString())
+                    } catch (e: Exception) {
+                        safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
+                    }
+                }
+            }
+            "getBillingChoiceInfoAndroid" -> {
+                val programStr = call.argument<String?>("billingProgram")
+                val imageLayoutStr = call.argument<String?>("playBillingChoiceImageLayout")
+                val userLocale = call.argument<String?>("userLocale")
+                scope.launch {
+                    try {
+                        val iap = openIap
+                        if (iap == null) {
+                            safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
+                            return@launch
+                        }
+                        val params = GetBillingChoiceInfoParamsAndroid(
+                            billingProgram = BillingProgramAndroid.fromJson(programStr ?: "billing-choice"),
+                            playBillingChoiceImageLayout = BillingChoiceImageLayoutAndroid.fromJson(imageLayoutStr ?: "rectangular-four-by-one"),
+                            userLocale = userLocale
+                        )
+                        val result = iap.getBillingChoiceInfo(params)
+                        val response = JSONObject().apply {
+                            put("playBillingChoiceImageUrl", result.playBillingChoiceImageUrl)
+                            put("playBillingLoyaltyInfo", result.playBillingLoyaltyInfo)
                         }
                         safe.success(response.toString())
                     } catch (e: Exception) {
@@ -793,6 +828,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
             }
             "createBillingProgramReportingDetailsAndroid" -> {
                 val programStr = call.argument<String>("program")
+                val developerBillingTypeStr = call.argument<String?>("developerBillingType")
                 scope.launch {
                     try {
                         val iap = openIap
@@ -801,10 +837,78 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                             return@launch
                         }
                         val program = BillingProgramAndroid.fromJson(programStr ?: "unspecified")
-                        val result = iap.createBillingProgramReportingDetails(program)
+                        val developerBillingType = developerBillingTypeStr?.let {
+                            DeveloperBillingTypeAndroid.fromJson(it)
+                        }
+                        val result = iap.createBillingProgramReportingDetails(program, developerBillingType)
                         val response = JSONObject().apply {
                             put("billingProgram", result.billingProgram.toJson())
                             put("externalTransactionToken", result.externalTransactionToken)
+                        }
+                        safe.success(response.toString())
+                    } catch (e: Exception) {
+                        safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
+                    }
+                }
+            }
+            "showBillingProgramInformationDialogAndroid" -> {
+                val programStr = call.argument<String?>("billingProgram")
+                val token = call.argument<String?>("externalTransactionToken")
+                scope.launch {
+                    try {
+                        val iap = openIap
+                        if (iap == null) {
+                            safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
+                            return@launch
+                        }
+                        val act = activity
+                        if (act == null) {
+                            safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, "Activity not available")
+                            return@launch
+                        }
+                        if (token.isNullOrBlank()) {
+                            safe.error(OpenIapError.DeveloperError.CODE, "externalTransactionToken is required for showBillingProgramInformationDialogAndroid", null)
+                            return@launch
+                        }
+                        val result = iap.showBillingProgramInformationDialog(
+                            act,
+                            BillingProgramInformationDialogParamsAndroid(
+                                billingProgram = BillingProgramAndroid.fromJson(programStr ?: "billing-choice"),
+                                externalTransactionToken = token
+                            )
+                        )
+                        val response = JSONObject().apply {
+                            put("responseCode", result.responseCode)
+                            put("debugMessage", result.debugMessage)
+                            put("subResponseCode", result.subResponseCode?.toJson())
+                        }
+                        safe.success(response.toString())
+                    } catch (e: Exception) {
+                        safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
+                    }
+                }
+            }
+            "showInAppMessagesAndroid" -> {
+                val categories = call.argument<List<String>?>("categories")
+                scope.launch {
+                    try {
+                        val iap = openIap
+                        if (iap == null) {
+                            safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
+                            return@launch
+                        }
+                        val act = activity
+                        if (act == null) {
+                            safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, "Activity not available")
+                            return@launch
+                        }
+                        val params = InAppMessageParamsAndroid(
+                            categories = categories?.map { InAppMessageCategoryAndroid.fromJson(it) }
+                        )
+                        val result = iap.showInAppMessages(act, params)
+                        val response = JSONObject().apply {
+                            put("responseCode", result.responseCode.toJson())
+                            put("purchaseToken", result.purchaseToken)
                         }
                         safe.success(response.toString())
                     } catch (e: Exception) {

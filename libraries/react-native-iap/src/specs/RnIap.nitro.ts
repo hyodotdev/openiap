@@ -96,13 +96,38 @@ export type PurchaseVerificationProvider = 'iapkit' | 'none';
 
 // Billing Programs API (Android)
 // GQL type exists but defined locally for Nitro codegen consistency
-// Android 8.2.0+, 8.3.0+ for external-payments, 7.0+ for user-choice-billing
+// Android 8.2.0+, 8.3.0+ for external-payments, 9.1.0+ for billing-choice,
+// 7.0+ for user-choice-billing
 export type BillingProgramAndroid =
   | 'unspecified'
   | 'external-content-link'
   | 'external-offer'
   | 'external-payments'
-  | 'user-choice-billing';
+  | 'user-choice-billing'
+  | 'billing-choice';
+
+export type BillingChoiceImageLayoutAndroid =
+  | 'rectangular-four-by-one'
+  | 'rectangular-three-by-one'
+  | 'rectangular-two-by-two';
+
+export type BillingChoiceScreenTypeAndroid =
+  | 'unspecified'
+  | 'developer-rendered'
+  | 'google-rendered';
+
+export type DeveloperBillingTypeAndroid =
+  | 'developer-billing-type-unspecified'
+  | 'in-app'
+  | 'external-link';
+
+export type InAppMessageCategoryAndroid =
+  | 'unknown-in-app-message-category-id'
+  | 'transactional';
+
+export type InAppMessageResponseCodeAndroid =
+  | 'no-action-needed'
+  | 'subscription-status-updated';
 
 // Developer Billing Launch Mode (Android 8.3.0+)
 // Defined locally for Nitro codegen
@@ -308,6 +333,21 @@ export interface NitroLaunchExternalLinkParamsAndroid {
   linkUri: string;
 }
 
+export interface NitroGetBillingChoiceInfoParamsAndroid {
+  billingProgram: BillingProgramAndroid;
+  playBillingChoiceImageLayout: BillingChoiceImageLayoutAndroid;
+  userLocale?: string | null;
+}
+
+export interface NitroBillingProgramInformationDialogParamsAndroid {
+  billingProgram: BillingProgramAndroid;
+  externalTransactionToken: string;
+}
+
+export interface NitroInAppMessageParamsAndroid {
+  categories?: InAppMessageCategoryAndroid[] | null;
+}
+
 // ╔══════════════════════════════════════════════════════════════════════════╗
 // ║                                  TYPES                                   ║
 // ╚══════════════════════════════════════════════════════════════════════════╝
@@ -342,6 +382,21 @@ export interface NitroPurchaseResult {
   code: string;
   message: string;
   purchaseToken?: string;
+}
+
+export interface NitroBillingResultAndroid {
+  responseCode: number;
+  debugMessage?: string | null;
+}
+
+export interface NitroBillingChoiceInfoAndroid {
+  playBillingChoiceImageUrl: string;
+  playBillingLoyaltyInfo?: string | null;
+}
+
+export interface NitroInAppMessageResultAndroid {
+  responseCode: InAppMessageResponseCodeAndroid;
+  purchaseToken?: string | null;
 }
 
 export interface NitroReceiptValidationResultIOS {
@@ -428,8 +483,12 @@ export interface NitroVerifyPurchaseWithProviderResult {
 export interface NitroBillingProgramAvailabilityResultAndroid {
   /** The billing program that was checked */
   billingProgram: BillingProgramAndroid;
+  /** Billing Choice screen renderer. Populated only for available Billing Choice results. */
+  choiceScreenType?: BillingChoiceScreenTypeAndroid | null;
   /** Whether the billing program is available for the user */
   isAvailable: boolean;
+  /** Whether external-link payment is available for Billing Choice. */
+  isExternalLinkAvailable?: boolean | null;
 }
 
 /**
@@ -1166,6 +1225,18 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
   ): Promise<NitroBillingProgramAvailabilityResultAndroid>;
 
   /**
+   * Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens.
+   *
+   * @param params - Billing Choice info request parameters
+   * @returns Promise with the Play-hosted image URL and optional loyalty info
+   * @platform Android
+   * @since Billing Library 9.1.0+
+   */
+  getBillingChoiceInfoAndroid(
+    params: NitroGetBillingChoiceInfoParamsAndroid,
+  ): Promise<NitroBillingChoiceInfoAndroid>;
+
+  /**
    * Create billing program reporting details for external transactions (Android only).
    * Used to get the external transaction token needed for reporting to Google.
    *
@@ -1176,7 +1247,32 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
    */
   createBillingProgramReportingDetailsAndroid(
     program: BillingProgramAndroid,
+    developerBillingType?: DeveloperBillingTypeAndroid | null,
   ): Promise<NitroBillingProgramReportingDetailsAndroid>;
+
+  /**
+   * Show the Play-provided Billing Choice information dialog.
+   *
+   * @param params - Billing Choice dialog parameters
+   * @returns Promise with BillingResult
+   * @platform Android
+   * @since Billing Library 9.1.0+
+   */
+  showBillingProgramInformationDialogAndroid(
+    params: NitroBillingProgramInformationDialogParamsAndroid,
+  ): Promise<NitroBillingResultAndroid>;
+
+  /**
+   * Show Play Billing in-app messages, such as transactional subscription updates.
+   *
+   * @param params - Optional in-app message categories
+   * @returns Promise with in-app message result
+   * @platform Android
+   * @since Billing Library 4.1.0+
+   */
+  showInAppMessagesAndroid(
+    params?: NitroInAppMessageParamsAndroid | null,
+  ): Promise<NitroInAppMessageResultAndroid>;
 
   /**
    * Launch external link for external offers or app download (Android only).

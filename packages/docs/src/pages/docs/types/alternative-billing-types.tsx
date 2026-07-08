@@ -157,7 +157,8 @@ function AlternativeBillingTypes() {
                 during connection. Use <code>USER_CHOICE_BILLING</code> for user
                 choice, <code>EXTERNAL_OFFER</code> for alternative only, or{' '}
                 <code>EXTERNAL_PAYMENTS</code> for Japan external payments
-                (8.3.0+).
+                (8.3.0+). Use <code>BILLING_CHOICE</code> for Billing Choice
+                (9.1.0+).
               </td>
             </tr>
             <tr>

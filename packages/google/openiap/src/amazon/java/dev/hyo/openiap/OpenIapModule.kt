@@ -540,6 +540,9 @@ class OpenIapModule(
         fetchProducts = fetchProducts,
         getActiveSubscriptions = getActiveSubscriptions,
         getAvailablePurchases = getAvailablePurchases,
+        getBillingChoiceInfoAndroid = { params ->
+            getBillingChoiceInfo(params)
+        },
         getStorefront = { getStorefront() },
         getStorefrontIOS = { getStorefront() },
         hasActiveSubscriptions = hasActiveSubscriptions
@@ -551,8 +554,8 @@ class OpenIapModule(
         checkAlternativeBillingAvailabilityAndroid = { checkAlternativeBillingAvailability() },
         consumePurchaseAndroid = consumePurchaseAndroid,
         createAlternativeBillingTokenAndroid = { createAlternativeBillingReportingToken() },
-        createBillingProgramReportingDetailsAndroid = { program ->
-            createBillingProgramReportingDetails(program)
+        createBillingProgramReportingDetailsAndroid = { program, developerBillingType ->
+            createBillingProgramReportingDetails(program, developerBillingType)
         },
         deepLinkToSubscriptions = deepLinkToSubscriptions,
         endConnection = endConnection,
@@ -570,6 +573,16 @@ class OpenIapModule(
             val activity = currentActivityRef?.get()
                 ?: throw OpenIapError.MissingCurrentActivity
             showAlternativeBillingInformationDialog(activity)
+        },
+        showBillingProgramInformationDialogAndroid = { params ->
+            val activity = currentActivityRef?.get()
+                ?: throw OpenIapError.MissingCurrentActivity
+            showBillingProgramInformationDialog(activity, params)
+        },
+        showInAppMessagesAndroid = { params ->
+            val activity = currentActivityRef?.get()
+                ?: throw OpenIapError.MissingCurrentActivity
+            showInAppMessages(activity, params)
         },
         validateReceipt = validateReceipt,
         verifyPurchase = verifyPurchase,
@@ -641,7 +654,8 @@ class OpenIapModule(
     )
 
     override suspend fun createBillingProgramReportingDetails(
-        program: BillingProgramAndroid
+        program: BillingProgramAndroid,
+        developerBillingType: DeveloperBillingTypeAndroid?
     ): BillingProgramReportingDetailsAndroid {
         throw OpenIapError.FeatureNotSupported("Amazon Appstore does not support Google Play billing programs")
     }
@@ -650,6 +664,26 @@ class OpenIapModule(
         activity: Activity,
         params: LaunchExternalLinkParamsAndroid
     ): Boolean = false
+
+    override suspend fun getBillingChoiceInfo(params: GetBillingChoiceInfoParamsAndroid): BillingChoiceInfoAndroid {
+        throw OpenIapError.FeatureNotSupported("Amazon Appstore does not support Google Play Billing Choice")
+    }
+
+    override suspend fun showBillingProgramInformationDialog(
+        activity: Activity,
+        params: BillingProgramInformationDialogParamsAndroid
+    ): BillingResultAndroid = BillingResultAndroid(
+        responseCode = 2,
+        debugMessage = "Amazon Appstore does not support Google Play Billing Choice"
+    )
+
+    override suspend fun showInAppMessages(
+        activity: Activity,
+        params: InAppMessageParamsAndroid?
+    ): InAppMessageResultAndroid = InAppMessageResultAndroid(
+        responseCode = InAppMessageResponseCodeAndroid.NoActionNeeded,
+        purchaseToken = null
+    )
 
     override fun onUserDataResponse(userDataResponse: UserDataResponse) {
         updateStorefront(userDataResponse.userData)

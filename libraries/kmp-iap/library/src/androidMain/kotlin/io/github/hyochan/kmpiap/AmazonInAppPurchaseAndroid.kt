@@ -16,8 +16,12 @@ import io.github.hyochan.kmpiap.openiap.ActiveSubscription
 import io.github.hyochan.kmpiap.openiap.AppTransaction
 import io.github.hyochan.kmpiap.openiap.BillingProgramAndroid
 import io.github.hyochan.kmpiap.openiap.BillingProgramAvailabilityResultAndroid
+import io.github.hyochan.kmpiap.openiap.BillingChoiceInfoAndroid
+import io.github.hyochan.kmpiap.openiap.BillingProgramInformationDialogParamsAndroid
 import io.github.hyochan.kmpiap.openiap.BillingProgramReportingDetailsAndroid
+import io.github.hyochan.kmpiap.openiap.BillingResultAndroid
 import io.github.hyochan.kmpiap.openiap.DeepLinkOptions
+import io.github.hyochan.kmpiap.openiap.DeveloperBillingTypeAndroid
 import io.github.hyochan.kmpiap.openiap.DeveloperProvidedBillingDetailsAndroid
 import io.github.hyochan.kmpiap.openiap.ErrorCode
 import io.github.hyochan.kmpiap.openiap.ExternalPurchaseCustomLinkNoticeResultIOS
@@ -31,6 +35,10 @@ import io.github.hyochan.kmpiap.openiap.FetchProductsResultAll
 import io.github.hyochan.kmpiap.openiap.FetchProductsResultProducts
 import io.github.hyochan.kmpiap.openiap.FetchProductsResultSubscriptions
 import io.github.hyochan.kmpiap.openiap.InitConnectionConfig
+import io.github.hyochan.kmpiap.openiap.GetBillingChoiceInfoParamsAndroid
+import io.github.hyochan.kmpiap.openiap.InAppMessageParamsAndroid
+import io.github.hyochan.kmpiap.openiap.InAppMessageResponseCodeAndroid
+import io.github.hyochan.kmpiap.openiap.InAppMessageResultAndroid
 import io.github.hyochan.kmpiap.openiap.LaunchExternalLinkParamsAndroid
 import io.github.hyochan.kmpiap.openiap.Product
 import io.github.hyochan.kmpiap.openiap.ProductOrSubscription
@@ -197,8 +205,20 @@ internal class AmazonInAppPurchaseAndroid(
     override suspend fun isBillingProgramAvailableAndroid(program: BillingProgramAndroid): BillingProgramAvailabilityResultAndroid =
         BillingProgramAvailabilityResultAndroid(billingProgram = program, isAvailable = false)
 
-    override suspend fun createBillingProgramReportingDetailsAndroid(program: BillingProgramAndroid): BillingProgramReportingDetailsAndroid =
+    override suspend fun getBillingChoiceInfoAndroid(params: GetBillingChoiceInfoParamsAndroid): BillingChoiceInfoAndroid =
+        failUnsupported("Amazon Appstore does not support Google Play Billing Choice.")
+
+    override suspend fun createBillingProgramReportingDetailsAndroid(
+        program: BillingProgramAndroid,
+        developerBillingType: DeveloperBillingTypeAndroid?
+    ): BillingProgramReportingDetailsAndroid =
         failUnsupported("Amazon Appstore does not support Google Play billing programs.")
+
+    override suspend fun showBillingProgramInformationDialogAndroid(params: BillingProgramInformationDialogParamsAndroid): BillingResultAndroid =
+        failUnsupported("Amazon Appstore does not support Google Play Billing Choice.")
+
+    override suspend fun showInAppMessagesAndroid(params: InAppMessageParamsAndroid?): InAppMessageResultAndroid =
+        InAppMessageResultAndroid(responseCode = InAppMessageResponseCodeAndroid.NoActionNeeded)
 
     override suspend fun launchExternalLinkAndroid(params: LaunchExternalLinkParamsAndroid): Boolean = false
     override suspend fun checkAlternativeBillingAvailabilityAndroid(): Boolean = false

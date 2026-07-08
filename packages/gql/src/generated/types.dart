@@ -44,8 +44,67 @@ enum AlternativeBillingModeAndroid {
   String toJson() => value;
 }
 
-/// Billing program types for external content links, external offers, and external payments (Android)
-/// Available in Google Play Billing Library 8.2.0+, EXTERNAL_PAYMENTS added in 8.3.0
+/// Play Billing choice image layout (Android)
+/// Available in Google Play Billing Library 9.1.0+
+enum BillingChoiceImageLayoutAndroid {
+  /// Rectangular image with a 4:1 aspect ratio.
+  RectangularFourByOne('rectangular-four-by-one'),
+  /// Rectangular image with a 3:1 aspect ratio.
+  RectangularThreeByOne('rectangular-three-by-one'),
+  /// Rectangular image with a 2:2 aspect ratio.
+  RectangularTwoByTwo('rectangular-two-by-two');
+
+  const BillingChoiceImageLayoutAndroid(this.value);
+  final String value;
+
+  factory BillingChoiceImageLayoutAndroid.fromJson(String value) {
+    final normalized = value.toLowerCase().replaceAll('_', '-');
+    switch (normalized) {
+      case 'rectangular-four-by-one':
+        return BillingChoiceImageLayoutAndroid.RectangularFourByOne;
+      case 'rectangular-three-by-one':
+        return BillingChoiceImageLayoutAndroid.RectangularThreeByOne;
+      case 'rectangular-two-by-two':
+        return BillingChoiceImageLayoutAndroid.RectangularTwoByTwo;
+    }
+    throw ArgumentError('Unknown BillingChoiceImageLayoutAndroid value: $value');
+  }
+
+  String toJson() => value;
+}
+
+/// Choice screen renderer for Billing Choice availability (Android)
+/// Available in Google Play Billing Library 9.1.0+
+enum BillingChoiceScreenTypeAndroid {
+  /// Unspecified choice screen type.
+  Unspecified('unspecified'),
+  /// Choice screen is rendered by the developer app.
+  DeveloperRendered('developer-rendered'),
+  /// Choice screen is rendered by Google Play.
+  GoogleRendered('google-rendered');
+
+  const BillingChoiceScreenTypeAndroid(this.value);
+  final String value;
+
+  factory BillingChoiceScreenTypeAndroid.fromJson(String value) {
+    final normalized = value.toLowerCase().replaceAll('_', '-');
+    switch (normalized) {
+      case 'unspecified':
+        return BillingChoiceScreenTypeAndroid.Unspecified;
+      case 'developer-rendered':
+        return BillingChoiceScreenTypeAndroid.DeveloperRendered;
+      case 'google-rendered':
+        return BillingChoiceScreenTypeAndroid.GoogleRendered;
+    }
+    throw ArgumentError('Unknown BillingChoiceScreenTypeAndroid value: $value');
+  }
+
+  String toJson() => value;
+}
+
+/// Billing program types for Google Play Billing Programs (Android)
+/// Available in Google Play Billing Library 8.2.0+, EXTERNAL_PAYMENTS added in 8.3.0,
+/// BILLING_CHOICE added in 9.1.0.
 enum BillingProgramAndroid {
   /// Unspecified billing program. Do not use.
   Unspecified('unspecified'),
@@ -65,7 +124,11 @@ enum BillingProgramAndroid {
   /// Allows presenting a side-by-side choice between Google Play Billing and developer's external payment option.
   /// Users can choose to complete the purchase on the developer's website.
   /// Available in Google Play Billing Library 8.3.0+
-  ExternalPayments('external-payments');
+  ExternalPayments('external-payments'),
+  /// Billing Choice program.
+  /// Allows presenting Google Play Billing alongside an alternative in-app billing system or external web link.
+  /// Available in Google Play Billing Library 9.1.0+
+  BillingChoice('billing-choice');
 
   const BillingProgramAndroid(this.value);
   final String value;
@@ -83,6 +146,8 @@ enum BillingProgramAndroid {
         return BillingProgramAndroid.ExternalOffer;
       case 'external-payments':
         return BillingProgramAndroid.ExternalPayments;
+      case 'billing-choice':
+        return BillingProgramAndroid.BillingChoice;
     }
     throw ArgumentError('Unknown BillingProgramAndroid value: $value');
   }
@@ -117,6 +182,35 @@ enum DeveloperBillingLaunchModeAndroid {
         return DeveloperBillingLaunchModeAndroid.CallerWillLaunchLink;
     }
     throw ArgumentError('Unknown DeveloperBillingLaunchModeAndroid value: $value');
+  }
+
+  String toJson() => value;
+}
+
+/// Developer-provided billing destination type for Billing Program reporting details (Android)
+/// Available in Google Play Billing Library 9.1.0+
+enum DeveloperBillingTypeAndroid {
+  /// Unspecified developer billing type. Do not use.
+  DeveloperBillingTypeUnspecified('developer-billing-type-unspecified'),
+  /// Developer-provided billing via native in-app experience.
+  InApp('in-app'),
+  /// Developer-provided billing via external link or embedded web browsing.
+  ExternalLink('external-link');
+
+  const DeveloperBillingTypeAndroid(this.value);
+  final String value;
+
+  factory DeveloperBillingTypeAndroid.fromJson(String value) {
+    final normalized = value.toLowerCase().replaceAll('_', '-');
+    switch (normalized) {
+      case 'developer-billing-type-unspecified':
+        return DeveloperBillingTypeAndroid.DeveloperBillingTypeUnspecified;
+      case 'in-app':
+        return DeveloperBillingTypeAndroid.InApp;
+      case 'external-link':
+        return DeveloperBillingTypeAndroid.ExternalLink;
+    }
+    throw ArgumentError('Unknown DeveloperBillingTypeAndroid value: $value');
   }
 
   String toJson() => value;
@@ -555,6 +649,56 @@ enum IapStore {
         return IapStore.Amazon;
     }
     throw ArgumentError('Unknown IapStore value: $value');
+  }
+
+  String toJson() => value;
+}
+
+/// High-level in-app message category (Android)
+/// Available in Google Play Billing Library 4.1.0+
+enum InAppMessageCategoryAndroid {
+  /// Unknown in-app message category.
+  UnknownInAppMessageCategoryId('unknown-in-app-message-category-id'),
+  /// Transactional billing messages, such as payment issues or pending price-change confirmations.
+  Transactional('transactional');
+
+  const InAppMessageCategoryAndroid(this.value);
+  final String value;
+
+  factory InAppMessageCategoryAndroid.fromJson(String value) {
+    final normalized = value.toLowerCase().replaceAll('_', '-');
+    switch (normalized) {
+      case 'unknown-in-app-message-category-id':
+        return InAppMessageCategoryAndroid.UnknownInAppMessageCategoryId;
+      case 'transactional':
+        return InAppMessageCategoryAndroid.Transactional;
+    }
+    throw ArgumentError('Unknown InAppMessageCategoryAndroid value: $value');
+  }
+
+  String toJson() => value;
+}
+
+/// Response code from Play billing in-app messages (Android)
+/// Available in Google Play Billing Library 4.1.0+
+enum InAppMessageResponseCodeAndroid {
+  /// Flow finished and no developer action is needed.
+  NoActionNeeded('no-action-needed'),
+  /// Subscription status changed and the purchase token should be checked.
+  SubscriptionStatusUpdated('subscription-status-updated');
+
+  const InAppMessageResponseCodeAndroid(this.value);
+  final String value;
+
+  factory InAppMessageResponseCodeAndroid.fromJson(String value) {
+    final normalized = value.toLowerCase().replaceAll('_', '-');
+    switch (normalized) {
+      case 'no-action-needed':
+        return InAppMessageResponseCodeAndroid.NoActionNeeded;
+      case 'subscription-status-updated':
+        return InAppMessageResponseCodeAndroid.SubscriptionStatusUpdated;
+    }
+    throw ArgumentError('Unknown InAppMessageResponseCodeAndroid value: $value');
   }
 
   String toJson() => value;
@@ -1527,23 +1671,61 @@ class AppTransaction {
   }
 }
 
+/// Display information for developer-rendered Billing Choice screens (Android)
+/// Available in Google Play Billing Library 9.1.0+
+class BillingChoiceInfoAndroid {
+  const BillingChoiceInfoAndroid({
+    required this.playBillingChoiceImageUrl,
+    this.playBillingLoyaltyInfo,
+  });
+
+  /// URL for the Play Billing choice image matching the requested layout.
+  final String playBillingChoiceImageUrl;
+  /// Play Loyalty information for the user.
+  final String? playBillingLoyaltyInfo;
+
+  factory BillingChoiceInfoAndroid.fromJson(Map<String, dynamic> json) {
+    return BillingChoiceInfoAndroid(
+      playBillingChoiceImageUrl: json['playBillingChoiceImageUrl'] as String,
+      playBillingLoyaltyInfo: json['playBillingLoyaltyInfo'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '__typename': 'BillingChoiceInfoAndroid',
+      'playBillingChoiceImageUrl': playBillingChoiceImageUrl,
+      'playBillingLoyaltyInfo': playBillingLoyaltyInfo,
+    };
+  }
+}
+
 /// Result of checking billing program availability (Android)
 /// Available in Google Play Billing Library 8.2.0+
 class BillingProgramAvailabilityResultAndroid {
   const BillingProgramAvailabilityResultAndroid({
     required this.billingProgram,
+    this.choiceScreenType,
     required this.isAvailable,
+    this.isExternalLinkAvailable,
   });
 
   /// The billing program that was checked
   final BillingProgramAndroid billingProgram;
+  /// Billing Choice screen renderer. Populated only for available BILLING_CHOICE results.
+  final BillingChoiceScreenTypeAndroid? choiceScreenType;
   /// Whether the billing program is available for the user
   final bool isAvailable;
+  /// Whether external-link payment is available for Billing Choice.
+  /// Populated only for available BILLING_CHOICE results.
+  final bool? isExternalLinkAvailable;
 
   factory BillingProgramAvailabilityResultAndroid.fromJson(Map<String, dynamic> json) {
     return BillingProgramAvailabilityResultAndroid(
       billingProgram: BillingProgramAndroid.fromJson(json['billingProgram'] as String),
+      choiceScreenType: json['choiceScreenType'] != null ? BillingChoiceScreenTypeAndroid.fromJson(json['choiceScreenType'] as String) : null,
       isAvailable: json['isAvailable'] as bool,
+      isExternalLinkAvailable: json['isExternalLinkAvailable'] as bool?,
     );
   }
 
@@ -1551,7 +1733,9 @@ class BillingProgramAvailabilityResultAndroid {
     return {
       '__typename': 'BillingProgramAvailabilityResultAndroid',
       'billingProgram': billingProgram.toJson(),
+      'choiceScreenType': choiceScreenType?.toJson(),
       'isAvailable': isAvailable,
+      'isExternalLinkAvailable': isExternalLinkAvailable,
     };
   }
 }
@@ -2139,6 +2323,35 @@ class FetchProductsResultProducts extends FetchProductsResult {
 class FetchProductsResultSubscriptions extends FetchProductsResult {
   const FetchProductsResultSubscriptions(this.value);
   final List<ProductSubscription>? value;
+}
+
+/// Result from showing Play billing in-app messages (Android)
+/// Available in Google Play Billing Library 4.1.0+
+class InAppMessageResultAndroid {
+  const InAppMessageResultAndroid({
+    this.purchaseToken,
+    required this.responseCode,
+  });
+
+  /// Purchase token returned when a subscription status changed.
+  final String? purchaseToken;
+  /// Response code for the in-app messaging flow.
+  final InAppMessageResponseCodeAndroid responseCode;
+
+  factory InAppMessageResultAndroid.fromJson(Map<String, dynamic> json) {
+    return InAppMessageResultAndroid(
+      purchaseToken: json['purchaseToken'] as String?,
+      responseCode: InAppMessageResponseCodeAndroid.fromJson(json['responseCode'] as String),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '__typename': 'InAppMessageResultAndroid',
+      'purchaseToken': purchaseToken,
+      'responseCode': responseCode.toJson(),
+    };
+  }
 }
 
 /// Installment plan details for subscription offers (Android)
@@ -4292,6 +4505,34 @@ class AndroidSubscriptionOfferInput {
   }
 }
 
+/// Parameters for showing a billing program information dialog (Android)
+/// Available in Google Play Billing Library 9.1.0+
+class BillingProgramInformationDialogParamsAndroid {
+  const BillingProgramInformationDialogParamsAndroid({
+    required this.billingProgram,
+    required this.externalTransactionToken,
+  });
+
+  /// Billing program. Currently only BILLING_CHOICE is supported.
+  final BillingProgramAndroid billingProgram;
+  /// External transaction token returned by the Billing Choice reporting-details flow.
+  final String externalTransactionToken;
+
+  factory BillingProgramInformationDialogParamsAndroid.fromJson(Map<String, dynamic> json) {
+    return BillingProgramInformationDialogParamsAndroid(
+      billingProgram: BillingProgramAndroid.fromJson(json['billingProgram'] as String),
+      externalTransactionToken: json['externalTransactionToken'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'billingProgram': billingProgram.toJson(),
+      'externalTransactionToken': externalTransactionToken,
+    };
+  }
+}
+
 class DeepLinkOptions {
   const DeepLinkOptions({
     this.packageNameAndroid,
@@ -4389,6 +4630,62 @@ class DiscountOfferInputIOS {
       'nonce': nonce,
       'signature': signature,
       'timestamp': timestamp,
+    };
+  }
+}
+
+/// Parameters for fetching Billing Choice display information (Android)
+/// Available in Google Play Billing Library 9.1.0+
+class GetBillingChoiceInfoParamsAndroid {
+  const GetBillingChoiceInfoParamsAndroid({
+    required this.billingProgram,
+    required this.playBillingChoiceImageLayout,
+    this.userLocale,
+  });
+
+  /// Billing program. Currently only BILLING_CHOICE is supported.
+  final BillingProgramAndroid billingProgram;
+  /// Desired Play Billing choice image layout.
+  final BillingChoiceImageLayoutAndroid playBillingChoiceImageLayout;
+  /// BCP 47 locale tag. If omitted, Play Billing uses the user's default locale.
+  final String? userLocale;
+
+  factory GetBillingChoiceInfoParamsAndroid.fromJson(Map<String, dynamic> json) {
+    return GetBillingChoiceInfoParamsAndroid(
+      billingProgram: BillingProgramAndroid.fromJson(json['billingProgram'] as String),
+      playBillingChoiceImageLayout: BillingChoiceImageLayoutAndroid.fromJson(json['playBillingChoiceImageLayout'] as String),
+      userLocale: json['userLocale'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'billingProgram': billingProgram.toJson(),
+      'playBillingChoiceImageLayout': playBillingChoiceImageLayout.toJson(),
+      'userLocale': userLocale,
+    };
+  }
+}
+
+/// Parameters for showing Play billing in-app messages (Android)
+/// Available in Google Play Billing Library 4.1.0+
+class InAppMessageParamsAndroid {
+  const InAppMessageParamsAndroid({
+    this.categories,
+  });
+
+  /// In-app message categories to show. Defaults to transactional messages.
+  final List<InAppMessageCategoryAndroid>? categories;
+
+  factory InAppMessageParamsAndroid.fromJson(Map<String, dynamic> json) {
+    return InAppMessageParamsAndroid(
+      categories: (json['categories'] as List<dynamic>?) == null ? null : (json['categories'] as List<dynamic>?)!.map((e) => InAppMessageCategoryAndroid.fromJson(e as String)).toList(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'categories': categories == null ? null : categories!.map((e) => e.toJson()).toList(),
     };
   }
 }
@@ -5496,7 +5793,6 @@ abstract class MutationResolver {
   /// See: https://openiap.dev/docs/apis/ios/begin-refund-request-ios
   Future<String?> beginRefundRequestIOS(String sku);
   /// Check whether alternative billing is available for the user. Step 1 of the alternative billing flow.
-  /// 
   /// Returns true if available, false otherwise.
   /// Throws OpenIapError.NotPrepared if billing client not ready.
   /// See: https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android
@@ -5510,18 +5806,19 @@ abstract class MutationResolver {
   /// Create a reporting token for an alternative billing flow. Step 3 of the alternative billing flow.
   /// Must be called AFTER successful payment in your payment system.
   /// Token must be reported to Google Play backend within 24 hours.
-  /// 
   /// Returns token string, or null if creation failed.
   /// Throws OpenIapError.NotPrepared if billing client not ready.
   /// See: https://openiap.dev/docs/apis/android/create-alternative-billing-token-android
   Future<String?> createAlternativeBillingTokenAndroid();
   /// Create the reporting payload Google requires after a Developer-Provided Billing transaction (Play Billing 8.3.0+).
   /// Replaces the deprecated createExternalOfferReportingDetailsAsync API.
-  /// 
   /// Returns external transaction token needed for reporting external transactions.
   /// Throws OpenIapError.NotPrepared if billing client not ready.
   /// See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
-  Future<BillingProgramReportingDetailsAndroid> createBillingProgramReportingDetailsAndroid(BillingProgramAndroid program);
+  Future<BillingProgramReportingDetailsAndroid> createBillingProgramReportingDetailsAndroid({
+    required BillingProgramAndroid program,
+    DeveloperBillingTypeAndroid? developerBillingType,
+  });
   /// Open the platform's subscription management UI.
   /// See: https://openiap.dev/docs/apis/deep-link-to-subscriptions
   Future<void> deepLinkToSubscriptions({
@@ -5545,7 +5842,6 @@ abstract class MutationResolver {
   });
   /// Check whether a billing program (e.g., External Payments) is available for the current user.
   /// Replaces the deprecated isExternalOfferAvailableAsync API.
-  /// 
   /// Available in Google Play Billing Library 8.2.0+.
   /// Returns availability result with isAvailable flag.
   /// Throws OpenIapError.NotPrepared if billing client not ready.
@@ -5553,7 +5849,6 @@ abstract class MutationResolver {
   Future<BillingProgramAvailabilityResultAndroid> isBillingProgramAvailableAndroid(BillingProgramAndroid program);
   /// Launch an external content/offer link from inside the Billing Programs flow (Play Billing 8.2.0+).
   /// Replaces the deprecated showExternalOfferInformationDialog API.
-  /// 
   /// Shows Play Store dialog and optionally launches external URL.
   /// Throws OpenIapError.NotPrepared if billing client not ready.
   /// See: https://openiap.dev/docs/apis/android/launch-external-link-android
@@ -5589,16 +5884,31 @@ abstract class MutationResolver {
   Future<void> restorePurchases();
   /// Display Google's alternative billing information dialog. Step 2 of the alternative billing flow.
   /// Must be called BEFORE processing payment in your payment system.
-  /// 
   /// Returns true if user accepted, false if user canceled.
   /// Throws OpenIapError.NotPrepared if billing client not ready.
   /// See: https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android
   Future<bool> showAlternativeBillingDialogAndroid();
+  /// Show Google's information dialog for a Billing Choice external transaction.
+  /// Available in Google Play Billing Library 9.1.0+.
+  /// Throws OpenIapError.NotPrepared if billing client not ready.
+  /// See: https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android
+  Future<BillingResultAndroid> showBillingProgramInformationDialogAndroid({
+    required BillingProgramAndroid billingProgram,
+    required String externalTransactionToken,
+  });
   /// Present the disclosure sheet required before linking out via ExternalPurchaseCustomLink (iOS 18.1+).
   /// Call this after a deliberate customer interaction before linking out to external purchases.
   /// Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/shownotice(type:)
   /// See: https://openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios
   Future<ExternalPurchaseCustomLinkNoticeResultIOS> showExternalPurchaseCustomLinkNoticeIOS(ExternalPurchaseCustomLinkNoticeTypeIOS noticeType);
+  /// Overlay Play billing in-app messages, such as payment issues or subscription price-change confirmations.
+  /// Available in Google Play Billing Library 4.1.0+.
+  /// Returns a response code and, when the subscription status changes, the related purchase token.
+  /// Throws OpenIapError.NotPrepared if billing client not ready.
+  /// See: https://openiap.dev/docs/apis/android/show-in-app-messages-android
+  Future<InAppMessageResultAndroid> showInAppMessagesAndroid({
+    List<InAppMessageCategoryAndroid>? categories,
+  });
   /// Present the manage-subscriptions sheet and return changed purchases (iOS 15+).
   /// See: https://openiap.dev/docs/apis/ios/show-manage-subscriptions-ios
   Future<List<PurchaseIOS>> showManageSubscriptionsIOS();
@@ -5666,6 +5976,15 @@ abstract class QueryResolver {
     bool? alsoPublishToEventListenerIOS,
     bool? includeSuspendedAndroid,
     bool? onlyIncludeActiveItemsIOS,
+  });
+  /// Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens.
+  /// Available in Google Play Billing Library 9.1.0+.
+  /// Throws OpenIapError.NotPrepared if billing client is not ready.
+  /// See: https://openiap.dev/docs/apis/android/get-billing-choice-info-android
+  Future<BillingChoiceInfoAndroid> getBillingChoiceInfoAndroid({
+    required BillingProgramAndroid billingProgram,
+    required BillingChoiceImageLayoutAndroid playBillingChoiceImageLayout,
+    String? userLocale,
   });
   /// Fetch a token for Apple's External Purchase Server reporting API (iOS 18.1+).
   /// Use this token to report transactions made through ExternalPurchaseCustomLink.
@@ -5765,7 +6084,10 @@ typedef MutationCheckAlternativeBillingAvailabilityAndroidHandler = Future<bool>
 typedef MutationClearTransactionIOSHandler = Future<bool> Function();
 typedef MutationConsumePurchaseAndroidHandler = Future<bool> Function(String purchaseToken);
 typedef MutationCreateAlternativeBillingTokenAndroidHandler = Future<String?> Function();
-typedef MutationCreateBillingProgramReportingDetailsAndroidHandler = Future<BillingProgramReportingDetailsAndroid> Function(BillingProgramAndroid program);
+typedef MutationCreateBillingProgramReportingDetailsAndroidHandler = Future<BillingProgramReportingDetailsAndroid> Function({
+  required BillingProgramAndroid program,
+  DeveloperBillingTypeAndroid? developerBillingType,
+});
 typedef MutationDeepLinkToSubscriptionsHandler = Future<void> Function({
   String? packageNameAndroid,
   String? skuAndroid,
@@ -5793,7 +6115,14 @@ typedef MutationRequestPurchaseHandler = Future<RequestPurchaseResult?> Function
 typedef MutationRequestPurchaseOnPromotedProductIOSHandler = Future<bool> Function();
 typedef MutationRestorePurchasesHandler = Future<void> Function();
 typedef MutationShowAlternativeBillingDialogAndroidHandler = Future<bool> Function();
+typedef MutationShowBillingProgramInformationDialogAndroidHandler = Future<BillingResultAndroid> Function({
+  required BillingProgramAndroid billingProgram,
+  required String externalTransactionToken,
+});
 typedef MutationShowExternalPurchaseCustomLinkNoticeIOSHandler = Future<ExternalPurchaseCustomLinkNoticeResultIOS> Function(ExternalPurchaseCustomLinkNoticeTypeIOS noticeType);
+typedef MutationShowInAppMessagesAndroidHandler = Future<InAppMessageResultAndroid> Function({
+  List<InAppMessageCategoryAndroid>? categories,
+});
 typedef MutationShowManageSubscriptionsIOSHandler = Future<List<PurchaseIOS>> Function();
 typedef MutationSyncIOSHandler = Future<bool> Function();
 typedef MutationValidateReceiptHandler = Future<VerifyPurchaseResult> Function({
@@ -5833,7 +6162,9 @@ class MutationHandlers {
     this.requestPurchaseOnPromotedProductIOS,
     this.restorePurchases,
     this.showAlternativeBillingDialogAndroid,
+    this.showBillingProgramInformationDialogAndroid,
     this.showExternalPurchaseCustomLinkNoticeIOS,
+    this.showInAppMessagesAndroid,
     this.showManageSubscriptionsIOS,
     this.syncIOS,
     this.validateReceipt,
@@ -5861,7 +6192,9 @@ class MutationHandlers {
   final MutationRequestPurchaseOnPromotedProductIOSHandler? requestPurchaseOnPromotedProductIOS;
   final MutationRestorePurchasesHandler? restorePurchases;
   final MutationShowAlternativeBillingDialogAndroidHandler? showAlternativeBillingDialogAndroid;
+  final MutationShowBillingProgramInformationDialogAndroidHandler? showBillingProgramInformationDialogAndroid;
   final MutationShowExternalPurchaseCustomLinkNoticeIOSHandler? showExternalPurchaseCustomLinkNoticeIOS;
+  final MutationShowInAppMessagesAndroidHandler? showInAppMessagesAndroid;
   final MutationShowManageSubscriptionsIOSHandler? showManageSubscriptionsIOS;
   final MutationSyncIOSHandler? syncIOS;
   final MutationValidateReceiptHandler? validateReceipt;
@@ -5884,6 +6217,11 @@ typedef QueryGetAvailablePurchasesHandler = Future<List<Purchase>> Function({
   bool? alsoPublishToEventListenerIOS,
   bool? includeSuspendedAndroid,
   bool? onlyIncludeActiveItemsIOS,
+});
+typedef QueryGetBillingChoiceInfoAndroidHandler = Future<BillingChoiceInfoAndroid> Function({
+  required BillingProgramAndroid billingProgram,
+  required BillingChoiceImageLayoutAndroid playBillingChoiceImageLayout,
+  String? userLocale,
 });
 typedef QueryGetExternalPurchaseCustomLinkTokenIOSHandler = Future<ExternalPurchaseCustomLinkTokenResultIOS> Function(ExternalPurchaseCustomLinkTokenTypeIOS tokenType);
 typedef QueryGetPendingTransactionsIOSHandler = Future<List<PurchaseIOS>> Function();
@@ -5913,6 +6251,7 @@ class QueryHandlers {
     this.getAllTransactionsIOS,
     this.getAppTransactionIOS,
     this.getAvailablePurchases,
+    this.getBillingChoiceInfoAndroid,
     this.getExternalPurchaseCustomLinkTokenIOS,
     this.getPendingTransactionsIOS,
     this.getPromotedProductIOS,
@@ -5936,6 +6275,7 @@ class QueryHandlers {
   final QueryGetAllTransactionsIOSHandler? getAllTransactionsIOS;
   final QueryGetAppTransactionIOSHandler? getAppTransactionIOS;
   final QueryGetAvailablePurchasesHandler? getAvailablePurchases;
+  final QueryGetBillingChoiceInfoAndroidHandler? getBillingChoiceInfoAndroid;
   final QueryGetExternalPurchaseCustomLinkTokenIOSHandler? getExternalPurchaseCustomLinkTokenIOS;
   final QueryGetPendingTransactionsIOSHandler? getPendingTransactionsIOS;
   final QueryGetPromotedProductIOSHandler? getPromotedProductIOS;

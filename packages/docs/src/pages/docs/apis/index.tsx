@@ -71,10 +71,16 @@ const LEGACY_ANCHOR_REDIRECTS: Record<string, string> = {
     '/docs/apis/android/enable-billing-program-android',
   'is-billing-program-available-android':
     '/docs/apis/android/is-billing-program-available-android',
+  'get-billing-choice-info-android':
+    '/docs/apis/android/get-billing-choice-info-android',
   'launch-external-link-android':
     '/docs/apis/android/launch-external-link-android',
   'create-billing-program-reporting-details-android':
     '/docs/apis/android/create-billing-program-reporting-details-android',
+  'show-billing-program-information-dialog-android':
+    '/docs/apis/android/show-billing-program-information-dialog-android',
+  'show-in-app-messages-android':
+    '/docs/apis/android/show-in-app-messages-android',
   // Validation/Refund/Debugging moved to Features
   'verify-purchase': '/docs/features/validation#verify-purchase',
   'verify-purchase-with-provider':
@@ -708,6 +714,17 @@ function APIsIndex() {
             </tr>
             <tr>
               <td>
+                <Link to="/docs/apis/android/get-billing-choice-info-android">
+                  <code>getBillingChoiceInfoAndroid</code>
+                </Link>
+              </td>
+              <td>
+                Fetch Play Billing Choice assets for developer-rendered choice
+                screens (Play Billing 9.1.0+).
+              </td>
+            </tr>
+            <tr>
+              <td>
                 <Link to="/docs/apis/android/launch-external-link-android">
                   <code>launchExternalLinkAndroid</code>
                 </Link>
@@ -726,6 +743,28 @@ function APIsIndex() {
               <td>
                 Create the reporting payload Google requires after a
                 Developer-Provided Billing transaction (Play Billing 8.3.0+).
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <Link to="/docs/apis/android/show-billing-program-information-dialog-android">
+                  <code>showBillingProgramInformationDialogAndroid</code>
+                </Link>
+              </td>
+              <td>
+                Show Google's Billing Choice information dialog (Play Billing
+                9.1.0+).
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <Link to="/docs/apis/android/show-in-app-messages-android">
+                  <code>showInAppMessagesAndroid</code>
+                </Link>
+              </td>
+              <td>
+                Show Play billing in-app messages and return subscription status
+                updates when applicable.
               </td>
             </tr>
           </tbody>

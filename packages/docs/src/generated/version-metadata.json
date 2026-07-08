@@ -9,7 +9,7 @@
   "mauiPackageVersion": "1.2.1-rc.2",
   "googleCompileSdk": "35",
   "googleMinSdk": "23",
-  "googlePlayBillingVersion": "8.3.0",
+  "googlePlayBillingVersion": "9.1.0",
   "kmpCompileSdk": "35",
   "kmpMinSdk": "24",
   "kmpTargetSdk": "35"

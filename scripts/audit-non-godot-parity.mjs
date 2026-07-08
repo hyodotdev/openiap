@@ -54,7 +54,9 @@ const operationParityRegistry = {
     'requestPurchaseOnPromotedProductIOS',
     'restorePurchases',
     'showAlternativeBillingDialogAndroid',
+    'showBillingProgramInformationDialogAndroid',
     'showExternalPurchaseCustomLinkNoticeIOS',
+    'showInAppMessagesAndroid',
     'showManageSubscriptionsIOS',
     'syncIOS',
     'validateReceipt',
@@ -69,6 +71,7 @@ const operationParityRegistry = {
     'getAllTransactionsIOS',
     'getAppTransactionIOS',
     'getAvailablePurchases',
+    'getBillingChoiceInfoAndroid',
     'getExternalPurchaseCustomLinkTokenIOS',
     'getPendingTransactionsIOS',
     'getPromotedProductIOS',
@@ -942,27 +945,42 @@ function checkNativeApis() {
     'createAlternativeBillingTokenAndroid',
     'isBillingProgramAvailableAndroid',
     'createBillingProgramReportingDetailsAndroid',
+    'getBillingChoiceInfoAndroid',
     'launchExternalLinkAndroid',
+    'showBillingProgramInformationDialogAndroid',
+    'showInAppMessagesAndroid',
   ], 'RN native spec');
   expectIncludes('libraries/expo-iap/src/index.ts', [
     'getStorefront',
     'connectWebhookStream',
+    "export * from './modules/android';",
   ], 'Expo API exports');
+  expectIncludes('libraries/expo-iap/src/modules/android.ts', [
+    'getBillingChoiceInfoAndroid',
+    'showBillingProgramInformationDialogAndroid',
+    'showInAppMessagesAndroid',
+  ], 'Expo Android API exports');
   expectIncludes('libraries/flutter_inapp_purchase/lib/types.dart', [
     'Future<String> getStorefront()',
     'Future<bool> checkAlternativeBillingAvailabilityAndroid()',
     'Future<String?> createAlternativeBillingTokenAndroid()',
     'Future<BillingProgramReportingDetailsAndroid> createBillingProgramReportingDetailsAndroid',
+    'Future<BillingChoiceInfoAndroid> getBillingChoiceInfoAndroid',
     'Future<BillingProgramAvailabilityResultAndroid> isBillingProgramAvailableAndroid',
     'Future<bool> launchExternalLinkAndroid',
+    'Future<BillingResultAndroid> showBillingProgramInformationDialogAndroid',
+    'Future<InAppMessageResultAndroid> showInAppMessagesAndroid',
   ], 'Flutter generated API');
   expectIncludes('libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt', [
     'suspend fun getStorefront(): String',
     'suspend fun checkAlternativeBillingAvailabilityAndroid(): Boolean',
     'suspend fun createAlternativeBillingTokenAndroid',
     'suspend fun createBillingProgramReportingDetailsAndroid',
+    'suspend fun getBillingChoiceInfoAndroid',
     'suspend fun isBillingProgramAvailableAndroid',
     'suspend fun launchExternalLinkAndroid',
+    'suspend fun showBillingProgramInformationDialogAndroid',
+    'suspend fun showInAppMessagesAndroid',
   ], 'KMP generated API');
 }
 

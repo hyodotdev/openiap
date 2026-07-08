@@ -118,10 +118,34 @@ export interface AppTransaction {
 }
 
 /**
- * Billing program types for external content links, external offers, and external payments (Android)
- * Available in Google Play Billing Library 8.2.0+, EXTERNAL_PAYMENTS added in 8.3.0
+ * Play Billing choice image layout (Android)
+ * Available in Google Play Billing Library 9.1.0+
  */
-export type BillingProgramAndroid = 'unspecified' | 'user-choice-billing' | 'external-content-link' | 'external-offer' | 'external-payments';
+export type BillingChoiceImageLayoutAndroid = 'rectangular-four-by-one' | 'rectangular-three-by-one' | 'rectangular-two-by-two';
+
+/**
+ * Display information for developer-rendered Billing Choice screens (Android)
+ * Available in Google Play Billing Library 9.1.0+
+ */
+export interface BillingChoiceInfoAndroid {
+  /** URL for the Play Billing choice image matching the requested layout. */
+  playBillingChoiceImageUrl: string;
+  /** Play Loyalty information for the user. */
+  playBillingLoyaltyInfo?: (string | null);
+}
+
+/**
+ * Choice screen renderer for Billing Choice availability (Android)
+ * Available in Google Play Billing Library 9.1.0+
+ */
+export type BillingChoiceScreenTypeAndroid = 'unspecified' | 'developer-rendered' | 'google-rendered';
+
+/**
+ * Billing program types for Google Play Billing Programs (Android)
+ * Available in Google Play Billing Library 8.2.0+, EXTERNAL_PAYMENTS added in 8.3.0,
+ * BILLING_CHOICE added in 9.1.0.
+ */
+export type BillingProgramAndroid = 'unspecified' | 'user-choice-billing' | 'external-content-link' | 'external-offer' | 'external-payments' | 'billing-choice';
 
 /**
  * Result of checking billing program availability (Android)
@@ -130,8 +154,26 @@ export type BillingProgramAndroid = 'unspecified' | 'user-choice-billing' | 'ext
 export interface BillingProgramAvailabilityResultAndroid {
   /** The billing program that was checked */
   billingProgram: BillingProgramAndroid;
+  /** Billing Choice screen renderer. Populated only for available BILLING_CHOICE results. */
+  choiceScreenType?: (BillingChoiceScreenTypeAndroid | null);
   /** Whether the billing program is available for the user */
   isAvailable: boolean;
+  /**
+   * Whether external-link payment is available for Billing Choice.
+   * Populated only for available BILLING_CHOICE results.
+   */
+  isExternalLinkAvailable?: (boolean | null);
+}
+
+/**
+ * Parameters for showing a billing program information dialog (Android)
+ * Available in Google Play Billing Library 9.1.0+
+ */
+export interface BillingProgramInformationDialogParamsAndroid {
+  /** Billing program. Currently only BILLING_CHOICE is supported. */
+  billingProgram?: BillingProgramAndroid;
+  /** External transaction token returned by the Billing Choice reporting-details flow. */
+  externalTransactionToken: string;
 }
 
 /**
@@ -192,6 +234,12 @@ export interface DeveloperBillingOptionParamsAndroid {
   /** The URI where the external payment will be processed */
   linkUri: string;
 }
+
+/**
+ * Developer-provided billing destination type for Billing Program reporting details (Android)
+ * Available in Google Play Billing Library 9.1.0+
+ */
+export type DeveloperBillingTypeAndroid = 'developer-billing-type-unspecified' | 'in-app' | 'external-link';
 
 /**
  * Details provided when user selects developer billing option (Android)
@@ -507,6 +555,19 @@ export interface ExternalPurchaseNoticeResultIOS {
 
 export type FetchProductsResult = ProductOrSubscription[] | Product[] | ProductSubscription[] | null;
 
+/**
+ * Parameters for fetching Billing Choice display information (Android)
+ * Available in Google Play Billing Library 9.1.0+
+ */
+export interface GetBillingChoiceInfoParamsAndroid {
+  /** Billing program. Currently only BILLING_CHOICE is supported. */
+  billingProgram?: BillingProgramAndroid;
+  /** Desired Play Billing choice image layout. */
+  playBillingChoiceImageLayout?: BillingChoiceImageLayoutAndroid;
+  /** BCP 47 locale tag. If omitted, Play Billing uses the user's default locale. */
+  userLocale?: (string | null);
+}
+
 export type IapEvent = 'purchase-updated' | 'purchase-error' | 'promoted-product-ios' | 'user-choice-billing-android' | 'developer-provided-billing-android' | 'subscription-billing-issue';
 
 export type IapPlatform = 'ios' | 'android';
@@ -515,6 +576,38 @@ export type IapStore = 'unknown' | 'apple' | 'google' | 'horizon' | 'amazon';
 
 /** Unified purchase states from IAPKit verification response. */
 export type IapkitPurchaseState = 'entitled' | 'pending-acknowledgment' | 'pending' | 'canceled' | 'expired' | 'ready-to-consume' | 'consumed' | 'unknown' | 'inauthentic';
+
+/**
+ * High-level in-app message category (Android)
+ * Available in Google Play Billing Library 4.1.0+
+ */
+export type InAppMessageCategoryAndroid = 'unknown-in-app-message-category-id' | 'transactional';
+
+/**
+ * Parameters for showing Play billing in-app messages (Android)
+ * Available in Google Play Billing Library 4.1.0+
+ */
+export interface InAppMessageParamsAndroid {
+  /** In-app message categories to show. Defaults to transactional messages. */
+  categories?: (InAppMessageCategoryAndroid[] | null);
+}
+
+/**
+ * Response code from Play billing in-app messages (Android)
+ * Available in Google Play Billing Library 4.1.0+
+ */
+export type InAppMessageResponseCodeAndroid = 'no-action-needed' | 'subscription-status-updated';
+
+/**
+ * Result from showing Play billing in-app messages (Android)
+ * Available in Google Play Billing Library 4.1.0+
+ */
+export interface InAppMessageResultAndroid {
+  /** Purchase token returned when a subscription status changed. */
+  purchaseToken?: (string | null);
+  /** Response code for the in-app messaging flow. */
+  responseCode: InAppMessageResponseCodeAndroid;
+}
 
 /** Connection initialization configuration */
 export interface InitConnectionConfig {
@@ -597,7 +690,6 @@ export interface Mutation {
   beginRefundRequestIOS?: Promise<(string | null)>;
   /**
    * Check whether alternative billing is available for the user. Step 1 of the alternative billing flow.
-   *
    * Returns true if available, false otherwise.
    * Throws OpenIapError.NotPrepared if billing client not ready.
    * See: https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android
@@ -617,7 +709,6 @@ export interface Mutation {
    * Create a reporting token for an alternative billing flow. Step 3 of the alternative billing flow.
    * Must be called AFTER successful payment in your payment system.
    * Token must be reported to Google Play backend within 24 hours.
-   *
    * Returns token string, or null if creation failed.
    * Throws OpenIapError.NotPrepared if billing client not ready.
    * See: https://openiap.dev/docs/apis/android/create-alternative-billing-token-android
@@ -626,7 +717,6 @@ export interface Mutation {
   /**
    * Create the reporting payload Google requires after a Developer-Provided Billing transaction (Play Billing 8.3.0+).
    * Replaces the deprecated createExternalOfferReportingDetailsAsync API.
-   *
    * Returns external transaction token needed for reporting external transactions.
    * Throws OpenIapError.NotPrepared if billing client not ready.
    * See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
@@ -655,7 +745,6 @@ export interface Mutation {
   /**
    * Check whether a billing program (e.g., External Payments) is available for the current user.
    * Replaces the deprecated isExternalOfferAvailableAsync API.
-   *
    * Available in Google Play Billing Library 8.2.0+.
    * Returns availability result with isAvailable flag.
    * Throws OpenIapError.NotPrepared if billing client not ready.
@@ -665,7 +754,6 @@ export interface Mutation {
   /**
    * Launch an external content/offer link from inside the Billing Programs flow (Play Billing 8.2.0+).
    * Replaces the deprecated showExternalOfferInformationDialog API.
-   *
    * Shows Play Store dialog and optionally launches external URL.
    * Throws OpenIapError.NotPrepared if billing client not ready.
    * See: https://openiap.dev/docs/apis/android/launch-external-link-android
@@ -711,12 +799,18 @@ export interface Mutation {
   /**
    * Display Google's alternative billing information dialog. Step 2 of the alternative billing flow.
    * Must be called BEFORE processing payment in your payment system.
-   *
    * Returns true if user accepted, false if user canceled.
    * Throws OpenIapError.NotPrepared if billing client not ready.
    * See: https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android
    */
   showAlternativeBillingDialogAndroid: Promise<boolean>;
+  /**
+   * Show Google's information dialog for a Billing Choice external transaction.
+   * Available in Google Play Billing Library 9.1.0+.
+   * Throws OpenIapError.NotPrepared if billing client not ready.
+   * See: https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android
+   */
+  showBillingProgramInformationDialogAndroid: Promise<BillingResultAndroid>;
   /**
    * Present the disclosure sheet required before linking out via ExternalPurchaseCustomLink (iOS 18.1+).
    * Call this after a deliberate customer interaction before linking out to external purchases.
@@ -724,6 +818,14 @@ export interface Mutation {
    * See: https://openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios
    */
   showExternalPurchaseCustomLinkNoticeIOS: Promise<ExternalPurchaseCustomLinkNoticeResultIOS>;
+  /**
+   * Overlay Play billing in-app messages, such as payment issues or subscription price-change confirmations.
+   * Available in Google Play Billing Library 4.1.0+.
+   * Returns a response code and, when the subscription status changes, the related purchase token.
+   * Throws OpenIapError.NotPrepared if billing client not ready.
+   * See: https://openiap.dev/docs/apis/android/show-in-app-messages-android
+   */
+  showInAppMessagesAndroid: Promise<InAppMessageResultAndroid>;
   /**
    * Present the manage-subscriptions sheet and return changed purchases (iOS 15+).
    * See: https://openiap.dev/docs/apis/ios/show-manage-subscriptions-ios
@@ -766,7 +868,11 @@ export type MutationBeginRefundRequestIosArgs = string;
 
 export type MutationConsumePurchaseAndroidArgs = string;
 
-export type MutationCreateBillingProgramReportingDetailsAndroidArgs = BillingProgramAndroid;
+export interface MutationCreateBillingProgramReportingDetailsAndroidArgs {
+  developerBillingType?: (DeveloperBillingTypeAndroid | null);
+  program: BillingProgramAndroid;
+}
+
 
 export type MutationDeepLinkToSubscriptionsArgs = (DeepLinkOptions | null) | undefined;
 
@@ -801,7 +907,11 @@ export type MutationRequestPurchaseArgs =
     };
 
 
+export type MutationShowBillingProgramInformationDialogAndroidArgs = BillingProgramInformationDialogParamsAndroid;
+
 export type MutationShowExternalPurchaseCustomLinkNoticeIosArgs = ExternalPurchaseCustomLinkNoticeTypeIOS;
+
+export type MutationShowInAppMessagesAndroidArgs = (InAppMessageParamsAndroid | null) | undefined;
 
 export type MutationValidateReceiptArgs = VerifyPurchaseProps;
 
@@ -1360,6 +1470,13 @@ export interface Query {
    */
   getAvailablePurchases: Promise<Purchase[]>;
   /**
+   * Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens.
+   * Available in Google Play Billing Library 9.1.0+.
+   * Throws OpenIapError.NotPrepared if billing client is not ready.
+   * See: https://openiap.dev/docs/apis/android/get-billing-choice-info-android
+   */
+  getBillingChoiceInfoAndroid: Promise<BillingChoiceInfoAndroid>;
+  /**
    * Fetch a token for Apple's External Purchase Server reporting API (iOS 18.1+).
    * Use this token to report transactions made through ExternalPurchaseCustomLink.
    * Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)
@@ -1446,6 +1563,8 @@ export type QueryFetchProductsArgs = ProductRequest;
 export type QueryGetActiveSubscriptionsArgs = (string[] | null) | undefined;
 
 export type QueryGetAvailablePurchasesArgs = (PurchaseOptions | null) | undefined;
+
+export type QueryGetBillingChoiceInfoAndroidArgs = GetBillingChoiceInfoParamsAndroid;
 
 export type QueryGetExternalPurchaseCustomLinkTokenIosArgs = ExternalPurchaseCustomLinkTokenTypeIOS;
 
@@ -2235,6 +2354,7 @@ export type QueryArgsMap = {
   getAllTransactionsIOS: never;
   getAppTransactionIOS: never;
   getAvailablePurchases: QueryGetAvailablePurchasesArgs;
+  getBillingChoiceInfoAndroid: QueryGetBillingChoiceInfoAndroidArgs;
   getExternalPurchaseCustomLinkTokenIOS: QueryGetExternalPurchaseCustomLinkTokenIosArgs;
   getPendingTransactionsIOS: never;
   getPromotedProductIOS: never;
@@ -2285,7 +2405,9 @@ export type MutationArgsMap = {
   requestPurchaseOnPromotedProductIOS: never;
   restorePurchases: never;
   showAlternativeBillingDialogAndroid: never;
+  showBillingProgramInformationDialogAndroid: MutationShowBillingProgramInformationDialogAndroidArgs;
   showExternalPurchaseCustomLinkNoticeIOS: MutationShowExternalPurchaseCustomLinkNoticeIosArgs;
+  showInAppMessagesAndroid: MutationShowInAppMessagesAndroidArgs;
   showManageSubscriptionsIOS: never;
   syncIOS: never;
   validateReceipt: MutationValidateReceiptArgs;

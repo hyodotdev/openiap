@@ -1385,9 +1385,27 @@ class HybridRnIap: HybridRnIapSpec {
         }
     }
 
-    func createBillingProgramReportingDetailsAndroid(program: BillingProgramAndroid) throws -> Promise<NitroBillingProgramReportingDetailsAndroid> {
+    func getBillingChoiceInfoAndroid(params: NitroGetBillingChoiceInfoParamsAndroid) throws -> Promise<NitroBillingChoiceInfoAndroid> {
+        return Promise.async {
+            throw OpenIapException.make(code: .featureNotSupported, message: "Billing Choice API is Android-only")
+        }
+    }
+
+    func createBillingProgramReportingDetailsAndroid(program: BillingProgramAndroid, developerBillingType: DeveloperBillingTypeAndroid?) throws -> Promise<NitroBillingProgramReportingDetailsAndroid> {
         return Promise.async {
             throw OpenIapException.make(code: .featureNotSupported, message: "Billing Programs API is Android-only")
+        }
+    }
+
+    func showBillingProgramInformationDialogAndroid(params: NitroBillingProgramInformationDialogParamsAndroid) throws -> Promise<NitroBillingResultAndroid> {
+        return Promise.async {
+            throw OpenIapException.make(code: .featureNotSupported, message: "Billing Choice API is Android-only")
+        }
+    }
+
+    func showInAppMessagesAndroid(params: NitroInAppMessageParamsAndroid?) throws -> Promise<NitroInAppMessageResultAndroid> {
+        return Promise.async {
+            throw OpenIapException.make(code: .featureNotSupported, message: "In-app messages are Android-only")
         }
     }
 

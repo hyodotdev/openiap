@@ -54,6 +54,7 @@ android {
 
     defaultConfig {
         minSdk = googleMinSdk
+        missingDimensionStrategy("platform", "play")
 
         manifestPlaceholders["godotPluginName"] = pluginName
         manifestPlaceholders["godotPluginPackageName"] = pluginPackageName

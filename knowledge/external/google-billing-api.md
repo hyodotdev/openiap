@@ -1,6 +1,6 @@
 # Google Play Billing Library API Reference
 
-> Reference documentation for Google Play Billing Library 8.x
+> Reference documentation for Google Play Billing Library 9.x
 > Adapt all patterns to match OpenIAP internal conventions.
 
 ## Overview
@@ -16,8 +16,15 @@ Google Play Billing Library enables in-app purchases and subscriptions on Androi
 | 8.2 | 2025-12-09 | Billing Programs API (external content links, external offers), deprecates old External Offers API |
 | 8.2.1 | 2025-12-15 | Bug fix for `isBillingProgramAvailableAsync()` and `createBillingProgramReportingDetailsAsync()` |
 | 8.3 | 2025-12-23 | External Payments program (Japan only), developer billing options |
+| 9.0 | 2026-05-19 | Removes older deprecated APIs, reclassifies blocked Play Store activity errors, adds richer sub-response handling, target SDK 35 |
+| 9.1 | 2026-06-18 | Billing Choice APIs: `getBillingChoiceInfoAsync()`, `showBillingProgramInformationDialog()`, choice-screen details |
 
-**Current Version**: 8.3.0 (as of April 2026)
+**Current Version**: 9.1.0 (as of July 2026)
+
+> **OpenIAP audit note**: `packages/google` is pinned to Play Billing 9.1.0.
+> Billing Choice APIs are implemented only in the Play flavor; Horizon and
+> Amazon variants keep unsupported/default behavior for APIs that do not exist
+> in their store SDKs.
 
 ## Core Classes
 
@@ -28,7 +35,11 @@ The main interface for communicating with Google Play Billing.
 ```kotlin
 val billingClient = BillingClient.newBuilder(context)
     .setListener(purchasesUpdatedListener)
-    .enablePendingPurchases()
+    .enablePendingPurchases(
+        PendingPurchasesParams.newBuilder()
+            .enableOneTimeProducts()
+            .build()
+    )
     // New in 8.0: Auto-reconnect on service disconnect
     .enableAutoServiceReconnection()
     .build()
@@ -45,7 +56,8 @@ BillingClient.newBuilder(context)
 
 When enabled, the library automatically re-establishes the connection if an API call is made while disconnected. This reduces `SERVICE_DISCONNECTED` errors.
 
-> **OpenIAP Note**: Auto-reconnection is **always enabled** internally since OpenIAP uses Billing Library 8.3.0+. No configuration needed.
+> **OpenIAP Note**: Auto-reconnection is enabled internally when the Play
+> Billing version exposes the API. No OpenIAP app-level configuration is needed.
 
 ### Connection Management
 
@@ -331,11 +343,11 @@ billingClient.queryPurchasesAsync(params) { billingResult, purchases ->
 
 ```kotlin
 val result = billingClient.launchBillingFlow(activity, params)
-when (result.subResponseCode) {
-    BillingResult.SUB_RESPONSE_CODE_INSUFFICIENT_FUNDS -> {
+when (result.onPurchasesUpdatedSubResponseCode) {
+    BillingClient.OnPurchasesUpdatedSubResponseCode.PAYMENT_DECLINED_DUE_TO_INSUFFICIENT_FUNDS -> {
         // User's payment method has insufficient funds
     }
-    BillingResult.SUB_RESPONSE_CODE_USER_INELIGIBLE -> {
+    BillingClient.OnPurchasesUpdatedSubResponseCode.USER_INELIGIBLE -> {
         // User doesn't meet offer eligibility requirements
     }
 }
@@ -346,6 +358,11 @@ when (result.subResponseCode) {
 | `PAYMENT_DECLINED_DUE_TO_INSUFFICIENT_FUNDS` | User's payment method has insufficient funds |
 | `USER_INELIGIBLE` | User doesn't meet subscription offer eligibility |
 | `NO_APPLICABLE_SUB_RESPONSE_CODE` | No specific sub-code applies |
+
+PBL 9 makes sub-response-code handling part of the migration checklist. It also
+changes blocked Play Store app cases from generic `ERROR` to
+`BILLING_UNAVAILABLE`, with a debug message explaining that Play Store is
+blocked.
 
 ## Subscription Product Replacement (8.1+)
 
@@ -385,10 +402,15 @@ Billing Library 8.3 (December 2025) added support for the External Payments prog
 // During BillingClient setup
 val billingClient = BillingClient.newBuilder(context)
     .setListener(purchasesUpdatedListener)
-    .enablePendingPurchases()
+    .enablePendingPurchases(
+        PendingPurchasesParams.newBuilder()
+            .enableOneTimeProducts()
+            .build()
+    )
     .enableAutoServiceReconnection()
-    .enableDeveloperBillingOption(
-        DeveloperBillingOptionParams.newBuilder()
+    .enableBillingProgram(
+        EnableBillingProgramParams.newBuilder()
+            .setBillingProgram(BillingProgram.EXTERNAL_PAYMENTS)
             .setDeveloperProvidedBillingListener(developerBillingListener)
             .build()
     )
@@ -410,7 +432,12 @@ val developerBillingListener = DeveloperProvidedBillingListener {
 ```kotlin
 val params = BillingFlowParams.newBuilder()
     .setProductDetailsParamsList(listOf(productDetailsParams))
-    .setBillingOption(BillingOption.EXTERNAL_PAYMENTS)  // 8.3+
+    .enableDeveloperBillingOption(
+        DeveloperBillingOptionParams.newBuilder()
+            .setBillingProgram(BillingProgram.EXTERNAL_PAYMENTS)
+            .setDeveloperProvidedBillingDetails(developerProvidedBillingDetails)
+            .build()
+    )
     .build()
 
 billingClient.launchBillingFlow(activity, params)
@@ -427,12 +454,38 @@ billingClient.launchBillingFlow(activity, params)
 
 > **OpenIAP Note**: Exposed through the Android-specific `AlternativeBilling*` surface in OpenIAP. Enrolment with Google Play's External Payments program is required; availability is currently restricted to Japan. The Horizon flavor does NOT implement this.
 
+## Billing Choice (9.1+)
+
+Billing Library 9.1 adds APIs for markets and programs where Google Play shows
+the user a billing choice screen.
+
+| API / Type | Purpose |
+|------------|---------|
+| `BillingClient.getBillingChoiceInfoAsync()` | Fetches billing choices available to the current user |
+| `BillingChoiceInfo` | Contains choice-screen data, including image URLs and loyalty details |
+| `GetBillingChoiceInfoParams` | Configures the billing-choice info request |
+| `BillingClient.showBillingProgramInformationDialog()` | Shows an information dialog for a billing program |
+| `BillingProgramInformationDialogParams` | Configures the information dialog |
+| `ChoiceScreenType` | Selects the choice-screen type |
+
+> **OpenIAP gap**: No GraphQL/OpenIAP surface exists yet for Billing Choice
+> info or billing-program information dialogs. Add schema types and Play-flavor
+> implementations before advertising PBL 9.1 Billing Choice support.
+
+## PBL 9 Migration Guardrails
+
+- Replace removed APIs: `SkuDetails`, `SkuDetailsParams`, `SkuDetailsResponseListener`, `BillingClient.SkuType`, `querySkuDetailsAsync()`, no-argument `enablePendingPurchases()`, and string `queryPurchasesAsync()`.
+- Use `ProductDetails`, `QueryProductDetailsParams`, `BillingClient.ProductType`, parameterized `enablePendingPurchases(PendingPurchasesParams)`, and `queryPurchasesAsync(QueryPurchasesParams, ...)`.
+- Handle `DeveloperProvidedBillingDetails.getLinkUri()` as nullable.
+- Keep Horizon shared code on the Billing 7.0-compatible API subset; put PBL 8/9 code in Play-only sources or behind reflection.
+
 ## Best Practices
 
 1. **Always acknowledge purchases** within 3 days or they will be refunded
 2. **Verify purchases server-side** using Google Play Developer API
 3. **Handle pending purchases** for payment methods that require additional steps
-4. **Auto-reconnect is enabled by default** in OpenIAP (8.0+)
+4. **Auto-reconnect is enabled by default** in OpenIAP when available (8.0+)
 5. **Check product status codes** (8.0+) to understand why products weren't fetched
 6. **Check isSuspended** (8.1+) before granting entitlements
-7. **Cache product details** to avoid repeated queries
+7. **Handle Billing Choice separately** before claiming PBL 9.1 feature coverage
+8. **Cache product details** to avoid repeated queries

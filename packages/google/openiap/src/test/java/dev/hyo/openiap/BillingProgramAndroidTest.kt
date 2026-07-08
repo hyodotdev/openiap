@@ -13,6 +13,7 @@ class BillingProgramAndroidTest {
         assertEquals(BillingProgramAndroid.ExternalContentLink, BillingProgramAndroid.fromJson("external-content-link"))
         assertEquals(BillingProgramAndroid.ExternalOffer, BillingProgramAndroid.fromJson("external-offer"))
         assertEquals(BillingProgramAndroid.ExternalPayments, BillingProgramAndroid.fromJson("external-payments"))
+        assertEquals(BillingProgramAndroid.BillingChoice, BillingProgramAndroid.fromJson("billing-choice"))
     }
 
     @Test
@@ -22,6 +23,7 @@ class BillingProgramAndroidTest {
         assertEquals(BillingProgramAndroid.ExternalContentLink, BillingProgramAndroid.fromJson("ExternalContentLink"))
         assertEquals(BillingProgramAndroid.ExternalOffer, BillingProgramAndroid.fromJson("ExternalOffer"))
         assertEquals(BillingProgramAndroid.ExternalPayments, BillingProgramAndroid.fromJson("ExternalPayments"))
+        assertEquals(BillingProgramAndroid.BillingChoice, BillingProgramAndroid.fromJson("BillingChoice"))
     }
 
     @Test
@@ -38,6 +40,7 @@ class BillingProgramAndroidTest {
         assertEquals("external-content-link", BillingProgramAndroid.ExternalContentLink.toJson())
         assertEquals("external-offer", BillingProgramAndroid.ExternalOffer.toJson())
         assertEquals("external-payments", BillingProgramAndroid.ExternalPayments.toJson())
+        assertEquals("billing-choice", BillingProgramAndroid.BillingChoice.toJson())
     }
 
     @Test

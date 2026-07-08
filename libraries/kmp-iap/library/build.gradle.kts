@@ -339,7 +339,7 @@ android {
 }
 
 dependencies {
-    val playBillingVersion = "8.3.0"
+    val playBillingVersion = "9.1.0"
     add("playImplementation", "io.github.hyochan.openiap:openiap-google:$googleVersion")
     add("horizonImplementation", "io.github.hyochan.openiap:openiap-google-horizon:$googleVersion")
     add("amazonImplementation", "io.github.hyochan.openiap:openiap-google-amazon:$googleVersion")

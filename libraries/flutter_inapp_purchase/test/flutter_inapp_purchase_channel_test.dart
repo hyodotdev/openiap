@@ -83,9 +83,168 @@ void main() {
           (MethodCall call) =>
               call.method == 'createBillingProgramReportingDetailsAndroid',
         );
-        expect(call.arguments, <String, dynamic>{'program': 'external-offer'});
+        expect(call.arguments, <String, dynamic>{
+          'program': 'external-offer',
+          'developerBillingType': null,
+        });
       },
     );
+
+    test(
+      'createBillingProgramReportingDetailsAndroid passes developerBillingType',
+      () async {
+        final calls = <MethodCall>[];
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (MethodCall call) async {
+          calls.add(call);
+          if (call.method == 'createBillingProgramReportingDetailsAndroid') {
+            return jsonEncode(<String, dynamic>{
+              'billingProgram': 'billing-choice',
+              'externalTransactionToken': 'choice-token-123',
+            });
+          }
+          return null;
+        });
+
+        final iap = FlutterInappPurchase.private(
+          FakePlatform(operatingSystem: 'android'),
+        );
+
+        final result = await iap.createBillingProgramReportingDetailsAndroid(
+          types.BillingProgramAndroid.BillingChoice,
+          developerBillingType: types.DeveloperBillingTypeAndroid.ExternalLink,
+        );
+
+        expect(
+            result.billingProgram, types.BillingProgramAndroid.BillingChoice);
+
+        final call = calls.singleWhere(
+          (MethodCall call) =>
+              call.method == 'createBillingProgramReportingDetailsAndroid',
+        );
+        expect(call.arguments, <String, dynamic>{
+          'program': 'billing-choice',
+          'developerBillingType': 'external-link',
+        });
+      },
+    );
+
+    test('getBillingChoiceInfoAndroid returns parsed display info', () async {
+      final calls = <MethodCall>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        calls.add(call);
+        if (call.method == 'getBillingChoiceInfoAndroid') {
+          return jsonEncode(<String, dynamic>{
+            'playBillingChoiceImageUrl': 'https://play.google.com/image.png',
+            'playBillingLoyaltyInfo': 'Gold member',
+          });
+        }
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+
+      final result = await iap.getBillingChoiceInfoAndroid(
+        const types.GetBillingChoiceInfoParamsAndroid(
+          billingProgram: types.BillingProgramAndroid.BillingChoice,
+          playBillingChoiceImageLayout:
+              types.BillingChoiceImageLayoutAndroid.RectangularFourByOne,
+          userLocale: 'en-US',
+        ),
+      );
+
+      expect(result.playBillingChoiceImageUrl,
+          'https://play.google.com/image.png');
+      expect(result.playBillingLoyaltyInfo, 'Gold member');
+
+      final call = calls.singleWhere(
+        (MethodCall call) => call.method == 'getBillingChoiceInfoAndroid',
+      );
+      expect(call.arguments, <String, dynamic>{
+        'billingProgram': 'billing-choice',
+        'playBillingChoiceImageLayout': 'rectangular-four-by-one',
+        'userLocale': 'en-US',
+      });
+    });
+
+    test('showBillingProgramInformationDialogAndroid returns billing result',
+        () async {
+      final calls = <MethodCall>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        calls.add(call);
+        if (call.method == 'showBillingProgramInformationDialogAndroid') {
+          return jsonEncode(<String, dynamic>{
+            'responseCode': 0,
+            'debugMessage': null,
+          });
+        }
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+
+      final result = await iap.showBillingProgramInformationDialogAndroid(
+        const types.BillingProgramInformationDialogParamsAndroid(
+          billingProgram: types.BillingProgramAndroid.BillingChoice,
+          externalTransactionToken: 'choice-token',
+        ),
+      );
+
+      expect(result.responseCode, 0);
+      final call = calls.singleWhere(
+        (MethodCall call) =>
+            call.method == 'showBillingProgramInformationDialogAndroid',
+      );
+      expect(call.arguments, <String, dynamic>{
+        'billingProgram': 'billing-choice',
+        'externalTransactionToken': 'choice-token',
+      });
+    });
+
+    test('showInAppMessagesAndroid returns response code', () async {
+      final calls = <MethodCall>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        calls.add(call);
+        if (call.method == 'showInAppMessagesAndroid') {
+          return jsonEncode(<String, dynamic>{
+            'responseCode': 'subscription-status-updated',
+            'purchaseToken': 'purchase-token',
+          });
+        }
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+
+      final result = await iap.showInAppMessagesAndroid(
+        const types.InAppMessageParamsAndroid(
+          categories: <types.InAppMessageCategoryAndroid>[
+            types.InAppMessageCategoryAndroid.Transactional,
+          ],
+        ),
+      );
+
+      expect(
+        result.responseCode,
+        types.InAppMessageResponseCodeAndroid.SubscriptionStatusUpdated,
+      );
+      expect(result.purchaseToken, 'purchase-token');
+      final call = calls.singleWhere(
+        (MethodCall call) => call.method == 'showInAppMessagesAndroid',
+      );
+      expect(call.arguments, <String, dynamic>{
+        'categories': <String>['transactional'],
+      });
+    });
 
     test(
       'initConnection passes enableBillingProgramAndroid to native channel',

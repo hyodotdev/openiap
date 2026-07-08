@@ -30,7 +30,7 @@ function IsBillingProgramAvailableAndroid() {
           BillingClient.isBillingProgramAvailableAsync(BillingProgram)
         </code>{' '}
         — replaces <code>isExternalOfferAvailableAsync</code>. Play Billing
-        8.2.0+. See the{' '}
+        8.2.0+; Billing Choice-specific fields require 9.1.0+. See the{' '}
         <a
           href="https://developer.android.com/google/play/billing/billing-programs"
           target="_blank"
@@ -123,6 +123,25 @@ Task<BillingProgramAvailabilityResultAndroid> IsBillingProgramAvailableAndroidAs
           </em>{' '}
           — Whether the billing program is available for this user/device.
         </li>
+        <li>
+          <code>choiceScreenType</code>{' '}
+          <em>
+            (
+            <Link to="/docs/types/billing-programs#billing-choice-screen-type-android">
+              <code>BillingChoiceScreenTypeAndroid</code>
+            </Link>
+            <code> | null</code>)
+          </em>{' '}
+          — Populated only for available <code>'billing-choice'</code> results.
+        </li>
+        <li>
+          <code>isExternalLinkAvailable</code>{' '}
+          <em>
+            (<code>boolean | null</code>)
+          </em>{' '}
+          — Whether external-link developer billing is available for Billing
+          Choice.
+        </li>
       </ul>
 
       <h2>Example</h2>
@@ -144,7 +163,11 @@ val result = kmpIAP.isBillingProgramAvailableAndroid(
 import { isBillingProgramAvailableAndroid } from 'expo-iap';
 
 if (Platform.OS === 'android') {
-  const result = await isBillingProgramAvailableAndroid('external-offer');
+  const result = await isBillingProgramAvailableAndroid('billing-choice');
+
+  if (result.choiceScreenType === 'developer-rendered') {
+    // Render your choice screen with getBillingChoiceInfoAndroid().
+  }
 }`}</CodeBlock>
           ),
           dart: (

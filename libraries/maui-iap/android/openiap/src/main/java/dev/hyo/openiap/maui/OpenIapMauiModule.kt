@@ -6,13 +6,17 @@ import android.app.Activity
 import android.content.Context
 import com.google.gson.Gson
 import dev.hyo.openiap.AlternativeBillingMode
+import dev.hyo.openiap.BillingProgramInformationDialogParamsAndroid
 import dev.hyo.openiap.BillingProgramAndroid
 import dev.hyo.openiap.DeepLinkOptions
+import dev.hyo.openiap.DeveloperBillingTypeAndroid
 import dev.hyo.openiap.FetchProductsResult
 import dev.hyo.openiap.FetchProductsResultAll
 import dev.hyo.openiap.FetchProductsResultProducts
 import dev.hyo.openiap.FetchProductsResultSubscriptions
 import dev.hyo.openiap.InitConnectionConfig
+import dev.hyo.openiap.GetBillingChoiceInfoParamsAndroid
+import dev.hyo.openiap.InAppMessageParamsAndroid
 import dev.hyo.openiap.LaunchExternalLinkParamsAndroid
 import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapModule
@@ -217,9 +221,39 @@ class OpenIapMauiModule(context: Context) {
         gson.toJson(module.isBillingProgramAvailable(program).toJson())
     }
 
+    fun getBillingChoiceInfoAndroid(paramsJson: String, callback: ResultCallback) = run(callback) {
+        val params = GetBillingChoiceInfoParamsAndroid.fromJson(parseMap(paramsJson))
+            ?: throw badInput("GetBillingChoiceInfoParamsAndroid")
+        gson.toJson(module.getBillingChoiceInfo(params).toJson())
+    }
+
     fun createBillingProgramReportingDetailsAndroid(programJson: String, callback: ResultCallback) = run(callback) {
         val program = parseProgram(programJson)
         gson.toJson(module.createBillingProgramReportingDetails(program).toJson())
+    }
+
+    fun createBillingProgramReportingDetailsAndroidWithType(
+        programJson: String,
+        developerBillingTypeJson: String?,
+        callback: ResultCallback
+    ) = run(callback) {
+        val program = parseProgram(programJson)
+        val developerBillingType =
+            developerBillingTypeJson?.let { DeveloperBillingTypeAndroid.fromJson(it) }
+        gson.toJson(module.createBillingProgramReportingDetails(program, developerBillingType).toJson())
+    }
+
+    fun showBillingProgramInformationDialogAndroid(paramsJson: String, callback: ResultCallback) = run(callback) {
+        val params = BillingProgramInformationDialogParamsAndroid.fromJson(parseMap(paramsJson))
+            ?: throw badInput("BillingProgramInformationDialogParamsAndroid")
+        val activity = currentActivityOrThrow("showBillingProgramInformationDialogAndroid")
+        gson.toJson(module.showBillingProgramInformationDialog(activity, params).toJson())
+    }
+
+    fun showInAppMessagesAndroid(paramsJson: String?, callback: ResultCallback) = run(callback) {
+        val params = paramsJson?.let { InAppMessageParamsAndroid.fromJson(parseMap(it)) }
+        val activity = currentActivityOrThrow("showInAppMessagesAndroid")
+        gson.toJson(module.showInAppMessages(activity, params).toJson())
     }
 
     fun launchExternalLinkAndroid(paramsJson: String, callback: ResultCallback) = run(callback) {

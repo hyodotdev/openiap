@@ -73,7 +73,17 @@ import {getVegaIapModule, isVegaOS} from './vega';
 // Note: BillingProgramAndroid, ExternalLinkLaunchModeAndroid, and ExternalLinkTypeAndroid
 // are exported from './types' (auto-generated from openiap-gql).
 // Import them here for use in this file's interfaces and functions.
-import type {BillingProgramAndroid} from './types';
+import type {
+  BillingChoiceInfoAndroid,
+  BillingProgramAndroid,
+  BillingProgramInformationDialogParamsAndroid,
+  BillingProgramReportingDetailsAndroid,
+  BillingResultAndroid,
+  DeveloperBillingTypeAndroid,
+  GetBillingChoiceInfoParamsAndroid,
+  InAppMessageParamsAndroid,
+  InAppMessageResultAndroid,
+} from './types';
 
 // Export all types
 export type {
@@ -2925,10 +2935,43 @@ export const isBillingProgramAvailableAndroid: MutationField<
     const result = await IAP.instance.isBillingProgramAvailableAndroid(program);
     return {
       billingProgram: result.billingProgram as unknown as BillingProgramAndroid,
+      choiceScreenType: result.choiceScreenType,
       isAvailable: result.isAvailable,
+      isExternalLinkAvailable: result.isExternalLinkAvailable,
     };
   } catch (error) {
     RnIapConsole.error('Failed to check billing program availability:', error);
+    throw error;
+  }
+};
+
+/**
+ * Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens (Android only).
+ *
+ * @param params - Billing Choice info request parameters
+ * @returns Promise with Play-hosted image URL and optional loyalty information
+ * @platform Android
+ * @since Google Play Billing Library 9.1.0+
+ *
+ * @see {@link https://openiap.dev/docs/apis/android/get-billing-choice-info-android}
+ */
+export const getBillingChoiceInfoAndroid: QueryField<
+  'getBillingChoiceInfoAndroid'
+> = async (
+  params: GetBillingChoiceInfoParamsAndroid,
+): Promise<BillingChoiceInfoAndroid> => {
+  if (Platform.OS !== 'android') {
+    throw new Error('Billing Choice API is only supported on Android');
+  }
+  try {
+    return await IAP.instance.getBillingChoiceInfoAndroid({
+      billingProgram: params.billingProgram ?? 'billing-choice',
+      playBillingChoiceImageLayout:
+        params.playBillingChoiceImageLayout ?? 'rectangular-four-by-one',
+      userLocale: params.userLocale ?? null,
+    });
+  } catch (error) {
+    RnIapConsole.error('Failed to get Billing Choice info:', error);
     throw error;
   }
 };
@@ -2954,15 +2997,32 @@ export const isBillingProgramAvailableAndroid: MutationField<
  *
  * @see {@link https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android}
  */
-export const createBillingProgramReportingDetailsAndroid: MutationField<
-  'createBillingProgramReportingDetailsAndroid'
-> = async (program) => {
+export const createBillingProgramReportingDetailsAndroid = async (
+  programOrArgs:
+    | BillingProgramAndroid
+    | {
+        program: BillingProgramAndroid;
+        developerBillingType?: DeveloperBillingTypeAndroid | null;
+      },
+  developerBillingType?: DeveloperBillingTypeAndroid | null,
+): Promise<BillingProgramReportingDetailsAndroid> => {
   if (Platform.OS !== 'android') {
     throw new Error('Billing Programs API is only supported on Android');
   }
   try {
+    const program =
+      typeof programOrArgs === 'string' ? programOrArgs : programOrArgs.program;
+    const resolvedDeveloperBillingType =
+      typeof programOrArgs === 'string'
+        ? developerBillingType
+        : (programOrArgs.developerBillingType ?? developerBillingType);
     const result =
-      await IAP.instance.createBillingProgramReportingDetailsAndroid(program);
+      resolvedDeveloperBillingType == null
+        ? await IAP.instance.createBillingProgramReportingDetailsAndroid(program)
+        : await IAP.instance.createBillingProgramReportingDetailsAndroid(
+            program,
+            resolvedDeveloperBillingType,
+          );
     return {
       billingProgram: result.billingProgram as unknown as BillingProgramAndroid,
       externalTransactionToken: result.externalTransactionToken,
@@ -2972,6 +3032,64 @@ export const createBillingProgramReportingDetailsAndroid: MutationField<
       'Failed to create billing program reporting details:',
       error,
     );
+    throw error;
+  }
+};
+
+/**
+ * Show Google's information dialog for a Billing Choice external transaction (Android only).
+ *
+ * @param params - Dialog parameters with the external transaction token
+ * @returns Promise with BillingResult
+ * @platform Android
+ * @since Google Play Billing Library 9.1.0+
+ *
+ * @see {@link https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android}
+ */
+export const showBillingProgramInformationDialogAndroid: MutationField<
+  'showBillingProgramInformationDialogAndroid'
+> = async (
+  params: BillingProgramInformationDialogParamsAndroid,
+): Promise<BillingResultAndroid> => {
+  if (Platform.OS !== 'android') {
+    throw new Error('Billing Choice API is only supported on Android');
+  }
+  try {
+    return await IAP.instance.showBillingProgramInformationDialogAndroid({
+      billingProgram: params.billingProgram ?? 'billing-choice',
+      externalTransactionToken: params.externalTransactionToken,
+    });
+  } catch (error) {
+    RnIapConsole.error(
+      'Failed to show Billing Choice information dialog:',
+      error,
+    );
+    throw error;
+  }
+};
+
+/**
+ * Show Play Billing in-app messages, such as transactional subscription updates (Android only).
+ *
+ * @param params - Optional in-app message categories
+ * @returns Promise with in-app message result
+ * @platform Android
+ * @since Google Play Billing Library 4.1.0+
+ *
+ * @see {@link https://openiap.dev/docs/apis/android/show-in-app-messages-android}
+ */
+export const showInAppMessagesAndroid: MutationField<
+  'showInAppMessagesAndroid'
+> = async (
+  params?: InAppMessageParamsAndroid | null,
+): Promise<InAppMessageResultAndroid> => {
+  if (Platform.OS !== 'android') {
+    throw new Error('In-app messages are only supported on Android');
+  }
+  try {
+    return await IAP.instance.showInAppMessagesAndroid(params ?? null);
+  } catch (error) {
+    RnIapConsole.error('Failed to show in-app messages:', error);
     throw error;
   }
 };

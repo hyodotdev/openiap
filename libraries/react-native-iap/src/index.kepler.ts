@@ -293,12 +293,21 @@ export const createAlternativeBillingTokenAndroid: MutationField<
 export const isBillingProgramAvailableAndroid: MutationField<
   'isBillingProgramAvailableAndroid'
 > = async () => unsupported('isBillingProgramAvailableAndroid');
+export const getBillingChoiceInfoAndroid: QueryField<
+  'getBillingChoiceInfoAndroid'
+> = async () => unsupported('getBillingChoiceInfoAndroid');
 export const launchExternalLinkAndroid: MutationField<
   'launchExternalLinkAndroid'
 > = async () => unsupported('launchExternalLinkAndroid');
 export const createBillingProgramReportingDetailsAndroid: MutationField<
   'createBillingProgramReportingDetailsAndroid'
 > = async () => unsupported('createBillingProgramReportingDetailsAndroid');
+export const showBillingProgramInformationDialogAndroid: MutationField<
+  'showBillingProgramInformationDialogAndroid'
+> = async () => unsupported('showBillingProgramInformationDialogAndroid');
+export const showInAppMessagesAndroid: MutationField<
+  'showInAppMessagesAndroid'
+> = async () => unsupported('showInAppMessagesAndroid');
 export const userChoiceBillingListenerAndroid = (): EventSubscription => ({
   remove: () => {},
 });
