@@ -152,6 +152,10 @@ void main() {
             },
             'discountOffers': <Map<String, dynamic>>[
               <String, dynamic>{
+                'id': 'malformed_discount',
+                'offerTokenAndroid': 'bad-token',
+              },
+              <String, dynamic>{
                 'currency': 'USD',
                 'displayPrice': '\$1.99',
                 'id': 'discount_001',
@@ -390,11 +394,8 @@ void main() {
           'token',
         );
         expect(
-          subscription
-              .subscriptionOfferDetailsAndroid
-              .single
-              .installmentPlanDetails
-              ?.commitmentPaymentsCount,
+          subscription.subscriptionOfferDetailsAndroid.single
+              .installmentPlanDetails?.commitmentPaymentsCount,
           12,
         );
         expect(
@@ -654,7 +655,8 @@ void main() {
       },
     );
 
-    test('convertToPurchaseError forwards debugMessage and responseCode '
+    test(
+        'convertToPurchaseError forwards debugMessage and responseCode '
         'from PurchaseResult', () {
       final result = PurchaseResult.fromJSON(<String, dynamic>{
         'responseCode': 5,
