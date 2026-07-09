@@ -1081,8 +1081,9 @@ private extension StoreKitTypesBridge {
         return nil
     }
 
-    static func decimalString(_ value: Decimal) -> String {
-        NSDecimalNumber(decimal: value).stringValue
+    static func decimalString(_ value: Decimal?) -> String? {
+        guard let value else { return nil }
+        return NSDecimalNumber(decimal: value).stringValue
     }
 
     #if compiler(>=6.1)
