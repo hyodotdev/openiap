@@ -71,11 +71,11 @@ suspend fun KmpInAppPurchase.requestPurchase(
 
 private fun FetchProductsResult.asProductList(): List<Product> = when (this) {
     is FetchProductsResultProducts -> value.orEmpty()
-    is FetchProductsResultSubscriptions -> value.orEmpty().mapNotNull(ProductSubscription::toProduct)
+    is FetchProductsResultSubscriptions -> value.orEmpty().mapNotNull(ProductSubscription::toProductForDsl)
     is FetchProductsResultAll -> value.orEmpty().mapNotNull { productOrSubscription ->
         when (productOrSubscription) {
             is ProductOrSubscription.ProductItem -> productOrSubscription.value
-            is ProductOrSubscription.ProductSubscriptionItem -> productOrSubscription.value.toProduct()
+            is ProductOrSubscription.ProductSubscriptionItem -> productOrSubscription.value.toProductForDsl()
         }
     }
 }
@@ -98,11 +98,12 @@ private fun RequestPurchaseResult?.failToFindPurchase(): Nothing =
 
 fun Purchase.toPurchaseInput(): PurchaseInput = this
 
-private fun ProductSubscription.toProduct(): Product = when (this) {
+internal fun ProductSubscription.toProductForDsl(): Product = when (this) {
     is ProductSubscriptionAndroid -> ProductAndroid(
         currency = currency,
         debugDescription = debugDescription,
         description = description,
+        discountOffers = discountOffers,
         displayName = displayName,
         displayPrice = displayPrice,
         id = id,
@@ -110,7 +111,9 @@ private fun ProductSubscription.toProduct(): Product = when (this) {
         oneTimePurchaseOfferDetailsAndroid = oneTimePurchaseOfferDetailsAndroid,
         platform = platform,
         price = price,
+        productStatusAndroid = productStatusAndroid,
         subscriptionOfferDetailsAndroid = subscriptionOfferDetailsAndroid,
+        subscriptionOffers = subscriptionOffers,
         title = title,
         type = type
     )
@@ -126,7 +129,9 @@ private fun ProductSubscription.toProduct(): Product = when (this) {
         jsonRepresentationIOS = jsonRepresentationIOS,
         platform = platform,
         price = price,
+        pricingTermsIOS = pricingTermsIOS,
         subscriptionInfoIOS = subscriptionInfoIOS,
+        subscriptionOffers = subscriptionOffers,
         title = title,
         type = type,
         typeIOS = typeIOS

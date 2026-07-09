@@ -11,20 +11,27 @@ import com.android.billingclient.api.QueryProductDetailsResult
 import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
 import io.github.hyochan.kmpiap.openiap.BillingProgramAndroid
+import io.github.hyochan.kmpiap.openiap.DiscountAmountAndroid
+import io.github.hyochan.kmpiap.openiap.DiscountDisplayInfoAndroid
+import io.github.hyochan.kmpiap.openiap.DiscountOffer
 import io.github.hyochan.kmpiap.openiap.ErrorCode
 import io.github.hyochan.kmpiap.openiap.ExternalLinkLaunchModeAndroid
 import io.github.hyochan.kmpiap.openiap.ExternalLinkTypeAndroid
 import io.github.hyochan.kmpiap.openiap.FetchProductsResult
 import io.github.hyochan.kmpiap.openiap.IapPlatform
 import io.github.hyochan.kmpiap.openiap.IapStore
+import io.github.hyochan.kmpiap.openiap.InstallmentPlanDetailsAndroid
 import io.github.hyochan.kmpiap.openiap.LaunchExternalLinkParamsAndroid
+import io.github.hyochan.kmpiap.openiap.LimitedQuantityInfoAndroid
 import io.github.hyochan.kmpiap.openiap.Product
 import io.github.hyochan.kmpiap.openiap.ProductAndroid
 import io.github.hyochan.kmpiap.openiap.ProductAndroidOneTimePurchaseOfferDetail
 import io.github.hyochan.kmpiap.openiap.ProductRequest
+import io.github.hyochan.kmpiap.openiap.ProductStatusAndroid
 import io.github.hyochan.kmpiap.openiap.ProductSubscriptionAndroid
 import io.github.hyochan.kmpiap.openiap.ProductSubscriptionAndroidOfferDetails
 import io.github.hyochan.kmpiap.openiap.ProductType
+import io.github.hyochan.kmpiap.openiap.PreorderDetailsAndroid
 import io.github.hyochan.kmpiap.openiap.PricingPhaseAndroid
 import io.github.hyochan.kmpiap.openiap.PricingPhasesAndroid
 import io.github.hyochan.kmpiap.openiap.Purchase
@@ -34,7 +41,11 @@ import io.github.hyochan.kmpiap.openiap.DiscountOfferType
 import io.github.hyochan.kmpiap.openiap.PurchaseAndroid
 import io.github.hyochan.kmpiap.openiap.PurchaseError
 import io.github.hyochan.kmpiap.openiap.PurchaseState
+import io.github.hyochan.kmpiap.openiap.RentalDetailsAndroid
+import io.github.hyochan.kmpiap.openiap.SubscriptionPeriod
+import io.github.hyochan.kmpiap.openiap.SubscriptionPeriodUnit
 import io.github.hyochan.kmpiap.openiap.SubscriptionReplacementModeAndroid
+import io.github.hyochan.kmpiap.openiap.ValidTimeWindowAndroid
 import kotlinx.coroutines.flow.MutableSharedFlow
 import com.android.billingclient.api.BillingFlowParams
 import dev.hyo.openiap.BillingProgramAndroid as OpenIapBillingProgram
@@ -261,6 +272,7 @@ internal fun com.android.billingclient.api.Purchase.toPurchase(): Purchase {
 
 internal fun ProductDetails.toProduct(): Product {
     val oneTime = oneTimePurchaseOfferDetails
+    val allOneTimeOffers = runCatching { oneTimePurchaseOfferDetailsList }.getOrNull().orEmpty()
     val offers = subscriptionOfferDetails
 
     val pricingPhase = offers?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()
@@ -281,25 +293,34 @@ internal fun ProductDetails.toProduct(): Product {
         pricingPhase != null -> pricingPhase.priceCurrencyCode
         else -> "USD"
     }
+    val oneTimeOfferDetails = if (allOneTimeOffers.isNotEmpty()) {
+        allOneTimeOffers.map { it.toOfferDetail() }
+    } else {
+        oneTime?.let { listOf(it.toOfferDetail()) }
+    }
+    val discountOffers = if (allOneTimeOffers.isNotEmpty()) {
+        allOneTimeOffers.map { it.toDiscountOffer() }
+    } else {
+        oneTime?.let { listOf(it.toDiscountOffer()) }
+    }
+    val subscriptionOfferDetails = offers?.map { it.toOfferDetail() }
+    val subscriptionOffers = subscriptionOfferDetails?.map { it.toSubscriptionOffer() }
 
     return ProductAndroid(
         currency = currencyCode,
+        debugDescription = description,
         description = description,
+        discountOffers = discountOffers,
+        displayName = name,
         displayPrice = displayPrice,
         id = productId,
         nameAndroid = name,
-        oneTimePurchaseOfferDetailsAndroid = oneTime?.let {
-            listOf(ProductAndroidOneTimePurchaseOfferDetail(
-                formattedPrice = it.formattedPrice,
-                priceAmountMicros = it.priceAmountMicros.toString(),
-                priceCurrencyCode = it.priceCurrencyCode,
-                offerTags = emptyList(),
-                offerToken = ""
-            ))
-        },
+        oneTimePurchaseOfferDetailsAndroid = oneTimeOfferDetails,
         platform = IapPlatform.Android,
         price = priceValue,
-        subscriptionOfferDetailsAndroid = offers?.map { it.toOfferDetail() },
+        productStatusAndroid = getProductStatus(),
+        subscriptionOfferDetailsAndroid = subscriptionOfferDetails,
+        subscriptionOffers = subscriptionOffers,
         title = title,
         type = productType
     )
@@ -312,6 +333,7 @@ internal fun ProductDetails.toSubscriptionProduct(): ProductSubscriptionAndroid?
         currency = product.currency,
         debugDescription = product.debugDescription,
         description = product.description,
+        discountOffers = product.discountOffers,
         displayName = product.displayName,
         displayPrice = product.displayPrice,
         id = product.id,
@@ -319,10 +341,118 @@ internal fun ProductDetails.toSubscriptionProduct(): ProductSubscriptionAndroid?
         oneTimePurchaseOfferDetailsAndroid = product.oneTimePurchaseOfferDetailsAndroid,
         platform = product.platform,
         price = product.price,
+        productStatusAndroid = product.productStatusAndroid,
         subscriptionOfferDetailsAndroid = offers,
         subscriptionOffers = offers.map { it.toSubscriptionOffer() },
         title = product.title,
         type = product.type
+    )
+}
+
+private fun ProductDetails.getProductStatus(): ProductStatusAndroid? = runCatching {
+    val statusMethod = this::class.java.getMethod("getProductStatus")
+    when (statusMethod.invoke(this) as? Int) {
+        0 -> ProductStatusAndroid.Ok
+        1 -> ProductStatusAndroid.NotFound
+        2 -> ProductStatusAndroid.NoOffersAvailable
+        else -> ProductStatusAndroid.Unknown
+    }
+}.getOrNull()
+
+private fun ProductDetails.OneTimePurchaseOfferDetails.toOfferDetail(): ProductAndroidOneTimePurchaseOfferDetail {
+    val discountInfo = runCatching { discountDisplayInfo }.getOrNull()
+
+    return ProductAndroidOneTimePurchaseOfferDetail(
+        discountDisplayInfo = discountInfo?.let { info ->
+            DiscountDisplayInfoAndroid(
+                discountAmount = runCatching { info.discountAmount }.getOrNull()?.let { amount ->
+                    DiscountAmountAndroid(
+                        discountAmountMicros = amount.discountAmountMicros.toString(),
+                        formattedDiscountAmount = amount.formattedDiscountAmount
+                    )
+                },
+                percentageDiscount = runCatching { info.percentageDiscount }.getOrNull()
+            )
+        },
+        formattedPrice = formattedPrice,
+        fullPriceMicros = runCatching { fullPriceMicros?.toString() }.getOrNull(),
+        limitedQuantityInfo = runCatching { limitedQuantityInfo }.getOrNull()?.let { info ->
+            LimitedQuantityInfoAndroid(
+                maximumQuantity = info.maximumQuantity,
+                remainingQuantity = info.remainingQuantity
+            )
+        },
+        offerId = runCatching { offerId }.getOrNull(),
+        offerTags = runCatching { offerTags.orEmpty() }.getOrElse { emptyList() },
+        offerToken = offerToken.orEmpty(),
+        preorderDetailsAndroid = runCatching { preorderDetails }.getOrNull()?.let { details ->
+            PreorderDetailsAndroid(
+                preorderPresaleEndTimeMillis = details.preorderPresaleEndTimeMillis.toString(),
+                preorderReleaseTimeMillis = details.preorderReleaseTimeMillis.toString()
+            )
+        },
+        priceAmountMicros = priceAmountMicros.toString(),
+        priceCurrencyCode = priceCurrencyCode,
+        purchaseOptionId = runCatching { purchaseOptionId }.getOrNull(),
+        rentalDetailsAndroid = runCatching { rentalDetails }.getOrNull()?.let { details ->
+            RentalDetailsAndroid(
+                rentalPeriod = details.rentalPeriod,
+                rentalExpirationPeriod = runCatching { details.rentalExpirationPeriod }.getOrNull()
+            )
+        },
+        validTimeWindow = runCatching { validTimeWindow }.getOrNull()?.let { window ->
+            ValidTimeWindowAndroid(
+                startTimeMillis = window.startTimeMillis.toString(),
+                endTimeMillis = window.endTimeMillis.toString()
+            )
+        }
+    )
+}
+
+private fun ProductDetails.OneTimePurchaseOfferDetails.toDiscountOffer(): DiscountOffer {
+    val discountInfo = runCatching { discountDisplayInfo }.getOrNull()
+
+    return DiscountOffer(
+        id = runCatching { offerId }.getOrNull(),
+        displayPrice = formattedPrice,
+        price = priceAmountMicros.toDouble() / 1_000_000.0,
+        currency = priceCurrencyCode,
+        type = DiscountOfferType.OneTime,
+        offerTokenAndroid = offerToken,
+        offerTagsAndroid = runCatching { offerTags.orEmpty() }.getOrElse { emptyList() },
+        fullPriceMicrosAndroid = runCatching { fullPriceMicros?.toString() }.getOrNull(),
+        percentageDiscountAndroid = runCatching { discountInfo?.percentageDiscount }.getOrNull(),
+        discountAmountMicrosAndroid = runCatching {
+            discountInfo?.discountAmount?.discountAmountMicros?.toString()
+        }.getOrNull(),
+        formattedDiscountAmountAndroid = runCatching {
+            discountInfo?.discountAmount?.formattedDiscountAmount
+        }.getOrNull(),
+        validTimeWindowAndroid = runCatching { validTimeWindow }.getOrNull()?.let { window ->
+            ValidTimeWindowAndroid(
+                startTimeMillis = window.startTimeMillis.toString(),
+                endTimeMillis = window.endTimeMillis.toString()
+            )
+        },
+        limitedQuantityInfoAndroid = runCatching { limitedQuantityInfo }.getOrNull()?.let { info ->
+            LimitedQuantityInfoAndroid(
+                maximumQuantity = info.maximumQuantity,
+                remainingQuantity = info.remainingQuantity
+            )
+        },
+        preorderDetailsAndroid = runCatching { preorderDetails }.getOrNull()?.let { details ->
+            PreorderDetailsAndroid(
+                preorderPresaleEndTimeMillis = details.preorderPresaleEndTimeMillis.toString(),
+                preorderReleaseTimeMillis = details.preorderReleaseTimeMillis.toString()
+            )
+        },
+        rentalDetailsAndroid = runCatching { rentalDetails }.getOrNull()?.let { details ->
+            RentalDetailsAndroid(
+                rentalPeriod = details.rentalPeriod,
+                rentalExpirationPeriod = runCatching { details.rentalExpirationPeriod }.getOrNull()
+            )
+        },
+        purchaseOptionIdAndroid = runCatching { purchaseOptionId }.getOrNull()
     )
 }
 
@@ -332,15 +462,14 @@ internal fun ProductDetails.toSubscriptionProduct(): ProductSubscriptionAndroid?
  */
 internal fun ProductSubscriptionAndroidOfferDetails.toSubscriptionOffer(): SubscriptionOffer {
     val firstPhase = pricingPhases.pricingPhaseList.firstOrNull()
+    val period = firstPhase?.billingPeriod?.let { parseBillingPeriod(it) }
 
     // Determine payment mode from first pricing phase
     val paymentMode = firstPhase?.let {
-        val priceAmount = it.priceAmountMicros.toLongOrNull() ?: 0L
-        when {
-            priceAmount == 0L -> PaymentMode.FreeTrial
-            it.recurrenceMode == 3 -> PaymentMode.PayUpFront  // NON_RECURRING
-            else -> PaymentMode.PayAsYouGo
-        }
+        determinePaymentMode(
+            recurrenceMode = it.recurrenceMode,
+            priceAmountMicros = it.priceAmountMicros.toLongOrNull() ?: 0L
+        )
     }
 
     // Get price from first pricing phase
@@ -367,16 +496,55 @@ internal fun ProductSubscriptionAndroidOfferDetails.toSubscriptionOffer(): Subsc
         currency = currency,
         type = type,
         paymentMode = paymentMode,
+        period = period,
+        periodCount = firstPhase?.billingCycleCount,
         basePlanIdAndroid = basePlanId,
         offerTokenAndroid = offerToken,
         offerTagsAndroid = offerTags,
-        pricingPhasesAndroid = pricingPhases
+        pricingPhasesAndroid = pricingPhases,
+        installmentPlanDetailsAndroid = installmentPlanDetails
     )
 }
 
+private fun parseBillingPeriod(billingPeriod: String): SubscriptionPeriod? {
+    if (billingPeriod.isEmpty()) return null
+
+    val regex = Regex("""P(\d+)([DWMY])""")
+    val match = regex.matchEntire(billingPeriod) ?: return null
+    val value = match.groupValues[1].toIntOrNull() ?: return null
+    val unit = when (match.groupValues[2]) {
+        "D" -> SubscriptionPeriodUnit.Day
+        "W" -> SubscriptionPeriodUnit.Week
+        "M" -> SubscriptionPeriodUnit.Month
+        "Y" -> SubscriptionPeriodUnit.Year
+        else -> SubscriptionPeriodUnit.Unknown
+    }
+    return SubscriptionPeriod(unit = unit, value = value)
+}
+
+private fun determinePaymentMode(
+    recurrenceMode: Int,
+    priceAmountMicros: Long
+): PaymentMode =
+    when {
+        priceAmountMicros == 0L -> PaymentMode.FreeTrial
+        recurrenceMode == 3 -> PaymentMode.PayUpFront
+        recurrenceMode == 2 -> PaymentMode.PayAsYouGo
+        recurrenceMode == 1 -> PaymentMode.PayAsYouGo
+        else -> PaymentMode.Unknown
+    }
+
 internal fun ProductDetails.SubscriptionOfferDetails.toOfferDetail(): ProductSubscriptionAndroidOfferDetails {
+    val installmentDetails = runCatching { installmentPlanDetails }.getOrNull()?.let { details ->
+        InstallmentPlanDetailsAndroid(
+            commitmentPaymentsCount = details.installmentPlanCommitmentPaymentsCount,
+            subsequentCommitmentPaymentsCount = details.subsequentInstallmentPlanCommitmentPaymentsCount
+        )
+    }
+
     return ProductSubscriptionAndroidOfferDetails(
         basePlanId = basePlanId,
+        installmentPlanDetails = installmentDetails,
         offerId = offerId,
         offerTags = offerTags,
         offerToken = offerToken,

@@ -84,6 +84,141 @@ class InAppPurchaseTest {
     }
 
     @Test
+    fun testDslAndroidSubscriptionConversionPreservesProductMetadata() {
+        val installmentPlanDetails = InstallmentPlanDetailsAndroid(
+            commitmentPaymentsCount = 12,
+            subsequentCommitmentPaymentsCount = 0
+        )
+        val pricingPhases = PricingPhasesAndroid(
+            pricingPhaseList = listOf(
+                PricingPhaseAndroid(
+                    billingCycleCount = 1,
+                    billingPeriod = "P1M",
+                    formattedPrice = "$4.99",
+                    priceAmountMicros = "4990000",
+                    priceCurrencyCode = "USD",
+                    recurrenceMode = 2
+                )
+            )
+        )
+        val offerDetails = ProductSubscriptionAndroidOfferDetails(
+            basePlanId = "monthly-base",
+            installmentPlanDetails = installmentPlanDetails,
+            offerId = "intro-offer",
+            offerTags = listOf("intro"),
+            offerToken = "offer-token",
+            pricingPhases = pricingPhases
+        )
+        val subscriptionOffer = SubscriptionOffer(
+            basePlanIdAndroid = "monthly-base",
+            currency = "USD",
+            displayPrice = "$4.99",
+            id = "intro-offer",
+            installmentPlanDetailsAndroid = installmentPlanDetails,
+            offerTagsAndroid = listOf("intro"),
+            offerTokenAndroid = "offer-token",
+            price = 4.99,
+            pricingPhasesAndroid = pricingPhases,
+            type = DiscountOfferType.Introductory
+        )
+        val discountOffer = DiscountOffer(
+            currency = "USD",
+            displayPrice = "$1.99",
+            id = "one-time-offer",
+            offerTokenAndroid = "one-time-token",
+            price = 1.99,
+            type = DiscountOfferType.OneTime
+        )
+        val subscription = ProductSubscriptionAndroid(
+            currency = "USD",
+            debugDescription = "debug payload",
+            description = "Android subscription",
+            discountOffers = listOf(discountOffer),
+            displayName = "Premium monthly",
+            displayPrice = "$4.99",
+            id = "premium_monthly",
+            nameAndroid = "Premium monthly",
+            platform = IapPlatform.Android,
+            price = 4.99,
+            productStatusAndroid = ProductStatusAndroid.NoOffersAvailable,
+            subscriptionOfferDetailsAndroid = listOf(offerDetails),
+            subscriptionOffers = listOf(subscriptionOffer),
+            title = "Premium monthly",
+            type = ProductType.Subs
+        )
+
+        val product = subscription.toProductForDsl() as ProductAndroid
+
+        assertEquals(listOf(discountOffer), product.discountOffers)
+        assertEquals(ProductStatusAndroid.NoOffersAvailable, product.productStatusAndroid)
+        assertEquals(listOf(offerDetails), product.subscriptionOfferDetailsAndroid)
+        assertEquals(listOf(subscriptionOffer), product.subscriptionOffers)
+        assertEquals("debug payload", product.debugDescription)
+    }
+
+    @Test
+    fun testDslIosSubscriptionConversionPreservesProductMetadata() {
+        val period = SubscriptionPeriodValueIOS(
+            unit = SubscriptionPeriodIOS.Month,
+            value = 1
+        )
+        val subscriptionOffer = SubscriptionOffer(
+            currency = "USD",
+            displayPrice = "$0.99",
+            id = "promo-offer",
+            localizedPriceIOS = "$0.99",
+            numberOfPeriodsIOS = 1,
+            periodCount = 1,
+            price = 0.99,
+            type = DiscountOfferType.Promotional
+        )
+        val pricingTerms = SubscriptionPricingTermsIOS(
+            billingDisplayPrice = "$9.99",
+            billingPeriod = period,
+            billingPlanType = SubscriptionBillingPlanTypeIOS.Monthly,
+            billingPrice = 9.99,
+            commitmentInfo = SubscriptionCommitmentInfoIOS(
+                displayPrice = "$9.99",
+                period = period,
+                price = 9.99
+            ),
+            subscriptionOffers = listOf(subscriptionOffer)
+        )
+        val subscriptionInfo = SubscriptionInfoIOS(
+            pricingTerms = listOf(pricingTerms),
+            subscriptionGroupId = "group-id",
+            subscriptionPeriod = period
+        )
+        val subscription = ProductSubscriptionIOS(
+            currency = "USD",
+            debugDescription = "storekit json",
+            description = "iOS subscription",
+            displayName = "Premium monthly",
+            displayNameIOS = "Premium monthly",
+            displayPrice = "$9.99",
+            id = "premium_monthly",
+            introductoryPricePaymentModeIOS = PaymentModeIOS.Empty,
+            isFamilyShareableIOS = true,
+            jsonRepresentationIOS = "{}",
+            platform = IapPlatform.Ios,
+            price = 9.99,
+            pricingTermsIOS = listOf(pricingTerms),
+            subscriptionInfoIOS = subscriptionInfo,
+            subscriptionOffers = listOf(subscriptionOffer),
+            title = "Premium monthly",
+            type = ProductType.Subs,
+            typeIOS = ProductTypeIOS.AutoRenewableSubscription
+        )
+
+        val product = subscription.toProductForDsl() as ProductIOS
+
+        assertEquals(listOf(pricingTerms), product.pricingTermsIOS)
+        assertEquals(subscriptionInfo, product.subscriptionInfoIOS)
+        assertEquals(listOf(subscriptionOffer), product.subscriptionOffers)
+        assertEquals("storekit json", product.debugDescription)
+    }
+
+    @Test
     fun testPurchaseTypes() {
         val purchase = PurchaseAndroid(
             autoRenewingAndroid = false,

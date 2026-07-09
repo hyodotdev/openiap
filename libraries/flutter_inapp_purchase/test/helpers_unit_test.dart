@@ -463,6 +463,62 @@ void main() {
     );
 
     test(
+      'parseProductFromNative preserves Android installment details in fallback subscriptionOffers',
+      () {
+        final product = parseProductFromNative(
+          <String, dynamic>{
+            'platform': 'android',
+            'id': 'premium_yearly',
+            'title': 'Premium Yearly',
+            'description': 'Yearly access',
+            'currency': 'USD',
+            'displayPrice': '\$49.99',
+            'price': 49.99,
+            'subscriptionOfferDetailsAndroid': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'basePlanId': 'base',
+                'installmentPlanDetails': <String, dynamic>{
+                  'commitmentPaymentsCount': 12,
+                  'subsequentCommitmentPaymentsCount': 0,
+                },
+                'offerToken': 'token',
+                'offerTags': <String>['tag'],
+                'pricingPhases': <String, dynamic>{
+                  'pricingPhaseList': <Map<String, dynamic>>[
+                    <String, dynamic>{
+                      'billingCycleCount': 1,
+                      'billingPeriod': 'P1Y',
+                      'formattedPrice': '\$49.99',
+                      'priceAmountMicros': '49990000',
+                      'priceCurrencyCode': 'USD',
+                      'recurrenceMode': 2,
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+          'subs',
+          fallbackIsIOS: false,
+        );
+
+        expect(product, isA<types.ProductSubscriptionAndroid>());
+        final subscription = product as types.ProductSubscriptionAndroid;
+        final offer = subscription.subscriptionOffers.single;
+        expect(
+          offer.installmentPlanDetailsAndroid?.commitmentPaymentsCount,
+          12,
+        );
+        expect(offer.period?.unit, types.SubscriptionPeriodUnit.Year);
+        expect(offer.period?.value, 1);
+        expect(offer.periodCount, 1);
+        expect(
+            offer.pricingPhasesAndroid?.pricingPhaseList.single.billingPeriod,
+            'P1Y');
+      },
+    );
+
+    test(
       'parseProductFromNative builds Android in-app with one-time offer list',
       () {
         final product = parseProductFromNative(

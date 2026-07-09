@@ -865,6 +865,8 @@ List<gentype.SubscriptionOffer> _parseSubscriptionOffers(
   return offerDetails.map((offer) {
     // Determine payment mode and price from first pricing phase
     gentype.PaymentMode? paymentMode;
+    gentype.SubscriptionPeriod? period;
+    int? periodCount;
     String displayPrice = '';
     double price = 0;
     String? currency;
@@ -873,6 +875,8 @@ List<gentype.SubscriptionOffer> _parseSubscriptionOffers(
       final firstPhase = offer.pricingPhases.pricingPhaseList.first;
       final priceAmountMicros = int.tryParse(firstPhase.priceAmountMicros) ?? 0;
       final recurrenceMode = firstPhase.recurrenceMode;
+      period = _parseBillingPeriod(firstPhase.billingPeriod);
+      periodCount = firstPhase.billingCycleCount;
 
       if (priceAmountMicros == 0) {
         paymentMode = gentype.PaymentMode.FreeTrial;
@@ -903,12 +907,31 @@ List<gentype.SubscriptionOffer> _parseSubscriptionOffers(
       currency: currency,
       type: type,
       paymentMode: paymentMode,
+      period: period,
+      periodCount: periodCount,
       basePlanIdAndroid: offer.basePlanId,
+      installmentPlanDetailsAndroid: offer.installmentPlanDetails,
       offerTokenAndroid: offer.offerToken,
       offerTagsAndroid: offer.offerTags,
       pricingPhasesAndroid: offer.pricingPhases,
     );
   }).toList();
+}
+
+gentype.SubscriptionPeriod? _parseBillingPeriod(String billingPeriod) {
+  final match = RegExp(r'^P(\d+)([DWMY])$').firstMatch(billingPeriod);
+  if (match == null) return null;
+  final value = int.tryParse(match.group(1) ?? '');
+  if (value == null) return null;
+
+  final unit = switch (match.group(2)) {
+    'D' => gentype.SubscriptionPeriodUnit.Day,
+    'W' => gentype.SubscriptionPeriodUnit.Week,
+    'M' => gentype.SubscriptionPeriodUnit.Month,
+    'Y' => gentype.SubscriptionPeriodUnit.Year,
+    _ => gentype.SubscriptionPeriodUnit.Unknown,
+  };
+  return gentype.SubscriptionPeriod(unit: unit, value: value);
 }
 
 gentype.SubscriptionPeriodIOS? _parseSubscriptionPeriod(dynamic value) {
