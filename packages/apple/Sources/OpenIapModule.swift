@@ -2129,18 +2129,18 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         let appVersion = transaction.appVersion
         let appId = transaction.appID.map(Double.init) ?? 0
         
-        // iOS 18.4+ properties - only compile with Xcode 16.4+ (Swift 6.1+)
+        // iOS 18.4+ properties - only compile with Xcode 16.4+ (Swift 6.1 compiler+)
         // This prevents build failures on Xcode 16.3 and below
         var appTransactionId: String? = nil
         var originalPlatformValue: String? = nil
 
-        // Swift 6.1+ (Xcode 16.4+): AppTransaction.appTransactionID and originalPlatform available
-        #if swift(>=6.1)
-        if #available(iOS 18.4, *) {
+        // Swift 6.1 compiler+ (Xcode 16.4+): AppTransaction.appTransactionID and originalPlatform available
+        #if compiler(>=6.1)
+        if #available(iOS 18.4, macOS 15.4, tvOS 18.4, watchOS 11.4, visionOS 2.4, *) {
             appTransactionId = String(transaction.appTransactionID)
             originalPlatformValue = transaction.originalPlatform.rawValue
         }
-        #endif // swift(>=6.1)
+        #endif // compiler(>=6.1)
         
         return AppTransaction(
             appId: appId,

@@ -269,24 +269,7 @@ enum StoreKitTypesBridge {
                         // Only return pendingUpgradeProductId if it's different from current
                         return info.autoRenewPreference != current ? info.autoRenewPreference : nil
                     }()
-                    let offerInfo: (id: String?, type: String?)?
-                    #if swift(>=6.1)
-                    if #available(iOS 18.0, macOS 15.0, *) {
-                        // Map type only when present to avoid "nil" literal strings
-                        let offerTypeString = info.offer.map { String(describing: $0.type) }
-                        offerInfo = (id: info.offer?.id, type: offerTypeString)
-                    } else {
-                    #endif
-                        // Fallback to deprecated properties
-                        #if compiler(>=5.9)
-                        let offerTypeString = info.offerType.map { String(describing: $0) }
-                        offerInfo = (id: info.offerID, type: offerTypeString)
-                        #else
-                        offerInfo = nil
-                        #endif
-                    #if swift(>=6.1)
-                    }
-                    #endif
+                    let offerInfo = renewalOfferInfoIOS(from: info)
                     // priceIncreaseStatus only available on iOS 15.0+
                     let priceIncrease: String? = {
                         if #available(iOS 15.0, macOS 12.0, *) {
@@ -323,24 +306,7 @@ enum StoreKitTypesBridge {
                         guard let current = currentProductId else { return nil }
                         return info.autoRenewPreference != current ? info.autoRenewPreference : nil
                     }()
-                    let offerInfo: (id: String?, type: String?)?
-                    #if swift(>=6.1)
-                    if #available(iOS 18.0, macOS 15.0, *) {
-                        // Map type only when present to avoid "nil" literal strings
-                        let offerTypeString = info.offer.map { String(describing: $0.type) }
-                        offerInfo = (id: info.offer?.id, type: offerTypeString)
-                    } else {
-                    #endif
-                        // Fallback to deprecated properties
-                        #if compiler(>=5.9)
-                        let offerTypeString = info.offerType.map { String(describing: $0) }
-                        offerInfo = (id: info.offerID, type: offerTypeString)
-                        #else
-                        offerInfo = nil
-                        #endif
-                    #if swift(>=6.1)
-                    }
-                    #endif
+                    let offerInfo = renewalOfferInfoIOS(from: info)
                     // priceIncreaseStatus only available on iOS 15.0+
                     let priceIncrease: String? = {
                         if #available(iOS 15.0, macOS 12.0, *) {
@@ -408,7 +374,7 @@ enum StoreKitTypesBridge {
         if let subscriptionProps = props as? RequestSubscriptionIosProps {
             // Billing plan selection for annual subscriptions with monthly commitment (iOS 26.4+)
             if let billingPlanType = subscriptionProps.billingPlanType {
-                #if swift(>=6.3)
+                #if compiler(>=6.3)
                 if #available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *) {
                     switch billingPlanType {
                     case .monthly:
@@ -433,7 +399,7 @@ enum StoreKitTypesBridge {
                 throw PurchaseError.make(
                     code: .featureNotSupported,
                     productId: props.sku,
-                    message: "billingPlanType requires Xcode 26.4+ / Swift 6.3+."
+                    message: "billingPlanType requires Xcode 26.4+ / Swift 6.3 compiler+."
                 )
                 #endif
             }
@@ -487,38 +453,43 @@ enum StoreKitTypesBridge {
 
             // JWS Promotional Offer (iOS 15+, WWDC 2025)
             // New signature format using compact JWS string for promotional offers
-            // Back-deployed to iOS 15, but requires Xcode 16.4+ / Swift 6.1+ to compile
+            // Back-deployed to iOS 15, but requires Xcode 26+ / Swift 6.3 compiler+ to compile.
             if let jwsOffer = subscriptionProps.promotionalOfferJWS {
-                #if swift(>=6.1)
-                // Swift 6.1+ implementation
-                options.insert(.promotionalOffer(compactJWS: jwsOffer.jws))
+                #if compiler(>=6.3)
+                // Swift 6.3 compiler+ implementation
+                options.formUnion(
+                    StoreKit.Product.PurchaseOption.promotionalOffer(
+                        jwsOffer.offerId,
+                        compactJWS: jwsOffer.jws
+                    )
+                )
                 OpenIapLog.debug("✅ Added JWS promotional offer: \(jwsOffer.offerId)")
                 #else
-                // Swift < 6.1: API not available, throw error to fail fast
-                OpenIapLog.error("❌ JWS promotional offers require Xcode 16.4+ / Swift 6.1+")
+                // Swift compiler < 6.3: API not available, throw error to fail fast.
+                OpenIapLog.error("❌ JWS promotional offers require Xcode 26+ / Swift 6.3 compiler+")
                 throw PurchaseError.make(
                     code: .developerError,
                     productId: props.sku,
-                    message: "JWS promotional offers require Xcode 16.4+ / Swift 6.1+. Use withOffer with signature-based promotional offers instead."
+                    message: "JWS promotional offers require Xcode 26+ / Swift 6.3 compiler+. Use withOffer with signature-based promotional offers instead."
                 )
                 #endif
             }
 
             // Introductory Offer Eligibility Override (iOS 15+, WWDC 2025)
             // Allows overriding the system's eligibility check with a server-signed JWS
-            // Back-deployed to iOS 15, but requires Xcode 16.4+ / Swift 6.1+ to compile
+            // Back-deployed to iOS 15, but requires Xcode 16.4+ / Swift 6.1 compiler+ to compile.
             if let compactJWS = subscriptionProps.compactJWS {
-                #if swift(>=6.1)
-                // Swift 6.1+ implementation
+                #if compiler(>=6.1)
+                // Swift 6.1 compiler+ implementation
                 options.insert(.introductoryOfferEligibility(compactJWS: compactJWS))
                 OpenIapLog.debug("✅ Added introductory offer eligibility override")
                 #else
-                // Swift < 6.1: API not available, throw error to fail fast
-                OpenIapLog.error("❌ Introductory offer eligibility override requires Xcode 16.4+ / Swift 6.1+")
+                // Swift compiler < 6.1: API not available, throw error to fail fast.
+                OpenIapLog.error("❌ Introductory offer eligibility override requires Xcode 16.4+ / Swift 6.1 compiler+")
                 throw PurchaseError.make(
                     code: .developerError,
                     productId: props.sku,
-                    message: "Introductory offer eligibility override requires Xcode 16.4+ / Swift 6.1+. The system will determine eligibility automatically."
+                    message: "Introductory offer eligibility override requires Xcode 16.4+ / Swift 6.1 compiler+. The system will determine eligibility automatically."
                 )
                 #endif
             }
@@ -560,8 +531,24 @@ enum StoreKitTypesBridge {
         #endif
     }
 
+    static func renewalOfferInfoIOS(from info: StoreKit.Product.SubscriptionInfo.RenewalInfo) -> (id: String?, type: String?)? {
+        #if compiler(>=6.1)
+        if #available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *) {
+            let offerTypeString = info.offer.map { String(describing: $0.type) }
+            return (id: info.offer?.id, type: offerTypeString)
+        }
+        #endif
+
+        #if compiler(>=5.9)
+        let offerTypeString = info.offerType.map { String(describing: $0) }
+        return (id: info.offerID, type: offerTypeString)
+        #else
+        return nil
+        #endif
+    }
+
     static func renewalCommitmentInfoIOS(from info: StoreKit.Product.SubscriptionInfo.RenewalInfo) -> RenewalCommitmentInfoIOS? {
-        #if swift(>=6.3)
+        #if compiler(>=6.3)
         if #available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *) {
             guard let commitment = info.commitmentInfo else { return nil }
             return RenewalCommitmentInfoIOS(
@@ -585,7 +572,7 @@ enum StoreKitTypesBridge {
     }
 
     static func renewalBillingPlanTypeIOS(from info: StoreKit.Product.SubscriptionInfo.RenewalInfo) -> SubscriptionBillingPlanTypeIOS? {
-        #if swift(>=6.3)
+        #if compiler(>=6.3)
         if #available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *) {
             return info.renewalBillingPlanType.map { billingPlanTypeIOS(from: $0) }
         }
@@ -633,7 +620,7 @@ private extension StoreKitTypesBridge {
 
     static func makeSubscriptionPricingTerms(from info: StoreKit.Product.SubscriptionInfo?) -> [SubscriptionPricingTermsIOS]? {
         guard let info else { return nil }
-        #if swift(>=6.3)
+        #if compiler(>=6.3)
         if #available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *) {
             let terms = info.pricingTerms.map { makeSubscriptionPricingTerm(from: $0) }
             return terms.isEmpty ? nil : terms
@@ -642,7 +629,7 @@ private extension StoreKitTypesBridge {
         return nil
     }
 
-    #if swift(>=6.3)
+    #if compiler(>=6.3)
     @available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *)
     static func makeSubscriptionPricingTerm(from terms: StoreKit.Product.SubscriptionInfo.PricingTerms) -> SubscriptionPricingTermsIOS {
         let offers = terms.subscriptionOffers.map { offer in
@@ -669,7 +656,7 @@ private extension StoreKitTypesBridge {
     }
     #endif
 
-    #if swift(>=6.3)
+    #if compiler(>=6.3)
     @available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *)
     static func billingPlanTypeIOS(from type: StoreKit.Product.SubscriptionInfo.BillingPlanType) -> SubscriptionBillingPlanTypeIOS {
         if type == .monthly {
@@ -683,7 +670,7 @@ private extension StoreKitTypesBridge {
     #endif
 
     static func billingPlanTypeIOS(from transaction: StoreKit.Transaction) -> SubscriptionBillingPlanTypeIOS? {
-        #if swift(>=6.3)
+        #if compiler(>=6.3)
         if #available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *) {
             return transaction.billingPlanType.map { billingPlanTypeIOS(from: $0) }
         }
@@ -692,7 +679,7 @@ private extension StoreKitTypesBridge {
     }
 
     static func transactionCommitmentInfoIOS(from transaction: StoreKit.Transaction) -> TransactionCommitmentInfoIOS? {
-        #if swift(>=6.3)
+        #if compiler(>=6.3)
         if #available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *) {
             guard let commitment = transaction.commitmentInfo else { return nil }
             return TransactionCommitmentInfoIOS(
@@ -756,7 +743,7 @@ private extension StoreKitTypesBridge {
     }
 
     static func discountOfferType(from offer: StoreKit.Product.SubscriptionOffer) -> DiscountOfferType {
-        #if swift(>=6.1)
+        #if compiler(>=6.1)
         if #available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *) {
             return offer.type == .introductory ? .introductory : .promotional
         }
@@ -1059,16 +1046,16 @@ private extension StoreKitTypesBridge {
     // MARK: - Advanced Commerce Info (iOS 18.4+)
 
     static func extractAdvancedCommerceInfo(from transaction: StoreKit.Transaction) -> AdvancedCommerceInfoIOS? {
-        #if swift(>=6.1)
+        #if compiler(>=6.1)
         if #available(iOS 18.4, macOS 15.4, tvOS 18.4, watchOS 11.4, visionOS 2.4, *) {
             guard let info = transaction.advancedCommerceInfo else { return nil }
             let items: [AdvancedCommerceItemIOS] = info.items.map { item in
                 let details = AdvancedCommerceItemDetailsIOS(
-                    jsonRepresentation: String(data: item.details.jsonRepresentation, encoding: .utf8)
+                    jsonRepresentation: advancedCommerceDetailsJSON(from: item.details)
                 )
                 let refunds: [AdvancedCommerceRefundIOS]? = item.refunds?.map { refund in
                     AdvancedCommerceRefundIOS(
-                        jsonRepresentation: String(data: refund.jsonRepresentation, encoding: .utf8)
+                        jsonRepresentation: advancedCommerceRefundJSON(from: refund)
                     )
                 }
                 return AdvancedCommerceItemIOS(
@@ -1080,16 +1067,72 @@ private extension StoreKitTypesBridge {
             return AdvancedCommerceInfoIOS(
                 description: info.description,
                 displayName: info.displayName,
-                estimatedTax: info.estimatedTax.map { "\($0)" },
+                estimatedTax: decimalString(info.estimatedTax),
                 items: items,
                 requestReferenceId: info.requestReferenceID,
                 taxCode: info.taxCode,
-                taxExclusivePrice: info.taxExclusivePrice.map { "\($0)" },
-                taxRate: info.taxRate.map { "\($0)" }
+                taxExclusivePrice: decimalString(info.taxExclusivePrice),
+                taxRate: decimalString(info.taxRate)
             )
         }
         #endif
         return nil
+    }
+
+    static func decimalString(_ value: Decimal) -> String {
+        NSDecimalNumber(decimal: value).stringValue
+    }
+
+    #if compiler(>=6.1)
+    @available(iOS 18.4, macOS 15.4, tvOS 18.4, watchOS 11.4, visionOS 2.4, *)
+    static func advancedCommerceDetailsJSON(from details: StoreKit.Transaction.AdvancedCommerceInfo.Item.Details) -> String? {
+        let offer = details.offer.map { offer in
+            [
+                "period": offer.period.iso8601,
+                "periodCount": offer.periodCount,
+                "price": decimalString(offer.price),
+                "reason": offer.reason.rawValue,
+            ] as [String: Any?]
+        }
+
+        return compactJSONString(from: [
+            "description": details.description,
+            "displayName": details.displayName,
+            "offer": offer,
+            "price": decimalString(details.price),
+            "sku": details.sku,
+        ])
+    }
+
+    @available(iOS 18.4, macOS 15.4, tvOS 18.4, watchOS 11.4, visionOS 2.4, *)
+    static func advancedCommerceRefundJSON(from refund: StoreKit.Transaction.AdvancedCommerceInfo.Refund) -> String? {
+        compactJSONString(from: [
+            "amount": decimalString(refund.amount),
+            "date": refund.date.milliseconds,
+            "reason": refund.reason.rawValue,
+            "type": refund.type.rawValue,
+        ])
+    }
+    #endif
+
+    static func compactJSONString(from object: [String: Any?]) -> String? {
+        let compacted = compactJSONDictionary(object)
+        guard JSONSerialization.isValidJSONObject(compacted),
+              let data = try? JSONSerialization.data(withJSONObject: compacted, options: [.sortedKeys]) else {
+            return nil
+        }
+        return String(data: data, encoding: .utf8)
+    }
+
+    static func compactJSONDictionary(_ object: [String: Any?]) -> [String: Any] {
+        object.reduce(into: [String: Any]()) { result, entry in
+            guard let value = entry.value else { return }
+            if let dictionary = value as? [String: Any?] {
+                result[entry.key] = compactJSONDictionary(dictionary)
+            } else {
+                result[entry.key] = value
+            }
+        }
     }
 }
 
