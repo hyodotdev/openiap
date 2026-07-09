@@ -99,12 +99,14 @@ enum RnIapHelper {
     // MARK: - JSON serialization helpers
 
     static func serializeToJSON(_ array: [[String: Any]]) -> String? {
-        guard let jsonData = try? JSONSerialization.data(withJSONObject: array, options: []) else { return nil }
+        guard JSONSerialization.isValidJSONObject(array),
+              let jsonData = try? JSONSerialization.data(withJSONObject: array, options: []) else { return nil }
         return String(data: jsonData, encoding: .utf8)
     }
 
     static func serializeToJSON(_ dict: [String: Any]) -> String? {
-        guard let jsonData = try? JSONSerialization.data(withJSONObject: dict, options: []) else { return nil }
+        guard JSONSerialization.isValidJSONObject(dict),
+              let jsonData = try? JSONSerialization.data(withJSONObject: dict, options: []) else { return nil }
         return String(data: jsonData, encoding: .utf8)
     }
 
