@@ -577,11 +577,16 @@ List<T>? _parseGeneratedList<T>(
   dynamic value,
   T Function(Map<String, dynamic>) fromJson,
 ) {
+  if (value is List<T>) return value.isEmpty ? null : value;
   final list = _parseNativeList(value);
   if (list == null) return null;
 
   final parsed = <T>[];
   for (final item in list) {
+    if (item is T) {
+      parsed.add(item);
+      continue;
+    }
     final map = normalizeDynamicMap(item);
     if (map == null) continue;
     try {
@@ -609,6 +614,7 @@ List<gentype.SubscriptionOffer>? _parseStandardizedSubscriptionOffers(
 
 gentype.ProductStatusAndroid? _parseProductStatusAndroid(dynamic value) {
   if (value == null) return null;
+  if (value is gentype.ProductStatusAndroid) return value;
   try {
     return gentype.ProductStatusAndroid.fromJson(value.toString());
   } catch (_) {
@@ -619,6 +625,7 @@ gentype.ProductStatusAndroid? _parseProductStatusAndroid(dynamic value) {
 gentype.InstallmentPlanDetailsAndroid? _parseInstallmentPlanDetailsAndroid(
   dynamic value,
 ) {
+  if (value is gentype.InstallmentPlanDetailsAndroid) return value;
   final map = normalizeDynamicMap(value);
   if (map == null) return null;
   return gentype.InstallmentPlanDetailsAndroid(

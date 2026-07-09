@@ -146,7 +146,7 @@ enum RnIapHelper {
         }
 
         var pricingTermsIOS: Variant_NullType_String? = nil
-        if let pricingTermsArray = dictionary["pricingTermsIOS"] as? [[String: Any]] {
+        if let pricingTermsArray = dictionary["pricingTermsIOS"] as? [[String: Any]], !pricingTermsArray.isEmpty {
             if let json = serializeToJSON(pricingTermsArray) {
                 pricingTermsIOS = .second(json)
             } else {
@@ -155,7 +155,7 @@ enum RnIapHelper {
         }
 
         var subscriptionInfoIOS: Variant_NullType_String? = nil
-        if let subscriptionInfo = dictionary["subscriptionInfoIOS"] as? [String: Any] {
+        if let subscriptionInfo = dictionary["subscriptionInfoIOS"] as? [String: Any], !subscriptionInfo.isEmpty {
             if let json = serializeToJSON(subscriptionInfo) {
                 subscriptionInfoIOS = .second(json)
             } else {

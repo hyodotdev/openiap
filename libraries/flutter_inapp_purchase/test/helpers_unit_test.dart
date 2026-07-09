@@ -150,7 +150,15 @@ void main() {
               'priceAmountMicros': '2990000',
               'priceCurrencyCode': 'USD',
             },
-            'discountOffers': <Map<String, dynamic>>[
+            'discountOffers': <dynamic>[
+              const types.DiscountOffer(
+                currency: 'USD',
+                displayPrice: '\$0.99',
+                id: 'typed_discount',
+                offerTokenAndroid: 'typed-token',
+                price: 0.99,
+                type: types.DiscountOfferType.OneTime,
+              ),
               <String, dynamic>{
                 'id': 'malformed_discount',
                 'offerTokenAndroid': 'bad-token',
@@ -164,7 +172,7 @@ void main() {
                 'type': 'one-time',
               },
             ],
-            'productStatusAndroid': 'ok',
+            'productStatusAndroid': types.ProductStatusAndroid.Ok,
           },
           'inapp',
           fallbackIsIOS: false,
@@ -176,9 +184,13 @@ void main() {
         expect(androidProduct.platform, types.IapPlatform.Android);
         expect(androidProduct.price, closeTo(2.99, 0.0001));
         expect(androidProduct.oneTimePurchaseOfferDetailsAndroid, isNotNull);
-        expect(androidProduct.discountOffers, hasLength(1));
+        expect(androidProduct.discountOffers, hasLength(2));
         expect(
           androidProduct.discountOffers!.first.offerTokenAndroid,
+          'typed-token',
+        );
+        expect(
+          androidProduct.discountOffers![1].offerTokenAndroid,
           'discount-token',
         );
         expect(
