@@ -534,17 +534,19 @@ enum StoreKitTypesBridge {
     static func renewalOfferInfoIOS(from info: StoreKit.Product.SubscriptionInfo.RenewalInfo) -> (id: String?, type: String?)? {
         #if compiler(>=6.1)
         if #available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *) {
-            let offerTypeString = info.offer.map { String(describing: $0.type) }
-            return (id: info.offer?.id, type: offerTypeString)
+            if let offer = info.offer {
+                return (id: offer.id, type: String(describing: offer.type))
+            }
         }
         #endif
 
         #if compiler(>=5.9)
         let offerTypeString = info.offerType.map { String(describing: $0) }
-        return (id: info.offerID, type: offerTypeString)
-        #else
-        return nil
+        if info.offerID != nil || offerTypeString != nil {
+            return (id: info.offerID, type: offerTypeString)
+        }
         #endif
+        return nil
     }
 
     static func renewalCommitmentInfoIOS(from info: StoreKit.Product.SubscriptionInfo.RenewalInfo) -> RenewalCommitmentInfoIOS? {
@@ -1129,6 +1131,8 @@ private extension StoreKitTypesBridge {
             guard let value = entry.value else { return }
             if let dictionary = value as? [String: Any?] {
                 result[entry.key] = compactJSONDictionary(dictionary)
+            } else if let array = value as? [[String: Any?]] {
+                result[entry.key] = array.map { compactJSONDictionary($0) }
             } else {
                 result[entry.key] = value
             }
