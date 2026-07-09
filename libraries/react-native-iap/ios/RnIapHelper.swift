@@ -155,7 +155,9 @@ enum RnIapHelper {
         }
 
         var subscriptionInfoIOS: Variant_NullType_String? = nil
-        if let subscriptionInfo = dictionary["subscriptionInfoIOS"] as? [String: Any], !subscriptionInfo.isEmpty {
+        let subscriptionInfoDict = dictionary["subscriptionInfoIOS"] as? [String: Any]
+            ?? dictionary["subscription"] as? [String: Any]
+        if let subscriptionInfo = subscriptionInfoDict, !subscriptionInfo.isEmpty {
             if let json = serializeToJSON(subscriptionInfo) {
                 subscriptionInfoIOS = .second(json)
             } else {

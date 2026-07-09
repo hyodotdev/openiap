@@ -285,7 +285,8 @@ export function convertNitroProductToProduct(
 
     if (nitroProduct.pricingTermsIOS) {
       try {
-        iosProduct.pricingTermsIOS = JSON.parse(nitroProduct.pricingTermsIOS);
+        const parsed = JSON.parse(nitroProduct.pricingTermsIOS);
+        iosProduct.pricingTermsIOS = Array.isArray(parsed) ? parsed : null;
       } catch {
         iosProduct.pricingTermsIOS = null;
       }
@@ -295,9 +296,11 @@ export function convertNitroProductToProduct(
 
     if (nitroProduct.subscriptionInfoIOS) {
       try {
-        iosProduct.subscriptionInfoIOS = JSON.parse(
-          nitroProduct.subscriptionInfoIOS,
-        );
+        const parsed = JSON.parse(nitroProduct.subscriptionInfoIOS);
+        iosProduct.subscriptionInfoIOS =
+          typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+            ? parsed
+            : null;
       } catch {
         iosProduct.subscriptionInfoIOS = null;
       }

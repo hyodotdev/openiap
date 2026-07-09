@@ -179,6 +179,27 @@ describe('type-bridge utilities', () => {
       expect(result.subscriptionOffers[1].type).toBe('promotional');
     });
 
+    it('rejects invalid iOS metadata JSON shapes', () => {
+      const nitroProduct: NitroProduct = {
+        id: 'com.example.ios.invalid',
+        title: 'Invalid Metadata',
+        description: 'Invalid metadata subscription',
+        type: 'subs',
+        displayPrice: '$4.99',
+        currency: 'USD',
+        price: 4.99,
+        platform: 'ios',
+        typeIOS: 'autoRenewableSubscription',
+        pricingTermsIOS: JSON.stringify({billingPlanType: 'monthly'}),
+        subscriptionInfoIOS: JSON.stringify([{subscriptionGroupId: 'group'}]),
+      } as NitroProduct;
+
+      const result = convertNitroProductToProduct(nitroProduct) as any;
+
+      expect(result.pricingTermsIOS).toBeNull();
+      expect(result.subscriptionInfoIOS).toBeNull();
+    });
+
     it('converts Android subscription with standardized subscriptionOffers', () => {
       const nitroProduct: NitroProduct = {
         id: 'com.example.android.subs',
