@@ -1273,6 +1273,9 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 }
 
                 val map = dict.mapKeys { it.key.toString() }
+                runCatching { Product.fromJson(map) }.getOrNull()?.let {
+                    return@mapNotNull it
+                }
 
                 // Parse subscription offers from the data (if product has subscription info)
                 val subscriptionOffers = convertAnyListToSubscriptionOffers(
@@ -1318,6 +1321,9 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             list.mapNotNull { item ->
                 val dict = (item as? Map<*, *>) ?: return@mapNotNull null
                 val map = dict.mapKeys { it.key.toString() }
+                runCatching { ProductSubscription.fromJson(map) }.getOrNull()?.let {
+                    return@mapNotNull it
+                }
 
                 // Parse subscription offers from the data
                 val subscriptionOffers = convertAnyListToSubscriptionOffers(
@@ -1394,6 +1400,9 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         return try {
             val dict = (data as? Map<*, *>) ?: return null
             val map = dict.mapKeys { it.key.toString() }
+            runCatching { ProductIOS.fromJson(map) }.getOrNull()?.let {
+                return it
+            }
 
             ProductIOS(
                 currency = map["currency"] as? String ?: "",

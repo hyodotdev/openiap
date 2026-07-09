@@ -602,6 +602,7 @@ export interface NitroProduct {
   id: ProductCommon['id'];
   title: ProductCommon['title'];
   description: ProductCommon['description'];
+  debugDescription?: ProductCommon['debugDescription'];
   type: string;
   displayName?: ProductCommon['displayName'];
   displayPrice?: ProductCommon['displayPrice'];
@@ -612,6 +613,8 @@ export interface NitroProduct {
   typeIOS?: string | null;
   isFamilyShareableIOS?: boolean | null;
   jsonRepresentationIOS?: string | null;
+  pricingTermsIOS?: string | null;
+  subscriptionInfoIOS?: string | null;
   discountsIOS?: string | null;
   introductoryPriceIOS?: string | null;
   introductoryPriceAsAmountIOS?: number | null;

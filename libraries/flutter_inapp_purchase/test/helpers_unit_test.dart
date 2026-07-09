@@ -32,6 +32,19 @@ void main() {
           'jsonRepresentationIOS': '{}',
           'subscriptionGroupIdIOS': '21686373',
           'typeIOS': 'AUTO_RENEWABLE_SUBSCRIPTION',
+          'pricingTermsIOS': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'billingDisplayPrice': '\$9.99',
+              'billingPeriod': <String, dynamic>{'unit': 'month', 'value': 1},
+              'billingPlanType': 'monthly',
+              'billingPrice': 9.99,
+              'commitmentInfo': <String, dynamic>{
+                'displayPrice': '\$119.88',
+                'period': <String, dynamic>{'unit': 'year', 'value': 1},
+                'price': 119.88,
+              },
+            },
+          ],
         },
         'subs',
         fallbackIsIOS: true,
@@ -43,6 +56,12 @@ void main() {
       expect(subscription.platform, types.IapPlatform.IOS);
       expect(subscription.isFamilyShareableIOS, isTrue);
       expect(subscription.subscriptionGroupIdIOS, '21686373');
+      expect(subscription.pricingTermsIOS, isNotNull);
+      expect(subscription.pricingTermsIOS, hasLength(1));
+      expect(
+        subscription.pricingTermsIOS!.first.billingPlanType,
+        types.SubscriptionBillingPlanTypeIOS.Monthly,
+      );
       expect(subscription.type, types.ProductType.Subs);
     });
 
@@ -69,10 +88,7 @@ void main() {
                 'type': 'INTRODUCTORY',
                 'paymentMode': 'FREE_TRIAL',
                 'periodCount': 1,
-                'period': <String, dynamic>{
-                  'unit': 'WEEK',
-                  'value': 1,
-                },
+                'period': <String, dynamic>{'unit': 'WEEK', 'value': 1},
               },
               <String, dynamic>{
                 'id': 'promo_offer',
@@ -134,6 +150,17 @@ void main() {
               'priceAmountMicros': '2990000',
               'priceCurrencyCode': 'USD',
             },
+            'discountOffers': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'currency': 'USD',
+                'displayPrice': '\$1.99',
+                'id': 'discount_001',
+                'offerTokenAndroid': 'discount-token',
+                'price': 1.99,
+                'type': 'one-time',
+              },
+            ],
+            'productStatusAndroid': 'ok',
           },
           'inapp',
           fallbackIsIOS: false,
@@ -145,6 +172,15 @@ void main() {
         expect(androidProduct.platform, types.IapPlatform.Android);
         expect(androidProduct.price, closeTo(2.99, 0.0001));
         expect(androidProduct.oneTimePurchaseOfferDetailsAndroid, isNotNull);
+        expect(androidProduct.discountOffers, hasLength(1));
+        expect(
+          androidProduct.discountOffers!.first.offerTokenAndroid,
+          'discount-token',
+        );
+        expect(
+          androidProduct.productStatusAndroid,
+          types.ProductStatusAndroid.Ok,
+        );
       },
     );
 
@@ -309,6 +345,10 @@ void main() {
             'subscriptionOfferDetailsAndroid': <Map<String, dynamic>>[
               <String, dynamic>{
                 'basePlanId': 'base',
+                'installmentPlanDetails': <String, dynamic>{
+                  'commitmentPaymentsCount': 12,
+                  'subsequentCommitmentPaymentsCount': 0,
+                },
                 'offerToken': 'token',
                 'offerTags': <String>['tag'],
                 'pricingPhases': <String, dynamic>{
@@ -325,6 +365,18 @@ void main() {
                 },
               },
             ],
+            'subscriptionOffers': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'id': 'base',
+                'displayPrice': '\$49.99',
+                'price': 49.99,
+                'type': 'introductory',
+                'basePlanIdAndroid': 'base',
+                'offerTokenAndroid': 'token',
+                'offerTagsAndroid': <String>['tag'],
+              },
+            ],
+            'productStatusAndroid': 'ok',
           },
           'subs',
           fallbackIsIOS: false,
@@ -336,6 +388,22 @@ void main() {
         expect(
           subscription.subscriptionOfferDetailsAndroid.single.offerToken,
           'token',
+        );
+        expect(
+          subscription
+              .subscriptionOfferDetailsAndroid
+              .single
+              .installmentPlanDetails
+              ?.commitmentPaymentsCount,
+          12,
+        );
+        expect(
+          subscription.subscriptionOffers.single.offerTokenAndroid,
+          'token',
+        );
+        expect(
+          subscription.productStatusAndroid,
+          types.ProductStatusAndroid.Ok,
         );
       },
     );
@@ -586,33 +654,30 @@ void main() {
       },
     );
 
-    test(
-      'convertToPurchaseError forwards debugMessage and responseCode '
-      'from PurchaseResult',
-      () {
-        final result = PurchaseResult.fromJSON(<String, dynamic>{
-          'responseCode': 5,
-          'debugMessage':
-              'Deferred replacement requires the base offer, got a promo offer',
-          'code': 'developer-error',
-          'message': 'Invalid arguments provided to the API',
-        });
+    test('convertToPurchaseError forwards debugMessage and responseCode '
+        'from PurchaseResult', () {
+      final result = PurchaseResult.fromJSON(<String, dynamic>{
+        'responseCode': 5,
+        'debugMessage':
+            'Deferred replacement requires the base offer, got a promo offer',
+        'code': 'developer-error',
+        'message': 'Invalid arguments provided to the API',
+      });
 
-        final error = convertToPurchaseError(
-          result,
-          platform: types.IapPlatform.Android,
-        );
+      final error = convertToPurchaseError(
+        result,
+        platform: types.IapPlatform.Android,
+      );
 
-        expect(error, isA<iap_err.PurchaseError>());
-        expect(error.code, types.ErrorCode.DeveloperError);
-        expect(error.message, 'Invalid arguments provided to the API');
-        expect(
-          error.debugMessage,
-          'Deferred replacement requires the base offer, got a promo offer',
-        );
-        expect(error.responseCode, 5);
-        expect(error.platform, types.IapPlatform.Android);
-      },
-    );
+      expect(error, isA<iap_err.PurchaseError>());
+      expect(error.code, types.ErrorCode.DeveloperError);
+      expect(error.message, 'Invalid arguments provided to the API');
+      expect(
+        error.debugMessage,
+        'Deferred replacement requires the base offer, got a promo offer',
+      );
+      expect(error.responseCode, 5);
+      expect(error.platform, types.IapPlatform.Android);
+    });
   });
 }

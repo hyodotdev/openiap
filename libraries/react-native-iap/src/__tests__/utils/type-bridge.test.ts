@@ -113,8 +113,26 @@ describe('type-bridge utilities', () => {
         currency: 'USD',
         price: 4.99,
         platform: 'ios',
+        debugDescription: 'StoreKit subscription debug',
         typeIOS: 'autoRenewableSubscription',
         subscriptionGroupIdIOS: '21686373',
+        pricingTermsIOS: JSON.stringify([
+          {
+            billingDisplayPrice: '$4.99',
+            billingPeriod: {unit: 'month', value: 1},
+            billingPlanType: 'monthly',
+            billingPrice: 4.99,
+            commitmentInfo: {
+              displayPrice: '$59.88',
+              period: {unit: 'year', value: 1},
+              price: 59.88,
+            },
+          },
+        ]),
+        subscriptionInfoIOS: JSON.stringify({
+          subscriptionGroupId: '21686373',
+          subscriptionPeriod: {unit: 'month', value: 1},
+        }),
         subscriptionOffers: JSON.stringify([
           {
             id: 'intro_weekly',
@@ -147,7 +165,11 @@ describe('type-bridge utilities', () => {
 
       expect(result.type).toBe('subs');
       expect(result.platform).toBe('ios');
+      expect(result.debugDescription).toBe('StoreKit subscription debug');
       expect(result.subscriptionGroupIdIOS).toBe('21686373');
+      expect(result.pricingTermsIOS).toHaveLength(1);
+      expect(result.pricingTermsIOS[0].billingPlanType).toBe('monthly');
+      expect(result.subscriptionInfoIOS.subscriptionGroupId).toBe('21686373');
       expect(Array.isArray(result.subscriptionOffers)).toBe(true);
       expect(result.subscriptionOffers.length).toBe(2);
       expect(result.subscriptionOffers[0].id).toBe('intro_weekly');

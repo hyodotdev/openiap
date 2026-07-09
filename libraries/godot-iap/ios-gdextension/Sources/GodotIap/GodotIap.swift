@@ -1542,47 +1542,25 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     }
 
     private func productToDictionary(_ product: OpenIAP.Product) -> [String: Any] {
-        return [
-            "id": product.id,
-            "title": product.title,
-            "description": product.description,
-            "displayPrice": product.displayPrice,
-            "price": product.price ?? 0,
-            "currency": product.currency,
-            "type": product.type.rawValue,
-            "platform": "ios"
-        ]
+        switch product {
+        case .productIos(let ios):
+            return OpenIapSerialization.encode(ios)
+        case .productAndroid(let android):
+            return OpenIapSerialization.encode(android)
+        }
     }
 
     private func productIOSToDictionary(_ product: ProductIOS) -> [String: Any] {
-        return [
-            "id": product.id,
-            "title": product.title,
-            "description": product.description,
-            "displayPrice": product.displayPrice,
-            "price": product.price ?? 0,
-            "currency": product.currency,
-            "type": product.type.rawValue,
-            "platform": "ios"
-        ]
+        return OpenIapSerialization.encode(product)
     }
 
     private func subscriptionToDictionary(_ subscription: ProductSubscription) -> [String: Any] {
-        var dictionary: [String: Any] = [
-            "id": subscription.id,
-            "title": subscription.title,
-            "description": subscription.description,
-            "displayPrice": subscription.displayPrice,
-            "price": subscription.price ?? 0,
-            "currency": subscription.currency,
-            "type": "subs",
-            "platform": "ios"
-        ]
-        if case let .productSubscriptionIos(ios) = subscription,
-           let groupId = ios.subscriptionGroupIdIOS {
-            dictionary["subscriptionGroupIdIOS"] = groupId
+        switch subscription {
+        case .productSubscriptionIos(let ios):
+            return OpenIapSerialization.encode(ios)
+        case .productSubscriptionAndroid(let android):
+            return OpenIapSerialization.encode(android)
         }
-        return dictionary
     }
 
     private func jsonString(_ object: [String: Any]) -> String {

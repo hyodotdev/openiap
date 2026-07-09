@@ -145,6 +145,24 @@ enum RnIapHelper {
             }
         }
 
+        var pricingTermsIOS: Variant_NullType_String? = nil
+        if let pricingTermsArray = dictionary["pricingTermsIOS"] as? [[String: Any]] {
+            if let json = serializeToJSON(pricingTermsArray) {
+                pricingTermsIOS = .second(json)
+            } else {
+                NSLog("⚠️ [RnIapHelper] Failed to serialize pricingTermsIOS")
+            }
+        }
+
+        var subscriptionInfoIOS: Variant_NullType_String? = nil
+        if let subscriptionInfo = dictionary["subscriptionInfoIOS"] as? [String: Any] {
+            if let json = serializeToJSON(subscriptionInfo) {
+                subscriptionInfoIOS = .second(json)
+            } else {
+                NSLog("⚠️ [RnIapHelper] Failed to serialize subscriptionInfoIOS")
+            }
+        }
+
         // Handle subscriptionOffers - standardized cross-platform offers (OpenIAP 1.3.10+)
         var subscriptionOffers: Variant_NullType_String? = nil
         if let offersArray = dictionary["subscriptionOffers"] as? [[String: Any]], !offersArray.isEmpty {
@@ -169,6 +187,7 @@ enum RnIapHelper {
             id: dictionary["id"] as? String ?? "",
             title: dictionary["title"] as? String ?? "",
             description: dictionary["description"] as? String ?? "",
+            debugDescription: wrapString(dictionary["debugDescription"] as? String),
             type: dictionary["type"] as? String ?? "",
             displayName: displayName,
             displayPrice: dictionary["displayPrice"] as? String,
@@ -178,6 +197,8 @@ enum RnIapHelper {
             typeIOS: wrapString(dictionary["typeIOS"] as? String),
             isFamilyShareableIOS: wrapBool(boolValue(dictionary["isFamilyShareableIOS"])),
             jsonRepresentationIOS: wrapString(dictionary["jsonRepresentationIOS"] as? String),
+            pricingTermsIOS: pricingTermsIOS,
+            subscriptionInfoIOS: subscriptionInfoIOS,
             discountsIOS: discountsIOS,
             introductoryPriceIOS: wrapString(dictionary["introductoryPriceIOS"] as? String),
             introductoryPriceAsAmountIOS: wrapDouble(doubleValue(dictionary["introductoryPriceAsAmountIOS"])),
@@ -417,6 +438,7 @@ enum RnIapHelper {
             id: id,
             title: id,
             description: "",
+            debugDescription: nil,
             type: "inapp",
             displayName: nil,
             displayPrice: nil,
@@ -426,6 +448,8 @@ enum RnIapHelper {
             typeIOS: nil,
             isFamilyShareableIOS: nil,
             jsonRepresentationIOS: nil,
+            pricingTermsIOS: nil,
+            subscriptionInfoIOS: nil,
             discountsIOS: nil,
             introductoryPriceIOS: nil,
             introductoryPriceAsAmountIOS: nil,
