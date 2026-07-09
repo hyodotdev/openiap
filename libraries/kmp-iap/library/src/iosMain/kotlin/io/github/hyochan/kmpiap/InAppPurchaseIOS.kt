@@ -1274,7 +1274,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
 
                 val map = dict.mapKeys { it.key.toString() }
                 runCatching { Product.fromJson(map) }.getOrNull()?.let {
-                    return@mapNotNull it
+                    return@mapNotNull mergeLegacySubscriptionOffers(it, map)
                 }
 
                 // Parse subscription offers from the data (if product has subscription info)
@@ -1322,7 +1322,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 val dict = (item as? Map<*, *>) ?: return@mapNotNull null
                 val map = dict.mapKeys { it.key.toString() }
                 runCatching { ProductSubscription.fromJson(map) }.getOrNull()?.let {
-                    return@mapNotNull it
+                    return@mapNotNull mergeLegacySubscriptionOffers(it, map)
                 }
 
                 // Parse subscription offers from the data
@@ -1377,7 +1377,9 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
 
                 // Native iOS may return either generated union JSON or raw StoreKit maps;
                 // decode the union first, then recover by product type for legacy payloads.
-                runCatching { ProductOrSubscription.fromJson(map) }.getOrElse {
+                runCatching { ProductOrSubscription.fromJson(map) }
+                    .map { mergeLegacySubscriptionOffers(it, map) }
+                    .getOrElse {
                     val type = map["type"] as? String
                     if (type?.equals(ProductType.Subs.rawValue, ignoreCase = true) == true) {
                         convertAnyListToProductSubscriptions(listOf(item)).firstOrNull()?.let {
@@ -1391,6 +1393,56 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 }
             }.getOrNull()
         }
+    }
+
+    private fun mergeLegacySubscriptionOffers(
+        product: Product,
+        map: Map<String, Any?>
+    ): Product {
+        val subscriptionOffers = convertAnyListToSubscriptionOffers(
+            map["subscriptionOffers"] ?: map["offers"]
+        )
+        if (subscriptionOffers.isEmpty()) return product
+
+        return when (product) {
+            is ProductIOS -> if (product.subscriptionOffers.isNullOrEmpty()) {
+                product.copy(subscriptionOffers = subscriptionOffers)
+            } else {
+                product
+            }
+            else -> product
+        }
+    }
+
+    private fun mergeLegacySubscriptionOffers(
+        subscription: ProductSubscription,
+        map: Map<String, Any?>
+    ): ProductSubscription {
+        val subscriptionOffers = convertAnyListToSubscriptionOffers(
+            map["subscriptionOffers"] ?: map["offers"]
+        )
+        if (subscriptionOffers.isEmpty()) return subscription
+
+        return when (subscription) {
+            is ProductSubscriptionIOS -> if (subscription.subscriptionOffers.isNullOrEmpty()) {
+                subscription.copy(subscriptionOffers = subscriptionOffers)
+            } else {
+                subscription
+            }
+            else -> subscription
+        }
+    }
+
+    private fun mergeLegacySubscriptionOffers(
+        item: ProductOrSubscription,
+        map: Map<String, Any?>
+    ): ProductOrSubscription = when (item) {
+        is ProductOrSubscription.ProductItem ->
+            ProductOrSubscription.ProductItem(mergeLegacySubscriptionOffers(item.value, map))
+        is ProductOrSubscription.ProductSubscriptionItem ->
+            ProductOrSubscription.ProductSubscriptionItem(
+                mergeLegacySubscriptionOffers(item.value, map)
+            )
     }
 
     @Suppress("UNCHECKED_CAST")

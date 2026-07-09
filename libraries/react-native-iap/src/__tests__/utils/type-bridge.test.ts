@@ -179,7 +179,7 @@ describe('type-bridge utilities', () => {
       expect(result.subscriptionOffers[1].type).toBe('promotional');
     });
 
-    it('rejects invalid iOS metadata JSON shapes', () => {
+    it('rejects invalid iOS metadata JSON payloads', () => {
       const nitroProduct: NitroProduct = {
         id: 'com.example.ios.invalid',
         title: 'Invalid Metadata',
@@ -198,6 +198,19 @@ describe('type-bridge utilities', () => {
 
       expect(result.pricingTermsIOS).toBeNull();
       expect(result.subscriptionInfoIOS).toBeNull();
+
+      const malformedJsonProduct: NitroProduct = {
+        ...nitroProduct,
+        pricingTermsIOS: '[',
+        subscriptionInfoIOS: '{',
+      };
+
+      const malformedResult = convertNitroProductToProduct(
+        malformedJsonProduct,
+      ) as any;
+
+      expect(malformedResult.pricingTermsIOS).toBeNull();
+      expect(malformedResult.subscriptionInfoIOS).toBeNull();
     });
 
     it('converts Android subscription with standardized subscriptionOffers', () => {
