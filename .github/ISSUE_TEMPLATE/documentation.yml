@@ -1,0 +1,52 @@
+name: Documentation issue
+description: Report missing, unclear, or incorrect documentation
+title: "[Docs] "
+labels:
+  - "\U0001F4D6 documentation"
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Documentation area
+      options:
+        - openiap.dev
+        - README
+        - react-native-iap
+        - expo-iap
+        - flutter_inapp_purchase
+        - kmp-iap
+        - godot-iap
+        - OpenIap.Maui
+        - openiap (Apple)
+        - openiap-google
+        - openiap-google-amazon
+        - openiap-google-horizon
+        - "@hyodotdev/openiap-kit"
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: input
+    id: page
+    attributes:
+      label: Page or file
+      description: Link the page or name the file if you know it.
+      placeholder: "https://openiap.dev/docs/... or README.md"
+    validations:
+      required: false
+
+  - type: textarea
+    id: issue
+    attributes:
+      label: What should be changed?
+      description: Describe what is missing, outdated, confusing, or incorrect.
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggested-change
+    attributes:
+      label: Suggested wording or structure
+      description: Optional, but helpful if you already know the correction.
+    validations:
+      required: false

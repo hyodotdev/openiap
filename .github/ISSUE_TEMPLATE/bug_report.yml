@@ -1,0 +1,119 @@
+name: Bug report
+description: Report a reproducible OpenIAP bug
+title: "[Bug] "
+labels:
+  - "\U0001F41B bug"
+body:
+  - type: dropdown
+    id: library
+    attributes:
+      label: Library
+      description: Select the OpenIAP package or SDK where the bug appears.
+      options:
+        - react-native-iap
+        - expo-iap
+        - flutter_inapp_purchase
+        - kmp-iap
+        - godot-iap
+        - OpenIap.Maui
+        - openiap (Apple)
+        - openiap-google
+        - openiap-google-amazon
+        - openiap-google-horizon
+        - "@hyodotdev/openiap-kit"
+    validations:
+      required: true
+
+  - type: input
+    id: library-version
+    attributes:
+      label: Library version
+      description: Include wrapper and native dependency versions when both matter.
+      placeholder: "react-native-iap 15.3.5; openiap 2.2.4"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Affected platform
+      options:
+        - iOS
+        - Android
+        - iOS and Android
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: store
+    attributes:
+      label: Store
+      description: Select Onside only for expo-iap issues.
+      options:
+        - App Store
+        - Google Play Store
+        - Amazon Appstore
+        - Meta Horizon Store
+        - Onside (expo-iap only)
+        - Not store-specific / not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Add only the runtime, toolchain, and device details needed to reproduce.
+      placeholder: |
+        React Native / Expo / Flutter / Godot / Kotlin / .NET version:
+        Device or simulator:
+        OS version:
+        Xcode / Android Studio / Gradle version:
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened?
+      description: Describe the failure and any incorrect result.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should have happened instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Provide the shortest steps or snippet that reproduces the bug.
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or stack trace
+      description: Paste relevant logs, stack traces, or native error output.
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Add screenshots, links, StoreKit / Billing configuration notes, or workarounds only if relevant.
+    validations:
+      required: false

@@ -1,0 +1,90 @@
+name: Feature request
+description: Suggest a new OpenIAP capability or API improvement
+title: "[Feature] "
+labels:
+  - "\U0001F97A feature request"
+body:
+  - type: dropdown
+    id: library
+    attributes:
+      label: Library or package
+      description: Select the main package or SDK this request targets.
+      options:
+        - Cross-library / OpenIAP spec
+        - react-native-iap
+        - expo-iap
+        - flutter_inapp_purchase
+        - kmp-iap
+        - godot-iap
+        - OpenIap.Maui
+        - openiap (Apple)
+        - openiap-google
+        - openiap-google-amazon
+        - openiap-google-horizon
+        - "@hyodotdev/openiap-kit"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Target platform
+      options:
+        - iOS
+        - Android
+        - iOS and Android
+        - Cross-platform
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: store
+    attributes:
+      label: Target store
+      description: Select Onside only for expo-iap requests.
+      options:
+        - App Store
+        - Google Play Store
+        - Amazon Appstore
+        - Meta Horizon Store
+        - Onside (expo-iap only)
+        - Not store-specific / not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: Describe the real app scenario this would unblock.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the API, behavior, or integration you would like.
+      placeholder: |
+        Example API:
+        Expected behavior:
+        Store or platform requirements:
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Mention current workarounds or why existing APIs are not enough.
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Add links to store docs, screenshots, related issues, or implementation notes only if relevant.
+    validations:
+      required: false
