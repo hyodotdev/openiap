@@ -350,8 +350,8 @@ void main() {
               <String, dynamic>{
                 'basePlanId': 'base',
                 'installmentPlanDetails': <String, dynamic>{
-                  'commitmentPaymentsCount': 12,
-                  'subsequentCommitmentPaymentsCount': 0,
+                  'commitmentPaymentsCount': '12',
+                  'subsequentCommitmentPaymentsCount': 0.0,
                 },
                 'offerToken': 'token',
                 'offerTags': <String>['tag'],

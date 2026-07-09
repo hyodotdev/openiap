@@ -616,6 +616,18 @@ gentype.ProductStatusAndroid? _parseProductStatusAndroid(dynamic value) {
   }
 }
 
+gentype.InstallmentPlanDetailsAndroid? _parseInstallmentPlanDetailsAndroid(
+  dynamic value,
+) {
+  final map = normalizeDynamicMap(value);
+  if (map == null) return null;
+  return gentype.InstallmentPlanDetailsAndroid(
+    commitmentPaymentsCount: _toInt(map['commitmentPaymentsCount']) ?? 0,
+    subsequentCommitmentPaymentsCount:
+        _toInt(map['subsequentCommitmentPaymentsCount']) ?? 0,
+  );
+}
+
 List<gentype.ProductSubscriptionAndroidOfferDetails> _parseOfferDetails(
   dynamic json,
 ) {
@@ -656,17 +668,11 @@ List<gentype.ProductSubscriptionAndroidOfferDetails> _parseOfferDetails(
           // Skip invalid items
           return null;
         }
-        final installmentPlanDetailsMap = normalizeDynamicMap(
-          e['installmentPlanDetails'],
-        );
-
         return gentype.ProductSubscriptionAndroidOfferDetails(
           basePlanId: e['basePlanId'] as String? ?? '',
-          installmentPlanDetails: installmentPlanDetailsMap != null
-              ? gentype.InstallmentPlanDetailsAndroid.fromJson(
-                  installmentPlanDetailsMap,
-                )
-              : null,
+          installmentPlanDetails: _parseInstallmentPlanDetailsAndroid(
+            e['installmentPlanDetails'],
+          ),
           offerId: e['offerId'] as String?,
           offerToken: e['offerToken'] as String? ?? '',
           offerTags: (e['offerTags'] as List<dynamic>?)
