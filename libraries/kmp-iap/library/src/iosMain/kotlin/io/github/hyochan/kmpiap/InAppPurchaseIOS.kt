@@ -1273,14 +1273,12 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 }
 
                 val map = dict.mapKeys { it.key.toString() }
-                runCatching { Product.fromJson(map) }.getOrNull()?.let {
+                runCatching { ProductIOS.fromJson(map) }.getOrNull()?.let {
                     return@mapNotNull mergeLegacySubscriptionOffers(it, map)
                 }
 
                 // Parse subscription offers from the data (if product has subscription info)
-                val subscriptionOffers = convertAnyListToSubscriptionOffers(
-                    map["subscriptionOffers"] ?: map["offers"]
-                )
+                val subscriptionOffers = subscriptionOffersFrom(map)
 
                 ProductIOS(
                     currency = map["currency"] as? String ?: "",
@@ -1321,14 +1319,12 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             list.mapNotNull { item ->
                 val dict = (item as? Map<*, *>) ?: return@mapNotNull null
                 val map = dict.mapKeys { it.key.toString() }
-                runCatching { ProductSubscription.fromJson(map) }.getOrNull()?.let {
+                runCatching { ProductSubscriptionIOS.fromJson(map) }.getOrNull()?.let {
                     return@mapNotNull mergeLegacySubscriptionOffers(it, map)
                 }
 
                 // Parse subscription offers from the data
-                val subscriptionOffers = convertAnyListToSubscriptionOffers(
-                    map["subscriptionOffers"] ?: map["offers"]
-                )
+                val subscriptionOffers = subscriptionOffersFrom(map)
 
                 ProductSubscriptionIOS(
                     currency = map["currency"] as? String ?: "",
@@ -1395,13 +1391,16 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         }
     }
 
+    private fun subscriptionOffersFrom(map: Map<String, Any?>): List<SubscriptionOffer> {
+        val subscriptionOffers = convertAnyListToSubscriptionOffers(map["subscriptionOffers"])
+        return subscriptionOffers.ifEmpty { convertAnyListToSubscriptionOffers(map["offers"]) }
+    }
+
     private fun mergeLegacySubscriptionOffers(
         product: Product,
         map: Map<String, Any?>
     ): Product {
-        val subscriptionOffers = convertAnyListToSubscriptionOffers(
-            map["subscriptionOffers"] ?: map["offers"]
-        )
+        val subscriptionOffers = subscriptionOffersFrom(map)
         if (subscriptionOffers.isEmpty()) return product
 
         return when (product) {
@@ -1418,9 +1417,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         subscription: ProductSubscription,
         map: Map<String, Any?>
     ): ProductSubscription {
-        val subscriptionOffers = convertAnyListToSubscriptionOffers(
-            map["subscriptionOffers"] ?: map["offers"]
-        )
+        val subscriptionOffers = subscriptionOffersFrom(map)
         if (subscriptionOffers.isEmpty()) return subscription
 
         return when (subscription) {
@@ -1472,9 +1469,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     map["pricingTermsIOS"]
                 ),
                 subscriptionInfoIOS = null, // Complex object
-                subscriptionOffers = convertAnyListToSubscriptionOffers(
-                    map["subscriptionOffers"] ?: map["offers"]
-                ).ifEmpty { null },
+                subscriptionOffers = subscriptionOffersFrom(map).ifEmpty { null },
                 title = map["title"] as? String ?: "",
                 type = (map["type"] as? String)?.let { ProductType.fromJson(it) }
                     ?: ProductType.InApp,

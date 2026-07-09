@@ -6,6 +6,8 @@ import 'errors.dart' as iap_err;
 import 'flutter_inapp_purchase.dart';
 import 'types.dart' as gentype;
 
+final _billingPeriodRegExp = RegExp(r'^P(\d+)([DWMY])$');
+
 String resolveProductType(Object type) {
   if (type is String) {
     return type;
@@ -919,7 +921,7 @@ List<gentype.SubscriptionOffer> _parseSubscriptionOffers(
 }
 
 gentype.SubscriptionPeriod? _parseBillingPeriod(String billingPeriod) {
-  final match = RegExp(r'^P(\d+)([DWMY])$').firstMatch(billingPeriod);
+  final match = _billingPeriodRegExp.firstMatch(billingPeriod);
   if (match == null) return null;
   final value = int.tryParse(match.group(1) ?? '');
   if (value == null) return null;

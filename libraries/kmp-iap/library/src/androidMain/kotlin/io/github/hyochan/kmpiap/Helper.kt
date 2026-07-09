@@ -53,6 +53,8 @@ import dev.hyo.openiap.ExternalLinkLaunchModeAndroid as OpenIapExternalLinkLaunc
 import dev.hyo.openiap.ExternalLinkTypeAndroid as OpenIapExternalLinkType
 import dev.hyo.openiap.LaunchExternalLinkParamsAndroid as OpenIapLaunchExternalLinkParams
 
+private val billingPeriodRegex = Regex("""P(\d+)([DWMY])""")
+
 internal fun emitFailureAndThrow(
     errorFlow: MutableSharedFlow<PurchaseError>,
     error: PurchaseError
@@ -509,8 +511,7 @@ internal fun ProductSubscriptionAndroidOfferDetails.toSubscriptionOffer(): Subsc
 private fun parseBillingPeriod(billingPeriod: String): SubscriptionPeriod? {
     if (billingPeriod.isEmpty()) return null
 
-    val regex = Regex("""P(\d+)([DWMY])""")
-    val match = regex.matchEntire(billingPeriod) ?: return null
+    val match = billingPeriodRegex.matchEntire(billingPeriod) ?: return null
     val value = match.groupValues[1].toIntOrNull() ?: return null
     val unit = when (match.groupValues[2]) {
         "D" -> SubscriptionPeriodUnit.Day
