@@ -1,9 +1,8 @@
 package dev.hyo.openiap.helpers
 
 import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.InternalCoroutinesApi
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 /**
  * Atomically completes a cancellable continuation at most once.
@@ -26,16 +25,18 @@ internal class ContinuationResumeGuard<T>(
         }
     }
 
+    @OptIn(InternalCoroutinesApi::class)
     fun resume(value: T) {
-        if (didComplete.compareAndSet(false, true)) {
-            continuation.resume(value)
-        }
+        val token = continuation.tryResume(value, null) ?: return
+        didComplete.set(true)
+        continuation.completeResume(token)
     }
 
+    @OptIn(InternalCoroutinesApi::class)
     fun resumeWithException(error: Throwable) {
-        if (didComplete.compareAndSet(false, true)) {
-            continuation.resumeWithException(error)
-        }
+        val token = continuation.tryResumeWithException(error) ?: return
+        didComplete.set(true)
+        continuation.completeResume(token)
     }
 }
 
