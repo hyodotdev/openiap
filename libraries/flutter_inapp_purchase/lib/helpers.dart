@@ -608,9 +608,12 @@ List<gentype.DiscountOffer>? _parseDiscountOffers(dynamic value) =>
 
 List<gentype.SubscriptionOffer>? _parseStandardizedSubscriptionOffers(
   dynamic value,
-) =>
-    _parseGeneratedList(value, gentype.SubscriptionOffer.fromJson) ??
-    _parseSubscriptionOffersIOS(value);
+) {
+  final list = _parseNativeList(value);
+  if (list == null) return null;
+  return _parseGeneratedList(list, gentype.SubscriptionOffer.fromJson) ??
+      _parseSubscriptionOffersIOS(list);
+}
 
 gentype.ProductStatusAndroid? _parseProductStatusAndroid(dynamic value) {
   if (value == null) return null;

@@ -131,6 +131,47 @@ void main() {
     );
 
     test(
+      'parseProductFromNative parses legacy iOS subscriptionOffers JSON string',
+      () {
+        final product = parseProductFromNative(
+          <String, dynamic>{
+            'platform': 'ios',
+            'id': 'premium_monthly',
+            'title': 'Premium Monthly',
+            'description': 'Monthly plan',
+            'currency': 'USD',
+            'displayPrice': '\$9.99',
+            'price': 9.99,
+            'isFamilyShareableIOS': false,
+            'jsonRepresentationIOS': '{}',
+            'typeIOS': 'AUTO_RENEWABLE_SUBSCRIPTION',
+            'subscriptionOffers': jsonEncode(<Map<String, dynamic>>[
+              <String, dynamic>{
+                'id': 'legacy_intro',
+                'displayPrice': 'Free',
+                'price': 0.0,
+                'type': 'INTRODUCTORY',
+                'paymentMode': 'FREETRIAL',
+                'periodCount': 1,
+                'period': <String, dynamic>{'unit': 'WEEK', 'value': 1},
+              },
+            ]),
+          },
+          'subs',
+          fallbackIsIOS: true,
+        );
+
+        expect(product, isA<types.ProductSubscriptionIOS>());
+        final subscription = product as types.ProductSubscriptionIOS;
+        expect(subscription.subscriptionOffers, hasLength(1));
+        expect(
+          subscription.subscriptionOffers!.single.paymentMode,
+          types.PaymentMode.FreeTrial,
+        );
+      },
+    );
+
+    test(
       'parseProductFromNative creates Android in-app product with string offers',
       () {
         final product = parseProductFromNative(
