@@ -1453,7 +1453,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             val dict = (data as? Map<*, *>) ?: return null
             val map = dict.mapKeys { it.key.toString() }
             runCatching { ProductIOS.fromJson(map) }.getOrNull()?.let {
-                return it
+                return mergeLegacySubscriptionOffers(it, map) as? ProductIOS ?: it
             }
 
             ProductIOS(
