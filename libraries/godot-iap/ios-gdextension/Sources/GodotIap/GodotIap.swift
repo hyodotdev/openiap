@@ -662,6 +662,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     @Callable
     public func beginRefundRequestIOS(sku: String) -> String {
         GodotIapLog.debug("[GodotIap] Beginning refund request for: \(sku)")
+        let requestId = UUID().uuidString
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -669,6 +670,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 let result = try await self.openIap.beginRefundRequestIOS(sku: sku)
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
+                    dict["method"] = Variant("beginRefundRequestIOS")
+                    dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(true)
                     dict["status"] = Variant(result ?? "unknown")
                     self.productsFetched.emit(dict)
@@ -677,6 +680,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 GodotIapLog.debug("[GodotIap] beginRefundRequestIOS error: \(error.localizedDescription)")
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
+                    dict["method"] = Variant("beginRefundRequestIOS")
+                    dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(false)
                     dict["error"] = Variant(error.localizedDescription)
                     self.productsFetched.emit(dict)
@@ -684,7 +689,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             }
         }
 
-        return "{\"status\": \"pending\"}"
+        return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
     }
 
     @Callable
@@ -1023,6 +1028,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     @Callable
     public func deepLinkToSubscriptions(optionsJson: String) -> String {
         GodotIapLog.payload("Deep linking to subscriptions", payload: nil)
+        let requestId = UUID().uuidString
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -1040,15 +1046,25 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 try await self.openIap.deepLinkToSubscriptions(options)
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
+                    dict["method"] = Variant("deepLinkToSubscriptions")
+                    dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(true)
                     self.productsFetched.emit(dict)
                 }
             } catch {
                 GodotIapLog.debug("[GodotIap] deepLinkToSubscriptions error: \(error.localizedDescription)")
+                await MainActor.run { [self] in
+                    let dict = VariantDictionary()
+                    dict["method"] = Variant("deepLinkToSubscriptions")
+                    dict["requestId"] = Variant(requestId)
+                    dict["success"] = Variant(false)
+                    dict["error"] = Variant(error.localizedDescription)
+                    self.productsFetched.emit(dict)
+                }
             }
         }
 
-        return "{\"status\": \"pending\"}"
+        return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
     }
 
     // MARK: - Verification Methods

@@ -18,11 +18,6 @@ import {ErrorCode} from './types';
 import type {
   AndroidSubscriptionOfferInput,
   DiscountOfferInputIOS,
-  ExternalPurchaseCustomLinkNoticeResultIOS,
-  ExternalPurchaseCustomLinkNoticeTypeIOS,
-  ExternalPurchaseCustomLinkTokenResultIOS,
-  ExternalPurchaseCustomLinkTokenTypeIOS,
-  ExternalPurchaseNoticeResultIOS,
   FetchProductsResult,
   MutationField,
   Product,
@@ -2404,8 +2399,10 @@ export const presentCodeRedemptionSheetIOS: MutationField<
  *
  * @see {@link https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios}
  */
-export const requestPurchaseOnPromotedProductIOS =
-  async (): Promise<boolean> => {
+export const requestPurchaseOnPromotedProductIOS: MutationField<
+  'requestPurchaseOnPromotedProductIOS'
+> =
+  async () => {
     if (Platform.OS !== 'ios') {
       throw new Error(
         'requestPurchaseOnPromotedProductIOS is only available on iOS',
@@ -2997,7 +2994,13 @@ export const getBillingChoiceInfoAndroid: QueryField<
  *
  * @see {@link https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android}
  */
-export const createBillingProgramReportingDetailsAndroid = async (
+export const createBillingProgramReportingDetailsAndroid: MutationField<
+  'createBillingProgramReportingDetailsAndroid'
+> &
+  ((
+    program: BillingProgramAndroid,
+    developerBillingType?: DeveloperBillingTypeAndroid | null,
+  ) => Promise<BillingProgramReportingDetailsAndroid>) = async (
   programOrArgs:
     | BillingProgramAndroid
     | {
@@ -3016,10 +3019,11 @@ export const createBillingProgramReportingDetailsAndroid = async (
       typeof programOrArgs === 'string'
         ? developerBillingType
         : (programOrArgs.developerBillingType ?? developerBillingType);
-    const result = await IAP.instance.createBillingProgramReportingDetailsAndroid(
-      program,
-      resolvedDeveloperBillingType ?? null,
-    );
+    const result =
+      await IAP.instance.createBillingProgramReportingDetailsAndroid(
+        program,
+        resolvedDeveloperBillingType ?? null,
+      );
     return {
       billingProgram: result.billingProgram as unknown as BillingProgramAndroid,
       externalTransactionToken: result.externalTransactionToken,
@@ -3193,8 +3197,10 @@ export const canPresentExternalPurchaseNoticeIOS: QueryField<
  *
  * @see {@link https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios}
  */
-export const presentExternalPurchaseNoticeSheetIOS =
-  async (): Promise<ExternalPurchaseNoticeResultIOS> => {
+export const presentExternalPurchaseNoticeSheetIOS: MutationField<
+  'presentExternalPurchaseNoticeSheetIOS'
+> =
+  async () => {
     if (Platform.OS !== 'ios') {
       throw new Error('External purchase is only supported on iOS');
     }
@@ -3262,8 +3268,10 @@ export const presentExternalPurchaseLinkIOS: MutationField<
  *
  * @see {@link https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios}
  */
-export const isEligibleForExternalPurchaseCustomLinkIOS =
-  async (): Promise<boolean> => {
+export const isEligibleForExternalPurchaseCustomLinkIOS: QueryField<
+  'isEligibleForExternalPurchaseCustomLinkIOS'
+> =
+  async () => {
     if (Platform.OS !== 'ios') {
       return false;
     }
@@ -3299,9 +3307,9 @@ export const isEligibleForExternalPurchaseCustomLinkIOS =
  *
  * @see {@link https://openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios}
  */
-export const getExternalPurchaseCustomLinkTokenIOS = async (
-  tokenType: ExternalPurchaseCustomLinkTokenTypeIOS,
-): Promise<ExternalPurchaseCustomLinkTokenResultIOS> => {
+export const getExternalPurchaseCustomLinkTokenIOS: QueryField<
+  'getExternalPurchaseCustomLinkTokenIOS'
+> = async (tokenType) => {
   if (Platform.OS !== 'ios') {
     throw new Error(
       'External purchase custom link is only supported on iOS 18.1+',
@@ -3339,9 +3347,9 @@ export const getExternalPurchaseCustomLinkTokenIOS = async (
  *
  * @see {@link https://openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios}
  */
-export const showExternalPurchaseCustomLinkNoticeIOS = async (
-  noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS,
-): Promise<ExternalPurchaseCustomLinkNoticeResultIOS> => {
+export const showExternalPurchaseCustomLinkNoticeIOS: MutationField<
+  'showExternalPurchaseCustomLinkNoticeIOS'
+> = async (noticeType) => {
   if (Platform.OS !== 'ios') {
     throw new Error(
       'External purchase custom link is only supported on iOS 18.1+',

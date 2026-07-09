@@ -904,17 +904,18 @@ func show_manage_subscriptions_ios() -> Array:
 
 ## Begin refund request (iOS only).
 ## @param product_id: String - the product ID to request refund for
-## @return Types.RefundResultIOS
+## @return String - refund request status, or empty string on failure
 ##
 ## See: https://openiap.dev/docs/apis/ios/begin-refund-request-ios
-func begin_refund_request_ios(product_id: String) -> Variant:
-	if _native_plugin and _platform == "iOS":
-		var result_json = _native_plugin.call("beginRefundRequestIOS", product_id)
-		var result = JSON.parse_string(result_json)
-		if result is Dictionary:
-			return Types.RefundResultIOS.from_dict(result)
-	var default_result = Types.RefundResultIOS.new()
-	return default_result
+func begin_refund_request_ios(product_id: String) -> String:
+	if not (_native_plugin and _platform == "iOS"):
+		return ""
+	var pending = _native_plugin.call("beginRefundRequestIOS", product_id)
+	var request_id = _parse_request_id(pending)
+	var payload = await _await_products_fetched_for("beginRefundRequestIOS", request_id)
+	if payload.get("success", false):
+		return payload.get("status", "")
+	return ""
 
 ## Get current entitlement for a product (iOS only).
 ## @param sku: String - product SKU
@@ -1312,17 +1313,16 @@ func show_alternative_billing_dialog_android() -> bool:
 	return false
 
 ## Create alternative billing token (Android).
-## @return Types.BillingProgramReportingDetailsAndroid
+## @return String - reporting token, or empty string on failure
 ##
 ## See: https://openiap.dev/docs/apis/android/create-alternative-billing-token-android
-func create_alternative_billing_token_android() -> Variant:
+func create_alternative_billing_token_android() -> String:
 	if _native_plugin and _platform == "Android":
 		var result_json = _native_plugin.call("createAlternativeBillingTokenAndroid")
 		var result = JSON.parse_string(result_json)
-		if result is Dictionary:
-			return Types.BillingProgramReportingDetailsAndroid.from_dict(result)
-	var default_result = Types.BillingProgramReportingDetailsAndroid.new()
-	return default_result
+		if result is Dictionary and result.get("success", false):
+			return result.get("token", "")
+	return ""
 
 ## Check if a billing program is available (Android 8.2.0+).
 ## @param billing_program: Types.BillingProgramAndroid - billing program enum value
@@ -1443,17 +1443,29 @@ func get_package_name_android() -> String:
 
 ## Open subscription management deep link.
 ## @param options: Types.DeepLinkOptions or null - optional deep link configuration
-## @return void
+## @return Types.VoidResult
 ##
 ## See: https://openiap.dev/docs/apis/deep-link-to-subscriptions
-func deep_link_to_subscriptions(options = null) -> void:
+func deep_link_to_subscriptions(options = null) -> Variant:
 	var opts = options if options != null else Types.DeepLinkOptions.new()
-	if _native_plugin and (_platform == "Android" or _platform == "iOS"):
-		var options_json = JSON.stringify(opts.to_dict())
-		_native_plugin.call("deepLinkToSubscriptions", options_json)
+	if _native_plugin and _platform == "Android":
+		var android_options_json = JSON.stringify(opts.to_dict())
+		var android_result_json = _native_plugin.call("deepLinkToSubscriptions", android_options_json)
+		var android_result = JSON.parse_string(android_result_json)
+		if android_result is Dictionary:
+			return Types.VoidResult.from_dict(android_result)
+	elif _native_plugin and _platform == "iOS":
+		var ios_options_json = JSON.stringify(opts.to_dict())
+		var ios_pending = _native_plugin.call("deepLinkToSubscriptions", ios_options_json)
+		var ios_request_id = _parse_request_id(ios_pending)
+		var ios_payload = await _await_products_fetched_for("deepLinkToSubscriptions", ios_request_id)
+		return Types.VoidResult.from_dict(ios_payload)
 	elif _platform == "iOS":
 		# iOS: Open App Store subscription management URL
 		OS.shell_open("https://apps.apple.com/account/subscriptions")
+		var ios_fallback_result = Types.VoidResult.new()
+		ios_fallback_result.success = true
+		return ios_fallback_result
 	elif _platform == "Android":
 		# Android: Open Play Store subscription management URL
 		var sku = opts.sku_android if opts.sku_android else ""
@@ -1464,6 +1476,12 @@ func deep_link_to_subscriptions(options = null) -> void:
 			OS.shell_open("https://play.google.com/store/account/subscriptions?sku=%s&package=%s" % [encoded_sku, encoded_package])
 		else:
 			OS.shell_open("https://play.google.com/store/account/subscriptions")
+		var android_fallback_result = Types.VoidResult.new()
+		android_fallback_result.success = true
+		return android_fallback_result
+	var unavailable_result = Types.VoidResult.new()
+	unavailable_result.success = false
+	return unavailable_result
 
 # ==========================================
 # Utility Functions

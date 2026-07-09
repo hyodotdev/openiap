@@ -268,6 +268,212 @@ function parseGeneratedOperations(kind) {
     .sort();
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function getTopLevelConstDeclaration(text, constName) {
+  const match = new RegExp(
+    `(^|\\n)(?:export\\s+)?const\\s+${escapeRegExp(constName)}\\b`,
+  ).exec(text);
+  if (!match) return '';
+
+  const start = match.index + match[1].length;
+  const rest = text.slice(start + 1);
+  const next = /\n(?:export\s+)?(?:const|function|class|type|interface)\s/.exec(rest);
+  const end = next ? start + 1 + next.index : text.length;
+  return text.slice(start, end);
+}
+
+function hasTypeScriptFieldBinding(text, operation, fieldType) {
+  return [operation, `${operation}Field`].some((constName) => {
+    const declaration = getTopLevelConstDeclaration(text, constName);
+    return (
+      declaration.includes(`${fieldType}<`) &&
+      (declaration.includes(`'${operation}'`) ||
+        declaration.includes(`"${operation}"`))
+    );
+  });
+}
+
+function expectTypeScriptFieldBindings(label, files, kind) {
+  const text = files.map((file) => read(file)).join('\n');
+  const fieldType = `${kind}Field`;
+  const missing = parseGeneratedOperations(kind).filter(
+    (operation) => !hasTypeScriptFieldBinding(text, operation, fieldType),
+  );
+  if (missing.length > 0) {
+    fail(`${label} missing ${fieldType} bindings: ${missing.join(', ')}`);
+  }
+}
+
+function extractBetween(text, startMarker, endMarker) {
+  const start = text.indexOf(startMarker);
+  if (start < 0) return '';
+  const end = endMarker ? text.indexOf(endMarker, start + startMarker.length) : -1;
+  return text.slice(start, end < 0 ? text.length : end);
+}
+
+function expectFlutterHandlers(kind, block) {
+  if (!block) {
+    fail(`Flutter ${kind}Handlers block is missing`);
+    return;
+  }
+  const missing = parseGeneratedOperations(kind).filter(
+    (operation) => !new RegExp(`\\b${escapeRegExp(operation)}\\s*:`).test(block),
+  );
+  if (missing.length > 0) {
+    fail(`Flutter ${kind}Handlers missing generated operations: ${missing.join(', ')}`);
+  }
+}
+
+function parseGodotOperationFields() {
+  const fields = [];
+  const lines = read('libraries/godot-iap/addons/godot-iap/types.gd').split('\n');
+  let section = null;
+  let current = null;
+
+  const flush = () => {
+    if (current) fields.push(current);
+    current = null;
+  };
+
+  for (const line of lines) {
+    const sectionMatch = line.match(/^class (Query|Mutation):$/);
+    if (sectionMatch) {
+      flush();
+      section = sectionMatch[1];
+      continue;
+    }
+
+    if (/^class /.test(line)) {
+      flush();
+      section = null;
+      continue;
+    }
+
+    if (!section) continue;
+
+    const fieldMatch = line.match(/^\tclass ([A-Za-z0-9_]+)Field:$/);
+    if (fieldMatch) {
+      flush();
+      current = {
+        section,
+        className: fieldMatch[1],
+        name: '',
+        snakeName: '',
+        returnType: '',
+        isArray: false,
+      };
+      continue;
+    }
+
+    if (!current) continue;
+
+    const stringConstMatch = line.match(/^\t\tconst (name|snake_name|return_type) = "([^"]+)"$/);
+    if (stringConstMatch) {
+      if (stringConstMatch[1] === 'name') current.name = stringConstMatch[2];
+      if (stringConstMatch[1] === 'snake_name') current.snakeName = stringConstMatch[2];
+      if (stringConstMatch[1] === 'return_type') current.returnType = stringConstMatch[2];
+      continue;
+    }
+
+    const isArrayMatch = line.match(/^\t\tconst is_array = (true|false)$/);
+    if (isArrayMatch) current.isArray = isArrayMatch[1] === 'true';
+  }
+
+  flush();
+  return fields;
+}
+
+function parseGodotWrapperFunctions() {
+  const functions = new Map();
+  const source = read('libraries/godot-iap/addons/godot-iap/godot_iap.gd');
+  for (const match of source.matchAll(
+    /^func\s+([A-Za-z_][A-Za-z0-9_]*)\([^)]*\)\s*(?:->\s*([^:]+))?:/gm,
+  )) {
+    functions.set(match[1], (match[2] ?? '').trim());
+  }
+  return functions;
+}
+
+function expectedGodotReturnAnnotation(field) {
+  if (field.isArray) return 'Array';
+  if (field.returnType === 'Boolean') return 'bool';
+  if (field.returnType === 'String') return 'String';
+  if (field.returnType === 'Int') return 'int';
+  if (field.returnType === 'Float') return 'float';
+  return 'Variant';
+}
+
+function checkFrameworkOperationBindings() {
+  for (const kind of ['Query', 'Mutation']) {
+    expectTypeScriptFieldBindings(
+      `React Native ${kind}`,
+      ['libraries/react-native-iap/src/index.ts'],
+      kind,
+    );
+    expectTypeScriptFieldBindings(
+      `Expo ${kind}`,
+      [
+        'libraries/expo-iap/src/index.ts',
+        'libraries/expo-iap/src/modules/android.ts',
+        'libraries/expo-iap/src/modules/ios.ts',
+      ],
+      kind,
+    );
+  }
+
+  const flutter = read('libraries/flutter_inapp_purchase/lib/flutter_inapp_purchase.dart');
+  expectFlutterHandlers(
+    'Query',
+    extractBetween(
+      flutter,
+      'gentype.QueryHandlers get queryHandlers',
+      'gentype.MutationLaunchExternalLinkAndroidHandler',
+    ),
+  );
+  expectFlutterHandlers(
+    'Mutation',
+    extractBetween(
+      flutter,
+      'gentype.MutationHandlers get mutationHandlers',
+      'gentype.SubscriptionHandlers get subscriptionHandlers',
+    ),
+  );
+  expectFlutterHandlers(
+    'Subscription',
+    extractBetween(
+      flutter,
+      'gentype.SubscriptionHandlers get subscriptionHandlers',
+      '\n}',
+    ),
+  );
+
+  const godotFunctions = parseGodotWrapperFunctions();
+  for (const field of parseGodotOperationFields()) {
+    if (field.name === '_placeholder') continue;
+    const actual = godotFunctions.get(field.snakeName);
+    if (!actual) {
+      fail(`Godot wrapper missing generated ${field.section} operation ${field.name} (${field.snakeName})`);
+      continue;
+    }
+
+    if (field.snakeName === 'fetch_products' && actual === 'Array') {
+      continue;
+    }
+
+    const expected = expectedGodotReturnAnnotation(field);
+    if (expected === 'Array') {
+      if (!actual.startsWith('Array')) {
+        fail(`Godot wrapper ${field.snakeName} should return Array for ${field.returnType}, got ${actual || '(none)'}`);
+      }
+    } else if (actual !== expected) {
+      fail(`Godot wrapper ${field.snakeName} should return ${expected} for ${field.returnType}, got ${actual || '(none)'}`);
+    }
+  }
+}
+
 function parseKotlinResolverOperations(relativePath, kind) {
   expectFile(relativePath);
   if (!exists(relativePath)) return [];
@@ -3318,6 +3524,7 @@ checkExpoSsotRegistry();
 checkGeneratedTypeSync();
 checkGqlRuntimeExports();
 checkOperationRegistry();
+checkFrameworkOperationBindings();
 checkExpoRouterExample('libraries/expo-iap/example', 'src/utils/constants.ts');
 checkReactNativeClassic();
 checkFlutter();

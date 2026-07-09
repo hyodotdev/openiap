@@ -76,7 +76,7 @@ interface DeepLinkOptions {
             <CodeBlock language="csharp">{`Task<string> DeepLinkToSubscriptionsAsync(DeepLinkOptions? options = null);`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`func deep_link_to_subscriptions(options: DeepLinkOptions) -> void`}</CodeBlock>
+            <CodeBlock language="gdscript">{`func deep_link_to_subscriptions(options: DeepLinkOptions) -> Types.VoidResult`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
@@ -206,7 +206,7 @@ await ((MutationResolver)OpenIapClient.Instance).DeepLinkToSubscriptionsAsync(
             <CodeBlock language="gdscript">{`var options = DeepLinkOptions.new()
 options.sku_android = "com.app.premium"
 options.package_name_android = "com.yourcompany.app"
-await iap.deep_link_to_subscriptions(options)`}</CodeBlock>
+var result = await iap.deep_link_to_subscriptions(options)`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

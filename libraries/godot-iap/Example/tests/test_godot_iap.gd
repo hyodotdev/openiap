@@ -226,6 +226,10 @@ func test_ios_methods_mock() -> void:
 	var entitlement = GodotIapPlugin.current_entitlement_ios("test_sku")
 	_assert_true(entitlement == null or entitlement is Types.PurchaseIOS, "current_entitlement_ios should return PurchaseIOS or null")
 
+	# begin_refund_request_ios
+	var refund_status = await GodotIapPlugin.begin_refund_request_ios("test_sku")
+	_assert_true(refund_status is String, "begin_refund_request_ios should return String")
+
 	# latest_transaction_ios
 	var latest = GodotIapPlugin.latest_transaction_ios("test_sku")
 	_assert_true(latest == null or latest is Types.PurchaseIOS, "latest_transaction_ios should return PurchaseIOS or null")
@@ -256,6 +260,10 @@ func test_android_methods_mock() -> void:
 	var alternative_accepted = GodotIapPlugin.show_alternative_billing_dialog_android()
 	_assert_true(alternative_accepted is bool, "show_alternative_billing_dialog_android should return bool")
 
+	# create_alternative_billing_token_android
+	var alternative_token = GodotIapPlugin.create_alternative_billing_token_android()
+	_assert_true(alternative_token is String, "create_alternative_billing_token_android should return String")
+
 	# get_package_name_android
 	var package_name = GodotIapPlugin.get_package_name_android()
 	_assert_true(package_name is String, "get_package_name_android should return String")
@@ -263,6 +271,10 @@ func test_android_methods_mock() -> void:
 	# has_active_subscriptions
 	var has_subs = GodotIapPlugin.has_active_subscriptions()
 	_assert_true(has_subs is bool, "has_active_subscriptions should return bool")
+
+	# deep_link_to_subscriptions
+	var deep_link_result = await GodotIapPlugin.deep_link_to_subscriptions()
+	_assert_true(deep_link_result is Types.VoidResult, "deep_link_to_subscriptions should return VoidResult")
 
 
 # ============================================
