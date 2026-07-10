@@ -74,22 +74,41 @@ internal fun productStatusFromUnfetchedStatus(statusCode: Int): ProductStatusAnd
         else -> ProductStatusAndroid.Unknown
     }
 
+internal fun unfetchedProductInfoFrom(items: List<*>): List<UnfetchedProductInfo> {
+    val sample = items.firstOrNull { it != null } ?: return emptyList()
+
+    return runCatching {
+        val itemClass = sample.javaClass
+        val getProductId = itemClass.getMethod("getProductId")
+        val getProductType = itemClass.getMethod("getProductType")
+        val getStatusCode = itemClass.getMethod("getStatusCode")
+
+        items.mapNotNull { item ->
+            item ?: return@mapNotNull null
+            runCatching {
+                val productId = getProductId.invoke(item) as? String
+                val productType = getProductType.invoke(item) as? String
+                val statusCode = getStatusCode.invoke(item) as? Int
+
+                if (productId == null || productType == null || statusCode == null) {
+                    null
+                } else {
+                    UnfetchedProductInfo(productId, productType, statusCode)
+                }
+            }.getOrNull()
+        }
+    }.getOrDefault(emptyList())
+}
+
 internal fun QueryProductDetailsResult.unfetchedProductsCompat(): List<UnfetchedProductInfo> =
     runCatching {
         val items = javaClass.getMethod("getUnfetchedProductList").invoke(this) as? List<*>
             ?: return@runCatching emptyList()
-        items.mapNotNull { item ->
-            item ?: return@mapNotNull null
-            val itemClass = item.javaClass
-            val productId = itemClass.getMethod("getProductId").invoke(item) as? String
-                ?: return@mapNotNull null
-            val productType = itemClass.getMethod("getProductType").invoke(item) as? String
-                ?: return@mapNotNull null
-            val statusCode = itemClass.getMethod("getStatusCode").invoke(item) as? Int
-                ?: return@mapNotNull null
-            UnfetchedProductInfo(productId, productType, statusCode)
-        }
+        unfetchedProductInfoFrom(items)
     }.getOrDefault(emptyList())
+
+internal fun billingStringOrEmpty(block: () -> String?): String =
+    runCatching(block).getOrNull().orEmpty()
 
 internal fun unavailableInAppProduct(
     productId: String,
@@ -448,7 +467,7 @@ private fun ProductDetails.OneTimePurchaseOfferDetails.toOfferDetail(): ProductA
         },
         offerId = runCatching { offerId }.getOrNull(),
         offerTags = runCatching { offerTags.orEmpty() }.getOrElse { emptyList() },
-        offerToken = offerToken.orEmpty(),
+        offerToken = billingStringOrEmpty { this.offerToken },
         preorderDetailsAndroid = runCatching { preorderDetails }.getOrNull()?.let { details ->
             PreorderDetailsAndroid(
                 preorderPresaleEndTimeMillis = details.preorderPresaleEndTimeMillis.toString(),
@@ -482,7 +501,7 @@ private fun ProductDetails.OneTimePurchaseOfferDetails.toDiscountOffer(): Discou
         price = priceAmountMicros.toDouble() / 1_000_000.0,
         currency = priceCurrencyCode,
         type = DiscountOfferType.OneTime,
-        offerTokenAndroid = offerToken,
+        offerTokenAndroid = billingStringOrEmpty { this.offerToken },
         offerTagsAndroid = runCatching { offerTags.orEmpty() }.getOrElse { emptyList() },
         fullPriceMicrosAndroid = runCatching { fullPriceMicros?.toString() }.getOrNull(),
         percentageDiscountAndroid = runCatching { discountInfo?.percentageDiscount }.getOrNull(),
