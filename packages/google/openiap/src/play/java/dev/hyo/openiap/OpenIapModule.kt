@@ -77,6 +77,9 @@ import dev.hyo.openiap.utils.verifyPurchaseWithGooglePlay
 import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.lang.ref.WeakReference
@@ -91,6 +94,40 @@ internal fun recordRecoverableProductQueryFailure(
 ): Throwable {
     if (error is CancellationException || error is Error) throw error
     return firstError ?: error
+}
+
+internal data class AllProductQueryResults<T : Any>(
+    val inApp: T?,
+    val subscriptions: T?,
+)
+
+internal suspend fun <T : Any> collectAllProductQueryResults(
+    queryInApp: suspend () -> T,
+    querySubscriptions: suspend () -> T,
+): AllProductQueryResults<T> {
+    suspend fun capture(query: suspend () -> T): Result<T> =
+        try {
+            Result.success(query())
+        } catch (error: Throwable) {
+            Result.failure(recordRecoverableProductQueryFailure(null, error))
+        }
+
+    val (inAppResult, subscriptionsResult) = coroutineScope {
+        awaitAll(
+            async { capture(queryInApp) },
+            async { capture(querySubscriptions) },
+        )
+    }
+    val firstError = inAppResult.exceptionOrNull()
+        ?: subscriptionsResult.exceptionOrNull()
+    if (inAppResult.isFailure && subscriptionsResult.isFailure) {
+        throw checkNotNull(firstError)
+    }
+
+    return AllProductQueryResults(
+        inApp = inAppResult.getOrNull(),
+        subscriptions = subscriptionsResult.getOrNull(),
+    )
 }
 
 /**
@@ -306,33 +343,26 @@ class OpenIapModule(
                     FetchProductsResultSubscriptions(result.toSubscriptionProducts(params.skus))
                 }
                 ProductQueryType.All -> {
-                    var firstQueryError: Throwable? = null
-
-                    val inAppResult = runCatching {
-                        queryProductDetailsWithStatus(
-                            client,
-                            productManager,
-                            params.skus,
-                            BillingClient.ProductType.INAPP,
-                        )
-                    }.onFailure { error ->
-                        firstQueryError = recordRecoverableProductQueryFailure(firstQueryError, error)
-                    }.getOrNull()
-
-                    val subscriptionsResult = runCatching {
-                        queryProductDetailsWithStatus(
-                            client,
-                            productManager,
-                            params.skus,
-                            BillingClient.ProductType.SUBS,
-                        )
-                    }.onFailure { error ->
-                        firstQueryError = recordRecoverableProductQueryFailure(firstQueryError, error)
-                    }.getOrNull()
-
-                    if (inAppResult == null && subscriptionsResult == null) {
-                        throw firstQueryError ?: OpenIapError.QueryProduct
-                    }
+                    val results = collectAllProductQueryResults(
+                        queryInApp = {
+                            queryProductDetailsWithStatus(
+                                client,
+                                productManager,
+                                params.skus,
+                                BillingClient.ProductType.INAPP,
+                            )
+                        },
+                        querySubscriptions = {
+                            queryProductDetailsWithStatus(
+                                client,
+                                productManager,
+                                params.skus,
+                                BillingClient.ProductType.SUBS,
+                            )
+                        },
+                    )
+                    val inAppResult = results.inApp
+                    val subscriptionsResult = results.subscriptions
 
                     val inAppById = inAppResult?.productDetails.orEmpty().associateBy { it.productId }
                     val subscriptionsById = subscriptionsResult?.productDetails.orEmpty()

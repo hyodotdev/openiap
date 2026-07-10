@@ -7,7 +7,10 @@ import io.github.hyochan.kmpiap.openiap.ProductStatusAndroid
 import io.github.hyochan.kmpiap.openiap.ProductType
 import io.github.hyochan.kmpiap.openiap.PurchaseError
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -135,22 +138,57 @@ class ProductStatusAndroidTest {
     }
 
     @Test
-    fun `all query propagates cancellation before starting the next query`() = runTest {
-        val cancellation = CancellationException("Cancelled")
-        var subscriptionQueryStarted = false
+    fun `all query runs both product kinds concurrently`() = runTest {
+        val inAppStarted = CompletableDeferred<Unit>()
+        val subscriptionsStarted = CompletableDeferred<Unit>()
 
-        val thrown = assertFailsWith<CancellationException> {
+        val outcomes = withTimeout(1_000) {
             collectProductQueryOutcomes(
                 queryType = ProductQueryType.All,
-                queryInApp = { throw cancellation },
+                queryInApp = {
+                    inAppStarted.complete(Unit)
+                    subscriptionsStarted.await()
+                    ProductQueryOutcome(emptyList(), emptyList(), true)
+                },
                 querySubscriptions = {
-                    subscriptionQueryStarted = true
+                    subscriptionsStarted.complete(Unit)
+                    inAppStarted.await()
                     ProductQueryOutcome(emptyList(), emptyList(), true)
                 },
             )
         }
 
-        assertSame(cancellation, thrown)
-        assertFalse(subscriptionQueryStarted)
+        assertTrue(outcomes.inApp.succeeded)
+        assertTrue(outcomes.subscriptions.succeeded)
+    }
+
+    @Test
+    fun `all query propagates cancellation and cancels its sibling`() = runTest {
+        val cancellation = CancellationException("Cancelled")
+        val subscriptionQueryStarted = CompletableDeferred<Unit>()
+        var subscriptionQueryCancelled = false
+
+        val thrown = assertFailsWith<CancellationException> {
+            withTimeout(1_000) {
+                collectProductQueryOutcomes(
+                    queryType = ProductQueryType.All,
+                    queryInApp = {
+                        subscriptionQueryStarted.await()
+                        throw cancellation
+                    },
+                    querySubscriptions = {
+                        subscriptionQueryStarted.complete(Unit)
+                        try {
+                            awaitCancellation()
+                        } finally {
+                            subscriptionQueryCancelled = true
+                        }
+                    },
+                )
+            }
+        }
+
+        assertEquals(cancellation.message, thrown.message)
+        assertTrue(subscriptionQueryCancelled)
     }
 }

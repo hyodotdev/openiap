@@ -46,6 +46,9 @@ import io.github.hyochan.kmpiap.openiap.SubscriptionPeriodUnit
 import io.github.hyochan.kmpiap.openiap.SubscriptionReplacementModeAndroid
 import io.github.hyochan.kmpiap.openiap.ValidTimeWindowAndroid
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import com.android.billingclient.api.BillingFlowParams
 import dev.hyo.openiap.BillingProgramAndroid as OpenIapBillingProgram
@@ -88,19 +91,25 @@ internal suspend fun collectProductQueryOutcomes(
         ProductQueryType.InApp -> ProductQueryOutcomes(queryInApp(), emptySuccess)
         ProductQueryType.Subs -> ProductQueryOutcomes(emptySuccess, querySubscriptions())
         ProductQueryType.All -> {
-            var firstError: Throwable? = null
-
-            suspend fun capture(block: suspend () -> ProductQueryOutcome): ProductQueryOutcome =
+            suspend fun capture(block: suspend () -> ProductQueryOutcome): Result<ProductQueryOutcome> =
                 try {
-                    block()
+                    Result.success(block())
                 } catch (error: Throwable) {
                     if (error is CancellationException || error is Error) throw error
-                    firstError = firstError ?: error
-                    ProductQueryOutcome(emptyList(), emptyList(), false)
+                    Result.failure(error)
                 }
 
-            val inApp = capture(queryInApp)
-            val subscriptions = capture(querySubscriptions)
+            val (inAppResult, subscriptionsResult) = coroutineScope {
+                awaitAll(
+                    async { capture(queryInApp) },
+                    async { capture(querySubscriptions) },
+                )
+            }
+            val firstError = inAppResult.exceptionOrNull()
+                ?: subscriptionsResult.exceptionOrNull()
+            val failedOutcome = ProductQueryOutcome(emptyList(), emptyList(), false)
+            val inApp = inAppResult.getOrElse { failedOutcome }
+            val subscriptions = subscriptionsResult.getOrElse { failedOutcome }
             if (!inApp.succeeded && !subscriptions.succeeded) {
                 throw checkNotNull(firstError)
             }

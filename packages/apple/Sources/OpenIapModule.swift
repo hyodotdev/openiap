@@ -1,5 +1,10 @@
 import Foundation
 import StoreKit
+
+private struct IndexedProductEntry: @unchecked Sendable {
+    let index: Int
+    let entry: OpenIAP.ProductOrSubscription
+}
 // UIKit: Required for UIApplication, UIWindowScene on iOS/tvOS/visionOS
 #if canImport(UIKit)
 import UIKit
@@ -151,18 +156,39 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
         // Preserve the concrete product variant so subscription-only fields are
         // not discarded when callers request a mixed result.
+        let allEntries = await withTaskGroup(of: IndexedProductEntry.self) { group in
+            for (index, product) in fetchedProducts.enumerated() {
+                group.addTask {
+                    if let subscription = await StoreKitTypesBridge.productSubscription(from: product) {
+                        return IndexedProductEntry(
+                            index: index,
+                            entry: .productSubscription(subscription)
+                        )
+                    }
+
+                    let productEntry = await StoreKitTypesBridge.product(from: product)
+                    return IndexedProductEntry(index: index, entry: .product(productEntry))
+                }
+            }
+
+            var entries = Array<OpenIAP.ProductOrSubscription?>(
+                repeating: nil,
+                count: fetchedProducts.count
+            )
+            for await result in group {
+                entries[result.index] = result.entry
+            }
+            return entries.compactMap { $0 }
+        }
+
         var productEntries: [OpenIAP.Product] = []
         var subscriptionEntries: [OpenIAP.ProductSubscription] = []
-        var allEntries: [OpenIAP.ProductOrSubscription] = []
-
-        for product in fetchedProducts {
-            if let subscription = await StoreKitTypesBridge.productSubscription(from: product) {
+        for entry in allEntries {
+            switch entry {
+            case .product(let product):
+                productEntries.append(product)
+            case .productSubscription(let subscription):
                 subscriptionEntries.append(subscription)
-                allEntries.append(.productSubscription(subscription))
-            } else {
-                let productEntry = await StoreKitTypesBridge.product(from: product)
-                productEntries.append(productEntry)
-                allEntries.append(.product(productEntry))
             }
         }
 
