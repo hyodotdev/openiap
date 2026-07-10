@@ -50,8 +50,11 @@ const mockNativeModule = {
   createAlternativeBillingTokenAndroid: jest.fn(),
   // Billing Programs API (8.2.0+)
   isBillingProgramAvailableAndroid: jest.fn(),
+  getBillingChoiceInfoAndroid: jest.fn(),
   launchExternalLinkAndroid: jest.fn(),
   createBillingProgramReportingDetailsAndroid: jest.fn(),
+  showBillingProgramInformationDialogAndroid: jest.fn(),
+  showInAppMessagesAndroid: jest.fn(),
   addListener: jest.fn(),
   removeListener: jest.fn(),
   removeListeners: jest.fn(),

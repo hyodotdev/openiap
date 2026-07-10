@@ -1,5 +1,7 @@
 // Mirrors libraries/expo-iap/example/src/utils/errorUtils.ts.
 
+using OpenIap;
+
 namespace OpenIap.Maui.Example.Utils;
 
 public static class ErrorUtils
@@ -18,4 +20,16 @@ public static class ErrorUtils
             _ => error.ToString() ?? "Unknown error",
         };
     }
+
+    public static bool IsUserCancelled(object? error) => error switch
+    {
+        OpenIapException ex => ex.Error.Code == ErrorCode.UserCancelled,
+        PurchaseError purchaseError => purchaseError.Code == ErrorCode.UserCancelled,
+        _ => false,
+    };
+
+    public static string FormatPurchaseFailure(object error, string operation = "Purchase") =>
+        IsUserCancelled(error)
+            ? $"{operation} cancelled by user"
+            : $"{operation} failed: {ExtractErrorMessage(error)}";
 }

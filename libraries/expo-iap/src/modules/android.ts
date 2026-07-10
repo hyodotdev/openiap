@@ -6,8 +6,19 @@ import ExpoIapModule from '../ExpoIapModule';
 
 // Types
 import type {
+  BillingChoiceInfoAndroid,
+  BillingProgramAndroid,
+  BillingProgramInformationDialogParamsAndroid,
+  BillingProgramReportingDetailsAndroid,
+  BillingResultAndroid,
   DeepLinkOptions,
+  DeveloperBillingTypeAndroid,
+  GetBillingChoiceInfoParamsAndroid,
+  InAppMessageParamsAndroid,
+  InAppMessageResultAndroid,
+  MutationCreateBillingProgramReportingDetailsAndroidArgs,
   MutationField,
+  QueryField,
   VerifyPurchaseResultAndroid,
 } from '../types';
 
@@ -296,9 +307,10 @@ export const createAlternativeBillingTokenAndroid: MutationField<
 
 /**
  * Check if a specific billing program is available for this user/device (Android only).
- * Available in Google Play Billing Library 8.2.0+.
+ * Available in Google Play Billing Library 8.2.0+. Billing Choice availability
+ * details, including the configured renderer and external-link support, require 9.1.0+.
  *
- * @param program - The billing program to check ('external-offer' or 'external-content-link')
+ * @param program - The billing program to check
  * @returns Promise resolving to availability result
  *
  * @example
@@ -318,8 +330,31 @@ export const isBillingProgramAvailableAndroid: MutationField<
 };
 
 /**
+ * Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens.
+ * Available in Google Play Billing Library 9.1.0+.
+ *
+ * @param params - Billing Choice info request parameters
+ * @returns Promise resolving to Play Billing Choice display information
+ *
+ * @see {@link https://openiap.dev/docs/apis/android/get-billing-choice-info-android}
+ */
+export const getBillingChoiceInfoAndroid: QueryField<
+  'getBillingChoiceInfoAndroid'
+> = async (
+  params: GetBillingChoiceInfoParamsAndroid = {},
+): Promise<BillingChoiceInfoAndroid> => {
+  return ExpoIapModule.getBillingChoiceInfoAndroid({
+    billingProgram: params.billingProgram ?? 'billing-choice',
+    playBillingChoiceImageLayout:
+      params.playBillingChoiceImageLayout ?? 'rectangular-four-by-one',
+    userLocale: params.userLocale ?? null,
+  });
+};
+
+/**
  * Launch an external link for the specified billing program (Android only).
- * Available in Google Play Billing Library 8.2.0+.
+ * Available in Google Play Billing Library 8.2.0+; developer-rendered Billing
+ * Choice external-link flows require 9.1.0+ and `externalTransactionToken`.
  *
  * @param params - The external link parameters
  * @returns Promise resolving to true if the link was launched successfully
@@ -327,7 +362,8 @@ export const isBillingProgramAvailableAndroid: MutationField<
  * @example
  * ```typescript
  * await launchExternalLinkAndroid({
- *   billingProgram: 'external-offer',
+ *   billingProgram: 'billing-choice',
+ *   externalTransactionToken: 'pre-generated-token',
  *   launchMode: 'launch-in-external-browser-or-app',
  *   linkType: 'link-to-digital-content-offer',
  *   linkUri: 'https://your-payment-site.com',
@@ -361,8 +397,70 @@ export const launchExternalLinkAndroid: MutationField<
  *
  * @see {@link https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android}
  */
-export const createBillingProgramReportingDetailsAndroid: MutationField<
+const createBillingProgramReportingDetailsAndroidField: MutationField<
   'createBillingProgramReportingDetailsAndroid'
-> = async (program) => {
-  return ExpoIapModule.createBillingProgramReportingDetailsAndroid(program);
+> = async (
+  args: MutationCreateBillingProgramReportingDetailsAndroidArgs,
+): Promise<BillingProgramReportingDetailsAndroid> =>
+  ExpoIapModule.createBillingProgramReportingDetailsAndroid(
+    args.program,
+    args.developerBillingType ?? null,
+  );
+
+export function createBillingProgramReportingDetailsAndroid(
+  args: MutationCreateBillingProgramReportingDetailsAndroidArgs,
+): Promise<BillingProgramReportingDetailsAndroid>;
+export function createBillingProgramReportingDetailsAndroid(
+  program: BillingProgramAndroid,
+  developerBillingType?: DeveloperBillingTypeAndroid | null,
+): Promise<BillingProgramReportingDetailsAndroid>;
+export function createBillingProgramReportingDetailsAndroid(
+  programOrArgs:
+    | BillingProgramAndroid
+    | MutationCreateBillingProgramReportingDetailsAndroidArgs,
+  developerBillingType?: DeveloperBillingTypeAndroid | null,
+): Promise<BillingProgramReportingDetailsAndroid> {
+  const args =
+    typeof programOrArgs === 'string'
+      ? {program: programOrArgs, developerBillingType}
+      : programOrArgs;
+  return createBillingProgramReportingDetailsAndroidField(args);
+}
+
+/**
+ * Show Google's mandatory information dialog before a developer-rendered,
+ * in-app Billing Choice screen.
+ * Available in Google Play Billing Library 9.1.0+.
+ *
+ * @param params - Dialog parameters with the external transaction token
+ * @returns Promise resolving to BillingResult
+ *
+ * @see {@link https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android}
+ */
+export const showBillingProgramInformationDialogAndroid: MutationField<
+  'showBillingProgramInformationDialogAndroid'
+> = async (
+  params: BillingProgramInformationDialogParamsAndroid,
+): Promise<BillingResultAndroid> => {
+  return ExpoIapModule.showBillingProgramInformationDialogAndroid({
+    billingProgram: params.billingProgram ?? 'billing-choice',
+    externalTransactionToken: params.externalTransactionToken,
+  });
+};
+
+/**
+ * Show Play Billing in-app messages, such as transactional subscription updates.
+ * Available in Google Play Billing Library 4.1.0+.
+ *
+ * @param params - Optional in-app message categories
+ * @returns Promise resolving to in-app message result
+ *
+ * @see {@link https://openiap.dev/docs/apis/android/show-in-app-messages-android}
+ */
+export const showInAppMessagesAndroid: MutationField<
+  'showInAppMessagesAndroid'
+> = async (
+  params?: InAppMessageParamsAndroid | null,
+): Promise<InAppMessageResultAndroid> => {
+  return ExpoIapModule.showInAppMessagesAndroid(params ?? null);
 };

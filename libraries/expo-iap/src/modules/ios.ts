@@ -8,8 +8,6 @@ import ExpoIapModule from '../ExpoIapModule';
 import type {
   ExternalPurchaseCustomLinkNoticeResultIOS,
   ExternalPurchaseCustomLinkTokenResultIOS,
-  ExternalPurchaseCustomLinkTokenTypeIOS,
-  ExternalPurchaseCustomLinkNoticeTypeIOS,
   ExternalPurchaseLinkResultIOS,
   ExternalPurchaseNoticeResultIOS,
   MutationField,
@@ -386,8 +384,10 @@ export const getPromotedProductIOS: QueryField<
  *
  * @see {@link https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios}
  */
-export const requestPurchaseOnPromotedProductIOS =
-  async (): Promise<boolean> => {
+export const requestPurchaseOnPromotedProductIOS: MutationField<
+  'requestPurchaseOnPromotedProductIOS'
+> =
+  async () => {
     const result = await ExpoIapModule.requestPurchaseOnPromotedProductIOS();
     return result ?? true;
   };
@@ -470,8 +470,10 @@ export const canPresentExternalPurchaseNoticeIOS: QueryField<
  *
  * @see {@link https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios}
  */
-export const presentExternalPurchaseNoticeSheetIOS =
-  async (): Promise<ExternalPurchaseNoticeResultIOS> => {
+export const presentExternalPurchaseNoticeSheetIOS: MutationField<
+  'presentExternalPurchaseNoticeSheetIOS'
+> =
+  async () => {
     const result = await ExpoIapModule.presentExternalPurchaseNoticeSheetIOS();
     return result as ExternalPurchaseNoticeResultIOS;
   };
@@ -502,8 +504,10 @@ export const presentExternalPurchaseLinkIOS: MutationField<
  *
  * @see {@link https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios}
  */
-export const isEligibleForExternalPurchaseCustomLinkIOS =
-  async (): Promise<boolean> => {
+export const isEligibleForExternalPurchaseCustomLinkIOS: QueryField<
+  'isEligibleForExternalPurchaseCustomLinkIOS'
+> =
+  async () => {
     return !!(await ExpoIapModule.isEligibleForExternalPurchaseCustomLinkIOS());
   };
 
@@ -518,9 +522,9 @@ export const isEligibleForExternalPurchaseCustomLinkIOS =
  *
  * @see {@link https://openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios}
  */
-export const getExternalPurchaseCustomLinkTokenIOS = async (
-  tokenType: ExternalPurchaseCustomLinkTokenTypeIOS,
-): Promise<ExternalPurchaseCustomLinkTokenResultIOS> => {
+export const getExternalPurchaseCustomLinkTokenIOS: QueryField<
+  'getExternalPurchaseCustomLinkTokenIOS'
+> = async (tokenType) => {
   if (!tokenType) {
     throw new Error(
       "getExternalPurchaseCustomLinkTokenIOS requires a tokenType ('acquisition' or 'services')",
@@ -544,9 +548,9 @@ export const getExternalPurchaseCustomLinkTokenIOS = async (
  *
  * @see {@link https://openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios}
  */
-export const showExternalPurchaseCustomLinkNoticeIOS = async (
-  noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS,
-): Promise<ExternalPurchaseCustomLinkNoticeResultIOS> => {
+export const showExternalPurchaseCustomLinkNoticeIOS: MutationField<
+  'showExternalPurchaseCustomLinkNoticeIOS'
+> = async (noticeType) => {
   if (!noticeType) {
     throw new Error(
       "showExternalPurchaseCustomLinkNoticeIOS requires a noticeType ('browser')",

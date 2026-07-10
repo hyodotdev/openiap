@@ -91,8 +91,11 @@ import APIsShowAlternativeBillingDialogAndroid from './apis/android/show-alterna
 import APIsCreateAlternativeBillingTokenAndroid from './apis/android/create-alternative-billing-token-android';
 import APIsEnableBillingProgramAndroid from './apis/android/enable-billing-program-android';
 import APIsIsBillingProgramAvailableAndroid from './apis/android/is-billing-program-available-android';
+import APIsGetBillingChoiceInfoAndroid from './apis/android/get-billing-choice-info-android';
 import APIsLaunchExternalLinkAndroid from './apis/android/launch-external-link-android';
 import APIsCreateBillingProgramReportingDetailsAndroid from './apis/android/create-billing-program-reporting-details-android';
+import APIsShowBillingProgramInformationDialogAndroid from './apis/android/show-billing-program-information-dialog-android';
+import APIsShowInAppMessagesAndroid from './apis/android/show-in-app-messages-android';
 import Events from './events';
 import Webhooks from './webhooks';
 import KitBackend from './kit-backend';
@@ -683,12 +686,24 @@ function Docs() {
                       label: 'isBillingProgramAvailableAndroid',
                     },
                     {
+                      to: '/docs/apis/android/get-billing-choice-info-android',
+                      label: 'getBillingChoiceInfoAndroid',
+                    },
+                    {
                       to: '/docs/apis/android/launch-external-link-android',
                       label: 'launchExternalLinkAndroid',
                     },
                     {
                       to: '/docs/apis/android/create-billing-program-reporting-details-android',
                       label: 'createBillingProgramReportingDetailsAndroid',
+                    },
+                    {
+                      to: '/docs/apis/android/show-billing-program-information-dialog-android',
+                      label: 'showBillingProgramInformationDialogAndroid',
+                    },
+                    {
+                      to: '/docs/apis/android/show-in-app-messages-android',
+                      label: 'showInAppMessagesAndroid',
                     },
                   ],
                 },
@@ -1285,12 +1300,24 @@ function Docs() {
             element={<APIsIsBillingProgramAvailableAndroid />}
           />
           <Route
+            path="apis/android/get-billing-choice-info-android"
+            element={<APIsGetBillingChoiceInfoAndroid />}
+          />
+          <Route
             path="apis/android/launch-external-link-android"
             element={<APIsLaunchExternalLinkAndroid />}
           />
           <Route
             path="apis/android/create-billing-program-reporting-details-android"
             element={<APIsCreateBillingProgramReportingDetailsAndroid />}
+          />
+          <Route
+            path="apis/android/show-billing-program-information-dialog-android"
+            element={<APIsShowBillingProgramInformationDialogAndroid />}
+          />
+          <Route
+            path="apis/android/show-in-app-messages-android"
+            element={<APIsShowInAppMessagesAndroid />}
           />
           <Route
             path="apis/connection"

@@ -195,6 +195,7 @@ all: android ios macos
 test:
 	@echo "$(GREEN)Running GDScript unit tests...$(NC)"
 	@cd $(EXAMPLE_DIR) && $(GODOT) --headless --script tests/test_types_only.gd
+	@cd $(EXAMPLE_DIR) && $(GODOT) --headless --script tests/test_godot_iap.gd
 	@echo "$(GREEN)✓ Tests complete$(NC)"
 
 # Clean build artifacts
@@ -233,7 +234,9 @@ run-android: export-android
 # Export iOS Xcode project
 export-ios: ios
 	@echo "$(GREEN)Exporting iOS Xcode project...$(NC)"
+	@rm -rf $(IOS_EXPORT_DIR)
 	@mkdir -p $(IOS_EXPORT_DIR)
+	@touch $(IOS_EXPORT_DIR)/.gdignore
 	@cd $(EXAMPLE_DIR) && $(GODOT) --headless --export-debug "iOS" ios/Martie.xcodeproj
 	@echo "$(GREEN)Fixing iOS frameworks...$(NC)"
 	@cp $(BIN_DIR)/ios/GodotIap.framework/Info.plist $(IOS_EXPORT_DIR)/Martie/addons/godot-iap/bin/ios/GodotIap.framework/ 2>/dev/null || true

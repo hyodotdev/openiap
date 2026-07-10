@@ -74,7 +74,7 @@
        intentionally ships as the single public NuGet ID, OpenIap.Maui. -->
   <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
     <ProjectReference Include="..\OpenIap.Maui.Bindings.Android\OpenIap.Maui.Bindings.Android.csproj" PrivateAssets="all" OutputItemType="Reference" />
-    <PackageReference Include="Xamarin.Android.Google.BillingClient" Version="$(MauiBillingClientNuGetVersion)" />
+    <PackageReference Include="Xamarin.Android.Google.BillingClient" Version="$(MauiBillingClientNuGetVersion)" Condition="'$(OpenIapGoogleAarFlavor)' == 'play'" />
     <PackageReference Include="GoogleGson" Version="$(MauiGoogleGsonNuGetVersion)" />
     <PackageReference Include="Xamarin.AndroidX.Activity.Ktx" Version="$(MauiAndroidXActivityVersion)" />
     <PackageReference Include="Xamarin.AndroidX.Fragment.Ktx" Version="$(MauiAndroidXFragmentVersion)" />
@@ -96,8 +96,12 @@
   </ItemGroup>
 
   <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' and '$(OpenIapGoogleAarFlavor)' == 'horizon'">
-    <AndroidMavenLibrary Include="com.meta.horizon.platform.ovr:android-platform-sdk" Version="$(MauiHorizonPlatformSdkVersion)" Bind="false" />
     <AndroidMavenLibrary Include="com.meta.horizon.billingclient.api:horizon-billing-compatibility" Version="$(MauiHorizonBillingCompatibilityVersion)" Bind="false" />
+    <AndroidMavenLibrary Include="com.meta.horizon.platform.sdk:core-kotlin" Version="$(MauiHorizonPlatformKotlinVersion)" Bind="false" />
+    <AndroidMavenLibrary Include="com.meta.horizon.platform.sdk:user-age-category-kotlin" Version="$(MauiHorizonPlatformKotlinVersion)" Bind="false" />
+    <AndroidMavenLibrary Include="com.meta.horizon.platform.sdk:iap-kotlin" Version="$(MauiHorizonPlatformKotlinVersion)" Bind="false" />
+    <PackageReference Include="Xamarin.KotlinX.Serialization.Json" Version="$(MauiHorizonSerializationNuGetVersion)" />
+    <PackageReference Include="Xamarin.KotlinX.Serialization.Json.Jvm" Version="$(MauiHorizonSerializationNuGetVersion)" />
   </ItemGroup>
 
   <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">

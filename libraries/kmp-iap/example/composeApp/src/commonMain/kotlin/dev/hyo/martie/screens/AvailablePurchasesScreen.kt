@@ -625,7 +625,7 @@ fun PurchaseCard(
                 color = AppColors.Secondary
             )
 
-            val instant = kotlinx.datetime.Instant.fromEpochSeconds(purchase.transactionDate.toLong())
+            val instant = kotlinx.datetime.Instant.fromEpochMilliseconds(purchase.transactionDate.toLong())
             Text(
                 text = "Date: $instant",
                 fontSize = 12.sp,

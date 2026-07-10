@@ -311,7 +311,9 @@ export default function ProjectPurchases() {
       <div>
         <h2 className="text-2xl font-bold mb-1">{"Purchases"}</h2>
         <p className="text-muted-foreground">
-          {"View all verified purchase records."}
+          {
+            "View store states captured by each purchase's latest verification. Use Subscriptions for live lifecycle state."
+          }
         </p>
       </div>
 

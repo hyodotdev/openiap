@@ -11,21 +11,26 @@ function DeveloperProvidedBillingListenerAndroid() {
     <div className="doc-page">
       <SEO
         title="developerProvidedBillingListenerAndroid"
-        description="Listener fired when a user selects developer-provided billing in the External Payments flow on Android (8.3.0+)."
+        description="Listener fired when a user selects developer-provided billing in an External Payments or Billing Choice flow on Android."
         path="/docs/events/android/developer-provided-billing-listener-android"
-        keywords="developerProvidedBillingListenerAndroid, developer billing, external payments, Android, Japan"
+        keywords="developerProvidedBillingListenerAndroid, developer billing, billing choice, external payments, Android"
       />
       <h1>
         <span className="platform-badge platform-badge--android">Android</span>{' '}
         developerProvidedBillingListenerAndroid
       </h1>
       <p>
-        Fired when a user selects developer-provided billing in the External
-        Payments flow on Android. This is different from User Choice Billing -
-        it presents a side-by-side choice dialog in the purchase flow itself.
+        Fired when a user selects developer-provided billing in an External
+        Payments or Billing Choice purchase flow. Billing Choice payload fields
+        are available in OpenIAP Spec 2.1.0 and <code>openiap-google</code>{' '}
+        2.3.0, and require Play Billing 9.1.0+. Unlike User Choice Billing, this
+        event is tied to the developer billing option configured for the
+        purchase itself.
       </p>
       <p>
-        <strong>Note:</strong> Currently only available in Japan.
+        <strong>Eligibility:</strong> Availability depends on the enabled Google
+        Play billing program and market. External Payments launched in Japan;
+        Billing Choice has its own program eligibility.
       </p>
 
       <h3>Listener Setup</h3>
@@ -62,16 +67,32 @@ using OpenIap.Maui;
 // Observable callback approach.
 IDisposable subscription = OpenIapClient.Instance.DeveloperProvidedBillingAndroid.Subscribe(details =>
 {
-    Console.WriteLine("External transaction token received; send it to your backend without logging it.");
+    Console.WriteLine($"Developer billing selected for {details.Products.Count} product(s).");
 });`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
       <p>
         Registers a listener for Developer Provided Billing events. This
-        listener is only triggered when the user selects the developer's payment
-        option (instead of Google Play) in the External Payments flow.
+        listener is triggered when the user selects the developer's payment
+        option instead of Google Play in an enabled developer billing program.
       </p>
+      <p>
+        React Native and Expo hook users can pass the same callback through{' '}
+        <code>onDeveloperProvidedBillingAndroid</code>. The hook also accepts{' '}
+        <code>billingChoiceScreenTypeAndroid</code> and returns the Billing
+        Choice Android APIs.
+      </p>
+      <CodeBlock language="typescript">{`const {
+  getBillingChoiceInfoAndroid,
+  showInAppMessagesAndroid,
+} = useIAP({
+  enableBillingProgramAndroid: 'billing-choice',
+  billingChoiceScreenTypeAndroid: 'google-rendered',
+  onDeveloperProvidedBillingAndroid: async (details) => {
+    await processDeveloperBilling(details);
+  },
+});`}</CodeBlock>
 
       <LanguageTabs>
         {{
@@ -79,18 +100,18 @@ IDisposable subscription = OpenIapClient.Instance.DeveloperProvidedBillingAndroi
             <CodeBlock language="typescript">{`import { developerProvidedBillingListenerAndroid } from 'expo-iap';
 
 const subscription = developerProvidedBillingListenerAndroid(async (details) => {
-  console.log('User selected developer billing');
-  console.log('External transaction token received; send it to your backend without logging it.');
-
-  // Process payment with your payment system
+  // Use products and linkUri to choose your in-app or external-link checkout.
   const paymentResult = await processPaymentWithYourGateway({
-    token: details.externalTransactionToken,
-    // Your payment details
+    products: details.products,
+    linkUri: details.linkUri,
   });
 
   if (paymentResult.success) {
-    // IMPORTANT: Report the token to Google Play within 24 hours
-    await reportExternalTransactionToGoogle(details.externalTransactionToken);
+    if (details.externalTransactionToken) {
+      await reportExternalTransactionToGoogle(
+        details.externalTransactionToken,
+      );
+    }
     grantUserAccess();
   }
 });
@@ -103,18 +124,16 @@ subscription.remove();`}</CodeBlock>
 
 // Using callback
 openIapStore.addDeveloperProvidedBillingListener { details ->
-    println("User selected developer billing")
-    println("External transaction token received; send it to your backend without logging it.")
-
     lifecycleScope.launch {
-        // Process payment with your payment system
         val paymentResult = processPaymentWithYourGateway(
-            token = details.externalTransactionToken
+            products = details.products,
+            linkUri = details.linkUri
         )
 
         if (paymentResult.success) {
-            // IMPORTANT: Report the token to Google Play within 24 hours
-            reportExternalTransactionToGoogle(details.externalTransactionToken)
+            details.externalTransactionToken?.let { token ->
+                reportExternalTransactionToGoogle(token)
+            }
             grantUserAccess()
         }
     }
@@ -127,18 +146,16 @@ val kmpIAP = KmpIAP()
 
 // Using callback
 kmpIAP.addDeveloperProvidedBillingListener { details ->
-    println("User selected developer billing")
-    println("External transaction token received; send it to your backend without logging it.")
-
     lifecycleScope.launch {
-        // Process payment with your payment system
         val paymentResult = processPaymentWithYourGateway(
-            token = details.externalTransactionToken
+            products = details.products,
+            linkUri = details.linkUri
         )
 
         if (paymentResult.success) {
-            // IMPORTANT: Report the token to Google Play within 24 hours
-            reportExternalTransactionToGoogle(details.externalTransactionToken)
+            details.externalTransactionToken?.let { token ->
+                reportExternalTransactionToGoogle(token)
+            }
             grantUserAccess()
         }
     }
@@ -150,17 +167,16 @@ kmpIAP.addDeveloperProvidedBillingListener { details ->
 // Android only (8.3.0+) - will not fire on iOS or older Android
 final subscription = FlutterInappPurchase.developerProvidedBillingStream
     .listen((details) async {
-  print('User selected developer billing');
-  print('External transaction token received; send it to your backend without logging it.');
-
-  // Process payment with your payment system
   final paymentResult = await processPaymentWithYourGateway(
-    token: details.externalTransactionToken,
+    products: details.products,
+    linkUri: details.linkUri,
   );
 
   if (paymentResult.success) {
-    // IMPORTANT: Report the token to Google Play within 24 hours
-    await reportExternalTransactionToGoogle(details.externalTransactionToken);
+    final token = details.externalTransactionToken;
+    if (token != null) {
+      await reportExternalTransactionToGoogle(token);
+    }
     grantUserAccess();
   }
 });
@@ -174,16 +190,16 @@ using OpenIap.Maui;
 
 var subscription = OpenIapClient.Instance.DeveloperProvidedBillingAndroid.Subscribe(async details =>
 {
-    Console.WriteLine("User selected developer billing");
-    Console.WriteLine("External transaction token received; send it to your backend without logging it.");
-
     var paymentResult = await ProcessPaymentWithYourGatewayAsync(
-        details.ExternalTransactionToken);
+        details.Products,
+        details.LinkUri);
 
     if (paymentResult.Success)
     {
-        // IMPORTANT: Report the token to Google Play within 24 hours.
-        await ReportExternalTransactionToGoogleAsync(details.ExternalTransactionToken);
+        if (details.ExternalTransactionToken is { Length: > 0 } token)
+        {
+            await ReportExternalTransactionToGoogleAsync(token);
+        }
         await GrantUserAccessAsync();
     }
 });
@@ -199,7 +215,16 @@ subscription.Dispose();`}</CodeBlock>
         {{
           typescript: (
             <CodeBlock language="typescript">{`interface DeveloperProvidedBillingDetailsAndroid {
-  externalTransactionToken: string;
+  externalTransactionToken?: string | null;
+  linkUri?: string | null;
+  originalExternalTransactionId?: string | null;
+  products: DeveloperProvidedBillingProductAndroid[];
+}
+
+interface DeveloperProvidedBillingProductAndroid {
+  id: string;
+  type: 'in-app' | 'subs';
+  offerToken?: string | null;
 }`}</CodeBlock>
           ),
           swift: (
@@ -207,17 +232,26 @@ subscription.Dispose();`}</CodeBlock>
           ),
           kotlin: (
             <CodeBlock language="kotlin">{`data class DeveloperProvidedBillingDetailsAndroid(
-    val externalTransactionToken: String
+    val externalTransactionToken: String?,
+    val linkUri: String?,
+    val originalExternalTransactionId: String?,
+    val products: List<DeveloperProvidedBillingProductAndroid>
 )`}</CodeBlock>
           ),
           kmp: (
             <CodeBlock language="kotlin">{`data class DeveloperProvidedBillingDetailsAndroid(
-    val externalTransactionToken: String
+    val externalTransactionToken: String?,
+    val linkUri: String?,
+    val originalExternalTransactionId: String?,
+    val products: List<DeveloperProvidedBillingProductAndroid>
 )`}</CodeBlock>
           ),
           dart: (
             <CodeBlock language="dart">{`class DeveloperProvidedBillingDetailsAndroid {
-  final String externalTransactionToken;
+  final String? externalTransactionToken;
+  final String? linkUri;
+  final String? originalExternalTransactionId;
+  final List<DeveloperProvidedBillingProductAndroid> products;
 }`}</CodeBlock>
           ),
           csharp: (
@@ -226,14 +260,19 @@ using OpenIap.Maui;
 
 public sealed record DeveloperProvidedBillingDetailsAndroid
 {
-    public required string ExternalTransactionToken { get; init; }
+    public string? ExternalTransactionToken { get; init; }
+    public string? LinkUri { get; init; }
+    public string? OriginalExternalTransactionId { get; init; }
+    public required IReadOnlyList<DeveloperProvidedBillingProductAndroid> Products { get; init; }
 }`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
       <p>
-        <strong>externalTransactionToken</strong> - Token that must be reported
-        to Google Play within 24 hours after completing the payment
+        <code>externalTransactionToken</code>, <code>linkUri</code>, and{' '}
+        <code>originalExternalTransactionId</code> are nullable. The callback
+        always includes <code>products</code>; each item has an <code>id</code>,{' '}
+        <code>type</code>, and optional subscription <code>offerToken</code>.
       </p>
 
       <h3>Comparison: User Choice vs Developer Provided Billing</h3>
@@ -254,7 +293,10 @@ public sealed record DeveloperProvidedBillingDetailsAndroid
           <tr>
             <td>Availability</td>
             <td>Eligible regions</td>
-            <td>Japan only</td>
+            <td>
+              Program and market eligibility; External Payments launched in
+              Japan, while Billing Choice uses separate eligibility.
+            </td>
           </tr>
           <tr>
             <td>When presented</td>
@@ -264,7 +306,7 @@ public sealed record DeveloperProvidedBillingDetailsAndroid
           <tr>
             <td>UI</td>
             <td>Separate dialog before purchase</td>
-            <td>Side-by-side choice in purchase dialog</td>
+            <td>Program-specific in-app or external-link choice flow</td>
           </tr>
           <tr>
             <td>Event</td>
@@ -281,7 +323,8 @@ public sealed record DeveloperProvidedBillingDetailsAndroid
               <code>AlternativeBillingModeAndroid.UserChoice</code>
             </td>
             <td>
-              <code>enableBillingProgram(EXTERNAL_PAYMENTS)</code> +{' '}
+              <code>enableBillingProgram(EXTERNAL_PAYMENTS)</code> or{' '}
+              <code>enableBillingProgram(BILLING_CHOICE)</code> +{' '}
               <code>developerBillingOption</code> in requestPurchase
             </td>
           </tr>
@@ -298,19 +341,23 @@ public sealed record DeveloperProvidedBillingDetailsAndroid
         }}
       >
         <p style={{ margin: 0, fontSize: '0.875rem' }}>
-          <strong>⚠️ Important:</strong> The external transaction token MUST be
-          reported to Google Play within 24 hours using the{' '}
-          <code>externaltransactions.createexternaltransaction</code> API.
-          Failure to report tokens may result in account suspension.
+          <strong>Important:</strong> When Google Play returns an external
+          transaction token, send it to your backend and report the completed
+          external transaction within the applicable program deadline. Do not
+          log or expose the token.
         </p>
       </div>
 
       <p>
         See{' '}
-        <Link to="/docs/features/external-purchase#external-payments-830---japan-only">
-          External Payments documentation
+        <Link to="/docs/types/billing-programs#developer-billing-option-params">
+          Billing Programs types
         </Link>{' '}
-        for complete implementation examples.
+        and the{' '}
+        <Link to="/docs/features/external-purchase">
+          external purchase guide
+        </Link>{' '}
+        for setup and purchase examples.
       </p>
     </div>
   );

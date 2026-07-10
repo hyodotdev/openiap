@@ -34,6 +34,7 @@ jest.mock('react-native', () => ({
 // Import after mocks
 import * as IAP from '../../index';
 import {useIAP} from '../../hooks/useIAP';
+import type {DeveloperProvidedBillingDetailsAndroid} from '../../types';
 
 describe('hooks/useIAP Android', () => {
   afterEach(() => {
@@ -78,6 +79,28 @@ describe('hooks/useIAP Android', () => {
     // Verify initConnection was called with the billing program config
     expect(IAP.initConnection).toHaveBeenCalledWith({
       enableBillingProgramAndroid: 'user-choice-billing',
+    });
+  });
+
+  it('passes the Billing Choice renderer to initConnection on Android', async () => {
+    let api: any;
+    const Harness = () => {
+      api = useIAP({
+        enableBillingProgramAndroid: 'billing-choice',
+        billingChoiceScreenTypeAndroid: 'developer-rendered',
+      });
+      return null;
+    };
+
+    await act(async () => {
+      TestRenderer.create(React.createElement(Harness));
+    });
+    await act(async () => {});
+
+    expect(api.connected).toBe(true);
+    expect(IAP.initConnection).toHaveBeenCalledWith({
+      enableBillingProgramAndroid: 'billing-choice',
+      billingChoiceScreenTypeAndroid: 'developer-rendered',
     });
   });
 
@@ -149,6 +172,65 @@ describe('hooks/useIAP Android', () => {
 
     expect(api.connected).toBe(true);
     expect(mockUserChoiceBillingListener).toHaveBeenCalled();
+  });
+
+  it('forwards developer-provided Billing Choice events from the hook', async () => {
+    let listener:
+      | Parameters<typeof IAP.developerProvidedBillingListenerAndroid>[0]
+      | undefined;
+    jest
+      .spyOn(IAP, 'developerProvidedBillingListenerAndroid')
+      .mockImplementation((callback) => {
+        listener = callback;
+        return {remove: jest.fn()};
+      });
+
+    const onDeveloperProvidedBillingAndroid = jest.fn();
+    const Harness = () => {
+      useIAP({onDeveloperProvidedBillingAndroid});
+      return null;
+    };
+
+    await act(async () => {
+      TestRenderer.create(React.createElement(Harness));
+    });
+    await act(async () => {});
+
+    const details: DeveloperProvidedBillingDetailsAndroid = {
+      externalTransactionToken: 'external-token',
+      products: [{id: 'premium', type: 'in-app'}],
+    };
+    listener?.(details);
+
+    expect(onDeveloperProvidedBillingAndroid).toHaveBeenCalledWith(details);
+  });
+
+  it('exposes all Billing Choice APIs through the hook', async () => {
+    let api: any;
+    const Harness = () => {
+      api = useIAP();
+      return null;
+    };
+
+    await act(async () => {
+      TestRenderer.create(React.createElement(Harness));
+    });
+    await act(async () => {});
+
+    expect(api.getBillingChoiceInfoAndroid).toBe(
+      IAP.getBillingChoiceInfoAndroid,
+    );
+    expect(api.isBillingProgramAvailableAndroid).toBe(
+      IAP.isBillingProgramAvailableAndroid,
+    );
+    expect(api.createBillingProgramReportingDetailsAndroid).toBe(
+      IAP.createBillingProgramReportingDetailsAndroid,
+    );
+    expect(api.launchExternalLinkAndroid).toBe(IAP.launchExternalLinkAndroid);
+    expect(api.showBillingProgramInformationDialogAndroid).toBe(
+      IAP.showBillingProgramInformationDialogAndroid,
+    );
+    expect(api.showInAppMessagesAndroid).toBe(IAP.showInAppMessagesAndroid);
   });
 
   it('reconnect uses Android billing config', async () => {

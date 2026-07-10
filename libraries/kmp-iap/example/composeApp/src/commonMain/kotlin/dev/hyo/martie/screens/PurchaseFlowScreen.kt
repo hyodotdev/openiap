@@ -21,6 +21,7 @@ import androidx.navigation.NavController
 import dev.hyo.martie.config.AppConfig
 import dev.hyo.martie.theme.AppColors
 import dev.hyo.martie.utils.swipeToBack
+import io.github.hyochan.kmpiap.PurchaseException
 import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.fetchProducts
 import io.github.hyochan.kmpiap.requestPurchase
@@ -115,7 +116,7 @@ fun PurchaseFlowScreen(navController: NavController) {
                         println(jsonString)
                         println("=============================================\n")
 
-                        val dateText = Instant.fromEpochSeconds(purchase.transactionDate.toLong())
+                        val dateText = Instant.fromEpochMilliseconds(purchase.transactionDate.toLong())
                             .toLocalDateTime(TimeZone.currentSystemDefault())
                         purchaseResult = """
                     ✅ Purchase successful (${purchase.platform})
@@ -494,6 +495,11 @@ fun PurchaseFlowScreen(navController: NavController) {
                                         }
                                     }
                                     // Purchase updates will be received through the Flow
+                                } catch (e: PurchaseException) {
+                                    if (e.error.code != ErrorCode.UserCancelled) {
+                                        purchaseResult = "Purchase failed: ${e.message}"
+                                    }
+                                    isProcessing = false
                                 } catch (e: Exception) {
                                     purchaseResult = "Purchase failed: ${e.message}"
                                     isProcessing = false

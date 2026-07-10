@@ -21,8 +21,9 @@ function EnableBillingProgramAndroid() {
         enableBillingProgramAndroid
       </h1>
       <p>
-        Enables a billing program for Android (Billing Library 8.2.0+). Pass it
-        as the{' '}
+        Enables a billing program for Android. Billing Choice support starts in
+        OpenIAP Spec 2.1.0 and <code>openiap-google</code> 2.3.0 and requires
+        Play Billing 9.1.0+. Pass it as the{' '}
         <Link to="/docs/types/billing-programs#billing-program-android">
           <code>enableBillingProgramAndroid</code>
         </Link>{' '}
@@ -37,7 +38,8 @@ function EnableBillingProgramAndroid() {
         Sets <code>enableBillingProgramAndroid</code> on{' '}
         <code>InitConnectionConfig</code>; under the hood it configures{' '}
         <code>BillingClient.Builder.enableBillingPrograms(...)</code> (Play
-        Billing 8.2.0+). See the{' '}
+        Billing 8.2.0+). Use <code>'billing-choice'</code> for Play Billing
+        Billing Choice. See the{' '}
         <a
           href="https://developer.android.com/google/play/billing/billing-programs"
           target="_blank"
@@ -143,7 +145,8 @@ import { initConnection } from 'expo-iap';
 
 await initConnection({
   enableBillingProgramAndroid: 'external-offer',
-  // 'user-choice-billing' | 'external-content-link' | 'external-offer' | 'external-payments'
+  // 'user-choice-billing' | 'external-content-link' | 'external-offer'
+  // | 'external-payments' | 'billing-choice'
 });
 
 // --- Or via the useIAP() hook (also exported from react-native-iap) ---

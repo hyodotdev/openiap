@@ -65,7 +65,7 @@ const createService = (): jest.Mocked<VegaPurchasingService> =>
     notifyFulfillment: jest.fn(async () => ({
       responseCode: 1,
     })),
-  }) as unknown as jest.Mocked<VegaPurchasingService>;
+  } as unknown as jest.Mocked<VegaPurchasingService>);
 
 describe('Amazon Vega Expo adapter', () => {
   it('initializes without fetching Amazon user data', async () => {
@@ -223,8 +223,7 @@ describe('Amazon Vega Expo adapter', () => {
 
     try {
       const result = module.acknowledgePurchaseAndroid('receipt-1');
-      await Promise.resolve();
-      jest.advanceTimersByTime(1_000);
+      await jest.advanceTimersByTimeAsync(1_000);
 
       await expect(result).resolves.toBeUndefined();
       expect(service.notifyFulfillment).toHaveBeenCalledTimes(2);
@@ -232,6 +231,28 @@ describe('Amazon Vega Expo adapter', () => {
         fulfillmentResult: 1,
         receiptId: 'receipt-1',
       });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('times out Amazon Vega fulfillment without duplicating the request', async () => {
+    jest.useFakeTimers();
+    const service = createService();
+    service.notifyFulfillment.mockImplementationOnce(
+      () => new Promise(() => {}),
+    );
+    const module = createExpoIapVegaModule(service);
+
+    try {
+      const result = module.acknowledgePurchaseAndroid('receipt-1');
+      const expectation = expect(result).rejects.toMatchObject({
+        code: 'service-timeout',
+      });
+      await jest.advanceTimersByTimeAsync(2_000);
+
+      await expectation;
+      expect(service.notifyFulfillment).toHaveBeenCalledTimes(1);
     } finally {
       jest.useRealTimers();
     }

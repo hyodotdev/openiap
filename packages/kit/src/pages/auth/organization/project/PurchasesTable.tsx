@@ -127,8 +127,8 @@ export function PurchasesTable({
         <table className="w-full text-sm">
           <thead className="text-xs uppercase text-muted-foreground border-b border-border">
             <tr className="text-left">
-              <th className="py-3 px-6 font-medium">{"Status"}</th>
-              <th className="py-3 px-6 font-medium">{"State"}</th>
+              <th className="py-3 px-6 font-medium">{"Validity"}</th>
+              <th className="py-3 px-6 font-medium">{"Verified state"}</th>
               <th className="py-3 px-6 font-medium">{"Store"}</th>
               <th className="py-3 px-6 font-medium">{"Product ID"}</th>
               <th className="py-3 px-6 font-medium">{"Request IP"}</th>

@@ -56,7 +56,7 @@ function BeginRefundRequestIOS() {
             <CodeBlock language="csharp">{`Task<String?> BeginRefundRequestIOSAsync(String Sku)`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`func begin_refund_request_ios(product_id: String) -> Types.RefundResultIOS`}</CodeBlock>
+            <CodeBlock language="gdscript">{`func begin_refund_request_ios(product_id: String) -> String`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
@@ -117,8 +117,7 @@ var status = await ((MutationResolver)OpenIapClient.Instance)
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":
-    # Synchronous — no await; returns Types.RefundResultIOS directly.
-    var result = iap.begin_refund_request_ios("com.app.premium")`}</CodeBlock>
+    var status = await iap.begin_refund_request_ios("com.app.premium")`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

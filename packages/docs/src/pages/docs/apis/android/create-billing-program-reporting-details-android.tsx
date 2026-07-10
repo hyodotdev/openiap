@@ -27,10 +27,13 @@ function CreateBillingProgramReportingDetailsAndroid() {
       <p>
         Wraps{' '}
         <code>
-          BillingClient.createBillingProgramReportingDetailsAsync(BillingProgram)
+          BillingClient.createBillingProgramReportingDetailsAsync(...)
         </code>{' '}
         — returns the external transaction token to report a Developer-Provided
-        Billing transaction. Play Billing 8.3.0+. See the{' '}
+        Billing transaction. Play Billing 8.3.0+; the optional developer billing
+        type parameter is available in OpenIAP Spec 2.1.0 and{' '}
+        <code>openiap-google</code> 2.3.0 for Billing Choice, which requires
+        Play Billing 9.1.0+. See the{' '}
         <a
           href="https://developer.android.com/google/play/billing/billing-programs"
           target="_blank"
@@ -49,34 +52,42 @@ function CreateBillingProgramReportingDetailsAndroid() {
 // Token must be reported to Google Play backend within 24 hours
 // Throws OpenIapError.NotPrepared if billing client not ready
 suspend fun createBillingProgramReportingDetails(
-    program: BillingProgramAndroid
+    program: BillingProgramAndroid,
+    developerBillingType: DeveloperBillingTypeAndroid? = null
 ): BillingProgramReportingDetailsAndroid`}</CodeBlock>
           ),
           kmp: (
             <CodeBlock language="kotlin">{`suspend fun createBillingProgramReportingDetailsAndroid(
-    program: BillingProgramAndroid
+    program: BillingProgramAndroid,
+    developerBillingType: DeveloperBillingTypeAndroid? = null
 ): BillingProgramReportingDetailsAndroid`}</CodeBlock>
           ),
           typescript: (
             <CodeBlock language="typescript">{`createBillingProgramReportingDetailsAndroid(
-  program: BillingProgramAndroid
+  program: BillingProgramAndroid,
+  developerBillingType?: DeveloperBillingTypeAndroid | null
 ): Promise<BillingProgramReportingDetailsAndroid>`}</CodeBlock>
           ),
           dart: (
             <CodeBlock language="dart">{`Future<BillingProgramReportingDetailsAndroid>
     createBillingProgramReportingDetailsAndroid(
   BillingProgramAndroid program,
+  {DeveloperBillingTypeAndroid? developerBillingType}
 );`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`// Returns BillingProgramReportingDetailsAndroid with externalTransactionToken
 // Token must be reported to Google Play backend within 24 hours
 // Throws OpenIapError.NotPrepared if billing client not ready
-Task<BillingProgramReportingDetailsAndroid> CreateBillingProgramReportingDetailsAndroidAsync(BillingProgramAndroid program);`}</CodeBlock>
+Task<BillingProgramReportingDetailsAndroid> CreateBillingProgramReportingDetailsAndroidAsync(
+    BillingProgramAndroid program,
+    DeveloperBillingTypeAndroid? developerBillingType = null
+);`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func create_billing_program_reporting_details_android(
-    program: int
+    program: int,
+    developer_billing_type = null
 ) -> BillingProgramReportingDetailsAndroid`}</CodeBlock>
           ),
         }}
@@ -97,6 +108,19 @@ Task<BillingProgramReportingDetailsAndroid> CreateBillingProgramReportingDetails
           </em>{' '}
           — Billing program identifier.
         </li>
+        <li>
+          <code>developerBillingType</code>{' '}
+          <em>
+            (optional,{' '}
+            <Link to="/docs/types/billing-programs#developer-billing-type-android">
+              <code>DeveloperBillingTypeAndroid</code>
+            </Link>
+            )
+          </em>{' '}
+          — Billing Choice reporting destination. Use <code>'in-app'</code> for
+          native in-app developer billing, or <code>'external-link'</code> when
+          the developer billing option uses a link.
+        </li>
       </ul>
 
       <AnchorLink id="returns" level="h2">
@@ -115,20 +139,6 @@ Task<BillingProgramReportingDetailsAndroid> CreateBillingProgramReportingDetails
             (<code>string</code>)
           </em>{' '}
           — Token to send to Google's reporting API. Required for compliance.
-        </li>
-        <li>
-          <code>responseCode</code>{' '}
-          <em>
-            (<code>number?</code>)
-          </em>{' '}
-          — Raw Play Billing response code (when Play returned one).
-        </li>
-        <li>
-          <code>debugMessage</code>{' '}
-          <em>
-            (<code>string?</code>)
-          </em>{' '}
-          — Optional debug message from Play.
         </li>
       </ul>
 
@@ -152,7 +162,8 @@ import { createBillingProgramReportingDetailsAndroid } from 'expo-iap';
 
 if (Platform.OS === 'android') {
   const details = await createBillingProgramReportingDetailsAndroid(
-    'external-offer',
+    'billing-choice',
+    'in-app',
   );
 }`}</CodeBlock>
           ),

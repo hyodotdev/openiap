@@ -291,8 +291,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   Stream<gentype.UserChoiceBillingDetails> get userChoiceBillingAndroid =>
       _userChoiceBillingAndroidListener.stream;
 
-  /// Developer provided billing Android event stream (8.3.0+)
-  /// Fires when user selects developer-provided billing option in external payments flow.
+  /// Developer provided billing Android event stream (8.3.0+).
+  /// Fires for External Payments and Google-rendered Billing Choice selections.
   Stream<gentype.DeveloperProvidedBillingDetailsAndroid>
       get developerProvidedBillingAndroid =>
           _developerProvidedBillingAndroidListener.stream;
@@ -465,6 +465,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// See: https://openiap.dev/docs/apis/init-connection
   gentype.MutationInitConnectionHandler get initConnection => ({
         gentype.AlternativeBillingModeAndroid? alternativeBillingModeAndroid,
+        gentype.BillingChoiceScreenTypeAndroid? billingChoiceScreenTypeAndroid,
         gentype.BillingProgramAndroid? enableBillingProgramAndroid,
       }) async {
         if (_isInitialized) {
@@ -477,6 +478,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           // Build config map for alternative billing and billing program
           Map<String, dynamic>? config;
           if (alternativeBillingModeAndroid != null ||
+              billingChoiceScreenTypeAndroid != null ||
               enableBillingProgramAndroid != null) {
             config = {};
             if (alternativeBillingModeAndroid != null) {
@@ -486,6 +488,10 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             if (enableBillingProgramAndroid != null) {
               config['enableBillingProgramAndroid'] =
                   enableBillingProgramAndroid.toJson();
+            }
+            if (billingChoiceScreenTypeAndroid != null) {
+              config['billingChoiceScreenTypeAndroid'] =
+                  billingChoiceScreenTypeAndroid.toJson();
             }
           }
 
@@ -657,6 +663,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             final String? obfuscatedAccount;
             final String? obfuscatedProfile;
             final String? purchaseToken;
+            final String? originalExternalTransactionId;
             final int? replacementMode;
             final String? offerToken;
             final List<gentype.AndroidSubscriptionOfferInput>?
@@ -672,6 +679,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               obfuscatedAccount = androidProps.obfuscatedAccountId;
               obfuscatedProfile = androidProps.obfuscatedProfileId;
               purchaseToken = null;
+              originalExternalTransactionId = null;
               replacementMode = null;
               offerToken = androidProps.offerToken;
               subscriptionOffers = null;
@@ -684,6 +692,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               obfuscatedAccount = androidProps.obfuscatedAccountId;
               obfuscatedProfile = androidProps.obfuscatedProfileId;
               purchaseToken = androidProps.purchaseToken;
+              originalExternalTransactionId =
+                  androidProps.originalExternalTransactionId;
               replacementMode = androidProps.replacementMode;
               offerToken = null; // Subscriptions don't use offerToken
               subscriptionOffers = androidProps.subscriptionOffers;
@@ -724,6 +734,11 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               payload['purchaseToken'] = purchaseToken;
             }
 
+            if (originalExternalTransactionId != null) {
+              payload['originalExternalTransactionId'] =
+                  originalExternalTransactionId;
+            }
+
             if (replacementMode != null) {
               payload['replacementMode'] = replacementMode;
             }
@@ -744,7 +759,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                 json['useAlternativeBilling'] as bool?;
             payload['useAlternativeBilling'] = useAlternativeBilling;
 
-            // Add developerBillingOption for External Payments (8.3.0+)
+            // Add developerBillingOption for External Payments (8.3.0+) or Billing Choice (9.1.0+)
             if (developerBillingOption != null) {
               payload['developerBillingOption'] =
                   developerBillingOption.toJson();
@@ -2545,8 +2560,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
   Future<gentype.BillingProgramReportingDetailsAndroid>
       createBillingProgramReportingDetailsAndroid(
-    gentype.BillingProgramAndroid program,
-  ) async {
+    gentype.BillingProgramAndroid program, {
+    gentype.DeveloperBillingTypeAndroid? developerBillingType,
+  }) async {
     if (!_platform.isAndroid) {
       throw PurchaseError(
         code: gentype.ErrorCode.IapNotAvailable,
@@ -2557,7 +2573,10 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
     try {
       final result = await _channel.invokeMethod<String>(
         'createBillingProgramReportingDetailsAndroid',
-        {'program': program.toJson()},
+        {
+          'program': program.toJson(),
+          'developerBillingType': developerBillingType?.toJson(),
+        },
       );
       if (result != null) {
         final json = jsonDecode(result) as Map<String, dynamic>;
@@ -2569,6 +2588,101 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
       );
     } catch (error) {
       debugPrint('createBillingProgramReportingDetailsAndroid error: $error');
+      rethrow;
+    }
+  }
+
+  /// Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens (Play Billing 9.1.0+).
+  ///
+  /// See: https://openiap.dev/docs/apis/android/get-billing-choice-info-android
+  Future<gentype.BillingChoiceInfoAndroid> getBillingChoiceInfoAndroid(
+    gentype.GetBillingChoiceInfoParamsAndroid params,
+  ) async {
+    if (!_platform.isAndroid) {
+      throw PurchaseError(
+        code: gentype.ErrorCode.IapNotAvailable,
+        message: 'getBillingChoiceInfoAndroid only available on Android',
+      );
+    }
+    try {
+      final result = await _channel.invokeMethod<String>(
+        'getBillingChoiceInfoAndroid',
+        params.toJson(),
+      );
+      if (result != null) {
+        final json = jsonDecode(result) as Map<String, dynamic>;
+        return gentype.BillingChoiceInfoAndroid.fromJson(json);
+      }
+      throw PurchaseError(
+        code: gentype.ErrorCode.Unknown,
+        message: 'Failed to get Billing Choice info',
+      );
+    } catch (error) {
+      debugPrint('getBillingChoiceInfoAndroid error: $error');
+      rethrow;
+    }
+  }
+
+  /// Show Google's mandatory information dialog before a developer-rendered,
+  /// in-app Billing Choice screen (Play Billing 9.1.0+).
+  ///
+  /// See: https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android
+  Future<gentype.BillingResultAndroid>
+      showBillingProgramInformationDialogAndroid(
+    gentype.BillingProgramInformationDialogParamsAndroid params,
+  ) async {
+    if (!_platform.isAndroid) {
+      throw PurchaseError(
+        code: gentype.ErrorCode.IapNotAvailable,
+        message:
+            'showBillingProgramInformationDialogAndroid only available on Android',
+      );
+    }
+    try {
+      final result = await _channel.invokeMethod<String>(
+        'showBillingProgramInformationDialogAndroid',
+        params.toJson(),
+      );
+      if (result != null) {
+        final json = jsonDecode(result) as Map<String, dynamic>;
+        return gentype.BillingResultAndroid.fromJson(json);
+      }
+      throw PurchaseError(
+        code: gentype.ErrorCode.Unknown,
+        message: 'Failed to show Billing Choice information dialog',
+      );
+    } catch (error) {
+      debugPrint('showBillingProgramInformationDialogAndroid error: $error');
+      rethrow;
+    }
+  }
+
+  /// Show Play Billing in-app messages such as transactional subscription updates.
+  ///
+  /// See: https://openiap.dev/docs/apis/android/show-in-app-messages-android
+  Future<gentype.InAppMessageResultAndroid> showInAppMessagesAndroid([
+    gentype.InAppMessageParamsAndroid? params,
+  ]) async {
+    if (!_platform.isAndroid) {
+      throw PurchaseError(
+        code: gentype.ErrorCode.IapNotAvailable,
+        message: 'showInAppMessagesAndroid only available on Android',
+      );
+    }
+    try {
+      final result = await _channel.invokeMethod<String>(
+        'showInAppMessagesAndroid',
+        params?.toJson(),
+      );
+      if (result != null) {
+        final json = jsonDecode(result) as Map<String, dynamic>;
+        return gentype.InAppMessageResultAndroid.fromJson(json);
+      }
+      return const gentype.InAppMessageResultAndroid(
+        responseCode: gentype.InAppMessageResponseCodeAndroid.NoActionNeeded,
+      );
+    } catch (error) {
+      debugPrint('showInAppMessagesAndroid error: $error');
       rethrow;
     }
   }
@@ -2589,6 +2703,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
       final result =
           await _channel.invokeMethod<bool>('launchExternalLinkAndroid', {
         'billingProgram': params.billingProgram.toJson(),
+        'externalTransactionToken': params.externalTransactionToken,
         'launchMode': params.launchMode.toJson(),
         'linkType': params.linkType.toJson(),
         'linkUri': params.linkUri,
@@ -2818,6 +2933,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         getStorefront: getStorefront,
         getStorefrontIOS: getStorefrontIOS,
         getTransactionJwsIOS: getTransactionJwsIOS,
+        getBillingChoiceInfoAndroid: _getBillingChoiceInfoAndroidHandler,
         hasActiveSubscriptions: hasActiveSubscriptions,
         isEligibleForExternalPurchaseCustomLinkIOS:
             isEligibleForExternalPurchaseCustomLinkIOS,
@@ -2834,14 +2950,61 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             required gentype.ExternalLinkLaunchModeAndroid launchMode,
             required gentype.ExternalLinkTypeAndroid linkType,
             required String linkUri,
+            String? externalTransactionToken,
           }) =>
               launchExternalLinkAndroid(
                 gentype.LaunchExternalLinkParamsAndroid(
                   billingProgram: billingProgram,
+                  externalTransactionToken: externalTransactionToken,
                   launchMode: launchMode,
                   linkType: linkType,
                   linkUri: linkUri,
                 ),
+              );
+
+  gentype.QueryGetBillingChoiceInfoAndroidHandler
+      get _getBillingChoiceInfoAndroidHandler => ({
+            required gentype.BillingProgramAndroid billingProgram,
+            required gentype.BillingChoiceImageLayoutAndroid
+                playBillingChoiceImageLayout,
+            String? userLocale,
+          }) =>
+              getBillingChoiceInfoAndroid(
+                gentype.GetBillingChoiceInfoParamsAndroid(
+                  billingProgram: billingProgram,
+                  playBillingChoiceImageLayout: playBillingChoiceImageLayout,
+                  userLocale: userLocale,
+                ),
+              );
+
+  gentype.MutationCreateBillingProgramReportingDetailsAndroidHandler
+      get _createBillingProgramReportingDetailsAndroidHandler => ({
+            required gentype.BillingProgramAndroid program,
+            gentype.DeveloperBillingTypeAndroid? developerBillingType,
+          }) =>
+              createBillingProgramReportingDetailsAndroid(
+                program,
+                developerBillingType: developerBillingType,
+              );
+
+  gentype.MutationShowBillingProgramInformationDialogAndroidHandler
+      get _showBillingProgramInformationDialogAndroidHandler => ({
+            required gentype.BillingProgramAndroid billingProgram,
+            required String externalTransactionToken,
+          }) =>
+              showBillingProgramInformationDialogAndroid(
+                gentype.BillingProgramInformationDialogParamsAndroid(
+                  billingProgram: billingProgram,
+                  externalTransactionToken: externalTransactionToken,
+                ),
+              );
+
+  gentype.MutationShowInAppMessagesAndroidHandler
+      get _showInAppMessagesAndroidHandler => ({
+            List<gentype.InAppMessageCategoryAndroid>? categories,
+          }) =>
+              showInAppMessagesAndroid(
+                gentype.InAppMessageParamsAndroid(categories: categories),
               );
 
   // ignore: deprecated_member_use_from_same_package
@@ -2850,7 +3013,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         beginRefundRequestIOS: beginRefundRequestIOS,
         consumePurchaseAndroid: consumePurchaseAndroid,
         createBillingProgramReportingDetailsAndroid:
-            createBillingProgramReportingDetailsAndroid,
+            _createBillingProgramReportingDetailsAndroidHandler,
         deepLinkToSubscriptions: deepLinkToSubscriptions,
         endConnection: endConnection,
         finishTransaction: finishTransaction,
@@ -2863,6 +3026,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             // ignore: deprecated_member_use_from_same_package
             requestPurchaseOnPromotedProductIOS,
         restorePurchases: restorePurchases,
+        showBillingProgramInformationDialogAndroid:
+            _showBillingProgramInformationDialogAndroidHandler,
+        showInAppMessagesAndroid: _showInAppMessagesAndroidHandler,
         showManageSubscriptionsIOS: showManageSubscriptionsIOS,
         syncIOS: syncIOS,
         validateReceipt: validateReceipt,

@@ -1657,8 +1657,23 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      *
      * @see <a href="https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android">https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android</a>
      */
-    override suspend fun createBillingProgramReportingDetailsAndroid(program: BillingProgramAndroid): BillingProgramReportingDetailsAndroid {
+    override suspend fun getBillingChoiceInfoAndroid(params: GetBillingChoiceInfoParamsAndroid): BillingChoiceInfoAndroid {
+        throw UnsupportedOperationException("getBillingChoiceInfoAndroid is only available on Android")
+    }
+
+    override suspend fun createBillingProgramReportingDetailsAndroid(
+        program: BillingProgramAndroid,
+        developerBillingType: DeveloperBillingTypeAndroid?
+    ): BillingProgramReportingDetailsAndroid {
         throw UnsupportedOperationException("createBillingProgramReportingDetailsAndroid is only available on Android")
+    }
+
+    override suspend fun showBillingProgramInformationDialogAndroid(params: BillingProgramInformationDialogParamsAndroid): BillingResultAndroid {
+        throw UnsupportedOperationException("showBillingProgramInformationDialogAndroid is only available on Android")
+    }
+
+    override suspend fun showInAppMessagesAndroid(params: InAppMessageParamsAndroid?): InAppMessageResultAndroid {
+        throw UnsupportedOperationException("showInAppMessagesAndroid is only available on Android")
     }
 
     /**

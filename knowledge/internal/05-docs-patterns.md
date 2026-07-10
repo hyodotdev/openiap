@@ -188,6 +188,25 @@ Framework implementation listings must be derived from
 
 Release notes are located at `packages/docs/src/pages/docs/updates/releases.tsx`.
 
+### Package-specific grouping for shared releases
+
+The docs release page is the canonical release-note SSOT, including when many
+packages ship together. To satisfy the package-specific changelog requirement
+from issue #206 without duplicating release history across package-local files:
+
+- Audit the full requested commit range inclusively and include the current PR
+  diff before drafting the note.
+- Group user-visible changes by affected platform package or framework library:
+  Google, Apple, IAPKit, React Native, Expo, Flutter, Godot, KMP, and MAUI.
+- Omit packages with no user-visible change and keep each remaining group to the
+  smallest set of useful upgrade notes.
+- Do not replace package-specific behavior with a generic "framework parity"
+  bullet when wrappers have different setup, runtime, or compatibility details.
+- Exclude version-only commits, generated-file churn, and CI mechanics unless
+  they change how users install, build, or validate the release.
+- Keep package-local changelogs as pointers to this page and GitHub Releases,
+  except where a package registry requires generated inline history.
+
 ### Adding New Release Notes
 
 1. Add new entry at the **top** of the `allNotes` array

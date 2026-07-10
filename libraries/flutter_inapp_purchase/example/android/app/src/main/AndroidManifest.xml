@@ -54,7 +54,7 @@
 
         <!-- Meta Horizon App ID - injected by Gradle from local.properties -->
         <meta-data
-            android:name="com.meta.horizon.platform.ovr.HORIZON_APP_ID"
+            android:name="com.meta.horizon.platform.HORIZON_APP_ID"
             android:value="${HORIZON_APP_ID}" />
     </application>
 </manifest>

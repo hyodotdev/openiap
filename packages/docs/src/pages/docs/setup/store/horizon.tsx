@@ -44,18 +44,15 @@ function HorizonStoreSetup() {
             <tr>
               <td>Horizon app id</td>
               <td>
-                Meta Horizon Developer Hub app record. In native Android this is
-                commonly injected as <code>OCULUS_APP_ID</code> or{' '}
+                Meta Horizon Developer Hub app record. Gradle projects commonly
+                expose it through a placeholder named{' '}
                 <code>HORIZON_APP_ID</code>.
               </td>
               <td>
                 Expo uses <code>android.horizon.appId</code>. Bare React Native
                 and Flutter examples below use a Gradle property named{' '}
                 <code>horizonAppId</code> and write Android manifest meta-data{' '}
-                <code>com.meta.horizon.platform.ovr.OCULUS_APP_ID</code>.
-                OpenIAP also accepts{' '}
-                <code>com.meta.horizon.platform.ovr.HORIZON_APP_ID</code> for
-                host apps that already use that key.
+                <code>com.meta.horizon.platform.HORIZON_APP_ID</code>.
               </td>
             </tr>
             <tr>
@@ -185,13 +182,13 @@ android {
 }`}</CodeBlock>
         <p>Provide the app id in the Android manifest:</p>
         <CodeBlock language="xml">{`<meta-data
-    android:name="com.meta.horizon.platform.ovr.OCULUS_APP_ID"
+    android:name="com.meta.horizon.platform.HORIZON_APP_ID"
     android:value="YOUR_HORIZON_APP_ID" />`}</CodeBlock>
         <p>
-          If the host app already uses{' '}
-          <code>com.meta.horizon.platform.ovr.HORIZON_APP_ID</code>, OpenIAP can
-          read that key as well. Prefer <code>OCULUS_APP_ID</code> for new app
-          setup because the Expo plugin writes that key.
+          OpenIAP still reads the older <code>...ovr.OCULUS_APP_ID</code>,{' '}
+          <code>...ovr.HORIZON_APP_ID</code>, and{' '}
+          <code>com.oculus.vr.APP_ID</code> keys for migration. New setup should
+          use the Horizon 2.x canonical key above.
         </p>
       </section>
 
@@ -250,7 +247,7 @@ android {
     }
 }`}</CodeBlock>
         <CodeBlock language="xml">{`<meta-data
-    android:name="com.meta.horizon.platform.ovr.OCULUS_APP_ID"
+    android:name="com.meta.horizon.platform.HORIZON_APP_ID"
     android:value="\${HORIZON_APP_ID}" />`}</CodeBlock>
       </section>
 

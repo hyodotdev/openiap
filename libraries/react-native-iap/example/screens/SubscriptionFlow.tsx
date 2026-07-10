@@ -412,8 +412,7 @@ function SubscriptionFlow({
 
                 // For Android, get purchase token from activeSubscriptions
                 const extendedSub = currentSub as
-                  | ExtendedActiveSubscription
-                  | undefined;
+                  ExtendedActiveSubscription | undefined;
                 const purchaseToken =
                   extendedSub?.purchaseToken ||
                   extendedSub?.purchaseTokenAndroid;
@@ -1107,7 +1106,8 @@ function SubscriptionFlow({
                                 </Text>
                                 <Text style={styles.statusValue}>
                                   {new Date(
-                                    sub.renewalInfoIOS.gracePeriodExpirationDate,
+                                    sub.renewalInfoIOS
+                                      .gracePeriodExpirationDate,
                                   ).toLocaleDateString()}
                                 </Text>
                               </View>
@@ -1770,6 +1770,7 @@ function SubscriptionFlowContainer() {
       // - iOS: App Store Server API + App Store Server Notifications V2
       // - Android: Google Play Developer API + RTDN
       const currentVerificationMethod = verificationMethodRef.current;
+      let iapkitVerifyRequest: VerifyPurchaseWithProviderProps | null = null;
       console.log('[SubscriptionFlow] About to verify purchase:', {
         verificationMethod: currentVerificationMethod,
         productId,
@@ -1840,6 +1841,7 @@ function SubscriptionFlowContainer() {
               provider: 'iapkit',
               iapkit: iapkitPayload,
             };
+            iapkitVerifyRequest = verifyRequest;
             const iapkitLogPayload = {
               ...iapkitPayload,
               apiKey: '***hidden***',
@@ -1932,6 +1934,21 @@ function SubscriptionFlowContainer() {
                 purchase,
                 isConsumable,
               });
+              if (Platform.OS === 'android' && iapkitVerifyRequest) {
+                try {
+                  const refreshedResult =
+                    await verifyPurchaseWithProvider(iapkitVerifyRequest);
+                  console.log(
+                    '[SubscriptionFlow] IAPKit state after delayed finishTransaction:',
+                    refreshedResult,
+                  );
+                } catch (error) {
+                  console.log(
+                    '[SubscriptionFlow] IAPKit post-finish verification failed:',
+                    getErrorMessage(error),
+                  );
+                }
+              }
               if (mountedRef.current) {
                 setPurchaseResult(
                   `Subscription activated and finished successfully.\n` +
@@ -2016,6 +2033,21 @@ function SubscriptionFlowContainer() {
       }
 
       if (didFinishTransaction) {
+        if (Platform.OS === 'android' && iapkitVerifyRequest) {
+          try {
+            const refreshedResult =
+              await verifyPurchaseWithProvider(iapkitVerifyRequest);
+            console.log(
+              '[SubscriptionFlow] IAPKit state after finishTransaction:',
+              refreshedResult,
+            );
+          } catch (error) {
+            console.log(
+              '[SubscriptionFlow] IAPKit post-finish verification failed:',
+              getErrorMessage(error),
+            );
+          }
+        }
         showNativeAlert('Success', 'Purchase completed successfully!');
       }
     },

@@ -224,7 +224,7 @@ libraries/maui-iap/src/OpenIap.Maui/Types.cs # C# / MAUI types`}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Play Billing v8
+                  Play Billing v9.1
                 </a>
                 . Supports Android 5.0+ (API 21+).
               </p>
@@ -632,7 +632,7 @@ await iap.end_connection()`}</CodeBlock>
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      Play Billing v8
+                      Play Billing v9.1
                     </a>
                   </td>
                   <td>API 21+ (5.0)</td>

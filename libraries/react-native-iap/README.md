@@ -79,7 +79,7 @@ React Native IAP is built with a modern architecture that emphasizes:
 | Platform          | Support | Notes                            |
 | ----------------- | ------- | -------------------------------- |
 | iOS               | ✅      | StoreKit 2 (requires iOS 15+)    |
-| Android           | ✅      | Google Play Billing v8.0.0+      |
+| Android           | ✅      | Google Play Billing v9.1.0       |
 | Expo Go           | ❌      | Use `expo-iap` for Expo projects |
 | Expo Dev Client   | ❌      | Use `expo-iap` for Expo projects |
 | Bare React Native | ✅      | Full support                     |
@@ -170,7 +170,7 @@ React Native IAP conforms to the **[OpenIAP specification](https://openiap.dev)*
 
 - **Shared specification** — Common types, error codes, and purchase flows across all platforms
 - **Generated type-safe bindings** — Swift, Kotlin, TypeScript, Dart, C#, and GDScript from a single GraphQL schema
-- **Platform implementations** — [openiap-apple](https://github.com/hyodotdev/openiap/tree/main/packages/apple) (StoreKit 2) and [openiap-google](https://github.com/hyodotdev/openiap/tree/main/packages/google) (Play Billing 8.x)
+- **Platform implementations** — [openiap-apple](https://github.com/hyodotdev/openiap/tree/main/packages/apple) (StoreKit 2) and [openiap-google](https://github.com/hyodotdev/openiap/tree/main/packages/google) (Play Billing 9.1.0)
 - **Verification profiles** — Standardized receipt validation and purchase verification patterns
 
 Other libraries built on OpenIAP: [expo-iap](https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap) · [flutter_inapp_purchase](https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase) · [kmp-iap](https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap) · [maui-iap](https://github.com/hyodotdev/openiap/tree/main/libraries/maui-iap) · [godot-iap](https://github.com/hyodotdev/openiap/tree/main/libraries/godot-iap)

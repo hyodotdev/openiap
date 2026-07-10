@@ -18,7 +18,7 @@ import dev.hyo.openiap.ProductRequest
 import dev.hyo.openiap.ProductSubscriptionAndroid
 import dev.hyo.openiap.ProductSubscriptionAndroidOfferDetails
 import dev.hyo.openiap.ProductCommon
-import dev.hyo.openiap.ProductType
+import dev.hyo.openiap.ProductType as OpenIapProductType
 import dev.hyo.openiap.Purchase as OpenIapPurchase
 import dev.hyo.openiap.PurchaseAndroid
 import dev.hyo.openiap.RequestPurchaseAndroidProps
@@ -28,6 +28,7 @@ import dev.hyo.openiap.RequestPurchaseResultPurchase
 import dev.hyo.openiap.RequestPurchaseResultPurchases
 import dev.hyo.openiap.RequestSubscriptionAndroidProps
 import dev.hyo.openiap.RequestSubscriptionPropsByPlatforms
+import dev.hyo.openiap.SubResponseCodeAndroid as OpenIapSubResponseCodeAndroid
 import dev.hyo.openiap.SubscriptionProductReplacementParamsAndroid as OpenIapSubscriptionProductReplacementParams
 import dev.hyo.openiap.SubscriptionReplacementModeAndroid as OpenIapSubscriptionReplacementMode
 import dev.hyo.openiap.VerifyPurchaseGoogleOptions
@@ -37,7 +38,17 @@ import dev.hyo.openiap.InitConnectionConfig as OpenIapInitConnectionConfig
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
+import dev.hyo.openiap.BillingChoiceImageLayoutAndroid as OpenIapBillingChoiceImageLayout
+import dev.hyo.openiap.BillingChoiceScreenTypeAndroid as OpenIapBillingChoiceScreenType
+import dev.hyo.openiap.BillingProgramInformationDialogParamsAndroid as OpenIapBillingProgramInformationDialogParams
 import dev.hyo.openiap.BillingProgramAndroid as OpenIapBillingProgramAndroid
+import dev.hyo.openiap.DeveloperBillingTypeAndroid as OpenIapDeveloperBillingType
+import dev.hyo.openiap.DeveloperBillingLaunchModeAndroid as OpenIapDeveloperBillingLaunchMode
+import dev.hyo.openiap.DeveloperBillingOptionParamsAndroid as OpenIapDeveloperBillingOptionParams
+import dev.hyo.openiap.GetBillingChoiceInfoParamsAndroid as OpenIapGetBillingChoiceInfoParams
+import dev.hyo.openiap.InAppMessageCategoryAndroid as OpenIapInAppMessageCategory
+import dev.hyo.openiap.InAppMessageParamsAndroid as OpenIapInAppMessageParams
+import dev.hyo.openiap.InAppMessageResponseCodeAndroid as OpenIapInAppMessageResponseCode
 import dev.hyo.openiap.LaunchExternalLinkParamsAndroid as OpenIapLaunchExternalLinkParams
 import dev.hyo.openiap.ExternalLinkLaunchModeAndroid as OpenIapExternalLinkLaunchMode
 import dev.hyo.openiap.ExternalLinkTypeAndroid as OpenIapExternalLinkType
@@ -55,7 +66,7 @@ import org.json.JSONObject
  * Custom exception for OpenIAP errors that only includes the error JSON without stack traces.
  * This ensures clean error messages are passed to JavaScript without Java/Kotlin stack traces.
  */
-class OpenIapException(private val errorJson: String) : Exception() {
+class OpenIapException(private val errorJson: String, cause: Throwable? = null) : Exception(cause) {
     override val message: String
         get() = errorJson
 
@@ -201,15 +212,27 @@ class HybridRnIap : HybridRnIapSpec() {
                             sendUserChoiceBilling(nitroDetails)
                         }.onFailure { RnIapLog.failure("userChoiceBillingListener", it) }
                     })
-                    // Developer Provided Billing listener (External Payments - 8.3.0+)
+                    // Developer Provided Billing listener (External Payments 8.3.0+, Billing Choice 9.1.0+)
                     openIap.addDeveloperProvidedBillingListener(OpenIapDeveloperProvidedBillingListener { details ->
                         runCatching {
                             RnIapLog.result(
                                 "developerProvidedBillingListener",
-                                mapOf("token" to details.externalTransactionToken)
+                                mapOf("productCount" to details.products.size)
                             )
                             val nitroDetails = DeveloperProvidedBillingDetailsAndroid(
-                                externalTransactionToken = details.externalTransactionToken
+                                externalTransactionToken = details.externalTransactionToken.wrapVariant(),
+                                linkUri = details.linkUri.wrapVariant(),
+                                originalExternalTransactionId = details.originalExternalTransactionId.wrapVariant(),
+                                products = details.products.map { product ->
+                                    DeveloperProvidedBillingProductAndroid(
+                                        id = product.id,
+                                        offerToken = product.offerToken.wrapVariant(),
+                                        type = when (product.type) {
+                                            OpenIapProductType.InApp -> ProductType.IN_APP
+                                            OpenIapProductType.Subs -> ProductType.SUBS
+                                        }
+                                    )
+                                }.toTypedArray()
                             )
                             sendDeveloperProvidedBilling(nitroDetails)
                         }.onFailure { RnIapLog.failure("developerProvidedBillingListener", it) }
@@ -255,6 +278,9 @@ class HybridRnIap : HybridRnIapSpec() {
                         },
                         enableBillingProgramAndroid = configValue.enableBillingProgramAndroid?.let { program ->
                             mapBillingProgram(program)
+                        },
+                        billingChoiceScreenTypeAndroid = configValue.billingChoiceScreenTypeAndroid?.let { type ->
+                            mapBillingChoiceScreenTypeToOpenIap(type)
                         }
                     )
                 }
@@ -478,6 +504,11 @@ class HybridRnIap : HybridRnIapSpec() {
                     }
                     ?: emptyList()
                 val normalizedOffers = subscriptionOffers.takeIf { it.isNotEmpty() }
+                val developerBillingOption =
+                    (androidRequest.developerBillingOption as?
+                        Variant_NullType_DeveloperBillingOptionParamsAndroid.Second)
+                        ?.value
+                        ?.let(::mapDeveloperBillingOption)
 
                 val requestProps = when (queryType) {
                     ProductQueryType.Subs -> {
@@ -495,6 +526,8 @@ class HybridRnIap : HybridRnIapSpec() {
                             isOfferPersonalized = androidRequest.isOfferPersonalized.unwrapBool(),
                             obfuscatedAccountId = androidRequest.obfuscatedAccountId.unwrapString(),
                             obfuscatedProfileId = androidRequest.obfuscatedProfileId.unwrapString(),
+                            developerBillingOption = developerBillingOption,
+                            originalExternalTransactionId = androidRequest.originalExternalTransactionId.unwrapString(),
                             purchaseToken = androidRequest.purchaseToken.unwrapString(),
                             replacementMode = replacementMode,
                             skus = androidRequest.skus.toList(),
@@ -503,7 +536,7 @@ class HybridRnIap : HybridRnIapSpec() {
                         )
                         RequestPurchaseProps(
                             request = RequestPurchaseProps.Request.Subscription(
-                                RequestSubscriptionPropsByPlatforms(android = androidProps)
+                                RequestSubscriptionPropsByPlatforms(google = androidProps)
                             ),
                             type = ProductQueryType.Subs
                         )
@@ -513,12 +546,13 @@ class HybridRnIap : HybridRnIapSpec() {
                             isOfferPersonalized = androidRequest.isOfferPersonalized.unwrapBool(),
                             obfuscatedAccountId = androidRequest.obfuscatedAccountId.unwrapString(),
                             obfuscatedProfileId = androidRequest.obfuscatedProfileId.unwrapString(),
+                            developerBillingOption = developerBillingOption,
                             offerToken = androidRequest.offerToken.unwrapString(),
                             skus = androidRequest.skus.toList()
                         )
                         RequestPurchaseProps(
                             request = RequestPurchaseProps.Request.Purchase(
-                                RequestPurchasePropsByPlatforms(android = androidProps)
+                                RequestPurchasePropsByPlatforms(google = androidProps)
                             ),
                             type = ProductQueryType.InApp
                         )
@@ -966,7 +1000,7 @@ class HybridRnIap : HybridRnIapSpec() {
         var subscriptionPeriodAndroid: String? = null
         var freeTrialPeriodAndroid: String? = null
 
-        if (product.type == ProductType.InApp) {
+        if (product.type == OpenIapProductType.InApp) {
             oneTimeOffers?.firstOrNull()?.let { otp ->
                 originalPriceAndroid = otp.formattedPrice
                 originalPriceAmountMicrosAndroid = otp.priceAmountMicros.toDoubleOrNull()
@@ -1489,7 +1523,7 @@ class HybridRnIap : HybridRnIapSpec() {
             } catch (err: Throwable) {
                 RnIapLog.failure("checkAlternativeBillingAvailabilityAndroid", err)
                 val errorType = parseOpenIapError(err)
-                throw OpenIapException(toErrorJson(errorType, debugMessage = err.message))
+                throw OpenIapException(toErrorJson(errorType, debugMessage = err.message), err)
             }
         }
     }
@@ -1511,7 +1545,7 @@ class HybridRnIap : HybridRnIapSpec() {
             } catch (err: Throwable) {
                 RnIapLog.failure("showAlternativeBillingDialogAndroid", err)
                 val errorType = parseOpenIapError(err)
-                throw OpenIapException(toErrorJson(errorType, debugMessage = err.message))
+                throw OpenIapException(toErrorJson(errorType, debugMessage = err.message), err)
             }
         }
     }
@@ -1532,7 +1566,7 @@ class HybridRnIap : HybridRnIapSpec() {
             } catch (err: Throwable) {
                 RnIapLog.failure("createAlternativeBillingTokenAndroid", err)
                 val errorType = parseOpenIapError(err)
-                throw OpenIapException(toErrorJson(errorType, debugMessage = err.message))
+                throw OpenIapException(toErrorJson(errorType, debugMessage = err.message), err)
             }
         }
     }
@@ -1652,25 +1686,66 @@ class HybridRnIap : HybridRnIapSpec() {
                 val result = openIapStore.isBillingProgramAvailable(openIapProgram)
                 val nitroResult = NitroBillingProgramAvailabilityResultAndroid(
                     billingProgram = program,
-                    isAvailable = result.isAvailable
+                    choiceScreenType = result.choiceScreenType?.let { mapBillingChoiceScreenType(it) },
+                    isAvailable = result.isAvailable,
+                    isExternalLinkAvailable = result.isExternalLinkAvailable.wrapVariant()
                 )
                 RnIapLog.result("isBillingProgramAvailableAndroid", mapOf("isAvailable" to result.isAvailable))
                 nitroResult
             } catch (err: Throwable) {
                 RnIapLog.failure("isBillingProgramAvailableAndroid", err)
                 val errorType = parseOpenIapError(err)
-                throw OpenIapException(toErrorJson(errorType, debugMessage = err.message))
+                throw OpenIapException(toErrorJson(errorType, debugMessage = err.message), err)
             }
         }
     }
 
-    override fun createBillingProgramReportingDetailsAndroid(program: BillingProgramAndroid): Promise<NitroBillingProgramReportingDetailsAndroid> {
+    override fun getBillingChoiceInfoAndroid(params: NitroGetBillingChoiceInfoParamsAndroid): Promise<NitroBillingChoiceInfoAndroid> {
         return Promise.async {
-            RnIapLog.payload("createBillingProgramReportingDetailsAndroid", mapOf("program" to program.name))
+            RnIapLog.payload("getBillingChoiceInfoAndroid", mapOf(
+                "billingProgram" to params.billingProgram.name,
+                "playBillingChoiceImageLayout" to params.playBillingChoiceImageLayout.name,
+                "userLocale" to params.userLocale.unwrapString()
+            ))
+            try {
+                ensureConnection()
+                val result = openIapStore.getBillingChoiceInfo(
+                    OpenIapGetBillingChoiceInfoParams(
+                        billingProgram = mapBillingProgram(params.billingProgram),
+                        playBillingChoiceImageLayout = mapBillingChoiceImageLayout(params.playBillingChoiceImageLayout),
+                        userLocale = params.userLocale.unwrapString()
+                    )
+                )
+                val nitroResult = NitroBillingChoiceInfoAndroid(
+                    playBillingChoiceImageUrl = result.playBillingChoiceImageUrl,
+                    playBillingLoyaltyInfo = result.playBillingLoyaltyInfo.wrapVariant()
+                )
+                RnIapLog.result("getBillingChoiceInfoAndroid", mapOf("hasImageUrl" to result.playBillingChoiceImageUrl.isNotBlank()))
+                nitroResult
+            } catch (err: Throwable) {
+                RnIapLog.failure("getBillingChoiceInfoAndroid", err)
+                val errorType = parseOpenIapError(err)
+                throw OpenIapException(toErrorJson(errorType, debugMessage = err.message), err)
+            }
+        }
+    }
+
+    override fun createBillingProgramReportingDetailsAndroid(
+        program: BillingProgramAndroid,
+        developerBillingType: DeveloperBillingTypeAndroid?
+    ): Promise<NitroBillingProgramReportingDetailsAndroid> {
+        return Promise.async {
+            RnIapLog.payload(
+                "createBillingProgramReportingDetailsAndroid",
+                mapOf("program" to program.name, "developerBillingType" to developerBillingType?.name)
+            )
             try {
                 ensureConnection()
                 val openIapProgram = mapBillingProgram(program)
-                val result = openIapStore.createBillingProgramReportingDetails(openIapProgram)
+                val result = openIapStore.createBillingProgramReportingDetails(
+                    openIapProgram,
+                    mapDeveloperBillingType(developerBillingType)
+                )
                 val nitroResult = NitroBillingProgramReportingDetailsAndroid(
                     billingProgram = program,
                     externalTransactionToken = result.externalTransactionToken
@@ -1680,7 +1755,75 @@ class HybridRnIap : HybridRnIapSpec() {
             } catch (err: Throwable) {
                 RnIapLog.failure("createBillingProgramReportingDetailsAndroid", err)
                 val errorType = parseOpenIapError(err)
-                throw OpenIapException(toErrorJson(errorType, debugMessage = err.message))
+                throw OpenIapException(toErrorJson(errorType, debugMessage = err.message), err)
+            }
+        }
+    }
+
+    override fun showBillingProgramInformationDialogAndroid(
+        params: NitroBillingProgramInformationDialogParamsAndroid
+    ): Promise<NitroBillingResultAndroid> {
+        return Promise.async {
+            RnIapLog.payload("showBillingProgramInformationDialogAndroid", mapOf("program" to params.billingProgram.name))
+            try {
+                ensureConnection()
+                val activity = withContext(Dispatchers.Main) {
+                    runCatching { context.currentActivity }.getOrNull()
+                } ?: throw OpenIapException(toErrorJson(OpenIapError.DeveloperError(), debugMessage = "Activity not available"))
+                val result = withContext(Dispatchers.Main) {
+                    openIapStore.showBillingProgramInformationDialog(
+                        activity,
+                        OpenIapBillingProgramInformationDialogParams(
+                            billingProgram = mapBillingProgram(params.billingProgram),
+                            externalTransactionToken = params.externalTransactionToken
+                        )
+                    )
+                }
+                RnIapLog.result("showBillingProgramInformationDialogAndroid", mapOf("responseCode" to result.responseCode))
+                NitroBillingResultAndroid(
+                    responseCode = result.responseCode.toDouble(),
+                    debugMessage = result.debugMessage.wrapVariant(),
+                    subResponseCode = mapSubResponseCode(result.subResponseCode)
+                )
+            } catch (err: Throwable) {
+                RnIapLog.failure("showBillingProgramInformationDialogAndroid", err)
+                val errorType = parseOpenIapError(err)
+                throw OpenIapException(toErrorJson(errorType, debugMessage = err.message), err)
+            }
+        }
+    }
+
+    override fun showInAppMessagesAndroid(
+        params: Variant_NullType_NitroInAppMessageParamsAndroid?
+    ): Promise<NitroInAppMessageResultAndroid> {
+        return Promise.async {
+            val messageParams = params?.asSecondOrNull()
+            val categories = messageParams?.categories?.asSecondOrNull()
+            RnIapLog.payload("showInAppMessagesAndroid", mapOf("categories" to categories?.map { it.name }))
+            try {
+                ensureConnection()
+                val activity = withContext(Dispatchers.Main) {
+                    runCatching { context.currentActivity }.getOrNull()
+                } ?: throw OpenIapException(toErrorJson(OpenIapError.DeveloperError(), debugMessage = "Activity not available"))
+                val result = withContext(Dispatchers.Main) {
+                    openIapStore.showInAppMessages(
+                        activity,
+                        messageParams?.let {
+                            OpenIapInAppMessageParams(
+                                categories = categories?.map { category -> mapInAppMessageCategory(category) }
+                            )
+                        }
+                    )
+                }
+                RnIapLog.result("showInAppMessagesAndroid", mapOf("responseCode" to result.responseCode.name))
+                NitroInAppMessageResultAndroid(
+                    responseCode = mapInAppMessageResponseCode(result.responseCode),
+                    purchaseToken = result.purchaseToken.wrapVariant()
+                )
+            } catch (err: Throwable) {
+                RnIapLog.failure("showInAppMessagesAndroid", err)
+                val errorType = parseOpenIapError(err)
+                throw OpenIapException(toErrorJson(errorType, debugMessage = err.message), err)
             }
         }
     }
@@ -1702,6 +1845,7 @@ class HybridRnIap : HybridRnIapSpec() {
 
                 val openIapParams = OpenIapLaunchExternalLinkParams(
                     billingProgram = mapBillingProgram(params.billingProgram),
+                    externalTransactionToken = params.externalTransactionToken.unwrapString(),
                     launchMode = mapExternalLinkLaunchMode(params.launchMode),
                     linkType = mapExternalLinkType(params.linkType),
                     linkUri = params.linkUri
@@ -1728,6 +1872,86 @@ class HybridRnIap : HybridRnIapSpec() {
             BillingProgramAndroid.EXTERNAL_OFFER -> OpenIapBillingProgramAndroid.ExternalOffer
             BillingProgramAndroid.EXTERNAL_PAYMENTS -> OpenIapBillingProgramAndroid.ExternalPayments
             BillingProgramAndroid.USER_CHOICE_BILLING -> OpenIapBillingProgramAndroid.UserChoiceBilling
+            BillingProgramAndroid.BILLING_CHOICE -> OpenIapBillingProgramAndroid.BillingChoice
+        }
+    }
+
+    private fun mapBillingChoiceImageLayout(layout: BillingChoiceImageLayoutAndroid): OpenIapBillingChoiceImageLayout {
+        return when (layout) {
+            BillingChoiceImageLayoutAndroid.RECTANGULAR_FOUR_BY_ONE -> OpenIapBillingChoiceImageLayout.RectangularFourByOne
+            BillingChoiceImageLayoutAndroid.RECTANGULAR_THREE_BY_ONE -> OpenIapBillingChoiceImageLayout.RectangularThreeByOne
+            BillingChoiceImageLayoutAndroid.RECTANGULAR_TWO_BY_TWO -> OpenIapBillingChoiceImageLayout.RectangularTwoByTwo
+        }
+    }
+
+    private fun mapBillingChoiceScreenType(type: OpenIapBillingChoiceScreenType): BillingChoiceScreenTypeAndroid {
+        return when (type) {
+            OpenIapBillingChoiceScreenType.Unspecified -> BillingChoiceScreenTypeAndroid.UNSPECIFIED
+            OpenIapBillingChoiceScreenType.DeveloperRendered -> BillingChoiceScreenTypeAndroid.DEVELOPER_RENDERED
+            OpenIapBillingChoiceScreenType.GoogleRendered -> BillingChoiceScreenTypeAndroid.GOOGLE_RENDERED
+        }
+    }
+
+    private fun mapBillingChoiceScreenTypeToOpenIap(
+        type: BillingChoiceScreenTypeAndroid
+    ): OpenIapBillingChoiceScreenType {
+        return when (type) {
+            BillingChoiceScreenTypeAndroid.UNSPECIFIED -> OpenIapBillingChoiceScreenType.Unspecified
+            BillingChoiceScreenTypeAndroid.DEVELOPER_RENDERED -> OpenIapBillingChoiceScreenType.DeveloperRendered
+            BillingChoiceScreenTypeAndroid.GOOGLE_RENDERED -> OpenIapBillingChoiceScreenType.GoogleRendered
+        }
+    }
+
+    private fun mapDeveloperBillingType(type: DeveloperBillingTypeAndroid?): OpenIapDeveloperBillingType? {
+        return when (type) {
+            null, DeveloperBillingTypeAndroid.DEVELOPER_BILLING_TYPE_UNSPECIFIED -> null
+            DeveloperBillingTypeAndroid.IN_APP -> OpenIapDeveloperBillingType.InApp
+            DeveloperBillingTypeAndroid.EXTERNAL_LINK -> OpenIapDeveloperBillingType.ExternalLink
+        }
+    }
+
+    private fun mapSubResponseCode(
+        code: OpenIapSubResponseCodeAndroid?
+    ): SubResponseCodeAndroid? = when (code) {
+        null -> null
+        OpenIapSubResponseCodeAndroid.NoApplicableSubResponseCode ->
+            SubResponseCodeAndroid.NO_APPLICABLE_SUB_RESPONSE_CODE
+        OpenIapSubResponseCodeAndroid.PaymentDeclinedDueToInsufficientFunds ->
+            SubResponseCodeAndroid.PAYMENT_DECLINED_DUE_TO_INSUFFICIENT_FUNDS
+        OpenIapSubResponseCodeAndroid.UserIneligible ->
+            SubResponseCodeAndroid.USER_INELIGIBLE
+    }
+
+    private fun mapDeveloperBillingOption(
+        option: DeveloperBillingOptionParamsAndroid
+    ): OpenIapDeveloperBillingOptionParams {
+        val launchMode = when (option.launchMode) {
+            null -> null
+            DeveloperBillingLaunchModeAndroid.UNSPECIFIED -> OpenIapDeveloperBillingLaunchMode.Unspecified
+            DeveloperBillingLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP ->
+                OpenIapDeveloperBillingLaunchMode.LaunchInExternalBrowserOrApp
+            DeveloperBillingLaunchModeAndroid.CALLER_WILL_LAUNCH_LINK ->
+                OpenIapDeveloperBillingLaunchMode.CallerWillLaunchLink
+        }
+        return OpenIapDeveloperBillingOptionParams(
+            billingProgram = mapBillingProgram(option.billingProgram),
+            externalTransactionToken = option.externalTransactionToken.unwrapString(),
+            launchMode = launchMode,
+            linkUri = option.linkUri.unwrapString()
+        )
+    }
+
+    private fun mapInAppMessageCategory(category: InAppMessageCategoryAndroid): OpenIapInAppMessageCategory {
+        return when (category) {
+            InAppMessageCategoryAndroid.UNKNOWN_IN_APP_MESSAGE_CATEGORY_ID -> OpenIapInAppMessageCategory.UnknownInAppMessageCategoryId
+            InAppMessageCategoryAndroid.TRANSACTIONAL -> OpenIapInAppMessageCategory.Transactional
+        }
+    }
+
+    private fun mapInAppMessageResponseCode(code: OpenIapInAppMessageResponseCode): InAppMessageResponseCodeAndroid {
+        return when (code) {
+            OpenIapInAppMessageResponseCode.NoActionNeeded -> InAppMessageResponseCodeAndroid.NO_ACTION_NEEDED
+            OpenIapInAppMessageResponseCode.SubscriptionStatusUpdated -> InAppMessageResponseCodeAndroid.SUBSCRIPTION_STATUS_UPDATED
         }
     }
 

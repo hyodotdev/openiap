@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import dev.hyo.martie.theme.AppColors
 import dev.hyo.martie.utils.swipeToBack
+import io.github.hyochan.kmpiap.PurchaseException
 import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.openiap.*
 import io.github.hyochan.kmpiap.requestPurchase
@@ -79,7 +80,14 @@ fun AlternativeBillingScreen(navController: NavController) {
 
         try {
             val config = if (currentPlatform == "Android") {
-                InitConnectionConfig(enableBillingProgramAndroid = billingProgram)
+                InitConnectionConfig(
+                    enableBillingProgramAndroid = billingProgram,
+                    billingChoiceScreenTypeAndroid = if (billingProgram == BillingProgramAndroid.BillingChoice) {
+                        BillingChoiceScreenTypeAndroid.DeveloperRendered
+                    } else {
+                        null
+                    }
+                )
             } else null
 
             connected = kmpIapInstance.initConnection(config)
@@ -115,7 +123,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                 lastPurchase = purchase
                 isProcessing = false
 
-                val dateText = Instant.fromEpochSeconds(purchase.transactionDate.toLong())
+                val dateText = Instant.fromEpochMilliseconds(purchase.transactionDate.toLong())
                     .toLocalDateTime(TimeZone.currentSystemDefault())
 
                 purchaseResult = """
@@ -145,7 +153,10 @@ fun AlternativeBillingScreen(navController: NavController) {
         launch {
             kmpIapInstance.purchaseErrorListener.collect { error ->
                 isProcessing = false
-                purchaseResult = "❌ Purchase failed: ${error.message}"
+                purchaseResult = when (error.code) {
+                    ErrorCode.UserCancelled -> "⚠️ Purchase cancelled by user"
+                    else -> "❌ Purchase failed: ${error.message}"
+                }
             }
         }
     }
@@ -171,7 +182,14 @@ fun AlternativeBillingScreen(navController: NavController) {
 
                 // Reinitialize with new program
                 val config = if (currentPlatform == "Android") {
-                    InitConnectionConfig(enableBillingProgramAndroid = program)
+                    InitConnectionConfig(
+                        enableBillingProgramAndroid = program,
+                        billingChoiceScreenTypeAndroid = if (program == BillingProgramAndroid.BillingChoice) {
+                            BillingChoiceScreenTypeAndroid.DeveloperRendered
+                        } else {
+                            null
+                        }
+                    )
                 } else null
 
                 connected = kmpIapInstance.initConnection(config)
@@ -179,6 +197,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                 purchaseResult = "✅ Reconnected with ${
                     when (program) {
                         BillingProgramAndroid.UserChoiceBilling -> "User Choice Billing"
+                        BillingProgramAndroid.BillingChoice -> "Billing Choice"
                         BillingProgramAndroid.ExternalOffer -> "External Offer"
                         BillingProgramAndroid.ExternalPayments -> "External Payments (Japan)"
                         BillingProgramAndroid.ExternalContentLink -> "External Content Link"
@@ -326,6 +345,89 @@ fun AlternativeBillingScreen(navController: NavController) {
         }
     }
 
+    // Handle Android Billing Choice (9.1.0+)
+    fun handleAndroidBillingChoice(product: ProductCommon) {
+        scope.launch {
+            isProcessing = true
+            purchaseResult = "Checking Billing Choice availability..."
+
+            try {
+                val availability = kmpIapInstance.isBillingProgramAvailableAndroid(
+                    BillingProgramAndroid.BillingChoice
+                )
+
+                if (!availability.isAvailable) {
+                    purchaseResult = "❌ Billing Choice not available for this user or product"
+                    isProcessing = false
+                    return@launch
+                }
+
+                if (availability.choiceScreenType != BillingChoiceScreenTypeAndroid.DeveloperRendered) {
+                    purchaseResult = "❌ This example is configured for a developer-rendered Billing Choice screen"
+                    isProcessing = false
+                    return@launch
+                }
+
+                purchaseResult = "Fetching Billing Choice display metadata..."
+                val choiceInfo = kmpIapInstance.getBillingChoiceInfoAndroid(
+                    GetBillingChoiceInfoParamsAndroid(
+                        billingProgram = BillingProgramAndroid.BillingChoice,
+                        playBillingChoiceImageLayout = BillingChoiceImageLayoutAndroid.RectangularFourByOne
+                    )
+                )
+
+                purchaseResult = "Creating an in-app Billing Choice reporting token..."
+                val details = kmpIapInstance.createBillingProgramReportingDetailsAndroid(
+                    BillingProgramAndroid.BillingChoice,
+                    DeveloperBillingTypeAndroid.InApp
+                )
+
+                purchaseResult = "Showing Billing Choice information dialog..."
+                val dialogResult = kmpIapInstance.showBillingProgramInformationDialogAndroid(
+                    BillingProgramInformationDialogParamsAndroid(
+                        billingProgram = BillingProgramAndroid.BillingChoice,
+                        externalTransactionToken = details.externalTransactionToken
+                    )
+                )
+
+                purchaseResult = """
+                    ✅ Developer-rendered in-app Billing Choice is ready
+
+                    Product: ${product.id}
+                    Billing type: ${DeveloperBillingTypeAndroid.InApp.rawValue}
+                    Choice image: ${choiceInfo.playBillingChoiceImageUrl}
+                    Token: ${details.externalTransactionToken}
+                    Dialog response: ${dialogResult.responseCode}
+
+                    ⚠️ Render your choice UI now. If the user selects developer billing, complete the payment and report the token to Google Play within 24 hours.
+                """.trimIndent()
+            } catch (e: Exception) {
+                purchaseResult = "❌ Error: ${e.message}"
+            } finally {
+                isProcessing = false
+            }
+        }
+    }
+
+    fun showAndroidBillingMessages() {
+        scope.launch {
+            isProcessing = true
+            purchaseResult = "Checking for Play billing messages..."
+            try {
+                val result = kmpIapInstance.showInAppMessagesAndroid(
+                    InAppMessageParamsAndroid(
+                        categories = listOf(InAppMessageCategoryAndroid.Transactional)
+                    )
+                )
+                purchaseResult = "Play billing message result: ${result.responseCode.rawValue}"
+            } catch (e: Exception) {
+                purchaseResult = "❌ Error: ${e.message}"
+            } finally {
+                isProcessing = false
+            }
+        }
+    }
+
     // Handle Android User Choice Billing (7.0+)
     fun handleAndroidUserChoiceBilling(product: ProductCommon) {
         scope.launch {
@@ -351,6 +453,11 @@ fun AlternativeBillingScreen(navController: NavController) {
 
                     ⚠️ Billing Library 7.0+ required
                 """.trimIndent()
+            } catch (e: PurchaseException) {
+                if (e.error.code != ErrorCode.UserCancelled) {
+                    purchaseResult = "❌ Error: ${e.message}"
+                }
+                isProcessing = false
             } catch (e: Exception) {
                 purchaseResult = "❌ Error: ${e.message}"
                 isProcessing = false
@@ -365,6 +472,7 @@ fun AlternativeBillingScreen(navController: NavController) {
         } else if (currentPlatform == "Android") {
             when (billingProgram) {
                 BillingProgramAndroid.UserChoiceBilling -> handleAndroidUserChoiceBilling(product)
+                BillingProgramAndroid.BillingChoice -> handleAndroidBillingChoice(product)
                 BillingProgramAndroid.ExternalOffer,
                 BillingProgramAndroid.ExternalPayments,
                 BillingProgramAndroid.ExternalContentLink -> handleAndroidBillingPrograms(product)
@@ -533,6 +641,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                                 isProcessing -> "Processing..."
                                 currentPlatform == "iOS" -> "🛒 Buy (External URL)"
                                 billingProgram == BillingProgramAndroid.UserChoiceBilling -> "🛒 Buy (User Choice)"
+                                billingProgram == BillingProgramAndroid.BillingChoice -> "🛒 Buy (Billing Choice)"
                                 billingProgram == BillingProgramAndroid.ExternalOffer -> "🛒 Buy (External Offer)"
                                 billingProgram == BillingProgramAndroid.ExternalPayments -> "🛒 Buy (External Payments)"
                                 billingProgram == BillingProgramAndroid.ExternalContentLink -> "🛒 Buy (External Link)"
@@ -541,6 +650,17 @@ fun AlternativeBillingScreen(navController: NavController) {
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 16.sp
                         )
+                    }
+                }
+
+                if (currentPlatform == "Android") {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { showAndroidBillingMessages() },
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        enabled = !isProcessing && connected
+                    ) {
+                        Text("Show Play billing message")
                     }
                 }
 
@@ -585,6 +705,17 @@ fun AlternativeBillingScreen(navController: NavController) {
                             billingProgram = BillingProgramAndroid.UserChoiceBilling
                             showModeSelector = false
                             reconnectWithProgram(BillingProgramAndroid.UserChoiceBilling)
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    ModeSelectorOption(
+                        title = "Billing Choice (9.1.0+)",
+                        description = "Use Google or developer-rendered billing choice screens.",
+                        isSelected = billingProgram == BillingProgramAndroid.BillingChoice,
+                        onClick = {
+                            billingProgram = BillingProgramAndroid.BillingChoice
+                            showModeSelector = false
+                            reconnectWithProgram(BillingProgramAndroid.BillingChoice)
                         }
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -683,6 +814,13 @@ private fun InfoCard(platform: String, billingProgram: BillingProgramAndroid) {
                         • If Google Play: onPurchaseUpdated
                         • If alternative: userChoiceBillingListener
                     """.trimIndent()
+                    BillingProgramAndroid.BillingChoice -> """
+                        • Billing Choice (9.1.0+)
+                        • This example configures a developer-rendered screen
+                        • Fetch Play choice metadata
+                        • Request an IN_APP reporting token
+                        • Show the required information dialog before your choice UI
+                    """.trimIndent()
                     BillingProgramAndroid.ExternalOffer -> """
                         • External Offer Mode (8.2.0+)
                         • Users CANNOT use Google Play billing
@@ -717,6 +855,11 @@ private fun InfoCard(platform: String, billingProgram: BillingProgramAndroid) {
                         ⚠️ Billing Library 7.0+ required
                         ⚠️ Requires approval from Google
                         ⚠️ Must report tokens within 24 hours
+                    """.trimIndent()
+                    BillingProgramAndroid.BillingChoice -> """
+                        ⚠️ Billing Library 9.1.0+ required
+                        ⚠️ Requires Billing Choice enrollment
+                        ⚠️ Availability depends on region and product
                     """.trimIndent()
                     BillingProgramAndroid.ExternalOffer -> """
                         ⚠️ Billing Library 8.2.0+ required
@@ -780,6 +923,7 @@ private fun ModeSelectorCard(
                 Text(
                     text = when (billingProgram) {
                         BillingProgramAndroid.UserChoiceBilling -> "User Choice Billing (7.0+)"
+                        BillingProgramAndroid.BillingChoice -> "Billing Choice (9.1.0+)"
                         BillingProgramAndroid.ExternalOffer -> "External Offer (8.2.0+)"
                         BillingProgramAndroid.ExternalPayments -> "External Payments (8.3.0+, Japan)"
                         BillingProgramAndroid.ExternalContentLink -> "External Content Link (8.2.0+)"
@@ -985,7 +1129,7 @@ private fun LastPurchaseCard(purchase: Purchase) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("Product: ${purchase.productId}", fontSize = 14.sp)
                 Text("Transaction: ${purchase.id}", fontSize = 14.sp)
-                val dateText = Instant.fromEpochSeconds(purchase.transactionDate.toLong())
+                val dateText = Instant.fromEpochMilliseconds(purchase.transactionDate.toLong())
                     .toLocalDateTime(TimeZone.currentSystemDefault())
                     .toString()
                 Text("Date: $dateText", fontSize = 14.sp)

@@ -458,6 +458,16 @@ export const apiData: ApiItem[] = [
     path: '/docs/apis/android/is-billing-program-available-android',
   },
   {
+    id: 'get-billing-choice-info-android',
+    title: 'getBillingChoiceInfoAndroid',
+    category: 'Android Specific',
+    description:
+      'Fetch Play Billing Choice display assets for developer-rendered choice screens',
+    parameters: 'params: GetBillingChoiceInfoParamsAndroid!',
+    returns: 'BillingChoiceInfoAndroid!',
+    path: '/docs/apis/android/get-billing-choice-info-android',
+  },
+  {
     id: 'launch-external-link-android',
     title: 'launchExternalLinkAndroid',
     category: 'Android Specific',
@@ -476,6 +486,26 @@ export const apiData: ApiItem[] = [
     parameters: '',
     returns: 'BillingProgramReportingDetailsAndroid!',
     path: '/docs/apis/android/create-billing-program-reporting-details-android',
+  },
+  {
+    id: 'show-billing-program-information-dialog-android',
+    title: 'showBillingProgramInformationDialogAndroid',
+    category: 'Android Specific',
+    description:
+      'Show the mandatory Play information dialog before a developer-rendered in-app Billing Choice screen',
+    parameters: 'params: BillingProgramInformationDialogParamsAndroid!',
+    returns: 'BillingResultAndroid!',
+    path: '/docs/apis/android/show-billing-program-information-dialog-android',
+  },
+  {
+    id: 'show-in-app-messages-android',
+    title: 'showInAppMessagesAndroid',
+    category: 'Android Specific',
+    description:
+      'Show Google Play billing in-app messages and return subscription status updates when applicable',
+    parameters: 'params: InAppMessageParamsAndroid',
+    returns: 'InAppMessageResultAndroid!',
+    path: '/docs/apis/android/show-in-app-messages-android',
   },
 
   // Debugging & Logging (moved to Features)
@@ -822,7 +852,7 @@ export const apiData: ApiItem[] = [
     title: 'Billing Programs',
     category: 'Types',
     description:
-      'Android Billing Programs API (Play Billing 8.2.0+): BillingProgramAndroid, ExternalLink launch modes, Developer Provided Billing parameters',
+      'Android Billing Programs API (Play Billing 8.2.0+ and Billing Choice 9.1.0+): BillingProgramAndroid, ExternalLink launch modes, Billing Choice, and Developer Provided Billing parameters',
     path: '/docs/types/billing-programs',
   },
 

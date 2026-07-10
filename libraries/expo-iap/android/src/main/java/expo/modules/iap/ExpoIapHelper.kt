@@ -1,6 +1,7 @@
 package expo.modules.iap
 
 import dev.hyo.openiap.AndroidSubscriptionOfferInput
+import dev.hyo.openiap.DeveloperBillingOptionParamsAndroid
 import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapModule
 import dev.hyo.openiap.ProductQueryType
@@ -102,7 +103,15 @@ object ExpoIapHelper {
                 }
             } ?: emptyList()
         val purchaseToken = effective["purchaseToken"] as? String
+        val originalExternalTransactionId = effective["originalExternalTransactionId"] as? String
         val replacementMode = effective["replacementMode"] as? Number
+        val developerBillingOption =
+            (effective["developerBillingOption"] as? Map<*, *>)?.let { optionMap ->
+                val json = optionMap.entries.mapNotNull { (key, value) ->
+                    (key as? String)?.let { it to value }
+                }.toMap()
+                DeveloperBillingOptionParamsAndroid.fromJson(json)
+            }
         val subscriptionProductReplacementParams =
             (effective["subscriptionProductReplacementParams"] as? Map<*, *>)?.let { paramsMap ->
                 val oldProductId = paramsMap["oldProductId"] as? String
@@ -128,6 +137,8 @@ object ExpoIapHelper {
             offerToken = offerToken,
             offerTokenArr = offerTokenArr,
             explicitSubscriptionOffers = explicitSubscriptionOffers,
+            developerBillingOption = developerBillingOption,
+            originalExternalTransactionId = originalExternalTransactionId,
             purchaseToken = purchaseToken,
             replacementMode = replacementMode,
             subscriptionProductReplacementParams = subscriptionProductReplacementParams,
@@ -155,6 +166,8 @@ object ExpoIapHelper {
         val offerToken: String?,
         val offerTokenArr: List<String>,
         val explicitSubscriptionOffers: List<AndroidSubscriptionOfferInput>,
+        val developerBillingOption: DeveloperBillingOptionParamsAndroid?,
+        val originalExternalTransactionId: String?,
         val purchaseToken: String?,
         val replacementMode: Number?,
         val subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid?,
@@ -306,7 +319,7 @@ object ExpoIapHelper {
                 "USER_CHOICE_BILLING",
             )
         }
-        // Developer Provided Billing listener for External Payments (8.3.0+)
+        // Developer Provided Billing listener for External Payments (8.3.0+) and Billing Choice (9.1.0+)
         openIap.addDeveloperProvidedBillingListener { details ->
             safeEmitEvent(
                 module,

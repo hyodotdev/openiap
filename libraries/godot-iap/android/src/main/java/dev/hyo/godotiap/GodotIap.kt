@@ -5,7 +5,9 @@ import dev.hyo.openiap.OpenIapModule
 import dev.hyo.openiap.store.OpenIapStore
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
+import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener
+import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -18,6 +20,7 @@ import org.godotengine.godot.plugin.UsedByGodot
 import org.json.JSONArray
 import org.json.JSONObject
 import dev.hyo.openiap.BillingProgramAndroid as OpenIapBillingProgram
+import dev.hyo.openiap.DeveloperBillingTypeAndroid as OpenIapDeveloperBillingType
 import dev.hyo.openiap.ExternalLinkLaunchModeAndroid as OpenIapExternalLinkLaunchMode
 import dev.hyo.openiap.ExternalLinkTypeAndroid as OpenIapExternalLinkType
 import dev.hyo.openiap.LaunchExternalLinkParamsAndroid as OpenIapLaunchExternalLinkParams
@@ -53,6 +56,14 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         emitSignal("subscription_billing_issue", JSONObject(sanitized).toString())
     }
 
+    private val userChoiceBillingListener = OpenIapUserChoiceBillingListener { details ->
+        emitSignal("user_choice_billing", JSONObject(details.toJson()).toString())
+    }
+
+    private val developerProvidedBillingListener = OpenIapDeveloperProvidedBillingListener { details ->
+        emitSignal("developer_provided_billing", JSONObject(details.toJson()).toString())
+    }
+
     override fun getPluginName(): String = "GodotIap"
 
     override fun getPluginSignals(): Set<SignalInfo> {
@@ -73,7 +84,22 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
     // ==========================================
 
     @UsedByGodot
-    fun initConnection(): Boolean {
+    fun initConnection(): Boolean = initConnectionInternal(null)
+
+    @UsedByGodot
+    fun initConnectionWithConfig(configJson: String): Boolean {
+        val config = try {
+            InitConnectionConfig.fromJson(
+                GodotIapHelper.jsonObjectToMap(JSONObject(configJson))
+            )
+        } catch (e: Exception) {
+            GodotIapLog.failure("initConnectionWithConfig", e)
+            return false
+        }
+        return initConnectionInternal(config)
+    }
+
+    private fun initConnectionInternal(config: InitConnectionConfig?): Boolean {
         GodotIapLog.debug("initConnection called")
 
         val activity = activity ?: run {
@@ -88,9 +114,11 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 store = OpenIapStore(openIap)
                 store.addPurchaseUpdateListener(purchaseUpdateListener)
                 store.addPurchaseErrorListener(purchaseErrorListener)
+                store.addUserChoiceBillingListener(userChoiceBillingListener)
+                store.addDeveloperProvidedBillingListener(developerProvidedBillingListener)
                 openIap.addSubscriptionBillingIssueListener(subscriptionBillingIssueListener)
 
-                val result = store.initConnection()
+                val result = store.initConnection(config)
                 isInitialized = result
 
                 if (result) {
@@ -116,6 +144,8 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
             try {
                 store.removePurchaseUpdateListener(purchaseUpdateListener)
                 store.removePurchaseErrorListener(purchaseErrorListener)
+                store.removeUserChoiceBillingListener(userChoiceBillingListener)
+                store.removeDeveloperProvidedBillingListener(developerProvidedBillingListener)
                 openIap.removeSubscriptionBillingIssueListener(subscriptionBillingIssueListener)
 
                 val result = store.endConnection()
@@ -243,6 +273,8 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                         isOfferPersonalized = params.isOfferPersonalized,
                         obfuscatedAccountId = params.obfuscatedAccountId,
                         obfuscatedProfileId = params.obfuscatedProfileId,
+                        developerBillingOption = params.developerBillingOption,
+                        originalExternalTransactionId = params.originalExternalTransactionId,
                         purchaseToken = params.purchaseToken,
                         replacementMode = params.replacementMode,
                         skus = params.skus,
@@ -251,7 +283,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                     )
                     RequestPurchaseProps(
                         request = RequestPurchaseProps.Request.Subscription(
-                            RequestSubscriptionPropsByPlatforms(android = android)
+                            RequestSubscriptionPropsByPlatforms(google = android)
                         ),
                         type = ProductQueryType.Subs
                     )
@@ -261,12 +293,13 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                         isOfferPersonalized = params.isOfferPersonalized,
                         obfuscatedAccountId = params.obfuscatedAccountId,
                         obfuscatedProfileId = params.obfuscatedProfileId,
+                        developerBillingOption = params.developerBillingOption,
                         offerToken = params.offerTokenArr.firstOrNull(),
                         skus = params.skus
                     )
                     RequestPurchaseProps(
                         request = RequestPurchaseProps.Request.Purchase(
-                            RequestPurchasePropsByPlatforms(android = android)
+                            RequestPurchasePropsByPlatforms(google = android)
                         ),
                         type = ProductQueryType.InApp
                     )
@@ -677,13 +710,53 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 JSONObject().apply {
                     put("success", true)
                     put("isAvailable", result.isAvailable)
-                    put("billingProgram", billingProgram)
+                    put("billingProgram", result.billingProgram.toJson())
+                    put("choiceScreenType", result.choiceScreenType?.toJson())
+                    put("isExternalLinkAvailable", result.isExternalLinkAvailable)
                 }.toString()
             } catch (e: Exception) {
                 GodotIapLog.failure("isBillingProgramAvailableAndroid", e)
                 JSONObject().apply {
                     put("success", false)
                     put("isAvailable", false)
+                    put("error", e.message)
+                }.toString()
+            }
+        }
+    }
+
+    @UsedByGodot
+    fun getBillingChoiceInfoAndroid(paramsJson: String): String {
+        GodotIapLog.payload("getBillingChoiceInfoAndroid", paramsJson)
+
+        if (!isInitialized) {
+            return JSONObject().apply {
+                put("success", false)
+                put("error", "Not initialized")
+            }.toString()
+        }
+
+        return runBlocking {
+            try {
+                val json = JSONObject(paramsJson)
+                val params = GetBillingChoiceInfoParamsAndroid(
+                    billingProgram = mapBillingProgram(json.optString("billingProgram", "billing-choice")),
+                    playBillingChoiceImageLayout = BillingChoiceImageLayoutAndroid.fromJson(
+                        json.optString("playBillingChoiceImageLayout", "rectangular-four-by-one")
+                    ),
+                    userLocale = json.optString("userLocale", "").takeIf { it.isNotBlank() }
+                )
+                val result = store.getBillingChoiceInfo(params)
+                GodotIapLog.result("getBillingChoiceInfoAndroid", "image url received")
+                JSONObject().apply {
+                    put("success", true)
+                    put("playBillingChoiceImageUrl", result.playBillingChoiceImageUrl)
+                    put("playBillingLoyaltyInfo", result.playBillingLoyaltyInfo)
+                }.toString()
+            } catch (e: Exception) {
+                GodotIapLog.failure("getBillingChoiceInfoAndroid", e)
+                JSONObject().apply {
+                    put("success", false)
                     put("error", e.message)
                 }.toString()
             }
@@ -715,9 +788,12 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 val launchMode = json.optString("launchMode", "unspecified")
                 val linkType = json.optString("linkType", "unspecified")
                 val linkUri = json.getString("linkUri")
+                val externalTransactionToken = json.optString("externalTransactionToken", "")
+                    .takeIf { it.isNotBlank() }
 
                 val params = OpenIapLaunchExternalLinkParams(
                     billingProgram = mapBillingProgram(billingProgram),
+                    externalTransactionToken = externalTransactionToken,
                     launchMode = mapExternalLinkLaunchMode(launchMode),
                     linkType = mapExternalLinkType(linkType),
                     linkUri = linkUri
@@ -741,6 +817,30 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
     @UsedByGodot
     fun createBillingProgramReportingDetailsAndroid(billingProgram: String): String {
+        return createBillingProgramReportingDetailsAndroidInternal(billingProgram, null)
+    }
+
+    @UsedByGodot
+    fun createBillingProgramReportingDetailsAndroidWithType(paramsJson: String): String {
+        GodotIapLog.payload("createBillingProgramReportingDetailsAndroidWithType", paramsJson)
+        return try {
+            val json = JSONObject(paramsJson)
+            createBillingProgramReportingDetailsAndroidInternal(
+                json.optString("billingProgram", "unspecified"),
+                json.optString("developerBillingType", "").takeIf { it.isNotBlank() }
+            )
+        } catch (e: Exception) {
+            JSONObject().apply {
+                put("success", false)
+                put("error", e.message)
+            }.toString()
+        }
+    }
+
+    private fun createBillingProgramReportingDetailsAndroidInternal(
+        billingProgram: String,
+        developerBillingType: String?
+    ): String {
         GodotIapLog.payload("createBillingProgramReportingDetailsAndroid", billingProgram)
 
         if (!isInitialized) {
@@ -753,7 +853,10 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         return runBlocking {
             try {
                 val program = mapBillingProgram(billingProgram)
-                val result = store.createBillingProgramReportingDetails(program)
+                val result = store.createBillingProgramReportingDetails(
+                    program,
+                    developerBillingType?.let { OpenIapDeveloperBillingType.fromJson(it) }
+                )
                 GodotIapLog.result("createBillingProgramReportingDetailsAndroid", "token generated")
                 JSONObject().apply {
                     put("success", true)
@@ -762,6 +865,104 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 }.toString()
             } catch (e: Exception) {
                 GodotIapLog.failure("createBillingProgramReportingDetailsAndroid", e)
+                JSONObject().apply {
+                    put("success", false)
+                    put("error", e.message)
+                }.toString()
+            }
+        }
+    }
+
+    @UsedByGodot
+    fun showBillingProgramInformationDialogAndroid(paramsJson: String): String {
+        GodotIapLog.payload("showBillingProgramInformationDialogAndroid", paramsJson)
+
+        if (!isInitialized) {
+            return JSONObject().apply {
+                put("success", false)
+                put("error", "Not initialized")
+            }.toString()
+        }
+
+        val activity = activity ?: run {
+            return JSONObject().apply {
+                put("success", false)
+                put("error", "Activity not available")
+            }.toString()
+        }
+
+        return runBlocking {
+            try {
+                val json = JSONObject(paramsJson)
+                val token = json.optString("externalTransactionToken", "")
+                if (token.isBlank()) {
+                    return@runBlocking JSONObject().apply {
+                        put("success", false)
+                        put("error", "externalTransactionToken is required")
+                    }.toString()
+                }
+                val result = store.showBillingProgramInformationDialog(
+                    activity,
+                    BillingProgramInformationDialogParamsAndroid(
+                        billingProgram = mapBillingProgram(json.optString("billingProgram", "billing-choice")),
+                        externalTransactionToken = token
+                    )
+                )
+                JSONObject().apply {
+                    put("success", true)
+                    put("responseCode", result.responseCode)
+                    put("debugMessage", result.debugMessage)
+                    put("subResponseCode", result.subResponseCode?.toJson())
+                }.toString()
+            } catch (e: Exception) {
+                GodotIapLog.failure("showBillingProgramInformationDialogAndroid", e)
+                JSONObject().apply {
+                    put("success", false)
+                    put("error", e.message)
+                }.toString()
+            }
+        }
+    }
+
+    @UsedByGodot
+    fun showInAppMessagesAndroid(paramsJson: String): String {
+        GodotIapLog.payload("showInAppMessagesAndroid", paramsJson)
+
+        if (!isInitialized) {
+            return JSONObject().apply {
+                put("success", false)
+                put("error", "Not initialized")
+            }.toString()
+        }
+
+        val activity = activity ?: run {
+            return JSONObject().apply {
+                put("success", false)
+                put("error", "Activity not available")
+            }.toString()
+        }
+
+        return runBlocking {
+            try {
+                val json = JSONObject(paramsJson.ifBlank { "{}" })
+                val categoriesJson = json.optJSONArray("categories")
+                val categories = categoriesJson?.let { array ->
+                    (0 until array.length()).mapNotNull { index ->
+                        array.optString(index, "").takeIf { it.isNotBlank() }
+                            ?.let { InAppMessageCategoryAndroid.fromJson(it) }
+                    }
+                }
+                val result = store.showInAppMessages(
+                    activity,
+                    InAppMessageParamsAndroid(categories = categories)
+                )
+                JSONObject().apply {
+                    put("success", true)
+                    put("responseCode", result.responseCode.toJson())
+                    put("purchaseToken", result.purchaseToken)
+                }.toString()
+            } catch (e: Exception) {
+                GodotIapLog.failure("showInAppMessagesAndroid", e)
                 JSONObject().apply {
                     put("success", false)
                     put("error", e.message)
@@ -1008,6 +1209,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
             "external-content-link" -> OpenIapBillingProgram.ExternalContentLink
             "external-payments" -> OpenIapBillingProgram.ExternalPayments
             "user-choice-billing" -> OpenIapBillingProgram.UserChoiceBilling
+            "billing-choice" -> OpenIapBillingProgram.BillingChoice
             else -> OpenIapBillingProgram.Unspecified
         }
 

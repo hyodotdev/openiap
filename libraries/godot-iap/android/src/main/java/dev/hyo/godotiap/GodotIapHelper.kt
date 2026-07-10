@@ -1,9 +1,11 @@
 package dev.hyo.godotiap
 
 import dev.hyo.openiap.AndroidSubscriptionOfferInput
+import dev.hyo.openiap.DeveloperBillingOptionParamsAndroid
 import dev.hyo.openiap.ProductQueryType
 import dev.hyo.openiap.SubscriptionProductReplacementParamsAndroid
 import dev.hyo.openiap.SubscriptionReplacementModeAndroid
+import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Locale
 
@@ -12,6 +14,21 @@ import java.util.Locale
  * Provides parsing functions for request parameters and sanitization utilities.
  */
 internal object GodotIapHelper {
+
+    fun jsonObjectToMap(json: JSONObject): Map<String, Any?> = buildMap {
+        val keys = json.keys()
+        while (keys.hasNext()) {
+            val key = keys.next()
+            put(key, jsonValue(json.opt(key)))
+        }
+    }
+
+    private fun jsonValue(value: Any?): Any? = when (value) {
+        null, JSONObject.NULL -> null
+        is JSONObject -> jsonObjectToMap(value)
+        is JSONArray -> List(value.length()) { index -> jsonValue(value.opt(index)) }
+        else -> value
+    }
 
     /**
      * Helper extension to get nullable string from JSONObject.
@@ -90,6 +107,7 @@ internal object GodotIapHelper {
         val isOfferPersonalized = json.optBoolean("isOfferPersonalized", false)
         val purchaseToken = json.optStringOrNull("purchaseTokenAndroid")
             ?: json.optStringOrNull("purchaseToken")
+        val originalExternalTransactionId = json.optStringOrNull("originalExternalTransactionId")
         val replacementMode = when {
             json.has("replacementModeAndroid") -> json.optInt("replacementModeAndroid")
             json.has("replacementMode") -> json.optInt("replacementMode")
@@ -111,6 +129,10 @@ internal object GodotIapHelper {
                 } else null
             } else null
         } else null
+
+        val developerBillingOption = json.optJSONObject("developerBillingOption")?.let {
+            DeveloperBillingOptionParamsAndroid.fromJson(jsonObjectToMap(it))
+        }
 
         // Parse offer token array
         val offerTokenArr = mutableListOf<String>()
@@ -160,6 +182,8 @@ internal object GodotIapHelper {
             isOfferPersonalized = isOfferPersonalized,
             offerTokenArr = offerTokenArr,
             subscriptionOffers = subscriptionOffers,
+            developerBillingOption = developerBillingOption,
+            originalExternalTransactionId = originalExternalTransactionId,
             purchaseToken = purchaseToken,
             replacementMode = replacementMode,
             subscriptionProductReplacementParams = subscriptionProductReplacementParams
@@ -194,6 +218,8 @@ internal object GodotIapHelper {
         val isOfferPersonalized: Boolean,
         val offerTokenArr: List<String>,
         val subscriptionOffers: List<AndroidSubscriptionOfferInput>,
+        val developerBillingOption: DeveloperBillingOptionParamsAndroid?,
+        val originalExternalTransactionId: String?,
         val purchaseToken: String?,
         val replacementMode: Int?,
         val subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid?

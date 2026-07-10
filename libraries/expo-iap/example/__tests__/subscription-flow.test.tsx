@@ -1,5 +1,5 @@
 import React from 'react';
-import {render, fireEvent, waitFor} from '@testing-library/react-native';
+import {act, render, fireEvent, waitFor} from '@testing-library/react-native';
 import {Alert, Platform} from 'react-native';
 
 // Mock expo-constants
@@ -21,6 +21,20 @@ const mockRequestPurchase = jest.fn().mockResolvedValue(undefined);
 const mockFinishTransaction = jest.fn();
 const mockGetActiveSubscriptions = jest.fn();
 const mockGetAvailablePurchases = jest.fn().mockResolvedValue([]);
+const mockVerifyPurchase = jest.fn().mockResolvedValue({});
+const mockVerifyPurchaseWithProvider = jest
+  .fn((_request: unknown) =>
+    Promise.resolve({
+      iapkit: {
+        isValid: true,
+        state: 'purchased',
+        store: 'google',
+      },
+    }),
+  )
+  .mockName('verifyPurchaseWithProvider');
+let mockOnPurchaseSuccess:
+  ((purchase: Record<string, unknown>) => Promise<void> | void) | undefined;
 
 const createMockSubscription = (overrides = {}) => ({
   id: 'test.subscription.1',
@@ -67,7 +81,10 @@ const mockUseIAP = jest.fn();
 jest.mock('../../src', () => ({
   initConnection: mockInitConnection,
   requestPurchase: mockRequestPurchase,
-  useIAP: () => mockUseIAP(),
+  useIAP: (options?: {onPurchaseSuccess?: typeof mockOnPurchaseSuccess}) => {
+    mockOnPurchaseSuccess = options?.onPurchaseSuccess;
+    return mockUseIAP();
+  },
 }));
 
 const SubscriptionFlow = require('../app/subscription-flow').default;
@@ -85,6 +102,15 @@ describe('SubscriptionFlow Component', () => {
     mockGetActiveSubscriptions.mockResolvedValue([]);
     mockFinishTransaction.mockResolvedValue(undefined);
     mockGetAvailablePurchases.mockResolvedValue([]);
+    mockVerifyPurchase.mockResolvedValue({});
+    mockVerifyPurchaseWithProvider.mockResolvedValue({
+      iapkit: {
+        isValid: true,
+        state: 'purchased',
+        store: 'google',
+      },
+    });
+    mockOnPurchaseSuccess = undefined;
 
     // Default mock implementation
     mockUseIAP.mockReturnValue({
@@ -96,6 +122,8 @@ describe('SubscriptionFlow Component', () => {
       finishTransaction: mockFinishTransaction,
       getActiveSubscriptions: mockGetActiveSubscriptions,
       activeSubscriptions: [],
+      verifyPurchase: mockVerifyPurchase,
+      verifyPurchaseWithProvider: mockVerifyPurchaseWithProvider,
     });
   });
 
@@ -338,5 +366,36 @@ describe('SubscriptionFlow Component', () => {
 
     // When there are no active subscriptions but connected, show check status link
     expect(getByText('Check Status')).toBeDefined();
+  });
+
+  it('re-verifies the Android IAPKit snapshot after finishing', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      value: 'android',
+      writable: true,
+    });
+
+    await renderConnectedSubscriptionFlow();
+
+    await act(async () => {
+      await mockOnPurchaseSuccess?.({
+        id: 'transaction-android-1',
+        platform: 'android',
+        productId: 'dev.hyo.martie.premium',
+        purchaseToken: 'android-token',
+        transactionDate: Date.now(),
+      });
+    });
+
+    expect(mockFinishTransaction).toHaveBeenCalledTimes(1);
+    expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(2);
+    expect(mockVerifyPurchaseWithProvider.mock.calls[1]?.[0]).toEqual(
+      mockVerifyPurchaseWithProvider.mock.calls[0]?.[0],
+    );
+    expect(
+      mockVerifyPurchaseWithProvider.mock.invocationCallOrder[0],
+    ).toBeLessThan(mockFinishTransaction.mock.invocationCallOrder[0]!);
+    expect(mockFinishTransaction.mock.invocationCallOrder[0]).toBeLessThan(
+      mockVerifyPurchaseWithProvider.mock.invocationCallOrder[1]!,
+    );
   });
 });

@@ -45,6 +45,7 @@ import io.github.hyochan.kmpiap.openiap.SubscriptionPeriod
 import io.github.hyochan.kmpiap.openiap.SubscriptionPeriodUnit
 import io.github.hyochan.kmpiap.openiap.SubscriptionReplacementModeAndroid
 import io.github.hyochan.kmpiap.openiap.ValidTimeWindowAndroid
+import io.github.hyochan.kmpiap.openiap.SubResponseCodeAndroid
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -240,6 +241,16 @@ internal fun mapBillingResponseCode(responseCode: Int): ErrorCode = when (respon
     else -> ErrorCode.Unknown
 }
 
+internal fun Int.toOpenIapSubResponseCode(): SubResponseCodeAndroid? = when (this) {
+    BillingClient.OnPurchasesUpdatedSubResponseCode.NO_APPLICABLE_SUB_RESPONSE_CODE ->
+        SubResponseCodeAndroid.NoApplicableSubResponseCode
+    BillingClient.OnPurchasesUpdatedSubResponseCode.PAYMENT_DECLINED_DUE_TO_INSUFFICIENT_FUNDS ->
+        SubResponseCodeAndroid.PaymentDeclinedDueToInsufficientFunds
+    BillingClient.OnPurchasesUpdatedSubResponseCode.USER_INELIGIBLE ->
+        SubResponseCodeAndroid.UserIneligible
+    else -> null
+}
+
 /**
  * Maps SubscriptionReplacementModeAndroid to BillingFlowParams product-level replacement mode.
  */
@@ -258,6 +269,15 @@ internal fun mapReplacementMode(mode: SubscriptionReplacementModeAndroid): Int? 
         BillingFlowParams.ProductDetailsParams.SubscriptionProductReplacementParams.ReplacementMode.DEFERRED
     SubscriptionReplacementModeAndroid.KeepExisting ->
         BillingFlowParams.ProductDetailsParams.SubscriptionProductReplacementParams.ReplacementMode.KEEP_EXISTING
+}
+
+internal fun resolveLegacySubscriptionReplacementMode(
+    purchaseToken: String?,
+    originalExternalTransactionId: String?,
+    replacementMode: Int?,
+    hasProductLevelReplacementParams: Boolean = false
+): Int? = if (hasProductLevelReplacementParams) null else replacementMode ?: 5.takeIf {
+    !purchaseToken.isNullOrBlank() && originalExternalTransactionId.isNullOrBlank()
 }
 
 internal fun enablePendingPurchasesCompat(builder: BillingClient.Builder): BillingClient.Builder {
@@ -375,6 +395,8 @@ internal suspend fun loadProductDetails(
     return details
 }
 
+internal fun Long.toOpenIapTransactionDate(): Double = toDouble()
+
 internal fun com.android.billingclient.api.Purchase.toPurchase(): Purchase {
     val purchaseStateEnum = when (purchaseState) {
         com.android.billingclient.api.Purchase.PurchaseState.PURCHASED -> PurchaseState.Purchased
@@ -403,7 +425,7 @@ internal fun com.android.billingclient.api.Purchase.toPurchase(): Purchase {
         purchaseToken = purchaseToken,
         quantity = quantity,
         signatureAndroid = signature,
-        transactionDate = purchaseTime.toDouble() / 1000
+        transactionDate = purchaseTime.toOpenIapTransactionDate()
     )
 }
 
@@ -701,6 +723,7 @@ internal fun BillingProgramAndroid.toOpenIapProgram(): OpenIapBillingProgram = w
     BillingProgramAndroid.ExternalContentLink -> OpenIapBillingProgram.ExternalContentLink
     BillingProgramAndroid.ExternalOffer -> OpenIapBillingProgram.ExternalOffer
     BillingProgramAndroid.ExternalPayments -> OpenIapBillingProgram.ExternalPayments
+    BillingProgramAndroid.BillingChoice -> OpenIapBillingProgram.BillingChoice
     BillingProgramAndroid.UserChoiceBilling -> OpenIapBillingProgram.UserChoiceBilling
 }
 

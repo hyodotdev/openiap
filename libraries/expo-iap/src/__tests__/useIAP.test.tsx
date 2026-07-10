@@ -13,9 +13,11 @@ jest.mock('react-native', () => ({
 /* eslint-disable import/first */
 import * as React from 'react';
 import * as ReactTestRenderer from 'react-test-renderer';
+import {Platform} from 'react-native';
 import ExpoIapModule from '../ExpoIapModule';
 import {ErrorCode} from '../types';
 import {useIAP, UseIAPOptions} from '../useIAP';
+import * as AndroidApi from '../modules/android';
 /* eslint-enable import/first */
 
 // Suppress console output during tests
@@ -59,6 +61,7 @@ const purchaseErrorEvent = 'purchase-error';
 describe('useIAP hook', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (Platform as unknown as {OS: string}).OS = 'ios';
     // Default mock for initConnection
     (ExpoIapModule.initConnection as jest.Mock) = jest
       .fn()
@@ -68,6 +71,95 @@ describe('useIAP hook', () => {
       .mockResolvedValue(true);
     (ExpoIapModule.addListener as jest.Mock) = jest.fn().mockReturnValue({
       remove: jest.fn(),
+    });
+  });
+
+  describe('Android Billing Choice options', () => {
+    it('forwards renderer config and billing event callbacks', async () => {
+      (Platform as unknown as {OS: string}).OS = 'android';
+      const listeners: Record<string, (payload: unknown) => void> = {};
+      (ExpoIapModule.addListener as jest.Mock).mockImplementation(
+        (eventName: string, listener: (payload: unknown) => void) => {
+          listeners[eventName] = listener;
+          return {remove: jest.fn()};
+        },
+      );
+
+      const onUserChoiceBillingAndroid = jest.fn();
+      const onDeveloperProvidedBillingAndroid = jest.fn();
+      const onSubscriptionBillingIssue = jest.fn();
+
+      await ReactTestRenderer.act(async () => {
+        ReactTestRenderer.create(
+          <TestComponent
+            options={{
+              enableBillingProgramAndroid: 'billing-choice',
+              billingChoiceScreenTypeAndroid: 'developer-rendered',
+              onUserChoiceBillingAndroid,
+              onDeveloperProvidedBillingAndroid,
+              onSubscriptionBillingIssue,
+            }}
+            onHookReady={() => {}}
+          />,
+        );
+        await flushPromises();
+      });
+
+      expect(ExpoIapModule.initConnection).toHaveBeenCalledWith({
+        enableBillingProgramAndroid: 'billing-choice',
+        billingChoiceScreenTypeAndroid: 'developer-rendered',
+      });
+
+      const userChoice = {externalTransactionToken: 'user-choice-token'};
+      const developerProvided = {
+        externalTransactionToken: 'billing-choice-token',
+        products: [{id: 'premium', type: 'in-app'}],
+      };
+      const billingIssue = {id: 'purchase-id', productId: 'subscription'};
+      listeners['user-choice-billing-android']?.(userChoice);
+      listeners['developer-provided-billing-android']?.(developerProvided);
+      listeners['subscription-billing-issue']?.(billingIssue);
+
+      expect(onUserChoiceBillingAndroid).toHaveBeenCalledWith(userChoice);
+      expect(onDeveloperProvidedBillingAndroid).toHaveBeenCalledWith(
+        developerProvided,
+      );
+      expect(onSubscriptionBillingIssue).toHaveBeenCalledWith(billingIssue);
+    });
+
+    it('exposes all Billing Choice APIs through the hook', async () => {
+      (Platform as unknown as {OS: string}).OS = 'android';
+      let hookResult: ReturnType<typeof useIAP> | null = null;
+
+      await ReactTestRenderer.act(async () => {
+        ReactTestRenderer.create(
+          <TestComponent
+            onHookReady={(hook) => {
+              hookResult = hook;
+            }}
+          />,
+        );
+        await flushPromises();
+      });
+
+      expect(hookResult!.getBillingChoiceInfoAndroid).toBe(
+        AndroidApi.getBillingChoiceInfoAndroid,
+      );
+      expect(hookResult!.isBillingProgramAvailableAndroid).toBe(
+        AndroidApi.isBillingProgramAvailableAndroid,
+      );
+      expect(hookResult!.createBillingProgramReportingDetailsAndroid).toBe(
+        AndroidApi.createBillingProgramReportingDetailsAndroid,
+      );
+      expect(hookResult!.launchExternalLinkAndroid).toBe(
+        AndroidApi.launchExternalLinkAndroid,
+      );
+      expect(hookResult!.showBillingProgramInformationDialogAndroid).toBe(
+        AndroidApi.showBillingProgramInformationDialogAndroid,
+      );
+      expect(hookResult!.showInAppMessagesAndroid).toBe(
+        AndroidApi.showInAppMessagesAndroid,
+      );
     });
   });
 

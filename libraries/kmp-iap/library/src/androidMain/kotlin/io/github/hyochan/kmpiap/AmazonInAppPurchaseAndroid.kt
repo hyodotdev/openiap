@@ -16,8 +16,12 @@ import io.github.hyochan.kmpiap.openiap.ActiveSubscription
 import io.github.hyochan.kmpiap.openiap.AppTransaction
 import io.github.hyochan.kmpiap.openiap.BillingProgramAndroid
 import io.github.hyochan.kmpiap.openiap.BillingProgramAvailabilityResultAndroid
+import io.github.hyochan.kmpiap.openiap.BillingChoiceInfoAndroid
+import io.github.hyochan.kmpiap.openiap.BillingProgramInformationDialogParamsAndroid
 import io.github.hyochan.kmpiap.openiap.BillingProgramReportingDetailsAndroid
+import io.github.hyochan.kmpiap.openiap.BillingResultAndroid
 import io.github.hyochan.kmpiap.openiap.DeepLinkOptions
+import io.github.hyochan.kmpiap.openiap.DeveloperBillingTypeAndroid
 import io.github.hyochan.kmpiap.openiap.DeveloperProvidedBillingDetailsAndroid
 import io.github.hyochan.kmpiap.openiap.ErrorCode
 import io.github.hyochan.kmpiap.openiap.ExternalPurchaseCustomLinkNoticeResultIOS
@@ -31,6 +35,9 @@ import io.github.hyochan.kmpiap.openiap.FetchProductsResultAll
 import io.github.hyochan.kmpiap.openiap.FetchProductsResultProducts
 import io.github.hyochan.kmpiap.openiap.FetchProductsResultSubscriptions
 import io.github.hyochan.kmpiap.openiap.InitConnectionConfig
+import io.github.hyochan.kmpiap.openiap.GetBillingChoiceInfoParamsAndroid
+import io.github.hyochan.kmpiap.openiap.InAppMessageParamsAndroid
+import io.github.hyochan.kmpiap.openiap.InAppMessageResultAndroid
 import io.github.hyochan.kmpiap.openiap.LaunchExternalLinkParamsAndroid
 import io.github.hyochan.kmpiap.openiap.Product
 import io.github.hyochan.kmpiap.openiap.ProductOrSubscription
@@ -97,13 +104,15 @@ internal class AmazonInAppPurchaseAndroid(
     private var subscriptionIssueListener: OpenIapSubscriptionBillingIssueListener? = null
 
     override suspend fun initConnection(config: InitConnectionConfig?): Boolean = withContext(Dispatchers.Main) {
-        val ctx = ensureContext()
-        val openModule = module ?: buildOpenIapModule(ctx).also { created ->
-            module = created
-            registerListeners(created)
+        withMappedOpenIapError {
+            val ctx = ensureContext()
+            val openModule = module ?: buildOpenIapModule(ctx).also { created ->
+                module = created
+                registerListeners(created)
+            }
+            openModule.setActivity(currentActivity)
+            openModule.initConnection(config?.toOpenIap())
         }
-        openModule.setActivity(currentActivity)
-        openModule.initConnection(config?.toOpenIap())
     }
 
     override suspend fun endConnection(): Boolean = withContext(Dispatchers.IO) {
@@ -119,42 +128,57 @@ internal class AmazonInAppPurchaseAndroid(
     }
 
     override suspend fun fetchProducts(params: ProductRequest): FetchProductsResult =
-        requireModule().fetchProducts(params.toOpenIap()).toKmp()
+        withMappedOpenIapError { requireModule().fetchProducts(params.toOpenIap()).toKmp() }
 
     override suspend fun requestPurchase(params: RequestPurchaseProps): RequestPurchaseResult? =
-        requireModule().requestPurchase(params.toOpenIap())?.toKmp()
+        withMappedOpenIapError { requireModule().requestPurchase(params.toOpenIap())?.toKmp() }
 
     override suspend fun getAvailablePurchases(options: PurchaseOptions?): List<Purchase> =
-        requireModule().getAvailablePurchases(options?.toOpenIap()).map { it.toKmp() }
+        withMappedOpenIapError {
+            requireModule().getAvailablePurchases(options?.toOpenIap()).map { it.toKmp() }
+        }
 
     override suspend fun getActiveSubscriptions(subscriptionIds: List<String>?): List<ActiveSubscription> =
-        requireModule().queryHandlers.getActiveSubscriptions?.invoke(subscriptionIds)
-            ?.map { ActiveSubscription.fromJson(it.toJson()) }
-            ?: emptyList()
+        withMappedOpenIapError {
+            requireModule().queryHandlers.getActiveSubscriptions?.invoke(subscriptionIds)
+                ?.map { ActiveSubscription.fromJson(it.toJson()) }
+                ?: emptyList()
+        }
 
     override suspend fun hasActiveSubscriptions(subscriptionIds: List<String>?): Boolean =
-        requireModule().queryHandlers.hasActiveSubscriptions?.invoke(subscriptionIds) ?: false
+        withMappedOpenIapError {
+            requireModule().queryHandlers.hasActiveSubscriptions?.invoke(subscriptionIds) ?: false
+        }
 
     override suspend fun restorePurchases() {
-        requireModule().mutationHandlers.restorePurchases?.invoke()
+        withMappedOpenIapError { requireModule().mutationHandlers.restorePurchases?.invoke() }
     }
 
     override suspend fun finishTransaction(purchase: PurchaseInput, isConsumable: Boolean?) {
-        requireModule().finishTransaction(purchase.toOpenIap(), isConsumable)
+        withMappedOpenIapError {
+            requireModule().finishTransaction(purchase.toOpenIap(), isConsumable)
+        }
     }
 
     override suspend fun acknowledgePurchaseAndroid(purchaseToken: String): Boolean =
-        requireModule().acknowledgePurchaseAndroid(purchaseToken)
+        withMappedOpenIapError { requireModule().acknowledgePurchaseAndroid(purchaseToken) }
 
     override suspend fun consumePurchaseAndroid(purchaseToken: String): Boolean =
-        requireModule().consumePurchaseAndroid(purchaseToken)
+        withMappedOpenIapError { requireModule().consumePurchaseAndroid(purchaseToken) }
 
     override suspend fun deepLinkToSubscriptions(options: DeepLinkOptions?) {
-        options?.let { requireModule().mutationHandlers.deepLinkToSubscriptions?.invoke(it.toOpenIap()) }
+        withMappedOpenIapError {
+            options?.let {
+                requireModule().mutationHandlers.deepLinkToSubscriptions?.invoke(it.toOpenIap())
+            }
+        }
     }
 
     override suspend fun getStorefront(): String =
-        requireModule().queryHandlers.getStorefront?.invoke().orEmpty().ifBlank { Locale.getDefault().country }
+        withMappedOpenIapError {
+            requireModule().queryHandlers.getStorefront?.invoke().orEmpty()
+                .ifBlank { Locale.getDefault().country }
+        }
 
     override suspend fun getStorefrontIOS(): String = getStorefront()
 
@@ -197,8 +221,20 @@ internal class AmazonInAppPurchaseAndroid(
     override suspend fun isBillingProgramAvailableAndroid(program: BillingProgramAndroid): BillingProgramAvailabilityResultAndroid =
         BillingProgramAvailabilityResultAndroid(billingProgram = program, isAvailable = false)
 
-    override suspend fun createBillingProgramReportingDetailsAndroid(program: BillingProgramAndroid): BillingProgramReportingDetailsAndroid =
+    override suspend fun getBillingChoiceInfoAndroid(params: GetBillingChoiceInfoParamsAndroid): BillingChoiceInfoAndroid =
+        failUnsupported("Amazon Appstore does not support Google Play Billing Choice.")
+
+    override suspend fun createBillingProgramReportingDetailsAndroid(
+        program: BillingProgramAndroid,
+        developerBillingType: DeveloperBillingTypeAndroid?
+    ): BillingProgramReportingDetailsAndroid =
         failUnsupported("Amazon Appstore does not support Google Play billing programs.")
+
+    override suspend fun showBillingProgramInformationDialogAndroid(params: BillingProgramInformationDialogParamsAndroid): BillingResultAndroid =
+        failUnsupported("Amazon Appstore does not support Google Play Billing Choice.")
+
+    override suspend fun showInAppMessagesAndroid(params: InAppMessageParamsAndroid?): InAppMessageResultAndroid =
+        failUnsupported("Google Play billing in-app messages are unavailable on $storeName.")
 
     override suspend fun launchExternalLinkAndroid(params: LaunchExternalLinkParamsAndroid): Boolean = false
     override suspend fun checkAlternativeBillingAvailabilityAndroid(): Boolean = false
@@ -343,7 +379,7 @@ internal class AmazonInAppPurchaseAndroid(
             _purchaseUpdatedListener.tryEmit(purchase.toKmp())
         }
         val purchaseError = OpenIapPurchaseErrorListener { error ->
-            _purchaseErrorListener.tryEmit(error.toKmp())
+            _purchaseErrorListener.tryEmit(error.toKmpPurchaseError())
         }
         val userChoice = OpenIapUserChoiceBillingListener { details ->
             _userChoiceBillingListener.tryEmit(UserChoiceBillingDetails.fromJson(details.toJson()))
@@ -381,11 +417,12 @@ internal class AmazonInAppPurchaseAndroid(
         subscriptionIssueListener = null
     }
 
-    private fun AndroidOpenIapError.toKmp(): PurchaseError =
-        PurchaseError(
-            code = ErrorCode.fromJson(code),
-            message = debugMessage?.takeIf { it.isNotBlank() } ?: message
-        )
+    private suspend fun <T> withMappedOpenIapError(block: suspend () -> T): T =
+        try {
+            block()
+        } catch (error: AndroidOpenIapError) {
+            throw PurchaseException(error.toKmpPurchaseError())
+        }
 
     private fun failWith(error: PurchaseError): Nothing {
         _purchaseErrorListener.tryEmit(error)
@@ -395,6 +432,12 @@ internal class AmazonInAppPurchaseAndroid(
     private fun failUnsupported(message: String): Nothing =
         failWith(PurchaseError(code = ErrorCode.FeatureNotSupported, message = message))
 }
+
+internal fun AndroidOpenIapError.toKmpPurchaseError(): PurchaseError =
+    PurchaseError(
+        code = ErrorCode.fromJson(code),
+        message = debugMessage?.takeIf { it.isNotBlank() } ?: message
+    )
 
 private fun InitConnectionConfig.toOpenIap(): dev.hyo.openiap.InitConnectionConfig =
     dev.hyo.openiap.InitConnectionConfig.fromJson(toJson())

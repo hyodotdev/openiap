@@ -45,7 +45,7 @@ function GodotSetup() {
           </li>
           <li>
             iOS: <strong>Xcode 16+</strong> (Swift 6.0+) with{' '}
-            <strong>iOS 15+</strong> target
+            <strong>iOS 17+</strong> target
           </li>
           <li>
             Android: Android SDK with <strong>API level 24+</strong>

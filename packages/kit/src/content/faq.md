@@ -2,7 +2,7 @@
 
 ## When should I perform receipt validation?
 
-Run validation immediately after your app receives a purchase receipt and again at any time the purchase state matters—unlocking premium content, restoring purchases on a new device, or reconciling renewals. IAPKit is designed to handle both real-time checks and scheduled re-validations so you can catch subscriptions that lapse, refunds, or revoked purchases without waiting for user reports.
+Run validation immediately after your app receives a purchase receipt and again at any time the purchase state matters - unlocking premium content, restoring purchases on a new device, or reconciling renewals. A Purchases row records the store state observed by its latest verification; it is not a live subscription watcher. Use subscription webhooks and entitlement endpoints for lifecycle state, and schedule revalidation when a current purchase snapshot is required. On Android, verify the purchase, finish it, then verify the token again when the Purchases log must reflect the completed acknowledgment.
 
 ## Why should I perform receipt validation?
 

@@ -1,6 +1,7 @@
 package dev.hyo.openiap.helpers
 
 import dev.hyo.openiap.AndroidSubscriptionOfferInput
+import dev.hyo.openiap.BillingProgramAndroid
 import dev.hyo.openiap.DeveloperBillingOptionParamsAndroid
 import dev.hyo.openiap.ErrorCode
 import dev.hyo.openiap.OpenIapError
@@ -85,6 +86,7 @@ internal data class AndroidPurchaseArgs(
     val obfuscatedProfileId: String?,
     val offerToken: String?,
     val purchaseToken: String?,
+    val originalExternalTransactionId: String?,
     val replacementMode: Int?,
     val subscriptionOffers: List<AndroidSubscriptionOfferInput>?,
     val subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid?,
@@ -92,6 +94,25 @@ internal data class AndroidPurchaseArgs(
     val type: ProductQueryType,
     val useAlternativeBilling: Boolean?
 )
+
+internal fun resolveLegacySubscriptionReplacementMode(
+    purchaseToken: String?,
+    originalExternalTransactionId: String?,
+    replacementMode: Int?,
+    hasProductLevelReplacementParams: Boolean = false
+): Int? = if (hasProductLevelReplacementParams) null else replacementMode ?: 5.takeIf {
+    !purchaseToken.isNullOrBlank() && originalExternalTransactionId.isNullOrBlank()
+}
+
+internal fun resolveBillingProgramsForConnection(
+    pendingPrograms: Set<BillingProgramAndroid>,
+    configuredProgram: BillingProgramAndroid?
+): Set<BillingProgramAndroid> = buildSet {
+    addAll(pendingPrograms.filterNot { it == BillingProgramAndroid.Unspecified })
+    configuredProgram
+        ?.takeUnless { it == BillingProgramAndroid.Unspecified }
+        ?.let(::add)
+}
 
 /**
  * Extension function to convert RequestPurchaseProps to AndroidPurchaseArgs.
@@ -110,6 +131,7 @@ internal fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
                 obfuscatedProfileId = params.obfuscatedProfileId,
                 offerToken = params.offerToken,
                 purchaseToken = null,
+                originalExternalTransactionId = null,
                 replacementMode = null,
                 subscriptionOffers = null,
                 subscriptionProductReplacementParams = null,
@@ -134,6 +156,7 @@ internal fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
                 obfuscatedProfileId = params.obfuscatedProfileId,
                 offerToken = null,
                 purchaseToken = params.purchaseToken,
+                originalExternalTransactionId = params.originalExternalTransactionId,
                 replacementMode = params.replacementMode,
                 subscriptionOffers = params.subscriptionOffers,
                 subscriptionProductReplacementParams = params.subscriptionProductReplacementParams,

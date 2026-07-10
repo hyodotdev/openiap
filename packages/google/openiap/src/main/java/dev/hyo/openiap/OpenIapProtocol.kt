@@ -56,15 +56,15 @@ interface OpenIapProtocol {
 
     // Developer Provided Billing (Google Play Billing Library 8.3.0+)
     /**
-     * Set a legacy-style developer-provided billing listener for External Payments (8.3.0+ Japan only).
-     * This is called when user selects developer billing in the side-by-side choice dialog.
+     * Set a legacy-style listener for External Payments (8.3.0+) and
+     * Google-rendered Billing Choice (9.1.0+).
      *
      * @param listener Developer-provided billing listener or null to remove
      */
     fun setDeveloperProvidedBillingListener(listener: DeveloperProvidedBillingListener?)
     /**
      * Add listener for developer-provided billing selection events.
-     * Called when user selects the developer's billing option in external payments flow.
+     * Called when the user selects the developer's option in an enabled billing program.
      */
     fun addDeveloperProvidedBillingListener(listener: OpenIapDeveloperProvidedBillingListener)
     fun removeDeveloperProvidedBillingListener(listener: OpenIapDeveloperProvidedBillingListener)
@@ -86,7 +86,7 @@ interface OpenIapProtocol {
      * Check if a billing program is available for this user/device.
      * Replaces checkAlternativeBillingAvailability() for external offers.
      *
-     * @param program The billing program to check (EXTERNAL_CONTENT_LINK or EXTERNAL_OFFER)
+     * @param program The billing program to check, including BILLING_CHOICE on 9.1.0+
      * @return Result containing availability information
      */
     suspend fun isBillingProgramAvailable(program: BillingProgramAndroid): BillingProgramAvailabilityResultAndroid
@@ -95,10 +95,13 @@ interface OpenIapProtocol {
      * Create reporting details for transactions made outside of Google Play Billing.
      * Replaces createAlternativeBillingReportingToken() for external offers.
      *
-     * @param program The billing program (EXTERNAL_CONTENT_LINK or EXTERNAL_OFFER)
+     * @param program The billing program, including BILLING_CHOICE on 9.1.0+
      * @return Reporting details containing the external transaction token
      */
-    suspend fun createBillingProgramReportingDetails(program: BillingProgramAndroid): BillingProgramReportingDetailsAndroid
+    suspend fun createBillingProgramReportingDetails(
+        program: BillingProgramAndroid,
+        developerBillingType: DeveloperBillingTypeAndroid? = null
+    ): BillingProgramReportingDetailsAndroid
 
     /**
      * Launch an external link for external offer or app download.
@@ -109,4 +112,26 @@ interface OpenIapProtocol {
      * @return true if launch was successful, false otherwise
      */
     suspend fun launchExternalLink(activity: Activity, params: LaunchExternalLinkParamsAndroid): Boolean
+
+    /**
+     * Fetch Play Billing choice display assets for developer-rendered Billing Choice.
+     */
+    suspend fun getBillingChoiceInfo(params: GetBillingChoiceInfoParamsAndroid): BillingChoiceInfoAndroid
+
+    /**
+     * Show the mandatory information dialog before a developer-rendered,
+     * in-app Billing Choice screen.
+     */
+    suspend fun showBillingProgramInformationDialog(
+        activity: Activity,
+        params: BillingProgramInformationDialogParamsAndroid
+    ): BillingResultAndroid
+
+    /**
+     * Show Play billing in-app messages such as payment issues or price-change confirmations.
+     */
+    suspend fun showInAppMessages(
+        activity: Activity,
+        params: InAppMessageParamsAndroid? = null
+    ): InAppMessageResultAndroid
 }

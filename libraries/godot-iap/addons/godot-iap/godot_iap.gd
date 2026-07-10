@@ -203,9 +203,9 @@ func _on_android_subscription_billing_issue(purchase_json: String) -> void:
 
 ## Initialize the store connection. Must be called before any other IAP API.
 ##
-## This wrapper currently takes no arguments — Android billing-program flags
-## (e.g. [code]enable_billing_program_android[/code]) live on the underlying
-## [InitConnectionConfig] but are not yet plumbed through the GDScript API.
+## [param config]: optional [InitConnectionConfig]. On Android, set
+## [code]enable_billing_program_android[/code] to Billing Choice and use
+## [code]billing_choice_screen_type_android[/code] to match Play Console.
 ##
 ## Returns [code]true[/code] once the platform billing client is connected.
 ##
@@ -214,12 +214,16 @@ func _on_android_subscription_billing_issue(purchase_json: String) -> void:
 ## [/codeblock]
 ##
 ## See: https://openiap.dev/docs/apis/init-connection
-func init_connection() -> bool:
+func init_connection(config = null) -> bool:
 	print("[GodotIap] init_connection called")
 	if _native_plugin:
 		if _platform == "Android":
 			print("[GodotIap] Calling Android initConnection...")
-			_is_connected = _native_plugin.call("initConnection")
+			if config != null:
+				var config_dict = config.to_dict() if typeof(config) == TYPE_OBJECT and config.has_method("to_dict") else config
+				_is_connected = _native_plugin.call("initConnectionWithConfig", JSON.stringify(config_dict))
+			else:
+				_is_connected = _native_plugin.call("initConnection")
 			if not _is_connected:
 				print("[GodotIap] ERROR: initConnection failed. Check Google Play Services and billing setup.")
 			else:
@@ -433,19 +437,28 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 				"sku": google_props.get("skus", [])[0],
 				"offerToken": str(offer_token),
 			}]
+		var replacement_params = google_props.get("subscriptionProductReplacementParams", null)
+		if typeof(replacement_params) == TYPE_OBJECT and replacement_params.has_method("to_dict"):
+			replacement_params = replacement_params.to_dict()
+		var developer_billing_option = google_props.get("developerBillingOption", null)
+		if typeof(developer_billing_option) == TYPE_OBJECT and developer_billing_option.has_method("to_dict"):
+			developer_billing_option = developer_billing_option.to_dict()
 		var params = {
 			"type": purchase_type,
 			"skus": google_props.get("skus", []),
-			"obfuscatedAccountIdAndroid": google_props.get("obfuscatedAccountIdAndroid", ""),
-			"obfuscatedProfileIdAndroid": google_props.get("obfuscatedProfileIdAndroid", ""),
+			"obfuscatedAccountId": google_props.get("obfuscatedAccountId", google_props.get("obfuscatedAccountIdAndroid", "")),
+			"obfuscatedProfileId": google_props.get("obfuscatedProfileId", google_props.get("obfuscatedProfileIdAndroid", "")),
 			"isOfferPersonalized": google_props.get("isOfferPersonalized", false),
 			"offerTokenArr": offer_token_arr,
 			"subscriptionOffers": subscription_offers,
-			"purchaseTokenAndroid": google_props.get("purchaseTokenAndroid", ""),
-			"replacementModeAndroid": google_props.get("replacementModeAndroid", 0),
+			"purchaseToken": google_props.get("purchaseToken", google_props.get("purchaseTokenAndroid", "")),
+			"originalExternalTransactionId": google_props.get("originalExternalTransactionId", ""),
+			"replacementMode": google_props.get("replacementMode", google_props.get("replacementModeAndroid", 0)),
+			"subscriptionProductReplacementParams": replacement_params,
+			"developerBillingOption": developer_billing_option,
 		}
 		var params_json = JSON.stringify(params)
-		print("[GodotIap] Calling Android requestPurchase: type=", purchase_type, ", skus=", params["skus"].size(), ", subscriptionOffers=", params["subscriptionOffers"].size(), ", hasPurchaseToken=", not str(params["purchaseTokenAndroid"]).is_empty())
+		print("[GodotIap] Calling Android requestPurchase: type=", purchase_type, ", skus=", params["skus"].size(), ", subscriptionOffers=", params["subscriptionOffers"].size(), ", hasPurchaseToken=", not str(params["purchaseToken"]).is_empty())
 		result_raw = _native_plugin.call("requestPurchaseJson", params_json)
 	elif _platform == "iOS":
 		var apple_props = request.get("apple", request.get("ios", {}))
@@ -812,32 +825,28 @@ func _verify_purchase_with_provider_raw(props: Dictionary) -> Dictionary:
 # ==========================================
 
 ## Sync with App Store (iOS only).
-## @return Types.VoidResult
+## @return bool - true if the sync request completed successfully
 ##
 ## See: https://openiap.dev/docs/apis/ios/sync-ios
-func sync_ios() -> Variant:
-	var result = Types.VoidResult.new()
-	result.success = false
-	if _native_plugin and _platform == "iOS":
-		var result_json = _native_plugin.call("syncIOS")
-		var parsed = JSON.parse_string(result_json)
-		if parsed is Dictionary:
-			return Types.VoidResult.from_dict(parsed)
-	return result
+func sync_ios() -> bool:
+	if not (_native_plugin and _platform == "iOS"):
+		return false
+	var pending = _native_plugin.call("syncIOS")
+	var request_id = _parse_request_id(pending)
+	var payload = await _await_products_fetched_for("syncIOS", request_id)
+	return payload.get("success", false)
 
 ## Clear pending transactions from the StoreKit payment queue (iOS only).
-## @return Types.VoidResult
+## @return bool - true if pending transactions were cleared successfully
 ##
 ## See: https://openiap.dev/docs/apis/ios/clear-transaction-ios
-func clear_transaction_ios() -> Variant:
-	var result = Types.VoidResult.new()
-	result.success = false
-	if _native_plugin and _platform == "iOS":
-		var result_json = _native_plugin.call("clearTransactionIOS")
-		var parsed = JSON.parse_string(result_json)
-		if parsed is Dictionary:
-			return Types.VoidResult.from_dict(parsed)
-	return result
+func clear_transaction_ios() -> bool:
+	if not (_native_plugin and _platform == "iOS"):
+		return false
+	var pending = _native_plugin.call("clearTransactionIOS")
+	var request_id = _parse_request_id(pending)
+	var payload = await _await_products_fetched_for("clearTransactionIOS", request_id)
+	return payload.get("success", false)
 
 ## Get pending transactions (iOS only).
 ## @return Array[Types.PurchaseIOS]
@@ -877,18 +886,16 @@ func get_all_transactions_ios() -> Array:
 	return purchases
 
 ## Present code redemption sheet (iOS only).
-## @return Types.VoidResult
+## @return bool - true if the sheet was presented successfully
 ##
 ## See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
-func present_code_redemption_sheet_ios() -> Variant:
-	var result = Types.VoidResult.new()
-	result.success = false
-	if _native_plugin and _platform == "iOS":
-		var result_json = _native_plugin.call("presentCodeRedemptionSheetIOS")
-		var parsed = JSON.parse_string(result_json)
-		if parsed is Dictionary:
-			return Types.VoidResult.from_dict(parsed)
-	return result
+func present_code_redemption_sheet_ios() -> bool:
+	if not (_native_plugin and _platform == "iOS"):
+		return false
+	var pending = _native_plugin.call("presentCodeRedemptionSheetIOS")
+	var request_id = _parse_request_id(pending)
+	var payload = await _await_products_fetched_for("presentCodeRedemptionSheetIOS", request_id)
+	return payload.get("success", false)
 
 ## Show manage subscriptions UI (iOS only).
 ## @return Array[Types.PurchaseIOS] - changed purchases
@@ -910,17 +917,18 @@ func show_manage_subscriptions_ios() -> Array:
 
 ## Begin refund request (iOS only).
 ## @param product_id: String - the product ID to request refund for
-## @return Types.RefundResultIOS
+## @return String - refund request status, or empty string on failure
 ##
 ## See: https://openiap.dev/docs/apis/ios/begin-refund-request-ios
-func begin_refund_request_ios(product_id: String) -> Variant:
-	if _native_plugin and _platform == "iOS":
-		var result_json = _native_plugin.call("beginRefundRequestIOS", product_id)
-		var result = JSON.parse_string(result_json)
-		if result is Dictionary:
-			return Types.RefundResultIOS.from_dict(result)
-	var default_result = Types.RefundResultIOS.new()
-	return default_result
+func begin_refund_request_ios(product_id: String) -> String:
+	if not (_native_plugin and _platform == "iOS"):
+		return ""
+	var pending = _native_plugin.call("beginRefundRequestIOS", product_id)
+	var request_id = _parse_request_id(pending)
+	var payload = await _await_products_fetched_for("beginRefundRequestIOS", request_id)
+	if payload.get("success", false):
+		return payload.get("status", "")
+	return ""
 
 ## Get current entitlement for a product (iOS only).
 ## @param sku: String - product SKU
@@ -1020,18 +1028,16 @@ func get_promoted_product_ios() -> Variant:
 	return null
 
 ## Request purchase on promoted product (iOS only).
-## @return Types.VoidResult
+## @return bool - true if the promoted product purchase request succeeded
 ##
 ## See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios
-func request_purchase_on_promoted_product_ios() -> Variant:
-	var result = Types.VoidResult.new()
-	result.success = false
-	if _native_plugin and _platform == "iOS":
-		var result_json = _native_plugin.call("requestPurchaseOnPromotedProductIOS")
-		var parsed = JSON.parse_string(result_json)
-		if parsed is Dictionary:
-			return Types.VoidResult.from_dict(parsed)
-	return result
+func request_purchase_on_promoted_product_ios() -> bool:
+	if not (_native_plugin and _platform == "iOS"):
+		return false
+	var pending = _native_plugin.call("requestPurchaseOnPromotedProductIOS")
+	var request_id = _parse_request_id(pending)
+	var payload = await _await_products_fetched_for("requestPurchaseOnPromotedProductIOS", request_id)
+	return payload.get("success", false)
 
 ## Check if can present external purchase notice (iOS 18.2+).
 ## @return bool - true if external purchase notice can be presented
@@ -1255,12 +1261,12 @@ func show_external_purchase_custom_link_notice_ios(notice_type: String) -> Varia
 
 ## Acknowledge a purchase (Android only, for non-consumables).
 ## @param purchase_token: String - the purchase token to acknowledge
-## @return Types.VoidResult
+## @return bool - true if the purchase was acknowledged successfully
 ##
 ## See: https://openiap.dev/docs/apis/android/acknowledge-purchase-android
-func acknowledge_purchase_android(purchase_token: String) -> Variant:
+func acknowledge_purchase_android(purchase_token: String) -> bool:
 	var result = _acknowledge_purchase_android_raw(purchase_token)
-	return Types.VoidResult.from_dict(result)
+	return result.get("success", false)
 
 ## Internal: Acknowledge purchase raw
 func _acknowledge_purchase_android_raw(purchase_token: String) -> Dictionary:
@@ -1276,12 +1282,12 @@ func _acknowledge_purchase_android_raw(purchase_token: String) -> Dictionary:
 
 ## Consume a purchase (Android only, for consumables).
 ## @param purchase_token: String - the purchase token to consume
-## @return Types.VoidResult
+## @return bool - true if the purchase was consumed successfully
 ##
 ## See: https://openiap.dev/docs/apis/android/consume-purchase-android
-func consume_purchase_android(purchase_token: String) -> Variant:
+func consume_purchase_android(purchase_token: String) -> bool:
 	var result = _consume_purchase_android_raw(purchase_token)
-	return Types.VoidResult.from_dict(result)
+	return result.get("success", false)
 
 ## Internal: Consume purchase raw
 func _consume_purchase_android_raw(purchase_token: String) -> Dictionary:
@@ -1296,44 +1302,40 @@ func _consume_purchase_android_raw(purchase_token: String) -> Dictionary:
 	return { "success": false, "error": "Not available" }
 
 ## Check alternative billing availability (Android).
-## @return Types.BillingProgramAvailabilityResultAndroid
+## @return bool - true if alternative billing is available
 ##
 ## See: https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android
-func check_alternative_billing_availability_android() -> Variant:
+func check_alternative_billing_availability_android() -> bool:
 	if _native_plugin and _platform == "Android":
 		var result_json = _native_plugin.call("checkAlternativeBillingAvailabilityAndroid")
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
-			return Types.BillingProgramAvailabilityResultAndroid.from_dict(result)
-	var default_result = Types.BillingProgramAvailabilityResultAndroid.new()
-	default_result.is_available = false
-	return default_result
+			return result.get("isAvailable", false)
+	return false
 
 ## Show alternative billing dialog (Android).
-## @return Types.UserChoiceBillingDetails
+## @return bool - true if the user accepted the dialog
 ##
 ## See: https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android
-func show_alternative_billing_dialog_android() -> Variant:
+func show_alternative_billing_dialog_android() -> bool:
 	if _native_plugin and _platform == "Android":
 		var result_json = _native_plugin.call("showAlternativeBillingDialogAndroid")
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
-			return Types.UserChoiceBillingDetails.from_dict(result)
-	var default_result = Types.UserChoiceBillingDetails.new()
-	return default_result
+			return result.get("userAccepted", false)
+	return false
 
 ## Create alternative billing token (Android).
-## @return Types.BillingProgramReportingDetailsAndroid
+## @return String - reporting token, or empty string on failure
 ##
 ## See: https://openiap.dev/docs/apis/android/create-alternative-billing-token-android
-func create_alternative_billing_token_android() -> Variant:
+func create_alternative_billing_token_android() -> String:
 	if _native_plugin and _platform == "Android":
 		var result_json = _native_plugin.call("createAlternativeBillingTokenAndroid")
 		var result = JSON.parse_string(result_json)
-		if result is Dictionary:
-			return Types.BillingProgramReportingDetailsAndroid.from_dict(result)
-	var default_result = Types.BillingProgramReportingDetailsAndroid.new()
-	return default_result
+		if result is Dictionary and result.get("success", false):
+			return result.get("token", "")
+	return ""
 
 ## Check if a billing program is available (Android 8.2.0+).
 ## @param billing_program: Types.BillingProgramAndroid - billing program enum value
@@ -1342,7 +1344,7 @@ func create_alternative_billing_token_android() -> Variant:
 ## See: https://openiap.dev/docs/apis/android/is-billing-program-available-android
 func is_billing_program_available_android(billing_program) -> Variant:
 	if _native_plugin and _platform == "Android":
-		var result_json = _native_plugin.call("isBillingProgramAvailableAndroid", billing_program)
+		var result_json = _native_plugin.call("isBillingProgramAvailableAndroid", _billing_program_to_raw(billing_program))
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
 			return Types.BillingProgramAvailabilityResultAndroid.from_dict(result)
@@ -1351,35 +1353,95 @@ func is_billing_program_available_android(billing_program) -> Variant:
 	default_result.billing_program = billing_program
 	return default_result
 
+func _billing_program_to_raw(billing_program) -> Variant:
+	if typeof(billing_program) == TYPE_INT and Types.BILLING_PROGRAM_ANDROID_VALUES.has(billing_program):
+		return Types.BILLING_PROGRAM_ANDROID_VALUES[billing_program]
+	return billing_program
+
+func _developer_billing_type_to_raw(developer_billing_type) -> Variant:
+	if typeof(developer_billing_type) == TYPE_INT and Types.DEVELOPER_BILLING_TYPE_ANDROID_VALUES.has(developer_billing_type):
+		return Types.DEVELOPER_BILLING_TYPE_ANDROID_VALUES[developer_billing_type]
+	return developer_billing_type
+
+## Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens (Android 9.1.0+).
+## @param params: Types.GetBillingChoiceInfoParamsAndroid - Billing Choice info parameters
+## @return Types.BillingChoiceInfoAndroid
+##
+## See: https://openiap.dev/docs/apis/android/get-billing-choice-info-android
+func get_billing_choice_info_android(params) -> Variant:
+	if _native_plugin and _platform == "Android":
+		var params_json = JSON.stringify(params.to_dict())
+		var result_json = _native_plugin.call("getBillingChoiceInfoAndroid", params_json)
+		var result = JSON.parse_string(result_json)
+		if result is Dictionary:
+			return Types.BillingChoiceInfoAndroid.from_dict(result)
+	return Types.BillingChoiceInfoAndroid.new()
+
 ## Launch external link (Android 8.2.0+).
 ## @param params: Types.LaunchExternalLinkParamsAndroid - external link parameters
-## @return Types.VoidResult
+## @return bool - true if the external link flow was accepted/launched
 ##
 ## See: https://openiap.dev/docs/apis/android/launch-external-link-android
-func launch_external_link_android(params) -> Variant:
+func launch_external_link_android(params) -> bool:
 	if _native_plugin and _platform == "Android":
 		var params_json = JSON.stringify(params.to_dict())
 		var result_json = _native_plugin.call("launchExternalLinkAndroid", params_json)
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
-			return Types.VoidResult.from_dict(result)
-	var default_result = Types.VoidResult.new()
-	default_result.success = false
-	return default_result
+			return bool(result.get("launched", result.get("success", false)))
+	return false
 
 ## Create billing program reporting details (Android 8.2.0+).
 ## @param billing_program: Types.BillingProgramAndroid - billing program enum value
+## @param developer_billing_type: Types.DeveloperBillingTypeAndroid or null
 ## @return Types.BillingProgramReportingDetailsAndroid
 ##
 ## See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
-func create_billing_program_reporting_details_android(billing_program) -> Variant:
+func create_billing_program_reporting_details_android(billing_program, developer_billing_type = null) -> Variant:
 	if _native_plugin and _platform == "Android":
-		var result_json = _native_plugin.call("createBillingProgramReportingDetailsAndroid", billing_program)
+		var result_json: String
+		if developer_billing_type == null:
+			result_json = _native_plugin.call("createBillingProgramReportingDetailsAndroid", _billing_program_to_raw(billing_program))
+		else:
+			result_json = _native_plugin.call("createBillingProgramReportingDetailsAndroidWithType", JSON.stringify({
+				"billingProgram": _billing_program_to_raw(billing_program),
+				"developerBillingType": _developer_billing_type_to_raw(developer_billing_type)
+			}))
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
 			return Types.BillingProgramReportingDetailsAndroid.from_dict(result)
 	var default_result = Types.BillingProgramReportingDetailsAndroid.new()
 	default_result.billing_program = billing_program
+	return default_result
+
+## Show Google's mandatory information dialog before a developer-rendered,
+## in-app Billing Choice screen (Android 9.1.0+).
+## @param params: Types.BillingProgramInformationDialogParamsAndroid
+## @return Types.BillingResultAndroid
+##
+## See: https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android
+func show_billing_program_information_dialog_android(params) -> Variant:
+	if _native_plugin and _platform == "Android":
+		var result_json = _native_plugin.call("showBillingProgramInformationDialogAndroid", JSON.stringify(params.to_dict()))
+		var result = JSON.parse_string(result_json)
+		if result is Dictionary:
+			return Types.BillingResultAndroid.from_dict(result)
+	return Types.BillingResultAndroid.new()
+
+## Show Play Billing in-app messages (Android).
+## @param params: Types.InAppMessageParamsAndroid or null
+## @return Types.InAppMessageResultAndroid
+##
+## See: https://openiap.dev/docs/apis/android/show-in-app-messages-android
+func show_in_app_messages_android(params = null) -> Variant:
+	if _native_plugin and _platform == "Android":
+		var params_dict = params.to_dict() if params != null and params is Object and params.has_method("to_dict") else {}
+		var result_json = _native_plugin.call("showInAppMessagesAndroid", JSON.stringify(params_dict))
+		var result = JSON.parse_string(result_json)
+		if result is Dictionary:
+			return Types.InAppMessageResultAndroid.from_dict(result)
+	var default_result = Types.InAppMessageResultAndroid.new()
+	default_result.response_code = Types.InAppMessageResponseCodeAndroid.NO_ACTION_NEEDED
 	return default_result
 
 ## Get the package name (Android only).
@@ -1395,17 +1457,29 @@ func get_package_name_android() -> String:
 
 ## Open subscription management deep link.
 ## @param options: Types.DeepLinkOptions or null - optional deep link configuration
-## @return void
+## @return Types.VoidResult
 ##
 ## See: https://openiap.dev/docs/apis/deep-link-to-subscriptions
-func deep_link_to_subscriptions(options = null) -> void:
+func deep_link_to_subscriptions(options = null) -> Variant:
 	var opts = options if options != null else Types.DeepLinkOptions.new()
-	if _native_plugin and (_platform == "Android" or _platform == "iOS"):
-		var options_json = JSON.stringify(opts.to_dict())
-		_native_plugin.call("deepLinkToSubscriptions", options_json)
+	if _native_plugin and _platform == "Android":
+		var android_options_json = JSON.stringify(opts.to_dict())
+		var android_result_json = _native_plugin.call("deepLinkToSubscriptions", android_options_json)
+		var android_result = JSON.parse_string(android_result_json)
+		if android_result is Dictionary:
+			return Types.VoidResult.from_dict(android_result)
+	elif _native_plugin and _platform == "iOS":
+		var ios_options_json = JSON.stringify(opts.to_dict())
+		var ios_pending = _native_plugin.call("deepLinkToSubscriptions", ios_options_json)
+		var ios_request_id = _parse_request_id(ios_pending)
+		var ios_payload = await _await_products_fetched_for("deepLinkToSubscriptions", ios_request_id)
+		return Types.VoidResult.from_dict(ios_payload)
 	elif _platform == "iOS":
 		# iOS: Open App Store subscription management URL
 		OS.shell_open("https://apps.apple.com/account/subscriptions")
+		var ios_fallback_result = Types.VoidResult.new()
+		ios_fallback_result.success = true
+		return ios_fallback_result
 	elif _platform == "Android":
 		# Android: Open Play Store subscription management URL
 		var sku = opts.sku_android if opts.sku_android else ""
@@ -1416,6 +1490,12 @@ func deep_link_to_subscriptions(options = null) -> void:
 			OS.shell_open("https://play.google.com/store/account/subscriptions?sku=%s&package=%s" % [encoded_sku, encoded_package])
 		else:
 			OS.shell_open("https://play.google.com/store/account/subscriptions")
+		var android_fallback_result = Types.VoidResult.new()
+		android_fallback_result.success = true
+		return android_fallback_result
+	var unavailable_result = Types.VoidResult.new()
+	unavailable_result.success = false
+	return unavailable_result
 
 # ==========================================
 # Utility Functions

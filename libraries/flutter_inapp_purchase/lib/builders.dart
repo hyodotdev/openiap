@@ -109,8 +109,11 @@ class RequestSubscriptionAndroidBuilder {
   String? obfuscatedAccountId;
   String? obfuscatedProfileId;
   String? purchaseToken;
+  String? originalExternalTransactionId;
   int? replacementMode;
   bool? isOfferPersonalized;
+  SubscriptionProductReplacementParamsAndroid?
+      subscriptionProductReplacementParams;
   DeveloperBillingOptionParamsAndroid? developerBillingOption;
 
   RequestSubscriptionAndroidBuilder();
@@ -123,8 +126,11 @@ class RequestSubscriptionAndroidBuilder {
       obfuscatedAccountId: obfuscatedAccountId,
       obfuscatedProfileId: obfuscatedProfileId,
       purchaseToken: purchaseToken,
+      originalExternalTransactionId: originalExternalTransactionId,
       replacementMode: replacementMode,
       isOfferPersonalized: isOfferPersonalized,
+      subscriptionProductReplacementParams:
+          subscriptionProductReplacementParams,
       developerBillingOption: developerBillingOption,
     );
   }

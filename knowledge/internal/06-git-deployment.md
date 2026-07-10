@@ -232,13 +232,16 @@ linking it. This prevents stale Package Releases tables such as documenting
 
 ### openiap-versions.json
 
-**CRITICAL: NEVER manually edit `openiap-versions.json`**
+**CRITICAL: NEVER manually edit the `google` or `apple` fields in
+`openiap-versions.json`.**
 
-This file is automatically managed by CI/CD workflows during releases:
+Version ownership is split:
 
 - Apple releases update `apple` version
 - Google releases update `google` version
-- GQL releases update `spec` version
+- The shared spec can be bumped directly in a feature PR when the maintainer
+  explicitly requests the target version. Update both `spec` and
+  `packages/gql/package.json`, then run `./scripts/sync-versions.sh`.
 - Deploy script (`npm run deploy`) uses the current `spec` version by default,
   and updates `spec` only when an explicit version is passed
 
@@ -248,12 +251,17 @@ The manifest is only for the shared spec and native platform packages:
 `kmp-iap`, `maui-iap`) must stay in each library's own package metadata and
 release workflow, not as extra keys in `openiap-versions.json`.
 
-Manual edits will cause version conflicts and deployment issues. Always use the GitHub Actions workflows or deploy script to update versions.
+Manual Google or Apple edits will cause version conflicts and deployment
+issues. Use their GitHub Actions workflows. A direct spec edit is the explicit
+exception above.
 
 **Why this matters:** If a feature PR sets `apple: "2.1.1"` manually, and then CI auto-bumps on release, CI sees "current is 2.1.1" and bumps to 2.1.2 — skipping 2.1.1 entirely. The published tag becomes 2.1.2 with no 2.1.1 ever existing.
 
-**Rule:** Feature PRs must NEVER touch version fields in `openiap-versions.json`. Version bumps happen only via:
+**Rule:** Feature PRs must never touch `google` or `apple`. Version bumps happen
+via:
 
 1. Release workflows (Apple Release, Google Release)
-2. Deploy script (`npm run deploy`, optionally `npm run deploy <version>`)
-3. CI auto-bump after merge
+2. A maintainer-requested direct `spec` bump paired with
+   `packages/gql/package.json`
+3. Deploy script (`npm run deploy`, optionally `npm run deploy <version>`)
+4. CI auto-bump after merge where configured

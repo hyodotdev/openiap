@@ -401,6 +401,24 @@ describe('Public API (index.ts)', () => {
       expect(ExpoIapModule.initConnection).toHaveBeenCalled();
       expect(ExpoIapModule.endConnection).toHaveBeenCalled();
     });
+
+    it('forwards developer-rendered Billing Choice connection config', async () => {
+      (ExpoIapModule.initConnection as jest.Mock) = jest
+        .fn()
+        .mockResolvedValue(true);
+
+      await expect(
+        initConnection({
+          enableBillingProgramAndroid: 'billing-choice',
+          billingChoiceScreenTypeAndroid: 'developer-rendered',
+        }),
+      ).resolves.toBe(true);
+
+      expect(ExpoIapModule.initConnection).toHaveBeenCalledWith({
+        enableBillingProgramAndroid: 'billing-choice',
+        billingChoiceScreenTypeAndroid: 'developer-rendered',
+      });
+    });
   });
 
   describe('fetchProducts', () => {
@@ -731,6 +749,64 @@ describe('Public API (index.ts)', () => {
           type: 'subs',
           skuArr: ['subscription'],
           subscriptionProductReplacementParams: undefined,
+        }),
+      );
+    });
+
+    it('Android forwards minimal in-app Billing Choice options', async () => {
+      (Platform as any).OS = 'android';
+      (ExpoIapModule.requestPurchase as jest.Mock) = jest
+        .fn()
+        .mockResolvedValue([]);
+
+      await requestPurchase({
+        request: {
+          google: {
+            skus: ['premium'],
+            developerBillingOption: {billingProgram: 'billing-choice'},
+          },
+        },
+        type: 'in-app',
+      });
+
+      expect(ExpoIapModule.requestPurchase).toHaveBeenCalledWith(
+        expect.objectContaining({
+          developerBillingOption: {billingProgram: 'billing-choice'},
+        }),
+      );
+    });
+
+    it('Android forwards Billing Choice subscription replacement fields', async () => {
+      (Platform as any).OS = 'android';
+      (ExpoIapModule.requestPurchase as jest.Mock) = jest
+        .fn()
+        .mockResolvedValue([]);
+
+      await requestPurchase({
+        request: {
+          google: {
+            skus: ['premium_monthly'],
+            originalExternalTransactionId: 'original-external-id',
+            developerBillingOption: {
+              billingProgram: 'billing-choice',
+              externalTransactionToken: 'pre-generated-token',
+              launchMode: 'caller-will-launch-link',
+              linkUri: 'https://example.com/checkout',
+            },
+          },
+        },
+        type: 'subs',
+      });
+
+      expect(ExpoIapModule.requestPurchase).toHaveBeenCalledWith(
+        expect.objectContaining({
+          originalExternalTransactionId: 'original-external-id',
+          developerBillingOption: {
+            billingProgram: 'billing-choice',
+            externalTransactionToken: 'pre-generated-token',
+            launchMode: 'caller-will-launch-link',
+            linkUri: 'https://example.com/checkout',
+          },
         }),
       );
     });

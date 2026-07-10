@@ -483,6 +483,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     @Callable
     public func syncIOS() -> String {
         GodotIapLog.payload("Syncing with App Store", payload: nil)
+        let requestId = UUID().uuidString
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -490,6 +491,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 let result = try await self.openIap.syncIOS()
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
+                    dict["method"] = Variant("syncIOS")
+                    dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(result)
                     self.productsFetched.emit(dict)
                 }
@@ -498,6 +501,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 GodotIapLog.debug("[GodotIap] syncIOS error: \(error.localizedDescription)")
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
+                    dict["method"] = Variant("syncIOS")
+                    dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(false)
                     dict["error"] = Variant(error.localizedDescription)
                     self.productsFetched.emit(dict)
@@ -505,12 +510,13 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             }
         }
 
-        return "{\"status\": \"pending\"}"
+        return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
     }
 
     @Callable
     public func clearTransactionIOS() -> String {
         GodotIapLog.payload("Clearing transactions", payload: nil)
+        let requestId = UUID().uuidString
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -518,16 +524,26 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 let result = try await self.openIap.clearTransactionIOS()
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
+                    dict["method"] = Variant("clearTransactionIOS")
+                    dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(result)
                     self.productsFetched.emit(dict)
                 }
                 GodotIapLog.debug("[GodotIap] Clear transactions completed: \(result)")
             } catch {
                 GodotIapLog.debug("[GodotIap] clearTransactionIOS error: \(error.localizedDescription)")
+                await MainActor.run { [self] in
+                    let dict = VariantDictionary()
+                    dict["method"] = Variant("clearTransactionIOS")
+                    dict["requestId"] = Variant(requestId)
+                    dict["success"] = Variant(false)
+                    dict["error"] = Variant(error.localizedDescription)
+                    self.productsFetched.emit(dict)
+                }
             }
         }
 
-        return "{\"status\": \"pending\"}"
+        return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
     }
 
     @Callable
@@ -587,6 +603,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     @Callable
     public func presentCodeRedemptionSheetIOS() -> String {
         GodotIapLog.payload("Presenting code redemption sheet", payload: nil)
+        let requestId = UUID().uuidString
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -594,15 +611,25 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 let result = try await self.openIap.presentCodeRedemptionSheetIOS()
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
+                    dict["method"] = Variant("presentCodeRedemptionSheetIOS")
+                    dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(result)
                     self.productsFetched.emit(dict)
                 }
             } catch {
                 GodotIapLog.debug("[GodotIap] presentCodeRedemptionSheetIOS error: \(error.localizedDescription)")
+                await MainActor.run { [self] in
+                    let dict = VariantDictionary()
+                    dict["method"] = Variant("presentCodeRedemptionSheetIOS")
+                    dict["requestId"] = Variant(requestId)
+                    dict["success"] = Variant(false)
+                    dict["error"] = Variant(error.localizedDescription)
+                    self.productsFetched.emit(dict)
+                }
             }
         }
 
-        return "{\"status\": \"pending\"}"
+        return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
     }
 
     @Callable
@@ -635,6 +662,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     @Callable
     public func beginRefundRequestIOS(sku: String) -> String {
         GodotIapLog.debug("[GodotIap] Beginning refund request for: \(sku)")
+        let requestId = UUID().uuidString
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -642,6 +670,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 let result = try await self.openIap.beginRefundRequestIOS(sku: sku)
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
+                    dict["method"] = Variant("beginRefundRequestIOS")
+                    dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(true)
                     dict["status"] = Variant(result ?? "unknown")
                     self.productsFetched.emit(dict)
@@ -650,6 +680,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 GodotIapLog.debug("[GodotIap] beginRefundRequestIOS error: \(error.localizedDescription)")
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
+                    dict["method"] = Variant("beginRefundRequestIOS")
+                    dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(false)
                     dict["error"] = Variant(error.localizedDescription)
                     self.productsFetched.emit(dict)
@@ -657,7 +689,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             }
         }
 
-        return "{\"status\": \"pending\"}"
+        return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
     }
 
     @Callable
@@ -895,6 +927,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     @Callable
     public func requestPurchaseOnPromotedProductIOS() -> String {
         GodotIapLog.payload("Requesting purchase on promoted product", payload: nil)
+        let requestId = UUID().uuidString
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -902,15 +935,25 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 let result = try await self.openIap.requestPurchaseOnPromotedProductIOS()
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
+                    dict["method"] = Variant("requestPurchaseOnPromotedProductIOS")
+                    dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(result)
                     self.productsFetched.emit(dict)
                 }
             } catch {
                 GodotIapLog.debug("[GodotIap] requestPurchaseOnPromotedProductIOS error: \(error.localizedDescription)")
+                await MainActor.run { [self] in
+                    let dict = VariantDictionary()
+                    dict["method"] = Variant("requestPurchaseOnPromotedProductIOS")
+                    dict["requestId"] = Variant(requestId)
+                    dict["success"] = Variant(false)
+                    dict["error"] = Variant(error.localizedDescription)
+                    self.productsFetched.emit(dict)
+                }
             }
         }
 
-        return "{\"status\": \"pending\"}"
+        return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
     }
 
     @Callable
@@ -985,6 +1028,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     @Callable
     public func deepLinkToSubscriptions(optionsJson: String) -> String {
         GodotIapLog.payload("Deep linking to subscriptions", payload: nil)
+        let requestId = UUID().uuidString
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -1002,15 +1046,25 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 try await self.openIap.deepLinkToSubscriptions(options)
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
+                    dict["method"] = Variant("deepLinkToSubscriptions")
+                    dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(true)
                     self.productsFetched.emit(dict)
                 }
             } catch {
                 GodotIapLog.debug("[GodotIap] deepLinkToSubscriptions error: \(error.localizedDescription)")
+                await MainActor.run { [self] in
+                    let dict = VariantDictionary()
+                    dict["method"] = Variant("deepLinkToSubscriptions")
+                    dict["requestId"] = Variant(requestId)
+                    dict["success"] = Variant(false)
+                    dict["error"] = Variant(error.localizedDescription)
+                    self.productsFetched.emit(dict)
+                }
             }
         }
 
-        return "{\"status\": \"pending\"}"
+        return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
     }
 
     // MARK: - Verification Methods

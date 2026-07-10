@@ -53,7 +53,7 @@ class OpenIapViewModel(app: Application) : AndroidViewModel(app) {
                         )
                         RequestPurchaseProps(
                             request = RequestPurchaseProps.Request.Purchase(
-                                RequestPurchasePropsByPlatforms(android = android)
+                                RequestPurchasePropsByPlatforms(google = android)
                             ),
                             type = type
                         )
@@ -70,7 +70,7 @@ class OpenIapViewModel(app: Application) : AndroidViewModel(app) {
                         )
                         RequestPurchaseProps(
                             request = RequestPurchaseProps.Request.Subscription(
-                                RequestSubscriptionPropsByPlatforms(android = android)
+                                RequestSubscriptionPropsByPlatforms(google = android)
                             ),
                             type = type
                         )

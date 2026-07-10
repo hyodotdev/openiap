@@ -41,13 +41,12 @@ fun interface OpenIapUserChoiceBillingListener {
 
 /**
  * Listener for Developer Provided Billing selection (Android)
- * Fires when user selects developer-provided billing option in the external payments flow.
- * Available in Google Play Billing Library 8.3.0+
+ * Fires for External Payments (8.3.0+) and Google-rendered Billing Choice (9.1.0+).
  */
 fun interface OpenIapDeveloperProvidedBillingListener {
     /**
      * Called when user selects developer-provided billing
-     * @param details The developer provided billing details containing the external transaction token
+     * @param details The developer-provided billing details for the selected flow
      */
     fun onDeveloperProvidedBilling(details: DeveloperProvidedBillingDetailsAndroid)
 }

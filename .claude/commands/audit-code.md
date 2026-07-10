@@ -37,8 +37,8 @@ Use WebSearch to get the latest platform API information:
 **Google Play Billing Library:**
 
 - Search: "Google Play Billing Library release notes site:developer.android.com"
-- Check for new features in latest version (currently 8.x)
-- Key areas: one-time products, subscription offers, billing programs
+- Check for new features in the latest stable version (currently 9.1.0)
+- Key areas: one-time products, subscription offers, billing programs, Billing Choice, in-app messages
 
 **Apple StoreKit 2:**
 
@@ -79,9 +79,14 @@ Compare current implementation against latest platform APIs:
 | -------------------------------------- | ------- | -------------------------------------- |
 | One-time products with multiple offers | 8.0     | Is it in schema?                       |
 | Product-level status codes             | 8.0     | Returned in fetchProducts?             |
+| BillingResult sub-response codes       | 8.0     | Preserved through every wrapper?       |
 | Suspended subscriptions (isSuspended)  | 8.1     | Purchase type has it?                  |
 | includeSuspended parameter             | 8.1     | getAvailablePurchases supports it?     |
 | Billing Programs API                   | 8.2     | isBillingProgramAvailable implemented? |
+| External Payments                      | 8.3     | Developer billing fields wired?        |
+| Nullable developer billing link URI    | 9.0     | Null and empty URI handled safely?     |
+| Opt-in price increase in-app messages  | 9.0     | showInAppMessagesAndroid implemented?  |
+| Billing Choice                         | 9.1     | Info, dialog, and choice type wired?   |
 
 **StoreKit 2 (check packages/gql/src/api-ios.graphql):**
 
@@ -98,7 +103,7 @@ Compare current implementation against latest platform APIs:
 
 | Feature                               | Check                           |
 | ------------------------------------- | ------------------------------- |
-| horizon-billing-compatibility version | Is it latest? (currently 1.1.1) |
+| horizon-billing-compatibility version | Is it latest? (currently 2.0.0) |
 | API parity with Play flavor           | Same APIs available in both?    |
 | Shared code compatibility             | Uses only Billing 7.0 APIs?     |
 | getAvailableItems (Horizon-only)      | Implemented?                    |
@@ -108,7 +113,7 @@ Compare current implementation against latest platform APIs:
 
 | Check                       | Expected                    |
 | --------------------------- | --------------------------- |
-| Play flavor Billing version | 8.x                         |
+| Play flavor Billing version | 9.1.0                       |
 | Horizon SDK compatible with | Billing 7.0 API             |
 | Shared code uses            | Only 7.0-compatible APIs    |
 | react-native-iap requires   | v14+, RN 0.79+, Kotlin 2.0+ |
@@ -140,15 +145,17 @@ packages/gql (GraphQL):
 
 **Latest API Coverage:**
 
-- [ ] Google Play Billing 8.x features implemented
+- [ ] Google Play Billing 9.1.0 features implemented end-to-end
 - [ ] StoreKit 2 iOS 18+ features implemented
 - [ ] Meta Horizon Billing SDK up to date
 - [ ] External API docs updated with new features
+- [ ] New API comments lead with OpenIAP spec/package versions, then list the
+      upstream platform SDK requirement
 
 **Version Compatibility:**
 
 - [ ] horizon-billing-compatibility matches latest
-- [ ] Shared code avoids Billing 8.x-only APIs
+- [ ] Shared code avoids Billing 8.x/9.x-only APIs
 - [ ] react-native-iap/expo-iap compatible versions documented
 
 ### 6. Fix Issues
@@ -312,7 +319,7 @@ For each new feature implemented:
 - [ ] **Type docs** - New types documented with all fields explained
 - [ ] **Example apps** - Working examples in iOS and Android example apps
 - [ ] **Code examples** - Inline code examples in documentation
-- [ ] **Platform notes** - Version requirements (e.g., "iOS 18+", "Billing 8.0+")
+- [ ] **Platform notes** - Version requirements (e.g., "iOS 18+", "Billing 9.1+")
 - [ ] **Cross-references** - Links between related functions/types
 - [ ] **Search** - New items added to search index
 
@@ -386,7 +393,7 @@ Then ask Claude to:
 Ask Claude Code:
 
 > "Run /audit-code with latest API check"
-> "Audit the codebase including latest Google Play Billing 8.x features"
+> "Audit the codebase including latest Google Play Billing 9.1.0 features"
 > "Check implementation against latest StoreKit 2 iOS 18.4 APIs"
 
 ## Output

@@ -284,7 +284,7 @@ function Home() {
               <div className="key-benefit-value">100%</div>
               <h3>Platform Features</h3>
               <p>
-                Full access to StoreKit 2 and Play Billing v8 — no features
+                Full access to StoreKit 2 and Play Billing v9.1 — no features
                 hidden or abstracted away
               </p>
             </div>
@@ -327,7 +327,7 @@ function Home() {
             <div className="benefit">
               <h3>Future-Proof</h3>
               <p>
-                As StoreKit 2, Android Billing v8, and new platforms emerge,
+                As StoreKit 2, Android Billing v9, and new platforms emerge,
                 OpenIAP abstracts these changes behind a stable API.
               </p>
             </div>

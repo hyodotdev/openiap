@@ -398,7 +398,10 @@ export class DartPlugin extends CodegenPlugin {
     const sortedFields = [...irInput.fields].sort((a, b) => a.name.localeCompare(b.name));
 
     for (const field of sortedFields) {
-      if (field.type.nullable) {
+      const defaultValue = this.buildDefaultValueExpression(field);
+      if (defaultValue) {
+        this.emit(`    this.${this.escapeKeyword(field.name)} = ${defaultValue},`);
+      } else if (field.type.nullable) {
         this.emit(`    this.${this.escapeKeyword(field.name)},`);
       } else {
         this.emit(`    required this.${this.escapeKeyword(field.name)},`);
@@ -420,7 +423,11 @@ export class DartPlugin extends CodegenPlugin {
     this.emit(`  factory ${irInput.name}.fromJson(Map<String, dynamic> json) {`);
     this.emit(`    return ${irInput.name}(`);
     for (const field of sortedFields) {
-      const jsonExpr = this.buildFromJsonExpression(field.type, `json['${field.name}']`);
+      const jsonExpr = this.buildFromJsonExpression(
+        field.type,
+        `json['${field.name}']`,
+        this.buildDefaultValueExpression(field)
+      );
       this.emit(`      ${this.escapeKeyword(field.name)}: ${jsonExpr},`);
     }
     this.emit('    );');
@@ -828,11 +835,14 @@ export class DartPlugin extends CodegenPlugin {
     return this.getPropertyType(field.returnType);
   }
 
-  private buildFromJsonExpression(type: IRType, sourceExpr: string): string {
+  private buildFromJsonExpression(type: IRType, sourceExpr: string, defaultExpression?: string | null): string {
     if (type.kind === 'list') {
       const listCast = `(${sourceExpr} as List<dynamic>${type.nullable ? '?' : ''})`;
       const elementExpr = this.buildFromJsonExpression(type.elementType!, 'e');
       const mapCall = (target: string) => `${target}.map((e) => ${elementExpr}).toList()`;
+      if (defaultExpression) {
+        return `${listCast} == null ? ${defaultExpression} : ${mapCall(`${listCast}${type.nullable ? '!' : ''}`)}`;
+      }
       if (type.nullable) {
         return `${listCast} == null ? null : ${mapCall(`${listCast}!`)}`;
       }
@@ -842,15 +852,27 @@ export class DartPlugin extends CodegenPlugin {
     if (type.kind === 'scalar') {
       switch (type.name) {
         case 'Float':
+          if (defaultExpression) {
+            return `${sourceExpr} == null ? ${defaultExpression} : (${sourceExpr} as num).toDouble()`;
+          }
           return type.nullable
             ? `(${sourceExpr} as num?)?.toDouble()`
             : `(${sourceExpr} as num).toDouble()`;
         case 'Int':
+          if (defaultExpression) {
+            return `${sourceExpr} == null ? ${defaultExpression} : ${sourceExpr} as int`;
+          }
           return type.nullable ? `${sourceExpr} as int?` : `${sourceExpr} as int`;
         case 'Boolean':
+          if (defaultExpression) {
+            return `${sourceExpr} == null ? ${defaultExpression} : ${sourceExpr} as bool`;
+          }
           return type.nullable ? `${sourceExpr} as bool?` : `${sourceExpr} as bool`;
         case 'ID':
         case 'String':
+          if (defaultExpression) {
+            return `${sourceExpr} == null ? ${defaultExpression} : ${sourceExpr} as String`;
+          }
           return type.nullable ? `${sourceExpr} as String?` : `${sourceExpr} as String`;
         default:
           return sourceExpr;
@@ -858,6 +880,9 @@ export class DartPlugin extends CodegenPlugin {
     }
 
     if (type.kind === 'enum') {
+      if (defaultExpression) {
+        return `${sourceExpr} != null ? ${type.name}.fromJson(${sourceExpr} as String) : ${defaultExpression}`;
+      }
       return type.nullable
         ? `${sourceExpr} != null ? ${type.name}.fromJson(${sourceExpr} as String) : null`
         : `${type.name}.fromJson(${sourceExpr} as String)`;
@@ -870,6 +895,31 @@ export class DartPlugin extends CodegenPlugin {
     }
 
     return sourceExpr;
+  }
+
+  private buildDefaultValueExpression(field: IRField): string | null {
+    if (field.defaultValue === undefined) return null;
+    return this.buildDefaultValueForType(field.type, field.defaultValue);
+  }
+
+  private buildDefaultValueForType(type: IRType, defaultValue: unknown): string | null {
+    if (type.kind === 'list') {
+      if (!Array.isArray(defaultValue)) return null;
+      const items = defaultValue
+        .map((value) => this.buildDefaultValueForType(type.elementType!, value))
+        .filter((value): value is string => value !== null);
+      return `const [${items.join(', ')}]`;
+    }
+    if (type.kind === 'enum' && typeof defaultValue === 'string') {
+      return `${type.name}.${this.escapeKeyword(this.enumValueCase(defaultValue))}`;
+    }
+    if (type.kind === 'scalar') {
+      if (typeof defaultValue === 'string') return `'${defaultValue}'`;
+      if (typeof defaultValue === 'number' || typeof defaultValue === 'boolean') {
+        return String(defaultValue);
+      }
+    }
+    return null;
   }
 
   private buildToJsonExpression(type: IRType, accessorExpr: string): string {

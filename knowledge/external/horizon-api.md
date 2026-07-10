@@ -14,17 +14,31 @@ Meta Horizon provides IAP functionality for Quest VR applications. There are two
 
 | Library | Version | Compatible With |
 |---------|---------|-----------------|
-| horizon-billing-compatibility | **1.1.1** (latest) | Google Play Billing **7.0** API |
-| Google Play Billing (Play flavor) | **8.3.0** (latest) | N/A |
+| horizon-billing-compatibility | **2.0.0** (latest) | Google Play Billing **7.0** API |
+| Google Play Billing (upstream latest) | **9.1.0** | N/A |
+| Google Play Billing (OpenIAP Play flavor) | **9.1.0** | N/A |
 | react-native-iap | v14+ | Billing 7.0+, RN 0.79+, Kotlin 2.0+ |
 | expo-iap | latest | Billing 7.0+, Kotlin 2.0+ |
 
-**CRITICAL**: Horizon Billing Compatibility SDK implements Google Play Billing **7.0** API surface, NOT 8.x.
+**CRITICAL**: Horizon Billing Compatibility SDK implements Google Play Billing **7.0** API surface, NOT 8.x or 9.x.
 
 When writing shared code for both Play and Horizon flavors:
-- Use only APIs that exist in **both** Billing 7.0 and 8.x
-- Horizon SDK does NOT support Billing 8.x features like auto-reconnect, product status codes, or `includeSuspended`
+- Use only APIs that exist in **both** Billing 7.0 and the Play-flavor Billing version
+- Horizon SDK does NOT support Billing 8.x/9.x features like auto-reconnect, product status codes, `includeSuspended`, or Billing Choice
 - OpenIAP handles this automatically with flavor-specific implementations
+
+### Latest Horizon Billing Release
+
+Meta released Horizon Billing Compatibility Library **2.0.0** on 2026-01-06.
+The release notes call out a fix for querying subscription purchases with a
+single billing plan and dependencies on Horizon Platform SDK Kotlin
+`iap-kotlin` 0.2.0 and `core-kotlin` 0.2.0.
+
+OpenIAP uses `horizon-billing-compatibility` 2.0.0 and its transitive Horizon
+Platform Kotlin SDK modules. The Horizon flavor is compiled and tested
+separately, including subscription-purchase restore coverage. Play Billing
+9.1.0 features remain Play-flavor-only because Horizon compatibility still
+targets the Billing 7.0 API surface.
 
 ### APIs Available in Both (Safe to use in shared code)
 
@@ -46,6 +60,12 @@ When writing shared code for both Play and Horizon flavors:
 - `SubscriptionProductReplacementParams` (8.1+)
 - Billing Programs API (`isBillingProgramAvailableAsync`, etc.) (8.2+)
 - External Payments / Developer Billing Options (8.3+)
+
+### APIs Only in Billing 9.x (DO NOT use in shared code)
+
+- Billing Choice information APIs (`getBillingChoiceInfoAsync`, `BillingChoiceInfo`, `ChoiceScreenType`)
+- Billing-program information dialog APIs (`showBillingProgramInformationDialog`)
+- PBL 9 migration assumptions around APIs removed from the Billing 7.0 surface
 
 ## Billing Compatibility SDK
 
@@ -80,6 +100,10 @@ import com.meta.horizon.billingclient.api.*
 
 ### Important Notes
 
+- Horizon Billing Compatibility 2.x reads the app id from Android manifest
+  meta-data key `com.meta.horizon.platform.HORIZON_APP_ID`. The older
+  `com.meta.horizon.platform.ovr.OCULUS_APP_ID` key is deprecated; OpenIAP also
+  accepts it and other historical keys only for migration compatibility.
 - Keep SKUs on Meta Horizon Developer Center same as Google Play Console product IDs
 - Only call `consumeAsync()` on consumable items
 - `acknowledgePurchase()` is no-op - no acknowledgement requirements

@@ -153,24 +153,28 @@ function AlternativeBillingScreen() {
     }
   }, [connected, fetchProducts, isVega]);
 
-  // Set up External Payments listener (Android 8.3.0+ - Japan only)
+  // Set up the developer-provided billing listener (Android 8.3.0+)
   useEffect(() => {
     if (Platform.OS !== 'android' || isVega) return;
 
     const subscription = developerProvidedBillingListenerAndroid(
       (details: DeveloperProvidedBillingDetailsAndroid) => {
+        const externalTransactionToken =
+          details.externalTransactionToken ?? null;
         console.log(
           '[Android] User selected developer billing (External Payments)',
         );
         console.log(
           '[Android] External transaction token available:',
-          Boolean(details.externalTransactionToken),
+          Boolean(externalTransactionToken),
         );
 
-        setExternalPaymentsToken(details.externalTransactionToken);
+        setExternalPaymentsToken(externalTransactionToken);
         setIsProcessing(false);
         setPurchaseResult(
-          `✅ User selected Developer Billing (External Payments)\n\nToken: ${details.externalTransactionToken}\n\n⚠️ Important:\n1. Process payment through your external system\n2. Report token to Google Play within 24 hours`,
+          externalTransactionToken
+            ? `✅ User selected Developer Billing (External Payments)\n\nToken received.\n\n⚠️ Important:\n1. Process payment through your external system\n2. Report the token to Google Play within 24 hours`
+            : `✅ User selected Developer Billing (External Payments)\n\nNo external transaction token was returned for this flow.`,
         );
 
         Alert.alert(

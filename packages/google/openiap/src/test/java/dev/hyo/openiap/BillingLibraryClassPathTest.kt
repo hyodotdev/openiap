@@ -1,9 +1,12 @@
 package dev.hyo.openiap
 
+import com.android.billingclient.api.BillingClient
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
+import java.util.Locale
 
 /**
  * Tests to verify that reflection-based class paths used in OpenIapModule
@@ -142,6 +145,15 @@ class BillingLibraryClassPathTest {
         )
     }
 
+    @Test
+    fun `SubscriptionUpdateParams Builder supports external transaction replacement`() {
+        assertClassHasMethod(
+            "com.android.billingclient.api.BillingFlowParams\$SubscriptionUpdateParams\$Builder",
+            "setOriginalExternalTransactionId",
+            String::class.java
+        )
+    }
+
     // ============================================================================
     // MARK: - AlternativeBillingOnlyAvailabilityListener (Billing Library 6.0+)
     // Used in: OpenIapModule.checkAlternativeBillingAvailability()
@@ -240,6 +252,26 @@ class BillingLibraryClassPathTest {
         )
     }
 
+    @Test
+    fun `BillingProgramAvailabilityDetails exposes Billing Choice details`() {
+        assertClassHasMethod(
+            "com.android.billingclient.api.BillingProgramAvailabilityDetails",
+            "getBillingChoiceAvailabilityDetails"
+        )
+        assertClassHasMethod(
+            "com.android.billingclient.api.BillingProgramAvailabilityDetails\$BillingChoiceAvailabilityDetails",
+            "getChoiceScreenType"
+        )
+        assertClassHasMethod(
+            "com.android.billingclient.api.BillingProgramAvailabilityDetails\$BillingChoiceAvailabilityDetails",
+            "isExternalLinkAvailable"
+        )
+        assertClassExists(
+            "com.android.billingclient.api.BillingProgramAvailabilityDetails\$BillingChoiceAvailabilityDetails\$ChoiceScreenType",
+            "9.1.0+"
+        )
+    }
+
     // ============================================================================
     // MARK: - BillingProgramReportingDetailsListener (Billing Library 8.3.0+)
     // Used in: OpenIapModule.createBillingProgramReportingDetails()
@@ -297,6 +329,23 @@ class BillingLibraryClassPathTest {
             "com.android.billingclient.api.BillingProgramReportingDetailsParams\$Builder",
             "setBillingProgram",
             Int::class.javaPrimitiveType!!
+        )
+    }
+
+    @Test
+    fun `BillingProgramReportingDetailsParams Builder has setDeveloperBillingType method`() {
+        assertClassHasMethod(
+            "com.android.billingclient.api.BillingProgramReportingDetailsParams\$Builder",
+            "setDeveloperBillingType",
+            Int::class.javaPrimitiveType!!
+        )
+    }
+
+    @Test
+    fun `BillingProgramReportingDetailsParams DeveloperBillingType annotation exists`() {
+        assertClassExists(
+            "com.android.billingclient.api.BillingProgramReportingDetailsParams\$DeveloperBillingType",
+            "9.1.0+"
         )
     }
 
@@ -374,6 +423,15 @@ class BillingLibraryClassPathTest {
     }
 
     @Test
+    fun `LaunchExternalLinkParams Builder supports Billing Choice transaction token`() {
+        assertClassHasMethod(
+            "com.android.billingclient.api.LaunchExternalLinkParams\$Builder",
+            "setExternalTransactionToken",
+            String::class.java
+        )
+    }
+
+    @Test
     fun `LaunchExternalLinkParams Builder has build method`() {
         assertClassHasMethod(
             "com.android.billingclient.api.LaunchExternalLinkParams\$Builder",
@@ -400,6 +458,133 @@ class BillingLibraryClassPathTest {
             "com.android.billingclient.api.LaunchExternalLinkResponseListener",
             "onLaunchExternalLinkResponse",
             com.android.billingclient.api.BillingResult::class.java
+        )
+    }
+
+    // ============================================================================
+    // MARK: - Billing Choice info and information dialog (Billing Library 9.1.0+)
+    // Used in: OpenIapModule.getBillingChoiceInfo() and showBillingProgramInformationDialog()
+    // ============================================================================
+
+    @Test
+    fun `GetBillingChoiceInfoParams class path and builder methods exist`() {
+        assertClassExists("com.android.billingclient.api.GetBillingChoiceInfoParams", "9.1.0+")
+        assertClassExists("com.android.billingclient.api.GetBillingChoiceInfoParams\$Builder", "9.1.0+")
+        assertClassExists("com.android.billingclient.api.GetBillingChoiceInfoParams\$ImageLayout", "9.1.0+")
+        assertClassHasMethod("com.android.billingclient.api.GetBillingChoiceInfoParams", "newBuilder")
+        assertClassHasMethod(
+            "com.android.billingclient.api.GetBillingChoiceInfoParams\$Builder",
+            "setBillingProgram",
+            Int::class.javaPrimitiveType!!
+        )
+        assertClassHasMethod(
+            "com.android.billingclient.api.GetBillingChoiceInfoParams\$Builder",
+            "setPlayBillingChoiceImageLayout",
+            String::class.java
+        )
+        assertClassHasMethod(
+            "com.android.billingclient.api.GetBillingChoiceInfoParams\$Builder",
+            "setUserLocale",
+            Locale::class.java
+        )
+        assertClassHasMethod("com.android.billingclient.api.GetBillingChoiceInfoParams\$Builder", "build")
+    }
+
+    @Test
+    fun `BillingChoiceInfo and listener methods exist`() {
+        assertClassHasMethod(
+            "com.android.billingclient.api.BillingChoiceInfo",
+            "getPlayBillingChoiceImageUrl"
+        )
+        assertClassHasMethod(
+            "com.android.billingclient.api.BillingChoiceInfo",
+            "getPlayBillingLoyaltyInfo"
+        )
+
+        val listenerClass = Class.forName("com.android.billingclient.api.BillingChoiceInfoResponseListener")
+        val methods = listenerClass.declaredMethods.filter { it.name == "onBillingChoiceInfoResponse" }
+        assertTrue(
+            "onBillingChoiceInfoResponse method should exist",
+            methods.isNotEmpty()
+        )
+        assertTrue(
+            "onBillingChoiceInfoResponse should have 2 parameters",
+            methods.first().parameterTypes.size == 2
+        )
+    }
+
+    @Test
+    fun `EnableBillingProgramParams allows developer-rendered Billing Choice without listener`() {
+        val paramsClass = Class.forName("com.android.billingclient.api.EnableBillingProgramParams")
+        val builderClass = Class.forName("com.android.billingclient.api.EnableBillingProgramParams\$Builder")
+        val builder = paramsClass.getMethod("newBuilder").invoke(null)
+
+        builderClass.getMethod("setBillingProgram", Int::class.javaPrimitiveType)
+            .invoke(builder, BillingClient.BillingProgram.BILLING_CHOICE)
+
+        assertNotNull(builderClass.getMethod("build").invoke(builder))
+    }
+
+    @Test
+    fun `BillingProgramInformationDialogParams class path and builder methods exist`() {
+        assertClassExists("com.android.billingclient.api.BillingProgramInformationDialogParams", "9.1.0+")
+        assertClassExists("com.android.billingclient.api.BillingProgramInformationDialogParams\$Builder", "9.1.0+")
+        assertClassHasMethod("com.android.billingclient.api.BillingProgramInformationDialogParams", "newBuilder")
+        assertClassHasMethod(
+            "com.android.billingclient.api.BillingProgramInformationDialogParams\$Builder",
+            "setBillingProgram",
+            Int::class.javaPrimitiveType!!
+        )
+        assertClassHasMethod(
+            "com.android.billingclient.api.BillingProgramInformationDialogParams\$Builder",
+            "setExternalTransactionToken",
+            String::class.java
+        )
+        assertClassHasMethod("com.android.billingclient.api.BillingProgramInformationDialogParams\$Builder", "build")
+    }
+
+    @Test
+    fun `BillingProgramInformationDialogListener callback exists`() {
+        assertClassHasMethod(
+            "com.android.billingclient.api.BillingProgramInformationDialogListener",
+            "onBillingProgramInformationDialogResponse",
+            com.android.billingclient.api.BillingResult::class.java
+        )
+    }
+
+    // ============================================================================
+    // MARK: - In-app messages (Billing Library 4.1.0+)
+    // Used in: OpenIapModule.showInAppMessages()
+    // ============================================================================
+
+    @Test
+    fun `InAppMessageParams class path and builder methods exist`() {
+        assertClassExists("com.android.billingclient.api.InAppMessageParams", "4.1.0+")
+        assertClassExists("com.android.billingclient.api.InAppMessageParams\$Builder", "4.1.0+")
+        assertClassHasMethod(
+            "com.android.billingclient.api.InAppMessageParams\$Builder",
+            "addInAppMessageCategoryToShow",
+            Int::class.javaPrimitiveType!!
+        )
+        assertClassHasMethod(
+            "com.android.billingclient.api.InAppMessageParams\$Builder",
+            "addAllInAppMessageCategoriesToShow"
+        )
+        assertClassHasMethod("com.android.billingclient.api.InAppMessageParams\$Builder", "build")
+    }
+
+    @Test
+    fun `InAppMessageResponseListener and result methods exist`() {
+        assertClassHasMethod(
+            "com.android.billingclient.api.InAppMessageResponseListener",
+            "onInAppMessageResponse",
+            com.android.billingclient.api.InAppMessageResult::class.java
+        )
+        assertClassHasMethod("com.android.billingclient.api.InAppMessageResult", "getResponseCode")
+        assertClassHasMethod("com.android.billingclient.api.InAppMessageResult", "getPurchaseToken")
+        assertClassExists(
+            "com.android.billingclient.api.InAppMessageResult\$InAppMessageResponseCode",
+            "4.1.0+"
         )
     }
 
@@ -449,6 +634,21 @@ class BillingLibraryClassPathTest {
             "onUserSelectedDeveloperBilling method should exist",
             methods.isNotEmpty()
         )
+    }
+
+    @Test
+    fun `DeveloperProvidedBillingDetails exposes Billing Choice fields`() {
+        val className = "com.android.billingclient.api.DeveloperProvidedBillingDetails"
+        assertClassHasMethod(className, "getExternalTransactionToken")
+        assertClassHasMethod(className, "getLinkUri")
+        assertClassHasMethod(className, "getOriginalExternalTransactionId")
+        assertClassHasMethod(className, "getProducts")
+
+        val productClassName =
+            "com.android.billingclient.api.DeveloperProvidedBillingDetails\$Product"
+        assertClassHasMethod(productClassName, "getId")
+        assertClassHasMethod(productClassName, "getType")
+        assertClassHasMethod(productClassName, "getOfferToken")
     }
 
     // ============================================================================
@@ -567,6 +767,15 @@ class BillingLibraryClassPathTest {
             "com.android.billingclient.api.DeveloperBillingOptionParams\$Builder",
             "setLaunchMode",
             Int::class.javaPrimitiveType!!
+        )
+    }
+
+    @Test
+    fun `DeveloperBillingOptionParams Builder has setExternalTransactionToken method`() {
+        assertClassHasMethod(
+            "com.android.billingclient.api.DeveloperBillingOptionParams\$Builder",
+            "setExternalTransactionToken",
+            String::class.java
         )
     }
 
@@ -693,6 +902,75 @@ class BillingLibraryClassPathTest {
             fail("Class not found: ${e.message}")
         } catch (e: NoSuchMethodException) {
             fail("createBillingProgramReportingDetailsAsync(BillingProgramReportingDetailsParams, Listener) not found. Requires Billing Library 8.3.0+")
+        }
+    }
+
+    @Test
+    fun `BillingClient has getBillingChoiceInfoAsync method`() {
+        val clientClassName = "com.android.billingclient.api.BillingClient"
+        val paramsClassName = "com.android.billingclient.api.GetBillingChoiceInfoParams"
+        val listenerClassName = "com.android.billingclient.api.BillingChoiceInfoResponseListener"
+
+        try {
+            val clientClass = Class.forName(clientClassName)
+            val paramsClass = Class.forName(paramsClassName)
+            val listenerClass = Class.forName(listenerClassName)
+            val method = clientClass.getMethod("getBillingChoiceInfoAsync", paramsClass, listenerClass)
+            assertNotNull("getBillingChoiceInfoAsync method should exist", method)
+        } catch (e: ClassNotFoundException) {
+            fail("Class not found: ${e.message}")
+        } catch (e: NoSuchMethodException) {
+            fail("getBillingChoiceInfoAsync(GetBillingChoiceInfoParams, Listener) not found. Requires Billing Library 9.1.0+")
+        }
+    }
+
+    @Test
+    fun `BillingClient has showBillingProgramInformationDialog method`() {
+        val clientClassName = "com.android.billingclient.api.BillingClient"
+        val paramsClassName = "com.android.billingclient.api.BillingProgramInformationDialogParams"
+        val listenerClassName = "com.android.billingclient.api.BillingProgramInformationDialogListener"
+
+        try {
+            val clientClass = Class.forName(clientClassName)
+            val paramsClass = Class.forName(paramsClassName)
+            val listenerClass = Class.forName(listenerClassName)
+            val method = clientClass.getMethod(
+                "showBillingProgramInformationDialog",
+                android.app.Activity::class.java,
+                paramsClass,
+                listenerClass
+            )
+            assertNotNull("showBillingProgramInformationDialog method should exist", method)
+            assertEquals(Void.TYPE, method.returnType)
+        } catch (e: ClassNotFoundException) {
+            fail("Class not found: ${e.message}")
+        } catch (e: NoSuchMethodException) {
+            fail("showBillingProgramInformationDialog method not found. Requires Billing Library 9.1.0+")
+        }
+    }
+
+    @Test
+    fun `BillingClient has showInAppMessages method`() {
+        val clientClassName = "com.android.billingclient.api.BillingClient"
+        val paramsClassName = "com.android.billingclient.api.InAppMessageParams"
+        val listenerClassName = "com.android.billingclient.api.InAppMessageResponseListener"
+
+        try {
+            val clientClass = Class.forName(clientClassName)
+            val paramsClass = Class.forName(paramsClassName)
+            val listenerClass = Class.forName(listenerClassName)
+            val method = clientClass.getMethod(
+                "showInAppMessages",
+                android.app.Activity::class.java,
+                paramsClass,
+                listenerClass
+            )
+            assertNotNull("showInAppMessages method should exist", method)
+            assertEquals(com.android.billingclient.api.BillingResult::class.java, method.returnType)
+        } catch (e: ClassNotFoundException) {
+            fail("Class not found: ${e.message}")
+        } catch (e: NoSuchMethodException) {
+            fail("showInAppMessages method not found. Requires Billing Library 4.1.0+")
         }
     }
 

@@ -126,10 +126,11 @@ kotlin {
 }
 
 dependencies {
-    val playBillingVersion = "8.3.0"
+    val playBillingVersion = "9.1.0"
     val coroutinesVersion = "1.9.0"
-    val horizonPlatformVersion = "77.0.1"
-    val horizonBillingCompatibilityVersion = "1.1.1"
+    val horizonBillingCompatibilityVersion = "2.0.0"
+    val horizonPlatformKotlinVersion = "0.2.0"
+    val horizonSerializationVersion = "1.7.3"
 
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
@@ -139,15 +140,20 @@ dependencies {
     // - Horizon flavor uses Meta Horizon Billing Compatibility Library
 
     // Play flavor: Google Play Billing API (compile + runtime)
-    // Version 8.3.0 adds External Payments Program support (Japan only)
-    add("playCompileOnly", "com.android.billingclient:billing-ktx:$playBillingVersion")
-    add("playApi", "com.android.billingclient:billing-ktx:$playBillingVersion")
+    // Version 9.1.0 adds Billing Choice and keeps 8.3.0 External Payments support.
+    // OpenIAP uses the callback API only. The core artifact also avoids forcing
+    // consumers to match the Kotlin metadata version used to publish billing-ktx.
+    add("playCompileOnly", "com.android.billingclient:billing:$playBillingVersion")
+    add("playApi", "com.android.billingclient:billing:$playBillingVersion")
 
-    // Horizon flavor: Meta Horizon Platform SDK and Billing Compatibility Library (compile + runtime)
-    add("horizonCompileOnly", "com.meta.horizon.platform.ovr:android-platform-sdk:$horizonPlatformVersion")
-    add("horizonApi", "com.meta.horizon.platform.ovr:android-platform-sdk:$horizonPlatformVersion")
+    // Horizon flavor: Meta Billing Compatibility 2.x uses the current Kotlin
+    // platform SDK modules transitively; do not also ship the legacy OVR SDK.
     add("horizonCompileOnly", "com.meta.horizon.billingclient.api:horizon-billing-compatibility:$horizonBillingCompatibilityVersion")
     add("horizonApi", "com.meta.horizon.billingclient.api:horizon-billing-compatibility:$horizonBillingCompatibilityVersion")
+    for (module in listOf("core-kotlin", "user-age-category-kotlin", "iap-kotlin")) {
+        add("horizonApi", "com.meta.horizon.platform.sdk:$module:$horizonPlatformKotlinVersion")
+    }
+    add("horizonApi", "org.jetbrains.kotlinx:kotlinx-serialization-json:$horizonSerializationVersion")
 
     // Amazon flavor: Amazon Appstore SDK for Fire OS IAP
     add("amazonCompileOnly", "com.amazon.device:amazon-appstore-sdk:3.0.8")
@@ -170,7 +176,7 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesVersion")
     // Add Google Play Billing for tests (all flavors need it for OpenIapErrorTest)
-    testImplementation("com.android.billingclient:billing-ktx:$playBillingVersion")
+    testImplementation("com.android.billingclient:billing:$playBillingVersion")
     // Robolectric for lightweight Android JVM tests (e.g. Horizon no-op listener)
     testImplementation("org.robolectric:robolectric:4.13")
     testImplementation("androidx.test:core:1.5.0")
@@ -231,7 +237,7 @@ mavenPublishing {
 
             pom {
                 name.set("OpenIAP GMS")
-                description.set("OpenIAP Android library using Google Play Billing v8")
+                description.set("OpenIAP Android library using Google Play Billing v9.1")
                 url.set("https://github.com/hyodotdev/openiap")
             }
         }

@@ -11,6 +11,8 @@
 
 A comprehensive in-app purchase plugin for Godot 4.x that conforms to the <a href="https://openiap.dev">Open IAP specification</a>
 
+Requires Godot 4.3+, iOS 17+ for the Swift GDExtension, or Android API 24+.
+
 <a href="https://openiap.dev"><img src="https://raw.githubusercontent.com/hyodotdev/openiap/main/logo.png" alt="Open IAP" height="40" /></a>
 
 </div>
@@ -75,7 +77,7 @@ godot-iap conforms to the **[OpenIAP specification](https://openiap.dev)** — a
 
 - **Shared specification** — Common types, error codes, and purchase flows across all platforms
 - **Generated type-safe bindings** — Swift, Kotlin, Dart, and GDScript from a single GraphQL schema
-- **Platform implementations** — [openiap-apple](https://github.com/hyodotdev/openiap/tree/main/packages/apple) (StoreKit 2) and [openiap-google](https://github.com/hyodotdev/openiap/tree/main/packages/google) (Play Billing 8.x)
+- **Platform implementations** — [openiap-apple](https://github.com/hyodotdev/openiap/tree/main/packages/apple) (StoreKit 2) and [openiap-google](https://github.com/hyodotdev/openiap/tree/main/packages/google) (Play Billing 9.1.0)
 - **Verification profiles** — Standardized receipt validation and purchase verification patterns
 
 Other libraries built on OpenIAP: [react-native-iap](https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap) · [expo-iap](https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap) · [flutter_inapp_purchase](https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase) · [kmp-iap](https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap)

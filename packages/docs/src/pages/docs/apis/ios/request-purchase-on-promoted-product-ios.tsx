@@ -69,7 +69,7 @@ Future<bool> requestPurchaseOnPromotedProductIOS();`}</CodeBlock>
 Task<bool> RequestPurchaseOnPromotedProductIOSAsync();`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`func request_purchase_on_promoted_product_ios() -> Variant`}</CodeBlock>
+            <CodeBlock language="gdscript">{`func request_purchase_on_promoted_product_ios() -> bool`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

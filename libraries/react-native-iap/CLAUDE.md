@@ -134,7 +134,7 @@ Access these from the Run and Debug panel (⌘⇧D) in VSCode.
 3. **Native Implementation**
    - iOS: `ios/HybridIAP.swift` - StoreKit 2 implementation
    - Android: `android/.../Iap.kt` - Play Billing implementation with auto-reconnection
-   - **Connection Management**: Uses Google Play Billing v8.0.0+ automatic service reconnection
+   - **Connection Management**: Uses Google Play Billing v9.1.0 automatic service reconnection
 
 ## Coding Standards
 

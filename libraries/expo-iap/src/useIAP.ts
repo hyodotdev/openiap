@@ -10,6 +10,9 @@ import {
   purchaseErrorListener,
   purchaseUpdatedListener,
   promotedProductListenerIOS,
+  userChoiceBillingListenerAndroid,
+  developerProvidedBillingListenerAndroid,
+  subscriptionBillingIssueListener,
   getAvailablePurchases,
   finishTransaction as finishTransactionInternal,
   requestPurchase as requestPurchaseInternal,
@@ -32,6 +35,12 @@ import {
   checkAlternativeBillingAvailabilityAndroid,
   showAlternativeBillingDialogAndroid,
   createAlternativeBillingTokenAndroid,
+  getBillingChoiceInfoAndroid,
+  isBillingProgramAvailableAndroid,
+  createBillingProgramReportingDetailsAndroid,
+  launchExternalLinkAndroid,
+  showBillingProgramInformationDialogAndroid,
+  showInAppMessagesAndroid,
 } from './modules/android';
 
 // Types
@@ -40,6 +49,11 @@ import type {
   ProductSubscription,
   ProductQueryType,
   ProductRequest,
+  AlternativeBillingModeAndroid,
+  BillingChoiceScreenTypeAndroid,
+  BillingProgramAndroid,
+  DeveloperProvidedBillingDetailsAndroid,
+  InitConnectionConfig,
   Purchase,
   MutationRequestPurchaseArgs,
   PurchaseInput,
@@ -51,6 +65,9 @@ import type {
   ProductAndroid,
   ProductSubscriptionIOS,
   PurchaseOptions,
+  MutationField,
+  QueryField,
+  UserChoiceBillingDetails,
 } from './types';
 import {ErrorCode} from './types';
 import type {PurchaseError} from './utils/errorMapping';
@@ -125,6 +142,12 @@ type UseIap = {
   createAlternativeBillingTokenAndroid: (
     sku?: string,
   ) => Promise<string | null>;
+  getBillingChoiceInfoAndroid: QueryField<'getBillingChoiceInfoAndroid'>;
+  isBillingProgramAvailableAndroid: MutationField<'isBillingProgramAvailableAndroid'>;
+  createBillingProgramReportingDetailsAndroid: MutationField<'createBillingProgramReportingDetailsAndroid'>;
+  launchExternalLinkAndroid: MutationField<'launchExternalLinkAndroid'>;
+  showBillingProgramInformationDialogAndroid: MutationField<'showBillingProgramInformationDialogAndroid'>;
+  showInAppMessagesAndroid: MutationField<'showInAppMessagesAndroid'>;
 };
 
 export interface UseIAPOptions {
@@ -144,6 +167,16 @@ export interface UseIAPOptions {
    */
   onError?: (error: Error) => void;
   onPromotedProductIOS?: (product: Product) => void;
+  onUserChoiceBillingAndroid?: (details: UserChoiceBillingDetails) => void;
+  /**
+   * Fires when the user selects developer-provided billing in an External
+   * Payments or Google-rendered Billing Choice flow.
+   */
+  onDeveloperProvidedBillingAndroid?: (
+    details: DeveloperProvidedBillingDetailsAndroid,
+  ) => void;
+  /** Fires when an active subscription enters a billing-issue state. */
+  onSubscriptionBillingIssue?: (purchase: Purchase) => void;
   /**
    * Alternative billing mode for Android
    * If not specified, defaults to NONE (standard Google Play billing)
@@ -151,19 +184,20 @@ export interface UseIAPOptions {
    * - 'user-choice' → 'user-choice-billing'
    * - 'alternative-only' → 'external-offer'
    */
-  alternativeBillingModeAndroid?: 'none' | 'user-choice' | 'alternative-only';
+  alternativeBillingModeAndroid?: AlternativeBillingModeAndroid;
   /**
    * Enable a specific billing program for Android (8.2.0+)
    * When set, enables the specified billing program for external transactions.
    * Use 'external-payments' for Developer Provided Billing (Japan only, 8.3.0+).
    * Use 'user-choice-billing' for User Choice Billing (7.0+).
+   * Use 'billing-choice' for Billing Choice (9.1.0+).
    */
-  enableBillingProgramAndroid?:
-    | 'unspecified'
-    | 'external-content-link'
-    | 'external-offer'
-    | 'external-payments'
-    | 'user-choice-billing';
+  enableBillingProgramAndroid?: BillingProgramAndroid;
+  /**
+   * Select who renders the Billing Choice screen (9.1.0+). Must match the
+   * choiceScreenType returned by isBillingProgramAvailableAndroid.
+   */
+  billingChoiceScreenTypeAndroid?: BillingChoiceScreenTypeAndroid;
 }
 
 /**
@@ -218,6 +252,9 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     purchaseUpdate?: EventSubscription;
     purchaseError?: EventSubscription;
     promotedProductIOS?: EventSubscription;
+    userChoiceBillingAndroid?: EventSubscription;
+    developerProvidedBillingAndroid?: EventSubscription;
+    subscriptionBillingIssue?: EventSubscription;
   }>({});
 
   const subscriptionsRefState = useRef<ProductSubscription[]>([]);
@@ -656,16 +693,29 @@ export function useIAP(options?: UseIAPOptions): UseIap {
   );
 
   // Build config from options (prefer new enableBillingProgramAndroid over deprecated alternativeBillingModeAndroid)
-  const buildConnectionConfig = useCallback(() => {
-    return optionsRef.current?.enableBillingProgramAndroid ||
-      optionsRef.current?.alternativeBillingModeAndroid
-      ? {
-          enableBillingProgramAndroid:
-            optionsRef.current.enableBillingProgramAndroid,
-          alternativeBillingModeAndroid:
-            optionsRef.current.alternativeBillingModeAndroid,
-        }
-      : undefined;
+  const buildConnectionConfig = useCallback(():
+    InitConnectionConfig | undefined => {
+    if (optionsRef.current?.enableBillingProgramAndroid) {
+      return {
+        enableBillingProgramAndroid:
+          optionsRef.current.enableBillingProgramAndroid,
+        ...(optionsRef.current.billingChoiceScreenTypeAndroid
+          ? {
+              billingChoiceScreenTypeAndroid:
+                optionsRef.current.billingChoiceScreenTypeAndroid,
+            }
+          : {}),
+      };
+    }
+
+    if (optionsRef.current?.alternativeBillingModeAndroid) {
+      return {
+        alternativeBillingModeAndroid:
+          optionsRef.current.alternativeBillingModeAndroid,
+      };
+    }
+
+    return undefined;
   }, []);
 
   const initIapWithSubscriptions = useCallback(async (): Promise<void> => {
@@ -711,6 +761,31 @@ export function useIAP(options?: UseIAPOptions): UseIap {
         }
       },
     );
+
+    if (
+      Platform.OS === 'android' &&
+      optionsRef.current?.onUserChoiceBillingAndroid
+    ) {
+      subscriptionsRef.current.userChoiceBillingAndroid =
+        userChoiceBillingListenerAndroid((details) => {
+          optionsRef.current?.onUserChoiceBillingAndroid?.(details);
+        });
+    }
+
+    if (
+      Platform.OS === 'android' &&
+      optionsRef.current?.onDeveloperProvidedBillingAndroid
+    ) {
+      subscriptionsRef.current.developerProvidedBillingAndroid =
+        developerProvidedBillingListenerAndroid((details) => {
+          optionsRef.current?.onDeveloperProvidedBillingAndroid?.(details);
+        });
+    }
+
+    subscriptionsRef.current.subscriptionBillingIssue =
+      subscriptionBillingIssueListener((purchase) => {
+        optionsRef.current?.onSubscriptionBillingIssue?.(purchase);
+      });
 
     if (Platform.OS === 'ios') {
       // iOS promoted products listener
@@ -823,6 +898,9 @@ export function useIAP(options?: UseIAPOptions): UseIap {
       currentSubscriptions.purchaseUpdate?.remove();
       currentSubscriptions.purchaseError?.remove();
       currentSubscriptions.promotedProductIOS?.remove();
+      currentSubscriptions.userChoiceBillingAndroid?.remove();
+      currentSubscriptions.developerProvidedBillingAndroid?.remove();
+      currentSubscriptions.subscriptionBillingIssue?.remove();
       endConnection();
       setConnected(false);
     };
@@ -854,5 +932,11 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     checkAlternativeBillingAvailabilityAndroid,
     showAlternativeBillingDialogAndroid,
     createAlternativeBillingTokenAndroid,
+    getBillingChoiceInfoAndroid,
+    isBillingProgramAvailableAndroid,
+    createBillingProgramReportingDetailsAndroid,
+    launchExternalLinkAndroid,
+    showBillingProgramInformationDialogAndroid,
+    showInAppMessagesAndroid,
   };
 }

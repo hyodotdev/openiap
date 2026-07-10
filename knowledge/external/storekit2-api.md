@@ -2,7 +2,7 @@
 
 This document provides external API reference for Apple's StoreKit 2 framework.
 
-## iOS 18+ Features
+## iOS 18+ / 26+ Features
 
 | Feature | iOS Version | Description |
 |---------|-------------|-------------|
@@ -21,6 +21,11 @@ This document provides external API reference for Apple's StoreKit 2 framework.
 | JWS promotional offers | WWDC 2025 | New `promotionalOffer` purchase option with JWS format |
 | `introductoryOfferEligibility` | WWDC 2025 | Set eligibility via purchase option |
 | `SubscriptionStatus` by Transaction ID | WWDC 2025 | `status(for: transactionID:)` |
+| Monthly subscriptions with a 12-month commitment | iOS 26.4 / 26.5 SDK | Monthly billing option for annual auto-renewable subscriptions |
+| Group purchases and volume purchasing | WWDC 2026 | Multi-seat auto-renewable subscriptions through StoreKit 2 and Apple Business / School Manager |
+| Retention Messaging | WWDC 2026 | Cancellation-flow messaging and offers, including real-time server decisioning |
+| Retention offer type | WWDC 2026 | Signed transaction / renewal info can report offer type `5` for retention offers |
+| Offer codes for all IAP types | 2026 | Offer codes expand beyond auto-renewable subscriptions; IAP promo-code creation ends March 26, 2026 |
 
 ### WWDC 2025 Updates
 
@@ -28,6 +33,14 @@ This document provides external API reference for Apple's StoreKit 2 framework.
 - **JWS-based promotional offers**: New `promotionalOffer` purchase option with compact JWS string.
 - **Introductory offer eligibility**: Override eligibility check with `introductoryOfferEligibility` purchase option.
 - Both new purchase options are back-deployed to iOS 15.
+
+### WWDC 2026 Updates
+
+- **Monthly subscriptions with a 12-month commitment**: iOS 26.5 SDK adds a monthly billing plan for one-year auto-renewable subscriptions. Customers can subscribe on iOS, iPadOS, macOS, tvOS, and visionOS 26.4+.
+- **Group purchases and volume purchasing**: Auto-renewable subscriptions using StoreKit 2 can be sold to groups and organizations. In-app group purchases pass a requested seat count into the StoreKit purchase flow; Apple Business Manager and Apple School Manager handle volume purchasing.
+- **Volume pricing**: App Store Connect can configure up to five seat-count price bands for larger subscription purchases.
+- **Retention Messaging**: App Store Connect can show cancellation-flow retention messages and offers. Real-time Retention Messaging adds a server-to-server decision point and supports a switch-plan view for monthly subscriptions with a 12-month commitment.
+- **Offer-code expansion**: Offer codes now support consumables, non-consumables, non-renewing subscriptions, and broader auto-renewable subscription scenarios. Starting March 26, 2026, App Store Connect no longer creates new promo codes for In-App Purchases.
 
 ## appAccountToken
 
@@ -309,6 +322,43 @@ if let advancedInfo = product.advancedCommerceInfo {
     // Handle large catalog monetization
 }
 ```
+
+## Monthly Subscriptions With 12-Month Commitment (iOS 26.4+)
+
+This billing plan lets customers pay monthly while committing to an annual
+auto-renewable subscription. Apps need to compile with the iOS 26.5 SDK to
+merchandise the plan, and customers can purchase on Apple platforms running
+26.4 or later.
+
+```swift
+let result = try await product.purchase(options: [
+    .billingPlanType(.monthly)
+])
+```
+
+> **OpenIAP Note**: The schema represents this with
+> `SubscriptionBillingPlanTypeIOS` and `RequestSubscriptionIOSProps.billingPlanType`.
+
+## Group Purchases and Volume Purchasing (WWDC 2026)
+
+StoreKit 2 auto-renewable subscriptions can be sold to multiple seats for
+groups or organizations. Volume purchasing is handled by Apple Business Manager
+and Apple School Manager. For in-app group purchases, the app starts a StoreKit
+purchase with the requested seat count, then Apple can manage invitation links
+and seat assignment unless the app integrates custom group management.
+
+> **OpenIAP gap**: No public OpenIAP request field exists yet for group-purchase
+> seat count or StoreKit group-management identifiers.
+
+## Retention Messaging (WWDC 2026)
+
+Retention Messaging lets App Store Connect present messages and optional offers
+when a subscriber is about to cancel. Real-time Retention Messaging can call a
+server endpoint so the developer can choose the message, offer, or switch-plan
+view at cancellation time.
+
+Signed transaction and renewal information can include a retention offer as
+offer type `5`.
 
 ## StoreKit Message API (iOS 18+)
 

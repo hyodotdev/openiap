@@ -53,7 +53,7 @@ function ClearTransactionIOS() {
             <CodeBlock language="csharp">{`Task<bool> ClearTransactionIOSAsync();`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`func clear_transaction_ios() -> Variant`}</CodeBlock>
+            <CodeBlock language="gdscript">{`func clear_transaction_ios() -> bool`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

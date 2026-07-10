@@ -349,7 +349,8 @@ export class KotlinPlugin extends CodegenPlugin {
       const propertyType = this.getPropertyType(field.type);
       const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
       const suffix = index === sortedFields.length - 1 ? '' : ',';
-      const defaultValue = field.type.nullable ? ' = null' : '';
+      const schemaDefault = this.buildDefaultValueExpression(field);
+      const defaultValue = schemaDefault ? ` = ${schemaDefault}` : field.type.nullable ? ' = null' : '';
       this.emit(`    val ${propertyName}: ${propertyType}${defaultValue}${suffix}`);
     });
 
@@ -357,20 +358,26 @@ export class KotlinPlugin extends CodegenPlugin {
     this.emit('    companion object {');
 
     // Check if input has required fields
-    const hasRequiredFields = sortedFields.some((f) => !f.type.nullable);
+    const hasRequiredFields = sortedFields.some((f) => !f.type.nullable && !this.hasSchemaDefault(f));
 
     if (hasRequiredFields) {
       // Nullable fromJson pattern
       this.emit(`        fun fromJson(json: Map<String, Any?>): ${irInput.name}? {`);
       for (const field of sortedFields) {
         const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
-        const expression = this.buildFromJsonExpression(field.type, `json["${field.name}"]`, false, true);
+        const expression = this.buildFromJsonExpression(
+          field.type,
+          `json["${field.name}"]`,
+          false,
+          true,
+          this.buildDefaultValueExpression(field)
+        );
         this.emit(`            val ${propertyName} = ${expression}`);
       }
 
       // Null check for required fields (excluding enums which have fallbacks)
       const requiredFields = sortedFields.filter(
-        (f) => !f.type.nullable && f.type.kind !== 'enum'
+        (f) => !f.type.nullable && !this.hasSchemaDefault(f) && f.type.kind !== 'enum'
       );
       if (requiredFields.length > 0) {
         const nullChecks = requiredFields
@@ -392,7 +399,13 @@ export class KotlinPlugin extends CodegenPlugin {
       this.emit(`            return ${irInput.name}(`);
       for (const field of sortedFields) {
         const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
-        const expression = this.buildFromJsonExpression(field.type, `json["${field.name}"]`);
+        const expression = this.buildFromJsonExpression(
+          field.type,
+          `json["${field.name}"]`,
+          false,
+          false,
+          this.buildDefaultValueExpression(field)
+        );
         this.emit(`                ${propertyName} = ${expression},`);
       }
       this.emit('            )');
@@ -442,7 +455,8 @@ export class KotlinPlugin extends CodegenPlugin {
       const propertyType = this.getPropertyType(field.type);
       const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
       const suffix = index === irInput.fields.length - 1 ? '' : ',';
-      const defaultValue = field.type.nullable ? ' = null' : '';
+      const schemaDefault = this.buildDefaultValueExpression(field);
+      const defaultValue = schemaDefault ? ` = ${schemaDefault}` : field.type.nullable ? ' = null' : '';
       this.emit(`    val ${propertyName}: ${propertyType}${defaultValue}${suffix}`);
     });
 
@@ -450,20 +464,26 @@ export class KotlinPlugin extends CodegenPlugin {
     this.emit('    companion object {');
 
     // Check if input has required fields
-    const hasRequiredFields = irInput.fields.some((f) => !f.type.nullable);
+    const hasRequiredFields = irInput.fields.some((f) => !f.type.nullable && !this.hasSchemaDefault(f));
 
     if (hasRequiredFields) {
       // Nullable fromJson pattern
       this.emit(`        fun fromJson(json: Map<String, Any?>): ${irInput.name}? {`);
       for (const field of irInput.fields) {
         const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
-        const expression = this.buildFromJsonExpression(field.type, `json["${field.name}"]`, false, true);
+        const expression = this.buildFromJsonExpression(
+          field.type,
+          `json["${field.name}"]`,
+          false,
+          true,
+          this.buildDefaultValueExpression(field)
+        );
         this.emit(`            val ${propertyName} = ${expression}`);
       }
 
       // Null check for required fields (excluding enums which have fallbacks)
       const requiredFields = irInput.fields.filter(
-        (f) => !f.type.nullable && f.type.kind !== 'enum'
+        (f) => !f.type.nullable && !this.hasSchemaDefault(f) && f.type.kind !== 'enum'
       );
       if (requiredFields.length > 0) {
         const nullChecks = requiredFields
@@ -485,7 +505,13 @@ export class KotlinPlugin extends CodegenPlugin {
       this.emit(`            return ${irInput.name}(`);
       for (const field of irInput.fields) {
         const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
-        const expression = this.buildFromJsonExpression(field.type, `json["${field.name}"]`);
+        const expression = this.buildFromJsonExpression(
+          field.type,
+          `json["${field.name}"]`,
+          false,
+          false,
+          this.buildDefaultValueExpression(field)
+        );
         this.emit(`                ${propertyName} = ${expression},`);
       }
       this.emit('            )');
@@ -729,11 +755,15 @@ export class KotlinPlugin extends CodegenPlugin {
     type: IRType,
     sourceExpr: string,
     isListElement: boolean = false,
-    forNullableFromJson: boolean = false
+    forNullableFromJson: boolean = false,
+    defaultExpression?: string | null
   ): string {
     if (type.kind === 'list') {
       const element = this.buildFromJsonExpression(type.elementType!, 'it', true, forNullableFromJson);
       const mapFn = type.elementType!.nullable ? 'map' : 'mapNotNull';
+      if (defaultExpression) {
+        return `(${sourceExpr} as? List<*>)?.${mapFn} { ${element} } ?: ${defaultExpression}`;
+      }
       if (type.nullable || forNullableFromJson) {
         return `(${sourceExpr} as? List<*>)?.${mapFn} { ${element} }`;
       }
@@ -744,20 +774,32 @@ export class KotlinPlugin extends CodegenPlugin {
       const useNullable = type.nullable || isListElement || forNullableFromJson;
       switch (type.name) {
         case 'Float':
+          if (defaultExpression) {
+            return `(${sourceExpr} as? Number)?.toDouble() ?: ${defaultExpression}`;
+          }
           return useNullable
             ? `(${sourceExpr} as? Number)?.toDouble()`
             : `(${sourceExpr} as? Number)?.toDouble() ?: 0.0`;
         case 'Int':
+          if (defaultExpression) {
+            return `(${sourceExpr} as? Number)?.toInt() ?: ${defaultExpression}`;
+          }
           return useNullable
             ? `(${sourceExpr} as? Number)?.toInt()`
             : `(${sourceExpr} as? Number)?.toInt() ?: 0`;
         case 'Boolean':
+          if (defaultExpression) {
+            return `${sourceExpr} as? Boolean ?: ${defaultExpression}`;
+          }
           return useNullable
             ? `${sourceExpr} as? Boolean`
             : `${sourceExpr} as? Boolean ?: false`;
         case 'ID':
         case 'String':
         default:
+          if (defaultExpression) {
+            return `${sourceExpr} as? String ?: ${defaultExpression}`;
+          }
           return useNullable
             ? `${sourceExpr} as? String`
             : `${sourceExpr} as? String ?: ""`;
@@ -765,8 +807,19 @@ export class KotlinPlugin extends CodegenPlugin {
     }
 
     if (type.kind === 'enum') {
+      const unknownFallback = this.buildUnknownEnumFallbackExpression(type);
+      const enumRead = `(${sourceExpr} as? String)?.let { ${type.name}.fromJson(it) }`;
+      if (defaultExpression) {
+        return `${enumRead} ?: ${defaultExpression}`;
+      }
+      if (unknownFallback) {
+        if (type.nullable) {
+          return `(${sourceExpr} as? String)?.let { runCatching { ${type.name}.fromJson(it) }.getOrNull() ?: ${unknownFallback} }`;
+        }
+        return `runCatching { ${enumRead} }.getOrNull() ?: ${unknownFallback}`;
+      }
       if (type.nullable) {
-        return `(${sourceExpr} as? String)?.let { ${type.name}.fromJson(it) }`;
+        return enumRead;
       }
       // Find if enum has Empty value
       const irEnum = this.schema.enums.find((e) => e.name === type.name);
@@ -817,6 +870,48 @@ export class KotlinPlugin extends CodegenPlugin {
     }
 
     return accessorExpr;
+  }
+
+  private hasSchemaDefault(field: IRField): boolean {
+    return field.defaultValue !== undefined;
+  }
+
+  private buildDefaultValueExpression(field: IRField): string | null {
+    if (!this.hasSchemaDefault(field)) return null;
+    return this.buildDefaultValueForType(field.type, field.defaultValue);
+  }
+
+  private buildDefaultValueForType(type: IRType, defaultValue: unknown): string | null {
+    if (type.kind === 'list') {
+      if (!Array.isArray(defaultValue)) return null;
+      const items = defaultValue
+        .map((value) => this.buildDefaultValueForType(type.elementType!, value))
+        .filter((value): value is string => value !== null);
+      return `listOf(${items.join(', ')})`;
+    }
+    if (type.kind === 'enum' && typeof defaultValue === 'string') {
+      return `${type.name}.${this.escapeKeyword(this.enumValueCase(defaultValue))}`;
+    }
+    if (type.kind === 'scalar') {
+      if (typeof defaultValue === 'string') return `"${defaultValue}"`;
+      if (typeof defaultValue === 'boolean') return String(defaultValue);
+      if (typeof defaultValue === 'number') {
+        if (type.name === 'Float' && Number.isInteger(defaultValue)) {
+          return `${defaultValue}.0`;
+        }
+        return String(defaultValue);
+      }
+    }
+    return null;
+  }
+
+  private buildUnknownEnumFallbackExpression(type: IRType): string | null {
+    if (type.kind !== 'enum' || !type.name) return null;
+    const irEnum = this.schema.enums.find((e) => e.name === type.name);
+    const unknownValue = irEnum?.values.find((value) => value.name.toLowerCase().startsWith('unknown'));
+    return unknownValue
+      ? `${type.name}.${this.escapeKeyword(this.enumValueCase(unknownValue.name))}`
+      : null;
   }
 
   // ============================================================================

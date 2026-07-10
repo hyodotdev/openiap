@@ -119,12 +119,42 @@ internal sealed partial class OpenIapAndroid
             ?? throw OpenIapErrorMapper.Wrap(ErrorCode.Unknown, "Empty isBillingProgramAvailable result");
     }
 
-    public async Task<BillingProgramReportingDetailsAndroid> CreateBillingProgramReportingDetailsAndroidAsync(BillingProgramAndroid program)
+    public async Task<BillingChoiceInfoAndroid> GetBillingChoiceInfoAndroidAsync(GetBillingChoiceInfoParamsAndroid @params)
+    {
+        var json = JsonSerializer.Serialize(@params, JsonOptions.Default);
+        var result = await Invoke(cb => _module.GetBillingChoiceInfoAndroid(json, cb));
+        return JsonSerializer.Deserialize<BillingChoiceInfoAndroid>(result, JsonOptions.Default)
+            ?? throw OpenIapErrorMapper.Wrap(ErrorCode.Unknown, "Empty getBillingChoiceInfo result");
+    }
+
+    public async Task<BillingProgramReportingDetailsAndroid> CreateBillingProgramReportingDetailsAndroidAsync(
+        BillingProgramAndroid program,
+        DeveloperBillingTypeAndroid? developerBillingType = null)
     {
         var json = JsonSerializer.Serialize(program, JsonOptions.Default);
-        var result = await Invoke(cb => _module.CreateBillingProgramReportingDetailsAndroid(json, cb));
+        var result = developerBillingType is null
+            ? await Invoke(cb => _module.CreateBillingProgramReportingDetailsAndroid(json, cb))
+            : await Invoke(cb => _module.CreateBillingProgramReportingDetailsAndroidWithType(json, developerBillingType.Value.ToJson(), cb));
         return JsonSerializer.Deserialize<BillingProgramReportingDetailsAndroid>(result, JsonOptions.Default)
             ?? throw OpenIapErrorMapper.Wrap(ErrorCode.Unknown, "Empty createBillingProgramReportingDetails result");
+    }
+
+    public async Task<BillingResultAndroid> ShowBillingProgramInformationDialogAndroidAsync(BillingProgramInformationDialogParamsAndroid @params)
+    {
+        RefreshCurrentActivity();
+        var json = JsonSerializer.Serialize(@params, JsonOptions.Default);
+        var result = await Invoke(cb => _module.ShowBillingProgramInformationDialogAndroid(json, cb));
+        return JsonSerializer.Deserialize<BillingResultAndroid>(result, JsonOptions.Default)
+            ?? throw OpenIapErrorMapper.Wrap(ErrorCode.Unknown, "Empty showBillingProgramInformationDialog result");
+    }
+
+    public async Task<InAppMessageResultAndroid> ShowInAppMessagesAndroidAsync(InAppMessageParamsAndroid? @params = null)
+    {
+        RefreshCurrentActivity();
+        var json = @params is null ? null : JsonSerializer.Serialize(@params, JsonOptions.Default);
+        var result = await Invoke(cb => _module.ShowInAppMessagesAndroid(json, cb));
+        return JsonSerializer.Deserialize<InAppMessageResultAndroid>(result, JsonOptions.Default)
+            ?? throw OpenIapErrorMapper.Wrap(ErrorCode.Unknown, "Empty showInAppMessages result");
     }
 
     public Task<bool> LaunchExternalLinkAndroidAsync(LaunchExternalLinkParamsAndroid @params)

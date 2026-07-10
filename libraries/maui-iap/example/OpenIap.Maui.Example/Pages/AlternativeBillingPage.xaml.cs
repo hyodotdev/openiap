@@ -397,8 +397,12 @@ public partial class AlternativeBillingPage : ContentPage
         }
         catch (Exception ex)
         {
-            ShowResult($"❌ Error: {ErrorUtils.ExtractErrorMessage(ex)}");
-            await DisplayAlert("Error", ErrorUtils.ExtractErrorMessage(ex), "OK");
+            var message = ErrorUtils.FormatPurchaseFailure(ex);
+            ShowResult(ErrorUtils.IsUserCancelled(ex) ? $"⚠️ {message}" : $"❌ {message}");
+            if (!ErrorUtils.IsUserCancelled(ex))
+            {
+                await DisplayAlert("Error", ErrorUtils.ExtractErrorMessage(ex), "OK");
+            }
             SetProcessing(false);
         }
     }
@@ -431,9 +435,13 @@ public partial class AlternativeBillingPage : ContentPage
     {
         _isProcessing = false;
         UpdatePurchaseButton();
-        ShowResult($"❌ Purchase failed: {error.Message}");
-        if (error.Code != ErrorCode.UserCancelled)
+        if (error.Code == ErrorCode.UserCancelled)
         {
+            ShowResult("⚠️ Purchase cancelled by user");
+        }
+        else
+        {
+            ShowResult($"❌ Purchase failed: {error.Message}");
             _ = DisplayAlert("Error", error.Message, "OK");
         }
     }

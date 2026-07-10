@@ -409,7 +409,16 @@ export class CSharpPlugin extends CodegenPlugin {
       // `required` modifier so callers must initialize them; nullable
       // properties default to null.
       if (field.type.nullable) {
-        this.emit(`    public ${propType} ${propName} { get; init; }`);
+        const defaultValue = this.buildDefaultValueExpression(field);
+        const initializer = defaultValue ? ` = ${defaultValue};` : '';
+        this.emit(`    public ${propType} ${propName} { get; init; }${initializer}`);
+      } else if (field.defaultValue !== undefined) {
+        const defaultValue = this.buildDefaultValueExpression(field);
+        if (defaultValue) {
+          this.emit(`    public ${propType} ${propName} { get; init; } = ${defaultValue};`);
+        } else {
+          this.emit(`    public required ${propType} ${propName} { get; init; }`);
+        }
       } else if (defaults && field.name === 'platform') {
         const defaultValue = `IapPlatform.${toPascalCasePreserveIOS(defaults.platform)}`;
         this.emit(`    public ${propType} ${propName} { get; init; } = ${defaultValue};`);
@@ -420,6 +429,41 @@ export class CSharpPlugin extends CodegenPlugin {
         this.emit(`    public required ${propType} ${propName} { get; init; }`);
       }
     });
+  }
+
+  private buildDefaultValueExpression(field: IRField): string | null {
+    if (field.defaultValue === undefined) return null;
+    return this.buildDefaultValueForType(field.type, field.defaultValue);
+  }
+
+  private buildDefaultValueForType(type: IRType, defaultValue: unknown): string | null {
+    if (type.kind === 'list') {
+      if (!Array.isArray(defaultValue)) return null;
+      const itemType = this.mapType(type.elementType!);
+      const items = defaultValue
+        .map((value) => this.buildDefaultValueForType(type.elementType!, value))
+        .filter((value): value is string => value !== null);
+      return `new List<${itemType}> { ${items.join(', ')} }`;
+    }
+    if (type.kind === 'enum' && typeof defaultValue === 'string') {
+      return `global::${NAMESPACE}.${type.name}.${this.enumValueCase(defaultValue)}`;
+    }
+    if (type.kind === 'scalar') {
+      if (typeof defaultValue === 'string') return this.csharpStringLiteral(defaultValue);
+      if (typeof defaultValue === 'number' || typeof defaultValue === 'boolean') {
+        return String(defaultValue).toLowerCase();
+      }
+    }
+    return null;
+  }
+
+  private csharpStringLiteral(value: string): string {
+    return `"${value
+      .replace(/\\/g, '\\\\')
+      .replace(/"/g, '\\"')
+      .replace(/\r/g, '\\r')
+      .replace(/\n/g, '\\n')
+      .replace(/\t/g, '\\t')}"`;
   }
 
   private generateResultUnionObject(irObject: IRObject): void {

@@ -10,6 +10,20 @@ var _tests_failed := 0
 var GodotIapPlugin: Node = null
 
 
+class FakeAndroidPlugin:
+	extends RefCounted
+	var last_config: Dictionary = {}
+	var last_purchase: Dictionary = {}
+
+	func initConnectionWithConfig(config_json: String) -> bool:
+		last_config = JSON.parse_string(config_json)
+		return true
+
+	func requestPurchaseJson(params_json: String) -> String:
+		last_purchase = JSON.parse_string(params_json)
+		return JSON.stringify({"success": true, "pending": true})
+
+
 func _init() -> void:
 	_run_suite.call_deferred()
 
@@ -46,6 +60,7 @@ func _run_all_tests() -> void:
 	test_product_variant_mapping()
 
 	# Purchase tests
+	test_billing_choice_android_payloads()
 	test_get_available_purchases_mock()
 	test_restore_purchases_mock()
 
@@ -107,6 +122,54 @@ func test_init_connection_mock() -> void:
 	# A desktop test run has no native store plugin and must report that clearly.
 	var result = GodotIapPlugin.init_connection()
 	_assert_false(result, "init_connection should return false without a native plugin")
+
+
+func test_billing_choice_android_payloads() -> void:
+	var fake = FakeAndroidPlugin.new()
+	GodotIapPlugin._native_plugin = fake
+	GodotIapPlugin._platform = "Android"
+
+	var config = Types.InitConnectionConfig.new()
+	config.enable_billing_program_android = Types.BillingProgramAndroid.BILLING_CHOICE
+	config.billing_choice_screen_type_android = Types.BillingChoiceScreenTypeAndroid.DEVELOPER_RENDERED
+	_assert_true(GodotIapPlugin.init_connection(config), "Billing Choice config should reach Android plugin")
+	_assert_equal(fake.last_config.get("enableBillingProgramAndroid"), "billing-choice", "Billing Choice program should be preserved")
+	_assert_equal(fake.last_config.get("billingChoiceScreenTypeAndroid"), "developer-rendered", "Billing Choice renderer should be preserved")
+
+	var subscription = Types.RequestSubscriptionAndroidProps.new()
+	var skus: Array[String] = ["monthly_subscription"]
+	subscription.skus = skus
+	subscription.original_external_transaction_id = "original-external-id"
+	var option = Types.DeveloperBillingOptionParamsAndroid.new()
+	option.billing_program = Types.BillingProgramAndroid.BILLING_CHOICE
+	subscription.developer_billing_option = option
+	GodotIapPlugin._request_purchase_raw({
+		"type": "subs",
+		"requestSubscription": {"google": subscription.to_dict()},
+	})
+	_assert_equal(fake.last_purchase.get("originalExternalTransactionId"), "original-external-id", "Original external transaction ID should reach Android plugin")
+	_assert_equal(fake.last_purchase.get("developerBillingOption", {}).get("billingProgram"), "billing-choice", "Developer billing option should reach Android plugin")
+
+	var replacement_params = Types.SubscriptionProductReplacementParamsAndroid.new()
+	replacement_params.old_product_id = "legacy-monthly"
+	replacement_params.replacement_mode = Types.SubscriptionReplacementModeAndroid.CHARGE_PRORATED_PRICE
+	var raw_option = Types.DeveloperBillingOptionParamsAndroid.new()
+	raw_option.billing_program = Types.BillingProgramAndroid.BILLING_CHOICE
+	GodotIapPlugin._request_purchase_raw({
+		"type": "subs",
+		"requestSubscription": {"google": {
+			"skus": ["monthly_subscription"],
+			"subscriptionProductReplacementParams": replacement_params,
+			"developerBillingOption": raw_option,
+		}},
+	})
+	_assert_equal(fake.last_purchase.get("subscriptionProductReplacementParams", {}).get("oldProductId"), "legacy-monthly", "Replacement params objects should serialize to dictionaries")
+	_assert_equal(fake.last_purchase.get("subscriptionProductReplacementParams", {}).get("replacementMode"), "charge-prorated-price", "Replacement mode should preserve its serialized value")
+	_assert_equal(fake.last_purchase.get("developerBillingOption", {}).get("billingProgram"), "billing-choice", "Developer billing option objects should serialize to dictionaries")
+
+	GodotIapPlugin._native_plugin = null
+	GodotIapPlugin._platform = ""
+	GodotIapPlugin._is_connected = false
 
 
 func test_end_connection_mock() -> void:
@@ -204,11 +267,11 @@ func test_finish_transaction_mock() -> void:
 func test_ios_methods_mock() -> void:
 	# sync_ios
 	var sync_result = GodotIapPlugin.sync_ios()
-	_assert_true(sync_result is Types.VoidResult, "sync_ios should return VoidResult")
+	_assert_true(sync_result is bool, "sync_ios should return bool")
 
 	# clear_transaction_ios
 	var clear_result = GodotIapPlugin.clear_transaction_ios()
-	_assert_true(clear_result is Types.VoidResult, "clear_transaction_ios should return VoidResult")
+	_assert_true(clear_result is bool, "clear_transaction_ios should return bool")
 
 	# get_pending_transactions_ios
 	var pending = GodotIapPlugin.get_pending_transactions_ios()
@@ -216,11 +279,19 @@ func test_ios_methods_mock() -> void:
 
 	# present_code_redemption_sheet_ios
 	var redemption_result = GodotIapPlugin.present_code_redemption_sheet_ios()
-	_assert_true(redemption_result is Types.VoidResult, "present_code_redemption_sheet_ios should return VoidResult")
+	_assert_true(redemption_result is bool, "present_code_redemption_sheet_ios should return bool")
+
+	# request_purchase_on_promoted_product_ios
+	var promoted_result = GodotIapPlugin.request_purchase_on_promoted_product_ios()
+	_assert_true(promoted_result is bool, "request_purchase_on_promoted_product_ios should return bool")
 
 	# current_entitlement_ios
 	var entitlement = GodotIapPlugin.current_entitlement_ios("test_sku")
 	_assert_true(entitlement == null or entitlement is Types.PurchaseIOS, "current_entitlement_ios should return PurchaseIOS or null")
+
+	# begin_refund_request_ios
+	var refund_status = await GodotIapPlugin.begin_refund_request_ios("test_sku")
+	_assert_true(refund_status is String, "begin_refund_request_ios should return String")
 
 	# latest_transaction_ios
 	var latest = GodotIapPlugin.latest_transaction_ios("test_sku")
@@ -238,11 +309,23 @@ func test_ios_methods_mock() -> void:
 func test_android_methods_mock() -> void:
 	# acknowledge_purchase_android
 	var ack_result = GodotIapPlugin.acknowledge_purchase_android("mock_token")
-	_assert_true(ack_result is Types.VoidResult, "acknowledge_purchase_android should return VoidResult")
+	_assert_true(ack_result is bool, "acknowledge_purchase_android should return bool")
 
 	# consume_purchase_android
 	var consume_result = GodotIapPlugin.consume_purchase_android("mock_token")
-	_assert_true(consume_result is Types.VoidResult, "consume_purchase_android should return VoidResult")
+	_assert_true(consume_result is bool, "consume_purchase_android should return bool")
+
+	# check_alternative_billing_availability_android
+	var alternative_available = GodotIapPlugin.check_alternative_billing_availability_android()
+	_assert_true(alternative_available is bool, "check_alternative_billing_availability_android should return bool")
+
+	# show_alternative_billing_dialog_android
+	var alternative_accepted = GodotIapPlugin.show_alternative_billing_dialog_android()
+	_assert_true(alternative_accepted is bool, "show_alternative_billing_dialog_android should return bool")
+
+	# create_alternative_billing_token_android
+	var alternative_token = GodotIapPlugin.create_alternative_billing_token_android()
+	_assert_true(alternative_token is String, "create_alternative_billing_token_android should return String")
 
 	# get_package_name_android
 	var package_name = GodotIapPlugin.get_package_name_android()
@@ -251,6 +334,28 @@ func test_android_methods_mock() -> void:
 	# has_active_subscriptions
 	var has_subs = GodotIapPlugin.has_active_subscriptions()
 	_assert_true(has_subs is bool, "has_active_subscriptions should return bool")
+
+	# deep_link_to_subscriptions
+	var deep_link_result = await GodotIapPlugin.deep_link_to_subscriptions()
+	_assert_true(deep_link_result is Types.VoidResult, "deep_link_to_subscriptions should return VoidResult")
+
+	# get_billing_choice_info_android
+	var choice_params = Types.GetBillingChoiceInfoParamsAndroid.new()
+	choice_params.billing_program = Types.BillingProgramAndroid.BILLING_CHOICE
+	choice_params.play_billing_choice_image_layout = Types.BillingChoiceImageLayoutAndroid.RECTANGULAR_FOUR_BY_ONE
+	var choice_info = GodotIapPlugin.get_billing_choice_info_android(choice_params)
+	_assert_true(choice_info is Types.BillingChoiceInfoAndroid, "get_billing_choice_info_android should return BillingChoiceInfoAndroid")
+
+	# show_billing_program_information_dialog_android
+	var dialog_params = Types.BillingProgramInformationDialogParamsAndroid.new()
+	dialog_params.billing_program = Types.BillingProgramAndroid.BILLING_CHOICE
+	dialog_params.external_transaction_token = "mock_external_token"
+	var dialog_result = GodotIapPlugin.show_billing_program_information_dialog_android(dialog_params)
+	_assert_true(dialog_result is Types.BillingResultAndroid, "show_billing_program_information_dialog_android should return BillingResultAndroid")
+
+	# show_in_app_messages_android
+	var message_result = GodotIapPlugin.show_in_app_messages_android()
+	_assert_true(message_result is Types.InAppMessageResultAndroid, "show_in_app_messages_android should return InAppMessageResultAndroid")
 
 
 # ============================================

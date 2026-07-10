@@ -107,7 +107,7 @@ cd ../flutter_inapp_purchase && flutter analyze
 **Horizon flavor (do NOT attempt)**
 
 - The Horizon flavor's `addSubscriptionBillingIssueListener` is a documented no-op. Verified by
-  `SubscriptionBillingIssueHorizonNoOpTest` (Robolectric, runs on CI). There is no sandbox path on Horizon because the Billing Compatibility SDK 1.1.1 targets Play Billing 7.0 which does not expose `Purchase.isSuspended`.
+  `SubscriptionBillingIssueHorizonNoOpTest` (Robolectric, runs on CI). There is no sandbox path on Horizon because the Billing Compatibility SDK 2.0.0 targets Play Billing 7.0 which does not expose `Purchase.isSuspended`.
 
 ---
 

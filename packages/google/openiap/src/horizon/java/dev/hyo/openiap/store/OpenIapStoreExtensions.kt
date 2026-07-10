@@ -10,8 +10,9 @@ import dev.hyo.openiap.listener.UserChoiceBillingListener
  * Horizon-specific extensions for OpenIapStore
  * These constructors are only available in the Horizon flavor
  *
- * Note: Oculus App ID is automatically read from AndroidManifest.xml meta-data
- * with key "com.oculus.vr.APP_ID". Make sure it's properly configured via expo-iap plugin.
+ * The Horizon App ID is automatically read from AndroidManifest.xml meta-data
+ * using "com.meta.horizon.platform.HORIZON_APP_ID". Expo apps can configure it
+ * through the expo-iap config plugin.
  */
 
 /**

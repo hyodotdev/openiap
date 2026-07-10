@@ -18,11 +18,6 @@ import {ErrorCode} from './types';
 import type {
   AndroidSubscriptionOfferInput,
   DiscountOfferInputIOS,
-  ExternalPurchaseCustomLinkNoticeResultIOS,
-  ExternalPurchaseCustomLinkNoticeTypeIOS,
-  ExternalPurchaseCustomLinkTokenResultIOS,
-  ExternalPurchaseCustomLinkTokenTypeIOS,
-  ExternalPurchaseNoticeResultIOS,
   FetchProductsResult,
   MutationField,
   Product,
@@ -73,7 +68,17 @@ import {getVegaIapModule, isVegaOS} from './vega';
 // Note: BillingProgramAndroid, ExternalLinkLaunchModeAndroid, and ExternalLinkTypeAndroid
 // are exported from './types' (auto-generated from openiap-gql).
 // Import them here for use in this file's interfaces and functions.
-import type {BillingProgramAndroid} from './types';
+import type {
+  BillingChoiceInfoAndroid,
+  BillingProgramAndroid,
+  BillingProgramInformationDialogParamsAndroid,
+  BillingProgramReportingDetailsAndroid,
+  BillingResultAndroid,
+  DeveloperBillingTypeAndroid,
+  GetBillingChoiceInfoParamsAndroid,
+  InAppMessageParamsAndroid,
+  InAppMessageResultAndroid,
+} from './types';
 
 // Export all types
 export type {
@@ -621,12 +626,11 @@ export const userChoiceBillingListenerAndroid = (
 };
 
 /**
- * Add a listener for developer provided billing events (Android 8.3.0+ only).
- * Fires when a user selects developer billing in the External Payments flow.
+ * Add a listener for developer provided billing events (Android 8.3.0+).
+ * Fires for External Payments and Billing Choice developer billing flows.
  *
- * External Payments is part of Google Play Billing Library 8.3.0+ and allows
- * showing a side-by-side choice between Google Play Billing and developer's
- * external payment option directly in the purchase flow. (Japan only)
+ * The payload includes selected products and nullable token, link, and original
+ * transaction fields. Billing Choice fields require Billing Library 9.1.0+.
  *
  * @param listener - Function to call when user chooses developer billing
  * @returns EventSubscription with remove() method to unsubscribe
@@ -636,14 +640,10 @@ export const userChoiceBillingListenerAndroid = (
  * @example
  * ```typescript
  * const subscription = developerProvidedBillingListenerAndroid((details) => {
- *   console.log('User chose developer billing');
- *   console.log('External transaction token received; send it to your backend without logging it.');
- *
- *   // Process payment through your external payment system
- *   await processExternalPayment();
- *
- *   // Report transaction to Google Play (within 24 hours)
- *   await reportToGooglePlay(details.externalTransactionToken);
+ *   await processExternalPayment(details.products, details.linkUri);
+ *   if (details.externalTransactionToken) {
+ *     await reportToGooglePlay(details.externalTransactionToken);
+ *   }
  * });
  *
  * // Later, remove the listener
@@ -854,8 +854,7 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
 
     if (normalizedType === 'all') {
       const converted = (await fetchAndConvert('all')) as (
-        | Product
-        | ProductSubscription
+        Product | ProductSubscription
       )[];
 
       RnIapConsole.debug(
@@ -1621,6 +1620,10 @@ export const getTransactionJwsIOS: QueryField<'getTransactionJwsIOS'> = async (
  * ```ts
  * await initConnection();
  * await initConnection({ enableBillingProgramAndroid: 'external-offer' });
+ * await initConnection({
+ *   enableBillingProgramAndroid: 'billing-choice',
+ *   billingChoiceScreenTypeAndroid: 'developer-rendered',
+ * });
  * ```
  *
  * @remarks When using `useIAP()`, connection is auto-managed on mount/unmount —
@@ -1843,6 +1846,10 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
       if (androidRequest.isOfferPersonalized != null) {
         androidPayload.isOfferPersonalized = androidRequest.isOfferPersonalized;
       }
+      if (androidRequest.developerBillingOption) {
+        androidPayload.developerBillingOption =
+          androidRequest.developerBillingOption;
+      }
 
       // One-time purchase offerToken (Android 7.0+)
       if (!isSubs) {
@@ -1856,6 +1863,10 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
         const subsRequest = androidRequest as RequestSubscriptionAndroidProps;
         if (subsRequest.purchaseToken) {
           androidPayload.purchaseToken = subsRequest.purchaseToken;
+        }
+        if (subsRequest.originalExternalTransactionId) {
+          androidPayload.originalExternalTransactionId =
+            subsRequest.originalExternalTransactionId;
         }
         if (subsRequest.replacementMode != null) {
           androidPayload.replacementMode = subsRequest.replacementMode;
@@ -2394,41 +2405,42 @@ export const presentCodeRedemptionSheetIOS: MutationField<
  *
  * @see {@link https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios}
  */
-export const requestPurchaseOnPromotedProductIOS =
-  async (): Promise<boolean> => {
-    if (Platform.OS !== 'ios') {
-      throw new Error(
-        'requestPurchaseOnPromotedProductIOS is only available on iOS',
-      );
+export const requestPurchaseOnPromotedProductIOS: MutationField<
+  'requestPurchaseOnPromotedProductIOS'
+> = async () => {
+  if (Platform.OS !== 'ios') {
+    throw new Error(
+      'requestPurchaseOnPromotedProductIOS is only available on iOS',
+    );
+  }
+
+  try {
+    await IAP.instance.buyPromotedProductIOS();
+    const pending = await IAP.instance.getPendingTransactionsIOS();
+    const latest = pending.find((purchase) => purchase != null);
+    if (!latest) {
+      throw new Error('No promoted purchase available after request');
     }
 
-    try {
-      await IAP.instance.buyPromotedProductIOS();
-      const pending = await IAP.instance.getPendingTransactionsIOS();
-      const latest = pending.find((purchase) => purchase != null);
-      if (!latest) {
-        throw new Error('No promoted purchase available after request');
-      }
-
-      const converted = convertNitroPurchaseToPurchase(latest);
-      if (converted.platform !== 'ios') {
-        throw new Error('Promoted purchase result not available for iOS');
-      }
-
-      return true;
-    } catch (error) {
-      const parsedError = parseErrorAndLogIfNeeded(
-        '[requestPurchaseOnPromotedProductIOS] Failed:',
-        error,
-      );
-      throw createPurchaseError({
-        code: parsedError.code,
-        message: parsedError.message,
-        responseCode: parsedError.responseCode,
-        debugMessage: parsedError.debugMessage,
-      });
+    const converted = convertNitroPurchaseToPurchase(latest);
+    if (converted.platform !== 'ios') {
+      throw new Error('Promoted purchase result not available for iOS');
     }
-  };
+
+    return true;
+  } catch (error) {
+    const parsedError = parseErrorAndLogIfNeeded(
+      '[requestPurchaseOnPromotedProductIOS] Failed:',
+      error,
+    );
+    throw createPurchaseError({
+      code: parsedError.code,
+      message: parsedError.message,
+      responseCode: parsedError.responseCode,
+      debugMessage: parsedError.debugMessage,
+    });
+  }
+};
 
 /**
  * Clear unfinished transactions on iOS
@@ -2925,10 +2937,43 @@ export const isBillingProgramAvailableAndroid: MutationField<
     const result = await IAP.instance.isBillingProgramAvailableAndroid(program);
     return {
       billingProgram: result.billingProgram as unknown as BillingProgramAndroid,
+      choiceScreenType: result.choiceScreenType,
       isAvailable: result.isAvailable,
+      isExternalLinkAvailable: result.isExternalLinkAvailable,
     };
   } catch (error) {
     RnIapConsole.error('Failed to check billing program availability:', error);
+    throw error;
+  }
+};
+
+/**
+ * Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens (Android only).
+ *
+ * @param params - Billing Choice info request parameters
+ * @returns Promise with Play-hosted image URL and optional loyalty information
+ * @platform Android
+ * @since Google Play Billing Library 9.1.0+
+ *
+ * @see {@link https://openiap.dev/docs/apis/android/get-billing-choice-info-android}
+ */
+export const getBillingChoiceInfoAndroid: QueryField<
+  'getBillingChoiceInfoAndroid'
+> = async (
+  params: GetBillingChoiceInfoParamsAndroid = {},
+): Promise<BillingChoiceInfoAndroid> => {
+  if (Platform.OS !== 'android') {
+    throw new Error('Billing Choice API is only supported on Android');
+  }
+  try {
+    return await IAP.instance.getBillingChoiceInfoAndroid({
+      billingProgram: params.billingProgram ?? 'billing-choice',
+      playBillingChoiceImageLayout:
+        params.playBillingChoiceImageLayout ?? 'rectangular-four-by-one',
+      userLocale: params.userLocale ?? null,
+    });
+  } catch (error) {
+    RnIapConsole.error('Failed to get Billing Choice info:', error);
     throw error;
   }
 };
@@ -2954,15 +2999,34 @@ export const isBillingProgramAvailableAndroid: MutationField<
  *
  * @see {@link https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android}
  */
-export const createBillingProgramReportingDetailsAndroid: MutationField<
-  'createBillingProgramReportingDetailsAndroid'
-> = async (program) => {
+export const createBillingProgramReportingDetailsAndroid: MutationField<'createBillingProgramReportingDetailsAndroid'> &
+  ((
+    program: BillingProgramAndroid,
+    developerBillingType?: DeveloperBillingTypeAndroid | null,
+  ) => Promise<BillingProgramReportingDetailsAndroid>) = async (
+  programOrArgs:
+    | BillingProgramAndroid
+    | {
+        program: BillingProgramAndroid;
+        developerBillingType?: DeveloperBillingTypeAndroid | null;
+      },
+  developerBillingType?: DeveloperBillingTypeAndroid | null,
+): Promise<BillingProgramReportingDetailsAndroid> => {
   if (Platform.OS !== 'android') {
     throw new Error('Billing Programs API is only supported on Android');
   }
   try {
+    const program =
+      typeof programOrArgs === 'string' ? programOrArgs : programOrArgs.program;
+    const resolvedDeveloperBillingType =
+      typeof programOrArgs === 'string'
+        ? developerBillingType
+        : (programOrArgs.developerBillingType ?? developerBillingType);
     const result =
-      await IAP.instance.createBillingProgramReportingDetailsAndroid(program);
+      await IAP.instance.createBillingProgramReportingDetailsAndroid(
+        program,
+        resolvedDeveloperBillingType ?? null,
+      );
     return {
       billingProgram: result.billingProgram as unknown as BillingProgramAndroid,
       externalTransactionToken: result.externalTransactionToken,
@@ -2977,7 +3041,67 @@ export const createBillingProgramReportingDetailsAndroid: MutationField<
 };
 
 /**
- * Launch external link for external offers or app download (Android only).
+ * Show Google's mandatory information dialog before a developer-rendered,
+ * in-app Billing Choice screen (Android only).
+ *
+ * @param params - Dialog parameters with the external transaction token
+ * @returns Promise with BillingResult
+ * @platform Android
+ * @since Google Play Billing Library 9.1.0+
+ *
+ * @see {@link https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android}
+ */
+export const showBillingProgramInformationDialogAndroid: MutationField<
+  'showBillingProgramInformationDialogAndroid'
+> = async (
+  params: BillingProgramInformationDialogParamsAndroid,
+): Promise<BillingResultAndroid> => {
+  if (Platform.OS !== 'android') {
+    throw new Error('Billing Choice API is only supported on Android');
+  }
+  try {
+    return await IAP.instance.showBillingProgramInformationDialogAndroid({
+      billingProgram: params.billingProgram ?? 'billing-choice',
+      externalTransactionToken: params.externalTransactionToken,
+    });
+  } catch (error) {
+    RnIapConsole.error(
+      'Failed to show Billing Choice information dialog:',
+      error,
+    );
+    throw error;
+  }
+};
+
+/**
+ * Show Play Billing in-app messages, such as transactional subscription updates (Android only).
+ *
+ * @param params - Optional in-app message categories
+ * @returns Promise with in-app message result
+ * @platform Android
+ * @since Google Play Billing Library 4.1.0+
+ *
+ * @see {@link https://openiap.dev/docs/apis/android/show-in-app-messages-android}
+ */
+export const showInAppMessagesAndroid: MutationField<
+  'showInAppMessagesAndroid'
+> = async (
+  params?: InAppMessageParamsAndroid | null,
+): Promise<InAppMessageResultAndroid> => {
+  if (Platform.OS !== 'android') {
+    throw new Error('In-app messages are only supported on Android');
+  }
+  try {
+    return await IAP.instance.showInAppMessagesAndroid(params ?? null);
+  } catch (error) {
+    RnIapConsole.error('Failed to show in-app messages:', error);
+    throw error;
+  }
+};
+
+/**
+ * Launch an external link for Billing Programs (Android only). Developer-rendered
+ * Billing Choice external-link flows require 9.1.0+ and a pre-generated token.
  *
  * @param params - Parameters for launching the external link
  * @returns Promise<boolean> - true if user accepted, false otherwise
@@ -2987,7 +3111,8 @@ export const createBillingProgramReportingDetailsAndroid: MutationField<
  * @example
  * ```typescript
  * const success = await launchExternalLinkAndroid({
- *   billingProgram: 'external-offer',
+ *   billingProgram: 'billing-choice',
+ *   externalTransactionToken: reportingDetails.externalTransactionToken,
  *   launchMode: 'launch-in-external-browser-or-app',
  *   linkType: 'link-to-digital-content-offer',
  *   linkUri: 'https://your-website.com/purchase'
@@ -3008,6 +3133,7 @@ export const launchExternalLinkAndroid: MutationField<
   try {
     return await IAP.instance.launchExternalLinkAndroid({
       billingProgram: params.billingProgram,
+      externalTransactionToken: params.externalTransactionToken,
       launchMode: params.launchMode,
       linkType: params.linkType,
       linkUri: params.linkUri,
@@ -3078,21 +3204,22 @@ export const canPresentExternalPurchaseNoticeIOS: QueryField<
  *
  * @see {@link https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios}
  */
-export const presentExternalPurchaseNoticeSheetIOS =
-  async (): Promise<ExternalPurchaseNoticeResultIOS> => {
-    if (Platform.OS !== 'ios') {
-      throw new Error('External purchase is only supported on iOS');
-    }
-    try {
-      return await IAP.instance.presentExternalPurchaseNoticeSheetIOS();
-    } catch (error) {
-      RnIapConsole.error(
-        'Failed to present external purchase notice sheet:',
-        error,
-      );
-      throw error;
-    }
-  };
+export const presentExternalPurchaseNoticeSheetIOS: MutationField<
+  'presentExternalPurchaseNoticeSheetIOS'
+> = async () => {
+  if (Platform.OS !== 'ios') {
+    throw new Error('External purchase is only supported on iOS');
+  }
+  try {
+    return await IAP.instance.presentExternalPurchaseNoticeSheetIOS();
+  } catch (error) {
+    RnIapConsole.error(
+      'Failed to present external purchase notice sheet:',
+      error,
+    );
+    throw error;
+  }
+};
 
 /**
  * Present an external purchase link to redirect users to your website (iOS 16.0+).
@@ -3147,21 +3274,22 @@ export const presentExternalPurchaseLinkIOS: MutationField<
  *
  * @see {@link https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios}
  */
-export const isEligibleForExternalPurchaseCustomLinkIOS =
-  async (): Promise<boolean> => {
-    if (Platform.OS !== 'ios') {
-      return false;
-    }
-    try {
-      return await IAP.instance.isEligibleForExternalPurchaseCustomLinkIOS();
-    } catch (error) {
-      RnIapConsole.error(
-        'Failed to check external purchase custom link eligibility:',
-        error,
-      );
-      return false;
-    }
-  };
+export const isEligibleForExternalPurchaseCustomLinkIOS: QueryField<
+  'isEligibleForExternalPurchaseCustomLinkIOS'
+> = async () => {
+  if (Platform.OS !== 'ios') {
+    return false;
+  }
+  try {
+    return await IAP.instance.isEligibleForExternalPurchaseCustomLinkIOS();
+  } catch (error) {
+    RnIapConsole.error(
+      'Failed to check external purchase custom link eligibility:',
+      error,
+    );
+    return false;
+  }
+};
 
 /**
  * Get external purchase token for reporting to Apple (iOS 18.1+).
@@ -3184,9 +3312,9 @@ export const isEligibleForExternalPurchaseCustomLinkIOS =
  *
  * @see {@link https://openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios}
  */
-export const getExternalPurchaseCustomLinkTokenIOS = async (
-  tokenType: ExternalPurchaseCustomLinkTokenTypeIOS,
-): Promise<ExternalPurchaseCustomLinkTokenResultIOS> => {
+export const getExternalPurchaseCustomLinkTokenIOS: QueryField<
+  'getExternalPurchaseCustomLinkTokenIOS'
+> = async (tokenType) => {
   if (Platform.OS !== 'ios') {
     throw new Error(
       'External purchase custom link is only supported on iOS 18.1+',
@@ -3224,9 +3352,9 @@ export const getExternalPurchaseCustomLinkTokenIOS = async (
  *
  * @see {@link https://openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios}
  */
-export const showExternalPurchaseCustomLinkNoticeIOS = async (
-  noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS,
-): Promise<ExternalPurchaseCustomLinkNoticeResultIOS> => {
+export const showExternalPurchaseCustomLinkNoticeIOS: MutationField<
+  'showExternalPurchaseCustomLinkNoticeIOS'
+> = async (noticeType) => {
   if (Platform.OS !== 'ios') {
     throw new Error(
       'External purchase custom link is only supported on iOS 18.1+',

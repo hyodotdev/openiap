@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-07-04T10:52:01.931Z
+> Last updated: 2026-07-10T22:14:59.408Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -882,6 +882,14 @@ swift build  # Verifies ObjC bridge compiles
 
 ## SDK Parity Checklist (CRITICAL — prevents "declared but not implemented")
 
+### API version annotations
+
+For newly exposed platform features, public schema and API documentation must
+name the OpenIAP versions first and the upstream SDK requirement second. Use the
+format `OpenIAP Spec <version> / openiap-google <version> (requires Play Billing
+<version>+)`. Upstream-only labels such as `Billing 9.1.0+` do not tell OpenIAP
+consumers which library release contains the API.
+
 When the GraphQL schema in [`packages/gql`](../../packages/gql) adds or changes an API, the regenerated `types.*` files **declare** the handler but do not **implement** it. Every wrapper library must wire the new API end-to-end or users will see silent nulls, phantom interfaces (GitHub issue #104), or `UnsupportedOperationException` at runtime.
 
 The mechanical guardrail for this checklist is:
@@ -934,13 +942,13 @@ GraphQL schema ─► generated types ─► public API ─► native bridge ─
 
 For every new/changed handler in the generated types, verify **all five** of these per target library before considering the change shippable:
 
-| Library                    | 1. Type declared                                                    | 2. Public API exposed                                                                                                                                                                                                                                                                                            | 3. Platform bridge                                                                                                                                                                                                                                                                                                                                                                                                                                                 | 4. Wired into handlers bundle                                                                                          | 5. Test coverage                                                                                                                                                                        |
-| -------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **react-native-iap**       | `src/types.ts` (generated)                                          | `src/index.ts` export (Nitro or composed TS)                                                                                                                                                                                                                                                                     | `ios/HybridRnIap.swift` (iOS), `android/.../HybridRnIap.kt` (Android)                                                                                                                                                                                                                                                                                                                                                                                              | Not required (flat exports)                                                                                            | Mock stub in all 4 `mockIap` objects in `__tests__/` (per memory)                                                                                                                       |
-| **expo-iap**               | `src/types.ts` (generated)                                          | `src/modules/ios.ts` / `android.ts` export, re-exported from `src/index.ts`                                                                                                                                                                                                                                      | `ios/ExpoIapModule.swift` `AsyncFunction`, `android/.../ExpoIapModule.kt`                                                                                                                                                                                                                                                                                                                                                                                          | Not required (flat exports)                                                                                            | `src/modules/__tests__/*.test.ts`                                                                                                                                                       |
-| **flutter_inapp_purchase** | `lib/types.dart` (generated)                                        | getter on `FlutterInappPurchase` in `lib/flutter_inapp_purchase.dart`                                                                                                                                                                                                                                            | `case "<name>":` in `ios/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift` and `macos/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift`, Android plugin `onMethodCall`                                                                                                                                                                                                                   | `queryHandlers` / `mutationHandlers` / `subscriptionHandlers` bundles near the bottom of `flutter_inapp_purchase.dart` | Mock + test in `test/ios_methods_test.dart` (and the `errors_unit_test.dart` error-mapping test)                                                                                        |
-| **kmp-iap**                | `library/src/commonMain/.../openiap/Types.kt` (generated interface) | exposed via `KmpInAppPurchase` / `kmpIapInstance`                                                                                                                                                                                                                                                                | `library/src/iosMain/.../InAppPurchaseIOS.kt` — must call `openIapModule.<name>WithCompletion { ... }`, **never** `throw UnsupportedOperationException`                                                                                                                                                                                                                                                                                                            | Not required (interface dispatch)                                                                                      | `library/src/commonTest/` if testable cross-platform                                                                                                                                    |
-| **godot-iap**              | `addons/godot-iap/types.gd` (generated)                             | public `snake_case` function in `addons/godot-iap/godot_iap.gd`                                                                                                                                                                                                                                                  | `ios-gdextension/Sources/GodotIap/GodotIap.swift` (iOS), `android/src/main/java/.../GodotIap.java` (Android)                                                                                                                                                                                                                                                                                                                                                       | Not required                                                                                                           | Manual testing — no automated test suite yet                                                                                                                                            |
+| Library                    | 1. Type declared                                                    | 2. Public API exposed                                                                                                                                                                                                                                                                                                                                                                                            | 3. Platform bridge                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | 4. Wired into handlers bundle                                                                                          | 5. Test coverage                                                                                                                                                                                                                                                 |
+| -------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **react-native-iap**       | `src/types.ts` (generated)                                          | `src/index.ts` export (Nitro or composed TS)                                                                                                                                                                                                                                                                                                                                                                     | `ios/HybridRnIap.swift` (iOS), `android/.../HybridRnIap.kt` (Android)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | Not required (flat exports)                                                                                            | Mock stub in all 4 `mockIap` objects in `__tests__/` (per memory)                                                                                                                                                                                                |
+| **expo-iap**               | `src/types.ts` (generated)                                          | `src/modules/ios.ts` / `android.ts` export, re-exported from `src/index.ts`                                                                                                                                                                                                                                                                                                                                      | `ios/ExpoIapModule.swift` `AsyncFunction`, `android/.../ExpoIapModule.kt`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Not required (flat exports)                                                                                            | `src/modules/__tests__/*.test.ts`                                                                                                                                                                                                                                |
+| **flutter_inapp_purchase** | `lib/types.dart` (generated)                                        | getter on `FlutterInappPurchase` in `lib/flutter_inapp_purchase.dart`                                                                                                                                                                                                                                                                                                                                            | `case "<name>":` in `ios/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift` and `macos/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift`, Android plugin `onMethodCall`                                                                                                                                                                                                                                                                                                                                                   | `queryHandlers` / `mutationHandlers` / `subscriptionHandlers` bundles near the bottom of `flutter_inapp_purchase.dart` | Mock + test in `test/ios_methods_test.dart` (and the `errors_unit_test.dart` error-mapping test)                                                                                                                                                                 |
+| **kmp-iap**                | `library/src/commonMain/.../openiap/Types.kt` (generated interface) | exposed via `KmpInAppPurchase` / `kmpIapInstance`                                                                                                                                                                                                                                                                                                                                                                | `library/src/iosMain/.../InAppPurchaseIOS.kt` — must call `openIapModule.<name>WithCompletion { ... }`, **never** `throw UnsupportedOperationException`                                                                                                                                                                                                                                                                                                                                                                                                                                              | Not required (interface dispatch)                                                                                      | `library/src/commonTest/` if testable cross-platform                                                                                                                                                                                                             |
+| **godot-iap**              | `addons/godot-iap/types.gd` (generated)                             | public `snake_case` function in `addons/godot-iap/godot_iap.gd`                                                                                                                                                                                                                                                                                                                                                  | `ios-gdextension/Sources/GodotIap/GodotIap.swift` (iOS), `android/src/main/java/.../GodotIap.java` (Android)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Not required                                                                                                           | Manual testing — no automated test suite yet                                                                                                                                                                                                                     |
 | **maui-iap**               | `src/OpenIap.Maui/Types.cs` (generated)                             | `OpenIap.QueryResolver` / `MutationResolver` interfaces in `Types.cs`; `IOpenIap` adds the listener-stream contract; static facade is `OpenIap.Maui.OpenIapClient` (`OpenIap.Maui.Iap` remains as a legacy shim); IAPKit helpers mirror TypeScript via `OpenIapClient.KitApi(...)`, `OpenIapClient.ConnectWebhookStream(...)`, `OpenIapClient.ParseWebhookEventData(...)`, and `OpenIapClient.WebhookEventTypes` | Android: `OpenIapMauiModule.kt` in `libraries/maui-iap/android/openiap/` (JSON-shaped Java facade over `packages/google`), bound by `OpenIap.Maui.Bindings.Android.csproj`, consumed by `Platforms/Android/OpenIapAndroid.cs`. Google Billing / Play Services / Gson / AndroidX / Kotlin dependencies must stay NuGet `PackageReference`s, not fat-bundled AARs. iOS / macCatalyst: existing `OpenIapModule+ObjC.swift` bridge in `packages/apple`, bound by hand-written `OpenIap.Maui.Bindings.iOS/ApiDefinition.cs`, consumed by `Platforms/iOS/OpenIapIOS.cs` (+ subclass `OpenIapMacCatalyst`). | Not required (interface dispatch)                                                                                      | Example app `libraries/maui-iap/example/OpenIap.Maui.Example` builds for net9.0-android / net9.0-ios / net9.0-maccatalyst; package CI builds net9/net10 shared, Android, iOS, and macCatalyst TFMs (manual device testing for purchase flow); no xUnit tests yet |
 
 ### Platform suffix rule (who needs what)
@@ -1060,21 +1068,26 @@ The Google package supports **two build flavors**:
 
 | Flavor  | Billing Library               | Version                    |
 | ------- | ----------------------------- | -------------------------- |
-| Play    | Google Play Billing           | 8.3.0                      |
-| Horizon | horizon-billing-compatibility | 1.1.1 (GPB 7.0 compatible) |
+| Play    | Google Play Billing           | 9.1.0                      |
+| Horizon | horizon-billing-compatibility | 2.0.0 (GPB 7.0 compatible) |
 
-**CRITICAL**: Horizon SDK implements **Billing 7.0 API**, not 8.x. When writing shared code in `src/main/`:
+**CRITICAL**: Horizon SDK implements **Billing 7.0 API**, not 8.x/9.x. When writing shared code in `src/main/`:
 
-**Safe APIs (exist in both 7.0 and 8.x):**
+**Safe APIs (exist in both 7.0 and 9.x):**
 
 - `queryProductDetailsAsync()`, `launchBillingFlow()`
 - `acknowledgePurchase()`, `consumeAsync()`, `queryPurchasesAsync()`
 
-**DO NOT use in shared code (8.x only):**
+**DO NOT use in shared code (8.x/9.x only):**
 
 - `enableAutoServiceReconnection()`
 - Product-level status codes
 - One-time products with multiple offers
+- Suspended-subscription queries and product-level replacement parameters
+- Billing Programs APIs, including External Payments and Billing Choice
+
+Keep those APIs in `src/play/`. Billing Choice information, dialogs, choice
+screen types, and developer-provided billing fields require Play Billing 9.1.0.
 
 ### Horizon-Specific APIs
 
@@ -1535,6 +1548,25 @@ Framework implementation listings must be derived from
 
 Release notes are located at `packages/docs/src/pages/docs/updates/releases.tsx`.
 
+### Package-specific grouping for shared releases
+
+The docs release page is the canonical release-note SSOT, including when many
+packages ship together. To satisfy the package-specific changelog requirement
+from issue #206 without duplicating release history across package-local files:
+
+- Audit the full requested commit range inclusively and include the current PR
+  diff before drafting the note.
+- Group user-visible changes by affected platform package or framework library:
+  Google, Apple, IAPKit, React Native, Expo, Flutter, Godot, KMP, and MAUI.
+- Omit packages with no user-visible change and keep each remaining group to the
+  smallest set of useful upgrade notes.
+- Do not replace package-specific behavior with a generic "framework parity"
+  bullet when wrappers have different setup, runtime, or compatibility details.
+- Exclude version-only commits, generated-file churn, and CI mechanics unless
+  they change how users install, build, or validate the release.
+- Keep package-local changelogs as pointers to this page and GitHub Releases,
+  except where a package registry requires generated inline history.
+
 ### Adding New Release Notes
 
 1. Add new entry at the **top** of the `allNotes` array
@@ -1853,13 +1885,16 @@ linking it. This prevents stale Package Releases tables such as documenting
 
 ### openiap-versions.json
 
-**CRITICAL: NEVER manually edit `openiap-versions.json`**
+**CRITICAL: NEVER manually edit the `google` or `apple` fields in
+`openiap-versions.json`.**
 
-This file is automatically managed by CI/CD workflows during releases:
+Version ownership is split:
 
 - Apple releases update `apple` version
 - Google releases update `google` version
-- GQL releases update `spec` version
+- The shared spec can be bumped directly in a feature PR when the maintainer
+  explicitly requests the target version. Update both `spec` and
+  `packages/gql/package.json`, then run `./scripts/sync-versions.sh`.
 - Deploy script (`npm run deploy`) uses the current `spec` version by default,
   and updates `spec` only when an explicit version is passed
 
@@ -1869,15 +1904,20 @@ The manifest is only for the shared spec and native platform packages:
 `kmp-iap`, `maui-iap`) must stay in each library's own package metadata and
 release workflow, not as extra keys in `openiap-versions.json`.
 
-Manual edits will cause version conflicts and deployment issues. Always use the GitHub Actions workflows or deploy script to update versions.
+Manual Google or Apple edits will cause version conflicts and deployment
+issues. Use their GitHub Actions workflows. A direct spec edit is the explicit
+exception above.
 
 **Why this matters:** If a feature PR sets `apple: "2.1.1"` manually, and then CI auto-bumps on release, CI sees "current is 2.1.1" and bumps to 2.1.2 — skipping 2.1.1 entirely. The published tag becomes 2.1.2 with no 2.1.1 ever existing.
 
-**Rule:** Feature PRs must NEVER touch version fields in `openiap-versions.json`. Version bumps happen only via:
+**Rule:** Feature PRs must never touch `google` or `apple`. Version bumps happen
+via:
 
 1. Release workflows (Apple Release, Google Release)
-2. Deploy script (`npm run deploy`, optionally `npm run deploy <version>`)
-3. CI auto-bump after merge
+2. A maintainer-requested direct `spec` bump paired with
+   `packages/gql/package.json`
+3. Deploy script (`npm run deploy`, optionally `npm run deploy <version>`)
+4. CI auto-bump after merge where configured
 
 
 ---
@@ -2468,7 +2508,7 @@ cd ../flutter_inapp_purchase && flutter analyze
 **Horizon flavor (do NOT attempt)**
 
 - The Horizon flavor's `addSubscriptionBillingIssueListener` is a documented no-op. Verified by
-  `SubscriptionBillingIssueHorizonNoOpTest` (Robolectric, runs on CI). There is no sandbox path on Horizon because the Billing Compatibility SDK 1.1.1 targets Play Billing 7.0 which does not expose `Purchase.isSuspended`.
+  `SubscriptionBillingIssueHorizonNoOpTest` (Robolectric, runs on CI). There is no sandbox path on Horizon because the Billing Compatibility SDK 2.0.0 targets Play Billing 7.0 which does not expose `Purchase.isSuspended`.
 
 ---
 
@@ -2885,7 +2925,7 @@ await endConnection();
 
 # Google Play Billing Library API Reference
 
-> Reference documentation for Google Play Billing Library 8.x
+> Reference documentation for Google Play Billing Library 9.x
 > Adapt all patterns to match OpenIAP internal conventions.
 
 ## Overview
@@ -2901,8 +2941,15 @@ Google Play Billing Library enables in-app purchases and subscriptions on Androi
 | 8.2 | 2025-12-09 | Billing Programs API (external content links, external offers), deprecates old External Offers API |
 | 8.2.1 | 2025-12-15 | Bug fix for `isBillingProgramAvailableAsync()` and `createBillingProgramReportingDetailsAsync()` |
 | 8.3 | 2025-12-23 | External Payments program (Japan only), developer billing options |
+| 9.0 | 2026-05-19 | Removes older deprecated APIs, reclassifies blocked Play Store activity errors, adds richer sub-response handling, target SDK 35 |
+| 9.1 | 2026-06-18 | Billing Choice APIs: `getBillingChoiceInfoAsync()`, `showBillingProgramInformationDialog()`, choice-screen details |
 
-**Current Version**: 8.3.0 (as of April 2026)
+**Current Version**: 9.1.0 (as of July 2026)
+
+> **OpenIAP audit note**: `packages/google` is pinned to Play Billing 9.1.0.
+> Billing Choice APIs are implemented only in the Play flavor; Horizon and
+> Amazon variants keep unsupported/default behavior for APIs that do not exist
+> in their store SDKs.
 
 ## Core Classes
 
@@ -2913,7 +2960,11 @@ The main interface for communicating with Google Play Billing.
 ```kotlin
 val billingClient = BillingClient.newBuilder(context)
     .setListener(purchasesUpdatedListener)
-    .enablePendingPurchases()
+    .enablePendingPurchases(
+        PendingPurchasesParams.newBuilder()
+            .enableOneTimeProducts()
+            .build()
+    )
     // New in 8.0: Auto-reconnect on service disconnect
     .enableAutoServiceReconnection()
     .build()
@@ -2930,7 +2981,8 @@ BillingClient.newBuilder(context)
 
 When enabled, the library automatically re-establishes the connection if an API call is made while disconnected. This reduces `SERVICE_DISCONNECTED` errors.
 
-> **OpenIAP Note**: Auto-reconnection is **always enabled** internally since OpenIAP uses Billing Library 8.3.0+. No configuration needed.
+> **OpenIAP Note**: Auto-reconnection is enabled internally when the Play
+> Billing version exposes the API. No OpenIAP app-level configuration is needed.
 
 ### Connection Management
 
@@ -3216,11 +3268,11 @@ billingClient.queryPurchasesAsync(params) { billingResult, purchases ->
 
 ```kotlin
 val result = billingClient.launchBillingFlow(activity, params)
-when (result.subResponseCode) {
-    BillingResult.SUB_RESPONSE_CODE_INSUFFICIENT_FUNDS -> {
+when (result.onPurchasesUpdatedSubResponseCode) {
+    BillingClient.OnPurchasesUpdatedSubResponseCode.PAYMENT_DECLINED_DUE_TO_INSUFFICIENT_FUNDS -> {
         // User's payment method has insufficient funds
     }
-    BillingResult.SUB_RESPONSE_CODE_USER_INELIGIBLE -> {
+    BillingClient.OnPurchasesUpdatedSubResponseCode.USER_INELIGIBLE -> {
         // User doesn't meet offer eligibility requirements
     }
 }
@@ -3231,6 +3283,11 @@ when (result.subResponseCode) {
 | `PAYMENT_DECLINED_DUE_TO_INSUFFICIENT_FUNDS` | User's payment method has insufficient funds |
 | `USER_INELIGIBLE` | User doesn't meet subscription offer eligibility |
 | `NO_APPLICABLE_SUB_RESPONSE_CODE` | No specific sub-code applies |
+
+PBL 9 makes sub-response-code handling part of the migration checklist. It also
+changes blocked Play Store app cases from generic `ERROR` to
+`BILLING_UNAVAILABLE`, with a debug message explaining that Play Store is
+blocked.
 
 ## Subscription Product Replacement (8.1+)
 
@@ -3270,10 +3327,15 @@ Billing Library 8.3 (December 2025) added support for the External Payments prog
 // During BillingClient setup
 val billingClient = BillingClient.newBuilder(context)
     .setListener(purchasesUpdatedListener)
-    .enablePendingPurchases()
+    .enablePendingPurchases(
+        PendingPurchasesParams.newBuilder()
+            .enableOneTimeProducts()
+            .build()
+    )
     .enableAutoServiceReconnection()
-    .enableDeveloperBillingOption(
-        DeveloperBillingOptionParams.newBuilder()
+    .enableBillingProgram(
+        EnableBillingProgramParams.newBuilder()
+            .setBillingProgram(BillingClient.BillingProgram.EXTERNAL_PAYMENTS)
             .setDeveloperProvidedBillingListener(developerBillingListener)
             .build()
     )
@@ -3283,10 +3345,12 @@ val billingClient = BillingClient.newBuilder(context)
 ### DeveloperProvidedBillingListener
 
 ```kotlin
-val developerBillingListener = DeveloperProvidedBillingListener {
-    userInitiatedBillingDetails ->
-    // User chose the developer-provided billing flow.
-    // Launch your external payment UI here.
+val developerBillingListener = DeveloperProvidedBillingListener { details ->
+    // All nullable fields depend on the selected program and flow.
+    val token: String? = details.externalTransactionToken
+    val linkUri: String? = details.linkUri
+    val originalTransactionId: String? = details.originalExternalTransactionId
+    val products: List<DeveloperProvidedBillingDetails.Product> = details.products
 }
 ```
 
@@ -3295,7 +3359,15 @@ val developerBillingListener = DeveloperProvidedBillingListener {
 ```kotlin
 val params = BillingFlowParams.newBuilder()
     .setProductDetailsParamsList(listOf(productDetailsParams))
-    .setBillingOption(BillingOption.EXTERNAL_PAYMENTS)  // 8.3+
+    .enableDeveloperBillingOption(
+        DeveloperBillingOptionParams.newBuilder()
+            .setBillingProgram(BillingClient.BillingProgram.EXTERNAL_PAYMENTS)
+            .setLinkUri(Uri.parse("https://example.com/checkout"))
+            .setLaunchMode(
+                DeveloperBillingOptionParams.LaunchMode.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP
+            )
+            .build()
+    )
     .build()
 
 billingClient.launchBillingFlow(activity, params)
@@ -3305,22 +3377,163 @@ billingClient.launchBillingFlow(activity, params)
 
 | Type | Purpose |
 |------|---------|
-| `DeveloperBillingOptionParams` | Configures developer-billing support on `BillingClient` |
+| `DeveloperBillingOptionParams` | Configures developer billing on `BillingFlowParams` |
 | `DeveloperProvidedBillingListener` | Callback when user picks developer-provided billing |
-| `DeveloperProvidedBillingDetails` | Billing details to report back for reconciliation |
-| `BillingOption.EXTERNAL_PAYMENTS` | Purchase-flow flag requesting external payments |
+| `DeveloperProvidedBillingDetails` | Nullable token/link/original-ID fields plus selected products |
+| `BillingClient.BillingProgram.EXTERNAL_PAYMENTS` | External Payments program constant |
 
-> **OpenIAP Note**: Exposed through the Android-specific `AlternativeBilling*` surface in OpenIAP. Enrolment with Google Play's External Payments program is required; availability is currently restricted to Japan. The Horizon flavor does NOT implement this.
+> **OpenIAP Note**: Exposed through `enableBillingProgramAndroid`,
+> `developerBillingOption`, and the developer-provided billing listener.
+> Enrolment with Google Play's External Payments program is required;
+> availability is currently restricted to Japan. Horizon and Amazon do not
+> implement this Google Play program.
+
+## Billing Choice (9.1+)
+
+Billing Library 9.1 adds APIs for markets and programs where either Google Play
+or the app renders a billing choice screen.
+
+### Integration Scenarios
+
+| Scenario | Choice renderer | Developer payment | BillingClient setup | Required flow |
+|----------|-----------------|-------------------|---------------------|---------------|
+| 1A | Google | In app | `EnableBillingProgramParams` with `DeveloperProvidedBillingListener` | Pass a minimal `DeveloperBillingOptionParams`; Play returns the token through the listener |
+| 1B | Developer | In app | `EnableBillingProgramParams` without the listener | Fetch choice info, create an `IN_APP` token, show the information dialog, then render the choice UI |
+| 2A | Google | External link | `EnableBillingProgramParams` with `DeveloperProvidedBillingListener` | Create an `EXTERNAL_LINK` token and pass it with the URI through `DeveloperBillingOptionParams` |
+| 2B | Developer | External link | `EnableBillingProgramParams` without the listener | Fetch choice info, create an `EXTERNAL_LINK` token, render the choice UI, then pass the token to `launchExternalLink` |
+
+The setup must match `choiceScreenType` from Play Console. Registering the
+listener in a developer-rendered integration is not equivalent to omitting it.
+
+| API / Type | Purpose |
+|------------|---------|
+| `BillingClient.getBillingChoiceInfoAsync()` | Fetches billing choices available to the current user |
+| `BillingChoiceInfo` | Contains choice-screen data, including image URLs and loyalty details |
+| `GetBillingChoiceInfoParams` | Configures the billing-choice info request |
+| `BillingClient.showBillingProgramInformationDialog()` | Shows an information dialog for a billing program |
+| `BillingProgramInformationDialogParams` | Configures the information dialog |
+| `LaunchExternalLinkParams.setExternalTransactionToken()` | Supplies the pre-generated token for a developer-rendered external-link flow |
+| `BillingProgramAvailabilityDetails.BillingChoiceAvailabilityDetails` | Returns choice-screen type and external-link availability |
+| `DeveloperBillingOptionParams` | Selects in-app or external-link developer billing during purchase |
+| `BillingProgramReportingDetailsParams.DeveloperBillingType` | Distinguishes `IN_APP` and `EXTERNAL_LINK` reporting |
+
+### Developer Billing Purchase Options
+
+Only `billingProgram` is required for an in-app Billing Choice flow:
+
+```kotlin
+val inAppChoice = DeveloperBillingOptionParams.newBuilder()
+    .setBillingProgram(BillingClient.BillingProgram.BILLING_CHOICE)
+    .build()
+```
+
+For a Google-rendered external-link flow, also set the URI, launch mode, and the
+pre-generated `EXTERNAL_LINK` transaction token:
+
+```kotlin
+val externalLinkChoice = DeveloperBillingOptionParams.newBuilder()
+    .setBillingProgram(BillingClient.BillingProgram.BILLING_CHOICE)
+    .setLinkUri(Uri.parse("https://example.com/checkout"))
+    .setLaunchMode(DeveloperBillingOptionParams.LaunchMode.CALLER_WILL_LAUNCH_LINK)
+    .setExternalTransactionToken(preGeneratedToken)
+    .build()
+```
+
+### Developer-Rendered Choice Information
+
+```kotlin
+val params = GetBillingChoiceInfoParams.newBuilder()
+    .setBillingProgram(BillingClient.BillingProgram.BILLING_CHOICE)
+    .setPlayBillingChoiceImageLayout(
+        GetBillingChoiceInfoParams.ImageLayout.RECTANGULAR_FOUR_BY_ONE
+    )
+    .setUserLocale(Locale.forLanguageTag("en-US"))
+    .build()
+
+billingClient.getBillingChoiceInfoAsync(params) { result, info ->
+    if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+        val imageUrl = info.playBillingChoiceImageUrl
+        val loyaltyText = info.playBillingLoyaltyInfo
+    }
+}
+```
+
+Supported image layouts are `RECTANGULAR_FOUR_BY_ONE`,
+`RECTANGULAR_THREE_BY_ONE`, and `RECTANGULAR_TWO_BY_TWO`.
+
+### Availability Details
+
+For `BILLING_CHOICE`, `BillingProgramAvailabilityDetails` can include:
+
+| Field | Meaning |
+|-------|---------|
+| `choiceScreenType` | `UNSPECIFIED`, `DEVELOPER_RENDERED`, or `GOOGLE_RENDERED` |
+| `isExternalLinkAvailable` | Whether the user is eligible for an external-link option |
+
+### Information Dialog
+
+For developer-rendered in-app choice (scenario 1B), call
+`showBillingProgramInformationDialog()` before showing the app's choice UI. It
+is a UI-thread API and returns through its listener; it does not return a
+synchronous `BillingResult`:
+
+```kotlin
+val params = BillingProgramInformationDialogParams.newBuilder()
+    .setBillingProgram(BillingClient.BillingProgram.BILLING_CHOICE)
+    .setExternalTransactionToken(externalTransactionToken)
+    .build()
+
+billingClient.showBillingProgramInformationDialog(activity, params) { result ->
+    // Continue according to result.responseCode.
+}
+```
+
+### Developer-Billed Subscription Replacement
+
+Use the original external transaction ID instead of an old Play purchase token
+when replacing a subscription bought through developer billing:
+
+```kotlin
+val updateParams = BillingFlowParams.SubscriptionUpdateParams.newBuilder()
+    .setOriginalExternalTransactionId(originalExternalTransactionId)
+    .build()
+```
+
+> **OpenIAP Note**: OpenIAP exposes these through `BILLING_CHOICE`,
+> `getBillingChoiceInfoAndroid`, `showBillingProgramInformationDialogAndroid`,
+> `launchExternalLinkAndroid`, `developerBillingOption`,
+> `originalExternalTransactionId`, and the expanded developer-provided billing
+> callback. Set `InitConnectionConfig.billingChoiceScreenTypeAndroid` to
+> `GOOGLE_RENDERED` (default) or `DEVELOPER_RENDERED` so OpenIAP includes or
+> omits the listener correctly. Play-only APIs return unsupported/default
+> behavior on Horizon and Amazon.
+
+## In-App Billing Messages (4.1+)
+
+`showInAppMessages()` must run on the UI thread. It returns a synchronous
+`BillingResult` for submission errors and reports the user interaction through
+`InAppMessageResponseListener`.
+
+## PBL 9 Migration Guardrails
+
+- Replace removed APIs: `SkuDetails`, `SkuDetailsParams`, `SkuDetailsResponseListener`, `BillingClient.SkuType`, `querySkuDetailsAsync()`, no-argument `enablePendingPurchases()`, and string `queryPurchasesAsync()`.
+- Use `ProductDetails`, `QueryProductDetailsParams`, `BillingClient.ProductType`, parameterized `enablePendingPurchases(PendingPurchasesParams)`, and `queryPurchasesAsync(QueryPurchasesParams, ...)`.
+- Handle `DeveloperProvidedBillingDetails.getExternalTransactionToken()`,
+  `getLinkUri()`, and `getOriginalExternalTransactionId()` as nullable.
+- Preserve every `DeveloperProvidedBillingDetails.Product` (`id`, `type`, and
+  nullable `offerToken`) from the callback.
+- Keep Horizon shared code on the Billing 7.0-compatible API subset; put PBL 8/9 code in Play-only sources or behind reflection.
 
 ## Best Practices
 
 1. **Always acknowledge purchases** within 3 days or they will be refunded
 2. **Verify purchases server-side** using Google Play Developer API
 3. **Handle pending purchases** for payment methods that require additional steps
-4. **Auto-reconnect is enabled by default** in OpenIAP (8.0+)
+4. **Auto-reconnect is enabled by default** in OpenIAP when available (8.0+)
 5. **Check product status codes** (8.0+) to understand why products weren't fetched
 6. **Check isSuspended** (8.1+) before granting entitlements
-7. **Cache product details** to avoid repeated queries
+7. **Distinguish in-app and external-link Billing Choice** when configuring and reporting developer billing
+8. **Cache product details** to avoid repeated queries
 
 
 ---
@@ -3343,17 +3556,31 @@ Meta Horizon provides IAP functionality for Quest VR applications. There are two
 
 | Library | Version | Compatible With |
 |---------|---------|-----------------|
-| horizon-billing-compatibility | **1.1.1** (latest) | Google Play Billing **7.0** API |
-| Google Play Billing (Play flavor) | **8.3.0** (latest) | N/A |
+| horizon-billing-compatibility | **2.0.0** (latest) | Google Play Billing **7.0** API |
+| Google Play Billing (upstream latest) | **9.1.0** | N/A |
+| Google Play Billing (OpenIAP Play flavor) | **9.1.0** | N/A |
 | react-native-iap | v14+ | Billing 7.0+, RN 0.79+, Kotlin 2.0+ |
 | expo-iap | latest | Billing 7.0+, Kotlin 2.0+ |
 
-**CRITICAL**: Horizon Billing Compatibility SDK implements Google Play Billing **7.0** API surface, NOT 8.x.
+**CRITICAL**: Horizon Billing Compatibility SDK implements Google Play Billing **7.0** API surface, NOT 8.x or 9.x.
 
 When writing shared code for both Play and Horizon flavors:
-- Use only APIs that exist in **both** Billing 7.0 and 8.x
-- Horizon SDK does NOT support Billing 8.x features like auto-reconnect, product status codes, or `includeSuspended`
+- Use only APIs that exist in **both** Billing 7.0 and the Play-flavor Billing version
+- Horizon SDK does NOT support Billing 8.x/9.x features like auto-reconnect, product status codes, `includeSuspended`, or Billing Choice
 - OpenIAP handles this automatically with flavor-specific implementations
+
+### Latest Horizon Billing Release
+
+Meta released Horizon Billing Compatibility Library **2.0.0** on 2026-01-06.
+The release notes call out a fix for querying subscription purchases with a
+single billing plan and dependencies on Horizon Platform SDK Kotlin
+`iap-kotlin` 0.2.0 and `core-kotlin` 0.2.0.
+
+OpenIAP uses `horizon-billing-compatibility` 2.0.0 and its transitive Horizon
+Platform Kotlin SDK modules. The Horizon flavor is compiled and tested
+separately, including subscription-purchase restore coverage. Play Billing
+9.1.0 features remain Play-flavor-only because Horizon compatibility still
+targets the Billing 7.0 API surface.
 
 ### APIs Available in Both (Safe to use in shared code)
 
@@ -3375,6 +3602,12 @@ When writing shared code for both Play and Horizon flavors:
 - `SubscriptionProductReplacementParams` (8.1+)
 - Billing Programs API (`isBillingProgramAvailableAsync`, etc.) (8.2+)
 - External Payments / Developer Billing Options (8.3+)
+
+### APIs Only in Billing 9.x (DO NOT use in shared code)
+
+- Billing Choice information APIs (`getBillingChoiceInfoAsync`, `BillingChoiceInfo`, `ChoiceScreenType`)
+- Billing-program information dialog APIs (`showBillingProgramInformationDialog`)
+- PBL 9 migration assumptions around APIs removed from the Billing 7.0 surface
 
 ## Billing Compatibility SDK
 
@@ -3409,6 +3642,10 @@ import com.meta.horizon.billingclient.api.*
 
 ### Important Notes
 
+- Horizon Billing Compatibility 2.x reads the app id from Android manifest
+  meta-data key `com.meta.horizon.platform.HORIZON_APP_ID`. The older
+  `com.meta.horizon.platform.ovr.OCULUS_APP_ID` key is deprecated; OpenIAP also
+  accepts it and other historical keys only for migration compatibility.
 - Keep SKUs on Meta Horizon Developer Center same as Google Play Console product IDs
 - Only call `consumeAsync()` on consumable items
 - `acknowledgePurchase()` is no-op - no acknowledgement requirements
@@ -4024,7 +4261,7 @@ export default withIAPContext(Store);
 
 This document provides external API reference for Apple's StoreKit 2 framework.
 
-## iOS 18+ Features
+## iOS 18+ / 26+ Features
 
 | Feature | iOS Version | Description |
 |---------|-------------|-------------|
@@ -4043,6 +4280,11 @@ This document provides external API reference for Apple's StoreKit 2 framework.
 | JWS promotional offers | WWDC 2025 | New `promotionalOffer` purchase option with JWS format |
 | `introductoryOfferEligibility` | WWDC 2025 | Set eligibility via purchase option |
 | `SubscriptionStatus` by Transaction ID | WWDC 2025 | `status(for: transactionID:)` |
+| Monthly subscriptions with a 12-month commitment | iOS 26.4 / 26.5 SDK | Monthly billing option for annual auto-renewable subscriptions |
+| Group purchases and volume purchasing | WWDC 2026 | Multi-seat auto-renewable subscriptions through StoreKit 2 and Apple Business / School Manager |
+| Retention Messaging | WWDC 2026 | Cancellation-flow messaging and offers, including real-time server decisioning |
+| Retention offer type | WWDC 2026 | Signed transaction / renewal info can report offer type `5` for retention offers |
+| Offer codes for all IAP types | 2026 | Offer codes expand beyond auto-renewable subscriptions; IAP promo-code creation ends March 26, 2026 |
 
 ### WWDC 2025 Updates
 
@@ -4050,6 +4292,14 @@ This document provides external API reference for Apple's StoreKit 2 framework.
 - **JWS-based promotional offers**: New `promotionalOffer` purchase option with compact JWS string.
 - **Introductory offer eligibility**: Override eligibility check with `introductoryOfferEligibility` purchase option.
 - Both new purchase options are back-deployed to iOS 15.
+
+### WWDC 2026 Updates
+
+- **Monthly subscriptions with a 12-month commitment**: iOS 26.5 SDK adds a monthly billing plan for one-year auto-renewable subscriptions. Customers can subscribe on iOS, iPadOS, macOS, tvOS, and visionOS 26.4+.
+- **Group purchases and volume purchasing**: Auto-renewable subscriptions using StoreKit 2 can be sold to groups and organizations. In-app group purchases pass a requested seat count into the StoreKit purchase flow; Apple Business Manager and Apple School Manager handle volume purchasing.
+- **Volume pricing**: App Store Connect can configure up to five seat-count price bands for larger subscription purchases.
+- **Retention Messaging**: App Store Connect can show cancellation-flow retention messages and offers. Real-time Retention Messaging adds a server-to-server decision point and supports a switch-plan view for monthly subscriptions with a 12-month commitment.
+- **Offer-code expansion**: Offer codes now support consumables, non-consumables, non-renewing subscriptions, and broader auto-renewable subscription scenarios. Starting March 26, 2026, App Store Connect no longer creates new promo codes for In-App Purchases.
 
 ## appAccountToken
 
@@ -4331,6 +4581,43 @@ if let advancedInfo = product.advancedCommerceInfo {
     // Handle large catalog monetization
 }
 ```
+
+## Monthly Subscriptions With 12-Month Commitment (iOS 26.4+)
+
+This billing plan lets customers pay monthly while committing to an annual
+auto-renewable subscription. Apps need to compile with the iOS 26.5 SDK to
+merchandise the plan, and customers can purchase on Apple platforms running
+26.4 or later.
+
+```swift
+let result = try await product.purchase(options: [
+    .billingPlanType(.monthly)
+])
+```
+
+> **OpenIAP Note**: The schema represents this with
+> `SubscriptionBillingPlanTypeIOS` and `RequestSubscriptionIOSProps.billingPlanType`.
+
+## Group Purchases and Volume Purchasing (WWDC 2026)
+
+StoreKit 2 auto-renewable subscriptions can be sold to multiple seats for
+groups or organizations. Volume purchasing is handled by Apple Business Manager
+and Apple School Manager. For in-app group purchases, the app starts a StoreKit
+purchase with the requested seat count, then Apple can manage invitation links
+and seat assignment unless the app integrates custom group management.
+
+> **OpenIAP gap**: No public OpenIAP request field exists yet for group-purchase
+> seat count or StoreKit group-management identifiers.
+
+## Retention Messaging (WWDC 2026)
+
+Retention Messaging lets App Store Connect present messages and optional offers
+when a subscriber is about to cancel. Real-time Retention Messaging can call a
+server endpoint so the developer can choose the message, offer, or switch-plan
+view at cancellation time.
+
+Signed transaction and renewal information can include a retention offer as
+offer type `5`.
 
 ## StoreKit Message API (iOS 18+)
 

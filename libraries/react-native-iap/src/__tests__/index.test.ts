@@ -57,9 +57,22 @@ const mockIap: any = {
     billingProgram: 'external-offer',
     isAvailable: true,
   })),
+  getBillingChoiceInfoAndroid: jest.fn(async () => ({
+    playBillingChoiceImageUrl: 'https://play.google.com/billing-choice.png',
+    playBillingLoyaltyInfo: null,
+  })),
   createBillingProgramReportingDetailsAndroid: jest.fn(async () => ({
     billingProgram: 'external-offer',
     externalTransactionToken: 'mock-token-123',
+  })),
+  showBillingProgramInformationDialogAndroid: jest.fn(async () => ({
+    responseCode: 0,
+    debugMessage: null,
+    subResponseCode: 'no-applicable-sub-response-code',
+  })),
+  showInAppMessagesAndroid: jest.fn(async () => ({
+    responseCode: 'no-action-needed',
+    purchaseToken: null,
   })),
   launchExternalLinkAndroid: jest.fn(async () => true),
 };
@@ -399,6 +412,18 @@ describe('Public API (src/index.ts)', () => {
       await expect(IAP.endConnection()).resolves.toBe(true);
       expect(mockIap.initConnection).toHaveBeenCalled();
       expect(mockIap.endConnection).toHaveBeenCalled();
+    });
+
+    it('passes developer-rendered Billing Choice config to native', async () => {
+      (Platform as any).OS = 'android';
+      const config = {
+        billingChoiceScreenTypeAndroid: 'developer-rendered',
+        enableBillingProgramAndroid: 'billing-choice',
+      } as const;
+
+      await IAP.initConnection(config);
+
+      expect(mockIap.initConnection).toHaveBeenCalledWith(config);
     });
 
     it('listeners work after endConnection → initConnection reconnection', async () => {
@@ -746,6 +771,56 @@ describe('Public API (src/index.ts)', () => {
       expect(
         lastCallArgs.android.subscriptionProductReplacementParams,
       ).toBeUndefined();
+    });
+
+    it('Android forwards minimal in-app Billing Choice options', async () => {
+      (Platform as any).OS = 'android';
+      await IAP.requestPurchase({
+        request: {
+          google: {
+            skus: ['premium'],
+            developerBillingOption: {
+              billingProgram: 'billing-choice',
+            },
+          },
+        },
+        type: 'in-app',
+      });
+
+      const [lastCallArgs] = mockIap.requestPurchase.mock.lastCall;
+      expect(lastCallArgs.android.developerBillingOption).toEqual({
+        billingProgram: 'billing-choice',
+      });
+    });
+
+    it('Android forwards Billing Choice subscription replacement fields', async () => {
+      (Platform as any).OS = 'android';
+      await IAP.requestPurchase({
+        request: {
+          google: {
+            skus: ['premium_monthly'],
+            originalExternalTransactionId: 'original-external-id',
+            developerBillingOption: {
+              billingProgram: 'billing-choice',
+              externalTransactionToken: 'pre-generated-token',
+              launchMode: 'caller-will-launch-link',
+              linkUri: 'https://example.com/checkout',
+            },
+          },
+        },
+        type: 'subs',
+      });
+
+      const [lastCallArgs] = mockIap.requestPurchase.mock.lastCall;
+      expect(lastCallArgs.android.originalExternalTransactionId).toBe(
+        'original-external-id',
+      );
+      expect(lastCallArgs.android.developerBillingOption).toEqual({
+        billingProgram: 'billing-choice',
+        externalTransactionToken: 'pre-generated-token',
+        launchMode: 'caller-will-launch-link',
+        linkUri: 'https://example.com/checkout',
+      });
     });
 
     it('Android subs supports all replacement modes', async () => {
@@ -2057,6 +2132,14 @@ describe('Public API (src/index.ts)', () => {
         );
       });
 
+      it('should support billing-choice program (9.1.0+)', () => {
+        (Platform as any).OS = 'android';
+        IAP.enableBillingProgramAndroid('billing-choice');
+        expect(mockIap.enableBillingProgramAndroid).toHaveBeenCalledWith(
+          'billing-choice',
+        );
+      });
+
       it('should warn and return early on non-Android', () => {
         (Platform as any).OS = 'ios';
         IAP.enableBillingProgramAndroid('external-offer');
@@ -2152,6 +2235,43 @@ describe('Public API (src/index.ts)', () => {
       });
     });
 
+    describe('getBillingChoiceInfoAndroid', () => {
+      it('should request Billing Choice info with defaults on Android', async () => {
+        (Platform as any).OS = 'android';
+        const result = await IAP.getBillingChoiceInfoAndroid({});
+
+        expect(mockIap.getBillingChoiceInfoAndroid).toHaveBeenCalledWith({
+          billingProgram: 'billing-choice',
+          playBillingChoiceImageLayout: 'rectangular-four-by-one',
+          userLocale: null,
+        });
+        expect(result.playBillingChoiceImageUrl).toBe(
+          'https://play.google.com/billing-choice.png',
+        );
+      });
+
+      it('should request Billing Choice info with defaults when params are omitted', async () => {
+        (Platform as any).OS = 'android';
+        const result = await (IAP.getBillingChoiceInfoAndroid as any)();
+
+        expect(mockIap.getBillingChoiceInfoAndroid).toHaveBeenCalledWith({
+          billingProgram: 'billing-choice',
+          playBillingChoiceImageLayout: 'rectangular-four-by-one',
+          userLocale: null,
+        });
+        expect(result.playBillingChoiceImageUrl).toBe(
+          'https://play.google.com/billing-choice.png',
+        );
+      });
+
+      it('should throw on non-Android', async () => {
+        (Platform as any).OS = 'ios';
+        await expect(IAP.getBillingChoiceInfoAndroid({})).rejects.toThrow(
+          'Billing Choice API is only supported on Android',
+        );
+      });
+    });
+
     describe('createBillingProgramReportingDetailsAndroid', () => {
       it('should return reporting details with token on Android', async () => {
         (Platform as any).OS = 'android';
@@ -2169,7 +2289,7 @@ describe('Public API (src/index.ts)', () => {
 
         expect(
           mockIap.createBillingProgramReportingDetailsAndroid,
-        ).toHaveBeenCalledWith('external-offer');
+        ).toHaveBeenCalledWith('external-offer', null);
         expect(result.billingProgram).toBe('external-offer');
         expect(result.externalTransactionToken).toBe('token-abc-123');
       });
@@ -2179,6 +2299,9 @@ describe('Public API (src/index.ts)', () => {
         await expect(
           IAP.createBillingProgramReportingDetailsAndroid('external-offer'),
         ).rejects.toThrow('Billing Programs API is only supported on Android');
+        expect(
+          mockIap.createBillingProgramReportingDetailsAndroid,
+        ).not.toHaveBeenCalled();
       });
 
       it('should handle native errors', async () => {
@@ -2208,6 +2331,81 @@ describe('Public API (src/index.ts)', () => {
         expect(result.billingProgram).toBe('external-content-link');
         expect(result.externalTransactionToken).toBe('content-token-456');
       });
+
+      it('should pass developerBillingType for Billing Choice reporting details', async () => {
+        (Platform as any).OS = 'android';
+        mockIap.createBillingProgramReportingDetailsAndroid.mockResolvedValueOnce(
+          {
+            billingProgram: 'billing-choice',
+            externalTransactionToken: 'choice-token-789',
+          },
+        );
+
+        const result = await IAP.createBillingProgramReportingDetailsAndroid(
+          'billing-choice',
+          'external-link',
+        );
+
+        expect(
+          mockIap.createBillingProgramReportingDetailsAndroid,
+        ).toHaveBeenCalledWith('billing-choice', 'external-link');
+        expect(result.billingProgram).toBe('billing-choice');
+      });
+    });
+
+    describe('showBillingProgramInformationDialogAndroid', () => {
+      it('should show Billing Choice information dialog with default program', async () => {
+        (Platform as any).OS = 'android';
+        const result =
+          await IAP.showBillingProgramInformationDialogAndroid({
+            externalTransactionToken: 'choice-token-123',
+          });
+
+        expect(
+          mockIap.showBillingProgramInformationDialogAndroid,
+        ).toHaveBeenCalledWith({
+          billingProgram: 'billing-choice',
+          externalTransactionToken: 'choice-token-123',
+        });
+        expect(result.responseCode).toBe(0);
+        expect(result.subResponseCode).toBe(
+          'no-applicable-sub-response-code',
+        );
+      });
+
+      it('should throw on non-Android', async () => {
+        (Platform as any).OS = 'ios';
+        await expect(
+          IAP.showBillingProgramInformationDialogAndroid({
+            externalTransactionToken: 'choice-token-123',
+          }),
+        ).rejects.toThrow('Billing Choice API is only supported on Android');
+        expect(
+          mockIap.showBillingProgramInformationDialogAndroid,
+        ).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('showInAppMessagesAndroid', () => {
+      it('should delegate to native in-app messages method', async () => {
+        (Platform as any).OS = 'android';
+        const result = await IAP.showInAppMessagesAndroid({
+          categories: ['transactional'],
+        });
+
+        expect(mockIap.showInAppMessagesAndroid).toHaveBeenCalledWith({
+          categories: ['transactional'],
+        });
+        expect(result.responseCode).toBe('no-action-needed');
+      });
+
+      it('should throw on non-Android', async () => {
+        (Platform as any).OS = 'ios';
+        await expect(
+          IAP.showInAppMessagesAndroid({categories: ['transactional']}),
+        ).rejects.toThrow('In-app messages are only supported on Android');
+        expect(mockIap.showInAppMessagesAndroid).not.toHaveBeenCalled();
+      });
     });
 
     describe('launchExternalLinkAndroid', () => {
@@ -2231,6 +2429,19 @@ describe('Public API (src/index.ts)', () => {
           linkUri: 'https://example.com/purchase',
         });
         expect(result).toBe(true);
+      });
+
+      it('forwards Billing Choice external transaction token', async () => {
+        (Platform as any).OS = 'android';
+        const params = {
+          ...defaultParams,
+          billingProgram: 'billing-choice' as const,
+          externalTransactionToken: 'external-token',
+        };
+
+        await IAP.launchExternalLinkAndroid(params);
+
+        expect(mockIap.launchExternalLinkAndroid).toHaveBeenCalledWith(params);
       });
 
       it('should return false when user declines', async () => {

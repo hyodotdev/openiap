@@ -403,8 +403,20 @@ describe('android configuration', () => {
             'meta-data': [
               {
                 $: {
-                  'android:name': 'com.meta.horizon.platform.ovr.OCULUS_APP_ID',
+                  'android:name': 'com.meta.horizon.platform.HORIZON_APP_ID',
                   'android:value': '123',
+                },
+              },
+              {
+                $: {
+                  'android:name': 'com.meta.horizon.platform.ovr.OCULUS_APP_ID',
+                  'android:value': 'legacy',
+                },
+              },
+              {
+                $: {
+                  'android:name': 'com.oculus.vr.APP_ID',
+                  'android:value': 'legacy',
                 },
               },
               {
@@ -440,7 +452,42 @@ describe('android configuration', () => {
     expect(manifest.manifest.application?.[0]?.['meta-data']).toEqual([
       {
         $: {
-          'android:name': 'com.meta.horizon.platform.ovr.OCULUS_APP_ID',
+          'android:name': 'com.meta.horizon.platform.HORIZON_APP_ID',
+          'android:value': '123',
+        },
+      },
+    ]);
+  });
+
+  it('migrates legacy Horizon App ID metadata to the canonical key', () => {
+    const manifest = {
+      manifest: {
+        application: [
+          {
+            'meta-data': [
+              {
+                $: {
+                  'android:name': 'com.meta.horizon.platform.ovr.OCULUS_APP_ID',
+                  'android:value': 'old',
+                },
+              },
+              {
+                $: {
+                  'android:name': 'com.oculus.vr.APP_ID',
+                  'android:value': 'old',
+                },
+              },
+            ],
+          },
+        ],
+      },
+    };
+
+    expect(syncHorizonAppIdMetaData(manifest, true, '123')).toBe('updated');
+    expect(manifest.manifest.application[0]!['meta-data']).toEqual([
+      {
+        $: {
+          'android:name': 'com.meta.horizon.platform.HORIZON_APP_ID',
           'android:value': '123',
         },
       },
@@ -473,7 +520,7 @@ describe('android configuration', () => {
       },
       {
         $: {
-          'android:name': 'com.meta.horizon.platform.ovr.OCULUS_APP_ID',
+          'android:name': 'com.meta.horizon.platform.HORIZON_APP_ID',
           'android:value': '123',
         },
       },
@@ -500,7 +547,7 @@ describe('local OpenIAP configuration', () => {
 
 describe('ios module selection', () => {
   const createConfig = (ios?: ExpoConfig['ios']): ExpoConfig =>
-    ({name: 'test-app', slug: 'test-app', ios}) as ExpoConfig;
+    ({name: 'test-app', slug: 'test-app', ios} as ExpoConfig);
 
   it('defaults to Expo IAP only when no options provided', () => {
     const result = resolveModuleSelection(createConfig(), undefined);

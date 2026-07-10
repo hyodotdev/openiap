@@ -21,8 +21,11 @@ import {
   acknowledgePurchaseAndroid,
   openRedeemOfferCodeAndroid,
   isBillingProgramAvailableAndroid,
+  getBillingChoiceInfoAndroid,
   launchExternalLinkAndroid,
   createBillingProgramReportingDetailsAndroid,
+  showBillingProgramInformationDialogAndroid,
+  showInAppMessagesAndroid,
 } from '../android';
 /* eslint-enable import/first */
 
@@ -273,6 +276,44 @@ describe('Android Module Functions', () => {
       });
     });
 
+    describe('getBillingChoiceInfoAndroid', () => {
+      it('applies Billing Choice defaults', async () => {
+        const mockResult = {
+          playBillingChoiceImageUrl: 'https://play.google.com/image.png',
+          playBillingLoyaltyInfo: null,
+        };
+        (ExpoIapModule.getBillingChoiceInfoAndroid as jest.Mock)
+          .mockResolvedValue(mockResult);
+
+        const result = await getBillingChoiceInfoAndroid({});
+
+        expect(ExpoIapModule.getBillingChoiceInfoAndroid).toHaveBeenCalledWith({
+          billingProgram: 'billing-choice',
+          playBillingChoiceImageLayout: 'rectangular-four-by-one',
+          userLocale: null,
+        });
+        expect(result).toEqual(mockResult);
+      });
+
+      it('applies Billing Choice defaults when params are omitted', async () => {
+        const mockResult = {
+          playBillingChoiceImageUrl: 'https://play.google.com/image.png',
+          playBillingLoyaltyInfo: null,
+        };
+        (ExpoIapModule.getBillingChoiceInfoAndroid as jest.Mock)
+          .mockResolvedValue(mockResult);
+
+        const result = await (getBillingChoiceInfoAndroid as any)();
+
+        expect(ExpoIapModule.getBillingChoiceInfoAndroid).toHaveBeenCalledWith({
+          billingProgram: 'billing-choice',
+          playBillingChoiceImageLayout: 'rectangular-four-by-one',
+          userLocale: null,
+        });
+        expect(result).toEqual(mockResult);
+      });
+    });
+
     describe('launchExternalLinkAndroid', () => {
       it('delegates to native module with valid params', async () => {
         (
@@ -311,6 +352,28 @@ describe('Android Module Functions', () => {
           launchMode: 'caller-will-launch-link',
           linkType: 'link-to-app-download',
           linkUri: 'https://example.com/app',
+        });
+      });
+
+      it('forwards the Billing Choice external transaction token', async () => {
+        (
+          ExpoIapModule.launchExternalLinkAndroid as jest.Mock
+        ).mockResolvedValue(undefined);
+
+        await launchExternalLinkAndroid({
+          billingProgram: 'billing-choice',
+          externalTransactionToken: 'pre-generated-token',
+          launchMode: 'caller-will-launch-link',
+          linkType: 'link-to-digital-content-offer',
+          linkUri: 'https://example.com/checkout',
+        });
+
+        expect(ExpoIapModule.launchExternalLinkAndroid).toHaveBeenCalledWith({
+          billingProgram: 'billing-choice',
+          externalTransactionToken: 'pre-generated-token',
+          launchMode: 'caller-will-launch-link',
+          linkType: 'link-to-digital-content-offer',
+          linkUri: 'https://example.com/checkout',
         });
       });
 
@@ -381,7 +444,7 @@ describe('Android Module Functions', () => {
 
         expect(
           ExpoIapModule.createBillingProgramReportingDetailsAndroid,
-        ).toHaveBeenCalledWith('external-offer');
+        ).toHaveBeenCalledWith('external-offer', null);
         expect(result).toEqual(mockResult);
         expect(result.externalTransactionToken).toBe('token-abc-123-xyz');
       });
@@ -401,8 +464,28 @@ describe('Android Module Functions', () => {
 
         expect(
           ExpoIapModule.createBillingProgramReportingDetailsAndroid,
-        ).toHaveBeenCalledWith('external-content-link');
+        ).toHaveBeenCalledWith('external-content-link', null);
         expect(result.billingProgram).toBe('external-content-link');
+      });
+
+      it('passes developerBillingType for Billing Choice', async () => {
+        const mockResult = {
+          billingProgram: 'billing-choice',
+          externalTransactionToken: 'choice-token',
+        };
+        (
+          ExpoIapModule.createBillingProgramReportingDetailsAndroid as jest.Mock
+        ).mockResolvedValue(mockResult);
+
+        const result = await createBillingProgramReportingDetailsAndroid(
+          'billing-choice',
+          'external-link',
+        );
+
+        expect(
+          ExpoIapModule.createBillingProgramReportingDetailsAndroid,
+        ).toHaveBeenCalledWith('billing-choice', 'external-link');
+        expect(result).toEqual(mockResult);
       });
 
       it('propagates errors from native module', async () => {
@@ -414,6 +497,48 @@ describe('Android Module Functions', () => {
         await expect(
           createBillingProgramReportingDetailsAndroid('external-offer'),
         ).rejects.toThrow('Failed to create reporting details');
+      });
+    });
+
+    describe('showBillingProgramInformationDialogAndroid', () => {
+      it('applies Billing Choice default program', async () => {
+        const mockResult = {
+          responseCode: 0,
+          debugMessage: null,
+          subResponseCode: 'no-applicable-sub-response-code',
+        };
+        (
+          ExpoIapModule.showBillingProgramInformationDialogAndroid as jest.Mock
+        ).mockResolvedValue(mockResult);
+
+        const result = await showBillingProgramInformationDialogAndroid({
+          externalTransactionToken: 'choice-token',
+        });
+
+        expect(
+          ExpoIapModule.showBillingProgramInformationDialogAndroid,
+        ).toHaveBeenCalledWith({
+          billingProgram: 'billing-choice',
+          externalTransactionToken: 'choice-token',
+        });
+        expect(result).toEqual(mockResult);
+      });
+    });
+
+    describe('showInAppMessagesAndroid', () => {
+      it('delegates optional message categories', async () => {
+        const mockResult = {responseCode: 'no-action-needed'};
+        (ExpoIapModule.showInAppMessagesAndroid as jest.Mock)
+          .mockResolvedValue(mockResult);
+
+        const result = await showInAppMessagesAndroid({
+          categories: ['transactional'],
+        });
+
+        expect(ExpoIapModule.showInAppMessagesAndroid).toHaveBeenCalledWith({
+          categories: ['transactional'],
+        });
+        expect(result).toEqual(mockResult);
       });
     });
   });
