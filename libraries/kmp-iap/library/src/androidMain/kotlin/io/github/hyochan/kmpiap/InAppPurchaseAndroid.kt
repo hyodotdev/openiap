@@ -152,6 +152,42 @@ private fun logError(message: String, throwable: Throwable) {
     }
 }
 
+private fun Any.invokeOptionalStringGetter(methodName: String): String? =
+    runCatching { javaClass.getMethod(methodName).invoke(this) as? String }
+        .getOrNull()
+        ?.takeIf { it.isNotBlank() }
+
+private fun Any.invokeOptionalListGetter(methodName: String): List<*> =
+    runCatching { javaClass.getMethod(methodName).invoke(this) as? List<*> }
+        .getOrNull()
+        .orEmpty()
+
+internal fun extractDeveloperProvidedBillingDetails(
+    details: Any
+): DeveloperProvidedBillingDetailsAndroid {
+    val products = details.invokeOptionalListGetter("getProducts").mapNotNull { product ->
+        product ?: return@mapNotNull null
+        val id = product.invokeOptionalStringGetter("getId") ?: return@mapNotNull null
+        val type = when (product.invokeOptionalStringGetter("getType")) {
+            BillingClient.ProductType.INAPP -> ProductType.InApp
+            BillingClient.ProductType.SUBS -> ProductType.Subs
+            else -> return@mapNotNull null
+        }
+        DeveloperProvidedBillingProductAndroid(
+            id = id,
+            offerToken = product.invokeOptionalStringGetter("getOfferToken"),
+            type = type
+        )
+    }
+
+    return DeveloperProvidedBillingDetailsAndroid(
+        externalTransactionToken = details.invokeOptionalStringGetter("getExternalTransactionToken"),
+        linkUri = details.invokeOptionalStringGetter("getLinkUri"),
+        originalExternalTransactionId = details.invokeOptionalStringGetter("getOriginalExternalTransactionId"),
+        products = products
+    )
+}
+
 internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLifecycleCallbacks {
 
     private var billingClient: BillingClient? = null
@@ -2449,47 +2485,10 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                     arrayOf(listenerClass)
                 ) { _, method, args ->
                     if (method.name == "onUserSelectedDeveloperBilling") {
-                        val details = args?.get(0)
-                        if (details != null) {
-                            try {
-                                val detailsClass = details.javaClass
-                                val token = (detailsClass.getMethod("getExternalTransactionToken")
-                                    .invoke(details) as? String)?.takeIf { it.isNotBlank() }
-                                val linkUri = (detailsClass.getMethod("getLinkUri")
-                                    .invoke(details) as? String)?.takeIf { it.isNotBlank() }
-                                val originalExternalTransactionId = (detailsClass
-                                    .getMethod("getOriginalExternalTransactionId")
-                                    .invoke(details) as? String)?.takeIf { it.isNotBlank() }
-                                val products = (detailsClass.getMethod("getProducts")
-                                    .invoke(details) as? List<*>)
-                                    .orEmpty()
-                                    .mapNotNull { product ->
-                                        val productClass = product?.javaClass ?: return@mapNotNull null
-                                        val id = productClass.getMethod("getId").invoke(product) as? String
-                                            ?: return@mapNotNull null
-                                        val type = when (productClass.getMethod("getType").invoke(product) as? String) {
-                                            BillingClient.ProductType.INAPP -> ProductType.InApp
-                                            BillingClient.ProductType.SUBS -> ProductType.Subs
-                                            else -> return@mapNotNull null
-                                        }
-                                        DeveloperProvidedBillingProductAndroid(
-                                            id = id,
-                                            offerToken = (productClass.getMethod("getOfferToken")
-                                                .invoke(product) as? String)?.takeIf { it.isNotBlank() },
-                                            type = type
-                                        )
-                                    }
-                                _developerProvidedBillingListener.tryEmit(
-                                    DeveloperProvidedBillingDetailsAndroid(
-                                        externalTransactionToken = token,
-                                        linkUri = linkUri,
-                                        originalExternalTransactionId = originalExternalTransactionId,
-                                        products = products
-                                    )
-                                )
-                            } catch (e: Exception) {
-                                logError("Failed to extract developer billing details: ${e.message}", e)
-                            }
+                        args?.firstOrNull()?.let { details ->
+                            _developerProvidedBillingListener.tryEmit(
+                                extractDeveloperProvidedBillingDetails(details)
+                            )
                         }
                     }
                     null

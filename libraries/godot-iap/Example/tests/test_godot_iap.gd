@@ -150,6 +150,23 @@ func test_billing_choice_android_payloads() -> void:
 	_assert_equal(fake.last_purchase.get("originalExternalTransactionId"), "original-external-id", "Original external transaction ID should reach Android plugin")
 	_assert_equal(fake.last_purchase.get("developerBillingOption", {}).get("billingProgram"), "billing-choice", "Developer billing option should reach Android plugin")
 
+	var replacement_params = Types.SubscriptionProductReplacementParamsAndroid.new()
+	replacement_params.old_product_id = "legacy-monthly"
+	replacement_params.replacement_mode = Types.SubscriptionReplacementModeAndroid.CHARGE_PRORATED_PRICE
+	var raw_option = Types.DeveloperBillingOptionParamsAndroid.new()
+	raw_option.billing_program = Types.BillingProgramAndroid.BILLING_CHOICE
+	GodotIapPlugin._request_purchase_raw({
+		"type": "subs",
+		"requestSubscription": {"google": {
+			"skus": ["monthly_subscription"],
+			"subscriptionProductReplacementParams": replacement_params,
+			"developerBillingOption": raw_option,
+		}},
+	})
+	_assert_equal(fake.last_purchase.get("subscriptionProductReplacementParams", {}).get("oldProductId"), "legacy-monthly", "Replacement params objects should serialize to dictionaries")
+	_assert_equal(fake.last_purchase.get("subscriptionProductReplacementParams", {}).get("replacementMode"), "charge-prorated-price", "Replacement mode should preserve its serialized value")
+	_assert_equal(fake.last_purchase.get("developerBillingOption", {}).get("billingProgram"), "billing-choice", "Developer billing option objects should serialize to dictionaries")
+
 	GodotIapPlugin._native_plugin = null
 	GodotIapPlugin._platform = ""
 	GodotIapPlugin._is_connected = false

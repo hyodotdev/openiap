@@ -437,6 +437,12 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 				"sku": google_props.get("skus", [])[0],
 				"offerToken": str(offer_token),
 			}]
+		var replacement_params = google_props.get("subscriptionProductReplacementParams", null)
+		if typeof(replacement_params) == TYPE_OBJECT and replacement_params.has_method("to_dict"):
+			replacement_params = replacement_params.to_dict()
+		var developer_billing_option = google_props.get("developerBillingOption", null)
+		if typeof(developer_billing_option) == TYPE_OBJECT and developer_billing_option.has_method("to_dict"):
+			developer_billing_option = developer_billing_option.to_dict()
 		var params = {
 			"type": purchase_type,
 			"skus": google_props.get("skus", []),
@@ -448,8 +454,8 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 			"purchaseToken": google_props.get("purchaseToken", google_props.get("purchaseTokenAndroid", "")),
 			"originalExternalTransactionId": google_props.get("originalExternalTransactionId", ""),
 			"replacementMode": google_props.get("replacementMode", google_props.get("replacementModeAndroid", 0)),
-			"subscriptionProductReplacementParams": google_props.get("subscriptionProductReplacementParams", null),
-			"developerBillingOption": google_props.get("developerBillingOption", null),
+			"subscriptionProductReplacementParams": replacement_params,
+			"developerBillingOption": developer_billing_option,
 		}
 		var params_json = JSON.stringify(params)
 		print("[GodotIap] Calling Android requestPurchase: type=", purchase_type, ", skus=", params["skus"].size(), ", subscriptionOffers=", params["subscriptionOffers"].size(), ", hasPurchaseToken=", not str(params["purchaseToken"]).is_empty())
