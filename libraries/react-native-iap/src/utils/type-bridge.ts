@@ -232,7 +232,7 @@ export function convertNitroProductToProduct(
     displayPrice: nitroProduct.displayPrice ?? '',
     currency: nitroProduct.currency ?? '',
     price: toNullableNumber(nitroProduct.price),
-    debugDescription: null,
+    debugDescription: nitroProduct.debugDescription ?? null,
     platform,
   };
 
@@ -244,7 +244,6 @@ export function convertNitroProductToProduct(
       jsonRepresentationIOS:
         nitroProduct.jsonRepresentationIOS ?? DEFAULT_JSON_REPR,
       typeIOS: normalizeProductTypeIOS(nitroProduct.typeIOS),
-      subscriptionInfoIOS: undefined,
     };
 
     iosProduct.introductoryPriceAsAmountIOS = toNullableString(
@@ -282,6 +281,31 @@ export function convertNitroProductToProduct(
       }
     } else {
       iosProduct.discountsIOS = null;
+    }
+
+    if (nitroProduct.pricingTermsIOS) {
+      try {
+        const parsed = JSON.parse(nitroProduct.pricingTermsIOS);
+        iosProduct.pricingTermsIOS = Array.isArray(parsed) ? parsed : null;
+      } catch {
+        iosProduct.pricingTermsIOS = null;
+      }
+    } else {
+      iosProduct.pricingTermsIOS = null;
+    }
+
+    if (nitroProduct.subscriptionInfoIOS) {
+      try {
+        const parsed = JSON.parse(nitroProduct.subscriptionInfoIOS);
+        iosProduct.subscriptionInfoIOS =
+          typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+            ? parsed
+            : null;
+      } catch {
+        iosProduct.subscriptionInfoIOS = null;
+      }
+    } else {
+      iosProduct.subscriptionInfoIOS = null;
     }
 
     // Parse standardized subscriptionOffers (cross-platform, OpenIAP 1.3.10+)

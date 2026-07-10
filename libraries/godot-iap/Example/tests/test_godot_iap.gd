@@ -1,25 +1,34 @@
-extends Node
+extends SceneTree
 ## Unit tests for godot_iap.gd (mock mode)
 ## Run with: godot --headless --script tests/test_godot_iap.gd
 
 const Types = preload("res://addons/godot-iap/types.gd")
+const GodotIapWrapper = preload("res://addons/godot-iap/godot_iap.gd")
 
 var _tests_passed := 0
 var _tests_failed := 0
+var GodotIapPlugin: Node = null
 
 
-func _ready() -> void:
+func _init() -> void:
+	_run_suite.call_deferred()
+
+
+func _run_suite() -> void:
+	GodotIapPlugin = GodotIapWrapper.new()
+	root.add_child(GodotIapPlugin)
+	await process_frame
 	print("\n========================================")
 	print("Running godot_iap.gd tests (mock mode)...")
 	print("========================================\n")
 
-	_run_all_tests()
+	await _run_all_tests()
 
 	print("\n========================================")
 	print("Results: %d passed, %d failed" % [_tests_passed, _tests_failed])
 	print("========================================\n")
 
-	get_tree().quit(0 if _tests_failed == 0 else 1)
+	quit(0 if _tests_failed == 0 else 1)
 
 
 func _run_all_tests() -> void:
@@ -34,6 +43,7 @@ func _run_all_tests() -> void:
 
 	# Product tests
 	await test_fetch_products_mock()
+	test_product_variant_mapping()
 
 	# Purchase tests
 	test_get_available_purchases_mock()
@@ -70,12 +80,12 @@ func test_init_connection_idempotent() -> void:
 	# Reset connection state to test fresh
 	GodotIapPlugin._is_connected = false
 
-	# Calling init_connection multiple times should not error
+	# Repeated calls should consistently report that no native store is available.
 	var result1 = GodotIapPlugin.init_connection()
-	_assert_true(result1, "First init_connection should return true")
+	_assert_false(result1, "First init_connection should report unavailable native plugin")
 
 	var result2 = GodotIapPlugin.init_connection()
-	_assert_true(result2, "Second init_connection should return true")
+	_assert_false(result2, "Second init_connection should remain unavailable")
 
 
 func test_no_duplicate_signal_connections() -> void:
@@ -94,9 +104,9 @@ func test_no_duplicate_signal_connections() -> void:
 # ============================================
 
 func test_init_connection_mock() -> void:
-	# In mock mode (no native plugin), should return true
+	# A desktop test run has no native store plugin and must report that clearly.
 	var result = GodotIapPlugin.init_connection()
-	_assert_true(result, "init_connection should return true in mock mode")
+	_assert_false(result, "init_connection should return false without a native plugin")
 
 
 func test_end_connection_mock() -> void:
@@ -118,6 +128,43 @@ func test_fetch_products_mock() -> void:
 
 	# In mock mode, returns mock products
 	_assert_true(products.size() >= 0, "fetch_products should return an array")
+
+
+func test_product_variant_mapping() -> void:
+	var original_platform = GodotIapPlugin._platform
+	var subscription_data = {
+		"id": "premium",
+		"title": "Premium",
+		"description": "Premium subscription",
+		"displayPrice": "$9.99",
+		"currency": "USD",
+		"type": "subs",
+		"subscriptionOffers": [{
+			"id": "intro",
+			"displayPrice": "Free",
+			"price": 0.0,
+			"type": "introductory"
+		}]
+	}
+
+	GodotIapPlugin._platform = "iOS"
+	var ios_product = GodotIapPlugin._product_from_dict(subscription_data)
+	_assert_true(
+		ios_product is Types.ProductSubscriptionIOS,
+		"iOS subscriptions should use ProductSubscriptionIOS"
+	)
+	_assert_equal(ios_product.subscription_offers.size(), 1, "iOS offers should be preserved")
+
+	GodotIapPlugin._platform = "Android"
+	subscription_data["nameAndroid"] = "Premium"
+	subscription_data["subscriptionOfferDetailsAndroid"] = []
+	var android_product = GodotIapPlugin._product_from_dict(subscription_data)
+	_assert_true(
+		android_product is Types.ProductSubscriptionAndroid,
+		"Android subscriptions should use ProductSubscriptionAndroid"
+	)
+	_assert_equal(android_product.subscription_offers.size(), 1, "Android offers should be preserved")
+	GodotIapPlugin._platform = original_platform
 
 
 # ============================================

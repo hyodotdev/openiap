@@ -143,3 +143,14 @@ internal suspend fun queryProductDetails(
     if (!billingClient.isReady) throw OpenIapError.NotPrepared
     return productManager.getOrQuery(billingClient, skus, productType)
 }
+
+internal suspend fun queryProductDetailsWithStatus(
+    client: BillingClient?,
+    productManager: ProductManager,
+    skus: List<String>,
+    productType: String,
+): ProductQueryResult {
+    val billingClient = client ?: throw OpenIapError.NotPrepared
+    if (!billingClient.isReady) throw OpenIapError.NotPrepared
+    return productManager.getOrQueryWithStatus(billingClient, skus, productType)
+}

@@ -6,6 +6,8 @@ import 'errors.dart' as iap_err;
 import 'flutter_inapp_purchase.dart';
 import 'types.dart' as gentype;
 
+final _billingPeriodRegExp = RegExp(r'^P(\d+)([DWMY])$');
+
 String resolveProductType(Object type) {
   if (type is String) {
     return type;
@@ -118,10 +120,13 @@ gentype.ProductCommon parseProductFromNative(
           json['introductoryPriceSubscriptionPeriodIOS'],
         ),
         price: priceValue,
+        pricingTermsIOS: _parseSubscriptionPricingTermsIOS(
+          json['pricingTermsIOS'],
+        ),
         subscriptionInfoIOS: _parseSubscriptionInfoIOS(
           json['subscriptionInfoIOS'] ?? json['subscription'],
         ),
-        subscriptionOffers: _parseSubscriptionOffersIOS(
+        subscriptionOffers: _parseStandardizedSubscriptionOffers(
           json['subscriptionOffers'],
         ),
         subscriptionGroupIdIOS: json['subscriptionGroupIdIOS']?.toString(),
@@ -136,16 +141,20 @@ gentype.ProductCommon parseProductFromNative(
     final subscriptionOfferDetails = _parseOfferDetails(
       json['subscriptionOfferDetailsAndroid'],
     );
+    final subscriptionOffers =
+        _parseStandardizedSubscriptionOffers(json['subscriptionOffers']) ??
+            _parseSubscriptionOffers(subscriptionOfferDetails);
 
     return gentype.ProductSubscriptionAndroid(
       currency: currency,
       description: description,
+      discountOffers: _parseDiscountOffers(json['discountOffers']),
       displayPrice: displayPrice,
       id: productId,
       nameAndroid: json['nameAndroid']?.toString() ?? productId,
       platform: platform,
       subscriptionOfferDetailsAndroid: subscriptionOfferDetails,
-      subscriptionOffers: _parseSubscriptionOffers(subscriptionOfferDetails),
+      subscriptionOffers: subscriptionOffers,
       title: title,
       type: productType,
       debugDescription: json['debugDescription']?.toString(),
@@ -154,6 +163,9 @@ gentype.ProductCommon parseProductFromNative(
         json['oneTimePurchaseOfferDetailsAndroid'],
       ),
       price: priceValue,
+      productStatusAndroid: _parseProductStatusAndroid(
+        json['productStatusAndroid'],
+      ),
     );
   }
 
@@ -173,8 +185,14 @@ gentype.ProductCommon parseProductFromNative(
       debugDescription: json['debugDescription']?.toString(),
       displayName: json['displayName']?.toString(),
       price: priceValue,
+      pricingTermsIOS: _parseSubscriptionPricingTermsIOS(
+        json['pricingTermsIOS'],
+      ),
       subscriptionInfoIOS: _parseSubscriptionInfoIOS(
         json['subscriptionInfoIOS'] ?? json['subscription'],
+      ),
+      subscriptionOffers: _parseStandardizedSubscriptionOffers(
+        json['subscriptionOffers'],
       ),
     );
   }
@@ -193,13 +211,22 @@ gentype.ProductCommon parseProductFromNative(
     title: title,
     type: productType,
     debugDescription: json['debugDescription']?.toString(),
+    discountOffers: _parseDiscountOffers(json['discountOffers']),
     displayName: json['displayName']?.toString(),
     oneTimePurchaseOfferDetailsAndroid: _parseOneTimePurchaseOfferDetails(
       json['oneTimePurchaseOfferDetailsAndroid'],
     ),
     price: priceValue,
+    productStatusAndroid: _parseProductStatusAndroid(
+      json['productStatusAndroid'],
+    ),
     subscriptionOfferDetailsAndroid:
         androidOffers.isEmpty ? null : androidOffers,
+    subscriptionOffers:
+        _parseStandardizedSubscriptionOffers(json['subscriptionOffers']) ??
+            (androidOffers.isEmpty
+                ? null
+                : _parseSubscriptionOffers(androidOffers)),
   );
 }
 
@@ -534,6 +561,85 @@ List<gentype.DiscountIOS>? _parseDiscountsIOS(dynamic json) {
       .toList();
 }
 
+List<dynamic>? _parseNativeList(dynamic value) {
+  if (value == null) return null;
+  if (value is List) return value;
+  if (value is String) {
+    try {
+      final decoded = jsonDecode(value);
+      return decoded is List ? decoded : null;
+    } catch (_) {
+      return null;
+    }
+  }
+  return null;
+}
+
+List<T>? _parseGeneratedList<T>(
+  dynamic value,
+  T Function(Map<String, dynamic>) fromJson,
+) {
+  if (value is List<T>) return value.isEmpty ? null : value;
+  final list = _parseNativeList(value);
+  if (list == null) return null;
+
+  final parsed = <T>[];
+  for (final item in list) {
+    if (item is T) {
+      parsed.add(item);
+      continue;
+    }
+    final map = normalizeDynamicMap(item);
+    if (map == null) continue;
+    try {
+      parsed.add(fromJson(map));
+    } catch (_) {
+      continue;
+    }
+  }
+  return parsed.isEmpty ? null : parsed;
+}
+
+List<gentype.SubscriptionPricingTermsIOS>? _parseSubscriptionPricingTermsIOS(
+  dynamic value,
+) =>
+    _parseGeneratedList(value, gentype.SubscriptionPricingTermsIOS.fromJson);
+
+List<gentype.DiscountOffer>? _parseDiscountOffers(dynamic value) =>
+    _parseGeneratedList(value, gentype.DiscountOffer.fromJson);
+
+List<gentype.SubscriptionOffer>? _parseStandardizedSubscriptionOffers(
+  dynamic value,
+) {
+  final list = _parseNativeList(value);
+  if (list == null) return null;
+  return _parseGeneratedList(list, gentype.SubscriptionOffer.fromJson) ??
+      _parseSubscriptionOffersIOS(list);
+}
+
+gentype.ProductStatusAndroid? _parseProductStatusAndroid(dynamic value) {
+  if (value == null) return null;
+  if (value is gentype.ProductStatusAndroid) return value;
+  try {
+    return gentype.ProductStatusAndroid.fromJson(value.toString());
+  } catch (_) {
+    return null;
+  }
+}
+
+gentype.InstallmentPlanDetailsAndroid? _parseInstallmentPlanDetailsAndroid(
+  dynamic value,
+) {
+  if (value is gentype.InstallmentPlanDetailsAndroid) return value;
+  final map = normalizeDynamicMap(value);
+  if (map == null) return null;
+  return gentype.InstallmentPlanDetailsAndroid(
+    commitmentPaymentsCount: _toInt(map['commitmentPaymentsCount']) ?? 0,
+    subsequentCommitmentPaymentsCount:
+        _toInt(map['subsequentCommitmentPaymentsCount']) ?? 0,
+  );
+}
+
 List<gentype.ProductSubscriptionAndroidOfferDetails> _parseOfferDetails(
   dynamic json,
 ) {
@@ -574,9 +680,11 @@ List<gentype.ProductSubscriptionAndroidOfferDetails> _parseOfferDetails(
           // Skip invalid items
           return null;
         }
-
         return gentype.ProductSubscriptionAndroidOfferDetails(
           basePlanId: e['basePlanId'] as String? ?? '',
+          installmentPlanDetails: _parseInstallmentPlanDetailsAndroid(
+            e['installmentPlanDetails'],
+          ),
           offerId: e['offerId'] as String?,
           offerToken: e['offerToken'] as String? ?? '',
           offerTags: (e['offerTags'] as List<dynamic>?)
@@ -728,22 +836,24 @@ List<gentype.SubscriptionOffer>? _parseSubscriptionOffersIOS(dynamic json) {
       }
     }
 
-    offers.add(gentype.SubscriptionOffer(
-      id: map['id']?.toString() ?? '',
-      displayPrice: map['displayPrice']?.toString() ?? '',
-      price: _toDouble(map['price']) ?? 0,
-      currency: map['currency']?.toString(),
-      type: type,
-      paymentMode: paymentMode,
-      period: period,
-      periodCount: _toInt(map['periodCount']),
-      keyIdentifierIOS: map['keyIdentifierIOS']?.toString(),
-      nonceIOS: map['nonceIOS']?.toString(),
-      signatureIOS: map['signatureIOS']?.toString(),
-      timestampIOS: _toDouble(map['timestampIOS']),
-      numberOfPeriodsIOS: _toInt(map['numberOfPeriodsIOS']),
-      localizedPriceIOS: map['localizedPriceIOS']?.toString(),
-    ));
+    offers.add(
+      gentype.SubscriptionOffer(
+        id: map['id']?.toString() ?? '',
+        displayPrice: map['displayPrice']?.toString() ?? '',
+        price: _toDouble(map['price']) ?? 0,
+        currency: map['currency']?.toString(),
+        type: type,
+        paymentMode: paymentMode,
+        period: period,
+        periodCount: _toInt(map['periodCount']),
+        keyIdentifierIOS: map['keyIdentifierIOS']?.toString(),
+        nonceIOS: map['nonceIOS']?.toString(),
+        signatureIOS: map['signatureIOS']?.toString(),
+        timestampIOS: _toDouble(map['timestampIOS']),
+        numberOfPeriodsIOS: _toInt(map['numberOfPeriodsIOS']),
+        localizedPriceIOS: map['localizedPriceIOS']?.toString(),
+      ),
+    );
   }
 
   return offers.isEmpty ? null : offers;
@@ -757,6 +867,8 @@ List<gentype.SubscriptionOffer> _parseSubscriptionOffers(
   return offerDetails.map((offer) {
     // Determine payment mode and price from first pricing phase
     gentype.PaymentMode? paymentMode;
+    gentype.SubscriptionPeriod? period;
+    int? periodCount;
     String displayPrice = '';
     double price = 0;
     String? currency;
@@ -765,6 +877,8 @@ List<gentype.SubscriptionOffer> _parseSubscriptionOffers(
       final firstPhase = offer.pricingPhases.pricingPhaseList.first;
       final priceAmountMicros = int.tryParse(firstPhase.priceAmountMicros) ?? 0;
       final recurrenceMode = firstPhase.recurrenceMode;
+      period = _parseBillingPeriod(firstPhase.billingPeriod);
+      periodCount = firstPhase.billingCycleCount;
 
       if (priceAmountMicros == 0) {
         paymentMode = gentype.PaymentMode.FreeTrial;
@@ -795,12 +909,31 @@ List<gentype.SubscriptionOffer> _parseSubscriptionOffers(
       currency: currency,
       type: type,
       paymentMode: paymentMode,
+      period: period,
+      periodCount: periodCount,
       basePlanIdAndroid: offer.basePlanId,
+      installmentPlanDetailsAndroid: offer.installmentPlanDetails,
       offerTokenAndroid: offer.offerToken,
       offerTagsAndroid: offer.offerTags,
       pricingPhasesAndroid: offer.pricingPhases,
     );
   }).toList();
+}
+
+gentype.SubscriptionPeriod? _parseBillingPeriod(String billingPeriod) {
+  final match = _billingPeriodRegExp.firstMatch(billingPeriod);
+  if (match == null) return null;
+  final value = int.tryParse(match.group(1) ?? '');
+  if (value == null) return null;
+
+  final unit = switch (match.group(2)) {
+    'D' => gentype.SubscriptionPeriodUnit.Day,
+    'W' => gentype.SubscriptionPeriodUnit.Week,
+    'M' => gentype.SubscriptionPeriodUnit.Month,
+    'Y' => gentype.SubscriptionPeriodUnit.Year,
+    _ => gentype.SubscriptionPeriodUnit.Unknown,
+  };
+  return gentype.SubscriptionPeriod(unit: unit, value: value);
 }
 
 gentype.SubscriptionPeriodIOS? _parseSubscriptionPeriod(dynamic value) {
@@ -893,6 +1026,7 @@ gentype.ProductAndroidOneTimePurchaseOfferDetail?
       offerToken: value['offerToken']?.toString() ?? '',
       offerId: value['offerId']?.toString(),
       fullPriceMicros: value['fullPriceMicros']?.toString(),
+      purchaseOptionId: value['purchaseOptionId']?.toString(),
       discountDisplayInfo: value['discountDisplayInfo'] != null
           ? gentype.DiscountDisplayInfoAndroid.fromJson(
               value['discountDisplayInfo'] as Map<String, dynamic>,
@@ -931,6 +1065,7 @@ gentype.ProductAndroidOneTimePurchaseOfferDetail?
       offerToken: map['offerToken']?.toString() ?? '',
       offerId: map['offerId']?.toString(),
       fullPriceMicros: map['fullPriceMicros']?.toString(),
+      purchaseOptionId: map['purchaseOptionId']?.toString(),
       discountDisplayInfo: map['discountDisplayInfo'] != null
           ? gentype.DiscountDisplayInfoAndroid.fromJson(
               Map<String, dynamic>.from(

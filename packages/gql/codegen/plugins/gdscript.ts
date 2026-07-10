@@ -403,15 +403,8 @@ export class GDScriptPlugin extends CodegenPlugin {
 
     this.emit(`\t\tif data.has("${graphqlName}") and data["${graphqlName}"] != null:`);
 
-    if (this.isObjectOrInput(type) && type.kind === 'list') {
-      const elementTypeName = type.elementType!.name!;
-      this.emit(`\t\t\tvar arr = []`);
-      this.emit(`\t\t\tfor item in data["${graphqlName}"]:`);
-      this.emit(`\t\t\t\tif item is Dictionary:`);
-      this.emit(`\t\t\t\t\tarr.append(${elementTypeName}.from_dict(item))`);
-      this.emit(`\t\t\t\telse:`);
-      this.emit(`\t\t\t\t\tarr.append(item)`);
-      this.emit(`\t\t\tobj.${fieldName} = arr`);
+    if (type.kind === 'list') {
+      this.generateListFromDictAssignment(type, graphqlName, fieldName);
     } else if (this.isObjectOrInput(type)) {
       const typeName = type.name!;
       this.emit(`\t\t\tif data["${graphqlName}"] is Dictionary:`);
@@ -423,6 +416,68 @@ export class GDScriptPlugin extends CodegenPlugin {
     } else {
       this.emit(`\t\t\tobj.${fieldName} = data["${graphqlName}"]`);
     }
+  }
+
+  private generateListFromDictAssignment(
+    type: IRType,
+    graphqlName: string,
+    fieldName: string,
+    indent = '\t\t\t'
+  ): void {
+    const elementType = type.elementType!;
+    const elementTypeName = elementType.name!;
+    const gdElementType = this.mapType(elementType);
+    const listIndent = `${indent}\t`;
+    const itemIndent = `${listIndent}\t`;
+    this.emit(`${indent}if data["${graphqlName}"] is Array:`);
+    this.emit(`${listIndent}var arr: Array[${gdElementType}] = []`);
+    this.emit(`${listIndent}for item in data["${graphqlName}"]:`);
+    if (this.isObjectOrInput(elementType)) {
+      this.emit(`${itemIndent}if item is Dictionary:`);
+      this.emit(`${itemIndent}\tarr.append(${elementTypeName}.from_dict(item))`);
+      this.emit(`${itemIndent}elif item is ${elementTypeName}:`);
+      this.emit(`${itemIndent}\tarr.append(item)`);
+    } else if (elementType.kind === 'enum' || this.enumNames.has(elementTypeName)) {
+      const enumReverseLookup = toConstantCase(elementTypeName) + '_FROM_STRING';
+      const fallback = this.getEnumUnknownFallback(elementTypeName);
+      if (fallback) {
+        this.emit(`${itemIndent}if item is String:`);
+        this.emit(`${itemIndent}\tarr.append(${enumReverseLookup}.get(item, ${fallback}))`);
+      } else {
+        this.emit(`${itemIndent}if item is String and ${enumReverseLookup}.has(item):`);
+        this.emit(`${itemIndent}\tarr.append(${enumReverseLookup}[item])`);
+      }
+      this.emit(`${itemIndent}elif item is int:`);
+      this.emit(`${itemIndent}\tarr.append(item)`);
+    } else {
+      switch (gdElementType) {
+        case 'String':
+          this.emit(`${itemIndent}if item is String:`);
+          this.emit(`${itemIndent}\tarr.append(str(item))`);
+          break;
+        case 'int':
+          this.emit(`${itemIndent}if item is int:`);
+          this.emit(`${itemIndent}\tarr.append(item)`);
+          this.emit(`${itemIndent}elif item is float:`);
+          this.emit(`${itemIndent}\tarr.append(int(item))`);
+          this.emit(`${itemIndent}elif item is String and item.is_valid_int():`);
+          this.emit(`${itemIndent}\tarr.append(int(item))`);
+          break;
+        case 'float':
+          this.emit(`${itemIndent}if item is int or item is float:`);
+          this.emit(`${itemIndent}\tarr.append(float(item))`);
+          this.emit(`${itemIndent}elif item is String and item.is_valid_float():`);
+          this.emit(`${itemIndent}\tarr.append(float(item))`);
+          break;
+        case 'bool':
+          this.emit(`${itemIndent}if item is bool:`);
+          this.emit(`${itemIndent}\tarr.append(bool(item))`);
+          break;
+        default:
+          this.emit(`${itemIndent}arr.append(item)`);
+      }
+    }
+    this.emit(`${listIndent}obj.${fieldName} = arr`);
   }
 
   private generateToDictField(field: IRField, fieldName: string): void {
@@ -549,15 +604,8 @@ export class GDScriptPlugin extends CodegenPlugin {
 
     this.emit(`\t\tif data.has("${graphqlName}") and data["${graphqlName}"] != null:`);
 
-    if (this.isObjectOrInput(type) && type.kind === 'list') {
-      const elementTypeName = type.elementType!.name!;
-      this.emit(`\t\t\tvar arr = []`);
-      this.emit(`\t\t\tfor item in data["${graphqlName}"]:`);
-      this.emit(`\t\t\t\tif item is Dictionary:`);
-      this.emit(`\t\t\t\t\tarr.append(${elementTypeName}.from_dict(item))`);
-      this.emit(`\t\t\t\telse:`);
-      this.emit(`\t\t\t\t\tarr.append(item)`);
-      this.emit(`\t\t\tobj.${fieldName} = arr`);
+    if (type.kind === 'list') {
+      this.generateListFromDictAssignment(type, graphqlName, fieldName);
     } else if (this.isObjectOrInput(type)) {
       const typeName = type.name!;
       this.emit(`\t\t\tif data["${graphqlName}"] is Dictionary:`);
@@ -647,7 +695,9 @@ export class GDScriptPlugin extends CodegenPlugin {
           for (const arg of field.args) {
             const argSnakeName = this.escapeKeyword(toSnakeCase(arg.name));
             this.emit(`\t\t\t\tif data.has("${arg.name}") and data["${arg.name}"] != null:`);
-            if (arg.type.kind === 'enum') {
+            if (arg.type.kind === 'list') {
+              this.generateListFromDictAssignment(arg.type, arg.name, argSnakeName, '\t\t\t\t\t');
+            } else if (arg.type.kind === 'enum') {
               this.emitEnumFromDictAssignment(
                 '\t\t\t\t\t',
                 `obj.${argSnakeName}`,

@@ -213,29 +213,18 @@ public enum OpenIapSerialization {
             return encoded
 
         case .all(let items):
-            let allItems = items ?? []
-            let iosProducts = allItems.compactMap { item -> ProductIOS? in
-                guard case .product(let product) = item,
-                      case .productIos(let value) = product
-                else { return nil }
-                return value
+            return (items ?? []).compactMap { item in
+                switch item {
+                case .product(.productIos(let product)):
+                    logger?("Product: \(product.id) - \(product.title) - \(product.displayPrice)")
+                    return encode(product)
+                case .productSubscription(.productSubscriptionIos(let subscription)):
+                    logger?("Subscription: \(subscription.id) - \(subscription.title) - \(subscription.displayPrice)")
+                    return encode(subscription)
+                default:
+                    return nil
+                }
             }
-            let iosSubscriptions = allItems.compactMap { item -> ProductSubscriptionIOS? in
-                guard case .productSubscription(.productSubscriptionIos(let value)) = item
-                else { return nil }
-                return value
-            }
-            iosProducts.forEach {
-                logger?("Product: \($0.id) - \($0.title) - \($0.displayPrice)")
-            }
-            iosSubscriptions.forEach {
-                logger?("Subscription: \($0.id) - \($0.title) - \($0.displayPrice)")
-            }
-
-            // Combine both products and subscriptions
-            let productEncoded = iosProducts.map { encode($0) }
-            let subscriptionEncoded = iosSubscriptions.map { encode($0) }
-            return productEncoded + subscriptionEncoded
         }
     }
 

@@ -31,6 +31,7 @@ func _init() -> void:
 func _run_all_tests() -> void:
 	# ProductRequest tests
 	_test_product_request()
+	_test_product_nested_arrays()
 
 	# PurchaseAndroid tests
 	_test_purchase_android()
@@ -81,11 +82,88 @@ func _test_product_request() -> void:
 	_assert_equal(dict["skus"][0], "product_1", "to_dict should preserve sku")
 	_assert_equal(dict["type"], "in-app", "to_dict should convert type to string")
 
-	# Test from_dict (skus need to be typed Array[String])
-	var sku_arr: Array[String] = ["sku_from_dict"]
-	var from_dict_data = {"skus": sku_arr, "type": "subs"}
+	# JSON.parse_string returns an untyped Array; from_dict must rebuild Array[String].
+	var from_dict_data = {
+		"skus": ["sku_from_dict", null, {"invalid": true}],
+		"type": "subs"
+	}
 	var parsed = Types.ProductRequest.from_dict(from_dict_data)
 	_assert_equal(parsed.skus[0], "sku_from_dict", "from_dict should parse skus")
+	_assert_equal(parsed.skus.size(), 1, "from_dict should skip malformed scalar list items")
+
+
+func _test_product_nested_arrays() -> void:
+	print("Testing nested product arrays...")
+
+	var offer_data = {
+		"id": "intro",
+		"displayPrice": "Free",
+		"price": 0.0,
+		"type": "introductory",
+		"offerTagsAndroid": ["launch"]
+	}
+	var ios_product = Types.ProductIOS.from_dict({
+		"id": "premium.ios",
+		"title": "Premium",
+		"description": "Premium subscription",
+		"type": "subs",
+		"platform": "ios",
+		"subscriptionOffers": [offer_data, "invalid", null],
+		"pricingTermsIOS": [{
+			"billingDisplayPrice": "$9.99",
+			"billingPlanType": "monthly",
+			"billingPrice": 9.99,
+			"subscriptionOffers": [offer_data]
+		}]
+	})
+	_assert_equal(ios_product.subscription_offers.size(), 1, "ProductIOS should parse subscription offers")
+	_assert_equal(ios_product.subscription_offers[0].id, "intro", "ProductIOS should preserve offer fields")
+	_assert_equal(ios_product.pricing_terms_ios.size(), 1, "ProductIOS should parse pricing terms")
+	_assert_equal(
+		ios_product.pricing_terms_ios[0].subscription_offers[0].offer_tags_android[0],
+		"launch",
+		"Nested scalar arrays should remain typed"
+	)
+
+	var android_product = Types.ProductSubscriptionAndroid.from_dict({
+		"id": "premium.android",
+		"title": "Premium",
+		"description": "Premium subscription",
+		"type": "subs",
+		"platform": "android",
+		"nameAndroid": "Premium",
+		"subscriptionOffers": [{
+			"id": "commitment",
+			"displayPrice": "$9.99",
+			"price": 9.99,
+			"type": "promotional",
+			"installmentPlanDetailsAndroid": {
+				"commitmentPaymentsCount": 12,
+				"subsequentCommitmentPaymentsCount": 0
+			}
+		}],
+		"subscriptionOfferDetailsAndroid": [{
+			"basePlanId": "annual",
+			"offerTags": ["commitment"],
+			"offerToken": "token",
+			"pricingPhases": {"pricingPhaseList": []},
+			"installmentPlanDetails": {
+				"commitmentPaymentsCount": 12,
+				"subsequentCommitmentPaymentsCount": 0
+			}
+		}]
+	})
+	_assert_equal(android_product.subscription_offers.size(), 1, "Android should parse standardized offers")
+	_assert_equal(
+		android_product.subscription_offers[0].installment_plan_details_android.commitment_payments_count,
+		12,
+		"Android standardized installment details should survive"
+	)
+	_assert_equal(
+		android_product.subscription_offer_details_android[0].installment_plan_details.commitment_payments_count,
+		12,
+		"Android legacy installment details should survive"
+	)
 
 
 # ============================================

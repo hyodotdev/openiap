@@ -924,111 +924,21 @@ class HybridRnIap : HybridRnIapSpec() {
     }
 
     private fun serializeSubscriptionOffers(offers: List<ProductSubscriptionAndroidOfferDetails>): String {
-        val array = JSONArray()
-        offers.forEach { offer ->
-            val offerJson = JSONObject()
-            offerJson.put("basePlanId", offer.basePlanId)
-            offerJson.put("offerId", offer.offerId)
-            offerJson.put("offerTags", JSONArray(offer.offerTags))
-            offerJson.put("offerToken", offer.offerToken)
-
-            val phasesArray = JSONArray()
-            offer.pricingPhases.pricingPhaseList.forEach { phase ->
-                val phaseJson = JSONObject()
-                phaseJson.put("billingCycleCount", phase.billingCycleCount)
-                phaseJson.put("billingPeriod", phase.billingPeriod)
-                phaseJson.put("formattedPrice", phase.formattedPrice)
-                phaseJson.put("priceAmountMicros", phase.priceAmountMicros)
-                phaseJson.put("priceCurrencyCode", phase.priceCurrencyCode)
-                phaseJson.put("recurrenceMode", phase.recurrenceMode)
-                phasesArray.put(phaseJson)
-            }
-
-            val pricingPhasesJson = JSONObject()
-            pricingPhasesJson.put("pricingPhaseList", phasesArray)
-            offerJson.put("pricingPhases", pricingPhasesJson)
-
-            array.put(offerJson)
-        }
-        return array.toString()
+        return JSONArray(legacySubscriptionOfferMaps(offers)).toString()
     }
 
     /**
      * Serialize standardized SubscriptionOffer list to JSON string (OpenIAP 1.3.10+)
      */
     private fun serializeStandardizedSubscriptionOffers(offers: List<dev.hyo.openiap.SubscriptionOffer>): String {
-        val array = JSONArray()
-        offers.forEach { offer ->
-            val offerJson = JSONObject()
-            offerJson.put("id", offer.id)
-            offerJson.put("displayPrice", offer.displayPrice)
-            offerJson.put("price", offer.price)
-            offerJson.put("type", offer.type.rawValue)
-            offer.currency?.let { offerJson.put("currency", it) }
-            offer.basePlanIdAndroid?.let { offerJson.put("basePlanIdAndroid", it) }
-            offer.offerTokenAndroid?.let { offerJson.put("offerTokenAndroid", it) }
-            offer.offerTagsAndroid?.let { offerJson.put("offerTagsAndroid", JSONArray(it)) }
-            offer.paymentMode?.let { offerJson.put("paymentMode", it.rawValue) }
-            offer.periodCount?.let { offerJson.put("periodCount", it) }
-            offer.numberOfPeriodsIOS?.let { offerJson.put("numberOfPeriodsIOS", it) }
-            offer.period?.let { period ->
-                val periodJson = JSONObject()
-                periodJson.put("unit", period.unit.rawValue)
-                periodJson.put("value", period.value)
-                offerJson.put("period", periodJson)
-            }
-            offer.pricingPhasesAndroid?.let { phases ->
-                val phasesJson = JSONObject()
-                val phaseList = JSONArray()
-                phases.pricingPhaseList.forEach { phase ->
-                    val phaseJson = JSONObject()
-                    phaseJson.put("billingCycleCount", phase.billingCycleCount)
-                    phaseJson.put("billingPeriod", phase.billingPeriod)
-                    phaseJson.put("formattedPrice", phase.formattedPrice)
-                    phaseJson.put("priceAmountMicros", phase.priceAmountMicros)
-                    phaseJson.put("priceCurrencyCode", phase.priceCurrencyCode)
-                    phaseJson.put("recurrenceMode", phase.recurrenceMode)
-                    phaseList.put(phaseJson)
-                }
-                phasesJson.put("pricingPhaseList", phaseList)
-                offerJson.put("pricingPhasesAndroid", phasesJson)
-            }
-            array.put(offerJson)
-        }
-        return array.toString()
+        return JSONArray(subscriptionOfferMaps(offers)).toString()
     }
 
     /**
      * Serialize standardized DiscountOffer list to JSON string (OpenIAP 1.3.10+)
      */
     private fun serializeStandardizedDiscountOffers(offers: List<dev.hyo.openiap.DiscountOffer>): String {
-        val array = JSONArray()
-        offers.forEach { offer ->
-            val offerJson = JSONObject()
-            offerJson.put("currency", offer.currency)
-            offerJson.put("displayPrice", offer.displayPrice)
-            offerJson.put("price", offer.price)
-            offer.id?.let { offerJson.put("id", it) }
-            offer.offerTagsAndroid?.let { offerJson.put("offerTagsAndroid", JSONArray(it)) }
-            offer.offerTokenAndroid?.let { offerJson.put("offerTokenAndroid", it) }
-            offer.discountAmountMicrosAndroid?.let { offerJson.put("discountAmountMicrosAndroid", it) }
-            offer.formattedDiscountAmountAndroid?.let { offerJson.put("formattedDiscountAmountAndroid", it) }
-            offer.fullPriceMicrosAndroid?.let { offerJson.put("fullPriceMicrosAndroid", it) }
-            offer.limitedQuantityInfoAndroid?.let { info ->
-                val infoJson = JSONObject()
-                infoJson.put("maximumQuantity", info.maximumQuantity)
-                infoJson.put("remainingQuantity", info.remainingQuantity)
-                offerJson.put("limitedQuantityInfoAndroid", infoJson)
-            }
-            offer.validTimeWindowAndroid?.let { window ->
-                val windowJson = JSONObject()
-                windowJson.put("startTimeMillis", window.startTimeMillis)
-                windowJson.put("endTimeMillis", window.endTimeMillis)
-                offerJson.put("validTimeWindowAndroid", windowJson)
-            }
-            array.put(offerJson)
-        }
-        return array.toString()
+        return JSONArray(discountOfferMaps(offers)).toString()
     }
 
     private fun convertToNitroProduct(product: ProductCommon): NitroProduct {
@@ -1044,64 +954,9 @@ class HybridRnIap : HybridRnIapSpec() {
         }
 
         val subscriptionOffersJson = subscriptionOffers.takeIf { it.isNotEmpty() }?.let { serializeSubscriptionOffers(it) }
-        val oneTimeOffersNitro = oneTimeOffers?.map { otp ->
-            NitroOneTimePurchaseOfferDetail(
-                formattedPrice = otp.formattedPrice,
-                priceAmountMicros = otp.priceAmountMicros,
-                priceCurrencyCode = otp.priceCurrencyCode,
-                offerId = otp.offerId.wrapVariant(),
-                offerToken = otp.offerToken,
-                offerTags = otp.offerTags.toTypedArray(),
-                fullPriceMicros = otp.fullPriceMicros.wrapVariant(),
-                discountDisplayInfo = otp.discountDisplayInfo?.let { discount ->
-                    Variant_NullType_NitroDiscountDisplayInfoAndroid.Second(
-                        NitroDiscountDisplayInfoAndroid(
-                            percentageDiscount = discount.percentageDiscount?.toDouble().wrapVariant(),
-                            discountAmount = discount.discountAmount?.let { amount ->
-                                Variant_NullType_NitroDiscountAmountAndroid.Second(
-                                    NitroDiscountAmountAndroid(
-                                        discountAmountMicros = amount.discountAmountMicros,
-                                        formattedDiscountAmount = amount.formattedDiscountAmount
-                                    )
-                                )
-                            }
-                        )
-                    )
-                },
-                validTimeWindow = otp.validTimeWindow?.let { window ->
-                    Variant_NullType_NitroValidTimeWindowAndroid.Second(
-                        NitroValidTimeWindowAndroid(
-                            startTimeMillis = window.startTimeMillis,
-                            endTimeMillis = window.endTimeMillis
-                        )
-                    )
-                },
-                limitedQuantityInfo = otp.limitedQuantityInfo?.let { info ->
-                    Variant_NullType_NitroLimitedQuantityInfoAndroid.Second(
-                        NitroLimitedQuantityInfoAndroid(
-                            maximumQuantity = info.maximumQuantity.toDouble(),
-                            remainingQuantity = info.remainingQuantity.toDouble()
-                        )
-                    )
-                },
-                preorderDetailsAndroid = otp.preorderDetailsAndroid?.let { preorder ->
-                    Variant_NullType_NitroPreorderDetailsAndroid.Second(
-                        NitroPreorderDetailsAndroid(
-                            preorderPresaleEndTimeMillis = preorder.preorderPresaleEndTimeMillis,
-                            preorderReleaseTimeMillis = preorder.preorderReleaseTimeMillis
-                        )
-                    )
-                },
-                rentalDetailsAndroid = otp.rentalDetailsAndroid?.let { rental ->
-                    Variant_NullType_NitroRentalDetailsAndroid.Second(
-                        NitroRentalDetailsAndroid(
-                            rentalExpirationPeriod = rental.rentalExpirationPeriod?.let { Variant_NullType_String.Second(it) },
-                            rentalPeriod = rental.rentalPeriod
-                        )
-                    )
-                }
-            )
-        }?.toTypedArray()
+        val oneTimeOffersNitro = oneTimeOffers
+            ?.map { it.toNitroOneTimePurchaseOfferDetail() }
+            ?.toTypedArray()
 
         var originalPriceAndroid: String? = null
         var originalPriceAmountMicrosAndroid: Double? = null
@@ -1177,6 +1032,7 @@ class HybridRnIap : HybridRnIapSpec() {
             id = product.id,
             title = product.title,
             description = product.description,
+            debugDescription = product.nitroDebugDescription(),
             type = product.type.rawValue,
             displayName = product.displayName.wrapVariant(),
             displayPrice = product.displayPrice,
@@ -1186,6 +1042,8 @@ class HybridRnIap : HybridRnIapSpec() {
             typeIOS = null,
             isFamilyShareableIOS = null,
             jsonRepresentationIOS = null,
+            pricingTermsIOS = null,
+            subscriptionInfoIOS = null,
             discountsIOS = null,
             subscriptionPeriodUnitIOS = null,
             subscriptionPeriodNumberIOS = null,

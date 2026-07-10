@@ -113,8 +113,26 @@ describe('type-bridge utilities', () => {
         currency: 'USD',
         price: 4.99,
         platform: 'ios',
+        debugDescription: 'StoreKit subscription debug',
         typeIOS: 'autoRenewableSubscription',
         subscriptionGroupIdIOS: '21686373',
+        pricingTermsIOS: JSON.stringify([
+          {
+            billingDisplayPrice: '$4.99',
+            billingPeriod: {unit: 'month', value: 1},
+            billingPlanType: 'monthly',
+            billingPrice: 4.99,
+            commitmentInfo: {
+              displayPrice: '$59.88',
+              period: {unit: 'year', value: 1},
+              price: 59.88,
+            },
+          },
+        ]),
+        subscriptionInfoIOS: JSON.stringify({
+          subscriptionGroupId: '21686373',
+          subscriptionPeriod: {unit: 'month', value: 1},
+        }),
         subscriptionOffers: JSON.stringify([
           {
             id: 'intro_weekly',
@@ -147,7 +165,11 @@ describe('type-bridge utilities', () => {
 
       expect(result.type).toBe('subs');
       expect(result.platform).toBe('ios');
+      expect(result.debugDescription).toBe('StoreKit subscription debug');
       expect(result.subscriptionGroupIdIOS).toBe('21686373');
+      expect(result.pricingTermsIOS).toHaveLength(1);
+      expect(result.pricingTermsIOS[0].billingPlanType).toBe('monthly');
+      expect(result.subscriptionInfoIOS.subscriptionGroupId).toBe('21686373');
       expect(Array.isArray(result.subscriptionOffers)).toBe(true);
       expect(result.subscriptionOffers.length).toBe(2);
       expect(result.subscriptionOffers[0].id).toBe('intro_weekly');
@@ -155,6 +177,40 @@ describe('type-bridge utilities', () => {
       expect(result.subscriptionOffers[0].paymentMode).toBe('free-trial');
       expect(result.subscriptionOffers[1].id).toBe('promo_20off');
       expect(result.subscriptionOffers[1].type).toBe('promotional');
+    });
+
+    it('rejects invalid iOS metadata JSON payloads', () => {
+      const nitroProduct: NitroProduct = {
+        id: 'com.example.ios.invalid',
+        title: 'Invalid Metadata',
+        description: 'Invalid metadata subscription',
+        type: 'subs',
+        displayPrice: '$4.99',
+        currency: 'USD',
+        price: 4.99,
+        platform: 'ios',
+        typeIOS: 'autoRenewableSubscription',
+        pricingTermsIOS: JSON.stringify({billingPlanType: 'monthly'}),
+        subscriptionInfoIOS: JSON.stringify([{subscriptionGroupId: 'group'}]),
+      } as NitroProduct;
+
+      const result = convertNitroProductToProduct(nitroProduct) as any;
+
+      expect(result.pricingTermsIOS).toBeNull();
+      expect(result.subscriptionInfoIOS).toBeNull();
+
+      const malformedJsonProduct: NitroProduct = {
+        ...nitroProduct,
+        pricingTermsIOS: '[',
+        subscriptionInfoIOS: '{',
+      };
+
+      const malformedResult = convertNitroProductToProduct(
+        malformedJsonProduct,
+      ) as any;
+
+      expect(malformedResult.pricingTermsIOS).toBeNull();
+      expect(malformedResult.subscriptionInfoIOS).toBeNull();
     });
 
     it('converts Android subscription with standardized subscriptionOffers', () => {
@@ -178,6 +234,10 @@ describe('type-bridge utilities', () => {
             offerTokenAndroid: 'token123',
             offerTagsAndroid: ['monthly', 'default'],
             paymentMode: 'pay-as-you-go',
+            installmentPlanDetailsAndroid: {
+              commitmentPaymentsCount: 12,
+              subsequentCommitmentPaymentsCount: 0,
+            },
             period: {
               unit: 'month',
               value: 1,
@@ -205,6 +265,10 @@ describe('type-bridge utilities', () => {
       expect(Array.isArray(result.subscriptionOffers)).toBe(true);
       expect(result.subscriptionOffers[0].basePlanIdAndroid).toBe('monthly');
       expect(result.subscriptionOffers[0].offerTokenAndroid).toBe('token123');
+      expect(
+        result.subscriptionOffers[0].installmentPlanDetailsAndroid
+          .commitmentPaymentsCount,
+      ).toBe(12);
     });
 
     it('converts Android product with standardized discountOffers', () => {
@@ -218,17 +282,38 @@ describe('type-bridge utilities', () => {
         currency: 'USD',
         price: 9.99,
         platform: 'android',
+        oneTimePurchaseOfferDetailsAndroid: [
+          {
+            formattedPrice: '$4.99',
+            offerTags: ['sale'],
+            offerToken: 'discount_token123',
+            priceAmountMicros: '4990000',
+            priceCurrencyCode: 'USD',
+            purchaseOptionId: 'legacy-purchase-option',
+          },
+        ],
         discountOffers: JSON.stringify([
           {
             id: 'discount_50off',
             currency: 'USD',
             displayPrice: '$4.99',
             price: 4.99,
+            type: 'one-time',
             offerTokenAndroid: 'discount_token123',
             offerTagsAndroid: ['sale', 'limited'],
             discountAmountMicrosAndroid: '5000000',
             formattedDiscountAmountAndroid: '$5.00 OFF',
             fullPriceMicrosAndroid: '9990000',
+            percentageDiscountAndroid: 50,
+            purchaseOptionIdAndroid: 'purchase-option',
+            preorderDetailsAndroid: {
+              preorderPresaleEndTimeMillis: '1000',
+              preorderReleaseTimeMillis: '2000',
+            },
+            rentalDetailsAndroid: {
+              rentalExpirationPeriod: 'P1D',
+              rentalPeriod: 'P7D',
+            },
           },
         ]),
       } as NitroProduct;
@@ -245,6 +330,21 @@ describe('type-bridge utilities', () => {
       expect(result.discountOffers[0].formattedDiscountAmountAndroid).toBe(
         '$5.00 OFF',
       );
+      expect(result.discountOffers[0].type).toBe('one-time');
+      expect(result.discountOffers[0].percentageDiscountAndroid).toBe(50);
+      expect(result.discountOffers[0].purchaseOptionIdAndroid).toBe(
+        'purchase-option',
+      );
+      expect(result.discountOffers[0].preorderDetailsAndroid).toEqual({
+        preorderPresaleEndTimeMillis: '1000',
+        preorderReleaseTimeMillis: '2000',
+      });
+      expect(result.discountOffers[0].rentalDetailsAndroid.rentalPeriod).toBe(
+        'P7D',
+      );
+      expect(
+        result.oneTimePurchaseOfferDetailsAndroid[0].purchaseOptionId,
+      ).toBe('legacy-purchase-option');
     });
 
     it('handles missing subscriptionOffers gracefully', () => {

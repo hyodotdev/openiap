@@ -1145,7 +1145,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         return try {
             // OpenIAP returns NSDictionary which can be cast to Map
             val dict = (data as? Map<*, *>) ?: return null
-            val map = dict.mapKeys { it.key.toString() }
+            val map = normalizeBridgeMap(dict) ?: return null
 
             val platform = map["platform"] as? String
             if (platform == "ios" || platform == "iOS") {
@@ -1201,8 +1201,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     }
 
     private fun mapFromAny(data: Any?): Map<String, Any?>? {
-        val dict = data as? Map<*, *> ?: return null
-        return dict.entries.associate { (key, value) -> key.toString() to value }
+        return normalizeBridgeMap(data)
     }
 
     private fun convertAnyToTransactionCommitmentInfoIOS(data: Any?): TransactionCommitmentInfoIOS? {
@@ -1226,6 +1225,20 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             decoded += term
         }
         return decoded.ifEmpty { null }
+    }
+
+    private fun convertAnyToSubscriptionInfoIOS(data: Any?): SubscriptionInfoIOS? =
+        normalizeBridgeMap(data)?.let { map ->
+            runCatching { SubscriptionInfoIOS.fromJson(map) }.getOrNull()
+        }
+
+    private fun convertAnyListToDiscountsIOS(data: Any?): List<DiscountIOS>? {
+        val list = data as? List<*> ?: return null
+        return list.mapNotNull { item ->
+            normalizeBridgeMap(item)?.let { map ->
+                runCatching { DiscountIOS.fromJson(map) }.getOrNull()
+            }
+        }.ifEmpty { null }
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -1272,12 +1285,13 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     return@mapNotNull null
                 }
 
-                val map = dict.mapKeys { it.key.toString() }
+                val map = normalizeProductPayloadIOS(dict) ?: return@mapNotNull null
+                runCatching { ProductIOS.fromJson(map) }.getOrNull()?.let {
+                    return@mapNotNull mergeLegacySubscriptionOffers(it, map)
+                }
 
                 // Parse subscription offers from the data (if product has subscription info)
-                val subscriptionOffers = convertAnyListToSubscriptionOffers(
-                    map["subscriptionOffers"] ?: map["offers"]
-                )
+                val subscriptionOffers = subscriptionOffersFrom(map)
 
                 ProductIOS(
                     currency = map["currency"] as? String ?: "",
@@ -1294,7 +1308,9 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     pricingTermsIOS = convertAnyListToSubscriptionPricingTermsIOS(
                         map["pricingTermsIOS"]
                     ),
-                    subscriptionInfoIOS = null, // Complex object, handle separately if needed
+                    subscriptionInfoIOS = convertAnyToSubscriptionInfoIOS(
+                        map["subscriptionInfoIOS"]
+                    ),
                     subscriptionOffers = subscriptionOffers.ifEmpty { null },
                     title = map["title"] as? String ?: "",
                     type = (map["type"] as? String)?.let { ProductType.fromJson(it) }
@@ -1317,18 +1333,19 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             val list = data as? List<*> ?: return emptyList()
             list.mapNotNull { item ->
                 val dict = (item as? Map<*, *>) ?: return@mapNotNull null
-                val map = dict.mapKeys { it.key.toString() }
+                val map = normalizeProductPayloadIOS(dict) ?: return@mapNotNull null
+                runCatching { ProductSubscriptionIOS.fromJson(map) }.getOrNull()?.let {
+                    return@mapNotNull mergeLegacySubscriptionOffers(it, map)
+                }
 
                 // Parse subscription offers from the data
-                val subscriptionOffers = convertAnyListToSubscriptionOffers(
-                    map["subscriptionOffers"] ?: map["offers"]
-                )
+                val subscriptionOffers = subscriptionOffersFrom(map)
 
                 ProductSubscriptionIOS(
                     currency = map["currency"] as? String ?: "",
                     debugDescription = map["debugDescription"] as? String,
                     description = map["description"] as? String ?: "",
-                    discountsIOS = null, // Complex array (deprecated, use subscriptionOffers)
+                    discountsIOS = convertAnyListToDiscountsIOS(map["discountsIOS"]),
                     displayName = map["displayName"] as? String,
                     displayNameIOS = map["displayNameIOS"] as? String ?: "",
                     displayPrice = map["displayPrice"] as? String ?: "",
@@ -1336,8 +1353,12 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     introductoryPriceAsAmountIOS = map["introductoryPriceAsAmountIOS"] as? String,
                     introductoryPriceIOS = map["introductoryPriceIOS"] as? String,
                     introductoryPriceNumberOfPeriodsIOS = map["introductoryPriceNumberOfPeriodsIOS"] as? String,
-                    introductoryPricePaymentModeIOS = PaymentModeIOS.Empty, // Complex enum
-                    introductoryPriceSubscriptionPeriodIOS = null, // Complex enum
+                    introductoryPricePaymentModeIOS = (map["introductoryPricePaymentModeIOS"] as? String)
+                        ?.let { runCatching { PaymentModeIOS.fromJson(it) }.getOrNull() }
+                        ?: PaymentModeIOS.Empty,
+                    introductoryPriceSubscriptionPeriodIOS =
+                        (map["introductoryPriceSubscriptionPeriodIOS"] as? String)
+                            ?.let { runCatching { SubscriptionPeriodIOS.fromJson(it) }.getOrNull() },
                     isFamilyShareableIOS = map["isFamilyShareableIOS"] as? Boolean ?: false,
                     jsonRepresentationIOS = map["jsonRepresentationIOS"] as? String ?: "",
                     platform = IapPlatform.Ios,
@@ -1345,14 +1366,19 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     pricingTermsIOS = convertAnyListToSubscriptionPricingTermsIOS(
                         map["pricingTermsIOS"]
                     ),
-                    subscriptionInfoIOS = null, // Complex object
+                    subscriptionInfoIOS = convertAnyToSubscriptionInfoIOS(
+                        map["subscriptionInfoIOS"]
+                    ),
                     subscriptionOffers = subscriptionOffers.ifEmpty { null },
                     subscriptionGroupIdIOS = map["subscriptionGroupIdIOS"] as? String,
                     subscriptionPeriodNumberIOS = map["subscriptionPeriodNumberIOS"] as? String,
-                    subscriptionPeriodUnitIOS = null, // Complex enum
+                    subscriptionPeriodUnitIOS = (map["subscriptionPeriodUnitIOS"] as? String)
+                        ?.let { runCatching { SubscriptionPeriodIOS.fromJson(it) }.getOrNull() },
                     title = map["title"] as? String ?: "",
                     type = ProductType.Subs,
-                    typeIOS = ProductTypeIOS.AutoRenewableSubscription
+                    typeIOS = (map["typeIOS"] as? String)
+                        ?.let { runCatching { ProductTypeIOS.fromJson(it) }.getOrNull() }
+                        ?: ProductTypeIOS.AutoRenewableSubscription
                 )
             }
         } catch (e: Exception) {
@@ -1367,11 +1393,13 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         return list.mapNotNull { item ->
             runCatching {
                 val dict = (item as? Map<*, *>) ?: return@runCatching null
-                val map = dict.mapKeys { it.key.toString() }
+                val map = normalizeProductPayloadIOS(dict) ?: return@runCatching null
 
                 // Native iOS may return either generated union JSON or raw StoreKit maps;
                 // decode the union first, then recover by product type for legacy payloads.
-                runCatching { ProductOrSubscription.fromJson(map) }.getOrElse {
+                runCatching { ProductOrSubscription.fromJson(map) }
+                    .map { mergeLegacySubscriptionOffers(it, map) }
+                    .getOrElse {
                     val type = map["type"] as? String
                     if (type?.equals(ProductType.Subs.rawValue, ignoreCase = true) == true) {
                         convertAnyListToProductSubscriptions(listOf(item)).firstOrNull()?.let {
@@ -1387,13 +1415,67 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         }
     }
 
+    private fun subscriptionOffersFrom(map: Map<String, Any?>): List<SubscriptionOffer> {
+        val subscriptionOffers = convertAnyListToSubscriptionOffers(map["subscriptionOffers"])
+        return subscriptionOffers.ifEmpty { convertAnyListToSubscriptionOffers(map["offers"]) }
+    }
+
+    private fun mergeLegacySubscriptionOffers(
+        product: Product,
+        map: Map<String, Any?>
+    ): Product {
+        val subscriptionOffers = subscriptionOffersFrom(map)
+        if (subscriptionOffers.isEmpty()) return product
+
+        return when (product) {
+            is ProductIOS -> if (product.subscriptionOffers.isNullOrEmpty()) {
+                product.copy(subscriptionOffers = subscriptionOffers)
+            } else {
+                product
+            }
+            else -> product
+        }
+    }
+
+    private fun mergeLegacySubscriptionOffers(
+        subscription: ProductSubscription,
+        map: Map<String, Any?>
+    ): ProductSubscription {
+        val subscriptionOffers = subscriptionOffersFrom(map)
+        if (subscriptionOffers.isEmpty()) return subscription
+
+        return when (subscription) {
+            is ProductSubscriptionIOS -> if (subscription.subscriptionOffers.isNullOrEmpty()) {
+                subscription.copy(subscriptionOffers = subscriptionOffers)
+            } else {
+                subscription
+            }
+            else -> subscription
+        }
+    }
+
+    private fun mergeLegacySubscriptionOffers(
+        item: ProductOrSubscription,
+        map: Map<String, Any?>
+    ): ProductOrSubscription = when (item) {
+        is ProductOrSubscription.ProductItem ->
+            ProductOrSubscription.ProductItem(mergeLegacySubscriptionOffers(item.value, map))
+        is ProductOrSubscription.ProductSubscriptionItem ->
+            ProductOrSubscription.ProductSubscriptionItem(
+                mergeLegacySubscriptionOffers(item.value, map)
+            )
+    }
+
     @Suppress("UNCHECKED_CAST")
     private fun convertAnyToProductIOS(data: Any?): ProductIOS? {
         if (data == null) return null
 
         return try {
             val dict = (data as? Map<*, *>) ?: return null
-            val map = dict.mapKeys { it.key.toString() }
+            val map = normalizeProductPayloadIOS(dict) ?: return null
+            runCatching { ProductIOS.fromJson(map) }.getOrNull()?.let {
+                return mergeLegacySubscriptionOffers(it, map) as? ProductIOS ?: it
+            }
 
             ProductIOS(
                 currency = map["currency"] as? String ?: "",
@@ -1410,10 +1492,10 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 pricingTermsIOS = convertAnyListToSubscriptionPricingTermsIOS(
                     map["pricingTermsIOS"]
                 ),
-                subscriptionInfoIOS = null, // Complex object
-                subscriptionOffers = convertAnyListToSubscriptionOffers(
-                    map["subscriptionOffers"] ?: map["offers"]
-                ).ifEmpty { null },
+                subscriptionInfoIOS = convertAnyToSubscriptionInfoIOS(
+                    map["subscriptionInfoIOS"]
+                ),
+                subscriptionOffers = subscriptionOffersFrom(map).ifEmpty { null },
                 title = map["title"] as? String ?: "",
                 type = (map["type"] as? String)?.let { ProductType.fromJson(it) }
                     ?: ProductType.InApp,
@@ -1606,7 +1688,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
 
         return try {
             val dict = (data as? Map<*, *>) ?: return null
-            val map = dict.mapKeys { it.key.toString() }
+            val map = normalizeBridgeMap(dict) ?: return null
 
             // Determine payment mode
             val paymentModeString = map["paymentMode"] as? String

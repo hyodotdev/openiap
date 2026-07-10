@@ -23,6 +23,7 @@ import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import com.google.gson.Gson
 import dev.hyo.openiap.helpers.ProductManager
+import dev.hyo.openiap.helpers.ProductQueryResult
 import dev.hyo.openiap.MutationAcknowledgePurchaseAndroidHandler
 import dev.hyo.openiap.MutationConsumePurchaseAndroidHandler
 import dev.hyo.openiap.MutationDeepLinkToSubscriptionsHandler
@@ -54,6 +55,7 @@ import dev.hyo.openiap.helpers.onPurchaseUpdated
 import dev.hyo.openiap.helpers.onSubscriptionBillingIssue
 import dev.hyo.openiap.helpers.queryAlreadyOwnedPurchases
 import dev.hyo.openiap.helpers.queryProductDetails
+import dev.hyo.openiap.helpers.queryProductDetailsWithStatus
 import dev.hyo.openiap.helpers.queryPurchases
 import dev.hyo.openiap.helpers.resolveBasePlanIdForOfferToken
 import dev.hyo.openiap.helpers.resumeGuard
@@ -66,11 +68,18 @@ import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
 import dev.hyo.openiap.utils.BillingConverters.toInAppProduct
 import dev.hyo.openiap.utils.BillingConverters.toPurchase
 import dev.hyo.openiap.utils.BillingConverters.toSubscriptionProduct
+import dev.hyo.openiap.utils.BillingConverters.productStatusFromUnfetchedStatus
+import dev.hyo.openiap.utils.BillingConverters.unavailableInAppProduct
+import dev.hyo.openiap.utils.BillingConverters.unavailableSubscriptionProduct
 import dev.hyo.openiap.utils.fromBillingState
 import dev.hyo.openiap.utils.toActiveSubscription
 import dev.hyo.openiap.utils.verifyPurchaseWithGooglePlay
 import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.lang.ref.WeakReference
@@ -78,6 +87,48 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 // AlternativeBillingMode moved to main source set (shared between Play and Horizon)
+
+internal fun recordRecoverableProductQueryFailure(
+    firstError: Throwable?,
+    error: Throwable,
+): Throwable {
+    if (error is CancellationException || error is Error) throw error
+    return firstError ?: error
+}
+
+internal data class AllProductQueryResults<T : Any>(
+    val inApp: T?,
+    val subscriptions: T?,
+)
+
+internal suspend fun <T : Any> collectAllProductQueryResults(
+    queryInApp: suspend () -> T,
+    querySubscriptions: suspend () -> T,
+): AllProductQueryResults<T> {
+    suspend fun capture(query: suspend () -> T): Result<T> =
+        try {
+            Result.success(query())
+        } catch (error: Throwable) {
+            Result.failure(recordRecoverableProductQueryFailure(null, error))
+        }
+
+    val (inAppResult, subscriptionsResult) = coroutineScope {
+        awaitAll(
+            async { capture(queryInApp) },
+            async { capture(querySubscriptions) },
+        )
+    }
+    val firstError = inAppResult.exceptionOrNull()
+        ?: subscriptionsResult.exceptionOrNull()
+    if (inAppResult.isFailure && subscriptionsResult.isFailure) {
+        throw checkNotNull(firstError)
+    }
+
+    return AllProductQueryResults(
+        inApp = inAppResult.getOrNull(),
+        subscriptions = subscriptionsResult.getOrNull(),
+    )
+}
 
 /**
  * Main OpenIapModule implementation for Android
@@ -199,6 +250,71 @@ class OpenIapModule(
         }
     }
 
+    private data class UnfetchedStatus(
+        val productType: String,
+        val status: ProductStatusAndroid,
+    )
+
+    private fun ProductQueryResult.unfetchedStatus(productId: String): UnfetchedStatus? =
+        unfetchedProducts.firstOrNull { it.productId == productId }?.let {
+            UnfetchedStatus(
+                productType = it.productType,
+                status = productStatusFromUnfetchedStatus(it.statusCode),
+            )
+        }
+
+    private fun ProductQueryResult.toInAppProducts(skus: List<String>): List<ProductAndroid> {
+        val detailsById = productDetails.associateBy { it.productId }
+        return skus.map { productId ->
+            detailsById[productId]?.toInAppProduct()
+                ?: unavailableInAppProduct(
+                    productId,
+                    unfetchedStatus(productId)?.status ?: ProductStatusAndroid.Unknown,
+                )
+        }
+    }
+
+    private fun ProductQueryResult.toSubscriptionProducts(
+        skus: List<String>,
+    ): List<ProductSubscriptionAndroid> {
+        val detailsById = productDetails.associateBy { it.productId }
+        return skus.map { productId ->
+            detailsById[productId]?.toSubscriptionProduct()
+                ?: unavailableSubscriptionProduct(
+                    productId,
+                    unfetchedStatus(productId)?.status ?: ProductStatusAndroid.Unknown,
+                )
+        }
+    }
+
+    private fun unavailableAllProduct(
+        productId: String,
+        inAppResult: ProductQueryResult?,
+        subscriptionsResult: ProductQueryResult?,
+    ): ProductOrSubscription {
+        val statuses = listOfNotNull(
+            inAppResult?.unfetchedStatus(productId),
+            subscriptionsResult?.unfetchedStatus(productId),
+        )
+        val noOffers = statuses.firstOrNull { it.status == ProductStatusAndroid.NoOffersAvailable }
+        val selected = noOffers ?: statuses.firstOrNull()
+        val status = when {
+            noOffers != null -> ProductStatusAndroid.NoOffersAvailable
+            inAppResult != null && subscriptionsResult != null &&
+                statuses.size == 2 && statuses.all { it.status == ProductStatusAndroid.NotFound } ->
+                ProductStatusAndroid.NotFound
+            else -> ProductStatusAndroid.Unknown
+        }
+
+        return if (selected?.productType == BillingClient.ProductType.SUBS) {
+            ProductOrSubscription.ProductSubscriptionItem(
+                unavailableSubscriptionProduct(productId, status)
+            )
+        } else {
+            ProductOrSubscription.ProductItem(unavailableInAppProduct(productId, status))
+        }
+    }
+
     override val fetchProducts: QueryFetchProductsHandler = { params ->
         withContext(Dispatchers.IO) {
             val client = billingClient ?: throw OpenIapError.NotPrepared
@@ -209,63 +325,54 @@ class OpenIapModule(
 
             when (queryType) {
                 ProductQueryType.InApp -> {
-                    val inAppProducts = queryProductDetails(client, productManager, params.skus, BillingClient.ProductType.INAPP)
-                        .map { it.toInAppProduct() }
-                    FetchProductsResultProducts(inAppProducts)
+                    val result = queryProductDetailsWithStatus(
+                        client,
+                        productManager,
+                        params.skus,
+                        BillingClient.ProductType.INAPP,
+                    )
+                    FetchProductsResultProducts(result.toInAppProducts(params.skus))
                 }
                 ProductQueryType.Subs -> {
-                    val subscriptionProducts = queryProductDetails(client, productManager, params.skus, BillingClient.ProductType.SUBS)
-                        .map { it.toSubscriptionProduct() }
-                    FetchProductsResultSubscriptions(subscriptionProducts)
+                    val result = queryProductDetailsWithStatus(
+                        client,
+                        productManager,
+                        params.skus,
+                        BillingClient.ProductType.SUBS,
+                    )
+                    FetchProductsResultSubscriptions(result.toSubscriptionProducts(params.skus))
                 }
                 ProductQueryType.All -> {
-                    // Query both types and combine results
-                    val allItems = mutableListOf<ProductOrSubscription>()
-                    val processedIds = mutableSetOf<String>()
-                    var firstQueryError: Throwable? = null
+                    val results = collectAllProductQueryResults(
+                        queryInApp = {
+                            queryProductDetailsWithStatus(
+                                client,
+                                productManager,
+                                params.skus,
+                                BillingClient.ProductType.INAPP,
+                            )
+                        },
+                        querySubscriptions = {
+                            queryProductDetailsWithStatus(
+                                client,
+                                productManager,
+                                params.skus,
+                                BillingClient.ProductType.SUBS,
+                            )
+                        },
+                    )
+                    val inAppResult = results.inApp
+                    val subscriptionsResult = results.subscriptions
 
-                    // First, get all INAPP products
-                    val inAppDetails = runCatching {
-                        queryProductDetails(client, productManager, params.skus, BillingClient.ProductType.INAPP)
-                    }.onFailure { error ->
-                        firstQueryError = firstQueryError ?: error
-                    }.getOrDefault(emptyList())
-
-                    for (detail in inAppDetails) {
-                        val product = detail.toInAppProduct()
-                        allItems.add(ProductOrSubscription.ProductItem(product))
-                        processedIds.add(detail.productId)
-                    }
-
-                    // Then, get subscription products (only add if not already processed as INAPP)
-                    val subsDetails = runCatching {
-                        queryProductDetails(client, productManager, params.skus, BillingClient.ProductType.SUBS)
-                    }.onFailure { error ->
-                        firstQueryError = firstQueryError ?: error
-                    }.getOrDefault(emptyList())
-
-                    for (detail in subsDetails) {
-                        if (detail.productId !in processedIds) {
-                            val subProduct = detail.toSubscriptionProduct()
-                            allItems.add(ProductOrSubscription.ProductSubscriptionItem(subProduct))
-                        }
-                    }
-
-                    if (allItems.isEmpty()) {
-                        firstQueryError?.let { throw it }
-                    }
-
-                    // Return products in the order they were requested if SKUs provided
-                    val orderedItems = if (params.skus.isNotEmpty()) {
-                        val itemMap = allItems.associateBy { item ->
-                            when (item) {
-                                is ProductOrSubscription.ProductItem -> item.value.id
-                                is ProductOrSubscription.ProductSubscriptionItem -> item.value.id
-                            }
-                        }
-                        params.skus.mapNotNull { itemMap[it] }
-                    } else {
-                        allItems
+                    val inAppById = inAppResult?.productDetails.orEmpty().associateBy { it.productId }
+                    val subscriptionsById = subscriptionsResult?.productDetails.orEmpty()
+                        .associateBy { it.productId }
+                    val orderedItems = params.skus.map { productId ->
+                        inAppById[productId]?.let {
+                            ProductOrSubscription.ProductItem(it.toInAppProduct())
+                        } ?: subscriptionsById[productId]?.let {
+                            ProductOrSubscription.ProductSubscriptionItem(it.toSubscriptionProduct())
+                        } ?: unavailableAllProduct(productId, inAppResult, subscriptionsResult)
                     }
 
                     FetchProductsResultAll(orderedItems)
@@ -306,7 +413,7 @@ class OpenIapModule(
             val productIdsNeedingDetails = filtered
                 .map { it.productId }
                 .distinct()
-                .filter { productManager.get(it) == null }
+                .filter { productManager.get(it, BillingClient.ProductType.SUBS) == null }
 
             // Batch query missing ProductDetails to minimize API calls
             if (productIdsNeedingDetails.isNotEmpty()) {
@@ -324,7 +431,10 @@ class OpenIapModule(
 
             // Now enrich purchases with cached ProductDetails
             filtered.map { purchase ->
-                val productDetails = productManager.get(purchase.productId)
+                val productDetails = productManager.get(
+                    purchase.productId,
+                    BillingClient.ProductType.SUBS,
+                )
                 val offers = productDetails?.subscriptionOfferDetails.orEmpty()
                 if (offers.size > 1) {
                     OpenIapLog.w("Multiple offers (${offers.size}) found for ${purchase.productId}, using first basePlanId (may be inaccurate)", TAG)
@@ -929,7 +1039,7 @@ class OpenIapModule(
 
                 val detailsBySku = mutableMapOf<String, ProductDetails>()
                 for (sku in androidArgs.skus) {
-                    productManager.get(sku)?.takeIf { it.productType == desiredType }?.let { detailsBySku[sku] = it }
+                    productManager.get(sku, desiredType)?.let { detailsBySku[sku] = it }
                 }
 
                 val missing = androidArgs.skus.filter { !detailsBySku.containsKey(it) }

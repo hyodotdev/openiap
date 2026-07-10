@@ -293,11 +293,8 @@ func _apply_purchase_updated_listener_options_ios() -> void:
 ## [code]type[/code] ([code]ProductQueryType.IN_APP[/code], [code]SUBS[/code], or [code]ALL[/code]).
 ##
 ## Returns an Array — typed as [Array] because GDScript can't express heterogeneous element
-## types. The wrapper maps results to platform-specific objects:
-## [Array][[Types.ProductAndroid]] on Android and [Array][[Types.ProductIOS]] on iOS,
-## regardless of whether the request was IN_APP, SUBS, or ALL. Use the platform-specific
-## fields ([code]subscription_offer_details_android[/code], [code]subscription_*_ios[/code])
-## to distinguish subscriptions from one-time products at the call site.
+## types. The wrapper maps one-time products to [Types.ProductAndroid] / [Types.ProductIOS]
+## and subscriptions to [Types.ProductSubscriptionAndroid] / [Types.ProductSubscriptionIOS].
 ##
 ## [codeblock]
 ## var request = ProductRequest.new()
@@ -318,12 +315,30 @@ func fetch_products(request) -> Array:
 	if result.has("products"):
 		for product_dict in result["products"]:
 			if product_dict is Dictionary:
-				if _platform == "Android":
-					products.append(Types.ProductAndroid.from_dict(_normalize_android_product_dict(product_dict)))
-				elif _platform == "iOS":
-					products.append(Types.ProductIOS.from_dict(product_dict))
+				var product = _product_from_dict(product_dict)
+				if product != null:
+					products.append(product)
 
 	return products
+
+
+func _product_from_dict(product_dict: Dictionary) -> Variant:
+	var raw_type = product_dict.get("type", "")
+	var is_subscription = false
+	if raw_type is String:
+		is_subscription = raw_type.to_lower() in ["subs", "subscription", "subscriptions"]
+	elif raw_type is int:
+		is_subscription = raw_type == Types.ProductType.SUBS
+
+	if _platform == "Android":
+		if is_subscription:
+			return Types.ProductSubscriptionAndroid.from_dict(product_dict)
+		return Types.ProductAndroid.from_dict(product_dict)
+	if _platform == "iOS":
+		if is_subscription:
+			return Types.ProductSubscriptionIOS.from_dict(product_dict)
+		return Types.ProductIOS.from_dict(product_dict)
+	return null
 
 ## Internal: Fetch products with raw Dictionary (for backward compatibility)
 func _fetch_products_raw(request: Dictionary) -> Dictionary:
@@ -596,14 +611,6 @@ func _normalize_android_purchase_dict(purchase_dict: Dictionary) -> Dictionary:
 		normalized["isAcknowledgedAndroid"] = normalized["isAcknowledged"]
 	return normalized
 
-
-func _normalize_android_product_dict(product_dict: Dictionary) -> Dictionary:
-	var normalized := product_dict.duplicate()
-	normalized.erase("discountOffers")
-	normalized.erase("subscriptionOffers")
-	normalized.erase("oneTimePurchaseOfferDetailsAndroid")
-	normalized.erase("subscriptionOfferDetailsAndroid")
-	return normalized
 
 ## Internal: Get available purchases raw
 func _get_available_purchases_raw() -> Array:

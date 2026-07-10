@@ -898,6 +898,24 @@ final class OpenIapTests: XCTestCase {
         XCTAssertEqual(decoded.subscriptionOffers?.first?.id, "intro_weekly")
     }
 
+    func testMixedProductSerializationPreservesVariantsAndOrder() {
+        let subscription = makeSampleSubscription()
+        var product = makeSampleProduct()
+        product.type = .inApp
+        product.typeIOS = .consumable
+        let result = FetchProductsResult.all([
+            .productSubscription(.productSubscriptionIos(subscription)),
+            .product(.productIos(product)),
+        ])
+
+        let payload = OpenIapSerialization.products(result)
+
+        XCTAssertEqual(payload.compactMap { $0["id"] as? String }, [subscription.id, product.id])
+        XCTAssertEqual(payload[0]["type"] as? String, ProductType.subs.rawValue)
+        XCTAssertEqual(payload[0]["subscriptionGroupIdIOS"] as? String, "group")
+        XCTAssertEqual(payload[1]["type"] as? String, ProductType.inApp.rawValue)
+    }
+
     // MARK: - Helpers
 
     private func makeSampleProduct() -> ProductIOS {
