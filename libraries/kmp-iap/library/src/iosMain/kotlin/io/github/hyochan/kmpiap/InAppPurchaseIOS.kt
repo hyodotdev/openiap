@@ -1285,7 +1285,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     return@mapNotNull null
                 }
 
-                val map = normalizeIosProductPayload(dict) ?: return@mapNotNull null
+                val map = normalizeProductPayloadIOS(dict) ?: return@mapNotNull null
                 runCatching { ProductIOS.fromJson(map) }.getOrNull()?.let {
                     return@mapNotNull mergeLegacySubscriptionOffers(it, map)
                 }
@@ -1333,7 +1333,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             val list = data as? List<*> ?: return emptyList()
             list.mapNotNull { item ->
                 val dict = (item as? Map<*, *>) ?: return@mapNotNull null
-                val map = normalizeIosProductPayload(dict) ?: return@mapNotNull null
+                val map = normalizeProductPayloadIOS(dict) ?: return@mapNotNull null
                 runCatching { ProductSubscriptionIOS.fromJson(map) }.getOrNull()?.let {
                     return@mapNotNull mergeLegacySubscriptionOffers(it, map)
                 }
@@ -1393,7 +1393,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         return list.mapNotNull { item ->
             runCatching {
                 val dict = (item as? Map<*, *>) ?: return@runCatching null
-                val map = normalizeIosProductPayload(dict) ?: return@runCatching null
+                val map = normalizeProductPayloadIOS(dict) ?: return@runCatching null
 
                 // Native iOS may return either generated union JSON or raw StoreKit maps;
                 // decode the union first, then recover by product type for legacy payloads.
@@ -1472,7 +1472,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
 
         return try {
             val dict = (data as? Map<*, *>) ?: return null
-            val map = normalizeIosProductPayload(dict) ?: return null
+            val map = normalizeProductPayloadIOS(dict) ?: return null
             runCatching { ProductIOS.fromJson(map) }.getOrNull()?.let {
                 return mergeLegacySubscriptionOffers(it, map) as? ProductIOS ?: it
             }

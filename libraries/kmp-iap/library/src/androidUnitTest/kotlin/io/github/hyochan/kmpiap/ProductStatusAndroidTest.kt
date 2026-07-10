@@ -1,9 +1,18 @@
 package io.github.hyochan.kmpiap
 
+import com.android.billingclient.api.BillingClient
+import io.github.hyochan.kmpiap.openiap.ErrorCode
+import io.github.hyochan.kmpiap.openiap.ProductQueryType
 import io.github.hyochan.kmpiap.openiap.ProductStatusAndroid
 import io.github.hyochan.kmpiap.openiap.ProductType
+import io.github.hyochan.kmpiap.openiap.PurchaseError
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 internal class TestUnfetchedProduct(
@@ -44,6 +53,17 @@ class ProductStatusAndroidTest {
     }
 
     @Test
+    fun `keeps in-app and subscription cache entries for the same sku separate`() {
+        val inAppKey = ProductCacheKey("shared.sku", BillingClient.ProductType.INAPP)
+        val subscriptionKey = ProductCacheKey("shared.sku", BillingClient.ProductType.SUBS)
+        val cache = mapOf(inAppKey to "in-app", subscriptionKey to "subscription")
+
+        assertEquals(2, cache.size)
+        assertEquals("in-app", cache[inAppKey])
+        assertEquals("subscription", cache[subscriptionKey])
+    }
+
+    @Test
     fun `reads unfetched products with one reflected accessor lookup`() {
         val products = unfetchedProductInfoFrom(
             listOf(
@@ -68,5 +88,69 @@ class ProductStatusAndroidTest {
         assertEquals("offer-token", billingStringOrEmpty { "offer-token" })
         assertEquals("", billingStringOrEmpty { null })
         assertEquals("", billingStringOrEmpty { throw NoSuchMethodError("Billing 8 API") })
+    }
+
+    @Test
+    fun `single product query propagates failures`() = runTest {
+        val failure = PurchaseException(
+            PurchaseError(code = ErrorCode.ServiceError, message = "Service unavailable")
+        )
+
+        val thrown = assertFailsWith<PurchaseException> {
+            collectProductQueryOutcomes(
+                queryType = ProductQueryType.InApp,
+                queryInApp = { throw failure },
+                querySubscriptions = { error("Subscription query must not run") },
+            )
+        }
+
+        assertSame(failure, thrown)
+    }
+
+    @Test
+    fun `all query preserves a successful product kind`() = runTest {
+        val outcomes = collectProductQueryOutcomes(
+            queryType = ProductQueryType.All,
+            queryInApp = { ProductQueryOutcome(emptyList(), emptyList(), true) },
+            querySubscriptions = { throw IllegalStateException("Subscriptions unavailable") },
+        )
+
+        assertTrue(outcomes.inApp.succeeded)
+        assertFalse(outcomes.subscriptions.succeeded)
+    }
+
+    @Test
+    fun `all query rethrows its first failure when both product kinds fail`() = runTest {
+        val firstFailure = IllegalStateException("In-app unavailable")
+
+        val thrown = assertFailsWith<IllegalStateException> {
+            collectProductQueryOutcomes(
+                queryType = ProductQueryType.All,
+                queryInApp = { throw firstFailure },
+                querySubscriptions = { throw IllegalArgumentException("Subscriptions unavailable") },
+            )
+        }
+
+        assertSame(firstFailure, thrown)
+    }
+
+    @Test
+    fun `all query propagates cancellation before starting the next query`() = runTest {
+        val cancellation = CancellationException("Cancelled")
+        var subscriptionQueryStarted = false
+
+        val thrown = assertFailsWith<CancellationException> {
+            collectProductQueryOutcomes(
+                queryType = ProductQueryType.All,
+                queryInApp = { throw cancellation },
+                querySubscriptions = {
+                    subscriptionQueryStarted = true
+                    ProductQueryOutcome(emptyList(), emptyList(), true)
+                },
+            )
+        }
+
+        assertSame(cancellation, thrown)
+        assertFalse(subscriptionQueryStarted)
     }
 }

@@ -427,36 +427,57 @@ export class GDScriptPlugin extends CodegenPlugin {
     const elementType = type.elementType!;
     const elementTypeName = elementType.name!;
     const gdElementType = this.mapType(elementType);
-    this.emit(`${indent}var arr: Array[${gdElementType}] = []`);
-    this.emit(`${indent}for item in data["${graphqlName}"]:`);
+    const listIndent = `${indent}\t`;
+    const itemIndent = `${listIndent}\t`;
+    this.emit(`${indent}if data["${graphqlName}"] is Array:`);
+    this.emit(`${listIndent}var arr: Array[${gdElementType}] = []`);
+    this.emit(`${listIndent}for item in data["${graphqlName}"]:`);
     if (this.isObjectOrInput(elementType)) {
-      this.emit(`${indent}\tif item is Dictionary:`);
-      this.emit(`${indent}\t\tarr.append(${elementTypeName}.from_dict(item))`);
-      this.emit(`${indent}\telse:`);
-      this.emit(`${indent}\t\tarr.append(item)`);
+      this.emit(`${itemIndent}if item is Dictionary:`);
+      this.emit(`${itemIndent}\tarr.append(${elementTypeName}.from_dict(item))`);
+      this.emit(`${itemIndent}elif item is ${elementTypeName}:`);
+      this.emit(`${itemIndent}\tarr.append(item)`);
     } else if (elementType.kind === 'enum' || this.enumNames.has(elementTypeName)) {
       const enumReverseLookup = toConstantCase(elementTypeName) + '_FROM_STRING';
       const fallback = this.getEnumUnknownFallback(elementTypeName);
-      this.emit(`${indent}\tvar parsed_item = item`);
       if (fallback) {
-        this.emit(`${indent}\tif item is String:`);
-        this.emit(`${indent}\t\tparsed_item = ${enumReverseLookup}.get(item, ${fallback})`);
+        this.emit(`${itemIndent}if item is String:`);
+        this.emit(`${itemIndent}\tarr.append(${enumReverseLookup}.get(item, ${fallback}))`);
       } else {
-        this.emit(`${indent}\tif item is String and ${enumReverseLookup}.has(item):`);
-        this.emit(`${indent}\t\tparsed_item = ${enumReverseLookup}[item]`);
+        this.emit(`${itemIndent}if item is String and ${enumReverseLookup}.has(item):`);
+        this.emit(`${itemIndent}\tarr.append(${enumReverseLookup}[item])`);
       }
-      this.emit(`${indent}\tarr.append(parsed_item)`);
+      this.emit(`${itemIndent}elif item is int:`);
+      this.emit(`${itemIndent}\tarr.append(item)`);
     } else {
-      let appendExpression = 'item';
       switch (gdElementType) {
-        case 'String': appendExpression = 'str(item)'; break;
-        case 'int': appendExpression = 'int(item)'; break;
-        case 'float': appendExpression = 'float(item)'; break;
-        case 'bool': appendExpression = 'bool(item)'; break;
+        case 'String':
+          this.emit(`${itemIndent}if item is String:`);
+          this.emit(`${itemIndent}\tarr.append(str(item))`);
+          break;
+        case 'int':
+          this.emit(`${itemIndent}if item is int:`);
+          this.emit(`${itemIndent}\tarr.append(item)`);
+          this.emit(`${itemIndent}elif item is float:`);
+          this.emit(`${itemIndent}\tarr.append(int(item))`);
+          this.emit(`${itemIndent}elif item is String and item.is_valid_int():`);
+          this.emit(`${itemIndent}\tarr.append(int(item))`);
+          break;
+        case 'float':
+          this.emit(`${itemIndent}if item is int or item is float:`);
+          this.emit(`${itemIndent}\tarr.append(float(item))`);
+          this.emit(`${itemIndent}elif item is String and item.is_valid_float():`);
+          this.emit(`${itemIndent}\tarr.append(float(item))`);
+          break;
+        case 'bool':
+          this.emit(`${itemIndent}if item is bool:`);
+          this.emit(`${itemIndent}\tarr.append(bool(item))`);
+          break;
+        default:
+          this.emit(`${itemIndent}arr.append(item)`);
       }
-      this.emit(`${indent}\tarr.append(${appendExpression})`);
     }
-    this.emit(`${indent}obj.${fieldName} = arr`);
+    this.emit(`${listIndent}obj.${fieldName} = arr`);
   }
 
   private generateToDictField(field: IRField, fieldName: string): void {

@@ -75,6 +75,7 @@ import dev.hyo.openiap.utils.fromBillingState
 import dev.hyo.openiap.utils.toActiveSubscription
 import dev.hyo.openiap.utils.verifyPurchaseWithGooglePlay
 import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -83,6 +84,14 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 // AlternativeBillingMode moved to main source set (shared between Play and Horizon)
+
+internal fun recordRecoverableProductQueryFailure(
+    firstError: Throwable?,
+    error: Throwable,
+): Throwable {
+    if (error is CancellationException || error is Error) throw error
+    return firstError ?: error
+}
 
 /**
  * Main OpenIapModule implementation for Android
@@ -307,7 +316,7 @@ class OpenIapModule(
                             BillingClient.ProductType.INAPP,
                         )
                     }.onFailure { error ->
-                        firstQueryError = firstQueryError ?: error
+                        firstQueryError = recordRecoverableProductQueryFailure(firstQueryError, error)
                     }.getOrNull()
 
                     val subscriptionsResult = runCatching {
@@ -318,7 +327,7 @@ class OpenIapModule(
                             BillingClient.ProductType.SUBS,
                         )
                     }.onFailure { error ->
-                        firstQueryError = firstQueryError ?: error
+                        firstQueryError = recordRecoverableProductQueryFailure(firstQueryError, error)
                     }.getOrNull()
 
                     if (inAppResult == null && subscriptionsResult == null) {

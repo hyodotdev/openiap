@@ -5,14 +5,14 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
-class IosProductPayloadNormalizerTest {
+class ProductPayloadNormalizerTestIOS {
     @Test
     fun `normalizes legacy product aliases before generated decoding`() {
         val payload: Map<Any?, Any?> = mapOf(
             "id" to "premium.monthly",
             "type" to "subs",
             "typeIOS" to "auto-renewable-subscription",
-            "subscriptionInfoIOS" to null,
+            "subscriptionInfoIOS" to emptyMap<Any?, Any?>(),
             "subscription" to mapOf<Any?, Any?>(
                 "subscriptionGroupId" to "group-1",
                 "subscriptionPeriod" to mapOf<Any?, Any?>(
@@ -43,7 +43,7 @@ class IosProductPayloadNormalizerTest {
             ),
         )
 
-        val normalized = assertNotNull(normalizeIosProductPayload(payload))
+        val normalized = assertNotNull(normalizeProductPayloadIOS(payload))
         val product = ProductSubscriptionIOS.fromJson(normalized)
 
         assertEquals("group-1", product.subscriptionInfoIOS?.subscriptionGroupId)

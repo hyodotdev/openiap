@@ -954,65 +954,9 @@ class HybridRnIap : HybridRnIapSpec() {
         }
 
         val subscriptionOffersJson = subscriptionOffers.takeIf { it.isNotEmpty() }?.let { serializeSubscriptionOffers(it) }
-        val oneTimeOffersNitro = oneTimeOffers?.map { otp ->
-            NitroOneTimePurchaseOfferDetail(
-                formattedPrice = otp.formattedPrice,
-                priceAmountMicros = otp.priceAmountMicros,
-                priceCurrencyCode = otp.priceCurrencyCode,
-                offerId = otp.offerId.wrapVariant(),
-                offerToken = otp.offerToken,
-                offerTags = otp.offerTags.toTypedArray(),
-                fullPriceMicros = otp.fullPriceMicros.wrapVariant(),
-                purchaseOptionId = otp.purchaseOptionId.wrapVariant(),
-                discountDisplayInfo = otp.discountDisplayInfo?.let { discount ->
-                    Variant_NullType_NitroDiscountDisplayInfoAndroid.Second(
-                        NitroDiscountDisplayInfoAndroid(
-                            percentageDiscount = discount.percentageDiscount?.toDouble().wrapVariant(),
-                            discountAmount = discount.discountAmount?.let { amount ->
-                                Variant_NullType_NitroDiscountAmountAndroid.Second(
-                                    NitroDiscountAmountAndroid(
-                                        discountAmountMicros = amount.discountAmountMicros,
-                                        formattedDiscountAmount = amount.formattedDiscountAmount
-                                    )
-                                )
-                            }
-                        )
-                    )
-                },
-                validTimeWindow = otp.validTimeWindow?.let { window ->
-                    Variant_NullType_NitroValidTimeWindowAndroid.Second(
-                        NitroValidTimeWindowAndroid(
-                            startTimeMillis = window.startTimeMillis,
-                            endTimeMillis = window.endTimeMillis
-                        )
-                    )
-                },
-                limitedQuantityInfo = otp.limitedQuantityInfo?.let { info ->
-                    Variant_NullType_NitroLimitedQuantityInfoAndroid.Second(
-                        NitroLimitedQuantityInfoAndroid(
-                            maximumQuantity = info.maximumQuantity.toDouble(),
-                            remainingQuantity = info.remainingQuantity.toDouble()
-                        )
-                    )
-                },
-                preorderDetailsAndroid = otp.preorderDetailsAndroid?.let { preorder ->
-                    Variant_NullType_NitroPreorderDetailsAndroid.Second(
-                        NitroPreorderDetailsAndroid(
-                            preorderPresaleEndTimeMillis = preorder.preorderPresaleEndTimeMillis,
-                            preorderReleaseTimeMillis = preorder.preorderReleaseTimeMillis
-                        )
-                    )
-                },
-                rentalDetailsAndroid = otp.rentalDetailsAndroid?.let { rental ->
-                    Variant_NullType_NitroRentalDetailsAndroid.Second(
-                        NitroRentalDetailsAndroid(
-                            rentalExpirationPeriod = rental.rentalExpirationPeriod?.let { Variant_NullType_String.Second(it) },
-                            rentalPeriod = rental.rentalPeriod
-                        )
-                    )
-                }
-            )
-        }?.toTypedArray()
+        val oneTimeOffersNitro = oneTimeOffers
+            ?.map { it.toNitroOneTimePurchaseOfferDetail() }
+            ?.toTypedArray()
 
         var originalPriceAndroid: String? = null
         var originalPriceAmountMicrosAndroid: Double? = null
@@ -1088,7 +1032,7 @@ class HybridRnIap : HybridRnIapSpec() {
             id = product.id,
             title = product.title,
             description = product.description,
-            debugDescription = product.debugDescription.wrapVariant(),
+            debugDescription = product.nitroDebugDescription(),
             type = product.type.rawValue,
             displayName = product.displayName.wrapVariant(),
             displayPrice = product.displayPrice,

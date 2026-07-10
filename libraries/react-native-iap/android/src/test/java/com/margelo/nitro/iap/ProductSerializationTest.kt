@@ -6,6 +6,8 @@ import dev.hyo.openiap.InstallmentPlanDetailsAndroid
 import dev.hyo.openiap.PaymentMode
 import dev.hyo.openiap.PreorderDetailsAndroid
 import dev.hyo.openiap.PricingPhasesAndroid
+import dev.hyo.openiap.ProductAndroid
+import dev.hyo.openiap.ProductAndroidOneTimePurchaseOfferDetail
 import dev.hyo.openiap.ProductSubscriptionAndroidOfferDetails
 import dev.hyo.openiap.RentalDetailsAndroid
 import dev.hyo.openiap.SubscriptionOffer
@@ -90,5 +92,32 @@ class ProductSerializationTest {
         assertEquals("purchase-option", map["purchaseOptionIdAndroid"])
         assertNotNull(map["preorderDetailsAndroid"])
         assertNotNull(map["rentalDetailsAndroid"])
+    }
+
+    @Test
+    fun `native product metadata reaches Nitro bridge models`() {
+        val offer = ProductAndroidOneTimePurchaseOfferDetail(
+            formattedPrice = "\$4.99",
+            offerTags = listOf("discount"),
+            offerToken = "offer-token",
+            priceAmountMicros = "4990000",
+            priceCurrencyCode = "USD",
+            purchaseOptionId = "purchase-option",
+        )
+        val product = ProductAndroid(
+            currency = "USD",
+            debugDescription = "native debug metadata",
+            description = "Premium access",
+            displayPrice = "\$4.99",
+            id = "premium",
+            nameAndroid = "Premium",
+            oneTimePurchaseOfferDetailsAndroid = listOf(offer),
+            title = "Premium",
+        )
+
+        val nitroOffer = offer.toNitroOneTimePurchaseOfferDetail()
+
+        assertEquals("purchase-option", nitroOffer.purchaseOptionId?.asSecondOrNull())
+        assertEquals("native debug metadata", product.nitroDebugDescription()?.asSecondOrNull())
     }
 }

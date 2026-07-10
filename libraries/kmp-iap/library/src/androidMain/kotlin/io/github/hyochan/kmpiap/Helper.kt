@@ -17,7 +17,6 @@ import io.github.hyochan.kmpiap.openiap.DiscountOffer
 import io.github.hyochan.kmpiap.openiap.ErrorCode
 import io.github.hyochan.kmpiap.openiap.ExternalLinkLaunchModeAndroid
 import io.github.hyochan.kmpiap.openiap.ExternalLinkTypeAndroid
-import io.github.hyochan.kmpiap.openiap.FetchProductsResult
 import io.github.hyochan.kmpiap.openiap.IapPlatform
 import io.github.hyochan.kmpiap.openiap.IapStore
 import io.github.hyochan.kmpiap.openiap.InstallmentPlanDetailsAndroid
@@ -26,7 +25,7 @@ import io.github.hyochan.kmpiap.openiap.LimitedQuantityInfoAndroid
 import io.github.hyochan.kmpiap.openiap.Product
 import io.github.hyochan.kmpiap.openiap.ProductAndroid
 import io.github.hyochan.kmpiap.openiap.ProductAndroidOneTimePurchaseOfferDetail
-import io.github.hyochan.kmpiap.openiap.ProductRequest
+import io.github.hyochan.kmpiap.openiap.ProductQueryType
 import io.github.hyochan.kmpiap.openiap.ProductStatusAndroid
 import io.github.hyochan.kmpiap.openiap.ProductSubscriptionAndroid
 import io.github.hyochan.kmpiap.openiap.ProductSubscriptionAndroidOfferDetails
@@ -46,6 +45,7 @@ import io.github.hyochan.kmpiap.openiap.SubscriptionPeriod
 import io.github.hyochan.kmpiap.openiap.SubscriptionPeriodUnit
 import io.github.hyochan.kmpiap.openiap.SubscriptionReplacementModeAndroid
 import io.github.hyochan.kmpiap.openiap.ValidTimeWindowAndroid
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableSharedFlow
 import com.android.billingclient.api.BillingFlowParams
 import dev.hyo.openiap.BillingProgramAndroid as OpenIapBillingProgram
@@ -67,6 +67,48 @@ internal data class ProductQueryOutcome(
     val succeeded: Boolean,
 )
 
+internal data class ProductQueryOutcomes(
+    val inApp: ProductQueryOutcome,
+    val subscriptions: ProductQueryOutcome,
+)
+
+internal data class ProductCacheKey(
+    val productId: String,
+    val productType: String,
+)
+
+internal suspend fun collectProductQueryOutcomes(
+    queryType: ProductQueryType,
+    queryInApp: suspend () -> ProductQueryOutcome,
+    querySubscriptions: suspend () -> ProductQueryOutcome,
+): ProductQueryOutcomes {
+    val emptySuccess = ProductQueryOutcome(emptyList(), emptyList(), true)
+
+    return when (queryType) {
+        ProductQueryType.InApp -> ProductQueryOutcomes(queryInApp(), emptySuccess)
+        ProductQueryType.Subs -> ProductQueryOutcomes(emptySuccess, querySubscriptions())
+        ProductQueryType.All -> {
+            var firstError: Throwable? = null
+
+            suspend fun capture(block: suspend () -> ProductQueryOutcome): ProductQueryOutcome =
+                try {
+                    block()
+                } catch (error: Throwable) {
+                    if (error is CancellationException || error is Error) throw error
+                    firstError = firstError ?: error
+                    ProductQueryOutcome(emptyList(), emptyList(), false)
+                }
+
+            val inApp = capture(queryInApp)
+            val subscriptions = capture(querySubscriptions)
+            if (!inApp.succeeded && !subscriptions.succeeded) {
+                throw checkNotNull(firstError)
+            }
+            ProductQueryOutcomes(inApp, subscriptions)
+        }
+    }
+}
+
 internal fun productStatusFromUnfetchedStatus(statusCode: Int): ProductStatusAndroid =
     when (statusCode) {
         3 -> ProductStatusAndroid.NotFound
@@ -79,9 +121,9 @@ internal fun unfetchedProductInfoFrom(items: List<*>): List<UnfetchedProductInfo
 
     return runCatching {
         val itemClass = sample.javaClass
-        val getProductId = itemClass.getMethod("getProductId")
-        val getProductType = itemClass.getMethod("getProductType")
-        val getStatusCode = itemClass.getMethod("getStatusCode")
+        val getProductId = itemClass.getMethod("getProductId").apply { isAccessible = true }
+        val getProductType = itemClass.getMethod("getProductType").apply { isAccessible = true }
+        val getStatusCode = itemClass.getMethod("getStatusCode").apply { isAccessible = true }
 
         items.mapNotNull { item ->
             item ?: return@mapNotNull null
@@ -154,16 +196,7 @@ internal fun emitFailureAndThrow(
     throw PurchaseException(error)
 }
 
-internal fun mapFetchResultToProductsHelper(
-    params: ProductRequest,
-    @Suppress("UNUSED_PARAMETER")
-    result: FetchProductsResult,
-    cache: Map<String, ProductDetails>
-): List<Product> = params.skus.flatMap { sku ->
-    cache[sku]?.let { listOf(it.toProduct()) } ?: emptyList()
-}
-
-internal fun clearProductCache(cache: MutableMap<String, ProductDetails>) {
+internal fun clearProductCache(cache: MutableMap<ProductCacheKey, ProductDetails>) {
     cache.clear()
 }
 
@@ -276,12 +309,12 @@ internal suspend fun loadProductDetails(
     client: BillingClient,
     productType: String,
     skus: List<String>,
-    cache: MutableMap<String, ProductDetails>,
+    cache: MutableMap<ProductCacheKey, ProductDetails>,
     errorFlow: MutableSharedFlow<PurchaseError>
 ): Map<String, ProductDetails>? {
     val details = mutableMapOf<String, ProductDetails>()
     skus.forEach { sku ->
-        cache[sku]?.takeIf { it.productType == productType }?.let { details[sku] = it }
+        cache[ProductCacheKey(sku, productType)]?.let { details[sku] = it }
     }
 
     val missing = skus.filterNot(details::containsKey)
@@ -300,7 +333,9 @@ internal suspend fun loadProductDetails(
         val success = suspendCancellableCoroutine<Boolean> { continuation ->
             client.queryProductDetailsAsync(params) { billingResult: BillingResult, queryResult: QueryProductDetailsResult ->
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                    queryResult.productDetailsList.forEach { detail -> cache[detail.productId] = detail }
+                    queryResult.productDetailsList.forEach { detail ->
+                        cache[ProductCacheKey(detail.productId, detail.productType)] = detail
+                    }
                     continuation.resume(true)
                 } else {
                     continuation.resume(false)
@@ -316,7 +351,7 @@ internal suspend fun loadProductDetails(
         }
 
         skus.forEach { sku ->
-            cache[sku]?.takeIf { it.productType == productType }?.let { details[sku] = it }
+            cache[ProductCacheKey(sku, productType)]?.let { details[sku] = it }
         }
     }
 

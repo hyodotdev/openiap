@@ -141,7 +141,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     private var context: Context? = null
     private var currentActivity: Activity? = null
     private var activityCallbacksDisposer: (() -> Unit)? = null
-    private val cachedProductDetails = ConcurrentHashMap<String, ProductDetails>()
+    private val cachedProductDetails = ConcurrentHashMap<ProductCacheKey, ProductDetails>()
     private var currentPurchaseCallback: ((Result<List<Purchase>>) -> Unit)? = null
     private val mainHandler by lazy(LazyThreadSafetyMode.NONE) {
         Handler(Looper.getMainLooper())
@@ -182,11 +182,6 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
 
     private fun failWith(error: PurchaseError): Nothing =
         emitFailureAndThrow(_purchaseErrorListener, error)
-
-    private fun mapFetchResultToProducts(
-        params: ProductRequest,
-        result: FetchProductsResult
-    ): List<Product> = mapFetchResultToProductsHelper(params, result, cachedProductDetails)
 
     // ---------------------------------------------------------------------
     // Mutation handlers
@@ -814,12 +809,10 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
             )
 
             val queryType = params.type ?: ProductQueryType.InApp
-            val includeInApp = queryType == ProductQueryType.InApp || queryType == ProductQueryType.All
-            val includeSubs = queryType == ProductQueryType.Subs || queryType == ProductQueryType.All
 
             suspend fun query(productType: String): ProductQueryOutcome {
                 val missing = params.skus.distinct().filter { sku ->
-                    cachedProductDetails[sku]?.productType != productType
+                    !cachedProductDetails.containsKey(ProductCacheKey(sku, productType))
                 }
 
                 val queryOutcome = if (missing.isNotEmpty()) {
@@ -837,7 +830,11 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                     suspendCancellableCoroutine<ProductQueryOutcome> { continuation ->
                         client.queryProductDetailsAsync(queryParams) { billingResult: BillingResult, result: QueryProductDetailsResult ->
                             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                                result.productDetailsList.forEach { detail -> cachedProductDetails[detail.productId] = detail }
+                                result.productDetailsList.forEach { detail ->
+                                    cachedProductDetails[
+                                        ProductCacheKey(detail.productId, detail.productType)
+                                    ] = detail
+                                }
                                 continuation.resume(
                                     ProductQueryOutcome(
                                         productDetails = result.productDetailsList,
@@ -846,13 +843,14 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                                     )
                                 )
                             } else {
-                                continuation.resume(
-                                    ProductQueryOutcome(
-                                        productDetails = emptyList(),
-                                        unfetchedProducts = emptyList(),
-                                        succeeded = false,
-                                    )
+                                val error = PurchaseError(
+                                    code = mapBillingResponseCode(billingResult.responseCode),
+                                    message = billingResult.debugMessage
+                                        .takeIf { it.isNotBlank() }
+                                        ?: "Failed to query product details",
                                 )
+                                _purchaseErrorListener.tryEmit(error)
+                                continuation.resumeWithException(PurchaseException(error))
                             }
                         }
                     }
@@ -866,21 +864,18 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
 
                 return queryOutcome.copy(
                     productDetails = params.skus.mapNotNull { sku ->
-                        cachedProductDetails[sku]?.takeIf { it.productType == productType }
+                        cachedProductDetails[ProductCacheKey(sku, productType)]
                     }
                 )
             }
 
-            val inAppResult = if (includeInApp) {
-                query(BillingClient.ProductType.INAPP)
-            } else {
-                ProductQueryOutcome(emptyList(), emptyList(), true)
-            }
-            val subscriptionsResult = if (includeSubs) {
-                query(BillingClient.ProductType.SUBS)
-            } else {
-                ProductQueryOutcome(emptyList(), emptyList(), true)
-            }
+            val outcomes = collectProductQueryOutcomes(
+                queryType = queryType,
+                queryInApp = { query(BillingClient.ProductType.INAPP) },
+                querySubscriptions = { query(BillingClient.ProductType.SUBS) },
+            )
+            val inAppResult = outcomes.inApp
+            val subscriptionsResult = outcomes.subscriptions
 
             fun ProductQueryOutcome.statusFor(productId: String) = unfetchedProducts
                 .firstOrNull { it.productId == productId }

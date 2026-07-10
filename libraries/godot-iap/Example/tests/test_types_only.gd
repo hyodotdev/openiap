@@ -83,9 +83,13 @@ func _test_product_request() -> void:
 	_assert_equal(dict["type"], "in-app", "to_dict should convert type to string")
 
 	# JSON.parse_string returns an untyped Array; from_dict must rebuild Array[String].
-	var from_dict_data = {"skus": ["sku_from_dict"], "type": "subs"}
+	var from_dict_data = {
+		"skus": ["sku_from_dict", null, {"invalid": true}],
+		"type": "subs"
+	}
 	var parsed = Types.ProductRequest.from_dict(from_dict_data)
 	_assert_equal(parsed.skus[0], "sku_from_dict", "from_dict should parse skus")
+	_assert_equal(parsed.skus.size(), 1, "from_dict should skip malformed scalar list items")
 
 
 func _test_product_nested_arrays() -> void:
@@ -104,7 +108,7 @@ func _test_product_nested_arrays() -> void:
 		"description": "Premium subscription",
 		"type": "subs",
 		"platform": "ios",
-		"subscriptionOffers": [offer_data],
+		"subscriptionOffers": [offer_data, "invalid", null],
 		"pricingTermsIOS": [{
 			"billingDisplayPrice": "$9.99",
 			"billingPlanType": "monthly",
