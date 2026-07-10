@@ -5,11 +5,13 @@ on:
     branches: [main]
     paths:
       - 'libraries/godot-iap/**'
+      - 'packages/gql/codegen/plugins/gdscript.ts'
       - 'packages/gql/src/generated/types.gd'
   push:
     branches: [main]
     paths:
       - 'libraries/godot-iap/**'
+      - 'packages/gql/codegen/plugins/gdscript.ts'
       - 'packages/gql/src/generated/types.gd'
 
 concurrency:
@@ -24,11 +26,17 @@ jobs:
   verify:
     name: Verify
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 1
+
+      - name: Setup Godot
+        uses: chickensoft-games/setup-godot@v2.4.1
+        with:
+          version: 4.6.3
+          use-dotnet: false
 
       - name: Verify plugin files exist
         run: |
@@ -42,3 +50,9 @@ jobs:
           test -f android/build.gradle.kts
           test -f android/src/main/java/dev/hyo/godotiap/GodotIap.kt
           echo "All required Android plugin files exist"
+
+      - name: Test generated types
+        run: godot --headless --path Example --script res://tests/test_types_only.gd
+
+      - name: Test wrapper mapping
+        run: godot --headless --path Example --script res://tests/test_godot_iap.gd

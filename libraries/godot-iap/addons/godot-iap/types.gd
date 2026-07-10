@@ -484,7 +484,7 @@ class AdvancedCommerceInfoIOS:
 	static func from_dict(data: Dictionary) -> AdvancedCommerceInfoIOS:
 		var obj = AdvancedCommerceInfoIOS.new()
 		if data.has("items") and data["items"] != null:
-			var arr = []
+			var arr: Array[AdvancedCommerceItemIOS] = []
 			for item in data["items"]:
 				if item is Dictionary:
 					arr.append(AdvancedCommerceItemIOS.from_dict(item))
@@ -569,7 +569,7 @@ class AdvancedCommerceItemIOS:
 			else:
 				obj.details = data["details"]
 		if data.has("refunds") and data["refunds"] != null:
-			var arr = []
+			var arr: Array[AdvancedCommerceRefundIOS] = []
 			for item in data["refunds"]:
 				if item is Dictionary:
 					arr.append(AdvancedCommerceRefundIOS.from_dict(item))
@@ -942,7 +942,10 @@ class DiscountOffer:
 		if data.has("offerTokenAndroid") and data["offerTokenAndroid"] != null:
 			obj.offer_token_android = data["offerTokenAndroid"]
 		if data.has("offerTagsAndroid") and data["offerTagsAndroid"] != null:
-			obj.offer_tags_android = data["offerTagsAndroid"]
+			var arr: Array[String] = []
+			for item in data["offerTagsAndroid"]:
+				arr.append(str(item))
+			obj.offer_tags_android = arr
 		if data.has("fullPriceMicrosAndroid") and data["fullPriceMicrosAndroid"] != null:
 			obj.full_price_micros_android = data["fullPriceMicrosAndroid"]
 		if data.has("percentageDiscountAndroid") and data["percentageDiscountAndroid"] != null:
@@ -1261,7 +1264,10 @@ class PendingPurchaseUpdateAndroid:
 	static func from_dict(data: Dictionary) -> PendingPurchaseUpdateAndroid:
 		var obj = PendingPurchaseUpdateAndroid.new()
 		if data.has("products") and data["products"] != null:
-			obj.products = data["products"]
+			var arr: Array[String] = []
+			for item in data["products"]:
+				arr.append(str(item))
+			obj.products = arr
 		if data.has("purchaseToken") and data["purchaseToken"] != null:
 			obj.purchase_token = data["purchaseToken"]
 		return obj
@@ -1333,7 +1339,7 @@ class PricingPhasesAndroid:
 	static func from_dict(data: Dictionary) -> PricingPhasesAndroid:
 		var obj = PricingPhasesAndroid.new()
 		if data.has("pricingPhaseList") and data["pricingPhaseList"] != null:
-			var arr = []
+			var arr: Array[PricingPhaseAndroid] = []
 			for item in data["pricingPhaseList"]:
 				if item is Dictionary:
 					arr.append(PricingPhaseAndroid.from_dict(item))
@@ -1418,7 +1424,7 @@ class ProductAndroid:
 			else:
 				obj.product_status_android = enum_str
 		if data.has("discountOffers") and data["discountOffers"] != null:
-			var arr = []
+			var arr: Array[DiscountOffer] = []
 			for item in data["discountOffers"]:
 				if item is Dictionary:
 					arr.append(DiscountOffer.from_dict(item))
@@ -1426,7 +1432,7 @@ class ProductAndroid:
 					arr.append(item)
 			obj.discount_offers = arr
 		if data.has("subscriptionOffers") and data["subscriptionOffers"] != null:
-			var arr = []
+			var arr: Array[SubscriptionOffer] = []
 			for item in data["subscriptionOffers"]:
 				if item is Dictionary:
 					arr.append(SubscriptionOffer.from_dict(item))
@@ -1434,7 +1440,7 @@ class ProductAndroid:
 					arr.append(item)
 			obj.subscription_offers = arr
 		if data.has("oneTimePurchaseOfferDetailsAndroid") and data["oneTimePurchaseOfferDetailsAndroid"] != null:
-			var arr = []
+			var arr: Array[ProductAndroidOneTimePurchaseOfferDetail] = []
 			for item in data["oneTimePurchaseOfferDetailsAndroid"]:
 				if item is Dictionary:
 					arr.append(ProductAndroidOneTimePurchaseOfferDetail.from_dict(item))
@@ -1442,7 +1448,7 @@ class ProductAndroid:
 					arr.append(item)
 			obj.one_time_purchase_offer_details_android = arr
 		if data.has("subscriptionOfferDetailsAndroid") and data["subscriptionOfferDetailsAndroid"] != null:
-			var arr = []
+			var arr: Array[ProductSubscriptionAndroidOfferDetails] = []
 			for item in data["subscriptionOfferDetailsAndroid"]:
 				if item is Dictionary:
 					arr.append(ProductSubscriptionAndroidOfferDetails.from_dict(item))
@@ -1552,7 +1558,10 @@ class ProductAndroidOneTimePurchaseOfferDetail:
 		if data.has("offerToken") and data["offerToken"] != null:
 			obj.offer_token = data["offerToken"]
 		if data.has("offerTags") and data["offerTags"] != null:
-			obj.offer_tags = data["offerTags"]
+			var arr: Array[String] = []
+			for item in data["offerTags"]:
+				arr.append(str(item))
+			obj.offer_tags = arr
 		if data.has("priceCurrencyCode") and data["priceCurrencyCode"] != null:
 			obj.price_currency_code = data["priceCurrencyCode"]
 		if data.has("formattedPrice") and data["formattedPrice"] != null:
@@ -1690,7 +1699,7 @@ class ProductIOS:
 			else:
 				obj.type_ios = enum_str
 		if data.has("subscriptionOffers") and data["subscriptionOffers"] != null:
-			var arr = []
+			var arr: Array[SubscriptionOffer] = []
 			for item in data["subscriptionOffers"]:
 				if item is Dictionary:
 					arr.append(SubscriptionOffer.from_dict(item))
@@ -1698,7 +1707,7 @@ class ProductIOS:
 					arr.append(item)
 			obj.subscription_offers = arr
 		if data.has("pricingTermsIOS") and data["pricingTermsIOS"] != null:
-			var arr = []
+			var arr: Array[SubscriptionPricingTermsIOS] = []
 			for item in data["pricingTermsIOS"]:
 				if item is Dictionary:
 					arr.append(SubscriptionPricingTermsIOS.from_dict(item))
@@ -1828,7 +1837,7 @@ class ProductSubscriptionAndroid:
 			else:
 				obj.product_status_android = enum_str
 		if data.has("discountOffers") and data["discountOffers"] != null:
-			var arr = []
+			var arr: Array[DiscountOffer] = []
 			for item in data["discountOffers"]:
 				if item is Dictionary:
 					arr.append(DiscountOffer.from_dict(item))
@@ -1836,7 +1845,7 @@ class ProductSubscriptionAndroid:
 					arr.append(item)
 			obj.discount_offers = arr
 		if data.has("subscriptionOffers") and data["subscriptionOffers"] != null:
-			var arr = []
+			var arr: Array[SubscriptionOffer] = []
 			for item in data["subscriptionOffers"]:
 				if item is Dictionary:
 					arr.append(SubscriptionOffer.from_dict(item))
@@ -1844,7 +1853,7 @@ class ProductSubscriptionAndroid:
 					arr.append(item)
 			obj.subscription_offers = arr
 		if data.has("oneTimePurchaseOfferDetailsAndroid") and data["oneTimePurchaseOfferDetailsAndroid"] != null:
-			var arr = []
+			var arr: Array[ProductAndroidOneTimePurchaseOfferDetail] = []
 			for item in data["oneTimePurchaseOfferDetailsAndroid"]:
 				if item is Dictionary:
 					arr.append(ProductAndroidOneTimePurchaseOfferDetail.from_dict(item))
@@ -1852,7 +1861,7 @@ class ProductSubscriptionAndroid:
 					arr.append(item)
 			obj.one_time_purchase_offer_details_android = arr
 		if data.has("subscriptionOfferDetailsAndroid") and data["subscriptionOfferDetailsAndroid"] != null:
-			var arr = []
+			var arr: Array[ProductSubscriptionAndroidOfferDetails] = []
 			for item in data["subscriptionOfferDetailsAndroid"]:
 				if item is Dictionary:
 					arr.append(ProductSubscriptionAndroidOfferDetails.from_dict(item))
@@ -1948,7 +1957,10 @@ class ProductSubscriptionAndroidOfferDetails:
 		if data.has("offerToken") and data["offerToken"] != null:
 			obj.offer_token = data["offerToken"]
 		if data.has("offerTags") and data["offerTags"] != null:
-			obj.offer_tags = data["offerTags"]
+			var arr: Array[String] = []
+			for item in data["offerTags"]:
+				arr.append(str(item))
+			obj.offer_tags = arr
 		if data.has("pricingPhases") and data["pricingPhases"] != null:
 			if data["pricingPhases"] is Dictionary:
 				obj.pricing_phases = PricingPhasesAndroid.from_dict(data["pricingPhases"])
@@ -2054,7 +2066,7 @@ class ProductSubscriptionIOS:
 			else:
 				obj.type_ios = enum_str
 		if data.has("subscriptionOffers") and data["subscriptionOffers"] != null:
-			var arr = []
+			var arr: Array[SubscriptionOffer] = []
 			for item in data["subscriptionOffers"]:
 				if item is Dictionary:
 					arr.append(SubscriptionOffer.from_dict(item))
@@ -2062,7 +2074,7 @@ class ProductSubscriptionIOS:
 					arr.append(item)
 			obj.subscription_offers = arr
 		if data.has("pricingTermsIOS") and data["pricingTermsIOS"] != null:
-			var arr = []
+			var arr: Array[SubscriptionPricingTermsIOS] = []
 			for item in data["pricingTermsIOS"]:
 				if item is Dictionary:
 					arr.append(SubscriptionPricingTermsIOS.from_dict(item))
@@ -2077,7 +2089,7 @@ class ProductSubscriptionIOS:
 			else:
 				obj.subscription_info_ios = data["subscriptionInfoIOS"]
 		if data.has("discountsIOS") and data["discountsIOS"] != null:
-			var arr = []
+			var arr: Array[DiscountIOS] = []
 			for item in data["discountsIOS"]:
 				if item is Dictionary:
 					arr.append(DiscountIOS.from_dict(item))
@@ -2232,7 +2244,10 @@ class PurchaseAndroid:
 		if data.has("productId") and data["productId"] != null:
 			obj.product_id = data["productId"]
 		if data.has("ids") and data["ids"] != null:
-			obj.ids = data["ids"]
+			var arr: Array[String] = []
+			for item in data["ids"]:
+				arr.append(str(item))
+			obj.ids = arr
 		if data.has("transactionId") and data["transactionId"] != null:
 			obj.transaction_id = data["transactionId"]
 		if data.has("transactionDate") and data["transactionDate"] != null:
@@ -2365,7 +2380,10 @@ class PurchaseError:
 		if data.has("responseCode") and data["responseCode"] != null:
 			obj.response_code = data["responseCode"]
 		if data.has("productIds") and data["productIds"] != null:
-			obj.product_ids = data["productIds"]
+			var arr: Array[String] = []
+			for item in data["productIds"]:
+				arr.append(str(item))
+			obj.product_ids = arr
 		if data.has("productType") and data["productType"] != null:
 			obj.product_type = data["productType"]
 		if data.has("isEmptyProductList") and data["isEmptyProductList"] != null:
@@ -2442,7 +2460,10 @@ class PurchaseIOS:
 		if data.has("productId") and data["productId"] != null:
 			obj.product_id = data["productId"]
 		if data.has("ids") and data["ids"] != null:
-			obj.ids = data["ids"]
+			var arr: Array[String] = []
+			for item in data["ids"]:
+				arr.append(str(item))
+			obj.ids = arr
 		if data.has("transactionDate") and data["transactionDate"] != null:
 			obj.transaction_date = data["transactionDate"]
 		if data.has("purchaseToken") and data["purchaseToken"] != null:
@@ -2905,7 +2926,7 @@ class SubscriptionInfoIOS:
 			else:
 				obj.introductory_offer = data["introductoryOffer"]
 		if data.has("pricingTerms") and data["pricingTerms"] != null:
-			var arr = []
+			var arr: Array[SubscriptionPricingTermsIOS] = []
 			for item in data["pricingTerms"]:
 				if item is Dictionary:
 					arr.append(SubscriptionPricingTermsIOS.from_dict(item))
@@ -2913,7 +2934,7 @@ class SubscriptionInfoIOS:
 					arr.append(item)
 			obj.pricing_terms = arr
 		if data.has("promotionalOffers") and data["promotionalOffers"] != null:
-			var arr = []
+			var arr: Array[SubscriptionOfferIOS] = []
 			for item in data["promotionalOffers"]:
 				if item is Dictionary:
 					arr.append(SubscriptionOfferIOS.from_dict(item))
@@ -3049,7 +3070,10 @@ class SubscriptionOffer:
 		if data.has("offerTokenAndroid") and data["offerTokenAndroid"] != null:
 			obj.offer_token_android = data["offerTokenAndroid"]
 		if data.has("offerTagsAndroid") and data["offerTagsAndroid"] != null:
-			obj.offer_tags_android = data["offerTagsAndroid"]
+			var arr: Array[String] = []
+			for item in data["offerTagsAndroid"]:
+				arr.append(str(item))
+			obj.offer_tags_android = arr
 		if data.has("pricingPhasesAndroid") and data["pricingPhasesAndroid"] != null:
 			if data["pricingPhasesAndroid"] is Dictionary:
 				obj.pricing_phases_android = PricingPhasesAndroid.from_dict(data["pricingPhasesAndroid"])
@@ -3253,7 +3277,7 @@ class SubscriptionPricingTermsIOS:
 			else:
 				obj.commitment_info = data["commitmentInfo"]
 		if data.has("subscriptionOffers") and data["subscriptionOffers"] != null:
-			var arr = []
+			var arr: Array[SubscriptionOffer] = []
 			for item in data["subscriptionOffers"]:
 				if item is Dictionary:
 					arr.append(SubscriptionOffer.from_dict(item))
@@ -3352,7 +3376,10 @@ class UserChoiceBillingDetails:
 		if data.has("externalTransactionToken") and data["externalTransactionToken"] != null:
 			obj.external_transaction_token = data["externalTransactionToken"]
 		if data.has("products") and data["products"] != null:
-			obj.products = data["products"]
+			var arr: Array[String] = []
+			for item in data["products"]:
+				arr.append(str(item))
+			obj.products = arr
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -3560,7 +3587,7 @@ class VerifyPurchaseWithProviderResult:
 			else:
 				obj.iapkit = data["iapkit"]
 		if data.has("errors") and data["errors"] != null:
-			var arr = []
+			var arr: Array[VerifyPurchaseWithProviderError] = []
 			for item in data["errors"]:
 				if item is Dictionary:
 					arr.append(VerifyPurchaseWithProviderError.from_dict(item))
@@ -3976,7 +4003,10 @@ class ProductRequest:
 	static func from_dict(data: Dictionary) -> ProductRequest:
 		var obj = ProductRequest.new()
 		if data.has("skus") and data["skus"] != null:
-			obj.skus = data["skus"]
+			var arr: Array[String] = []
+			for item in data["skus"]:
+				arr.append(str(item))
+			obj.skus = arr
 		if data.has("type") and data["type"] != null:
 			var enum_str = data["type"]
 			if enum_str is String and PRODUCT_QUERY_TYPE_FROM_STRING.has(enum_str):
@@ -4040,7 +4070,10 @@ class PurchaseInput:
 		if data.has("productId") and data["productId"] != null:
 			obj.product_id = data["productId"]
 		if data.has("ids") and data["ids"] != null:
-			obj.ids = data["ids"]
+			var arr: Array[String] = []
+			for item in data["ids"]:
+				arr.append(str(item))
+			obj.ids = arr
 		if data.has("transactionDate") and data["transactionDate"] != null:
 			obj.transaction_date = data["transactionDate"]
 		if data.has("purchaseToken") and data["purchaseToken"] != null:
@@ -4163,7 +4196,10 @@ class RequestPurchaseAndroidProps:
 	static func from_dict(data: Dictionary) -> RequestPurchaseAndroidProps:
 		var obj = RequestPurchaseAndroidProps.new()
 		if data.has("skus") and data["skus"] != null:
-			obj.skus = data["skus"]
+			var arr: Array[String] = []
+			for item in data["skus"]:
+				arr.append(str(item))
+			obj.skus = arr
 		if data.has("obfuscatedAccountId") and data["obfuscatedAccountId"] != null:
 			obj.obfuscated_account_id = data["obfuscatedAccountId"]
 		if data.has("obfuscatedProfileId") and data["obfuscatedProfileId"] != null:
@@ -4385,7 +4421,10 @@ class RequestSubscriptionAndroidProps:
 	static func from_dict(data: Dictionary) -> RequestSubscriptionAndroidProps:
 		var obj = RequestSubscriptionAndroidProps.new()
 		if data.has("skus") and data["skus"] != null:
-			obj.skus = data["skus"]
+			var arr: Array[String] = []
+			for item in data["skus"]:
+				arr.append(str(item))
+			obj.skus = arr
 		if data.has("obfuscatedAccountId") and data["obfuscatedAccountId"] != null:
 			obj.obfuscated_account_id = data["obfuscatedAccountId"]
 		if data.has("obfuscatedProfileId") and data["obfuscatedProfileId"] != null:
@@ -4397,7 +4436,7 @@ class RequestSubscriptionAndroidProps:
 		if data.has("replacementMode") and data["replacementMode"] != null:
 			obj.replacement_mode = data["replacementMode"]
 		if data.has("subscriptionOffers") and data["subscriptionOffers"] != null:
-			var arr = []
+			var arr: Array[AndroidSubscriptionOfferInput] = []
 			for item in data["subscriptionOffers"]:
 				if item is Dictionary:
 					arr.append(AndroidSubscriptionOfferInput.from_dict(item))
@@ -5542,7 +5581,10 @@ class Query:
 			static func from_dict(data: Dictionary) -> Args:
 				var obj = Args.new()
 				if data.has("subscriptionIds") and data["subscriptionIds"] != null:
-					obj.subscription_ids = data["subscriptionIds"]
+					var arr: Array[String] = []
+					for item in data["subscriptionIds"]:
+						arr.append(str(item))
+					obj.subscription_ids = arr
 				return obj
 
 			func to_dict() -> Dictionary:
@@ -5562,7 +5604,10 @@ class Query:
 			static func from_dict(data: Dictionary) -> Args:
 				var obj = Args.new()
 				if data.has("subscriptionIds") and data["subscriptionIds"] != null:
-					obj.subscription_ids = data["subscriptionIds"]
+					var arr: Array[String] = []
+					for item in data["subscriptionIds"]:
+						arr.append(str(item))
+					obj.subscription_ids = arr
 				return obj
 
 			func to_dict() -> Dictionary:

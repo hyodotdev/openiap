@@ -403,15 +403,8 @@ export class GDScriptPlugin extends CodegenPlugin {
 
     this.emit(`\t\tif data.has("${graphqlName}") and data["${graphqlName}"] != null:`);
 
-    if (this.isObjectOrInput(type) && type.kind === 'list') {
-      const elementTypeName = type.elementType!.name!;
-      this.emit(`\t\t\tvar arr = []`);
-      this.emit(`\t\t\tfor item in data["${graphqlName}"]:`);
-      this.emit(`\t\t\t\tif item is Dictionary:`);
-      this.emit(`\t\t\t\t\tarr.append(${elementTypeName}.from_dict(item))`);
-      this.emit(`\t\t\t\telse:`);
-      this.emit(`\t\t\t\t\tarr.append(item)`);
-      this.emit(`\t\t\tobj.${fieldName} = arr`);
+    if (type.kind === 'list') {
+      this.generateListFromDictAssignment(type, graphqlName, fieldName);
     } else if (this.isObjectOrInput(type)) {
       const typeName = type.name!;
       this.emit(`\t\t\tif data["${graphqlName}"] is Dictionary:`);
@@ -423,6 +416,47 @@ export class GDScriptPlugin extends CodegenPlugin {
     } else {
       this.emit(`\t\t\tobj.${fieldName} = data["${graphqlName}"]`);
     }
+  }
+
+  private generateListFromDictAssignment(
+    type: IRType,
+    graphqlName: string,
+    fieldName: string,
+    indent = '\t\t\t'
+  ): void {
+    const elementType = type.elementType!;
+    const elementTypeName = elementType.name!;
+    const gdElementType = this.mapType(elementType);
+    this.emit(`${indent}var arr: Array[${gdElementType}] = []`);
+    this.emit(`${indent}for item in data["${graphqlName}"]:`);
+    if (this.isObjectOrInput(elementType)) {
+      this.emit(`${indent}\tif item is Dictionary:`);
+      this.emit(`${indent}\t\tarr.append(${elementTypeName}.from_dict(item))`);
+      this.emit(`${indent}\telse:`);
+      this.emit(`${indent}\t\tarr.append(item)`);
+    } else if (elementType.kind === 'enum' || this.enumNames.has(elementTypeName)) {
+      const enumReverseLookup = toConstantCase(elementTypeName) + '_FROM_STRING';
+      const fallback = this.getEnumUnknownFallback(elementTypeName);
+      this.emit(`${indent}\tvar parsed_item = item`);
+      if (fallback) {
+        this.emit(`${indent}\tif item is String:`);
+        this.emit(`${indent}\t\tparsed_item = ${enumReverseLookup}.get(item, ${fallback})`);
+      } else {
+        this.emit(`${indent}\tif item is String and ${enumReverseLookup}.has(item):`);
+        this.emit(`${indent}\t\tparsed_item = ${enumReverseLookup}[item]`);
+      }
+      this.emit(`${indent}\tarr.append(parsed_item)`);
+    } else {
+      let appendExpression = 'item';
+      switch (gdElementType) {
+        case 'String': appendExpression = 'str(item)'; break;
+        case 'int': appendExpression = 'int(item)'; break;
+        case 'float': appendExpression = 'float(item)'; break;
+        case 'bool': appendExpression = 'bool(item)'; break;
+      }
+      this.emit(`${indent}\tarr.append(${appendExpression})`);
+    }
+    this.emit(`${indent}obj.${fieldName} = arr`);
   }
 
   private generateToDictField(field: IRField, fieldName: string): void {
@@ -549,15 +583,8 @@ export class GDScriptPlugin extends CodegenPlugin {
 
     this.emit(`\t\tif data.has("${graphqlName}") and data["${graphqlName}"] != null:`);
 
-    if (this.isObjectOrInput(type) && type.kind === 'list') {
-      const elementTypeName = type.elementType!.name!;
-      this.emit(`\t\t\tvar arr = []`);
-      this.emit(`\t\t\tfor item in data["${graphqlName}"]:`);
-      this.emit(`\t\t\t\tif item is Dictionary:`);
-      this.emit(`\t\t\t\t\tarr.append(${elementTypeName}.from_dict(item))`);
-      this.emit(`\t\t\t\telse:`);
-      this.emit(`\t\t\t\t\tarr.append(item)`);
-      this.emit(`\t\t\tobj.${fieldName} = arr`);
+    if (type.kind === 'list') {
+      this.generateListFromDictAssignment(type, graphqlName, fieldName);
     } else if (this.isObjectOrInput(type)) {
       const typeName = type.name!;
       this.emit(`\t\t\tif data["${graphqlName}"] is Dictionary:`);
@@ -647,7 +674,9 @@ export class GDScriptPlugin extends CodegenPlugin {
           for (const arg of field.args) {
             const argSnakeName = this.escapeKeyword(toSnakeCase(arg.name));
             this.emit(`\t\t\t\tif data.has("${arg.name}") and data["${arg.name}"] != null:`);
-            if (arg.type.kind === 'enum') {
+            if (arg.type.kind === 'list') {
+              this.generateListFromDictAssignment(arg.type, arg.name, argSnakeName, '\t\t\t\t\t');
+            } else if (arg.type.kind === 'enum') {
               this.emitEnumFromDictAssignment(
                 '\t\t\t\t\t',
                 `obj.${argSnakeName}`,

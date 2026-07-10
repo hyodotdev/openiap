@@ -190,6 +190,7 @@ void main() {
               'formattedPrice': '\$2.99',
               'priceAmountMicros': '2990000',
               'priceCurrencyCode': 'USD',
+              'purchaseOptionId': 'single-purchase-option',
             },
             'discountOffers': <dynamic>[
               const types.DiscountOffer(
@@ -225,6 +226,11 @@ void main() {
         expect(androidProduct.platform, types.IapPlatform.Android);
         expect(androidProduct.price, closeTo(2.99, 0.0001));
         expect(androidProduct.oneTimePurchaseOfferDetailsAndroid, isNotNull);
+        expect(
+          androidProduct
+              .oneTimePurchaseOfferDetailsAndroid!.single.purchaseOptionId,
+          'single-purchase-option',
+        );
         expect(androidProduct.discountOffers, hasLength(2));
         expect(
           androidProduct.discountOffers!.first.offerTokenAndroid,
@@ -539,6 +545,7 @@ void main() {
                 'offerToken': 'offer-token',
                 'offerId': 'offer-id',
                 'fullPriceMicros': '2990000',
+                'purchaseOptionId': 'purchase-option',
                 'discountDisplayInfo': <String, dynamic>{
                   'discountAmount': <String, dynamic>{
                     'discountAmountMicros': '100000',
@@ -579,6 +586,7 @@ void main() {
         expect(offer.offerTags, contains('launch'));
         expect(offer.discountDisplayInfo?.percentageDiscount, 20);
         expect(offer.fullPriceMicros, '2990000');
+        expect(offer.purchaseOptionId, 'purchase-option');
         expect(offer.limitedQuantityInfo?.maximumQuantity, 10);
         expect(offer.validTimeWindow?.endTimeMillis, '2000');
         expect(offer.preorderDetailsAndroid?.preorderReleaseTimeMillis, '4000');
@@ -622,6 +630,35 @@ void main() {
         expect(validWindow, isNotNull);
         expect(validWindow!.startTimeMillis, '1000');
         expect(validWindow.endTimeMillis, '2000');
+      },
+    );
+
+    test(
+      'parseProductFromNative keeps purchaseOptionId from dynamic maps',
+      () {
+        final product = parseProductFromNative(
+          <String, dynamic>{
+            'platform': 'android',
+            'id': 'dynamic_offer',
+            'title': 'Dynamic Offer',
+            'description': 'Dynamic map payload',
+            'currency': 'USD',
+            'displayPrice': '\$1.99',
+            'oneTimePurchaseOfferDetailsAndroid': <Object?, Object?>{
+              'formattedPrice': '\$1.99',
+              'priceAmountMicros': 1990000,
+              'priceCurrencyCode': 'USD',
+              'purchaseOptionId': 42,
+            },
+          },
+          'inapp',
+          fallbackIsIOS: false,
+        ) as types.ProductAndroid;
+
+        expect(
+          product.oneTimePurchaseOfferDetailsAndroid!.single.purchaseOptionId,
+          '42',
+        );
       },
     );
 

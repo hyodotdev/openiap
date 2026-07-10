@@ -3,17 +3,67 @@ package dev.hyo.openiap.utils
 import com.meta.horizon.billingclient.api.ProductDetails as HorizonProductDetails
 import com.meta.horizon.billingclient.api.Purchase as HorizonPurchase
 import dev.hyo.openiap.ActiveSubscription
+import dev.hyo.openiap.DiscountOfferType
 import dev.hyo.openiap.IapPlatform
 import dev.hyo.openiap.IapStore
+import dev.hyo.openiap.PaymentMode
 import dev.hyo.openiap.PricingPhaseAndroid
 import dev.hyo.openiap.PricingPhasesAndroid
 import dev.hyo.openiap.ProductAndroid
 import dev.hyo.openiap.ProductAndroidOneTimePurchaseOfferDetail
+import dev.hyo.openiap.ProductStatusAndroid
 import dev.hyo.openiap.ProductSubscriptionAndroid
 import dev.hyo.openiap.ProductSubscriptionAndroidOfferDetails
 import dev.hyo.openiap.ProductType
 import dev.hyo.openiap.PurchaseAndroid
 import dev.hyo.openiap.PurchaseState
+import dev.hyo.openiap.SubscriptionOffer
+import dev.hyo.openiap.SubscriptionPeriod
+import dev.hyo.openiap.SubscriptionPeriodUnit
+
+private val billingPeriodRegex = Regex("""^P(\d+)([DWMY])$""")
+
+internal fun ProductSubscriptionAndroidOfferDetails.toHorizonSubscriptionOffer(): SubscriptionOffer {
+    val firstPhase = pricingPhases.pricingPhaseList.firstOrNull()
+    val period = firstPhase?.billingPeriod?.let { billingPeriod ->
+        billingPeriodRegex.matchEntire(billingPeriod)?.let { match ->
+            val unit = when (match.groupValues[2]) {
+                "D" -> SubscriptionPeriodUnit.Day
+                "W" -> SubscriptionPeriodUnit.Week
+                "M" -> SubscriptionPeriodUnit.Month
+                "Y" -> SubscriptionPeriodUnit.Year
+                else -> SubscriptionPeriodUnit.Unknown
+            }
+            SubscriptionPeriod(unit = unit, value = match.groupValues[1].toInt())
+        }
+    }
+    val paymentMode = firstPhase?.let { phase ->
+        when {
+            phase.priceAmountMicros == "0" -> PaymentMode.FreeTrial
+            phase.recurrenceMode == 3 -> PaymentMode.PayUpFront
+            else -> PaymentMode.PayAsYouGo
+        }
+    }
+
+    return SubscriptionOffer(
+        basePlanIdAndroid = basePlanId,
+        currency = firstPhase?.priceCurrencyCode,
+        displayPrice = firstPhase?.formattedPrice.orEmpty(),
+        id = offerId ?: basePlanId,
+        offerTagsAndroid = offerTags,
+        offerTokenAndroid = offerToken,
+        paymentMode = paymentMode,
+        period = period,
+        periodCount = firstPhase?.billingCycleCount,
+        price = firstPhase?.priceAmountMicros?.toDoubleOrNull()?.div(1_000_000.0) ?: 0.0,
+        pricingPhasesAndroid = pricingPhases,
+        type = if (offerId == null) {
+            DiscountOfferType.Introductory
+        } else {
+            DiscountOfferType.Promotional
+        },
+    )
+}
 
 internal object HorizonBillingConverters {
 
@@ -55,8 +105,9 @@ internal object HorizonBillingConverters {
             oneTimePurchaseOfferDetailsAndroid = offerDetailsList,
             platform = IapPlatform.Android,
             price = priceAmountMicros.toDouble() / 1_000_000.0,
+            productStatusAndroid = ProductStatusAndroid.Ok,
             subscriptionOfferDetailsAndroid = null,
-            subscriptionOffers = null,  // Horizon doesn't support standardized offers yet
+            subscriptionOffers = null,
             title = title,
             type = ProductType.InApp
         )
@@ -121,8 +172,9 @@ internal object HorizonBillingConverters {
             oneTimePurchaseOfferDetailsAndroid = oneTimeOfferDetailsList,
             platform = IapPlatform.Android,
             price = firstPhase?.priceAmountMicros?.toDouble()?.div(1_000_000.0),
+            productStatusAndroid = ProductStatusAndroid.Ok,
             subscriptionOfferDetailsAndroid = pricingDetails,
-            subscriptionOffers = emptyList(),  // Horizon doesn't support standardized offers yet
+            subscriptionOffers = pricingDetails.map { it.toHorizonSubscriptionOffer() },
             title = title,
             type = ProductType.Subs
         )

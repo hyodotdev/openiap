@@ -52,6 +52,7 @@ import io.github.hyochan.kmpiap.openiap.Product
 import io.github.hyochan.kmpiap.openiap.ProductOrSubscription
 import io.github.hyochan.kmpiap.openiap.ProductQueryType
 import io.github.hyochan.kmpiap.openiap.ProductRequest
+import io.github.hyochan.kmpiap.openiap.ProductStatusAndroid
 import io.github.hyochan.kmpiap.openiap.Purchase
 import io.github.hyochan.kmpiap.openiap.PurchaseAndroid
 import io.github.hyochan.kmpiap.openiap.IapPlatform
@@ -816,20 +817,12 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
             val includeInApp = queryType == ProductQueryType.InApp || queryType == ProductQueryType.All
             val includeSubs = queryType == ProductQueryType.Subs || queryType == ProductQueryType.All
 
-            suspend fun query(productType: String): List<ProductDetails> {
-                val ordered = mutableListOf<ProductDetails>()
-                val missing = mutableListOf<String>()
-
-                params.skus.forEach { sku ->
-                    val cached = cachedProductDetails[sku]
-                    if (cached != null && cached.productType == productType) {
-                        ordered += cached
-                    } else {
-                        missing += sku
-                    }
+            suspend fun query(productType: String): ProductQueryOutcome {
+                val missing = params.skus.distinct().filter { sku ->
+                    cachedProductDetails[sku]?.productType != productType
                 }
 
-                if (missing.isNotEmpty()) {
+                val queryOutcome = if (missing.isNotEmpty()) {
                     val queryParams = QueryProductDetailsParams.newBuilder()
                         .setProductList(
                             missing.map { sku ->
@@ -841,48 +834,134 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                         )
                         .build()
 
-                    val queried = suspendCancellableCoroutine<List<ProductDetails>> { continuation ->
+                    suspendCancellableCoroutine<ProductQueryOutcome> { continuation ->
                         client.queryProductDetailsAsync(queryParams) { billingResult: BillingResult, result: QueryProductDetailsResult ->
                             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                                 result.productDetailsList.forEach { detail -> cachedProductDetails[detail.productId] = detail }
-                                continuation.resume(result.productDetailsList)
+                                continuation.resume(
+                                    ProductQueryOutcome(
+                                        productDetails = result.productDetailsList,
+                                        unfetchedProducts = result.unfetchedProductsCompat(),
+                                        succeeded = true,
+                                    )
+                                )
                             } else {
-                                continuation.resume(emptyList())
+                                continuation.resume(
+                                    ProductQueryOutcome(
+                                        productDetails = emptyList(),
+                                        unfetchedProducts = emptyList(),
+                                        succeeded = false,
+                                    )
+                                )
                             }
                         }
                     }
-
-                    missing.forEach { sku ->
-                        cachedProductDetails[sku]?.takeIf { it.productType == productType }?.let { ordered += it }
-                    }
-
-                    queried.filter { detail -> detail.productType == productType && detail.productId in params.skus }
-                        .forEach { detail ->
-                            if (!ordered.contains(detail)) ordered += detail
-                        }
+                } else {
+                    ProductQueryOutcome(
+                        productDetails = emptyList(),
+                        unfetchedProducts = emptyList(),
+                        succeeded = true,
+                    )
                 }
 
-                return ordered
+                return queryOutcome.copy(
+                    productDetails = params.skus.mapNotNull { sku ->
+                        cachedProductDetails[sku]?.takeIf { it.productType == productType }
+                    }
+                )
             }
 
-            val inAppDetails = if (includeInApp) query(BillingClient.ProductType.INAPP) else emptyList()
-            val subsDetails = if (includeSubs) query(BillingClient.ProductType.SUBS) else emptyList()
+            val inAppResult = if (includeInApp) {
+                query(BillingClient.ProductType.INAPP)
+            } else {
+                ProductQueryOutcome(emptyList(), emptyList(), true)
+            }
+            val subscriptionsResult = if (includeSubs) {
+                query(BillingClient.ProductType.SUBS)
+            } else {
+                ProductQueryOutcome(emptyList(), emptyList(), true)
+            }
+
+            fun ProductQueryOutcome.statusFor(productId: String) = unfetchedProducts
+                .firstOrNull { it.productId == productId }
+                ?.let { productStatusFromUnfetchedStatus(it.statusCode) }
+
+            fun unavailableAllProduct(productId: String): ProductOrSubscription? {
+                val statuses = listOfNotNull(
+                    inAppResult.unfetchedProducts.firstOrNull { it.productId == productId },
+                    subscriptionsResult.unfetchedProducts.firstOrNull { it.productId == productId },
+                )
+                val noOffers = statuses.firstOrNull {
+                    productStatusFromUnfetchedStatus(it.statusCode) ==
+                        ProductStatusAndroid.NoOffersAvailable
+                }
+                val selected = noOffers ?: statuses.firstOrNull()
+                val status = when {
+                    noOffers != null ->
+                        ProductStatusAndroid.NoOffersAvailable
+                    inAppResult.succeeded && subscriptionsResult.succeeded &&
+                        statuses.size == 2 && statuses.all {
+                            productStatusFromUnfetchedStatus(it.statusCode) ==
+                                ProductStatusAndroid.NotFound
+                        } -> ProductStatusAndroid.NotFound
+                    inAppResult.succeeded || subscriptionsResult.succeeded ->
+                        ProductStatusAndroid.Unknown
+                    else -> return null
+                }
+
+                return if (selected?.productType == BillingClient.ProductType.SUBS) {
+                    ProductOrSubscription.ProductSubscriptionItem(
+                        unavailableSubscriptionProduct(productId, status)
+                    )
+                } else {
+                    ProductOrSubscription.ProductItem(unavailableInAppProduct(productId, status))
+                }
+            }
 
             return@withContext when (queryType) {
-                ProductQueryType.InApp -> FetchProductsResultProducts(inAppDetails.map { it.toProduct() })
-                ProductQueryType.Subs -> FetchProductsResultSubscriptions(subsDetails.mapNotNull { it.toSubscriptionProduct() })
-                ProductQueryType.All -> {
-                    // Preserve the mixed OpenIAP `all` union by keeping in-app
-                    // products and subscriptions in their distinct variants.
-                    val combined = buildList<ProductOrSubscription> {
-                        addAll(inAppDetails.map { ProductOrSubscription.ProductItem(it.toProduct()) })
-                        addAll(
-                            subsDetails.mapNotNull { detail ->
-                                detail.toSubscriptionProduct()?.let {
-                                    ProductOrSubscription.ProductSubscriptionItem(it)
+                ProductQueryType.InApp -> {
+                    val detailsById = inAppResult.productDetails.associateBy { it.productId }
+                    FetchProductsResultProducts(
+                        params.skus.mapNotNull { productId ->
+                            detailsById[productId]?.toProduct()
+                                ?: if (inAppResult.succeeded) {
+                                    unavailableInAppProduct(
+                                        productId,
+                                        inAppResult.statusFor(productId)
+                                            ?: ProductStatusAndroid.Unknown,
+                                    )
+                                } else {
+                                    null
                                 }
-                            }
-                        )
+                        }
+                    )
+                }
+                ProductQueryType.Subs -> {
+                    val detailsById = subscriptionsResult.productDetails.associateBy { it.productId }
+                    FetchProductsResultSubscriptions(
+                        params.skus.mapNotNull { productId ->
+                            detailsById[productId]?.toSubscriptionProduct()
+                                ?: if (subscriptionsResult.succeeded) {
+                                    unavailableSubscriptionProduct(
+                                        productId,
+                                        subscriptionsResult.statusFor(productId)
+                                            ?: ProductStatusAndroid.Unknown,
+                                    )
+                                } else {
+                                    null
+                                }
+                        }
+                    )
+                }
+                ProductQueryType.All -> {
+                    val inAppById = inAppResult.productDetails.associateBy { it.productId }
+                    val subscriptionsById = subscriptionsResult.productDetails.associateBy { it.productId }
+                    val combined = params.skus.mapNotNull { productId ->
+                        inAppById[productId]?.let {
+                            ProductOrSubscription.ProductItem(it.toProduct())
+                        } ?: subscriptionsById[productId]?.toSubscriptionProduct()?.let {
+                            ProductOrSubscription.ProductSubscriptionItem(it)
+                        } ?: unavailableAllProduct(productId)
                     }
                     FetchProductsResultAll(combined)
                 }

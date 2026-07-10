@@ -32,26 +32,52 @@ import dev.hyo.openiap.SubscriptionPeriodUnit
 import dev.hyo.openiap.ValidTimeWindowAndroid
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.ProductDetails
+import com.android.billingclient.api.UnfetchedProduct
 import com.android.billingclient.api.Purchase as BillingPurchase
 
 internal object BillingConverters {
-    /**
-     * Gets the product status from ProductDetails (Billing Library 8.0+).
-     * Returns null for older billing library versions.
-     */
-    private fun ProductDetails.getProductStatus(): ProductStatusAndroid? {
-        return runCatching {
-            // ProductDetails.productStatus is available in Billing Library 8.0+
-            val statusMethod = this::class.java.getMethod("getProductStatus")
-            val status = statusMethod.invoke(this) as? Int
-            when (status) {
-                0 -> ProductStatusAndroid.Ok           // ProductDetails.ProductStatus.OK
-                1 -> ProductStatusAndroid.NotFound     // ProductDetails.ProductStatus.NOT_FOUND
-                2 -> ProductStatusAndroid.NoOffersAvailable // ProductDetails.ProductStatus.NO_OFFERS_AVAILABLE
-                else -> ProductStatusAndroid.Unknown
-            }
-        }.getOrNull()
-    }
+    internal fun productStatusFromUnfetchedStatus(statusCode: Int): ProductStatusAndroid =
+        when (statusCode) {
+            UnfetchedProduct.StatusCode.PRODUCT_NOT_FOUND -> ProductStatusAndroid.NotFound
+            UnfetchedProduct.StatusCode.NO_ELIGIBLE_OFFER -> ProductStatusAndroid.NoOffersAvailable
+            else -> ProductStatusAndroid.Unknown
+        }
+
+    internal fun unavailableInAppProduct(
+        productId: String,
+        status: ProductStatusAndroid,
+    ): ProductAndroid = ProductAndroid(
+        currency = "",
+        description = "",
+        displayName = null,
+        displayPrice = "",
+        id = productId,
+        nameAndroid = "",
+        platform = IapPlatform.Android,
+        price = null,
+        productStatusAndroid = status,
+        title = "",
+        type = ProductType.InApp,
+    )
+
+    internal fun unavailableSubscriptionProduct(
+        productId: String,
+        status: ProductStatusAndroid,
+    ): ProductSubscriptionAndroid = ProductSubscriptionAndroid(
+        currency = "",
+        description = "",
+        displayName = null,
+        displayPrice = "",
+        id = productId,
+        nameAndroid = "",
+        platform = IapPlatform.Android,
+        price = null,
+        productStatusAndroid = status,
+        subscriptionOfferDetailsAndroid = emptyList(),
+        subscriptionOffers = emptyList(),
+        title = "",
+        type = ProductType.Subs,
+    )
 
     /**
      * Converts a ProductDetails.OneTimePurchaseOfferDetails to ProductAndroidOneTimePurchaseOfferDetail
@@ -319,7 +345,7 @@ internal object BillingConverters {
             oneTimePurchaseOfferDetailsAndroid = offerDetailsList,
             platform = IapPlatform.Android,
             price = priceAmountMicros.toDouble() / 1_000_000.0,
-            productStatusAndroid = getProductStatus(),
+            productStatusAndroid = ProductStatusAndroid.Ok,
             subscriptionOfferDetailsAndroid = null,
             subscriptionOffers = null,
             title = title,
@@ -395,7 +421,7 @@ internal object BillingConverters {
             oneTimePurchaseOfferDetailsAndroid = oneTimeOfferDetailsList,
             platform = IapPlatform.Android,
             price = basePhase?.priceAmountMicros?.toDouble()?.div(1_000_000.0),
-            productStatusAndroid = getProductStatus(),
+            productStatusAndroid = ProductStatusAndroid.Ok,
             subscriptionOfferDetailsAndroid = pricingDetails,
             subscriptionOffers = subscriptionOffers,
             title = title,

@@ -505,6 +505,7 @@ export interface NitroOneTimePurchaseOfferDetail {
   preorderDetailsAndroid?: NitroPreorderDetailsAndroid | null;
   priceAmountMicros: string;
   priceCurrencyCode: string;
+  purchaseOptionId?: string | null;
   rentalDetailsAndroid?: NitroRentalDetailsAndroid | null;
   validTimeWindow?: NitroValidTimeWindowAndroid | null;
 }

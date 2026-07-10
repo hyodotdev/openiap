@@ -1026,6 +1026,7 @@ gentype.ProductAndroidOneTimePurchaseOfferDetail?
       offerToken: value['offerToken']?.toString() ?? '',
       offerId: value['offerId']?.toString(),
       fullPriceMicros: value['fullPriceMicros']?.toString(),
+      purchaseOptionId: value['purchaseOptionId']?.toString(),
       discountDisplayInfo: value['discountDisplayInfo'] != null
           ? gentype.DiscountDisplayInfoAndroid.fromJson(
               value['discountDisplayInfo'] as Map<String, dynamic>,
@@ -1064,6 +1065,7 @@ gentype.ProductAndroidOneTimePurchaseOfferDetail?
       offerToken: map['offerToken']?.toString() ?? '',
       offerId: map['offerId']?.toString(),
       fullPriceMicros: map['fullPriceMicros']?.toString(),
+      purchaseOptionId: map['purchaseOptionId']?.toString(),
       discountDisplayInfo: map['discountDisplayInfo'] != null
           ? gentype.DiscountDisplayInfoAndroid.fromJson(
               Map<String, dynamic>.from(

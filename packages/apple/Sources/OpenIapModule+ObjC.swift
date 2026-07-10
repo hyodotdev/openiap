@@ -43,48 +43,7 @@ import StoreKit
                 let productType = type.flatMap { ProductQueryType(rawValue: $0) }
                 let request = ProductRequest(skus: skus, type: productType)
                 let result = try await fetchProducts(request)
-
-                switch result {
-                case .products(let products):
-                    // Extract ProductIOS from Product enum and convert to dictionaries
-                    let productIOS = (products ?? []).compactMap { product -> ProductIOS? in
-                        guard case let .productIos(value) = product else { return nil }
-                        return value
-                    }
-                    print("[OpenIAP] Fetched \(productIOS.count) products")
-                    let dictionaries = productIOS.map { OpenIapSerialization.encode($0) }
-                    completion(dictionaries, nil)
-
-                case .subscriptions(let subscriptions):
-                    // Extract ProductSubscriptionIOS from ProductSubscription enum and convert to dictionaries
-                    let subscriptionIOS = (subscriptions ?? []).compactMap { subscription -> ProductSubscriptionIOS? in
-                        guard case let .productSubscriptionIos(value) = subscription else { return nil }
-                        return value
-                    }
-                    print("[OpenIAP] Fetched \(subscriptionIOS.count) subscriptions")
-                    let dictionaries = subscriptionIOS.map { OpenIapSerialization.encode($0) }
-                    completion(dictionaries, nil)
-
-                case .all(let items):
-                    // Extract both products and subscriptions from ProductOrSubscription union
-                    let allItems = items ?? []
-                    let productIOS = allItems.compactMap { item -> ProductIOS? in
-                        guard case .product(let product) = item,
-                              case .productIos(let value) = product
-                        else { return nil }
-                        return value
-                    }
-                    let subscriptionIOS = allItems.compactMap { item -> ProductSubscriptionIOS? in
-                        guard case .productSubscription(.productSubscriptionIos(let value)) = item
-                        else { return nil }
-                        return value
-                    }
-                    print("[OpenIAP] Fetched \(productIOS.count) products and \(subscriptionIOS.count) subscriptions")
-                    // Combine both into a single array of dictionaries
-                    let productDictionaries = productIOS.map { OpenIapSerialization.encode($0) }
-                    let subscriptionDictionaries = subscriptionIOS.map { OpenIapSerialization.encode($0) }
-                    completion(productDictionaries + subscriptionDictionaries, nil)
-                }
+                completion(OpenIapSerialization.products(result), nil)
             } catch {
                 completion(nil, error)
             }

@@ -3,11 +3,17 @@ package dev.hyo.openiap.helpers
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.ProductDetails
+import com.android.billingclient.api.UnfetchedProduct
 import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapLog
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
+
+internal data class ProductQueryResult(
+    val productDetails: List<ProductDetails>,
+    val unfetchedProducts: List<UnfetchedProduct>,
+)
 
 /**
  * Manages ProductDetails caching and queries.
@@ -18,12 +24,20 @@ import java.util.concurrent.atomic.AtomicBoolean
  * appears to have incomplete data (defensive programming).
  */
 internal class ProductManager {
-    private val cache = ConcurrentHashMap<String, ProductDetails>()
+    private data class CacheKey(val productId: String, val productType: String)
+    private val cache = ConcurrentHashMap<CacheKey, ProductDetails>()
 
-    fun get(productId: String): ProductDetails? = cache[productId]
+    fun get(productId: String, productType: String): ProductDetails? =
+        cache[CacheKey(productId, productType)]
+
+    fun get(productId: String): ProductDetails? =
+        get(productId, BillingClient.ProductType.SUBS)
+            ?: get(productId, BillingClient.ProductType.INAPP)
 
     fun putAll(details: Collection<ProductDetails>) {
-        for (detail in details) { cache[detail.productId] = detail }
+        for (detail in details) {
+            cache[CacheKey(detail.productId, detail.productType)] = detail
+        }
     }
 
     fun clear() = cache.clear()
@@ -42,14 +56,25 @@ internal class ProductManager {
         client: BillingClient,
         productIds: List<String>,
         productType: String,
-    ): List<ProductDetails> {
-        if (productIds.isEmpty()) return emptyList()
+    ): List<ProductDetails> = getOrQueryWithStatus(client, productIds, productType).productDetails
+
+    /**
+     * Returns fetched details together with Billing 8 per-product failures.
+     * Unfetched products are not cached because eligibility can change between queries.
+     */
+    suspend fun getOrQueryWithStatus(
+        client: BillingClient,
+        productIds: List<String>,
+        productType: String,
+    ): ProductQueryResult {
+        if (productIds.isEmpty()) return ProductQueryResult(emptyList(), emptyList())
 
         // Check which products are missing or have incomplete data
         val needsQuery = mutableListOf<String>()
 
         for (productId in productIds.distinct()) {
-            val cached = cache[productId]
+            val key = CacheKey(productId, productType)
+            val cached = cache[key]
             if (cached == null) {
                 needsQuery.add(productId)
             } else {
@@ -67,13 +92,16 @@ internal class ProductManager {
                 if (!isComplete) {
                     OpenIapLog.w("Cached ProductDetails for '$productId' has incomplete data, will re-query", "ProductManager")
                     needsQuery.add(productId)
-                    cache.remove(productId)
+                    cache.remove(key)
                 }
             }
         }
 
         if (needsQuery.isEmpty()) {
-            return productIds.mapNotNull { cache[it] }
+            return ProductQueryResult(
+                productDetails = productIds.mapNotNull { cache[CacheKey(it, productType)] },
+                unfetchedProducts = emptyList(),
+            )
         }
 
         val productList = needsQuery.map { sku ->
@@ -94,7 +122,7 @@ internal class ProductManager {
 
                 // Always update cache even if coroutine was cancelled
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                    val list = result.productDetailsList ?: emptyList()
+                    val list = result.productDetailsList.orEmpty()
                     putAll(list)
                 }
 
@@ -111,7 +139,14 @@ internal class ProductManager {
                     return@queryProductDetailsAsync
                 }
                 // Preserve requested order and include cached + newly-fetched
-                resumer.resume(productIds.mapNotNull { cache[it] })
+                resumer.resume(
+                    ProductQueryResult(
+                        productDetails = productIds.mapNotNull {
+                            cache[CacheKey(it, productType)]
+                        },
+                        unfetchedProducts = result.unfetchedProductList.orEmpty(),
+                    )
+                )
             }
         }
     }

@@ -55,6 +55,78 @@ import dev.hyo.openiap.LaunchExternalLinkParamsAndroid as OpenIapLaunchExternalL
 
 private val billingPeriodRegex = Regex("""P(\d+)([DWMY])""")
 
+internal data class UnfetchedProductInfo(
+    val productId: String,
+    val productType: String,
+    val statusCode: Int,
+)
+
+internal data class ProductQueryOutcome(
+    val productDetails: List<ProductDetails>,
+    val unfetchedProducts: List<UnfetchedProductInfo>,
+    val succeeded: Boolean,
+)
+
+internal fun productStatusFromUnfetchedStatus(statusCode: Int): ProductStatusAndroid =
+    when (statusCode) {
+        3 -> ProductStatusAndroid.NotFound
+        4 -> ProductStatusAndroid.NoOffersAvailable
+        else -> ProductStatusAndroid.Unknown
+    }
+
+internal fun QueryProductDetailsResult.unfetchedProductsCompat(): List<UnfetchedProductInfo> =
+    runCatching {
+        val items = javaClass.getMethod("getUnfetchedProductList").invoke(this) as? List<*>
+            ?: return@runCatching emptyList()
+        items.mapNotNull { item ->
+            item ?: return@mapNotNull null
+            val itemClass = item.javaClass
+            val productId = itemClass.getMethod("getProductId").invoke(item) as? String
+                ?: return@mapNotNull null
+            val productType = itemClass.getMethod("getProductType").invoke(item) as? String
+                ?: return@mapNotNull null
+            val statusCode = itemClass.getMethod("getStatusCode").invoke(item) as? Int
+                ?: return@mapNotNull null
+            UnfetchedProductInfo(productId, productType, statusCode)
+        }
+    }.getOrDefault(emptyList())
+
+internal fun unavailableInAppProduct(
+    productId: String,
+    status: ProductStatusAndroid,
+): ProductAndroid = ProductAndroid(
+    currency = "",
+    description = "",
+    displayName = null,
+    displayPrice = "",
+    id = productId,
+    nameAndroid = "",
+    platform = IapPlatform.Android,
+    price = null,
+    productStatusAndroid = status,
+    title = "",
+    type = ProductType.InApp,
+)
+
+internal fun unavailableSubscriptionProduct(
+    productId: String,
+    status: ProductStatusAndroid,
+): ProductSubscriptionAndroid = ProductSubscriptionAndroid(
+    currency = "",
+    description = "",
+    displayName = null,
+    displayPrice = "",
+    id = productId,
+    nameAndroid = "",
+    platform = IapPlatform.Android,
+    price = null,
+    productStatusAndroid = status,
+    subscriptionOfferDetailsAndroid = emptyList(),
+    subscriptionOffers = emptyList(),
+    title = "",
+    type = ProductType.Subs,
+)
+
 internal fun emitFailureAndThrow(
     errorFlow: MutableSharedFlow<PurchaseError>,
     error: PurchaseError
@@ -320,7 +392,7 @@ internal fun ProductDetails.toProduct(): Product {
         oneTimePurchaseOfferDetailsAndroid = oneTimeOfferDetails,
         platform = IapPlatform.Android,
         price = priceValue,
-        productStatusAndroid = getProductStatus(),
+        productStatusAndroid = ProductStatusAndroid.Ok,
         subscriptionOfferDetailsAndroid = subscriptionOfferDetails,
         subscriptionOffers = subscriptionOffers,
         title = title,
@@ -350,16 +422,6 @@ internal fun ProductDetails.toSubscriptionProduct(): ProductSubscriptionAndroid?
         type = product.type
     )
 }
-
-private fun ProductDetails.getProductStatus(): ProductStatusAndroid? = runCatching {
-    val statusMethod = this::class.java.getMethod("getProductStatus")
-    when (statusMethod.invoke(this) as? Int) {
-        0 -> ProductStatusAndroid.Ok
-        1 -> ProductStatusAndroid.NotFound
-        2 -> ProductStatusAndroid.NoOffersAvailable
-        else -> ProductStatusAndroid.Unknown
-    }
-}.getOrNull()
 
 private fun ProductDetails.OneTimePurchaseOfferDetails.toOfferDetail(): ProductAndroidOneTimePurchaseOfferDetail {
     val discountInfo = runCatching { discountDisplayInfo }.getOrNull()

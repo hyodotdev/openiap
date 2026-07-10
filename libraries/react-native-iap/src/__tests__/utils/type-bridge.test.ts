@@ -234,6 +234,10 @@ describe('type-bridge utilities', () => {
             offerTokenAndroid: 'token123',
             offerTagsAndroid: ['monthly', 'default'],
             paymentMode: 'pay-as-you-go',
+            installmentPlanDetailsAndroid: {
+              commitmentPaymentsCount: 12,
+              subsequentCommitmentPaymentsCount: 0,
+            },
             period: {
               unit: 'month',
               value: 1,
@@ -261,6 +265,10 @@ describe('type-bridge utilities', () => {
       expect(Array.isArray(result.subscriptionOffers)).toBe(true);
       expect(result.subscriptionOffers[0].basePlanIdAndroid).toBe('monthly');
       expect(result.subscriptionOffers[0].offerTokenAndroid).toBe('token123');
+      expect(
+        result.subscriptionOffers[0].installmentPlanDetailsAndroid
+          .commitmentPaymentsCount,
+      ).toBe(12);
     });
 
     it('converts Android product with standardized discountOffers', () => {
@@ -274,17 +282,38 @@ describe('type-bridge utilities', () => {
         currency: 'USD',
         price: 9.99,
         platform: 'android',
+        oneTimePurchaseOfferDetailsAndroid: [
+          {
+            formattedPrice: '$4.99',
+            offerTags: ['sale'],
+            offerToken: 'discount_token123',
+            priceAmountMicros: '4990000',
+            priceCurrencyCode: 'USD',
+            purchaseOptionId: 'legacy-purchase-option',
+          },
+        ],
         discountOffers: JSON.stringify([
           {
             id: 'discount_50off',
             currency: 'USD',
             displayPrice: '$4.99',
             price: 4.99,
+            type: 'one-time',
             offerTokenAndroid: 'discount_token123',
             offerTagsAndroid: ['sale', 'limited'],
             discountAmountMicrosAndroid: '5000000',
             formattedDiscountAmountAndroid: '$5.00 OFF',
             fullPriceMicrosAndroid: '9990000',
+            percentageDiscountAndroid: 50,
+            purchaseOptionIdAndroid: 'purchase-option',
+            preorderDetailsAndroid: {
+              preorderPresaleEndTimeMillis: '1000',
+              preorderReleaseTimeMillis: '2000',
+            },
+            rentalDetailsAndroid: {
+              rentalExpirationPeriod: 'P1D',
+              rentalPeriod: 'P7D',
+            },
           },
         ]),
       } as NitroProduct;
@@ -301,6 +330,21 @@ describe('type-bridge utilities', () => {
       expect(result.discountOffers[0].formattedDiscountAmountAndroid).toBe(
         '$5.00 OFF',
       );
+      expect(result.discountOffers[0].type).toBe('one-time');
+      expect(result.discountOffers[0].percentageDiscountAndroid).toBe(50);
+      expect(result.discountOffers[0].purchaseOptionIdAndroid).toBe(
+        'purchase-option',
+      );
+      expect(result.discountOffers[0].preorderDetailsAndroid).toEqual({
+        preorderPresaleEndTimeMillis: '1000',
+        preorderReleaseTimeMillis: '2000',
+      });
+      expect(result.discountOffers[0].rentalDetailsAndroid.rentalPeriod).toBe(
+        'P7D',
+      );
+      expect(
+        result.oneTimePurchaseOfferDetailsAndroid[0].purchaseOptionId,
+      ).toBe('legacy-purchase-option');
     });
 
     it('handles missing subscriptionOffers gracefully', () => {

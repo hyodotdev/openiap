@@ -29,6 +29,9 @@ enum StoreKitTypesBridge {
             price: NSDecimalNumber(decimal: product.price).doubleValue,
             pricingTermsIOS: makeSubscriptionPricingTerms(from: product.subscription),
             subscriptionInfoIOS: makeSubscriptionInfo(from: product.subscription),
+            subscriptionOffers: product.subscription.map(makeStandardizedSubscriptionOffers).flatMap {
+                $0.isEmpty ? nil : $0
+            },
             title: product.displayName,
             type: productType(from: product.type),
             typeIOS: productTypeIOS(from: product.type)
@@ -36,6 +39,10 @@ enum StoreKitTypesBridge {
     }
 
     static func productSubscriptionIOS(from product: StoreKit.Product) async -> ProductSubscriptionIOS? {
+        if product.type == .nonRenewable {
+            return nonRenewingSubscriptionIOS(from: product)
+        }
+
         guard let subscription = product.subscription else { return nil }
 
         // Compute discounts once for reuse
@@ -102,6 +109,37 @@ enum StoreKitTypesBridge {
             title: product.displayName,
             type: .subs,
             typeIOS: productTypeIOS(from: product.type)
+        )
+    }
+
+    private static func nonRenewingSubscriptionIOS(from product: StoreKit.Product) -> ProductSubscriptionIOS {
+        ProductSubscriptionIOS(
+            currency: currencyCode(from: product) ?? "",
+            debugDescription: product.description,
+            description: product.description,
+            discountsIOS: nil,
+            displayName: product.displayName,
+            displayNameIOS: product.displayName,
+            displayPrice: product.displayPrice,
+            id: product.id,
+            introductoryPriceAsAmountIOS: nil,
+            introductoryPriceIOS: nil,
+            introductoryPriceNumberOfPeriodsIOS: nil,
+            introductoryPricePaymentModeIOS: .empty,
+            introductoryPriceSubscriptionPeriodIOS: nil,
+            isFamilyShareableIOS: product.isFamilyShareable,
+            jsonRepresentationIOS: String(data: product.jsonRepresentation, encoding: .utf8) ?? "",
+            platform: .ios,
+            price: NSDecimalNumber(decimal: product.price).doubleValue,
+            pricingTermsIOS: nil,
+            subscriptionGroupIdIOS: nil,
+            subscriptionInfoIOS: nil,
+            subscriptionOffers: nil,
+            subscriptionPeriodNumberIOS: nil,
+            subscriptionPeriodUnitIOS: nil,
+            title: product.displayName,
+            type: .subs,
+            typeIOS: .nonRenewingSubscription
         )
     }
 

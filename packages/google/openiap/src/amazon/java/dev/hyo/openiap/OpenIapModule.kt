@@ -1027,6 +1027,7 @@ class OpenIapModule(
     private fun AmazonProduct.toInAppProduct(): ProductAndroid {
         return ProductAndroid(
             currency = "",
+            debugDescription = description,
             description = description.orEmpty(),
             displayName = title,
             displayPrice = price.orEmpty(),
@@ -1074,6 +1075,7 @@ class OpenIapModule(
         )
         return ProductSubscriptionAndroid(
             currency = "",
+            debugDescription = description,
             description = description.orEmpty(),
             displayName = title,
             displayPrice = price.orEmpty(),

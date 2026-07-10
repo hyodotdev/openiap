@@ -149,73 +149,30 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             throw purchaseError
         }
 
-        // Only process products that were actually requested, not all cached products
+        // Preserve the concrete product variant so subscription-only fields are
+        // not discarded when callers request a mixed result.
         var productEntries: [OpenIAP.Product] = []
         var subscriptionEntries: [OpenIAP.ProductSubscription] = []
+        var allEntries: [OpenIAP.ProductOrSubscription] = []
 
         for product in fetchedProducts {
-            productEntries.append(await StoreKitTypesBridge.product(from: product))
             if let subscription = await StoreKitTypesBridge.productSubscription(from: product) {
                 subscriptionEntries.append(subscription)
+                allEntries.append(.productSubscription(subscription))
+            } else {
+                let productEntry = await StoreKitTypesBridge.product(from: product)
+                productEntries.append(productEntry)
+                allEntries.append(.product(productEntry))
             }
         }
 
         switch params.type ?? .inApp {
         case .subs:
-            // Return products that are subscriptions (both auto-renewable and non-renewing)
-            // Auto-renewable subscriptions have product.subscription != nil and use subscriptionEntries
-            // Non-renewing subscriptions have product.type == .nonRenewable but no subscription metadata
-            let autoRenewableSubs = subscriptionEntries.filter { sub in
-                fetchedProducts.contains { product in
-                    product.id == sub.id && product.subscription != nil
-                }
-            }
-
-            // Include non-renewing subscriptions as ProductSubscriptionIOS
-            // Note: Non-renewing subscriptions in StoreKit 2 don't have subscription metadata
-            // (no discounts, intro offers, subscription period, or subscription group).
-            // This is a StoreKit limitation, not missing data - we include all available product info.
-            let nonRenewingSubs: [ProductSubscription] = fetchedProducts.compactMap { product in
-                guard product.type == .nonRenewable else { return nil }
-                return .productSubscriptionIos(ProductSubscriptionIOS(
-                    currency: StoreKitTypesBridge.currencyCode(from: product) ?? "",
-                    debugDescription: product.description,
-                    description: product.description,
-                    discountsIOS: nil,  // StoreKit: Non-renewing subscriptions don't support discounts
-                    displayName: product.displayName,
-                    displayNameIOS: product.displayName,
-                    displayPrice: product.displayPrice,
-                    id: product.id,
-                    introductoryPriceAsAmountIOS: nil,  // StoreKit: Non-renewing subscriptions don't support intro offers
-                    introductoryPriceIOS: nil,
-                    introductoryPriceNumberOfPeriodsIOS: nil,
-                    introductoryPricePaymentModeIOS: .empty,
-                    introductoryPriceSubscriptionPeriodIOS: nil,
-                    isFamilyShareableIOS: product.isFamilyShareable,
-                    jsonRepresentationIOS: String(data: product.jsonRepresentation, encoding: .utf8) ?? "",
-                    platform: .ios,
-                    price: NSDecimalNumber(decimal: product.price).doubleValue,
-                    pricingTermsIOS: nil,
-                    subscriptionGroupIdIOS: nil,
-                    subscriptionInfoIOS: nil,  // StoreKit: Non-renewing subscriptions have no subscription metadata
-                    subscriptionPeriodNumberIOS: nil,
-                    subscriptionPeriodUnitIOS: nil,
-                    title: product.displayName,
-                    type: .subs,
-                    typeIOS: .nonRenewingSubscription
-                ))
-            }
-
-            let allSubs = autoRenewableSubs + nonRenewingSubs
-            return .subscriptions(allSubs.isEmpty ? nil : allSubs)
+            return .subscriptions(subscriptionEntries.isEmpty ? nil : subscriptionEntries)
         case .inApp:
-            let inApp = productEntries.compactMap { entry -> OpenIAP.Product? in
-                guard case let .productIos(value) = entry, value.type == .inApp else { return nil }
-                return entry
-            }
-            return .products(inApp.isEmpty ? nil : inApp)
-        case .all:
             return .products(productEntries.isEmpty ? nil : productEntries)
+        case .all:
+            return .all(allEntries.isEmpty ? nil : allEntries)
         }
     }
 
