@@ -94,15 +94,24 @@ void main() {
       final builder = RequestSubscriptionAndroidBuilder()
         ..skus = ['sub_sku']
         ..purchaseToken = 'old_token'
+        ..originalExternalTransactionId = 'original-external-id'
         ..replacementMode = 1
         ..obfuscatedAccountId = 'acc'
-        ..obfuscatedProfileId = 'prof';
+        ..obfuscatedProfileId = 'prof'
+        ..subscriptionProductReplacementParams =
+            const SubscriptionProductReplacementParamsAndroid(
+          oldProductId: 'old_product',
+          replacementMode: SubscriptionReplacementModeAndroid.Deferred,
+        );
 
       final props = builder.build();
 
       expect(props.skus, ['sub_sku']);
       expect(props.purchaseToken, 'old_token');
+      expect(props.originalExternalTransactionId, 'original-external-id');
       expect(props.replacementMode, 1);
+      expect(props.subscriptionProductReplacementParams?.oldProductId,
+          'old_product');
     });
 
     test('builds with empty subscriptionOffers returns null', () {

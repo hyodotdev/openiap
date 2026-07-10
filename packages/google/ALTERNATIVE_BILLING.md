@@ -10,7 +10,7 @@ Alternative Billing Only allows you to use your own payment system instead of Go
 
 - ✅ Google Play Console enrollment in Alternative Billing program
 - ✅ Google approval (can take several weeks)
-- ✅ Billing Library 6.2+ (this library uses 8.0.0)
+- ✅ Billing Library 6.2+ (this library uses 9.1.0)
 - ✅ Country/region eligibility
 - ✅ Backend server for reporting transactions to Google Play
 
@@ -308,7 +308,7 @@ See [AlternativeBillingScreen.kt](Example/src/main/java/dev/hyo/martie/screens/A
 
 ### "enableAlternativeBillingOnly() method not found"
 - **Cause**: Billing Library version < 6.2
-- **Fix**: Update to Billing Library 6.2+ (this library uses 8.0.0)
+- **Fix**: Update to Billing Library 6.2+ (this library uses 9.1.0)
 
 ### "Google Play dialog appears instead of alternative billing"
 - **Cause**: `enableAlternativeBillingOnly()` not called on BillingClient

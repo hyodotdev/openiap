@@ -33,10 +33,11 @@ packages/google/
 
 ## Build Variants
 
-| Variant   | Purpose            | Billing Library  |
-| --------- | ------------------ | ---------------- |
-| `play`    | Google Play Store  | Play Billing 8.x |
-| `horizon` | Meta Horizon Store | Horizon SDK      |
+| Variant   | Purpose            | Billing Library           |
+| --------- | ------------------ | ------------------------- |
+| `play`    | Google Play Store  | Play Billing 9.1.0        |
+| `horizon` | Meta Horizon Store | Horizon SDK 2.0.0         |
+| `amazon`  | Amazon Appstore    | Amazon Appstore SDK 3.0.8 |
 
 ## Type Generation
 
@@ -52,10 +53,12 @@ Types.kt is auto-generated. **Never edit directly!**
 # Compile library
 ./gradlew :openiap:compilePlayDebugKotlin
 ./gradlew :openiap:compileHorizonDebugKotlin
+./gradlew :openiap:compileAmazonDebugKotlin
 
 # Run tests
 ./gradlew :openiap:testPlayDebugUnitTest
 ./gradlew :openiap:testHorizonDebugUnitTest
+./gradlew :openiap:testAmazonDebugUnitTest
 
 # Build Example app
 ./gradlew :Example:assemblePlayDebug

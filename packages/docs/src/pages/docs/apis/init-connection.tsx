@@ -109,7 +109,23 @@ function InitConnection() {
           connection time. <code>EXTERNAL_CONTENT_LINK</code> and{' '}
           <code>EXTERNAL_OFFER</code> require Billing 8.2.0+;{' '}
           <code>EXTERNAL_PAYMENTS</code> requires Billing 8.3.0+ (Japan only);
-          <code>BILLING_CHOICE</code> requires Billing 9.1.0+.
+          <code>BILLING_CHOICE</code> is available in OpenIAP Spec 2.1.0 /{' '}
+          <code>openiap-google</code> 2.3.0 and requires Billing 9.1.0+.
+        </li>
+        <li>
+          <code>billingChoiceScreenTypeAndroid</code>{' '}
+          <em>
+            (optional,{' '}
+            <Link to="/docs/types/billing-programs#billing-choice-screen-type-android">
+              <code>BillingChoiceScreenTypeAndroid</code>
+            </Link>
+            )
+          </em>{' '}
+          — <strong>OpenIAP Spec 2.1.0 / openiap-google 2.3.0.</strong> Requires
+          Play Billing 9.1.0+ and must match the Billing Choice renderer
+          configured in Play Console. Defaults to <code>GOOGLE_RENDERED</code>;
+          set <code>DEVELOPER_RENDERED</code> when your app owns the choice
+          screen.
         </li>
       </ul>
 
@@ -143,6 +159,12 @@ await initConnection({
   enableBillingProgramAndroid: 'external-offer',
 });
 
+// Developer-rendered Billing Choice (must match Play Console)
+await initConnection({
+  enableBillingProgramAndroid: 'billing-choice',
+  billingChoiceScreenTypeAndroid: 'developer-rendered',
+});
+
 // --- Or via the useIAP() hook (also exported from react-native-iap) ---
 // useIAP auto-connects on mount and disconnects on unmount, so you almost
 // never need to call initConnection() yourself. Pass connection options
@@ -167,10 +189,11 @@ try await OpenIapModule.shared.initConnection()`}</CodeBlock>
             <CodeBlock language="kotlin">{`// Standard connection
 openIapStore.initConnection()
 
-// With alternative billing
+// Developer-rendered Billing Choice
 openIapStore.initConnection(
     InitConnectionConfig(
-        alternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice
+        enableBillingProgramAndroid = BillingProgramAndroid.BillingChoice,
+        billingChoiceScreenTypeAndroid = BillingChoiceScreenTypeAndroid.DeveloperRendered
     )
 )`}</CodeBlock>
           ),
@@ -182,15 +205,20 @@ val kmpIAP = KmpIAP()
 // Standard connection
 kmpIAP.initConnection()
 
-// With alternative billing
+// Developer-rendered Billing Choice
 kmpIAP.initConnection(
     InitConnectionConfig(
-        alternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice
+        enableBillingProgramAndroid = BillingProgramAndroid.BillingChoice,
+        billingChoiceScreenTypeAndroid = BillingChoiceScreenTypeAndroid.DeveloperRendered
     )
 )`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`await FlutterInappPurchase.instance.initConnection();`}</CodeBlock>
+            <CodeBlock language="dart">{`await FlutterInappPurchase.instance.initConnection(
+  enableBillingProgramAndroid: BillingProgramAndroid.BillingChoice,
+  billingChoiceScreenTypeAndroid:
+      BillingChoiceScreenTypeAndroid.DeveloperRendered,
+);`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`using OpenIap;
@@ -199,20 +227,22 @@ using OpenIap.Maui;
 // Standard connection
 await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync();
 
-// With alternative billing
+// Developer-rendered Billing Choice
 await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(
     new InitConnectionConfig
     {
-        EnableBillingProgramAndroid = BillingProgramAndroid.UserChoiceBilling,
+        EnableBillingProgramAndroid = BillingProgramAndroid.BillingChoice,
+        BillingChoiceScreenTypeAndroid = BillingChoiceScreenTypeAndroid.DeveloperRendered,
     });`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`# Standard connection
 var success = await iap.init_connection()
 
-# With alternative billing (Android)
+# Developer-rendered Billing Choice (Android)
 var config = InitConnectionConfig.new()
-config.alternative_billing_mode_android = AlternativeBillingModeAndroid.USER_CHOICE
+config.enable_billing_program_android = BillingProgramAndroid.BILLING_CHOICE
+config.billing_choice_screen_type_android = BillingChoiceScreenTypeAndroid.DEVELOPER_RENDERED
 var success = await iap.init_connection(config)`}</CodeBlock>
           ),
         }}
@@ -230,6 +260,10 @@ var success = await iap.init_connection(config)`}</CodeBlock>
         [deprecated],{' '}
         <Link to="/docs/types/billing-programs#billing-program-android">
           <code>enableBillingProgramAndroid</code>
+        </Link>
+        , and{' '}
+        <Link to="/docs/types/billing-programs#billing-choice-screen-type-android">
+          <code>billingChoiceScreenTypeAndroid</code>
         </Link>
         ).
       </p>

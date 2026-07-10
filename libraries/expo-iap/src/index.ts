@@ -58,8 +58,8 @@ export enum OpenIapEvent {
   PromotedProductIOS = 'promoted-product-ios',
   UserChoiceBillingAndroid = 'user-choice-billing-android',
   /**
-   * Fired when user selects developer billing in External Payments flow (Android 8.3.0+)
-   * Only available in Japan. Contains externalTransactionToken for reporting.
+   * Fired for External Payments (8.3.0+) and Billing Choice (9.1.0+)
+   * developer billing flows. Nullable fields depend on the selected flow.
    */
   DeveloperProvidedBillingAndroid = 'developer-provided-billing-android',
   /**
@@ -482,33 +482,29 @@ export const userChoiceBillingListenerAndroid = (
 };
 
 /**
- * Android-only listener for Developer Provided Billing events (External Payments).
- * This fires when a user selects the developer's payment option in the External Payments
- * side-by-side choice dialog during purchase flow.
+ * Android-only listener for Developer Provided Billing events.
+ * This fires when a user selects the developer's option in an External Payments
+ * or Billing Choice purchase flow.
  *
- * Requires Google Play Billing Library 8.3.0+ and is currently only available in Japan.
+ * Requires Google Play Billing Library 8.3.0+; Billing Choice fields require 9.1.0+.
  *
- * @param listener - Callback function that receives the external transaction token
+ * @param listener - Callback that receives selected products and flow details
  * @returns EventSubscription that can be used to unsubscribe
  *
  * @example
  * ```typescript
  * const subscription = developerProvidedBillingListenerAndroid(async (details) => {
- *   console.log('User selected developer billing');
- *   console.log('External transaction token received; send it to your backend without logging it.');
- *
- *   // Process payment with your payment gateway
- *   await processPaymentWithYourGateway(details.externalTransactionToken);
- *
- *   // IMPORTANT: Report the token to Google Play within 24 hours
- *   await reportExternalTransactionToGoogle(details.externalTransactionToken);
+ *   await processPaymentWithYourGateway(details.products, details.linkUri);
+ *   if (details.externalTransactionToken) {
+ *     await reportExternalTransactionToGoogle(details.externalTransactionToken);
+ *   }
  * });
  *
  * // Later, clean up
  * subscription.remove();
  * ```
  *
- * @platform Android (8.3.0+, Japan only)
+ * @platform Android (8.3.0+; Billing Choice 9.1.0+)
  */
 export const developerProvidedBillingListenerAndroid = (
   listener: (details: DeveloperProvidedBillingDetailsAndroid) => void,
@@ -566,7 +562,9 @@ export const subscriptionBillingIssueListener = (
  * Initialize the store connection. Must be called before any other IAP API.
  *
  * @param config Optional connection config. Use `enableBillingProgramAndroid` (Android,
- *   Play Billing 8.2.0+) to opt into External Payments etc. iOS ignores Android-specific fields.
+ *   Play Billing 8.2.0+) to opt into a billing program. For Billing Choice 9.1.0+, set
+ *   `billingChoiceScreenTypeAndroid` to the renderer configured in Play Console.
+ *   iOS ignores Android-specific fields.
  * @returns Promise resolving to `true` when the platform billing client is connected.
  * @throws When the platform billing client fails to initialize.
  *
@@ -574,6 +572,10 @@ export const subscriptionBillingIssueListener = (
  * ```ts
  * await initConnection();
  * await initConnection({ enableBillingProgramAndroid: 'external-offer' });
+ * await initConnection({
+ *   enableBillingProgramAndroid: 'billing-choice',
+ *   billingChoiceScreenTypeAndroid: 'developer-rendered',
+ * });
  * ```
  *
  * @remarks When using `useIAP()`, connection is auto-managed on mount/unmount —
@@ -974,6 +976,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
         obfuscatedProfileId,
         isOfferPersonalized,
         offerToken,
+        developerBillingOption,
       } = normalizedRequest;
 
       const result = (await ExpoIapModule.requestPurchase({
@@ -984,6 +987,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
         obfuscatedAccountId: obfuscatedAccountId,
         obfuscatedProfileId: obfuscatedProfileId,
         offerToken: offerToken,
+        developerBillingOption: developerBillingOption ?? undefined,
         offerTokenArr: [],
         isOfferPersonalized: isOfferPersonalized ?? false,
       })) as Purchase[];
@@ -1020,6 +1024,8 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
         subscriptionOffers,
         replacementMode: replacementModeInput,
         purchaseToken: purchaseTokenInput,
+        originalExternalTransactionId,
+        developerBillingOption,
         subscriptionProductReplacementParams,
       } = normalizedRequest;
 
@@ -1031,6 +1037,8 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
         type: native,
         skuArr: skus,
         purchaseToken,
+        originalExternalTransactionId:
+          originalExternalTransactionId ?? undefined,
         replacementMode,
         obfuscatedAccountId: obfuscatedAccountId,
         obfuscatedProfileId: obfuscatedProfileId,
@@ -1039,6 +1047,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
         ),
         subscriptionOffers: normalizedOffers,
         isOfferPersonalized: isOfferPersonalized ?? false,
+        developerBillingOption: developerBillingOption ?? undefined,
         subscriptionProductReplacementParams:
           subscriptionProductReplacementParams ?? undefined,
       })) as Purchase[];

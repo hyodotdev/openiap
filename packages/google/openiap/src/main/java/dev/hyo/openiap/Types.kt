@@ -50,7 +50,7 @@ public enum class AlternativeBillingModeAndroid(val rawValue: String) {
 
 /**
  * Play Billing choice image layout (Android)
- * Available in Google Play Billing Library 9.1.0+
+ * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
  */
 public enum class BillingChoiceImageLayoutAndroid(val rawValue: String) {
     /**
@@ -83,7 +83,7 @@ public enum class BillingChoiceImageLayoutAndroid(val rawValue: String) {
 
 /**
  * Choice screen renderer for Billing Choice availability (Android)
- * Available in Google Play Billing Library 9.1.0+
+ * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
  */
 public enum class BillingChoiceScreenTypeAndroid(val rawValue: String) {
     /**
@@ -117,7 +117,8 @@ public enum class BillingChoiceScreenTypeAndroid(val rawValue: String) {
 /**
  * Billing program types for Google Play Billing Programs (Android)
  * Available in Google Play Billing Library 8.2.0+, EXTERNAL_PAYMENTS added in 8.3.0,
- * BILLING_CHOICE added in 9.1.0.
+ * BILLING_CHOICE added in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+ * (requires Play Billing 9.1.0+).
  */
 public enum class BillingProgramAndroid(val rawValue: String) {
     /**
@@ -152,7 +153,7 @@ public enum class BillingProgramAndroid(val rawValue: String) {
     /**
      * Billing Choice program.
      * Allows presenting Google Play Billing alongside an alternative in-app billing system or external web link.
-     * Available in Google Play Billing Library 9.1.0+
+     * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
      */
     BillingChoice("billing-choice");
 
@@ -215,7 +216,7 @@ public enum class DeveloperBillingLaunchModeAndroid(val rawValue: String) {
 
 /**
  * Developer-provided billing destination type for Billing Program reporting details (Android)
- * Available in Google Play Billing Library 9.1.0+
+ * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
  */
 public enum class DeveloperBillingTypeAndroid(val rawValue: String) {
     /**
@@ -560,8 +561,9 @@ public enum class IapEvent(val rawValue: String) {
     PromotedProductIos("promoted-product-ios"),
     UserChoiceBillingAndroid("user-choice-billing-android"),
     /**
-     * Fired when user selects developer-provided billing option in external payments flow.
-     * Available on Android with Google Play Billing Library 8.3.0+
+     * Fired for External Payments (8.3.0+) and Google-rendered Billing Choice
+     * developer billing selections on Android. Billing Choice is available in
+     * OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
      */
     DeveloperProvidedBillingAndroid("developer-provided-billing-android"),
     /**
@@ -708,7 +710,8 @@ public enum class IapStore(val rawValue: String) {
 
 /**
  * High-level in-app message category (Android)
- * Available in Google Play Billing Library 4.1.0+
+ * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+ * (upstream API available since Play Billing 4.1.0).
  */
 public enum class InAppMessageCategoryAndroid(val rawValue: String) {
     /**
@@ -735,7 +738,8 @@ public enum class InAppMessageCategoryAndroid(val rawValue: String) {
 
 /**
  * Response code from Play billing in-app messages (Android)
- * Available in Google Play Billing Library 4.1.0+
+ * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+ * (upstream API available since Play Billing 4.1.0).
  */
 public enum class InAppMessageResponseCodeAndroid(val rawValue: String) {
     /**
@@ -1453,6 +1457,9 @@ public interface PurchaseCommon {
      * Store where purchase was made
      */
     val store: IapStore
+    /**
+     * Unix timestamp in milliseconds since January 1, 1970 UTC.
+     */
     val transactionDate: Double
 }
 
@@ -1483,6 +1490,9 @@ public data class ActiveSubscription(
      * pending upgrades/downgrades, and auto-renewal preferences.
      */
     val renewalInfoIOS: RenewalInfoIOS? = null,
+    /**
+     * Unix timestamp in milliseconds since January 1, 1970 UTC.
+     */
     val transactionDate: Double,
     val transactionId: String,
     /**
@@ -1743,7 +1753,7 @@ public data class AppTransaction(
 
 /**
  * Display information for developer-rendered Billing Choice screens (Android)
- * Available in Google Play Billing Library 9.1.0+
+ * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
  */
 public data class BillingChoiceInfoAndroid(
     /**
@@ -1783,6 +1793,7 @@ public data class BillingProgramAvailabilityResultAndroid(
     val billingProgram: BillingProgramAndroid,
     /**
      * Billing Choice screen renderer. Populated only for available BILLING_CHOICE results.
+     * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0.
      */
     val choiceScreenType: BillingChoiceScreenTypeAndroid? = null,
     /**
@@ -1792,6 +1803,7 @@ public data class BillingProgramAvailabilityResultAndroid(
     /**
      * Whether external-link payment is available for Billing Choice.
      * Populated only for available BILLING_CHOICE results.
+     * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0.
      */
     val isExternalLinkAvailable: Boolean? = null
 ) {
@@ -1895,16 +1907,32 @@ public data class BillingResultAndroid(
 public data class DeveloperProvidedBillingDetailsAndroid(
     /**
      * External transaction token used to report transactions made through developer billing.
-     * This token must be used when reporting the external transaction to Google Play.
-     * Must be reported within 24 hours of the transaction.
+     * Nullable for flows such as external payments where no token is returned.
      */
-    val externalTransactionToken: String
+    val externalTransactionToken: String? = null,
+    /**
+     * URI to launch for an external-link Billing Choice flow, when provided by
+     * Google Play.
+     */
+    val linkUri: String? = null,
+    /**
+     * Original external transaction ID when replacing a subscription that was
+     * purchased through developer billing.
+     */
+    val originalExternalTransactionId: String? = null,
+    /**
+     * Products selected for the developer billing flow.
+     */
+    val products: List<DeveloperProvidedBillingProductAndroid>
 ) {
 
     companion object {
         fun fromJson(json: Map<String, Any?>): DeveloperProvidedBillingDetailsAndroid {
             return DeveloperProvidedBillingDetailsAndroid(
-                externalTransactionToken = json["externalTransactionToken"] as? String ?: "",
+                externalTransactionToken = json["externalTransactionToken"] as? String,
+                linkUri = json["linkUri"] as? String,
+                originalExternalTransactionId = json["originalExternalTransactionId"] as? String,
+                products = (json["products"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { DeveloperProvidedBillingProductAndroid.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for DeveloperProvidedBillingProductAndroid") } ?: emptyList(),
             )
         }
     }
@@ -1912,6 +1940,45 @@ public data class DeveloperProvidedBillingDetailsAndroid(
     fun toJson(): Map<String, Any?> = mapOf(
         "__typename" to "DeveloperProvidedBillingDetailsAndroid",
         "externalTransactionToken" to externalTransactionToken,
+        "linkUri" to linkUri,
+        "originalExternalTransactionId" to originalExternalTransactionId,
+        "products" to products.map { it.toJson() },
+    )
+}
+
+/**
+ * Product selected for developer-provided billing (Android 9.0+).
+ */
+public data class DeveloperProvidedBillingProductAndroid(
+    /**
+     * Product identifier.
+     */
+    val id: String,
+    /**
+     * Subscription offer token, when applicable.
+     */
+    val offerToken: String? = null,
+    /**
+     * Google Play product type (in-app or subscription).
+     */
+    val type: ProductType
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): DeveloperProvidedBillingProductAndroid {
+            return DeveloperProvidedBillingProductAndroid(
+                id = json["id"] as? String ?: "",
+                offerToken = json["offerToken"] as? String,
+                type = (json["type"] as? String)?.let { ProductType.fromJson(it) } ?: ProductType.InApp,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "DeveloperProvidedBillingProductAndroid",
+        "id" to id,
+        "offerToken" to offerToken,
+        "type" to type.toJson(),
     )
 }
 
@@ -2421,7 +2488,8 @@ public data class FetchProductsResultSubscriptions(val value: List<ProductSubscr
 
 /**
  * Result from showing Play billing in-app messages (Android)
- * Available in Google Play Billing Library 4.1.0+
+ * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+ * (upstream API available since Play Billing 4.1.0).
  */
 public data class InAppMessageResultAndroid(
     /**
@@ -3179,6 +3247,9 @@ public data class PurchaseAndroid(
      * Store where purchase was made
      */
     override val store: IapStore,
+    /**
+     * Unix timestamp in milliseconds since January 1, 1970 UTC.
+     */
     override val transactionDate: Double,
     val transactionId: String? = null
 ) : PurchaseCommon, Purchase {
@@ -3326,6 +3397,9 @@ public data class PurchaseIOS(
     override val store: IapStore,
     val storefrontCountryCodeIOS: String? = null,
     val subscriptionGroupIdIOS: String? = null,
+    /**
+     * Unix timestamp in milliseconds since January 1, 1970 UTC.
+     */
     override val transactionDate: Double,
     val transactionId: String,
     val transactionReasonIOS: String? = null,
@@ -4436,7 +4510,7 @@ public data class AndroidSubscriptionOfferInput(
 
 /**
  * Parameters for showing a billing program information dialog (Android)
- * Available in Google Play Billing Library 9.1.0+
+ * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
  */
 public data class BillingProgramInformationDialogParamsAndroid(
     /**
@@ -4492,32 +4566,42 @@ public data class DeepLinkOptions(
 }
 
 /**
- * Parameters for developer billing option in purchase flow (Android)
- * Used with BillingFlowParams to enable external payments flow
- * Available in Google Play Billing Library 8.3.0+
+ * Parameters for a developer billing option in a purchase flow (Android).
+ * Used with BillingFlowParams for external payments (8.3.0+) and Billing Choice
+ * (OpenIAP Spec 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+).
+ * Only billingProgram is required; link fields are used when the selected program
+ * links outside the app.
  */
 public data class DeveloperBillingOptionParamsAndroid(
     /**
-     * The billing program (should be EXTERNAL_PAYMENTS for external payments flow)
+     * The billing program. Use EXTERNAL_PAYMENTS or BILLING_CHOICE.
      */
     val billingProgram: BillingProgramAndroid,
     /**
-     * The launch mode for the external payment link
+     * A pre-generated external transaction token for a Billing Choice external-link
+     * flow. Omit it when Google Play should provide the token in the callback.
      */
-    val launchMode: DeveloperBillingLaunchModeAndroid,
+    val externalTransactionToken: String? = null,
     /**
-     * The URI where the external payment will be processed
+     * The launch mode for the external payment link.
+     * Required only when the selected billing program links outside the app.
      */
-    val linkUri: String
+    val launchMode: DeveloperBillingLaunchModeAndroid? = null,
+    /**
+     * The URI where the external payment will be processed.
+     * Required only when the selected billing program links outside the app.
+     */
+    val linkUri: String? = null
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): DeveloperBillingOptionParamsAndroid? {
             val billingProgram = (json["billingProgram"] as? String)?.let { BillingProgramAndroid.fromJson(it) } ?: BillingProgramAndroid.Unspecified
-            val launchMode = (json["launchMode"] as? String)?.let { DeveloperBillingLaunchModeAndroid.fromJson(it) } ?: DeveloperBillingLaunchModeAndroid.Unspecified
+            val externalTransactionToken = json["externalTransactionToken"] as? String
+            val launchMode = (json["launchMode"] as? String)?.let { DeveloperBillingLaunchModeAndroid.fromJson(it) }
             val linkUri = json["linkUri"] as? String
-            if (linkUri == null) return null
             return DeveloperBillingOptionParamsAndroid(
                 billingProgram = billingProgram,
+                externalTransactionToken = externalTransactionToken,
                 launchMode = launchMode,
                 linkUri = linkUri,
             )
@@ -4526,7 +4610,8 @@ public data class DeveloperBillingOptionParamsAndroid(
 
     fun toJson(): Map<String, Any?> = mapOf(
         "billingProgram" to billingProgram.toJson(),
-        "launchMode" to launchMode.toJson(),
+        "externalTransactionToken" to externalTransactionToken,
+        "launchMode" to launchMode?.toJson(),
         "linkUri" to linkUri,
     )
 }
@@ -4582,7 +4667,7 @@ public data class DiscountOfferInputIOS(
 
 /**
  * Parameters for fetching Billing Choice display information (Android)
- * Available in Google Play Billing Library 9.1.0+
+ * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
  */
 public data class GetBillingChoiceInfoParamsAndroid(
     /**
@@ -4617,7 +4702,8 @@ public data class GetBillingChoiceInfoParamsAndroid(
 
 /**
  * Parameters for showing Play billing in-app messages (Android)
- * Available in Google Play Billing Library 4.1.0+
+ * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+ * (upstream API available since Play Billing 4.1.0).
  */
 public data class InAppMessageParamsAndroid(
     /**
@@ -4650,12 +4736,24 @@ public data class InitConnectionConfig(
      */
     val alternativeBillingModeAndroid: AlternativeBillingModeAndroid? = null,
     /**
+     * Billing Choice renderer configured in Play Console. Available in OpenIAP
+     * Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+     * GOOGLE_RENDERED registers the developer-provided billing listener so OpenIAP
+     * can emit the selection event. DEVELOPER_RENDERED omits that listener so the
+     * app can render its own choice screen and use the reporting/dialog/link APIs.
+     * Must match choiceScreenType returned by isBillingProgramAvailableAndroid.
+     * Defaults to GOOGLE_RENDERED.
+     */
+    val billingChoiceScreenTypeAndroid: BillingChoiceScreenTypeAndroid? = BillingChoiceScreenTypeAndroid.GoogleRendered,
+    /**
      * Enable a specific billing program for Android (7.0+)
      * When set, enables the specified billing program for external transactions.
      * - USER_CHOICE_BILLING: User can select between Google Play or alternative (7.0+)
      * - EXTERNAL_CONTENT_LINK: Link to external content (8.2.0+)
      * - EXTERNAL_OFFER: External offers for digital content (8.2.0+)
      * - EXTERNAL_PAYMENTS: Developer provided billing, Japan only (8.3.0+)
+     * - BILLING_CHOICE: Google-rendered or developer-rendered billing choice
+     *   (OpenIAP Spec 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+)
      */
     val enableBillingProgramAndroid: BillingProgramAndroid? = null
 ) {
@@ -4663,6 +4761,7 @@ public data class InitConnectionConfig(
         fun fromJson(json: Map<String, Any?>): InitConnectionConfig {
             return InitConnectionConfig(
                 alternativeBillingModeAndroid = (json["alternativeBillingModeAndroid"] as? String)?.let { AlternativeBillingModeAndroid.fromJson(it) },
+                billingChoiceScreenTypeAndroid = (json["billingChoiceScreenTypeAndroid"] as? String)?.let { BillingChoiceScreenTypeAndroid.fromJson(it) } ?: BillingChoiceScreenTypeAndroid.GoogleRendered,
                 enableBillingProgramAndroid = (json["enableBillingProgramAndroid"] as? String)?.let { BillingProgramAndroid.fromJson(it) },
             )
         }
@@ -4670,20 +4769,28 @@ public data class InitConnectionConfig(
 
     fun toJson(): Map<String, Any?> = mapOf(
         "alternativeBillingModeAndroid" to alternativeBillingModeAndroid?.toJson(),
+        "billingChoiceScreenTypeAndroid" to billingChoiceScreenTypeAndroid?.toJson(),
         "enableBillingProgramAndroid" to enableBillingProgramAndroid?.toJson(),
     )
 }
 
 /**
  * Parameters for launching an external link (Android)
- * Used with launchExternalLink to initiate external offer or app install flows
+ * Used with launchExternalLink to initiate external offer, app install, or
+ * developer-rendered Billing Choice flows
  * Available in Google Play Billing Library 8.2.0+
  */
 public data class LaunchExternalLinkParamsAndroid(
     /**
-     * The billing program (EXTERNAL_CONTENT_LINK or EXTERNAL_OFFER)
+     * The billing program (EXTERNAL_CONTENT_LINK, EXTERNAL_OFFER, or BILLING_CHOICE)
      */
     val billingProgram: BillingProgramAndroid,
+    /**
+     * External transaction token for a developer-rendered Billing Choice external-link
+     * flow. Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+     * (requires Play Billing 9.1.0+). Generate it with createBillingProgramReportingDetailsAndroid.
+     */
+    val externalTransactionToken: String? = null,
     /**
      * The external link launch mode
      */
@@ -4700,12 +4807,14 @@ public data class LaunchExternalLinkParamsAndroid(
     companion object {
         fun fromJson(json: Map<String, Any?>): LaunchExternalLinkParamsAndroid? {
             val billingProgram = (json["billingProgram"] as? String)?.let { BillingProgramAndroid.fromJson(it) } ?: BillingProgramAndroid.Unspecified
+            val externalTransactionToken = json["externalTransactionToken"] as? String
             val launchMode = (json["launchMode"] as? String)?.let { ExternalLinkLaunchModeAndroid.fromJson(it) } ?: ExternalLinkLaunchModeAndroid.Unspecified
             val linkType = (json["linkType"] as? String)?.let { ExternalLinkTypeAndroid.fromJson(it) } ?: ExternalLinkTypeAndroid.Unspecified
             val linkUri = json["linkUri"] as? String
             if (linkUri == null) return null
             return LaunchExternalLinkParamsAndroid(
                 billingProgram = billingProgram,
+                externalTransactionToken = externalTransactionToken,
                 launchMode = launchMode,
                 linkType = linkType,
                 linkUri = linkUri,
@@ -4715,6 +4824,7 @@ public data class LaunchExternalLinkParamsAndroid(
 
     fun toJson(): Map<String, Any?> = mapOf(
         "billingProgram" to billingProgram.toJson(),
+        "externalTransactionToken" to externalTransactionToken,
         "launchMode" to launchMode.toJson(),
         "linkType" to linkType.toJson(),
         "linkUri" to linkUri,
@@ -4838,9 +4948,9 @@ public data class PurchaseUpdatedListenerOptions(
 
 public data class RequestPurchaseAndroidProps(
     /**
-     * Developer billing option parameters for external payments flow (8.3.0+).
-     * When provided, the purchase flow will show a side-by-side choice between
-     * Google Play Billing and the developer's external payment option.
+     * Developer billing option parameters for external payments and Billing Choice.
+     * Billing Choice is available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+     * (requires Play Billing 9.1.0+).
      */
     val developerBillingOption: DeveloperBillingOptionParamsAndroid? = null,
     /**
@@ -5058,9 +5168,9 @@ public data class RequestPurchasePropsByPlatforms(
 
 public data class RequestSubscriptionAndroidProps(
     /**
-     * Developer billing option parameters for external payments flow (8.3.0+).
-     * When provided, the purchase flow will show a side-by-side choice between
-     * Google Play Billing and the developer's external payment option.
+     * Developer billing option parameters for external payments and Billing Choice.
+     * Billing Choice is available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+     * (requires Play Billing 9.1.0+).
      */
     val developerBillingOption: DeveloperBillingOptionParamsAndroid? = null,
     /**
@@ -5076,6 +5186,12 @@ public data class RequestSubscriptionAndroidProps(
      * Obfuscated profile ID
      */
     val obfuscatedProfileId: String? = null,
+    /**
+     * Original external transaction ID for replacing a subscription that was
+     * purchased through developer billing. Available in OpenIAP Spec 2.1.0 /
+     * openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+     */
+    val originalExternalTransactionId: String? = null,
     /**
      * Purchase token for upgrades/downgrades
      */
@@ -5105,6 +5221,7 @@ public data class RequestSubscriptionAndroidProps(
             val isOfferPersonalized = json["isOfferPersonalized"] as? Boolean
             val obfuscatedAccountId = json["obfuscatedAccountId"] as? String
             val obfuscatedProfileId = json["obfuscatedProfileId"] as? String
+            val originalExternalTransactionId = json["originalExternalTransactionId"] as? String
             val purchaseToken = json["purchaseToken"] as? String
             val replacementMode = (json["replacementMode"] as? Number)?.toInt()
             val skus = (json["skus"] as? List<*>)?.mapNotNull { it as? String }
@@ -5116,6 +5233,7 @@ public data class RequestSubscriptionAndroidProps(
                 isOfferPersonalized = isOfferPersonalized,
                 obfuscatedAccountId = obfuscatedAccountId,
                 obfuscatedProfileId = obfuscatedProfileId,
+                originalExternalTransactionId = originalExternalTransactionId,
                 purchaseToken = purchaseToken,
                 replacementMode = replacementMode,
                 skus = skus,
@@ -5130,6 +5248,7 @@ public data class RequestSubscriptionAndroidProps(
         "isOfferPersonalized" to isOfferPersonalized,
         "obfuscatedAccountId" to obfuscatedAccountId,
         "obfuscatedProfileId" to obfuscatedProfileId,
+        "originalExternalTransactionId" to originalExternalTransactionId,
         "purchaseToken" to purchaseToken,
         "replacementMode" to replacementMode,
         "skus" to skus,
@@ -5765,6 +5884,8 @@ public interface MutationResolver {
      * Returns external transaction token needed for reporting external transactions.
      * developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted,
      * native Android defaults it to IN_APP.
+     * The Billing Choice extension is available in OpenIAP Spec 2.1.0 /
+     * openiap-google 2.3.0 (requires Play Billing 9.1.0+).
      * Throws OpenIapError.NotPrepared if billing client not ready.
      * See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
      */
@@ -5799,7 +5920,10 @@ public interface MutationResolver {
      */
     suspend fun isBillingProgramAvailableAndroid(program: BillingProgramAndroid): BillingProgramAvailabilityResultAndroid
     /**
-     * Launch an external content/offer link from inside the Billing Programs flow (Play Billing 8.2.0+).
+     * Launch an external content/offer link from inside the Billing Programs flow (Play Billing 8.2.0+),
+     * including developer-rendered Billing Choice external-link flows.
+     * Billing Choice availability: OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+     * (requires Play Billing 9.1.0+).
      * Replaces the deprecated showExternalOfferInformationDialog API.
      * Shows Play Store dialog and optionally launches external URL.
      * Throws OpenIapError.NotPrepared if billing client not ready.
@@ -5851,8 +5975,9 @@ public interface MutationResolver {
      */
     suspend fun showAlternativeBillingDialogAndroid(): Boolean
     /**
-     * Show Google's information dialog for a Billing Choice external transaction.
-     * Available in Google Play Billing Library 9.1.0+.
+     * Show Google's mandatory information dialog before a developer-rendered,
+     * in-app Billing Choice screen.
+     * OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
      * Throws OpenIapError.NotPrepared if billing client not ready.
      * See: https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android
      */
@@ -5866,7 +5991,8 @@ public interface MutationResolver {
     suspend fun showExternalPurchaseCustomLinkNoticeIOS(noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS): ExternalPurchaseCustomLinkNoticeResultIOS
     /**
      * Overlay Play billing in-app messages, such as payment issues or subscription price-change confirmations.
-     * Available in Google Play Billing Library 4.1.0+.
+     * OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0
+     * (upstream API available since Play Billing 4.1.0).
      * Returns a response code and, when the subscription status changes, the related purchase token.
      * Throws OpenIapError.NotPrepared if billing client not ready.
      * See: https://openiap.dev/docs/apis/android/show-in-app-messages-android
@@ -5950,7 +6076,7 @@ public interface QueryResolver {
     suspend fun getAvailablePurchases(options: PurchaseOptions? = null): List<Purchase>
     /**
      * Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens.
-     * Available in Google Play Billing Library 9.1.0+.
+     * OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
      * Throws OpenIapError.NotPrepared if billing client is not ready.
      * See: https://openiap.dev/docs/apis/android/get-billing-choice-info-android
      */
@@ -6036,11 +6162,11 @@ public interface QueryResolver {
  */
 public interface SubscriptionResolver {
     /**
-     * Fires when a user selects developer billing in the External Payments flow (Android only)
-     * Triggered when the user chooses to pay via the developer's external payment option
-     * instead of Google Play Billing in the side-by-side choice dialog.
-     * Contains the externalTransactionToken needed to report the transaction.
-     * Available in Google Play Billing Library 8.3.0+
+     * Fires when a user selects developer billing in an External Payments or
+     * Billing Choice flow (Android only). The payload can contain an external
+     * transaction token, link URI, original transaction ID, and selected products.
+     * Billing Choice payload fields are available in OpenIAP Spec 2.1.0 /
+     * openiap-google 2.3.0 (requires Play Billing 9.1.0+).
      */
     suspend fun developerProvidedBillingAndroid(): DeveloperProvidedBillingDetailsAndroid
     /**

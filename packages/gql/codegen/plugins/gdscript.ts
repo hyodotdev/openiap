@@ -124,6 +124,30 @@ export class GDScriptPlugin extends CodegenPlugin {
     }
   }
 
+  private getSchemaDefaultValue(field: IRField): string | null {
+    if (field.defaultValue === undefined || field.defaultValue === null) {
+      return null;
+    }
+
+    if (field.type.kind === 'enum' && typeof field.defaultValue === 'string') {
+      return `${field.type.name}.${this.enumValueCase(field.defaultValue)}`;
+    }
+
+    if (field.type.kind === 'scalar') {
+      if (typeof field.defaultValue === 'string') {
+        return JSON.stringify(field.defaultValue);
+      }
+      if (
+        typeof field.defaultValue === 'number' ||
+        typeof field.defaultValue === 'boolean'
+      ) {
+        return String(field.defaultValue);
+      }
+    }
+
+    return null;
+  }
+
   private getGdscriptFieldName(fieldName: string, typeName: string | null = null): string {
     if (typeName) {
       const key = `${typeName}.${fieldName}`;
@@ -607,8 +631,11 @@ export class GDScriptPlugin extends CodegenPlugin {
         }
         const gdType = this.mapType(field.type);
         const fieldName = this.getGdscriptFieldName(field.name, irInput.name);
+        const schemaDefaultValue = this.getSchemaDefaultValue(field);
         const defaultValue = this.getDefaultValue(field.type);
-        if (field.type.nullable && this.isNullableScalar(field.type)) {
+        if (schemaDefaultValue !== null) {
+          this.emit(`\tvar ${fieldName}: ${gdType} = ${schemaDefaultValue}`);
+        } else if (field.type.nullable && this.isNullableScalar(field.type)) {
           this.emit(`\tvar ${fieldName}: Variant = null`);
         } else if (defaultValue !== null) {
           this.emit(`\tvar ${fieldName}: ${gdType} = ${defaultValue}`);

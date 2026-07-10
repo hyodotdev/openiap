@@ -334,7 +334,7 @@ public partial class PurchaseFlowPage : ContentPage
         catch (Exception ex)
         {
             _isProcessing = false;
-            UpdateResult($"Purchase failed: {ErrorUtils.ExtractErrorMessage(ex)}");
+            UpdateResult(ErrorUtils.FormatPurchaseFailure(ex));
             RenderProducts();
         }
     }
@@ -371,7 +371,7 @@ public partial class PurchaseFlowPage : ContentPage
             {
                 if (!_isProcessing) return;
                 _isProcessing = false;
-                UpdateResult($"Purchase failed: {ErrorUtils.ExtractErrorMessage(ex)}");
+                UpdateResult(ErrorUtils.FormatPurchaseFailure(ex));
                 RenderProducts();
             });
         }
@@ -471,7 +471,7 @@ public partial class PurchaseFlowPage : ContentPage
     private void OnPurchaseError(PurchaseError error)
     {
         _isProcessing = false;
-        UpdateResult($"Purchase failed: {error.Message}");
+        UpdateResult(ErrorUtils.FormatPurchaseFailure(error));
         RenderProducts();
     }
 

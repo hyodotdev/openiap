@@ -215,7 +215,8 @@ public enum IapEvent
               </td>
               <td>
                 Fires when a user selects developer-provided billing in the
-                External Payments flow (8.3.0+, Japan only).
+                External Payments flow (8.3.0+) or Google-rendered Billing
+                Choice flow (9.1.0+).
               </td>
             </tr>
           </tbody>

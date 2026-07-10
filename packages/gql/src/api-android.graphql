@@ -3,12 +3,14 @@
 extend type Query {
   """
   Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens.
-  Available in Google Play Billing Library 9.1.0+.
+  OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
   Throws OpenIapError.NotPrepared if billing client is not ready.
   See: https://openiap.dev/docs/apis/android/get-billing-choice-info-android
   """
   # Future
-  getBillingChoiceInfoAndroid(params: GetBillingChoiceInfoParamsAndroid!): BillingChoiceInfoAndroid!
+  getBillingChoiceInfoAndroid(
+    params: GetBillingChoiceInfoParamsAndroid!
+  ): BillingChoiceInfoAndroid!
 }
 
 extend type Mutation {
@@ -64,7 +66,9 @@ extend type Mutation {
   See: https://openiap.dev/docs/apis/android/is-billing-program-available-android
   """
   # Future
-  isBillingProgramAvailableAndroid(program: BillingProgramAndroid!): BillingProgramAvailabilityResultAndroid!
+  isBillingProgramAvailableAndroid(
+    program: BillingProgramAndroid!
+  ): BillingProgramAvailabilityResultAndroid!
 
   """
   Create the reporting payload Google requires after a Developer-Provided Billing transaction (Play Billing 8.3.0+).
@@ -72,6 +76,8 @@ extend type Mutation {
   Returns external transaction token needed for reporting external transactions.
   developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted,
   native Android defaults it to IN_APP.
+  The Billing Choice extension is available in OpenIAP Spec 2.1.0 /
+  openiap-google 2.3.0 (requires Play Billing 9.1.0+).
   Throws OpenIapError.NotPrepared if billing client not ready.
   See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
   """
@@ -82,7 +88,10 @@ extend type Mutation {
   ): BillingProgramReportingDetailsAndroid!
 
   """
-  Launch an external content/offer link from inside the Billing Programs flow (Play Billing 8.2.0+).
+  Launch an external content/offer link from inside the Billing Programs flow (Play Billing 8.2.0+),
+  including developer-rendered Billing Choice external-link flows.
+  Billing Choice availability: OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+  (requires Play Billing 9.1.0+).
   Replaces the deprecated showExternalOfferInformationDialog API.
   Shows Play Store dialog and optionally launches external URL.
   Throws OpenIapError.NotPrepared if billing client not ready.
@@ -92,21 +101,27 @@ extend type Mutation {
   launchExternalLinkAndroid(params: LaunchExternalLinkParamsAndroid!): Boolean!
 
   """
-  Show Google's information dialog for a Billing Choice external transaction.
-  Available in Google Play Billing Library 9.1.0+.
+  Show Google's mandatory information dialog before a developer-rendered,
+  in-app Billing Choice screen.
+  OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
   Throws OpenIapError.NotPrepared if billing client not ready.
   See: https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android
   """
   # Future
-  showBillingProgramInformationDialogAndroid(params: BillingProgramInformationDialogParamsAndroid!): BillingResultAndroid!
+  showBillingProgramInformationDialogAndroid(
+    params: BillingProgramInformationDialogParamsAndroid!
+  ): BillingResultAndroid!
 
   """
   Overlay Play billing in-app messages, such as payment issues or subscription price-change confirmations.
-  Available in Google Play Billing Library 4.1.0+.
+  OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0
+  (upstream API available since Play Billing 4.1.0).
   Returns a response code and, when the subscription status changes, the related purchase token.
   Throws OpenIapError.NotPrepared if billing client not ready.
   See: https://openiap.dev/docs/apis/android/show-in-app-messages-android
   """
   # Future
-  showInAppMessagesAndroid(params: InAppMessageParamsAndroid): InAppMessageResultAndroid!
+  showInAppMessagesAndroid(
+    params: InAppMessageParamsAndroid
+  ): InAppMessageResultAndroid!
 }

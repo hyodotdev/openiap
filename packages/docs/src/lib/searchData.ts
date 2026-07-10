@@ -492,7 +492,7 @@ export const apiData: ApiItem[] = [
     title: 'showBillingProgramInformationDialogAndroid',
     category: 'Android Specific',
     description:
-      'Show Google Play Billing Choice information dialog for Google-rendered Billing Choice flows',
+      'Show the mandatory Play information dialog before a developer-rendered in-app Billing Choice screen',
     parameters: 'params: BillingProgramInformationDialogParamsAndroid!',
     returns: 'BillingResultAndroid!',
     path: '/docs/apis/android/show-billing-program-information-dialog-android',

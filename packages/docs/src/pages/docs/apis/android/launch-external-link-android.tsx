@@ -31,7 +31,7 @@ function LaunchExternalLinkAndroid() {
         </code>{' '}
         — replaces <code>showExternalOfferInformationDialog</code>. Shows the
         Play disclosure dialog and (optionally) launches the URL. Play Billing
-        8.2.0+. See the{' '}
+        8.2.0+. Billing Choice external-link flows require 9.1.0+. See the{' '}
         <a
           href="https://developer.android.com/google/play/billing/billing-programs"
           target="_blank"
@@ -55,6 +55,7 @@ suspend fun launchExternalLink(
 
 // LaunchExternalLinkParamsAndroid:
 // - billingProgram: BillingProgramAndroid
+// - externalTransactionToken: String? (Billing Choice external-link flow)
 // - launchMode: ExternalLinkLaunchModeAndroid
 // - linkType: ExternalLinkTypeAndroid
 // - linkUri: String`}</CodeBlock>
@@ -81,6 +82,7 @@ Task<bool> LaunchExternalLinkAndroidAsync(LaunchExternalLinkParamsAndroid @param
 
 // LaunchExternalLinkParamsAndroid:
 // - billingProgram: BillingProgramAndroid
+// - externalTransactionToken: string? (Billing Choice external-link flow)
 // - launchMode: ExternalLinkLaunchModeAndroid
 // - linkType: ExternalLinkTypeAndroid
 // - linkUri: string`}</CodeBlock>
@@ -113,8 +115,21 @@ Task<bool> LaunchExternalLinkAndroidAsync(LaunchExternalLinkParamsAndroid @param
             </Link>
             )
           </em>{' '}
-          — Billing program the link belongs to (e.g.{' '}
-          <code>EXTERNAL_CONTENT_LINK</code> or <code>EXTERNAL_OFFER</code>).
+          — Billing program the link belongs to (
+          <code>EXTERNAL_CONTENT_LINK</code>, <code>EXTERNAL_OFFER</code>, or{' '}
+          <code>BILLING_CHOICE</code>).
+        </li>
+        <li>
+          <code>externalTransactionToken</code>{' '}
+          <em>
+            (optional, <code>string</code>)
+          </em>{' '}
+          — Pre-generated reporting token for a developer-rendered Billing
+          Choice external-link flow (scenario 2B). Generate it with{' '}
+          <Link to="/docs/apis/android/create-billing-program-reporting-details-android">
+            <code>createBillingProgramReportingDetailsAndroid</code>
+          </Link>{' '}
+          using <code>EXTERNAL_LINK</code>, then pass the same token here.
         </li>
         <li>
           <code>launchMode</code>{' '}
@@ -143,8 +158,9 @@ Task<bool> LaunchExternalLinkAndroidAsync(LaunchExternalLinkParamsAndroid @param
         Returns
       </AnchorLink>
       <p>
-        <code>Promise&lt;boolean&gt;</code> — <code>true</code> once the Play
-        disclosure dialog finished and (optionally) the URL was opened.
+        <code>Promise&lt;boolean&gt;</code> — <code>true</code> when Play
+        accepts the launch request and its disclosure/link flow completes
+        successfully.
       </p>
 
       <h2>Example</h2>
@@ -154,7 +170,8 @@ Task<bool> LaunchExternalLinkAndroidAsync(LaunchExternalLinkParamsAndroid @param
             <CodeBlock language="kotlin">{`openIapStore.launchExternalLink(
     activity,
     LaunchExternalLinkParamsAndroid(
-        billingProgram = BillingProgramAndroid.ExternalOffer,
+        billingProgram = BillingProgramAndroid.BillingChoice,
+        externalTransactionToken = reportingDetails.externalTransactionToken,
         launchMode = ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
         linkType = ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
         linkUri = "https://example.com/offer"
@@ -165,7 +182,8 @@ Task<bool> LaunchExternalLinkAndroidAsync(LaunchExternalLinkParamsAndroid @param
             <CodeBlock language="kotlin">{`// kmp-iap (Android targets only — no-op on iOS)
 kmpIAP.launchExternalLinkAndroid(
     LaunchExternalLinkParamsAndroid(
-        billingProgram = BillingProgramAndroid.ExternalOffer,
+        billingProgram = BillingProgramAndroid.BillingChoice,
+        externalTransactionToken = reportingDetails.externalTransactionToken,
         launchMode = ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
         linkType = ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
         linkUri = "https://example.com/offer"
@@ -178,7 +196,8 @@ import { launchExternalLinkAndroid } from 'expo-iap';
 
 if (Platform.OS === 'android') {
   await launchExternalLinkAndroid({
-    billingProgram: 'external-offer',
+    billingProgram: 'billing-choice',
+    externalTransactionToken: reportingDetails.externalTransactionToken,
     launchMode: 'launch-in-external-browser-or-app',
     linkType: 'link-to-digital-content-offer',
     linkUri: 'https://example.com/offer',
@@ -189,7 +208,8 @@ if (Platform.OS === 'android') {
             <CodeBlock language="dart">{`if (Platform.isAndroid) {
   await FlutterInappPurchase.instance.launchExternalLinkAndroid(
     LaunchExternalLinkParamsAndroid(
-      billingProgram: BillingProgramAndroid.externalOffer,
+      billingProgram: BillingProgramAndroid.BillingChoice,
+      externalTransactionToken: reportingDetails.externalTransactionToken,
       launchMode: ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
       linkType: ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
       linkUri: 'https://example.com/offer',
@@ -204,7 +224,8 @@ using OpenIap.Maui;
 await ((MutationResolver)OpenIapClient.Instance).LaunchExternalLinkAndroidAsync(
     new LaunchExternalLinkParamsAndroid
     {
-        BillingProgram = BillingProgramAndroid.ExternalOffer,
+        BillingProgram = BillingProgramAndroid.BillingChoice,
+        ExternalTransactionToken = reportingDetails.ExternalTransactionToken,
         LaunchMode = ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
         LinkType = ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
         LinkUri = "https://example.com/offer",
@@ -213,7 +234,8 @@ await ((MutationResolver)OpenIapClient.Instance).LaunchExternalLinkAndroidAsync(
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":
     var params = LaunchExternalLinkParamsAndroid.new()
-    params.billing_program = BillingProgramAndroid.EXTERNAL_OFFER
+    params.billing_program = BillingProgramAndroid.BILLING_CHOICE
+    params.external_transaction_token = reporting_details.external_transaction_token
     params.launch_mode = ExternalLinkLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP
     params.link_type = ExternalLinkTypeAndroid.LINK_TO_DIGITAL_CONTENT_OFFER
     params.link_uri = "https://example.com/offer"

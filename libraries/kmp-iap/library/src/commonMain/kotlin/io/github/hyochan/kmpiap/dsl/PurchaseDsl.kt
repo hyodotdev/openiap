@@ -14,6 +14,7 @@ import io.github.hyochan.kmpiap.openiap.RequestSubscriptionPropsByPlatforms
 import io.github.hyochan.kmpiap.openiap.DiscountOfferInputIOS
 import io.github.hyochan.kmpiap.openiap.PromotionalOfferJWSInputIOS
 import io.github.hyochan.kmpiap.openiap.SubscriptionBillingPlanTypeIOS
+import io.github.hyochan.kmpiap.openiap.SubscriptionProductReplacementParamsAndroid
 import io.github.hyochan.kmpiap.openiap.WinBackOfferInputIOS
 
 /**
@@ -201,8 +202,11 @@ class AndroidOptionsBuilder {
     var obfuscatedProfileId: String? = null
     var isOfferPersonalized: Boolean? = null
     var purchaseToken: String? = null
+    /** Original external transaction ID for a developer-billed subscription replacement (9.1.0+). */
+    var originalExternalTransactionId: String? = null
     var replacementMode: Int? = null
     var subscriptionOffers: List<AndroidSubscriptionOfferInput> = emptyList()
+    var subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid? = null
     /**
      * Offer token for one-time purchase discounts (Android 7.0+).
      * Pass the offerToken from oneTimePurchaseOfferDetailsAndroid or discountOffers
@@ -210,9 +214,7 @@ class AndroidOptionsBuilder {
      */
     var offerToken: String? = null
     /**
-     * Developer billing option for External Payments (Billing Library 8.3.0+, Japan only).
-     * When set, the purchase dialog shows side-by-side choice between Google Play
-     * and developer's external payment option.
+     * Developer billing option for External Payments (8.3.0+) or Billing Choice (9.1.0+).
      */
     var developerBillingOption: DeveloperBillingOptionParamsAndroid? = null
 
@@ -234,8 +236,10 @@ class AndroidOptionsBuilder {
             obfuscatedProfileId = obfuscatedProfileId,
             isOfferPersonalized = isOfferPersonalized,
             purchaseToken = purchaseToken,
+            originalExternalTransactionId = originalExternalTransactionId,
             replacementMode = replacementMode,
             subscriptionOffers = if (subscriptionOffers.isNotEmpty()) subscriptionOffers else null,
+            subscriptionProductReplacementParams = subscriptionProductReplacementParams,
             developerBillingOption = developerBillingOption
         )
 

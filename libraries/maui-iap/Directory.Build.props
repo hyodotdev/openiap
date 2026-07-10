@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <DefaultItemExcludes>$(DefaultItemExcludes);obj/**;bin/**</DefaultItemExcludes>
+  </PropertyGroup>
+
+  <!-- Android store variants share native artifact names. Keep MSBuild outputs
+       separate so switching stores cannot reuse another store's AAR manifest. -->
+  <PropertyGroup Condition="'$(OpenIapAndroidStore)' != '' and '$(OpenIapAndroidStore)' != 'play'">
+    <BaseIntermediateOutputPath>obj/stores/$(OpenIapAndroidStore)/</BaseIntermediateOutputPath>
+    <BaseOutputPath>bin/stores/$(OpenIapAndroidStore)/</BaseOutputPath>
+  </PropertyGroup>
+</Project>

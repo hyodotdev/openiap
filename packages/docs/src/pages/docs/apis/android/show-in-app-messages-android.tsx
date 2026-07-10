@@ -22,12 +22,26 @@ function ShowInAppMessagesAndroid() {
       </h1>
       <p>
         Shows Google Play billing in-app messages, such as transactional
-        subscription updates. Play Billing 4.1.0+.
+        subscription updates. OpenIAP support starts in Spec 2.1.0 and{' '}
+        <code>openiap-google</code> 2.3.0. The upstream API is available in Play
+        Billing 4.1.0+; Play Billing 9.0+ also uses transactional messages for
+        pending subscription price-increase opt-ins.
       </p>
       <p>
         Wraps <code>BillingClient.showInAppMessages(...)</code>. If the result
         is <code>'subscription-status-updated'</code>, use the returned{' '}
         <code>purchaseToken</code> to refresh the affected subscription state.
+        Google recommends checking transactional messages whenever the app
+        opens. This API implements the React Native request tracked in{' '}
+        <a
+          href="https://github.com/hyodotdev/openiap/issues/221"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="external-link"
+        >
+          issue #221
+        </a>
+        .
       </p>
 
       <h2>Signature</h2>
@@ -140,12 +154,20 @@ function ShowInAppMessagesAndroid() {
 )`}</CodeBlock>
           ),
           typescript: (
-            <CodeBlock language="typescript">{`import { showInAppMessagesAndroid } from 'expo-iap';
+            <CodeBlock language="typescript">{`import { showInAppMessagesAndroid } from 'react-native-iap';
+// The same API is exported by expo-iap.
 
 if (Platform.OS === 'android') {
   const result = await showInAppMessagesAndroid({
     categories: ['transactional'],
   });
+
+  if (
+    result.responseCode === 'subscription-status-updated' &&
+    result.purchaseToken
+  ) {
+    // Refresh this token through your subscription backend.
+  }
 }`}</CodeBlock>
           ),
           dart: (

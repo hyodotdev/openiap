@@ -408,7 +408,7 @@ import StoreKit
                     store: .apple,
                     storefrontCountryCodeIOS: nil,
                     subscriptionGroupIdIOS: nil,
-                    transactionDate: Date().timeIntervalSince1970,
+                    transactionDate: Date().milliseconds,
                     transactionId: purchaseId,
                     transactionReasonIOS: nil,
                     webOrderLineItemIdIOS: nil

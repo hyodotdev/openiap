@@ -22,7 +22,8 @@ function GetBillingChoiceInfoAndroid() {
       </h1>
       <p>
         Fetches Google Play Billing Choice display information for
-        developer-rendered choice screens. Play Billing 9.1.0+.
+        developer-rendered choice screens. Available in OpenIAP Spec 2.1.0 and{' '}
+        <code>openiap-google</code> 2.3.0; requires Play Billing 9.1.0+.
       </p>
       <p>
         Wraps <code>BillingClient.getBillingChoiceInfoAsync(...)</code>. Call

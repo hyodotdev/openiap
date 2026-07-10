@@ -280,7 +280,7 @@ cd android
 # Build-only regression can stop here.
 : "${ANDROID_SERIAL:?Set ANDROID_SERIAL to the target Android device serial}"
 adb -s "$ANDROID_SERIAL" install -r app/build/outputs/apk/debug/app-debug.apk
-adb -s "$ANDROID_SERIAL" shell monkey -p dev.hyo.openiap.expo.example 1
+adb -s "$ANDROID_SERIAL" shell monkey -p dev.hyo.martie 1
 ```
 
 Normal iOS physical-device build and launch smoke:
@@ -290,9 +290,9 @@ cd libraries/expo-iap/example
 : "${IOS_UDID:?Set IOS_UDID to the target iOS device UDID}"
 : "${TEAM_ID:?Set TEAM_ID to the Apple development team ID}"
 xcodebuild \
-  -workspace ios/expoiapexample.xcworkspace \
+  -workspace ios/ExpoIAPExample.xcworkspace \
   -configuration Debug \
-  -scheme expoiapexample \
+  -scheme ExpoIAPExample \
   -destination "id=$IOS_UDID" \
   DEVELOPMENT_TEAM="$TEAM_ID" \
   -derivedDataPath build/DerivedData \
@@ -301,10 +301,10 @@ xcodebuild \
 # Build-only regression can stop here.
 xcrun devicectl device install app \
   --device "$IOS_UDID" \
-  build/DerivedData/Build/Products/Debug-iphoneos/expoiapexample.app
+  build/DerivedData/Build/Products/Debug-iphoneos/ExpoIAPExample.app
 xcrun devicectl device process launch \
   --device "$IOS_UDID" \
-  dev.hyo.openiap.expo.example
+  dev.hyo.martie
 ```
 
 FireOS/Amazon Android path:
@@ -317,7 +317,7 @@ cd android
 # Build-only regression can stop here.
 : "${FIREOS_SERIAL:?Set FIREOS_SERIAL to the target FireOS device serial}"
 adb -s "$FIREOS_SERIAL" install -r app/build/outputs/apk/debug/app-debug.apk
-adb -s "$FIREOS_SERIAL" shell monkey -p dev.hyo.openiap.expo.example 1
+adb -s "$FIREOS_SERIAL" shell monkey -p dev.hyo.martie 1
 ```
 
 Horizon Android build-only path:
@@ -335,9 +335,9 @@ Onside iOS build-only path:
 cd libraries/expo-iap/example
 EXPO_IAP_ONSIDE=1 bunx expo prebuild --platform ios --clean
 xcodebuild \
-  -workspace ios/expoiapexample.xcworkspace \
+  -workspace ios/ExpoIAPExample.xcworkspace \
   -configuration Debug \
-  -scheme expoiapexample \
+  -scheme ExpoIAPExample \
   -destination "generic/platform=iOS" \
   CODE_SIGNING_ALLOWED=NO
 ```
@@ -363,6 +363,7 @@ Library:
 
 ```bash
 cd libraries/react-native-iap
+yarn specs
 yarn lint:tsc
 yarn test:library --runInBand
 ```
@@ -402,6 +403,11 @@ Normal iOS physical-device build and launch smoke:
 cd libraries/react-native-iap/example
 : "${IOS_UDID:?Set IOS_UDID to the target iOS device UDID}"
 : "${TEAM_ID:?Set TEAM_ID to the Apple development team ID}"
+# Refresh Pods after Nitro type generation so newly generated headers are
+# linked into Pods/Headers before the physical-device build.
+cd ios
+bundle exec pod install
+cd ..
 xcodebuild \
   -workspace ios/example.xcworkspace \
   -configuration Debug \
@@ -577,7 +583,10 @@ cd libraries/maui-iap/android
 ../../../packages/google/gradlew :openiap:assembleRelease -PopenIapAndroidStore=play
 cd ..
 dotnet build-server shutdown || true
-rm -rf src/OpenIap.Maui.Bindings.Android/bin src/OpenIap.Maui.Bindings.Android/obj
+rm -rf \
+  src/OpenIap.Maui.Bindings.Android/bin src/OpenIap.Maui.Bindings.Android/obj \
+  src/OpenIap.Maui/bin src/OpenIap.Maui/obj \
+  example/OpenIap.Maui.Example/bin example/OpenIap.Maui.Example/obj
 dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj \
   -p:TargetFrameworks=net9.0-android \
   -p:OpenIapAndroidStore=play \
@@ -590,14 +599,14 @@ dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj \
 dotnet build example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj \
   -f net9.0-android \
   -p:OpenIapAndroidStore=play \
+  -p:EmbedAssembliesIntoApk=true \
   --nologo
 # Build-only regression can stop here.
 : "${ANDROID_SERIAL:?Set ANDROID_SERIAL to the target Android device serial}"
-ANDROID_SERIAL="$ANDROID_SERIAL" dotnet build example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj \
-  -t:Run \
-  -f net9.0-android \
-  -p:OpenIapAndroidStore=play \
-  --nologo
+adb -s "$ANDROID_SERIAL" uninstall dev.hyo.martie || true
+adb -s "$ANDROID_SERIAL" install --no-incremental -r \
+  example/OpenIap.Maui.Example/bin/Debug/net9.0-android/dev.hyo.martie-Signed.apk
+adb -s "$ANDROID_SERIAL" shell monkey -p dev.hyo.martie 1
 ```
 
 FireOS/Amazon Android build and launch smoke:
@@ -607,7 +616,10 @@ cd libraries/maui-iap/android
 ../../../packages/google/gradlew :openiap:assembleRelease -PopenIapAndroidStore=amazon
 cd ..
 dotnet build-server shutdown || true
-rm -rf src/OpenIap.Maui.Bindings.Android/bin src/OpenIap.Maui.Bindings.Android/obj
+rm -rf \
+  src/OpenIap.Maui.Bindings.Android/bin src/OpenIap.Maui.Bindings.Android/obj \
+  src/OpenIap.Maui/bin src/OpenIap.Maui/obj \
+  example/OpenIap.Maui.Example/bin example/OpenIap.Maui.Example/obj
 dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj \
   -p:TargetFrameworks=net9.0-android \
   -p:OpenIapAndroidStore=amazon \
@@ -620,14 +632,14 @@ dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj \
 dotnet build example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj \
   -f net9.0-android \
   -p:OpenIapAndroidStore=amazon \
+  -p:EmbedAssembliesIntoApk=true \
   --nologo
 # Build-only regression can stop here.
 : "${FIREOS_SERIAL:?Set FIREOS_SERIAL to the target FireOS device serial}"
-ANDROID_SERIAL="$FIREOS_SERIAL" dotnet build example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj \
-  -t:Run \
-  -f net9.0-android \
-  -p:OpenIapAndroidStore=amazon \
-  --nologo
+adb -s "$FIREOS_SERIAL" uninstall dev.hyo.martie || true
+adb -s "$FIREOS_SERIAL" install --no-incremental -r \
+  example/OpenIap.Maui.Example/bin/stores/amazon/Debug/net9.0-android/dev.hyo.martie-Signed.apk
+adb -s "$FIREOS_SERIAL" shell monkey -p dev.hyo.martie 1
 ```
 
 Horizon Android build-only path:
@@ -637,7 +649,10 @@ cd libraries/maui-iap/android
 ../../../packages/google/gradlew :openiap:assembleRelease -PopenIapAndroidStore=horizon
 cd ..
 dotnet build-server shutdown || true
-rm -rf src/OpenIap.Maui.Bindings.Android/bin src/OpenIap.Maui.Bindings.Android/obj
+rm -rf \
+  src/OpenIap.Maui.Bindings.Android/bin src/OpenIap.Maui.Bindings.Android/obj \
+  src/OpenIap.Maui/bin src/OpenIap.Maui/obj \
+  example/OpenIap.Maui.Example/bin example/OpenIap.Maui.Example/obj
 dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj \
   -p:TargetFrameworks=net9.0-android \
   -p:OpenIapAndroidStore=horizon \
@@ -658,7 +673,17 @@ iOS physical-device build and launch smoke:
 ```bash
 cd libraries/maui-iap/example/OpenIap.Maui.Example
 : "${IOS_UDID:?Set IOS_UDID to the target iOS device UDID}"
-dotnet build -t:Run -f net9.0-ios -p:_DeviceName="$IOS_UDID"
+dotnet build \
+  -f net9.0-ios \
+  -p:RuntimeIdentifier=ios-arm64 \
+  -p:ValidateXcodeVersion=false \
+  --nologo
+xcrun devicectl device install app \
+  --device "$IOS_UDID" \
+  bin/Debug/net9.0-ios/ios-arm64/OpenIap.Maui.Example.app
+xcrun devicectl device process launch \
+  --device "$IOS_UDID" \
+  dev.hyo.martie
 ```
 
 ## Godot Checks

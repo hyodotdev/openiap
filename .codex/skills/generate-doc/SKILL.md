@@ -92,6 +92,28 @@ Follow the existing card pattern:
 - Do not edit `packages/docs/src/generated/version-metadata.json` manually; it
   is produced by `./scripts/sync-versions.sh`.
 
+## Multi-package Release Trains
+
+The consolidated release page remains the release-note SSOT, but a release that
+ships several packages must still be readable package by package. This is the
+project decision recorded from issue #206.
+
+- When the user gives a starting commit, inspect that commit inclusively through
+  the latest target branch, then include the current PR diff. Do not derive the
+  release contents only from the PR title or its latest commits.
+- Group notable changes under the affected platform package or framework
+  library (Google, Apple, IAPKit, React Native, Expo, Flutter, Godot, KMP, and
+  MAUI). Omit groups with no user-facing change.
+- Keep each group concise. State the behavior users gain or the regression that
+  was fixed; do not list commit mechanics, version-bump-only commits, generated
+  files, or repeated cross-framework boilerplate.
+- Put truly shared schema or release-process changes in one short shared group,
+  then describe framework-specific wiring or caveats in the relevant framework
+  group.
+- Link the issues and PRs that explain user-visible fixes. Keep package-local
+  changelogs as pointers to this canonical entry unless a registry requires an
+  inline changelog.
+
 ## Validation
 
 For docs-only release-note edits, run:
@@ -110,4 +132,3 @@ Before committing to `main`, pull first:
 ```bash
 git pull --ff-only origin main
 ```
-

@@ -66,7 +66,7 @@ android {
             ?: ""
         buildConfigField("String", "HORIZON_APP_ID", "\"${appId}\"")
         // Ensure placeholder exists for all variants (play included)
-        manifestPlaceholders["OCULUS_APP_ID"] = appId
+        manifestPlaceholders["HORIZON_APP_ID"] = appId
 
         // IAPKit API Key for purchase verification
         val iapkitApiKey = localProperties.getProperty("iapkit.api.key")
@@ -90,11 +90,11 @@ android {
             dimension = "platform"
             buildConfigField("String", "OPENIAP_STORE", "\"horizon\"")
 
-            // Dynamically inject OCULUS_APP_ID into AndroidManifest
+            // Dynamically inject the Horizon App ID into AndroidManifest
             val appId = localProperties.getProperty("EXAMPLE_HORIZON_APP_ID")
                 ?: (project.findProperty("EXAMPLE_HORIZON_APP_ID") as String?)
                 ?: ""
-            manifestPlaceholders["OCULUS_APP_ID"] = appId
+            manifestPlaceholders["HORIZON_APP_ID"] = appId
         }
 
         // Amazon flavor - Amazon Appstore SDK IAP

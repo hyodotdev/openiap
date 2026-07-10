@@ -21,7 +21,7 @@ enum AlternativeBillingModeAndroid {
 	ALTERNATIVE_ONLY = 2,
 }
 
-## Play Billing choice image layout (Android) Available in Google Play Billing Library 9.1.0+
+## Play Billing choice image layout (Android) Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 enum BillingChoiceImageLayoutAndroid {
 	## Rectangular image with a 4:1 aspect ratio.
 	RECTANGULAR_FOUR_BY_ONE = 0,
@@ -31,7 +31,7 @@ enum BillingChoiceImageLayoutAndroid {
 	RECTANGULAR_TWO_BY_TWO = 2,
 }
 
-## Choice screen renderer for Billing Choice availability (Android) Available in Google Play Billing Library 9.1.0+
+## Choice screen renderer for Billing Choice availability (Android) Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 enum BillingChoiceScreenTypeAndroid {
 	## Unspecified choice screen type.
 	UNSPECIFIED = 0,
@@ -41,7 +41,7 @@ enum BillingChoiceScreenTypeAndroid {
 	GOOGLE_RENDERED = 2,
 }
 
-## Billing program types for Google Play Billing Programs (Android) Available in Google Play Billing Library 8.2.0+, EXTERNAL_PAYMENTS added in 8.3.0, BILLING_CHOICE added in 9.1.0.
+## Billing program types for Google Play Billing Programs (Android) Available in Google Play Billing Library 8.2.0+, EXTERNAL_PAYMENTS added in 8.3.0, BILLING_CHOICE added in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 enum BillingProgramAndroid {
 	## Unspecified billing program. Do not use.
 	UNSPECIFIED = 0,
@@ -53,7 +53,7 @@ enum BillingProgramAndroid {
 	EXTERNAL_OFFER = 3,
 	## External Payments program (Japan only). Allows presenting a side-by-side choice between Google Play Billing and developer's external payment option. Users can choose to complete the purchase on the developer's website. Available in Google Play Billing Library 8.3.0+
 	EXTERNAL_PAYMENTS = 4,
-	## Billing Choice program. Allows presenting Google Play Billing alongside an alternative in-app billing system or external web link. Available in Google Play Billing Library 9.1.0+
+	## Billing Choice program. Allows presenting Google Play Billing alongside an alternative in-app billing system or external web link. Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 	BILLING_CHOICE = 5,
 }
 
@@ -67,7 +67,7 @@ enum DeveloperBillingLaunchModeAndroid {
 	CALLER_WILL_LAUNCH_LINK = 2,
 }
 
-## Developer-provided billing destination type for Billing Program reporting details (Android) Available in Google Play Billing Library 9.1.0+
+## Developer-provided billing destination type for Billing Program reporting details (Android) Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 enum DeveloperBillingTypeAndroid {
 	## Unspecified developer billing type. Do not use.
 	DEVELOPER_BILLING_TYPE_UNSPECIFIED = 0,
@@ -176,7 +176,7 @@ enum IapEvent {
 	PURCHASE_ERROR = 1,
 	PROMOTED_PRODUCT_IOS = 2,
 	USER_CHOICE_BILLING_ANDROID = 3,
-	## Fired when user selects developer-provided billing option in external payments flow. Available on Android with Google Play Billing Library 8.3.0+
+	## Fired for External Payments (8.3.0+) and Google-rendered Billing Choice developer billing selections on Android. Billing Choice is available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 	DEVELOPER_PROVIDED_BILLING_ANDROID = 4,
 	## Fired when an active subscription enters a billing-issue state that requires user attention. Cross-platform unification of StoreKit 2 Message.billingIssue (iOS 18+) and Play Billing 8.1+ isSuspended. NOT emitted on the Horizon flavor, whose Billing Compatibility SDK implements only the Play Billing 7.0 API surface.
 	SUBSCRIPTION_BILLING_ISSUE = 5,
@@ -217,7 +217,7 @@ enum IapStore {
 	AMAZON = 4,
 }
 
-## High-level in-app message category (Android) Available in Google Play Billing Library 4.1.0+
+## High-level in-app message category (Android) Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (upstream API available since Play Billing 4.1.0).
 enum InAppMessageCategoryAndroid {
 	## Unknown in-app message category.
 	UNKNOWN_IN_APP_MESSAGE_CATEGORY_ID = 0,
@@ -225,7 +225,7 @@ enum InAppMessageCategoryAndroid {
 	TRANSACTIONAL = 1,
 }
 
-## Response code from Play billing in-app messages (Android) Available in Google Play Billing Library 4.1.0+
+## Response code from Play billing in-app messages (Android) Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (upstream API available since Play Billing 4.1.0).
 enum InAppMessageResponseCodeAndroid {
 	## Flow finished and no developer action is needed.
 	NO_ACTION_NEEDED = 0,
@@ -436,6 +436,7 @@ class ActiveSubscription:
 	var days_until_expiration_ios: Variant = null
 	var transaction_id: String = ""
 	var purchase_token: Variant = null
+	## Unix timestamp in milliseconds since January 1, 1970 UTC.
 	var transaction_date: float = 0.0
 	var base_plan_id_android: Variant = null
 	## Required for subscription upgrade/downgrade on Android
@@ -732,7 +733,7 @@ class AppTransaction:
 			dict["originalPlatform"] = original_platform
 		return dict
 
-## Display information for developer-rendered Billing Choice screens (Android) Available in Google Play Billing Library 9.1.0+
+## Display information for developer-rendered Billing Choice screens (Android) Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 class BillingChoiceInfoAndroid:
 	## URL for the Play Billing choice image matching the requested layout.
 	var play_billing_choice_image_url: String = ""
@@ -865,17 +866,85 @@ class BillingResultAndroid:
 ## Details provided when user selects developer billing option (Android) Received via DeveloperProvidedBillingListener callback Available in Google Play Billing Library 8.3.0+
 class DeveloperProvidedBillingDetailsAndroid:
 	## External transaction token used to report transactions made through developer billing.
-	var external_transaction_token: String = ""
+	var external_transaction_token: Variant = null
+	## URI to launch for an external-link Billing Choice flow, when provided by
+	var link_uri: Variant = null
+	## Original external transaction ID when replacing a subscription that was
+	var original_external_transaction_id: Variant = null
+	## Products selected for the developer billing flow.
+	var products: Array[DeveloperProvidedBillingProductAndroid] = []
 
 	static func from_dict(data: Dictionary) -> DeveloperProvidedBillingDetailsAndroid:
 		var obj = DeveloperProvidedBillingDetailsAndroid.new()
 		if data.has("externalTransactionToken") and data["externalTransactionToken"] != null:
 			obj.external_transaction_token = data["externalTransactionToken"]
+		if data.has("linkUri") and data["linkUri"] != null:
+			obj.link_uri = data["linkUri"]
+		if data.has("originalExternalTransactionId") and data["originalExternalTransactionId"] != null:
+			obj.original_external_transaction_id = data["originalExternalTransactionId"]
+		if data.has("products") and data["products"] != null:
+			if data["products"] is Array:
+				var arr: Array[DeveloperProvidedBillingProductAndroid] = []
+				for item in data["products"]:
+					if item is Dictionary:
+						arr.append(DeveloperProvidedBillingProductAndroid.from_dict(item))
+					elif item is DeveloperProvidedBillingProductAndroid:
+						arr.append(item)
+				obj.products = arr
 		return obj
 
 	func to_dict() -> Dictionary:
 		var dict = {}
-		dict["externalTransactionToken"] = external_transaction_token
+		if external_transaction_token != null:
+			dict["externalTransactionToken"] = external_transaction_token
+		if link_uri != null:
+			dict["linkUri"] = link_uri
+		if original_external_transaction_id != null:
+			dict["originalExternalTransactionId"] = original_external_transaction_id
+		if products != null:
+			var arr = []
+			for item in products:
+				if item != null and item.has_method("to_dict"):
+					arr.append(item.to_dict())
+				else:
+					arr.append(item)
+			dict["products"] = arr
+		else:
+			dict["products"] = null
+		return dict
+
+## Product selected for developer-provided billing (Android 9.0+).
+class DeveloperProvidedBillingProductAndroid:
+	## Product identifier.
+	var id: String = ""
+	## Google Play product type (in-app or subscription).
+	var type: ProductType
+	## Subscription offer token, when applicable.
+	var offer_token: Variant = null
+
+	static func from_dict(data: Dictionary) -> DeveloperProvidedBillingProductAndroid:
+		var obj = DeveloperProvidedBillingProductAndroid.new()
+		if data.has("id") and data["id"] != null:
+			obj.id = data["id"]
+		if data.has("type") and data["type"] != null:
+			var enum_str = data["type"]
+			if enum_str is String and PRODUCT_TYPE_FROM_STRING.has(enum_str):
+				obj.type = PRODUCT_TYPE_FROM_STRING[enum_str]
+			else:
+				obj.type = enum_str
+		if data.has("offerToken") and data["offerToken"] != null:
+			obj.offer_token = data["offerToken"]
+		return obj
+
+	func to_dict() -> Dictionary:
+		var dict = {}
+		dict["id"] = id
+		if PRODUCT_TYPE_VALUES.has(type):
+			dict["type"] = PRODUCT_TYPE_VALUES[type]
+		else:
+			dict["type"] = type
+		if offer_token != null:
+			dict["offerToken"] = offer_token
 		return dict
 
 ## Discount amount details for one-time purchase offers (Android) Available in Google Play Billing Library 7.0+
@@ -1304,7 +1373,7 @@ class ExternalPurchaseNoticeResultIOS:
 			dict["externalPurchaseToken"] = external_purchase_token
 		return dict
 
-## Result from showing Play billing in-app messages (Android) Available in Google Play Billing Library 4.1.0+
+## Result from showing Play billing in-app messages (Android) Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (upstream API available since Play Billing 4.1.0).
 class InAppMessageResultAndroid:
 	## Response code for the in-app messaging flow.
 	var response_code: InAppMessageResponseCodeAndroid
@@ -2356,6 +2425,7 @@ class PurchaseAndroid:
 	var product_id: String = ""
 	var ids: Array[String] = []
 	var transaction_id: Variant = null
+	## Unix timestamp in milliseconds since January 1, 1970 UTC.
 	var transaction_date: float = 0.0
 	var purchase_token: Variant = null
 	## Store where purchase was made
@@ -2559,6 +2629,7 @@ class PurchaseIOS:
 	var id: String = ""
 	var product_id: String = ""
 	var ids: Array[String] = []
+	## Unix timestamp in milliseconds since January 1, 1970 UTC.
 	var transaction_date: float = 0.0
 	var purchase_token: Variant = null
 	## Store where purchase was made
@@ -3953,10 +4024,10 @@ class AndroidSubscriptionOfferInput:
 			dict["offerToken"] = offer_token
 		return dict
 
-## Parameters for showing a billing program information dialog (Android) Available in Google Play Billing Library 9.1.0+
+## Parameters for showing a billing program information dialog (Android) Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 class BillingProgramInformationDialogParamsAndroid:
 	## Billing program. Currently only BILLING_CHOICE is supported.
-	var billing_program: BillingProgramAndroid
+	var billing_program: BillingProgramAndroid = BillingProgramAndroid.BILLING_CHOICE
 	## External transaction token returned by the Billing Choice reporting-details flow.
 	var external_transaction_token: String = ""
 
@@ -4005,14 +4076,16 @@ class DeepLinkOptions:
 			dict["packageNameAndroid"] = package_name_android
 		return dict
 
-## Parameters for developer billing option in purchase flow (Android) Used with BillingFlowParams to enable external payments flow Available in Google Play Billing Library 8.3.0+
+## Parameters for a developer billing option in a purchase flow (Android). Used with BillingFlowParams for external payments (8.3.0+) and Billing Choice (OpenIAP Spec 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+). Only billingProgram is required; link fields are used when the selected program links outside the app.
 class DeveloperBillingOptionParamsAndroid:
-	## The billing program (should be EXTERNAL_PAYMENTS for external payments flow)
+	## The billing program. Use EXTERNAL_PAYMENTS or BILLING_CHOICE.
 	var billing_program: BillingProgramAndroid
-	## The URI where the external payment will be processed
-	var link_uri: String = ""
-	## The launch mode for the external payment link
+	## The URI where the external payment will be processed.
+	var link_uri: Variant = null
+	## The launch mode for the external payment link.
 	var launch_mode: DeveloperBillingLaunchModeAndroid
+	## A pre-generated external transaction token for a Billing Choice external-link
+	var external_transaction_token: Variant = null
 
 	static func from_dict(data: Dictionary) -> DeveloperBillingOptionParamsAndroid:
 		var obj = DeveloperBillingOptionParamsAndroid.new()
@@ -4030,6 +4103,8 @@ class DeveloperBillingOptionParamsAndroid:
 				obj.launch_mode = DEVELOPER_BILLING_LAUNCH_MODE_ANDROID_FROM_STRING[enum_str]
 			else:
 				obj.launch_mode = enum_str
+		if data.has("externalTransactionToken") and data["externalTransactionToken"] != null:
+			obj.external_transaction_token = data["externalTransactionToken"]
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -4046,6 +4121,8 @@ class DeveloperBillingOptionParamsAndroid:
 				dict["launchMode"] = DEVELOPER_BILLING_LAUNCH_MODE_ANDROID_VALUES[launch_mode]
 			else:
 				dict["launchMode"] = launch_mode
+		if external_transaction_token != null:
+			dict["externalTransactionToken"] = external_transaction_token
 		return dict
 
 class DiscountOfferInputIOS:
@@ -4088,12 +4165,12 @@ class DiscountOfferInputIOS:
 			dict["timestamp"] = timestamp
 		return dict
 
-## Parameters for fetching Billing Choice display information (Android) Available in Google Play Billing Library 9.1.0+
+## Parameters for fetching Billing Choice display information (Android) Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 class GetBillingChoiceInfoParamsAndroid:
 	## Billing program. Currently only BILLING_CHOICE is supported.
-	var billing_program: BillingProgramAndroid
+	var billing_program: BillingProgramAndroid = BillingProgramAndroid.BILLING_CHOICE
 	## Desired Play Billing choice image layout.
-	var play_billing_choice_image_layout: BillingChoiceImageLayoutAndroid
+	var play_billing_choice_image_layout: BillingChoiceImageLayoutAndroid = BillingChoiceImageLayoutAndroid.RECTANGULAR_FOUR_BY_ONE
 	## BCP 47 locale tag. If omitted, Play Billing uses the user's default locale.
 	var user_locale: Variant = null
 
@@ -4131,7 +4208,7 @@ class GetBillingChoiceInfoParamsAndroid:
 			dict["userLocale"] = user_locale
 		return dict
 
-## Parameters for showing Play billing in-app messages (Android) Available in Google Play Billing Library 4.1.0+
+## Parameters for showing Play billing in-app messages (Android) Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (upstream API available since Play Billing 4.1.0).
 class InAppMessageParamsAndroid:
 	## In-app message categories to show. Defaults to transactional messages.
 	var categories: Array[InAppMessageCategoryAndroid] = []
@@ -4139,13 +4216,14 @@ class InAppMessageParamsAndroid:
 	static func from_dict(data: Dictionary) -> InAppMessageParamsAndroid:
 		var obj = InAppMessageParamsAndroid.new()
 		if data.has("categories") and data["categories"] != null:
-			var arr: Array[InAppMessageCategoryAndroid] = []
-			for item in data["categories"]:
-				if item is String and IN_APP_MESSAGE_CATEGORY_ANDROID_FROM_STRING.has(item):
-					arr.append(IN_APP_MESSAGE_CATEGORY_ANDROID_FROM_STRING[item])
-				else:
-					arr.append(item)
-			obj.categories = arr
+			if data["categories"] is Array:
+				var arr: Array[InAppMessageCategoryAndroid] = []
+				for item in data["categories"]:
+					if item is String and IN_APP_MESSAGE_CATEGORY_ANDROID_FROM_STRING.has(item):
+						arr.append(IN_APP_MESSAGE_CATEGORY_ANDROID_FROM_STRING[item])
+					elif item is int:
+						arr.append(item)
+				obj.categories = arr
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -4166,6 +4244,8 @@ class InitConnectionConfig:
 	var alternative_billing_mode_android: AlternativeBillingModeAndroid
 	## Enable a specific billing program for Android (7.0+)
 	var enable_billing_program_android: BillingProgramAndroid
+	## Billing Choice renderer configured in Play Console. Available in OpenIAP
+	var billing_choice_screen_type_android: BillingChoiceScreenTypeAndroid = BillingChoiceScreenTypeAndroid.GOOGLE_RENDERED
 
 	static func from_dict(data: Dictionary) -> InitConnectionConfig:
 		var obj = InitConnectionConfig.new()
@@ -4181,6 +4261,12 @@ class InitConnectionConfig:
 				obj.enable_billing_program_android = BILLING_PROGRAM_ANDROID_FROM_STRING[enum_str]
 			else:
 				obj.enable_billing_program_android = enum_str
+		if data.has("billingChoiceScreenTypeAndroid") and data["billingChoiceScreenTypeAndroid"] != null:
+			var enum_str = data["billingChoiceScreenTypeAndroid"]
+			if enum_str is String and BILLING_CHOICE_SCREEN_TYPE_ANDROID_FROM_STRING.has(enum_str):
+				obj.billing_choice_screen_type_android = BILLING_CHOICE_SCREEN_TYPE_ANDROID_FROM_STRING[enum_str]
+			else:
+				obj.billing_choice_screen_type_android = enum_str
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -4195,11 +4281,16 @@ class InitConnectionConfig:
 				dict["enableBillingProgramAndroid"] = BILLING_PROGRAM_ANDROID_VALUES[enable_billing_program_android]
 			else:
 				dict["enableBillingProgramAndroid"] = enable_billing_program_android
+		if billing_choice_screen_type_android != null:
+			if BILLING_CHOICE_SCREEN_TYPE_ANDROID_VALUES.has(billing_choice_screen_type_android):
+				dict["billingChoiceScreenTypeAndroid"] = BILLING_CHOICE_SCREEN_TYPE_ANDROID_VALUES[billing_choice_screen_type_android]
+			else:
+				dict["billingChoiceScreenTypeAndroid"] = billing_choice_screen_type_android
 		return dict
 
-## Parameters for launching an external link (Android) Used with launchExternalLink to initiate external offer or app install flows Available in Google Play Billing Library 8.2.0+
+## Parameters for launching an external link (Android) Used with launchExternalLink to initiate external offer, app install, or developer-rendered Billing Choice flows Available in Google Play Billing Library 8.2.0+
 class LaunchExternalLinkParamsAndroid:
-	## The billing program (EXTERNAL_CONTENT_LINK or EXTERNAL_OFFER)
+	## The billing program (EXTERNAL_CONTENT_LINK, EXTERNAL_OFFER, or BILLING_CHOICE)
 	var billing_program: BillingProgramAndroid
 	## The external link launch mode
 	var launch_mode: ExternalLinkLaunchModeAndroid
@@ -4207,6 +4298,8 @@ class LaunchExternalLinkParamsAndroid:
 	var link_type: ExternalLinkTypeAndroid
 	## The URI where the content will be accessed from
 	var link_uri: String = ""
+	## External transaction token for a developer-rendered Billing Choice external-link
+	var external_transaction_token: Variant = null
 
 	static func from_dict(data: Dictionary) -> LaunchExternalLinkParamsAndroid:
 		var obj = LaunchExternalLinkParamsAndroid.new()
@@ -4230,6 +4323,8 @@ class LaunchExternalLinkParamsAndroid:
 				obj.link_type = enum_str
 		if data.has("linkUri") and data["linkUri"] != null:
 			obj.link_uri = data["linkUri"]
+		if data.has("externalTransactionToken") and data["externalTransactionToken"] != null:
+			obj.external_transaction_token = data["externalTransactionToken"]
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -4251,11 +4346,13 @@ class LaunchExternalLinkParamsAndroid:
 				dict["linkType"] = link_type
 		if link_uri != null:
 			dict["linkUri"] = link_uri
+		if external_transaction_token != null:
+			dict["externalTransactionToken"] = external_transaction_token
 		return dict
 
 class ProductRequest:
 	var skus: Array[String] = []
-	var type: ProductQueryType
+	var type: ProductQueryType = ProductQueryType.IN_APP
 
 	static func from_dict(data: Dictionary) -> ProductRequest:
 		var obj = ProductRequest.new()
@@ -4312,6 +4409,7 @@ class PurchaseInput:
 	var id: String = ""
 	var product_id: String = ""
 	var ids: Array[String] = []
+	## Unix timestamp in milliseconds since January 1, 1970 UTC.
 	var transaction_date: float = 0.0
 	var purchase_token: Variant = null
 	## Store where purchase was made
@@ -4451,7 +4549,7 @@ class RequestPurchaseAndroidProps:
 	var is_offer_personalized: Variant = null
 	## Offer token for one-time purchase discounts (7.0+).
 	var offer_token: Variant = null
-	## Developer billing option parameters for external payments flow (8.3.0+).
+	## Developer billing option parameters for external payments and Billing Choice.
 	var developer_billing_option: DeveloperBillingOptionParamsAndroid
 
 	static func from_dict(data: Dictionary) -> RequestPurchaseAndroidProps:
@@ -4555,7 +4653,7 @@ class RequestPurchaseProps:
 	## Per-platform subscription request props
 	var request_subscription: RequestSubscriptionPropsByPlatforms
 	## Explicit purchase type hint (defaults to in-app)
-	var type: ProductQueryType
+	var type: ProductQueryType = ProductQueryType.IN_APP
 	## @deprecated Use enableBillingProgramAndroid in InitConnectionConfig instead.
 	var use_alternative_billing: Variant = null
 
@@ -4672,13 +4770,15 @@ class RequestSubscriptionAndroidProps:
 	var is_offer_personalized: Variant = null
 	## Purchase token for upgrades/downgrades
 	var purchase_token: Variant = null
+	## Original external transaction ID for replacing a subscription that was
+	var original_external_transaction_id: Variant = null
 	## Replacement mode for subscription changes
 	var replacement_mode: Variant = null
 	## Subscription offers
 	var subscription_offers: Array[AndroidSubscriptionOfferInput] = []
 	## Product-level replacement parameters (8.1.0+)
 	var subscription_product_replacement_params: SubscriptionProductReplacementParamsAndroid
-	## Developer billing option parameters for external payments flow (8.3.0+).
+	## Developer billing option parameters for external payments and Billing Choice.
 	var developer_billing_option: DeveloperBillingOptionParamsAndroid
 
 	static func from_dict(data: Dictionary) -> RequestSubscriptionAndroidProps:
@@ -4698,6 +4798,8 @@ class RequestSubscriptionAndroidProps:
 			obj.is_offer_personalized = data["isOfferPersonalized"]
 		if data.has("purchaseToken") and data["purchaseToken"] != null:
 			obj.purchase_token = data["purchaseToken"]
+		if data.has("originalExternalTransactionId") and data["originalExternalTransactionId"] != null:
+			obj.original_external_transaction_id = data["originalExternalTransactionId"]
 		if data.has("replacementMode") and data["replacementMode"] != null:
 			obj.replacement_mode = data["replacementMode"]
 		if data.has("subscriptionOffers") and data["subscriptionOffers"] != null:
@@ -4733,6 +4835,8 @@ class RequestSubscriptionAndroidProps:
 			dict["isOfferPersonalized"] = is_offer_personalized
 		if purchase_token != null:
 			dict["purchaseToken"] = purchase_token
+		if original_external_transaction_id != null:
+			dict["originalExternalTransactionId"] = original_external_transaction_id
 		if replacement_mode != null:
 			dict["replacementMode"] = replacement_mode
 		if subscription_offers != null:
@@ -6644,7 +6748,7 @@ class Mutation:
 		const return_type = "BillingProgramReportingDetailsAndroid"
 		const is_array = false
 
-	## Launch an external content/offer link from inside the Billing Programs flow (Play Billing 8.2.0+).
+	## Launch an external content/offer link from inside the Billing Programs flow (Play Billing 8.2.0+),
 	class launchExternalLinkAndroidField:
 		const name = "launchExternalLinkAndroid"
 		const snake_name = "launch_external_link_android"
@@ -6664,7 +6768,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Show Google's information dialog for a Billing Choice external transaction.
+	## Show Google's mandatory information dialog before a developer-rendered,
 	class showBillingProgramInformationDialogAndroidField:
 		const name = "showBillingProgramInformationDialogAndroid"
 		const snake_name = "show_billing_program_information_dialog_android"
@@ -7002,7 +7106,7 @@ static func create_billing_program_reporting_details_android_args(program: Billi
 	args["developerBillingType"] = developer_billing_type
 	return args
 
-## Launch an external content/offer link from inside the Billing Programs flow (Play Billing 8.2.0+).
+## Launch an external content/offer link from inside the Billing Programs flow (Play Billing 8.2.0+),
 static func launch_external_link_android_args(params: LaunchExternalLinkParamsAndroid) -> Dictionary:
 	var args = {}
 	if params != null:
@@ -7012,7 +7116,7 @@ static func launch_external_link_android_args(params: LaunchExternalLinkParamsAn
 			args["params"] = params
 	return args
 
-## Show Google's information dialog for a Billing Choice external transaction.
+## Show Google's mandatory information dialog before a developer-rendered,
 static func show_billing_program_information_dialog_android_args(params: BillingProgramInformationDialogParamsAndroid) -> Dictionary:
 	var args = {}
 	if params != null:

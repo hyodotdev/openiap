@@ -233,8 +233,7 @@ describe('Amazon Vega adapter', () => {
       const result = module.finishTransaction({
         android: {purchaseToken: 'receipt-1', isConsumable: true},
       });
-      await Promise.resolve();
-      jest.advanceTimersByTime(1_000);
+      await jest.advanceTimersByTimeAsync(1_000);
 
       await expect(result).resolves.toEqual(
         expect.objectContaining({
@@ -247,6 +246,30 @@ describe('Amazon Vega adapter', () => {
         fulfillmentResult: 1,
         receiptId: 'receipt-1',
       });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('times out Amazon Vega fulfillment without duplicating the request', async () => {
+    jest.useFakeTimers();
+    const service = createService();
+    service.notifyFulfillment.mockImplementationOnce(
+      () => new Promise(() => {}),
+    );
+    const module = createVegaIapModule(service);
+
+    try {
+      const result = module.finishTransaction({
+        android: {purchaseToken: 'receipt-1', isConsumable: true},
+      });
+      const expectation = expect(result).rejects.toMatchObject({
+        code: 'service-timeout',
+      });
+      await jest.advanceTimersByTimeAsync(2_000);
+
+      await expectation;
+      expect(service.notifyFulfillment).toHaveBeenCalledTimes(1);
     } finally {
       jest.useRealTimers();
     }

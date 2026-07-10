@@ -32,7 +32,7 @@ func serializeTransaction(_ transaction: Transaction, jwsRepresentationIOS: Stri
         "productId": transaction.productID,
         "ids": [transaction.productID],
         "transactionId": String(transaction.id), // @deprecated - use id instead
-        "transactionDate": transaction.purchaseDate.timeIntervalSince1970,
+        "transactionDate": transaction.purchaseDate.timeIntervalSince1970 * 1000,
         "transactionReceipt": jwsReceipt,
         "platform": "ios",
         // Existing iOS-specific fields

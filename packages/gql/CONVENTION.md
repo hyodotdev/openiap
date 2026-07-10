@@ -42,6 +42,16 @@ This repo standardizes schema and identifier naming to improve clarity across pl
   - Example: `type: ProductQueryType = inApp`.
 - Document defaults in the field description if behavior matters.
 
+## API Availability Comments
+
+- Lead with the OpenIAP release that exposes the API, then state the upstream
+  platform requirement as compatibility context.
+- Android example: `Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+(requires Play Billing 9.1.0+).`
+- Do not document a new OpenIAP field only as `Play Billing 9.1.0+`; consumers
+  need the spec and platform-package versions to know which SDK release contains
+  it.
+
 ## Unions
 
 - Cross‑platform unions combine platform types (e.g., `Product = ProductAndroid | ProductIOS`).

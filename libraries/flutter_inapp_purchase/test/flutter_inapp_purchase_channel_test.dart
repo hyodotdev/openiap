@@ -180,6 +180,7 @@ void main() {
           return jsonEncode(<String, dynamic>{
             'responseCode': 0,
             'debugMessage': null,
+            'subResponseCode': 'no-applicable-sub-response-code',
           });
         }
         return null;
@@ -197,6 +198,10 @@ void main() {
       );
 
       expect(result.responseCode, 0);
+      expect(
+        result.subResponseCode,
+        types.SubResponseCodeAndroid.NoApplicableSubResponseCode,
+      );
       final call = calls.singleWhere(
         (MethodCall call) =>
             call.method == 'showBillingProgramInformationDialogAndroid',
@@ -264,8 +269,10 @@ void main() {
         );
 
         await iap.initConnection(
+          billingChoiceScreenTypeAndroid:
+              types.BillingChoiceScreenTypeAndroid.DeveloperRendered,
           enableBillingProgramAndroid:
-              types.BillingProgramAndroid.ExternalPayments,
+              types.BillingProgramAndroid.BillingChoice,
         );
 
         final call = calls.singleWhere(
@@ -273,7 +280,8 @@ void main() {
         );
         final args = call.arguments as Map<dynamic, dynamic>?;
         expect(args, isNotNull);
-        expect(args!['enableBillingProgramAndroid'], 'external-payments');
+        expect(args!['billingChoiceScreenTypeAndroid'], 'developer-rendered');
+        expect(args['enableBillingProgramAndroid'], 'billing-choice');
       },
     );
 
@@ -440,7 +448,8 @@ void main() {
       );
 
       const params = types.LaunchExternalLinkParamsAndroid(
-        billingProgram: types.BillingProgramAndroid.ExternalOffer,
+        billingProgram: types.BillingProgramAndroid.BillingChoice,
+        externalTransactionToken: 'external-token',
         launchMode:
             types.ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
         linkType: types.ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
@@ -457,6 +466,7 @@ void main() {
         methodCall.arguments as Map<dynamic, dynamic>,
       );
       expect(payload, params.toJson());
+      expect(payload['externalTransactionToken'], 'external-token');
     });
   });
 
@@ -1005,7 +1015,7 @@ void main() {
     );
 
     test(
-      'sends developerBillingOption for External Payments on Android',
+      'sends minimal in-app Billing Choice option on Android',
       () async {
         final calls = <MethodCall>[];
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -1031,10 +1041,7 @@ void main() {
           google: types.RequestPurchaseAndroidProps(
             skus: <String>['product.premium'],
             developerBillingOption: types.DeveloperBillingOptionParamsAndroid(
-              billingProgram: types.BillingProgramAndroid.ExternalPayments,
-              launchMode: types.DeveloperBillingLaunchModeAndroid
-                  .LaunchInExternalBrowserOrApp,
-              linkUri: 'https://example.com/checkout',
+              billingProgram: types.BillingProgramAndroid.BillingChoice,
             ),
           ),
           useAlternativeBilling: null,
@@ -1056,20 +1063,14 @@ void main() {
         final developerBillingOption = Map<String, dynamic>.from(
           payload['developerBillingOption'] as Map<dynamic, dynamic>,
         );
-        expect(developerBillingOption['billingProgram'], 'external-payments');
-        expect(
-          developerBillingOption['launchMode'],
-          'launch-in-external-browser-or-app',
-        );
-        expect(
-          developerBillingOption['linkUri'],
-          'https://example.com/checkout',
-        );
+        expect(developerBillingOption['billingProgram'], 'billing-choice');
+        expect(developerBillingOption['launchMode'], isNull);
+        expect(developerBillingOption['linkUri'], isNull);
       },
     );
 
     test(
-      'sends developerBillingOption for External Payments on subscription Android',
+      'sends Billing Choice fields on Android subscription',
       () async {
         final calls = <MethodCall>[];
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -1094,8 +1095,10 @@ void main() {
           apple: null,
           google: types.RequestSubscriptionAndroidProps(
             skus: <String>['sub.premium.monthly'],
+            originalExternalTransactionId: 'original-external-id',
             developerBillingOption: types.DeveloperBillingOptionParamsAndroid(
-              billingProgram: types.BillingProgramAndroid.ExternalPayments,
+              billingProgram: types.BillingProgramAndroid.BillingChoice,
+              externalTransactionToken: 'pre-generated-token',
               launchMode:
                   types.DeveloperBillingLaunchModeAndroid.CallerWillLaunchLink,
               linkUri: 'https://example.com/subscribe',
@@ -1122,12 +1125,18 @@ void main() {
         expect(payload['type'], 'subs');
         expect(payload['skus'], <String>['sub.premium.monthly']);
         expect(payload['useAlternativeBilling'], isTrue);
+        expect(
+            payload['originalExternalTransactionId'], 'original-external-id');
         expect(payload.containsKey('developerBillingOption'), isTrue);
 
         final developerBillingOption = Map<String, dynamic>.from(
           payload['developerBillingOption'] as Map<dynamic, dynamic>,
         );
-        expect(developerBillingOption['billingProgram'], 'external-payments');
+        expect(developerBillingOption['billingProgram'], 'billing-choice');
+        expect(
+          developerBillingOption['externalTransactionToken'],
+          'pre-generated-token',
+        );
         expect(developerBillingOption['launchMode'], 'caller-will-launch-link');
         expect(
           developerBillingOption['linkUri'],
@@ -1843,7 +1852,16 @@ void main() {
         await iap.initConnection();
 
         final payload = <String, dynamic>{
-          'externalTransactionToken': 'ext-token-abc123',
+          'externalTransactionToken': null,
+          'linkUri': 'https://example.com/checkout',
+          'originalExternalTransactionId': 'original-external-id',
+          'products': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'id': 'premium_monthly',
+              'type': 'subs',
+              'offerToken': 'offer-token',
+            },
+          ],
         };
 
         await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -1859,7 +1877,11 @@ void main() {
         );
 
         final details = await developerBillingFuture;
-        expect(details.externalTransactionToken, 'ext-token-abc123');
+        expect(details.externalTransactionToken, isNull);
+        expect(details.linkUri, 'https://example.com/checkout');
+        expect(details.originalExternalTransactionId, 'original-external-id');
+        expect(details.products.single.id, 'premium_monthly');
+        expect(details.products.single.offerToken, 'offer-token');
       },
     );
   });

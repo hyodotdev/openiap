@@ -514,8 +514,11 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                         <code>developerBillingOption</code>
                       </td>
                       <td>
-                        Developer billing option params for the External
-                        Payments flow (8.3.0+). See{' '}
+                        Developer billing option params for External Payments or
+                        Billing Choice. Billing Choice is available in OpenIAP
+                        Spec 2.1.0 / openiap-google 2.3.0 and requires Play
+                        Billing 9.1.0+. In-app flows require only{' '}
+                        <code>billingProgram</code>. See{' '}
                         <Link to="/docs/types/billing-programs#developer-billing-option-params">
                           DeveloperBillingOptionParamsAndroid
                         </Link>
@@ -626,6 +629,16 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                     </tr>
                     <tr>
                       <td>
+                        <code>originalExternalTransactionId</code>
+                      </td>
+                      <td>
+                        Original transaction ID when replacing a subscription
+                        purchased through developer billing (9.1.0+). Use this
+                        instead of <code>purchaseToken</code> for that flow.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
                         <code style={{ textDecoration: 'line-through' }}>
                           replacementMode
                         </code>
@@ -659,8 +672,8 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                         <code>developerBillingOption</code>
                       </td>
                       <td>
-                        Developer billing option params (External Payments,
-                        8.3.0+). See{' '}
+                        Developer billing option params for External Payments
+                        (8.3.0+) or Billing Choice (9.1.0+). See{' '}
                         <Link to="/docs/types/billing-programs#developer-billing-option-params">
                           DeveloperBillingOptionParamsAndroid
                         </Link>

@@ -286,6 +286,8 @@ class ExpoIapModule : Module() {
                                     isOfferPersonalized = parsedParams.isOfferPersonalized,
                                     obfuscatedAccountId = parsedParams.obfuscatedAccountId,
                                     obfuscatedProfileId = parsedParams.obfuscatedProfileId,
+                                    developerBillingOption = parsedParams.developerBillingOption,
+                                    originalExternalTransactionId = parsedParams.originalExternalTransactionId,
                                     purchaseToken = parsedParams.purchaseToken,
                                     replacementMode = parsedParams.replacementMode?.toInt(),
                                     skus = parsedParams.skus,
@@ -295,7 +297,7 @@ class ExpoIapModule : Module() {
                             RequestPurchaseProps(
                                 request =
                                     RequestPurchaseProps.Request.Subscription(
-                                        RequestSubscriptionPropsByPlatforms(android = android),
+                                        RequestSubscriptionPropsByPlatforms(google = android),
                                     ),
                                 type = ProductQueryType.Subs,
                             )
@@ -307,13 +309,14 @@ class ExpoIapModule : Module() {
                                     isOfferPersonalized = parsedParams.isOfferPersonalized,
                                     obfuscatedAccountId = parsedParams.obfuscatedAccountId,
                                     obfuscatedProfileId = parsedParams.obfuscatedProfileId,
+                                    developerBillingOption = parsedParams.developerBillingOption,
                                     offerToken = parsedParams.offerToken,
                                     skus = parsedParams.skus,
                                 )
                             RequestPurchaseProps(
                                 request =
                                     RequestPurchaseProps.Request.Purchase(
-                                        RequestPurchasePropsByPlatforms(android = android),
+                                        RequestPurchasePropsByPlatforms(google = android),
                                     ),
                                 type = ProductQueryType.InApp,
                             )
@@ -723,6 +726,7 @@ class ExpoIapModule : Module() {
                             }
 
                         val billingProgram = params["billingProgram"] as? String
+                        val externalTransactionToken = params["externalTransactionToken"] as? String
                         val launchMode = params["launchMode"] as? String ?: "unspecified"
                         val linkType = params["linkType"] as? String ?: "unspecified"
                         val linkUri = params["linkUri"] as? String
@@ -740,6 +744,7 @@ class ExpoIapModule : Module() {
                         val openIapParams =
                             OpenIapLaunchExternalLinkParams(
                                 billingProgram = mapBillingProgram(billingProgram),
+                                externalTransactionToken = externalTransactionToken,
                                 launchMode = mapExternalLinkLaunchMode(launchMode),
                                 linkType = mapExternalLinkType(linkType),
                                 linkUri = linkUri,

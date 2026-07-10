@@ -21,8 +21,9 @@ function EnableBillingProgramAndroid() {
         enableBillingProgramAndroid
       </h1>
       <p>
-        Enables a billing program for Android (Billing Library 8.2.0+; Billing
-        Choice requires 9.1.0+). Pass it as the{' '}
+        Enables a billing program for Android. Billing Choice support starts in
+        OpenIAP Spec 2.1.0 and <code>openiap-google</code> 2.3.0 and requires
+        Play Billing 9.1.0+. Pass it as the{' '}
         <Link to="/docs/types/billing-programs#billing-program-android">
           <code>enableBillingProgramAndroid</code>
         </Link>{' '}
@@ -38,7 +39,7 @@ function EnableBillingProgramAndroid() {
         <code>InitConnectionConfig</code>; under the hood it configures{' '}
         <code>BillingClient.Builder.enableBillingPrograms(...)</code> (Play
         Billing 8.2.0+). Use <code>'billing-choice'</code> for Play Billing
-        9.1.0 Billing Choice. See the{' '}
+        Billing Choice. See the{' '}
         <a
           href="https://developer.android.com/google/play/billing/billing-programs"
           target="_blank"

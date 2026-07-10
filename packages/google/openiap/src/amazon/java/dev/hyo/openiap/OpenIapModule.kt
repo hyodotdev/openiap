@@ -361,74 +361,80 @@ class OpenIapModule(
     }
 
     override val requestPurchase: MutationRequestPurchaseHandler = { props ->
-        val purchases = withContext(Dispatchers.IO) {
-            ensureRegistered()
-            val androidArgs = props.toAndroidPurchaseArgs()
-            if (androidArgs.skus.isEmpty()) {
-                emitPurchaseErrorAndThrow(OpenIapError.EmptySkuList)
-            }
-            if (androidArgs.skus.size != 1) {
-                emitPurchaseErrorAndThrow(
-                    OpenIapError.DeveloperError("Amazon Appstore SDK purchases one SKU at a time")
-                )
-            }
-
-            val sku = androidArgs.skus.first()
-            val response = runCatching { requestAmazonPurchase(sku) }
-                .getOrElse { error ->
+        val purchases = try {
+            withContext(Dispatchers.IO) {
+                ensureRegistered()
+                val androidArgs = props.toAndroidPurchaseArgs()
+                if (androidArgs.skus.isEmpty()) {
+                    emitPurchaseErrorAndThrow(OpenIapError.EmptySkuList)
+                }
+                if (androidArgs.skus.size != 1) {
                     emitPurchaseErrorAndThrow(
-                        error.toOpenIapError("Amazon purchase request failed")
+                        OpenIapError.DeveloperError("Amazon Appstore SDK purchases one SKU at a time")
                     )
                 }
-            when (response.requestStatus) {
-                PurchaseResponse.RequestStatus.SUCCESSFUL -> {
-                    val receipt = response.receipt ?: run {
+
+                val sku = androidArgs.skus.first()
+                val response = runCatching { requestAmazonPurchase(sku) }
+                    .getOrElse { error ->
                         emitPurchaseErrorAndThrow(
-                            OpenIapError.PurchaseFailed("Amazon purchase response did not include a receipt")
+                            error.toOpenIapError("Amazon purchase request failed")
                         )
                     }
-                    if (!receipt.sku.isNullOrBlank() && receipt.sku != sku) {
-                        OpenIapLog.w(
-                            "Amazon receipt SKU '${receipt.sku}' differs from requested SKU '$sku'. " +
-                                "Using the requested SKU for the OpenIAP purchase productId; " +
-                                "align the Amazon catalog and App Tester data for restore and server verification.",
-                            TAG
+                when (response.requestStatus) {
+                    PurchaseResponse.RequestStatus.SUCCESSFUL -> {
+                        val receipt = response.receipt ?: run {
+                            emitPurchaseErrorAndThrow(
+                                OpenIapError.PurchaseFailed("Amazon purchase response did not include a receipt")
+                            )
+                        }
+                        if (!receipt.sku.isNullOrBlank() && receipt.sku != sku) {
+                            OpenIapLog.w(
+                                "Amazon receipt SKU '${receipt.sku}' differs from requested SKU '$sku'. " +
+                                    "Using the requested SKU for the OpenIAP purchase productId; " +
+                                    "align the Amazon catalog and App Tester data for restore and server verification.",
+                                TAG
+                            )
+                        }
+                        // This response is correlated by Amazon requestId, so the
+                        // local request SKU is safe even when callbacks arrive out
+                        // of order.
+                        cacheReceiptProduct(receipt, receipt.productTypeOrNull(), sku)
+                        val purchase = receipt.toPurchase(
+                            productTypeOverride = receipt.productTypeOrNull(),
+                            productIdOverride = sku
                         )
+                        purchaseUpdateListeners.forEach { listener ->
+                            runCatching { listener.onPurchaseUpdated(purchase) }
+                        }
+                        listOf(purchase)
                     }
-                    // This response is correlated by Amazon requestId, so the
-                    // local request SKU is safe even when callbacks arrive out
-                    // of order.
-                    cacheReceiptProduct(receipt, receipt.productTypeOrNull(), sku)
-                    val purchase = receipt.toPurchase(
-                        productTypeOverride = receipt.productTypeOrNull(),
-                        productIdOverride = sku
-                    )
-                    purchaseUpdateListeners.forEach { listener ->
-                        runCatching { listener.onPurchaseUpdated(purchase) }
+                    PurchaseResponse.RequestStatus.ALREADY_PURCHASED -> {
+                        val error = OpenIapError.ItemAlreadyOwned("Amazon reported the item is already purchased")
+                        emitPurchaseErrorAndThrow(error)
                     }
-                    listOf(purchase)
-                }
-                PurchaseResponse.RequestStatus.ALREADY_PURCHASED -> {
-                    val error = OpenIapError.ItemAlreadyOwned("Amazon reported the item is already purchased")
-                    emitPurchaseErrorAndThrow(error)
-                }
-                PurchaseResponse.RequestStatus.INVALID_SKU -> {
-                    val error = OpenIapError.SkuNotFound(sku)
-                    emitPurchaseErrorAndThrow(error)
-                }
-                PurchaseResponse.RequestStatus.NOT_SUPPORTED -> {
-                    val error = OpenIapError.FeatureNotSupported("Amazon Appstore IAP is not supported on this device")
-                    emitPurchaseErrorAndThrow(error)
-                }
-                PurchaseResponse.RequestStatus.PENDING -> {
-                    val error = OpenIapError.PurchaseDeferred
-                    emitPurchaseErrorAndThrow(error)
-                }
-                PurchaseResponse.RequestStatus.FAILED -> {
-                    val error = OpenIapError.UserCancelled("Amazon purchase failed or was cancelled")
-                    emitPurchaseErrorAndThrow(error)
+                    PurchaseResponse.RequestStatus.INVALID_SKU -> {
+                        val error = OpenIapError.SkuNotFound(sku)
+                        emitPurchaseErrorAndThrow(error)
+                    }
+                    PurchaseResponse.RequestStatus.NOT_SUPPORTED -> {
+                        val error = OpenIapError.FeatureNotSupported("Amazon Appstore IAP is not supported on this device")
+                        emitPurchaseErrorAndThrow(error)
+                    }
+                    PurchaseResponse.RequestStatus.PENDING -> {
+                        val error = OpenIapError.PurchaseDeferred
+                        emitPurchaseErrorAndThrow(error)
+                    }
+                    PurchaseResponse.RequestStatus.FAILED -> {
+                        val error = OpenIapError.UserCancelled("Amazon purchase failed or was cancelled")
+                        emitPurchaseErrorAndThrow(error)
+                    }
                 }
             }
+        } catch (_: OpenIapError) {
+            // The error was already published by emitPurchaseErrorAndThrow.
+            // Keep the request event-based, matching the Play implementation.
+            emptyList()
         }
         RequestPurchaseResultPurchases(purchases)
     }

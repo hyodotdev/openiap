@@ -34,12 +34,11 @@ The release notes call out a fix for querying subscription purchases with a
 single billing plan and dependencies on Horizon Platform SDK Kotlin
 `iap-kotlin` 0.2.0 and `core-kotlin` 0.2.0.
 
-> **OpenIAP gap**: `packages/google` is still pinned to
-> `horizon-billing-compatibility` 1.1.1. Upgrading to 2.0.0 should be tested
-> separately with `:openiap:compileHorizonDebugKotlin` and
-> subscription-purchase restore coverage. Play Billing 9.1.0 features remain
-> Play-flavor-only because Horizon compatibility still targets the Billing 7.0
-> API surface.
+OpenIAP uses `horizon-billing-compatibility` 2.0.0 and its transitive Horizon
+Platform Kotlin SDK modules. The Horizon flavor is compiled and tested
+separately, including subscription-purchase restore coverage. Play Billing
+9.1.0 features remain Play-flavor-only because Horizon compatibility still
+targets the Billing 7.0 API surface.
 
 ### APIs Available in Both (Safe to use in shared code)
 
@@ -101,6 +100,10 @@ import com.meta.horizon.billingclient.api.*
 
 ### Important Notes
 
+- Horizon Billing Compatibility 2.x reads the app id from Android manifest
+  meta-data key `com.meta.horizon.platform.HORIZON_APP_ID`. The older
+  `com.meta.horizon.platform.ovr.OCULUS_APP_ID` key is deprecated; OpenIAP also
+  accepts it and other historical keys only for migration compatibility.
 - Keep SKUs on Meta Horizon Developer Center same as Google Play Console product IDs
 - Only call `consumeAsync()` on consumable items
 - `acknowledgePurchase()` is no-op - no acknowledgement requirements

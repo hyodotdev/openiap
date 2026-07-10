@@ -191,8 +191,8 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     }
 
     /**
-     * Set a developer-provided billing listener for External Payments (8.3.0+ Japan only).
-     * This is called when user selects developer billing in the side-by-side choice dialog.
+     * Set a developer-provided billing listener for External Payments (8.3.0+)
+     * and Google-rendered Billing Choice (9.1.0+).
      *
      * @param listener Developer-provided billing listener or null to remove
      */
@@ -580,7 +580,8 @@ class OpenIapStore(private val module: OpenIapProtocol) {
         module.getBillingChoiceInfo(params)
 
     /**
-     * Show the Billing Choice information dialog for an external transaction (Play Billing 9.1.0+).
+     * Show the mandatory information dialog before a developer-rendered,
+     * in-app Billing Choice screen (Play Billing 9.1.0+).
      *
      * @see <a href="https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android">https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android</a>
      */
@@ -602,10 +603,10 @@ class OpenIapStore(private val module: OpenIapProtocol) {
         module.showInAppMessages(activity, params)
 
     /**
-     * Enable a billing program for external content links or external offers (8.2.0+).
+     * Enable a billing program for the next connection (8.2.0+; Billing Choice 9.1.0+).
      * This should be called BEFORE initConnection to configure the BillingClient.
      *
-     * @param program The billing program to enable (ExternalOffer or ExternalContentLink)
+     * @param program The billing program to enable
      */
     fun enableBillingProgram(program: BillingProgramAndroid) {
         // Use reflection to call enableBillingProgram on the module

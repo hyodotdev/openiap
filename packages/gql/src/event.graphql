@@ -22,11 +22,11 @@ extend type Subscription {
   """
   userChoiceBillingAndroid: UserChoiceBillingDetails!
   """
-  Fires when a user selects developer billing in the External Payments flow (Android only)
-  Triggered when the user chooses to pay via the developer's external payment option
-  instead of Google Play Billing in the side-by-side choice dialog.
-  Contains the externalTransactionToken needed to report the transaction.
-  Available in Google Play Billing Library 8.3.0+
+  Fires when a user selects developer billing in an External Payments or
+  Billing Choice flow (Android only). The payload can contain an external
+  transaction token, link URI, original transaction ID, and selected products.
+  Billing Choice payload fields are available in OpenIAP Spec 2.1.0 /
+  openiap-google 2.3.0 (requires Play Billing 9.1.0+).
   """
   developerProvidedBillingAndroid: DeveloperProvidedBillingDetailsAndroid!
   """

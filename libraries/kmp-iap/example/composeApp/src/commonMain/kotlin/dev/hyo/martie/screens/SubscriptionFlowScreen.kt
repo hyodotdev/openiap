@@ -22,6 +22,7 @@ import dev.hyo.martie.config.AppConfig
 import dev.hyo.martie.theme.AppColors
 import dev.hyo.martie.utils.swipeToBack
 import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.PurchaseException
 import io.github.hyochan.kmpiap.requestPurchase
 import io.github.hyochan.kmpiap.toPurchaseInput
 import io.github.hyochan.kmpiap.getCurrentPlatform
@@ -106,7 +107,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                     PurchaseState.Purchased -> {
                         isProcessing = false
 
-                        val dateText = Instant.fromEpochSeconds(purchase.transactionDate.toLong())
+                        val dateText = Instant.fromEpochMilliseconds(purchase.transactionDate.toLong())
                             .toLocalDateTime(TimeZone.currentSystemDefault())
                         purchaseResult = """
                     ✅ Subscription successful (${purchase.platform})
@@ -778,6 +779,11 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                         }
                                         // Purchase updates will be received through the purchaseUpdatedListener
                                         // The UI will be updated automatically when the listener triggers
+                                    } catch (e: PurchaseException) {
+                                        if (e.error.code != ErrorCode.UserCancelled) {
+                                            purchaseResult = "Subscription failed: ${e.message}"
+                                        }
+                                        isProcessing = false
                                     } catch (e: Exception) {
                                         purchaseResult = "Subscription failed: ${e.message}"
                                         isProcessing = false

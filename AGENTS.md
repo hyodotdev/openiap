@@ -6,16 +6,16 @@ This document provides an overview for AI agents working across the OpenIAP mono
 
 ## Quick Reference
 
-| Topic                   | File                                                                                                                                              |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Naming Conventions      | [`knowledge/internal/01-naming-conventions.md`](knowledge/internal/01-naming-conventions.md)                                                      |
-| Architecture            | [`knowledge/internal/02-architecture.md`](knowledge/internal/02-architecture.md)                                                                  |
-| Coding Style            | [`knowledge/internal/03-coding-style.md`](knowledge/internal/03-coding-style.md)                                                                  |
+| Topic                   | File                                                                                                                                                                       |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Naming Conventions      | [`knowledge/internal/01-naming-conventions.md`](knowledge/internal/01-naming-conventions.md)                                                                               |
+| Architecture            | [`knowledge/internal/02-architecture.md`](knowledge/internal/02-architecture.md)                                                                                           |
+| Coding Style            | [`knowledge/internal/03-coding-style.md`](knowledge/internal/03-coding-style.md)                                                                                           |
 | Platform Packages       | [`knowledge/internal/04-platform-packages.md`](knowledge/internal/04-platform-packages.md) (run `bun audit:parity` before commits; pre-commit mirrors CI's SDK parity job) |
-| Docs Patterns           | [`knowledge/internal/05-docs-patterns.md`](knowledge/internal/05-docs-patterns.md)                                                                |
-| Git & Deployment        | [`knowledge/internal/06-git-deployment.md`](knowledge/internal/06-git-deployment.md)                                                              |
-| Docs Consistency / SSOT | [`knowledge/internal/07-docs-consistency.md`](knowledge/internal/07-docs-consistency.md) (run `bun audit:docs` before pushing API/Type doc edits) |
-| GV Cloud Workspaces     | [`knowledge/internal/08-gv-cloud-workspaces.md`](knowledge/internal/08-gv-cloud-workspaces.md)                                                    |
+| Docs Patterns           | [`knowledge/internal/05-docs-patterns.md`](knowledge/internal/05-docs-patterns.md)                                                                                         |
+| Git & Deployment        | [`knowledge/internal/06-git-deployment.md`](knowledge/internal/06-git-deployment.md)                                                                                       |
+| Docs Consistency / SSOT | [`knowledge/internal/07-docs-consistency.md`](knowledge/internal/07-docs-consistency.md) (run `bun audit:docs` before pushing API/Type doc edits)                          |
+| GV Cloud Workspaces     | [`knowledge/internal/08-gv-cloud-workspaces.md`](knowledge/internal/08-gv-cloud-workspaces.md)                                                                             |
 
 ## Monorepo Structure
 
@@ -79,7 +79,9 @@ openiap/
 - `libraries/flutter_inapp_purchase/lib/types.dart` - Synced from GQL
 - `libraries/godot-iap/addons/godot-iap/types.gd` - Synced from GQL
 - `libraries/maui-iap/src/OpenIap.Maui/Types.cs` - Synced from GQL
-- `openiap-versions.json` - Managed by CI/CD workflows only; tracks only `spec`, `google`, and `apple`
+- `openiap-versions.json` - Tracks only `spec`, `google`, and `apple`. Google
+  and Apple are CI-managed; the spec may be bumped directly in a feature PR
+  when explicitly requested, together with `packages/gql/package.json`.
 
 Framework library package versions (React Native, Expo, Flutter, Godot, KMP,
 MAUI) live in their own package metadata / release workflows. Do not add

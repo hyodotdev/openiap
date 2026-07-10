@@ -30,7 +30,9 @@ function IsBillingProgramAvailableAndroid() {
           BillingClient.isBillingProgramAvailableAsync(BillingProgram)
         </code>{' '}
         — replaces <code>isExternalOfferAvailableAsync</code>. Play Billing
-        8.2.0+; Billing Choice-specific fields require 9.1.0+. See the{' '}
+        8.2.0+; Billing Choice fields are available in OpenIAP Spec 2.1.0 and{' '}
+        <code>openiap-google</code> 2.3.0 and require Play Billing 9.1.0+. See
+        the{' '}
         <a
           href="https://developer.android.com/google/play/billing/billing-programs"
           target="_blank"

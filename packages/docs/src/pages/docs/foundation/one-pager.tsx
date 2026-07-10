@@ -191,7 +191,7 @@ function OnePager() {
               </td>
               <td>
                 Reference implementations for Apple StoreKit 2 and Google Play
-                Billing 8.x
+                Billing 9.1.0
               </td>
             </tr>
             <tr>
@@ -380,7 +380,7 @@ function OnePager() {
           </li>
           <li>
             <strong>Store APIs Supported</strong>: Apple StoreKit 2, Google Play
-            Billing 8.x, Meta Horizon 1.1
+            Billing 9.1.0, Meta Horizon 1.1
           </li>
           <li>
             <strong>Sponsor</strong>: Meta (founding sponsor)
@@ -440,7 +440,7 @@ function OnePager() {
           </li>
           <li>
             <strong>Platform API churn</strong>: Both Apple (StoreKit 2) and
-            Google (Billing 8.x) have made breaking changes in recent years
+            Google (Billing 8.x/9.x) have made breaking changes in recent years
           </li>
           <li>
             <strong>Security scrutiny</strong>: App store fraud and receipt

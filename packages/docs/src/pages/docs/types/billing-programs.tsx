@@ -25,7 +25,8 @@ function BillingPrograms() {
           Google Play Billing Library 8.2.0+ introduces the Billing Programs
           API, which provides a more structured approach to external offers and
           content links. Version 8.3.0 adds External Payments for Japan, and
-          9.1.0 adds Billing Choice.
+          9.1.0 adds Billing Choice. OpenIAP exposes Billing Choice in Spec
+          2.1.0 and <code>openiap-google</code> 2.3.0.
         </p>
         <p>
           Identifiers for Play Billing programs. <strong>Android only</strong> (
@@ -579,8 +580,20 @@ function BillingPrograms() {
                 </Link>
               </td>
               <td>
-                The billing program (<code>EXTERNAL_CONTENT_LINK</code> or{' '}
-                <code>EXTERNAL_OFFER</code>)
+                The billing program (<code>EXTERNAL_CONTENT_LINK</code>,{' '}
+                <code>EXTERNAL_OFFER</code>, or <code>BILLING_CHOICE</code>)
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>externalTransactionToken</code>
+              </td>
+              <td>
+                <code>string | null</code>
+              </td>
+              <td>
+                Pre-generated token for a developer-rendered Billing Choice
+                external-link flow (9.1.0+)
               </td>
             </tr>
             <tr>
@@ -723,9 +736,12 @@ function BillingPrograms() {
                 <code>linkUri</code>
               </td>
               <td>
-                <code>string</code>
+                <code>string | null</code>
               </td>
-              <td>URL where the external payment will be processed</td>
+              <td>
+                URL for an external-link flow. Omit it for an in-app Billing
+                Choice flow.
+              </td>
             </tr>
             <tr>
               <td>
@@ -735,11 +751,32 @@ function BillingPrograms() {
                 <Link to="/docs/types/billing-programs#developer-billing-launch-mode">
                   <code>DeveloperBillingLaunchModeAndroid</code>
                 </Link>
+                <code> | null</code>
               </td>
-              <td>How to launch the external payment link</td>
+              <td>
+                How to launch an external link. Omit it when no link is used.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>externalTransactionToken</code>
+              </td>
+              <td>
+                <code>string | null</code>
+              </td>
+              <td>
+                Optional pre-generated token for a Billing Choice external-link
+                flow.
+              </td>
             </tr>
           </tbody>
         </table>
+        <p>
+          For an in-app Billing Choice flow, pass only{' '}
+          <code>billingProgram: BILLING_CHOICE</code>. Add <code>linkUri</code>,{' '}
+          <code>launchMode</code>, and optionally{' '}
+          <code>externalTransactionToken</code> only for an external-link flow.
+        </p>
 
         <AnchorLink id="developer-billing-launch-mode" level="h3">
           DeveloperBillingLaunchModeAndroid
@@ -775,7 +812,10 @@ function BillingPrograms() {
         <AnchorLink id="developer-provided-billing-details" level="h3">
           DeveloperProvidedBillingDetailsAndroid
         </AnchorLink>
-        <p>Details received when user selects developer billing (8.3.0+):</p>
+        <p>
+          Details received when a user selects developer billing (8.3.0+;
+          expanded in Billing 9.0 and 9.1):
+        </p>
         <table className="doc-table">
           <thead>
             <tr>
@@ -790,12 +830,87 @@ function BillingPrograms() {
                 <code>externalTransactionToken</code>
               </td>
               <td>
-                <code>string</code>
+                <code>string | null</code>
               </td>
               <td>
-                Token to report external transaction to Google (must report
-                within 24 hours)
+                Token used for external transaction reporting when one is
+                returned for the selected flow.
               </td>
+            </tr>
+            <tr>
+              <td>
+                <code>linkUri</code>
+              </td>
+              <td>
+                <code>string | null</code>
+              </td>
+              <td>Link for a Billing Choice external-link flow.</td>
+            </tr>
+            <tr>
+              <td>
+                <code>originalExternalTransactionId</code>
+              </td>
+              <td>
+                <code>string | null</code>
+              </td>
+              <td>
+                Original developer-billed subscription transaction being
+                replaced.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>products</code>
+              </td>
+              <td>
+                <code>DeveloperProvidedBillingProductAndroid[]</code>
+              </td>
+              <td>Products selected for the developer billing flow.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <AnchorLink id="developer-provided-billing-product" level="h3">
+          DeveloperProvidedBillingProductAndroid
+        </AnchorLink>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>id</code>
+              </td>
+              <td>
+                <code>string</code>
+              </td>
+              <td>Google Play product identifier.</td>
+            </tr>
+            <tr>
+              <td>
+                <code>type</code>
+              </td>
+              <td>
+                <code>ProductType</code>
+              </td>
+              <td>
+                Normalized product type: <code>IN_APP</code> or{' '}
+                <code>SUBS</code>.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>offerToken</code>
+              </td>
+              <td>
+                <code>string | null</code>
+              </td>
+              <td>Subscription offer token, when applicable.</td>
             </tr>
           </tbody>
         </table>
@@ -1106,7 +1221,7 @@ func _on_developer_provided_billing(details: DeveloperProvidedBillingDetailsAndr
     print("External transaction token received; send it to your backend without logging it.")
     # Report token to Google via your backend within 24 hours
 
-iap.developer_provided_billing.connect(_on_developer_provided_billing)
+iap.developer_provided_billing_android.connect(_on_developer_provided_billing)
 
 # Check availability (Japan only)
 var result = await iap.is_billing_program_available_android(

@@ -24,7 +24,14 @@ import {
   checkAlternativeBillingAvailabilityAndroid,
   showAlternativeBillingDialogAndroid,
   createAlternativeBillingTokenAndroid,
+  getBillingChoiceInfoAndroid,
+  isBillingProgramAvailableAndroid,
+  createBillingProgramReportingDetailsAndroid,
+  launchExternalLinkAndroid,
+  showBillingProgramInformationDialogAndroid,
+  showInAppMessagesAndroid,
   userChoiceBillingListenerAndroid,
+  developerProvidedBillingListenerAndroid,
   subscriptionBillingIssueListener,
   isStandardIOS,
 } from '../';
@@ -35,7 +42,9 @@ import type {
   ProductQueryType,
   RequestPurchaseProps,
   AlternativeBillingModeAndroid,
+  BillingChoiceScreenTypeAndroid,
   BillingProgramAndroid,
+  DeveloperProvidedBillingDetailsAndroid,
   UserChoiceBillingDetails,
   VerifyPurchaseProps,
   VerifyPurchaseResult,
@@ -50,6 +59,8 @@ import type {
   PurchaseError,
   PurchaseUpdatedListenerOptions,
   ProductSubscription,
+  MutationField,
+  QueryField,
 } from '../types';
 import type {MutationFinishTransactionArgs} from '../types';
 
@@ -265,6 +276,18 @@ type UseIap = {
   createAlternativeBillingTokenAndroid?: (
     sku?: string,
   ) => Promise<string | null>;
+  /** Fetch assets and loyalty text for a developer-rendered Billing Choice screen. */
+  getBillingChoiceInfoAndroid?: QueryField<'getBillingChoiceInfoAndroid'>;
+  /** Check Billing Program availability and the configured choice renderer. */
+  isBillingProgramAvailableAndroid?: MutationField<'isBillingProgramAvailableAndroid'>;
+  /** Create Google Play reporting details for a developer billing transaction. */
+  createBillingProgramReportingDetailsAndroid?: MutationField<'createBillingProgramReportingDetailsAndroid'>;
+  /** Launch a supported Billing Program external link. */
+  launchExternalLinkAndroid?: MutationField<'launchExternalLinkAndroid'>;
+  /** Show the required Billing Choice information dialog. */
+  showBillingProgramInformationDialogAndroid?: MutationField<'showBillingProgramInformationDialogAndroid'>;
+  /** Show Play billing in-app messages. */
+  showInAppMessagesAndroid?: MutationField<'showInAppMessagesAndroid'>;
 };
 
 export interface UseIapOptions {
@@ -280,6 +303,13 @@ export interface UseIapOptions {
   onError?: (error: Error) => void;
   onPromotedProductIOS?: (product: Product) => void;
   onUserChoiceBillingAndroid?: (details: UserChoiceBillingDetails) => void;
+  /**
+   * Fires when the user selects developer-provided billing in an External
+   * Payments or Google-rendered Billing Choice flow.
+   */
+  onDeveloperProvidedBillingAndroid?: (
+    details: DeveloperProvidedBillingDetailsAndroid,
+  ) => void;
   /**
    * Fires when an active subscription enters a billing-issue state
    * (StoreKit 2 Message.billingIssue on iOS 18+, Purchase.isSuspended on
@@ -301,8 +331,14 @@ export interface UseIapOptions {
    * Use 'user-choice-billing' for User Choice Billing (7.0+).
    * Use 'external-offer' for External Offer program.
    * Use 'external-payments' for Developer Provided Billing (Japan only, 8.3.0+).
+   * Use 'billing-choice' for Billing Choice (9.1.0+).
    */
   enableBillingProgramAndroid?: BillingProgramAndroid;
+  /**
+   * Select who renders the Billing Choice screen (9.1.0+). Must match the
+   * choiceScreenType returned by isBillingProgramAvailableAndroid.
+   */
+  billingChoiceScreenTypeAndroid?: BillingChoiceScreenTypeAndroid;
 }
 
 /**
@@ -356,6 +392,7 @@ export function useIAP(options?: UseIapOptions): UseIap {
     purchaseError?: EventSubscription;
     promotedProductIOS?: EventSubscription;
     userChoiceBillingAndroid?: EventSubscription;
+    developerProvidedBillingAndroid?: EventSubscription;
     subscriptionBillingIssue?: EventSubscription;
   }>({});
 
@@ -565,6 +602,7 @@ export function useIAP(options?: UseIapOptions): UseIap {
       | {
           enableBillingProgramAndroid?: BillingProgramAndroid;
           alternativeBillingModeAndroid?: AlternativeBillingModeAndroid;
+          billingChoiceScreenTypeAndroid?: BillingChoiceScreenTypeAndroid;
         }
       | undefined;
 
@@ -573,6 +611,12 @@ export function useIAP(options?: UseIapOptions): UseIap {
         config = {
           enableBillingProgramAndroid:
             optionsRef.current.enableBillingProgramAndroid,
+          ...(optionsRef.current.billingChoiceScreenTypeAndroid
+            ? {
+                billingChoiceScreenTypeAndroid:
+                  optionsRef.current.billingChoiceScreenTypeAndroid,
+              }
+            : {}),
         };
       } else if (optionsRef.current?.alternativeBillingModeAndroid) {
         config = {
@@ -644,6 +688,17 @@ export function useIAP(options?: UseIapOptions): UseIap {
         });
     }
 
+    if (
+      Platform.OS === 'android' &&
+      optionsRef.current?.onDeveloperProvidedBillingAndroid &&
+      !subscriptionsRef.current.developerProvidedBillingAndroid
+    ) {
+      subscriptionsRef.current.developerProvidedBillingAndroid =
+        developerProvidedBillingListenerAndroid((details) => {
+          optionsRef.current?.onDeveloperProvidedBillingAndroid?.(details);
+        });
+    }
+
     // Always attach so callers that supply `onSubscriptionBillingIssue` later
     // (after the hook has already set up listeners) still receive events.
     if (!subscriptionsRef.current.subscriptionBillingIssue) {
@@ -660,11 +715,13 @@ export function useIAP(options?: UseIapOptions): UseIap {
     subscriptionsRef.current.purchaseError?.remove();
     subscriptionsRef.current.promotedProductIOS?.remove();
     subscriptionsRef.current.userChoiceBillingAndroid?.remove();
+    subscriptionsRef.current.developerProvidedBillingAndroid?.remove();
     subscriptionsRef.current.subscriptionBillingIssue?.remove();
     subscriptionsRef.current.purchaseUpdate = undefined;
     subscriptionsRef.current.purchaseError = undefined;
     subscriptionsRef.current.promotedProductIOS = undefined;
     subscriptionsRef.current.userChoiceBillingAndroid = undefined;
+    subscriptionsRef.current.developerProvidedBillingAndroid = undefined;
     subscriptionsRef.current.subscriptionBillingIssue = undefined;
   }, []);
 
@@ -763,6 +820,12 @@ export function useIAP(options?: UseIapOptions): UseIap {
           checkAlternativeBillingAvailabilityAndroid,
           showAlternativeBillingDialogAndroid,
           createAlternativeBillingTokenAndroid,
+          getBillingChoiceInfoAndroid,
+          isBillingProgramAvailableAndroid,
+          createBillingProgramReportingDetailsAndroid,
+          launchExternalLinkAndroid,
+          showBillingProgramInformationDialogAndroid,
+          showInAppMessagesAndroid,
         }
       : {}),
   };

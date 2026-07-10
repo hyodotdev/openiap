@@ -10,6 +10,20 @@ var _tests_failed := 0
 var GodotIapPlugin: Node = null
 
 
+class FakeAndroidPlugin:
+	extends RefCounted
+	var last_config: Dictionary = {}
+	var last_purchase: Dictionary = {}
+
+	func initConnectionWithConfig(config_json: String) -> bool:
+		last_config = JSON.parse_string(config_json)
+		return true
+
+	func requestPurchaseJson(params_json: String) -> String:
+		last_purchase = JSON.parse_string(params_json)
+		return JSON.stringify({"success": true, "pending": true})
+
+
 func _init() -> void:
 	_run_suite.call_deferred()
 
@@ -46,6 +60,7 @@ func _run_all_tests() -> void:
 	test_product_variant_mapping()
 
 	# Purchase tests
+	test_billing_choice_android_payloads()
 	test_get_available_purchases_mock()
 	test_restore_purchases_mock()
 
@@ -107,6 +122,37 @@ func test_init_connection_mock() -> void:
 	# A desktop test run has no native store plugin and must report that clearly.
 	var result = GodotIapPlugin.init_connection()
 	_assert_false(result, "init_connection should return false without a native plugin")
+
+
+func test_billing_choice_android_payloads() -> void:
+	var fake = FakeAndroidPlugin.new()
+	GodotIapPlugin._native_plugin = fake
+	GodotIapPlugin._platform = "Android"
+
+	var config = Types.InitConnectionConfig.new()
+	config.enable_billing_program_android = Types.BillingProgramAndroid.BILLING_CHOICE
+	config.billing_choice_screen_type_android = Types.BillingChoiceScreenTypeAndroid.DEVELOPER_RENDERED
+	_assert_true(GodotIapPlugin.init_connection(config), "Billing Choice config should reach Android plugin")
+	_assert_equal(fake.last_config.get("enableBillingProgramAndroid"), "billing-choice", "Billing Choice program should be preserved")
+	_assert_equal(fake.last_config.get("billingChoiceScreenTypeAndroid"), "developer-rendered", "Billing Choice renderer should be preserved")
+
+	var subscription = Types.RequestSubscriptionAndroidProps.new()
+	var skus: Array[String] = ["monthly_subscription"]
+	subscription.skus = skus
+	subscription.original_external_transaction_id = "original-external-id"
+	var option = Types.DeveloperBillingOptionParamsAndroid.new()
+	option.billing_program = Types.BillingProgramAndroid.BILLING_CHOICE
+	subscription.developer_billing_option = option
+	GodotIapPlugin._request_purchase_raw({
+		"type": "subs",
+		"requestSubscription": {"google": subscription.to_dict()},
+	})
+	_assert_equal(fake.last_purchase.get("originalExternalTransactionId"), "original-external-id", "Original external transaction ID should reach Android plugin")
+	_assert_equal(fake.last_purchase.get("developerBillingOption", {}).get("billingProgram"), "billing-choice", "Developer billing option should reach Android plugin")
+
+	GodotIapPlugin._native_plugin = null
+	GodotIapPlugin._platform = ""
+	GodotIapPlugin._is_connected = false
 
 
 func test_end_connection_mock() -> void:
@@ -275,6 +321,24 @@ func test_android_methods_mock() -> void:
 	# deep_link_to_subscriptions
 	var deep_link_result = await GodotIapPlugin.deep_link_to_subscriptions()
 	_assert_true(deep_link_result is Types.VoidResult, "deep_link_to_subscriptions should return VoidResult")
+
+	# get_billing_choice_info_android
+	var choice_params = Types.GetBillingChoiceInfoParamsAndroid.new()
+	choice_params.billing_program = Types.BillingProgramAndroid.BILLING_CHOICE
+	choice_params.play_billing_choice_image_layout = Types.BillingChoiceImageLayoutAndroid.RECTANGULAR_FOUR_BY_ONE
+	var choice_info = GodotIapPlugin.get_billing_choice_info_android(choice_params)
+	_assert_true(choice_info is Types.BillingChoiceInfoAndroid, "get_billing_choice_info_android should return BillingChoiceInfoAndroid")
+
+	# show_billing_program_information_dialog_android
+	var dialog_params = Types.BillingProgramInformationDialogParamsAndroid.new()
+	dialog_params.billing_program = Types.BillingProgramAndroid.BILLING_CHOICE
+	dialog_params.external_transaction_token = "mock_external_token"
+	var dialog_result = GodotIapPlugin.show_billing_program_information_dialog_android(dialog_params)
+	_assert_true(dialog_result is Types.BillingResultAndroid, "show_billing_program_information_dialog_android should return BillingResultAndroid")
+
+	# show_in_app_messages_android
+	var message_result = GodotIapPlugin.show_in_app_messages_android()
+	_assert_true(message_result is Types.InAppMessageResultAndroid, "show_in_app_messages_android should return InAppMessageResultAndroid")
 
 
 # ============================================

@@ -453,11 +453,14 @@ dependencies {
         </p>
         <ul>
           <li>
-            Enable Billing Choice through{' '}
-            <a href="/docs/apis/android/enable-billing-program-android">
-              <code>enableBillingProgramAndroid</code>
+            Enable Billing Choice in{' '}
+            <a href="/docs/apis/init-connection">
+              <code>initConnection</code>
             </a>{' '}
-            before connecting.
+            with <code>enableBillingProgramAndroid</code>. Also set{' '}
+            <code>billingChoiceScreenTypeAndroid</code> to the renderer
+            configured in Play Console. It defaults to{' '}
+            <code>GOOGLE_RENDERED</code>.
           </li>
           <li>
             Check availability and renderer type with{' '}
@@ -482,10 +485,18 @@ dependencies {
             the developer billing type when required by your flow.
           </li>
           <li>
-            For Google-rendered flows, show the Billing Choice information
-            dialog with{' '}
+            For developer-rendered in-app flows, create an <code>IN_APP</code>{' '}
+            reporting token and show the mandatory information dialog with{' '}
             <a href="/docs/apis/android/show-billing-program-information-dialog-android">
               <code>showBillingProgramInformationDialogAndroid</code>
+            </a>
+            .
+          </li>
+          <li>
+            For developer-rendered external-link flows, generate an{' '}
+            <code>EXTERNAL_LINK</code> token and pass it to{' '}
+            <a href="/docs/apis/android/launch-external-link-android">
+              <code>launchExternalLinkAndroid</code>
             </a>
             .
           </li>

@@ -272,7 +272,9 @@ export default function PurchaseDetail() {
       <div>
         <h2 className="text-2xl font-bold mb-1">{"Receipt details"}</h2>
         <p className="text-muted-foreground">
-          {"Inspect every data point we captured for this validated purchase."}
+          {
+            "Inspect the latest store verification snapshot. Subscription lifecycle state is tracked separately."
+          }
         </p>
       </div>
 
@@ -280,7 +282,7 @@ export default function PurchaseDetail() {
         <div className="flex flex-wrap gap-6">
           <div>
             <p className="text-xs uppercase text-muted-foreground">
-              {"Status"}
+              {"Validity"}
             </p>
             <div className="mt-2">
               <Badge
@@ -299,7 +301,9 @@ export default function PurchaseDetail() {
             </div>
           </div>
           <div>
-            <p className="text-xs uppercase text-muted-foreground">{"State"}</p>
+            <p className="text-xs uppercase text-muted-foreground">
+              {"Verified state"}
+            </p>
             <div className="mt-2">
               {(() => {
                 const { label, variant } = getPurchaseStateDisplay(

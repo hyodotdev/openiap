@@ -12,7 +12,7 @@ function ShowBillingProgramInformationDialogAndroid() {
     <div className="doc-page">
       <SEO
         title="showBillingProgramInformationDialogAndroid"
-        description="Show the Play Billing Choice information dialog for Google-rendered Billing Choice flows."
+        description="Show the mandatory Play information dialog before a developer-rendered in-app Billing Choice screen."
         path="/docs/apis/android/show-billing-program-information-dialog-android"
         keywords="showBillingProgramInformationDialogAndroid, Billing Choice, Play Billing 9.1.0"
       />
@@ -22,13 +22,15 @@ function ShowBillingProgramInformationDialogAndroid() {
       </h1>
       <p>
         Shows Google's billing program information dialog for Billing Choice.
-        Play Billing 9.1.0+.
+        Available in OpenIAP Spec 2.1.0 and <code>openiap-google</code> 2.3.0;
+        requires Play Billing 9.1.0+.
       </p>
       <p>
         Wraps{' '}
-        <code>BillingClient.showBillingProgramInformationDialog(...)</code>. Use
-        this after obtaining a Billing Choice reporting token when Google
-        renders the Billing Choice screen.
+        <code>BillingClient.showBillingProgramInformationDialog(...)</code>. For
+        a developer-rendered, in-app flow, call this after creating an{' '}
+        <code>IN_APP</code> reporting token and before showing your choice
+        screen. Google-rendered and external-link flows do not use this step.
       </p>
 
       <h2>Signature</h2>

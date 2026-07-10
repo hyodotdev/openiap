@@ -26,20 +26,21 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
-    // July 8, 2026 — Play Billing 9.1.0 Billing Choice support
+    // July 11, 2026 - Multi-store runtimes, Play Billing 9.1, and SDK parity
     {
-      id: 'play-billing-9-1-billing-choice-2026-07-08',
-      date: new Date('2026-07-08'),
+      id: 'multi-store-billing-9-1-sdk-release-2026-07-11',
+      date: new Date('2026-07-11'),
       element: (
         <div
-          key="play-billing-9-1-billing-choice-2026-07-08"
+          key="multi-store-billing-9-1-sdk-release-2026-07-11"
           style={noteCardStyle}
         >
           <AnchorLink
-            id="play-billing-9-1-billing-choice-2026-07-08"
+            id="multi-store-billing-9-1-sdk-release-2026-07-11"
             level="h4"
           >
-            July 8, 2026 — Play Billing 9.1.0 Billing Choice support
+            July 11, 2026 - Multi-store runtimes, Play Billing 9.1, and SDK
+            parity
           </AnchorLink>
 
           <p
@@ -48,13 +49,17 @@ function Releases() {
               color: 'var(--text-secondary)',
             }}
           >
-            Ships Google Play Billing Library 9.1.0 support across Android
-            implementations. The OpenIAP spec adds <code>BILLING_CHOICE</code>{' '}
-            plus Billing Choice display, dialog, reporting, and in-app message
-            types; framework packages expose the same Android APIs while Apple
-            remains behavior-compatible with the existing StoreKit surface.
+            Publishes the current multi-package release train with OpenIAP Spec
+            2.1.0, Google Play Billing Library 9.1.0, Amazon Fire OS and Vega OS
+            integrations, IAPKit lifecycle fixes, and product metadata parity
+            across the framework SDKs. Fire OS and Vega OS remain experimental;
+            Apple adds compatibility fixes without changing its public purchase
+            API.
           </p>
 
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Platform packages and IAPKit
+          </h5>
           <ul
             style={{
               marginBottom: '1rem',
@@ -63,41 +68,151 @@ function Releases() {
             }}
           >
             <li>
-              <strong>Billing Choice</strong> —{' '}
-              <code>BillingProgramAndroid.BILLING_CHOICE</code> is available in
-              the Billing Programs API. Availability now reports{' '}
-              <code>choiceScreenType</code> and{' '}
-              <code>isExternalLinkAvailable</code> when Play returns Billing
-              Choice details.
+              <strong>OpenIAP Spec 2.1.0</strong> - adds Amazon as a store and
+              IAPKit verification target, then adds Billing Choice, developer
+              billing, dialog, reporting, and in-app message contracts shared by
+              every generated SDK.
             </li>
             <li>
-              <strong>New Android APIs</strong> —{' '}
-              <Link to="/docs/apis/android/get-billing-choice-info-android">
-                <code>getBillingChoiceInfoAndroid</code>
-              </Link>
-              ,{' '}
-              <Link to="/docs/apis/android/show-billing-program-information-dialog-android">
-                <code>showBillingProgramInformationDialogAndroid</code>
-              </Link>
-              , and{' '}
+              <strong>openiap-google 2.3.0</strong> - ships Play Billing 9.1.0
+              with <code>BILLING_CHOICE</code>, renderer selection, Billing
+              Choice metadata and information dialog APIs, developer billing
+              reporting, and preserved <code>subResponseCode</code> errors.{' '}
               <Link to="/docs/apis/android/show-in-app-messages-android">
                 <code>showInAppMessagesAndroid</code>
               </Link>{' '}
-              are wired through native Android, React Native, Expo, Flutter,
-              KMP, Godot, and MAUI.
+              covers transactional and price-increase messages requested in{' '}
+              <a
+                href="https://github.com/hyodotdev/openiap/issues/221"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                issue #221
+              </a>
+              .
             </li>
             <li>
-              <strong>Reporting details</strong> —{' '}
-              <code>createBillingProgramReportingDetailsAndroid</code> now
-              accepts an optional <code>developerBillingType</code> so Billing
-              Choice flows can distinguish in-app developer billing from
-              external-link developer billing.
+              <strong>Android store runtimes</strong> - the same native package
+              family now targets Play, Meta Horizon, or Amazon Appstore by
+              flavor. Horizon uses Billing Compatibility SDK 2.0.0 and the
+              canonical <code>com.meta.horizon.platform.HORIZON_APP_ID</code>{' '}
+              key; historical keys remain readable for migration. Amazon
+              cancellation is delivered once as <code>user-cancelled</code>, and
+              Android callback continuations ignore duplicate completion
+              attempts.
             </li>
             <li>
-              <strong>Framework parity</strong> — generated types and wrapper
-              APIs are synced for React Native, Expo, Flutter, KMP, Godot, and
-              MAUI; Android non-Play variants return unsupported/default results
-              where Google Play Billing APIs are unavailable.
+              <strong>openiap-apple 2.2.5</strong> - keeps newer StoreKit paths
+              available to Swift 5 language-mode apps when the compiler supports
+              them, aligns Xcode 26 signatures, and preserves pricing terms,
+              subscription details, offers, and debug metadata across bridges.
+            </li>
+            <li>
+              <strong>IAPKit</strong> - adds Amazon receipt validation and
+              end-to-end App Store Connect and Google Play catalog sync. Direct
+              Apple/Google verification now creates bindable subscription rows
+              for{' '}
+              <a
+                href="https://github.com/hyodotdev/openiap/issues/209"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                issue #209
+              </a>
+              ; iOS subscription responses expose stable{' '}
+              <code>originalTransactionId</code> identity from{' '}
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/214"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                PR #214
+              </a>
+              . Purchase rows are documented as verification snapshots, while
+              subscription endpoints and webhooks remain the lifecycle source.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>react-native-iap 15.4.0</strong> - adds Fire OS and React
+              Native for Vega adapters, the complete Billing Choice and in-app
+              message surface, bounded Vega fulfillment timeouts, and Nitro
+              product metadata preservation.
+            </li>
+            <li>
+              <strong>expo-iap 4.4.0</strong> - adds Fire OS and Vega modules,
+              the Billing 9.1 APIs, and config-plugin setup under{' '}
+              <code>modules.amazon</code>. The plugin writes canonical Horizon
+              metadata and migrates earlier app-id keys.
+            </li>
+            <li>
+              <strong>flutter_inapp_purchase 9.4.0</strong> - adds Play,
+              Horizon, and Amazon Android builds plus the Billing 9.1 APIs, and
+              preserves standardized offers, pricing terms, discounts,
+              installment details, and per-product status during channel
+              decoding.
+            </li>
+            <li>
+              <strong>godot-iap 2.4.0</strong> - adds the Play Billing Choice
+              APIs, reliable boolean launch results, and typed nested metadata
+              decoding. Amazon verification types are shared, but Godot does not
+              add a separate Fire OS runtime target in this release.
+            </li>
+            <li>
+              <strong>kmp-iap 2.4.0</strong> - adds Play, Horizon, and Amazon
+              targets and the Billing 9.1 APIs, while preserving requested order
+              and rich metadata for mixed <code>type: all</code> product
+              queries.
+            </li>
+            <li>
+              <strong>OpenIap.Maui 1.2.1</strong> - adds Play, Horizon, and
+              Amazon Android packaging plus the Billing 9.1 APIs. Horizon uses
+              the 2.0.0 compatibility runtime without pulling Google Billing
+              classes into the Horizon artifact.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Documentation and release quality
+          </h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              Store setup and example coverage now includes Fire OS, Vega OS,
+              Horizon, Play, and Apple flows; duplicate example transaction
+              cleanup is suppressed after successful processing. CI also builds
+              store-specific KMP and MAUI variants and retries timing-only web
+              performance flakes without relaxing byte-size budgets.
+            </li>
+            <li>
+              Release history remains centralized here, with package-specific
+              sections for the changelog request in{' '}
+              <a
+                href="https://github.com/hyodotdev/openiap/issues/206"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                issue #206
+              </a>
+              . Package-local changelogs continue to point to this page and
+              package GitHub Releases.
             </li>
           </ul>
 
@@ -238,151 +353,6 @@ function Releases() {
                   rel="noopener noreferrer"
                 >
                   NuGet
-                </a>
-                )
-              </li>
-            </ul>
-          </div>
-        </div>
-      ),
-    },
-
-    // July 3, 2026 — Amazon config plugin option shape
-    {
-      id: 'amazon-config-plugin-option-shape-2026-07-03',
-      date: new Date('2026-07-03'),
-      element: (
-        <div
-          key="amazon-config-plugin-option-shape-2026-07-03"
-          style={noteCardStyle}
-        >
-          <AnchorLink
-            id="amazon-config-plugin-option-shape-2026-07-03"
-            level="h4"
-          >
-            July 3, 2026 — Amazon config plugin option shape
-          </AnchorLink>
-
-          <p
-            style={{
-              marginBottom: '1rem',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            Publishes Expo prereleases that group optional store modules under{' '}
-            <code>modules</code>. Expo apps should configure{' '}
-            <code>modules.amazon.fireOS</code> and{' '}
-            <code>modules.amazon.vegaOS</code>; <code>android.amazon</code>{' '}
-            remains for Android-specific details such as optional Vega metadata
-            overrides. React Native remains a bare RN/Nitro package that selects
-            Fire OS through Android Gradle and Vega OS through a separate React
-            Native for Vega target. Amazon targets are available in the current{' '}
-            <code>next</code> / <code>rc</code> package versions while this
-            support remains experimental.
-          </p>
-
-          <CodeBlock language="typescript">{`plugins: [
-  [
-    'expo-iap',
-    {
-      modules: {
-        onside: true,
-        horizon: true,
-        amazon: {
-          fireOS: true,
-          vegaOS: true,
-        },
-      },
-      android: {
-        horizon: {
-          appId: 'YOUR_HORIZON_APP_ID',
-        },
-      },
-    },
-  ],
-]`}</CodeBlock>
-
-          <ul
-            style={{
-              marginBottom: '1rem',
-              paddingLeft: '1.25rem',
-              fontSize: '0.9rem',
-            }}
-          >
-            <li>
-              <strong>Expo config plugin</strong> — <code>expo-iap</code> now
-              resolves Fire OS and Vega OS from <code>modules.amazon</code>,
-              resolves Horizon app ids from <code>android.horizon.appId</code>,
-              and derives Vega metadata from the Expo config unless{' '}
-              <code>android.amazon.vegaOS</code> overrides are provided.
-            </li>
-            <li>
-              <strong>React Native</strong> — <code>react-native-iap</code>{' '}
-              remains a bare React Native/Nitro package. Fire OS uses direct
-              Android Gradle flavor selection, and Vega uses a separate React
-              Native for Vega target with its own Kepler metadata.
-            </li>
-            <li>
-              <strong>Vega OS scope</strong> — Vega remains experimental and
-              limited to React Native for Vega / compatible Expo Vega targets.
-              Flutter, KMP, MAUI, and Godot do not expose a Kepler runtime
-              target.
-            </li>
-            <li>
-              <strong>Fire OS scope</strong> — Fire OS remains the Android{' '}
-              <code>amazon</code> flavor across native Android, Expo, React
-              Native, Flutter, KMP, and MAUI. Godot currently exposes shared
-              Amazon API payloads but no separate Fire OS flavor switch.
-            </li>
-          </ul>
-
-          <div
-            style={{
-              paddingTop: '1rem',
-              borderTop: '1px solid var(--border-color)',
-            }}
-          >
-            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
-            <ul
-              style={{
-                margin: 0,
-                paddingLeft: '1.25rem',
-                fontSize: '0.9rem',
-              }}
-            >
-              <li>
-                <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/react-native-iap-15.4.0-rc.2"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  react-native-iap 15.4.0-rc.2
-                </a>{' '}
-                (
-                <a
-                  href="https://www.npmjs.com/package/react-native-iap/v/15.4.0-rc.2"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  npm
-                </a>
-                )
-              </li>
-              <li>
-                <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/expo-iap-4.4.0-rc.6"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  expo-iap 4.4.0-rc.6
-                </a>{' '}
-                (
-                <a
-                  href="https://www.npmjs.com/package/expo-iap/v/4.4.0-rc.6"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  npm
                 </a>
                 )
               </li>
@@ -1729,171 +1699,6 @@ function Releases() {
                   rel="noopener noreferrer"
                 >
                   OpenIap.Maui 1.1.2
-                </a>
-              </li>
-            </ul>
-          </div>
-        </div>
-      ),
-    },
-
-    // May 23, 2026 — Fire OS support
-    {
-      id: 'fireos-support-2026-05-23',
-      date: new Date('2026-05-23'),
-      element: (
-        <div key="fireos-support-2026-05-23" style={noteCardStyle}>
-          <AnchorLink id="fireos-support-2026-05-23" level="h4">
-            May 23, 2026 — Fire OS support
-          </AnchorLink>
-
-          <p
-            style={{
-              marginBottom: '1rem',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            Adds Amazon Fire OS support to OpenIAP. Starting with{' '}
-            <code>openiap-google 2.3.0-rc.1</code>, Android builds can target
-            Google Play, Meta Horizon, or Amazon Appstore from the same native
-            package family. The{' '}
-            <strong>OpenIAP Spec remains stable at 2.0.3</strong>; this rollout
-            adds the Fire OS runtime flavor, framework build flags, Amazon
-            Appstore receipt verification paths, and shared subscription state
-            mapping without publishing a spec prerelease.
-          </p>
-
-          <ul
-            style={{
-              marginBottom: '1rem',
-              paddingLeft: '1.25rem',
-              fontSize: '0.9rem',
-            }}
-          >
-            <li>
-              <strong>Amazon Fire OS flavor</strong> — native Android publishes{' '}
-              <code>openiap-google-amazon</code>, backed by the Amazon Appstore
-              SDK and selected with the <code>amazon</code> Gradle flavor.
-            </li>
-            <li>
-              <strong>Framework rollout</strong> — React Native, Expo, Flutter,
-              Godot, KMP, and MAUI releases include Fire OS metadata and build
-              integration alongside existing Play and Horizon support.
-            </li>
-            <li>
-              <strong>IAPKit verification</strong> — Amazon Appstore receipts
-              can be verified through IAPKit with <code>userId</code> and{' '}
-              <code>receiptId</code>, while the shared secret remains on the
-              server.
-            </li>
-            <li>
-              <strong>Shared subscription state</strong> — Fire OS subscriptions
-              flow through the same OpenIAP{' '}
-              <Link to="/docs/apis/fetch-products">
-                <code>fetchProducts</code>
-              </Link>
-              ,{' '}
-              <Link to="/docs/apis/request-purchase">
-                <code>requestPurchase</code>
-              </Link>
-              ,{' '}
-              <Link to="/docs/apis/get-active-subscriptions">
-                <code>getActiveSubscriptions</code>
-              </Link>
-              , and{' '}
-              <Link to="/docs/apis/get-available-purchases">
-                <code>getAvailablePurchases</code>
-              </Link>{' '}
-              lifecycle used by the other stores. The Amazon adapter hydrates
-              product type and subscription group metadata so app and framework
-              code do not need store-specific receipt alias handling.
-            </li>
-            <li>
-              <strong>Setup guide</strong> — see{' '}
-              <Link to="/docs/setup/store/amazon#fire-os">Fire OS Setup</Link>{' '}
-              for Amazon App Tester, public key, and framework flag details.
-            </li>
-          </ul>
-
-          <div
-            style={{
-              paddingTop: '1rem',
-              borderTop: '1px solid var(--border-color)',
-            }}
-          >
-            <h5 style={{ margin: '0 0 0.5rem 0' }}>
-              Spec and Package Releases
-            </h5>
-            <ul
-              style={{
-                margin: 0,
-                paddingLeft: '1.25rem',
-                fontSize: '0.9rem',
-              }}
-            >
-              <li>OpenIAP Spec 2.0.3 (stable; no prerelease)</li>
-              <li>
-                <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/google-2.3.0-rc.1"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  openiap-google 2.3.0-rc.1
-                </a>{' '}
-                including <code>openiap-google-amazon</code>
-              </li>
-              <li>
-                <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/react-native-iap-15.4.0-rc.1"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  react-native-iap 15.4.0-rc.1
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/expo-iap-4.4.0-rc.5"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  expo-iap 4.4.0-rc.5
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.4.0-rc.1"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  flutter_inapp_purchase 9.4.0-rc.1
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/godot-iap-2.4.0-rc.1"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  godot-iap 2.4.0-rc.1
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/kmp-iap-2.4.0-rc.1"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  kmp-iap 2.4.0-rc.1
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/maui-iap-1.2.0-rc.1"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  OpenIap.Maui 1.2.0-rc.1
                 </a>
               </li>
             </ul>

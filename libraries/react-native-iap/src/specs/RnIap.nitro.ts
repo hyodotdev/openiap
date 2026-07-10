@@ -35,6 +35,7 @@ import type {
   ExternalPurchaseCustomLinkTokenTypeIOS,
   ExternalPurchaseLinkResultIOS,
   ExternalPurchaseNoticeResultIOS,
+  DeveloperBillingOptionParamsAndroid,
   DeveloperProvidedBillingDetailsAndroid,
   MutationFinishTransactionArgs,
   ProductCommon,
@@ -53,6 +54,7 @@ import type {
   UserChoiceBillingDetails,
   PaymentModeIOS,
   SubscriptionProductReplacementParamsAndroid,
+  SubResponseCodeAndroid,
   WinBackOfferInputIOS,
 } from '../types';
 
@@ -243,6 +245,10 @@ export interface NitroRequestPurchaseAndroid {
   /** @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+) */
   replacementMode?: RequestSubscriptionAndroidProps['replacementMode'];
   purchaseToken?: RequestSubscriptionAndroidProps['purchaseToken'];
+  /** Original external transaction ID for developer-billed subscription replacement (9.1.0+). */
+  originalExternalTransactionId?: RequestSubscriptionAndroidProps['originalExternalTransactionId'];
+  /** Developer billing option for External Payments (8.3.0+) or Billing Choice (9.1.0+). */
+  developerBillingOption?: DeveloperBillingOptionParamsAndroid | null;
   /**
    * Product-level replacement parameters (8.1.0+)
    * Use this instead of replacementMode for item-level replacement
@@ -323,8 +329,10 @@ export interface NitroDeepLinkOptionsAndroid {
  * Parameters for launching an external link (Android 8.2.0+)
  */
 export interface NitroLaunchExternalLinkParamsAndroid {
-  /** The billing program (external-content-link or external-offer) */
+  /** The billing program (external-content-link, external-offer, or billing-choice) */
   billingProgram: BillingProgramAndroid;
+  /** Reporting token for a developer-rendered Billing Choice external-link flow (9.1.0+). */
+  externalTransactionToken?: string | null;
   /** The external link launch mode */
   launchMode: ExternalLinkLaunchModeAndroid;
   /** The type of the external link */
@@ -387,6 +395,7 @@ export interface NitroPurchaseResult {
 export interface NitroBillingResultAndroid {
   responseCode: number;
   debugMessage?: string | null;
+  subResponseCode?: SubResponseCodeAndroid | null;
 }
 
 export interface NitroBillingChoiceInfoAndroid {
@@ -1149,12 +1158,11 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
   ): void;
 
   /**
-   * Add a listener for developer provided billing events (Android 8.3.0+ only).
-   * Fires when a user selects developer billing in the External Payments flow.
+   * Add a listener for developer provided billing events (Android 8.3.0+).
+   * Fires for External Payments and Billing Choice developer billing flows.
    *
-   * External Payments is part of Google Play Billing Library 8.3.0+ and allows
-   * showing a side-by-side choice between Google Play Billing and developer's
-   * external payment option directly in the purchase flow. (Japan only)
+   * Billing Choice expands the payload with nullable link/original transaction
+   * fields and selected products in Billing Library 9.1.0+.
    *
    * @param listener - Function to call when user chooses developer billing
    * @platform Android

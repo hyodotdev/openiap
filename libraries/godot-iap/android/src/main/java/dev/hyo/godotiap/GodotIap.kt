@@ -5,7 +5,9 @@ import dev.hyo.openiap.OpenIapModule
 import dev.hyo.openiap.store.OpenIapStore
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
+import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener
+import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -54,6 +56,14 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         emitSignal("subscription_billing_issue", JSONObject(sanitized).toString())
     }
 
+    private val userChoiceBillingListener = OpenIapUserChoiceBillingListener { details ->
+        emitSignal("user_choice_billing", JSONObject(details.toJson()).toString())
+    }
+
+    private val developerProvidedBillingListener = OpenIapDeveloperProvidedBillingListener { details ->
+        emitSignal("developer_provided_billing", JSONObject(details.toJson()).toString())
+    }
+
     override fun getPluginName(): String = "GodotIap"
 
     override fun getPluginSignals(): Set<SignalInfo> {
@@ -74,7 +84,22 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
     // ==========================================
 
     @UsedByGodot
-    fun initConnection(): Boolean {
+    fun initConnection(): Boolean = initConnectionInternal(null)
+
+    @UsedByGodot
+    fun initConnectionWithConfig(configJson: String): Boolean {
+        val config = try {
+            InitConnectionConfig.fromJson(
+                GodotIapHelper.jsonObjectToMap(JSONObject(configJson))
+            )
+        } catch (e: Exception) {
+            GodotIapLog.failure("initConnectionWithConfig", e)
+            return false
+        }
+        return initConnectionInternal(config)
+    }
+
+    private fun initConnectionInternal(config: InitConnectionConfig?): Boolean {
         GodotIapLog.debug("initConnection called")
 
         val activity = activity ?: run {
@@ -89,9 +114,11 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 store = OpenIapStore(openIap)
                 store.addPurchaseUpdateListener(purchaseUpdateListener)
                 store.addPurchaseErrorListener(purchaseErrorListener)
+                store.addUserChoiceBillingListener(userChoiceBillingListener)
+                store.addDeveloperProvidedBillingListener(developerProvidedBillingListener)
                 openIap.addSubscriptionBillingIssueListener(subscriptionBillingIssueListener)
 
-                val result = store.initConnection()
+                val result = store.initConnection(config)
                 isInitialized = result
 
                 if (result) {
@@ -117,6 +144,8 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
             try {
                 store.removePurchaseUpdateListener(purchaseUpdateListener)
                 store.removePurchaseErrorListener(purchaseErrorListener)
+                store.removeUserChoiceBillingListener(userChoiceBillingListener)
+                store.removeDeveloperProvidedBillingListener(developerProvidedBillingListener)
                 openIap.removeSubscriptionBillingIssueListener(subscriptionBillingIssueListener)
 
                 val result = store.endConnection()
@@ -244,6 +273,8 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                         isOfferPersonalized = params.isOfferPersonalized,
                         obfuscatedAccountId = params.obfuscatedAccountId,
                         obfuscatedProfileId = params.obfuscatedProfileId,
+                        developerBillingOption = params.developerBillingOption,
+                        originalExternalTransactionId = params.originalExternalTransactionId,
                         purchaseToken = params.purchaseToken,
                         replacementMode = params.replacementMode,
                         skus = params.skus,
@@ -252,7 +283,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                     )
                     RequestPurchaseProps(
                         request = RequestPurchaseProps.Request.Subscription(
-                            RequestSubscriptionPropsByPlatforms(android = android)
+                            RequestSubscriptionPropsByPlatforms(google = android)
                         ),
                         type = ProductQueryType.Subs
                     )
@@ -262,12 +293,13 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                         isOfferPersonalized = params.isOfferPersonalized,
                         obfuscatedAccountId = params.obfuscatedAccountId,
                         obfuscatedProfileId = params.obfuscatedProfileId,
+                        developerBillingOption = params.developerBillingOption,
                         offerToken = params.offerTokenArr.firstOrNull(),
                         skus = params.skus
                     )
                     RequestPurchaseProps(
                         request = RequestPurchaseProps.Request.Purchase(
-                            RequestPurchasePropsByPlatforms(android = android)
+                            RequestPurchasePropsByPlatforms(google = android)
                         ),
                         type = ProductQueryType.InApp
                     )
@@ -756,9 +788,12 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 val launchMode = json.optString("launchMode", "unspecified")
                 val linkType = json.optString("linkType", "unspecified")
                 val linkUri = json.getString("linkUri")
+                val externalTransactionToken = json.optString("externalTransactionToken", "")
+                    .takeIf { it.isNotBlank() }
 
                 val params = OpenIapLaunchExternalLinkParams(
                     billingProgram = mapBillingProgram(billingProgram),
+                    externalTransactionToken = externalTransactionToken,
                     launchMode = mapExternalLinkLaunchMode(launchMode),
                     linkType = mapExternalLinkType(linkType),
                     linkUri = linkUri

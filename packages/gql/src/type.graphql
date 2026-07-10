@@ -26,8 +26,9 @@ enum IapEvent {
   PromotedProductIOS
   UserChoiceBillingAndroid
   """
-  Fired when user selects developer-provided billing option in external payments flow.
-  Available on Android with Google Play Billing Library 8.3.0+
+  Fired for External Payments (8.3.0+) and Google-rendered Billing Choice
+  developer billing selections on Android. Billing Choice is available in
+  OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
   """
   DeveloperProvidedBillingAndroid
   """
@@ -71,6 +72,9 @@ interface PurchaseCommon {
   id: ID!
   productId: String!
   ids: [String!]
+  """
+  Unix timestamp in milliseconds since January 1, 1970 UTC.
+  """
   transactionDate: Float!
   """
   Unified purchase token (iOS JWS, Android purchaseToken)
@@ -188,6 +192,9 @@ input PurchaseInput {
   id: ID!
   productId: String!
   ids: [String!]
+  """
+  Unix timestamp in milliseconds since January 1, 1970 UTC.
+  """
   transactionDate: Float!
   purchaseToken: String
   """
@@ -446,6 +453,9 @@ type ActiveSubscription {
   daysUntilExpirationIOS: Float
   transactionId: String!
   purchaseToken: String
+  """
+  Unix timestamp in milliseconds since January 1, 1970 UTC.
+  """
   transactionDate: Float!
   basePlanIdAndroid: String
   """
@@ -793,8 +803,20 @@ input InitConnectionConfig {
   - EXTERNAL_CONTENT_LINK: Link to external content (8.2.0+)
   - EXTERNAL_OFFER: External offers for digital content (8.2.0+)
   - EXTERNAL_PAYMENTS: Developer provided billing, Japan only (8.3.0+)
+  - BILLING_CHOICE: Google-rendered or developer-rendered billing choice
+    (OpenIAP Spec 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+)
   """
   enableBillingProgramAndroid: BillingProgramAndroid
+  """
+  Billing Choice renderer configured in Play Console. Available in OpenIAP
+  Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+  GOOGLE_RENDERED registers the developer-provided billing listener so OpenIAP
+  can emit the selection event. DEVELOPER_RENDERED omits that listener so the
+  app can render its own choice screen and use the reporting/dialog/link APIs.
+  Must match choiceScreenType returned by isBillingProgramAvailableAndroid.
+  Defaults to GOOGLE_RENDERED.
+  """
+  billingChoiceScreenTypeAndroid: BillingChoiceScreenTypeAndroid = GOOGLE_RENDERED
   # Note: enableAutoServiceReconnection is always enabled internally (Billing 8.0+)
-  # since OpenIAP uses Billing Library 8.3.0+
+  # OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+)
 }

@@ -410,7 +410,7 @@ val billingClient = BillingClient.newBuilder(context)
     .enableAutoServiceReconnection()
     .enableBillingProgram(
         EnableBillingProgramParams.newBuilder()
-            .setBillingProgram(BillingProgram.EXTERNAL_PAYMENTS)
+            .setBillingProgram(BillingClient.BillingProgram.EXTERNAL_PAYMENTS)
             .setDeveloperProvidedBillingListener(developerBillingListener)
             .build()
     )
@@ -420,10 +420,12 @@ val billingClient = BillingClient.newBuilder(context)
 ### DeveloperProvidedBillingListener
 
 ```kotlin
-val developerBillingListener = DeveloperProvidedBillingListener {
-    userInitiatedBillingDetails ->
-    // User chose the developer-provided billing flow.
-    // Launch your external payment UI here.
+val developerBillingListener = DeveloperProvidedBillingListener { details ->
+    // All nullable fields depend on the selected program and flow.
+    val token: String? = details.externalTransactionToken
+    val linkUri: String? = details.linkUri
+    val originalTransactionId: String? = details.originalExternalTransactionId
+    val products: List<DeveloperProvidedBillingDetails.Product> = details.products
 }
 ```
 
@@ -434,8 +436,11 @@ val params = BillingFlowParams.newBuilder()
     .setProductDetailsParamsList(listOf(productDetailsParams))
     .enableDeveloperBillingOption(
         DeveloperBillingOptionParams.newBuilder()
-            .setBillingProgram(BillingProgram.EXTERNAL_PAYMENTS)
-            .setDeveloperProvidedBillingDetails(developerProvidedBillingDetails)
+            .setBillingProgram(BillingClient.BillingProgram.EXTERNAL_PAYMENTS)
+            .setLinkUri(Uri.parse("https://example.com/checkout"))
+            .setLaunchMode(
+                DeveloperBillingOptionParams.LaunchMode.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP
+            )
             .build()
     )
     .build()
@@ -447,17 +452,33 @@ billingClient.launchBillingFlow(activity, params)
 
 | Type | Purpose |
 |------|---------|
-| `DeveloperBillingOptionParams` | Configures developer-billing support on `BillingClient` |
+| `DeveloperBillingOptionParams` | Configures developer billing on `BillingFlowParams` |
 | `DeveloperProvidedBillingListener` | Callback when user picks developer-provided billing |
-| `DeveloperProvidedBillingDetails` | Billing details to report back for reconciliation |
-| `BillingOption.EXTERNAL_PAYMENTS` | Purchase-flow flag requesting external payments |
+| `DeveloperProvidedBillingDetails` | Nullable token/link/original-ID fields plus selected products |
+| `BillingClient.BillingProgram.EXTERNAL_PAYMENTS` | External Payments program constant |
 
-> **OpenIAP Note**: Exposed through the Android-specific `AlternativeBilling*` surface in OpenIAP. Enrolment with Google Play's External Payments program is required; availability is currently restricted to Japan. The Horizon flavor does NOT implement this.
+> **OpenIAP Note**: Exposed through `enableBillingProgramAndroid`,
+> `developerBillingOption`, and the developer-provided billing listener.
+> Enrolment with Google Play's External Payments program is required;
+> availability is currently restricted to Japan. Horizon and Amazon do not
+> implement this Google Play program.
 
 ## Billing Choice (9.1+)
 
-Billing Library 9.1 adds APIs for markets and programs where Google Play shows
-the user a billing choice screen.
+Billing Library 9.1 adds APIs for markets and programs where either Google Play
+or the app renders a billing choice screen.
+
+### Integration Scenarios
+
+| Scenario | Choice renderer | Developer payment | BillingClient setup | Required flow |
+|----------|-----------------|-------------------|---------------------|---------------|
+| 1A | Google | In app | `EnableBillingProgramParams` with `DeveloperProvidedBillingListener` | Pass a minimal `DeveloperBillingOptionParams`; Play returns the token through the listener |
+| 1B | Developer | In app | `EnableBillingProgramParams` without the listener | Fetch choice info, create an `IN_APP` token, show the information dialog, then render the choice UI |
+| 2A | Google | External link | `EnableBillingProgramParams` with `DeveloperProvidedBillingListener` | Create an `EXTERNAL_LINK` token and pass it with the URI through `DeveloperBillingOptionParams` |
+| 2B | Developer | External link | `EnableBillingProgramParams` without the listener | Fetch choice info, create an `EXTERNAL_LINK` token, render the choice UI, then pass the token to `launchExternalLink` |
+
+The setup must match `choiceScreenType` from Play Console. Registering the
+listener in a developer-rendered integration is not equivalent to omitting it.
 
 | API / Type | Purpose |
 |------------|---------|
@@ -466,17 +487,116 @@ the user a billing choice screen.
 | `GetBillingChoiceInfoParams` | Configures the billing-choice info request |
 | `BillingClient.showBillingProgramInformationDialog()` | Shows an information dialog for a billing program |
 | `BillingProgramInformationDialogParams` | Configures the information dialog |
-| `ChoiceScreenType` | Selects the choice-screen type |
+| `LaunchExternalLinkParams.setExternalTransactionToken()` | Supplies the pre-generated token for a developer-rendered external-link flow |
+| `BillingProgramAvailabilityDetails.BillingChoiceAvailabilityDetails` | Returns choice-screen type and external-link availability |
+| `DeveloperBillingOptionParams` | Selects in-app or external-link developer billing during purchase |
+| `BillingProgramReportingDetailsParams.DeveloperBillingType` | Distinguishes `IN_APP` and `EXTERNAL_LINK` reporting |
 
-> **OpenIAP gap**: No GraphQL/OpenIAP surface exists yet for Billing Choice
-> info or billing-program information dialogs. Add schema types and Play-flavor
-> implementations before advertising PBL 9.1 Billing Choice support.
+### Developer Billing Purchase Options
+
+Only `billingProgram` is required for an in-app Billing Choice flow:
+
+```kotlin
+val inAppChoice = DeveloperBillingOptionParams.newBuilder()
+    .setBillingProgram(BillingClient.BillingProgram.BILLING_CHOICE)
+    .build()
+```
+
+For a Google-rendered external-link flow, also set the URI, launch mode, and the
+pre-generated `EXTERNAL_LINK` transaction token:
+
+```kotlin
+val externalLinkChoice = DeveloperBillingOptionParams.newBuilder()
+    .setBillingProgram(BillingClient.BillingProgram.BILLING_CHOICE)
+    .setLinkUri(Uri.parse("https://example.com/checkout"))
+    .setLaunchMode(DeveloperBillingOptionParams.LaunchMode.CALLER_WILL_LAUNCH_LINK)
+    .setExternalTransactionToken(preGeneratedToken)
+    .build()
+```
+
+### Developer-Rendered Choice Information
+
+```kotlin
+val params = GetBillingChoiceInfoParams.newBuilder()
+    .setBillingProgram(BillingClient.BillingProgram.BILLING_CHOICE)
+    .setPlayBillingChoiceImageLayout(
+        GetBillingChoiceInfoParams.ImageLayout.RECTANGULAR_FOUR_BY_ONE
+    )
+    .setUserLocale(Locale.forLanguageTag("en-US"))
+    .build()
+
+billingClient.getBillingChoiceInfoAsync(params) { result, info ->
+    if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+        val imageUrl = info.playBillingChoiceImageUrl
+        val loyaltyText = info.playBillingLoyaltyInfo
+    }
+}
+```
+
+Supported image layouts are `RECTANGULAR_FOUR_BY_ONE`,
+`RECTANGULAR_THREE_BY_ONE`, and `RECTANGULAR_TWO_BY_TWO`.
+
+### Availability Details
+
+For `BILLING_CHOICE`, `BillingProgramAvailabilityDetails` can include:
+
+| Field | Meaning |
+|-------|---------|
+| `choiceScreenType` | `UNSPECIFIED`, `DEVELOPER_RENDERED`, or `GOOGLE_RENDERED` |
+| `isExternalLinkAvailable` | Whether the user is eligible for an external-link option |
+
+### Information Dialog
+
+For developer-rendered in-app choice (scenario 1B), call
+`showBillingProgramInformationDialog()` before showing the app's choice UI. It
+is a UI-thread API and returns through its listener; it does not return a
+synchronous `BillingResult`:
+
+```kotlin
+val params = BillingProgramInformationDialogParams.newBuilder()
+    .setBillingProgram(BillingClient.BillingProgram.BILLING_CHOICE)
+    .setExternalTransactionToken(externalTransactionToken)
+    .build()
+
+billingClient.showBillingProgramInformationDialog(activity, params) { result ->
+    // Continue according to result.responseCode.
+}
+```
+
+### Developer-Billed Subscription Replacement
+
+Use the original external transaction ID instead of an old Play purchase token
+when replacing a subscription bought through developer billing:
+
+```kotlin
+val updateParams = BillingFlowParams.SubscriptionUpdateParams.newBuilder()
+    .setOriginalExternalTransactionId(originalExternalTransactionId)
+    .build()
+```
+
+> **OpenIAP Note**: OpenIAP exposes these through `BILLING_CHOICE`,
+> `getBillingChoiceInfoAndroid`, `showBillingProgramInformationDialogAndroid`,
+> `launchExternalLinkAndroid`, `developerBillingOption`,
+> `originalExternalTransactionId`, and the expanded developer-provided billing
+> callback. Set `InitConnectionConfig.billingChoiceScreenTypeAndroid` to
+> `GOOGLE_RENDERED` (default) or `DEVELOPER_RENDERED` so OpenIAP includes or
+> omits the listener correctly. Play-only APIs return unsupported/default
+> behavior on Horizon and Amazon.
+
+## In-App Billing Messages (4.1+)
+
+`showInAppMessages()` must run on the UI thread. It returns a synchronous
+`BillingResult` for submission errors and reports the user interaction through
+`InAppMessageResponseListener`.
 
 ## PBL 9 Migration Guardrails
 
 - Replace removed APIs: `SkuDetails`, `SkuDetailsParams`, `SkuDetailsResponseListener`, `BillingClient.SkuType`, `querySkuDetailsAsync()`, no-argument `enablePendingPurchases()`, and string `queryPurchasesAsync()`.
 - Use `ProductDetails`, `QueryProductDetailsParams`, `BillingClient.ProductType`, parameterized `enablePendingPurchases(PendingPurchasesParams)`, and `queryPurchasesAsync(QueryPurchasesParams, ...)`.
-- Handle `DeveloperProvidedBillingDetails.getLinkUri()` as nullable.
+- Handle `DeveloperProvidedBillingDetails.getExternalTransactionToken()`,
+  `getLinkUri()`, and `getOriginalExternalTransactionId()` as nullable.
+- Preserve every `DeveloperProvidedBillingDetails.Product` (`id`, `type`, and
+  nullable `offerToken`) from the callback.
 - Keep Horizon shared code on the Billing 7.0-compatible API subset; put PBL 8/9 code in Play-only sources or behind reflection.
 
 ## Best Practices
@@ -487,5 +607,5 @@ the user a billing choice screen.
 4. **Auto-reconnect is enabled by default** in OpenIAP when available (8.0+)
 5. **Check product status codes** (8.0+) to understand why products weren't fetched
 6. **Check isSuspended** (8.1+) before granting entitlements
-7. **Handle Billing Choice separately** before claiming PBL 9.1 feature coverage
+7. **Distinguish in-app and external-link Billing Choice** when configuring and reporting developer billing
 8. **Cache product details** to avoid repeated queries

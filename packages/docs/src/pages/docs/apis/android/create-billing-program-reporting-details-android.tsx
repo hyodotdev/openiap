@@ -31,8 +31,9 @@ function CreateBillingProgramReportingDetailsAndroid() {
         </code>{' '}
         — returns the external transaction token to report a Developer-Provided
         Billing transaction. Play Billing 8.3.0+; the optional developer billing
-        type parameter is available for Billing Choice in Play Billing 9.1.0+.
-        See the{' '}
+        type parameter is available in OpenIAP Spec 2.1.0 and{' '}
+        <code>openiap-google</code> 2.3.0 for Billing Choice, which requires
+        Play Billing 9.1.0+. See the{' '}
         <a
           href="https://developer.android.com/google/play/billing/billing-programs"
           target="_blank"

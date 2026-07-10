@@ -65,8 +65,12 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(OpenIapGoogleAarFlavor)' == 'horizon'">
-    <AndroidMavenLibrary Include="com.meta.horizon.platform.ovr:android-platform-sdk" Version="$(MauiHorizonPlatformSdkVersion)" Bind="false" />
     <AndroidMavenLibrary Include="com.meta.horizon.billingclient.api:horizon-billing-compatibility" Version="$(MauiHorizonBillingCompatibilityVersion)" Bind="false" />
+    <AndroidMavenLibrary Include="com.meta.horizon.platform.sdk:core-kotlin" Version="$(MauiHorizonPlatformKotlinVersion)" Bind="false" />
+    <AndroidMavenLibrary Include="com.meta.horizon.platform.sdk:user-age-category-kotlin" Version="$(MauiHorizonPlatformKotlinVersion)" Bind="false" />
+    <AndroidMavenLibrary Include="com.meta.horizon.platform.sdk:iap-kotlin" Version="$(MauiHorizonPlatformKotlinVersion)" Bind="false" />
+    <PackageReference Include="Xamarin.KotlinX.Serialization.Json" Version="$(MauiHorizonSerializationNuGetVersion)" />
+    <PackageReference Include="Xamarin.KotlinX.Serialization.Json.Jvm" Version="$(MauiHorizonSerializationNuGetVersion)" />
   </ItemGroup>
 
   <!-- AndroidX (Activity, Core, Annotation, Fragment, Collection, etc.) come

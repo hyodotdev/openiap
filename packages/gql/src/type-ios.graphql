@@ -224,6 +224,7 @@ type PurchaseIOS implements PurchaseCommon {
   id: ID!
   productId: String!
   ids: [String!]
+  """Unix timestamp in milliseconds since January 1, 1970 UTC."""
   transactionDate: Float!
   purchaseToken: String
   """

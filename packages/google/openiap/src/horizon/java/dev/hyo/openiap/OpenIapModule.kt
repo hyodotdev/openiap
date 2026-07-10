@@ -2,6 +2,7 @@ package dev.hyo.openiap
 
 import android.app.Activity
 import android.content.Context
+import android.os.Bundle
 import com.meta.horizon.billingclient.api.AcknowledgePurchaseParams
 import com.meta.horizon.billingclient.api.AlternativeBillingOnlyInformationDialogListener
 import com.meta.horizon.billingclient.api.AlternativeBillingOnlyReportingDetails
@@ -52,6 +53,18 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 private const val TAG = "OpenIapModule"
+private const val HORIZON_APP_ID_META_DATA = "com.meta.horizon.platform.HORIZON_APP_ID"
+private val LEGACY_HORIZON_APP_ID_META_DATA = listOf(
+    "com.meta.horizon.platform.ovr.OCULUS_APP_ID",
+    "com.meta.horizon.platform.ovr.HORIZON_APP_ID",
+    "com.oculus.vr.APP_ID"
+)
+
+internal fun resolveHorizonAppId(metaData: Bundle?): String? =
+    (listOf(HORIZON_APP_ID_META_DATA) + LEGACY_HORIZON_APP_ID_META_DATA)
+        .firstNotNullOfOrNull { key ->
+            metaData?.getString(key)?.takeIf { it.isNotBlank() }
+        }
 
 /**
  * OpenIapModule for Meta Horizon Billing
@@ -60,8 +73,9 @@ private const val TAG = "OpenIapModule"
  * @param alternativeBillingMode Alternative billing mode (default: NONE)
  * @param userChoiceBillingListener Listener for user choice billing selection (optional)
  *
- * Note: Oculus App ID is read from AndroidManifest.xml meta-data with key "com.oculus.vr.APP_ID"
- * or "com.meta.horizon.platform.ovr.OCULUS_APP_ID".
+ * The Horizon App ID is read from AndroidManifest.xml meta-data. New apps should
+ * use "com.meta.horizon.platform.HORIZON_APP_ID"; legacy keys remain readable
+ * for migration compatibility.
  */
 class OpenIapModule(
     private val context: Context,
@@ -79,20 +93,18 @@ class OpenIapModule(
         private const val PURCHASE_QUERY_DELAY_MS = 500L
     }
 
-    // Read Oculus App ID from AndroidManifest.xml.
+    // Read the canonical Horizon 2.x key first, then migration-only legacy keys.
     private val appId: String? by lazy {
         try {
             val appInfo = context.packageManager.getApplicationInfo(
                 context.packageName,
                 android.content.pm.PackageManager.GET_META_DATA
             )
-            val metaData = appInfo.metaData
-            val id = metaData?.getString("com.oculus.vr.APP_ID")
-                ?: metaData?.getString("com.meta.horizon.platform.ovr.OCULUS_APP_ID")
-            OpenIapLog.d("Read Oculus App ID from manifest: $id", TAG)
+            val id = resolveHorizonAppId(appInfo.metaData)
+            OpenIapLog.d("Read Horizon App ID from manifest: $id", TAG)
             id
         } catch (e: Exception) {
-            OpenIapLog.w("Failed to read Oculus App ID from AndroidManifest.xml: ${e.message}", TAG)
+            OpenIapLog.w("Failed to read Horizon App ID from AndroidManifest.xml: ${e.message}", TAG)
             null
         }
     }
@@ -799,7 +811,8 @@ class OpenIapModule(
         },
         launchExternalLinkAndroid = { params ->
             val activity = currentActivityRef?.get() ?: fallbackActivity
-            if (activity == null) false else launchExternalLink(activity, params)
+                ?: throw OpenIapError.MissingCurrentActivity
+            launchExternalLink(activity, params)
         },
         requestPurchase = requestPurchase,
         restorePurchases = restorePurchases,
@@ -809,25 +822,13 @@ class OpenIapModule(
         },
         showBillingProgramInformationDialogAndroid = { params ->
             val activity = currentActivityRef?.get() ?: fallbackActivity
-            if (activity == null) {
-                BillingResultAndroid(
-                    responseCode = 5,
-                    debugMessage = "Missing current activity"
-                )
-            } else {
-                showBillingProgramInformationDialog(activity, params)
-            }
+                ?: throw OpenIapError.MissingCurrentActivity
+            showBillingProgramInformationDialog(activity, params)
         },
         showInAppMessagesAndroid = { params ->
             val activity = currentActivityRef?.get() ?: fallbackActivity
-            if (activity == null) {
-                InAppMessageResultAndroid(
-                    responseCode = InAppMessageResponseCodeAndroid.NoActionNeeded,
-                    purchaseToken = null
-                )
-            } else {
-                showInAppMessages(activity, params)
-            }
+                ?: throw OpenIapError.MissingCurrentActivity
+            showInAppMessages(activity, params)
         },
         validateReceipt = validateReceipt,
         verifyPurchase = verifyPurchase,
@@ -1141,7 +1142,7 @@ class OpenIapModule(
     }
 
     override fun setDeveloperProvidedBillingListener(listener: dev.hyo.openiap.listener.DeveloperProvidedBillingListener?) {
-        // No-op: External Payments is a Google Play 8.3.0+ feature, not supported on Meta Horizon
+        // No-op: developer-provided billing programs are Google Play-only.
         OpenIapLog.w("setDeveloperProvidedBillingListener is not supported on Meta Horizon (no-op)", TAG)
     }
 
@@ -1156,12 +1157,12 @@ class OpenIapModule(
     }
 
     override fun addDeveloperProvidedBillingListener(listener: OpenIapDeveloperProvidedBillingListener) {
-        // No-op: External Payments is a Google Play 8.3.0+ feature, not supported on Meta Horizon
+        // No-op: developer-provided billing programs are Google Play-only.
         OpenIapLog.w("addDeveloperProvidedBillingListener is not supported on Meta Horizon (no-op)", TAG)
     }
 
     override fun removeDeveloperProvidedBillingListener(listener: OpenIapDeveloperProvidedBillingListener) {
-        // No-op: External Payments is a Google Play 8.3.0+ feature, not supported on Meta Horizon
+        // No-op: developer-provided billing programs are Google Play-only.
         OpenIapLog.w("removeDeveloperProvidedBillingListener is not supported on Meta Horizon (no-op)", TAG)
     }
 
@@ -1177,7 +1178,7 @@ class OpenIapModule(
         OpenIapLog.w("removeSubscriptionBillingIssueListener is not supported on Meta Horizon (no-op)", TAG)
     }
 
-    // Billing Programs (8.2.0+, EXTERNAL_PAYMENTS 8.3.0+) - Not supported on Horizon
+    // Google Play billing programs are not supported on Horizon.
     override suspend fun isBillingProgramAvailable(program: BillingProgramAndroid): BillingProgramAvailabilityResultAndroid {
         // No-op: Billing Programs is a Google Play 8.2.0+ feature, not supported on Meta Horizon
         OpenIapLog.w("isBillingProgramAvailable is not supported on Meta Horizon (no-op)", TAG)
@@ -1191,11 +1192,9 @@ class OpenIapModule(
         program: BillingProgramAndroid,
         developerBillingType: DeveloperBillingTypeAndroid?
     ): BillingProgramReportingDetailsAndroid {
-        // No-op: Billing Programs is a Google Play 8.2.0+ feature, not supported on Meta Horizon
-        OpenIapLog.w("createBillingProgramReportingDetails is not supported on Meta Horizon (no-op)", TAG)
-        return BillingProgramReportingDetailsAndroid(
-            billingProgram = program,
-            externalTransactionToken = ""
+        OpenIapLog.w("createBillingProgramReportingDetails is not supported on Meta Horizon", TAG)
+        throw OpenIapError.FeatureNotSupported(
+            "Meta Horizon does not support Google Play Billing Program reporting details"
         )
     }
 

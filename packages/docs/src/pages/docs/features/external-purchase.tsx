@@ -1419,7 +1419,7 @@ func _ready() -> void:
     await iap.init_connection(config)
 
     # Set user choice billing listener (for alternative billing selection)
-    iap.user_choice_billing.connect(_on_user_choice_billing)
+    iap.user_choice_billing_android.connect(_on_user_choice_billing)
     iap.purchase_updated.connect(_on_purchase_updated)
 
 func _on_user_choice_billing(details: UserChoiceBillingDetails) -> void:
@@ -1457,7 +1457,7 @@ func handle_user_choice_purchase(product_id: String) -> void:
     await iap.request_purchase(props)
 
     # If user selects Google Play -> purchase_updated signal
-    # If user selects alternative -> user_choice_billing signal`}</CodeBlock>
+    # If user selects alternative -> user_choice_billing_android signal`}</CodeBlock>
                     ),
                   }}
                 </LanguageTabs>
@@ -2404,10 +2404,10 @@ func _ready() -> void:
     await iap.init_connection(null)
 
     # Step 1: Set up listener for when user selects developer billing
-    iap.developer_provided_billing.connect(_on_developer_provided_billing)
+    iap.developer_provided_billing_android.connect(_on_developer_provided_billing)
     iap.purchase_updated.connect(_on_purchase_updated)
 
-func _on_developer_provided_billing(details: DeveloperProvidedBillingDetails) -> void:
+func _on_developer_provided_billing(details: DeveloperProvidedBillingDetailsAndroid) -> void:
     print("User selected developer billing")
     print("External transaction token received; send it to your backend without logging it.")
 
@@ -2454,7 +2454,7 @@ func handle_purchase_with_external_payments(product_id: String) -> void:
     await iap.request_purchase(props)
 
     # If user selects Google Play -> purchase_updated signal
-    # If user selects developer billing -> developer_provided_billing signal`}</CodeBlock>
+    # If user selects developer billing -> developer_provided_billing_android signal`}</CodeBlock>
                     ),
                   }}
                 </LanguageTabs>

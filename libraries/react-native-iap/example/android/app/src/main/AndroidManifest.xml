@@ -13,7 +13,7 @@
 
       <!-- Horizon OS (Meta Quest) Configuration -->
       <!-- <meta-data
-        android:name="com.meta.horizon.platform.ovr.OCULUS_APP_ID"
+        android:name="com.meta.horizon.platform.HORIZON_APP_ID"
         android:value="31705015229097839" /> -->
 
       <activity

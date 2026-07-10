@@ -307,9 +307,10 @@ export const createAlternativeBillingTokenAndroid: MutationField<
 
 /**
  * Check if a specific billing program is available for this user/device (Android only).
- * Available in Google Play Billing Library 8.2.0+.
+ * Available in Google Play Billing Library 8.2.0+. Billing Choice availability
+ * details, including the configured renderer and external-link support, require 9.1.0+.
  *
- * @param program - The billing program to check ('external-offer' or 'external-content-link')
+ * @param program - The billing program to check
  * @returns Promise resolving to availability result
  *
  * @example
@@ -352,7 +353,8 @@ export const getBillingChoiceInfoAndroid: QueryField<
 
 /**
  * Launch an external link for the specified billing program (Android only).
- * Available in Google Play Billing Library 8.2.0+.
+ * Available in Google Play Billing Library 8.2.0+; developer-rendered Billing
+ * Choice external-link flows require 9.1.0+ and `externalTransactionToken`.
  *
  * @param params - The external link parameters
  * @returns Promise resolving to true if the link was launched successfully
@@ -360,7 +362,8 @@ export const getBillingChoiceInfoAndroid: QueryField<
  * @example
  * ```typescript
  * await launchExternalLinkAndroid({
- *   billingProgram: 'external-offer',
+ *   billingProgram: 'billing-choice',
+ *   externalTransactionToken: 'pre-generated-token',
  *   launchMode: 'launch-in-external-browser-or-app',
  *   linkType: 'link-to-digital-content-offer',
  *   linkUri: 'https://your-payment-site.com',
@@ -425,7 +428,8 @@ export function createBillingProgramReportingDetailsAndroid(
 }
 
 /**
- * Show Google's information dialog for a Billing Choice external transaction.
+ * Show Google's mandatory information dialog before a developer-rendered,
+ * in-app Billing Choice screen.
  * Available in Google Play Billing Library 9.1.0+.
  *
  * @param params - Dialog parameters with the external transaction token

@@ -291,8 +291,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   Stream<gentype.UserChoiceBillingDetails> get userChoiceBillingAndroid =>
       _userChoiceBillingAndroidListener.stream;
 
-  /// Developer provided billing Android event stream (8.3.0+)
-  /// Fires when user selects developer-provided billing option in external payments flow.
+  /// Developer provided billing Android event stream (8.3.0+).
+  /// Fires for External Payments and Google-rendered Billing Choice selections.
   Stream<gentype.DeveloperProvidedBillingDetailsAndroid>
       get developerProvidedBillingAndroid =>
           _developerProvidedBillingAndroidListener.stream;
@@ -465,6 +465,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// See: https://openiap.dev/docs/apis/init-connection
   gentype.MutationInitConnectionHandler get initConnection => ({
         gentype.AlternativeBillingModeAndroid? alternativeBillingModeAndroid,
+        gentype.BillingChoiceScreenTypeAndroid? billingChoiceScreenTypeAndroid,
         gentype.BillingProgramAndroid? enableBillingProgramAndroid,
       }) async {
         if (_isInitialized) {
@@ -477,6 +478,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           // Build config map for alternative billing and billing program
           Map<String, dynamic>? config;
           if (alternativeBillingModeAndroid != null ||
+              billingChoiceScreenTypeAndroid != null ||
               enableBillingProgramAndroid != null) {
             config = {};
             if (alternativeBillingModeAndroid != null) {
@@ -486,6 +488,10 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             if (enableBillingProgramAndroid != null) {
               config['enableBillingProgramAndroid'] =
                   enableBillingProgramAndroid.toJson();
+            }
+            if (billingChoiceScreenTypeAndroid != null) {
+              config['billingChoiceScreenTypeAndroid'] =
+                  billingChoiceScreenTypeAndroid.toJson();
             }
           }
 
@@ -657,6 +663,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             final String? obfuscatedAccount;
             final String? obfuscatedProfile;
             final String? purchaseToken;
+            final String? originalExternalTransactionId;
             final int? replacementMode;
             final String? offerToken;
             final List<gentype.AndroidSubscriptionOfferInput>?
@@ -672,6 +679,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               obfuscatedAccount = androidProps.obfuscatedAccountId;
               obfuscatedProfile = androidProps.obfuscatedProfileId;
               purchaseToken = null;
+              originalExternalTransactionId = null;
               replacementMode = null;
               offerToken = androidProps.offerToken;
               subscriptionOffers = null;
@@ -684,6 +692,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               obfuscatedAccount = androidProps.obfuscatedAccountId;
               obfuscatedProfile = androidProps.obfuscatedProfileId;
               purchaseToken = androidProps.purchaseToken;
+              originalExternalTransactionId =
+                  androidProps.originalExternalTransactionId;
               replacementMode = androidProps.replacementMode;
               offerToken = null; // Subscriptions don't use offerToken
               subscriptionOffers = androidProps.subscriptionOffers;
@@ -724,6 +734,11 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               payload['purchaseToken'] = purchaseToken;
             }
 
+            if (originalExternalTransactionId != null) {
+              payload['originalExternalTransactionId'] =
+                  originalExternalTransactionId;
+            }
+
             if (replacementMode != null) {
               payload['replacementMode'] = replacementMode;
             }
@@ -744,7 +759,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                 json['useAlternativeBilling'] as bool?;
             payload['useAlternativeBilling'] = useAlternativeBilling;
 
-            // Add developerBillingOption for External Payments (8.3.0+)
+            // Add developerBillingOption for External Payments (8.3.0+) or Billing Choice (9.1.0+)
             if (developerBillingOption != null) {
               payload['developerBillingOption'] =
                   developerBillingOption.toJson();
@@ -2608,7 +2623,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
     }
   }
 
-  /// Show Google's information dialog for a Billing Choice external transaction (Play Billing 9.1.0+).
+  /// Show Google's mandatory information dialog before a developer-rendered,
+  /// in-app Billing Choice screen (Play Billing 9.1.0+).
   ///
   /// See: https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android
   Future<gentype.BillingResultAndroid>
@@ -2687,6 +2703,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
       final result =
           await _channel.invokeMethod<bool>('launchExternalLinkAndroid', {
         'billingProgram': params.billingProgram.toJson(),
+        'externalTransactionToken': params.externalTransactionToken,
         'launchMode': params.launchMode.toJson(),
         'linkType': params.linkType.toJson(),
         'linkUri': params.linkUri,
@@ -2933,10 +2950,12 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             required gentype.ExternalLinkLaunchModeAndroid launchMode,
             required gentype.ExternalLinkTypeAndroid linkType,
             required String linkUri,
+            String? externalTransactionToken,
           }) =>
               launchExternalLinkAndroid(
                 gentype.LaunchExternalLinkParamsAndroid(
                   billingProgram: billingProgram,
+                  externalTransactionToken: externalTransactionToken,
                   launchMode: launchMode,
                   linkType: linkType,
                   linkUri: linkUri,

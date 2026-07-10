@@ -355,6 +355,28 @@ describe('Android Module Functions', () => {
         });
       });
 
+      it('forwards the Billing Choice external transaction token', async () => {
+        (
+          ExpoIapModule.launchExternalLinkAndroid as jest.Mock
+        ).mockResolvedValue(undefined);
+
+        await launchExternalLinkAndroid({
+          billingProgram: 'billing-choice',
+          externalTransactionToken: 'pre-generated-token',
+          launchMode: 'caller-will-launch-link',
+          linkType: 'link-to-digital-content-offer',
+          linkUri: 'https://example.com/checkout',
+        });
+
+        expect(ExpoIapModule.launchExternalLinkAndroid).toHaveBeenCalledWith({
+          billingProgram: 'billing-choice',
+          externalTransactionToken: 'pre-generated-token',
+          launchMode: 'caller-will-launch-link',
+          linkType: 'link-to-digital-content-offer',
+          linkUri: 'https://example.com/checkout',
+        });
+      });
+
       it('propagates errors from native module', async () => {
         const error = new Error('Activity not available');
         (
@@ -480,7 +502,11 @@ describe('Android Module Functions', () => {
 
     describe('showBillingProgramInformationDialogAndroid', () => {
       it('applies Billing Choice default program', async () => {
-        const mockResult = {responseCode: 0, debugMessage: null};
+        const mockResult = {
+          responseCode: 0,
+          debugMessage: null,
+          subResponseCode: 'no-applicable-sub-response-code',
+        };
         (
           ExpoIapModule.showBillingProgramInformationDialogAndroid as jest.Mock
         ).mockResolvedValue(mockResult);

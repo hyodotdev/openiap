@@ -178,6 +178,15 @@ function KitBackend() {
           below call it directly.
         </p>
         <p>
+          A verification result and the IAPKit Purchases row are snapshots of
+          the store response at verification time. On Android, a valid new
+          purchase may first return <code>pending-acknowledgment</code>. Call{' '}
+          <code>finishTransaction</code>, then verify the same token again when
+          the purchase log must reflect <code>entitled</code>. Use subscription
+          status, entitlements, and store webhooks for current lifecycle state;
+          purchase snapshots otherwise change only when they are verified again.
+        </p>
+        <p>
           For Fire OS and Vega OS, choose the Amazon branch and pass the Amazon
           receipt ID. The SDK resolves the Amazon user ID from the runtime when
           available. Set <code>sandbox: true</code> when validating Amazon App

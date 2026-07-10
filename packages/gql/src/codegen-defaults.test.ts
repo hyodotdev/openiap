@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { CSharpPlugin } from "../codegen/plugins/csharp";
+import { GDScriptPlugin } from "../codegen/plugins/gdscript";
 import { KotlinPlugin } from "../codegen/plugins/kotlin";
-import type { IRField, IRSchema, IRType } from "../codegen/core/types";
+import type { IREnum, IRField, IRSchema, IRType } from "../codegen/core/types";
 
 const stringType: IRType = { kind: "scalar", name: "String", nullable: false };
 const floatType: IRType = { kind: "scalar", name: "Float", nullable: false };
@@ -15,9 +16,9 @@ function field(name: string, type: IRType, defaultValue?: unknown): IRField {
   };
 }
 
-function schema(fields: IRField[]): IRSchema {
+function schema(fields: IRField[], enums: IREnum[] = []): IRSchema {
   return {
-    enums: [],
+    enums,
     interfaces: [],
     objects: [],
     inputs: [
@@ -71,5 +72,49 @@ describe("codegen defaults", () => {
 
     expect(output).toContain("val wholeWeight: Double = 0.0");
     expect(output).toContain("val fractionalWeight: Double = 1.5,");
+  });
+
+  it("emits GraphQL enum defaults as GDScript field initializers", () => {
+    const rendererEnum: IREnum = {
+      name: "Renderer",
+      isErrorCode: false,
+      values: [
+        {
+          name: "UNSPECIFIED",
+          rawValue: "unspecified",
+          legacyAliases: [],
+        },
+        {
+          name: "GOOGLE_RENDERED",
+          rawValue: "google-rendered",
+          legacyAliases: [],
+        },
+      ],
+    };
+    const rendererType: IRType = {
+      kind: "enum",
+      name: "Renderer",
+      nullable: true,
+    };
+    const output = new GDScriptPlugin({ outputPath: "types.gd" }).generate(
+      schema(
+        [field("renderer", rendererType, "GOOGLE_RENDERED")],
+        [rendererEnum],
+      ),
+    );
+
+    expect(output).toContain(
+      "var renderer: Renderer = Renderer.GOOGLE_RENDERED",
+    );
+
+    const csharpOutput = new CSharpPlugin({ outputPath: "Types.cs" }).generate(
+      schema(
+        [field("renderer", rendererType, "GOOGLE_RENDERED")],
+        [rendererEnum],
+      ),
+    );
+    expect(csharpOutput).toContain(
+      "public Renderer? Renderer { get; init; } = global::OpenIap.Renderer.GoogleRendered;",
+    );
   });
 });

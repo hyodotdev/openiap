@@ -54,7 +54,8 @@ const getSubscriptionTier = (productId: string): number => {
 function isSubscriptionFlowProduct(productId: string): boolean {
   return SUBSCRIPTION_PRODUCT_IDS.some(
     (subscriptionId) =>
-      productId === subscriptionId || productId.startsWith(`${subscriptionId}.`),
+      productId === subscriptionId ||
+      productId.startsWith(`${subscriptionId}.`),
   );
 }
 
@@ -1620,9 +1621,9 @@ function SubscriptionFlowContainer() {
       const normalizedPurchaseStore = purchaseStore?.toLowerCase() ?? '';
       const hasAndroidPurchaseIdentity = Boolean(
         purchase.purchaseToken ||
-          purchase.id ||
-          purchase.transactionId ||
-          purchase.productId,
+        purchase.id ||
+        purchase.transactionId ||
+        purchase.productId,
       );
 
       if (Platform.OS === 'ios' && purchasePlatform === 'ios') {
@@ -1672,7 +1673,10 @@ function SubscriptionFlowContainer() {
         console.log('Android Purchase Analysis:');
         console.log('  platform:', purchasePlatform || Platform.OS);
         console.log('  store:', normalizedPurchaseStore || 'unknown');
-        console.log('  hasAndroidPurchaseIdentity:', hasAndroidPurchaseIdentity);
+        console.log(
+          '  hasAndroidPurchaseIdentity:',
+          hasAndroidPurchaseIdentity,
+        );
         console.log('  isPurchased:', isPurchased);
         console.log('  isRestoration:', isRestoration);
       }
@@ -1701,9 +1705,7 @@ function SubscriptionFlowContainer() {
         console.log(
           '[SubscriptionFlow] This is a restoration, skipping verification',
         );
-        setPurchaseResult(
-          'Subscription restored; finishing transaction...',
-        );
+        setPurchaseResult('Subscription restored; finishing transaction...');
 
         // Step 6: finish transaction (restoration)
         const finishCleanupKey = getPurchaseCleanupKey(purchase);
@@ -1754,6 +1756,7 @@ function SubscriptionFlowContainer() {
       //   Android: Google Play Developer API + RTDN
       // ------------------------------------------------------------
       const currentVerificationMethod = verificationMethodRef.current;
+      let iapkitVerifyRequest: VerifyPurchaseWithProviderProps | null = null;
       console.log('[SubscriptionFlow] About to verify purchase:', {
         verificationMethod: currentVerificationMethod,
         productId,
@@ -1809,6 +1812,7 @@ function SubscriptionFlowContainer() {
               provider: 'iapkit',
               iapkit: iapkitPayload,
             };
+            iapkitVerifyRequest = verifyRequest;
             const iapkitLogPayload = {
               ...iapkitPayload,
               ...(iapkitPayload.apiKey ? {apiKey: '***hidden***'} : {}),
@@ -1817,12 +1821,12 @@ function SubscriptionFlowContainer() {
             console.log(
               '[SubscriptionFlow] Sending IAPKit verification request:',
               JSON.stringify(
-                  {
-                    provider: verifyRequest.provider,
-                    iapkit: iapkitLogPayload,
-                  },
-                  null,
-                  2,
+                {
+                  provider: verifyRequest.provider,
+                  iapkit: iapkitLogPayload,
+                },
+                null,
+                2,
               ),
             );
 
@@ -1883,6 +1887,21 @@ function SubscriptionFlowContainer() {
       }
 
       if (didFinishTransaction) {
+        if (Platform.OS === 'android' && iapkitVerifyRequest) {
+          try {
+            const refreshedResult =
+              await verifyPurchaseWithProvider(iapkitVerifyRequest);
+            console.log(
+              '[SubscriptionFlow] IAPKit state after finishTransaction:',
+              refreshedResult,
+            );
+          } catch (error) {
+            console.log(
+              '[SubscriptionFlow] IAPKit post-finish verification failed:',
+              error,
+            );
+          }
+        }
         showNativeAlert('Success', 'New subscription activated successfully!');
         console.log('✅ New subscription purchase completed');
       }

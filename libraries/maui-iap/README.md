@@ -141,6 +141,24 @@ For .NET 10 apps, use the matching `net10.0-android`, `net10.0-ios`, and
 VS Code launch configurations are in `libraries/maui-iap/.vscode/launch.json`.
 The Android launcher builds both AARs before compiling the example app.
 
+### Android store variants
+
+Source builds can select Amazon Appstore or Meta Horizon instead of Google
+Play. Build the matching native facade immediately before the .NET build:
+
+```bash
+cd libraries/maui-iap/android
+../../../packages/google/gradlew :openiap:assembleRelease -PopenIapAndroidStore=amazon
+cd ..
+dotnet build example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj \
+  -f net9.0-android \
+  -p:OpenIapAndroidStore=amazon
+```
+
+Use `horizon` for Meta Horizon and `play` for Google Play. MAUI keeps each
+store's intermediate and output directories separate, preventing a prior
+store build from leaking its AAR or manifest into the next variant.
+
 ## What's generated vs. hand-written
 
 - **Generated:** [`src/OpenIap.Maui/Types.cs`](src/OpenIap.Maui/Types.cs) is

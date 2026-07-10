@@ -4,6 +4,15 @@ import SubscriptionFlow from '../../screens/SubscriptionFlow';
 import * as RNIap from 'react-native-iap';
 import {SUBSCRIPTION_PRODUCT_IDS} from '../../src/utils/constants';
 
+jest.mock(
+  '@env',
+  () => ({
+    IAPKIT_API_KEY: 'test-api-key',
+    IAPKIT_BASE_URL: '',
+  }),
+  {virtual: true},
+);
+
 const requestPurchaseMock = RNIap.requestPurchase as jest.Mock;
 const deepLinkToSubscriptionsMock = RNIap.deepLinkToSubscriptions as jest.Mock;
 
@@ -33,7 +42,7 @@ describe('SubscriptionFlow Screen', () => {
     const getActiveSubscriptions = jest.fn(() => Promise.resolve([]));
     const finishTransaction = jest.fn(() => Promise.resolve());
     const verifyPurchase = jest.fn(() => Promise.resolve({}));
-    const verifyPurchaseWithProvider = jest.fn(() =>
+    const verifyPurchaseWithProvider = jest.fn((_request: unknown) =>
       Promise.resolve({
         iapkit: {
           isValid: true,
@@ -187,6 +196,35 @@ describe('SubscriptionFlow Screen', () => {
     expect(alertSpy).toHaveBeenCalledWith(
       'Success',
       'Purchase completed successfully!',
+    );
+  });
+
+  it('re-verifies the Android IAPKit snapshot after finishing', async () => {
+    Platform.OS = 'android';
+    const {finishTransaction, verifyPurchaseWithProvider} = mockIapState();
+
+    render(<SubscriptionFlow />);
+
+    await act(async () => {
+      await onPurchaseSuccess?.({
+        id: 'transaction-android-1',
+        platform: 'android',
+        productId: 'dev.hyo.martie.premium',
+        purchaseToken: 'android-token',
+        transactionDate: Date.now(),
+      });
+    });
+
+    expect(finishTransaction).toHaveBeenCalledTimes(1);
+    expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(2);
+    expect(verifyPurchaseWithProvider.mock.calls[1]?.[0]).toEqual(
+      verifyPurchaseWithProvider.mock.calls[0]?.[0],
+    );
+    expect(verifyPurchaseWithProvider.mock.invocationCallOrder[0]).toBeLessThan(
+      finishTransaction.mock.invocationCallOrder[0]!,
+    );
+    expect(finishTransaction.mock.invocationCallOrder[0]).toBeLessThan(
+      verifyPurchaseWithProvider.mock.invocationCallOrder[1]!,
     );
   });
 

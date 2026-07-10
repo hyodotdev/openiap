@@ -68,6 +68,7 @@ const mockIap: any = {
   showBillingProgramInformationDialogAndroid: jest.fn(async () => ({
     responseCode: 0,
     debugMessage: null,
+    subResponseCode: 'no-applicable-sub-response-code',
   })),
   showInAppMessagesAndroid: jest.fn(async () => ({
     responseCode: 'no-action-needed',
@@ -411,6 +412,18 @@ describe('Public API (src/index.ts)', () => {
       await expect(IAP.endConnection()).resolves.toBe(true);
       expect(mockIap.initConnection).toHaveBeenCalled();
       expect(mockIap.endConnection).toHaveBeenCalled();
+    });
+
+    it('passes developer-rendered Billing Choice config to native', async () => {
+      (Platform as any).OS = 'android';
+      const config = {
+        billingChoiceScreenTypeAndroid: 'developer-rendered',
+        enableBillingProgramAndroid: 'billing-choice',
+      } as const;
+
+      await IAP.initConnection(config);
+
+      expect(mockIap.initConnection).toHaveBeenCalledWith(config);
     });
 
     it('listeners work after endConnection → initConnection reconnection', async () => {
@@ -758,6 +771,56 @@ describe('Public API (src/index.ts)', () => {
       expect(
         lastCallArgs.android.subscriptionProductReplacementParams,
       ).toBeUndefined();
+    });
+
+    it('Android forwards minimal in-app Billing Choice options', async () => {
+      (Platform as any).OS = 'android';
+      await IAP.requestPurchase({
+        request: {
+          google: {
+            skus: ['premium'],
+            developerBillingOption: {
+              billingProgram: 'billing-choice',
+            },
+          },
+        },
+        type: 'in-app',
+      });
+
+      const [lastCallArgs] = mockIap.requestPurchase.mock.lastCall;
+      expect(lastCallArgs.android.developerBillingOption).toEqual({
+        billingProgram: 'billing-choice',
+      });
+    });
+
+    it('Android forwards Billing Choice subscription replacement fields', async () => {
+      (Platform as any).OS = 'android';
+      await IAP.requestPurchase({
+        request: {
+          google: {
+            skus: ['premium_monthly'],
+            originalExternalTransactionId: 'original-external-id',
+            developerBillingOption: {
+              billingProgram: 'billing-choice',
+              externalTransactionToken: 'pre-generated-token',
+              launchMode: 'caller-will-launch-link',
+              linkUri: 'https://example.com/checkout',
+            },
+          },
+        },
+        type: 'subs',
+      });
+
+      const [lastCallArgs] = mockIap.requestPurchase.mock.lastCall;
+      expect(lastCallArgs.android.originalExternalTransactionId).toBe(
+        'original-external-id',
+      );
+      expect(lastCallArgs.android.developerBillingOption).toEqual({
+        billingProgram: 'billing-choice',
+        externalTransactionToken: 'pre-generated-token',
+        launchMode: 'caller-will-launch-link',
+        linkUri: 'https://example.com/checkout',
+      });
     });
 
     it('Android subs supports all replacement modes', async () => {
@@ -2305,6 +2368,9 @@ describe('Public API (src/index.ts)', () => {
           externalTransactionToken: 'choice-token-123',
         });
         expect(result.responseCode).toBe(0);
+        expect(result.subResponseCode).toBe(
+          'no-applicable-sub-response-code',
+        );
       });
 
       it('should throw on non-Android', async () => {
@@ -2363,6 +2429,19 @@ describe('Public API (src/index.ts)', () => {
           linkUri: 'https://example.com/purchase',
         });
         expect(result).toBe(true);
+      });
+
+      it('forwards Billing Choice external transaction token', async () => {
+        (Platform as any).OS = 'android';
+        const params = {
+          ...defaultParams,
+          billingProgram: 'billing-choice' as const,
+          externalTransactionToken: 'external-token',
+        };
+
+        await IAP.launchExternalLinkAndroid(params);
+
+        expect(mockIap.launchExternalLinkAndroid).toHaveBeenCalledWith(params);
       });
 
       it('should return false when user declines', async () => {

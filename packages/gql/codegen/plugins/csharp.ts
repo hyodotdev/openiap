@@ -446,7 +446,7 @@ export class CSharpPlugin extends CodegenPlugin {
       return `new List<${itemType}> { ${items.join(', ')} }`;
     }
     if (type.kind === 'enum' && typeof defaultValue === 'string') {
-      return `${type.name}.${this.enumValueCase(defaultValue)}`;
+      return `global::${NAMESPACE}.${type.name}.${this.enumValueCase(defaultValue)}`;
     }
     if (type.kind === 'scalar') {
       if (typeof defaultValue === 'string') return this.csharpStringLiteral(defaultValue);

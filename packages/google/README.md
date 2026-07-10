@@ -14,7 +14,7 @@
 [![CI](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml/badge.svg)](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-Modern Android Kotlin library for in-app purchases using Google Play Billing Library v9.
+Modern Android Kotlin library for in-app purchases using Google Play Billing Library v9.1.
 
 ## Documentation
 
@@ -22,7 +22,7 @@ Visit [**openiap.dev**](https://openiap.dev) for complete documentation, API ref
 
 ## Features
 
-- Google Play Billing v9
+- Google Play Billing v9.1
 - Kotlin Coroutines
 - Type-safe API with sealed classes
 - Real-time purchase events

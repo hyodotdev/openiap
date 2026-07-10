@@ -87,7 +87,7 @@ export const LIBRARIES: LibraryInfo[] = [
     languagesDescription:
       'Bare React Native implementation of OpenIAP specification (Nitro Modules)',
     setupDescription:
-      'Bare React Native CLI projects (RN 0.79+). Built on Nitro Modules with the `useIAP` hook, error normalization, and full StoreKit 2 / Play Billing 8 coverage.',
+      'Bare React Native CLI projects (RN 0.79+). Built on Nitro Modules with the `useIAP` hook, error normalization, and full StoreKit 2 / Play Billing 9.1 coverage.',
     installCommand: REACT_NATIVE_PACKAGE.installCommand,
     documentationUrl: 'https://openiap.dev/docs/setup/react-native',
     url: 'https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap',

@@ -58,7 +58,20 @@ const addLineToGradle = (
 };
 
 const HORIZON_APP_ID_META_DATA_NAME =
-  'com.meta.horizon.platform.ovr.OCULUS_APP_ID';
+  'com.meta.horizon.platform.HORIZON_APP_ID';
+const LEGACY_HORIZON_APP_ID_META_DATA_NAMES = new Set([
+  'com.meta.horizon.platform.ovr.OCULUS_APP_ID',
+  'com.meta.horizon.platform.ovr.HORIZON_APP_ID',
+  'com.oculus.vr.APP_ID',
+]);
+
+const isHorizonAppIdMetaData = (metaData: any): boolean => {
+  const name = metaData?.$?.['android:name'];
+  return (
+    name === HORIZON_APP_ID_META_DATA_NAME ||
+    LEGACY_HORIZON_APP_ID_META_DATA_NAMES.has(name)
+  );
+};
 
 type AndroidManifestLike = {
   manifest: {
@@ -147,7 +160,7 @@ export function syncHorizonAppIdMetaData(
     if (!Array.isArray(existingMetaData)) return 'unchanged';
 
     const nextMetaData = existingMetaData.filter(
-      (m) => m.$?.['android:name'] !== HORIZON_APP_ID_META_DATA_NAME,
+      (metaData) => !isHorizonAppIdMetaData(metaData),
     );
     if (nextMetaData.length === existingMetaData.length || !application) {
       return 'unchanged';
@@ -179,17 +192,12 @@ export function syncHorizonAppIdMetaData(
     },
   };
 
-  const existingIndex = metaData.findIndex(
-    (m: any) => m.$?.['android:name'] === HORIZON_APP_ID_META_DATA_NAME,
+  const hadExistingAppId = metaData.some(isHorizonAppIdMetaData);
+  horizonApplication['meta-data'] = metaData.filter(
+    (item: any) => !isHorizonAppIdMetaData(item),
   );
-
-  if (existingIndex !== -1) {
-    metaData[existingIndex] = horizonAppIdMeta;
-    return 'updated';
-  }
-
-  metaData.push(horizonAppIdMeta);
-  return 'added';
+  horizonApplication['meta-data'].push(horizonAppIdMeta);
+  return hadExistingAppId ? 'updated' : 'added';
 }
 
 export const modifyAppBuildGradle = (
@@ -238,8 +246,9 @@ export const modifyAppBuildGradle = (
 
   let flavor: 'amazon' | 'horizon' | 'play' = 'play';
   let artifactId:
-    'openiap-google-amazon' | 'openiap-google-horizon' | 'openiap-google' =
-    'openiap-google';
+    | 'openiap-google-amazon'
+    | 'openiap-google-horizon'
+    | 'openiap-google' = 'openiap-google';
   if (isFireOsEnabled) {
     flavor = 'amazon';
     artifactId = 'openiap-google-amazon';
@@ -734,7 +743,8 @@ interface LegacyAmazonPlatformFlagOptions {
 }
 
 type AmazonPlatformFlagInput =
-  AmazonPlatformFlagOptions | LegacyAmazonPlatformFlagOptions;
+  | AmazonPlatformFlagOptions
+  | LegacyAmazonPlatformFlagOptions;
 
 function isEnvFlagEnabled(name: string): boolean {
   return process.env[name] === '1';
@@ -761,7 +771,7 @@ export function resolveAmazonPlatformFlags(
     isEnvFlagEnabled('EXPO_IAP_VEGA');
   const isHorizonEnabled = isFireOsEnabled
     ? false
-    : (options?.modules?.horizon ?? isEnvFlagEnabled('EXPO_IAP_HORIZON'));
+    : options?.modules?.horizon ?? isEnvFlagEnabled('EXPO_IAP_HORIZON');
   const isOnsideEnabled =
     options?.modules?.onside ?? isEnvFlagEnabled('EXPO_IAP_ONSIDE');
 
@@ -803,7 +813,8 @@ export function resolveModuleSelection(
   options?: ExpoIapPluginCommonOptions | void,
 ): ModuleSelectionResult {
   const normalizedOptions = (options ?? undefined) as
-    ExpoIapPluginCommonOptions | undefined;
+    | ExpoIapPluginCommonOptions
+    | undefined;
 
   const selection = normalizedOptions?.module ?? 'auto';
 

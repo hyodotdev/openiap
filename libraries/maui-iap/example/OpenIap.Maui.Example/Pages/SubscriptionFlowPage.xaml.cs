@@ -531,7 +531,7 @@ public partial class SubscriptionFlowPage : ContentPage
             MainThread.BeginInvokeOnMainThread(() =>
             {
                 _isProcessing = false;
-                UpdateResult($"Subscription failed: {ErrorUtils.ExtractErrorMessage(ex)}");
+                UpdateResult(ErrorUtils.FormatPurchaseFailure(ex, "Subscription"));
                 RenderSubscriptions();
             });
         }
@@ -576,7 +576,7 @@ public partial class SubscriptionFlowPage : ContentPage
             {
                 if (!_isProcessing) return;
                 _isProcessing = false;
-                UpdateResult($"Subscription failed: {ErrorUtils.ExtractErrorMessage(ex)}");
+                UpdateResult(ErrorUtils.FormatPurchaseFailure(ex, "Subscription"));
                 RenderSubscriptions();
             });
         }
@@ -748,7 +748,7 @@ public partial class SubscriptionFlowPage : ContentPage
         CancelPurchaseWatchdog();
         _isProcessing = false;
         _isHandlingPurchase = false;
-        UpdateResult($"Subscription failed: {error.Message}");
+        UpdateResult(ErrorUtils.FormatPurchaseFailure(error, "Subscription"));
         RenderSubscriptions();
     }
 

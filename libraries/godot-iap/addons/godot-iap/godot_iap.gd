@@ -203,9 +203,9 @@ func _on_android_subscription_billing_issue(purchase_json: String) -> void:
 
 ## Initialize the store connection. Must be called before any other IAP API.
 ##
-## This wrapper currently takes no arguments — Android billing-program flags
-## (e.g. [code]enable_billing_program_android[/code]) live on the underlying
-## [InitConnectionConfig] but are not yet plumbed through the GDScript API.
+## [param config]: optional [InitConnectionConfig]. On Android, set
+## [code]enable_billing_program_android[/code] to Billing Choice and use
+## [code]billing_choice_screen_type_android[/code] to match Play Console.
 ##
 ## Returns [code]true[/code] once the platform billing client is connected.
 ##
@@ -214,12 +214,16 @@ func _on_android_subscription_billing_issue(purchase_json: String) -> void:
 ## [/codeblock]
 ##
 ## See: https://openiap.dev/docs/apis/init-connection
-func init_connection() -> bool:
+func init_connection(config = null) -> bool:
 	print("[GodotIap] init_connection called")
 	if _native_plugin:
 		if _platform == "Android":
 			print("[GodotIap] Calling Android initConnection...")
-			_is_connected = _native_plugin.call("initConnection")
+			if config != null:
+				var config_dict = config.to_dict() if typeof(config) == TYPE_OBJECT and config.has_method("to_dict") else config
+				_is_connected = _native_plugin.call("initConnectionWithConfig", JSON.stringify(config_dict))
+			else:
+				_is_connected = _native_plugin.call("initConnection")
 			if not _is_connected:
 				print("[GodotIap] ERROR: initConnection failed. Check Google Play Services and billing setup.")
 			else:
@@ -436,16 +440,19 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 		var params = {
 			"type": purchase_type,
 			"skus": google_props.get("skus", []),
-			"obfuscatedAccountIdAndroid": google_props.get("obfuscatedAccountIdAndroid", ""),
-			"obfuscatedProfileIdAndroid": google_props.get("obfuscatedProfileIdAndroid", ""),
+			"obfuscatedAccountId": google_props.get("obfuscatedAccountId", google_props.get("obfuscatedAccountIdAndroid", "")),
+			"obfuscatedProfileId": google_props.get("obfuscatedProfileId", google_props.get("obfuscatedProfileIdAndroid", "")),
 			"isOfferPersonalized": google_props.get("isOfferPersonalized", false),
 			"offerTokenArr": offer_token_arr,
 			"subscriptionOffers": subscription_offers,
-			"purchaseTokenAndroid": google_props.get("purchaseTokenAndroid", ""),
-			"replacementModeAndroid": google_props.get("replacementModeAndroid", 0),
+			"purchaseToken": google_props.get("purchaseToken", google_props.get("purchaseTokenAndroid", "")),
+			"originalExternalTransactionId": google_props.get("originalExternalTransactionId", ""),
+			"replacementMode": google_props.get("replacementMode", google_props.get("replacementModeAndroid", 0)),
+			"subscriptionProductReplacementParams": google_props.get("subscriptionProductReplacementParams", null),
+			"developerBillingOption": google_props.get("developerBillingOption", null),
 		}
 		var params_json = JSON.stringify(params)
-		print("[GodotIap] Calling Android requestPurchase: type=", purchase_type, ", skus=", params["skus"].size(), ", subscriptionOffers=", params["subscriptionOffers"].size(), ", hasPurchaseToken=", not str(params["purchaseTokenAndroid"]).is_empty())
+		print("[GodotIap] Calling Android requestPurchase: type=", purchase_type, ", skus=", params["skus"].size(), ", subscriptionOffers=", params["subscriptionOffers"].size(), ", hasPurchaseToken=", not str(params["purchaseToken"]).is_empty())
 		result_raw = _native_plugin.call("requestPurchaseJson", params_json)
 	elif _platform == "iOS":
 		var apple_props = request.get("apple", request.get("ios", {}))
@@ -1401,7 +1408,8 @@ func create_billing_program_reporting_details_android(billing_program, developer
 	default_result.billing_program = billing_program
 	return default_result
 
-## Show Google's information dialog for a Billing Choice external transaction (Android 9.1.0+).
+## Show Google's mandatory information dialog before a developer-rendered,
+## in-app Billing Choice screen (Android 9.1.0+).
 ## @param params: Types.BillingProgramInformationDialogParamsAndroid
 ## @return Types.BillingResultAndroid
 ##

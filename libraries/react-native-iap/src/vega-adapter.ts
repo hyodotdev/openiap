@@ -21,6 +21,7 @@ const IAPKIT_VERIFY_TIMEOUT_MS = 10_000;
 const MAX_IAPKIT_ERROR_DEPTH = 5;
 const MAX_PRODUCT_DATA_BATCH_SIZE = 100;
 const MAX_PURCHASE_UPDATE_PAGES = 100;
+const NOTIFY_FULFILLMENT_ATTEMPT_TIMEOUT_MS = 2_000;
 const NOTIFY_FULFILLMENT_MAX_ATTEMPTS = 15;
 const NOTIFY_FULFILLMENT_RETRY_DELAY_MS = 1_000;
 const PURCHASE_UPDATES_MAX_ATTEMPTS = 5;
@@ -204,6 +205,26 @@ function responseCodeName(responseCode: unknown): string {
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
+  });
+}
+
+function withTimeout<T>(
+  operation: Promise<T>,
+  timeoutMs: number,
+  timeoutError: Error,
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => reject(timeoutError), timeoutMs);
+    operation.then(
+      (value) => {
+        clearTimeout(timeoutId);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timeoutId);
+        reject(error);
+      },
+    );
   });
 }
 
@@ -860,10 +881,17 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
       attempt <= NOTIFY_FULFILLMENT_MAX_ATTEMPTS;
       attempt += 1
     ) {
-      const response = await service.notifyFulfillment({
-        fulfillmentResult: FULFILLMENT_RESULT_FULFILLED,
-        receiptId: purchaseToken,
-      });
+      const response = await withTimeout(
+        service.notifyFulfillment({
+          fulfillmentResult: FULFILLMENT_RESULT_FULFILLED,
+          receiptId: purchaseToken,
+        }),
+        NOTIFY_FULFILLMENT_ATTEMPT_TIMEOUT_MS,
+        createVegaError(
+          ErrorCode.ServiceTimeout,
+          'Amazon Vega notifyFulfillment timed out.',
+        ),
+      );
       if (isSuccess('notify-fulfillment', response?.responseCode)) {
         return {
           responseCode: 0,
@@ -872,7 +900,6 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
           purchaseToken,
         };
       }
-
       lastResponse = response;
       if (attempt < NOTIFY_FULFILLMENT_MAX_ATTEMPTS) {
         await delay(NOTIFY_FULFILLMENT_RETRY_DELAY_MS);
@@ -909,7 +936,8 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
       const purchaseTimestamp = toTimestamp(receipt.purchaseDate);
       if (
         options?.minPurchaseDateMs != null &&
-        (purchaseTimestamp === 0 || purchaseTimestamp < options.minPurchaseDateMs)
+        (purchaseTimestamp === 0 ||
+          purchaseTimestamp < options.minPurchaseDateMs)
       ) {
         continue;
       }
@@ -1286,11 +1314,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
         if (!response.receipt) return [];
 
         cachedUserData = response.userData ?? cachedUserData;
-        const purchase = mapReceipt(
-          response.receipt,
-          fallbackProductType,
-          sku,
-        );
+        const purchase = mapReceipt(response.receipt, fallbackProductType, sku);
         emitPurchaseUpdated(purchase);
         return [purchase];
       } catch (error) {

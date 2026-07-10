@@ -10,9 +10,14 @@ import com.android.billingclient.api.BillingClientStateListener
 import com.android.billingclient.api.BillingConfig
 import com.android.billingclient.api.BillingConfigResponseListener
 import com.android.billingclient.api.BillingFlowParams
+import com.android.billingclient.api.BillingProgramAvailabilityDetails
+import com.android.billingclient.api.BillingProgramReportingDetailsParams
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.ConsumeParams
+import com.android.billingclient.api.GetBillingChoiceInfoParams
 import com.android.billingclient.api.GetBillingConfigParams
+import com.android.billingclient.api.InAppMessageParams
+import com.android.billingclient.api.InAppMessageResult
 import com.android.billingclient.api.PendingPurchasesParams
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase as BillingPurchase
@@ -58,6 +63,8 @@ import dev.hyo.openiap.helpers.queryProductDetails
 import dev.hyo.openiap.helpers.queryProductDetailsWithStatus
 import dev.hyo.openiap.helpers.queryPurchases
 import dev.hyo.openiap.helpers.resolveBasePlanIdForOfferToken
+import dev.hyo.openiap.helpers.resolveBillingProgramsForConnection
+import dev.hyo.openiap.helpers.resolveLegacySubscriptionReplacementMode
 import dev.hyo.openiap.helpers.resumeGuard
 import dev.hyo.openiap.helpers.restorePurchases as restorePurchasesHelper
 import dev.hyo.openiap.helpers.toAndroidPurchaseArgs
@@ -73,6 +80,7 @@ import dev.hyo.openiap.utils.BillingConverters.unavailableInAppProduct
 import dev.hyo.openiap.utils.BillingConverters.unavailableSubscriptionProduct
 import dev.hyo.openiap.utils.fromBillingState
 import dev.hyo.openiap.utils.toActiveSubscription
+import dev.hyo.openiap.utils.toOpenIapBillingResult
 import dev.hyo.openiap.utils.verifyPurchaseWithGooglePlay
 import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
 import kotlinx.coroutines.CancellationException
@@ -191,17 +199,11 @@ class OpenIapModule(
             .setDebugMessage(message)
             .build()
 
-    private fun BillingResult.toOpenIapBillingResult(): BillingResultAndroid =
-        BillingResultAndroid(
-            responseCode = responseCode,
-            debugMessage = debugMessage
-        )
-
     private fun billingProgramToConstant(program: BillingProgramAndroid): Int = when (program) {
-        BillingProgramAndroid.ExternalContentLink -> 1
-        BillingProgramAndroid.ExternalOffer -> 3
-        BillingProgramAndroid.ExternalPayments -> 4
-        BillingProgramAndroid.BillingChoice -> 5
+        BillingProgramAndroid.ExternalContentLink -> BillingClient.BillingProgram.EXTERNAL_CONTENT_LINK
+        BillingProgramAndroid.ExternalOffer -> BillingClient.BillingProgram.EXTERNAL_OFFER
+        BillingProgramAndroid.ExternalPayments -> BillingClient.BillingProgram.EXTERNAL_PAYMENTS
+        BillingProgramAndroid.BillingChoice -> BillingClient.BillingProgram.BILLING_CHOICE
         BillingProgramAndroid.UserChoiceBilling ->
             throw IllegalArgumentException("USER_CHOICE_BILLING uses AlternativeBillingMode, not BillingProgram API")
         BillingProgramAndroid.Unspecified ->
@@ -216,46 +218,75 @@ class OpenIapModule(
         }
 
     private fun billingChoiceImageLayoutConstant(layout: BillingChoiceImageLayoutAndroid): String = when (layout) {
-        BillingChoiceImageLayoutAndroid.RectangularFourByOne -> "RECTANGULAR_FOUR_BY_ONE"
-        BillingChoiceImageLayoutAndroid.RectangularThreeByOne -> "RECTANGULAR_THREE_BY_ONE"
-        BillingChoiceImageLayoutAndroid.RectangularTwoByTwo -> "RECTANGULAR_TWO_BY_TWO"
+        BillingChoiceImageLayoutAndroid.RectangularFourByOne ->
+            GetBillingChoiceInfoParams.ImageLayout.RECTANGULAR_FOUR_BY_ONE
+        BillingChoiceImageLayoutAndroid.RectangularThreeByOne ->
+            GetBillingChoiceInfoParams.ImageLayout.RECTANGULAR_THREE_BY_ONE
+        BillingChoiceImageLayoutAndroid.RectangularTwoByTwo ->
+            GetBillingChoiceInfoParams.ImageLayout.RECTANGULAR_TWO_BY_TWO
     }
 
     private fun developerBillingTypeConstant(
         program: BillingProgramAndroid,
         developerBillingType: DeveloperBillingTypeAndroid?
     ): Int? = when (developerBillingType) {
-        DeveloperBillingTypeAndroid.InApp -> 1
-        DeveloperBillingTypeAndroid.ExternalLink -> 2
+        DeveloperBillingTypeAndroid.InApp ->
+            BillingProgramReportingDetailsParams.DeveloperBillingType.IN_APP
+        DeveloperBillingTypeAndroid.ExternalLink ->
+            BillingProgramReportingDetailsParams.DeveloperBillingType.EXTERNAL_LINK
         DeveloperBillingTypeAndroid.DeveloperBillingTypeUnspecified, null ->
-            if (program == BillingProgramAndroid.BillingChoice) 1 else null
+            if (program == BillingProgramAndroid.BillingChoice) {
+                BillingProgramReportingDetailsParams.DeveloperBillingType.IN_APP
+            } else {
+                null
+            }
     }
 
     private fun billingChoiceScreenTypeFromConstant(value: Int?): BillingChoiceScreenTypeAndroid? = when (value) {
-        0 -> BillingChoiceScreenTypeAndroid.Unspecified
-        1 -> BillingChoiceScreenTypeAndroid.DeveloperRendered
-        2 -> BillingChoiceScreenTypeAndroid.GoogleRendered
+        BillingProgramAvailabilityDetails.BillingChoiceAvailabilityDetails.ChoiceScreenType.UNSPECIFIED ->
+            BillingChoiceScreenTypeAndroid.Unspecified
+        BillingProgramAvailabilityDetails.BillingChoiceAvailabilityDetails.ChoiceScreenType.DEVELOPER_RENDERED ->
+            BillingChoiceScreenTypeAndroid.DeveloperRendered
+        BillingProgramAvailabilityDetails.BillingChoiceAvailabilityDetails.ChoiceScreenType.GOOGLE_RENDERED ->
+            BillingChoiceScreenTypeAndroid.GoogleRendered
         else -> null
     }
 
     private fun inAppMessageCategoryToConstant(category: InAppMessageCategoryAndroid): Int = when (category) {
-        InAppMessageCategoryAndroid.UnknownInAppMessageCategoryId -> 0
-        InAppMessageCategoryAndroid.Transactional -> 2
+        InAppMessageCategoryAndroid.UnknownInAppMessageCategoryId ->
+            InAppMessageParams.InAppMessageCategoryId.UNKNOWN_IN_APP_MESSAGE_CATEGORY_ID
+        InAppMessageCategoryAndroid.Transactional ->
+            InAppMessageParams.InAppMessageCategoryId.TRANSACTIONAL
     }
 
     private fun inAppMessageResponseCodeFromConstant(value: Int?): InAppMessageResponseCodeAndroid = when (value) {
-        1 -> InAppMessageResponseCodeAndroid.SubscriptionStatusUpdated
+        InAppMessageResult.InAppMessageResponseCode.SUBSCRIPTION_STATUS_UPDATED ->
+            InAppMessageResponseCodeAndroid.SubscriptionStatusUpdated
         else -> InAppMessageResponseCodeAndroid.NoActionNeeded
     }
 
-    // Billing programs enabled via enableBillingProgram (8.2.0+, EXTERNAL_PAYMENTS in 8.3.0+)
+    // Billing programs enabled via enableBillingProgram (8.2.0+ through Billing Choice 9.1.0+)
     private val enabledBillingPrograms = mutableSetOf<BillingProgramAndroid>()
+    private val pendingBillingPrograms = mutableSetOf<BillingProgramAndroid>()
+    private var billingChoiceScreenType = BillingChoiceScreenTypeAndroid.GoogleRendered
 
     override val initConnection: MutationInitConnectionHandler = { config ->
+        enabledBillingPrograms.clear()
+        enabledBillingPrograms.addAll(
+            resolveBillingProgramsForConnection(
+                pendingBillingPrograms,
+                config?.enableBillingProgramAndroid
+            )
+        )
+        pendingBillingPrograms.clear()
+        alternativeBillingMode = AlternativeBillingMode.NONE
+        billingChoiceScreenType = config?.billingChoiceScreenTypeAndroid
+            ?.takeUnless { it == BillingChoiceScreenTypeAndroid.Unspecified }
+            ?: BillingChoiceScreenTypeAndroid.GoogleRendered
+
         // Handle enableBillingProgramAndroid (recommended, replaces alternativeBillingModeAndroid)
         config?.enableBillingProgramAndroid?.let { program ->
             OpenIapLog.d("Setting billing program from config: $program", TAG)
-            enabledBillingPrograms.add(program)
             // Map USER_CHOICE_BILLING to AlternativeBillingMode for backward compatibility
             when (program) {
                 BillingProgramAndroid.UserChoiceBilling -> {
@@ -299,6 +330,8 @@ class OpenIapModule(
                 billingClient?.endConnection()
                 productManager.clear()
                 billingClient = null
+                enabledBillingPrograms.clear()
+                pendingBillingPrograms.clear()
                 // Reset subscription-billing-issue dedupe state so a fresh
                 // initConnection() can re-emit for previously-seen tokens.
                 // Only clear the dedupe set — listeners persist across reconnects,
@@ -656,7 +689,7 @@ class OpenIapModule(
      * Check if a billing program is available for this user/device (8.2.0+)
      * This is the new API that replaces checkAlternativeBillingAvailability for external offers.
      *
-     * @param program The billing program to check (EXTERNAL_CONTENT_LINK or EXTERNAL_OFFER)
+     * @param program The billing program to check, including BILLING_CHOICE on 9.1.0+
      * @return Result containing availability information
      */
     override suspend fun isBillingProgramAvailable(program: BillingProgramAndroid): BillingProgramAvailabilityResultAndroid = withContext(Dispatchers.IO) {
@@ -740,7 +773,7 @@ class OpenIapModule(
      *
      * Note: This method uses BillingProgramReportingDetailsParams which was introduced in 8.3.0.
      *
-     * @param program The billing program (EXTERNAL_CONTENT_LINK or EXTERNAL_OFFER)
+     * @param program The billing program, including BILLING_CHOICE on 9.1.0+
      * @return Reporting details containing the external transaction token
      */
     override suspend fun createBillingProgramReportingDetails(
@@ -858,7 +891,7 @@ class OpenIapModule(
      * @param params Parameters for the external link
      * @return true if launch was successful, false otherwise
      */
-    override suspend fun launchExternalLink(activity: Activity, params: LaunchExternalLinkParamsAndroid): Boolean = withContext(Dispatchers.IO) {
+    override suspend fun launchExternalLink(activity: Activity, params: LaunchExternalLinkParamsAndroid): Boolean = withContext(Dispatchers.Main) {
         val client = billingClient ?: throw OpenIapError.NotPrepared
         if (!client.isReady) throw OpenIapError.NotPrepared
 
@@ -903,6 +936,11 @@ class OpenIapModule(
                 // Set link URI
                 val setLinkUriMethod = builderClass.getMethod("setLinkUri", android.net.Uri::class.java)
                 setLinkUriMethod.invoke(builder, android.net.Uri.parse(params.linkUri))
+
+                params.externalTransactionToken?.takeIf { it.isNotBlank() }?.let { token ->
+                    builderClass.getMethod("setExternalTransactionToken", String::class.java)
+                        .invoke(builder, token)
+                }
 
                 // Build the params
                 val buildMethod = builderClass.getMethod("build")
@@ -1019,12 +1057,13 @@ class OpenIapModule(
     }
 
     /**
-     * Show Billing Choice information dialog for an external transaction token (9.1.0+).
+     * Show the mandatory information dialog before a developer-rendered,
+     * in-app Billing Choice screen (9.1.0+).
      */
     override suspend fun showBillingProgramInformationDialog(
         activity: Activity,
         params: BillingProgramInformationDialogParamsAndroid
-    ): BillingResultAndroid = withContext(Dispatchers.IO) {
+    ): BillingResultAndroid = withContext(Dispatchers.Main) {
         val client = billingClient ?: throw OpenIapError.NotPrepared
         if (!client.isReady) throw OpenIapError.NotPrepared
 
@@ -1066,9 +1105,6 @@ class OpenIapModule(
                     paramsClass,
                     listenerClass
                 ).invoke(client, activity, requestParams, listener)
-                    ?.let { it as? BillingResult }
-                    ?.takeIf { it.responseCode != BillingClient.BillingResponseCode.OK }
-                    ?.let { resumer.resume(it.toOpenIapBillingResult()) }
             } catch (e: NoSuchMethodException) {
                 OpenIapLog.e("showBillingProgramInformationDialog not found. Requires Billing Library 9.1.0+", e, TAG)
                 resumer.resumeWithException(OpenIapError.FeatureNotSupported())
@@ -1088,7 +1124,7 @@ class OpenIapModule(
     override suspend fun showInAppMessages(
         activity: Activity,
         params: InAppMessageParamsAndroid?
-    ): InAppMessageResultAndroid = withContext(Dispatchers.IO) {
+    ): InAppMessageResultAndroid = withContext(Dispatchers.Main) {
         val client = billingClient ?: throw OpenIapError.NotPrepared
         if (!client.isReady) throw OpenIapError.NotPrepared
 
@@ -1152,15 +1188,15 @@ class OpenIapModule(
     }
 
     /**
-     * Enable a billing program for external content links or external offers (8.2.0+)
+     * Enable a billing program for the next BillingClient connection (8.2.0+).
      * This should be called before initConnection to configure the BillingClient.
      *
      * @param program The billing program to enable
      */
     fun enableBillingProgram(program: BillingProgramAndroid) {
         if (program != BillingProgramAndroid.Unspecified) {
-            enabledBillingPrograms.add(program)
-            OpenIapLog.d("Billing program enabled: $program", TAG)
+            pendingBillingPrograms.add(program)
+            OpenIapLog.d("Billing program queued for next connection: $program", TAG)
         }
     }
 
@@ -1204,7 +1240,7 @@ class OpenIapModule(
                             "• Wait for Google approval\n" +
                             "• Test with license tester accounts\n\n" +
                             "Current mode: ALTERNATIVE_ONLY\n" +
-                            "Library: Billing 8.1.0"
+                            "Library: Billing 9.1.0"
                         )
 
                         for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
@@ -1452,11 +1488,15 @@ class OpenIapModule(
                         OpenIapLog.d("==========================================", TAG)
                     }
 
-                    // For subscription upgrades/downgrades, purchaseToken and obfuscatedProfileId are mutually exclusive
-                    if (androidArgs.type == ProductQueryType.Subs && !androidArgs.purchaseToken.isNullOrBlank()) {
+                    val hasSubscriptionUpdateSource =
+                        !androidArgs.purchaseToken.isNullOrBlank() ||
+                            !androidArgs.originalExternalTransactionId.isNullOrBlank()
+
+                    // Subscription replacements identify the original purchase with either a
+                    // Play purchase token or a developer-billing transaction ID.
+                    if (androidArgs.type == ProductQueryType.Subs && hasSubscriptionUpdateSource) {
                         // This is a subscription upgrade/downgrade - do not set obfuscatedProfileId
                         OpenIapLog.d("=== Subscription Upgrade Flow ===", TAG)
-                        OpenIapLog.d("  - Old Token: ${androidArgs.purchaseToken}", TAG)
                         OpenIapLog.d("  - Target SKUs: ${androidArgs.skus}", TAG)
                         OpenIapLog.d("  - Replacement mode: ${androidArgs.replacementMode}", TAG)
                         OpenIapLog.d("  - Product Details Count: ${paramsList.size}", TAG)
@@ -1465,16 +1505,26 @@ class OpenIapModule(
                         }
 
                         val updateParamsBuilder = BillingFlowParams.SubscriptionUpdateParams.newBuilder()
-                            .setOldPurchaseToken(androidArgs.purchaseToken)
+                        androidArgs.purchaseToken?.takeIf { it.isNotBlank() }?.let {
+                            updateParamsBuilder.setOldPurchaseToken(it)
+                        }
+                        androidArgs.originalExternalTransactionId?.takeIf { it.isNotBlank() }?.let {
+                            updateParamsBuilder.setOriginalExternalTransactionId(it)
+                        }
 
-                        // Set replacement mode - this is critical for upgrades
-                        // Note: setSubscriptionReplacementMode() is deprecated in Billing 8.1.0
-                        // in favor of SubscriptionProductReplacementParams for per-product control.
-                        // However, for single-product upgrades, the legacy API still works.
-                        val replacementMode = androidArgs.replacementMode ?: 5 // Default to CHARGE_FULL_PRICE
-                        @Suppress("DEPRECATION")
-                        updateParamsBuilder.setSubscriptionReplacementMode(replacementMode)
-                        OpenIapLog.d("  - Final replacement mode: $replacementMode", TAG)
+                        // Developer-billed replacements use only the original external
+                        // transaction ID unless the caller explicitly supplies a mode.
+                        val replacementMode = resolveLegacySubscriptionReplacementMode(
+                            androidArgs.purchaseToken,
+                            androidArgs.originalExternalTransactionId,
+                            androidArgs.replacementMode,
+                            androidArgs.subscriptionProductReplacementParams != null
+                        )
+                        replacementMode?.let { mode ->
+                            @Suppress("DEPRECATION")
+                            updateParamsBuilder.setSubscriptionReplacementMode(mode)
+                            OpenIapLog.d("  - Final replacement mode: $mode", TAG)
+                        }
 
                         val updateParams = updateParamsBuilder.build()
                         flowBuilder.setSubscriptionUpdateParams(updateParams)
@@ -2096,7 +2146,7 @@ class OpenIapModule(
                 } catch (e: NoSuchMethodException) {
                     OpenIapLog.e("✗ enableAlternativeBillingOnly() method not found", e, TAG)
                     OpenIapLog.e("This method requires Billing Library 6.2+", tag = TAG)
-                    OpenIapLog.e("Current library version: 8.1.0", tag = TAG)
+                    OpenIapLog.e("Current library version: 9.1.0", tag = TAG)
                     OpenIapLog.e("Alternative billing will NOT work - standard Google Play billing will be used", tag = TAG)
                 } catch (e: Exception) {
                     OpenIapLog.e("✗ Failed to enable alternative billing only: ${e.javaClass.simpleName}: ${e.message}", e, TAG)
@@ -2105,7 +2155,7 @@ class OpenIapModule(
             }
         }
 
-        // Enable billing programs (8.2.0+, EXTERNAL_PAYMENTS in 8.3.0+)
+        // Enable billing programs (8.2.0+ through Billing Choice 9.1.0+)
         if (enabledBillingPrograms.isNotEmpty()) {
             OpenIapLog.d("=== BILLING PROGRAMS INITIALIZATION ===", TAG)
             for (program in enabledBillingPrograms) {
@@ -2121,11 +2171,24 @@ class OpenIapModule(
                     else -> billingProgramToConstant(program)
                 }
 
-                // EXTERNAL_PAYMENTS and BILLING_CHOICE can return developer-provided billing selections.
-                if (program == BillingProgramAndroid.ExternalPayments || program == BillingProgramAndroid.BillingChoice) {
+                val needsDeveloperListener =
+                    program == BillingProgramAndroid.ExternalPayments ||
+                        (program == BillingProgramAndroid.BillingChoice &&
+                            billingChoiceScreenType != BillingChoiceScreenTypeAndroid.DeveloperRendered)
+
+                if (needsDeveloperListener) {
                     try {
                         enableBillingProgramWithDeveloperListener(builder, program, programConstant)
                         OpenIapLog.d("✓ Billing program enabled with developer listener: $program", TAG)
+                    } catch (e: NoSuchMethodException) {
+                        OpenIapLog.w("✗ EnableBillingProgramParams not found for $program", TAG)
+                    } catch (e: Exception) {
+                        OpenIapLog.w("✗ Failed to enable billing program $program: ${e.message}", TAG)
+                    }
+                } else if (program == BillingProgramAndroid.BillingChoice) {
+                    try {
+                        enableBillingProgramWithoutDeveloperListener(builder, program, programConstant)
+                        OpenIapLog.d("✓ Developer-rendered Billing Choice enabled without developer listener", TAG)
                     } catch (e: NoSuchMethodException) {
                         OpenIapLog.w("✗ EnableBillingProgramParams not found for $program", TAG)
                     } catch (e: Exception) {
@@ -2215,7 +2278,8 @@ class OpenIapModule(
     }
 
     /**
-     * Set legacy-style developer-provided billing listener for External Payments (8.3.0+ Japan only).
+     * Set the legacy-style developer-provided billing listener for External Payments
+     * (8.3.0+) and Google-rendered Billing Choice (9.1.0+).
      * @param listener Developer-provided billing listener or null to remove
      */
     override fun setDeveloperProvidedBillingListener(listener: dev.hyo.openiap.listener.DeveloperProvidedBillingListener?) {
@@ -2303,43 +2367,69 @@ class OpenIapModule(
                 val billingDetails = args?.get(0)
                 OpenIapLog.d("DeveloperProvidedBillingDetails: $billingDetails", TAG)
 
-                // Extract external transaction token
                 try {
                     val detailsClass = billingDetails?.javaClass
-                    val tokenMethod = detailsClass?.getMethod("getExternalTransactionToken")
-                    val externalToken = tokenMethod?.invoke(billingDetails) as? String
+                    val externalToken = (detailsClass
+                        ?.getMethod("getExternalTransactionToken")
+                        ?.invoke(billingDetails) as? String)
+                        ?.takeIf { it.isNotBlank() }
+                    val linkUri = (detailsClass
+                        ?.getMethod("getLinkUri")
+                        ?.invoke(billingDetails) as? String)
+                        ?.takeIf { it.isNotBlank() }
+                    val originalExternalTransactionId = (detailsClass
+                        ?.getMethod("getOriginalExternalTransactionId")
+                        ?.invoke(billingDetails) as? String)
+                        ?.takeIf { it.isNotBlank() }
+                    val products = (detailsClass
+                        ?.getMethod("getProducts")
+                        ?.invoke(billingDetails) as? List<*>)
+                        .orEmpty()
+                        .mapNotNull { product ->
+                            val productClass = product?.javaClass ?: return@mapNotNull null
+                            val id = productClass.getMethod("getId").invoke(product) as? String
+                                ?: return@mapNotNull null
+                            val type = when (productClass.getMethod("getType").invoke(product) as? String) {
+                                BillingClient.ProductType.INAPP -> ProductType.InApp
+                                BillingClient.ProductType.SUBS -> ProductType.Subs
+                                else -> return@mapNotNull null
+                            }
+                            DeveloperProvidedBillingProductAndroid(
+                                id = id,
+                                offerToken = (productClass.getMethod("getOfferToken")
+                                    .invoke(product) as? String)?.takeIf { it.isNotBlank() },
+                                type = type
+                            )
+                        }
 
-                    if (externalToken != null) {
-                        OpenIapLog.d("External transaction token: $externalToken", TAG)
+                    val details = DeveloperProvidedBillingDetailsAndroid(
+                        externalTransactionToken = externalToken,
+                        linkUri = linkUri,
+                        originalExternalTransactionId = originalExternalTransactionId,
+                        products = products
+                    )
 
-                        // Create DeveloperProvidedBillingDetailsAndroid for the event
-                        val details = DeveloperProvidedBillingDetailsAndroid(
-                            externalTransactionToken = externalToken
-                        )
-
-                        // Notify legacy-style listener (set via constructor or setDeveloperProvidedBillingListener)
-                        developerProvidedBillingListener?.let { legacyListener ->
-                            try {
-                                legacyListener.onUserSelectedDeveloperBilling(
-                                    dev.hyo.openiap.listener.DeveloperProvidedBillingDetails(
-                                        externalTransactionToken = externalToken
-                                    )
+                    developerProvidedBillingListener?.let { legacyListener ->
+                        try {
+                            legacyListener.onUserSelectedDeveloperBilling(
+                                dev.hyo.openiap.listener.DeveloperProvidedBillingDetails(
+                                    externalTransactionToken = externalToken,
+                                    linkUri = linkUri,
+                                    originalExternalTransactionId = originalExternalTransactionId,
+                                    products = products
                                 )
-                            } catch (e: Exception) {
-                                OpenIapLog.w("Legacy DeveloperProvidedBilling listener error: ${e.message}", TAG)
-                            }
+                            )
+                        } catch (e: Exception) {
+                            OpenIapLog.w("Legacy DeveloperProvidedBilling listener error: ${e.message}", TAG)
                         }
+                    }
 
-                        // Notify all DeveloperProvidedBilling listeners (added via addDeveloperProvidedBillingListener)
-                        for (listener in developerProvidedBillingListeners) {
-                            try {
-                                listener.onDeveloperProvidedBilling(details)
-                            } catch (e: Exception) {
-                                OpenIapLog.w("DeveloperProvidedBilling listener error: ${e.message}", TAG)
-                            }
+                    for (listener in developerProvidedBillingListeners) {
+                        try {
+                            listener.onDeveloperProvidedBilling(details)
+                        } catch (e: Exception) {
+                            OpenIapLog.w("DeveloperProvidedBilling listener error: ${e.message}", TAG)
                         }
-                    } else {
-                        OpenIapLog.w("Failed to extract external transaction token", TAG)
                     }
                 } catch (e: Exception) {
                     OpenIapLog.e("Error processing developer billing details", e, TAG)
@@ -2375,6 +2465,25 @@ class OpenIapModule(
         OpenIapLog.d("=== END BILLING PROGRAM INITIALIZATION WITH DEVELOPER LISTENER ===", TAG)
     }
 
+    /** Enable developer-rendered Billing Choice without a selection listener. */
+    private fun enableBillingProgramWithoutDeveloperListener(
+        builder: BillingClient.Builder,
+        program: BillingProgramAndroid,
+        programConstant: Int
+    ) {
+        val enableParamsClass = Class.forName("com.android.billingclient.api.EnableBillingProgramParams")
+        val enableParamsBuilderClass = Class.forName("com.android.billingclient.api.EnableBillingProgramParams\$Builder")
+        val enableBuilder = enableParamsClass.getMethod("newBuilder").invoke(null)
+
+        enableParamsBuilderClass.getMethod("setBillingProgram", Int::class.javaPrimitiveType)
+            .invoke(enableBuilder, programConstant)
+        val enableParams = enableParamsBuilderClass.getMethod("build").invoke(enableBuilder)
+        builder.javaClass.getMethod("enableBillingProgram", enableParamsClass)
+            .invoke(builder, enableParams)
+
+        OpenIapLog.d("Billing program enabled without developer listener: $program", TAG)
+    }
+
     /**
      * Apply DeveloperBillingOptionParams to BillingFlowParams builder.
      * This enables the side-by-side choice between Google Play and developer billing.
@@ -2395,6 +2504,7 @@ class OpenIapModule(
                 DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp -> 1
                 DeveloperBillingLaunchModeAndroid.CallerWillLaunchLink -> 2
                 DeveloperBillingLaunchModeAndroid.Unspecified -> throw IllegalArgumentException("Cannot use UNSPECIFIED launch mode")
+                null -> null
             }
 
             // Build DeveloperBillingOptionParams using reflection
@@ -2408,13 +2518,20 @@ class OpenIapModule(
             val setBillingProgramMethod = developerBillingBuilderClass.getMethod("setBillingProgram", Int::class.javaPrimitiveType)
             setBillingProgramMethod.invoke(developerBillingBuilder, billingProgramConstant)
 
-            // Set link URI (must use android.net.Uri, not String)
-            val setLinkUriMethod = developerBillingBuilderClass.getMethod("setLinkUri", android.net.Uri::class.java)
-            setLinkUriMethod.invoke(developerBillingBuilder, android.net.Uri.parse(params.linkUri))
+            params.linkUri?.takeIf { it.isNotBlank() }?.let { linkUri ->
+                developerBillingBuilderClass.getMethod("setLinkUri", android.net.Uri::class.java)
+                    .invoke(developerBillingBuilder, android.net.Uri.parse(linkUri))
+            }
 
-            // Set launch mode
-            val setLaunchModeMethod = developerBillingBuilderClass.getMethod("setLaunchMode", Int::class.javaPrimitiveType)
-            setLaunchModeMethod.invoke(developerBillingBuilder, launchModeConstant)
+            launchModeConstant?.let { launchMode ->
+                developerBillingBuilderClass.getMethod("setLaunchMode", Int::class.javaPrimitiveType)
+                    .invoke(developerBillingBuilder, launchMode)
+            }
+
+            params.externalTransactionToken?.takeIf { it.isNotBlank() }?.let { token ->
+                developerBillingBuilderClass.getMethod("setExternalTransactionToken", String::class.java)
+                    .invoke(developerBillingBuilder, token)
+            }
 
             // Build the developer billing params
             val buildMethod = developerBillingBuilderClass.getMethod("build")
@@ -2430,10 +2547,13 @@ class OpenIapModule(
             OpenIapLog.d("✓ DeveloperBillingOption applied successfully", TAG)
         } catch (e: NoSuchMethodException) {
             OpenIapLog.w("DeveloperBillingOption not found. Requires Billing Library 8.3.0+", TAG)
+            throw OpenIapError.FeatureNotSupported()
         } catch (e: ClassNotFoundException) {
             OpenIapLog.w("DeveloperBillingOptionParams class not found. Requires Billing Library 8.3.0+", TAG)
+            throw OpenIapError.FeatureNotSupported()
         } catch (e: Exception) {
             OpenIapLog.e("Failed to apply DeveloperBillingOption: ${e.message}", e, TAG)
+            throw e
         }
     }
 }

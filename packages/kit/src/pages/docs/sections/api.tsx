@@ -125,11 +125,23 @@ export default function ApiReferencePage() {
       <p>
         Your app can unlock local premium state, or your backend can grant its
         own entitlement, when <code>isValid === true</code>. <code>state</code>{" "}
-        carries the harmonized lifecycle position across all supported stores,
+        carries the harmonized store state observed by this verification call,
         and <code>productId</code> is the product id verified by the upstream
         store. For Meta Horizon, <code>productId</code> is the SKU IAPKit
         checked.
       </p>
+      <Callout kind="note" title="Purchase rows are verification snapshots">
+        <p>
+          Calling <code>finishTransaction</code> updates the app and store; it
+          does not mutate an earlier IAPKit response. On Android, verify first,
+          finish the valid purchase, then verify the token again if the
+          Purchases log must reflect <code>ENTITLED</code> instead of{" "}
+          <code>PENDING_ACKNOWLEDGMENT</code>. Use subscription status,
+          entitlements, and store webhooks for current subscription lifecycle
+          state. Periodically reverify purchases when their latest store state
+          matters.
+        </p>
+      </Callout>
       <p>
         If your own backend keeps an entitlement ledger, do not trust a
         client-provided product id. Send <code>expectedProductId</code> with the

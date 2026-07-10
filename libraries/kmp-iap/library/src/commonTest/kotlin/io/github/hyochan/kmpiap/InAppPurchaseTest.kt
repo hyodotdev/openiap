@@ -2,6 +2,7 @@
 
 package io.github.hyochan.kmpiap
 
+import io.github.hyochan.kmpiap.dsl.AndroidOptionsBuilder
 import io.github.hyochan.kmpiap.openiap.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -808,18 +809,86 @@ class InAppPurchaseTest {
     }
 
     @Test
-    fun testDeveloperProvidedBillingDetailsAndroid() {
-        val details = DeveloperProvidedBillingDetailsAndroid(
-            externalTransactionToken = "ext_txn_token_12345"
+    fun testDeveloperBillingOptionParamsAndroidWithInAppBillingChoice() {
+        val params = DeveloperBillingOptionParamsAndroid(
+            billingProgram = BillingProgramAndroid.BillingChoice
         )
 
-        assertEquals("ext_txn_token_12345", details.externalTransactionToken)
+        assertNull(params.externalTransactionToken)
+        assertNull(params.launchMode)
+        assertNull(params.linkUri)
+    }
+
+    @Test
+    fun testBillingChoiceConnectionConfigRenderer() {
+        assertEquals(
+            BillingChoiceScreenTypeAndroid.GoogleRendered,
+            InitConnectionConfig().billingChoiceScreenTypeAndroid
+        )
+        assertEquals(
+            BillingChoiceScreenTypeAndroid.DeveloperRendered,
+            InitConnectionConfig(
+                billingChoiceScreenTypeAndroid = BillingChoiceScreenTypeAndroid.DeveloperRendered,
+                enableBillingProgramAndroid = BillingProgramAndroid.BillingChoice
+            ).billingChoiceScreenTypeAndroid
+        )
+    }
+
+    @Test
+    fun testBillingChoiceLaunchExternalLinkToken() {
+        val params = LaunchExternalLinkParamsAndroid(
+            billingProgram = BillingProgramAndroid.BillingChoice,
+            externalTransactionToken = "external-token",
+            launchMode = ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+            linkType = ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
+            linkUri = "https://example.com/checkout"
+        )
+
+        assertEquals("external-token", params.externalTransactionToken)
+    }
+
+    @Test
+    fun testAndroidOptionsBuilderPreservesExternalSubscriptionId() {
+        val options = AndroidOptionsBuilder().apply {
+            skus = listOf("monthly_subscription")
+            originalExternalTransactionId = "original-external-id"
+            developerBillingOption = DeveloperBillingOptionParamsAndroid(
+                billingProgram = BillingProgramAndroid.BillingChoice
+            )
+        }.build()
+
+        assertEquals(
+            "original-external-id",
+            options?.subscription?.originalExternalTransactionId
+        )
+    }
+
+    @Test
+    fun testDeveloperProvidedBillingDetailsAndroid() {
+        val details = DeveloperProvidedBillingDetailsAndroid(
+            externalTransactionToken = null,
+            linkUri = "https://example.com/checkout",
+            originalExternalTransactionId = "original-external-id",
+            products = listOf(
+                DeveloperProvidedBillingProductAndroid(
+                    id = "monthly_subscription",
+                    offerToken = "offer-token",
+                    type = ProductType.Subs
+                )
+            )
+        )
+
+        assertNull(details.externalTransactionToken)
+        assertEquals("https://example.com/checkout", details.linkUri)
+        assertEquals("original-external-id", details.originalExternalTransactionId)
+        assertEquals(ProductType.Subs, details.products.single().type)
     }
 
     @Test
     fun testRequestPurchaseAndroidPropsWithDeveloperBillingOption() {
         val developerBillingOption = DeveloperBillingOptionParamsAndroid(
-            billingProgram = BillingProgramAndroid.ExternalPayments,
+            billingProgram = BillingProgramAndroid.BillingChoice,
+            externalTransactionToken = "pre-generated-token",
             launchMode = DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp,
             linkUri = "https://example.com/checkout"
         )
@@ -831,19 +900,22 @@ class InAppPurchaseTest {
 
         assertEquals(listOf("premium_product"), props.skus)
         assertNotNull(props.developerBillingOption)
-        assertEquals(BillingProgramAndroid.ExternalPayments, props.developerBillingOption?.billingProgram)
+        assertEquals(BillingProgramAndroid.BillingChoice, props.developerBillingOption?.billingProgram)
+        assertEquals("pre-generated-token", props.developerBillingOption?.externalTransactionToken)
         assertEquals("https://example.com/checkout", props.developerBillingOption?.linkUri)
     }
 
     @Test
     fun testRequestSubscriptionAndroidPropsWithDeveloperBillingOption() {
         val developerBillingOption = DeveloperBillingOptionParamsAndroid(
-            billingProgram = BillingProgramAndroid.ExternalPayments,
+            billingProgram = BillingProgramAndroid.BillingChoice,
+            externalTransactionToken = "pre-generated-token",
             launchMode = DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp,
             linkUri = "https://example.com/subscribe"
         )
 
         val props = RequestSubscriptionAndroidProps(
+            originalExternalTransactionId = "original-external-id",
             skus = listOf("monthly_subscription"),
             subscriptionOffers = listOf(
                 AndroidSubscriptionOfferInput(
@@ -856,7 +928,9 @@ class InAppPurchaseTest {
 
         assertEquals(listOf("monthly_subscription"), props.skus)
         assertNotNull(props.developerBillingOption)
-        assertEquals(BillingProgramAndroid.ExternalPayments, props.developerBillingOption?.billingProgram)
+        assertEquals("original-external-id", props.originalExternalTransactionId)
+        assertEquals(BillingProgramAndroid.BillingChoice, props.developerBillingOption?.billingProgram)
+        assertEquals("pre-generated-token", props.developerBillingOption?.externalTransactionToken)
         assertEquals("https://example.com/subscribe", props.developerBillingOption?.linkUri)
     }
 

@@ -158,7 +158,23 @@ function AlternativeBillingTypes() {
                 choice, <code>EXTERNAL_OFFER</code> for alternative only, or{' '}
                 <code>EXTERNAL_PAYMENTS</code> for Japan external payments
                 (8.3.0+). Use <code>BILLING_CHOICE</code> for Billing Choice
-                (9.1.0+).
+                (OpenIAP Spec 2.1.0 / openiap-google 2.3.0; Play Billing
+                9.1.0+).
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <Link to="/docs/types/billing-programs#billing-choice-screen-type-android">
+                  <code>billingChoiceScreenTypeAndroid</code>
+                </Link>
+              </td>
+              <td>
+                Billing Choice renderer in OpenIAP Spec 2.1.0 / openiap-google
+                2.3.0 (Play Billing 9.1.0+). Defaults to{' '}
+                <code>GOOGLE_RENDERED</code>. Set{' '}
+                <code>DEVELOPER_RENDERED</code> when your app renders the choice
+                screen; this controls whether OpenIAP registers Play&apos;s
+                developer-provided billing listener.
               </td>
             </tr>
             <tr>
@@ -202,6 +218,12 @@ await initConnection({
   enableBillingProgramAndroid: 'external-payments'
 });
 
+// Developer-rendered Billing Choice (must match Play Console, 9.1.0+)
+await initConnection({
+  enableBillingProgramAndroid: 'billing-choice',
+  billingChoiceScreenTypeAndroid: 'developer-rendered'
+});
+
 // Standard billing (default)
 await initConnection();`}</CodeBlock>
             ),
@@ -235,6 +257,14 @@ openIapStore.initConnection(
     )
 )
 
+// Developer-rendered Billing Choice (must match Play Console, 9.1.0+)
+openIapStore.initConnection(
+    InitConnectionConfig(
+        enableBillingProgramAndroid = BillingProgramAndroid.BillingChoice,
+        billingChoiceScreenTypeAndroid = BillingChoiceScreenTypeAndroid.DeveloperRendered
+    )
+)
+
 // Standard billing (default)
 openIapStore.initConnection()`}</CodeBlock>
             ),
@@ -252,6 +282,13 @@ await FlutterInappPurchase.instance.initConnection(
 // Initialize with external payments (Japan only, 8.3.0+)
 await FlutterInappPurchase.instance.initConnection(
   enableBillingProgramAndroid: BillingProgramAndroid.ExternalPayments,
+);
+
+// Developer-rendered Billing Choice (must match Play Console, 9.1.0+)
+await FlutterInappPurchase.instance.initConnection(
+  enableBillingProgramAndroid: BillingProgramAndroid.BillingChoice,
+  billingChoiceScreenTypeAndroid:
+      BillingChoiceScreenTypeAndroid.DeveloperRendered,
 );
 
 // Standard billing (default)
@@ -282,6 +319,14 @@ await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(
         EnableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments,
     });
 
+// Developer-rendered Billing Choice (must match Play Console, 9.1.0+)
+await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(
+    new InitConnectionConfig
+    {
+        EnableBillingProgramAndroid = BillingProgramAndroid.BillingChoice,
+        BillingChoiceScreenTypeAndroid = BillingChoiceScreenTypeAndroid.DeveloperRendered,
+    });
+
 // Standard billing (default)
 await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync();`}</CodeBlock>
             ),
@@ -297,6 +342,11 @@ await iap.init_connection(config)
 
 # Initialize with external payments (Japan only, 8.3.0+)
 config.enable_billing_program_android = BillingProgramAndroid.EXTERNAL_PAYMENTS
+await iap.init_connection(config)
+
+# Developer-rendered Billing Choice (must match Play Console, 9.1.0+)
+config.enable_billing_program_android = BillingProgramAndroid.BILLING_CHOICE
+config.billing_choice_screen_type_android = BillingChoiceScreenTypeAndroid.DEVELOPER_RENDERED
 await iap.init_connection(config)
 
 # Standard billing (default)
@@ -542,7 +592,7 @@ func _on_user_choice_billing(details: UserChoiceBillingDetails):
     if payment_result.success:
         grant_user_access()
 
-iap.user_choice_billing.connect(_on_user_choice_billing)
+iap.user_choice_billing_android.connect(_on_user_choice_billing)
 
 # Step 2: Initialize with user choice billing (recommended)
 var config = InitConnectionConfig.new()
@@ -564,7 +614,7 @@ props.type = ProductType.SUBS
 await iap.request_purchase(props)
 
 # If user selects Google Play → purchase_updated signal fires
-# If user selects alternative → user_choice_billing signal fires`}</CodeBlock>
+# If user selects alternative → user_choice_billing_android signal fires`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
