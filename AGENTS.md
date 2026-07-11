@@ -166,7 +166,8 @@ Codex-compatible local skills in `.codex/skills/`, including
 `openiap-workflows` for mapping Claude slash-command workflows and `review-self`
 for repeated self-review of current work.
 
-Install them into your local Codex home when needed:
+Codex discovers `review-self` from this repository. Install the globally unique
+OpenIAP workflow skills into your local Codex home when needed:
 
 ```bash
 ./.codex/scripts/install-skills.sh
@@ -175,6 +176,10 @@ Install them into your local Codex home when needed:
 After installation, ask Codex normally (for example, "review PR 65" or
 "resolve issue 88"), or explicitly mention `$openiap-workflows` or
 `$review-self`.
+
+Keep `$review-self` repo-local. Other repositories provide project-specific
+skills with the same name, so globally linking it would make the most recently
+installed project overwrite the others.
 
 ## Available Skills (Slash Commands / Codex Workflows)
 
