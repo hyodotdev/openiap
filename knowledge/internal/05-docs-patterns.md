@@ -282,6 +282,10 @@ Before adding or editing a `Package Releases` list:
    `Package Releases` block contains a package/version item without a GitHub
    Release link.
 
+Do not create a stable release-note block for RC or npm `next` publications on
+the `next` branch. Preserve the change evidence, then write one concise,
+package-grouped entry after stable promotion on `main`.
+
 Do not use `openiap-versions.json` to derive React Native, Expo, Flutter,
 Godot, KMP, or MAUI versions; that manifest tracks only `spec`, `google`, and
 `apple`.

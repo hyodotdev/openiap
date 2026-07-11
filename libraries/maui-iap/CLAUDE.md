@@ -43,9 +43,9 @@ libraries/maui-iap/
         ├── UnsupportedOpenIap.cs   — fallback for non-platform builds
         ├── Types.cs                — AUTO-GENERATED, do not edit
         └── Platforms/
-            ├── Android/OpenIapAndroid.cs       — Android bridge stub
-            ├── iOS/OpenIapIOS.cs               — iOS bridge stub
-            └── MacCatalyst/OpenIapMacCatalyst.cs — macCatalyst bridge stub
+            ├── Android/OpenIapAndroid.cs       — Android binding implementation
+            ├── iOS/OpenIapIOS.cs               — iOS binding implementation
+            └── MacCatalyst/OpenIapMacCatalyst.cs — macCatalyst binding implementation
 ```
 
 ## Auto-generated files (DO NOT EDIT)

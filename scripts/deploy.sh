@@ -38,15 +38,32 @@ if [[ "$VERSION" == v* ]] || [[ "$VERSION" == gql-* ]]; then
     exit 1
 fi
 
-if [[ ! "$VERSION" =~ ^[0-9]+(\.[0-9]+){2}(-[0-9A-Za-z.-]+)?$ ]]; then
+if [[ ! "$VERSION" =~ ^[0-9]+(\.[0-9]+){2}$ ]]; then
     echo -e "${RED}❌ Error: Version must follow semantic versioning${NC}"
-    echo -e "${YELLOW}Example: 1.2.0 or 1.2.0-beta.1${NC}"
+    echo -e "${YELLOW}Production docs accept stable versions only (example: 2.1.0)${NC}"
     exit 1
 fi
 
 echo -e "${BLUE}📍 Current spec version: $CURRENT_VERSION${NC}"
 echo -e "${GREEN}✅ Target version: $VERSION${NC}"
 echo ""
+
+# Production docs are stable-only and release from main.
+CURRENT_BRANCH=$(git branch --show-current)
+echo -e "${BLUE}📍 Current branch: $CURRENT_BRANCH${NC}"
+if ! node scripts/release-branch-policy.mjs guard docs current false "$CURRENT_BRANCH" "$VERSION"; then
+    echo -e "${RED}❌ Production docs must deploy from the stable main branch${NC}"
+    exit 1
+fi
+
+echo -e "${BLUE}🔍 Checking Git status...${NC}"
+
+# Check if there are uncommitted changes
+if [[ -n $(git status -s) ]]; then
+    echo -e "${RED}❌ Production deployment requires a clean worktree${NC}"
+    git status -s
+    exit 1
+fi
 
 # Check if Vercel CLI is installed
 if ! command -v vercel &> /dev/null; then
@@ -60,25 +77,6 @@ if ! vercel whoami &> /dev/null; then
     echo -e "${YELLOW}🔑 Please log in to Vercel...${NC}"
     vercel login
 fi
-
-echo -e "${BLUE}🔍 Checking Git status...${NC}"
-
-# Check if there are uncommitted changes
-if [[ -n $(git status -s) ]]; then
-    echo -e "${YELLOW}⚠️  Warning: You have uncommitted changes${NC}"
-    git status -s
-    echo ""
-    read -p "Do you want to continue anyway? (y/N): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo -e "${RED}❌ Deployment cancelled${NC}"
-        exit 1
-    fi
-fi
-
-# Check current branch
-CURRENT_BRANCH=$(git branch --show-current)
-echo -e "${BLUE}📍 Current branch: $CURRENT_BRANCH${NC}"
 
 # Confirm deployment
 echo ""

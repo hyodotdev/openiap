@@ -8,11 +8,11 @@ Compile the OpenIAP knowledge base to generate context files for AI assistants.
 
 ### Output Files
 
-| Output | Location | Purpose |
-|--------|----------|---------|
-| `context.md` | `knowledge/_claude-context/` | Claude Code context |
-| `llms.txt` | `packages/docs/public/` | AI assistant quick reference |
-| `llms-full.txt` | `packages/docs/public/` | AI assistant full reference |
+| Output          | Location                     | Purpose                      |
+| --------------- | ---------------------------- | ---------------------------- |
+| `context.md`    | `knowledge/_claude-context/` | Claude Code context          |
+| `llms.txt`      | `packages/docs/public/`      | AI assistant quick reference |
+| `llms-full.txt` | `packages/docs/public/`      | AI assistant full reference  |
 
 ### Commands
 
@@ -51,10 +51,10 @@ ollama pull qwen2.5-coder:14b
 ollama serve
 ```
 
-| Model | Purpose | Size |
-|-------|---------|------|
-| `nomic-embed-text` | Vector embeddings | ~274MB |
-| `qwen2.5-coder:14b` | Code generation | ~9GB |
+| Model               | Purpose           | Size   |
+| ------------------- | ----------------- | ------ |
+| `nomic-embed-text`  | Vector embeddings | ~274MB |
+| `qwen2.5-coder:14b` | Code generation   | ~9GB   |
 
 ## Compile Steps
 
@@ -72,19 +72,19 @@ ls -la ../../knowledge/_claude-context/
 ls -la ../../packages/docs/public/llms*.txt
 ```
 
-### 3. Commit Changes
+### 3. Review Generated Changes
 
 ```bash
 git add knowledge/_claude-context/context.md
 git add packages/docs/public/llms.txt
 git add packages/docs/public/llms-full.txt
-
-git commit -m "docs: update compiled knowledge base
-
-Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
 ```
 
-## SST (Single Source of Truth)
+Commit or push generated context only when the user requested publication or it
+is part of an already-authorized product/docs PR. Otherwise keep internal AI
+context changes local and report them.
+
+## SSOT (Single Source of Truth)
 
 ```text
 knowledge/

@@ -5,15 +5,21 @@ Run this before committing or creating a PR to verify the entire monorepo is hea
 ## Checks
 
 ### 0. SDK SSOT Parity
+
 ```bash
 # Godot is intentionally excluded until its example parity is automated.
 bun run audit:parity
+
+# Stable main / prerelease next branch contract.
+bun run audit:release-state
+node --test scripts/release-branch-policy.test.mjs
 ```
 
 This fails if a new non-Godot library, Expo example route/product ID, generated
 type sync target, or GQL root operation is not covered by the parity audit.
 
 ### 1. Build Verification
+
 ```bash
 # Docs typecheck
 cd packages/docs && npx tsc --noEmit
@@ -26,7 +32,9 @@ cd packages/apple && swift build
 ```
 
 ### 2. Type Consistency
+
 Verify `DuplicatePurchase` (and any new ErrorCode) exists in ALL generated types:
+
 ```bash
 for f in packages/gql/src/generated/types.ts \
          libraries/react-native-iap/src/types.ts \
@@ -34,27 +42,32 @@ for f in packages/gql/src/generated/types.ts \
          libraries/flutter_inapp_purchase/lib/types.dart \
          libraries/godot-iap/addons/godot-iap/types.gd \
          packages/apple/Sources/Models/Types.swift \
-         packages/google/openiap/src/main/Types.kt; do
+         packages/google/openiap/src/main/java/dev/hyo/openiap/Types.kt \
+         libraries/maui-iap/src/OpenIap.Maui/Types.cs; do
   echo "$f: $(grep -c 'DuplicatePurchase' $f 2>/dev/null || echo MISSING)"
 done
 ```
 
 Also verify `COMMON_ERROR_CODE_MAP` in react-native-iap and expo-iap includes all ErrorCode entries:
+
 - `libraries/react-native-iap/src/utils/errorMapping.ts`
 - `libraries/expo-iap/src/utils/errorMapping.ts`
 
 And Swift switch exhaustiveness:
+
 - `packages/apple/Sources/Models/OpenIapError.swift`
 - `packages/apple/Sources/OpenIapModule.swift`
 
 ### 3. Symlinks Valid
+
 ```bash
-for lib in react-native-iap expo-iap flutter_inapp_purchase godot-iap kmp-iap; do
+for lib in react-native-iap expo-iap flutter_inapp_purchase godot-iap kmp-iap maui-iap; do
   [ -L "libraries/$lib/openiap-versions.json" ] && [ -f "libraries/$lib/openiap-versions.json" ] && echo "$lib: OK" || echo "$lib: BROKEN"
 done
 ```
 
 ### 4. No Broken References
+
 ```bash
 # Deleted images still referenced
 grep -rn "openiap-apple.png\|openiap-google.png" --include="*.tsx" packages/docs/src/
@@ -67,6 +80,7 @@ grep -rn "github.com/hyochan/" --include="*.tsx" --include="*.ts" packages/docs/
 ```
 
 ### 5. LLM Files
+
 ```bash
 # DuplicatePurchase in llms files
 grep "duplicate-purchase" llms.txt llms-full.txt packages/docs/public/llms-full.txt
@@ -76,27 +90,35 @@ diff llms-full.txt packages/docs/public/llms-full.txt
 ```
 
 ### 6. Documentation
-- All 5 framework setup pages exist: `packages/docs/src/pages/docs/setup/{react-native,expo,flutter,godot,kmp}.tsx`
+
+- All 6 framework setup pages exist: `packages/docs/src/pages/docs/setup/{react-native,expo,flutter,godot,kmp,maui}.tsx`
 - Testing & Sandbox guide exists: `packages/docs/src/pages/docs/guides/testing.tsx`
 - All LanguageTabs have KMP tab where kotlin tab exists
 - GDScript examples use `await` for async calls
 
 ### 7. CI Workflows
+
 All release workflows exist and have valid YAML:
+
 ```bash
-ls .github/workflows/release-{apple,google,react-native,expo,flutter,godot,kmp}.yml
+ls .github/workflows/release-{apple,google,react-native,expo,flutter,godot,kmp,maui}.yml
+test -f .github/workflows/release.yml
+ruby -e 'require "yaml"; Dir[".github/workflows/*.yml"].each { |f| YAML.safe_load(File.read(f), [], [], true) }'
 ```
 
 ### 8. Agent instructions
+
 - Root AGENTS.md lists all framework library CLAUDE.md files
 - Root CLAUDE.md and GEMINI.md are symlinks to AGENTS.md
 - `knowledge/internal/02-architecture.md` includes `libraries/` in structure
 - Auto-generated files list includes library types
 
 ## Quick One-Liner
+
 ```bash
 cd packages/docs && npx tsc --noEmit && cd ../apple && swift build && cd ../.. && echo "BUILD OK" && \
 bun run audit:parity && \
+bun run audit:release-state && \
 grep -rn "openiap-apple.png\|openiap-google.png\|getProducts\b\|buyProduct\|completePurchase" --include="*.tsx" packages/docs/src/ | grep -v node_modules | wc -l | xargs -I {} sh -c '[ {} -eq 0 ] && echo "REFS OK" || echo "REFS BROKEN: {} issues"' && \
 diff llms-full.txt packages/docs/public/llms-full.txt > /dev/null 2>&1 && echo "LLMS SYNCED" || echo "LLMS OUT OF SYNC"
 ```

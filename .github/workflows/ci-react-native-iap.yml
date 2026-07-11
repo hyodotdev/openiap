@@ -2,12 +2,12 @@ name: CI - react-native-iap
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, next]
     paths:
       - 'libraries/react-native-iap/**'
       - 'packages/gql/src/generated/types.ts'
   push:
-    branches: [main]
+    branches: [main, next]
     paths:
       - 'libraries/react-native-iap/**'
       - 'packages/gql/src/generated/types.ts'

@@ -26,6 +26,11 @@ read the package or library convention file before editing that code.
 
 Current scope: assumed-published release notes.
 
+RC and npm `next` releases live on the on-demand `next` branch and do not get a
+release-history entry. Gather their changes as source material, but add the
+consolidated docs entry only when the train is promoted to a stable release on
+`main`. Production `npm run deploy` is stable-only.
+
 Use shipped wording only when the user explicitly says to assume deployment or
 write the docs as already released. In that mode:
 

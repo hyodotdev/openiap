@@ -30,6 +30,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Enforce stable release branch
+        run: >-
+          node scripts/release-branch-policy.mjs guard docs
+          "${{ inputs.version }}" false "$GITHUB_REF_NAME"
+
       - name: Calculate new version
         id: version
         env:

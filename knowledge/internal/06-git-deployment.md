@@ -104,19 +104,54 @@ Fix purchase validation error
 
 ## Deployment
 
+### Stable And Prerelease Branches
+
+`main` is the stable release branch. Its package metadata must never contain a
+SemVer prerelease suffix. Stable package releases, production docs deployment,
+and the Docs GitHub Release run from `main` only.
+
+`next` is an on-demand prerelease integration branch for compatibility work
+that needs external validation, such as a new store runtime. It is not a
+permanent development branch and may be absent between prerelease trains.
+
+- Create `next` from the latest `main` only when a maintainer requests a
+  prerelease train.
+- Before reusing `next`, inspect its divergence, open PRs, and active workflows.
+  If it belongs to an older completed train, do not merge, rebase, reset, or
+  delete it automatically; obtain explicit maintainer approval before replacing
+  it from current `main`.
+- Run first RC releases from `next` with `prerelease=true`; run later RC bumps
+  with `version=rc-bump` where supported.
+- Release workflows commit prerelease metadata back to `next`, never `main`.
+- Do not merge prerelease version-only commits into `main`. Promote reviewed
+  source changes through a clean PR based on `main`, then run the stable
+  workflow from `main` using the intended bump type relative to its stable
+  metadata.
+- Do not force-reset or delete `next` without explicit maintainer approval.
+- RC/next releases do not get entries in the stable docs release history.
+
+The executable policy is `scripts/release-branch-policy.mjs`. CI runs it for
+`main` and `next`, and every package release workflow runs it before builds:
+
+```bash
+bun run audit:release-state
+node --test scripts/release-branch-policy.test.mjs
+```
+
 ### Deploying Apple Package (iOS/macOS)
 
 **Via GitHub Actions UI:**
 
 1. Go to Actions -> "Apple Release"
 2. Click "Run workflow"
-3. Enter version (e.g., `1.2.24`)
-4. Click "Run workflow"
+3. Select `main` for stable or `next` for prerelease
+4. Select the version bump type and prerelease flag
+5. Click "Run workflow"
 
 **What happens:**
 
 1. Updates `openiap-versions.json`
-2. Commits version change to main
+2. Commits the version change to the guarded release branch
 3. Creates Git tag `<apple-version>` (bare semver)
 4. Builds and tests Swift package
 5. Validates and publishes to CocoaPods
@@ -133,13 +168,14 @@ Fix purchase validation error
 
 1. Go to Actions -> "Google Release"
 2. Click "Run workflow"
-3. Enter version (e.g., `<google-version>`)
-4. Click "Run workflow"
+3. Select `main` for stable or `next` for prerelease
+4. Select the version bump type and prerelease flag
+5. Click "Run workflow"
 
 **What happens:**
 
 1. Updates `openiap-versions.json`
-2. Commits version change to main
+2. Commits the version change to the guarded release branch
 3. Creates Git tag `google-<google-version>`
 4. Builds and tests Android library
 5. Publishes to Maven Central
@@ -151,6 +187,9 @@ Fix purchase validation error
 
 ### Deploying Documentation
 
+Production documentation is stable-only and must deploy from a clean `main`
+checkout. The script rejects prerelease spec versions and other branches.
+
 ```bash
 # From monorepo root
 npm run deploy
@@ -158,19 +197,23 @@ npm run deploy
 
 This will:
 
-1. Build and deploy documentation to Vercel
-2. Trigger GitHub Actions workflow to:
-   - Regenerate types for all platforms
-   - Create release artifacts (TypeScript, Dart, Kotlin, Swift)
-   - Create Git tag `docs-<spec>`
-   - Create GitHub Release with artifacts
+1. Sync version metadata
+2. Typecheck and build the docs site
+3. Deploy production documentation to Vercel
+
+It does **not** trigger the Docs GitHub Release. After the Vercel deployment is
+verified, run the stable Docs workflow without another version bump:
+
+```bash
+gh workflow run release.yml --ref main -f version=current
+```
 
 `npm run deploy` uses the current `spec` value from
 `openiap-versions.json`. To deploy a different spec version, pass it
 explicitly:
 
 ```bash
-npm run deploy 1.2.0
+npm run deploy -- 2.1.0
 ```
 
 ---
@@ -188,6 +231,7 @@ Each package uses a different tag format for GitHub Releases:
 | Flutter      | `flutter-iap-{version}`      | `flutter-iap-9.2.0`       |
 | KMP          | `kmp-iap-{version}`          | `kmp-iap-2.2.0`           |
 | Godot        | `godot-iap-{version}`        | `godot-iap-2.2.0`         |
+| MAUI         | `maui-iap-{version}`         | `maui-iap-1.2.1`          |
 | Docs         | `docs-{version}`             | `docs-1.2.0`              |
 
 > **Apple is the exception** — it tags with the bare semver version because
@@ -217,6 +261,10 @@ release is published, verify the tag exists with `gh release view <tag>` before
 linking it. This prevents stale Package Releases tables such as documenting
 `maui-iap 1.0.1` when the actual release tag is `maui-iap-1.0.3`.
 
+Do not add RC or npm `next` releases to the stable release history. Collect
+their user-facing changes and write one package-grouped entry when the release
+train is promoted on `main`.
+
 ---
 
 ## Important Notes
@@ -244,6 +292,10 @@ Version ownership is split:
   `packages/gql/package.json`, then run `./scripts/sync-versions.sh`.
 - Deploy script (`npm run deploy`) uses the current `spec` version by default,
   and updates `spec` only when an explicit version is passed
+
+Release workflows write stable values on `main` and prerelease values on
+`next`. Manual edits are not a substitute for selecting the correct workflow
+branch.
 
 The manifest is only for the shared spec and native platform packages:
 `spec`, `google`, and `apple`. Framework library package versions

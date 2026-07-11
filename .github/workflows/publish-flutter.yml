@@ -1,9 +1,6 @@
 name: "Publish: flutter_inapp_purchase"
 
 on:
-  push:
-    tags:
-      - "flutter-iap-*"
   workflow_dispatch:
 
 permissions:
@@ -21,6 +18,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      - name: Require a Flutter release tag
+        run: |
+          if [[ "$GITHUB_REF" != refs/tags/flutter-iap-* ]]; then
+            echo "::error::Publish must be dispatched on a flutter-iap-* tag ref"
+            exit 1
+          fi
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2

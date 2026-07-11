@@ -1,6 +1,6 @@
 ---
 name: openiap-workflows
-description: Use for OpenIAP monorepo work that should follow the repository's Claude slash-command workflows, including review-pr, audit-code, compile-knowledge, verify-all, e2e-tests, resolve-issue, commit/push/PR, generated type sync, package-specific checks, GitHub review threads, and project conventions from AGENTS.md/CLAUDE.md/GEMINI.md.
+description: Use for OpenIAP monorepo work that should follow the repository's Claude slash-command workflows, including review-pr, audit-code, compile-knowledge, verify-all, e2e-tests, stable or prerelease package releases, resolve-issue, commit/push/PR, generated type sync, package-specific checks, GitHub review threads, and project conventions from AGENTS.md/CLAUDE.md/GEMINI.md.
 ---
 
 # OpenIAP Workflows
@@ -39,6 +39,8 @@ natural-language requests, execute the matching workflow:
   `.claude/commands/verify-all.md`.
 - E2E tests, device regression, connected-device purchase flow checks, or
   "e2e-tests": read `.claude/commands/e2e-tests.md`.
+- Stable releases, RC/next releases, registry publication, or package deploys:
+  read `.claude/commands/release.md`.
 - Commit, push, or create PR: read `.claude/commands/commit.md`.
 
 When a command file gives a sequence, follow it unless the user's newest
@@ -75,6 +77,10 @@ appropriate labels before merging.
 - For release-note package lists, verify versions from package metadata and
   GitHub release tags; never infer framework versions from `openiap-versions.json`
   or from a nearby release block.
+- Treat `main` as stable-only and `next` as an on-demand prerelease branch.
+  Never run an RC/next release from `main`, a stable release from `next`, or a
+  production docs deploy from `next`. Run `bun run audit:release-state` before
+  release work.
 - For PRs with new features, visible behavior changes, UI changes, docs pages,
   example flows, or developer workflows, record the actual changed surface,
   compress the video to under 10 MB, and upload it to the GitHub PR as a

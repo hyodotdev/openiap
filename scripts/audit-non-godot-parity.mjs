@@ -3230,6 +3230,7 @@ function checkFrameworkDependencyHygiene() {
       "if ! bun run build; then",
       "if ! vercel --prod; then",
       'git commit -m "chore(spec): bump version to $VERSION"',
+      "release-branch-policy.mjs guard docs current false",
       "git pull --rebase origin main",
       "git push origin HEAD:main",
       "packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json",
@@ -3341,21 +3342,25 @@ function checkFrameworkDependencyHygiene() {
     ],
     "Google release workflow must not require a macOS runner",
   );
-  for (const [frameworkReleaseWorkflow, tagCommand] of [
+  for (const [frameworkReleaseWorkflow, packageId, tagCommand] of [
     [
       ".github/workflows/release-expo.yml",
+      "expo",
       'git tag -a "expo-iap-${NEW_VERSION}"',
     ],
     [
       ".github/workflows/release-react-native.yml",
+      "react-native",
       'git tag -a "react-native-iap-${NEW_VERSION}"',
     ],
     [
       ".github/workflows/release-flutter.yml",
+      "flutter",
       'git tag -a "flutter-iap-${NEW_VERSION}"',
     ],
     [
       ".github/workflows/release-godot.yml",
+      "godot",
       "git tag -a godot-iap-${{ steps.version.outputs.VERSION }}",
     ],
   ]) {
@@ -3366,14 +3371,16 @@ function checkFrameworkDependencyHygiene() {
         "Checkout release tag (current version)",
         'git checkout "$RELEASE_TAG"',
         "Use 'current' to retry this version.",
+        `release-branch-policy.mjs guard ${packageId}`,
+        "RELEASE_BRANCH: ${{ github.ref_name }}",
         "Commit version update",
         "STASHED=false",
         'git stash push --include-untracked -m "release artifacts"',
-        "git pull --rebase origin main",
+        'git pull --rebase origin "$RELEASE_BRANCH"',
         'if [ "$STASHED" = "true" ]; then',
         "git stash pop",
         tagCommand,
-        "git push origin HEAD:main --follow-tags",
+        'git push origin "HEAD:$RELEASE_BRANCH" --follow-tags',
       ],
       `${frameworkReleaseWorkflow} must tag after rebasing the release commit`,
     );
@@ -3588,7 +3595,8 @@ function checkFrameworkDependencyHygiene() {
     [
       "Creates Git tag `<apple-version>` (bare semver)",
       "Creates Git tag `google-<google-version>`",
-      "Create Git tag `docs-<spec>`",
+      "gh workflow run release.yml --ref main -f version=current",
+      "`docs-{version}`",
     ],
     "release deployment docs tag conventions",
   );
@@ -3882,8 +3890,10 @@ function checkFrameworkDependencyHygiene() {
       'git checkout "$RELEASE_TAG"',
       "libraryVersion=$ENV{VERSION}",
       './scripts/update-readme-version.sh "$VERSION"',
-      "git pull --rebase origin main",
-      "git push origin HEAD:main",
+      "release-branch-policy.mjs guard kmp",
+      "RELEASE_BRANCH: ${{ github.ref_name }}",
+      'git pull --rebase origin "$RELEASE_BRANCH"',
+      'git push origin "HEAD:$RELEASE_BRANCH"',
       "https://repo1.maven.org/maven2/io/github/hyochan/kmp-iap/$VERSION/",
       "Unable to verify kmp-iap $VERSION on Maven Central",
       "if: steps.check_maven.outputs.exists == 'false'",

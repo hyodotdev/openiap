@@ -14,6 +14,7 @@
     "e2e:web": "node scripts/e2e-web-sites.mjs",
     "audit:parity": "node scripts/audit-non-godot-parity.mjs",
     "audit:docs": "bun run scripts/audit-docs.ts",
+    "audit:release-state": "node scripts/release-branch-policy.mjs audit",
     "clean": "rm -rf packages/*/node_modules node_modules",
     "generate": "cd packages/gql && bun run generate && cd ../apple && ./scripts/generate-types.sh && cd ../google && ./scripts/generate-types.sh",
     "version:sync": "bun scripts/sync-versions.mjs",

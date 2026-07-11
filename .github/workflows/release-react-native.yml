@@ -15,7 +15,7 @@ on:
           - rc-bump
         default: patch
       prerelease:
-        description: "Publish as prerelease (-rc.1)"
+        description: "Publish as prerelease from next (-rc.1)"
         required: false
         default: false
         type: boolean
@@ -23,11 +23,28 @@ concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
 
+env:
+  RELEASE_BRANCH: ${{ github.ref_name }}
+
 permissions:
   contents: write
 
 jobs:
+  release-branch:
+    name: Validate release branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Enforce stable and prerelease branches
+        run: >-
+          node scripts/release-branch-policy.mjs guard react-native
+          "${{ inputs.version }}" "${{ inputs.prerelease }}"
+          "$GITHUB_REF_NAME"
+
   validate-android:
+    needs: [release-branch]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -67,6 +84,7 @@ jobs:
         run: ./gradlew :react-native-iap:assembleDebug --stacktrace
 
   validate-ios:
+    needs: [release-branch]
     runs-on: macos-15
     timeout-minutes: 60
     env:
@@ -247,12 +265,12 @@ jobs:
             git stash push --include-untracked -m "release artifacts"
             STASHED=true
           fi
-          git pull --rebase origin main
+          git pull --rebase origin "$RELEASE_BRANCH"
           if [ "$STASHED" = "true" ]; then
             git stash pop
           fi
           git tag -a "react-native-iap-${NEW_VERSION}" -m "Release react-native-iap-${NEW_VERSION}"
-          git push origin HEAD:main --follow-tags
+          git push origin "HEAD:$RELEASE_BRANCH" --follow-tags
 
       - name: Create tag (current version)
         if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists != 'true' }}
@@ -347,7 +365,7 @@ jobs:
           ### Links
 
           - [npm](https://www.npmjs.com/package/react-native-iap/v/$VERSION)
-          - [GitHub (monorepo)](https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap)
+          - [GitHub (monorepo)](https://github.com/hyodotdev/openiap/tree/react-native-iap-$VERSION/libraries/react-native-iap)
           EOF
 
       - name: Create GitHub Release

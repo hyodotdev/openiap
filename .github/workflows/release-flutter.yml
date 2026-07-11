@@ -15,7 +15,7 @@ on:
           - rc-bump
         default: patch
       prerelease:
-        description: "Publish as prerelease (-rc.1)"
+        description: "Publish as prerelease from next (-rc.1)"
         required: false
         default: false
         type: boolean
@@ -23,12 +23,28 @@ concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
 
+env:
+  RELEASE_BRANCH: ${{ github.ref_name }}
+
 permissions:
   contents: write
 
 jobs:
+  release-branch:
+    name: Validate release branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Enforce stable and prerelease branches
+        run: >-
+          node scripts/release-branch-policy.mjs guard flutter
+          "${{ inputs.version }}" "${{ inputs.prerelease }}"
+          "$GITHUB_REF_NAME"
+
   validate-android:
-    if: github.ref == 'refs/heads/main'
+    needs: [release-branch]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
@@ -72,7 +88,7 @@ jobs:
         run: bash scripts/verify-android-consumer-build.sh
 
   validate-ios:
-    if: github.ref == 'refs/heads/main'
+    needs: [release-branch]
     runs-on: macos-15
     timeout-minutes: 60
     env:
@@ -124,7 +140,6 @@ jobs:
 
   deploy:
     needs: [validate-android, validate-ios]
-    if: github.ref == 'refs/heads/main'
     permissions:
       contents: write
       id-token: write
@@ -326,12 +341,12 @@ jobs:
             git stash push --include-untracked -m "release artifacts"
             STASHED=true
           fi
-          git pull --rebase origin main
+          git pull --rebase origin "$RELEASE_BRANCH"
           if [ "$STASHED" = "true" ]; then
             git stash pop
           fi
           git tag -a "flutter-iap-${NEW_VERSION}" -m "Release flutter-iap-${NEW_VERSION}"
-          git push origin HEAD:main --follow-tags
+          git push origin "HEAD:$RELEASE_BRANCH" --follow-tags
 
       - name: Push tag (current version)
         if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists != 'true' }}
@@ -386,7 +401,7 @@ jobs:
           ### Links
 
           - [pub.dev](https://pub.dev/packages/flutter_inapp_purchase/versions/$VERSION)
-          - [GitHub (monorepo)](https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase)
+          - [GitHub (monorepo)](https://github.com/hyodotdev/openiap/tree/flutter-iap-$VERSION/libraries/flutter_inapp_purchase)
           EOF
 
       - name: Create GitHub Release
@@ -398,10 +413,9 @@ jobs:
           prerelease: ${{ steps.bump.outputs.is_prerelease }}
           body_path: /tmp/release-notes.md
 
-      # pub.dev OIDC requires a tag refType, so the publish workflow must run
-      # against the newly-created tag. The push:tags trigger has been
-      # unreliable (tag push via PAT sometimes does not fire it), so we
-      # explicitly dispatch publish-flutter.yml on the tag ref here.
+      # pub.dev OIDC requires a tag refType. Dispatch exactly once on the
+      # newly-created tag; publish-flutter.yml has no push trigger so a PAT tag
+      # push cannot create a duplicate publisher run.
       - name: Dispatch pub.dev publish on tag ref
         env:
           GH_TOKEN: ${{ secrets.DEPENDENCY_UPDATE_PAT }}

@@ -14,7 +14,7 @@ on:
           - current
         default: patch
       prerelease:
-        description: 'Publish as prerelease (-rc.1)'
+        description: 'Publish as prerelease from next (-rc.1)'
         required: false
         default: false
         type: boolean
@@ -40,12 +40,27 @@ concurrency:
 env:
   XCODE_VERSION: 16.4
   COCOAPODS_VERSION: 1.15.2
+  RELEASE_BRANCH: ${{ github.ref_name }}
 
 permissions:
   contents: write
 
 jobs:
+  release-branch:
+    name: Validate release branch
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v7
+
+    - name: Enforce stable and prerelease branches
+      run: >-
+        node scripts/release-branch-policy.mjs guard apple
+        "${{ inputs.version }}" "${{ inputs.prerelease }}"
+        "$GITHUB_REF_NAME" "${{ inputs.target_version }}"
+
   validate-ios:
+    needs: [release-branch]
     runs-on: macos-15
     timeout-minutes: 30
     steps:
@@ -205,7 +220,7 @@ jobs:
           # Push with retry, handling concurrent release conflicts
           for i in 1 2 3; do
             # Pull latest changes before pushing
-            if ! git pull --rebase origin main; then
+            if ! git pull --rebase origin "$RELEASE_BRANCH"; then
               echo "⚠️ Rebase conflict detected, auto-resolving version files..."
 
               # Auto-resolve version metadata conflicts by applying only our
@@ -237,7 +252,7 @@ jobs:
               GIT_EDITOR=true git rebase --continue || { echo "❌ Rebase continue failed"; exit 1; }
             fi
 
-            if git push origin main; then
+            if git push origin "HEAD:$RELEASE_BRANCH"; then
               echo "✅ Successfully pushed version update"
               break
             else
@@ -385,7 +400,7 @@ jobs:
 
         - [API reference](https://openiap.dev/docs/apis)
         - [Release notes](https://openiap.dev/docs/updates/releases)
-        - [GitHub (monorepo)](https://github.com/hyodotdev/openiap/tree/main/packages/apple)
+        - [GitHub (monorepo)](https://github.com/hyodotdev/openiap/tree/$VERSION/packages/apple)
 
         ### Links
 

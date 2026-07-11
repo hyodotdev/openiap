@@ -15,7 +15,7 @@ on:
           - rc-bump
         default: patch
       prerelease:
-        description: "Publish as prerelease (-rc.1)"
+        description: "Publish as prerelease from next (-rc.1)"
         required: false
         default: false
         type: boolean
@@ -32,9 +32,24 @@ env:
   XCODE_VERSION: 16.4
   XCODEGEN_VERSION: 2.45.4
   XCODEGEN_SHA256: 090ec29491aad50aec10631bf6e62253fed733c50f3aab0f5ffc86bc170bdbef
+  RELEASE_BRANCH: ${{ github.ref_name }}
 
 jobs:
+  release-branch:
+    name: Validate release branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Enforce stable and prerelease branches
+        run: >-
+          node scripts/release-branch-policy.mjs guard maui
+          "${{ inputs.version }}" "${{ inputs.prerelease }}"
+          "$GITHUB_REF_NAME"
+
   validate:
+    needs: [release-branch]
     name: Validate (net9.0 / net10.0 shared)
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -58,6 +73,7 @@ jobs:
           dotnet build libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0
 
   validate-multitarget:
+    needs: [release-branch]
     name: Validate (net9.0/net10.0 platform TFMs)
     runs-on: macos-15
     timeout-minutes: 60
@@ -266,11 +282,11 @@ jobs:
           else
             git commit -m "chore(maui): bump version to $VERSION"
             for i in 1 2 3; do
-              if ! git pull --rebase origin main; then
+              if ! git pull --rebase origin "$RELEASE_BRANCH"; then
                 echo "❌ Rebase conflict while updating MAUI package version"
                 exit 1
               fi
-              if git push origin main; then
+              if git push origin "HEAD:$RELEASE_BRANCH"; then
                 echo "✅ Pushed version update"
                 break
               else
@@ -369,7 +385,7 @@ jobs:
           ### Links
 
           - [NuGet](https://www.nuget.org/packages/OpenIap.Maui/$VERSION)
-          - [GitHub (monorepo)](https://github.com/hyodotdev/openiap/tree/main/libraries/maui-iap)
+          - [GitHub (monorepo)](https://github.com/hyodotdev/openiap/tree/maui-iap-$VERSION/libraries/maui-iap)
           EOF
 
       - name: Create and push tag

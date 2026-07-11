@@ -2,12 +2,12 @@ name: CI - expo-iap
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, next]
     paths:
       - 'libraries/expo-iap/**'
       - 'packages/gql/src/generated/types.ts'
   push:
-    branches: [main]
+    branches: [main, next]
     paths:
       - 'libraries/expo-iap/**'
       - 'packages/gql/src/generated/types.ts'

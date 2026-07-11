@@ -1,0 +1,4 @@
+interface:
+  display_name: "Generate OpenIAP Docs"
+  short_description: "Write verified OpenIAP docs and release notes"
+  default_prompt: "Use $generate-doc to update OpenIAP documentation with verified package versions and release links."

@@ -2,14 +2,14 @@ name: CI - kmp-iap
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, next]
     paths:
       - "libraries/kmp-iap/**"
       - "packages/google/**"
       - "openiap-versions.json"
       - ".github/workflows/ci-kmp-iap.yml"
   push:
-    branches: [main]
+    branches: [main, next]
     paths:
       - "libraries/kmp-iap/**"
       - "packages/google/**"

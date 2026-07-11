@@ -37,7 +37,8 @@ Use WebSearch to get the latest platform API information:
 **Google Play Billing Library:**
 
 - Search: "Google Play Billing Library release notes site:developer.android.com"
-- Check for new features in the latest stable version (currently 9.1.0)
+- Read the configured version from `packages/google/gradle/libs.versions.toml`
+  and compare it with the latest stable version in the official release notes
 - Key areas: one-time products, subscription offers, billing programs, Billing Choice, in-app messages
 
 **Apple StoreKit 2:**
@@ -101,22 +102,22 @@ Compare current implementation against latest platform APIs:
 
 **Meta Horizon (check packages/google/openiap/src/horizon/):**
 
-| Feature                               | Check                           |
-| ------------------------------------- | ------------------------------- |
-| horizon-billing-compatibility version | Is it latest? (currently 2.0.0) |
-| API parity with Play flavor           | Same APIs available in both?    |
-| Shared code compatibility             | Uses only Billing 7.0 APIs?     |
-| getAvailableItems (Horizon-only)      | Implemented?                    |
-| verifyPurchase S2S                    | verify_entitlement endpoint?    |
+| Feature                               | Check                                       |
+| ------------------------------------- | ------------------------------------------- |
+| horizon-billing-compatibility version | Compare configured value with official docs |
+| API parity with Play flavor           | Same APIs available in both?                |
+| Shared code compatibility             | Uses only Billing 7.0 APIs?                 |
+| getAvailableItems (Horizon-only)      | Implemented?                                |
+| verifyPurchase S2S                    | verify_entitlement endpoint?                |
 
 **Version Compatibility (CRITICAL):**
 
-| Check                       | Expected                    |
-| --------------------------- | --------------------------- |
-| Play flavor Billing version | 9.1.0                       |
-| Horizon SDK compatible with | Billing 7.0 API             |
-| Shared code uses            | Only 7.0-compatible APIs    |
-| react-native-iap requires   | v14+, RN 0.79+, Kotlin 2.0+ |
+| Check                       | Expected                             |
+| --------------------------- | ------------------------------------ |
+| Play flavor Billing version | Read from the Google version catalog |
+| Horizon SDK compatible with | Billing 7.0 API                      |
+| Shared code uses            | Only 7.0-compatible APIs             |
+| Framework requirements      | Read package metadata and setup docs |
 
 ### 5. Analysis Checklist
 
@@ -145,7 +146,7 @@ packages/gql (GraphQL):
 
 **Latest API Coverage:**
 
-- [ ] Google Play Billing 9.1.0 features implemented end-to-end
+- [ ] Configured Google Play Billing features implemented end-to-end
 - [ ] StoreKit 2 iOS 18+ features implemented
 - [ ] Meta Horizon Billing SDK up to date
 - [ ] External API docs updated with new features
@@ -183,51 +184,23 @@ Update external API reference docs:
 
 Update the documentation site for users:
 
-**Release Notes (REQUIRED):**
+**Stable Release Notes:**
 
 - `src/pages/docs/updates/releases.tsx` - Add release notes for the affected release
+- Do not add RC or npm `next` publications from the `next` branch. Preserve the
+  change evidence and add one grouped entry when the train reaches stable `main`.
 - Verify every package version from its real metadata before writing the release list:
   `openiap-versions.json` only for `spec`, `google`, and `apple`;
   framework versions come from each library's package metadata
-- For planned framework patch releases, increment only the affected package's
-  own metadata version by one patch and use plain text planned wording
+- Derive planned versions from the explicit release plan and stable metadata;
+  release workflows own package-version commits
 - Add GitHub Release links only after `gh release view <tag>` confirms the tag exists
 - Document ALL changes: new features, bug fixes, breaking changes
 - Add entry at the TOP of `allNotes` array (newest first)
 
-Example releases.tsx entry:
-
-```typescript
-// Add to TOP of allNotes array in releases.tsx
-{
-  id: 'gql-1-3-13-google-1-3-24-apple-1-3-11',  // kebab-case id
-  date: new Date('2026-01-20'),
-  element: (
-    <div key="gql-1-3-13-google-1-3-24-apple-1-3-11" style={noteCardStyle}>
-      <AnchorLink id="gql-1-3-13-google-1-3-24-apple-1-3-11" level="h4">
-        📅 openiap-gql v1.3.13 / openiap-google v1.3.24 / openiap-apple v1.3.11 - Feature Name
-      </AnchorLink>
-
-      <p><strong>iOS - Win-Back Offers (iOS 18+):</strong></p>
-      <ul>
-        <li><code>winBackOffer</code> - New field in RequestSubscriptionIosProps</li>
-        <li>Re-engage churned subscribers with discounts</li>
-      </ul>
-
-      <p><strong>Android - Product Status Codes (Billing 8.0+):</strong></p>
-      <ul>
-        <li><code>ProductStatusAndroid</code> - New enum (OK, NOT_FOUND, NO_OFFERS_AVAILABLE)</li>
-        <li><code>productStatusAndroid</code> - New field on ProductAndroid</li>
-      </ul>
-
-      <p><strong>References:</strong></p>
-      <ul>
-        <li><a href="/docs/types/product">Product Types Documentation</a></li>
-      </ul>
-    </div>
-  ),
-},
-```
+Follow the current top entry and the package-grouping rules in
+`knowledge/internal/05-docs-patterns.md`; do not copy historical version or tag
+formats from older entries.
 
 **API Reference Pages:**
 
@@ -393,8 +366,8 @@ Then ask Claude to:
 Ask Claude Code:
 
 > "Run /audit-code with latest API check"
-> "Audit the codebase including latest Google Play Billing 9.1.0 features"
-> "Check implementation against latest StoreKit 2 iOS 18.4 APIs"
+> "Audit the configured Google Play Billing version against official release notes"
+> "Check StoreKit implementation against the latest official APIs"
 
 ## Output
 
@@ -404,7 +377,7 @@ After running audit, you should have:
 2. **Feature Gap Report** - Missing platform features with implementation status
 3. **Updated Knowledge Base** - knowledge/external/ updated with latest API info
 4. **Updated User Docs** - packages/docs/ updated:
-   - `releases.tsx` - Release notes for next version, with package versions verified from metadata / release tags
+   - `releases.tsx` - Stable release notes when applicable, with package versions verified from metadata / release tags
    - API reference pages updated
    - Type documentation updated
 5. **Updated Example Apps** - packages/\*/Example/ updated:

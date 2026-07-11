@@ -33,7 +33,7 @@ openiap/
 │   ├── flutter_inapp_purchase/  # Flutter (pub.dev)
 │   ├── godot-iap/         # Godot 4.x (GitHub Release)
 │   ├── kmp-iap/           # Kotlin Multiplatform (Maven Central)
-│   └── maui-iap/          # .NET MAUI / C# (NuGet — scaffold)
+│   └── maui-iap/          # .NET MAUI / C# (NuGet)
 ├── knowledge/         # Shared knowledge base (SSOT)
 │   ├── internal/      # Project philosophy (HIGHEST PRIORITY)
 │   ├── external/      # External API reference
@@ -52,6 +52,7 @@ openiap/
    - [`packages/gql/CONVENTION.md`](packages/gql/CONVENTION.md)
    - [`packages/google/CONVENTION.md`](packages/google/CONVENTION.md)
    - [`packages/apple/CONVENTION.md`](packages/apple/CONVENTION.md)
+   - [`packages/docs/CONVENTION.md`](packages/docs/CONVENTION.md)
    - [`packages/kit/CONVENTION.md`](packages/kit/CONVENTION.md) — kit is a deployable SaaS (not a library); has its own Convex schema and isn't part of the GQL type-sync chain
 3. **For framework libraries, read the library-specific CLAUDE.md**:
    - [`libraries/react-native-iap/CLAUDE.md`](libraries/react-native-iap/CLAUDE.md) — Yarn 3, Nitro Modules, useIAP hook semantics, error handling
@@ -59,7 +60,7 @@ openiap/
    - [`libraries/flutter_inapp_purchase/CLAUDE.md`](libraries/flutter_inapp_purchase/CLAUDE.md) — Flutter/Dart, generated types.dart, fetchProducts generic API
    - [`libraries/godot-iap/CLAUDE.md`](libraries/godot-iap/CLAUDE.md) — GDScript conventions, GDExtension (iOS), AAR plugin (Android)
    - [`libraries/kmp-iap/CLAUDE.md`](libraries/kmp-iap/CLAUDE.md) — Kotlin Multiplatform, Flow-based API, CocoaPods iOS integration
-   - [`libraries/maui-iap/CLAUDE.md`](libraries/maui-iap/CLAUDE.md) — .NET MAUI / C# 12, generated Types.cs, Xamarin binding plan
+   - [`libraries/maui-iap/CLAUDE.md`](libraries/maui-iap/CLAUDE.md) — .NET MAUI / C# 12, generated Types.cs, Android/iOS bindings
 
 ## Key Rules Summary
 
@@ -127,6 +128,17 @@ GraphQL Schema → Parser → IR → Language Plugins → Generated Code
 - With tag: `feat: add new feature` (lowercase after tag)
 - Without tag: `Add new feature` (uppercase first letter)
 
+### Release Branch Policy
+
+- `main` is stable-only. Stable package releases and production docs deploy
+  from `main`; `bun run audit:release-state` rejects prerelease metadata there.
+- `next` is an on-demand prerelease integration branch for unusual release
+  trains. RC and npm `next` releases run from `next` only.
+- Do not merge prerelease version-only commits from `next` into `main`. Promote
+  reviewed source changes through a clean `main` PR, then release stable from
+  `main` using the bump type relative to its stable metadata.
+- Read `.claude/commands/release.md` before any package deployment.
+
 ## Using Claude Code with Context
 
 ```bash
@@ -172,6 +184,7 @@ After installation, ask Codex normally (for example, "review PR 65" or
 | `/resolve-issue`     | Analyze an issue, label it, and fix/comment        | `/resolve-issue 88`                   |
 | `/verify-all`        | Run the full monorepo health check                 | `/verify-all`                         |
 | `/e2e-tests`         | Run device-backed OpenIAP regression tests         | `/e2e-tests PR 162`                   |
+| `/release`           | Release stable packages or an on-demand RC train   | `/release all stable`                 |
 | `/commit`            | Branch, commit, push, and optionally create PR     | `/commit --all --pr`                  |
 
 ### /review-pr Workflow

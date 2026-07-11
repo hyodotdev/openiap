@@ -2,13 +2,13 @@ name: CI - godot-iap
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, next]
     paths:
       - 'libraries/godot-iap/**'
       - 'packages/gql/codegen/plugins/gdscript.ts'
       - 'packages/gql/src/generated/types.gd'
   push:
-    branches: [main]
+    branches: [main, next]
     paths:
       - 'libraries/godot-iap/**'
       - 'packages/gql/codegen/plugins/gdscript.ts'

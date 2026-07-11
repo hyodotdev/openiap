@@ -48,13 +48,13 @@ merge a PR anyway, add appropriate labels before merging.
 git branch --show-current
 ```
 
-**If on `main`** → Create a feature branch first:
+**If on `main` or `next`** → Create a feature branch first:
 
 ```bash
 git checkout -b feat/<feature-name>
 ```
 
-**If NOT on `main`** → Proceed with commits directly.
+**If on another semantic feature branch** → Proceed with commits directly.
 
 **Branch naming conventions:**
 
@@ -63,6 +63,8 @@ git checkout -b feat/<feature-name>
 - **Use a semantic prefix** that describes the change type: `feat/`, `fix/`,
   `ci/`, `docs/`, `test/`, `chore/`, or `refactor/`.
 - **Always include the target library/package name** in the branch name
+- `next` is reserved for on-demand prerelease integration. Do not commit
+  feature work directly to it; release workflows may commit RC metadata there.
 - `feat/<library>-<feature-name>` - New features (e.g., `feat/godot-win-back-offers`)
 - `fix/<library>-<bug-description>` - Bug fixes (e.g., `fix/expo-double-init`)
 - `ci/<library>-<workflow-change>` - CI/workflow changes (e.g., `ci/kmp-store-e2e`)
@@ -165,8 +167,13 @@ git push -u origin <branch-name>
 
 ### 7. Create Pull Request
 
+Use `main` as the default base. Use `next` only when the maintainer explicitly
+requested a prerelease train. Never target prerelease version-only commits at
+`main`.
+
 ```bash
-gh pr create --title "<type>(<scope>): <description>" --body "$(cat <<'EOF'
+PR_BASE=main # set to next only for an explicit prerelease train
+gh pr create --base "$PR_BASE" --title "<type>(<scope>): <description>" --body "$(cat <<'EOF'
 ## Summary
 
 <1-3 bullet points describing changes>

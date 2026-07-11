@@ -156,6 +156,10 @@ the GitHub Release does not exist yet.
 `bun run audit:docs` fails bare package/version entries under published
 `Package Releases` blocks so link regressions are caught before publishing.
 
+RC and npm `next` releases are managed on the on-demand `next` branch and do
+not get release-history entries. Add one grouped entry only when the train is
+promoted to a stable release on `main`.
+
 ### R10 — Docs version metadata stays synced with package metadata
 
 `packages/docs/src/lib/versioning.ts` must not import package metadata from

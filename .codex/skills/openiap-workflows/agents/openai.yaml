@@ -1,0 +1,4 @@
+interface:
+  display_name: "OpenIAP Workflows"
+  short_description: "Run guarded OpenIAP repo workflows"
+  default_prompt: "Use $openiap-workflows to complete this OpenIAP task with the repository's checks and release safeguards."

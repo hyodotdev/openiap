@@ -2,12 +2,12 @@ name: CI - flutter_inapp_purchase
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, next]
     paths:
       - 'libraries/flutter_inapp_purchase/**'
       - 'packages/gql/src/generated/types.dart'
   push:
-    branches: [main]
+    branches: [main, next]
     paths:
       - 'libraries/flutter_inapp_purchase/**'
       - 'packages/gql/src/generated/types.dart'

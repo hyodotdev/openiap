@@ -15,7 +15,7 @@ on:
           - rc-bump
         default: patch
       prerelease:
-        description: "Publish as prerelease (-rc.1)"
+        description: "Publish as prerelease from next (-rc.1)"
         required: false
         default: false
         type: boolean
@@ -26,12 +26,27 @@ concurrency:
 env:
   GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx4g -XX:+UseParallelGC"
   XCODE_VERSION: 16.4
+  RELEASE_BRANCH: ${{ github.ref_name }}
 
 permissions:
   contents: write
 
 jobs:
+  release-branch:
+    name: Validate release branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Enforce stable and prerelease branches
+        run: >-
+          node scripts/release-branch-policy.mjs guard kmp
+          "${{ inputs.version }}" "${{ inputs.prerelease }}"
+          "$GITHUB_REF_NAME"
+
   validate-android:
+    needs: [release-branch]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
@@ -62,6 +77,7 @@ jobs:
             --stacktrace
 
   validate-ios:
+    needs: [release-branch]
     runs-on: macos-15
     timeout-minutes: 60
     defaults:
@@ -233,8 +249,8 @@ jobs:
             echo "No version changes to commit"
           else
             git commit -m "chore(release): kmp-iap ${{ env.VERSION }}"
-            git pull --rebase origin main
-            git push origin HEAD:main
+            git pull --rebase origin "$RELEASE_BRANCH"
+            git push origin "HEAD:$RELEASE_BRANCH"
           fi
 
       - name: Clean build artifacts
@@ -347,7 +363,7 @@ jobs:
           ### Links
 
           - [Maven Central](https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap/$VERSION)
-          - [GitHub (monorepo)](https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap)
+          - [GitHub (monorepo)](https://github.com/hyodotdev/openiap/tree/kmp-iap-$VERSION/libraries/kmp-iap)
           EOF
 
       - name: Build Android release artifacts
