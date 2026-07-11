@@ -161,23 +161,26 @@ are symlinks to `AGENTS.md`, so Claude Code, Gemini, and Codex read the same
 root instructions. The `.claude/commands/` files remain the workflow SSOT for
 slash-command-style tasks.
 
-Codex supports Skills through `SKILL.md` folders. This repo provides a
-Codex-compatible local skill at `.codex/skills/openiap-workflows/` that maps the
-Claude slash-command workflows to Codex natural-language requests.
+Codex supports Skills through `SKILL.md` folders. This repo provides
+Codex-compatible local skills in `.codex/skills/`, including
+`openiap-workflows` for mapping Claude slash-command workflows and `review-self`
+for repeated self-review of current work.
 
-Install it into your local Codex home when needed:
+Install them into your local Codex home when needed:
 
 ```bash
 ./.codex/scripts/install-skills.sh
 ```
 
 After installation, ask Codex normally (for example, "review PR 65" or
-"resolve issue 88"), or explicitly mention `$openiap-workflows`.
+"resolve issue 88"), or explicitly mention `$openiap-workflows` or
+`$review-self`.
 
 ## Available Skills (Slash Commands / Codex Workflows)
 
 | Skill                | Description                                        | Usage                                 |
 | -------------------- | -------------------------------------------------- | ------------------------------------- |
+| `$review-self`       | Review and improve current work until stable       | `$review-self` or `$review-self <PR>` |
 | `/review-pr`         | Review PR comments, fix issues, resolve threads    | `/review-pr 65` or `/review-pr <url>` |
 | `/audit-code`        | Audit code against knowledge rules and latest APIs | `/audit-code`                         |
 | `/compile-knowledge` | Compile knowledge base for Claude context          | `/compile-knowledge`                  |
@@ -186,6 +189,17 @@ After installation, ask Codex normally (for example, "review PR 65" or
 | `/e2e-tests`         | Run device-backed OpenIAP regression tests         | `/e2e-tests PR 162`                   |
 | `/release`           | Release stable packages or an on-demand RC train   | `/release all stable`                 |
 | `/commit`            | Branch, commit, push, and optionally create PR     | `/commit --all --pr`                  |
+
+### $review-self Workflow
+
+1. Reviews the complete current diff, including staged, unstaged, and untracked
+   work, against the original request and repository conventions
+2. Fixes validated in-scope findings and runs path-specific verification
+3. Rechecks through a real recurring wake-up after five minutes
+4. Finishes after two consecutive clean snapshots, or reports the exact blocker
+
+`review-self` does not grant commit, push, PR, merge, deploy, or release authority
+that was not already present in the user's request.
 
 ### /review-pr Workflow
 
