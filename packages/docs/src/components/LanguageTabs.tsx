@@ -1,13 +1,10 @@
-import { useState, type ReactNode } from 'react';
-
-type Language =
-  | 'swift'
-  | 'kotlin'
-  | 'typescript'
-  | 'dart'
-  | 'kmp'
-  | 'gdscript'
-  | 'csharp';
+import { useSyncExternalStore, type ReactElement, type ReactNode } from 'react';
+import {
+  CODE_LANGUAGES,
+  codeLanguageSignal,
+  setCodeLanguage,
+  type CodeLanguage,
+} from '../lib/signals';
 
 interface LanguageTabsProps {
   children: {
@@ -21,7 +18,7 @@ interface LanguageTabsProps {
   };
 }
 
-const LANGUAGE_LABELS: Record<Language, string> = {
+const LANGUAGE_LABELS: Record<CodeLanguage, string> = {
   swift: 'Swift',
   kotlin: 'Kotlin',
   typescript: 'TypeScript',
@@ -31,24 +28,23 @@ const LANGUAGE_LABELS: Record<Language, string> = {
   csharp: 'C# (MAUI)',
 };
 
-const LANGUAGE_ORDER: Language[] = [
-  'swift',
-  'kotlin',
-  'typescript',
-  'dart',
-  'csharp',
-  'kmp',
-  'gdscript',
-];
+const subscribeToCodeLanguage = (onStoreChange: () => void): (() => void) =>
+  codeLanguageSignal.subscribe(onStoreChange);
 
-function LanguageTabs({ children }: LanguageTabsProps) {
-  const availableLanguages = LANGUAGE_ORDER.filter(
+const getCodeLanguageSnapshot = (): CodeLanguage => codeLanguageSignal.value;
+
+function LanguageTabs({ children }: LanguageTabsProps): ReactElement {
+  const availableLanguages = CODE_LANGUAGES.filter(
     (lang) => children[lang] !== undefined
   );
-
-  const [activeTab, setActiveTab] = useState<Language>(
-    availableLanguages[0] ?? 'swift'
+  const preferredLanguage = useSyncExternalStore(
+    subscribeToCodeLanguage,
+    getCodeLanguageSnapshot,
+    getCodeLanguageSnapshot
   );
+  const activeTab = availableLanguages.includes(preferredLanguage)
+    ? preferredLanguage
+    : (availableLanguages[0] ?? 'swift');
 
   return (
     <div className="language-tabs">
@@ -56,8 +52,9 @@ function LanguageTabs({ children }: LanguageTabsProps) {
         {availableLanguages.map((lang) => (
           <button
             key={lang}
+            type="button"
             className={`language-tab ${activeTab === lang ? 'active' : ''}`}
-            onClick={() => setActiveTab(lang)}
+            onClick={() => setCodeLanguage(lang)}
           >
             {LANGUAGE_LABELS[lang]}
           </button>
