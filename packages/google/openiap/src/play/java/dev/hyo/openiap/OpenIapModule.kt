@@ -27,6 +27,9 @@ import com.android.billingclient.api.QueryProductDetailsResult
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import com.google.gson.Gson
+import dev.hyo.openiap.helpers.ActiveStoreConnection
+import dev.hyo.openiap.helpers.ActiveStoreListenerOwner
+import dev.hyo.openiap.helpers.ActiveStoreOperationRegistry
 import dev.hyo.openiap.helpers.ProductManager
 import dev.hyo.openiap.helpers.ProductQueryResult
 import dev.hyo.openiap.MutationAcknowledgePurchaseAndroidHandler
@@ -55,13 +58,24 @@ import dev.hyo.openiap.SubscriptionSubscriptionBillingIssueHandler
 import dev.hyo.openiap.VerifyPurchaseProps
 import dev.hyo.openiap.helpers.AndroidPurchaseArgs
 import dev.hyo.openiap.helpers.SubscriptionBasePlanOffer
+import dev.hyo.openiap.helpers.onDeveloperProvidedBilling
 import dev.hyo.openiap.helpers.onPurchaseError
 import dev.hyo.openiap.helpers.onPurchaseUpdated
 import dev.hyo.openiap.helpers.onSubscriptionBillingIssue
+import dev.hyo.openiap.helpers.onUserChoiceBilling
+import dev.hyo.openiap.helpers.emitFailureAndThrow
+import dev.hyo.openiap.helpers.requireAuthoritativeStorefrontCountry
 import dev.hyo.openiap.helpers.queryAlreadyOwnedPurchases
 import dev.hyo.openiap.helpers.queryProductDetails
 import dev.hyo.openiap.helpers.queryProductDetailsWithStatus
 import dev.hyo.openiap.helpers.queryPurchases
+import dev.hyo.openiap.helpers.isPurchaseForPendingRequest
+import dev.hyo.openiap.helpers.isSubscriptionReplacementTargetCountValid
+import dev.hyo.openiap.helpers.isConnectionAttemptCurrent
+import dev.hyo.openiap.helpers.connectionClientToClose
+import dev.hyo.openiap.helpers.hasLegacyBillingProgramConflict
+import dev.hyo.openiap.helpers.subscriptionUpdateSourceCount
+import dev.hyo.openiap.helpers.transitionStoreConnection
 import dev.hyo.openiap.helpers.resolveBasePlanIdForOfferToken
 import dev.hyo.openiap.helpers.resolveBillingProgramsForConnection
 import dev.hyo.openiap.helpers.resolveLegacySubscriptionReplacementMode
@@ -81,15 +95,18 @@ import dev.hyo.openiap.utils.BillingConverters.unavailableSubscriptionProduct
 import dev.hyo.openiap.utils.fromBillingState
 import dev.hyo.openiap.utils.toActiveSubscription
 import dev.hyo.openiap.utils.toOpenIapBillingResult
+import dev.hyo.openiap.utils.toOpenIapSubResponseCode
 import dev.hyo.openiap.utils.verifyPurchaseWithGooglePlay
 import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.lang.ref.WeakReference
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
@@ -101,7 +118,11 @@ internal fun recordRecoverableProductQueryFailure(
     firstError: Throwable?,
     error: Throwable,
 ): Throwable {
-    if (error is CancellationException || error is Error) throw error
+    if (
+        error is CancellationException ||
+        error is Error ||
+        error is OpenIapError.ServiceDisconnected
+    ) throw error
     return firstError ?: error
 }
 
@@ -139,6 +160,26 @@ internal suspend fun <T : Any> collectAllProductQueryResults(
     )
 }
 
+internal fun <T : Any> claimPendingPurchaseIfOwned(
+    lock: Any,
+    current: () -> T?,
+    owns: (T) -> Boolean,
+    clear: () -> Unit,
+): T? = synchronized(lock) {
+    current()?.takeIf(owns)?.also { clear() }
+}
+
+internal fun commitPlayConnectionConfiguration(
+    connected: Boolean,
+    pendingPrograms: MutableSet<BillingProgramAndroid>,
+    attemptedPendingPrograms: Set<BillingProgramAndroid>,
+    requestedMode: AlternativeBillingMode,
+): AlternativeBillingMode {
+    if (!connected) return AlternativeBillingMode.NONE
+    pendingPrograms.removeAll(attemptedPendingPrograms)
+    return requestedMode
+}
+
 /**
  * Main OpenIapModule implementation for Android
  *
@@ -148,10 +189,12 @@ internal suspend fun <T : Any> collectAllProductQueryResults(
  */
 class OpenIapModule(
     private val context: Context,
-    private var alternativeBillingMode: AlternativeBillingMode = AlternativeBillingMode.NONE,
+    alternativeBillingMode: AlternativeBillingMode = AlternativeBillingMode.NONE,
+    @Volatile
     private var userChoiceBillingListener: dev.hyo.openiap.listener.UserChoiceBillingListener? = null,
+    @Volatile
     private var developerProvidedBillingListener: dev.hyo.openiap.listener.DeveloperProvidedBillingListener? = null
-) : OpenIapProtocol, PurchasesUpdatedListener {
+) : OpenIapProtocol {
 
     companion object {
         private const val TAG = "OpenIapModule"
@@ -164,7 +207,63 @@ class OpenIapModule(
         null
     )
 
+    @Volatile
     private var billingClient: BillingClient? = null
+    private val connectionLifecycleLock = Any()
+    private var connectionGeneration = 0L
+    private fun currentStoreConnection() =
+        ActiveStoreConnection(billingClient, connectionGeneration)
+
+    private val activeOperations = ActiveStoreOperationRegistry<BillingClient>(connectionLifecycleLock) {
+        currentStoreConnection()
+    }
+
+    private fun listenerOwner(
+        source: () -> BillingClient?,
+        generation: Long,
+    ) = ActiveStoreListenerOwner(
+        connectionLifecycleLock,
+        ::currentStoreConnection,
+        source,
+        generation,
+    )
+
+    private fun listenerOwner(client: BillingClient, generation: Long) =
+        listenerOwner({ client }, generation)
+
+    private fun listenerOwner(client: BillingClient) = synchronized(connectionLifecycleLock) {
+        listenerOwner(client, connectionGeneration)
+    }
+
+    private var connectionAttempt: ConnectionAttempt? = null
+    private val defaultAlternativeBillingMode = alternativeBillingMode
+    @Volatile
+    private var activeAlternativeBillingMode = AlternativeBillingMode.NONE
+
+    private data class BillingConnectionConfiguration(
+        val alternativeBillingMode: AlternativeBillingMode,
+        val billingPrograms: Set<BillingProgramAndroid>,
+        val billingChoiceScreenType: BillingChoiceScreenTypeAndroid,
+    )
+
+    private data class ConnectionAttempt(
+        val generation: Long,
+        val configuration: BillingConnectionConfiguration,
+        val pendingPrograms: Set<BillingProgramAndroid>,
+        val completion: CompletableDeferred<Boolean> = CompletableDeferred(),
+    )
+
+    private data class ConnectionStart(
+        val attempt: ConnectionAttempt,
+        val isOwner: Boolean,
+    )
+
+    private data class ConnectionEnd(
+        val client: BillingClient?,
+        val initAttempt: ConnectionAttempt?,
+        val pendingPurchase: PendingPurchaseSnapshot?,
+        val operationFailures: List<() -> Unit>,
+    )
     private var currentActivityRef: WeakReference<Activity>? = null
     private val productManager = ProductManager()
     private val gson = Gson()
@@ -182,15 +281,149 @@ class OpenIapModule(
     // Uses Collections.newSetFromMap instead of ConcurrentHashMap.newKeySet (API 24+).
     private val emittedBillingIssueTokens: MutableSet<String> =
         java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap())
-    private val currentPurchaseCallback = AtomicReference<((Result<List<Purchase>>) -> Unit)?>(null)
 
-    /**
-     * Atomically consume the pending purchase callback. Ensures the underlying
-     * continuation is resumed at most once even if Google Play Billing fires
-     * `onPurchasesUpdated` multiple times or races with an early-return path.
-     */
-    private fun consumePurchaseCallback(result: Result<List<Purchase>>) {
-        currentPurchaseCallback.getAndSet(null)?.invoke(result)
+    private fun resetConnectionStateLocked() {
+        productManager.clear()
+        emittedBillingIssueTokens.clear()
+        activeAlternativeBillingMode = AlternativeBillingMode.NONE
+    }
+
+    private fun replaceBillingClientLocked(next: BillingClient?): BillingClient? =
+        billingClient.also { previous ->
+            billingClient = transitionStoreConnection(previous, next, ::resetConnectionStateLocked)
+        }
+
+    private data class PendingPurchaseSnapshot(
+        val client: BillingClient,
+        val generation: Long,
+        val callback: (Result<List<Purchase>>) -> Unit,
+        val requestedSkus: Set<String>,
+        val requestedProductType: String?,
+        val selectedBasePlanIdsBySku: Map<String, String?> = emptyMap(),
+        val launchStartedAtMillis: Double? = null,
+    )
+    private var pendingPurchase: PendingPurchaseSnapshot? = null
+
+    private fun clearPurchaseStateLocked() {
+        pendingPurchase = null
+    }
+
+    private fun claimPurchaseCallback(
+        expectedClient: BillingClient,
+        expectedCallback: ((Result<List<Purchase>>) -> Unit)? = null,
+        requireLaunched: Boolean = false,
+    ): PendingPurchaseSnapshot? = claimPendingPurchaseIfOwned(
+        lock = connectionLifecycleLock,
+        current = { pendingPurchase },
+        owns = { pending ->
+            pending.client === expectedClient &&
+                (expectedCallback == null || pending.callback === expectedCallback) &&
+                (!requireLaunched || pending.launchStartedAtMillis != null)
+        },
+        clear = ::clearPurchaseStateLocked,
+    )
+
+    private fun finishPurchaseCallback(
+        expectedClient: BillingClient,
+        expectedCallback: (Result<List<Purchase>>) -> Unit,
+        result: Result<List<Purchase>>,
+        error: OpenIapError? = null,
+        requireLaunched: Boolean = false,
+    ) {
+        val pending = claimPurchaseCallback(
+            expectedClient,
+            expectedCallback,
+            requireLaunched,
+        ) ?: return
+        error?.withProductId(pending.requestedSkus.singleOrNull())?.let(::emitPurchaseError)
+        pending.callback(result)
+    }
+
+    private fun failPurchaseCallbackForClient(
+        expectedClient: BillingClient,
+        error: OpenIapError,
+    ) {
+        val pending = claimPurchaseCallback(expectedClient) ?: return
+        error.withProductId(pending.requestedSkus.singleOrNull())
+        emitPurchaseError(error)
+        pending.callback(Result.failure(error))
+    }
+
+    private fun installPurchaseCallback(
+        expectedClient: BillingClient,
+        requestedSkus: Set<String>,
+        requestedProductType: String,
+        callback: (Result<List<Purchase>>) -> Unit
+    ): OpenIapError? = synchronized(connectionLifecycleLock) {
+        when {
+            billingClient !== expectedClient || !expectedClient.isReady ->
+                OpenIapError.ServiceDisconnected(
+                    "Billing connection ended before the purchase request could start"
+                )
+            pendingPurchase != null ->
+                OpenIapError.DeveloperError("Another purchase is already in progress")
+            else -> {
+                pendingPurchase = PendingPurchaseSnapshot(
+                    client = expectedClient,
+                    generation = connectionGeneration,
+                    callback = callback,
+                    requestedSkus = requestedSkus.toSet(),
+                    requestedProductType = requestedProductType,
+                )
+                null
+            }
+        }
+    }
+
+    private fun ownsPurchaseCallback(
+        expectedClient: BillingClient,
+        callback: (Result<List<Purchase>>) -> Unit,
+    ): Boolean = synchronized(connectionLifecycleLock) {
+        billingClient === expectedClient &&
+            pendingPurchase?.let {
+                it.client === expectedClient && it.callback === callback
+            } == true
+    }
+
+    private fun clearPurchaseCallback(
+        expectedClient: BillingClient,
+        callback: (Result<List<Purchase>>) -> Unit,
+    ) {
+        synchronized(connectionLifecycleLock) {
+            // Once launchBillingFlow has accepted the request, keep a tombstone
+            // owner even if the caller cancels. Otherwise its late callback can
+            // be mistaken for a newer request.
+            val state = pendingPurchase
+            if (state?.client === expectedClient &&
+                state.callback === callback &&
+                state.launchStartedAtMillis == null
+            ) {
+                clearPurchaseStateLocked()
+            }
+        }
+    }
+
+    private fun launchPurchaseFlowIfOwned(
+        expectedClient: BillingClient,
+        expectedCallback: (Result<List<Purchase>>) -> Unit,
+        launchStartedAtMillis: Double,
+        selectedBasePlanIdsBySku: Map<String, String?>,
+        launch: () -> BillingResult,
+    ): Result<BillingResult>? = synchronized(connectionLifecycleLock) {
+        val state = pendingPurchase
+        if (billingClient !== expectedClient ||
+            !expectedClient.isReady ||
+            state?.client !== expectedClient ||
+            state.callback !== expectedCallback
+        ) {
+            null
+        } else {
+            pendingPurchase = state.copy(
+                selectedBasePlanIdsBySku = selectedBasePlanIdsBySku.toMap(),
+                launchStartedAtMillis = launchStartedAtMillis,
+            )
+            runCatching(launch)
+        }
     }
 
     private fun billingResultError(message: String): BillingResult =
@@ -205,9 +438,11 @@ class OpenIapModule(
         BillingProgramAndroid.ExternalPayments -> BillingClient.BillingProgram.EXTERNAL_PAYMENTS
         BillingProgramAndroid.BillingChoice -> BillingClient.BillingProgram.BILLING_CHOICE
         BillingProgramAndroid.UserChoiceBilling ->
-            throw IllegalArgumentException("USER_CHOICE_BILLING uses AlternativeBillingMode, not BillingProgram API")
+            throw OpenIapError.DeveloperError(
+                "USER_CHOICE_BILLING uses AlternativeBillingMode, not BillingProgram API"
+            )
         BillingProgramAndroid.Unspecified ->
-            throw IllegalArgumentException("Cannot use UNSPECIFIED billing program")
+            throw OpenIapError.DeveloperError("Cannot use UNSPECIFIED billing program")
     }
 
     private fun billingChoiceProgramOrDefault(program: BillingProgramAndroid): BillingProgramAndroid =
@@ -265,61 +500,193 @@ class OpenIapModule(
         else -> InAppMessageResponseCodeAndroid.NoActionNeeded
     }
 
-    // Billing programs enabled via enableBillingProgram (8.2.0+ through Billing Choice 9.1.0+)
-    private val enabledBillingPrograms = mutableSetOf<BillingProgramAndroid>()
+    // Billing programs queued via enableBillingProgram (8.2.0+ through Billing Choice 9.1.0+)
     private val pendingBillingPrograms = mutableSetOf<BillingProgramAndroid>()
-    private var billingChoiceScreenType = BillingChoiceScreenTypeAndroid.GoogleRendered
 
     override val initConnection: MutationInitConnectionHandler = { config ->
-        enabledBillingPrograms.clear()
-        enabledBillingPrograms.addAll(
-            resolveBillingProgramsForConnection(
-                pendingBillingPrograms,
-                config?.enableBillingProgramAndroid
-            )
-        )
-        pendingBillingPrograms.clear()
-        alternativeBillingMode = AlternativeBillingMode.NONE
-        billingChoiceScreenType = config?.billingChoiceScreenTypeAndroid
-            ?.takeUnless { it == BillingChoiceScreenTypeAndroid.Unspecified }
-            ?: BillingChoiceScreenTypeAndroid.GoogleRendered
-
-        // Handle enableBillingProgramAndroid (recommended, replaces alternativeBillingModeAndroid)
-        config?.enableBillingProgramAndroid?.let { program ->
-            OpenIapLog.d("Setting billing program from config: $program", TAG)
-            // Map USER_CHOICE_BILLING to AlternativeBillingMode for backward compatibility
-            when (program) {
-                BillingProgramAndroid.UserChoiceBilling -> {
-                    alternativeBillingMode = AlternativeBillingMode.USER_CHOICE
-                }
-                BillingProgramAndroid.ExternalOffer -> {
-                    alternativeBillingMode = AlternativeBillingMode.ALTERNATIVE_ONLY
-                }
-                else -> { /* Other programs don't affect alternativeBillingMode */ }
-            }
-        }
-
-        // Handle alternativeBillingModeAndroid (deprecated, for backward compatibility)
-        config?.alternativeBillingModeAndroid?.let { modeAndroid ->
-            OpenIapLog.d("Setting alternative billing mode from config (deprecated): $modeAndroid", TAG)
-            // Map AlternativeBillingModeAndroid to AlternativeBillingMode
-            alternativeBillingMode = when (modeAndroid) {
-                AlternativeBillingModeAndroid.None -> AlternativeBillingMode.NONE
-                AlternativeBillingModeAndroid.UserChoice -> AlternativeBillingMode.USER_CHOICE
-                AlternativeBillingModeAndroid.AlternativeOnly -> AlternativeBillingMode.ALTERNATIVE_ONLY
-            }
-        }
-
         withContext(Dispatchers.IO) {
-            suspendCancellableCoroutine<Boolean> { continuation ->
-                val resumer = continuation.resumeGuard()
-                initBillingClient(
-                    onSuccess = { resumer.resume(true) },
-                    onFailure = { err ->
-                        OpenIapLog.w("Billing set up failed: ${err?.message}", TAG)
-                        resumer.resume(false)
+            val start = synchronized(connectionLifecycleLock) {
+                if (billingClient?.isReady == true) return@withContext true
+                connectionAttempt?.let { existing ->
+                    return@synchronized ConnectionStart(existing, isOwner = false)
+                }
+
+                val configuredLegacyMode = config?.alternativeBillingModeAndroid
+                    ?: when (defaultAlternativeBillingMode) {
+                        AlternativeBillingMode.NONE -> AlternativeBillingModeAndroid.None
+                        AlternativeBillingMode.USER_CHOICE -> AlternativeBillingModeAndroid.UserChoice
+                        AlternativeBillingMode.ALTERNATIVE_ONLY ->
+                            AlternativeBillingModeAndroid.AlternativeOnly
                     }
+                val attemptedPendingPrograms = pendingBillingPrograms.toSet()
+                val requestedBillingPrograms = resolveBillingProgramsForConnection(
+                    attemptedPendingPrograms,
+                    config?.enableBillingProgramAndroid,
                 )
+                if (hasLegacyBillingProgramConflict(
+                        configuredLegacyMode,
+                        requestedBillingPrograms,
+                    )
+                ) {
+                    throw OpenIapError.DeveloperError(
+                        "alternativeBillingModeAndroid conflicts with enableBillingProgramAndroid"
+                    )
+                }
+                val requestedAlternativeBillingMode = when (configuredLegacyMode) {
+                    AlternativeBillingModeAndroid.None ->
+                        if (config?.enableBillingProgramAndroid ==
+                            BillingProgramAndroid.UserChoiceBilling
+                        ) {
+                            AlternativeBillingMode.USER_CHOICE
+                        } else {
+                            AlternativeBillingMode.NONE
+                        }
+                    AlternativeBillingModeAndroid.UserChoice -> AlternativeBillingMode.USER_CHOICE
+                    AlternativeBillingModeAndroid.AlternativeOnly ->
+                        AlternativeBillingMode.ALTERNATIVE_ONLY
+                }
+                val configuration = BillingConnectionConfiguration(
+                    alternativeBillingMode = requestedAlternativeBillingMode,
+                    billingPrograms = requestedBillingPrograms.toSet(),
+                    billingChoiceScreenType = config?.billingChoiceScreenTypeAndroid
+                        ?.takeUnless { it == BillingChoiceScreenTypeAndroid.Unspecified }
+                        ?: BillingChoiceScreenTypeAndroid.GoogleRendered,
+                )
+                val attempt = ConnectionAttempt(
+                    connectionGeneration,
+                    configuration,
+                    attemptedPendingPrograms,
+                )
+                connectionAttempt = attempt
+                ConnectionStart(attempt, isOwner = true)
+            }
+            val attempt = start.attempt
+            if (!start.isOwner) {
+                return@withContext withTimeoutOrNull(15_000) {
+                    attempt.completion.await()
+                } ?: false
+            }
+            val connectionConfiguration = attempt.configuration
+
+            val availability = GoogleApiAvailability.getInstance()
+            if (availability.isGooglePlayServicesAvailable(context) != ConnectionResult.SUCCESS) {
+                finishConnectionAttempt(attempt, null, false)
+                return@withContext false
+            }
+
+            val client = runCatching {
+                buildBillingClient(connectionConfiguration, attempt.generation)
+            }
+                .getOrElse { error ->
+                    OpenIapLog.w("Failed to build BillingClient: ${error.message}", TAG)
+                    finishConnectionAttempt(attempt, null, false)
+                    return@withContext false
+                }
+            val (installed, previousClient, replacedOperationFailures) = synchronized(connectionLifecycleLock) {
+                if (isConnectionAttemptCurrent(
+                        currentGeneration = connectionGeneration,
+                        attemptGeneration = attempt.generation,
+                        ownsAttempt = connectionAttempt === attempt,
+                        ownsClient = true,
+                    )
+                ) {
+                    val previous = replaceBillingClientLocked(client)
+                    val failures = previous?.takeIf { it !== client }?.let { replaced ->
+                        activeOperations.invalidate(replaced) {
+                            OpenIapError.ServiceDisconnected("Billing client was replaced")
+                        }
+                    }.orEmpty()
+                    Triple(true, previous, failures)
+                } else {
+                    Triple(false, null, emptyList())
+                }
+            }
+            replacedOperationFailures.forEach { it() }
+            if (!installed) {
+                client.endConnection()
+                attempt.completion.complete(false)
+                return@withContext false
+            }
+            previousClient?.takeIf { it !== client }?.let { replacedClient ->
+                failPurchaseCallbackForClient(
+                    replacedClient,
+                    OpenIapError.ServiceDisconnected(
+                        "Billing client was replaced during purchase"
+                    ),
+                )
+                replacedClient.endConnection()
+            }
+
+            if (client.isReady) {
+                finishConnectionAttempt(attempt, client, true)
+                return@withContext true
+            }
+
+            val listener = object : BillingClientStateListener {
+                override fun onBillingSetupFinished(result: BillingResult) {
+                    val connected = result.responseCode == BillingClient.BillingResponseCode.OK
+                    if (!connected) {
+                        OpenIapLog.w(
+                            result.debugMessage.takeIf { it.isNotBlank() }
+                                ?: "Billing setup failed",
+                            TAG,
+                        )
+                    }
+                    finishConnectionAttempt(attempt, client, connected)
+                }
+
+                override fun onBillingServiceDisconnected() {
+                    OpenIapLog.i("Billing service disconnected", TAG)
+                    val (setupPending, operationFailures) = synchronized(connectionLifecycleLock) {
+                        val pending = connectionAttempt === attempt && billingClient === client
+                        if (!pending && billingClient === client) {
+                            connectionGeneration += 1
+                            replaceBillingClientLocked(null)
+                        }
+                        val failures = activeOperations.invalidate(client) {
+                            OpenIapError.ServiceDisconnected("Billing service disconnected")
+                        }
+                        pending to failures
+                    }
+                    operationFailures.forEach { it() }
+                    if (setupPending) finishConnectionAttempt(attempt, client, false)
+                    failPurchaseCallbackForClient(
+                        client,
+                        OpenIapError.ServiceDisconnected(
+                            "Billing service disconnected during purchase"
+                        )
+                    )
+                }
+            }
+            val startResult = synchronized(connectionLifecycleLock) {
+                if (!isConnectionAttemptCurrent(
+                        currentGeneration = connectionGeneration,
+                        attemptGeneration = attempt.generation,
+                        ownsAttempt = connectionAttempt === attempt,
+                        ownsClient = billingClient === client,
+                    )
+                ) {
+                    null
+                } else {
+                    runCatching { client.startConnection(listener) }
+                }
+            }
+            if (startResult == null) {
+                client.endConnection()
+                attempt.completion.complete(false)
+                return@withContext false
+            }
+            startResult.onFailure { error ->
+                OpenIapLog.w("Billing startConnection failed: ${error.message}", TAG)
+                finishConnectionAttempt(attempt, client, false)
+            }
+
+            val connected = withTimeoutOrNull(15_000) { attempt.completion.await() }
+            if (connected == null) {
+                finishConnectionAttempt(attempt, client, false)
+                false
+            } else {
+                connected
             }
         }
     }
@@ -327,18 +694,96 @@ class OpenIapModule(
     override val endConnection: MutationEndConnectionHandler = {
         withContext(Dispatchers.IO) {
             runCatching {
-                billingClient?.endConnection()
-                productManager.clear()
-                billingClient = null
-                enabledBillingPrograms.clear()
-                pendingBillingPrograms.clear()
-                // Reset subscription-billing-issue dedupe state so a fresh
-                // initConnection() can re-emit for previously-seen tokens.
-                // Only clear the dedupe set — listeners persist across reconnects,
-                // consistent with purchaseUpdateListeners/purchaseErrorListeners.
-                emittedBillingIssueTokens.clear()
+                val end = synchronized(connectionLifecycleLock) {
+                    connectionGeneration += 1
+                    val activeClient = replaceBillingClientLocked(null)
+                    val activeAttempt = connectionAttempt
+                    connectionAttempt = null
+                    pendingBillingPrograms.clear()
+                    val activePurchase = pendingPurchase
+                    clearPurchaseStateLocked()
+                    ConnectionEnd(
+                        client = activeClient,
+                        initAttempt = activeAttempt,
+                        pendingPurchase = activePurchase,
+                        operationFailures = activeOperations.invalidate {
+                            OpenIapError.ServiceDisconnected("Billing connection ended")
+                        },
+                    )
+                }
+                end.operationFailures.forEach { it() }
+                end.initAttempt?.completion?.complete(false)
+                val disconnectError = OpenIapError.ServiceDisconnected(
+                    "Billing connection ended while a purchase request was in progress"
+                )
+                if (end.pendingPurchase != null) {
+                    disconnectError.withProductId(end.pendingPurchase.requestedSkus.singleOrNull())
+                    emitPurchaseError(disconnectError)
+                    end.pendingPurchase.callback(Result.failure(disconnectError))
+                }
+                end.client?.endConnection()
             }.fold(onSuccess = { true }, onFailure = { false })
         }
+    }
+
+    private fun finishConnectionAttempt(
+        attempt: ConnectionAttempt,
+        expectedClient: BillingClient?,
+        connected: Boolean,
+    ) {
+        val (ownsAttempt, clientToClose, operationFailures) = synchronized(connectionLifecycleLock) {
+            val currentClient = billingClient
+            val owns = isConnectionAttemptCurrent(
+                currentGeneration = connectionGeneration,
+                attemptGeneration = attempt.generation,
+                ownsAttempt = connectionAttempt === attempt,
+                ownsClient = expectedClient == null || billingClient === expectedClient,
+            )
+            if (owns) {
+                connectionAttempt = null
+                if (!connected) replaceBillingClientLocked(null)
+                activeAlternativeBillingMode = commitPlayConnectionConfiguration(
+                    connected,
+                    pendingBillingPrograms,
+                    attempt.pendingPrograms,
+                    attempt.configuration.alternativeBillingMode,
+                )
+            }
+            val close = connectionClientToClose(
+                ownsAttempt = owns,
+                connected = connected,
+                currentClient = currentClient,
+                expectedClient = expectedClient,
+                expectedClientIsStale = expectedClient != null &&
+                    (connectionGeneration != attempt.generation || billingClient !== expectedClient),
+            )
+            val failedClient = when {
+                owns && !connected -> currentClient
+                close != null -> close
+                else -> null
+            }
+            val failures = failedClient?.let { client ->
+                activeOperations.invalidate(client) {
+                    OpenIapError.ServiceDisconnected("Billing connection failed")
+                }
+            }.orEmpty()
+            Triple(owns, close, failures)
+        }
+        operationFailures.forEach { it() }
+        clientToClose?.let { closingClient ->
+            failPurchaseCallbackForClient(
+                closingClient,
+                OpenIapError.ServiceDisconnected(
+                    "Billing connection failed during purchase"
+                ),
+            )
+            closingClient.endConnection()
+        }
+        if (!ownsAttempt) {
+            attempt.completion.complete(false)
+            return
+        }
+        attempt.completion.complete(connected)
     }
 
     private data class UnfetchedStatus(
@@ -410,7 +855,7 @@ class OpenIapModule(
         withContext(Dispatchers.IO) {
             val client = billingClient ?: throw OpenIapError.NotPrepared
             if (!client.isReady) throw OpenIapError.NotPrepared
-            if (params.skus.isEmpty() && params.type != ProductQueryType.All) throw OpenIapError.EmptySkuList
+            if (params.skus.isEmpty()) throw OpenIapError.EmptySkuList
 
             val queryType = params.type ?: ProductQueryType.InApp
 
@@ -419,6 +864,7 @@ class OpenIapModule(
                     val result = queryProductDetailsWithStatus(
                         client,
                         productManager,
+                        activeOperations,
                         params.skus,
                         BillingClient.ProductType.INAPP,
                     )
@@ -428,6 +874,7 @@ class OpenIapModule(
                     val result = queryProductDetailsWithStatus(
                         client,
                         productManager,
+                        activeOperations,
                         params.skus,
                         BillingClient.ProductType.SUBS,
                     )
@@ -439,6 +886,7 @@ class OpenIapModule(
                             queryProductDetailsWithStatus(
                                 client,
                                 productManager,
+                                activeOperations,
                                 params.skus,
                                 BillingClient.ProductType.INAPP,
                             )
@@ -447,6 +895,7 @@ class OpenIapModule(
                             queryProductDetailsWithStatus(
                                 client,
                                 productManager,
+                                activeOperations,
                                 params.skus,
                                 BillingClient.ProductType.SUBS,
                             )
@@ -477,8 +926,14 @@ class OpenIapModule(
             // Always query suspended subs so the billing-issue notifier sees them even when the
             // caller asked to hide suspended from the returned list. See:
             // https://developer.android.com/google/play/billing/subscriptions#suspended
-            val purchases = restorePurchasesHelper(billingClient, includeSuspended = true)
-            notifySuspendedSubscriptions(purchases)
+            val client = billingClient ?: throw OpenIapError.NotPrepared
+            val owner = listenerOwner(client)
+            val purchases = restorePurchasesHelper(
+                client,
+                activeOperations,
+                includeSuspended = true,
+            )
+            notifySuspendedSubscriptions(purchases, owner)
             if (includeSuspended) {
                 purchases
             } else {
@@ -489,13 +944,21 @@ class OpenIapModule(
 
     override val getActiveSubscriptions: QueryGetActiveSubscriptionsHandler = { subscriptionIds ->
         withContext(Dispatchers.IO) {
-            val androidPurchases = queryPurchases(billingClient, BillingClient.ProductType.SUBS)
+            val client = billingClient ?: throw OpenIapError.NotPrepared
+            val androidPurchases = queryPurchases(
+                client,
+                activeOperations,
+                BillingClient.ProductType.SUBS,
+            )
                 .filterIsInstance<PurchaseAndroid>()
+                .filter { it.purchaseState == PurchaseState.Purchased }
             val ids = subscriptionIds.orEmpty()
             val filtered = if (ids.isEmpty()) {
                 androidPurchases
             } else {
-                androidPurchases.filter { it.productId in ids }
+                androidPurchases.filter { purchase ->
+                    (listOf(purchase.productId) + purchase.ids.orEmpty()).any { it in ids }
+                }
             }
 
             // Enrich purchases with basePlanId from ProductDetails
@@ -510,11 +973,14 @@ class OpenIapModule(
             if (productIdsNeedingDetails.isNotEmpty()) {
                 try {
                     queryProductDetails(
-                        billingClient,
+                        client,
                         productManager,
+                        activeOperations,
                         productIdsNeedingDetails,
                         BillingClient.ProductType.SUBS
                     )
+                } catch (e: OpenIapError.ServiceDisconnected) {
+                    throw e
                 } catch (e: Exception) {
                     OpenIapLog.w("Failed to query ProductDetails for missing products: ${e.message}", TAG)
                 }
@@ -527,10 +993,10 @@ class OpenIapModule(
                     BillingClient.ProductType.SUBS,
                 )
                 val offers = productDetails?.subscriptionOfferDetails.orEmpty()
-                if (offers.size > 1) {
-                    OpenIapLog.w("Multiple offers (${offers.size}) found for ${purchase.productId}, using first basePlanId (may be inaccurate)", TAG)
-                }
-                val basePlanId = offers.firstOrNull()?.basePlanId
+                val basePlanId = resolveBasePlanIdForOfferToken(
+                    offers.map { SubscriptionBasePlanOffer(it.offerToken, it.basePlanId) },
+                    requestedOfferToken = null,
+                )
 
                 // If basePlanId is available and not already set, update the purchase
                 if (basePlanId != null && purchase.currentPlanId == null) {
@@ -562,8 +1028,7 @@ class OpenIapModule(
             com.android.billingclient.api.AlternativeBillingOnlyAvailabilityListener::class.java
         )
 
-        suspendCancellableCoroutine { continuation ->
-            val resumer = continuation.resumeGuard()
+        activeOperations.await(client) { operation ->
             val listenerClass = Class.forName("com.android.billingclient.api.AlternativeBillingOnlyAvailabilityListener")
             val availabilityListener = java.lang.reflect.Proxy.newProxyInstance(
                 listenerClass.classLoader,
@@ -575,10 +1040,10 @@ class OpenIapModule(
 
                     if (result?.responseCode == BillingClient.BillingResponseCode.OK) {
                         OpenIapLog.d("✓ Alternative billing is available", TAG)
-                        resumer.resume(true)
+                        operation.succeed(true)
                     } else {
                         OpenIapLog.e("✗ Alternative billing not available: ${result?.debugMessage}", tag = TAG)
-                        resumer.resume(false)
+                        operation.succeed(false)
                     }
                 }
                 null
@@ -605,8 +1070,7 @@ class OpenIapModule(
             com.android.billingclient.api.AlternativeBillingOnlyInformationDialogListener::class.java
         )
 
-        val dialogResult = suspendCancellableCoroutine<BillingResult> { continuation ->
-            val resumer = continuation.resumeGuard()
+        val dialogResult = activeOperations.await(client) { operation ->
             val listenerClass = Class.forName("com.android.billingclient.api.AlternativeBillingOnlyInformationDialogListener")
             val dialogListener = java.lang.reflect.Proxy.newProxyInstance(
                 listenerClass.classLoader,
@@ -615,7 +1079,9 @@ class OpenIapModule(
                 if (method.name == "onAlternativeBillingOnlyInformationDialogResponse") {
                     val result = args?.get(0) as? BillingResult
                     OpenIapLog.d("Dialog result: ${result?.responseCode} - ${result?.debugMessage}", TAG)
-                    resumer.resume(result ?: billingResultError("Missing alternative billing dialog result"))
+                    operation.succeed(
+                        result ?: billingResultError("Missing alternative billing dialog result")
+                    )
                 }
                 null
             }
@@ -653,8 +1119,7 @@ class OpenIapModule(
             com.android.billingclient.api.AlternativeBillingOnlyReportingDetailsListener::class.java
         )
 
-        suspendCancellableCoroutine { continuation ->
-            val resumer = continuation.resumeGuard()
+        activeOperations.await(client) { operation ->
             val listenerClass = Class.forName("com.android.billingclient.api.AlternativeBillingOnlyReportingDetailsListener")
             val tokenListener = java.lang.reflect.Proxy.newProxyInstance(
                 listenerClass.classLoader,
@@ -668,15 +1133,15 @@ class OpenIapModule(
                         try {
                             val tokenMethod = details.javaClass.getMethod("getExternalTransactionToken")
                             val token = tokenMethod.invoke(details) as? String
-                            OpenIapLog.d("✓ External transaction token created: $token", TAG)
-                            resumer.resume(token)
+                            OpenIapLog.d("✓ External transaction token created", TAG)
+                            operation.succeed(token)
                         } catch (e: Exception) {
                             OpenIapLog.e("Failed to extract token: ${e.message}", e, TAG)
-                            resumer.resume(null)
+                            operation.succeed(null)
                         }
                     } else {
                         OpenIapLog.e("Token creation failed: ${result?.debugMessage}", tag = TAG)
-                        resumer.resume(null)
+                        operation.succeed(null)
                     }
                 }
                 null
@@ -700,8 +1165,7 @@ class OpenIapModule(
 
         val billingProgramConstant = billingProgramToConstant(program)
 
-        suspendCancellableCoroutine { continuation ->
-            val resumer = continuation.resumeGuard()
+        activeOperations.await(client) { operation ->
             try {
                 // Use reflection to call isBillingProgramAvailableAsync (8.2.0+)
                 val listenerClass = Class.forName("com.android.billingclient.api.BillingProgramAvailabilityListener")
@@ -710,10 +1174,18 @@ class OpenIapModule(
                     arrayOf(listenerClass)
                 ) { _, method, args ->
                     if (method.name == "onBillingProgramAvailabilityResponse") {
-                        val result = args?.get(0) as? BillingResult
+                        val result = (args?.get(0) as? BillingResult)
+                            ?: billingResultError("Missing Billing Program availability result")
                         OpenIapLog.d("Billing program availability result: ${result?.responseCode} - ${result?.debugMessage}", TAG)
 
-                        val isAvailable = result?.responseCode == BillingClient.BillingResponseCode.OK
+                        val isAvailable = when (result.responseCode) {
+                            BillingClient.BillingResponseCode.OK -> true
+                            BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED -> false
+                            else -> {
+                                operation.fail(result.toOpenIapError())
+                                return@newProxyInstance null
+                            }
+                        }
                         val availabilityDetails = args?.getOrNull(1)
                         val billingChoiceDetails = if (program == BillingProgramAndroid.BillingChoice && isAvailable) {
                             runCatching {
@@ -735,12 +1207,14 @@ class OpenIapModule(
                                 ?.getMethod("isExternalLinkAvailable")
                                 ?.invoke(billingChoiceDetails) as? Boolean
                         }.getOrNull()
-                        resumer.resume(BillingProgramAvailabilityResultAndroid(
-                            billingProgram = program,
-                            isAvailable = isAvailable,
-                            choiceScreenType = choiceScreenType,
-                            isExternalLinkAvailable = isExternalLinkAvailable
-                        ))
+                        operation.succeed(
+                            BillingProgramAvailabilityResultAndroid(
+                                billingProgram = program,
+                                isAvailable = isAvailable,
+                                choiceScreenType = choiceScreenType,
+                                isExternalLinkAvailable = isExternalLinkAvailable
+                            )
+                        )
                     }
                     null
                 }
@@ -753,25 +1227,26 @@ class OpenIapModule(
                 method.invoke(client, billingProgramConstant, listener)
             } catch (e: NoSuchMethodException) {
                 OpenIapLog.e("isBillingProgramAvailableAsync not found. Requires Billing Library 8.2.0+", e, TAG)
-                resumer.resume(BillingProgramAvailabilityResultAndroid(
-                    billingProgram = program,
-                    isAvailable = false
-                ))
+                operation.fail(OpenIapError.FeatureNotSupported())
+            } catch (e: ClassNotFoundException) {
+                operation.fail(OpenIapError.FeatureNotSupported())
             } catch (e: Exception) {
                 OpenIapLog.e("Failed to check billing program availability: ${e.message}", e, TAG)
-                resumer.resume(BillingProgramAvailabilityResultAndroid(
-                    billingProgram = program,
-                    isAvailable = false
-                ))
+                operation.fail(
+                    OpenIapError.PurchaseFailed(e.message ?: e.javaClass.simpleName)
+                )
             }
         }
     }
 
     /**
-     * Create reporting details for transactions made outside of Google Play Billing (8.3.0+)
+     * Create reporting details for transactions made outside of Google Play Billing (8.2.0+;
+     * External Offer requires 8.2.1+).
      * This is the new API that replaces createAlternativeBillingReportingToken for external offers.
      *
-     * Note: This method uses BillingProgramReportingDetailsParams which was introduced in 8.3.0.
+     * For External Offer and External Content Link, generate fresh reporting details for every
+     * session immediately before redirecting the user. Do not create or reuse a token after
+     * payment has already completed.
      *
      * @param program The billing program, including BILLING_CHOICE on 9.1.0+
      * @return Reporting details containing the external transaction token
@@ -788,8 +1263,7 @@ class OpenIapModule(
         val billingProgramConstant = billingProgramToConstant(program)
         val developerBillingTypeConstant = developerBillingTypeConstant(program, developerBillingType)
 
-        suspendCancellableCoroutine { continuation ->
-            val resumer = continuation.resumeGuard()
+        activeOperations.await(client) { operation ->
             try {
                 val listenerClass = Class.forName("com.android.billingclient.api.BillingProgramReportingDetailsListener")
                 val listener = java.lang.reflect.Proxy.newProxyInstance(
@@ -805,35 +1279,41 @@ class OpenIapModule(
                             try {
                                 val tokenMethod = details.javaClass.getMethod("getExternalTransactionToken")
                                 val token = tokenMethod.invoke(details) as? String
-                                OpenIapLog.d("Billing program reporting token created: $token", TAG)
+                                OpenIapLog.d("Billing program reporting token created", TAG)
 
                                 if (token != null) {
-                                    resumer.resume(BillingProgramReportingDetailsAndroid(
-                                        billingProgram = program,
-                                        externalTransactionToken = token
-                                    ))
+                                    operation.succeed(
+                                        BillingProgramReportingDetailsAndroid(
+                                            billingProgram = program,
+                                            externalTransactionToken = token
+                                        )
+                                    )
                                 } else {
-                                    resumer.resumeWithException(
+                                    operation.fail(
                                         OpenIapError.PurchaseFailed("Missing external transaction token")
                                     )
                                 }
                             } catch (e: Exception) {
                                 OpenIapLog.e("Failed to extract token: ${e.message}", e, TAG)
-                                resumer.resumeWithException(
+                                operation.fail(
                                     OpenIapError.PurchaseFailed(e.message ?: e.javaClass.simpleName)
                                 )
                             }
                         } else {
                             OpenIapLog.e("Reporting details creation failed: ${result?.debugMessage}", tag = TAG)
-                            resumer.resumeWithException(
-                                OpenIapError.PurchaseFailed(result?.debugMessage)
+                            operation.fail(
+                                result?.toOpenIapError()
+                                    ?: OpenIapError.UnknownError(
+                                        "Missing Billing Program reporting result"
+                                    )
                             )
                         }
                     }
                     null
                 }
 
-                // Build BillingProgramReportingDetailsParams using reflection (Billing Library 8.3.0+)
+                // BillingProgramReportingDetailsParams was added in 8.2.0.
+                // External Offer requires the 8.2.1 bugfix release.
                 val paramsClass = Class.forName("com.android.billingclient.api.BillingProgramReportingDetailsParams")
                 val paramsBuilderClass = Class.forName("com.android.billingclient.api.BillingProgramReportingDetailsParams\$Builder")
 
@@ -869,11 +1349,15 @@ class OpenIapModule(
                 )
                 method.invoke(client, reportingParams, listener)
             } catch (e: NoSuchMethodException) {
-                OpenIapLog.e("createBillingProgramReportingDetailsAsync not found. Requires Billing Library 8.3.0+", e, TAG)
-                throw OpenIapError.FeatureNotSupported()
+                OpenIapLog.e("createBillingProgramReportingDetailsAsync not found. Requires Billing Library 8.2.0+ (8.2.1+ for External Offer)", e, TAG)
+                throw OpenIapError.FeatureNotSupported(
+                    "Billing program reporting details require Play Billing 8.2.0+ (8.2.1+ for External Offer)"
+                )
             } catch (e: ClassNotFoundException) {
-                OpenIapLog.e("BillingProgramReportingDetailsParams not found. Requires Billing Library 8.3.0+", e, TAG)
-                throw OpenIapError.FeatureNotSupported()
+                OpenIapLog.e("BillingProgramReportingDetailsParams not found. Requires Billing Library 8.2.0+ (8.2.1+ for External Offer)", e, TAG)
+                throw OpenIapError.FeatureNotSupported(
+                    "Billing program reporting details require Play Billing 8.2.0+ (8.2.1+ for External Offer)"
+                )
             } catch (e: OpenIapError) {
                 throw e
             } catch (e: Exception) {
@@ -902,17 +1386,20 @@ class OpenIapModule(
         val launchModeConstant = when (params.launchMode) {
             ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp -> 1
             ExternalLinkLaunchModeAndroid.CallerWillLaunchLink -> 2
-            ExternalLinkLaunchModeAndroid.Unspecified -> throw IllegalArgumentException("Cannot launch with UNSPECIFIED launch mode")
+            ExternalLinkLaunchModeAndroid.Unspecified -> throw OpenIapError.DeveloperError(
+                "Cannot launch with UNSPECIFIED launch mode"
+            )
         }
 
         val linkTypeConstant = when (params.linkType) {
             ExternalLinkTypeAndroid.LinkToDigitalContentOffer -> 1
             ExternalLinkTypeAndroid.LinkToAppDownload -> 2
-            ExternalLinkTypeAndroid.Unspecified -> throw IllegalArgumentException("Cannot launch with UNSPECIFIED link type")
+            ExternalLinkTypeAndroid.Unspecified -> throw OpenIapError.DeveloperError(
+                "Cannot launch with UNSPECIFIED link type"
+            )
         }
 
-        suspendCancellableCoroutine { continuation ->
-            val resumer = continuation.resumeGuard()
+        activeOperations.await(client) { operation ->
             try {
                 // Build LaunchExternalLinkParams using reflection
                 val paramsClass = Class.forName("com.android.billingclient.api.LaunchExternalLinkParams")
@@ -953,11 +1440,15 @@ class OpenIapModule(
                     arrayOf(listenerClass)
                 ) { _, method, args ->
                     if (method.name == "onLaunchExternalLinkResponse") {
-                        val result = args?.get(0) as? BillingResult
+                        val result = (args?.get(0) as? BillingResult)
+                            ?: billingResultError("Missing external link launch result")
                         OpenIapLog.d("External link launch result: ${result?.responseCode} - ${result?.debugMessage}", TAG)
 
-                        val success = result?.responseCode == BillingClient.BillingResponseCode.OK
-                        resumer.resume(success)
+                        if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+                            operation.succeed(true)
+                        } else {
+                            operation.fail(result.toOpenIapError())
+                        }
                     }
                     null
                 }
@@ -972,10 +1463,14 @@ class OpenIapModule(
                 launchMethod.invoke(client, activity, launchParams, listener)
             } catch (e: NoSuchMethodException) {
                 OpenIapLog.e("launchExternalLink not found. Requires Billing Library 8.2.0+", e, TAG)
-                resumer.resume(false)
+                operation.fail(OpenIapError.FeatureNotSupported())
+            } catch (e: ClassNotFoundException) {
+                operation.fail(OpenIapError.FeatureNotSupported())
             } catch (e: Exception) {
                 OpenIapLog.e("Failed to launch external link: ${e.message}", e, TAG)
-                resumer.resume(false)
+                operation.fail(
+                    OpenIapError.PurchaseFailed(e.message ?: e.javaClass.simpleName)
+                )
             }
         }
     }
@@ -990,11 +1485,12 @@ class OpenIapModule(
         val program = billingChoiceProgramOrDefault(params.billingProgram)
         val billingProgramConstant = billingProgramToConstant(program)
         if (program != BillingProgramAndroid.BillingChoice) {
-            throw IllegalArgumentException("getBillingChoiceInfo only supports BILLING_CHOICE")
+            throw OpenIapError.DeveloperError(
+                "getBillingChoiceInfo only supports BILLING_CHOICE"
+            )
         }
 
-        suspendCancellableCoroutine { continuation ->
-            val resumer = continuation.resumeGuard()
+        activeOperations.await(client) { operation ->
             try {
                 val paramsClass = Class.forName("com.android.billingclient.api.GetBillingChoiceInfoParams")
                 val builderClass = Class.forName("com.android.billingclient.api.GetBillingChoiceInfoParams\$Builder")
@@ -1027,15 +1523,22 @@ class OpenIapModule(
                                 .invoke(choiceInfo) as? String
 
                             if (imageUrl.isNullOrBlank()) {
-                                resumer.resumeWithException(OpenIapError.PurchaseFailed("Missing Play Billing choice image URL"))
+                                operation.fail(OpenIapError.PurchaseFailed("Missing Play Billing choice image URL"))
                             } else {
-                                resumer.resume(BillingChoiceInfoAndroid(
-                                    playBillingChoiceImageUrl = imageUrl,
-                                    playBillingLoyaltyInfo = loyaltyInfo
-                                ))
+                                operation.succeed(
+                                    BillingChoiceInfoAndroid(
+                                        playBillingChoiceImageUrl = imageUrl,
+                                        playBillingLoyaltyInfo = loyaltyInfo
+                                    )
+                                )
                             }
                         } else {
-                            resumer.resumeWithException(OpenIapError.PurchaseFailed(result?.debugMessage))
+                            operation.fail(
+                                result?.toOpenIapError()
+                                    ?: OpenIapError.UnknownError(
+                                        "Missing Billing Choice info result"
+                                    )
+                            )
                         }
                     }
                     null
@@ -1045,13 +1548,13 @@ class OpenIapModule(
                     .invoke(client, requestParams, listener)
             } catch (e: NoSuchMethodException) {
                 OpenIapLog.e("getBillingChoiceInfoAsync not found. Requires Billing Library 9.1.0+", e, TAG)
-                resumer.resumeWithException(OpenIapError.FeatureNotSupported())
+                operation.fail(OpenIapError.FeatureNotSupported())
             } catch (e: ClassNotFoundException) {
                 OpenIapLog.e("GetBillingChoiceInfoParams not found. Requires Billing Library 9.1.0+", e, TAG)
-                resumer.resumeWithException(OpenIapError.FeatureNotSupported())
+                operation.fail(OpenIapError.FeatureNotSupported())
             } catch (e: Exception) {
                 OpenIapLog.e("Failed to get Billing Choice info: ${e.message}", e, TAG)
-                resumer.resumeWithException(OpenIapError.PurchaseFailed(e.message ?: e.javaClass.simpleName))
+                operation.fail(OpenIapError.PurchaseFailed(e.message ?: e.javaClass.simpleName))
             }
         }
     }
@@ -1070,11 +1573,12 @@ class OpenIapModule(
         val program = billingChoiceProgramOrDefault(params.billingProgram)
         val billingProgramConstant = billingProgramToConstant(program)
         if (program != BillingProgramAndroid.BillingChoice) {
-            throw IllegalArgumentException("showBillingProgramInformationDialog only supports BILLING_CHOICE")
+            throw OpenIapError.DeveloperError(
+                "showBillingProgramInformationDialog only supports BILLING_CHOICE"
+            )
         }
 
-        suspendCancellableCoroutine { continuation ->
-            val resumer = continuation.resumeGuard()
+        activeOperations.await(client) { operation ->
             try {
                 val paramsClass = Class.forName("com.android.billingclient.api.BillingProgramInformationDialogParams")
                 val builderClass = Class.forName("com.android.billingclient.api.BillingProgramInformationDialogParams\$Builder")
@@ -1094,7 +1598,7 @@ class OpenIapModule(
                     if (method.name == "onBillingProgramInformationDialogResponse") {
                         val result = (args?.get(0) as? BillingResult)
                             ?: billingResultError("Missing Billing Program information dialog result")
-                        resumer.resume(result.toOpenIapBillingResult())
+                        operation.succeed(result.toOpenIapBillingResult())
                     }
                     null
                 }
@@ -1107,13 +1611,13 @@ class OpenIapModule(
                 ).invoke(client, activity, requestParams, listener)
             } catch (e: NoSuchMethodException) {
                 OpenIapLog.e("showBillingProgramInformationDialog not found. Requires Billing Library 9.1.0+", e, TAG)
-                resumer.resumeWithException(OpenIapError.FeatureNotSupported())
+                operation.fail(OpenIapError.FeatureNotSupported())
             } catch (e: ClassNotFoundException) {
                 OpenIapLog.e("BillingProgramInformationDialogParams not found. Requires Billing Library 9.1.0+", e, TAG)
-                resumer.resumeWithException(OpenIapError.FeatureNotSupported())
+                operation.fail(OpenIapError.FeatureNotSupported())
             } catch (e: Exception) {
                 OpenIapLog.e("Failed to show Billing Program information dialog: ${e.message}", e, TAG)
-                resumer.resumeWithException(OpenIapError.PurchaseFailed(e.message ?: e.javaClass.simpleName))
+                operation.fail(OpenIapError.PurchaseFailed(e.message ?: e.javaClass.simpleName))
             }
         }
     }
@@ -1128,8 +1632,7 @@ class OpenIapModule(
         val client = billingClient ?: throw OpenIapError.NotPrepared
         if (!client.isReady) throw OpenIapError.NotPrepared
 
-        suspendCancellableCoroutine { continuation ->
-            val resumer = continuation.resumeGuard()
+        activeOperations.await(client) { operation ->
             try {
                 val paramsClass = Class.forName("com.android.billingclient.api.InAppMessageParams")
                 val builderClass = Class.forName("com.android.billingclient.api.InAppMessageParams\$Builder")
@@ -1156,10 +1659,12 @@ class OpenIapModule(
                         val purchaseToken = runCatching {
                             result?.javaClass?.getMethod("getPurchaseToken")?.invoke(result) as? String
                         }.getOrNull()
-                        resumer.resume(InAppMessageResultAndroid(
-                            responseCode = inAppMessageResponseCodeFromConstant(responseCode),
-                            purchaseToken = purchaseToken
-                        ))
+                        operation.succeed(
+                            InAppMessageResultAndroid(
+                                responseCode = inAppMessageResponseCodeFromConstant(responseCode),
+                                purchaseToken = purchaseToken
+                            )
+                        )
                     }
                     null
                 }
@@ -1172,17 +1677,17 @@ class OpenIapModule(
                 ).invoke(client, activity, requestParams, listener) as? BillingResult
 
                 if (submitResult != null && submitResult.responseCode != BillingClient.BillingResponseCode.OK) {
-                    resumer.resumeWithException(OpenIapError.PurchaseFailed(submitResult.debugMessage))
+                    operation.fail(OpenIapError.PurchaseFailed(submitResult.debugMessage))
                 }
             } catch (e: NoSuchMethodException) {
                 OpenIapLog.e("showInAppMessages not found. Requires Billing Library 4.1.0+", e, TAG)
-                resumer.resumeWithException(OpenIapError.FeatureNotSupported())
+                operation.fail(OpenIapError.FeatureNotSupported())
             } catch (e: ClassNotFoundException) {
                 OpenIapLog.e("InAppMessageParams not found. Requires Billing Library 4.1.0+", e, TAG)
-                resumer.resumeWithException(OpenIapError.FeatureNotSupported())
+                operation.fail(OpenIapError.FeatureNotSupported())
             } catch (e: Exception) {
                 OpenIapLog.e("Failed to show in-app messages: ${e.message}", e, TAG)
-                resumer.resumeWithException(OpenIapError.PurchaseFailed(e.message ?: e.javaClass.simpleName))
+                operation.fail(OpenIapError.PurchaseFailed(e.message ?: e.javaClass.simpleName))
             }
         }
     }
@@ -1195,126 +1700,26 @@ class OpenIapModule(
      */
     fun enableBillingProgram(program: BillingProgramAndroid) {
         if (program != BillingProgramAndroid.Unspecified) {
-            pendingBillingPrograms.add(program)
+            synchronized(connectionLifecycleLock) {
+                pendingBillingPrograms.add(program)
+            }
             OpenIapLog.d("Billing program queued for next connection: $program", TAG)
         }
     }
 
     override val requestPurchase: MutationRequestPurchaseHandler = { props ->
         val purchases = withContext(Dispatchers.IO) {
-            // ALTERNATIVE_ONLY mode: Show information dialog and create token
-            if (alternativeBillingMode == AlternativeBillingMode.ALTERNATIVE_ONLY) {
-                OpenIapLog.d("=== ALTERNATIVE BILLING ONLY MODE ===", TAG)
-
-                val client = billingClient
-                if (client == null || !client.isReady) {
-                    val err = OpenIapError.NotPrepared
-                    for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
-                    return@withContext emptyList()
-                }
-
-                val activity = currentActivityRef?.get() ?: fallbackActivity
-                if (activity == null) {
-                    val err = OpenIapError.MissingCurrentActivity
-                    for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
-                    return@withContext emptyList()
-                }
-
-                try {
-                    // Step 1: Check if alternative billing is available
-                    // Using deprecated API for backward compatibility in ALTERNATIVE_ONLY mode
-                    @Suppress("DEPRECATION")
-                    val isAvailable = checkAlternativeBillingAvailability()
-                    if (!isAvailable) {
-                        OpenIapLog.e("Alternative billing is not available for this user/app", tag = TAG)
-
-                        // Create detailed error for UI
-                        val err = OpenIapError.AlternativeBillingUnavailable(
-                            "Alternative Billing Unavailable\n\n" +
-                            "Possible causes:\n" +
-                            "1. User is not in an eligible country\n" +
-                            "2. App not enrolled in Alternative Billing program\n" +
-                            "3. Play Console setup incomplete\n\n" +
-                            "To enable Alternative Billing:\n" +
-                            "• Enroll app in Google Play Console\n" +
-                            "• Wait for Google approval\n" +
-                            "• Test with license tester accounts\n\n" +
-                            "Current mode: ALTERNATIVE_ONLY\n" +
-                            "Library: Billing 9.1.0"
-                        )
-
-                        for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
-                        return@withContext emptyList()
-                    }
-
-                    // Step 2: Show alternative billing information dialog
-                    // Using deprecated API for backward compatibility in ALTERNATIVE_ONLY mode
-                    @Suppress("DEPRECATION")
-                    val dialogSuccess = showAlternativeBillingInformationDialog(activity)
-                    if (!dialogSuccess) {
-                        val err = OpenIapError.UserCancelled(
-                            "User dismissed the alternative billing information dialog"
-                        )
-                        for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
-                        return@withContext emptyList()
-                    }
-
-                    // Step 3: Create external transaction token
-                    // ============================================================
-                    // ⚠️ PRODUCTION IMPLEMENTATION REQUIRED
-                    // ============================================================
-                    // In production, this step should happen AFTER successful payment:
-                    // 1. Dialog shown (✓ done above)
-                    // 2. Process payment through YOUR payment system
-                    // 3. After payment success, call: createAlternativeBillingReportingToken()
-                    // 4. Send token to backend → report to Play within 24h
-                    //
-                    // For manual control, use the separate functions:
-                    // - checkAlternativeBillingAvailability()
-                    // - showAlternativeBillingInformationDialog(activity)
-                    // - YOUR_PAYMENT_SYSTEM.processPayment()
-                    // - createAlternativeBillingReportingToken()
-                    // ============================================================
-                    // Using deprecated API for backward compatibility in ALTERNATIVE_ONLY mode
-                    @Suppress("DEPRECATION")
-                    val tokenResult = createAlternativeBillingReportingToken()
-
-                    if (tokenResult != null) {
-                        OpenIapLog.d("✓ Alternative billing token created: $tokenResult", TAG)
-                        OpenIapLog.d("", TAG)
-                        OpenIapLog.d("============================================================", TAG)
-                        OpenIapLog.d("NEXT STEPS (PRODUCTION IMPLEMENTATION REQUIRED)", TAG)
-                        OpenIapLog.d("============================================================", TAG)
-                        OpenIapLog.d("This token must be used to report the transaction to Google Play.", TAG)
-                        OpenIapLog.d("", TAG)
-                        OpenIapLog.d("Required implementation:", TAG)
-                        OpenIapLog.d("1. Process payment through YOUR alternative payment system", TAG)
-                        OpenIapLog.d("2. After successful payment, send this token to your backend", TAG)
-                        OpenIapLog.d("   Token: $tokenResult", TAG)
-                        OpenIapLog.d("3. Backend reports to Google Play Developer API within 24 hours:", TAG)
-                        OpenIapLog.d("   POST https://androidpublisher.googleapis.com/androidpublisher/v3/", TAG)
-                        OpenIapLog.d("        applications/{packageName}/externalTransactions", TAG)
-                        OpenIapLog.d("   Body: { externalTransactionToken: \"$tokenResult\", ... }", TAG)
-                        OpenIapLog.d("", TAG)
-                        OpenIapLog.d("See: https://developer.android.com/google/play/billing/alternative/reporting", TAG)
-                        OpenIapLog.d("============================================================", TAG)
-                        OpenIapLog.d("=== END ALTERNATIVE BILLING ONLY MODE ===", TAG)
-
-                        // Return empty list - app should handle purchase via alternative billing
-                        return@withContext emptyList()
-                    } else {
-                        val err = OpenIapError.PurchaseFailed(
-                            "Alternative billing token creation returned null"
-                        )
-                        for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
-                        return@withContext emptyList()
-                    }
-                } catch (e: Exception) {
-                    OpenIapLog.e("Alternative billing only flow failed: ${e.message}", e, TAG)
-                    val err = OpenIapError.FeatureNotSupported()
-                    for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
-                    return@withContext emptyList()
-                }
+            // requestPurchase cannot orchestrate the developer-owned payment
+            // step required by the deprecated Alternative Billing Only flow.
+            if (activeAlternativeBillingMode == AlternativeBillingMode.ALTERNATIVE_ONLY) {
+                val error = OpenIapError.FeatureNotSupported(
+                    "requestPurchase cannot run Alternative Billing Only automatically. " +
+                        "Use the explicit deprecated sequence: check availability, show the " +
+                        "information dialog, complete developer payment, create a reporting " +
+                        "token, then report it from your backend."
+                )
+                emitPurchaseError(error)
+                throw error
             }
 
             val androidArgs = props.toAndroidPurchaseArgs()
@@ -1322,20 +1727,55 @@ class OpenIapModule(
 
             if (activity == null) {
                 val err = OpenIapError.MissingCurrentActivity
-                for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
+                emitPurchaseError(err)
                 return@withContext emptyList()
             }
 
             val client = billingClient
             if (client == null || !client.isReady) {
                 val err = OpenIapError.NotPrepared
-                for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
+                emitPurchaseError(err)
                 return@withContext emptyList()
             }
 
             if (androidArgs.skus.isEmpty()) {
                 val err = OpenIapError.EmptySkuList
-                for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
+                emitPurchaseError(err)
+                return@withContext emptyList()
+            }
+
+            if (!isSubscriptionReplacementTargetCountValid(
+                    targetSkuCount = androidArgs.skus.size,
+                    hasProductLevelReplacementParams =
+                        androidArgs.subscriptionProductReplacementParams != null,
+                )
+            ) {
+                val err = OpenIapError.DeveloperError(
+                    "subscriptionProductReplacementParams requires exactly one target SKU"
+                )
+                emitPurchaseError(err)
+                return@withContext emptyList()
+            }
+
+            val updateSourceCount = subscriptionUpdateSourceCount(
+                androidArgs.purchaseToken,
+                androidArgs.originalExternalTransactionId,
+            )
+            if (updateSourceCount > 1) {
+                val err = OpenIapError.DeveloperError(
+                    "purchaseToken and originalExternalTransactionId are mutually exclusive"
+                )
+                emitPurchaseError(err)
+                return@withContext emptyList()
+            }
+            if (
+                androidArgs.subscriptionProductReplacementParams != null &&
+                updateSourceCount != 1
+            ) {
+                val err = OpenIapError.DeveloperError(
+                    "subscriptionProductReplacementParams requires exactly one update source"
+                )
+                emitPurchaseError(err)
                 return@withContext emptyList()
             }
 
@@ -1344,34 +1784,47 @@ class OpenIapModule(
             suspendCancellableCoroutine<List<Purchase>> { continuation ->
                 var callbackRef: ((Result<List<Purchase>>) -> Unit)? = null
                 val resumer = continuation.resumeGuard {
-                    callbackRef?.let { currentPurchaseCallback.compareAndSet(it, null) }
+                    callbackRef?.let { clearPurchaseCallback(client, it) }
                 }
                 val callback: (Result<List<Purchase>>) -> Unit = { result ->
-                    resumer.resume(result.getOrDefault(emptyList()))
+                    result.fold(resumer::resume, resumer::resumeWithException)
+                }
+                fun finishWithError(error: OpenIapError, requireLaunched: Boolean = false) {
+                    finishPurchaseCallback(
+                        client,
+                        callback,
+                        Result.success(emptyList()),
+                        error,
+                        requireLaunched,
+                    )
                 }
                 callbackRef = callback
-                if (!currentPurchaseCallback.compareAndSet(null, callback)) {
-                    OpenIapLog.w("requestPurchase rejected: another purchase is already in progress", TAG)
-                    resumer.resumeWithException(
-                        OpenIapError.DeveloperError("Another purchase is already in progress")
-                    )
+                val installError = installPurchaseCallback(
+                    expectedClient = client,
+                    requestedSkus = androidArgs.skus.toSet(),
+                    requestedProductType = desiredType,
+                    callback = callback,
+                )
+                if (installError != null) {
+                    OpenIapLog.w("requestPurchase rejected: ${installError.message}", TAG)
+                    if (installError is OpenIapError.ServiceDisconnected) {
+                        emitPurchaseError(installError)
+                    }
+                    resumer.resumeWithException(installError)
                     return@suspendCancellableCoroutine
                 }
                 if (!continuation.isActive) {
-                    currentPurchaseCallback.compareAndSet(callback, null)
+                    clearPurchaseCallback(client, callback)
                     return@suspendCancellableCoroutine
                 }
 
-                val detailsBySku = mutableMapOf<String, ProductDetails>()
-                for (sku in androidArgs.skus) {
-                    productManager.get(sku, desiredType)?.let { detailsBySku[sku] = it }
-                }
-
-                val missing = androidArgs.skus.filter { !detailsBySku.containsKey(it) }
-
                 fun buildAndLaunch(details: List<ProductDetails>) {
+                    if (!continuation.isActive || !ownsPurchaseCallback(client, callback)) {
+                        return
+                    }
                     val paramsList = mutableListOf<BillingFlowParams.ProductDetailsParams>()
                     val requestedOffersBySku = mutableMapOf<String, MutableList<String>>()
+                    val selectedBasePlanIdsBySku = mutableMapOf<String, String?>()
 
                     // Reject multi-SKU one-time purchase requests when offerToken is provided
                     // A single offerToken cannot be applied to multiple SKUs
@@ -1382,16 +1835,15 @@ class OpenIapModule(
                             "offerToken requires a single SKU. Provided SKUs: ${androidArgs.skus}",
                             TAG
                         )
-                        val err = OpenIapError.SkuOfferMismatch
-                        for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
-                        consumePurchaseCallback(Result.success(emptyList()))
+                        val err = OpenIapError.SkuOfferMismatch()
+                        finishWithError(err)
                         return
                     }
 
                     if (androidArgs.type == ProductQueryType.Subs) {
                         for (offer in androidArgs.subscriptionOffers.orEmpty()) {
                             if (offer.offerToken.isNotEmpty()) {
-                                OpenIapLog.d("Adding offer token for SKU ${offer.sku}: ${offer.offerToken}", TAG)
+                                OpenIapLog.d("Adding offer token for SKU ${offer.sku}", TAG)
                                 val queue = requestedOffersBySku.getOrPut(offer.sku) { mutableListOf() }
                                 queue.add(offer.offerToken)
                             }
@@ -1415,48 +1867,48 @@ class OpenIapModule(
                             val fromIndex = androidArgs.subscriptionOffers?.getOrNull(index)?.takeIf { it.sku == productDetails.productId }?.offerToken
                             val resolved = fromQueue ?: fromIndex ?: productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken
 
-                            OpenIapLog.d("Resolved offer token for ${productDetails.productId}: $resolved", TAG)
+                            OpenIapLog.d(
+                                "Resolved offer token for ${productDetails.productId}: present=${!resolved.isNullOrEmpty()}",
+                                TAG,
+                            )
 
                             if (resolved.isNullOrEmpty() || (availableTokens.isNotEmpty() && !availableTokens.contains(resolved))) {
-                                OpenIapLog.w("Invalid offer token: $resolved not in available offer tokens", TAG)
-                                val err = OpenIapError.SkuOfferMismatch
-                                for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
-                                consumePurchaseCallback(Result.success(emptyList()))
+                                OpenIapLog.w("Invalid offer token for ${productDetails.productId}", TAG)
+                                val err = OpenIapError.SkuOfferMismatch()
+                                finishWithError(err)
                                 return
                             }
 
                             builder.setOfferToken(resolved)
+                            selectedBasePlanIdsBySku[productDetails.productId] =
+                                productDetails.subscriptionOfferDetails
+                                    ?.firstOrNull { it.offerToken == resolved }
+                                    ?.basePlanId
 
                             // Apply per-product subscription replacement params (8.1.0+)
                             androidArgs.subscriptionProductReplacementParams?.let { replacementParams ->
-                                if (replacementParams.oldProductId == productDetails.productId ||
-                                    androidArgs.skus.size == 1) {
-                                    // Apply to this product if it matches or if it's a single-product upgrade
-                                    applySubscriptionProductReplacementParams(builder, replacementParams)
-                                }
+                                applySubscriptionProductReplacementParams(builder, replacementParams)
                             }
                         } else if (androidArgs.type == ProductQueryType.InApp && !androidArgs.offerToken.isNullOrEmpty()) {
-                            // Handle one-time purchase discount offers (Android 7.0+)
-                            OpenIapLog.d("Setting offer token for one-time product ${productDetails.productId}: ${androidArgs.offerToken}", TAG)
+                            // Handle one-time purchase discount offers (Android 8.0+)
+                            OpenIapLog.d("Setting offer token for one-time product ${productDetails.productId}", TAG)
 
                             // Validate offer token exists in available one-time purchase offers
-                            // Use oneTimePurchaseOfferDetailsList (Billing Library 7.0+) for discount offers
+                            // Use oneTimePurchaseOfferDetailsList (Billing Library 8.0+) for discount offers
                             val oneTimePurchaseOffers = productDetails.oneTimePurchaseOfferDetailsList
                             val availableTokens = oneTimePurchaseOffers?.map { it.offerToken } ?: emptyList()
 
                             if (availableTokens.isEmpty()) {
-                                OpenIapLog.w("No one-time purchase offers available for ${productDetails.productId}, but offerToken was provided: ${androidArgs.offerToken}", TAG)
-                                val err = OpenIapError.SkuOfferMismatch
-                                for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
-                                consumePurchaseCallback(Result.success(emptyList()))
+                                OpenIapLog.w("No one-time purchase offers available for ${productDetails.productId}, but offerToken was provided", TAG)
+                                val err = OpenIapError.SkuOfferMismatch()
+                                finishWithError(err)
                                 return
                             }
 
                             if (!availableTokens.contains(androidArgs.offerToken)) {
-                                OpenIapLog.w("Invalid one-time offer token: ${androidArgs.offerToken} not in available offer tokens", TAG)
-                                val err = OpenIapError.SkuOfferMismatch
-                                for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
-                                consumePurchaseCallback(Result.success(emptyList()))
+                                OpenIapLog.w("Invalid one-time offer token for ${productDetails.productId}", TAG)
+                                val err = OpenIapError.SkuOfferMismatch()
+                                finishWithError(err)
                                 return
                             }
 
@@ -1548,7 +2000,26 @@ class OpenIapModule(
                     // Android UI thread. Some SDK wrappers call from background
                     // coroutines, so match the Horizon implementation here.
                     activity.runOnUiThread {
-                        val result = client.launchBillingFlow(activity, billingFlowParams)
+                        if (!continuation.isActive) {
+                            return@runOnUiThread
+                        }
+                        val launchStartedAtMillis = System.currentTimeMillis().toDouble()
+                        val launchResult = launchPurchaseFlowIfOwned(
+                            expectedClient = client,
+                            expectedCallback = callback,
+                            launchStartedAtMillis = launchStartedAtMillis,
+                            selectedBasePlanIdsBySku = selectedBasePlanIdsBySku,
+                        ) {
+                            client.launchBillingFlow(activity, billingFlowParams)
+                        } ?: return@runOnUiThread
+                        launchResult.exceptionOrNull()?.let { error ->
+                            val purchaseError = OpenIapError.PurchaseFailed(
+                                error.message ?: "Failed to launch billing flow"
+                            )
+                            finishWithError(purchaseError, requireLaunched = true)
+                            return@runOnUiThread
+                        }
+                        val result = launchResult.getOrThrow()
                         OpenIapLog.d("launchBillingFlow result: ${result.responseCode} - ${result.debugMessage}", TAG)
                         if (result.responseCode != BillingClient.BillingResponseCode.OK) {
                             if (result.responseCode == BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED) {
@@ -1580,86 +2051,113 @@ class OpenIapModule(
                                 }
                                 queryAlreadyOwnedPurchases(client, desiredType, androidArgs.skus, basePlanIdsBySku) { recovered ->
                                     if (recovered.isNotEmpty()) {
+                                        val pending = claimPurchaseCallback(
+                                            client,
+                                            callback,
+                                            requireLaunched = true,
+                                        ) ?: return@queryAlreadyOwnedPurchases
                                         OpenIapLog.d("Recovered ${recovered.size} already-owned purchase(s)", TAG)
-                                        notifySuspendedSubscriptions(recovered)
+                                        notifySuspendedSubscriptions(
+                                            recovered,
+                                            listenerOwner(pending.client, pending.generation),
+                                        )
                                         for (purchase in recovered) {
                                             for (listener in purchaseUpdateListeners) {
                                                 runCatching { listener.onPurchaseUpdated(purchase) }
                                             }
                                         }
-                                        consumePurchaseCallback(Result.success(recovered))
+                                        pending.callback(Result.success(recovered))
                                     } else {
                                         OpenIapLog.w("ITEM_ALREADY_OWNED recovery found no matching owned purchases", TAG)
-                                        for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
-                                        consumePurchaseCallback(Result.success(emptyList()))
+                                        finishWithError(err, requireLaunched = true)
                                     }
                                 }
                                 return@runOnUiThread
                             }
-                            val err = when (result.responseCode) {
-                                BillingClient.BillingResponseCode.DEVELOPER_ERROR -> {
-                                    OpenIapLog.w("DEVELOPER_ERROR: Invalid arguments. Check if subscriptions are in the same group.", TAG)
-                                    OpenIapError.DeveloperError(result.debugMessage)
-                                }
-                                BillingClient.BillingResponseCode.USER_CANCELED -> OpenIapError.UserCancelled(result.debugMessage)
-                                else -> OpenIapError.PurchaseFailed(result.debugMessage)
+                            if (result.responseCode == BillingClient.BillingResponseCode.DEVELOPER_ERROR) {
+                                OpenIapLog.w("DEVELOPER_ERROR: Invalid arguments. Check if subscriptions are in the same group.", TAG)
                             }
-                            for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
-                            consumePurchaseCallback(Result.success(emptyList()))
+                            val err = if (result.responseCode == BillingClient.BillingResponseCode.ERROR) {
+                                OpenIapError.PurchaseFailed(result.debugMessage)
+                            } else {
+                                OpenIapError.fromBillingResponseCode(
+                                    result.responseCode,
+                                    result.debugMessage
+                                )
+                            }
+                            finishWithError(err, requireLaunched = true)
                         }
                     }
                 }
 
-                if (missing.isEmpty()) {
-                    val ordered = androidArgs.skus.mapNotNull { detailsBySku[it] }
-                    if (ordered.size != androidArgs.skus.size) {
-                        val missingSku = androidArgs.skus.firstOrNull { !detailsBySku.containsKey(it) }
-                        val err = OpenIapError.SkuNotFound(missingSku ?: "")
-                        for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
-                        consumePurchaseCallback(Result.success(emptyList()))
-                        return@suspendCancellableCoroutine
-                    }
-                    buildAndLaunch(ordered)
-                } else {
-                    val productList = missing.map { sku ->
-                        QueryProductDetailsParams.Product.newBuilder()
-                            .setProductId(sku)
-                            .setProductType(desiredType)
-                            .build()
-                    }
-
-                    val queryParams = QueryProductDetailsParams.newBuilder()
-                        .setProductList(productList)
+                // Google explicitly discourages reusing cached ProductDetails for a
+                // purchase. Refresh every requested SKU immediately before building
+                // BillingFlowParams so price and offer eligibility cannot be stale.
+                val productIdsToQuery = androidArgs.skus.distinct()
+                val productList = productIdsToQuery.map { sku ->
+                    QueryProductDetailsParams.Product.newBuilder()
+                        .setProductId(sku)
+                        .setProductType(desiredType)
                         .build()
+                }
 
-                    val didHandleProductDetails = AtomicBoolean(false)
-                    client.queryProductDetailsAsync(queryParams) { billingResult: BillingResult, result: QueryProductDetailsResult ->
-                        if (!didHandleProductDetails.compareAndSet(false, true)) return@queryProductDetailsAsync
+                val queryParams = QueryProductDetailsParams.newBuilder()
+                    .setProductList(productList)
+                    .build()
 
-                        val productDetailsList = result.productDetailsList
-                        if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && !productDetailsList.isNullOrEmpty()) {
+                val didHandleProductDetails = AtomicBoolean(false)
+                client.queryProductDetailsAsync(queryParams) { billingResult: BillingResult, result: QueryProductDetailsResult ->
+                    if (!didHandleProductDetails.compareAndSet(false, true)) return@queryProductDetailsAsync
+                    val productDetailsList = result.productDetailsList
+                    val ownsRequest = synchronized(connectionLifecycleLock) {
+                        val owns = billingClient === client &&
+                            pendingPurchase?.let {
+                                it.client === client && it.callback === callback
+                            } == true
+                        if (owns &&
+                            billingResult.responseCode == BillingClient.BillingResponseCode.OK &&
+                            !productDetailsList.isNullOrEmpty()
+                        ) {
                             productManager.putAll(productDetailsList)
-                            for (detail in productDetailsList) { detailsBySku[detail.productId] = detail }
-                            val ordered = androidArgs.skus.mapNotNull { detailsBySku[it] }
-                            if (ordered.size != androidArgs.skus.size) {
-                                val missingSku = androidArgs.skus.firstOrNull { !detailsBySku.containsKey(it) }
-                                val err = OpenIapError.SkuNotFound(missingSku ?: "")
-                                for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
-                                consumePurchaseCallback(Result.success(emptyList()))
-                                return@queryProductDetailsAsync
-                            }
-                            buildAndLaunch(ordered)
-                        } else {
-                            val err = OpenIapError.QueryProduct.withDiagnostics(
-                                responseCode = billingResult.responseCode,
-                                debugMessage = billingResult.debugMessage,
-                                productIds = missing,
-                                productType = desiredType,
-                                isEmptyProductList = productDetailsList.isNullOrEmpty()
-                            )
-                            for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
-                            consumePurchaseCallback(Result.success(emptyList()))
                         }
+                        owns
+                    }
+                    if (!continuation.isActive || !ownsRequest) {
+                        return@queryProductDetailsAsync
+                    }
+
+                    if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && !productDetailsList.isNullOrEmpty()) {
+                        val detailsBySku = productDetailsList.associateBy { it.productId }
+                        val ordered = androidArgs.skus.mapNotNull { detailsBySku[it] }
+                        if (ordered.size != androidArgs.skus.size) {
+                            val missingSku = androidArgs.skus.firstOrNull { !detailsBySku.containsKey(it) }
+                            val err = OpenIapError.SkuNotFound(missingSku ?: "")
+                            finishWithError(err)
+                            return@queryProductDetailsAsync
+                        }
+                        try {
+                            buildAndLaunch(ordered)
+                        } catch (error: Throwable) {
+                            val purchaseError = (error as? OpenIapError
+                                ?: OpenIapError.DeveloperError(
+                                    error.message ?: "Invalid billing flow parameters"
+                                ))
+                            OpenIapLog.e(
+                                "Failed to build billing flow: ${error.message}",
+                                error,
+                                TAG,
+                            )
+                            finishWithError(purchaseError)
+                        }
+                    } else {
+                        val err = OpenIapError.QueryProduct.withDiagnostics(
+                            responseCode = billingResult.responseCode,
+                            debugMessage = billingResult.debugMessage,
+                            productIds = productIdsToQuery,
+                            productType = desiredType,
+                            isEmptyProductList = productDetailsList.isNullOrEmpty()
+                        )
+                        finishWithError(err)
                     }
                 }
             }
@@ -1668,8 +2166,9 @@ class OpenIapModule(
     }
 
     suspend fun getAvailableItems(type: ProductQueryType): List<Purchase> = withContext(Dispatchers.IO) {
+        val client = billingClient ?: throw OpenIapError.NotPrepared
         val billingType = if (type == ProductQueryType.Subs) BillingClient.ProductType.SUBS else BillingClient.ProductType.INAPP
-        queryPurchases(billingClient, billingType)
+        queryPurchases(client, activeOperations, billingType)
     }
 
     override val finishTransaction: MutationFinishTransactionHandler = { purchase, isConsumable ->
@@ -1683,24 +2182,25 @@ class OpenIapModule(
 
             val result = if (isConsumable == true) {
                 val params = ConsumeParams.newBuilder().setPurchaseToken(token).build()
-                suspendCancellableCoroutine<BillingResult> { continuation ->
-                    val resumer = continuation.resumeGuard()
+                activeOperations.await(client) { operation ->
                     client.consumeAsync(params) { outcome, _ ->
-                        resumer.resume(outcome)
+                        operation.succeed(outcome)
                     }
                 }
             } else {
                 val params = AcknowledgePurchaseParams.newBuilder().setPurchaseToken(token).build()
-                suspendCancellableCoroutine<BillingResult> { continuation ->
-                    val resumer = continuation.resumeGuard()
+                activeOperations.await(client) { operation ->
                     client.acknowledgePurchase(params) { outcome ->
-                        resumer.resume(outcome)
+                        operation.succeed(outcome)
                     }
                 }
             }
 
             if (result.responseCode != BillingClient.BillingResponseCode.OK) {
-                throw OpenIapError.PurchaseFailed(result.debugMessage)
+                throw OpenIapError.fromBillingResponseCode(
+                    result.responseCode,
+                    result.debugMessage,
+                )
             }
         }
     }
@@ -1709,14 +2209,13 @@ class OpenIapModule(
         withContext(Dispatchers.IO) {
             val client = billingClient ?: throw OpenIapError.NotPrepared
             val params = AcknowledgePurchaseParams.newBuilder().setPurchaseToken(purchaseToken).build()
-            suspendCancellableCoroutine<Boolean> { continuation ->
-                val resumer = continuation.resumeGuard()
+            activeOperations.await(client) { operation ->
                 client.acknowledgePurchase(params) { result ->
                     if (result.responseCode != BillingClient.BillingResponseCode.OK) {
                         OpenIapLog.w("Failed to acknowledge purchase: ${result.debugMessage}", TAG)
-                        resumer.resume(false)
+                        operation.succeed(false)
                     } else {
-                        resumer.resume(true)
+                        operation.succeed(true)
                     }
                 }
             }
@@ -1727,14 +2226,13 @@ class OpenIapModule(
         withContext(Dispatchers.IO) {
             val client = billingClient ?: throw OpenIapError.NotPrepared
             val params = ConsumeParams.newBuilder().setPurchaseToken(purchaseToken).build()
-            suspendCancellableCoroutine<Boolean> { continuation ->
-                val resumer = continuation.resumeGuard()
+            activeOperations.await(client) { operation ->
                 client.consumeAsync(params) { result, _ ->
                     if (result.responseCode != BillingClient.BillingResponseCode.OK) {
                         OpenIapLog.w("Failed to consume purchase: ${result.debugMessage}", TAG)
-                        resumer.resume(false)
+                        operation.succeed(false)
                     } else {
-                        resumer.resume(true)
+                        operation.succeed(true)
                     }
                 }
             }
@@ -1754,7 +2252,8 @@ class OpenIapModule(
 
     override val restorePurchases: MutationRestorePurchasesHandler = {
         withContext(Dispatchers.IO) {
-            restorePurchasesHelper(billingClient)
+            val client = billingClient ?: throw OpenIapError.NotPrepared
+            restorePurchasesHelper(client, activeOperations)
             Unit
         }
     }
@@ -1793,6 +2292,17 @@ class OpenIapModule(
         onSubscriptionBillingIssue(this::addSubscriptionBillingIssueListener, this::removeSubscriptionBillingIssueListener)
     }
 
+    private val userChoiceBillingAndroid: SubscriptionUserChoiceBillingAndroidHandler = {
+        onUserChoiceBilling(this::addUserChoiceBillingListener, this::removeUserChoiceBillingListener)
+    }
+
+    private val developerProvidedBillingAndroid: SubscriptionDeveloperProvidedBillingAndroidHandler = {
+        onDeveloperProvidedBilling(
+            this::addDeveloperProvidedBillingListener,
+            this::removeDeveloperProvidedBillingListener,
+        )
+    }
+
     override val queryHandlers: QueryHandlers = QueryHandlers(
         fetchProducts = fetchProducts,
         getActiveSubscriptions = getActiveSubscriptions,
@@ -1801,7 +2311,6 @@ class OpenIapModule(
             getBillingChoiceInfo(params)
         },
         getStorefront = { getStorefront() },
-        getStorefrontIOS = { getStorefront() },
         hasActiveSubscriptions = hasActiveSubscriptions
     )
 
@@ -1853,33 +2362,56 @@ class OpenIapModule(
     )
 
     override val subscriptionHandlers: SubscriptionHandlers = SubscriptionHandlers(
+        developerProvidedBillingAndroid = developerProvidedBillingAndroid,
         purchaseError = purchaseError,
         purchaseUpdated = purchaseUpdated,
-        subscriptionBillingIssue = subscriptionBillingIssue
+        subscriptionBillingIssue = subscriptionBillingIssue,
+        userChoiceBillingAndroid = userChoiceBillingAndroid,
     )
 
-    // BillingClient is built lazily in initBillingClient() so that
-    // alternativeBillingMode and enabledBillingPrograms can be configured
+    // BillingClient is built lazily in initConnection() so that
+    // alternativeBillingMode and billing programs can be configured
     // before the first client instance is created.
 
-    suspend fun getStorefront() = withContext(Dispatchers.IO) {
-        val client = billingClient ?: return@withContext ""
-        suspendCancellableCoroutine { continuation ->
-            val resumer = continuation.resumeGuard()
-            runCatching {
+    private fun emitPurchaseError(error: OpenIapError) {
+        purchaseErrorListeners.forEach { registeredListener ->
+            runCatching { registeredListener.onPurchaseError(error) }
+        }
+    }
+
+    suspend fun getStorefront(): String = withContext(Dispatchers.IO) {
+        val client = billingClient ?: emitFailureAndThrow(
+            OpenIapError.NotPrepared,
+            ::emitPurchaseError,
+        )
+        if (!client.isReady) {
+            emitFailureAndThrow(OpenIapError.NotPrepared, ::emitPurchaseError)
+        }
+        try {
+            activeOperations.await(client) { operation ->
                 client.getBillingConfigAsync(
                     GetBillingConfigParams.newBuilder().build(),
                     BillingConfigResponseListener { result: BillingResult, config: BillingConfig? ->
-                        val code = if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-                            config?.countryCode.orEmpty()
-                        } else ""
-                        resumer.resume(code)
+                        if (result.responseCode != BillingClient.BillingResponseCode.OK) {
+                            operation.fail(result.toOpenIapError())
+                            return@BillingConfigResponseListener
+                        }
+                        try {
+                            operation.succeed(requireAuthoritativeStorefrontCountry(config?.countryCode))
+                        } catch (error: OpenIapError) {
+                            operation.fail(error)
+                        }
                     }
                 )
-            }.onFailure { error ->
-                OpenIapLog.w("getStorefront failed: ${error.message}", TAG)
-                resumer.resume("")
             }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            val mapped = error as? OpenIapError
+                ?: OpenIapError.ServiceUnavailable(error.message)
+            OpenIapLog.w("getStorefront failed: ${mapped.message}", TAG)
+            emitPurchaseError(mapped)
+            throw mapped
         }
     }
 
@@ -1929,16 +2461,24 @@ class OpenIapModule(
      * via [emittedBillingIssueTokens]; re-emits only if a token clears and re-enters suspension
      * in a later session / new module instance.
      */
-    private fun notifySuspendedSubscriptions(purchases: List<Purchase>) {
+    private fun notifySuspendedSubscriptions(
+        purchases: List<Purchase>,
+        owner: ActiveStoreListenerOwner<BillingClient>,
+    ) {
         if (subscriptionBillingIssueListeners.isEmpty()) return
-        for (purchase in purchases) {
-            val android = purchase as? PurchaseAndroid ?: continue
-            if (android.isSuspendedAndroid != true) continue
-            val token = android.purchaseToken ?: continue
-            // ConcurrentHashMap.newKeySet().add returns false if the token is already present,
-            // giving us atomic test-and-register per session.
-            if (!emittedBillingIssueTokens.add(token)) continue
-            // CopyOnWriteArraySet is safe to iterate concurrently with add/remove.
+        val candidates = purchases.mapNotNull { purchase ->
+            val android = purchase as? PurchaseAndroid ?: return@mapNotNull null
+            if (android.isSuspendedAndroid != true) return@mapNotNull null
+            val token = android.purchaseToken ?: return@mapNotNull null
+            android to token
+        }
+        val issues = owner.claim {
+            candidates.mapNotNull { (purchase, token) ->
+                purchase.takeIf { emittedBillingIssueTokens.add(token) }
+            }
+        }.orEmpty()
+
+        for (android in issues) {
             for (listener in subscriptionBillingIssueListeners) {
                 try {
                     listener.onSubscriptionBillingIssue(android)
@@ -1949,12 +2489,27 @@ class OpenIapModule(
         }
     }
 
-    override fun onPurchasesUpdated(billingResult: BillingResult, purchases: List<BillingPurchase>?) {
+    private fun onPurchasesUpdated(
+        sourceClient: BillingClient,
+        owner: ActiveStoreListenerOwner<BillingClient>,
+        billingResult: BillingResult,
+        purchases: List<BillingPurchase>?,
+    ) {
+        // Snapshot the owner before mapping or notifying listeners. A listener
+        // can synchronously start another purchase, and this callback must never
+        // consume that newer request.
+        var ownedPendingRequest: PendingPurchaseSnapshot? = null
+        val ownsCallback = owner.claim {
+            ownedPendingRequest = pendingPurchase?.takeIf { it.client === sourceClient }
+            true
+        } == true
+        if (!ownsCallback) return
+        val pendingRequest = ownedPendingRequest
         OpenIapLog.d("onPurchasesUpdated: code=${billingResult.responseCode} msg=${billingResult.debugMessage} count=${purchases?.size ?: 0}", TAG)
         if (purchases != null) {
             for ((index, purchase) in purchases.withIndex()) {
                 OpenIapLog.d(
-                    "[Purchase $index] token=${purchase.purchaseToken} orderId=${purchase.orderId} state=${purchase.purchaseState} autoRenew=${purchase.isAutoRenewing} acknowledged=${purchase.isAcknowledged} products=${purchase.products}",
+                    "[Purchase $index] orderId=${purchase.orderId} state=${purchase.purchaseState} autoRenew=${purchase.isAutoRenewing} acknowledged=${purchase.isAcknowledged} products=${purchase.products}",
                     TAG
                 )
             }
@@ -1965,25 +2520,31 @@ class OpenIapModule(
             // This is expected behavior - the change will take effect at next renewal
             if (purchases != null) {
                 val mapped = purchases.map { purchase ->
-                    // CRITICAL FIX: Use ProductManager cache to determine product type, not substring matching
                     val firstProductId = purchase.products.firstOrNull()
                     val cached = firstProductId?.let { productManager.get(it) }
-                    val productType = cached?.productType ?: run {
-                        // Fallback: if not in cache, check if product ID contains "subs"
-                        if (purchase.products.any { it.contains("subs", ignoreCase = true) }) {
+                    val matchesPendingRequest = pendingRequest != null &&
+                        purchase.products.any { it in pendingRequest.requestedSkus }
+                    val productType = cached?.productType
+                        ?: pendingRequest?.requestedProductType?.takeIf { matchesPendingRequest }
+                        // BillingClient does not expose product type on Purchase.
+                        // isAutoRenewing is a safer last-resort signal than
+                        // inventing type from SKU text.
+                        ?: if (purchase.isAutoRenewing) {
                             BillingClient.ProductType.SUBS
                         } else {
                             BillingClient.ProductType.INAPP
                         }
-                    }
 
                     // Extract basePlanId from ProductDetails for subscriptions
                     val basePlanId = if (productType == BillingClient.ProductType.SUBS) {
-                        val offers = cached?.subscriptionOfferDetails.orEmpty()
-                        if (offers.size > 1) {
-                            OpenIapLog.w("Multiple offers (${offers.size}) found for ${firstProductId}, using first basePlanId (may be inaccurate)", TAG)
+                        firstProductId?.let { productId ->
+                            pendingRequest?.selectedBasePlanIdsBySku?.get(productId)
                         }
-                        offers.firstOrNull()?.basePlanId
+                            ?.takeIf { matchesPendingRequest }
+                            ?: cached?.subscriptionOfferDetails
+                                .orEmpty()
+                                .singleOrNull()
+                                ?.basePlanId
                     } else {
                         null
                     }
@@ -1991,45 +2552,104 @@ class OpenIapModule(
                     OpenIapLog.d("Mapping purchase products=${purchase.products} to type=$productType basePlanId=$basePlanId (cached=${cached != null})", TAG)
                     purchase.toPurchase(productType, basePlanId)
                 }
+                val matched = pendingRequest?.launchStartedAtMillis?.let { launchStartedAtMillis ->
+                    mapped.filter { purchase ->
+                        isPurchaseForPendingRequest(
+                            transactionDateMillis = purchase.transactionDate,
+                            productIds = listOf(purchase.productId) + purchase.ids.orEmpty(),
+                            requestedSkus = pendingRequest.requestedSkus,
+                            launchStartedAtMillis = launchStartedAtMillis,
+                        )
+                    }
+                }.orEmpty()
+                val completedRequest = if (matched.isNotEmpty() && pendingRequest != null) {
+                    claimPurchaseCallback(
+                        sourceClient,
+                        pendingRequest.callback,
+                        requireLaunched = true,
+                    ) ?: return
+                } else {
+                    null
+                }
                 OpenIapLog.d("Mapped purchases count=${mapped.size}", TAG)
-                notifySuspendedSubscriptions(mapped)
+                notifySuspendedSubscriptions(mapped, owner)
                 for (converted in mapped) {
                     for (listener in purchaseUpdateListeners) {
                         runCatching { listener.onPurchaseUpdated(converted) }
                     }
                 }
-                consumePurchaseCallback(Result.success(mapped))
+                if (completedRequest != null) {
+                    completedRequest.callback(Result.success(matched))
+                } else if (mapped.isNotEmpty() && pendingRequest != null) {
+                    OpenIapLog.w(
+                        "Ignoring unrelated purchase update while another purchase is pending",
+                        TAG,
+                    )
+                }
             } else {
                 // Purchases is null - likely DEFERRED mode
                 OpenIapLog.d("Purchase successful but purchases list is null (DEFERRED mode)", TAG)
-                consumePurchaseCallback(Result.success(emptyList()))
+                if (pendingRequest?.launchStartedAtMillis != null) {
+                    finishPurchaseCallback(
+                        sourceClient,
+                        pendingRequest.callback,
+                        Result.success(emptyList()),
+                        requireLaunched = true,
+                    )
+                }
             }
         } else {
+            val subResponseCode = billingResult.onPurchasesUpdatedSubResponseCode
+                .toOpenIapSubResponseCode()
             when (billingResult.responseCode) {
                 BillingClient.BillingResponseCode.USER_CANCELED -> {
                     val err = OpenIapError.UserCancelled(billingResult.debugMessage)
-                    for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
-                    consumePurchaseCallback(Result.success(emptyList()))
+                        .withSubResponseCode(subResponseCode)
+                    if (pendingRequest != null) {
+                        finishPurchaseCallback(
+                            sourceClient,
+                            pendingRequest.callback,
+                            Result.success(emptyList()),
+                            err,
+                            requireLaunched = true,
+                        )
+                    }
                 }
                 else -> {
                     val error = OpenIapError.fromBillingResponseCode(
                         billingResult.responseCode,
-                        billingResult.debugMessage
+                        billingResult.debugMessage,
+                        subResponseCode,
                     )
                     OpenIapLog.w("Purchase failed: code=${billingResult.responseCode} msg=${error.message}", TAG)
-                    for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(error) } }
-                    consumePurchaseCallback(Result.success(emptyList()))
+                    if (pendingRequest != null) {
+                        finishPurchaseCallback(
+                            sourceClient,
+                            pendingRequest.callback,
+                            Result.success(emptyList()),
+                            error,
+                            requireLaunched = true,
+                        )
+                    }
                 }
             }
         }
     }
 
-    private fun buildBillingClient() {
+    private fun buildBillingClient(
+        configuration: BillingConnectionConfiguration,
+        sourceGeneration: Long,
+    ): BillingClient {
         OpenIapLog.d("=== buildBillingClient START ===", TAG)
-        OpenIapLog.d("alternativeBillingMode: $alternativeBillingMode", TAG)
+        OpenIapLog.d("alternativeBillingMode: ${configuration.alternativeBillingMode}", TAG)
 
+        val clientRef = AtomicReference<BillingClient>()
+        val eventOwner = listenerOwner(clientRef::get, sourceGeneration)
+        val purchasesUpdatedListener = PurchasesUpdatedListener { result, purchases ->
+            clientRef.get()?.let { onPurchasesUpdated(it, eventOwner, result, purchases) }
+        }
         val builder = BillingClient.newBuilder(context)
-            .setListener(this)
+            .setListener(purchasesUpdatedListener)
             .enablePendingPurchases(
                 PendingPurchasesParams.newBuilder()
                     .enableOneTimeProducts()
@@ -2040,7 +2660,7 @@ class OpenIapModule(
 
         // Enable alternative billing if requested
         // This requires proper Google Play Console configuration
-        when (alternativeBillingMode) {
+        when (configuration.alternativeBillingMode) {
             AlternativeBillingMode.NONE -> {
                 OpenIapLog.d("Standard Google Play billing mode", TAG)
             }
@@ -2056,48 +2676,71 @@ class OpenIapModule(
                         if (method.name == "userSelectedAlternativeBilling") {
                             OpenIapLog.d("=== USER SELECTED ALTERNATIVE BILLING ===", TAG)
                             val userChoiceDetails = args?.get(0)
-                            OpenIapLog.d("UserChoiceDetails: $userChoiceDetails", TAG)
+                            OpenIapLog.d("UserChoiceDetails received (sensitive fields redacted)", TAG)
 
                             // Extract external transaction token and products
                             try {
                                 val detailsClass = userChoiceDetails?.javaClass
                                 val tokenMethod = detailsClass?.getMethod("getExternalTransactionToken")
+                                val originalTransactionIdMethod = runCatching {
+                                    detailsClass?.getMethod("getOriginalExternalTransactionId")
+                                }.getOrNull()
                                 val productsMethod = detailsClass?.getMethod("getProducts")
 
                                 val externalToken = tokenMethod?.invoke(userChoiceDetails) as? String
+                                val originalExternalTransactionId = originalTransactionIdMethod
+                                    ?.invoke(userChoiceDetails) as? String
                                 val products = productsMethod?.invoke(userChoiceDetails) as? List<*>
 
                                 if (externalToken != null && products != null) {
-                                    val productIds = products.mapNotNull { it?.toString() }
-                                    OpenIapLog.d("External transaction token: $externalToken", TAG)
+                                    val productDetails = products.mapNotNull { product ->
+                                        val productClass = product?.javaClass ?: return@mapNotNull null
+                                        val id = productClass.getMethod("getId").invoke(product) as? String
+                                            ?: return@mapNotNull null
+                                        val type = when (productClass.getMethod("getType").invoke(product) as? String) {
+                                            BillingClient.ProductType.INAPP -> ProductType.InApp
+                                            BillingClient.ProductType.SUBS -> ProductType.Subs
+                                            else -> return@mapNotNull null
+                                        }
+                                        DeveloperProvidedBillingProductAndroid(
+                                            id = id,
+                                            offerToken = (productClass.getMethod("getOfferToken")
+                                                .invoke(product) as? String)?.takeIf { it.isNotBlank() },
+                                            type = type
+                                        )
+                                    }
+                                    val productIds = productDetails.map { it.id }
+                                    OpenIapLog.d("External transaction token received", TAG)
                                     OpenIapLog.d("Products: $productIds", TAG)
 
                                     // Create UserChoiceBillingDetails for the event
                                     val billingDetails = dev.hyo.openiap.UserChoiceBillingDetails(
                                         externalTransactionToken = externalToken,
+                                        originalExternalTransactionId = originalExternalTransactionId,
+                                        productDetailsAndroid = productDetails,
                                         products = productIds
                                     )
 
-                                    // Notify legacy-style listener (set via constructor or setUserChoiceBillingListener)
-                                    userChoiceBillingListener?.let { legacyListener ->
-                                        try {
-                                            legacyListener.onUserSelectedAlternativeBilling(
-                                                dev.hyo.openiap.listener.UserChoiceDetails(
-                                                    externalTransactionToken = externalToken,
-                                                    products = productIds
+                                    eventOwner.deliver {
+                                        userChoiceBillingListener?.let { legacyListener ->
+                                            try {
+                                                legacyListener.onUserSelectedAlternativeBilling(
+                                                    dev.hyo.openiap.listener.UserChoiceDetails(
+                                                        externalTransactionToken = externalToken,
+                                                        products = productIds
+                                                    )
                                                 )
-                                            )
-                                        } catch (e: Exception) {
-                                            OpenIapLog.w("Legacy UserChoiceBilling listener error: ${e.message}", TAG)
+                                            } catch (e: Exception) {
+                                                OpenIapLog.w("Legacy UserChoiceBilling listener error: ${e.message}", TAG)
+                                            }
                                         }
-                                    }
 
-                                    // Notify all UserChoiceBilling listeners (added via addUserChoiceBillingListener)
-                                    for (listener in userChoiceBillingListeners) {
-                                        try {
-                                            listener.onUserChoiceBilling(billingDetails)
-                                        } catch (e: Exception) {
-                                            OpenIapLog.w("UserChoiceBilling listener error: ${e.message}", TAG)
+                                        for (listener in userChoiceBillingListeners) {
+                                            try {
+                                                listener.onUserChoiceBilling(billingDetails)
+                                            } catch (e: Exception) {
+                                                OpenIapLog.w("UserChoiceBilling listener error: ${e.message}", TAG)
+                                            }
                                         }
                                     }
                                 } else {
@@ -2122,6 +2765,7 @@ class OpenIapModule(
                 } catch (e: Exception) {
                     OpenIapLog.w("✗ Failed to enable user choice billing: ${e.javaClass.simpleName}: ${e.message}", TAG)
                     OpenIapLog.w("User choice billing requires Billing Library 7.0+ and Google Play Console setup", TAG)
+                    throw e
                 }
                 OpenIapLog.d("=== END USER CHOICE BILLING INITIALIZATION ===", TAG)
             }
@@ -2148,17 +2792,19 @@ class OpenIapModule(
                     OpenIapLog.e("This method requires Billing Library 6.2+", tag = TAG)
                     OpenIapLog.e("Current library version: 9.1.0", tag = TAG)
                     OpenIapLog.e("Alternative billing will NOT work - standard Google Play billing will be used", tag = TAG)
+                    throw e
                 } catch (e: Exception) {
                     OpenIapLog.e("✗ Failed to enable alternative billing only: ${e.javaClass.simpleName}: ${e.message}", e, TAG)
+                    throw e
                 }
                 OpenIapLog.d("=== END ALTERNATIVE BILLING ONLY INITIALIZATION ===", TAG)
             }
         }
 
         // Enable billing programs (8.2.0+ through Billing Choice 9.1.0+)
-        if (enabledBillingPrograms.isNotEmpty()) {
+        if (configuration.billingPrograms.isNotEmpty()) {
             OpenIapLog.d("=== BILLING PROGRAMS INITIALIZATION ===", TAG)
-            for (program in enabledBillingPrograms) {
+            for (program in configuration.billingPrograms) {
                 // USER_CHOICE_BILLING is handled via AlternativeBillingMode, skip here
                 if (program == BillingProgramAndroid.UserChoiceBilling) {
                     OpenIapLog.d("✓ User Choice Billing handled via AlternativeBillingMode", TAG)
@@ -2172,18 +2818,26 @@ class OpenIapModule(
                 }
 
                 val needsDeveloperListener =
-                    program == BillingProgramAndroid.ExternalPayments ||
+                        program == BillingProgramAndroid.ExternalPayments ||
                         (program == BillingProgramAndroid.BillingChoice &&
-                            billingChoiceScreenType != BillingChoiceScreenTypeAndroid.DeveloperRendered)
+                            configuration.billingChoiceScreenType !=
+                            BillingChoiceScreenTypeAndroid.DeveloperRendered)
 
                 if (needsDeveloperListener) {
                     try {
-                        enableBillingProgramWithDeveloperListener(builder, program, programConstant)
+                        enableBillingProgramWithDeveloperListener(
+                            builder,
+                            program,
+                            programConstant,
+                            eventOwner,
+                        )
                         OpenIapLog.d("✓ Billing program enabled with developer listener: $program", TAG)
                     } catch (e: NoSuchMethodException) {
                         OpenIapLog.w("✗ EnableBillingProgramParams not found for $program", TAG)
+                        throw e
                     } catch (e: Exception) {
                         OpenIapLog.w("✗ Failed to enable billing program $program: ${e.message}", TAG)
+                        throw e
                     }
                 } else if (program == BillingProgramAndroid.BillingChoice) {
                     try {
@@ -2191,8 +2845,10 @@ class OpenIapModule(
                         OpenIapLog.d("✓ Developer-rendered Billing Choice enabled without developer listener", TAG)
                     } catch (e: NoSuchMethodException) {
                         OpenIapLog.w("✗ EnableBillingProgramParams not found for $program", TAG)
+                        throw e
                     } catch (e: Exception) {
                         OpenIapLog.w("✗ Failed to enable billing program $program: ${e.message}", TAG)
+                        throw e
                     }
                 } else {
                     // For other programs, use the simpler enableBillingProgram method
@@ -2202,16 +2858,18 @@ class OpenIapModule(
                         OpenIapLog.d("✓ Billing program enabled: $program (constant=$programConstant)", TAG)
                     } catch (e: NoSuchMethodException) {
                         OpenIapLog.w("✗ enableBillingProgram not found. Requires Billing Library 8.2.0+", TAG)
+                        throw e
                     } catch (e: Exception) {
                         OpenIapLog.w("✗ Failed to enable billing program $program: ${e.message}", TAG)
+                        throw e
                     }
                 }
             }
             OpenIapLog.d("=== END BILLING PROGRAMS INITIALIZATION ===", TAG)
         }
 
-        billingClient = builder.build()
         OpenIapLog.d("=== buildBillingClient END ===", TAG)
+        return builder.build().also(clientRef::set)
     }
 
     /**
@@ -2230,38 +2888,6 @@ class OpenIapModule(
         } catch (e: Throwable) {
             OpenIapLog.w("Failed to enable auto service reconnection: ${e.message}", TAG)
         }
-    }
-
-    private fun initBillingClient(
-        onSuccess: (BillingClient) -> Unit,
-        onFailure: (Throwable?) -> Unit = {}
-    ) {
-        val availability = GoogleApiAvailability.getInstance()
-        if (availability.isGooglePlayServicesAvailable(context) != ConnectionResult.SUCCESS) {
-            val error = IllegalStateException("Google Play Services are not available on this device")
-            onFailure(error)
-            return
-        }
-
-        if (billingClient == null) {
-            buildBillingClient()
-        }
-
-        billingClient?.startConnection(object : BillingClientStateListener {
-            override fun onBillingSetupFinished(billingResult: BillingResult) {
-                if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
-                    val message = billingResult.debugMessage ?: "Billing setup failed"
-                    OpenIapLog.w(message, TAG)
-                    onFailure(IllegalStateException(message))
-                    return
-                }
-                billingClient?.let(onSuccess)
-            }
-
-            override fun onBillingServiceDisconnected() {
-                OpenIapLog.i("Billing service disconnected", TAG)
-            }
-        })
     }
 
     override fun setActivity(activity: Activity?) {
@@ -2335,11 +2961,22 @@ class OpenIapModule(
 
             OpenIapLog.d("Applied SubscriptionProductReplacementParams: oldProductId=${params.oldProductId}, mode=${params.replacementMode} (constant=$replacementModeConstant)", TAG)
         } catch (e: NoSuchMethodException) {
-            OpenIapLog.w("setSubscriptionProductReplacementParams not found. Requires Billing Library 8.1.0+. Falling back to legacy replacement mode.", TAG)
+            OpenIapLog.w("setSubscriptionProductReplacementParams not found. Requires Billing Library 8.1.0+.", TAG)
+            throw OpenIapError.FeatureNotSupported(
+                "Subscription product replacement requires Play Billing 8.1.0+"
+            )
         } catch (e: ClassNotFoundException) {
             OpenIapLog.w("SubscriptionProductReplacementParams class not found. Requires Billing Library 8.1.0+.", TAG)
+            throw OpenIapError.FeatureNotSupported(
+                "Subscription product replacement requires Play Billing 8.1.0+"
+            )
+        } catch (e: OpenIapError) {
+            throw e
         } catch (e: Exception) {
             OpenIapLog.e("Failed to apply SubscriptionProductReplacementParams: ${e.message}", e, TAG)
+            throw OpenIapError.DeveloperError(
+                e.message ?: "Invalid subscription product replacement parameters"
+            )
         }
     }
 
@@ -2352,7 +2989,8 @@ class OpenIapModule(
     private fun enableBillingProgramWithDeveloperListener(
         builder: BillingClient.Builder,
         program: BillingProgramAndroid,
-        programConstant: Int
+        programConstant: Int,
+        listenerOwner: ActiveStoreListenerOwner<BillingClient>,
     ) {
         OpenIapLog.d("=== BILLING PROGRAM INITIALIZATION WITH DEVELOPER LISTENER: $program ===", TAG)
 
@@ -2365,7 +3003,10 @@ class OpenIapModule(
             if (method.name == "onUserSelectedDeveloperBilling") {
                 OpenIapLog.d("=== USER SELECTED DEVELOPER PROVIDED BILLING ===", TAG)
                 val billingDetails = args?.get(0)
-                OpenIapLog.d("DeveloperProvidedBillingDetails: $billingDetails", TAG)
+                OpenIapLog.d(
+                    "DeveloperProvidedBillingDetails received (sensitive fields redacted)",
+                    TAG,
+                )
 
                 try {
                     val detailsClass = billingDetails?.javaClass
@@ -2409,26 +3050,28 @@ class OpenIapModule(
                         products = products
                     )
 
-                    developerProvidedBillingListener?.let { legacyListener ->
-                        try {
-                            legacyListener.onUserSelectedDeveloperBilling(
-                                dev.hyo.openiap.listener.DeveloperProvidedBillingDetails(
-                                    externalTransactionToken = externalToken,
-                                    linkUri = linkUri,
-                                    originalExternalTransactionId = originalExternalTransactionId,
-                                    products = products
+                    listenerOwner.deliver {
+                        developerProvidedBillingListener?.let { legacyListener ->
+                            try {
+                                legacyListener.onUserSelectedDeveloperBilling(
+                                    dev.hyo.openiap.listener.DeveloperProvidedBillingDetails(
+                                        externalTransactionToken = externalToken,
+                                        linkUri = linkUri,
+                                        originalExternalTransactionId = originalExternalTransactionId,
+                                        products = products
+                                    )
                                 )
-                            )
-                        } catch (e: Exception) {
-                            OpenIapLog.w("Legacy DeveloperProvidedBilling listener error: ${e.message}", TAG)
+                            } catch (e: Exception) {
+                                OpenIapLog.w("Legacy DeveloperProvidedBilling listener error: ${e.message}", TAG)
+                            }
                         }
-                    }
 
-                    for (listener in developerProvidedBillingListeners) {
-                        try {
-                            listener.onDeveloperProvidedBilling(details)
-                        } catch (e: Exception) {
-                            OpenIapLog.w("DeveloperProvidedBilling listener error: ${e.message}", TAG)
+                        for (listener in developerProvidedBillingListeners) {
+                            try {
+                                listener.onDeveloperProvidedBilling(details)
+                            } catch (e: Exception) {
+                                OpenIapLog.w("DeveloperProvidedBilling listener error: ${e.message}", TAG)
+                            }
                         }
                     }
                 } catch (e: Exception) {
@@ -2496,7 +3139,11 @@ class OpenIapModule(
         params: DeveloperBillingOptionParamsAndroid
     ) {
         try {
-            OpenIapLog.d("Applying DeveloperBillingOption: program=${params.billingProgram}, launchMode=${params.launchMode}, uri=${params.linkUri}", TAG)
+            OpenIapLog.d(
+                "Applying DeveloperBillingOption: program=${params.billingProgram}, " +
+                    "launchMode=${params.launchMode}, uriPresent=${!params.linkUri.isNullOrBlank()}",
+                TAG,
+            )
 
             val billingProgramConstant = billingProgramToConstant(params.billingProgram)
 

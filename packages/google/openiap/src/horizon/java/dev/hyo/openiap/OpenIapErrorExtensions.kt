@@ -19,6 +19,7 @@ fun OpenIapError.Companion.fromBillingResponseCode(responseCode: Int, debugMessa
         BillingClient.BillingResponseCode.SERVICE_DISCONNECTED -> OpenIapError.ServiceDisconnected(debugMessage)
         BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED -> OpenIapError.FeatureNotSupported(debugMessage)
         BillingClient.BillingResponseCode.SERVICE_TIMEOUT -> OpenIapError.ServiceTimeout(debugMessage)
+        BillingClient.BillingResponseCode.NETWORK_ERROR -> OpenIapError.NetworkFailure(debugMessage)
         else -> OpenIapError.UnknownError(debugMessage)
     }
 }

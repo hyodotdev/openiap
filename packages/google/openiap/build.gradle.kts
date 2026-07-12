@@ -156,8 +156,8 @@ dependencies {
     add("horizonApi", "org.jetbrains.kotlinx:kotlinx-serialization-json:$horizonSerializationVersion")
 
     // Amazon flavor: Amazon Appstore SDK for Fire OS IAP
-    add("amazonCompileOnly", "com.amazon.device:amazon-appstore-sdk:3.0.8")
-    add("amazonApi", "com.amazon.device:amazon-appstore-sdk:3.0.8")
+    add("amazonCompileOnly", "com.amazon.device:amazon-appstore-sdk:3.0.9")
+    add("amazonApi", "com.amazon.device:amazon-appstore-sdk:3.0.9")
 
     // Kotlin Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")

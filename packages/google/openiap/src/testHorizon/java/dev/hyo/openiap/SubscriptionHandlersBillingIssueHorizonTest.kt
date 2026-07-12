@@ -4,6 +4,7 @@ import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -41,6 +42,42 @@ class SubscriptionHandlersBillingIssueHorizonTest {
         assertTrue(
             "Horizon subscriptionBillingIssue handler must throw FeatureNotSupported, got: $thrown",
             thrown is OpenIapError.FeatureNotSupported
+        )
+    }
+
+    @Test
+    fun `Horizon Android billing-choice handlers fail fast as unsupported`() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val module = OpenIapModule(context)
+        val userChoice = module.subscriptionHandlers.userChoiceBillingAndroid
+        val developerProvided = module.subscriptionHandlers.developerProvidedBillingAndroid
+
+        assertNotNull("Horizon must expose userChoiceBillingAndroid for bundle parity", userChoice)
+        assertNotNull(
+            "Horizon must expose developerProvidedBillingAndroid for bundle parity",
+            developerProvided,
+        )
+
+        val userChoiceError = runCatching {
+            runBlocking { withTimeout(5_000) { userChoice!!.invoke() } }
+        }.exceptionOrNull()
+        val developerProvidedError = runCatching {
+            runBlocking { withTimeout(5_000) { developerProvided!!.invoke() } }
+        }.exceptionOrNull()
+
+        assertTrue(userChoiceError is OpenIapError.FeatureNotSupported)
+        assertTrue(developerProvidedError is OpenIapError.FeatureNotSupported)
+    }
+
+    @Test
+    fun `Horizon query bundle omits iOS-only storefront handler`() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val module = OpenIapModule(context)
+
+        assertNotNull("Horizon must wire cross-platform getStorefront", module.queryHandlers.getStorefront)
+        assertNull(
+            "Horizon must not wire the iOS-only getStorefrontIOS handler",
+            module.queryHandlers.getStorefrontIOS,
         )
     }
 }

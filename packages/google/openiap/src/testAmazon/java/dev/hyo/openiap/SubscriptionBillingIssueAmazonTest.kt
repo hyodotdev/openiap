@@ -6,6 +6,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.concurrent.atomic.AtomicInteger
@@ -47,6 +48,40 @@ class SubscriptionBillingIssueAmazonTest {
             "Amazon flavor must never invoke the subscriptionBillingIssue listener",
             0,
             invoked.get()
+        )
+    }
+
+    @Test
+    fun `Amazon Android billing-choice handlers fail fast as unsupported`() {
+        val module = OpenIapModule(ContextWrapper(null))
+        val userChoice = module.subscriptionHandlers.userChoiceBillingAndroid
+        val developerProvided = module.subscriptionHandlers.developerProvidedBillingAndroid
+
+        assertNotNull("Amazon must expose userChoiceBillingAndroid for bundle parity", userChoice)
+        assertNotNull(
+            "Amazon must expose developerProvidedBillingAndroid for bundle parity",
+            developerProvided,
+        )
+
+        val userChoiceError = runCatching {
+            runBlocking { withTimeout(5_000) { userChoice!!.invoke() } }
+        }.exceptionOrNull()
+        val developerProvidedError = runCatching {
+            runBlocking { withTimeout(5_000) { developerProvided!!.invoke() } }
+        }.exceptionOrNull()
+
+        assertTrue(userChoiceError is OpenIapError.FeatureNotSupported)
+        assertTrue(developerProvidedError is OpenIapError.FeatureNotSupported)
+    }
+
+    @Test
+    fun `Amazon query bundle omits iOS-only storefront handler`() {
+        val module = OpenIapModule(ContextWrapper(null))
+
+        assertNotNull("Amazon must wire cross-platform getStorefront", module.queryHandlers.getStorefront)
+        assertNull(
+            "Amazon must not wire the iOS-only getStorefrontIOS handler",
+            module.queryHandlers.getStorefrontIOS,
         )
     }
 }

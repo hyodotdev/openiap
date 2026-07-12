@@ -8,23 +8,31 @@ import org.junit.Test
 class FetchProductsAmazonTest {
 
     @Test
-    fun `empty sku list with null type returns empty all result`() = runBlocking {
+    fun `empty sku list with null type throws EmptySkuList`() = runBlocking {
         val module = OpenIapModule(ContextWrapper(null))
 
-        val result = module.fetchProducts(ProductRequest(emptyList(), null))
+        val thrown = try {
+            module.fetchProducts(ProductRequest(emptyList(), null))
+            null
+        } catch (error: Throwable) {
+            error
+        }
 
-        assertTrue(result is FetchProductsResultAll)
-        assertTrue((result as FetchProductsResultAll).value.orEmpty().isEmpty())
+        assertTrue(thrown is OpenIapError.EmptySkuList)
     }
 
     @Test
-    fun `empty sku list with all type returns empty all result`() = runBlocking {
+    fun `empty sku list with all type throws EmptySkuList`() = runBlocking {
         val module = OpenIapModule(ContextWrapper(null))
 
-        val result = module.fetchProducts(ProductRequest(emptyList(), ProductQueryType.All))
+        val thrown = try {
+            module.fetchProducts(ProductRequest(emptyList(), ProductQueryType.All))
+            null
+        } catch (error: Throwable) {
+            error
+        }
 
-        assertTrue(result is FetchProductsResultAll)
-        assertTrue((result as FetchProductsResultAll).value.orEmpty().isEmpty())
+        assertTrue(thrown is OpenIapError.EmptySkuList)
     }
 
     @Test

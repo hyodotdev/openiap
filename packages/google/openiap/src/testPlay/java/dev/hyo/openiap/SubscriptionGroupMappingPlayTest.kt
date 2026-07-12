@@ -21,7 +21,19 @@ class SubscriptionGroupMappingPlayTest {
         assertEquals("token-pro", pro.purchaseToken)
     }
 
-    private fun purchase(productId: String, token: String): PurchaseAndroid = PurchaseAndroid(
+    @Test
+    fun `pending subscriptions are not active entitlements`() {
+        val pending = purchase("dev.hyo.martie.premium", "token", PurchaseState.Pending)
+            .toActiveSubscription()
+
+        assertEquals(false, pending.isActive)
+    }
+
+    private fun purchase(
+        productId: String,
+        token: String,
+        state: PurchaseState = PurchaseState.Purchased,
+    ): PurchaseAndroid = PurchaseAndroid(
         autoRenewingAndroid = true,
         currentPlanId = productId,
         dataAndroid = "{}",
@@ -32,7 +44,7 @@ class SubscriptionGroupMappingPlayTest {
         packageNameAndroid = "dev.hyo.martie",
         platform = IapPlatform.Android,
         productId = productId,
-        purchaseState = PurchaseState.Purchased,
+        purchaseState = state,
         purchaseToken = token,
         quantity = 1,
         signatureAndroid = null,

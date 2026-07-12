@@ -34,9 +34,22 @@ internal class ContinuationResumeGuard<T>(
 
     @OptIn(InternalCoroutinesApi::class)
     fun resumeWithException(error: Throwable) {
-        val token = continuation.tryResumeWithException(error) ?: return
+        resumeWithException(error) {}
+    }
+
+    @OptIn(InternalCoroutinesApi::class)
+    fun resumeWithException(
+        error: Throwable,
+        beforeComplete: () -> Unit,
+    ): Boolean {
+        val token = continuation.tryResumeWithException(error) ?: return false
         didComplete.set(true)
-        continuation.completeResume(token)
+        try {
+            beforeComplete()
+        } finally {
+            continuation.completeResume(token)
+        }
+        return true
     }
 }
 

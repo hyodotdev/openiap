@@ -3,10 +3,9 @@ package dev.hyo.openiap.helpers
 import com.meta.horizon.billingclient.api.BillingClient
 import com.meta.horizon.billingclient.api.QueryProductDetailsParams
 import com.meta.horizon.billingclient.api.ProductDetails as HorizonProductDetails
+import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapLog
-import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicBoolean
 
 private const val TAG = "ProductManager"
 
@@ -24,69 +23,38 @@ internal class ProductManager {
         details.forEach { cache[CacheKey(it.productId, productType)] = it }
     }
 
+    fun replaceQueryResults(
+        requestedProductIds: Collection<String>,
+        details: Collection<HorizonProductDetails>,
+        productType: String,
+    ) {
+        requestedProductIds.forEach { cache.remove(CacheKey(it, productType)) }
+        putAll(details, productType)
+    }
+
     fun clear() = cache.clear()
 
     /**
-     * Returns ProductDetails for the requested productIds.
-     * - Uses cache when available
-     * - Queries missing ones and updates the cache
-     * - Preserves input ordering in the returned list
+     * Queries fresh ProductDetails and updates the correlation cache.
      *
-     * IMPORTANT: Always validates cached ProductDetails have complete data.
-     * If cached data appears incomplete (e.g., missing offer details),
-     * it will be re-queried from Horizon Billing.
+     * Billing eligibility and offers can change while the process is alive, so
+     * a cached ProductDetails instance must never be used to launch a purchase.
+     * The cache remains useful only for classifying out-of-band purchase events.
      */
     suspend fun getOrQuery(
         client: BillingClient,
         productIds: List<String>,
         productType: String,
+        operations: ActiveStoreOperationRegistry<BillingClient>,
     ): List<HorizonProductDetails> {
         OpenIapLog.d("getOrQuery: productIds=$productIds, type=$productType", TAG)
 
         if (productIds.isEmpty()) {
-            OpenIapLog.d("getOrQuery: Empty productIds list", TAG)
-            return emptyList()
+            throw OpenIapError.EmptySkuList
         }
 
-        // Check which products are missing or have incomplete data
-        val needsQuery = mutableListOf<String>()
-        var validCachedCount = 0
-
-        productIds.distinct().forEach { productId ->
-            val cached = cache[CacheKey(productId, productType)]
-            if (cached == null) {
-                needsQuery.add(productId)
-            } else {
-                // Validate cached ProductDetails has complete data
-                val isComplete = when (productType) {
-                    BillingClient.ProductType.INAPP -> {
-                        cached.oneTimePurchaseOfferDetails != null
-                    }
-                    BillingClient.ProductType.SUBS -> {
-                        !cached.subscriptionOfferDetails.isNullOrEmpty()
-                    }
-                    else -> true
-                }
-
-                if (isComplete) {
-                    validCachedCount += 1
-                } else {
-                    OpenIapLog.w("Cached ProductDetails for '$productId' has incomplete data, will re-query", TAG)
-                    needsQuery.add(productId)
-                    cache.remove(CacheKey(productId, productType))
-                }
-            }
-        }
-
-        OpenIapLog.d("getOrQuery: needsQuery=$needsQuery, validCached=$validCachedCount", TAG)
-
-        if (needsQuery.isEmpty()) {
-            val cached = productIds.mapNotNull { cache[CacheKey(it, productType)] }
-            OpenIapLog.d("getOrQuery: Returning ${cached.size} cached products", TAG)
-            return cached
-        }
-
-        val productList = needsQuery.map { sku ->
+        val requestedIds = productIds.distinct()
+        val productList = requestedIds.map { sku ->
             QueryProductDetailsParams.Product.newBuilder()
                 .setProductId(sku)
                 .setProductType(productType)
@@ -96,14 +64,10 @@ internal class ProductManager {
             .setProductList(productList)
             .build()
 
-        OpenIapLog.d("getOrQuery: Querying ${needsQuery.size} products from Horizon API", TAG)
+        OpenIapLog.d("getOrQuery: Querying ${requestedIds.size} products from Horizon API", TAG)
 
-        return suspendCancellableCoroutine { cont ->
-            val resumer = cont.resumeGuard { OpenIapLog.d("getOrQuery: cancelled", TAG) }
-            val didHandleProductDetails = AtomicBoolean(false)
+        return operations.await(client) { operation ->
             client.queryProductDetailsAsync(params) { billingResult, result ->
-                if (!didHandleProductDetails.compareAndSet(false, true)) return@queryProductDetailsAsync
-
                 OpenIapLog.d(
                     "getOrQuery: Response code=${billingResult.responseCode}, " +
                     "message=${billingResult.debugMessage}, " +
@@ -114,24 +78,43 @@ internal class ProductManager {
                 if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
                     OpenIapLog.w(
                         "getOrQuery: Query failed with code=${billingResult.responseCode}, " +
-                        "message=${billingResult.debugMessage}. Returning cached items only.",
+                            "message=${billingResult.debugMessage}",
                         TAG
                     )
-                    // Return whatever we have in cache instead of crashing
-                    val cached = productIds.mapNotNull { cache[CacheKey(it, productType)] }
-                    resumer.resume(cached)
+                    operation.fail(
+                        OpenIapError.QueryProduct.withDiagnostics(
+                            responseCode = billingResult.responseCode,
+                            debugMessage = billingResult.debugMessage,
+                            productIds = requestedIds,
+                            productType = productType,
+                            isEmptyProductList = result.isNullOrEmpty(),
+                        )
+                    )
                     return@queryProductDetailsAsync
                 }
 
                 val list = result ?: emptyList()
                 OpenIapLog.d("getOrQuery: Received ${list.size} products", TAG)
 
+                if (list.isEmpty()) {
+                    operation.fail(
+                        OpenIapError.QueryProduct.withDiagnostics(
+                            responseCode = billingResult.responseCode,
+                            debugMessage = billingResult.debugMessage,
+                            productIds = requestedIds,
+                            productType = productType,
+                            isEmptyProductList = true,
+                        )
+                    ) { replaceQueryResults(requestedIds, list, productType) }
+                    return@queryProductDetailsAsync
+                }
+
                 list.forEach { product ->
                     OpenIapLog.d("  - Product: ${product.productId}, type=${product.productType}", TAG)
 
                     // Log subscription offer details
                     product.subscriptionOfferDetails?.forEachIndexed { index, offer ->
-                        OpenIapLog.d("    Offer[$index]: token=${offer.offerToken}", TAG)
+                        OpenIapLog.d("    Offer[$index]: tokenPresent=${offer.offerToken.isNotBlank()}", TAG)
                         offer.pricingPhases?.pricingPhaseList?.forEachIndexed { phaseIndex, phase ->
                             OpenIapLog.d(
                                 "      Phase[$phaseIndex]: period=${phase.billingPeriod}, " +
@@ -148,12 +131,13 @@ internal class ProductManager {
                     }
                 }
 
-                putAll(list, productType)
-
-                // Preserve requested order and include cached + newly-fetched
-                val finalList = productIds.mapNotNull { cache[CacheKey(it, productType)] }
+                // Preserve requested order while still allowing duplicate input IDs.
+                val detailsById = list.associateBy { it.productId }
+                val finalList = productIds.mapNotNull(detailsById::get)
                 OpenIapLog.d("getOrQuery: Returning ${finalList.size} total products", TAG)
-                resumer.resume(finalList)
+                operation.succeed(finalList) {
+                    replaceQueryResults(requestedIds, list, productType)
+                }
             }
         }
     }

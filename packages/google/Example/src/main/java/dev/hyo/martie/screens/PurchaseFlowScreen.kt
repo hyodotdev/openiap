@@ -13,9 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -84,7 +82,6 @@ fun PurchaseFlowScreen(
         }
     }
     val connectionStatus by iapStore.connectionStatus.collectAsState()
-    val clipboard = LocalClipboardManager.current
     val statusMessage = status.lastPurchaseResult
     // Modal states
     var selectedProduct by remember { mutableStateOf<ProductAndroid?>(null) }
@@ -451,27 +448,13 @@ fun PurchaseFlowScreen(
                             code = result.code
                         )
                         if (result.status == PurchaseResultStatus.Success) {
-                            Row(
+                            OutlinedButton(
+                                onClick = { lastPurchaseAndroid?.let { selectedPurchase = it } },
+                                enabled = lastPurchaseAndroid != null,
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.End
-                            ) {
-                                OutlinedButton(
-                                    onClick = {
-                                        lastPurchaseAndroid?.let { p ->
-                                            val json = p.toJson().toString()
-                                            clipboard.setText(AnnotatedString(json))
-                                        }
-                                    },
-                                    enabled = lastPurchaseAndroid != null
-                                ) { Text("Copy Result") }
-                                Spacer(modifier = Modifier.width(8.dp))
-                                OutlinedButton(
-                                    onClick = { lastPurchaseAndroid?.let { selectedPurchase = it } },
-                                    enabled = lastPurchaseAndroid != null
-                                ) { Text("Details") }
-                            }
+                                    .align(Alignment.End)
+                                    .padding(horizontal = 16.dp)
+                            ) { Text("Details") }
                         }
                     }
                 }
@@ -573,7 +556,7 @@ fun PurchaseFlowScreen(
             ?: throw IllegalStateException("Purchase token is required for IAPKit verification")
 
         println("PurchaseFlow: IAPKit verification params:")
-        println("  - purchaseToken: $token")
+        println("  - purchaseToken: present")
 
         val props = RequestVerifyPurchaseWithIapkitProps(
             apiKey = apiKey,

@@ -12,9 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -167,7 +165,7 @@ fun ProductDetailModal(
                                     DetailRow("Formatted Price", offer.formattedPrice)
                                     DetailRow("Price (micros)", offer.priceAmountMicros)
                                     offer.offerId?.let { DetailRow("Offer ID", it) }
-                                    DetailRow("Offer Token", offer.offerToken)
+                                    DetailRow("Offer Token", credentialStatus(offer.offerToken))
                                     if (offer.offerTags.isNotEmpty()) {
                                         DetailRow("Tags", offer.offerTags.joinToString(", "))
                                     }
@@ -236,7 +234,7 @@ fun ProductDetailModal(
                                 ) {
                                     DetailRow("Base Plan", offer.basePlanId)
                                     offer.offerId?.let { DetailRow("Offer ID", it) }
-                                    DetailRow("Offer Token", offer.offerToken)
+                                    DetailRow("Offer Token", credentialStatus(offer.offerToken))
                                     if (offer.offerTags.isNotEmpty()) {
                                         DetailRow("Tags", offer.offerTags.joinToString(", "))
                                     }
@@ -277,7 +275,6 @@ fun PurchaseDetailModal(
     purchase: PurchaseAndroid,
     onDismiss: () -> Unit
 ) {
-    val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
     val prefs = remember(context) {
         context.getSharedPreferences(SUBSCRIPTION_PREFS_NAME, Context.MODE_PRIVATE)
@@ -364,7 +361,7 @@ fun PurchaseDetailModal(
                         }
                         add("id" to purchase.id)
                         add("transactionId" to (purchase.transactionId ?: "-"))
-                        add("purchaseToken" to displayIfPresent(purchase.purchaseToken))
+                        add("purchaseToken" to credentialStatus(purchase.purchaseToken))
                         add("purchaseState" to purchase.purchaseState.rawValue)
                         add("productId" to purchase.productId)
                         add("transactionDate" to purchase.transactionDate.toString())
@@ -373,33 +370,14 @@ fun PurchaseDetailModal(
                         purchase.isAcknowledgedAndroid?.let { add("isAcknowledgedAndroid" to it.toString()) }
                         purchase.obfuscatedAccountIdAndroid?.let { add("obfuscatedAccountIdAndroid" to it) }
                         purchase.obfuscatedProfileIdAndroid?.let { add("obfuscatedProfileIdAndroid" to it) }
-                        purchase.signatureAndroid?.let { add("signatureAndroid" to it) }
+                        purchase.signatureAndroid?.let { add("signatureAndroid" to credentialStatus(it)) }
                     }
                     detailRows.forEach { (label, value) -> DetailRow(label, value) }
                 }
 
                 HorizontalDivider()
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = {
-                            val json = purchase.toJson().toString()
-                            clipboard.setText(AnnotatedString(json))
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Copy JSON")
-                    }
-                    Button(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f)
-                    ) { Text("Close") }
-                }
+                Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Close") }
             }
         }
     }
@@ -413,5 +391,5 @@ private fun DetailRow(label: String, value: String) {
     }
 }
 
-private fun displayIfPresent(value: String?): String =
-    if (value.isNullOrEmpty()) "-" else value
+private fun credentialStatus(value: String?): String =
+    if (value.isNullOrEmpty()) "missing" else "present"

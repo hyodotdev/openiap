@@ -81,13 +81,13 @@ fun AlternativeBillingScreen(navController: NavController) {
     val userChoiceListener = remember {
         dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener { details ->
             OpenIapLog.debug("=== User Choice Billing Event ===", tag = "UserChoiceEvent")
-            OpenIapLog.debug("External Token: ${details.externalTransactionToken}", tag = "UserChoiceEvent")
+            OpenIapLog.debug("External reporting token received", tag = "UserChoiceEvent")
             OpenIapLog.debug("Products: ${details.products}", tag = "UserChoiceEvent")
             OpenIapLog.debug("==============================", tag = "UserChoiceEvent")
 
             // Show result in UI
             iapStore.postStatusMessage(
-                message = "User selected alternative billing\nToken: ${details.externalTransactionToken}\nProducts: ${details.products.joinToString()}",
+                message = "User selected alternative billing\nReporting token received\nProducts: ${details.products.joinToString()}",
                 status = dev.hyo.openiap.store.PurchaseResultStatus.Info,
                 productId = details.products.firstOrNull()
             )
@@ -101,13 +101,16 @@ fun AlternativeBillingScreen(navController: NavController) {
     val developerBillingListener = remember {
         dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener { details ->
             OpenIapLog.debug("=== Developer Provided Billing Event ===", tag = "DeveloperBillingEvent")
-            OpenIapLog.debug("External Token: ${details.externalTransactionToken}", tag = "DeveloperBillingEvent")
+            OpenIapLog.debug(
+                "External reporting token received=${!details.externalTransactionToken.isNullOrBlank()}",
+                tag = "DeveloperBillingEvent"
+            )
             OpenIapLog.debug("========================================", tag = "DeveloperBillingEvent")
 
             // Show result in UI
             iapStore.postStatusMessage(
                 message = "User selected developer billing (External Payments)\n\n" +
-                        "Token: ${details.externalTransactionToken}\n\n" +
+                        "Reporting token received\n\n" +
                         "⚠️ Next steps:\n" +
                         "1. Process payment with your payment gateway\n" +
                         "2. Report token to Google within 24 hours",
@@ -1035,6 +1038,7 @@ fun AlternativeBillingScreen(navController: NavController) {
 
                             val purchase = lastPurchase as? PurchaseAndroid
                             if (purchase != null) {
+                                val credential = if (purchase.purchaseToken.isNullOrEmpty()) "missing" else "present"
                                 Text(
                                     "Product: ${purchase.productId}",
                                     style = MaterialTheme.typography.bodySmall
@@ -1044,7 +1048,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                                     style = MaterialTheme.typography.bodySmall
                                 )
                                 Text(
-                                    "Token: ${purchase.purchaseToken}",
+                                    "Purchase credential: $credential",
                                     style = MaterialTheme.typography.bodySmall
                                 )
 

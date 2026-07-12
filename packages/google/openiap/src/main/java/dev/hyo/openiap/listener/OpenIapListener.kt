@@ -63,7 +63,7 @@ fun interface OpenIapDeveloperProvidedBillingListener {
  */
 fun interface OpenIapSubscriptionBillingIssueListener {
     /**
-     * Called when an active subscription enters a billing-issue state
+     * Called when a subscription enters a billing-issue state
      * @param purchase The affected purchase with isSuspended == true
      */
     fun onSubscriptionBillingIssue(purchase: Purchase)

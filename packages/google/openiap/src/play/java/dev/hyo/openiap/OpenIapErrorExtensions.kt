@@ -1,13 +1,20 @@
 package dev.hyo.openiap
 
 import com.android.billingclient.api.BillingClient
+import com.android.billingclient.api.BillingResult
+import dev.hyo.openiap.utils.toOpenIapSubResponseCode
 
 /**
  * Extension function for converting Google Play Billing response codes to OpenIapError
  */
 @Suppress("DEPRECATION")
-fun OpenIapError.Companion.fromBillingResponseCode(responseCode: Int, debugMessage: String? = null): OpenIapError {
+fun OpenIapError.Companion.fromBillingResponseCode(
+    responseCode: Int,
+    debugMessage: String? = null,
+    subResponseCode: SubResponseCodeAndroid? = null,
+): OpenIapError {
     return when (responseCode) {
+        BillingClient.BillingResponseCode.NETWORK_ERROR -> OpenIapError.NetworkFailure(debugMessage)
         BillingClient.BillingResponseCode.USER_CANCELED -> OpenIapError.UserCancelled(debugMessage)
         BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE -> OpenIapError.ServiceUnavailable(debugMessage)
         BillingClient.BillingResponseCode.BILLING_UNAVAILABLE -> OpenIapError.BillingUnavailable(debugMessage)
@@ -20,5 +27,12 @@ fun OpenIapError.Companion.fromBillingResponseCode(responseCode: Int, debugMessa
         BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED -> OpenIapError.FeatureNotSupported(debugMessage)
         BillingClient.BillingResponseCode.SERVICE_TIMEOUT -> OpenIapError.ServiceTimeout(debugMessage)
         else -> OpenIapError.UnknownError(debugMessage)
-    }
+    }.withSubResponseCode(subResponseCode)
 }
+
+internal fun BillingResult.toOpenIapError(): OpenIapError =
+    OpenIapError.fromBillingResponseCode(
+        responseCode,
+        debugMessage,
+        onPurchasesUpdatedSubResponseCode.toOpenIapSubResponseCode(),
+    )

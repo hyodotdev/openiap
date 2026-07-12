@@ -1,9 +1,12 @@
 package dev.hyo.openiap
 
+import dev.hyo.openiap.helpers.hasLegacyBillingProgramConflict
 import dev.hyo.openiap.helpers.resolveBillingProgramsForConnection
 import dev.hyo.openiap.helpers.resolveLegacySubscriptionReplacementMode
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BillingChoiceAndroidTypesTest {
@@ -186,6 +189,28 @@ class BillingChoiceAndroidTypesTest {
             resolveBillingProgramsForConnection(
                 pendingPrograms = setOf(BillingProgramAndroid.ExternalOffer),
                 configuredProgram = BillingProgramAndroid.BillingChoice
+            )
+        )
+    }
+
+    @Test
+    fun `explicit legacy and new billing programs reject incompatible dual enable`() {
+        assertTrue(
+            hasLegacyBillingProgramConflict(
+                AlternativeBillingModeAndroid.AlternativeOnly,
+                setOf(BillingProgramAndroid.ExternalOffer),
+            )
+        )
+        assertFalse(
+            hasLegacyBillingProgramConflict(
+                AlternativeBillingModeAndroid.UserChoice,
+                setOf(BillingProgramAndroid.UserChoiceBilling),
+            )
+        )
+        assertFalse(
+            hasLegacyBillingProgramConflict(
+                AlternativeBillingModeAndroid.None,
+                setOf(BillingProgramAndroid.ExternalOffer),
             )
         )
     }
