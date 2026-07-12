@@ -63,6 +63,13 @@ const GRAPHQL_TO_CSHARP: Record<string, string> = {
 
 const NAMESPACE = 'OpenIap';
 
+// Preserve the published MAUI 1.x CLR signatures until a coordinated 2.0.
+const MAUI_1_X_STRING_RESULT_OPERATIONS = new Set([
+  'deepLinkToSubscriptions',
+  'finishTransaction',
+  'restorePurchases',
+]);
+
 export class CSharpPlugin extends CodegenPlugin {
   readonly name = 'csharp';
   readonly fileExtension = '.cs';
@@ -597,6 +604,7 @@ export class CSharpPlugin extends CodegenPlugin {
   }
 
   private getOperationReturnType(field: IROperationField): string {
+    if (MAUI_1_X_STRING_RESULT_OPERATIONS.has(field.name)) return 'string';
     const resolved = field.resolvedReturnType;
     if (resolved.kind === 'list') {
       const inner = this.mapType(resolved.elementType!);

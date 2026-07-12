@@ -3945,11 +3945,12 @@ public sealed record UserChoiceBillingDetails
     [JsonPropertyName("originalExternalTransactionId")]
     public string? OriginalExternalTransactionId { get; init; }
     /// <summary>Structured product details selected in the user-choice flow, including the</summary>
-    /// <summary>product type and offer token. Available in the next OpenIAP spec /</summary>
+    /// <summary>product type and offer token. Legacy payloads may omit this field; use</summary>
+    /// <summary>products as the product-ID fallback. Available in the next OpenIAP spec /</summary>
     /// <summary>openiap-google release after Spec 2.1.0 / openiap-google 2.3.0</summary>
     /// <summary>(requires Play Billing 9.1+).</summary>
     [JsonPropertyName("productDetailsAndroid")]
-    public required IReadOnlyList<DeveloperProvidedBillingProductAndroid> ProductDetailsAndroid { get; init; }
+    public IReadOnlyList<DeveloperProvidedBillingProductAndroid>? ProductDetailsAndroid { get; init; }
     /// <summary>List of product IDs selected by the user</summary>
     [JsonPropertyName("products")]
     public required IReadOnlyList<string> Products { get; init; }
@@ -4750,7 +4751,7 @@ public interface MutationResolver
 
     /// <summary>Open the platform&apos;s subscription management UI.</summary>
     /// <summary>See: https://openiap.dev/docs/apis/deep-link-to-subscriptions</summary>
-    Task<VoidResult> DeepLinkToSubscriptionsAsync(DeepLinkOptions? options = null);
+    Task<string> DeepLinkToSubscriptionsAsync(DeepLinkOptions? options = null);
 
     /// <summary>Close the store connection and release resources.</summary>
     /// <summary>See: https://openiap.dev/docs/apis/end-connection</summary>
@@ -4758,7 +4759,7 @@ public interface MutationResolver
 
     /// <summary>Complete a transaction after server-side verification. Required on Android within 3 days.</summary>
     /// <summary>See: https://openiap.dev/docs/apis/finish-transaction</summary>
-    Task<VoidResult> FinishTransactionAsync(PurchaseInput purchase, bool? isConsumable = null);
+    Task<string> FinishTransactionAsync(PurchaseInput purchase, bool? isConsumable = null);
 
     /// <summary>Initialize the store connection. Call before any IAP API.</summary>
     /// <summary>See: https://openiap.dev/docs/apis/init-connection</summary>
@@ -4812,7 +4813,7 @@ public interface MutationResolver
 
     /// <summary>Restore non-consumable and active subscription purchases.</summary>
     /// <summary>See: https://openiap.dev/docs/apis/restore-purchases</summary>
-    Task<VoidResult> RestorePurchasesAsync();
+    Task<string> RestorePurchasesAsync();
 
     /// <summary>Display Google&apos;s alternative billing information dialog. Step 2 of the alternative billing flow.</summary>
     /// <summary>Must be called BEFORE processing payment in your payment system.</summary>

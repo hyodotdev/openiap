@@ -194,7 +194,7 @@ class OpenIapModule(
     private var userChoiceBillingListener: dev.hyo.openiap.listener.UserChoiceBillingListener? = null,
     @Volatile
     private var developerProvidedBillingListener: dev.hyo.openiap.listener.DeveloperProvidedBillingListener? = null
-) : OpenIapProtocol {
+) : OpenIapProtocol, PurchasesUpdatedListener {
 
     companion object {
         private const val TAG = "OpenIapModule"
@@ -1835,7 +1835,7 @@ class OpenIapModule(
                             "offerToken requires a single SKU. Provided SKUs: ${androidArgs.skus}",
                             TAG
                         )
-                        val err = OpenIapError.SkuOfferMismatch()
+                        val err = OpenIapError.SkuOfferMismatchFailure()
                         finishWithError(err)
                         return
                     }
@@ -1874,7 +1874,7 @@ class OpenIapModule(
 
                             if (resolved.isNullOrEmpty() || (availableTokens.isNotEmpty() && !availableTokens.contains(resolved))) {
                                 OpenIapLog.w("Invalid offer token for ${productDetails.productId}", TAG)
-                                val err = OpenIapError.SkuOfferMismatch()
+                                val err = OpenIapError.SkuOfferMismatchFailure()
                                 finishWithError(err)
                                 return
                             }
@@ -1900,14 +1900,14 @@ class OpenIapModule(
 
                             if (availableTokens.isEmpty()) {
                                 OpenIapLog.w("No one-time purchase offers available for ${productDetails.productId}, but offerToken was provided", TAG)
-                                val err = OpenIapError.SkuOfferMismatch()
+                                val err = OpenIapError.SkuOfferMismatchFailure()
                                 finishWithError(err)
                                 return
                             }
 
                             if (!availableTokens.contains(androidArgs.offerToken)) {
                                 OpenIapLog.w("Invalid one-time offer token for ${productDetails.productId}", TAG)
-                                val err = OpenIapError.SkuOfferMismatch()
+                                val err = OpenIapError.SkuOfferMismatchFailure()
                                 finishWithError(err)
                                 return
                             }
@@ -2453,6 +2453,14 @@ class OpenIapModule(
 
     override fun removeSubscriptionBillingIssueListener(listener: dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener) {
         subscriptionBillingIssueListeners.remove(listener)
+    }
+
+    override fun onPurchasesUpdated(
+        billingResult: BillingResult,
+        purchases: List<BillingPurchase>?,
+    ) {
+        val client = synchronized(connectionLifecycleLock) { billingClient } ?: return
+        onPurchasesUpdated(client, listenerOwner(client), billingResult, purchases)
     }
 
     /**

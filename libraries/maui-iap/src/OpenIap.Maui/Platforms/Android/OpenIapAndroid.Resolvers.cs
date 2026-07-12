@@ -53,27 +53,27 @@ internal sealed partial class OpenIapAndroid
         }
     }
 
-    public async Task<VoidResult> FinishTransactionAsync(PurchaseInput purchase, bool? isConsumable = null)
+    public async Task<string> FinishTransactionAsync(PurchaseInput purchase, bool? isConsumable = null)
     {
         // PurchaseInput wraps Purchase; serialize the inner record so the wire
         // shape stays a flat Purchase JSON object (matches what the module expects).
         var json = JsonSerializer.Serialize(purchase.Value, JsonOptions.Default);
         var consumable = isConsumable.HasValue ? Java.Lang.Boolean.ValueOf(isConsumable.Value) : null;
-        await Invoke(cb => _module.FinishTransaction(json, consumable, cb));
-        return new VoidResult();
+        var result = await Invoke(cb => _module.FinishTransaction(json, consumable, cb));
+        return DecodeStringValue(result);
     }
 
-    public async Task<VoidResult> RestorePurchasesAsync()
+    public async Task<string> RestorePurchasesAsync()
     {
-        await Invoke(cb => _module.RestorePurchases(cb));
-        return new VoidResult();
+        var result = await Invoke(cb => _module.RestorePurchases(cb));
+        return DecodeStringValue(result);
     }
 
-    public async Task<VoidResult> DeepLinkToSubscriptionsAsync(DeepLinkOptions? options = null)
+    public async Task<string> DeepLinkToSubscriptionsAsync(DeepLinkOptions? options = null)
     {
         var json = options is null ? null : JsonSerializer.Serialize(options, JsonOptions.Default);
-        await Invoke(cb => _module.DeepLinkToSubscriptions(json, cb));
-        return new VoidResult();
+        var result = await Invoke(cb => _module.DeepLinkToSubscriptions(json, cb));
+        return DecodeStringValue(result);
     }
 
     public async Task<VerifyPurchaseResult> ValidateReceiptAsync(VerifyPurchaseProps options)

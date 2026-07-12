@@ -3448,9 +3448,34 @@ public data class PurchaseError(
     val productId: String? = null,
     val productIds: List<String>? = null,
     val productType: String? = null,
-    val responseCode: Int? = null,
-    val subResponseCodeAndroid: SubResponseCodeAndroid? = null
+    val responseCode: Int? = null
 ) {
+
+    var subResponseCodeAndroid: SubResponseCodeAndroid? = null
+        private set
+
+    constructor(
+        code: ErrorCode,
+        debugMessage: String? = null,
+        isEmptyProductList: Boolean? = null,
+        message: String,
+        productId: String? = null,
+        productIds: List<String>? = null,
+        productType: String? = null,
+        responseCode: Int? = null,
+        subResponseCodeAndroid: SubResponseCodeAndroid?,
+    ) : this(
+        code = code,
+        debugMessage = debugMessage,
+        isEmptyProductList = isEmptyProductList,
+        message = message,
+        productId = productId,
+        productIds = productIds,
+        productType = productType,
+        responseCode = responseCode,
+    ) {
+        this.subResponseCodeAndroid = subResponseCodeAndroid
+    }
 
     companion object {
         fun fromJson(json: Map<String, Any?>): PurchaseError {
@@ -3471,14 +3496,14 @@ public data class PurchaseError(
     fun toJson(): Map<String, Any?> = mapOf(
         "__typename" to "PurchaseError",
         "code" to code.toJson(),
-        "debugMessage" to debugMessage,
-        "isEmptyProductList" to isEmptyProductList,
         "message" to message,
         "productId" to productId,
-        "productIds" to productIds,
-        "productType" to productType,
+        "debugMessage" to debugMessage,
         "responseCode" to responseCode,
         "subResponseCodeAndroid" to subResponseCodeAndroid?.toJson(),
+        "productIds" to productIds,
+        "productType" to productType,
+        "isEmptyProductList" to isEmptyProductList,
     )
 }
 
@@ -4252,32 +4277,50 @@ public data class UserChoiceBillingDetails(
      */
     val externalTransactionToken: String,
     /**
-     * External transaction ID of the originating subscription when the user is
-     * upgrading or downgrading a developer-billed subscription. Available in
-     * the next OpenIAP spec / openiap-google release after Spec 2.1.0 /
-     * openiap-google 2.3.0 (requires Play Billing 9.1+).
-     */
-    val originalExternalTransactionId: String? = null,
-    /**
-     * Structured product details selected in the user-choice flow, including the
-     * product type and offer token. Available in the next OpenIAP spec /
-     * openiap-google release after Spec 2.1.0 / openiap-google 2.3.0
-     * (requires Play Billing 9.1+).
-     */
-    val productDetailsAndroid: List<DeveloperProvidedBillingProductAndroid>,
-    /**
      * List of product IDs selected by the user
      */
     val products: List<String>
 ) {
 
+    /**
+     * Structured product details selected in the user-choice flow, including the
+     * product type and offer token. Legacy payloads may omit this field; use
+     * products as the product-ID fallback. Available in the next OpenIAP spec /
+     * openiap-google release after Spec 2.1.0 / openiap-google 2.3.0
+     * (requires Play Billing 9.1+).
+     */
+    var productDetailsAndroid: List<DeveloperProvidedBillingProductAndroid>? = null
+        private set
+
+    /**
+     * External transaction ID of the originating subscription when the user is
+     * upgrading or downgrading a developer-billed subscription. Available in
+     * the next OpenIAP spec / openiap-google release after Spec 2.1.0 /
+     * openiap-google 2.3.0 (requires Play Billing 9.1+).
+     */
+    var originalExternalTransactionId: String? = null
+        private set
+
+    constructor(
+        externalTransactionToken: String,
+        products: List<String>,
+        productDetailsAndroid: List<DeveloperProvidedBillingProductAndroid>?,
+        originalExternalTransactionId: String? = null,
+    ) : this(
+        externalTransactionToken = externalTransactionToken,
+        products = products,
+    ) {
+        this.productDetailsAndroid = productDetailsAndroid
+        this.originalExternalTransactionId = originalExternalTransactionId
+    }
+
     companion object {
         fun fromJson(json: Map<String, Any?>): UserChoiceBillingDetails {
             return UserChoiceBillingDetails(
                 externalTransactionToken = json["externalTransactionToken"] as? String ?: "",
-                originalExternalTransactionId = json["originalExternalTransactionId"] as? String,
-                productDetailsAndroid = (json["productDetailsAndroid"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { DeveloperProvidedBillingProductAndroid.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for DeveloperProvidedBillingProductAndroid") } ?: emptyList(),
                 products = (json["products"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
+                productDetailsAndroid = (json["productDetailsAndroid"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { DeveloperProvidedBillingProductAndroid.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for DeveloperProvidedBillingProductAndroid") },
+                originalExternalTransactionId = json["originalExternalTransactionId"] as? String,
             )
         }
     }
@@ -4286,8 +4329,8 @@ public data class UserChoiceBillingDetails(
         "__typename" to "UserChoiceBillingDetails",
         "externalTransactionToken" to externalTransactionToken,
         "originalExternalTransactionId" to originalExternalTransactionId,
-        "productDetailsAndroid" to productDetailsAndroid.map { it.toJson() },
         "products" to products,
+        "productDetailsAndroid" to productDetailsAndroid?.map { it.toJson() },
     )
 }
 

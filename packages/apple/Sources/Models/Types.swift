@@ -1539,10 +1539,11 @@ public struct UserChoiceBillingDetails: Codable {
     /// openiap-google 2.3.0 (requires Play Billing 9.1+).
     public var originalExternalTransactionId: String? = nil
     /// Structured product details selected in the user-choice flow, including the
-    /// product type and offer token. Available in the next OpenIAP spec /
+    /// product type and offer token. Legacy payloads may omit this field; use
+    /// products as the product-ID fallback. Available in the next OpenIAP spec /
     /// openiap-google release after Spec 2.1.0 / openiap-google 2.3.0
     /// (requires Play Billing 9.1+).
-    public var productDetailsAndroid: [DeveloperProvidedBillingProductAndroid]
+    public var productDetailsAndroid: [DeveloperProvidedBillingProductAndroid]? = nil
     /// List of product IDs selected by the user
     public var products: [String]
 }

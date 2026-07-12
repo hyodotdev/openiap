@@ -152,6 +152,22 @@ internal suspend fun <T> awaitBillingQueryResult(
     disconnected.onAwait { throw PurchaseException(it) }
 }
 
+internal fun throwPurchaseRequestFailure(
+    error: Throwable,
+    productId: String?,
+    publish: (PurchaseError) -> Unit,
+): Nothing {
+    val mappedError = (error as? PurchaseException)?.error ?: PurchaseError(
+        code = ErrorCode.DeveloperError,
+        debugMessage = error.message,
+        message = error.message ?: "Invalid billing flow parameters",
+    )
+    val purchaseError = mappedError.takeIf { it.productId != null }
+        ?: mappedError.copy(productId = productId)
+    publish(purchaseError)
+    throw PurchaseException(purchaseError)
+}
+
 internal fun billingProgramConfigurationException(
     program: BillingProgramAndroid,
     error: Exception,
@@ -1017,10 +1033,9 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase {
             val developerBillingOption = purchaseAndroidOptions?.developerBillingOption
                 ?: subscriptionAndroidOptions?.developerBillingOption
             if (targetSkus.isEmpty()) {
-                _purchaseErrorListener.tryEmit(
+                failWith(
                     PurchaseError(code = ErrorCode.EmptySkuList, message = "SKU list is empty")
                 )
-                return@withContext emptyList()
             }
 
             if (!isSubscriptionReplacementTargetCountValid(
@@ -1029,72 +1044,65 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase {
                         subscriptionProductReplacementParams != null,
                 )
             ) {
-                _purchaseErrorListener.tryEmit(
+                failWith(
                     PurchaseError(
                         code = ErrorCode.DeveloperError,
                         message =
                             "subscriptionProductReplacementParams requires exactly one target SKU",
                     )
                 )
-                return@withContext emptyList()
             }
-
 
             val updateSourceCount = subscriptionUpdateSourceCount(
                 purchaseToken,
                 originalExternalTransactionId,
             )
             if (updateSourceCount > 1) {
-                _purchaseErrorListener.tryEmit(
+                failWith(
                     PurchaseError(
                         code = ErrorCode.DeveloperError,
                         message =
                             "purchaseToken and originalExternalTransactionId are mutually exclusive",
                     )
                 )
-                return@withContext emptyList()
             }
             if (
                 subscriptionProductReplacementParams != null &&
                 updateSourceCount != 1
             ) {
-                _purchaseErrorListener.tryEmit(
+                failWith(
                     PurchaseError(
                         code = ErrorCode.DeveloperError,
                         message =
                             "subscriptionProductReplacementParams requires exactly one update source",
                     )
                 )
-                return@withContext emptyList()
             }
 
             if (subscriptionProductReplacementParams != null &&
                 BuildConfig.OPENIAP_STORE.lowercase() != "play"
             ) {
-                _purchaseErrorListener.tryEmit(
+                failWith(
                     PurchaseError(
                         code = ErrorCode.FeatureNotSupported,
                         message =
                             "subscriptionProductReplacementParams is only supported by Google Play",
                     )
                 )
-                return@withContext emptyList()
             }
 
             val activity = currentActivity
             if (activity == null) {
-                _purchaseErrorListener.tryEmit(
+                failWith(
                     PurchaseError(code = ErrorCode.ActivityUnavailable, message = "Activity not available for purchase")
                 )
-                return@withContext emptyList()
             }
 
             val client = billingClient
             if (client == null || !client.isReady) {
-                _purchaseErrorListener.tryEmit(
+                failWith(
                     PurchaseError(code = ErrorCode.NotPrepared, message = "Billing client not ready")
                 )
-                return@withContext emptyList()
             }
 
             val requestLifecycle = PurchaseRequestLifecycle()
@@ -1115,8 +1123,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase {
                 }
             }
             if (lifecycleInstallError != null) {
-                _purchaseErrorListener.tryEmit(lifecycleInstallError)
-                return@withContext emptyList()
+                failWith(lifecycleInstallError)
             }
 
             var expectedCallback: ((Result<List<Purchase>>) -> Unit)? = null
@@ -1141,15 +1148,12 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase {
                 oneTimePurchaseOfferToken != null &&
                 targetSkus.size > 1
             ) {
-                failPendingPurchaseFlow(
-                    requestLifecycle,
-                    null,
+                throw PurchaseException(
                     PurchaseError(
                         code = ErrorCode.SkuOfferMismatch,
                         message = "oneTimePurchaseOfferToken requires a single in-app SKU",
                     ),
                 )
-                return@withContext emptyList()
             }
 
             withTimeoutOrNull(PURCHASE_CALLBACK_TIMEOUT_MS) {
@@ -1356,19 +1360,9 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase {
                 }
                 throw error
             } catch (error: Throwable) {
-                val mappedError = (error as? PurchaseException)?.error ?: PurchaseError(
-                    code = ErrorCode.DeveloperError,
-                    debugMessage = error.message,
-                    message = error.message ?: "Invalid billing flow parameters",
-                    productId = targetSkus.singleOrNull(),
-                )
-                val purchaseError = if (mappedError.productId == null) {
-                    mappedError.copy(productId = targetSkus.singleOrNull())
-                } else {
-                    mappedError
+                throwPurchaseRequestFailure(error, targetSkus.singleOrNull()) { purchaseError ->
+                    failPendingPurchaseFlow(requestLifecycle, expectedCallback, purchaseError)
                 }
-                failPendingPurchaseFlow(requestLifecycle, expectedCallback, purchaseError)
-                emptyList()
             } finally {
                 val callback = expectedCallback
                 val shouldRetainLaunchedOwner = didLaunchBillingFlow.get() &&

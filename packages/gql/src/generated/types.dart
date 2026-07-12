@@ -4170,7 +4170,7 @@ class UserChoiceBillingDetails {
   const UserChoiceBillingDetails({
     required this.externalTransactionToken,
     this.originalExternalTransactionId,
-    required this.productDetailsAndroid,
+    this.productDetailsAndroid,
     required this.products,
   });
 
@@ -4182,10 +4182,11 @@ class UserChoiceBillingDetails {
   /// openiap-google 2.3.0 (requires Play Billing 9.1+).
   final String? originalExternalTransactionId;
   /// Structured product details selected in the user-choice flow, including the
-  /// product type and offer token. Available in the next OpenIAP spec /
+  /// product type and offer token. Legacy payloads may omit this field; use
+  /// products as the product-ID fallback. Available in the next OpenIAP spec /
   /// openiap-google release after Spec 2.1.0 / openiap-google 2.3.0
   /// (requires Play Billing 9.1+).
-  final List<DeveloperProvidedBillingProductAndroid> productDetailsAndroid;
+  final List<DeveloperProvidedBillingProductAndroid>? productDetailsAndroid;
   /// List of product IDs selected by the user
   final List<String> products;
 
@@ -4193,7 +4194,7 @@ class UserChoiceBillingDetails {
     return UserChoiceBillingDetails(
       externalTransactionToken: json['externalTransactionToken'] as String,
       originalExternalTransactionId: json['originalExternalTransactionId'] as String?,
-      productDetailsAndroid: (json['productDetailsAndroid'] as List<dynamic>).map((e) => DeveloperProvidedBillingProductAndroid.fromJson(e as Map<String, dynamic>)).toList(),
+      productDetailsAndroid: (json['productDetailsAndroid'] as List<dynamic>?) == null ? null : (json['productDetailsAndroid'] as List<dynamic>?)!.map((e) => DeveloperProvidedBillingProductAndroid.fromJson(e as Map<String, dynamic>)).toList(),
       products: (json['products'] as List<dynamic>).map((e) => e as String).toList(),
     );
   }
@@ -4203,7 +4204,7 @@ class UserChoiceBillingDetails {
       '__typename': 'UserChoiceBillingDetails',
       'externalTransactionToken': externalTransactionToken,
       'originalExternalTransactionId': originalExternalTransactionId,
-      'productDetailsAndroid': productDetailsAndroid.map((e) => e.toJson()).toList(),
+      'productDetailsAndroid': productDetailsAndroid == null ? null : productDetailsAndroid!.map((e) => e.toJson()).toList(),
       'products': products,
     };
   }

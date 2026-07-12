@@ -89,6 +89,16 @@ final class OpenIapTests: XCTestCase {
         XCTAssertEqual(error.message, "User cancelled the purchase flow")
     }
 
+    func testPurchaseErrorMakePreservesOptionalDiagnostic() {
+        let error = PurchaseError.make(
+            code: .serviceError,
+            productId: "sku",
+            message: "Store service error",
+            debugMessage: "StoreKit diagnostic"
+        )
+        XCTAssertEqual(error.debugMessage, "StoreKit diagnostic")
+    }
+
     func testPurchaseErrorWrapMapsStoreKitUserCancelled() {
         let error = PurchaseError.wrap(StoreKitError.userCancelled, fallback: .serviceError)
         XCTAssertEqual(error.code, .userCancelled)

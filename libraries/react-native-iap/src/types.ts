@@ -2234,11 +2234,12 @@ export interface UserChoiceBillingDetails {
   originalExternalTransactionId?: (string | null);
   /**
    * Structured product details selected in the user-choice flow, including the
-   * product type and offer token. Available in the next OpenIAP spec /
+   * product type and offer token. Legacy payloads may omit this field; use
+   * products as the product-ID fallback. Available in the next OpenIAP spec /
    * openiap-google release after Spec 2.1.0 / openiap-google 2.3.0
    * (requires Play Billing 9.1+).
    */
-  productDetailsAndroid: DeveloperProvidedBillingProductAndroid[];
+  productDetailsAndroid?: (DeveloperProvidedBillingProductAndroid[] | null);
   /** List of product IDs selected by the user */
   products: string[];
 }

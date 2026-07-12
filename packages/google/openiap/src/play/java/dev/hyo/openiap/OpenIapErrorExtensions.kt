@@ -11,7 +11,12 @@ import dev.hyo.openiap.utils.toOpenIapSubResponseCode
 fun OpenIapError.Companion.fromBillingResponseCode(
     responseCode: Int,
     debugMessage: String? = null,
-    subResponseCode: SubResponseCodeAndroid? = null,
+): OpenIapError = fromBillingResponseCode(responseCode, debugMessage, null)
+
+internal fun OpenIapError.Companion.fromBillingResponseCode(
+    responseCode: Int,
+    debugMessage: String?,
+    subResponseCode: SubResponseCodeAndroid?,
 ): OpenIapError {
     return when (responseCode) {
         BillingClient.BillingResponseCode.NETWORK_ERROR -> OpenIapError.NetworkFailure(debugMessage)

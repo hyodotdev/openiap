@@ -255,14 +255,17 @@ sealed class OpenIapError : Exception() {
         }
     }
 
-    open class SkuOfferMismatch : OpenIapError() {
+    object SkuOfferMismatch : OpenIapError() {
+        const val CODE = "sku-offer-mismatch"
+        const val MESSAGE = "SKU and offer token count mismatch"
         override val code: String = CODE
         override val message: String = MESSAGE
+    }
 
-        companion object : SkuOfferMismatch() {
-            const val CODE = "sku-offer-mismatch"
-            const val MESSAGE = "SKU and offer token count mismatch"
-        }
+    /** Per-request offer mismatch carrying purchase diagnostics. */
+    internal class SkuOfferMismatchFailure : OpenIapError() {
+        override val code: String = SkuOfferMismatch.CODE
+        override val message: String = SkuOfferMismatch.MESSAGE
     }
 
     object MissingCurrentActivity : OpenIapError() {

@@ -431,19 +431,6 @@ function SubscriptionFlow({
     setSelectedIndex: setTvSelectedSubscriptionIndex,
   } = useVegaTvSelection({
     itemCount: subscriptions.length,
-    isItemDisabled: (index) => {
-      const subscription = subscriptions[index];
-      return (
-        !subscription || getSubscriptionButtonState(subscription).buttonDisabled
-      );
-    },
-    onSelect: (index) => {
-      const subscription = subscriptions[index];
-      if (subscription) {
-        handleSubscription(subscription.id);
-      }
-    },
-    suppressSelection: isProcessing || Boolean(purchaseResult),
   });
 
   const retryLoadSubscriptions = useCallback(() => {

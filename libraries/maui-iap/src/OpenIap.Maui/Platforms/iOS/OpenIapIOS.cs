@@ -290,9 +290,9 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
         return tcs.Task;
     }
 
-    public Task<VoidResult> FinishTransactionAsync(PurchaseInput purchase, bool? isConsumable = null)
+    public Task<string> FinishTransactionAsync(PurchaseInput purchase, bool? isConsumable = null)
     {
-        var tcs = new TaskCompletionSource<VoidResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         // PurchaseInput wraps a Purchase union; iOS only supports the iOS variant.
         if (purchase.Value is not PurchaseIOS p)
         {
@@ -311,17 +311,24 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
                 {
                     Console.WriteLine($"[OpenIapIOS] FinishTransactionAsync callback: productId={p.ProductId}, hasError={err is not null}");
                     if (err is not null) tcs.TrySetException(MapNSError(err));
-                    else tcs.TrySetResult(new VoidResult());
+                    else tcs.TrySetResult(p.Id);
                 }
                 catch (Exception ex) { tcs.TrySetException(ex); }
             });
         return tcs.Task;
     }
 
-    public Task<VoidResult> RestorePurchasesAsync() => InvokeVoid(_module.RestorePurchases);
+    public async Task<string> RestorePurchasesAsync()
+    {
+        await InvokeVoid(_module.RestorePurchases);
+        return string.Empty;
+    }
 
-    public Task<VoidResult> DeepLinkToSubscriptionsAsync(DeepLinkOptions? options = null) =>
-        InvokeVoid(_module.DeepLinkToSubscriptions);
+    public async Task<string> DeepLinkToSubscriptionsAsync(DeepLinkOptions? options = null)
+    {
+        await InvokeVoid(_module.DeepLinkToSubscriptions);
+        return string.Empty;
+    }
 
     public Task<VerifyPurchaseResult> ValidateReceiptAsync(VerifyPurchaseProps options) => VerifyPurchaseAsync(options);
 

@@ -48,15 +48,30 @@ public final class OpenIapStore: ObservableObject {
         onPurchaseSuccess: ((OpenIAP.Purchase) -> Void)? = nil,
         onPurchaseError: ((PurchaseError) -> Void)? = nil,
         onPromotedProduct: ((String) -> Void)? = nil,
-        onSubscriptionBillingIssue: ((OpenIAP.Purchase) -> Void)? = nil,
         module: OpenIapModuleProtocol = OpenIapModule.shared
     ) {
         self.onPurchaseSuccess = onPurchaseSuccess
         self.onPurchaseError = onPurchaseError
         self.onPromotedProduct = onPromotedProduct
-        self.onSubscriptionBillingIssue = onSubscriptionBillingIssue
+        self.onSubscriptionBillingIssue = nil
         self.module = module
         setupListeners()
+    }
+
+    public convenience init(
+        onPurchaseSuccess: ((OpenIAP.Purchase) -> Void)? = nil,
+        onPurchaseError: ((PurchaseError) -> Void)? = nil,
+        onPromotedProduct: ((String) -> Void)? = nil,
+        onSubscriptionBillingIssue: @escaping (OpenIAP.Purchase) -> Void,
+        module: OpenIapModuleProtocol = OpenIapModule.shared
+    ) {
+        self.init(
+            onPurchaseSuccess: onPurchaseSuccess,
+            onPurchaseError: onPurchaseError,
+            onPromotedProduct: onPromotedProduct,
+            module: module
+        )
+        self.onSubscriptionBillingIssue = onSubscriptionBillingIssue
     }
 
     deinit {
@@ -501,11 +516,19 @@ public final class OpenIapStore: ObservableObject {
     // tvOS: showManageSubscriptions not available on tvOS (subscriptions managed in Settings > Accounts)
     // tvOS: deepLinkToSubscriptions not available on tvOS (no window scene UI)
     #if !os(tvOS)
-    public func presentCodeRedemptionSheetIOS() async throws -> Bool {
+    public func presentCodeRedemptionSheetIOS() async throws {
+        _ = try await presentCodeRedemptionSheetResultIOS()
+    }
+
+    public func presentCodeRedemptionSheetResultIOS() async throws -> Bool {
         try await module.presentCodeRedemptionSheetIOS()
     }
 
-    public func showManageSubscriptionsIOS() async throws -> [PurchaseIOS] {
+    public func showManageSubscriptionsIOS() async throws {
+        _ = try await showManageSubscriptionsResultIOS()
+    }
+
+    public func showManageSubscriptionsResultIOS() async throws -> [PurchaseIOS] {
         try await module.showManageSubscriptionsIOS()
     }
 
@@ -547,7 +570,11 @@ public final class OpenIapStore: ObservableObject {
         try await module.showExternalPurchaseCustomLinkNoticeIOS(noticeType)
     }
 
-    public func clearTransactionIOS() async throws -> Bool {
+    public func clearTransactionIOS() async throws {
+        _ = try await clearTransactionResultIOS()
+    }
+
+    public func clearTransactionResultIOS() async throws -> Bool {
         try await module.clearTransactionIOS()
     }
 

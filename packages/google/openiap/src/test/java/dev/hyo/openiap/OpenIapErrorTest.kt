@@ -4,6 +4,7 @@ import dev.hyo.openiap.helpers.toPurchaseError
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -239,9 +240,16 @@ class OpenIapErrorTest {
     }
 
     @Test
+    fun `SkuOfferMismatch retains its JVM singleton field`() {
+        val instance = OpenIapError.SkuOfferMismatch.javaClass.getField("INSTANCE").get(null)
+
+        assertSame(OpenIapError.SkuOfferMismatch, instance)
+    }
+
+    @Test
     fun `SkuOfferMismatch request diagnostics are isolated`() {
-        val first = OpenIapError.SkuOfferMismatch().withProductId("first")
-        val second = OpenIapError.SkuOfferMismatch()
+        val first = OpenIapError.SkuOfferMismatchFailure().withProductId("first")
+        val second = OpenIapError.SkuOfferMismatchFailure()
 
         assertEquals("first", first.toJSON()["productId"])
         assertNull(second.toJSON()["productId"])
@@ -389,6 +397,28 @@ class OpenIapErrorTest {
         assertTrue(OpenIapError.fromBillingResponseCode(BILLING_RESPONSE_SERVICE_DISCONNECTED) is OpenIapError.ServiceDisconnected)
         assertTrue(OpenIapError.fromBillingResponseCode(BILLING_RESPONSE_FEATURE_NOT_SUPPORTED) is OpenIapError.FeatureNotSupported)
         assertTrue(OpenIapError.fromBillingResponseCode(BILLING_RESPONSE_SERVICE_TIMEOUT) is OpenIapError.ServiceTimeout)
+    }
+
+    @Test
+    fun `fromBillingResponseCode retains its published JVM signatures`() {
+        val extensions = Class.forName("dev.hyo.openiap.OpenIapErrorExtensionsKt")
+        val companion = OpenIapError.Companion::class.java
+        val intType = Int::class.javaPrimitiveType
+
+        extensions.getMethod(
+            "fromBillingResponseCode",
+            companion,
+            intType,
+            String::class.java,
+        )
+        extensions.getMethod(
+            "fromBillingResponseCode\$default",
+            companion,
+            intType,
+            String::class.java,
+            intType,
+            Any::class.java,
+        )
     }
 
     @Test

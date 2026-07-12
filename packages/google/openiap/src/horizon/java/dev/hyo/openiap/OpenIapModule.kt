@@ -960,7 +960,7 @@ class OpenIapModule(
                     offers = androidArgs.subscriptionOffers.orEmpty(),
                 )
             ) {
-                val error = OpenIapError.SkuOfferMismatch()
+                val error = OpenIapError.SkuOfferMismatchFailure()
                 emitPurchaseError(error)
                 return@withContext emptyList()
             }
@@ -1044,7 +1044,7 @@ class OpenIapModule(
                                 finishPurchaseCallback(
                                     client,
                                     callback,
-                                    OpenIapError.SkuOfferMismatch(),
+                                    OpenIapError.SkuOfferMismatchFailure(),
                                 )
                                 return
                             }

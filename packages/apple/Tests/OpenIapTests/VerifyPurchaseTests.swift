@@ -94,13 +94,17 @@ final class VerifyPurchaseTests: XCTestCase {
         let allTransactions = try await store.getAllTransactionsIOS()
         XCTAssertEqual(allTransactions.map(\.id), ["transaction-1"])
 
-        let changedTransactions = try await store.showManageSubscriptionsIOS()
+        let changedTransactions = try await store.showManageSubscriptionsResultIOS()
         XCTAssertEqual(changedTransactions.map(\.id), ["transaction-1"])
 
-        let presentedCodeRedemptionSheet = try await store.presentCodeRedemptionSheetIOS()
-        let clearedTransactions = try await store.clearTransactionIOS()
+        let presentedCodeRedemptionSheet = try await store.presentCodeRedemptionSheetResultIOS()
+        let clearedTransactions = try await store.clearTransactionResultIOS()
         XCTAssertFalse(presentedCodeRedemptionSheet)
         XCTAssertFalse(clearedTransactions)
+
+        try await store.showManageSubscriptionsIOS()
+        try await store.presentCodeRedemptionSheetIOS()
+        try await store.clearTransactionIOS()
 
         let options = DeepLinkOptions(packageNameAndroid: "dev.hyo.app", skuAndroid: "premium")
         try await store.deepLinkToSubscriptions(options)

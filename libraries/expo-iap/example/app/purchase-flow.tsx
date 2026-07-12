@@ -183,14 +183,6 @@ function PurchaseFlow({
     setSelectedIndex: setTvSelectedProductIndex,
   } = useVegaTvSelection({
     itemCount: visibleProducts.length,
-    isItemDisabled: () => isProcessing,
-    onSelect: (index) => {
-      const selectedProduct = visibleProducts[index];
-      if (selectedProduct) {
-        handlePurchase(selectedProduct.id);
-      }
-    },
-    suppressSelection: isProcessing || Boolean(purchaseResult),
   });
 
   const handleCopyResult = async () => {

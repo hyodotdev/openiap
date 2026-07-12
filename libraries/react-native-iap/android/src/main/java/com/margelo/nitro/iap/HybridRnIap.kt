@@ -205,10 +205,19 @@ class HybridRnIap : HybridRnIapSpec() {
                                 "userChoiceBillingListener",
                                 mapOf("products" to details.products, "token" to details.externalTransactionToken)
                             )
+                            val originalTransactionId = runCatching {
+                                details.javaClass
+                                    .getMethod("getOriginalExternalTransactionId")
+                                    .invoke(details) as? String
+                            }.getOrNull()
+                            val productDetails = runCatching {
+                                (details.javaClass.getMethod("getProductDetailsAndroid").invoke(details) as? List<*>)
+                                    ?.mapNotNull { it as? dev.hyo.openiap.DeveloperProvidedBillingProductAndroid }
+                            }.getOrNull()
                             val nitroDetails = UserChoiceBillingDetails(
                                 externalTransactionToken = details.externalTransactionToken,
-                                originalExternalTransactionId = details.originalExternalTransactionId.wrapVariant(),
-                                productDetailsAndroid = details.productDetailsAndroid.map { product ->
+                                originalExternalTransactionId = originalTransactionId.wrapVariant(),
+                                productDetailsAndroid = productDetails?.map { product ->
                                     DeveloperProvidedBillingProductAndroid(
                                         id = product.id,
                                         offerToken = product.offerToken.wrapVariant(),
@@ -217,7 +226,9 @@ class HybridRnIap : HybridRnIapSpec() {
                                             OpenIapProductType.Subs -> ProductType.SUBS
                                         }
                                     )
-                                }.toTypedArray(),
+                                }?.toTypedArray()?.let {
+                                    Variant_NullType_Array_DeveloperProvidedBillingProductAndroid_.Second(it)
+                                },
                                 products = details.products.toTypedArray()
                             )
                             sendUserChoiceBilling(nitroDetails)
@@ -2168,7 +2179,9 @@ class HybridRnIap : HybridRnIapSpec() {
         if (!productIds.isNullOrEmpty()) errorMap["productIds"] = productIds
         productType?.let { errorMap["productType"] = it }
         isEmptyProductList?.let { errorMap["isEmptyProductList"] = it }
-        error.subResponseCode?.let { errorMap["subResponseCodeAndroid"] = it.toJson() }
+        (diagnostics["subResponseCodeAndroid"] as? String)?.let {
+            errorMap["subResponseCodeAndroid"] = it
+        }
 
         return try {
             JSONObject(errorMap).toString()
@@ -2248,6 +2261,9 @@ class HybridRnIap : HybridRnIapSpec() {
         val productIds = (diagnostics["productIds"] as? Iterable<*>)
             ?.filterIsInstance<String>()
             ?.toTypedArray()
+        val subResponseCode = (diagnostics["subResponseCodeAndroid"] as? String)?.let {
+            runCatching { OpenIapSubResponseCodeAndroid.fromJson(it) }.getOrNull()
+        }
         return NitroPurchaseResult(
             responseCode = responseCode ?: -1.0,
             debugMessage = debugMessage ?: diagnosticMessage ?: error.message,
@@ -2258,7 +2274,7 @@ class HybridRnIap : HybridRnIapSpec() {
             productIds = productIds,
             productType = diagnostics["productType"] as? String,
             isEmptyProductList = diagnostics["isEmptyProductList"] as? Boolean,
-            subResponseCodeAndroid = mapSubResponseCode(error.subResponseCode)
+            subResponseCodeAndroid = mapSubResponseCode(subResponseCode)
         )
     }
 }

@@ -27,7 +27,8 @@ function UserChoiceBillingListenerAndroid() {
         <code>originalExternalTransactionId</code> and{' '}
         <code>productDetailsAndroid</code> are available in the next OpenIAP
         spec / openiap-google release after Spec 2.1.0 / openiap-google 2.3.0
-        (requires Play Billing 9.1+).
+        (requires Play Billing 9.1+). Legacy payloads may omit structured
+        product details; use <code>products</code> as the product-ID fallback.
       </p>
 
       <h3>Listener Setup</h3>
@@ -191,7 +192,7 @@ using var subscription = OpenIapClient.Instance.UserChoiceBillingAndroid.Subscri
             <CodeBlock language="typescript">{`interface UserChoiceBillingDetails {
   externalTransactionToken: string;
   originalExternalTransactionId?: string | null;
-  productDetailsAndroid: DeveloperProvidedBillingProductAndroid[];
+  productDetailsAndroid?: DeveloperProvidedBillingProductAndroid[] | null;
   products: string[];
 }`}</CodeBlock>
           ),
@@ -201,24 +202,30 @@ using var subscription = OpenIapClient.Instance.UserChoiceBillingAndroid.Subscri
           kotlin: (
             <CodeBlock language="kotlin">{`data class UserChoiceBillingDetails(
     val externalTransactionToken: String,
-    val originalExternalTransactionId: String? = null,
-    val productDetailsAndroid: List<DeveloperProvidedBillingProductAndroid>,
     val products: List<String>
-)`}</CodeBlock>
+) {
+    var originalExternalTransactionId: String? = null
+        private set
+    var productDetailsAndroid: List<DeveloperProvidedBillingProductAndroid>? = null
+        private set
+}`}</CodeBlock>
           ),
           kmp: (
             <CodeBlock language="kotlin">{`data class UserChoiceBillingDetails(
     val externalTransactionToken: String,
-    val originalExternalTransactionId: String? = null,
-    val productDetailsAndroid: List<DeveloperProvidedBillingProductAndroid>,
     val products: List<String>
-)`}</CodeBlock>
+) {
+    var originalExternalTransactionId: String? = null
+        private set
+    var productDetailsAndroid: List<DeveloperProvidedBillingProductAndroid>? = null
+        private set
+}`}</CodeBlock>
           ),
           dart: (
             <CodeBlock language="dart">{`class UserChoiceBillingDetails {
   final String externalTransactionToken;
   final String? originalExternalTransactionId;
-  final List<DeveloperProvidedBillingProductAndroid> productDetailsAndroid;
+  final List<DeveloperProvidedBillingProductAndroid>? productDetailsAndroid;
   final List<String> products;
 }`}</CodeBlock>
           ),
@@ -231,7 +238,7 @@ public sealed record UserChoiceBillingDetails
 {
     public required string ExternalTransactionToken { get; init; }
     public string? OriginalExternalTransactionId { get; init; }
-    public required IReadOnlyList<DeveloperProvidedBillingProductAndroid> ProductDetailsAndroid { get; init; }
+    public IReadOnlyList<DeveloperProvidedBillingProductAndroid>? ProductDetailsAndroid { get; init; }
     public required IReadOnlyList<string> Products { get; init; }
 }`}</CodeBlock>
           ),
@@ -246,7 +253,8 @@ public sealed record UserChoiceBillingDetails
         Billing 9.1+)
         <br />
         <strong>productDetailsAndroid</strong> - Selected product IDs, product
-        types, and offer tokens as structured Play Billing 9.1+ data
+        types, and offer tokens as optional structured Play Billing 9.1+ data;
+        use <code>products</code> when it is absent
         <br />
         <strong>products</strong> - List of product IDs selected by the user
       </p>

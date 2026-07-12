@@ -5,11 +5,77 @@ import dev.hyo.openiap.helpers.resolveBillingProgramsForConnection
 import dev.hyo.openiap.helpers.resolveLegacySubscriptionReplacementMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BillingChoiceAndroidTypesTest {
+    @Test
+    fun `user choice details preserve the published JVM ABI and legacy JSON`() {
+        val type = UserChoiceBillingDetails::class.java
+
+        assertNotNull(type.getDeclaredConstructor(String::class.java, List::class.java))
+        assertEquals(List::class.java, type.getDeclaredMethod("component2").returnType)
+        assertNotNull(type.getDeclaredMethod("copy", String::class.java, List::class.java))
+        assertTrue(type.declaredMethods.any { it.name == "copy\$default" && it.parameterCount == 5 })
+
+        val legacy = UserChoiceBillingDetails.fromJson(
+            mapOf(
+                "externalTransactionToken" to "external-token",
+                "products" to listOf("premium_monthly")
+            )
+        )
+        assertNull(legacy.originalExternalTransactionId)
+        assertNull(legacy.productDetailsAndroid)
+
+        val structured = UserChoiceBillingDetails.fromJson(
+            mapOf(
+                "externalTransactionToken" to "external-token",
+                "originalExternalTransactionId" to "original-external-id",
+                "products" to listOf("premium_monthly"),
+                "productDetailsAndroid" to listOf(
+                    mapOf(
+                        "id" to "premium_monthly",
+                        "offerToken" to "offer-token",
+                        "type" to "subs"
+                    )
+                )
+            )
+        )
+        assertEquals("original-external-id", structured.originalExternalTransactionId)
+        assertEquals(ProductType.Subs, structured.productDetailsAndroid?.single()?.type)
+    }
+
+    @Test
+    fun `purchase errors preserve the published JVM ABI and accept new diagnostics`() {
+        val type = PurchaseError::class.java
+        val legacyParameterTypes = arrayOf(
+            ErrorCode::class.java,
+            String::class.java,
+            Boolean::class.javaObjectType,
+            String::class.java,
+            String::class.java,
+            List::class.java,
+            String::class.java,
+            Int::class.javaObjectType
+        )
+
+        assertNotNull(type.getDeclaredConstructor(*legacyParameterTypes))
+        assertEquals(Int::class.javaObjectType, type.getDeclaredMethod("component8").returnType)
+        assertNotNull(type.getDeclaredMethod("copy", *legacyParameterTypes))
+        assertTrue(type.declaredMethods.any { it.name == "copy\$default" && it.parameterCount == 11 })
+
+        val details = PurchaseError.fromJson(
+            mapOf(
+                "code" to "purchase-error",
+                "message" to "Purchase failed",
+                "subResponseCodeAndroid" to "user-ineligible"
+            )
+        )
+        assertEquals(SubResponseCodeAndroid.UserIneligible, details.subResponseCodeAndroid)
+    }
+
     @Test
     fun `Billing Choice image layout serializes correctly`() {
         assertEquals(

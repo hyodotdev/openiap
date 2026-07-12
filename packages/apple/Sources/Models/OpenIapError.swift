@@ -59,8 +59,21 @@ public extension PurchaseError {
     static func make(
         code: ErrorCode,
         productId: String? = nil,
+        message: String? = nil
+    ) -> PurchaseError {
+        make(
+            code: code,
+            productId: productId,
+            message: message,
+            debugMessage: nil
+        )
+    }
+
+    static func make(
+        code: ErrorCode,
+        productId: String? = nil,
         message: String? = nil,
-        debugMessage: String? = nil
+        debugMessage: String?
     ) -> PurchaseError {
         PurchaseError(
             code: code,
@@ -75,8 +88,21 @@ public extension PurchaseError {
     static func make(
         code: String,
         productId: String? = nil,
+        message: String? = nil
+    ) -> PurchaseError {
+        make(
+            code: code,
+            productId: productId,
+            message: message,
+            debugMessage: nil
+        )
+    }
+
+    static func make(
+        code: String,
+        productId: String? = nil,
         message: String? = nil,
-        debugMessage: String? = nil
+        debugMessage: String?
     ) -> PurchaseError {
         let resolved = ErrorCode(rawValue: code) ?? .unknown
         return make(
