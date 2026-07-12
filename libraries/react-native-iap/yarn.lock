@@ -11251,7 +11251,7 @@ __metadata:
 
 "nitrogen@patch:nitrogen@npm%3A0.35.10#./.yarn/patches/nitrogen-npm-0.35.10-ac6318648e.patch::locator=react-native-iap%40workspace%3A.":
   version: 0.35.10
-  resolution: "nitrogen@patch:nitrogen@npm%3A0.35.10#./.yarn/patches/nitrogen-npm-0.35.10-ac6318648e.patch::version=0.35.10&hash=e67457&locator=react-native-iap%40workspace%3A."
+  resolution: "nitrogen@patch:nitrogen@npm%3A0.35.10#./.yarn/patches/nitrogen-npm-0.35.10-ac6318648e.patch::version=0.35.10&hash=1be88b&locator=react-native-iap%40workspace%3A."
   dependencies:
     chalk: ^5.3.0
     react-native-nitro-modules: ^0.35.10
