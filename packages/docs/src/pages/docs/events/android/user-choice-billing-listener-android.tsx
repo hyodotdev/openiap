@@ -25,10 +25,10 @@ function UserChoiceBillingListenerAndroid() {
       </p>
       <p>
         <code>originalExternalTransactionId</code> and{' '}
-        <code>productDetailsAndroid</code> are available in the next OpenIAP
-        spec / openiap-google release after Spec 2.1.0 / openiap-google 2.3.0
-        (requires Play Billing 9.1+). Legacy payloads may omit structured
-        product details; use <code>products</code> as the product-ID fallback.
+        <code>productDetailsAndroid</code> are available in OpenIAP Spec 2.3.0 /{' '}
+        <code>openiap-google</code> 2.4.0 (requires Play Billing 9.1+). Legacy
+        payloads may omit structured product details; use <code>products</code>{' '}
+        as the product-ID fallback.
       </p>
 
       <h3>Listener Setup</h3>

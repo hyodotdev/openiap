@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-07-12T04:56:39.172Z
+> Last updated: 2026-07-12T13:58:27.142Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -1992,6 +1992,14 @@ Version ownership is split:
 - Deploy script (`npm run deploy`) uses the current `spec` version by default,
   and updates `spec` only when an explicit version is passed
 
+When a maintainer explicitly declares a stable native/spec release train and
+selects its native train version, use that version as the requested spec target.
+Manually set only the root `spec` field and `packages/gql/package.json`, then run
+`./scripts/sync-versions.sh` to refresh derived copies; the `apple` and `google`
+fields remain release-workflow-owned. This is not standing lockstep versioning:
+without that explicit train instruction, do not infer or auto-align `spec` from
+native package versions.
+
 Release workflows write stable values on `main` and prerelease values on
 `next`. Manual edits are not a substitute for selecting the correct workflow
 branch.
@@ -3160,8 +3168,7 @@ blocked.
 > **OpenIAP Note**: Purchase failures delivered by
 > `purchaseErrorListener` preserve this value as
 > `PurchaseError.subResponseCodeAndroid` when Play supplies it. Available in
-> the next OpenIAP spec / openiap-google release after Spec 2.1.0 /
-> openiap-google 2.3.0 (requires Play Billing 8.0+).
+> OpenIAP Spec 2.3.0 / openiap-google 2.4.0 (requires Play Billing 8.0+).
 
 ## Subscription Product Replacement (8.1+)
 
@@ -3212,9 +3219,8 @@ OpenIAP keeps the compatibility `products` ID list and also exposes
 `productDetailsAndroid` with each product's ID, type, and optional offer token.
 For a developer-billed subscription replacement, forward
 `originalExternalTransactionId` together with the external transaction token
-to the backend reporting flow. These two fields are available in the next
-OpenIAP spec / openiap-google release after Spec 2.1.0 / openiap-google 2.3.0
-(requires Play Billing 9.1+).
+to the backend reporting flow. These two fields are available in OpenIAP Spec
+2.3.0 / openiap-google 2.4.0 (requires Play Billing 9.1+).
 
 ## External Payments Program (8.3+)
 

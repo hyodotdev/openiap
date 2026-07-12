@@ -22,10 +22,171 @@ interface Note {
   element: React.ReactNode;
 }
 
+const purchaseSafetyReleases = [
+  ['openiap-apple 2.3.0', '2.3.0'],
+  ['openiap-google 2.4.0', 'google-2.4.0'],
+  ['react-native-iap 15.5.0', 'react-native-iap-15.5.0'],
+  ['expo-iap 4.5.0', 'expo-iap-4.5.0'],
+  ['flutter_inapp_purchase 9.5.0', 'flutter-iap-9.5.0'],
+  ['godot-iap 2.5.0', 'godot-iap-2.5.0'],
+  ['kmp-iap 2.5.0', 'kmp-iap-2.5.0'],
+  ['OpenIap.Maui 1.3.0', 'maui-iap-1.3.0'],
+] as const;
+
 function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // July 12, 2026 - Purchase safety and lifecycle hardening
+    {
+      id: 'purchase-safety-lifecycle-release-2026-07-12',
+      date: new Date('2026-07-12'),
+      element: (
+        <div
+          key="purchase-safety-lifecycle-release-2026-07-12"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="purchase-safety-lifecycle-release-2026-07-12"
+            level="h4"
+          >
+            July 12, 2026 - Purchase safety and lifecycle hardening
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes OpenIAP Spec and Apple 2.3.0 with minor releases for the
+            remaining native and framework SDKs. This release strengthens
+            concurrent store operations, callback ownership, typed error
+            delivery, and sensitive-value redaction while preserving published
+            public APIs and legacy payloads. The full compatibility audit is in{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/222"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #222
+            </a>
+            .
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Shared spec and native packages
+          </h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>OpenIAP Spec 2.3.0</strong> - aligns purchase, storefront,
+              billing-program, and error contracts across generated SDKs. New
+              Billing Choice details remain optional so older native payloads
+              continue to decode.
+            </li>
+            <li>
+              <strong>openiap-apple 2.3.0</strong> - hardens StoreKit
+              connection, listener, purchase, and transaction lifecycles while
+              preserving the complete 2.2.5 Swift and Objective-C API surface.
+            </li>
+            <li>
+              <strong>openiap-google 2.4.0</strong> - prevents concurrent query
+              and purchase ownership races, ignores duplicate callbacks, and
+              keeps Play, Horizon, and Amazon behavior isolated without exposing
+              raw purchase values in diagnostics.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>react-native-iap 15.5.0</strong> - queues Nitro connection
+              lifecycle calls, preserves native error metadata, redacts
+              sensitive logs, and hardens Vega cancellation and fulfillment.
+            </li>
+            <li>
+              <strong>expo-iap 4.5.0</strong> - safely normalizes malformed
+              native errors, removes exact listener instances during teardown,
+              and prevents duplicate Vega TV purchase activation.
+            </li>
+            <li>
+              <strong>flutter_inapp_purchase 9.5.0</strong> - preserves typed
+              cancellation and native diagnostics across platform channels and
+              prevents stale purchase completions from becoming successes.
+            </li>
+            <li>
+              <strong>godot-iap 2.5.0</strong> - hardens Android and iOS
+              connection ownership and callback completion while retaining the
+              existing public method surface.
+            </li>
+            <li>
+              <strong>kmp-iap 2.5.0</strong> - serializes Play, Horizon, and
+              Amazon query and purchase ownership and preserves typed
+              cancellation and synchronous failures.
+            </li>
+            <li>
+              <strong>OpenIap.Maui 1.3.0</strong> - carries the native lifecycle
+              and error safeguards through the MAUI facade while preserving the
+              public 1.2.1 CLR signatures.
+            </li>
+          </ul>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Regression coverage includes automated native and framework suites
+            plus physical Play, Amazon, Apple, Vega, and Horizon flows. Horizon
+            catalog, checkout entry, cancellation, and app survival were
+            verified without approving the live-price payment dialog.
+          </p>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              {purchaseSafetyReleases.map(([label, tag]) => (
+                <li key={tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // July 11, 2026 - Multi-store runtimes, Play Billing 9.1, and SDK parity
     {
       id: 'multi-store-billing-9-1-sdk-release-2026-07-11',

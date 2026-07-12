@@ -409,8 +409,7 @@ blocked.
 > **OpenIAP Note**: Purchase failures delivered by
 > `purchaseErrorListener` preserve this value as
 > `PurchaseError.subResponseCodeAndroid` when Play supplies it. Available in
-> the next OpenIAP spec / openiap-google release after Spec 2.1.0 /
-> openiap-google 2.3.0 (requires Play Billing 8.0+).
+> OpenIAP Spec 2.3.0 / openiap-google 2.4.0 (requires Play Billing 8.0+).
 
 ## Subscription Product Replacement (8.1+)
 
@@ -461,9 +460,8 @@ OpenIAP keeps the compatibility `products` ID list and also exposes
 `productDetailsAndroid` with each product's ID, type, and optional offer token.
 For a developer-billed subscription replacement, forward
 `originalExternalTransactionId` together with the external transaction token
-to the backend reporting flow. These two fields are available in the next
-OpenIAP spec / openiap-google release after Spec 2.1.0 / openiap-google 2.3.0
-(requires Play Billing 9.1+).
+to the backend reporting flow. These two fields are available in OpenIAP Spec
+2.3.0 / openiap-google 2.4.0 (requires Play Billing 9.1+).
 
 ## External Payments Program (8.3+)
 
