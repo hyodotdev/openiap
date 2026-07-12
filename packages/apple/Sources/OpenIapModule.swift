@@ -28,8 +28,10 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
     private let state = IapState()
     private let connection = OpenIapConnectionLifecycle()
+    private let messageListenerRegistrationLock = NSLock()
     private static let initRetryDelayNanoseconds: UInt64 = 1_000_000
     private static let subscriptionPreflightTimeoutNanoseconds: UInt64 = 750_000_000
+    @TaskLocal private static var suppressPurchaseErrorEmission = false
 
     #if os(iOS)
     private let promotedPurchaseObserverLock = NSLock()
@@ -69,7 +71,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                 continue
             }
 
-            if await state.isInitialized {
+            if await hasInitializedConnection() {
                 return true
             }
 
@@ -254,6 +256,32 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     ///
     /// See: https://openiap.dev/docs/apis/request-purchase
     public func requestPurchase(_ params: RequestPurchaseProps) async throws -> RequestPurchaseResult? {
+        let fallbackProductId = purchaseProductId(from: params)
+        do {
+            return try await Self.$suppressPurchaseErrorEmission.withValue(true) {
+                try await performRequestPurchase(params)
+            }
+        } catch let purchaseError as PurchaseError {
+            var canonicalError = purchaseError
+            if canonicalError.productId == nil {
+                canonicalError.productId = fallbackProductId
+            }
+            emitPurchaseError(canonicalError)
+            throw canonicalError
+        } catch {
+            let canonicalError = PurchaseError.wrap(
+                error,
+                fallback: .purchaseError,
+                productId: fallbackProductId
+            )
+            emitPurchaseError(canonicalError)
+            throw canonicalError
+        }
+    }
+
+    /// Performs the StoreKit request while helper-level error emissions are
+    /// suppressed. `requestPurchase` emits the final canonical error exactly once.
+    private func performRequestPurchase(_ params: RequestPurchaseProps) async throws -> RequestPurchaseResult? {
         try await ensureConnection()
         let iosProps = try resolveIOSPurchaseProps(from: params)
         let sku = iosProps.sku
@@ -283,7 +311,6 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                 }
                 guard let window else {
                     let error = makePurchaseError(code: .purchaseError, message: "Could not find window")
-                    emitPurchaseError(error)
                     throw error
                 }
                 result = try await product.purchase(confirmIn: window, options: options)
@@ -312,13 +339,11 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                     message: enhancedMessage,
                     debugMessage: error.localizedDescription
                 )
-                emitPurchaseError(purchaseError)
                 throw purchaseError
             }
 
             // Use PurchaseError.wrap to automatically map errors (including StoreKitError.userCancelled)
             let purchaseError = PurchaseError.wrap(error, fallback: .purchaseError, productId: sku)
-            emitPurchaseError(purchaseError)
             throw purchaseError
         }
 
@@ -341,7 +366,6 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                     productId: sku,
                     message: "Finished an inactive subscription transaction. Please retry the purchase."
                 )
-                emitPurchaseError(error)
                 throw error
             }
             let purchase = await StoreKitTypesBridge.purchase(from: transaction, jwsRepresentation: verification.jwsRepresentation)
@@ -386,17 +410,14 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
         case .userCancelled:
             let error = makePurchaseError(code: .userCancelled, productId: sku)
-            emitPurchaseError(error)
             throw error
 
         case .pending:
             let error = makePurchaseError(code: .deferredPayment, productId: sku)
-            emitPurchaseError(error)
             throw error
 
         @unknown default:
             let error = makePurchaseError(code: .unknown, productId: sku)
-            emitPurchaseError(error)
             throw error
         }
     }
@@ -457,6 +478,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     public func getAvailablePurchases(_ options: PurchaseOptions?) async throws -> [Purchase] {
         try await ensureConnection()
         let onlyActive = options?.onlyIncludeActiveItemsIOS ?? false
+        let shouldPublish = options?.alsoPublishToEventListenerIOS ?? false
         var purchasedItems: [Purchase] = []
 
         for await verification in (onlyActive ? Transaction.currentEntitlements : Transaction.all) {
@@ -472,6 +494,9 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                     jwsRepresentation: verification.jwsRepresentation
                 )
                 purchasedItems.append(purchase)
+                if shouldPublish {
+                    emitPurchaseUpdate(purchase)
+                }
             } catch {
                 OpenIapLog.error("getAvailablePurchases: failed to verify transaction: \(error)")
                 continue
@@ -483,7 +508,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     /// Get the full StoreKit 2 transaction history as `PurchaseIOS` values.
-    /// Requires the SK2ConsumableTransactionHistory Info.plist key in the host app
+    /// Requires the SKIncludeConsumableInAppPurchaseHistory Info.plist key in the host app
     /// for finished consumables to be included in `Transaction.all` (iOS 18+).
     /// Unlike `getAvailablePurchases(_:)`, this method always reads from
     /// `Transaction.all` and returns the iOS-specific `PurchaseIOS` shape rather than
@@ -576,10 +601,20 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// See: https://openiap.dev/docs/apis/ios/get-pending-transactions-ios
     public func getPendingTransactionsIOS() async throws -> [PurchaseIOS] {
         try await ensureConnection()
-        let snapshot = await state.pendingSnapshot()
         var purchases: [PurchaseIOS] = []
-        for transaction in snapshot {
-            purchases.append(await StoreKitTypesBridge.purchaseIOS(from: transaction, jwsRepresentation: nil))
+        for await verification in Transaction.unfinished {
+            do {
+                let transaction = try checkVerified(verification)
+                await state.storePending(id: String(transaction.id), transaction: transaction)
+                purchases.append(
+                    await StoreKitTypesBridge.purchaseIOS(
+                        from: transaction,
+                        jwsRepresentation: verification.jwsRepresentation
+                    )
+                )
+            } catch {
+                OpenIapLog.error("getPendingTransactionsIOS: failed to verify transaction: \(error)")
+            }
         }
         return purchases
     }
@@ -1032,6 +1067,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                     renewalInfo = RenewalInfoIOS(
                         autoRenewPreference: info.autoRenewPreference,
                         commitmentInfo: StoreKitTypesBridge.renewalCommitmentInfoIOS(from: info),
+                        isInBillingRetry: info.isInBillingRetry,
                         jsonRepresentation: jsonString,
                         renewalBillingPlanType: StoreKitTypesBridge.renewalBillingPlanTypeIOS(from: info),
                         willAutoRenew: info.willAutoRenew
@@ -1178,8 +1214,30 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// Present the manage-subscriptions sheet.
     /// See: https://openiap.dev/docs/apis/ios/show-manage-subscriptions-ios
     public func showManageSubscriptionsIOS() async throws -> [PurchaseIOS] {
+        let previousTransactions = try await getAllTransactionsIOS()
         try await deepLinkToSubscriptions(nil)
-        return []
+        let currentTransactions = try await getAllTransactionsIOS()
+        return Self.changedPurchasesIOS(currentTransactions, comparedTo: previousTransactions)
+    }
+
+    static func changedPurchasesIOS(
+        _ current: [PurchaseIOS],
+        comparedTo previous: [PurchaseIOS]
+    ) -> [PurchaseIOS] {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+
+        var previousById: [String: Data] = [:]
+        for purchase in previous {
+            if let data = try? encoder.encode(purchase) {
+                previousById[purchase.id] = data
+            }
+        }
+
+        return current.filter { purchase in
+            guard let currentData = try? encoder.encode(purchase) else { return true }
+            return previousById[purchase.id] != currentData
+        }
     }
 
     // MARK: - External Purchase (iOS 17.4+, macOS 14.4+, tvOS 17.4+, visionOS 1.1+)
@@ -1411,29 +1469,28 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         options: PurchaseUpdatedListenerOptions? = nil
     ) -> Subscription {
         let subscription = Subscription(eventType: .purchaseUpdated)
-        Task {
-            await state.addPurchaseUpdatedListener(
-                id: subscription.id,
-                listener: listener,
-                options: options
-            )
-        }
+        state.addPurchaseUpdatedListener(
+            id: subscription.id,
+            listener: listener,
+            options: options
+        )
         return subscription
     }
 
     public func purchaseErrorListener(_ listener: @escaping PurchaseErrorListener) -> Subscription {
         let subscription = Subscription(eventType: .purchaseError)
-        Task { await state.addPurchaseErrorListener((subscription.id, listener)) }
+        state.addPurchaseErrorListener((subscription.id, listener))
         return subscription
     }
 
     public func promotedProductListenerIOS(_ listener: @escaping PromotedProductListener) -> Subscription {
         let subscription = Subscription(eventType: .promotedProductIos)
-        Task { [state] in
-            let pendingSku = await state.addPromotedProductListener((subscription.id, listener))
-            guard let pendingSku else { return }
-            await MainActor.run {
-                listener(pendingSku)
+        let pendingSku = state.addPromotedProductListener((subscription.id, listener))
+        if let pendingSku {
+            Task {
+                await MainActor.run {
+                    listener(pendingSku)
+                }
             }
         }
         return subscription
@@ -1441,18 +1498,37 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
     public func subscriptionBillingIssueListener(_ listener: @escaping SubscriptionBillingIssueListener) -> Subscription {
         let subscription = Subscription(eventType: .subscriptionBillingIssue)
-        Task { await state.addSubscriptionBillingIssueListener((subscription.id, listener)) }
-        startMessageListener()
+        withMessageListenerRegistrationLock {
+            state.addSubscriptionBillingIssueListener((subscription.id, listener))
+        }
+        // Do not consume StoreKit's pending Message sequence before connection
+        // initialization. performInitConnection starts it when listeners exist;
+        // this task covers registration after an already-completed init.
+        Task { [weak self] in
+            guard let self,
+                  await self.state.isInitialized,
+                  let generation = self.connection.currentConnectedGeneration() else { return }
+            try? self.startMessageListenerIfRegistered(generation: generation)
+        }
         return subscription
     }
 
     public func removeListener(_ subscription: Subscription) {
-        Task { await state.removeListener(id: subscription.id, type: subscription.eventType) }
+        withMessageListenerRegistrationLock {
+            state.removeListener(id: subscription.id, type: subscription.eventType)
+            if subscription.eventType == .subscriptionBillingIssue,
+               !state.hasSubscriptionBillingIssueListeners() {
+                connection.stopMessageListenerTask()
+            }
+        }
         Task { await MainActor.run { subscription.onRemove?() } }
     }
 
     public func removeAllListeners() {
-        Task { await state.removeAllListeners() }
+        withMessageListenerRegistrationLock {
+            state.removeAllListeners()
+            connection.stopMessageListenerTask()
+        }
     }
 
     // MARK: - Private Helpers
@@ -1462,6 +1538,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         try connection.ensureCurrent(generation)
 
         if await state.isInitialized {
+            try Task.checkCancellation()
+            try connection.ensureCurrent(generation)
             return true
         }
 
@@ -1472,6 +1550,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         try Task.checkCancellation()
         try connection.ensureCurrent(generation)
         if await state.isInitialized {
+            try Task.checkCancellation()
+            try connection.ensureCurrent(generation)
             return true
         }
 
@@ -1487,12 +1567,9 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         await state.setInitialized(true)
         try startTransactionListener(generation: generation)
         try startUnfinishedTransactionProcessing(generation: generation)
-        let hasSubscriptionBillingIssueListeners = await state.hasSubscriptionBillingIssueListeners()
         try Task.checkCancellation()
         try connection.ensureCurrent(generation)
-        if hasSubscriptionBillingIssueListeners {
-            try startMessageListener(generation: generation)
-        }
+        try startMessageListenerIfRegistered(generation: generation)
         try Task.checkCancellation()
         try connection.ensureCurrent(generation)
         return true
@@ -1566,25 +1643,33 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     private func ensureConnection() async throws {
-        if let endTask = connection.currentEndTask() {
-            await endTask.value
-        }
-
-        if await state.isInitialized == false {
-            _ = try await initConnection()
-        }
-
-        guard await state.isInitialized else {
-            let error = makePurchaseError(code: .initConnection)
-            emitPurchaseError(error)
-            throw error
-        }
-
         guard AppStore.canMakePayments else {
             let error = makePurchaseError(code: .iapNotAvailable)
             emitPurchaseError(error)
             throw error
         }
+
+        while true {
+            if await hasInitializedConnection() { return }
+            if let endTask = connection.currentEndTask() {
+                await endTask.value
+                continue
+            }
+
+            let initialized = try await initConnection()
+            if initialized, await hasInitializedConnection() { return }
+            if connection.currentEndTask() != nil { continue }
+
+            let error = makePurchaseError(code: .initConnection)
+            emitPurchaseError(error)
+            throw error
+        }
+    }
+
+    private func hasInitializedConnection() async -> Bool {
+        guard let generation = connection.currentConnectedGeneration(),
+              await state.isInitialized else { return false }
+        return connection.isConnected(generation: generation)
     }
 
     private func cleanupExistingState() async {
@@ -1592,6 +1677,15 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         resources.updateListenerTask?.cancel()
         resources.messageListenerTask?.cancel()
         resources.unfinishedTransactionTask?.cancel()
+        if let updateListenerTask = resources.updateListenerTask {
+            _ = try? await updateListenerTask.value
+        }
+        if let messageListenerTask = resources.messageListenerTask {
+            await messageListenerTask.value
+        }
+        if let unfinishedTransactionTask = resources.unfinishedTransactionTask {
+            await unfinishedTransactionTask.value
+        }
         await state.reset()
         if let manager = resources.productManager { await manager.removeAll() }
     }
@@ -1633,6 +1727,15 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         throw makePurchaseError(code: .purchaseError, message: "Missing iOS purchase parameters")
     }
 
+    private func purchaseProductId(from params: RequestPurchaseProps) -> String? {
+        switch params.request {
+        case let .purchase(platforms):
+            return platforms.apple?.sku ?? platforms.ios?.sku
+        case let .subscription(platforms):
+            return platforms.apple?.sku ?? platforms.ios?.sku
+        }
+    }
+
     private func startTransactionListener(generation: UInt64) throws {
         try connection.startTransactionListenerTask(generation: generation) {
             OpenIapLog.debug("🎧 [TransactionListener] Starting Transaction.updates listener...")
@@ -1643,9 +1746,11 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                 }
                 OpenIapLog.debug("✅ [TransactionListener] Listener task started, waiting for transactions...")
                 for await verification in Transaction.updates {
-                    if Task.isCancelled { return }
+                    guard !Task.isCancelled,
+                          self.connection.isCurrentGeneration(generation) else { return }
                     do {
                         guard await self.state.isInitialized else { continue }
+                        guard self.connection.isCurrentGeneration(generation) else { return }
                         let transaction = try self.checkVerified(verification)
                         let transactionId = String(transaction.id)
 
@@ -1662,6 +1767,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                         if transaction.productType == .autoRenewable,
                            self.isInactiveSubscriptionTransaction(transaction) {
                             await transaction.finish()
+                            guard self.connection.isCurrentGeneration(generation) else { return }
                             await self.state.removePending(id: transactionId)
                             OpenIapLog.debug("""
                                 🧹 [TransactionListener] Finished inactive subscription update without emitting:
@@ -1680,6 +1786,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                         }
 
                         let purchase = await StoreKitTypesBridge.purchase(from: transaction, jwsRepresentation: verification.jwsRepresentation)
+                        guard self.connection.isCurrentGeneration(generation) else { return }
 
                         // Default listeners receive each transaction id once per connection
                         // session. Non-deduping listeners can opt into StoreKit replays.
@@ -1687,6 +1794,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                             id: transactionId,
                             pendingTransaction: transaction
                         ) else {
+                            guard self.connection.isCurrentGeneration(generation) else { return }
                             self.emitPurchaseUpdate(
                                 purchase,
                                 isDuplicate: true,
@@ -1695,9 +1803,11 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                             )
                             continue
                         }
+                        guard self.connection.isCurrentGeneration(generation) else { return }
                         OpenIapLog.debug("✅ [TransactionListener] Emitting transaction: \(transactionId) for product: \(transaction.productID)")
                         self.emitPurchaseUpdate(purchase)
                     } catch {
+                        guard self.connection.isCurrentGeneration(generation) else { return }
                         let purchaseError: PurchaseError
                         if let existing = error as? PurchaseError {
                             purchaseError = existing
@@ -1716,19 +1826,22 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             Task { [weak self] in
                 guard let self else { return }
                 defer { self.connection.clearUnfinishedTransactionTask(generation: generation) }
-                await self.processUnfinishedTransactions()
+                await self.processUnfinishedTransactions(generation: generation)
             }
         }
     }
 
-    private func processUnfinishedTransactions() async {
+    private func processUnfinishedTransactions(generation: UInt64) async {
         for await verification in Transaction.unfinished {
-            if Task.isCancelled { return }
+            guard !Task.isCancelled,
+                  connection.isCurrentGeneration(generation) else { return }
             guard await state.isInitialized else { return }
+            guard connection.isCurrentGeneration(generation) else { return }
             do {
                 let transaction = try checkVerified(verification)
                 if transaction.productType == .autoRenewable, isInactiveSubscriptionTransaction(transaction) {
                     await transaction.finish()
+                    guard connection.isCurrentGeneration(generation) else { return }
                     await state.removePending(id: String(transaction.id))
                     OpenIapLog.debug("""
                         🧹 [processUnfinishedTransactions] Finished inactive subscription transaction:
@@ -1740,6 +1853,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                         """)
                     continue
                 }
+                guard connection.isCurrentGeneration(generation) else { return }
                 await state.storePending(id: String(transaction.id), transaction: transaction)
             } catch {
                 continue
@@ -1859,7 +1973,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         duplicateTransactionId: String? = nil
     ) {
         Task { [state] in
-            let listeners = await state.snapshotPurchaseUpdated(isDuplicate: isDuplicate)
+            let listeners = state.snapshotPurchaseUpdated(isDuplicate: isDuplicate)
             if isDuplicate {
                 self.logDuplicatePurchaseUpdate(
                     source: duplicateSource ?? "unknown",
@@ -1879,8 +1993,9 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     private func emitPurchaseError(_ error: PurchaseError) {
+        guard !Self.suppressPurchaseErrorEmission else { return }
         Task { [state] in
-            let listeners = await state.snapshotPurchaseError()
+            let listeners = state.snapshotPurchaseError()
             await MainActor.run {
                 listeners.forEach { $0(error) }
             }
@@ -1897,8 +2012,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     private func emitSubscriptionBillingIssue(_ purchase: Purchase) {
-        Task { [state] in
-            let listeners = await state.snapshotSubscriptionBillingIssue()
+        let listeners = state.snapshotSubscriptionBillingIssue()
+        Task {
             await MainActor.run {
                 listeners.forEach { $0(purchase) }
             }
@@ -1907,109 +2022,137 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
     /// Starts the StoreKit 2 Message listener for subscription-billing-issue events.
     ///
-    /// The `.billingIssue` reason (what we care about) ships on iOS 18.0+ and Mac Catalyst
-    /// 18.0+, so this method only starts the `Message.messages` loop when that availability
-    /// holds. On macOS, tvOS, watchOS and visionOS the Message API is not available at all,
+    /// The `.billingIssue` reason (what we care about) ships on iOS 16.4+, Mac Catalyst
+    /// 16.4+, and visionOS 1.0+, so this method starts the `Message.messages` loop when
+    /// that availability holds. On macOS, tvOS, and watchOS the Message API is unavailable,
     /// making this a silent no-op on those platforms.
     ///
     /// References:
     /// - https://developer.apple.com/documentation/storekit/message
     /// - https://developer.apple.com/documentation/storekit/message/reason-swift.struct/billingissue
-    private func startMessageListener() {
-        try? startMessageListener(generation: nil)
+    private func startMessageListenerIfRegistered(generation: UInt64) throws {
+        try withMessageListenerRegistrationLock {
+            guard state.hasSubscriptionBillingIssueListeners() else { return }
+            try startMessageListener(generation: generation)
+        }
     }
 
     private func startMessageListener(generation: UInt64) throws {
-        try startMessageListener(generation: Optional(generation))
-    }
-
-    private func startMessageListener(generation: UInt64?) throws {
-        #if os(iOS) || targetEnvironment(macCatalyst)
-        if #available(iOS 18.0, macCatalyst 18.0, *) {
+        #if os(iOS) || targetEnvironment(macCatalyst) || os(visionOS)
+        if #available(iOS 16.4, macCatalyst 16.4, visionOS 1.0, *) {
             try connection.startMessageListenerTask(generation: generation) {
-                OpenIapLog.debug("🔔 [MessageListener] Starting Message.messages listener (iOS 18+)")
+                OpenIapLog.debug("🔔 [MessageListener] Starting Message.messages listener")
                 return Task { [weak self] in
                     guard let self else { return }
                     for await message in StoreKit.Message.messages {
-                        if Task.isCancelled { return }
+                        guard !Task.isCancelled,
+                              self.connection.isConnected(generation: generation),
+                              await self.state.isInitialized else { return }
                         OpenIapLog.debug("🔔 [MessageListener] Received message: reason=\(message.reason)")
-                        guard await self.state.isInitialized else {
-                            OpenIapLog.debug("🔔 [MessageListener] Skipping — not initialized")
-                            continue
-                        }
+
+                        // Listening to Message.messages transfers presentation control to
+                        // the app. Preserve StoreKit's default UX for every reason (including
+                        // price-increase consent and win-back offers) instead of silently
+                        // suppressing messages that OpenIAP does not expose as events.
+                        guard await self.displayStoreKitMessage(message),
+                              !Task.isCancelled,
+                              self.connection.isConnected(generation: generation),
+                              await self.state.isInitialized else { return }
+
                         guard case .billingIssue = message.reason else {
                             OpenIapLog.debug("🔔 [MessageListener] Skipping non-billingIssue message")
                             continue
                         }
                         OpenIapLog.debug("🔔 [MessageListener] billingIssue received — dispatching")
-                        await self.dispatchBillingIssueMessage()
+                        await self.dispatchBillingIssueMessage(generation: generation)
                     }
                 }
             }
         } else {
-            OpenIapLog.debug("🔔 [MessageListener] Skipped — iOS < 18.0")
+            OpenIapLog.debug("🔔 [MessageListener] Skipped — Message.billingIssue unavailable")
         }
         #else
-        OpenIapLog.debug("🔔 [MessageListener] Skipped — not iOS/macCatalyst")
+        OpenIapLog.debug("🔔 [MessageListener] Skipped — unsupported platform")
         #endif
     }
 
-    /// Resolves the affected subscription(s) from current entitlements and emits the event.
+    #if os(iOS) || targetEnvironment(macCatalyst) || os(visionOS)
+    @available(iOS 16.0, macCatalyst 16.0, visionOS 1.0, *)
+    @MainActor
+    private func displayStoreKitMessage(_ message: StoreKit.Message) async -> Bool {
+        var retryDelay: UInt64 = 500_000_000
+        while !Task.isCancelled {
+            if let scene = activeWindowScene(), scene.activationState == .foregroundActive {
+                do {
+                    try message.display(in: scene)
+                    return true
+                } catch {
+                    OpenIapLog.warn("🔔 [MessageListener] StoreKit message display deferred: \(error.localizedDescription)")
+                }
+            }
+
+            do {
+                try await Task.sleep(nanoseconds: retryDelay)
+            } catch {
+                return false
+            }
+            retryDelay = min(retryDelay * 2, 2_000_000_000)
+        }
+        return false
+    }
+    #endif
+
+    /// Resolves the affected subscription group(s) from transaction history and emits the event.
     ///
-    /// `StoreKit.Message` doesn't carry a transaction reference, so we cross-reference
-    /// `Transaction.currentEntitlements` (auto-renewable only) and emit for every subscription
-    /// whose `Product.SubscriptionInfo.status` array contains an entry in `.inBillingRetryPeriod`
-    /// or `.inGracePeriod`. The status array is unordered across subscription-group members, so
-    /// we must iterate every element rather than inspect `.first`. Product lookups are batched
-    /// into a single `Product.products(for:)` call per message.
+    /// `StoreKit.Message` doesn't carry a transaction reference. Billing-retry subscriptions
+    /// are not necessarily current entitlements, so use `Transaction.all` only to discover the
+    /// user's subscription-group IDs, then treat `Product.SubscriptionInfo.status(for:)` as the
+    /// authoritative source. The status array is unordered across group members, so every
+    /// retry/grace entry and its own verified transaction must be inspected.
     ///
     /// Reference: https://developer.apple.com/documentation/storekit/product/subscriptioninfo/status(for:)
     @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
-    private func dispatchBillingIssueMessage() async {
-        var entitlements: [(Transaction, String)] = []
-        for await verification in Transaction.currentEntitlements {
+    private func dispatchBillingIssueMessage(generation: UInt64) async {
+        guard !Task.isCancelled else { return }
+        var subscriptionGroupIds = Set<String>()
+        for await verification in Transaction.all {
+            guard !Task.isCancelled else { return }
             guard case .verified(let transaction) = verification,
-                  transaction.productType == .autoRenewable else { continue }
-            entitlements.append((transaction, verification.jwsRepresentation))
+                  transaction.productType == .autoRenewable,
+                  let groupId = transaction.subscriptionGroupID else { continue }
+            subscriptionGroupIds.insert(groupId)
         }
-        guard !entitlements.isEmpty else {
-            OpenIapLog.debug("🔔 [MessageListener] billingIssue received but no auto-renewable entitlements present")
+        guard !subscriptionGroupIds.isEmpty else {
+            OpenIapLog.debug("🔔 [MessageListener] billingIssue received but no auto-renewable transaction history is present")
             return
         }
-
-        let productIds = Array(Set(entitlements.map { $0.0.productID }))
-        let products: [StoreKit.Product]
-        do {
-            products = try await StoreKit.Product.products(for: productIds)
-        } catch {
-            OpenIapLog.debug("🔔 [MessageListener] Product.products(for:) failed: \(error.localizedDescription)")
-            return
-        }
-        let productBySku: [String: StoreKit.Product] = Dictionary(uniqueKeysWithValues: products.map { ($0.id, $0) })
 
         var emitted = false
-        for (transaction, jws) in entitlements {
-            guard let subscription = productBySku[transaction.productID]?.subscription else { continue }
+        var emittedTransactionIds = Set<UInt64>()
+        for groupId in subscriptionGroupIds {
+            guard !Task.isCancelled else { return }
             let statusArray: [StoreKit.Product.SubscriptionInfo.Status]
             do {
-                statusArray = try await subscription.status
+                statusArray = try await StoreKit.Product.SubscriptionInfo.status(for: groupId)
             } catch {
+                OpenIapLog.debug("🔔 [MessageListener] Subscription status failed for group \(groupId): \(error.localizedDescription)")
                 continue
             }
-            var hasBillingIssue = false
             for status in statusArray {
-                if status.state == .inBillingRetryPeriod || status.state == .inGracePeriod {
-                    hasBillingIssue = true
-                    break
-                }
+                guard !Task.isCancelled else { return }
+                guard status.state == .inBillingRetryPeriod || status.state == .inGracePeriod,
+                      case .verified(let transaction) = status.transaction,
+                      emittedTransactionIds.insert(transaction.id).inserted else { continue }
+                let purchase = await StoreKitTypesBridge.purchase(
+                    from: transaction,
+                    jwsRepresentation: status.transaction.jwsRepresentation
+                )
+                guard !Task.isCancelled,
+                      connection.isConnected(generation: generation),
+                      await state.isInitialized else { return }
+                emitSubscriptionBillingIssue(purchase)
+                emitted = true
             }
-            guard hasBillingIssue else { continue }
-            let purchase = await StoreKitTypesBridge.purchase(
-                from: transaction,
-                jwsRepresentation: jws
-            )
-            emitSubscriptionBillingIssue(purchase)
-            emitted = true
         }
         if !emitted {
             OpenIapLog.debug("🔔 [MessageListener] billingIssue received but no subscription currently reports retry/grace state")
@@ -2073,6 +2216,12 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         case .emptySkuList: return "Empty SKU list provided"
         case .duplicatePurchase: return "Duplicate purchase update detected"
         }
+    }
+
+    private func withMessageListenerRegistrationLock<T>(_ body: () throws -> T) rethrows -> T {
+        messageListenerRegistrationLock.lock()
+        defer { messageListenerRegistrationLock.unlock() }
+        return try body()
     }
 
     #if os(iOS) || os(tvOS) || os(visionOS)

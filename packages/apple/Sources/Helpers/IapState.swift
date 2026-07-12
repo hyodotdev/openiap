@@ -43,6 +43,120 @@ private struct PurchaseUpdatedListenerRegistration {
     let dedupeTransactionIOS: Bool
 }
 
+/// Listener registration is a synchronous API. Keeping callbacks behind a
+/// small lock-backed registry makes a returned `Subscription` active
+/// immediately and makes `removeListener` take effect before it returns.
+@available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
+private final class IapListenerRegistry: @unchecked Sendable {
+    private let lock = NSLock()
+    private var purchaseUpdatedListeners: [PurchaseUpdatedListenerRegistration] = []
+    private var purchaseErrorListeners: [(id: UUID, listener: PurchaseErrorListener)] = []
+    private var promotedProductListeners: [(id: UUID, listener: PromotedProductListener)] = []
+    private var subscriptionBillingIssueListeners: [(id: UUID, listener: SubscriptionBillingIssueListener)] = []
+    private var pendingPromotedProductReplayId: String?
+
+    func addPurchaseUpdatedListener(
+        id: UUID,
+        listener: @escaping PurchaseUpdatedListener,
+        options: PurchaseUpdatedListenerOptions?
+    ) {
+        withLock {
+            purchaseUpdatedListeners.append(PurchaseUpdatedListenerRegistration(
+                id: id,
+                listener: listener,
+                dedupeTransactionIOS: options?.dedupeTransactionIOS ?? true
+            ))
+        }
+    }
+
+    func addPurchaseErrorListener(_ pair: (UUID, PurchaseErrorListener)) {
+        withLock { purchaseErrorListeners.append((id: pair.0, listener: pair.1)) }
+    }
+
+    func addPromotedProductListener(_ pair: (UUID, PromotedProductListener)) -> String? {
+        withLock {
+            promotedProductListeners.append((id: pair.0, listener: pair.1))
+            defer { pendingPromotedProductReplayId = nil }
+            return pendingPromotedProductReplayId
+        }
+    }
+
+    func addSubscriptionBillingIssueListener(_ pair: (UUID, SubscriptionBillingIssueListener)) {
+        withLock { subscriptionBillingIssueListeners.append((id: pair.0, listener: pair.1)) }
+    }
+
+    func recordPromotedProductAndSnapshotListeners(_ id: String) -> [PromotedProductListener] {
+        withLock {
+            let listeners = promotedProductListeners.map { $0.listener }
+            pendingPromotedProductReplayId = listeners.isEmpty ? id : nil
+            return listeners
+        }
+    }
+
+    func clearPendingPromotedProduct() {
+        withLock { pendingPromotedProductReplayId = nil }
+    }
+
+    func removeListener(id: UUID, type: IapEvent) {
+        withLock {
+            switch type {
+            case .purchaseUpdated:
+                purchaseUpdatedListeners.removeAll { $0.id == id }
+            case .purchaseError:
+                purchaseErrorListeners.removeAll { $0.id == id }
+            case .promotedProductIos:
+                promotedProductListeners.removeAll { $0.id == id }
+            case .subscriptionBillingIssue:
+                subscriptionBillingIssueListeners.removeAll { $0.id == id }
+            case .userChoiceBillingAndroid:
+                os_log(.info, "userChoiceBillingAndroid is not supported on iOS (no-op)")
+            case .developerProvidedBillingAndroid:
+                os_log(.info, "developerProvidedBillingAndroid is not supported on iOS (no-op)")
+            @unknown default:
+                break
+            }
+        }
+    }
+
+    func removeAllListeners() {
+        withLock {
+            purchaseUpdatedListeners.removeAll()
+            purchaseErrorListeners.removeAll()
+            promotedProductListeners.removeAll()
+            subscriptionBillingIssueListeners.removeAll()
+        }
+    }
+
+    func snapshotPurchaseUpdated(isDuplicate: Bool = false) -> [PurchaseUpdatedListener] {
+        withLock {
+            purchaseUpdatedListeners.compactMap { registration in
+                guard !isDuplicate || !registration.dedupeTransactionIOS else {
+                    return nil
+                }
+                return registration.listener
+            }
+        }
+    }
+
+    func snapshotPurchaseError() -> [PurchaseErrorListener] {
+        withLock { purchaseErrorListeners.map { $0.listener } }
+    }
+
+    func snapshotSubscriptionBillingIssue() -> [SubscriptionBillingIssueListener] {
+        withLock { subscriptionBillingIssueListeners.map { $0.listener } }
+    }
+
+    func hasSubscriptionBillingIssueListeners() -> Bool {
+        withLock { !subscriptionBillingIssueListeners.isEmpty }
+    }
+
+    private func withLock<T>(_ body: () -> T) -> T {
+        lock.lock()
+        defer { lock.unlock() }
+        return body()
+    }
+}
+
 @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
 actor IapState {
     private static let purchaseUpdateEmissionHistoryLimit = 512
@@ -53,13 +167,7 @@ actor IapState {
         limit: purchaseUpdateEmissionHistoryLimit
     )
     private var promotedProductId: String?
-    private var pendingPromotedProductReplayId: String?
-
-    // Event listeners
-    private var purchaseUpdatedListeners: [PurchaseUpdatedListenerRegistration] = []
-    private var purchaseErrorListeners: [(id: UUID, listener: PurchaseErrorListener)] = []
-    private var promotedProductListeners: [(id: UUID, listener: PromotedProductListener)] = []
-    private var subscriptionBillingIssueListeners: [(id: UUID, listener: SubscriptionBillingIssueListener)] = []
+    private let listenerRegistry = IapListenerRegistry()
 
     // MARK: - Init flag
     func setInitialized(_ value: Bool) { isInitialized = value }
@@ -68,7 +176,7 @@ actor IapState {
         purchaseUpdateEmissionHistory.removeAll()
         isInitialized = false
         promotedProductId = nil
-        pendingPromotedProductReplayId = nil
+        listenerRegistry.clearPendingPromotedProduct()
     }
 
     // MARK: - Pending Transactions
@@ -93,88 +201,51 @@ actor IapState {
     func setPromotedProductId(_ id: String?) {
         promotedProductId = id
         if id == nil {
-            pendingPromotedProductReplayId = nil
+            listenerRegistry.clearPendingPromotedProduct()
         }
     }
     func promotedProductIdentifier() -> String? { promotedProductId }
     func recordPromotedProductAndSnapshotListeners(_ id: String) -> [PromotedProductListener] {
         promotedProductId = id
-        let listeners = promotedProductListeners.map { $0.listener }
-        pendingPromotedProductReplayId = listeners.isEmpty ? id : nil
-        return listeners
+        return listenerRegistry.recordPromotedProductAndSnapshotListeners(id)
     }
 
     // MARK: - Listeners
-    func addPurchaseUpdatedListener(
+    nonisolated func addPurchaseUpdatedListener(
         id: UUID,
         listener: @escaping PurchaseUpdatedListener,
         options: PurchaseUpdatedListenerOptions?
     ) {
-        purchaseUpdatedListeners.append(PurchaseUpdatedListenerRegistration(
-            id: id,
-            listener: listener,
-            dedupeTransactionIOS: options?.dedupeTransactionIOS ?? true
-        ))
+        listenerRegistry.addPurchaseUpdatedListener(id: id, listener: listener, options: options)
     }
-    func addPurchaseErrorListener(_ pair: (UUID, PurchaseErrorListener)) {
-        purchaseErrorListeners.append((id: pair.0, listener: pair.1))
+    nonisolated func addPurchaseErrorListener(_ pair: (UUID, PurchaseErrorListener)) {
+        listenerRegistry.addPurchaseErrorListener(pair)
     }
-    func addPromotedProductListener(_ pair: (UUID, PromotedProductListener)) -> String? {
-        promotedProductListeners.append((id: pair.0, listener: pair.1))
-        let pendingProductId = pendingPromotedProductReplayId
-        pendingPromotedProductReplayId = nil
-        return pendingProductId
+    nonisolated func addPromotedProductListener(_ pair: (UUID, PromotedProductListener)) -> String? {
+        listenerRegistry.addPromotedProductListener(pair)
     }
-    func addSubscriptionBillingIssueListener(_ pair: (UUID, SubscriptionBillingIssueListener)) {
-        subscriptionBillingIssueListeners.append((id: pair.0, listener: pair.1))
+    nonisolated func addSubscriptionBillingIssueListener(_ pair: (UUID, SubscriptionBillingIssueListener)) {
+        listenerRegistry.addSubscriptionBillingIssueListener(pair)
     }
 
-    func removeListener(id: UUID, type: IapEvent) {
-        switch type {
-        case .purchaseUpdated:
-            purchaseUpdatedListeners.removeAll { $0.id == id }
-        case .purchaseError:
-            purchaseErrorListeners.removeAll { $0.id == id }
-        case .promotedProductIos:
-            promotedProductListeners.removeAll { $0.id == id }
-        case .subscriptionBillingIssue:
-            subscriptionBillingIssueListeners.removeAll { $0.id == id }
-        case .userChoiceBillingAndroid:
-            // No-op: User Choice Billing is an Android-only feature
-            os_log(.info, "userChoiceBillingAndroid is not supported on iOS (no-op)")
-        case .developerProvidedBillingAndroid:
-            // No-op: Developer Provided Billing is an Android-only feature (Google Play 8.3.0+)
-            os_log(.info, "developerProvidedBillingAndroid is not supported on iOS (no-op)")
-        @unknown default:
-            break
-        }
+    nonisolated func removeListener(id: UUID, type: IapEvent) {
+        listenerRegistry.removeListener(id: id, type: type)
     }
 
-    func removeAllListeners() {
-        purchaseUpdatedListeners.removeAll()
-        purchaseErrorListeners.removeAll()
-        promotedProductListeners.removeAll()
-        subscriptionBillingIssueListeners.removeAll()
+    nonisolated func removeAllListeners() {
+        listenerRegistry.removeAllListeners()
     }
 
-    func snapshotPurchaseUpdated(isDuplicate: Bool = false) -> [PurchaseUpdatedListener] {
-        purchaseUpdatedListeners.compactMap { registration in
-            guard !isDuplicate || !registration.dedupeTransactionIOS else {
-                return nil
-            }
-            return registration.listener
-        }
+    nonisolated func snapshotPurchaseUpdated(isDuplicate: Bool = false) -> [PurchaseUpdatedListener] {
+        listenerRegistry.snapshotPurchaseUpdated(isDuplicate: isDuplicate)
     }
-    func snapshotPurchaseError() -> [PurchaseErrorListener] {
-        purchaseErrorListeners.map { $0.listener }
+    nonisolated func snapshotPurchaseError() -> [PurchaseErrorListener] {
+        listenerRegistry.snapshotPurchaseError()
     }
-    func snapshotPromoted() -> [PromotedProductListener] {
-        promotedProductListeners.map { $0.listener }
+    nonisolated func snapshotSubscriptionBillingIssue() -> [SubscriptionBillingIssueListener] {
+        listenerRegistry.snapshotSubscriptionBillingIssue()
     }
-    func snapshotSubscriptionBillingIssue() -> [SubscriptionBillingIssueListener] {
-        subscriptionBillingIssueListeners.map { $0.listener }
-    }
-    func hasSubscriptionBillingIssueListeners() -> Bool {
-        !subscriptionBillingIssueListeners.isEmpty
+    nonisolated func hasSubscriptionBillingIssueListeners() -> Bool {
+        listenerRegistry.hasSubscriptionBillingIssueListeners()
     }
 }

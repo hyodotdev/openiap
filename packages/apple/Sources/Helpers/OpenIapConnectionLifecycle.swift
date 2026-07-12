@@ -120,6 +120,22 @@ final class OpenIapConnectionLifecycle {
         withLock { productManager }
     }
 
+    /// The transaction listener is the lock-protected marker for an active generation.
+    func currentConnectedGeneration() -> UInt64? {
+        withLock {
+            guard endTask == nil, updateListenerTask != nil else { return nil }
+            return connectionGeneration
+        }
+    }
+
+    func isConnected(generation: UInt64) -> Bool {
+        currentConnectedGeneration() == generation
+    }
+
+    func isCurrentGeneration(_ generation: UInt64) -> Bool {
+        withLock { endTask == nil && connectionGeneration == generation }
+    }
+
     func getOrCreateProductManager(generation: UInt64) throws -> ProductManager {
         try withLock {
             guard connectionGeneration == generation else {
@@ -171,19 +187,29 @@ final class OpenIapConnectionLifecycle {
     }
 
     func startMessageListenerTask(
-        generation: UInt64?,
+        generation: UInt64,
         makeTask: () -> Task<Void, Never>
     ) throws {
         try withLock {
-            if let generation, connectionGeneration != generation {
+            guard connectionGeneration == generation,
+                  endTask == nil,
+                  updateListenerTask != nil else {
                 throw CancellationError()
             }
-            guard endTask == nil, messageListenerTask == nil else {
+            guard messageListenerTask == nil else {
                 return
             }
 
             messageListenerTask = makeTask()
         }
+    }
+
+    func stopMessageListenerTask() {
+        let task = withLock {
+            defer { messageListenerTask = nil }
+            return messageListenerTask
+        }
+        task?.cancel()
     }
 
     // MARK: - Cleanup

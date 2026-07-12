@@ -17,7 +17,7 @@ struct SubscriptionFlowScreen: View {
     @State private var isVerifying = false
     @State private var verificationResultMessage: String?
     @State private var processedPurchaseKey: String?
-    // Cross-platform subscriptionBillingIssue event (iOS 18+ StoreKit.Message.billingIssue).
+    // Cross-platform subscriptionBillingIssue event (iOS 16.4+ StoreKit.Message.billingIssue).
     // See: https://openiap.dev/docs/features/subscription-billing-issue
     @State private var billingIssuePurchase: OpenIapPurchase?
     @State private var billingIssueListenerToken: OpenIAP.Subscription?
@@ -247,7 +247,7 @@ struct SubscriptionFlowScreen: View {
         }
 
         // Cross-platform subscriptionBillingIssue event
-        // Delivered via StoreKit.Message.billingIssue on iOS 18+ / Mac Catalyst 18+.
+        // Delivered via StoreKit.Message.billingIssue on iOS / Mac Catalyst 16.4+.
         // Silent no-op on iOS 17 and earlier, and on macOS/tvOS/watchOS/visionOS.
         if let existing = billingIssueListenerToken {
             OpenIapModule.shared.removeListener(existing)
@@ -896,7 +896,7 @@ struct SubscriptionFlowScreen: View {
 @MainActor
 private extension SubscriptionFlowScreen {
     /// UI banner for the cross-platform subscriptionBillingIssue event.
-    /// Fires on iOS 18+ when StoreKit delivers Message.Reason.billingIssue.
+    /// Fires on iOS / Mac Catalyst 16.4+ when StoreKit delivers Message.Reason.billingIssue.
     @ViewBuilder
     func billingIssueBanner(for purchase: OpenIapPurchase) -> some View {
         VStack(alignment: .leading, spacing: 12) {

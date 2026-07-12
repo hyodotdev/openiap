@@ -17,6 +17,7 @@ public final class OpenIapStore: ObservableObject {
     @Published public private(set) var availablePurchases: [OpenIAP.Purchase] = []
     @Published public private(set) var currentPurchase: OpenIAP.Purchase?
     @Published public private(set) var currentPurchaseError: PurchaseError?
+    @Published public private(set) var currentSubscriptionBillingIssue: OpenIAP.Purchase?
     @Published public private(set) var activeSubscriptions: [ActiveSubscription] = []
     @Published public private(set) var promotedProduct: String?
 
@@ -39,6 +40,7 @@ public final class OpenIapStore: ObservableObject {
     public var onPurchaseSuccess: ((OpenIAP.Purchase) -> Void)?
     public var onPurchaseError: ((PurchaseError) -> Void)?
     public var onPromotedProduct: ((String) -> Void)?
+    public var onSubscriptionBillingIssue: ((OpenIAP.Purchase) -> Void)?
 
     // MARK: - Initialization
 
@@ -46,11 +48,13 @@ public final class OpenIapStore: ObservableObject {
         onPurchaseSuccess: ((OpenIAP.Purchase) -> Void)? = nil,
         onPurchaseError: ((PurchaseError) -> Void)? = nil,
         onPromotedProduct: ((String) -> Void)? = nil,
+        onSubscriptionBillingIssue: ((OpenIAP.Purchase) -> Void)? = nil,
         module: OpenIapModuleProtocol = OpenIapModule.shared
     ) {
         self.onPurchaseSuccess = onPurchaseSuccess
         self.onPurchaseError = onPurchaseError
         self.onPromotedProduct = onPromotedProduct
+        self.onSubscriptionBillingIssue = onSubscriptionBillingIssue
         self.module = module
         setupListeners()
     }
@@ -73,6 +77,11 @@ public final class OpenIapStore: ObservableObject {
             Task { @MainActor in self?.handlePurchaseError(error) }
         }
         listenerTokens.append(purchaseError)
+
+        let billingIssue = module.subscriptionBillingIssueListener { [weak self] purchase in
+            Task { @MainActor in self?.handleSubscriptionBillingIssue(purchase) }
+        }
+        listenerTokens.append(billingIssue)
 
         #if os(iOS)
         let promoted = module.promotedProductListenerIOS { [weak self] productId in
@@ -178,6 +187,11 @@ public final class OpenIapStore: ObservableObject {
         onPromotedProduct?(productId)
     }
 
+    private func handleSubscriptionBillingIssue(_ purchase: OpenIAP.Purchase) {
+        currentSubscriptionBillingIssue = purchase
+        onSubscriptionBillingIssue?(purchase)
+    }
+
     // MARK: - Product Management
 
     public func fetchProducts(skus: [String], type: ProductQueryType = .all) async throws {
@@ -251,6 +265,21 @@ public final class OpenIapStore: ObservableObject {
                 }
             }
         }
+    }
+
+    public func restorePurchases() async throws {
+        status.loadings.restorePurchases = true
+        defer { status.loadings.restorePurchases = false }
+
+        try await module.restorePurchases()
+        let purchases = try await module.getAvailablePurchases(
+            PurchaseOptions(onlyIncludeActiveItemsIOS: true)
+        )
+        availablePurchases = deduplicatePurchases(purchases)
+    }
+
+    public func getAllTransactionsIOS() async throws -> [PurchaseIOS] {
+        try await module.getAllTransactionsIOS()
     }
 
     public func requestPurchase(
@@ -327,6 +356,11 @@ public final class OpenIapStore: ObservableObject {
         @unknown default:
             return nil
         }
+    }
+
+    @available(*, deprecated, message: "Use promotedProductListenerIOS + requestPurchase instead")
+    public func requestPurchaseOnPromotedProductIOS() async throws -> Bool {
+        try await module.requestPurchaseOnPromotedProductIOS()
     }
 
     public func finishTransaction(purchase: PurchaseIOS, isConsumable: Bool = false) async throws {
@@ -467,16 +501,21 @@ public final class OpenIapStore: ObservableObject {
     // tvOS: showManageSubscriptions not available on tvOS (subscriptions managed in Settings > Accounts)
     // tvOS: deepLinkToSubscriptions not available on tvOS (no window scene UI)
     #if !os(tvOS)
-    public func presentCodeRedemptionSheetIOS() async throws {
-        _ = try await module.presentCodeRedemptionSheetIOS()
+    public func presentCodeRedemptionSheetIOS() async throws -> Bool {
+        try await module.presentCodeRedemptionSheetIOS()
     }
 
-    public func showManageSubscriptionsIOS() async throws {
-        _ = try await module.showManageSubscriptionsIOS()
+    public func showManageSubscriptionsIOS() async throws -> [PurchaseIOS] {
+        try await module.showManageSubscriptionsIOS()
     }
 
+    public func deepLinkToSubscriptions(_ options: DeepLinkOptions? = nil) async throws {
+        try await module.deepLinkToSubscriptions(options)
+    }
+
+    @available(*, deprecated, message: "Use deepLinkToSubscriptions instead")
     public func deepLinkToSubscriptionsIOS() async throws {
-        try await module.deepLinkToSubscriptions(nil)
+        try await deepLinkToSubscriptions()
     }
     #endif // !os(tvOS)
 
@@ -508,13 +547,14 @@ public final class OpenIapStore: ObservableObject {
         try await module.showExternalPurchaseCustomLinkNoticeIOS(noticeType)
     }
 
-    public func clearTransactionIOS() async throws {
-        _ = try await module.clearTransactionIOS()
+    public func clearTransactionIOS() async throws -> Bool {
+        try await module.clearTransactionIOS()
     }
 
     public func resetEphemeralState() {
         currentPurchase = nil
         currentPurchaseError = nil
+        currentSubscriptionBillingIssue = nil
         status.reset()
     }
 
