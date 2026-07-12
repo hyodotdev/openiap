@@ -6,7 +6,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.yield
+import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -37,30 +37,21 @@ class IosConnectionLifecycleTest {
     }
 
     @Test
-    fun `cancelling a submitted end does not let init overtake it`() = runTest {
+    fun `cancelling an operation releases the lifecycle`() = runTest {
         val lifecycle = IosConnectionLifecycle()
-        val endStarted = CompletableDeferred<Unit>()
-        val finishEnd = CompletableDeferred<Unit>()
-        val order = mutableListOf<String>()
+        val started = CompletableDeferred<Unit>()
 
-        val end = launch {
+        val operation = launch {
             lifecycle.run {
-                order += "end-start"
-                endStarted.complete(Unit)
-                finishEnd.await()
-                order += "end-finish"
+                started.complete(Unit)
+                awaitCancellation()
             }
         }
-        endStarted.await()
-        end.cancel()
-        val init = async { lifecycle.run { order += "init" } }
-        yield()
+        started.await()
+        operation.cancel()
 
-        assertEquals(listOf("end-start"), order)
-        finishEnd.complete(Unit)
-        end.join()
-        init.await()
-        assertEquals(listOf("end-start", "end-finish", "init"), order)
+        withTimeout(100) { operation.join() }
+        assertEquals("next", lifecycle.run { "next" })
     }
 
     @Test

@@ -41,9 +41,7 @@ internal class IosConnectionLifecycle(
     private val mutex = Mutex()
 
     suspend fun <T> run(block: suspend () -> T): T = mutex.withLock {
-        withContext(NonCancellable) {
-            withTimeout(timeoutMillis) { block() }
-        }
+        withTimeout(timeoutMillis) { block() }
     }
 }
 
