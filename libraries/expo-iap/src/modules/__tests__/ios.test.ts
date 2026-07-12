@@ -488,9 +488,9 @@ describe('iOS Module Functions', () => {
     });
 
     it('should return the iOS storefront country code', async () => {
-      (ExpoIapModule.getStorefront as jest.Mock).mockResolvedValue('US');
+      (ExpoIapModule.getStorefront as jest.Mock).mockResolvedValue('USA');
 
-      await expect(getStorefrontIOS()).resolves.toBe('US');
+      await expect(getStorefrontIOS()).resolves.toBe('USA');
     });
 
     it.each([null, '', '   '])(
@@ -504,6 +504,34 @@ describe('iOS Module Functions', () => {
         });
       },
     );
+
+    it('should reject when the native storefront method is unavailable', async () => {
+      const nativeGetStorefront = ExpoIapModule.getStorefront;
+      try {
+        delete (ExpoIapModule as any).getStorefront;
+
+        await expect(getStorefrontIOS()).rejects.toMatchObject({
+          code: 'feature-not-supported',
+          message: expect.stringContaining('not available on this build'),
+          platform: 'ios',
+        });
+      } finally {
+        (ExpoIapModule as any).getStorefront = nativeGetStorefront;
+      }
+    });
+
+    it('should normalize native storefront errors', async () => {
+      (ExpoIapModule.getStorefront as jest.Mock).mockRejectedValueOnce(
+        new Error('storefront exploded'),
+      );
+
+      await expect(getStorefrontIOS()).rejects.toMatchObject({
+        code: 'service-error',
+        message: 'Failed to get storefront.',
+        debugMessage: 'storefront exploded',
+        platform: 'ios',
+      });
+    });
 
     it('should call requestReceiptRefreshIOS and return refreshed receipt', async () => {
       const mockReceipt = 'refreshed-base64-receipt-data';
