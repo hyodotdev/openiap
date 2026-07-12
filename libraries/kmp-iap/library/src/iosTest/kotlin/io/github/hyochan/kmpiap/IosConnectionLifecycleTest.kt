@@ -7,8 +7,10 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.yield
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class IosConnectionLifecycleTest {
@@ -21,19 +23,22 @@ class IosConnectionLifecycleTest {
 
         val end = async {
             lifecycle.run {
-                order += "end"
+                order += "end-start"
                 endStarted.complete(Unit)
                 finishEnd.await()
+                order += "end-finish"
             }
         }
         endStarted.await()
         val init = async { lifecycle.run { order += "init" } }
+        yield()
 
-        assertEquals(listOf("end"), order)
+        assertFalse(init.isCompleted)
+        assertEquals(listOf("end-start"), order)
         finishEnd.complete(Unit)
         end.await()
         init.await()
-        assertEquals(listOf("end", "init"), order)
+        assertEquals(listOf("end-start", "end-finish", "init"), order)
     }
 
     @Test
