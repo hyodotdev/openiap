@@ -32,10 +32,12 @@ enum IapEvent {
   """
   DeveloperProvidedBillingAndroid
   """
-  Fired when an active subscription enters a billing-issue state that requires user attention.
-  Cross-platform unification of StoreKit 2 Message.billingIssue (iOS 18+) and
-  Play Billing 8.1+ isSuspended. NOT emitted on the Horizon flavor, whose Billing
-  Compatibility SDK implements only the Play Billing 7.0 API surface.
+  Fired when a subscription enters a billing-issue state that requires user attention.
+  A StoreKit billing-retry subscription may no longer be a current entitlement.
+  Cross-platform unification of StoreKit 2 Message.billingIssue (iOS 16.4+,
+  Mac Catalyst 16.4+, visionOS 1.0+) and
+  Play Billing 8.1+ isSuspended. NOT emitted by Amazon Appstore or the Horizon
+  flavor, whose Billing Compatibility SDK implements only Play Billing 7.0.
   """
   SubscriptionBillingIssue
 }
@@ -497,7 +499,7 @@ enum DiscountOfferType {
   """
   Promotional
   """
-  One-time product discount (Android only, Google Play Billing 7.0+)
+  One-time product discount (Android only, Google Play Billing 8.0+)
   """
   OneTime
 }
@@ -554,7 +556,7 @@ type SubscriptionPeriod {
 Standardized one-time product discount offer.
 Provides a unified interface for one-time purchase discounts across platforms.
 
-Currently supported on Android (Google Play Billing 7.0+).
+Currently supported on Android (Google Play Billing 8.0+).
 iOS does not support one-time purchase discounts in the same way.
 
 @see https://openiap.dev/docs/features/discount
@@ -652,7 +654,7 @@ type DiscountOffer {
   """
   [Android] Purchase option ID for this offer.
   Used to identify which purchase option the user selected.
-  Available in Google Play Billing Library 7.0+
+  Available in Google Play Billing Library 8.0+
   """
   purchaseOptionIdAndroid: String
 }
@@ -800,8 +802,8 @@ input InitConnectionConfig {
   Enable a specific billing program for Android (7.0+)
   When set, enables the specified billing program for external transactions.
   - USER_CHOICE_BILLING: User can select between Google Play or alternative (7.0+)
-  - EXTERNAL_CONTENT_LINK: Link to external content (8.2.0+)
-  - EXTERNAL_OFFER: External offers for digital content (8.2.0+)
+  - EXTERNAL_CONTENT_LINK: Link to external content (introduced in 8.2.0; use 8.2.1+)
+  - EXTERNAL_OFFER: External offers for digital content (introduced in 8.2.0; use 8.2.1+)
   - EXTERNAL_PAYMENTS: Developer provided billing, Japan only (8.3.0+)
   - BILLING_CHOICE: Google-rendered or developer-rendered billing choice
     (OpenIAP Spec 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+)

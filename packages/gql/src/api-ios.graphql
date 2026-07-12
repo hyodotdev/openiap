@@ -2,7 +2,8 @@
 
 extend type Query {
   """
-  Deprecated. Get the current App Store storefront country code — use cross-platform getStorefront instead.
+  Deprecated. Get the current App Store storefront ISO 3166-1 alpha-3 country
+  code — use cross-platform getStorefront instead.
   See: https://openiap.dev/docs/apis/ios/get-storefront-ios
   """
   # Future
@@ -97,7 +98,7 @@ extend type Query {
   getAppTransactionIOS: AppTransaction
   """
   List every StoreKit transaction (finished + unfinished) for the current user.
-  Requires the SK2ConsumableTransactionHistory Info.plist key in the host app
+  Requires the SKIncludeConsumableInAppPurchaseHistory Info.plist key in the host app
   for finished consumables to be included (iOS 18+).
   Unlike getAvailablePurchases, always returns the iOS-specific PurchaseIOS shape.
   See: https://openiap.dev/docs/apis/ios/get-all-transactions-ios
