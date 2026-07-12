@@ -250,7 +250,7 @@ public sealed record PurchaseError
           and <code>isEmptyProductList</code> when available. Use these
           diagnostics to distinguish Play Console product setup issues from
           transient BillingClient failures. In OpenIAP Spec 2.3.0 /{' '}
-          <code>openiap-google</code> 2.4.0, purchase-update failures also carry{' '}
+          <code>openiap-google</code> 2.3.1, purchase-update failures also carry{' '}
           <code>subResponseCodeAndroid</code> (requires Play Billing 8.0+) when
           Play Billing provides a more specific reason such as insufficient
           funds or offer ineligibility.

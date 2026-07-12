@@ -24,13 +24,13 @@ interface Note {
 
 const purchaseSafetyReleases = [
   ['openiap-apple 2.3.0', '2.3.0'],
-  ['openiap-google 2.4.0', 'google-2.4.0'],
-  ['react-native-iap 15.5.0', 'react-native-iap-15.5.0'],
-  ['expo-iap 4.5.0', 'expo-iap-4.5.0'],
-  ['flutter_inapp_purchase 9.5.0', 'flutter-iap-9.5.0'],
-  ['godot-iap 2.5.0', 'godot-iap-2.5.0'],
-  ['kmp-iap 2.5.0', 'kmp-iap-2.5.0'],
-  ['OpenIap.Maui 1.3.0', 'maui-iap-1.3.0'],
+  ['openiap-google 2.3.1', 'google-2.3.1'],
+  ['react-native-iap 15.4.1', 'react-native-iap-15.4.1'],
+  ['expo-iap 4.4.1', 'expo-iap-4.4.1'],
+  ['flutter_inapp_purchase 9.4.1', 'flutter-iap-9.4.1'],
+  ['godot-iap 2.4.1', 'godot-iap-2.4.1'],
+  ['kmp-iap 2.4.1', 'kmp-iap-2.4.1'],
+  ['OpenIap.Maui 1.2.2', 'maui-iap-1.2.2'],
 ] as const;
 
 function Releases() {
@@ -59,11 +59,11 @@ function Releases() {
               color: 'var(--text-secondary)',
             }}
           >
-            Publishes OpenIAP Spec and Apple 2.3.0 with minor releases for the
-            remaining native and framework SDKs. This release strengthens
-            concurrent store operations, callback ownership, typed error
-            delivery, and sensitive-value redaction while preserving published
-            public APIs and legacy payloads. The full compatibility audit is in{' '}
+            Publishes OpenIAP Spec and Apple 2.3.0 with patch releases for
+            Google and the framework SDKs. This release strengthens concurrent
+            store operations, callback ownership, typed error delivery, and
+            sensitive-value redaction while preserving published public APIs and
+            legacy payloads. The full compatibility audit is in{' '}
             <a
               href="https://github.com/hyodotdev/openiap/pull/222"
               target="_blank"
@@ -97,7 +97,7 @@ function Releases() {
               preserving the complete 2.2.5 Swift and Objective-C API surface.
             </li>
             <li>
-              <strong>openiap-google 2.4.0</strong> - prevents concurrent query
+              <strong>openiap-google 2.3.1</strong> - prevents concurrent query
               and purchase ownership races, ignores duplicate callbacks, and
               keeps Play, Horizon, and Amazon behavior isolated without exposing
               raw purchase values in diagnostics.
@@ -113,32 +113,32 @@ function Releases() {
             }}
           >
             <li>
-              <strong>react-native-iap 15.5.0</strong> - queues Nitro connection
+              <strong>react-native-iap 15.4.1</strong> - queues Nitro connection
               lifecycle calls, preserves native error metadata, redacts
               sensitive logs, and hardens Vega cancellation and fulfillment.
             </li>
             <li>
-              <strong>expo-iap 4.5.0</strong> - safely normalizes malformed
+              <strong>expo-iap 4.4.1</strong> - safely normalizes malformed
               native errors, removes exact listener instances during teardown,
               and prevents duplicate Vega TV purchase activation.
             </li>
             <li>
-              <strong>flutter_inapp_purchase 9.5.0</strong> - preserves typed
+              <strong>flutter_inapp_purchase 9.4.1</strong> - preserves typed
               cancellation and native diagnostics across platform channels and
               prevents stale purchase completions from becoming successes.
             </li>
             <li>
-              <strong>godot-iap 2.5.0</strong> - hardens Android and iOS
+              <strong>godot-iap 2.4.1</strong> - hardens Android and iOS
               connection ownership and callback completion while retaining the
               existing public method surface.
             </li>
             <li>
-              <strong>kmp-iap 2.5.0</strong> - serializes Play, Horizon, and
+              <strong>kmp-iap 2.4.1</strong> - serializes Play, Horizon, and
               Amazon query and purchase ownership and preserves typed
               cancellation and synchronous failures.
             </li>
             <li>
-              <strong>OpenIap.Maui 1.3.0</strong> - carries the native lifecycle
+              <strong>OpenIap.Maui 1.2.2</strong> - carries the native lifecycle
               and error safeguards through the MAUI facade while preserving the
               public 1.2.1 CLR signatures.
             </li>
