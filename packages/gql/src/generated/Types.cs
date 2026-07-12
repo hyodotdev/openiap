@@ -3940,15 +3940,13 @@ public sealed record UserChoiceBillingDetails
     public required string ExternalTransactionToken { get; init; }
     /// <summary>External transaction ID of the originating subscription when the user is</summary>
     /// <summary>upgrading or downgrading a developer-billed subscription. Available in</summary>
-    /// <summary>the next OpenIAP spec / openiap-google release after Spec 2.1.0 /</summary>
-    /// <summary>openiap-google 2.3.0 (requires Play Billing 9.1+).</summary>
+    /// <summary>OpenIAP Spec 2.3.0 / openiap-google 2.4.0 (requires Play Billing 9.1+).</summary>
     [JsonPropertyName("originalExternalTransactionId")]
     public string? OriginalExternalTransactionId { get; init; }
     /// <summary>Structured product details selected in the user-choice flow, including the</summary>
     /// <summary>product type and offer token. Legacy payloads may omit this field; use</summary>
-    /// <summary>products as the product-ID fallback. Available in the next OpenIAP spec /</summary>
-    /// <summary>openiap-google release after Spec 2.1.0 / openiap-google 2.3.0</summary>
-    /// <summary>(requires Play Billing 9.1+).</summary>
+    /// <summary>products as the product-ID fallback. Available in OpenIAP Spec 2.3.0 /</summary>
+    /// <summary>openiap-google 2.4.0 (requires Play Billing 9.1+).</summary>
     [JsonPropertyName("productDetailsAndroid")]
     public IReadOnlyList<DeveloperProvidedBillingProductAndroid>? ProductDetailsAndroid { get; init; }
     /// <summary>List of product IDs selected by the user</summary>
