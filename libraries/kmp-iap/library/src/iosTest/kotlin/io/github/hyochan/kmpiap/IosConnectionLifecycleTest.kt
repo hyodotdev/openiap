@@ -1,12 +1,15 @@
 package io.github.hyochan.kmpiap
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.yield
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class IosConnectionLifecycleTest {
     @Test
@@ -58,5 +61,17 @@ class IosConnectionLifecycleTest {
         end.join()
         init.await()
         assertEquals(listOf("end-start", "end-finish", "init"), order)
+    }
+
+    @Test
+    fun `stalled operation times out and releases the lifecycle`() = runTest {
+        val lifecycle = IosConnectionLifecycle(timeoutMillis = 1)
+        val stalled = async {
+            runCatching { lifecycle.run { awaitCancellation() } }
+        }
+        val next = async { lifecycle.run { "next" } }
+
+        assertTrue(stalled.await().exceptionOrNull() is TimeoutCancellationException)
+        assertEquals("next", next.await())
     }
 }

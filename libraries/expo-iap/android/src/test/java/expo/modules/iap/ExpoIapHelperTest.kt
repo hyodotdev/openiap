@@ -22,6 +22,19 @@ class ExpoIapHelperTest {
     }
 
     @Test
+    fun `end connection preserves OpenIapError code`() {
+        assertEquals(OpenIapError.NetworkError.CODE, endConnectionErrorCode(OpenIapError.NetworkError))
+    }
+
+    @Test
+    fun `end connection falls back to service disconnected`() {
+        assertEquals(
+            OpenIapError.ServiceDisconnected.CODE,
+            endConnectionErrorCode(IllegalStateException("cleanup failed")),
+        )
+    }
+
+    @Test
     fun `serializeOpenIapError preserves ProductNotFound product id`() {
         val payload = ExpoIapHelper.serializeOpenIapError(OpenIapError.ProductNotFound("premium_monthly"))
 

@@ -33,11 +33,17 @@ internal fun requireStorefront(value: String?): String =
             )
         )
 
-internal class IosConnectionLifecycle {
+private const val IOS_CONNECTION_OPERATION_TIMEOUT_MS = 15_000L
+
+internal class IosConnectionLifecycle(
+    private val timeoutMillis: Long = IOS_CONNECTION_OPERATION_TIMEOUT_MS
+) {
     private val mutex = Mutex()
 
     suspend fun <T> run(block: suspend () -> T): T = mutex.withLock {
-        withContext(NonCancellable) { block() }
+        withContext(NonCancellable) {
+            withTimeout(timeoutMillis) { block() }
+        }
     }
 }
 

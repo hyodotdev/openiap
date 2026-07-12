@@ -143,11 +143,15 @@ func _connect_signals_android() -> void:
 # Signal Handlers - iOS (SwiftGodot)
 # ==========================================
 func _on_native_purchase_updated(purchase: Dictionary) -> void:
-	var canonical = JSON.parse_string(purchase.get("purchaseJson", ""))
-	if canonical is Dictionary:
-		purchase_updated.emit(canonical)
-		return
-	purchase_updated.emit(purchase)
+	purchase_updated.emit(_canonical_purchase(purchase))
+
+func _canonical_purchase(purchase: Dictionary) -> Dictionary:
+	var purchase_json = purchase.get("purchaseJson")
+	if purchase_json is String and not purchase_json.is_empty():
+		var canonical = JSON.parse_string(purchase_json)
+		if canonical is Dictionary:
+			return canonical
+	return purchase
 
 func _on_native_purchase_error(error: Dictionary) -> void:
 	purchase_error.emit(error)
@@ -171,11 +175,7 @@ func _on_native_promoted_product_ios(product_id: String) -> void:
 	promoted_product_ios.emit(product_id)
 
 func _on_native_subscription_billing_issue_ios(purchase: Dictionary) -> void:
-	var canonical = JSON.parse_string(purchase.get("purchaseJson", ""))
-	if canonical is Dictionary:
-		subscription_billing_issue.emit(canonical)
-		return
-	subscription_billing_issue.emit(purchase)
+	subscription_billing_issue.emit(_canonical_purchase(purchase))
 
 # ==========================================
 # Signal Handlers - Android (JSON strings)
@@ -643,7 +643,7 @@ func _normalize_android_purchase_dict(purchase_dict: Dictionary) -> Dictionary:
 
 
 func _as_dictionary(value) -> Dictionary:
-	if typeof(value) == TYPE_OBJECT and value.has_method("to_dict"):
+	if is_instance_valid(value) and value.has_method("to_dict"):
 		return value.to_dict()
 	if value is Dictionary:
 		return value

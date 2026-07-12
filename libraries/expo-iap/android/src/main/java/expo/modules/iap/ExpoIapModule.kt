@@ -56,6 +56,9 @@ internal suspend fun endExpoConnectionWithCleanup(
     cleanup()
 }
 
+internal fun endConnectionErrorCode(error: Exception): String =
+    (error as? OpenIapError)?.code ?: OpenIapError.ServiceDisconnected.CODE
+
 class ExpoIapModule : Module() {
     companion object {
         const val TAG = "ExpoIapModule"
@@ -191,7 +194,7 @@ class ExpoIapModule : Module() {
                         } catch (error: Exception) {
                             ExpoIapLog.failure("endConnection", error)
                             promise.reject(
-                                OpenIapError.ServiceDisconnected.CODE,
+                                endConnectionErrorCode(error),
                                 error.message,
                                 error,
                             )

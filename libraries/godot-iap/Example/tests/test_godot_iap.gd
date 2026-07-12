@@ -138,6 +138,8 @@ func _run_all_tests() -> void:
 	await test_android_purchase_options_bridge()
 	await test_restore_purchases_mock()
 	await test_storefront_error_contract()
+	test_native_purchase_payload_safety()
+	test_freed_object_options_are_ignored()
 	test_sensitive_values_are_not_logged()
 
 	# Finish transaction tests
@@ -251,6 +253,25 @@ func test_billing_choice_android_payloads() -> void:
 func test_end_connection_mock() -> void:
 	var result = await GodotIapPlugin.end_connection()
 	_assert_true(result, "end_connection should return true in mock mode")
+
+
+func test_native_purchase_payload_safety() -> void:
+	var fallback = {"purchaseJson": null, "productId": "fallback"}
+	_assert_equal(
+		GodotIapPlugin._canonical_purchase(fallback),
+		fallback,
+		"Null purchaseJson should preserve the native dictionary"
+	)
+	var canonical = GodotIapPlugin._canonical_purchase({
+		"purchaseJson": JSON.stringify({"productId": "canonical"}),
+	})
+	_assert_equal(canonical.get("productId"), "canonical", "Valid purchaseJson should be decoded")
+
+
+func test_freed_object_options_are_ignored() -> void:
+	var freed = Node.new()
+	freed.free()
+	_assert_equal(GodotIapPlugin._as_dictionary(freed), {}, "Freed objects should be ignored")
 
 
 func test_ios_async_result_cache() -> void:
