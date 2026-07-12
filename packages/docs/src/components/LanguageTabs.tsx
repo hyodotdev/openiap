@@ -1,6 +1,7 @@
 import { useSyncExternalStore, type ReactElement, type ReactNode } from 'react';
 import {
   CODE_LANGUAGES,
+  DEFAULT_CODE_LANGUAGE,
   codeLanguageSignal,
   setCodeLanguage,
   type CodeLanguage,
@@ -33,6 +34,8 @@ const subscribeToCodeLanguage = (onStoreChange: () => void): (() => void) =>
 
 const getCodeLanguageSnapshot = (): CodeLanguage => codeLanguageSignal.value;
 
+const getCodeLanguageServerSnapshot = (): CodeLanguage => DEFAULT_CODE_LANGUAGE;
+
 function LanguageTabs({ children }: LanguageTabsProps): ReactElement {
   const availableLanguages = CODE_LANGUAGES.filter(
     (lang) => children[lang] !== undefined
@@ -40,7 +43,7 @@ function LanguageTabs({ children }: LanguageTabsProps): ReactElement {
   const preferredLanguage = useSyncExternalStore(
     subscribeToCodeLanguage,
     getCodeLanguageSnapshot,
-    getCodeLanguageSnapshot
+    getCodeLanguageServerSnapshot
   );
   const activeTab = availableLanguages.includes(preferredLanguage)
     ? preferredLanguage

@@ -12,7 +12,7 @@ export const CODE_LANGUAGES = [
 
 export type CodeLanguage = (typeof CODE_LANGUAGES)[number];
 
-const DEFAULT_CODE_LANGUAGE: CodeLanguage = 'swift';
+export const DEFAULT_CODE_LANGUAGE: CodeLanguage = 'swift';
 const CODE_LANGUAGE_STORAGE_KEY = 'openiap-docs-code-language';
 
 const getStoredCodeLanguage = (): CodeLanguage => {
