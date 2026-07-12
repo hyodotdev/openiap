@@ -53,21 +53,24 @@ function FinishTransaction() {
             <CodeBlock language="typescript">{`finishTransaction(args: MutationFinishTransactionArgs): Promise<void>
 
 interface MutationFinishTransactionArgs {
-  purchase: Purchase;
+  purchase: PurchaseInput;
   isConsumable?: boolean | null;
 }`}</CodeBlock>
           ),
           swift: (
-            <CodeBlock language="swift">{`func finishTransaction(_ purchase: Purchase, isConsumable: Bool = false) async throws`}</CodeBlock>
+            <CodeBlock language="swift">{`func finishTransaction(purchase: PurchaseInput, isConsumable: Bool?) async throws`}</CodeBlock>
           ),
           kotlin: (
-            <CodeBlock language="kotlin">{`suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean = false)`}</CodeBlock>
+            <CodeBlock language="kotlin">{`suspend fun finishTransaction(purchase: PurchaseInput, isConsumable: Boolean? = null)`}</CodeBlock>
           ),
           kmp: (
-            <CodeBlock language="kotlin">{`suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean = false)`}</CodeBlock>
+            <CodeBlock language="kotlin">{`suspend fun finishTransaction(purchase: PurchaseInput, isConsumable: Boolean? = null)`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`Future<void> finishTransaction(Purchase purchase, {bool isConsumable = false});`}</CodeBlock>
+            <CodeBlock language="dart">{`Future<void> finishTransaction({
+  required PurchaseInput purchase,
+  bool? isConsumable,
+});`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func finish_transaction(purchase: Purchase, is_consumable: bool = false) -> void`}</CodeBlock>
@@ -160,7 +163,10 @@ function PurchaseScreen() {
 }`}</CodeBlock>
           ),
           swift: (
-            <CodeBlock language="swift">{`try await OpenIapModule.shared.finishTransaction(purchase, isConsumable: false)`}</CodeBlock>
+            <CodeBlock language="swift">{`try await OpenIapModule.shared.finishTransaction(
+    purchase: purchase,
+    isConsumable: false
+)`}</CodeBlock>
           ),
           kotlin: (
             <CodeBlock language="kotlin">{`openIapStore.finishTransaction(purchase, isConsumable = false)`}</CodeBlock>
@@ -184,7 +190,9 @@ kmpIAP.finishTransaction(
 )`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`await FlutterInappPurchase.instance.finishTransaction(purchase);`}</CodeBlock>
+            <CodeBlock language="dart">{`await FlutterInappPurchase.instance.finishTransaction(
+  purchase: purchase,
+);`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`await iap.finish_transaction(purchase, false)`}</CodeBlock>

@@ -64,8 +64,8 @@ function ExternalPurchase() {
               <td>Alternative Billing / Billing Programs</td>
               <td>Android 6.0+ (API 23)</td>
               <td>
-                Google Play Billing 6.2+ (legacy), 8.2.0+ (recommended), 8.3.0+
-                (External Payments)
+                Google Play Billing 6.2+ (legacy), 8.2.0+ (External Content
+                Links), 8.2.1+ (External Offers), 8.3.0+ (External Payments)
               </td>
             </tr>
           </tbody>
@@ -299,7 +299,7 @@ Future<void> handleExternalPurchaseFlow() async {
     final noticeResult = await FlutterInappPurchase.instance
         .presentExternalPurchaseNoticeSheetIOS();
 
-    if (noticeResult.result == ExternalPurchaseNoticeAction.continueAction) {
+    if (noticeResult.result == ExternalPurchaseNoticeAction.Continue) {
       // Step 3: Present external purchase link
       final linkResult = await FlutterInappPurchase.instance
           .presentExternalPurchaseLinkIOS(externalUrl);
@@ -321,39 +321,22 @@ Future<void> handleExternalPurchaseFlow() async {
 }`}</CodeBlock>
                     ),
                     csharp: (
-                      <CodeBlock language="csharp">{`// iOS 18.2+ External Purchase Flow (from Kotlin Multiplatform)
-Task HandleExternalPurchaseFlowAsync() {
-    var externalUrl = "https://your-payment-site.com/checkout"
+                      <CodeBlock language="csharp">{`using OpenIap;
+using OpenIap.Maui;
 
-    try {
-        // Step 1: Check if notice sheet can be presented
-        var canPresent = OpenIap.canPresentExternalPurchaseNoticeIOS()
+async Task HandleExternalPurchaseFlowAsync()
+{
+    var mutate = (MutationResolver)OpenIapClient.Instance;
+    if (!await mutate.CanPresentExternalPurchaseNoticeIOSAsync()) return;
 
-        if (!canPresent) {
-            println("External purchase notice sheet not available")
-            return
-        }
+    var notice = await mutate.PresentExternalPurchaseNoticeSheetIOSAsync();
+    if (notice.Result != ExternalPurchaseNoticeAction.Continue) return;
 
-        // Step 2: Present notice sheet (Apple's info sheet)
-        var noticeResult = OpenIap.presentExternalPurchaseNoticeSheetIOS()
-
-        if (noticeResult.result == ExternalPurchaseNoticeAction.Continue) {
-            // Step 3: Present external purchase link
-            var linkResult = OpenIap.presentExternalPurchaseLinkIOS(externalUrl)
-
-            if (linkResult.success) {
-                println("User acknowledged external purchase")
-                // User approved external purchase
-                // Call your backend API to initiate purchase
-                // yourBackend.createPurchase(productId, userId)
-            } else {
-                println("External purchase link failed: \${linkResult.error ?: ""}")
-            }
-        } else {
-            println("User dismissed notice sheet")
-        }
-    } catch (e: Exception) {
-        println("External purchase error: \${e.message}")
+    var link = await mutate.PresentExternalPurchaseLinkIOSAsync(
+        "https://your-payment-site.com/checkout");
+    if (!link.Success)
+    {
+        Console.WriteLine($"External purchase link failed: {link.Error}");
     }
 }`}</CodeBlock>
                     ),
@@ -693,7 +676,7 @@ func handle_external_purchase_flow() -> void:
 
 // Initialize with Alternative Billing Only mode
 await initConnection({
-  alternativeBillingModeAndroid: 'alternativeOnly',
+  alternativeBillingModeAndroid: 'alternative-only',
 });
 
 // Purchase flow
@@ -810,12 +793,11 @@ suspend fun handleAlternativeBillingPurchase(productId: String) {
                     ),
                     kmp: (
                       <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.openiap.AlternativeBillingModeAndroid
+import io.github.hyochan.kmpiap.openiap.InitConnectionConfig
 
 // Initialize with Alternative Billing Only mode
-val kmpIAP = KmpIAP(
-    context = applicationContext,
-    alternativeBillingMode = AlternativeBillingMode.ALTERNATIVE_ONLY
-)
+val kmpIAP = KmpIAP()
 
 // Initialize connection
 val config = InitConnectionConfig(
@@ -827,14 +809,14 @@ kmpIAP.initConnection(config)
 suspend fun handleAlternativeBillingPurchase(productId: String) {
     try {
         // Step 1: Check availability
-        val isAvailable = kmpIAP.checkAlternativeBillingAvailability()
+        val isAvailable = kmpIAP.checkAlternativeBillingAvailabilityAndroid()
         if (!isAvailable) {
             Log.e("IAP", "Alternative billing not available")
             return
         }
 
         // Step 2: Show Google's information dialog
-        val dialogAccepted = kmpIAP.showAlternativeBillingInformationDialog(activity)
+        val dialogAccepted = kmpIAP.showAlternativeBillingDialogAndroid()
         if (!dialogAccepted) {
             Log.d("IAP", "User canceled")
             return
@@ -853,7 +835,7 @@ suspend fun handleAlternativeBillingPurchase(productId: String) {
         }
 
         // Step 4: Create reporting token (after successful payment)
-        val token = kmpIAP.createAlternativeBillingReportingToken()
+        val token = kmpIAP.createAlternativeBillingTokenAndroid()
         Log.d("IAP", "Token created; send it to your backend without logging it.")
 
         // Step 5: Send token to your backend server
@@ -875,7 +857,7 @@ suspend fun handleAlternativeBillingPurchase(productId: String) {
 
 // Initialize with Alternative Billing Only mode
 await FlutterInappPurchase.instance.initConnection(
-  alternativeBillingModeAndroid: AlternativeBillingModeAndroid.alternativeOnly,
+  alternativeBillingModeAndroid: AlternativeBillingModeAndroid.AlternativeOnly,
 );
 
 // Purchase flow
@@ -929,63 +911,27 @@ Future<void> handleAlternativeBillingPurchase(String productId) async {
 }`}</CodeBlock>
                     ),
                     csharp: (
-                      <CodeBlock language="csharp">{`// Initialize with Alternative Billing Only mode
-var iapStore = OpenIapStore(
-    context = applicationContext,
-    alternativeBillingMode = AlternativeBillingMode.ALTERNATIVE_ONLY
-)
+                      <CodeBlock language="csharp">{`using OpenIap;
+using OpenIap.Maui;
 
-// Initialize connection
-var config = InitConnectionConfig(
-    alternativeBillingModeAndroid = AlternativeBillingModeAndroid.AlternativeOnly
-)
-iapStore.initConnection(config)
+var mutate = (MutationResolver)OpenIapClient.Instance;
+await mutate.InitConnectionAsync(new InitConnectionConfig
+{
+    AlternativeBillingModeAndroid = AlternativeBillingModeAndroid.AlternativeOnly,
+});
 
-// Purchase flow
-Task HandleAlternativeBillingPurchaseAsync(String ProductId) {
-    try {
-        // Step 1: Check availability
-        var isAvailable = iapStore.checkAlternativeBillingAvailability()
-        if (!isAvailable) {
-            Log.e("IAP", "Alternative billing not available")
-            return
-        }
+// Legacy Alternative Billing Only flow. Prefer External Offer for new apps.
+async Task HandleAlternativeBillingPurchaseAsync(string productId)
+{
+    if (!await mutate.CheckAlternativeBillingAvailabilityAndroidAsync()) return;
+    if (!await mutate.ShowAlternativeBillingDialogAndroidAsync()) return;
 
-        // Step 2: Show Google's information dialog
-        var dialogAccepted = iapStore.showAlternativeBillingInformationDialog(activity)
-        if (!dialogAccepted) {
-            Log.d("IAP", "User canceled")
-            return
-        }
+    var payment = await YourBackend.CreatePaymentAsync(productId);
+    if (!payment.Success) return;
 
-        // Step 3: Process payment with your backend API
-        var paymentResult = yourBackend.createPayment(
-            productId = productId,
-            userId = userId,
-            amount = productPrice
-        )
-
-        if (!paymentResult.success) {
-            Log.e("IAP", "Payment failed: \${paymentResult.error}")
-            return
-        }
-
-        // Step 4: Create reporting token (after successful payment)
-        var token = iapStore.createAlternativeBillingReportingToken()
-        Log.d("IAP", "Token created; send it to your backend without logging it.")
-
-        // Step 5: Send token to your backend server
-        // Backend will report token to Google Play within 24 hours
-        yourBackend.reportToken(
-            token = token,
-            orderId = paymentResult.orderId,
-            productId = productId
-        )
-
-        Log.d("IAP", "Purchase completed!")
-    } catch (e: Exception) {
-        Log.e("IAP", "Purchase error: \${e.message}")
-    }
+    var token = await mutate.CreateAlternativeBillingTokenAndroidAsync();
+    if (token is null) return;
+    await YourBackend.ReportExternalTransactionAsync(token, payment.OrderId);
 }`}</CodeBlock>
                     ),
                     gdscript: (
@@ -1067,7 +1013,7 @@ func handle_alternative_billing_purchase(product_id: String) -> void:
 
 // Initialize with User Choice mode
 await initConnection({
-  alternativeBillingModeAndroid: 'userChoice',
+  enableBillingProgramAndroid: 'user-choice-billing',
 });
 
 // Set user choice billing listener (for alternative billing selection)
@@ -1111,7 +1057,8 @@ const purchaseSubscription = purchaseUpdatedListener(
 async function handleUserChoicePurchase(productId: string) {
   try {
     await requestPurchase({
-      google: { skus: [productId] },
+      request: { google: { skus: [productId] } },
+      type: 'in-app',
     });
 
     // If user selects Google Play → purchaseUpdatedListener callback
@@ -1126,18 +1073,11 @@ async function handleUserChoicePurchase(productId: string) {
 // purchaseSubscription.remove();`}</CodeBlock>
                     ),
                     kotlin: (
-                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.store.OpenIapStore
-import dev.hyo.openiap.AlternativeBillingMode
-import dev.hyo.openiap.AlternativeBillingModeAndroid
-import dev.hyo.openiap.InitConnectionConfig
-import dev.hyo.openiap.RequestPurchaseProps
-import dev.hyo.openiap.ProductQueryType
+                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.*
+import dev.hyo.openiap.store.OpenIapStore
 
 // Initialize with User Choice mode
-val iapStore = OpenIapStore(
-    context = applicationContext,
-    alternativeBillingMode = AlternativeBillingMode.USER_CHOICE
-)
+val iapStore = OpenIapStore(applicationContext)
 
 // Set user choice billing listener (for alternative billing selection)
 iapStore.setUserChoiceBillingListener { details ->
@@ -1169,15 +1109,17 @@ iapStore.setUserChoiceBillingListener { details ->
     }
 }
 
-// Set purchase success listener (for Google Play)
-iapStore.onPurchaseSuccess = { purchase ->
-    Log.d("IAP", "Google Play purchase: \${purchase.productId}")
-    // Handle Google Play purchase
+// Collect Google Play purchases.
+lifecycleScope.launch {
+    iapStore.currentPurchase.collect { purchase ->
+        purchase ?: return@collect
+        handleGooglePlayPurchase(purchase)
+    }
 }
 
 // Initialize connection
 val config = InitConnectionConfig(
-    alternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice
+    enableBillingProgramAndroid = BillingProgramAndroid.UserChoiceBilling
 )
 iapStore.initConnection(config)
 
@@ -1208,78 +1150,41 @@ suspend fun handleUserChoicePurchase(productId: String) {
                     ),
                     kmp: (
                       <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.openiap.*
 
-// Initialize with User Choice mode
-val kmpIAP = KmpIAP(
-    context = applicationContext,
-    alternativeBillingMode = AlternativeBillingMode.USER_CHOICE
-)
+val kmpIAP = KmpIAP()
 
-// Set user choice billing listener (for alternative billing selection)
-kmpIAP.setUserChoiceBillingListener { details ->
-    Log.d("IAP", "User selected alternative billing")
-    Log.d("IAP", "External transaction token received; send it to your backend without logging it.")
-    Log.d("IAP", "Products: \${details.products}")
-
-    // Process payment with your backend API
-    lifecycleScope.launch {
-        try {
-            val paymentResult = yourBackend.createPayment(
-                productId = details.products.first(),
-                userId = userId,
-                amount = productPrice
-            )
-
-            if (paymentResult.success) {
-                // Report token to backend (backend will send to Google Play)
-                yourBackend.reportToken(
-                    token = details.externalTransactionToken,
-                    orderId = paymentResult.orderId,
-                    productId = details.products.first()
-                )
-                Log.d("IAP", "Alternative billing purchase completed")
-            }
-        } catch (e: Exception) {
-            Log.e("IAP", "Alternative billing payment error: \${e.message}")
-        }
+// Start both one-shot subscription handlers before requesting a purchase.
+scope.launch {
+    val details = kmpIAP.userChoiceBillingAndroid()
+    yourBackend.handleAlternativeBilling(
+        productId = details.products.first(),
+        externalTransactionToken = details.externalTransactionToken
+    )
+}
+scope.launch {
+    kmpIAP.purchaseUpdatedListener.collect { purchase ->
+        handleGooglePlayPurchase(purchase)
     }
 }
 
-// Set purchase success listener (for Google Play)
-kmpIAP.onPurchaseSuccess = { purchase ->
-    Log.d("IAP", "Google Play purchase: \${purchase.productId}")
-    // Handle Google Play purchase
-}
-
-// Initialize connection
-val config = InitConnectionConfig(
-    alternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice
+kmpIAP.initConnection(
+    InitConnectionConfig(
+        enableBillingProgramAndroid = BillingProgramAndroid.UserChoiceBilling
+    )
 )
-kmpIAP.initConnection(config)
 
-// Purchase flow - Google shows selection dialog automatically
 suspend fun handleUserChoicePurchase(productId: String) {
-    try {
-        kmpIAP.setActivity(activity)
-
-        val props = RequestPurchaseProps(
+    kmpIAP.requestPurchase(
+        RequestPurchaseProps(
             request = RequestPurchaseProps.Request.Purchase(
                 RequestPurchasePropsByPlatforms(
-                    google = RequestPurchaseAndroidProps(
-                        skus = listOf(productId)
-                    )
+                    google = RequestPurchaseAndroidProps(skus = listOf(productId))
                 )
             ),
             type = ProductQueryType.InApp
         )
-
-        kmpIAP.requestPurchase(props)
-
-        // If user selects Google Play → onPurchaseSuccess callback
-        // If user selects alternative → UserChoiceBillingListener callback
-    } catch (e: Exception) {
-        Log.e("IAP", "Purchase error: \${e.message}")
-    }
+    )
 }`}</CodeBlock>
                     ),
                     dart: (
@@ -1287,11 +1192,11 @@ suspend fun handleUserChoicePurchase(productId: String) {
 
 // Initialize with User Choice mode
 await FlutterInappPurchase.instance.initConnection(
-  alternativeBillingModeAndroid: AlternativeBillingModeAndroid.userChoice,
+  enableBillingProgramAndroid: BillingProgramAndroid.UserChoiceBilling,
 );
 
 // Set user choice billing listener (for alternative billing selection)
-FlutterInappPurchase.userChoiceBillingStream.listen((details) async {
+FlutterInappPurchase.instance.userChoiceBillingAndroid.listen((details) async {
   print('User selected alternative billing');
   print('External transaction token received; send it to your backend without logging it.');
   print('Products: \${details.products}');
@@ -1318,7 +1223,7 @@ FlutterInappPurchase.userChoiceBillingStream.listen((details) async {
 });
 
 // Set purchase success listener (for Google Play)
-FlutterInappPurchase.purchaseUpdatedStream.listen((purchase) {
+FlutterInappPurchase.instance.purchaseUpdatedListener.listen((purchase) {
   print('Google Play purchase: \${purchase.productId}');
   // Handle Google Play purchase
 });
@@ -1327,89 +1232,48 @@ FlutterInappPurchase.purchaseUpdatedStream.listen((purchase) {
 Future<void> handleUserChoicePurchase(String productId) async {
   try {
     await FlutterInappPurchase.instance.requestPurchase(
-      productId,
+      RequestPurchaseProps.inApp((
+        apple: null,
+        google: RequestPurchaseAndroidProps(skus: [productId]),
+        useAlternativeBilling: null,
+      )),
     );
 
-    // If user selects Google Play → purchaseUpdatedStream callback
-    // If user selects alternative → userChoiceBillingStream callback
+    // If user selects Google Play → purchaseUpdatedListener callback
+    // If user selects alternative → userChoiceBillingAndroid callback
   } catch (e) {
     print('Purchase error: $e');
   }
 }`}</CodeBlock>
                     ),
                     csharp: (
-                      <CodeBlock language="csharp">{`// Initialize with User Choice mode
-var iapStore = OpenIapStore(
-    context = applicationContext,
-    alternativeBillingMode = AlternativeBillingMode.USER_CHOICE
-)
+                      <CodeBlock language="csharp">{`using OpenIap;
+using OpenIap.Maui;
 
-// Set user choice billing listener (for alternative billing selection)
-iapStore.setUserChoiceBillingListener { details ->
-    Log.d("IAP", "User selected alternative billing")
-    Log.d("IAP", "External transaction token received; send it to your backend without logging it.")
-    Log.d("IAP", "Products: \${details.products}")
+var iap = OpenIapClient.Instance;
+var mutate = (MutationResolver)iap;
 
-    // Process payment with your backend API
-    lifecycleScope.launch {
-        try {
-            var paymentResult = yourBackend.createPayment(
-                productId = details.products.first(),
-                userId = userId,
-                amount = productPrice
-            )
+using var userChoiceSubscription = iap.UserChoiceBillingAndroid.Subscribe(
+    details => _ = YourBackend.HandleUserChoiceAsync(details));
+using var purchaseSubscription = iap.PurchaseUpdated.Subscribe(
+    purchase => HandleGooglePlayPurchase(purchase));
 
-            if (paymentResult.success) {
-                // Report token to backend (backend will send to Google Play)
-                yourBackend.reportToken(
-                    token = details.externalTransactionToken,
-                    orderId = paymentResult.orderId,
-                    productId = details.products.first()
-                )
-                Log.d("IAP", "Alternative billing purchase completed")
-            }
-        } catch (e: Exception) {
-            Log.e("IAP", "Alternative billing payment error: \${e.message}")
-        }
-    }
-}
+await mutate.InitConnectionAsync(new InitConnectionConfig
+{
+    EnableBillingProgramAndroid = BillingProgramAndroid.UserChoiceBilling,
+});
 
-// Set purchase success listener (for Google Play)
-iapStore.onPurchaseSuccess = { purchase ->
-    Log.d("IAP", "Google Play purchase: \${purchase.productId}")
-    // Handle Google Play purchase
-}
-
-// Initialize connection
-var config = InitConnectionConfig(
-    alternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice
-)
-iapStore.initConnection(config)
-
-// Purchase flow - Google shows selection dialog automatically
-Task HandleUserChoicePurchaseAsync(String ProductId) {
-    try {
-        iapStore.setActivity(activity)
-
-        var props = RequestPurchaseProps(
-            request = RequestPurchaseProps.Request.Purchase(
-                RequestPurchasePropsByPlatforms(
-                    google = RequestPurchaseAndroidProps(
-                        skus = new[] { productId }
-                    )
-                )
-            ),
-            type = ProductQueryType.InApp
-        )
-
-        iapStore.requestPurchase(props)
-
-        // If user selects Google Play → onPurchaseSuccess callback
-        // If user selects alternative → UserChoiceBillingListener callback
-    } catch (e: Exception) {
-        Log.e("IAP", "Purchase error: \${e.message}")
-    }
-}`}</CodeBlock>
+await mutate.RequestPurchaseAsync(new RequestPurchaseProps
+{
+    RequestPurchase = new RequestPurchasePropsByPlatforms
+    {
+        Google = new RequestPurchaseAndroidProps
+        {
+            Skus = new[] { "premium" },
+        },
+    },
+    Type = ProductQueryType.InApp,
+});`}</CodeBlock>
                     ),
                     gdscript: (
                       <CodeBlock language="gdscript">{`# Initialize with User Choice mode
@@ -1474,9 +1338,9 @@ func handle_user_choice_purchase(product_id: String) -> void:
                   </p>
                 </div>
 
-                <h4>Billing Programs API (8.2.0+)</h4>
+                <h4>Billing Programs API (8.2.1+)</h4>
                 <p>
-                  Google Play Billing Library 8.2.0 introduces the new{' '}
+                  Google Play Billing Library 8.2.1 introduces the new{' '}
                   <strong>Billing Programs API</strong> which replaces the
                   legacy alternative billing APIs. This provides better support
                   for External Content Links and External Offers.
@@ -1499,33 +1363,33 @@ func handle_user_choice_purchase(product_id: String) -> void:
                     typescript: (
                       <CodeBlock language="typescript">{`import {
   initConnection,
-  enableBillingProgramAndroid,
   isBillingProgramAvailableAndroid,
   createBillingProgramReportingDetailsAndroid,
   launchExternalLinkAndroid,
 } from 'expo-iap';
 
 // Step 0: Enable billing program BEFORE initConnection
-enableBillingProgramAndroid('EXTERNAL_OFFER');
-// or enableBillingProgramAndroid('EXTERNAL_CONTENT_LINK');
+await initConnection({ enableBillingProgramAndroid: 'external-offer' });
 
-await initConnection();
-
-// Purchase flow with Billing Programs API (8.2.0+)
+// External Offer flow with Billing Programs API (8.2.1+)
 async function handleExternalPurchaseWithBillingPrograms(productId: string) {
   try {
     // Step 1: Check if billing program is available
-    const result = await isBillingProgramAvailableAndroid('EXTERNAL_OFFER');
+    const result = await isBillingProgramAvailableAndroid('external-offer');
     if (!result.isAvailable) {
       console.log('External offer program not available');
       return;
     }
 
-    // Step 2: Launch external link (replaces showAlternativeBillingDialog)
+    // Step 2: Create reporting details immediately before redirecting.
+    const reportingDetails =
+      await createBillingProgramReportingDetailsAndroid('external-offer');
+
+    // Step 3: Let Google Play disclose and launch the external destination.
     const launched = await launchExternalLinkAndroid({
-      billingProgram: 'EXTERNAL_OFFER',
-      launchMode: 'LAUNCH_IN_EXTERNAL_BROWSER_OR_APP',
-      linkType: 'LINK_TO_DIGITAL_CONTENT_OFFER',
+      billingProgram: 'external-offer',
+      launchMode: 'launch-in-external-browser-or-app',
+      linkType: 'link-to-digital-content-offer',
       linkUri: 'https://your-payment-site.com/checkout',
     });
 
@@ -1534,26 +1398,14 @@ async function handleExternalPurchaseWithBillingPrograms(productId: string) {
       return;
     }
 
-    // Step 3: Process payment with your backend API
-    const paymentResult = await yourBackend.createPayment({
-      productId,
-      userId,
-      amount: productPrice,
-    });
+    // Step 4: launch=true is not purchase completion. Wait for a verified
+    // checkout return/deep-link/backend confirmation before reporting.
+    const checkout = await yourBackend.waitForVerifiedCheckoutCompletion({ productId });
+    if (!checkout.success) return;
 
-    if (!paymentResult.success) {
-      console.log(\`Payment failed: \${paymentResult.error}\`);
-      return;
-    }
-
-    // Step 4: Create reporting details (replaces createAlternativeBillingToken)
-    const reportingDetails = await createBillingProgramReportingDetailsAndroid('EXTERNAL_OFFER');
-    console.log('Token created; send it to your backend without logging it.');
-
-    // Step 5: Send token to your backend server
-    await yourBackend.reportToken({
-      token: reportingDetails.externalTransactionToken,
-      orderId: paymentResult.orderId,
+    // Report the external transaction to Google within 24 hours.
+    await yourBackend.reportExternalTransaction({
+      externalTransactionToken: reportingDetails.externalTransactionToken,
       productId,
     });
 
@@ -1565,21 +1417,18 @@ async function handleExternalPurchaseWithBillingPrograms(productId: string) {
                     ),
                     kotlin: (
                       <CodeBlock language="kotlin">{`import dev.hyo.openiap.store.OpenIapStore
-import dev.hyo.openiap.BillingProgramAndroid
-import dev.hyo.openiap.LaunchExternalLinkParamsAndroid
-import dev.hyo.openiap.ExternalLinkLaunchModeAndroid
-import dev.hyo.openiap.ExternalLinkTypeAndroid
+import dev.hyo.openiap.*
 
 // Initialize store
 val iapStore = OpenIapStore(context = applicationContext)
 
-// Step 0: Enable billing program BEFORE initConnection
-iapStore.enableBillingProgram(BillingProgramAndroid.ExternalOffer)
-// or BillingProgramAndroid.ExternalContentLink
+iapStore.initConnection(
+    InitConnectionConfig(
+        enableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer
+    )
+)
 
-iapStore.initConnection(null)
-
-// Purchase flow with Billing Programs API (8.2.0+)
+// External Offer flow with Billing Programs API (8.2.1+)
 suspend fun handleExternalPurchaseWithBillingPrograms(productId: String) {
     try {
         // Step 1: Check if billing program is available
@@ -1589,7 +1438,12 @@ suspend fun handleExternalPurchaseWithBillingPrograms(productId: String) {
             return
         }
 
-        // Step 2: Launch external link (replaces showAlternativeBillingDialog)
+        // Step 2: Create reporting details immediately before redirecting.
+        val reportingDetails = iapStore.createBillingProgramReportingDetails(
+            BillingProgramAndroid.ExternalOffer
+        )
+
+        // Step 3: Let Google Play disclose and launch the external destination.
         val launched = iapStore.launchExternalLink(
             activity,
             LaunchExternalLinkParamsAndroid(
@@ -1605,28 +1459,14 @@ suspend fun handleExternalPurchaseWithBillingPrograms(productId: String) {
             return
         }
 
-        // Step 3: Process payment with your backend API
-        val paymentResult = yourBackend.createPayment(
-            productId = productId,
-            userId = userId,
-            amount = productPrice
-        )
+        // Step 4: launch=true is not purchase completion. Wait for a verified
+        // checkout return/deep-link/backend confirmation before reporting.
+        val checkout = yourBackend.waitForVerifiedCheckoutCompletion(productId)
+        if (!checkout.success) return
 
-        if (!paymentResult.success) {
-            Log.e("IAP", "Payment failed: \${paymentResult.error}")
-            return
-        }
-
-        // Step 4: Create reporting details (replaces createAlternativeBillingToken)
-        val reportingDetails = iapStore.createBillingProgramReportingDetails(
-            BillingProgramAndroid.ExternalOffer
-        )
-        Log.d("IAP", "Token created; send it to your backend without logging it.")
-
-        // Step 5: Send token to your backend server
-        yourBackend.reportToken(
-            token = reportingDetails.externalTransactionToken,
-            orderId = paymentResult.orderId,
+        // Report the external transaction from your backend within 24 hours.
+        yourBackend.reportExternalTransaction(
+            externalTransactionToken = reportingDetails.externalTransactionToken,
             productId = productId
         )
 
@@ -1638,29 +1478,34 @@ suspend fun handleExternalPurchaseWithBillingPrograms(productId: String) {
                     ),
                     kmp: (
                       <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.openiap.*
 
 // Initialize store
-val kmpIAP = KmpIAP(context = applicationContext)
+val kmpIAP = KmpIAP()
 
-// Step 0: Enable billing program BEFORE initConnection
-kmpIAP.enableBillingProgram(BillingProgramAndroid.ExternalOffer)
-// or BillingProgramAndroid.ExternalContentLink
+kmpIAP.initConnection(
+    InitConnectionConfig(
+        enableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer
+    )
+)
 
-kmpIAP.initConnection(null)
-
-// Purchase flow with Billing Programs API (8.2.0+)
+// External Offer flow with Billing Programs API (8.2.1+)
 suspend fun handleExternalPurchaseWithBillingPrograms(productId: String) {
     try {
         // Step 1: Check if billing program is available
-        val result = kmpIAP.isBillingProgramAvailable(BillingProgramAndroid.ExternalOffer)
+        val result = kmpIAP.isBillingProgramAvailableAndroid(BillingProgramAndroid.ExternalOffer)
         if (!result.isAvailable) {
             Log.e("IAP", "External offer program not available")
             return
         }
 
-        // Step 2: Launch external link (replaces showAlternativeBillingDialog)
-        val launched = kmpIAP.launchExternalLink(
-            activity,
+        // Step 2: Create reporting details immediately before redirecting.
+        val reportingDetails = kmpIAP.createBillingProgramReportingDetailsAndroid(
+            BillingProgramAndroid.ExternalOffer
+        )
+
+        // Step 3: Let Google Play disclose and launch the external destination.
+        val launched = kmpIAP.launchExternalLinkAndroid(
             LaunchExternalLinkParamsAndroid(
                 billingProgram = BillingProgramAndroid.ExternalOffer,
                 launchMode = ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
@@ -1674,28 +1519,14 @@ suspend fun handleExternalPurchaseWithBillingPrograms(productId: String) {
             return
         }
 
-        // Step 3: Process payment with your backend API
-        val paymentResult = yourBackend.createPayment(
-            productId = productId,
-            userId = userId,
-            amount = productPrice
-        )
+        // Step 4: launch=true is not purchase completion. Wait for a verified
+        // checkout return/deep-link/backend confirmation before reporting.
+        val checkout = yourBackend.waitForVerifiedCheckoutCompletion(productId)
+        if (!checkout.success) return
 
-        if (!paymentResult.success) {
-            Log.e("IAP", "Payment failed: \${paymentResult.error}")
-            return
-        }
-
-        // Step 4: Create reporting details (replaces createAlternativeBillingToken)
-        val reportingDetails = kmpIAP.createBillingProgramReportingDetails(
-            BillingProgramAndroid.ExternalOffer
-        )
-        Log.d("IAP", "Token created; send it to your backend without logging it.")
-
-        // Step 5: Send token to your backend server
-        yourBackend.reportToken(
-            token = reportingDetails.externalTransactionToken,
-            orderId = paymentResult.orderId,
+        // Report the external transaction from your backend within 24 hours.
+        yourBackend.reportExternalTransaction(
+            externalTransactionToken = reportingDetails.externalTransactionToken,
             productId = productId
         )
 
@@ -1708,33 +1539,33 @@ suspend fun handleExternalPurchaseWithBillingPrograms(productId: String) {
                     dart: (
                       <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
-// Step 0: Enable billing program BEFORE initConnection
-FlutterInappPurchase.instance.enableBillingProgramAndroid(
-  BillingProgramAndroid.externalOffer,
+await FlutterInappPurchase.instance.initConnection(
+  enableBillingProgramAndroid: BillingProgramAndroid.ExternalOffer,
 );
-// or BillingProgramAndroid.externalContentLink
 
-await FlutterInappPurchase.instance.initConnection();
-
-// Purchase flow with Billing Programs API (8.2.0+)
+// External Offer flow with Billing Programs API (8.2.1+)
 Future<void> handleExternalPurchaseWithBillingPrograms(String productId) async {
   try {
     // Step 1: Check if billing program is available
     final result = await FlutterInappPurchase.instance
-        .isBillingProgramAvailableAndroid(BillingProgramAndroid.externalOffer);
+        .isBillingProgramAvailableAndroid(BillingProgramAndroid.ExternalOffer);
     if (!result.isAvailable) {
       print('External offer program not available');
       return;
     }
 
-    // Step 2: Launch external link (replaces showAlternativeBillingDialog)
+    // Step 2: Create reporting details immediately before redirecting.
+    final reportingDetails = await FlutterInappPurchase.instance
+        .createBillingProgramReportingDetailsAndroid(
+          program: BillingProgramAndroid.ExternalOffer,
+        );
+
+    // Step 3: Let Google Play disclose and launch the external destination.
     final launched = await FlutterInappPurchase.instance.launchExternalLinkAndroid(
-      LaunchExternalLinkParamsAndroid(
-        billingProgram: BillingProgramAndroid.externalOffer,
-        launchMode: ExternalLinkLaunchModeAndroid.launchInExternalBrowserOrApp,
-        linkType: ExternalLinkTypeAndroid.linkToDigitalContentOffer,
-        linkUri: 'https://your-payment-site.com/checkout',
-      ),
+      billingProgram: BillingProgramAndroid.ExternalOffer,
+      launchMode: ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+      linkType: ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
+      linkUri: 'https://your-payment-site.com/checkout',
     );
 
     if (!launched) {
@@ -1742,27 +1573,14 @@ Future<void> handleExternalPurchaseWithBillingPrograms(String productId) async {
       return;
     }
 
-    // Step 3: Process payment with your backend API
-    final paymentResult = await yourBackend.createPayment(
-      productId: productId,
-      userId: userId,
-      amount: productPrice,
-    );
+    // Step 4: launch=true is not purchase completion. Wait for a verified
+    // checkout return/deep-link/backend confirmation before reporting.
+    final checkout = await yourBackend.waitForVerifiedCheckoutCompletion(productId);
+    if (!checkout.success) return;
 
-    if (!paymentResult.success) {
-      print('Payment failed: \${paymentResult.error}');
-      return;
-    }
-
-    // Step 4: Create reporting details (replaces createAlternativeBillingToken)
-    final reportingDetails = await FlutterInappPurchase.instance
-        .createBillingProgramReportingDetailsAndroid(BillingProgramAndroid.externalOffer);
-    print('Token created; send it to your backend without logging it.');
-
-    // Step 5: Send token to your backend server
-    await yourBackend.reportToken(
-      token: reportingDetails.externalTransactionToken,
-      orderId: paymentResult.orderId,
+    // Report the external transaction from your backend within 24 hours.
+    await yourBackend.reportExternalTransaction(
+      externalTransactionToken: reportingDetails.externalTransactionToken,
       productId: productId,
     );
 
@@ -1773,80 +1591,56 @@ Future<void> handleExternalPurchaseWithBillingPrograms(String productId) async {
 }`}</CodeBlock>
                     ),
                     csharp: (
-                      <CodeBlock language="csharp">{`// Initialize store
-var iapStore = OpenIapStore(context = applicationContext)
+                      <CodeBlock language="csharp">{`using OpenIap;
+using OpenIap.Maui;
 
-// Step 0: Enable billing program BEFORE initConnection
-iapStore.enableBillingProgram(BillingProgramAndroid.ExternalOffer)
-// or BillingProgramAndroid.ExternalContentLink
+var mutate = (MutationResolver)OpenIapClient.Instance;
+await mutate.InitConnectionAsync(new InitConnectionConfig
+{
+    EnableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer,
+});
 
-iapStore.initConnection(null)
+async Task HandleExternalPurchaseWithBillingProgramsAsync(string productId)
+{
+    // Step 1: Check program availability.
+    var availability = await mutate.IsBillingProgramAvailableAndroidAsync(
+        BillingProgramAndroid.ExternalOffer);
+    if (!availability.IsAvailable) return;
 
-// Purchase flow with Billing Programs API (8.2.0+)
-Task HandleExternalPurchaseWithBillingProgramsAsync(String ProductId) {
-    try {
-        // Step 1: Check if billing program is available
-        var result = iapStore.isBillingProgramAvailable(BillingProgramAndroid.ExternalOffer)
-        if (!result.isAvailable) {
-            Log.e("IAP", "External offer program not available")
-            return
-        }
+    // Step 2: Create reporting details immediately before redirecting.
+    var reportingDetails = await mutate.CreateBillingProgramReportingDetailsAndroidAsync(
+        BillingProgramAndroid.ExternalOffer);
 
-        // Step 2: Launch external link (replaces showAlternativeBillingDialog)
-        var launched = iapStore.launchExternalLink(
-            activity,
-            LaunchExternalLinkParamsAndroid(
-                billingProgram = BillingProgramAndroid.ExternalOffer,
-                launchMode = ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
-                linkType = ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
-                linkUri = "https://your-payment-site.com/checkout"
-            )
-        )
+    // Step 3: Let Google Play disclose and launch the external destination.
+    var launched = await mutate.LaunchExternalLinkAndroidAsync(
+        new LaunchExternalLinkParamsAndroid
+        {
+            BillingProgram = BillingProgramAndroid.ExternalOffer,
+            LaunchMode = ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+            LinkType = ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
+            LinkUri = "https://your-payment-site.com/checkout",
+        });
+    if (!launched) return;
 
-        if (!launched) {
-            Log.e("IAP", "Failed to launch external link")
-            return
-        }
+    // Step 4: launch=true is not purchase completion. Wait for a verified
+    // checkout return/deep-link/backend confirmation before reporting.
+    var checkout = await YourBackend.WaitForVerifiedCheckoutCompletionAsync(productId);
+    if (!checkout.Success) return;
 
-        // Step 3: Process payment with your backend API
-        var paymentResult = yourBackend.createPayment(
-            productId = productId,
-            userId = userId,
-            amount = productPrice
-        )
-
-        if (!paymentResult.success) {
-            Log.e("IAP", "Payment failed: \${paymentResult.error}")
-            return
-        }
-
-        // Step 4: Create reporting details (replaces createAlternativeBillingToken)
-        var reportingDetails = iapStore.createBillingProgramReportingDetails(
-            BillingProgramAndroid.ExternalOffer
-        )
-        Log.d("IAP", "Token created; send it to your backend without logging it.")
-
-        // Step 5: Send token to your backend server
-        yourBackend.reportToken(
-            token = reportingDetails.externalTransactionToken,
-            orderId = paymentResult.orderId,
-            productId = productId
-        )
-
-        Log.d("IAP", "Purchase completed!")
-    } catch (e: Exception) {
-        Log.e("IAP", "Purchase error: \${e.message}")
-    }
+    // Report from your backend to Google within 24 hours.
+    await YourBackend.ReportExternalTransactionAsync(
+        reportingDetails.ExternalTransactionToken,
+        productId);
 }`}</CodeBlock>
                     ),
                     gdscript: (
-                      <CodeBlock language="gdscript">{`# Step 0: Enable billing program BEFORE initConnection
+                      <CodeBlock language="gdscript">{`# Enable the program while constructing the BillingClient.
 func _ready() -> void:
-    iap.enable_billing_program_android(BillingProgramAndroid.EXTERNAL_OFFER)
-    # or BillingProgramAndroid.EXTERNAL_CONTENT_LINK
-    await iap.init_connection(null)
+    var config = InitConnectionConfig.new()
+    config.enable_billing_program_android = BillingProgramAndroid.EXTERNAL_OFFER
+    await iap.init_connection(config)
 
-# Purchase flow with Billing Programs API (8.2.0+)
+# External Offer flow with Billing Programs API (8.2.1+)
 func handle_external_purchase_with_billing_programs(product_id: String) -> void:
     # Step 1: Check if billing program is available
     var result = await iap.is_billing_program_available_android(
@@ -1856,7 +1650,12 @@ func handle_external_purchase_with_billing_programs(product_id: String) -> void:
         print("External offer program not available")
         return
 
-    # Step 2: Launch external link (replaces showAlternativeBillingDialog)
+    # Step 2: Create reporting details immediately before redirecting.
+    var reporting_details = await iap.create_billing_program_reporting_details_android(
+        BillingProgramAndroid.EXTERNAL_OFFER
+    )
+
+    # Step 3: Let Google Play disclose and launch the external destination.
     var params = LaunchExternalLinkParamsAndroid.new()
     params.billing_program = BillingProgramAndroid.EXTERNAL_OFFER
     params.launch_mode = ExternalLinkLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP
@@ -1869,28 +1668,16 @@ func handle_external_purchase_with_billing_programs(product_id: String) -> void:
         print("Failed to launch external link")
         return
 
-    # Step 3: Process payment with your backend API
-    var payment_result = await your_backend.create_payment(
-        product_id,
-        user_id,
-        product_price
-    )
-
-    if not payment_result.success:
-        print("Payment failed: %s" % payment_result.error)
+    # Step 4: launch=true is not purchase completion. Wait for a verified
+    # checkout return/deep-link/backend confirmation before reporting.
+    var checkout = await your_backend.wait_for_verified_checkout_completion(product_id)
+    if not checkout.success:
         return
 
-    # Step 4: Create reporting details (replaces createAlternativeBillingToken)
-    var reporting_details = await iap.create_billing_program_reporting_details_android(
-        BillingProgramAndroid.EXTERNAL_OFFER
-    )
+    # Report from your backend to Google within 24 hours.
     if reporting_details and reporting_details.external_transaction_token:
-        print("Token created; send it to your backend without logging it.")
-
-        # Step 5: Send token to your backend server
-        await your_backend.report_token(
+        await your_backend.report_external_transaction(
             reporting_details.external_transaction_token,
-            payment_result.order_id,
             product_id
         )
 
@@ -1904,7 +1691,7 @@ func handle_external_purchase_with_billing_programs(product_id: String) -> void:
                   <thead>
                     <tr>
                       <th>Legacy API (6.2+)</th>
-                      <th>New API (8.2.0+)</th>
+                      <th>External Offer API (8.2.1+)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1994,22 +1781,17 @@ func handle_external_purchase_with_billing_programs(product_id: String) -> void:
                     typescript: (
                       <CodeBlock language="typescript">{`import {
   initConnection,
-  enableBillingProgramAndroid,
   isBillingProgramAvailableAndroid,
   requestPurchase,
-  createBillingProgramReportingDetailsAndroid,
   developerProvidedBillingListenerAndroid,
-  type DeveloperProvidedBillingDetails,
+  type DeveloperProvidedBillingDetailsAndroid,
 } from 'expo-iap';
 
-// Step 0: Enable External Payments program BEFORE initConnection
-enableBillingProgramAndroid('EXTERNAL_PAYMENTS');
-
-await initConnection();
+await initConnection({ enableBillingProgramAndroid: 'external-payments' });
 
 // Step 1: Set up listener for when user selects developer billing
 const developerBillingSubscription = developerProvidedBillingListenerAndroid(
-  async (details: DeveloperProvidedBillingDetails) => {
+  async (details: DeveloperProvidedBillingDetailsAndroid) => {
     console.log('User selected developer billing');
     console.log('External transaction token received; send it to your backend without logging it.');
 
@@ -2042,7 +1824,7 @@ const developerBillingSubscription = developerProvidedBillingListenerAndroid(
 async function handlePurchaseWithExternalPayments(productId: string) {
   try {
     // Check if External Payments is available (Japan only)
-    const result = await isBillingProgramAvailableAndroid('EXTERNAL_PAYMENTS');
+    const result = await isBillingProgramAvailableAndroid('external-payments');
     if (!result.isAvailable) {
       console.log('External Payments not available (not in Japan)');
       // Fall back to standard Google Play purchase
@@ -2052,14 +1834,17 @@ async function handlePurchaseWithExternalPayments(productId: string) {
     // Launch purchase with developer billing option
     // User will see side-by-side choice dialog
     await requestPurchase({
-      google: {
-        skus: [productId],
-        developerBillingOption: {
-          billingProgram: 'EXTERNAL_PAYMENTS',
-          linkUri: 'https://your-payment-site.com/checkout',
-          launchMode: 'LAUNCH_IN_EXTERNAL_BROWSER_OR_APP',
+      request: {
+        google: {
+          skus: [productId],
+          developerBillingOption: {
+            billingProgram: 'external-payments',
+            linkUri: 'https://your-payment-site.com/checkout',
+            launchMode: 'launch-in-external-browser-or-app',
+          },
         },
       },
+      type: 'in-app',
     });
 
     // If user selects Google Play → purchaseUpdatedListener callback
@@ -2074,20 +1859,16 @@ async function handlePurchaseWithExternalPayments(productId: string) {
                     ),
                     kotlin: (
                       <CodeBlock language="kotlin">{`import dev.hyo.openiap.store.OpenIapStore
-import dev.hyo.openiap.BillingProgramAndroid
-import dev.hyo.openiap.DeveloperBillingOptionParamsAndroid
-import dev.hyo.openiap.DeveloperBillingLaunchModeAndroid
-import dev.hyo.openiap.DeveloperProvidedBillingDetailsAndroid
-import dev.hyo.openiap.RequestPurchaseProps
-import dev.hyo.openiap.ProductQueryType
+import dev.hyo.openiap.*
 
 // Initialize store
 val iapStore = OpenIapStore(context = applicationContext)
 
-// Step 0: Enable External Payments program BEFORE initConnection
-iapStore.enableBillingProgram(BillingProgramAndroid.ExternalPayments)
-
-iapStore.initConnection(null)
+iapStore.initConnection(
+    InitConnectionConfig(
+        enableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments
+    )
+)
 
 // Step 1: Set up listener for when user selects developer billing
 iapStore.addDeveloperProvidedBillingListener { details ->
@@ -2164,64 +1945,29 @@ suspend fun handlePurchaseWithExternalPayments(productId: String) {
                     ),
                     kmp: (
                       <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.openiap.*
 
-// Initialize store
-val kmpIAP = KmpIAP(context = applicationContext)
+val kmpIAP = KmpIAP()
 
-// Step 0: Enable External Payments program BEFORE initConnection
-kmpIAP.enableBillingProgram(BillingProgramAndroid.ExternalPayments)
-
-kmpIAP.initConnection(null)
-
-// Step 1: Set up listener for when user selects developer billing
-kmpIAP.addDeveloperProvidedBillingListener { details ->
-    Log.d("IAP", "User selected developer billing")
-    Log.d("IAP", "External transaction token received; send it to your backend without logging it.")
-
-    // Step 2: Process payment with your backend
-    lifecycleScope.launch {
-        try {
-            val paymentResult = yourBackend.createPayment(
-                productId = currentProductId,
-                userId = userId,
-                amount = productPrice
-            )
-
-            if (paymentResult.success) {
-                // Step 3: Report the external transaction token to Google
-                // This must be done within 24 hours
-                yourBackend.reportExternalTransaction(
-                    token = details.externalTransactionToken,
-                    orderId = paymentResult.orderId,
-                    productId = currentProductId
-                )
-
-                Log.d("IAP", "External payment completed and reported!")
-            }
-        } catch (e: Exception) {
-            Log.e("IAP", "External payment error: \${e.message}")
-        }
-    }
+scope.launch {
+    val details = kmpIAP.developerProvidedBillingAndroid()
+    yourBackend.handleDeveloperBilling(details)
 }
 
-// Purchase flow with External Payments
+kmpIAP.initConnection(
+    InitConnectionConfig(
+        enableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments
+    )
+)
+
 suspend fun handlePurchaseWithExternalPayments(productId: String) {
-    try {
-        // Check if External Payments is available (Japan only)
-        val result = kmpIAP.isBillingProgramAvailable(
-            BillingProgramAndroid.ExternalPayments
-        )
-        if (!result.isAvailable) {
-            Log.w("IAP", "External Payments not available (not in Japan)")
-            // Fall back to standard Google Play purchase
-            return
-        }
+    val availability = kmpIAP.isBillingProgramAvailableAndroid(
+        BillingProgramAndroid.ExternalPayments
+    )
+    if (!availability.isAvailable) return
 
-        kmpIAP.setActivity(activity)
-
-        // Launch purchase with developer billing option
-        // User will see side-by-side choice dialog
-        val props = RequestPurchaseProps(
+    kmpIAP.requestPurchase(
+        RequestPurchaseProps(
             request = RequestPurchaseProps.Request.Purchase(
                 RequestPurchasePropsByPlatforms(
                     google = RequestPurchaseAndroidProps(
@@ -2236,28 +1982,18 @@ suspend fun handlePurchaseWithExternalPayments(productId: String) {
             ),
             type = ProductQueryType.InApp
         )
-
-        kmpIAP.requestPurchase(props)
-
-        // If user selects Google Play → onPurchaseSuccess callback
-        // If user selects developer billing → DeveloperProvidedBillingListener callback
-    } catch (e: Exception) {
-        Log.e("IAP", "Purchase error: \${e.message}")
-    }
+    )
 }`}</CodeBlock>
                     ),
                     dart: (
                       <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
-// Step 0: Enable External Payments program BEFORE initConnection
-FlutterInappPurchase.instance.enableBillingProgramAndroid(
-  BillingProgramAndroid.externalPayments,
+await FlutterInappPurchase.instance.initConnection(
+  enableBillingProgramAndroid: BillingProgramAndroid.ExternalPayments,
 );
 
-await FlutterInappPurchase.instance.initConnection();
-
 // Step 1: Set up listener for when user selects developer billing
-FlutterInappPurchase.developerProvidedBillingStream.listen((details) async {
+FlutterInappPurchase.instance.developerProvidedBillingAndroid.listen((details) async {
   print('User selected developer billing');
   print('External transaction token received; send it to your backend without logging it.');
 
@@ -2290,7 +2026,7 @@ Future<void> handlePurchaseWithExternalPayments(String productId) async {
   try {
     // Check if External Payments is available (Japan only)
     final result = await FlutterInappPurchase.instance
-        .isBillingProgramAvailableAndroid(BillingProgramAndroid.externalPayments);
+        .isBillingProgramAvailableAndroid(BillingProgramAndroid.ExternalPayments);
     if (!result.isAvailable) {
       print('External Payments not available (not in Japan)');
       // Fall back to standard Google Play purchase
@@ -2300,108 +2036,70 @@ Future<void> handlePurchaseWithExternalPayments(String productId) async {
     // Launch purchase with developer billing option
     // User will see side-by-side choice dialog
     await FlutterInappPurchase.instance.requestPurchase(
-      productId,
-      developerBillingOption: DeveloperBillingOptionParamsAndroid(
-        billingProgram: BillingProgramAndroid.externalPayments,
-        linkUri: 'https://your-payment-site.com/checkout',
-        launchMode: DeveloperBillingLaunchModeAndroid.launchInExternalBrowserOrApp,
-      ),
+      RequestPurchaseProps.inApp((
+        apple: null,
+        google: RequestPurchaseAndroidProps(
+          skus: [productId],
+          developerBillingOption: DeveloperBillingOptionParamsAndroid(
+            billingProgram: BillingProgramAndroid.ExternalPayments,
+            linkUri: 'https://your-payment-site.com/checkout',
+            launchMode: DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+          ),
+        ),
+        useAlternativeBilling: null,
+      )),
     );
 
-    // If user selects Google Play → purchaseUpdatedStream callback
-    // If user selects developer billing → developerProvidedBillingStream callback
+    // If user selects Google Play → purchaseUpdatedListener callback
+    // If user selects developer billing → developerProvidedBillingAndroid callback
   } catch (e) {
     print('Purchase error: \$e');
   }
 }`}</CodeBlock>
                     ),
                     csharp: (
-                      <CodeBlock language="csharp">{`// Initialize store
-var iapStore = OpenIapStore(context = applicationContext)
+                      <CodeBlock language="csharp">{`using OpenIap;
+using OpenIap.Maui;
 
-// Step 0: Enable External Payments program BEFORE initConnection
-iapStore.enableBillingProgram(BillingProgramAndroid.ExternalPayments)
+var iap = OpenIapClient.Instance;
+var mutate = (MutationResolver)iap;
+using var developerBillingSubscription = iap.DeveloperProvidedBillingAndroid.Subscribe(
+    details => _ = YourBackend.HandleDeveloperBillingAsync(details));
 
-iapStore.initConnection(null)
+await mutate.InitConnectionAsync(new InitConnectionConfig
+{
+    EnableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments,
+});
 
-// Step 1: Set up listener for when user selects developer billing
-iapStore.addDeveloperProvidedBillingListener { details ->
-    Log.d("IAP", "User selected developer billing")
-    Log.d("IAP", "External transaction token received; send it to your backend without logging it.")
-
-    // Step 2: Process payment with your backend
-    lifecycleScope.launch {
-        try {
-            var paymentResult = yourBackend.createPayment(
-                productId = currentProductId,
-                userId = userId,
-                amount = productPrice
-            )
-
-            if (paymentResult.success) {
-                // Step 3: Report the external transaction token to Google
-                // This must be done within 24 hours
-                yourBackend.reportExternalTransaction(
-                    token = details.externalTransactionToken,
-                    orderId = paymentResult.orderId,
-                    productId = currentProductId
-                )
-
-                Log.d("IAP", "External payment completed and reported!")
-            }
-        } catch (e: Exception) {
-            Log.e("IAP", "External payment error: \${e.message}")
-        }
-    }
-}
-
-// Purchase flow with External Payments
-Task HandlePurchaseWithExternalPaymentsAsync(String ProductId) {
-    try {
-        // Check if External Payments is available (Japan only)
-        var result = iapStore.isBillingProgramAvailable(
-            BillingProgramAndroid.ExternalPayments
-        )
-        if (!result.isAvailable) {
-            Log.w("IAP", "External Payments not available (not in Japan)")
-            // Fall back to standard Google Play purchase
-            return
-        }
-
-        iapStore.setActivity(activity)
-
-        // Launch purchase with developer billing option
-        // User will see side-by-side choice dialog
-        var props = RequestPurchaseProps(
-            request = RequestPurchaseProps.Request.Purchase(
-                RequestPurchasePropsByPlatforms(
-                    google = RequestPurchaseAndroidProps(
-                        skus = new[] { productId },
-                        developerBillingOption = DeveloperBillingOptionParamsAndroid(
-                            billingProgram = BillingProgramAndroid.ExternalPayments,
-                            linkUri = "https://your-payment-site.com/checkout",
-                            launchMode = DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp
-                        )
-                    )
-                )
-            ),
-            type = ProductQueryType.InApp
-        )
-
-        iapStore.requestPurchase(props)
-
-        // If user selects Google Play → onPurchaseSuccess callback
-        // If user selects developer billing → DeveloperProvidedBillingListener callback
-    } catch (e: Exception) {
-        Log.e("IAP", "Purchase error: \${e.message}")
-    }
+var availability = await mutate.IsBillingProgramAvailableAndroidAsync(
+    BillingProgramAndroid.ExternalPayments);
+if (availability.IsAvailable)
+{
+    await mutate.RequestPurchaseAsync(new RequestPurchaseProps
+    {
+        RequestPurchase = new RequestPurchasePropsByPlatforms
+        {
+            Google = new RequestPurchaseAndroidProps
+            {
+                Skus = new[] { "premium" },
+                DeveloperBillingOption = new DeveloperBillingOptionParamsAndroid
+                {
+                    BillingProgram = BillingProgramAndroid.ExternalPayments,
+                    LinkUri = "https://your-payment-site.com/checkout",
+                    LaunchMode = DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+                },
+            },
+        },
+        Type = ProductQueryType.InApp,
+    });
 }`}</CodeBlock>
                     ),
                     gdscript: (
-                      <CodeBlock language="gdscript">{`# Step 0: Enable External Payments program BEFORE initConnection
+                      <CodeBlock language="gdscript">{`# Enable External Payments while constructing the BillingClient.
 func _ready() -> void:
-    iap.enable_billing_program_android(BillingProgramAndroid.EXTERNAL_PAYMENTS)
-    await iap.init_connection(null)
+    var config = InitConnectionConfig.new()
+    config.enable_billing_program_android = BillingProgramAndroid.EXTERNAL_PAYMENTS
+    await iap.init_connection(config)
 
     # Step 1: Set up listener for when user selects developer billing
     iap.developer_provided_billing_android.connect(_on_developer_provided_billing)
@@ -2472,7 +2170,7 @@ func handle_purchase_with_external_payments(product_id: String) -> void:
                     <tr>
                       <td>0</td>
                       <td>
-                        <code>enableBillingProgram(EXTERNAL_PAYMENTS)</code>
+                        <code>initConnection(enableBillingProgramAndroid)</code>
                       </td>
                       <td>
                         Enable External Payments program BEFORE initConnection
@@ -2602,8 +2300,8 @@ func handle_purchase_with_external_payments(product_id: String) -> void:
                     mode
                   </li>
                   <li>
-                    <strong>Google Play Billing 8.2.0+</strong> - For Billing
-                    Programs API (recommended)
+                    <strong>Google Play Billing 8.2.0+</strong> - For External
+                    Content Links; <strong>8.2.1+</strong> for External Offers
                   </li>
                   <li>
                     <strong>Play Console Setup</strong> - Configure alternative
@@ -2621,88 +2319,71 @@ func handle_purchase_with_external_payments(product_id: String) -> void:
                     typescript: (
                       <CodeBlock language="typescript">{`import { initConnection } from 'expo-iap';
 
-// Alternative Billing Only mode
+// External Offer (recommended replacement for Alternative Billing Only)
 await initConnection({
-  alternativeBillingModeAndroid: 'alternativeOnly',
+  enableBillingProgramAndroid: 'external-offer',
 });
 
 // Or User Choice mode
 await initConnection({
-  alternativeBillingModeAndroid: 'userChoice',
+  enableBillingProgramAndroid: 'user-choice-billing',
 });`}</CodeBlock>
                     ),
                     kotlin: (
-                      <CodeBlock language="kotlin">{`// Method 1: Set mode during initialization
-val iapStore = OpenIapStore(
-    context = applicationContext,
-    alternativeBillingMode = AlternativeBillingMode.ALTERNATIVE_ONLY
-    // or AlternativeBillingMode.USER_CHOICE
-)
+                      <CodeBlock language="kotlin">{`val iapStore = OpenIapStore(applicationContext)
 
-// Method 2: Set mode when initializing connection
-val config = InitConnectionConfig(
-    alternativeBillingModeAndroid = AlternativeBillingModeAndroid.AlternativeOnly
-    // or AlternativeBillingModeAndroid.UserChoice
-)
-iapStore.initConnection(config)`}</CodeBlock>
+iapStore.initConnection(
+    InitConnectionConfig(
+        enableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer
+        // or BillingProgramAndroid.UserChoiceBilling
+    )
+)`}</CodeBlock>
                     ),
                     kmp: (
-                      <CodeBlock language="kotlin">{`// Method 1: Set mode during initialization
-val kmpIAP = KmpIAP(
-    context = applicationContext,
-    alternativeBillingMode = AlternativeBillingMode.ALTERNATIVE_ONLY
-    // or AlternativeBillingMode.USER_CHOICE
-)
+                      <CodeBlock language="kotlin">{`val kmpIAP = KmpIAP()
 
-// Method 2: Set mode when initializing connection
-val config = InitConnectionConfig(
-    alternativeBillingModeAndroid = AlternativeBillingModeAndroid.AlternativeOnly
-    // or AlternativeBillingModeAndroid.UserChoice
-)
-kmpIAP.initConnection(config)`}</CodeBlock>
+kmpIAP.initConnection(
+    InitConnectionConfig(
+        enableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer
+        // or BillingProgramAndroid.UserChoiceBilling
+    )
+)`}</CodeBlock>
                     ),
                     dart: (
                       <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
-// Alternative Billing Only mode
+// External Offer (recommended replacement for Alternative Billing Only)
 await FlutterInappPurchase.instance.initConnection(
-  alternativeBillingModeAndroid: AlternativeBillingModeAndroid.alternativeOnly,
+  enableBillingProgramAndroid: BillingProgramAndroid.ExternalOffer,
 );
 
 // Or User Choice mode
 await FlutterInappPurchase.instance.initConnection(
-  alternativeBillingModeAndroid: AlternativeBillingModeAndroid.userChoice,
+  enableBillingProgramAndroid: BillingProgramAndroid.UserChoiceBilling,
 );`}</CodeBlock>
                     ),
                     csharp: (
                       <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// Method 1: Set mode during initialization
-var iapStore = OpenIapStore(
-    context = applicationContext,
-    alternativeBillingMode = AlternativeBillingMode.ALTERNATIVE_ONLY
-    // or AlternativeBillingMode.USER_CHOICE
-)
-
-// Method 2: Set mode when initializing connection
-var config = InitConnectionConfig(
-    alternativeBillingModeAndroid = AlternativeBillingModeAndroid.AlternativeOnly
-    // or AlternativeBillingModeAndroid.UserChoice
-)
-iapStore.initConnection(config)`}</CodeBlock>
+await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(
+    new InitConnectionConfig
+    {
+        EnableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer,
+        // or BillingProgramAndroid.UserChoiceBilling
+    });`}</CodeBlock>
                     ),
                     gdscript: (
-                      <CodeBlock language="gdscript">{`# Alternative Billing Only mode
-func _ready_alternative_only() -> void:
+                      <CodeBlock language="gdscript">{`# External Offer (recommended)
+func _ready_external_offer() -> void:
     var config = InitConnectionConfig.new()
-    config.alternative_billing_mode_android = AlternativeBillingModeAndroid.ALTERNATIVE_ONLY
+    config.enable_billing_program_android = BillingProgramAndroid.EXTERNAL_OFFER
     await iap.init_connection(config)
 
 # Or User Choice mode
 func _ready_user_choice() -> void:
     var config = InitConnectionConfig.new()
-    config.alternative_billing_mode_android = AlternativeBillingModeAndroid.USER_CHOICE
+    config.enable_billing_program_android = BillingProgramAndroid.USER_CHOICE_BILLING
     await iap.init_connection(config)`}</CodeBlock>
                     ),
                   }}
@@ -2843,7 +2524,7 @@ func _ready_user_choice() -> void:
             ),
             android: (
               <>
-                <h3>Billing Programs API (8.2.0+ Recommended)</h3>
+                <h3>Billing Programs API (8.2.0+; External Offers 8.2.1+)</h3>
                 <table className="error-table">
                   <thead>
                     <tr>

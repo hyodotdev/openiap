@@ -3,7 +3,7 @@ import AnchorLink from '../../../../components/AnchorLink';
 import SEO from '../../../../components/SEO';
 import { useScrollToHash } from '../../../../hooks/useScrollToHash';
 
-function OneTimePurchaseOfferDetailAndroid() {
+function ProductAndroidOneTimePurchaseOfferDetailPage() {
   useScrollToHash();
 
   return (
@@ -12,7 +12,7 @@ function OneTimePurchaseOfferDetailAndroid() {
         title="ProductAndroidOneTimePurchaseOfferDetail"
         description="ProductAndroidOneTimePurchaseOfferDetail type definition and field reference."
         path="/docs/types/android/one-time-purchase-offer-detail-android"
-        keywords="ProductAndroidOneTimePurchaseOfferDetail, OneTimePurchaseOfferDetailAndroid, OpenIAP types"
+        keywords="ProductAndroidOneTimePurchaseOfferDetail, OpenIAP types"
       />
       <h1>ProductAndroidOneTimePurchaseOfferDetail</h1>
       <section>
@@ -30,11 +30,11 @@ function OneTimePurchaseOfferDetailAndroid() {
         <p>
           One-time purchase offer details for Android products. Available with{' '}
           <a
-            href="https://developer.android.com/google/play/billing/release-notes#7-0-0"
+            href="https://developer.android.com/google/play/billing/release-notes#8-0-0"
             target="_blank"
             rel="noopener noreferrer"
           >
-            Play Billing Library 7.0+
+            Play Billing Library 8.0+
           </a>
           . For implementation examples, see the{' '}
           <Link to="/docs/features/discount">Discounts feature guide</Link>.
@@ -211,7 +211,7 @@ function OneTimePurchaseOfferDetailAndroid() {
                 <code>string | null</code>
               </td>
               <td>
-                Purchase option ID to identify which option was selected (7.0+)
+                Purchase option ID to identify which option was selected (8.0+)
               </td>
             </tr>
           </tbody>
@@ -239,30 +239,21 @@ function OneTimePurchaseOfferDetailAndroid() {
                 <code>discountAmount</code>
               </td>
               <td>
-                <code>string?</code>
+                <code>DiscountAmountAndroid | null</code>
               </td>
               <td>
-                Amount discounted from the original price, formatted with
-                currency symbol.
+                Fixed discount amount with <code>discountAmountMicros</code> and{' '}
+                <code>formattedDiscountAmount</code>.
               </td>
             </tr>
             <tr>
               <td>
-                <code>discountPercentage</code>
+                <code>percentageDiscount</code>
               </td>
               <td>
-                <code>string?</code>
+                <code>number | null</code>
               </td>
               <td>Percentage discount label (e.g. "20%").</td>
-            </tr>
-            <tr>
-              <td>
-                <code>label</code>
-              </td>
-              <td>
-                <code>string?</code>
-              </td>
-              <td>Display label such as "SALE" or "LIMITED TIME".</td>
             </tr>
           </tbody>
         </table>
@@ -353,14 +344,22 @@ function OneTimePurchaseOfferDetailAndroid() {
           <tbody>
             <tr>
               <td>
-                <code>releaseTimeMillis</code>
+                <code>preorderPresaleEndTimeMillis</code>
+              </td>
+              <td>
+                <code>string</code>
+              </td>
+              <td>Unix timestamp when the presale period ends.</td>
+            </tr>
+            <tr>
+              <td>
+                <code>preorderReleaseTimeMillis</code>
               </td>
               <td>
                 <code>string</code>
               </td>
               <td>
-                Scheduled release timestamp (Unix milliseconds) when the
-                pre-order will be charged.
+                Unix timestamp when the pre-order product becomes available.
               </td>
             </tr>
           </tbody>
@@ -393,14 +392,13 @@ function OneTimePurchaseOfferDetailAndroid() {
             </tr>
             <tr>
               <td>
-                <code>activationPeriod</code>
+                <code>rentalExpirationPeriod</code>
               </td>
               <td>
                 <code>string?</code>
               </td>
               <td>
-                Optional ISO 8601 activation grace period during which the
-                rental can be started.
+                Optional ISO 8601 period describing when the rental expires.
               </td>
             </tr>
           </tbody>
@@ -410,4 +408,4 @@ function OneTimePurchaseOfferDetailAndroid() {
   );
 }
 
-export default OneTimePurchaseOfferDetailAndroid;
+export default ProductAndroidOneTimePurchaseOfferDetailPage;

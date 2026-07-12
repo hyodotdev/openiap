@@ -51,13 +51,10 @@ fun addDeveloperProvidedBillingListener(
 )`}</CodeBlock>
           ),
           kmp: (
-            <CodeBlock language="kotlin">{`// Callback approach
-fun addDeveloperProvidedBillingListener(
-    listener: OpenIapDeveloperProvidedBillingListener
-)`}</CodeBlock>
+            <CodeBlock language="kotlin">{`suspend fun developerProvidedBillingAndroid(): DeveloperProvidedBillingDetailsAndroid`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`Stream<DeveloperProvidedBillingDetailsAndroid> get developerProvidedBillingStream;
+            <CodeBlock language="dart">{`Stream<DeveloperProvidedBillingDetailsAndroid> get developerProvidedBillingAndroid;
 // Android only (8.3.0+)`}</CodeBlock>
           ),
           csharp: (
@@ -144,20 +141,19 @@ openIapStore.addDeveloperProvidedBillingListener { details ->
 
 val kmpIAP = KmpIAP()
 
-// Using callback
-kmpIAP.addDeveloperProvidedBillingListener { details ->
-    lifecycleScope.launch {
-        val paymentResult = processPaymentWithYourGateway(
-            products = details.products,
-            linkUri = details.linkUri
-        )
+// Start this before requestPurchase; it suspends until the next selection.
+lifecycleScope.launch {
+    val details = kmpIAP.developerProvidedBillingAndroid()
+    val paymentResult = processPaymentWithYourGateway(
+        products = details.products,
+        linkUri = details.linkUri
+    )
 
-        if (paymentResult.success) {
-            details.externalTransactionToken?.let { token ->
-                reportExternalTransactionToGoogle(token)
-            }
-            grantUserAccess()
+    if (paymentResult.success) {
+        details.externalTransactionToken?.let { token ->
+            reportExternalTransactionToGoogle(token)
         }
+        grantUserAccess()
     }
 }`}</CodeBlock>
           ),
@@ -165,7 +161,7 @@ kmpIAP.addDeveloperProvidedBillingListener { details ->
             <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
 // Android only (8.3.0+) - will not fire on iOS or older Android
-final subscription = FlutterInappPurchase.developerProvidedBillingStream
+final subscription = FlutterInappPurchase.instance.developerProvidedBillingAndroid
     .listen((details) async {
   final paymentResult = await processPaymentWithYourGateway(
     products: details.products,

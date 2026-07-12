@@ -12,7 +12,7 @@ function IsTransactionVerifiedIOS() {
     <div className="doc-page">
       <SEO
         title="isTransactionVerifiedIOS"
-        description="Verify a StoreKit 2 transaction signature (iOS 15+)."
+        description="Verify a StoreKit 2 transaction signature (iOS 15+, macOS 14+)."
         path="/docs/apis/ios/is-transaction-verified-ios"
         keywords="isTransactionVerifiedIOS, JWS verification, StoreKit 2"
       />
@@ -20,7 +20,7 @@ function IsTransactionVerifiedIOS() {
         <span className="platform-badge platform-badge--ios">iOS</span>{' '}
         isTransactionVerifiedIOS
       </h1>
-      <p>Verify a StoreKit 2 transaction signature (iOS 15+).</p>
+      <p>Verify a StoreKit 2 transaction signature (iOS 15+, macOS 14+).</p>
       <p>
         Inspects the <code>VerificationResult</code> from{' '}
         <code>Transaction.latest(for:)</code> — <code>.verified</code> vs{' '}
@@ -51,7 +51,7 @@ function IsTransactionVerifiedIOS() {
             <CodeBlock language="dart">{`Future<bool> isTransactionVerifiedIOS(String sku);`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task<Boolean> IsTransactionVerifiedIOSAsync(String Sku)`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<bool> IsTransactionVerifiedIOSAsync(string sku);`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func is_transaction_verified_ios(sku: String) -> bool`}</CodeBlock>
@@ -99,7 +99,7 @@ if (Platform.OS === 'ios') {
 }`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`if (Platform.isIOS) {
+            <CodeBlock language="dart">{`if (Platform.isIOS || Platform.isMacOS) {
   final ok = await FlutterInappPurchase.instance
       .isTransactionVerifiedIOS('com.app.premium');
 }`}</CodeBlock>

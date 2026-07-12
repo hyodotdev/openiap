@@ -12,7 +12,7 @@ function GetTransactionJwsIOS() {
     <div className="doc-page">
       <SEO
         title="getTransactionJwsIOS"
-        description="Get the transaction JWS for server-side validation (iOS 15+)."
+        description="Get the transaction JWS for server-side validation (iOS 15+, macOS 14+)."
         path="/docs/apis/ios/get-transaction-jws-ios"
         keywords="getTransactionJwsIOS, JWS, server validation"
       />
@@ -20,7 +20,9 @@ function GetTransactionJwsIOS() {
         <span className="platform-badge platform-badge--ios">iOS</span>{' '}
         getTransactionJwsIOS
       </h1>
-      <p>Get the transaction JWS for server-side validation (iOS 15+).</p>
+      <p>
+        Get the transaction JWS for server-side validation (iOS 15+, macOS 14+).
+      </p>
       <p>
         Returns <code>Transaction.jsonRepresentation</code> (signed JWS) — pass
         to your backend for cryptographic validation. See the{' '}
@@ -50,7 +52,7 @@ function GetTransactionJwsIOS() {
             <CodeBlock language="dart">{`Future<String?> getTransactionJwsIOS(String sku);`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task<String?> GetTransactionJwsIOSAsync(String Sku)`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<string?> GetTransactionJwsIOSAsync(string sku);`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func get_transaction_jws_ios(sku: String) -> String`}</CodeBlock>
@@ -98,7 +100,7 @@ if (Platform.OS === 'ios') {
 }`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`if (Platform.isIOS) {
+            <CodeBlock language="dart">{`if (Platform.isIOS || Platform.isMacOS) {
   final jws = await FlutterInappPurchase.instance
       .getTransactionJwsIOS('com.app.premium');
 }`}</CodeBlock>

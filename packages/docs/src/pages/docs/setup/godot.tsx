@@ -530,8 +530,13 @@ func _on_purchase_error(error):
         </h3>
         <CodeBlock language="gdscript">
           {`func _purchase(sku: String):
-    var props = Types.RequestPurchaseProps.new()
-    props.sku = sku
+    var platforms = Types.RequestPurchasePropsByPlatforms.new()
+    platforms.apple = Types.RequestPurchaseIosProps.new()
+    platforms.apple.sku = sku
+    platforms.google = Types.RequestPurchaseAndroidProps.new()
+    var skus: Array[String] = [sku]
+    platforms.google.skus = skus
+    var props = Types.RequestPurchaseProps.in_app(platforms)
     # Returns Variant (PurchaseAndroid or PurchaseIOS, or null)
     var purchase = await GodotIapPlugin.request_purchase(props)`}
         </CodeBlock>

@@ -11,18 +11,18 @@ function SyncIOS() {
     <div className="doc-page">
       <SEO
         title="syncIOS"
-        description="Force a StoreKit sync for transactions (iOS 15+)."
+        description="Force a StoreKit sync for transactions (iOS 15+, macOS 14+)."
         path="/docs/apis/ios/sync-ios"
         keywords="syncIOS, StoreKit sync"
       />
       <h1>
         <span className="platform-badge platform-badge--ios">iOS</span> syncIOS
       </h1>
-      <p>Force a StoreKit sync for transactions (iOS 15+).</p>
+      <p>Force a StoreKit sync for transactions (iOS 15+, macOS 14+).</p>
       <p>
         Wraps <code>AppStore.sync()</code> — forces StoreKit to refresh
         transactions and entitlements, prompts the user to authenticate. iOS
-        15+. See the{' '}
+        15+, macOS 14+. See the{' '}
         <a
           href="https://developer.apple.com/documentation/storekit/appstore/sync()"
           target="_blank"
@@ -84,7 +84,7 @@ if (Platform.OS === 'ios') {
 }`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`if (Platform.isIOS) {
+            <CodeBlock language="dart">{`if (Platform.isIOS || Platform.isMacOS) {
   await FlutterInappPurchase.instance.syncIOS();
 }`}</CodeBlock>
           ),

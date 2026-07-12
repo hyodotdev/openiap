@@ -245,15 +245,13 @@ listener.events.listen((event) {
             ),
             csharp: (
               <CodeBlock language="csharp">{`using OpenIap;
-using OpenIap.Maui;
+using System.Text.Json;
 
-// Pure parser + types live in commonMain. Wire your platform's HTTP
-// client to webhookStreamUrl(apiKey = "...") and feed each SSE
-// data frame to WebhookEventParser.parse().
-var event = WebhookEventParser.parse(rawJson) ?: return
-when (event.type) {
-    WebhookEventType.SubscriptionRenewed -> grantEntitlement(event.purchaseToken)
-    else -> Unit
+// Feed each SSE data frame into the generated OpenIAP webhook type.
+var webhookEvent = JsonSerializer.Deserialize<WebhookEvent>(rawJson);
+if (webhookEvent?.Type == WebhookEventType.SubscriptionRenewed)
+{
+    GrantEntitlement(webhookEvent.PurchaseToken);
 }`}</CodeBlock>
             ),
             kotlin: (

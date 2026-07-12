@@ -23,6 +23,12 @@ function UserChoiceBillingListenerAndroid() {
         Fired when a user selects alternative billing in the User Choice Billing
         dialog on Android.
       </p>
+      <p>
+        <code>originalExternalTransactionId</code> and{' '}
+        <code>productDetailsAndroid</code> are available in the next OpenIAP
+        spec / openiap-google release after Spec 2.1.0 / openiap-google 2.3.0
+        (requires Play Billing 9.1+).
+      </p>
 
       <h3>Listener Setup</h3>
       <LanguageTabs>
@@ -36,23 +42,22 @@ function UserChoiceBillingListenerAndroid() {
             <CodeBlock language="swift">{`// Android only - not available on iOS`}</CodeBlock>
           ),
           kotlin: (
-            <CodeBlock language="kotlin">{`// Flow approach
-val userChoiceBillingEvents: Flow<UserChoiceBillingDetails>`}</CodeBlock>
+            <CodeBlock language="kotlin">{`fun addUserChoiceBillingListener(
+    listener: OpenIapUserChoiceBillingListener
+)`}</CodeBlock>
           ),
           kmp: (
-            <CodeBlock language="kotlin">{`// Flow approach
-val userChoiceBillingEvents: Flow<UserChoiceBillingDetails>`}</CodeBlock>
+            <CodeBlock language="kotlin">{`suspend fun userChoiceBillingAndroid(): UserChoiceBillingDetails`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`Stream<UserChoiceBillingDetails> get userChoiceBillingStream;
+            <CodeBlock language="dart">{`Stream<UserChoiceBillingDetails> get userChoiceBillingAndroid;
 // Android only`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// Flow approach
-var userChoiceBillingEvents: Flow<UserChoiceBillingDetails>`}</CodeBlock>
+IObservable<UserChoiceBillingDetails> UserChoiceBillingAndroid { get; }`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
@@ -88,11 +93,10 @@ const subscription = userChoiceBillingListenerAndroid(async (details) => {
 subscription.remove();`}</CodeBlock>
           ),
           kotlin: (
-            <CodeBlock language="kotlin">{`import dev.hyo.openiap.UserChoiceBillingDetails
+            <CodeBlock language="kotlin">{`import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
 
-// Using Flow
-lifecycleScope.launch {
-    openIapStore.userChoiceBillingEvents.collect { details ->
+val userChoiceListener = OpenIapUserChoiceBillingListener { details ->
+    lifecycleScope.launch {
         println("User chose alternative billing")
         println("Products: \${details.products}")
         println("External transaction token received; send it to your backend without logging it.")
@@ -110,53 +114,46 @@ lifecycleScope.launch {
     }
 }
 
-// Or with callback
-openIapStore.setUserChoiceBillingListener { details ->
-    println("User chose alternative billing for: \${details.products}")
-}`}</CodeBlock>
+openIapStore.addUserChoiceBillingListener(userChoiceListener)
+
+// Cleanup when done
+openIapStore.removeUserChoiceBillingListener(userChoiceListener)`}</CodeBlock>
           ),
           kmp: (
             <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
 
 val kmpIAP = KmpIAP()
 
-// Using Flow
+// Start this before requestPurchase; it suspends until the next selection.
 lifecycleScope.launch {
-    kmpIAP.userChoiceBillingEvents.collect { details ->
-        println("User chose alternative billing")
-        println("Products: \${details.products}")
-        println("External transaction token received; send it to your backend without logging it.")
+    val details = kmpIAP.userChoiceBillingAndroid()
+    println("User chose alternative billing")
+    println("Products: \${details.products}")
+    println("External transaction token received; send it to your backend without logging it.")
 
-        // Process payment with your backend
-        val paymentResult = processPaymentWithBackend(
-            products = details.products,
-            token = details.externalTransactionToken
-        )
+    val paymentResult = processPaymentWithBackend(
+        products = details.products,
+        token = details.externalTransactionToken
+    )
 
-        if (paymentResult.success) {
-            // Backend should report token to Google Play within 24 hours
-            grantUserAccess(details.products)
-        }
+    if (paymentResult.success) {
+        // Backend should report token to Google Play within 24 hours
+        grantUserAccess(details.products)
     }
-}
-
-// Or with callback
-kmpIAP.setUserChoiceBillingListener { details ->
-    println("User chose alternative billing for: \${details.products}")
 }`}</CodeBlock>
           ),
           dart: (
             <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
 // Android only - will not fire on iOS
-final subscription = FlutterInappPurchase.userChoiceBillingAndroid.listen((details) async {
+final subscription = FlutterInappPurchase.instance.userChoiceBillingAndroid.listen((details) async {
   print('User chose alternative billing');
-  print('Products: \${details?.products}');
+  print('Products: \${details.products}');
   print('External transaction token received; send it to your backend without logging it.');
 
   // Process payment with your backend
   final paymentResult = await processPaymentWithBackend(
-    products: details!.products,
+    products: details.products,
     token: details.externalTransactionToken,
   );
 
@@ -193,6 +190,8 @@ using var subscription = OpenIapClient.Instance.UserChoiceBillingAndroid.Subscri
           typescript: (
             <CodeBlock language="typescript">{`interface UserChoiceBillingDetails {
   externalTransactionToken: string;
+  originalExternalTransactionId?: string | null;
+  productDetailsAndroid: DeveloperProvidedBillingProductAndroid[];
   products: string[];
 }`}</CodeBlock>
           ),
@@ -202,18 +201,24 @@ using var subscription = OpenIapClient.Instance.UserChoiceBillingAndroid.Subscri
           kotlin: (
             <CodeBlock language="kotlin">{`data class UserChoiceBillingDetails(
     val externalTransactionToken: String,
+    val originalExternalTransactionId: String? = null,
+    val productDetailsAndroid: List<DeveloperProvidedBillingProductAndroid>,
     val products: List<String>
 )`}</CodeBlock>
           ),
           kmp: (
             <CodeBlock language="kotlin">{`data class UserChoiceBillingDetails(
     val externalTransactionToken: String,
+    val originalExternalTransactionId: String? = null,
+    val productDetailsAndroid: List<DeveloperProvidedBillingProductAndroid>,
     val products: List<String>
 )`}</CodeBlock>
           ),
           dart: (
             <CodeBlock language="dart">{`class UserChoiceBillingDetails {
   final String externalTransactionToken;
+  final String? originalExternalTransactionId;
+  final List<DeveloperProvidedBillingProductAndroid> productDetailsAndroid;
   final List<String> products;
 }`}</CodeBlock>
           ),
@@ -225,6 +230,8 @@ using System.Collections.Generic;
 public sealed record UserChoiceBillingDetails
 {
     public required string ExternalTransactionToken { get; init; }
+    public string? OriginalExternalTransactionId { get; init; }
+    public required IReadOnlyList<DeveloperProvidedBillingProductAndroid> ProductDetailsAndroid { get; init; }
     public required IReadOnlyList<string> Products { get; init; }
 }`}</CodeBlock>
           ),
@@ -233,6 +240,13 @@ public sealed record UserChoiceBillingDetails
       <p>
         <strong>externalTransactionToken</strong> - Token that must be reported
         to Google Play within 24 hours
+        <br />
+        <strong>originalExternalTransactionId</strong> - Originating external
+        subscription transaction ID for developer-billed replacements (Play
+        Billing 9.1+)
+        <br />
+        <strong>productDetailsAndroid</strong> - Selected product IDs, product
+        types, and offer tokens as structured Play Billing 9.1+ data
         <br />
         <strong>products</strong> - List of product IDs selected by the user
       </p>

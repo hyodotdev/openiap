@@ -98,19 +98,19 @@ type RequestPurchaseProps =
             <CodeBlock language="swift">{`func requestPurchase(_ params: RequestPurchaseProps) async throws -> RequestPurchaseResult?`}</CodeBlock>
           ),
           kotlin: (
-            <CodeBlock language="kotlin">{`suspend fun requestPurchase(props: RequestPurchaseProps): Purchase?`}</CodeBlock>
+            <CodeBlock language="kotlin">{`suspend fun requestPurchase(params: RequestPurchaseProps): RequestPurchaseResult?`}</CodeBlock>
           ),
           kmp: (
-            <CodeBlock language="kotlin">{`suspend fun requestPurchase(props: RequestPurchaseProps): Purchase?`}</CodeBlock>
+            <CodeBlock language="kotlin">{`suspend fun requestPurchase(params: RequestPurchaseProps): RequestPurchaseResult?`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`Future<Purchase?> requestPurchase(RequestPurchaseProps props);`}</CodeBlock>
+            <CodeBlock language="dart">{`Future<RequestPurchaseResult?> requestPurchase(RequestPurchaseProps params);`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func request_purchase(props: RequestPurchaseProps) -> Purchase`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task<RequestPurchaseResult?> RequestPurchaseAsync(RequestPurchaseProps props);
+            <CodeBlock language="csharp">{`Task<RequestPurchaseResult?> RequestPurchaseAsync(RequestPurchaseProps @params);
 
 // Result is event-based — listen via OpenIapClient.Instance.PurchaseUpdated /
 // PurchaseError. The returned RequestPurchaseResult is for legacy consumers.`}</CodeBlock>
@@ -305,9 +305,9 @@ function BuyButton({ sku }: { sku: string }) {
           swift: (
             <CodeBlock language="swift">{`try await OpenIapModule.shared.requestPurchase(
     RequestPurchaseProps(
-        request: RequestPurchasePropsByPlatforms(
+        request: .purchase(RequestPurchasePropsByPlatforms(
             apple: RequestPurchaseIosProps(sku: "com.app.premium")
-        ),
+        )),
         type: .inApp
     )
 )`}</CodeBlock>
@@ -315,8 +315,10 @@ function BuyButton({ sku }: { sku: string }) {
           kotlin: (
             <CodeBlock language="kotlin">{`openIapStore.requestPurchase(
     RequestPurchaseProps(
-        request = RequestPurchasePropsByPlatforms(
-            google = RequestPurchaseAndroidProps(skus = listOf("com.app.premium"))
+        request = RequestPurchaseProps.Request.Purchase(
+            RequestPurchasePropsByPlatforms(
+                google = RequestPurchaseAndroidProps(skus = listOf("com.app.premium"))
+            )
         ),
         type = ProductQueryType.InApp
     )
@@ -325,8 +327,10 @@ function BuyButton({ sku }: { sku: string }) {
           kmp: (
             <CodeBlock language="kotlin">{`kmpIAP.requestPurchase(
     RequestPurchaseProps(
-        request = RequestPurchasePropsByPlatforms(
-            google = RequestPurchaseAndroidProps(skus = listOf("com.app.premium"))
+        request = RequestPurchaseProps.Request.Purchase(
+            RequestPurchasePropsByPlatforms(
+                google = RequestPurchaseAndroidProps(skus = listOf("com.app.premium"))
+            )
         ),
         type = ProductQueryType.InApp
     )
@@ -354,13 +358,11 @@ kmpIAP.requestPurchase {
           ),
           dart: (
             <CodeBlock language="dart">{`await FlutterInappPurchase.instance.requestPurchase(
-  RequestPurchaseProps(
-    request: RequestPurchasePropsByPlatforms(
-      apple: RequestPurchaseIosProps(sku: 'com.app.premium'),
-      google: RequestPurchaseAndroidProps(skus: ['com.app.premium']),
-    ),
-    type: ProductQueryType.InApp,
-  ),
+  RequestPurchaseProps.inApp((
+    apple: RequestPurchaseIosProps(sku: 'com.app.premium'),
+    google: RequestPurchaseAndroidProps(skus: ['com.app.premium']),
+    useAlternativeBilling: null,
+  )),
 );
 
 // --- Or via the builder DSL ---

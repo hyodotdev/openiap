@@ -64,9 +64,9 @@ function ShowInAppMessagesAndroid() {
 ): Promise<InAppMessageResultAndroid>`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`Future<InAppMessageResultAndroid> showInAppMessagesAndroid([
-  InAppMessageParamsAndroid? params,
-]);`}</CodeBlock>
+            <CodeBlock language="dart">{`Future<InAppMessageResultAndroid> showInAppMessagesAndroid({
+  List<InAppMessageCategoryAndroid>? categories,
+});`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`Task<InAppMessageResultAndroid> ShowInAppMessagesAndroidAsync(
@@ -173,9 +173,7 @@ if (Platform.OS === 'android') {
           dart: (
             <CodeBlock language="dart">{`if (Platform.isAndroid) {
   final result = await FlutterInappPurchase.instance.showInAppMessagesAndroid(
-    InAppMessageParamsAndroid(
-      categories: [InAppMessageCategoryAndroid.Transactional],
-    ),
+    categories: [InAppMessageCategoryAndroid.Transactional],
   );
 }`}</CodeBlock>
           ),

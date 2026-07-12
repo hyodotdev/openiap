@@ -178,7 +178,7 @@ function ActiveSubscription() {
             ios: (
               <>
                 <AnchorLink id="active-subscription-ios" level="h4">
-                  ActiveSubscriptionIOS
+                  iOS Fields
                 </AnchorLink>
                 <table className="doc-table">
                   <thead>
@@ -343,14 +343,16 @@ using OpenIap.Maui;
 
 // Android: read auto-renew status straight off the active subscription.
 // (renewalInfoIOS is iOS-only — see the Swift / KMP tabs for that flow.)
-if (subscription.autoRenewingAndroid == false) {
-    println("Subscription will not auto-renew")
+if (subscription.AutoRenewingAndroid == false)
+{
+    Console.WriteLine("Subscription will not auto-renew");
 }
 
 // Use the upgrade/downgrade flow via requestPurchase — Android does not
 // surface a pending upgrade product id directly.
-subscription.basePlanIdAndroid?.let { basePlanId ->
-    println("Active base plan: $basePlanId")
+if (subscription.BasePlanIdAndroid is { } basePlanId)
+{
+    Console.WriteLine($"Active base plan: {basePlanId}");
 }`}</CodeBlock>
             ),
             gdscript: (

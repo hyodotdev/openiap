@@ -12,7 +12,7 @@ function CreateBillingProgramReportingDetailsAndroid() {
     <div className="doc-page">
       <SEO
         title="createBillingProgramReportingDetailsAndroid"
-        description="Step 3 of Billing Programs API. Create reporting details with external transaction token after successful payment."
+        description="Create fresh Billing Programs reporting details. For External Offer, call immediately before every external-link launch and report the token from your backend after payment."
         path="/docs/apis/android/create-billing-program-reporting-details-android"
         keywords="createBillingProgramReportingDetailsAndroid, reporting details"
       />
@@ -21,19 +21,23 @@ function CreateBillingProgramReportingDetailsAndroid() {
         createBillingProgramReportingDetailsAndroid
       </h1>
       <p>
-        Step 3 of Billing Programs API. Create reporting details with external
-        transaction token after successful payment.
+        Creates the reporting details and external transaction token used by a
+        Google Play Billing Program. The exact timing depends on the program.
+        For External Offer, create fresh details immediately before every
+        external-link launch; do not create them after payment or cache them for
+        reuse.
       </p>
       <p>
         Wraps{' '}
         <code>
           BillingClient.createBillingProgramReportingDetailsAsync(...)
         </code>{' '}
-        — returns the external transaction token to report a Developer-Provided
-        Billing transaction. Play Billing 8.3.0+; the optional developer billing
-        type parameter is available in OpenIAP Spec 2.1.0 and{' '}
-        <code>openiap-google</code> 2.3.0 for Billing Choice, which requires
-        Play Billing 9.1.0+. See the{' '}
+        — returns the external transaction token used to report a
+        Developer-Provided Billing transaction. The Billing Programs surface
+        starts in Play Billing 8.2.0, while External Offer integration requires
+        Play Billing 8.2.1+. The optional developer billing type parameter is
+        available in OpenIAP Spec 2.1.0 and <code>openiap-google</code> 2.3.0
+        for Billing Choice, which requires Play Billing 9.1.0+. See the{' '}
         <a
           href="https://developer.android.com/google/play/billing/billing-programs"
           target="_blank"
@@ -43,6 +47,20 @@ function CreateBillingProgramReportingDetailsAndroid() {
         </a>
         .
       </p>
+      <div className="alert-card alert-card--warning">
+        <p>
+          <strong>External Offer ordering:</strong> check availability, create
+          fresh reporting details immediately before the redirect, then call{' '}
+          <Link to="/docs/apis/android/launch-external-link-android">
+            <code>launchExternalLinkAndroid()</code>
+          </Link>
+          . After checkout, send that invocation&apos;s token to your backend
+          and report the transaction to Google within 24 hours. Never reuse a
+          token from an earlier launch attempt. See the complete{' '}
+          <Link to="/docs/features/external-purchase">External Offer flow</Link>
+          .
+        </p>
+      </div>
 
       <h2>Signature</h2>
       <LanguageTabs>
@@ -70,10 +88,10 @@ suspend fun createBillingProgramReportingDetails(
           ),
           dart: (
             <CodeBlock language="dart">{`Future<BillingProgramReportingDetailsAndroid>
-    createBillingProgramReportingDetailsAndroid(
-  BillingProgramAndroid program,
-  {DeveloperBillingTypeAndroid? developerBillingType}
-);`}</CodeBlock>
+    createBillingProgramReportingDetailsAndroid({
+  required BillingProgramAndroid program,
+  DeveloperBillingTypeAndroid? developerBillingType,
+});`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`// Returns BillingProgramReportingDetailsAndroid with externalTransactionToken
@@ -146,12 +164,14 @@ Task<BillingProgramReportingDetailsAndroid> CreateBillingProgramReportingDetails
       <LanguageTabs>
         {{
           kotlin: (
-            <CodeBlock language="kotlin">{`val details = openIapStore.createBillingProgramReportingDetails(
+            <CodeBlock language="kotlin">{`// External Offer: create immediately before each launch; never cache.
+val details = openIapStore.createBillingProgramReportingDetails(
     BillingProgramAndroid.ExternalOffer
 )`}</CodeBlock>
           ),
           kmp: (
             <CodeBlock language="kotlin">{`// kmp-iap (Android targets only — no-op on iOS)
+// External Offer: create immediately before each launch; never cache.
 val details = kmpIAP.createBillingProgramReportingDetailsAndroid(
     BillingProgramAndroid.ExternalOffer
 )`}</CodeBlock>
@@ -161,17 +181,18 @@ val details = kmpIAP.createBillingProgramReportingDetailsAndroid(
 import { createBillingProgramReportingDetailsAndroid } from 'expo-iap';
 
 if (Platform.OS === 'android') {
+  // External Offer: create immediately before each launch; never cache.
   const details = await createBillingProgramReportingDetailsAndroid(
-    'billing-choice',
-    'in-app',
+    'external-offer',
   );
 }`}</CodeBlock>
           ),
           dart: (
             <CodeBlock language="dart">{`if (Platform.isAndroid) {
+  // External Offer: create immediately before each launch; never cache.
   final details = await FlutterInappPurchase.instance
       .createBillingProgramReportingDetailsAndroid(
-    BillingProgramAndroid.externalOffer,
+    program: BillingProgramAndroid.ExternalOffer,
   );
 }`}</CodeBlock>
           ),
@@ -179,12 +200,14 @@ if (Platform.OS === 'android') {
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
+// External Offer: create immediately before each launch; never cache.
 var details = await ((MutationResolver)OpenIapClient.Instance).CreateBillingProgramReportingDetailsAndroidAsync(
     BillingProgramAndroid.ExternalOffer
 );`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":
+    # External Offer: create immediately before each launch; never cache.
     var details = await iap.create_billing_program_reporting_details_android(
         BillingProgramAndroid.EXTERNAL_OFFER
     )`}</CodeBlock>

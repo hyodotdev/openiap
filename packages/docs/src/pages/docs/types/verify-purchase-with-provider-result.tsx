@@ -382,9 +382,9 @@ result.iapkit?.let { iapkit ->
             dart: (
               <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
-// Create verification props for iOS
-final props = VerifyPurchaseWithProviderProps(
-  provider: PurchaseVerificationProvider.iapkit,
+// Verify an iOS purchase
+final result = await iap.verifyPurchaseWithProvider(
+  provider: PurchaseVerificationProvider.Iapkit,
   iapkit: RequestVerifyPurchaseWithIapkitProps(
     apiKey: 'openiap-kit_<your-key>',
     apple: RequestVerifyPurchaseWithIapkitAppleProps(
@@ -393,12 +393,9 @@ final props = VerifyPurchaseWithProviderProps(
   ),
 );
 
-// Verify purchase
-final result = await iap.verifyPurchaseWithProvider(props);
-
 // Check result
 final iapkit = result.iapkit;
-if (iapkit != null && iapkit.isValid && iapkit.state == IapkitPurchaseState.entitled) {
+if (iapkit != null && iapkit.isValid && iapkit.state == IapkitPurchaseState.Entitled) {
   // Grant entitlement to user
   print('Valid purchase from \${iapkit.store}');
 }`}</CodeBlock>

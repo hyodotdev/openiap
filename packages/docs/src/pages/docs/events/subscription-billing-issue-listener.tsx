@@ -12,19 +12,20 @@ function SubscriptionBillingIssueListener() {
     <div className="doc-page">
       <SEO
         title="subscriptionBillingIssueListener"
-        description="Listener fired when an active subscription enters a billing issue state on iOS 18+ or Play Billing 8.1+."
+        description="Listener fired when a subscription enters a billing issue state on iOS/iPadOS/Mac Catalyst 16.4+, visionOS 1.0+, or Play Billing 8.1+."
         path="/docs/events/subscription-billing-issue-listener"
         keywords="subscriptionBillingIssueListener, billing issue, subscription, payment problem, grace period"
       />
       <h1>subscriptionBillingIssueListener</h1>
       <p>
-        Fired when an active subscription enters a state that needs user
-        attention because of a payment problem — card declined, expired payment
-        method, billing retry, or grace period. Unifies StoreKit 2{' '}
-        <code>Message.billingIssue</code> (iOS 18+) and Play Billing{' '}
-        <code>Purchase.isSuspended</code> (Play Billing Library 8.1+) under a
-        single cross-platform stream. Silent no-op on platforms that cannot emit
-        (tvOS, watchOS, visionOS, macOS, Meta Horizon).
+        Fired when a subscription enters a state that needs user attention
+        because of a payment problem — card declined, expired payment method,
+        billing retry, or grace period. Unifies StoreKit 2{' '}
+        <code>Message.billingIssue</code> (iOS/iPadOS/Mac Catalyst 16.4+ and
+        visionOS 1.0+) and Play Billing <code>Purchase.isSuspended</code> (Play
+        Billing Library 8.1+) under a single cross-platform stream. Silent no-op
+        on platforms that cannot emit (tvOS, watchOS, macOS, Meta Horizon,
+        Amazon Appstore).
       </p>
 
       <AnchorLink id="listener-setup" level="h2">
@@ -38,7 +39,7 @@ function SubscriptionBillingIssueListener() {
 ): Subscription`}</CodeBlock>
           ),
           swift: (
-            <CodeBlock language="swift">{`// Callback + Subscription handle (iOS 18+ only)
+            <CodeBlock language="swift">{`// iOS/iPadOS/Mac Catalyst 16.4+; visionOS 1.0+
 func subscriptionBillingIssueListener(
     _ listener: @escaping @Sendable (Purchase) -> Void
 ) -> Subscription`}</CodeBlock>
@@ -60,7 +61,7 @@ val subscriptionBillingIssueListener: Flow<Purchase>`}</CodeBlock>
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// Observable callback approach (iOS 18+ / Play Billing 8.1+).
+// Apple 16.4+ (visionOS 1.0+) / Play Billing 8.1+.
 IDisposable subscription = OpenIapClient.Instance.SubscriptionBillingIssue.Subscribe(purchase =>
 {
     Console.WriteLine("Subscription billing issue received");
@@ -80,6 +81,12 @@ IDisposable subscription = OpenIapClient.Instance.SubscriptionBillingIssue.Subsc
         <code>purchaseToken</code>, and platform fields to prompt the user to
         update payment. Play deduplicates by <code>purchaseToken</code> per
         session; iOS fires per Message delivery.
+      </p>
+      <p>
+        On Apple platforms, StoreKit&apos;s system billing message is still
+        presented through <code>Message.display(in:)</code>. This listener is an
+        additional notification for your app; it does not replace or suppress
+        the default StoreKit UI.
       </p>
 
       <AnchorLink id="example" level="h2">
@@ -118,22 +125,23 @@ function BillingIssueGate() {
           swift: (
             <CodeBlock language="swift">{`import OpenIap
 
-// iOS 18+ only — no-op on older versions
+// iOS/iPadOS/Mac Catalyst 16.4+; visionOS 1.0+
 let subscription = OpenIapModule.shared.subscriptionBillingIssueListener { purchase in
     print("Billing issue on \\(purchase.productId)")
     Task { await showBillingIssueBanner(purchase) }
 }
 
 // Cleanup when the view disappears
-subscription.remove()`}</CodeBlock>
+OpenIapModule.shared.removeListener(subscription)`}</CodeBlock>
           ),
           kotlin: (
-            <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapStore
+            <CodeBlock language="kotlin">{`import dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener
+import dev.hyo.openiap.store.OpenIapStore
 
 val openIapStore = OpenIapStore(context)
 
 // Play Billing Library 8.1+
-val listener: (Purchase) -> Unit = { purchase ->
+val listener = OpenIapSubscriptionBillingIssueListener { purchase ->
     println("Billing issue on \${purchase.productId}")
     showBillingIssueBanner(purchase)
 }
@@ -147,7 +155,7 @@ openIapStore.removeSubscriptionBillingIssueListener(listener)`}</CodeBlock>
 
 val kmpIAP = KmpIAP()
 
-// Play Billing 8.1+ on Android, iOS 18+ on Apple targets
+// Play Billing 8.1+ on Android; Apple 16.4+ (visionOS 1.0+)
 lifecycleScope.launch {
     kmpIAP.subscriptionBillingIssueListener.collect { purchase ->
         println("Billing issue on \${purchase.productId}")
@@ -158,8 +166,8 @@ lifecycleScope.launch {
           dart: (
             <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
-final subscription =
-  FlutterInappPurchase.subscriptionBillingIssueListener.listen((purchase) {
+final subscription = FlutterInappPurchase.instance
+  .subscriptionBillingIssueListener.listen((purchase) {
     debugPrint('Billing issue on \${purchase.productId}');
     showBillingIssueBanner(purchase);
   });
@@ -171,7 +179,7 @@ subscription.cancel();`}</CodeBlock>
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// iOS 18+ / Play Billing Library 8.1+
+// Apple 16.4+ (visionOS 1.0+) / Play Billing Library 8.1+
 var subscription = OpenIapClient.Instance.SubscriptionBillingIssue.Subscribe(purchase =>
 {
     if (purchase is PurchaseCommon purchaseInfo)

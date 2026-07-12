@@ -22,6 +22,17 @@ function OfferCodeRedemption() {
         Offer codes (also known as promo codes or redemption codes) allow users
         to redeem special offers for in-app purchases and subscriptions.
       </p>
+      <p>
+        <strong>Current API boundary:</strong>{' '}
+        <code>presentCodeRedemptionSheetIOS</code> wraps Apple&apos;s legacy
+        system sheet and reports presentation success. The 2026 StoreKit API
+        that accepts redeem options and returns a verified transaction is not
+        exposed yet; observe redeemed purchases through{' '}
+        <Link to="/docs/events/purchase-updated-listener">
+          <code>purchaseUpdatedListener</code>
+        </Link>
+        .
+      </p>
 
       <section>
         <AnchorLink id="platform-differences" level="h2">
@@ -41,15 +52,23 @@ function OfferCodeRedemption() {
               <td>
                 <code>presentCodeRedemptionSheetIOS</code>
               </td>
-              <td>Native in-app code redemption sheet handled by the system</td>
+              <td>Present Apple&apos;s system redemption sheet in the app</td>
             </tr>
             <tr>
-              <td>Android</td>
+              <td>Android one-time-use code</td>
               <td>
                 <code>openRedeemOfferCodeAndroid</code>
               </td>
+              <td>Open the Google Play redemption page</td>
+            </tr>
+            <tr>
+              <td>Android subscription custom code</td>
               <td>
-                Deep link to Google Play Store (no native in-app API available)
+                Normal <code>requestPurchase</code> subscription flow
+              </td>
+              <td>
+                Let the user enter the custom code in the Google Play purchase
+                sheet; the redemption URL does not support this code type
               </td>
             </tr>
           </tbody>
@@ -66,302 +85,95 @@ function OfferCodeRedemption() {
             ios: (
               <>
                 <AnchorLink id="ios-overview" level="h3">
-                  Overview
+                  iOS
                 </AnchorLink>
                 <p>
-                  iOS provides a native code redemption sheet that can be
-                  presented directly within your app using{' '}
-                  <code>presentCodeRedemptionSheetIOS</code>.
+                  Initialize the store connection before presenting the sheet,
+                  and register a purchase listener before the user redeems a
+                  code. The sheet&apos;s Boolean result means it was presented;
+                  the redeemed transaction arrives through the listener.
                 </p>
-                <ul>
-                  <li>Works only on real iOS devices (not simulators)</li>
-                  <li>Not available on tvOS</li>
-                  <li>Handled entirely by the iOS system</li>
-                  <li>
-                    Purchase updates delivered through{' '}
-                    <Link to="/docs/events/purchase-updated-listener">
-                      <code>purchaseUpdatedListener</code>
-                    </Link>
-                  </li>
-                </ul>
-
-                <AnchorLink id="ios-usage" level="h3">
-                  Usage
-                </AnchorLink>
                 <LanguageTabs>
                   {{
                     typescript: (
-                      <CodeBlock language="typescript">{`import { presentCodeRedemptionSheetIOS } from 'expo-iap';
-
-const redeemCode = async () => {
-  try {
-    const result = await presentCodeRedemptionSheetIOS();
-    if (result) {
-      console.log('Code redemption sheet presented successfully');
-      // The system handles the redemption process
-      // Listen for purchase updates via purchaseUpdatedListener
-    }
-  } catch (error) {
-    console.error('Failed to present code redemption sheet:', error);
-  }
-};`}</CodeBlock>
-                    ),
-                    swift: (
-                      <CodeBlock language="swift">{`import OpenIap
-
-let iapStore = OpenIapStore.shared
-
-func redeemCode() async {
-    do {
-        let result = try await iapStore.presentCodeRedemptionSheetIOS()
-        if result {
-            print("Code redemption sheet presented successfully")
-            // The system handles the redemption process
-            // Listen for purchase updates via onPurchaseSuccess callback
-        }
-    } catch {
-        print("Failed to present code redemption sheet: \\(error.localizedDescription)")
-    }
-}`}</CodeBlock>
-                    ),
-                    kotlin: (
-                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapStore
-
-// KMP iOS target
-val iapStore = OpenIapStore.shared
-
-suspend fun redeemCode() {
-    try {
-        val result = iapStore.presentCodeRedemptionSheetIOS()
-        if (result) {
-            println("Code redemption sheet presented successfully")
-            // The system handles the redemption process
-            // Listen for purchase updates via purchaseFlow
-        }
-    } catch (e: Exception) {
-        println("Failed to present code redemption sheet: \${e.message}")
-    }
-}`}</CodeBlock>
-                    ),
-                    kmp: (
-                      <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
-
-// KMP iOS target
-val kmpIAP = KmpIAP()
-
-suspend fun redeemCode() {
-    try {
-        val result = kmpIAP.presentCodeRedemptionSheetIOS()
-        if (result) {
-            println("Code redemption sheet presented successfully")
-            // The system handles the redemption process
-            // Listen for purchase updates via purchaseFlow
-        }
-    } catch (e: Exception) {
-        println("Failed to present code redemption sheet: \${e.message}")
-    }
-}`}</CodeBlock>
-                    ),
-                    dart: (
-                      <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
-
-final iap = FlutterInappPurchase.instance;
-
-Future<void> redeemCode() async {
-  try {
-    final result = await iap.presentCodeRedemptionSheetIOS();
-    if (result) {
-      print('Code redemption sheet presented successfully');
-      // The system handles the redemption process
-      // Listen for purchase updates via purchaseUpdatedStream
-    }
-  } catch (e) {
-    print('Failed to present code redemption sheet: $e');
-  }
-}`}</CodeBlock>
-                    ),
-                    csharp: (
-                      <CodeBlock language="csharp">{`// KMP iOS target
-var iapStore = OpenIapStore.shared
-
-Task RedeemCodeAsync() {
-    try {
-        var result = iapStore.presentCodeRedemptionSheetIOS()
-        if (result) {
-            println("Code redemption sheet presented successfully")
-            // The system handles the redemption process
-            // Listen for purchase updates via purchaseFlow
-        }
-    } catch (e: Exception) {
-        println("Failed to present code redemption sheet: \${e.message}")
-    }
-}`}</CodeBlock>
-                    ),
-                    gdscript: (
-                      <CodeBlock language="gdscript">{`func redeem_code() -> void:
-    var result = await iap.present_code_redemption_sheet_ios()
-    if result:
-        print("Code redemption sheet presented successfully")
-        # The system handles the redemption process
-        # Listen for purchase updates via purchase_updated signal`}</CodeBlock>
-                    ),
-                  }}
-                </LanguageTabs>
-
-                <AnchorLink id="ios-complete-example" level="h3">
-                  Complete Example
-                </AnchorLink>
-                <LanguageTabs>
-                  {{
-                    typescript: (
-                      <CodeBlock language="typescript">{`import { useEffect } from 'react';
-import {
+                      <CodeBlock language="typescript">{`import {
+  endConnection,
+  initConnection,
   presentCodeRedemptionSheetIOS,
   purchaseUpdatedListener,
-  finishTransaction,
 } from 'expo-iap';
 
-function RedeemCodeButton() {
-  useEffect(() => {
-    // Listen for purchases from code redemption
-    const subscription = purchaseUpdatedListener(async (purchase) => {
-      console.log('Purchase from code redemption:', purchase.productId);
+let subscription: ReturnType<typeof purchaseUpdatedListener> | undefined;
 
-      // Verify and finish the transaction
-      const isValid = await verifyPurchaseOnServer(purchase);
-      if (isValid) {
-        await finishTransaction({ purchase, isConsumable: false });
-        console.log('Redemption completed successfully');
-      }
-    });
+export async function startIap() {
+  await initConnection();
+  subscription = purchaseUpdatedListener((purchase) => {
+    console.log('Redeemed product:', purchase.productId);
+  });
+}
 
-    return () => subscription.remove();
-  }, []);
+export async function redeemCode() {
+  return presentCodeRedemptionSheetIOS();
+}
 
-  const handleRedeem = async () => {
-    try {
-      await presentCodeRedemptionSheetIOS();
-    } catch (error) {
-      console.error('Error:', error);
-    }
-  };
-
-  return (
-    <Button onPress={handleRedeem} title="Redeem Code" />
-  );
+export async function stopIap() {
+  subscription?.remove();
+  await endConnection();
 }`}</CodeBlock>
                     ),
                     swift: (
-                      <CodeBlock language="swift">{`import OpenIap
-import SwiftUI
+                      <CodeBlock language="swift">{`import OpenIAP
 
-class RedemptionManager: ObservableObject {
-    private let iapStore = OpenIapStore.shared
+@MainActor
+final class RedemptionManager {
+    private let iapStore = OpenIapStore()
 
-    init() {
-        setupPurchaseListener()
+    func start() async throws {
+        iapStore.onPurchaseSuccess = { purchase in
+            print("Redeemed product: \(purchase.productId)")
+        }
+        try await iapStore.initConnection()
     }
 
-    private func setupPurchaseListener() {
-        // Listen for purchases from code redemption
-        iapStore.onPurchaseSuccess = { [weak self] purchase in
-            Task {
-                print("Purchase from code redemption: \\(purchase.productId)")
-
-                // Verify and finish the transaction
-                let isValid = await self?.verifyPurchaseOnServer(purchase)
-                if isValid == true {
-                    try? await self?.iapStore.finishTransaction(purchase, isConsumable: false)
-                    print("Redemption completed successfully")
-                }
-            }
-        }
+    func redeemCode() async throws -> Bool {
+        try await iapStore.presentCodeRedemptionSheetIOS()
     }
 
-    func redeemCode() async {
-        do {
-            _ = try await iapStore.presentCodeRedemptionSheetIOS()
-        } catch {
-            print("Error: \\(error.localizedDescription)")
-        }
+    func stop() async {
+        try? await iapStore.endConnection()
     }
 }`}</CodeBlock>
                     ),
                     kotlin: (
-                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapStore
-import dev.hyo.openiap.models.*
-import kotlinx.coroutines.*
-
-// KMP iOS target
-class RedemptionManager {
-    private val iapStore = OpenIapStore.shared
-    private var purchaseJob: Job? = null
-
-    fun initialize(scope: CoroutineScope) {
-        // Listen for purchases from code redemption
-        purchaseJob = scope.launch {
-            iapStore.purchaseFlow.collect { purchase ->
-                println("Purchase from code redemption: \${purchase.productId}")
-
-                // Verify and finish the transaction
-                val isValid = verifyPurchaseOnServer(purchase)
-                if (isValid) {
-                    iapStore.finishTransaction(purchase, isConsumable = false)
-                    println("Redemption completed successfully")
-                }
-            }
-        }
-    }
-
-    suspend fun redeemCode() {
-        try {
-            iapStore.presentCodeRedemptionSheetIOS()
-        } catch (e: Exception) {
-            println("Error: \${e.message}")
-        }
-    }
-
-    fun dispose() {
-        purchaseJob?.cancel()
-    }
-}`}</CodeBlock>
+                      <CodeBlock language="kotlin">{`// This StoreKit sheet is iOS-only.
+// For shared Kotlin code, use the KMP API shown in the KMP tab.`}</CodeBlock>
                     ),
                     kmp: (
                       <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
-import io.github.hyochan.kmpiap.*
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 
-// KMP iOS target
-class RedemptionManager {
-    private val kmpIAP = KmpIAP()
+class RedemptionManager(private val scope: CoroutineScope) {
+    private val iap = KmpIAP()
     private var purchaseJob: Job? = null
 
-    fun initialize(scope: CoroutineScope) {
-        // Listen for purchases from code redemption
+    suspend fun start() {
+        iap.initConnection()
         purchaseJob = scope.launch {
-            kmpIAP.purchaseFlow.collect { purchase ->
-                println("Purchase from code redemption: \${purchase.productId}")
-
-                // Verify and finish the transaction
-                val isValid = verifyPurchaseOnServer(purchase)
-                if (isValid) {
-                    kmpIAP.finishTransaction(purchase, isConsumable = false)
-                    println("Redemption completed successfully")
-                }
+            iap.purchaseUpdatedListener.collect { purchase ->
+                println("Redeemed product: " + purchase.productId)
             }
         }
     }
 
-    suspend fun redeemCode() {
-        try {
-            kmpIAP.presentCodeRedemptionSheetIOS()
-        } catch (e: Exception) {
-            println("Error: \${e.message}")
-        }
-    }
+    suspend fun redeemCode(): Boolean =
+        iap.presentCodeRedemptionSheetIOS()
 
-    fun dispose() {
+    suspend fun stop() {
         purchaseJob?.cancel()
+        iap.endConnection()
     }
 }`}</CodeBlock>
                     ),
@@ -370,100 +182,69 @@ class RedemptionManager {
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
 class RedemptionManager {
-  final FlutterInappPurchase _iap = FlutterInappPurchase.instance;
-  StreamSubscription<ProductPurchase?>? _subscription;
+  final iap = FlutterInappPurchase.instance;
+  StreamSubscription<Purchase>? subscription;
 
-  void initialize() {
-    // Listen for purchases from code redemption
-    _subscription = FlutterInappPurchase.purchaseUpdatedStream.listen(
-      (purchase) async {
-        if (purchase != null) {
-          print('Purchase from code redemption: \${purchase.productId}');
-
-          // Verify and finish the transaction
-          final isValid = await _verifyPurchaseOnServer(purchase);
-          if (isValid) {
-            await _iap.finishTransaction(purchase, isConsumable: false);
-            print('Redemption completed successfully');
-          }
-        }
-      },
-    );
+  Future<void> start() async {
+    await iap.initConnection();
+    subscription = iap.purchaseUpdatedListener.listen((purchase) {
+      print('Redeemed product: ' + purchase.productId);
+    });
   }
 
-  Future<void> redeemCode() async {
-    try {
-      await _iap.presentCodeRedemptionSheetIOS();
-    } catch (e) {
-      print('Error: $e');
-    }
-  }
+  Future<bool> redeemCode() => iap.presentCodeRedemptionSheetIOS();
 
-  void dispose() {
-    _subscription?.cancel();
+  Future<void> stop() async {
+    await subscription?.cancel();
+    await iap.endConnection();
   }
 }`}</CodeBlock>
                     ),
                     csharp: (
-                      <CodeBlock language="csharp">{`// KMP iOS target
-class RedemptionManager {
-    private var iapStore = OpenIapStore.shared
-    private var purchaseJob = null
+                      <CodeBlock language="csharp">{`using OpenIap;
+using OpenIap.Maui;
 
-    fun initialize(scope: CoroutineScope) {
-        // Listen for purchases from code redemption
-        purchaseJob = scope.launch {
-            iapStore.purchaseFlow.collect { purchase ->
-                println("Purchase from code redemption: \${purchase.productId}")
+public sealed class RedemptionManager : IDisposable
+{
+    private readonly IOpenIap _iap = OpenIapClient.Instance;
+    private IDisposable? _purchaseSubscription;
 
-                // Verify and finish the transaction
-                var isValid = verifyPurchaseOnServer(purchase)
-                if (isValid) {
-                    iapStore.finishTransaction(purchase, isConsumable = false)
-                    println("Redemption completed successfully")
-                }
-            }
-        }
+    public async Task StartAsync()
+    {
+        _purchaseSubscription = _iap.PurchaseUpdated.Subscribe(
+            purchase => Console.WriteLine("Redeemed product: " + purchase.ProductId));
+        await ((MutationResolver)_iap).InitConnectionAsync();
     }
 
-    Task RedeemCodeAsync() {
-        try {
-            iapStore.presentCodeRedemptionSheetIOS()
-        } catch (e: Exception) {
-            println("Error: \${e.message}")
-        }
+    public Task<bool> RedeemCodeAsync() =>
+        ((MutationResolver)_iap).PresentCodeRedemptionSheetIOSAsync();
+
+    public async Task StopAsync()
+    {
+        _purchaseSubscription?.Dispose();
+        _purchaseSubscription = null;
+        await ((MutationResolver)_iap).EndConnectionAsync();
     }
 
-    fun dispose() {
-        purchaseJob?.cancel()
-    }
+    public void Dispose() => _purchaseSubscription?.Dispose();
 }`}</CodeBlock>
                     ),
                     gdscript: (
                       <CodeBlock language="gdscript">{`extends Node
 
-var iap: OpenIap
-
 func _ready() -> void:
-    iap = OpenIap.new()
-    add_child(iap)
+    GodotIapPlugin.purchase_updated.connect(_on_purchase_updated)
+    if not await GodotIapPlugin.init_connection():
+        push_error("Failed to connect to the App Store")
 
-    # Listen for purchases from code redemption
-    iap.purchase_updated.connect(_on_purchase_updated)
+func _on_purchase_updated(purchase: Dictionary) -> void:
+    print("Redeemed product: ", purchase.get("productId", ""))
 
-func _on_purchase_updated(purchase: Purchase) -> void:
-    print("Purchase from code redemption: ", purchase.product_id)
+func redeem_code() -> bool:
+    return await GodotIapPlugin.present_code_redemption_sheet_ios()
 
-    # Verify and finish the transaction
-    var is_valid = await verify_purchase_on_server(purchase)
-    if is_valid:
-        await iap.finish_transaction(purchase, false)
-        print("Redemption completed successfully")
-
-func redeem_code() -> void:
-    var result = await iap.present_code_redemption_sheet_ios()
-    if not result:
-        print("Error presenting code redemption sheet")`}</CodeBlock>
+func _exit_tree() -> void:
+    await GodotIapPlugin.end_connection()`}</CodeBlock>
                     ),
                   }}
                 </LanguageTabs>
@@ -472,143 +253,222 @@ func redeem_code() -> void:
                   Testing
                 </AnchorLink>
                 <ul>
-                  <li>Offer codes can only be tested on real iOS devices</li>
-                  <li>
-                    Use TestFlight or App Store Connect to generate test codes
-                  </li>
-                  <li>Sandbox environment supports offer code testing</li>
-                  <li>
-                    Create offer codes in App Store Connect under your
-                    subscription
-                  </li>
+                  <li>Test on a real iOS device, not a simulator</li>
+                  <li>Generate test codes in App Store Connect</li>
+                  <li>Use a sandbox account or TestFlight build</li>
                 </ul>
               </>
             ),
             android: (
               <>
                 <AnchorLink id="android-overview" level="h3">
-                  Overview
+                  Android
                 </AnchorLink>
                 <p>
-                  Google Play does not provide a native API to redeem codes
-                  within the app. Instead,{' '}
-                  <code>openRedeemOfferCodeAndroid</code> opens a deep link to
-                  the Play Store where users can enter their codes.
+                  Google Play does not expose a general in-app redemption API.
+                  For a <strong>one-time-use promo code</strong>, open the Play
+                  Store redemption URL and keep your purchase listener active.
+                  For a <strong>subscription custom code</strong>, start the
+                  normal subscription purchase flow instead; the user enters the
+                  code in the Google Play purchase sheet.
                 </p>
-                <ul>
-                  <li>Opens the Google Play Store app</li>
-                  <li>User enters code in the Play Store</li>
+                <p>
+                  A redemption completed while your billing connection was
+                  inactive might not reach the live listener. Run this complete
+                  reconciliation sequence from your app-resume or foreground
+                  handler:
+                </p>
+                <ol>
                   <li>
-                    Purchase updates delivered through{' '}
-                    <Link to="/docs/events/purchase-updated-listener">
-                      <code>purchaseUpdatedListener</code>
-                    </Link>
+                    Wait for <code>initConnection</code> (or reconnection) to
+                    succeed.
                   </li>
-                </ul>
-
-                <AnchorLink id="android-usage" level="h3">
-                  Usage
-                </AnchorLink>
+                  <li>
+                    Query <code>getAvailablePurchases</code> after the
+                    connection is ready.
+                  </li>
+                  <li>
+                    Process only purchases whose state is <code>purchased</code>
+                    ; never grant a pending or unknown purchase.
+                  </li>
+                  <li>Verify the store receipt on your server.</li>
+                  <li>
+                    Grant the entitlement idempotently, so a resume or listener
+                    replay cannot grant it twice.
+                  </li>
+                  <li>
+                    Call <code>finishTransaction</code> only after verification
+                    and grant. Consume consumables; acknowledge non-consumables
+                    and subscriptions.
+                  </li>
+                </ol>
                 <LanguageTabs>
                   {{
                     typescript: (
-                      <CodeBlock language="typescript">{`import { openRedeemOfferCodeAndroid } from 'expo-iap';
+                      <CodeBlock language="typescript">{`import {
+  finishTransaction,
+  getAvailablePurchases,
+  initConnection,
+  openRedeemOfferCodeAndroid,
+  type Purchase,
+} from 'expo-iap';
 
-// Opens Play Store redemption page
-const redeemCode = async () => {
+export async function openRedeemPage() {
   await openRedeemOfferCodeAndroid();
-};
-
-// Or manually with a pre-filled code
-import { Linking } from 'react-native';
-
-const redeemWithCode = async (code: string) => {
-  const url = \`https://play.google.com/redeem?code=\${code}\`;
-  await Linking.openURL(url);
-};`}</CodeBlock>
-                    ),
-                    swift: (
-                      <CodeBlock language="swift">{`// Android-only - use presentCodeRedemptionSheetIOS() for iOS`}</CodeBlock>
-                    ),
-                    kotlin: (
-                      <CodeBlock language="kotlin">{`import android.content.Intent
-import android.net.Uri
-
-// Open Play Store redemption page
-fun openRedeemPage(context: Context) {
-    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/redeem"))
-    context.startActivity(intent)
 }
 
-// Open with pre-filled code
-fun redeemWithCode(context: Context, code: String) {
-    val url = "https://play.google.com/redeem?code=\$code"
-    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-    context.startActivity(intent)
-}`}</CodeBlock>
-                    ),
-                    kmp: (
-                      <CodeBlock language="kotlin">{`import android.content.Intent
-import android.net.Uri
+// Call this from the app's foreground/resume handler after the user returns.
+export async function reconcileAfterResume() {
+  await initConnection();
+  const purchases = await getAvailablePurchases();
 
-// Open Play Store redemption page
-fun openRedeemPage(context: Context) {
-    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/redeem"))
-    context.startActivity(intent)
-}
+  for (const purchase of purchases) {
+    if (purchase.purchaseState !== 'purchased') continue;
+    if (!(await verifyOnServer(purchase))) continue;
 
-// Open with pre-filled code
-fun redeemWithCode(context: Context, code: String) {
-    val url = "https://play.google.com/redeem?code=\$code"
-    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-    context.startActivity(intent)
-}`}</CodeBlock>
-                    ),
-                    dart: (
-                      <CodeBlock language="dart">{`import 'package:url_launcher/url_launcher.dart';
-
-// Open Play Store redemption page
-Future<void> openRedeemPage() async {
-  final url = Uri.parse('https://play.google.com/redeem');
-  if (await canLaunchUrl(url)) {
-    await launchUrl(url);
+    await grantIdempotently(purchase);
+    await finishTransaction({
+      purchase,
+      isConsumable: isConsumableProduct(purchase.productId),
+    });
   }
 }
 
-// Open with pre-filled code
-Future<void> redeemWithCode(String code) async {
-  final url = Uri.parse('https://play.google.com/redeem?code=\$code');
-  if (await canLaunchUrl(url)) {
-    await launchUrl(url);
+declare function verifyOnServer(purchase: Purchase): Promise<boolean>;
+declare function grantIdempotently(purchase: Purchase): Promise<void>;
+declare function isConsumableProduct(productId: string): boolean;
+
+// react-native-iap exports the same APIs.`}</CodeBlock>
+                    ),
+                    swift: (
+                      <CodeBlock language="swift">{`// Android-only. On iOS, call presentCodeRedemptionSheetIOS().`}</CodeBlock>
+                    ),
+                    kotlin: (
+                      <CodeBlock language="kotlin">{`import android.app.Activity
+import android.content.Intent
+import android.net.Uri
+import dev.hyo.openiap.PurchaseState
+import dev.hyo.openiap.utils.toPurchaseInput
+
+fun openRedeemPage(activity: Activity, code: String? = null) {
+    val suffix = code?.let { "?code=" + Uri.encode(it) }.orEmpty()
+    val intent = Intent(
+        Intent.ACTION_VIEW,
+        Uri.parse("https://play.google.com/redeem" + suffix),
+    )
+    activity.startActivity(intent)
+}
+
+suspend fun reconcileAfterResume() {
+    check(openIapStore.initConnection())
+    for (purchase in openIapStore.getAvailablePurchases(null)) {
+        if (purchase.purchaseState != PurchaseState.Purchased) continue
+        if (!verifyOnServer(purchase)) continue
+
+        grantIdempotently(purchase)
+        openIapStore.finishTransaction(
+            purchase.toPurchaseInput(),
+            isConsumableProduct(purchase.productId),
+        )
+    }
+}`}</CodeBlock>
+                    ),
+                    kmp: (
+                      <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.toPurchaseInput
+import io.github.hyochan.kmpiap.openiap.PurchaseState
+
+// Put the Activity/Intent implementation from the Kotlin tab in androidMain.
+suspend fun reconcileAfterResume() {
+    check(kmpIAP.initConnection())
+    for (purchase in kmpIAP.getAvailablePurchases()) {
+        if (purchase.purchaseState != PurchaseState.Purchased) continue
+        if (!verifyOnServer(purchase)) continue
+
+        grantIdempotently(purchase)
+        kmpIAP.finishTransaction(
+            purchase.toPurchaseInput(),
+            isConsumable = isConsumableProduct(purchase.productId),
+        )
+    }
+}`}</CodeBlock>
+                    ),
+                    dart: (
+                      <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+Future<void> openRedeemPage([String? code]) async {
+  final query = code == null ? '' : '?code=' + Uri.encodeComponent(code);
+  await launchUrl(
+    Uri.parse('https://play.google.com/redeem' + query),
+    mode: LaunchMode.externalApplication,
+  );
+}
+
+Future<void> reconcileAfterResume() async {
+  final iap = FlutterInappPurchase.instance;
+  await iap.initConnection();
+  final purchases = await iap.getAvailablePurchases();
+
+  for (final purchase in purchases) {
+    if (purchase.purchaseState != PurchaseState.Purchased) continue;
+    if (!await verifyOnServer(purchase)) continue;
+
+    await grantIdempotently(purchase);
+    await iap.finishTransaction(
+      purchase: purchase,
+      isConsumable: isConsumableProduct(purchase.productId),
+    );
   }
 }`}</CodeBlock>
                     ),
                     csharp: (
-                      <CodeBlock language="csharp">{`using OpenIap;
+                      <CodeBlock language="csharp">{`using Microsoft.Maui.ApplicationModel;
+using OpenIap;
 using OpenIap.Maui;
 
-// Open Play Store redemption page
-fun openRedeemPage(context: Context) {
-    var intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/redeem"))
-    context.startActivity(intent)
-}
+await Browser.OpenAsync(
+    "https://play.google.com/redeem",
+    BrowserLaunchMode.External);
 
-// Open with pre-filled code
-fun redeemWithCode(context: Context, code: String) {
-    var url = "https://play.google.com/redeem?code=\$code"
-    var intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-    context.startActivity(intent)
+async Task ReconcileAfterResumeAsync()
+{
+    var iap = OpenIapClient.Instance;
+    var mutations = (MutationResolver)iap;
+    var queries = (QueryResolver)iap;
+
+    if (!await mutations.InitConnectionAsync()) return;
+    foreach (var purchase in await queries.GetAvailablePurchasesAsync())
+    {
+        if (purchase.PurchaseState != PurchaseState.Purchased) continue;
+        if (!await VerifyOnServerAsync(purchase)) continue;
+
+        await GrantIdempotentlyAsync(purchase);
+        await mutations.FinishTransactionAsync(
+            new PurchaseInput(purchase),
+            IsConsumableProduct(purchase.ProductId));
+    }
 }`}</CodeBlock>
                     ),
                     gdscript: (
-                      <CodeBlock language="gdscript">{`# Open Play Store redemption page
-func open_redeem_page() -> void:
-    OS.shell_open("https://play.google.com/redeem")
+                      <CodeBlock language="gdscript">{`func open_redeem_page(code: String = "") -> void:
+    var suffix := "" if code.is_empty() else "?code=" + code.uri_encode()
+    OS.shell_open("https://play.google.com/redeem" + suffix)
 
-# Open with pre-filled code
-func redeem_with_code(code: String) -> void:
-    var url = "https://play.google.com/redeem?code=" + code
-    OS.shell_open(url)`}</CodeBlock>
+func reconcile_after_resume() -> void:
+    if not await GodotIapPlugin.init_connection():
+        return
+
+    for purchase in await GodotIapPlugin.get_available_purchases():
+        if purchase.purchase_state != Types.PurchaseState.PURCHASED:
+            continue
+        if not await verify_on_server(purchase):
+            continue
+
+        await grant_idempotently(purchase)
+        await GodotIapPlugin.finish_transaction(
+            purchase,
+            is_consumable_product(purchase.product_id),
+        )`}</CodeBlock>
                     ),
                   }}
                 </LanguageTabs>
@@ -617,15 +477,21 @@ func redeem_with_code(code: String) -> void:
                   Testing
                 </AnchorLink>
                 <ul>
-                  <li>Generate promo codes in Google Play Console</li>
                   <li>
-                    Promo codes work for one-time products only (not
-                    subscriptions)
+                    Generate a one-time-use promo code or subscription custom
+                    code in Google Play Console
                   </li>
-                  <li>Use license testers for testing without real payments</li>
                   <li>
-                    After redemption, purchases are delivered through your
-                    purchase listener
+                    Test one-time-use codes through the Play Store redemption
+                    flow
+                  </li>
+                  <li>
+                    Test subscription custom codes in the normal subscription
+                    purchase sheet
+                  </li>
+                  <li>Use a configured license tester account</li>
+                  <li>
+                    Return to the app and run the complete reconciliation flow
                   </li>
                 </ul>
               </>
@@ -645,32 +511,11 @@ func redeem_with_code(code: String) -> void:
             </Link>
           </li>
           <li>
-            <Link to="/docs/features/purchase">Purchase Flow</Link>
+            <Link to="/docs/events/purchase-updated-listener">
+              Purchase Updated Listener
+            </Link>
           </li>
           <li>
-            <Link to="/docs/events">Events & Listeners</Link>
-          </li>
-        </ul>
-      </section>
-
-      <section>
-        <AnchorLink id="references" level="h2">
-          Native References
-        </AnchorLink>
-        <ul>
-          <li>
-            Apple ·{' '}
-            <a
-              href="https://developer.apple.com/documentation/storekit/appstore/presentofferCoderedeemsheet()"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              AppStore.presentOfferCodeRedeemSheet()
-            </a>{' '}
-            — StoreKit 2 in-app redemption sheet
-          </li>
-          <li>
-            Apple ·{' '}
             <a
               href="https://developer.apple.com/app-store/subscriptions/offer-codes/"
               target="_blank"
@@ -680,13 +525,12 @@ func redeem_with_code(code: String) -> void:
             </a>
           </li>
           <li>
-            Google ·{' '}
             <a
               href="https://support.google.com/googleplay/android-developer/answer/6321495"
               target="_blank"
               rel="noopener noreferrer"
             >
-              Promo codes for Google Play
+              Google Play Promotions
             </a>
           </li>
         </ul>

@@ -65,7 +65,7 @@ suspend fun requestPurchaseOnPromotedProductIOS(): Boolean`}</CodeBlock>
 Future<bool> requestPurchaseOnPromotedProductIOS();`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`@Deprecated("Use promotedProductListenerIOS + requestPurchase instead")
+            <CodeBlock language="csharp">{`[Obsolete("Use PromotedProductIOS + RequestPurchaseAsync instead")]
 Task<bool> RequestPurchaseOnPromotedProductIOSAsync();`}</CodeBlock>
           ),
           gdscript: (
@@ -113,7 +113,7 @@ if (Platform.isIOS) {
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// kmp-iap (iOS targets only — no-op on Android)
+// maui-iap (iOS targets only — not supported on Android)
 // Deprecated — prefer promotedProductListenerIOS + requestPurchase.
 await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseOnPromotedProductIOSAsync();`}</CodeBlock>
           ),

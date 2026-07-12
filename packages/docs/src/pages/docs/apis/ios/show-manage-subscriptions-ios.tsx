@@ -46,7 +46,7 @@ function ShowManageSubscriptionsIOS() {
       <LanguageTabs>
         {{
           swift: (
-            <CodeBlock language="swift">{`func showManageSubscriptionsIOS() async throws -> [Purchase]`}</CodeBlock>
+            <CodeBlock language="swift">{`func showManageSubscriptionsIOS() async throws -> [PurchaseIOS]`}</CodeBlock>
           ),
           kotlin: (
             <CodeBlock language="kotlin">{`suspend fun showManageSubscriptionsIOS(): List<PurchaseIOS>`}</CodeBlock>

@@ -443,7 +443,7 @@ function Subscription() {
           {{
             ios: (
               <div className="lifecycle-flow">
-                <div>1. getActiveSubscriptions() → [ActiveSubscriptionIOS]</div>
+                <div>1. getActiveSubscriptions() → [ActiveSubscription]</div>
                 <div>2. For each subscription:</div>
                 <div className="lifecycle-indent">
                   • isActive = true → grant access
@@ -460,8 +460,9 @@ function Subscription() {
                 <div className="lifecycle-indent-2">
                   - pendingUpgradeProductId → show pending change
                 </div>
-                <div className="lifecycle-indent-2">
-                  - expirationDate → show expiry info
+                <div className="lifecycle-indent">
+                  • check expirationDateIOS on the subscription → show expiry
+                  info
                 </div>
                 <div>3. No active subscriptions → revoke access</div>
               </div>
@@ -506,13 +507,13 @@ function Subscription() {
                   <strong>User still has access:</strong>
                 </div>
                 <div className="lifecycle-indent">
-                  • Until expirationDate (available in renewalInfoIOS)
+                  • Until expirationDateIOS on ActiveSubscription
                 </div>
                 <div style={{ marginTop: '0.5rem' }}>
                   <strong>Actions:</strong>
                 </div>
                 <div className="lifecycle-indent">
-                  → Show "subscription ends on [expirationDate]"
+                  → Show "subscription ends on [expirationDateIOS]"
                 </div>
                 <div className="lifecycle-indent">
                   → Offer re-subscribe option
@@ -789,7 +790,7 @@ function Subscription() {
                   </Link>{' '}
                   and{' '}
                   <Link to="/docs/types/active-subscription">
-                    <code>ActiveSubscriptionIOS</code>
+                    <code>ActiveSubscription</code>
                   </Link>{' '}
                   via the <code>renewalInfoIOS</code> property:
                 </p>

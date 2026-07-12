@@ -53,7 +53,7 @@ function BeginRefundRequestIOS() {
             <CodeBlock language="dart">{`Future<String?> beginRefundRequestIOS(String sku);`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task<String?> BeginRefundRequestIOSAsync(String Sku)`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<string?> BeginRefundRequestIOSAsync(string sku);`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func begin_refund_request_ios(product_id: String) -> String`}</CodeBlock>

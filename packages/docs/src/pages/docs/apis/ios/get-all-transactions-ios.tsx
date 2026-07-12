@@ -12,7 +12,7 @@ function GetAllTransactionsIOS() {
     <div className="doc-page">
       <SEO
         title="getAllTransactionsIOS"
-        description="Get the full StoreKit 2 transaction history as PurchaseIOS values. Requires the SK2ConsumableTransactionHistory Info.plist key for finished consumables to be included (iOS 18+)."
+        description="Get the full StoreKit 2 transaction history as PurchaseIOS values. Requires the SKIncludeConsumableInAppPurchaseHistory Info.plist key for finished consumables to be included (iOS 18+)."
         path="/docs/apis/ios/get-all-transactions-ios"
         keywords="getAllTransactionsIOS, StoreKit 2, transaction history"
       />
@@ -22,13 +22,13 @@ function GetAllTransactionsIOS() {
       </h1>
       <p>
         Get the full StoreKit 2 transaction history as PurchaseIOS values.
-        Requires the SK2ConsumableTransactionHistory Info.plist key for finished
-        consumables to be included (iOS 18+).
+        Requires the SKIncludeConsumableInAppPurchaseHistory Info.plist key for
+        finished consumables to be included (iOS 18+).
       </p>
       <p>
         Iterates <code>Transaction.all</code>. iOS 18+ requires{' '}
-        <code>SK2ConsumableTransactionHistory</code> Info.plist key for finished
-        consumables to appear. See the{' '}
+        <code>SKIncludeConsumableInAppPurchaseHistory</code> Info.plist key for
+        finished consumables to appear. See the{' '}
         <a
           href="https://developer.apple.com/documentation/storekit/transaction/all"
           target="_blank"

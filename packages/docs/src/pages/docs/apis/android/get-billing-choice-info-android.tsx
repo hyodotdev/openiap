@@ -53,9 +53,11 @@ function GetBillingChoiceInfoAndroid() {
 ): Promise<BillingChoiceInfoAndroid>`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`Future<BillingChoiceInfoAndroid> getBillingChoiceInfoAndroid(
-  GetBillingChoiceInfoParamsAndroid params,
-);`}</CodeBlock>
+            <CodeBlock language="dart">{`Future<BillingChoiceInfoAndroid> getBillingChoiceInfoAndroid({
+  required BillingProgramAndroid billingProgram,
+  required BillingChoiceImageLayoutAndroid playBillingChoiceImageLayout,
+  String? userLocale,
+});`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`Task<BillingChoiceInfoAndroid> GetBillingChoiceInfoAndroidAsync(
@@ -170,11 +172,9 @@ if (Platform.OS === 'android') {
           dart: (
             <CodeBlock language="dart">{`if (Platform.isAndroid) {
   final info = await FlutterInappPurchase.instance.getBillingChoiceInfoAndroid(
-    GetBillingChoiceInfoParamsAndroid(
-      billingProgram: BillingProgramAndroid.BillingChoice,
-      playBillingChoiceImageLayout:
-          BillingChoiceImageLayoutAndroid.RectangularFourByOne,
-    ),
+    billingProgram: BillingProgramAndroid.BillingChoice,
+    playBillingChoiceImageLayout:
+        BillingChoiceImageLayoutAndroid.RectangularFourByOne,
   );
 }`}</CodeBlock>
           ),

@@ -12,16 +12,15 @@ function SubscriptionBillingIssue() {
     <div className="doc-page">
       <SEO
         title="Subscription Billing Issue Event"
-        description="Cross-platform event that fires when an active subscription needs user attention for a billing problem. Unifies StoreKit 2 Message.billingIssue (iOS 18+) and Play Billing isSuspended (Play Billing Library 8.1+)."
+        description="Cross-platform event that fires when a subscription needs user attention for a billing problem. Unifies StoreKit 2 Message.billingIssue (Apple 16.4+, visionOS 1.0+) and Play Billing isSuspended (Play Billing Library 8.1+)."
         path="/docs/features/subscription-billing-issue"
         keywords="subscription, billing issue, isSuspended, StoreKit Message, billingIssue, payment failure, retry"
       />
       <h1>Subscription Billing Issue Event</h1>
       <p>
-        A single cross-platform event that fires when a user&apos;s active
-        subscription enters a state that needs attention due to a payment
-        problem (card declined, expired payment method, billing retry, grace
-        period, etc.).
+        A single cross-platform event that fires when a user&apos;s subscription
+        enters a state that needs attention due to a payment problem (card
+        declined, expired payment method, billing retry, grace period, etc.).
       </p>
 
       <section>
@@ -42,7 +41,7 @@ function SubscriptionBillingIssue() {
               <td>
                 <code>StoreKit.Message.Reason.billingIssue</code>
                 <br />
-                <small>iOS 18.0+</small>
+                <small>iOS/iPadOS 16.4+</small>
               </td>
               <td>Push, while app is active</td>
             </tr>
@@ -51,7 +50,7 @@ function SubscriptionBillingIssue() {
               <td>
                 <code>StoreKit.Message.Reason.billingIssue</code>
                 <br />
-                <small>Mac Catalyst 18.0+</small>
+                <small>Mac Catalyst 16.4+</small>
               </td>
               <td>Push, while app is active</td>
             </tr>
@@ -74,18 +73,28 @@ function SubscriptionBillingIssue() {
                 <br />
                 <small>Billing 7.0 compat SDK</small>
               </td>
-              <td>Never fires (silent no-op)</td>
+              <td>Listener is a no-op; resolver fails as unsupported</td>
             </tr>
             <tr>
+              <td>Android (Amazon)</td>
               <td>
-                macOS
+                Not available
                 <br />
-                tvOS
-                <br />
-                watchOS
-                <br />
-                visionOS
+                <small>Amazon Appstore IAP</small>
               </td>
+              <td>Listener is a no-op; resolver fails as unsupported</td>
+            </tr>
+            <tr>
+              <td>visionOS</td>
+              <td>
+                <code>StoreKit.Message.Reason.billingIssue</code>
+                <br />
+                <small>visionOS 1.0+</small>
+              </td>
+              <td>Push, while app is active</td>
+            </tr>
+            <tr>
+              <td>macOS / tvOS / watchOS</td>
               <td>
                 <code>StoreKit.Message</code> not available
               </td>
@@ -93,6 +102,13 @@ function SubscriptionBillingIssue() {
             </tr>
           </tbody>
         </table>
+        <p>
+          On Apple platforms, OpenIAP still presents StoreKit&apos;s system
+          billing message through <code>Message.display(in:)</code>. The
+          billing-issue event is an additional app notification for custom UI or
+          analytics; it does not replace or suppress Apple&apos;s default
+          message.
+        </p>
         <p>
           Apple references:{' '}
           <a
@@ -172,34 +188,46 @@ subscription.remove();`}</CodeBlock>
             dart: (
               <CodeBlock language="dart">{`final iap = FlutterInappPurchase.instance;
 
-final sub = iap.subscriptionBillingIssueListener.listen((purchase) {
+final sub = iap.subscriptionBillingIssueListener.listen((purchase) async {
   debugPrint('Needs attention: \${purchase.productId}');
-  iap.deepLinkToSubscriptions(options: DeepLinkOptions(
+  await iap.deepLinkToSubscriptions(
     skuAndroid: purchase.productId,
     packageNameAndroid: 'com.example.app',
-  ));
+  );
 });
 
 await sub.cancel();`}</CodeBlock>
             ),
             csharp: (
-              <CodeBlock language="csharp">{`// .NET MAUI — see OpenIap.Maui.OpenIapClient.Instance.
-// The full operation surface lives on OpenIap.QueryResolver /
-// MutationResolver / SubscriptionResolver (auto-generated from the schema).`}</CodeBlock>
+              <CodeBlock language="csharp">{`using OpenIap;
+using OpenIap.Maui;
+
+var mutate = (MutationResolver)OpenIapClient.Instance;
+using var subscription = OpenIapClient.Instance.SubscriptionBillingIssue.Subscribe(
+    purchase =>
+    {
+        if (purchase is not PurchaseCommon info) return;
+        _ = mutate.DeepLinkToSubscriptionsAsync(new DeepLinkOptions
+        {
+            SkuAndroid = info.ProductId,
+            PackageNameAndroid = "com.example.app",
+        });
+    });`}</CodeBlock>
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`# godot-iap signal
 var godot_iap := preload("res://addons/godot-iap/godot_iap.gd").new()
-godot_iap.subscription_billing_issue.connect(func(purchase: Dictionary) -> void:
-    print("Needs attention: ", purchase["productId"])
-    godot_iap.deep_link_to_subscriptions({
-        "skuAndroid": purchase["productId"],
-        "packageNameAndroid": "com.example.app",
-    })
+godot_iap.subscription_billing_issue.connect(func(purchase: Purchase) -> void:
+    print("Needs attention: ", purchase.product_id)
+    var options = DeepLinkOptions.new()
+    options.sku_android = purchase.product_id
+    options.package_name_android = "com.example.app"
+    godot_iap.deep_link_to_subscriptions(options)
 )`}</CodeBlock>
             ),
             kmp: (
               <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.kmpIapInstance
+import io.github.hyochan.kmpiap.openiap.DeepLinkOptions
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 
@@ -239,8 +267,11 @@ kmpIapInstance.subscriptionBillingIssueListener
         <p>
           On iOS the StoreKit Message may be re-delivered by the system until
           the user resolves the underlying issue; for a given message the SDK
-          scans current entitlements and fires one event per subscription in{' '}
-          <code>.inBillingRetryPeriod</code> or <code>.inGracePeriod</code>.
+          discovers subscription groups from transaction history, then reads
+          StoreKit&apos;s authoritative status and fires one event per
+          transaction in <code>.inBillingRetryPeriod</code> or{' '}
+          <code>.inGracePeriod</code>. This includes retrying subscriptions that
+          are no longer current entitlements.
         </p>
       </section>
 

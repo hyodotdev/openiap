@@ -464,7 +464,7 @@ function Docs() {
                     },
                     {
                       to: '/docs/types/ios/subscription-billing-plan-ios',
-                      label: 'SubscriptionBillingPlanIOS',
+                      label: 'Subscription Billing Plans',
                     },
                     {
                       to: '/docs/types/ios/payment-mode-ios',
@@ -476,7 +476,7 @@ function Docs() {
                     },
                     {
                       to: '/docs/types/ios/app-transaction-ios',
-                      label: 'AppTransactionIOS',
+                      label: 'AppTransaction',
                     },
                     {
                       to: '/docs/types/ios/renewal-info-ios',

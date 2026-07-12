@@ -11,7 +11,7 @@ function IsEligibleForIntroOfferIOS() {
     <div className="doc-page">
       <SEO
         title="isEligibleForIntroOfferIOS"
-        description="Check introductory offer eligibility for a subscription group (iOS 12.2+)."
+        description="Check introductory offer eligibility for a subscription group (iOS 15+, macOS 14+)."
         path="/docs/apis/ios/is-eligible-for-intro-offer-ios"
         keywords="isEligibleForIntroOfferIOS, intro offer, eligibility"
       />
@@ -20,8 +20,8 @@ function IsEligibleForIntroOfferIOS() {
         isEligibleForIntroOfferIOS
       </h1>
       <p>
-        Check introductory offer eligibility for a subscription group (iOS
-        12.2+).
+        Check introductory offer eligibility for a subscription group (iOS 15+,
+        macOS 14+).
       </p>
       <p>
         Wraps{' '}
@@ -53,7 +53,7 @@ function IsEligibleForIntroOfferIOS() {
             <CodeBlock language="dart">{`Future<bool> isEligibleForIntroOfferIOS(String groupID);`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task<Boolean> IsEligibleForIntroOfferIOSAsync(String GroupID)`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<bool> IsEligibleForIntroOfferIOSAsync(string groupId);`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func is_eligible_for_intro_offer_ios(group_id: String) -> Variant`}</CodeBlock>
@@ -103,7 +103,7 @@ if (Platform.OS === 'ios') {
 }`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`if (Platform.isIOS) {
+            <CodeBlock language="dart">{`if (Platform.isIOS || Platform.isMacOS) {
   final ok = await FlutterInappPurchase.instance
       .isEligibleForIntroOfferIOS('com.app.subgroup');
 }`}</CodeBlock>

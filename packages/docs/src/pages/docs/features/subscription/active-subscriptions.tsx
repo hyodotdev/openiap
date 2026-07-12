@@ -94,7 +94,7 @@ const canUsePremium = active.some((sub) => sub.isActive);
 for (const sub of active) {
   console.log(sub.productId);      // Store product/SKU
   console.log(sub.currentPlanId);  // Base plan or current product ID when available
-  console.log(sub.purchaseToken);  // Verify on your server/IAPKit
+  console.log(Boolean(sub.purchaseToken)); // Purchase credential available
 }
 
 const hasPremium = await hasActiveSubscriptions(premiumIds);`}</CodeBlock>
@@ -130,7 +130,7 @@ val canUsePremium = active.any { it.isActive }
 active.forEach { subscription ->
     println(subscription.productId)      // Store product/SKU
     println(subscription.currentPlanId)  // Base plan or current product ID
-    println(subscription.purchaseToken)  // Verify on your server/IAPKit
+    println(subscription.purchaseToken != null) // Purchase credential available
 }
 
 val hasPremium = openIapStore.hasActiveSubscriptions(premiumIds)`}</CodeBlock>
@@ -142,11 +142,11 @@ val hasPremium = openIapStore.hasActiveSubscriptions(premiumIds)`}</CodeBlock>
 ];
 
 final active = await FlutterInappPurchase.instance
-    .getActiveSubscriptions(subscriptionIds: premiumIds);
+    .getActiveSubscriptions(premiumIds);
 final canUsePremium = active.any((sub) => sub.isActive);
 
 final hasPremium = await FlutterInappPurchase.instance
-    .hasActiveSubscriptions(subscriptionIds: premiumIds);`}</CodeBlock>
+    .hasActiveSubscriptions(premiumIds);`}</CodeBlock>
             ),
             csharp: (
               <CodeBlock language="csharp">{`var premiumIds = new List<string>

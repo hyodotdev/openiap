@@ -12,7 +12,7 @@ function PresentExternalPurchaseNoticeSheetIOS() {
     <div className="doc-page">
       <SEO
         title="presentExternalPurchaseNoticeSheetIOS"
-        description="Present Apple's compliance notice sheet (iOS 17.4+)."
+        description="Present Apple's compliance notice sheet (iOS 17.4+, macOS 14.4+)."
         path="/docs/apis/ios/present-external-purchase-notice-sheet-ios"
         keywords="presentExternalPurchaseNoticeSheetIOS, external purchase, compliance"
       />
@@ -20,10 +20,10 @@ function PresentExternalPurchaseNoticeSheetIOS() {
         <span className="platform-badge platform-badge--ios">iOS</span>{' '}
         presentExternalPurchaseNoticeSheetIOS
       </h1>
-      <p>Present Apple's compliance notice sheet (iOS 17.4+).</p>
+      <p>Present Apple's compliance notice sheet (iOS 17.4+, macOS 14.4+).</p>
       <p>
         Wraps <code>ExternalPurchase.presentNoticeSheet()</code> — returns a
-        token if the user accepts. iOS 17.4+. See the{' '}
+        token if the user accepts. iOS 17.4+, macOS 14.4+. See the{' '}
         <a
           href="https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet()"
           target="_blank"
@@ -119,7 +119,7 @@ if (Platform.OS === 'ios') {
 }`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`if (Platform.isIOS) {
+            <CodeBlock language="dart">{`if (Platform.isIOS || Platform.isMacOS) {
   final result = await FlutterInappPurchase.instance
       .presentExternalPurchaseNoticeSheetIOS();
 }`}</CodeBlock>

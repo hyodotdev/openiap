@@ -38,7 +38,7 @@ function GetPendingTransactionsIOS() {
       <LanguageTabs>
         {{
           swift: (
-            <CodeBlock language="swift">{`func getPendingTransactionsIOS() async throws -> [Purchase]`}</CodeBlock>
+            <CodeBlock language="swift">{`func getPendingTransactionsIOS() async throws -> [PurchaseIOS]`}</CodeBlock>
           ),
           kotlin: (
             <CodeBlock language="kotlin">{`suspend fun getPendingTransactionsIOS(): List<PurchaseIOS>`}</CodeBlock>
@@ -50,7 +50,7 @@ function GetPendingTransactionsIOS() {
             <CodeBlock language="dart">{`Future<List<PurchaseIOS>> getPendingTransactionsIOS();`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task<IReadOnlyList<PurchaseIOS>> GetPendingTransactionsIOSAsync()`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<IReadOnlyList<PurchaseIOS>> GetPendingTransactionsIOSAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func get_pending_transactions_ios() -> Variant`}</CodeBlock>

@@ -98,9 +98,16 @@ function RequestPurchaseProps() {
               <td>
                 <Link to="/docs/types/request-purchase-props#request-purchase-props-by-platforms">
                   <code>RequestPurchasePropsByPlatforms</code>
-                </Link>
+                </Link>{' '}
+                | <code>RequestSubscriptionPropsByPlatforms</code>
               </td>
-              <td>Platform-specific purchase parameters (see below)</td>
+              <td>
+                Platform-specific parameters matching <code>type</code>.
+                Generated native types expose a purchase/subscription union (or
+                separate <code>requestPurchase</code> and{' '}
+                <code>requestSubscription</code> fields) so a subscription
+                cannot be encoded as a one-time request.
+              </td>
             </tr>
             <tr>
               <td>
@@ -161,9 +168,9 @@ await requestPurchase({
               <CodeBlock language="swift">{`// Standard in-app purchase
 try await OpenIapModule.shared.requestPurchase(
     RequestPurchaseProps(
-        request: RequestPurchasePropsByPlatforms(
+        request: .purchase(RequestPurchasePropsByPlatforms(
             apple: RequestPurchaseIosProps(sku: "premium")
-        ),
+        )),
         type: .inApp
     )
 )
@@ -171,9 +178,9 @@ try await OpenIapModule.shared.requestPurchase(
 // Subscription purchase
 try await OpenIapModule.shared.requestPurchase(
     RequestPurchaseProps(
-        request: RequestPurchasePropsByPlatforms(
-            apple: RequestPurchaseIosProps(sku: "monthly_sub")
-        ),
+        request: .subscription(RequestSubscriptionPropsByPlatforms(
+            apple: RequestSubscriptionIosProps(sku: "monthly_sub")
+        )),
         type: .subs
     )
 )`}</CodeBlock>
@@ -182,8 +189,10 @@ try await OpenIapModule.shared.requestPurchase(
               <CodeBlock language="kotlin">{`// Standard in-app purchase
 openIapStore.requestPurchase(
     RequestPurchaseProps(
-        request = RequestPurchasePropsByPlatforms(
+        request = RequestPurchaseProps.Request.Purchase(
+            RequestPurchasePropsByPlatforms(
             google = RequestPurchaseAndroidProps(skus = listOf("premium"))
+            )
         ),
         type = ProductQueryType.InApp
     )
@@ -192,8 +201,10 @@ openIapStore.requestPurchase(
 // Subscription purchase
 openIapStore.requestPurchase(
     RequestPurchaseProps(
-        request = RequestPurchasePropsByPlatforms(
-            google = RequestPurchaseAndroidProps(skus = listOf("monthly_sub"))
+        request = RequestPurchaseProps.Request.Subscription(
+            RequestSubscriptionPropsByPlatforms(
+                google = RequestSubscriptionAndroidProps(skus = listOf("monthly_sub"))
+            )
         ),
         type = ProductQueryType.Subs
     )
@@ -202,24 +213,20 @@ openIapStore.requestPurchase(
             dart: (
               <CodeBlock language="dart">{`// Standard in-app purchase
 await FlutterInappPurchase.instance.requestPurchase(
-  RequestPurchaseProps(
-    request: RequestPurchasePropsByPlatforms(
-      apple: RequestPurchaseIosProps(sku: 'premium'),
-      google: RequestPurchaseAndroidProps(skus: ['premium']),
-    ),
-    type: ProductQueryType.InApp,
-  ),
+  RequestPurchaseProps.inApp((
+    apple: RequestPurchaseIosProps(sku: 'premium'),
+    google: RequestPurchaseAndroidProps(skus: ['premium']),
+    useAlternativeBilling: null,
+  )),
 );
 
 // Subscription purchase
 await FlutterInappPurchase.instance.requestPurchase(
-  RequestPurchaseProps(
-    request: RequestPurchasePropsByPlatforms(
-      apple: RequestPurchaseIosProps(sku: 'monthly_sub'),
-      google: RequestPurchaseAndroidProps(skus: ['monthly_sub']),
-    ),
-    type: ProductQueryType.Subs,
-  ),
+  RequestPurchaseProps.subs((
+    apple: RequestSubscriptionIosProps(sku: 'monthly_sub'),
+    google: RequestSubscriptionAndroidProps(skus: ['monthly_sub']),
+    useAlternativeBilling: null,
+  )),
 );`}</CodeBlock>
             ),
             csharp: (
@@ -244,9 +251,9 @@ await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(
 await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(
     new RequestPurchaseProps
     {
-        RequestPurchase = new RequestPurchasePropsByPlatforms
+        RequestSubscription = new RequestSubscriptionPropsByPlatforms
         {
-            Google = new RequestPurchaseAndroidProps
+            Google = new RequestSubscriptionAndroidProps
             {
                 Skus = new[] { "monthly_sub" },
             },
@@ -267,12 +274,12 @@ await iap.request_purchase(props)
 
 # Subscription purchase
 var subs_props = RequestPurchaseProps.new()
-subs_props.request = RequestSubscriptionPropsByPlatforms.new()
-subs_props.request.apple = RequestSubscriptionIosProps.new()
-subs_props.request.apple.sku = "monthly_sub"
-subs_props.request.google = RequestSubscriptionAndroidProps.new()
-subs_props.request.google.skus = ["monthly_sub"]
-subs_props.type = ProductType.SUBS
+subs_props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
+subs_props.request_subscription.apple = RequestSubscriptionIosProps.new()
+subs_props.request_subscription.apple.sku = "monthly_sub"
+subs_props.request_subscription.google = RequestSubscriptionAndroidProps.new()
+subs_props.request_subscription.google.skus = ["monthly_sub"]
+subs_props.type = ProductQueryType.SUBS
 await iap.request_purchase(subs_props)`}</CodeBlock>
             ),
           }}
@@ -449,14 +456,6 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                         attribution data. (iOS 15+)
                       </td>
                     </tr>
-                    <tr>
-                      <td>
-                        <code>externalPurchaseUrlOnIOS</code>
-                      </td>
-                      <td>
-                        External payment URL (requires alternative billing)
-                      </td>
-                    </tr>
                   </tbody>
                 </table>
               </>
@@ -485,7 +484,7 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                         <code>offerToken</code>
                       </td>
                       <td>
-                        Offer token for one-time purchase discounts (7.0+). Pass
+                        Offer token for one-time purchase discounts (8.0+). Pass
                         the <code>offerToken</code> from{' '}
                         <code>oneTimePurchaseOfferDetailsAndroid</code> or{' '}
                         <code>discountOffers</code> to apply a discount.

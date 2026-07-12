@@ -12,9 +12,9 @@ function GetExternalPurchaseCustomLinkTokenIOS() {
     <div className="doc-page">
       <SEO
         title="getExternalPurchaseCustomLinkTokenIOS"
-        description="Get the iOS 18.1+ ExternalPurchaseCustomLink token for reporting transactions to Apple."
+        description="Get an ExternalPurchaseCustomLink reporting token (iOS 18.1+, macOS 15.1+)."
         path="/docs/apis/ios/get-external-purchase-custom-link-token-ios"
-        keywords="getExternalPurchaseCustomLinkTokenIOS, ExternalPurchaseCustomLink token, StoreKit, iOS 18.1"
+        keywords="getExternalPurchaseCustomLinkTokenIOS, ExternalPurchaseCustomLink token, StoreKit, iOS 18.1, macOS 15.1"
       />
       <h1>
         <span className="platform-badge platform-badge--ios">iOS</span>{' '}
@@ -29,13 +29,14 @@ function GetExternalPurchaseCustomLinkTokenIOS() {
         >
           ExternalPurchaseCustomLink
         </a>{' '}
-        API (iOS 18.1+). Pair the returned token with Apple's External Purchase
-        Server API to report acquisition or services transactions.
+        API (iOS 18.1+, macOS 15.1+). Pair the returned token with Apple's
+        External Purchase Server API to report acquisition or services
+        transactions.
       </p>
       <p>
         Wraps <code>ExternalPurchaseCustomLink.token(for:)</code> — token to
-        report transactions to Apple's External Purchase Server. iOS 18.1+. See
-        the{' '}
+        report transactions to Apple's External Purchase Server. iOS 18.1+,
+        macOS 15.1+. See the{' '}
         <a
           href="https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)"
           target="_blank"
@@ -51,7 +52,7 @@ function GetExternalPurchaseCustomLinkTokenIOS() {
         {{
           swift: (
             <CodeBlock language="swift">{`func getExternalPurchaseCustomLinkTokenIOS(
-    tokenType: ExternalPurchaseCustomLinkTokenTypeIOS
+    _ tokenType: ExternalPurchaseCustomLinkTokenTypeIOS
 ) async throws -> ExternalPurchaseCustomLinkTokenResultIOS`}</CodeBlock>
           ),
           kotlin: (
@@ -71,7 +72,7 @@ function GetExternalPurchaseCustomLinkTokenIOS() {
 );`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task<ExternalPurchaseCustomLinkTokenResultIOS> GetExternalPurchaseCustomLinkTokenIOSAsync(ExternalPurchaseCustomLinkTokenTypeIOS TokenType)`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<ExternalPurchaseCustomLinkTokenResultIOS> GetExternalPurchaseCustomLinkTokenIOSAsync(ExternalPurchaseCustomLinkTokenTypeIOS tokenType);`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func get_external_purchase_custom_link_token_ios(token_type: String) -> Variant`}</CodeBlock>
@@ -100,9 +101,9 @@ function GetExternalPurchaseCustomLinkTokenIOS() {
         <Link to="/docs/types/external-purchase-link#external-purchase-custom-link-token-result-ios">
           <code>Promise&lt;ExternalPurchaseCustomLinkTokenResultIOS&gt;</code>
         </Link>{' '}
-        — token plus its acquired/expiry metadata. Send the <code>token</code>{' '}
-        field to Apple's External Purchase Server within the documented validity
-        window.
+        — an optional opaque <code>token</code> plus an optional{' '}
+        <code>error</code>. Send a returned token to Apple&apos;s External
+        Purchase Server API.
       </p>
 
       <h2>Example</h2>
@@ -110,13 +111,13 @@ function GetExternalPurchaseCustomLinkTokenIOS() {
         {{
           swift: (
             <CodeBlock language="swift">{`let token = try await OpenIapModule.shared.getExternalPurchaseCustomLinkTokenIOS(
-    tokenType: .acquisition
+    .acquisition
 )`}</CodeBlock>
           ),
           kotlin: (
             <CodeBlock language="kotlin">{`// kmp-iap (iOS targets only — no-op on Android)
 val token = kmpIAP.getExternalPurchaseCustomLinkTokenIOS(
-    tokenType = ExternalPurchaseCustomLinkTokenTypeIOS.ACQUISITION
+    tokenType = ExternalPurchaseCustomLinkTokenTypeIOS.Acquisition
 )`}</CodeBlock>
           ),
           typescript: (
@@ -128,10 +129,10 @@ if (Platform.OS === 'ios') {
 }`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`if (Platform.isIOS) {
+            <CodeBlock language="dart">{`if (Platform.isIOS || Platform.isMacOS) {
   final token = await FlutterInappPurchase.instance
       .getExternalPurchaseCustomLinkTokenIOS(
-        ExternalPurchaseCustomLinkTokenTypeIOS.acquisition,
+        ExternalPurchaseCustomLinkTokenTypeIOS.Acquisition,
       );
 }`}</CodeBlock>
           ),
@@ -141,7 +142,7 @@ using OpenIap.Maui;
 
 // kmp-iap (iOS targets only — no-op on Android)
 var token = await ((QueryResolver)OpenIapClient.Instance).GetExternalPurchaseCustomLinkTokenIOSAsync(
-    tokenType: ExternalPurchaseCustomLinkTokenTypeIOS.ACQUISITION
+    tokenType: ExternalPurchaseCustomLinkTokenTypeIOS.Acquisition
 );`}</CodeBlock>
           ),
           gdscript: (
@@ -153,11 +154,10 @@ var token = await ((QueryResolver)OpenIapClient.Instance).GetExternalPurchaseCus
 
       <p>
         <code>tokenType</code> is{' '}
-        <code>ExternalPurchaseCustomLinkTokenTypeIOS.acquisition</code> for new
+        <code>ExternalPurchaseCustomLinkTokenTypeIOS.Acquisition</code> for new
         customers or{' '}
-        <code>ExternalPurchaseCustomLinkTokenTypeIOS.services</code> for
-        existing ones. The result wraps the opaque token plus expiration
-        metadata.
+        <code>ExternalPurchaseCustomLinkTokenTypeIOS.Services</code> for
+        existing ones. The result contains the opaque token or an error.
       </p>
     </div>
   );

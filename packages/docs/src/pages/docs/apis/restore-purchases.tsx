@@ -68,7 +68,7 @@ function RestorePurchases() {
             <CodeBlock language="dart">{`Future<void> restorePurchases();`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task<string> RestorePurchasesAsync();`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<VoidResult> RestorePurchasesAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func restore_purchases() -> void`}</CodeBlock>
@@ -85,7 +85,7 @@ function RestorePurchases() {
         <code>purchaseUpdatedListener</code> / surface as{' '}
         <code>getAvailablePurchases</code> results, depending on platform. In
         MAUI/C#, <code>RestorePurchasesAsync</code> returns{' '}
-        <code>Task&lt;string&gt;</code>.
+        <code>Task&lt;VoidResult&gt;</code>.
       </p>
 
       <h2>Example</h2>
@@ -96,14 +96,12 @@ function RestorePurchases() {
 import {
   restorePurchases,
   getAvailablePurchases,
-  verifyPurchase,
   finishTransaction,
 } from 'expo-iap';
 // Same API in react-native-iap:
 // import {
 //   restorePurchases,
 //   getAvailablePurchases,
-//   verifyPurchase,
 //   finishTransaction,
 // } from 'react-native-iap';
 
@@ -114,11 +112,8 @@ const handleRestore = async () => {
   for (const purchase of purchases) {
     // Always verify before granting — restored purchases can include
     // refunded or revoked transactions that must not re-grant entitlement.
-    const result = await verifyPurchase({
-      purchase,
-      serverUrl: 'https://your-server.com/api/verify',
-    });
-    if (!result.isValid) continue;
+    // yourBackend is your authenticated verification client.
+    if (!(await yourBackend.verifyPurchase(purchase))) continue;
 
     await grantProduct(purchase.productId);
     await finishTransaction({ purchase, isConsumable: false });
@@ -147,11 +142,7 @@ function RestoreButton() {
   useEffect(() => {
     (async () => {
       for (const purchase of availablePurchases) {
-        const result = await verifyPurchase({
-          purchase,
-          serverUrl: 'https://your-server.com/api/verify',
-        });
-        if (!result.isValid) continue;
+        if (!(await yourBackend.verifyPurchase(purchase))) continue;
         await grantProduct(purchase.productId);
         await finishTransaction({ purchase, isConsumable: false });
       }

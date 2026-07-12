@@ -37,6 +37,13 @@ function PresentExternalPurchaseLinkIOS() {
         </a>
         .
       </p>
+      <div className="alert-card alert-card--info">
+        <p>
+          <strong>macOS:</strong> Not supported. The current OpenIAP Apple core
+          implementation uses <code>UIApplication</code> and returns a
+          feature-not-supported error on macOS.
+        </p>
+      </div>
 
       <h2>Signature</h2>
       <LanguageTabs>

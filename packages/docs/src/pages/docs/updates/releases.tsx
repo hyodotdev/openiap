@@ -3856,9 +3856,9 @@ function Releases() {
                 values.
               </li>
               <li>
-                Requires the <code>SK2ConsumableTransactionHistory</code>{' '}
-                Info.plist key for finished consumables to be included (iOS
-                18+).
+                Requires the{' '}
+                <code>SKIncludeConsumableInAppPurchaseHistory</code> Info.plist
+                key for finished consumables to be included (iOS 18+).
               </li>
               <li>
                 Unlike <code>getAvailablePurchases</code>, always returns the

@@ -227,18 +227,6 @@ function ExternalPurchaseLink() {
             </tr>
             <tr>
               <td>
-                <code>tokenType</code>
-              </td>
-              <td>
-                <code>'acquisition' | 'services'</code>
-              </td>
-              <td>
-                Echoes the requested token type (new customers vs. existing
-                customers).
-              </td>
-            </tr>
-            <tr>
-              <td>
                 <code>error</code>
               </td>
               <td>
@@ -558,7 +546,7 @@ Future<void> handleExternalPurchase(String externalUrl) async {
 
   // Step 2: Present Apple's compliance notice sheet
   final noticeResult = await iap.presentExternalPurchaseNoticeSheetIOS();
-  if (noticeResult.result == ExternalPurchaseNoticeAction.dismissed) {
+  if (noticeResult.result == ExternalPurchaseNoticeAction.Dismissed) {
     print('User dismissed the notice sheet');
     return;
   }

@@ -206,7 +206,7 @@ const IOS_TYPES: TypeRow[] = [
   },
   {
     to: '/docs/types/ios/subscription-billing-plan-ios',
-    name: 'SubscriptionBillingPlanIOS',
+    name: 'Subscription Billing Plans',
     description:
       'StoreKit 26.4 billing plan and commitment types for iOS subscriptions.',
   },
@@ -222,7 +222,7 @@ const IOS_TYPES: TypeRow[] = [
   },
   {
     to: '/docs/types/ios/app-transaction-ios',
-    name: 'AppTransactionIOS',
+    name: 'AppTransaction',
     description: 'iOS 16+ app transaction info.',
   },
   {
@@ -236,12 +236,12 @@ const IOS_TYPES: TypeRow[] = [
 const ANDROID_TYPES: TypeRow[] = [
   {
     to: '/docs/types/android/one-time-purchase-offer-detail-android',
-    name: 'OneTimePurchaseOfferDetailAndroid',
+    name: 'ProductAndroidOneTimePurchaseOfferDetail',
     description: 'Android one-time purchase offer details.',
   },
   {
     to: '/docs/types/android/subscription-offer-android',
-    name: 'SubscriptionOfferAndroid',
+    name: 'ProductSubscriptionAndroidOfferDetails',
     description: 'Android subscription offer (Play Billing).',
   },
   {

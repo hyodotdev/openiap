@@ -28,7 +28,7 @@ function Errors() {
           {{
             typescript: (
               <CodeBlock language="typescript">{`interface PurchaseError {
-  code: string;           // Error code constant
+  code: ErrorCode;        // Generated kebab-case error enum
   message: string;        // Human-readable message
   productId?: string;     // Related product SKU (if applicable)
   debugMessage?: string;  // Raw diagnostic from the billing layer (e.g. Play's BillingResult.debugMessage)
@@ -36,11 +36,12 @@ function Errors() {
   productIds?: string[];  // Android QueryProduct requested IDs
   productType?: string;   // Android BillingClient product type
   isEmptyProductList?: boolean; // Android QueryProduct returned no products
+  subResponseCodeAndroid?: SubResponseCodeAndroid; // Play purchase-update detail
 }`}</CodeBlock>
             ),
             swift: (
-              <CodeBlock language="swift">{`struct PurchaseError: Error {
-    let code: String       // Error code constant
+              <CodeBlock language="swift">{`struct PurchaseError: Codable {
+    let code: ErrorCode    // Generated error enum
     let message: String    // Human-readable message
     let productId: String? // Related product SKU (if applicable)
     let debugMessage: String? // Raw diagnostic (e.g. StoreKit error.localizedDescription)
@@ -48,35 +49,38 @@ function Errors() {
     let productIds: [String]? // Android QueryProduct requested IDs
     let productType: String? // Android BillingClient product type
     let isEmptyProductList: Bool? // Android QueryProduct returned no products
+    let subResponseCodeAndroid: SubResponseCodeAndroid? // Play purchase-update detail
 }`}</CodeBlock>
             ),
             kotlin: (
               <CodeBlock language="kotlin">{`data class PurchaseError(
-    val code: String,               // Error code constant
+    val code: ErrorCode,            // Generated error enum
     val message: String,            // Human-readable message
     val productId: String? = null,  // Related product SKU (if applicable)
     val debugMessage: String? = null, // Raw BillingResult.debugMessage from Google Play
     val responseCode: Int? = null,   // Android QueryProduct BillingResult.responseCode
     val productIds: List<String>? = null, // Android QueryProduct requested IDs
     val productType: String? = null, // Android BillingClient product type
-    val isEmptyProductList: Boolean? = null // Android returned no products
+    val isEmptyProductList: Boolean? = null, // Android returned no products
+    val subResponseCodeAndroid: SubResponseCodeAndroid? = null // Play purchase-update detail
 )`}</CodeBlock>
             ),
             kmp: (
               <CodeBlock language="kotlin">{`data class PurchaseError(
-    val code: String,               // Error code constant
+    val code: ErrorCode,            // Generated error enum
     val message: String,            // Human-readable message
     val productId: String? = null,  // Related product SKU (if applicable)
     val debugMessage: String? = null, // Raw diagnostic from the underlying billing layer
     val responseCode: Int? = null,   // Android QueryProduct BillingResult.responseCode
     val productIds: List<String>? = null, // Android QueryProduct requested IDs
     val productType: String? = null, // Android BillingClient product type
-    val isEmptyProductList: Boolean? = null // Android returned no products
+    val isEmptyProductList: Boolean? = null, // Android returned no products
+    val subResponseCodeAndroid: SubResponseCodeAndroid? = null // Play purchase-update detail
 )`}</CodeBlock>
             ),
             dart: (
               <CodeBlock language="dart">{`class PurchaseError {
-  final String code;        // Error code constant
+  final ErrorCode code;     // Generated error enum
   final String message;     // Human-readable message
   final String? productId;  // Related product SKU (if applicable)
   final String? debugMessage; // Raw BillingResult.debugMessage on Android
@@ -84,6 +88,7 @@ function Errors() {
   final List<String>? productIds; // Android QueryProduct requested IDs
   final String? productType; // Android BillingClient product type
   final bool? isEmptyProductList; // Android returned no products
+  final SubResponseCodeAndroid? subResponseCodeAndroid; // Play purchase-update detail
 }`}</CodeBlock>
             ),
             csharp: (
@@ -100,19 +105,21 @@ public sealed record PurchaseError
     public IReadOnlyList<string>? ProductIds { get; init; } // Android requested IDs
     public string? ProductType { get; init; } // Android BillingClient product type
     public bool? IsEmptyProductList { get; init; } // Android returned no products
+    public SubResponseCodeAndroid? SubResponseCodeAndroid { get; init; } // Play purchase-update detail
 }`}</CodeBlock>
             ),
             gdscript: (
-              <CodeBlock language="gdscript">{`class_name PurchaseError
+              <CodeBlock language="gdscript">{`class PurchaseError:
 
-var code: String                 # Error code constant
-var message: String              # Human-readable message
-var product_id: Variant = null   # Related product SKU (if applicable)
-var debug_message: Variant = null # Raw diagnostic from the billing layer
-var response_code: Variant = null # Android QueryProduct BillingResult.responseCode
-var product_ids: Array[String] = [] # Android QueryProduct requested IDs
-var product_type: Variant = null  # Android BillingClient product type
-var is_empty_product_list: Variant = null # Android returned no products`}</CodeBlock>
+	var code: ErrorCode              # Generated error enum
+	var message: String              # Human-readable message
+	var product_id: Variant = null   # Related product SKU (if applicable)
+	var debug_message: Variant = null # Raw diagnostic from the billing layer
+	var response_code: Variant = null # Android QueryProduct BillingResult.responseCode
+	var product_ids: Array[String] = [] # Android QueryProduct requested IDs
+	var product_type: Variant = null  # Android BillingClient product type
+	var is_empty_product_list: Variant = null # Android returned no products
+	var sub_response_code_android: Variant = null # SubResponseCodeAndroid when present`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
@@ -242,7 +249,12 @@ var is_empty_product_list: Variant = null # Android returned no products`}</Code
           requested <code>productIds</code>, requested <code>productType</code>,
           and <code>isEmptyProductList</code> when available. Use these
           diagnostics to distinguish Play Console product setup issues from
-          transient BillingClient failures.
+          transient BillingClient failures. In the next OpenIAP spec /
+          openiap-google release after Spec 2.1.0 / openiap-google 2.3.0,
+          purchase-update failures also carry{' '}
+          <code>subResponseCodeAndroid</code> (requires Play Billing 8.0+) when
+          Play Billing provides a more specific reason such as insufficient
+          funds or offer ineligibility.
         </div>
 
         <h3>Network & Service Errors</h3>

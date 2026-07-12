@@ -228,7 +228,7 @@ if (result.iapkit?.isValid === true) {
             swift: (
               <CodeBlock language="swift">{`import OpenIap
 
-let result = try await OpenIapStore.shared.verifyPurchaseWithProvider(
+let result = try await OpenIapModule.shared.verifyPurchaseWithProvider(
     VerifyPurchaseWithProviderProps(
         iapkit: RequestVerifyPurchaseWithIapkitProps(
             apiKey: iapkitApiKey,
@@ -240,7 +240,7 @@ let result = try await OpenIapStore.shared.verifyPurchaseWithProvider(
     )
 )
 
-if result?.isValid == true {
+if result.iapkit?.isValid == true {
     unlockEntitlement(productId: purchase.productId)
 }`}</CodeBlock>
             ),
@@ -270,22 +270,20 @@ if (result.iapkit?.isValid == true) {
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
 final result = await FlutterInappPurchase.instance.verifyPurchaseWithProvider(
-  VerifyPurchaseWithProviderProps(
-    provider: PurchaseVerificationProvider.iapkit,
-    iapkit: RequestVerifyPurchaseWithIapkitProps(
-      apiKey: IapConstants.iapkitApiKey,
-      apple: Platform.isIOS
-          ? RequestVerifyPurchaseWithIapkitAppleProps(
-              jws: purchase.purchaseToken ?? '',
-            )
-          : null,
-      google: Platform.isAndroid
-          ? RequestVerifyPurchaseWithIapkitGoogleProps(
-              purchaseToken: purchase.purchaseToken ?? '',
-            )
-          : null,
-      // Fire OS builds can pass amazon with userId, receiptId, and sandbox.
-    ),
+  provider: PurchaseVerificationProvider.Iapkit,
+  iapkit: RequestVerifyPurchaseWithIapkitProps(
+    apiKey: IapConstants.iapkitApiKey,
+    apple: Platform.isIOS
+        ? RequestVerifyPurchaseWithIapkitAppleProps(
+            jws: purchase.purchaseToken ?? '',
+          )
+        : null,
+    google: Platform.isAndroid
+        ? RequestVerifyPurchaseWithIapkitGoogleProps(
+            purchaseToken: purchase.purchaseToken ?? '',
+          )
+        : null,
+    // Fire OS builds can pass amazon with userId, receiptId, and sandbox.
   ),
 );
 
