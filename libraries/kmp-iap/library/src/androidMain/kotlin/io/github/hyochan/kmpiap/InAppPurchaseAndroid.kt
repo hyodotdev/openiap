@@ -12,6 +12,7 @@ import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.AlternativeBillingOnlyReportingDetails
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
+import com.android.billingclient.api.BillingConfig
 import com.android.billingclient.api.BillingFlowParams
 import com.android.billingclient.api.BillingProgramAvailabilityDetails
 import com.android.billingclient.api.BillingProgramReportingDetailsParams
@@ -19,6 +20,7 @@ import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.ConsumeParams
 import com.android.billingclient.api.ExternalOfferReportingDetails
 import com.android.billingclient.api.GetBillingChoiceInfoParams
+import com.android.billingclient.api.GetBillingConfigParams
 import com.android.billingclient.api.InAppMessageParams
 import com.android.billingclient.api.InAppMessageResult
 import com.android.billingclient.api.ProductDetails
@@ -26,8 +28,6 @@ import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryProductDetailsResult
 import com.android.billingclient.api.QueryPurchasesParams
 import com.android.billingclient.api.UserChoiceBillingListener
-import io.github.hyochan.kmpiap.clearProductCache
-import io.github.hyochan.kmpiap.ensureConnectedOrFail
 import io.github.hyochan.kmpiap.openiap.ActiveSubscription
 import io.github.hyochan.kmpiap.openiap.AlternativeBillingModeAndroid
 import io.github.hyochan.kmpiap.ConnectionResult
@@ -120,7 +120,10 @@ import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitGoogleProps as AndroidVeri
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps as AndroidVerifyPurchaseWithIapkitProps
 import dev.hyo.openiap.utils.verifyPurchaseWithIapkit as verifyPurchaseWithIapkitAndroid
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
@@ -130,7 +133,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlin.collections.buildList
-import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -139,6 +143,33 @@ private const val PURCHASE_RESUME_FALLBACK_DELAY_MS = 2_000L
 private const val PURCHASE_FOCUS_POLL_INTERVAL_MS = 500L
 private const val PURCHASE_PROXY_CLOSED_FALLBACK_DELAY_MS = 1_000L
 private const val PURCHASE_CALLBACK_TIMEOUT_MS = 60_000L
+
+internal suspend fun <T> awaitBillingQueryResult(
+    result: Deferred<Result<T>>,
+    disconnected: Deferred<PurchaseError>,
+): T = select {
+    result.onAwait { it.getOrThrow() }
+    disconnected.onAwait { throw PurchaseException(it) }
+}
+
+internal fun billingProgramConfigurationException(
+    program: BillingProgramAndroid,
+    error: Exception,
+): PurchaseException {
+    if (error is PurchaseException) return error
+    val cause = (error as? java.lang.reflect.InvocationTargetException)
+        ?.targetException ?: error
+    val unavailable = error is ClassNotFoundException || error is NoSuchMethodException
+    return PurchaseException(PurchaseError(
+        code = if (unavailable) ErrorCode.FeatureNotSupported else ErrorCode.ServiceError,
+        debugMessage = cause.message,
+        message = if (unavailable) {
+            "$program is not supported by this Play Billing Library"
+        } else {
+            "Failed to enable $program: ${cause.message ?: cause.javaClass.simpleName}"
+        },
+    ))
+}
 
 private fun logWarning(message: String) {
     if (android.util.Log.isLoggable(KMP_IAP_LOG_TAG, android.util.Log.WARN)) {
@@ -151,6 +182,44 @@ private fun logError(message: String, throwable: Throwable) {
         android.util.Log.e(KMP_IAP_LOG_TAG, message, throwable)
     }
 }
+
+internal fun isPurchaseForPendingRequest(
+    transactionDateMillis: Double,
+    productIds: Collection<String>,
+    requestedSkus: Set<String>,
+    launchStartedAtMillis: Double,
+): Boolean = transactionDateMillis >= launchStartedAtMillis &&
+    (requestedSkus.isEmpty() || productIds.any { it in requestedSkus })
+
+internal fun isSubscriptionReplacementTargetCountValid(
+    targetSkuCount: Int,
+    hasProductLevelReplacementParams: Boolean,
+): Boolean = !hasProductLevelReplacementParams || targetSkuCount == 1
+
+internal fun resolveBillingProgramForConnection(
+    requestedProgram: BillingProgramAndroid?,
+    deprecatedMode: AlternativeBillingModeAndroid,
+): BillingProgramAndroid? = requestedProgram
+    ?.takeUnless { it == BillingProgramAndroid.Unspecified }
+    ?.takeUnless {
+        deprecatedMode == AlternativeBillingModeAndroid.UserChoice &&
+            it == BillingProgramAndroid.UserChoiceBilling
+    }
+
+internal fun hasLegacyBillingProgramConflict(
+    deprecatedMode: AlternativeBillingModeAndroid,
+    requestedProgram: BillingProgramAndroid?,
+): Boolean = deprecatedMode != AlternativeBillingModeAndroid.None &&
+    requestedProgram != null &&
+    requestedProgram != BillingProgramAndroid.Unspecified &&
+    !(deprecatedMode == AlternativeBillingModeAndroid.UserChoice &&
+        requestedProgram == BillingProgramAndroid.UserChoiceBilling)
+
+internal fun subscriptionUpdateSourceCount(
+    purchaseToken: String?,
+    originalExternalTransactionId: String?,
+): Int = listOf(purchaseToken, originalExternalTransactionId)
+    .count { !it.isNullOrBlank() }
 
 private fun Any.invokeOptionalStringGetter(methodName: String): String? =
     runCatching { javaClass.getMethod(methodName).invoke(this) as? String }
@@ -188,26 +257,246 @@ internal fun extractDeveloperProvidedBillingDetails(
     )
 }
 
-internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLifecycleCallbacks {
+private fun com.android.billingclient.api.UserChoiceDetails.toOpenIapDetails(): UserChoiceBillingDetails {
+    val productDetails = products.mapNotNull { product ->
+        val type = when (product.type) {
+            BillingClient.ProductType.INAPP -> ProductType.InApp
+            BillingClient.ProductType.SUBS -> ProductType.Subs
+            else -> return@mapNotNull null
+        }
+        DeveloperProvidedBillingProductAndroid(
+            id = product.id,
+            offerToken = product.offerToken,
+            type = type
+        )
+    }
+    return UserChoiceBillingDetails(
+        externalTransactionToken = externalTransactionToken,
+        originalExternalTransactionId = originalExternalTransactionId,
+        productDetailsAndroid = productDetails,
+        products = productDetails.map { it.id }
+    )
+}
 
+internal class InAppPurchaseAndroid : KmpInAppPurchase {
+
+    private data class ConnectionAttempt(
+        val generation: Long,
+        val alternativeBillingMode: AlternativeBillingModeAndroid,
+        val billingProgram: BillingProgramAndroid?,
+        val billingChoiceScreenType: BillingChoiceScreenTypeAndroid,
+        val completion: CompletableDeferred<Boolean> = CompletableDeferred(),
+    )
+
+    private class PurchaseRequestLifecycle {
+        val disconnectError = AtomicReference<PurchaseError?>(null)
+        val disconnectSignal = CompletableDeferred<PurchaseError>()
+        @Volatile
+        var terminalResult: Result<List<Purchase>>? = null
+        val errorPublished = AtomicBoolean(false)
+    }
+
+    private data class PendingPurchaseMetadata(
+        val productType: String,
+        val requestedSkus: List<String>,
+        val launchStartedAtMillis: Double,
+    )
+
+    private data class ConnectionEndState(
+        val client: BillingClient?,
+        val initAttempt: ConnectionAttempt?,
+        val pendingPurchase: PendingPurchaseOwner?,
+        val billingQueries: List<BillingQueryOwner>,
+        val disconnectError: PurchaseError?,
+        val callbacksDisposer: (() -> Unit)?,
+    )
+
+    private data class BillingSessionTransition(
+        val callbacksDisposer: (() -> Unit)?,
+        val billingQueries: List<BillingQueryOwner>,
+    )
+
+    private data class PendingPurchaseOwner(
+        val lifecycle: PurchaseRequestLifecycle,
+        val client: BillingClient? = null,
+        val callback: ((Result<List<Purchase>>) -> Unit)? = null,
+        val metadata: PendingPurchaseMetadata? = null,
+        val fallbackRunnable: Runnable? = null,
+    )
+
+    private class BillingQueryOwner(
+        val client: BillingClient,
+        val generation: Long,
+    ) {
+        val disconnectSignal = CompletableDeferred<PurchaseError>()
+    }
+
+    @Volatile
     private var billingClient: BillingClient? = null
     private var isConnected = false
+    @Volatile
     private var context: Context? = null
+    @Volatile
     private var currentActivity: Activity? = null
     private var activityCallbacksDisposer: (() -> Unit)? = null
-    private val cachedProductDetails = ConcurrentHashMap<ProductCacheKey, ProductDetails>()
-    private var currentPurchaseCallback: ((Result<List<Purchase>>) -> Unit)? = null
-    private val mainHandler by lazy(LazyThreadSafetyMode.NONE) {
+    private var activityCallbacksGeneration: Long? = null
+    private val purchaseLifecycleLock = Any()
+    private var pendingPurchase: PendingPurchaseOwner? = null
+    private val activeBillingQueries = mutableSetOf<BillingQueryOwner>()
+    private var connectionGeneration = 0L
+    private var connectionAttempt: ConnectionAttempt? = null
+    private val mainHandler by lazy {
         Handler(Looper.getMainLooper())
     }
-    private var pendingPurchaseSkus: List<String> = emptyList()
-    private var pendingPurchaseProductType: String? = null
-    private var purchaseFlowLaunched = false
-    private var purchaseFallbackRunnable: Runnable? = null
-    private var purchaseTimeoutRunnable: Runnable? = null
+
+    private fun advanceBillingSessionLocked(): BillingSessionTransition {
+        connectionGeneration += 1
+        isConnected = false
+        alternativeBillingMode = AlternativeBillingModeAndroid.None
+        enabledBillingProgram = null
+        billingChoiceScreenType = BillingChoiceScreenTypeAndroid.GoogleRendered
+        emittedBillingIssueTokens.clear()
+        currentActivity = null
+        activityCallbacksGeneration = null
+        val transition = BillingSessionTransition(
+            callbacksDisposer = activityCallbacksDisposer,
+            billingQueries = activeBillingQueries.toList(),
+        )
+        activityCallbacksDisposer = null
+        activeBillingQueries.clear()
+        return transition
+    }
+
+    private fun completeBillingSessionTransition(
+        transition: BillingSessionTransition,
+        error: PurchaseError,
+    ) {
+        transition.billingQueries.forEach { it.disconnectSignal.complete(error) }
+        runCatching { transition.callbacksDisposer?.invoke() }
+    }
+
+    private fun deliverBillingSessionEvent(
+        client: BillingClient?,
+        generation: Long,
+        deliver: () -> Unit,
+    ) {
+        val active = synchronized(purchaseLifecycleLock) {
+            client != null && isActiveBillingSessionLocked(client, generation)
+        }
+        if (active) deliver()
+    }
+
+    private fun isActiveBillingSessionLocked(
+        client: BillingClient,
+        generation: Long,
+    ): Boolean = billingClient === client &&
+        connectionGeneration == generation &&
+        isConnected
+
+    private fun <T : Any> claimBillingQuery(
+        owner: BillingQueryOwner,
+        action: () -> T,
+    ): T? = synchronized(purchaseLifecycleLock) {
+        if (isActiveBillingSessionLocked(owner.client, owner.generation)) action() else null
+    }
+
+    private fun staleBillingQueryError() = PurchaseError(
+        code = ErrorCode.ServiceDisconnected,
+        message = "Billing connection ended before the query completed",
+    )
+
+    private suspend fun <T> awaitBillingQuery(
+        expectedClient: BillingClient? = null,
+        expectedGeneration: Long? = null,
+        unavailableError: PurchaseError = PurchaseError(
+            code = ErrorCode.NotPrepared,
+            message = "BillingClient not ready",
+        ),
+        onError: (PurchaseError) -> Unit = {},
+        captureOwner: (BillingClient, Long) -> Unit = { _, _ -> },
+        start: (BillingClient, (Result<T>) -> Unit) -> Unit,
+    ): T {
+        val owner = synchronized(purchaseLifecycleLock) {
+            billingClient?.takeIf {
+                isConnected &&
+                    it.isReady &&
+                    (expectedClient == null || it === expectedClient) &&
+                    (expectedGeneration == null || connectionGeneration == expectedGeneration)
+            }?.let { client ->
+                BillingQueryOwner(client, connectionGeneration).also(activeBillingQueries::add)
+            }
+        } ?: run {
+            onError(unavailableError)
+            throw PurchaseException(unavailableError)
+        }
+        captureOwner(owner.client, owner.generation)
+        val result = CompletableDeferred<Result<T>>()
+        val complete: (Result<T>) -> Unit = { value ->
+            if (claimBillingQuery(owner) { result.complete(value) } == null) {
+                result.complete(Result.failure(PurchaseException(staleBillingQueryError())))
+            }
+        }
+
+        try {
+            val startResult = claimBillingQuery(owner) {
+                runCatching { start(owner.client, complete) }
+            } ?: throw PurchaseException(staleBillingQueryError())
+            startResult.getOrThrow()
+            return awaitBillingQueryResult(result, owner.disconnectSignal)
+        } catch (error: PurchaseException) {
+            onError(error.error)
+            throw error
+        } finally {
+            synchronized(purchaseLifecycleLock) { activeBillingQueries.remove(owner) }
+        }
+    }
+
+    private suspend fun <T> awaitBillingQueryAndPublish(
+        unavailableCode: ErrorCode = ErrorCode.ServiceDisconnected,
+        expectedClient: BillingClient? = null,
+        expectedGeneration: Long? = null,
+        captureOwner: (BillingClient, Long) -> Unit = { _, _ -> },
+        start: (BillingClient, (Result<T>) -> Unit) -> Unit,
+    ): T = awaitBillingQuery(
+        expectedClient = expectedClient,
+        expectedGeneration = expectedGeneration,
+        unavailableError = PurchaseError(
+            code = unavailableCode,
+            message = "Billing client is not connected",
+        ),
+        onError = { _purchaseErrorListener.tryEmit(it) },
+        captureOwner = captureOwner,
+        start = start,
+    )
+
+    private fun failBillingQueriesForClient(
+        client: BillingClient,
+        error: PurchaseError,
+    ) {
+        val owners = synchronized(purchaseLifecycleLock) {
+            activeBillingQueries.filter { it.client === client }
+                .also(activeBillingQueries::removeAll)
+        }
+        owners.forEach { it.disconnectSignal.complete(error) }
+    }
+
+    private fun endReplacedBillingClient(client: BillingClient) {
+        val error = PurchaseError(
+            code = ErrorCode.ServiceDisconnected,
+            message = "Billing client was replaced",
+        )
+        failBillingQueriesForClient(client, error)
+        failPendingPurchaseForClient(client, error)
+        client.endConnection()
+    }
+
+    @Volatile
     private var alternativeBillingMode: AlternativeBillingModeAndroid = AlternativeBillingModeAndroid.None
+    @Volatile
     private var enabledBillingProgram: BillingProgramAndroid? = null
-    private var billingChoiceScreenType: BillingChoiceScreenTypeAndroid = BillingChoiceScreenTypeAndroid.GoogleRendered
+    @Volatile
+    private var billingChoiceScreenType: BillingChoiceScreenTypeAndroid =
+        BillingChoiceScreenTypeAndroid.GoogleRendered
 
     // ---------------------------------------------------------------------
     // Event streams
@@ -243,105 +532,252 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     // ---------------------------------------------------------------------
     private val initConnectionHandler: MutationInitConnectionHandler = { config ->
         withContext(Dispatchers.IO) {
-            // Set alternative billing mode (reset to None if no config supplied)
-            alternativeBillingMode = config?.alternativeBillingModeAndroid ?: AlternativeBillingModeAndroid.None
-            // Track enabled billing program for validation
-            enabledBillingProgram = config?.enableBillingProgramAndroid
-            billingChoiceScreenType = config?.billingChoiceScreenTypeAndroid
+            val inFlight = synchronized(purchaseLifecycleLock) {
+                if (isConnected && billingClient?.isReady == true) {
+                    return@withContext true
+                }
+                connectionAttempt
+            }
+            if (inFlight != null) {
+                return@withContext withTimeoutOrNull(15_000) {
+                    inFlight.completion.await()
+                } ?: false
+            }
+
+            val requestedAlternativeMode =
+                config?.alternativeBillingModeAndroid ?: AlternativeBillingModeAndroid.None
+            val configuredProgram = config?.enableBillingProgramAndroid
+            if (hasLegacyBillingProgramConflict(
+                    requestedAlternativeMode,
+                    configuredProgram,
+                )
+            ) {
+                failWith(
+                    PurchaseError(
+                        code = ErrorCode.DeveloperError,
+                        message =
+                            "alternativeBillingModeAndroid conflicts with enableBillingProgramAndroid",
+                    )
+                )
+            }
+            val requestedProgram = resolveBillingProgramForConnection(
+                configuredProgram,
+                requestedAlternativeMode,
+            )
+            val requestedBillingChoiceScreenType = config?.billingChoiceScreenTypeAndroid
                 ?.takeUnless { it == BillingChoiceScreenTypeAndroid.Unspecified }
                 ?: BillingChoiceScreenTypeAndroid.GoogleRendered
-
-            if (context == null) {
-                val disposer = tryCaptureApplication(
-                    callback = this@InAppPurchaseAndroid,
-                    onContextAvailable = { appContext -> context = appContext },
-                    onActivityFound = { activity -> currentActivity = activity }
-                )
-                if (context != null) {
-                    activityCallbacksDisposer = disposer
-                } else {
-                    disposer?.invoke()
+            var previousClient: BillingClient? = null
+            val (attempt, isOwner, previousTransition) =
+                synchronized(purchaseLifecycleLock) {
+                    if (isConnected && billingClient?.isReady == true) {
+                        return@withContext true
+                    }
+                    connectionAttempt?.let { existing ->
+                        Triple(existing, false, null)
+                    } ?: run {
+                        previousClient = billingClient
+                        val transition = advanceBillingSessionLocked()
+                        val created = ConnectionAttempt(
+                            generation = connectionGeneration,
+                            alternativeBillingMode = requestedAlternativeMode,
+                            billingProgram = requestedProgram,
+                            billingChoiceScreenType = requestedBillingChoiceScreenType,
+                        )
+                        connectionAttempt = created
+                        Triple(created, true, transition)
+                    }
                 }
+            val replacedError = PurchaseError(
+                code = ErrorCode.ServiceDisconnected,
+                message = "Billing client was replaced",
+            )
+            previousTransition?.let {
+                completeBillingSessionTransition(it, replacedError)
+            }
+            previousClient?.let { failPendingPurchaseForClient(it, replacedError) }
+            if (!isOwner) {
+                return@withContext withTimeoutOrNull(15_000) {
+                    attempt.completion.await()
+                } ?: false
             }
 
-            val ctx = context ?: run {
-                activityCallbacksDisposer = null
-                failWith(
-                    PurchaseError(code = ErrorCode.ServiceError, message = "Context not available")
-                )
-            }
-
-            withTimeout(15_000) {
-                suspendCancellableCoroutine { continuation ->
-                    val listener = object : BillingClientStateListener {
-                        override fun onBillingSetupFinished(result: BillingResult) {
-                            if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-                                isConnected = true
-                                _connectionStateListener.tryEmit(ConnectionResult(connected = true, message = "Connected"))
-                                continuation.resume(true)
-                            } else {
-                                val error = PurchaseError(
-                                    code = ErrorCode.ServiceError,
-                                    message = result.debugMessage.takeIf { it.isNotBlank() } ?: "Failed to connect"
-                                )
-                                _purchaseErrorListener.tryEmit(error)
-                                continuation.resume(false)
+            var connectingClient: BillingClient? = null
+            try {
+                val shouldCaptureApplication = synchronized(purchaseLifecycleLock) {
+                    connectionAttempt === attempt &&
+                        connectionGeneration == attempt.generation &&
+                        activityCallbacksDisposer == null
+                }
+                if (shouldCaptureApplication) {
+                    var capturedContext: Context? = null
+                    var capturedActivity: Activity? = null
+                    val callbacks = activityLifecycleCallbacks(attempt.generation)
+                    val disposer = tryCaptureApplication(
+                        callback = callbacks,
+                        onContextAvailable = { appContext -> capturedContext = appContext },
+                        onActivityFound = { activity -> capturedActivity = activity },
+                    )
+                    val installed = synchronized(purchaseLifecycleLock) {
+                        if (
+                            connectionAttempt !== attempt ||
+                            connectionGeneration != attempt.generation ||
+                            activityCallbacksDisposer != null
+                        ) {
+                            false
+                        } else {
+                            capturedContext?.let { context = it }
+                            capturedActivity?.let { currentActivity = it }
+                            if (disposer != null) {
+                                activityCallbacksDisposer = disposer
+                                activityCallbacksGeneration = attempt.generation
                             }
+                            true
                         }
+                    }
+                    if (!installed) {
+                        runCatching { disposer?.invoke() }
+                    }
+                }
 
-                        override fun onBillingServiceDisconnected() {
-                            isConnected = false
-                            _connectionStateListener.tryEmit(ConnectionResult(connected = false, message = "Disconnected"))
+                val ctx = synchronized(purchaseLifecycleLock) {
+                    context.takeIf {
+                        connectionAttempt === attempt &&
+                            connectionGeneration == attempt.generation
+                    }
+                } ?: run {
+                    throw PurchaseException(
+                        PurchaseError(code = ErrorCode.ServiceError, message = "Context not available")
+                    )
+                }
+
+                lateinit var client: BillingClient
+                val clientRef = AtomicReference<BillingClient?>()
+                val listener = object : BillingClientStateListener {
+                    override fun onBillingSetupFinished(result: BillingResult) {
+                        val connected = result.responseCode == BillingClient.BillingResponseCode.OK
+                        val owned = finishConnectionAttempt(attempt, client, connected)
+                        if (!connected && owned) {
+                            _purchaseErrorListener.tryEmit(
+                                PurchaseError(
+                                    code = ErrorCode.ServiceError,
+                                    debugMessage = result.debugMessage.takeIf { it.isNotBlank() },
+                                    message = result.debugMessage.takeIf { it.isNotBlank() }
+                                        ?: "Failed to connect"
+                                )
+                            )
                         }
                     }
 
-                    val builder = BillingClient.newBuilder(ctx)
-                        .setListener { billingResult, purchases ->
-                            handlePurchaseUpdate(billingResult, purchases)
-                        }
+                    override fun onBillingServiceDisconnected() =
+                        handleBillingServiceDisconnected(attempt, client)
+                }
 
-                    // Configure alternative billing if specified
-                    when (alternativeBillingMode) {
-                        AlternativeBillingModeAndroid.UserChoice -> {
-                            builder.enableUserChoiceBilling { userChoiceDetails ->
-                                val details = UserChoiceBillingDetails(
-                                    externalTransactionToken = userChoiceDetails.externalTransactionToken,
-                                    products = userChoiceDetails.products.map { it.id }
-                                )
+                val builder = BillingClient.newBuilder(ctx)
+                    .setListener { billingResult, purchases ->
+                        val sourceClient = clientRef.get() ?: return@setListener
+                        deliverBillingSessionEvent(sourceClient, attempt.generation) {
+                            handlePurchaseUpdate(sourceClient, billingResult, purchases)
+                        }
+                    }
+
+                when (requestedAlternativeMode) {
+                    AlternativeBillingModeAndroid.UserChoice -> {
+                        builder.enableUserChoiceBilling { userChoiceDetails ->
+                            val details = userChoiceDetails.toOpenIapDetails()
+                            deliverBillingSessionEvent(clientRef.get(), attempt.generation) {
                                 _userChoiceBillingListener.tryEmit(details)
                             }
                         }
-                        AlternativeBillingModeAndroid.AlternativeOnly -> {
-                            builder.enableAlternativeBillingOnly()
-                        }
-                        AlternativeBillingModeAndroid.None -> {
-                            // Standard billing, no changes needed
-                        }
                     }
-
-                    // Enable billing program from config (8.2.0+, EXTERNAL_PAYMENTS requires 8.3.0+, BILLING_CHOICE requires 9.1.0+)
-                    config?.enableBillingProgramAndroid?.let { program ->
-                        if (program == BillingProgramAndroid.ExternalPayments || program == BillingProgramAndroid.BillingChoice) {
-                            enableDeveloperProvidedBillingProgram(
-                                builder,
-                                program,
-                                includeDeveloperListener =
-                                    program == BillingProgramAndroid.ExternalPayments ||
-                                        billingChoiceScreenType != BillingChoiceScreenTypeAndroid.DeveloperRendered
-                            )
-                        } else {
-                            enableBillingProgram(builder, program)
-                        }
+                    AlternativeBillingModeAndroid.AlternativeOnly -> {
+                        builder.enableAlternativeBillingOnly()
                     }
+                    AlternativeBillingModeAndroid.None -> Unit
+                }
 
-                    billingClient = enablePendingPurchasesCompat(builder).build()
-                    billingClient?.startConnection(listener)
-
-                    continuation.invokeOnCancellation {
-                        billingClient?.endConnection()
-                        billingClient = null
+                requestedProgram?.let { program ->
+                    if (
+                        program == BillingProgramAndroid.ExternalPayments ||
+                        program == BillingProgramAndroid.BillingChoice
+                    ) {
+                        enableDeveloperProvidedBillingProgram(
+                            builder,
+                            program,
+                            includeDeveloperListener =
+                                program == BillingProgramAndroid.ExternalPayments ||
+                                    requestedBillingChoiceScreenType !=
+                                    BillingChoiceScreenTypeAndroid.DeveloperRendered,
+                            sourceClient = clientRef::get,
+                            sourceGeneration = attempt.generation,
+                        )
+                    } else {
+                        enableBillingProgram(
+                            builder,
+                            program,
+                            clientRef::get,
+                            attempt.generation,
+                        )
                     }
                 }
+
+                client = enablePendingPurchasesCompat(builder).build()
+                clientRef.set(client)
+                connectingClient = client
+                val (installed, previousClient) = synchronized(purchaseLifecycleLock) {
+                    if (
+                        connectionAttempt === attempt &&
+                        connectionGeneration == attempt.generation
+                    ) {
+                        val previous = billingClient
+                        billingClient = client
+                        true to previous
+                    } else {
+                        false to null
+                    }
+                }
+                if (!installed) {
+                    client.endConnection()
+                    attempt.completion.complete(false)
+                    return@withContext false
+                }
+                previousClient?.takeIf { it !== client }?.let { previous ->
+                    endReplacedBillingClient(previous)
+                }
+
+                val startResult = synchronized(purchaseLifecycleLock) {
+                    if (
+                        connectionAttempt !== attempt ||
+                        connectionGeneration != attempt.generation ||
+                        billingClient !== client
+                    ) {
+                        null
+                    } else {
+                        runCatching { client.startConnection(listener) }
+                    }
+                }
+                if (startResult == null) {
+                    client.endConnection()
+                    attempt.completion.complete(false)
+                    return@withContext false
+                }
+                startResult.onFailure { error ->
+                    logError("Failed to start billing connection", error)
+                    finishConnectionAttempt(attempt, client, false)
+                }
+
+                val connected = withTimeoutOrNull(15_000) {
+                    attempt.completion.await()
+                }
+                if (connected == null) {
+                    abortConnectionAttempt(attempt, client)
+                    false
+                } else {
+                    connected
+                }
+            } catch (error: Throwable) {
+                abortConnectionAttempt(attempt, connectingClient)
+                throw error
             }
         }
     }
@@ -349,22 +785,209 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     private val endConnectionHandler: MutationEndConnectionHandler = {
         withContext(Dispatchers.IO) {
             runCatching {
-                billingClient?.endConnection()
-                billingClient = null
-                isConnected = false
-                clearPendingPurchaseFlow()
-                activityCallbacksDisposer?.invoke()
-                activityCallbacksDisposer = null
+                val endState = synchronized(purchaseLifecycleLock) {
+                    val transition = advanceBillingSessionLocked()
+                    val activeClient = billingClient
+                    val activeAttempt = connectionAttempt
+                    billingClient = null
+                    connectionAttempt = null
+                    isConnected = false
+                    val owner = pendingPurchase
+                    val disconnectError = owner?.let {
+                        PurchaseError(
+                            code = ErrorCode.ServiceDisconnected,
+                            debugMessage =
+                                "Billing connection ended while a purchase request was in progress",
+                            message = "Billing service disconnected",
+                            productId = it.metadata?.requestedSkus?.singleOrNull(),
+                        )
+                    }
+                    if (owner != null && disconnectError != null) {
+                        val failure = Result.failure<List<Purchase>>(
+                            PurchaseException(disconnectError)
+                        )
+                        owner.lifecycle.disconnectError.compareAndSet(null, disconnectError)
+                        if (owner.lifecycle.terminalResult == null) {
+                            owner.lifecycle.terminalResult = failure
+                        }
+                    }
+                    pendingPurchase = null
+                    ConnectionEndState(
+                        client = activeClient,
+                        initAttempt = activeAttempt,
+                        pendingPurchase = owner,
+                        billingQueries = transition.billingQueries,
+                        disconnectError = disconnectError,
+                        callbacksDisposer = transition.callbacksDisposer,
+                    )
+                }
+                val queryError = staleBillingQueryError()
+                endState.billingQueries.forEach {
+                    it.disconnectSignal.complete(queryError)
+                }
+                val fallbackCleared = runCatching {
+                    endState.pendingPurchase?.fallbackRunnable
+                        ?.let(mainHandler::removeCallbacks)
+                }.isSuccess
+                val callbacksDisposed = runCatching {
+                    endState.callbacksDisposer?.invoke()
+                }.isSuccess
+                endState.initAttempt?.completion?.complete(false)
+                val owner = endState.pendingPurchase
+                val disconnectError = endState.disconnectError
+                if (owner != null && disconnectError != null) {
+                    publishTerminalPurchaseError(owner.lifecycle, disconnectError)
+                    owner.lifecycle.disconnectSignal.complete(disconnectError)
+                    owner.callback?.invoke(checkNotNull(owner.lifecycle.terminalResult))
+                }
+                endState.client?.endConnection()
                 _connectionStateListener.tryEmit(ConnectionResult(connected = false, message = "Disconnected"))
-                clearProductCache(cachedProductDetails)
-                emittedBillingIssueTokens.clear()
-                true
+                fallbackCleared && callbacksDisposed
             }.getOrElse { false }
         }
     }
 
+    private fun finishConnectionAttempt(
+        attempt: ConnectionAttempt,
+        expectedClient: BillingClient,
+        connected: Boolean,
+    ): Boolean {
+        val (ownsAttempt, clientToClose, transition) = synchronized(purchaseLifecycleLock) {
+            val owns = connectionAttempt === attempt &&
+                connectionGeneration == attempt.generation &&
+                billingClient === expectedClient
+            var sessionTransition: BillingSessionTransition? = null
+            if (owns) {
+                connectionAttempt = null
+                isConnected = connected
+                if (connected) {
+                    alternativeBillingMode = attempt.alternativeBillingMode
+                    enabledBillingProgram = attempt.billingProgram
+                    billingChoiceScreenType = attempt.billingChoiceScreenType
+                } else {
+                    billingClient = null
+                    sessionTransition = advanceBillingSessionLocked()
+                }
+            }
+            val stale = !owns &&
+                (connectionGeneration != attempt.generation || billingClient !== expectedClient)
+            Triple(
+                owns,
+                expectedClient.takeIf { (owns && !connected) || stale },
+                sessionTransition,
+            )
+        }
+        transition?.let {
+            completeBillingSessionTransition(
+                it,
+                PurchaseError(
+                    code = ErrorCode.ServiceDisconnected,
+                    message = "Billing connection failed",
+                ),
+            )
+        }
+        clientToClose?.let { closingClient ->
+            failPendingPurchaseForClient(
+                closingClient,
+                PurchaseError(
+                    code = ErrorCode.ServiceDisconnected,
+                    message = "Billing connection failed during purchase",
+                ),
+            )
+            closingClient.endConnection()
+        }
+        if (!ownsAttempt) {
+            attempt.completion.complete(false)
+            return false
+        }
+        if (connected) {
+            _connectionStateListener.tryEmit(
+                ConnectionResult(connected = true, message = "Connected")
+            )
+        }
+        attempt.completion.complete(connected)
+        return true
+    }
+
+    private fun handleBillingServiceDisconnected(
+        attempt: ConnectionAttempt,
+        client: BillingClient,
+    ) {
+        val disconnectState = synchronized(purchaseLifecycleLock) {
+            if (
+                billingClient !== client ||
+                connectionGeneration != attempt.generation
+            ) {
+                return
+            }
+            val setupPending = connectionAttempt === attempt
+            setupPending to if (setupPending) null else advanceBillingSessionLocked()
+        }
+        val error = PurchaseError(
+            code = ErrorCode.ServiceDisconnected,
+            message = "Billing service disconnected",
+        )
+        disconnectState.second?.let { completeBillingSessionTransition(it, error) }
+        if (disconnectState.first) finishConnectionAttempt(attempt, client, false)
+        _connectionStateListener.tryEmit(
+            ConnectionResult(connected = false, message = "Disconnected")
+        )
+        failPendingPurchaseForClient(
+            client,
+            error.copy(debugMessage = "Billing service disconnected during purchase"),
+        )
+    }
+
+    private fun abortConnectionAttempt(
+        attempt: ConnectionAttempt,
+        expectedClient: BillingClient?,
+    ) {
+        val (clientToClose, transition) = synchronized(purchaseLifecycleLock) {
+            if (connectionAttempt !== attempt) return@synchronized null to null
+            connectionAttempt = null
+            isConnected = false
+            val current = billingClient
+            if (expectedClient == null || current === expectedClient) {
+                billingClient = null
+            }
+            (expectedClient ?: current) to advanceBillingSessionLocked()
+        }
+        transition?.let {
+            completeBillingSessionTransition(
+                it,
+                PurchaseError(
+                    code = ErrorCode.ServiceDisconnected,
+                    message = "Billing connection aborted",
+                ),
+            )
+        }
+        clientToClose?.let { closingClient ->
+            failPendingPurchaseForClient(
+                closingClient,
+                PurchaseError(
+                    code = ErrorCode.ServiceDisconnected,
+                    message = "Billing connection aborted during purchase",
+                ),
+            )
+            closingClient.endConnection()
+        }
+        attempt.completion.complete(false)
+    }
+
     private val requestPurchaseHandler: MutationRequestPurchaseHandler = { props ->
         val purchases = withContext(Dispatchers.Main) {
+            if (alternativeBillingMode == AlternativeBillingModeAndroid.AlternativeOnly) {
+                failWith(
+                    PurchaseError(
+                        code = ErrorCode.FeatureNotSupported,
+                        message =
+                            "requestPurchase cannot run Alternative Billing Only automatically. " +
+                                "Use the explicit deprecated sequence: check availability, show " +
+                                "the information dialog, complete developer payment, create a " +
+                                "reporting token, then report it from your backend.",
+                    )
+                )
+            }
             val resolvedType = props.type
 
             val purchaseRequest = (props.request as? RequestPurchaseProps.Request.Purchase)?.value
@@ -389,13 +1012,71 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                 ?: subscriptionAndroidOptions?.obfuscatedAccountId
             val obfuscatedProfileId = purchaseAndroidOptions?.obfuscatedProfileId
                 ?: subscriptionAndroidOptions?.obfuscatedProfileId
-            // offerToken for one-time purchase discounts (Android 7.0+)
+            // offerToken for one-time purchase discounts (Android 8.0+)
             val oneTimePurchaseOfferToken = purchaseAndroidOptions?.offerToken
             val developerBillingOption = purchaseAndroidOptions?.developerBillingOption
                 ?: subscriptionAndroidOptions?.developerBillingOption
             if (targetSkus.isEmpty()) {
                 _purchaseErrorListener.tryEmit(
                     PurchaseError(code = ErrorCode.EmptySkuList, message = "SKU list is empty")
+                )
+                return@withContext emptyList()
+            }
+
+            if (!isSubscriptionReplacementTargetCountValid(
+                    targetSkuCount = targetSkus.size,
+                    hasProductLevelReplacementParams =
+                        subscriptionProductReplacementParams != null,
+                )
+            ) {
+                _purchaseErrorListener.tryEmit(
+                    PurchaseError(
+                        code = ErrorCode.DeveloperError,
+                        message =
+                            "subscriptionProductReplacementParams requires exactly one target SKU",
+                    )
+                )
+                return@withContext emptyList()
+            }
+
+
+            val updateSourceCount = subscriptionUpdateSourceCount(
+                purchaseToken,
+                originalExternalTransactionId,
+            )
+            if (updateSourceCount > 1) {
+                _purchaseErrorListener.tryEmit(
+                    PurchaseError(
+                        code = ErrorCode.DeveloperError,
+                        message =
+                            "purchaseToken and originalExternalTransactionId are mutually exclusive",
+                    )
+                )
+                return@withContext emptyList()
+            }
+            if (
+                subscriptionProductReplacementParams != null &&
+                updateSourceCount != 1
+            ) {
+                _purchaseErrorListener.tryEmit(
+                    PurchaseError(
+                        code = ErrorCode.DeveloperError,
+                        message =
+                            "subscriptionProductReplacementParams requires exactly one update source",
+                    )
+                )
+                return@withContext emptyList()
+            }
+
+            if (subscriptionProductReplacementParams != null &&
+                BuildConfig.OPENIAP_STORE.lowercase() != "play"
+            ) {
+                _purchaseErrorListener.tryEmit(
+                    PurchaseError(
+                        code = ErrorCode.FeatureNotSupported,
+                        message =
+                            "subscriptionProductReplacementParams is only supported by Google Play",
+                    )
                 )
                 return@withContext emptyList()
             }
@@ -416,6 +1097,33 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                 return@withContext emptyList()
             }
 
+            val requestLifecycle = PurchaseRequestLifecycle()
+            val lifecycleInstallError = synchronized(purchaseLifecycleLock) {
+                when {
+                    billingClient !== client || !isConnected || !client.isReady -> PurchaseError(
+                        code = ErrorCode.ServiceDisconnected,
+                        message = "Billing service disconnected before purchase could start"
+                    )
+                    pendingPurchase != null -> PurchaseError(
+                        code = ErrorCode.DeveloperError,
+                        message = "Another purchase is already in progress"
+                    )
+                    else -> {
+                        pendingPurchase = PendingPurchaseOwner(requestLifecycle, client)
+                        null
+                    }
+                }
+            }
+            if (lifecycleInstallError != null) {
+                _purchaseErrorListener.tryEmit(lifecycleInstallError)
+                return@withContext emptyList()
+            }
+
+            var expectedCallback: ((Result<List<Purchase>>) -> Unit)? = null
+            var launchStartedAtMillis: Double? = null
+            val didLaunchBillingFlow = AtomicBoolean(false)
+            try {
+
             val desiredProductType =
                 if (resolvedType == ProductQueryType.Subs) BillingClient.ProductType.SUBS else BillingClient.ProductType.INAPP
 
@@ -423,34 +1131,50 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                 client = client,
                 productType = desiredProductType,
                 skus = targetSkus,
-                cache = cachedProductDetails,
-                errorFlow = _purchaseErrorListener
+                disconnectSignal = requestLifecycle.disconnectSignal,
             )
-                ?: return@withContext emptyList()
+
+            requestLifecycle.disconnectError.get()?.let { throw PurchaseException(it) }
 
             // Guard: oneTimePurchaseOfferToken requires exactly one SKU
             if (desiredProductType == BillingClient.ProductType.INAPP &&
                 oneTimePurchaseOfferToken != null &&
                 targetSkus.size > 1
             ) {
-                _purchaseErrorListener.tryEmit(
+                failPendingPurchaseFlow(
+                    requestLifecycle,
+                    null,
                     PurchaseError(
                         code = ErrorCode.SkuOfferMismatch,
-                        message = "oneTimePurchaseOfferToken requires a single in-app SKU"
-                    )
+                        message = "oneTimePurchaseOfferToken requires a single in-app SKU",
+                    ),
                 )
                 return@withContext emptyList()
             }
 
             withTimeoutOrNull(PURCHASE_CALLBACK_TIMEOUT_MS) {
                 suspendCancellableCoroutine<List<Purchase>> { continuation ->
-                currentPurchaseCallback = { result ->
+                val callback: (Result<List<Purchase>>) -> Unit = { result ->
                     if (continuation.isActive) {
                         result.fold(
                             onSuccess = { continuation.resume(it) },
                             onFailure = { continuation.resumeWithException(it) }
                         )
                     }
+                }
+                expectedCallback = callback
+                val terminalResult = attachPurchaseCallback(requestLifecycle, callback)
+                if (terminalResult != null) {
+                    callback(terminalResult)
+                    return@suspendCancellableCoroutine
+                }
+
+                requestLifecycle.disconnectError.get()?.let { disconnectError ->
+                    completePendingPurchaseFlow(
+                        callback,
+                        Result.failure(PurchaseException(disconnectError))
+                    )
+                    return@suspendCancellableCoroutine
                 }
 
                 val paramsList = mutableListOf<BillingFlowParams.ProductDetailsParams>()
@@ -471,14 +1195,14 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                         val resolvedToken = queuedToken ?: detail.subscriptionOfferDetails?.firstOrNull()?.offerToken
 
                         if (resolvedToken.isNullOrEmpty() || (availableTokens.isNotEmpty() && !availableTokens.contains(resolvedToken))) {
-                            _purchaseErrorListener.tryEmit(
+                            failPendingPurchaseFlow(
+                                requestLifecycle,
+                                callback,
                                 PurchaseError(
                                     code = ErrorCode.SkuOfferMismatch,
-                                    message = "Offer token mismatch for ${detail.productId}"
-                                )
+                                    message = "Offer token mismatch for ${detail.productId}",
+                                ),
                             )
-                            continuation.resume(emptyList())
-                            currentPurchaseCallback = null
                             mismatch = true
                             break
                         }
@@ -497,7 +1221,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                             builder.setOfferToken(resolvedToken)
                         }
                     } else {
-                        // Handle offerToken for one-time purchase discounts (Android 7.0+)
+                        // Handle offerToken for one-time purchase discounts (Android 8.0+)
                         oneTimePurchaseOfferToken?.let { token ->
                             builder.setOfferToken(token)
                         }
@@ -549,31 +1273,111 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                     applyDeveloperBillingOption(flowBuilder, option)
                 }
 
-                val launchResult = billingClient?.launchBillingFlow(activity, flowBuilder.build())
-                if (launchResult?.responseCode != BillingClient.BillingResponseCode.OK) {
-                    val code = mapBillingResponseCode(launchResult?.responseCode ?: -1)
-                    val error = PurchaseError(
-                        code = code,
-                        message = launchResult?.debugMessage
-                            ?.takeIf { it.isNotBlank() }
-                            ?: if (code == ErrorCode.UserCancelled) {
-                                "User cancelled the operation"
-                            } else {
-                                "Failed to launch billing flow"
-                            }
+                if (!continuation.isActive ||
+                    !ownsPendingPurchaseRequest(requestLifecycle, callback)
+                ) {
+                    abandonPendingPurchaseFlow(requestLifecycle, callback)
+                    return@suspendCancellableCoroutine
+                }
+                val requestLaunchTimestampMillis = System.currentTimeMillis().toDouble()
+                launchStartedAtMillis = requestLaunchTimestampMillis
+                val pendingSnapshot = PendingPurchaseOwner(
+                    lifecycle = requestLifecycle,
+                    client = client,
+                    callback = callback,
+                    metadata = PendingPurchaseMetadata(
+                        productType = desiredProductType,
+                        requestedSkus = targetSkus,
+                        launchStartedAtMillis = requestLaunchTimestampMillis,
+                    ),
+                )
+                val launchAttempt = synchronized(purchaseLifecycleLock) {
+                    val owner = pendingPurchase
+                    if (owner?.lifecycle !== requestLifecycle || owner.callback !== callback ||
+                        billingClient !== client || !isConnected || !client.isReady
+                    ) {
+                        null
+                    } else {
+                        pendingPurchase = owner.copy(metadata = pendingSnapshot.metadata)
+                        didLaunchBillingFlow.set(true)
+                        runCatching {
+                            client.launchBillingFlow(activity, flowBuilder.build())
+                        }
+                    }
+                }
+                if (launchAttempt == null) {
+                    val error = requestLifecycle.disconnectError.get() ?: PurchaseError(
+                        code = ErrorCode.ServiceDisconnected,
+                        message = "Billing service disconnected before purchase launch",
+                        productId = targetSkus.singleOrNull(),
                     )
-                    _purchaseErrorListener.tryEmit(error)
-                    completePendingPurchaseFlow(Result.failure(PurchaseException(error)))
+                    failPendingPurchaseFlow(requestLifecycle, callback, error)
+                    return@suspendCancellableCoroutine
+                }
+                val launchResult = launchAttempt.getOrElse { error ->
+                    val purchaseError = PurchaseError(
+                        code = ErrorCode.PurchaseError,
+                        debugMessage = error.message,
+                        message = error.message ?: "Failed to launch billing flow",
+                        productId = targetSkus.singleOrNull(),
+                    )
+                    failPendingPurchaseFlow(requestLifecycle, callback, purchaseError)
+                    return@suspendCancellableCoroutine
+                }
+                if (launchResult.responseCode != BillingClient.BillingResponseCode.OK) {
+                    val error = launchResult.toPurchaseUpdateError(targetSkus.singleOrNull())
+                    failPendingPurchaseFlow(requestLifecycle, callback, error)
                 } else {
-                    pendingPurchaseSkus = targetSkus
-                    pendingPurchaseProductType = desiredProductType
-                    purchaseFlowLaunched = true
-                    schedulePurchaseResumeFallback()
+                    if (!ownsPendingPurchaseRequest(requestLifecycle, callback)) {
+                        return@suspendCancellableCoroutine
+                    }
+                    schedulePurchaseResumeFallback(pendingSnapshot)
                 }
 
-                continuation.invokeOnCancellation { currentPurchaseCallback = null }
+                continuation.invokeOnCancellation {
+                    if (!didLaunchBillingFlow.get()) {
+                        abandonPendingPurchaseFlow(requestLifecycle, callback)
+                    }
                 }
-            } ?: recoverPendingPurchaseAfterTimeout(client)
+                }
+            } ?: recoverPendingPurchaseAfterTimeout(
+                client = client,
+                productType = desiredProductType,
+                requestedSkus = targetSkus,
+                requestLifecycle = requestLifecycle,
+                expectedCallback = expectedCallback,
+                launchStartedAtMillis = launchStartedAtMillis,
+            )
+            } catch (error: CancellationException) {
+                expectedCallback?.let { callback ->
+                    if (!didLaunchBillingFlow.get()) {
+                        abandonPendingPurchaseFlow(requestLifecycle, callback)
+                    }
+                }
+                throw error
+            } catch (error: Throwable) {
+                val mappedError = (error as? PurchaseException)?.error ?: PurchaseError(
+                    code = ErrorCode.DeveloperError,
+                    debugMessage = error.message,
+                    message = error.message ?: "Invalid billing flow parameters",
+                    productId = targetSkus.singleOrNull(),
+                )
+                val purchaseError = if (mappedError.productId == null) {
+                    mappedError.copy(productId = targetSkus.singleOrNull())
+                } else {
+                    mappedError
+                }
+                failPendingPurchaseFlow(requestLifecycle, expectedCallback, purchaseError)
+                emptyList()
+            } finally {
+                val callback = expectedCallback
+                val shouldRetainLaunchedOwner = didLaunchBillingFlow.get() &&
+                    callback != null &&
+                    ownsPendingPurchaseRequest(requestLifecycle, callback)
+                if (!shouldRetainLaunchedOwner) {
+                    clearPendingPurchaseStateForRequest(requestLifecycle)
+                }
+            }
         }
 
         RequestPurchaseResultPurchases(purchases)
@@ -594,22 +1398,25 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         options?.let { launchDeepLinkToSubscriptions(it) }
     }
 
-    private val finishTransactionHandler: MutationFinishTransactionHandler = finishTransaction@{ purchase, isConsumable ->
-        if (purchase.platform != IapPlatform.Android) return@finishTransaction
-        val token = purchase.purchaseToken ?: return@finishTransaction
-        runCatching {
-            if (isConsumable == true) {
-                consumePurchaseAndroid(token)
-            } else {
-                acknowledgePurchaseAndroid(token)
-            }
-        }.onFailure {
-            _purchaseErrorListener.tryEmit(
+    private val finishTransactionHandler: MutationFinishTransactionHandler = { purchase, isConsumable ->
+        if (purchase.platform != IapPlatform.Android) {
+            failWith(
                 PurchaseError(
-                    code = ErrorCode.ReceiptFinishedFailed,
-                    message = "Failed to finish transaction: ${it.message ?: "unknown"}"
+                    code = ErrorCode.DeveloperError,
+                    message = "Android finishTransaction requires an Android purchase",
                 )
             )
+        }
+        val token = purchase.purchaseToken?.takeIf { it.isNotBlank() } ?: failWith(
+            PurchaseError(
+                code = ErrorCode.ReceiptFinishedFailed,
+                message = "Missing purchase token on Android purchase",
+            )
+        )
+        if (isConsumable == true) {
+            consumePurchaseAndroid(token)
+        } else {
+            acknowledgePurchaseAndroid(token)
         }
     }
 
@@ -683,8 +1490,6 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
      */
     override suspend fun getAvailablePurchases(options: PurchaseOptions?): List<Purchase> =
         getAvailablePurchasesHandler(options)
-
-    suspend fun getPurchaseHistories(options: PurchaseOptions?): List<Purchase> = emptyList()
 
     /**
      * Get details of all currently active subscriptions.
@@ -876,75 +1681,62 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     // ---------------------------------------------------------------------
     private val fetchProductsHandler: QueryFetchProductsHandler = { params ->
         withContext(Dispatchers.IO) {
-            val client = billingClient ?: failWith(
-                PurchaseError(code = ErrorCode.NotPrepared, message = "Billing client not initialized")
-            )
-            if (!client.isReady) failWith(
-                PurchaseError(code = ErrorCode.NotPrepared, message = "Billing client not ready")
-            )
-            if (params.skus.isEmpty()) failWith(
-                PurchaseError(code = ErrorCode.EmptySkuList, message = "SKU list is empty")
-            )
+            if (params.skus.isEmpty()) {
+                failWith(PurchaseError(code = ErrorCode.EmptySkuList, message = "SKU list is empty"))
+            }
 
             val queryType = params.type ?: ProductQueryType.InApp
+            val errorPublished = AtomicBoolean(false)
+
+            fun publishQueryError(error: PurchaseError) {
+                if (errorPublished.compareAndSet(false, true)) {
+                    _purchaseErrorListener.tryEmit(error)
+                }
+            }
 
             suspend fun query(productType: String): ProductQueryOutcome {
-                val missing = params.skus.distinct().filter { sku ->
-                    !cachedProductDetails.containsKey(ProductCacheKey(sku, productType))
-                }
+                val requestedProductIds = params.skus.distinct()
+                val queryParams = QueryProductDetailsParams.newBuilder()
+                    .setProductList(
+                        requestedProductIds.map { sku ->
+                            QueryProductDetailsParams.Product.newBuilder()
+                                .setProductId(sku)
+                                .setProductType(productType)
+                                .build()
+                        }
+                    )
+                    .build()
 
-                val queryOutcome = if (missing.isNotEmpty()) {
-                    val queryParams = QueryProductDetailsParams.newBuilder()
-                        .setProductList(
-                            missing.map { sku ->
-                                QueryProductDetailsParams.Product.newBuilder()
-                                    .setProductId(sku)
-                                    .setProductType(productType)
-                                    .build()
-                            }
-                        )
-                        .build()
-
-                    suspendCancellableCoroutine<ProductQueryOutcome> { continuation ->
-                        client.queryProductDetailsAsync(queryParams) { billingResult: BillingResult, result: QueryProductDetailsResult ->
-                            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                                result.productDetailsList.forEach { detail ->
-                                    cachedProductDetails[
-                                        ProductCacheKey(detail.productId, detail.productType)
-                                    ] = detail
-                                }
-                                continuation.resume(
+                return awaitBillingQuery(
+                    unavailableError = PurchaseError(
+                        code = ErrorCode.NotPrepared,
+                        message = "Billing client not ready",
+                    ),
+                    onError = ::publishQueryError,
+                ) { client, complete ->
+                    client.queryProductDetailsAsync(queryParams) { billingResult, result ->
+                        if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                            val freshDetailsById = result.productDetailsList
+                                .associateBy { it.productId }
+                            complete(
+                                Result.success(
                                     ProductQueryOutcome(
-                                        productDetails = result.productDetailsList,
+                                        productDetails = params.skus.mapNotNull(freshDetailsById::get),
                                         unfetchedProducts = result.unfetchedProductsCompat(),
                                         succeeded = true,
                                     )
                                 )
-                            } else {
-                                val error = PurchaseError(
-                                    code = mapBillingResponseCode(billingResult.responseCode),
-                                    message = billingResult.debugMessage
-                                        .takeIf { it.isNotBlank() }
-                                        ?: "Failed to query product details",
-                                )
-                                _purchaseErrorListener.tryEmit(error)
-                                continuation.resumeWithException(PurchaseException(error))
-                            }
+                            )
+                        } else {
+                            val error = billingResult.toQueryProductError(
+                                productIds = requestedProductIds,
+                                productType = productType,
+                                isEmptyProductList = result.productDetailsList.isEmpty(),
+                            )
+                            complete(Result.failure(PurchaseException(error)))
                         }
                     }
-                } else {
-                    ProductQueryOutcome(
-                        productDetails = emptyList(),
-                        unfetchedProducts = emptyList(),
-                        succeeded = true,
-                    )
                 }
-
-                return queryOutcome.copy(
-                    productDetails = params.skus.mapNotNull { sku ->
-                        cachedProductDetails[ProductCacheKey(sku, productType)]
-                    }
-                )
             }
 
             val outcomes = collectProductQueryOutcomes(
@@ -1044,43 +1836,72 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
 
     private val getAvailablePurchasesHandler: QueryGetAvailablePurchasesHandler = { options ->
         withContext(Dispatchers.IO) {
-            ensureConnectedOrFail(isConnected, ::failWith)
-            val client = billingClient ?: return@withContext emptyList()
             val includeSuspended = options?.includeSuspendedAndroid == true
 
-            suspend fun query(type: String, includeSuspendedSubs: Boolean): List<Purchase> = suspendCancellableCoroutine { continuation ->
-                val paramsBuilder = QueryPurchasesParams.newBuilder().setProductType(type)
+            suspend fun query(
+                type: String,
+                includeSuspendedSubs: Boolean,
+                expectedClient: BillingClient? = null,
+                expectedGeneration: Long? = null,
+                captureOwner: (BillingClient, Long) -> Unit = { _, _ -> },
+            ): List<Purchase> =
+                awaitBillingQueryAndPublish(
+                    expectedClient = expectedClient,
+                    expectedGeneration = expectedGeneration,
+                    captureOwner = captureOwner,
+                ) { client, complete ->
+                    val paramsBuilder = QueryPurchasesParams.newBuilder().setProductType(type)
 
-                // Include suspended subscriptions (Google Play Billing Library 8.1+)
-                // Suspended subscriptions have isSuspendedAndroid=true and should NOT be granted entitlements.
-                // Users should be directed to the subscription center to resolve payment issues.
-                if (type == BillingClient.ProductType.SUBS && includeSuspendedSubs) {
-                    runCatching {
-                        // Use reflection to maintain backward compatibility with older billing library versions
-                        val setIncludeSuspendedMethod = paramsBuilder::class.java.getMethod(
-                            "setIncludeSuspended",
-                            Boolean::class.javaPrimitiveType
-                        )
-                        setIncludeSuspendedMethod.invoke(paramsBuilder, true)
+                    // Include suspended subscriptions (Google Play Billing Library 8.1+)
+                    // Suspended subscriptions have isSuspendedAndroid=true and should NOT be granted entitlements.
+                    // Users should be directed to the subscription center to resolve payment issues.
+                    if (type == BillingClient.ProductType.SUBS && includeSuspendedSubs) {
+                        runCatching {
+                            // Use reflection to maintain backward compatibility with older billing library versions
+                            val setIncludeSuspendedMethod = paramsBuilder::class.java.getMethod(
+                                "setIncludeSuspended",
+                                Boolean::class.javaPrimitiveType
+                            )
+                            setIncludeSuspendedMethod.invoke(paramsBuilder, true)
+                        }
+                    }
+
+                    val params = paramsBuilder.build()
+                    client.queryPurchasesAsync(params) { result, purchases ->
+                        if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+                            complete(Result.success(purchases.map { it.toPurchase() }))
+                        } else {
+                            val error = result.toBillingOperationError(
+                                defaultMessage = "Failed to query owned purchases",
+                            )
+                            complete(Result.failure(PurchaseException(error)))
+                        }
                     }
                 }
 
-                val params = paramsBuilder.build()
-                client.queryPurchasesAsync(params) { result, purchases ->
-                    if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-                        continuation.resume(purchases.map { it.toPurchase() })
-                    } else {
-                        continuation.resume(emptyList())
-                    }
-                }
-            }
-
+            lateinit var sessionClient: BillingClient
+            var sessionGeneration = 0L
             val all = mutableListOf<Purchase>()
-            all += query(BillingClient.ProductType.INAPP, includeSuspendedSubs = false)
+            all += query(
+                BillingClient.ProductType.INAPP,
+                includeSuspendedSubs = false,
+            ) { client, generation ->
+                sessionClient = client
+                sessionGeneration = generation
+            }
             // Always query with suspended=true so the billing-issue notifier can see
             // them, then filter the returned list based on the caller's preference.
-            val subs = query(BillingClient.ProductType.SUBS, includeSuspendedSubs = true)
-            notifySuspendedSubscriptions(subs)
+            val subs = query(
+                BillingClient.ProductType.SUBS,
+                includeSuspendedSubs = true,
+                expectedClient = sessionClient,
+                expectedGeneration = sessionGeneration,
+            )
+            notifySuspendedSubscriptions(
+                subs,
+                sessionClient,
+                sessionGeneration,
+            )
             if (includeSuspended) {
                 all += subs
             } else {
@@ -1090,35 +1911,44 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         }
     }
 
-    // Tracks purchase tokens already emitted as billing-issue events so we don't re-fire
-    // on every getAvailablePurchases call. ConcurrentHashMap.newKeySet() keeps add()
-    // atomic under the Dispatchers.IO context used by getAvailablePurchasesHandler.
-    private val emittedBillingIssueTokens: MutableSet<String> =
-        java.util.concurrent.ConcurrentHashMap.newKeySet()
+    private val emittedBillingIssueTokens = mutableSetOf<String>()
 
-    private fun notifySuspendedSubscriptions(purchases: List<Purchase>) {
-        for (purchase in purchases) {
-            val android = purchase as? PurchaseAndroid ?: continue
-            if (android.isSuspendedAndroid != true) continue
-            val token = android.purchaseToken ?: continue
-            if (!emittedBillingIssueTokens.add(token)) continue
-            _subscriptionBillingIssueListener.tryEmit(android)
+    private fun notifySuspendedSubscriptions(
+        purchases: List<Purchase>,
+        expectedClient: BillingClient,
+        expectedGeneration: Long,
+    ) {
+        val candidates = purchases.mapNotNull { purchase ->
+            (purchase as? PurchaseAndroid)
+                ?.takeIf { it.isSuspendedAndroid == true }
+                ?.let { android -> android.purchaseToken?.let { it to android } }
         }
+        val notifications = synchronized(purchaseLifecycleLock) {
+            if (!isActiveBillingSessionLocked(expectedClient, expectedGeneration)) {
+                emptyList()
+            } else {
+                candidates.mapNotNull { (token, purchase) ->
+                    purchase.takeIf { emittedBillingIssueTokens.add(token) }
+                }
+            }
+        }
+        notifications.forEach(_subscriptionBillingIssueListener::tryEmit)
     }
 
     private val getActiveSubscriptionsHandler: QueryGetActiveSubscriptionsHandler = { ids ->
         withContext(Dispatchers.IO) {
-            ensureConnectedOrFail(isConnected, ::failWith)
-            val client = billingClient ?: return@withContext emptyList()
-
-            suspendCancellableCoroutine { continuation ->
+            awaitBillingQueryAndPublish { client, complete ->
                 val params = QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.SUBS).build()
                 client.queryPurchasesAsync(params) { result, purchases ->
                     if (result.responseCode == BillingClient.BillingResponseCode.OK) {
                         val active = purchases
-                            .filter { purchase -> ids?.let { list -> purchase.products.any(list::contains) } ?: true }
-                            .filter { purchase -> purchase.purchaseState == com.android.billingclient.api.Purchase.PurchaseState.PURCHASED }
-                            .map { purchase ->
+                            .filter { purchase ->
+                                ids?.let { list -> purchase.products.any(list::contains) } ?: true
+                            }
+                            .filter { purchase ->
+                                purchase.purchaseState ==
+                                    com.android.billingclient.api.Purchase.PurchaseState.PURCHASED
+                            }.map { purchase ->
                                 ActiveSubscription(
                                     autoRenewingAndroid = purchase.isAutoRenewing,
                                     isActive = true,
@@ -1132,9 +1962,12 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                                     expirationDateIOS = null
                                 )
                             }
-                        continuation.resume(active)
+                        complete(Result.success(active))
                     } else {
-                        continuation.resume(emptyList())
+                        val error = result.toBillingOperationError(
+                            defaultMessage = "Failed to query active subscriptions",
+                        )
+                        complete(Result.failure(PurchaseException(error)))
                     }
                 }
             }
@@ -1185,7 +2018,12 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     private fun billingProgramConstant(program: BillingProgramAndroid, operation: String): Int =
         when (program) {
             BillingProgramAndroid.ExternalContentLink -> BillingClient.BillingProgram.EXTERNAL_CONTENT_LINK
-            BillingProgramAndroid.UserChoiceBilling -> 2
+            BillingProgramAndroid.UserChoiceBilling -> throw PurchaseException(
+                PurchaseError(
+                    code = ErrorCode.DeveloperError,
+                    message = "USER_CHOICE_BILLING uses AlternativeBillingMode, not BillingProgram API",
+                )
+            )
             BillingProgramAndroid.ExternalOffer -> BillingClient.BillingProgram.EXTERNAL_OFFER
             BillingProgramAndroid.ExternalPayments -> BillingClient.BillingProgram.EXTERNAL_PAYMENTS
             BillingProgramAndroid.BillingChoice -> BillingClient.BillingProgram.BILLING_CHOICE
@@ -1263,24 +2101,16 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
      * @see <a href="https://openiap.dev/docs/apis/android/acknowledge-purchase-android">https://openiap.dev/docs/apis/android/acknowledge-purchase-android</a>
      */
     override suspend fun acknowledgePurchaseAndroid(purchaseToken: String): Boolean {
-        ensureConnectedOrFail(isConnected, ::failWith)
         val params = AcknowledgePurchaseParams.newBuilder()
             .setPurchaseToken(purchaseToken)
             .build()
 
-        return suspendCancellableCoroutine { continuation ->
-            billingClient?.acknowledgePurchase(params) { result ->
-                when (result.responseCode) {
-                    BillingClient.BillingResponseCode.OK,
-                    BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> continuation.resume(true)
-                    else -> {
-                        val error = PurchaseError(
-                            code = ErrorCode.ServiceError,
-                            message = "Failed to acknowledge: ${result.debugMessage} (code: ${result.responseCode})"
-                        )
-                        _purchaseErrorListener.tryEmit(error)
-                        continuation.resumeWithException(PurchaseException(error))
-                    }
+        return awaitBillingQueryAndPublish { client, complete ->
+            client.acknowledgePurchase(params) { result ->
+                if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+                    complete(Result.success(true))
+                } else {
+                    complete(Result.failure(PurchaseException(result.toPurchaseUpdateError())))
                 }
             }
         }
@@ -1292,22 +2122,16 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
      * @see <a href="https://openiap.dev/docs/apis/android/consume-purchase-android">https://openiap.dev/docs/apis/android/consume-purchase-android</a>
      */
     override suspend fun consumePurchaseAndroid(purchaseToken: String): Boolean {
-        ensureConnectedOrFail(isConnected, ::failWith)
         val params = ConsumeParams.newBuilder()
             .setPurchaseToken(purchaseToken)
             .build()
 
-        return suspendCancellableCoroutine { continuation ->
-            billingClient?.consumeAsync(params) { result, _ ->
+        return awaitBillingQueryAndPublish { client, complete ->
+            client.consumeAsync(params) { result, _ ->
                 if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-                    continuation.resume(true)
+                    complete(Result.success(true))
                 } else {
-                    val error = PurchaseError(
-                        code = ErrorCode.ServiceError,
-                        message = "Failed to consume: ${result.debugMessage} (code: ${result.responseCode})"
-                    )
-                    _purchaseErrorListener.tryEmit(error)
-                    continuation.resumeWithException(PurchaseException(error))
+                    complete(Result.failure(PurchaseException(result.toPurchaseUpdateError())))
                 }
             }
         }
@@ -1318,7 +2142,12 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
      *
      * @see <a href="https://openiap.dev/docs/apis/ios/get-storefront-ios">https://openiap.dev/docs/apis/ios/get-storefront-ios</a>
      */
-    override suspend fun getStorefrontIOS(): String = ""
+    override suspend fun getStorefrontIOS(): String = failWith(
+        PurchaseError(
+            code = ErrorCode.FeatureNotSupported,
+            message = "getStorefrontIOS is an iOS-only API. Use getStorefront on Android.",
+        )
+    )
 
     /**
      * Show the App Store offer code redemption sheet.
@@ -1488,60 +2317,261 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     // Helpers
     // ---------------------------------------------------------------------
     private fun handlePurchaseUpdate(
+        expectedClient: BillingClient,
         billingResult: BillingResult,
         purchases: List<com.android.billingclient.api.Purchase>?
     ) {
+        val pendingSnapshot = synchronized(purchaseLifecycleLock) {
+            if (billingClient !== expectedClient) return
+            pendingPurchaseSnapshotLocked()?.takeIf { it.client === expectedClient }
+        }
         if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
             val mapped = purchases.orEmpty().map { it.toPurchase() }
+            val metadata = pendingSnapshot?.metadata
+            val matched = if (metadata == null) {
+                emptyList()
+            } else {
+                mapped.filter { purchase ->
+                    isPurchaseForPendingRequest(
+                        transactionDateMillis = purchase.transactionDate,
+                        productIds = listOf(purchase.productId) + purchase.ids.orEmpty(),
+                        requestedSkus = metadata.requestedSkus.toSet(),
+                        launchStartedAtMillis = metadata.launchStartedAtMillis,
+                    )
+                }
+            }
+            val result = Result.success(matched)
+            val claimedOwner = if (matched.isNotEmpty() && pendingSnapshot != null) {
+                claimPendingPurchaseUpdate(expectedClient, pendingSnapshot, result) ?: return
+            } else {
+                if (synchronized(purchaseLifecycleLock) { billingClient !== expectedClient }) return
+                null
+            }
             mapped.forEach { _purchaseUpdatedListener.tryEmit(it) }
-            completePendingPurchaseFlow(Result.success(mapped))
+            claimedOwner?.let { completeClaimedPurchaseFlow(it, result) }
+            if (mapped.isEmpty() && pendingSnapshot?.callback != null) {
+                logWarning("Ignoring an empty successful purchase callback")
+            } else if (mapped.isNotEmpty() && metadata != null && matched.isEmpty()) {
+                logWarning("Ignoring unrelated purchase update while another purchase is pending")
+            }
         } else {
-            val code = mapBillingResponseCode(billingResult.responseCode)
-            val error = PurchaseError(
-                code = code,
-                message = billingResult.debugMessage
-                    .takeIf { it.isNotBlank() }
-                    ?: if (code == ErrorCode.UserCancelled) {
-                        "User cancelled the operation"
-                    } else {
-                        "Purchase failed"
-                    }
+            val error = billingResult.toPurchaseUpdateError(
+                requestProductId = pendingSnapshot?.metadata?.requestedSkus?.singleOrNull(),
             )
-            _purchaseErrorListener.tryEmit(error)
-            completePendingPurchaseFlow(Result.failure(PurchaseException(error)))
+            if (pendingSnapshot == null) {
+                if (synchronized(purchaseLifecycleLock) { billingClient !== expectedClient }) return
+                _purchaseErrorListener.tryEmit(error)
+            } else {
+                val result = Result.failure<List<Purchase>>(PurchaseException(error))
+                val owner = claimPendingPurchaseUpdate(
+                    expectedClient,
+                    pendingSnapshot,
+                    result,
+                ) ?: return
+                publishTerminalPurchaseError(pendingSnapshot.lifecycle, error)
+                completeClaimedPurchaseFlow(owner, result)
+            }
         }
     }
 
-    private fun clearPendingPurchaseFlow() {
-        purchaseFallbackRunnable?.let(mainHandler::removeCallbacks)
-        purchaseTimeoutRunnable?.let(mainHandler::removeCallbacks)
-        purchaseFallbackRunnable = null
-        purchaseTimeoutRunnable = null
-        currentPurchaseCallback = null
-        pendingPurchaseSkus = emptyList()
-        pendingPurchaseProductType = null
-        purchaseFlowLaunched = false
+    private fun claimPendingPurchaseUpdate(
+        expectedClient: BillingClient,
+        expectedOwner: PendingPurchaseOwner,
+        result: Result<List<Purchase>>,
+    ): PendingPurchaseOwner? = synchronized(purchaseLifecycleLock) {
+        val current = pendingPurchase ?: return@synchronized null
+        if (
+            billingClient !== expectedClient ||
+            current.client !== expectedClient ||
+            current.lifecycle !== expectedOwner.lifecycle ||
+            current.callback !== expectedOwner.callback
+        ) {
+            return@synchronized null
+        }
+        if (current.lifecycle.terminalResult == null) current.lifecycle.terminalResult = result
+        pendingPurchase = null
+        current
     }
 
-    private fun completePendingPurchaseFlow(result: Result<List<Purchase>>) {
-        purchaseFallbackRunnable?.let(mainHandler::removeCallbacks)
-        purchaseTimeoutRunnable?.let(mainHandler::removeCallbacks)
-        purchaseFallbackRunnable = null
-        purchaseTimeoutRunnable = null
-        val callback = currentPurchaseCallback
-        currentPurchaseCallback = null
-        pendingPurchaseSkus = emptyList()
-        pendingPurchaseProductType = null
-        purchaseFlowLaunched = false
-        callback?.invoke(result)
+    private fun completeClaimedPurchaseFlow(
+        owner: PendingPurchaseOwner,
+        result: Result<List<Purchase>>,
+    ) {
+        owner.fallbackRunnable?.let(mainHandler::removeCallbacks)
+        owner.callback?.invoke(result)
     }
+
+    private fun publishTerminalPurchaseError(
+        lifecycle: PurchaseRequestLifecycle,
+        error: PurchaseError,
+    ) {
+        if (lifecycle.errorPublished.compareAndSet(false, true)) {
+            _purchaseErrorListener.tryEmit(error)
+        }
+    }
+
+    private fun attachPurchaseCallback(
+        requestLifecycle: PurchaseRequestLifecycle,
+        callback: (Result<List<Purchase>>) -> Unit,
+    ): Result<List<Purchase>>? = synchronized(purchaseLifecycleLock) {
+        val owner = pendingPurchase
+        if (owner?.lifecycle !== requestLifecycle) {
+            return@synchronized requestLifecycle.terminalResult
+                ?: Result.failure(
+                    PurchaseException(
+                        PurchaseError(
+                            code = ErrorCode.ServiceDisconnected,
+                            message = "Purchase request is no longer active",
+                        )
+                    )
+                )
+        }
+        if (owner.callback != null) {
+            return@synchronized Result.failure(
+                PurchaseException(
+                    PurchaseError(
+                        code = ErrorCode.DeveloperError,
+                        message = "Another purchase is already in progress",
+                    )
+                )
+            )
+        }
+        pendingPurchase = owner.copy(callback = callback)
+        null
+    }
+
+    private fun completePendingPurchaseFlow(
+        expectedCallback: (Result<List<Purchase>>) -> Unit,
+        result: Result<List<Purchase>>
+    ): Boolean {
+        val owner = claimPendingPurchaseResult(
+            requestLifecycle = null,
+            expectedCallback = expectedCallback,
+            result = result,
+        ) ?: return false
+        completeClaimedPurchaseFlow(owner, result)
+        return true
+    }
+
+    private fun claimPendingPurchaseResult(
+        requestLifecycle: PurchaseRequestLifecycle?,
+        expectedCallback: ((Result<List<Purchase>>) -> Unit)?,
+        result: Result<List<Purchase>>,
+    ): PendingPurchaseOwner? = synchronized(purchaseLifecycleLock) {
+        val current = pendingPurchase ?: return@synchronized null
+        if (
+            (requestLifecycle != null && current.lifecycle !== requestLifecycle) ||
+            (expectedCallback != null && current.callback !== expectedCallback)
+        ) {
+            return@synchronized null
+        }
+        if (current.lifecycle.terminalResult == null) current.lifecycle.terminalResult = result
+        pendingPurchase = null
+        current
+    }
+
+    private fun failPendingPurchaseFlow(
+        requestLifecycle: PurchaseRequestLifecycle,
+        expectedCallback: ((Result<List<Purchase>>) -> Unit)?,
+        error: PurchaseError,
+    ): Boolean {
+        val failure = Result.failure<List<Purchase>>(PurchaseException(error))
+        val owner = claimPendingPurchaseResult(
+            requestLifecycle,
+            expectedCallback,
+            failure,
+        ) ?: return false
+        publishTerminalPurchaseError(requestLifecycle, error)
+        completeClaimedPurchaseFlow(owner, failure)
+        return true
+    }
+
+    private fun abandonPendingPurchaseFlow(
+        requestLifecycle: PurchaseRequestLifecycle,
+        expectedCallback: (Result<List<Purchase>>) -> Unit,
+    ): Boolean {
+        val owner = synchronized(purchaseLifecycleLock) {
+            val current = pendingPurchase
+            if (current?.lifecycle !== requestLifecycle || current.callback !== expectedCallback) {
+                return false
+            }
+            pendingPurchase = null
+            current
+        }
+        owner.fallbackRunnable?.let(mainHandler::removeCallbacks)
+        return true
+    }
+
+    private fun failPendingPurchaseForClient(
+        expectedClient: BillingClient,
+        error: PurchaseError
+    ) {
+        val terminal = synchronized(purchaseLifecycleLock) {
+            val owner = pendingPurchase ?: return
+            if (owner.client !== expectedClient) return
+            val resolvedError = if (error.productId == null) {
+                error.copy(productId = owner.metadata?.requestedSkus?.singleOrNull())
+            } else {
+                error
+            }
+            val failure = Result.failure<List<Purchase>>(PurchaseException(resolvedError))
+            owner.lifecycle.disconnectError.compareAndSet(null, resolvedError)
+            if (owner.lifecycle.terminalResult == null) {
+                owner.lifecycle.terminalResult = failure
+            }
+            pendingPurchase = null
+            Triple(owner, resolvedError, failure)
+        }
+        val (owner, resolvedError, failure) = terminal
+        owner.fallbackRunnable?.let(mainHandler::removeCallbacks)
+        publishTerminalPurchaseError(owner.lifecycle, resolvedError)
+        owner.lifecycle.disconnectSignal.complete(resolvedError)
+        owner.callback?.invoke(failure)
+    }
+
+    private fun ownsPendingPurchaseRequest(
+        requestLifecycle: PurchaseRequestLifecycle,
+        expectedCallback: ((Result<List<Purchase>>) -> Unit)? = null,
+    ): Boolean = synchronized(purchaseLifecycleLock) {
+        val owner = pendingPurchase
+        owner?.lifecycle === requestLifecycle &&
+            (expectedCallback == null || owner.callback === expectedCallback)
+    }
+
+    private fun ownsPendingPurchaseFlow(snapshot: PendingPurchaseOwner): Boolean =
+        snapshot.callback != null && snapshot.metadata != null &&
+            ownsPendingPurchaseRequest(snapshot.lifecycle, snapshot.callback)
+
+    private fun clearPendingPurchaseStateForRequest(
+        requestLifecycle: PurchaseRequestLifecycle,
+    ): Boolean {
+        val owner = synchronized(purchaseLifecycleLock) {
+            val current = pendingPurchase
+            if (current?.lifecycle !== requestLifecycle) {
+                return false
+            }
+            pendingPurchase = null
+            current
+        }
+        owner.fallbackRunnable?.let(mainHandler::removeCallbacks)
+        return true
+    }
+
+    /** Must be called while holding [purchaseLifecycleLock]. */
+    private fun pendingPurchaseSnapshotLocked(): PendingPurchaseOwner? =
+        pendingPurchase?.takeIf { it.callback != null && it.metadata != null }
 
     private fun schedulePurchaseResumeFallback() {
-        if (!purchaseFlowLaunched) return
-        purchaseFallbackRunnable?.let(mainHandler::removeCallbacks)
+        val snapshot = synchronized(purchaseLifecycleLock) {
+            pendingPurchaseSnapshotLocked() ?: return
+        }
+        schedulePurchaseResumeFallback(snapshot)
+    }
+
+    private fun schedulePurchaseResumeFallback(snapshot: PendingPurchaseOwner) {
         val runnable = object : Runnable {
             override fun run() {
-                if (!purchaseFlowLaunched) return
+                if (!ownsPendingPurchaseFlow(snapshot)) return
 
                 val activity = currentActivity
                 if (activity == null || !activity.hasWindowFocus()) {
@@ -1549,57 +2579,134 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                     return
                 }
 
-                resolvePendingPurchaseAfterResume()
+                resolvePendingPurchaseAfterResume(snapshot)
             }
         }
-        purchaseFallbackRunnable = runnable
-        mainHandler.postDelayed(runnable, PURCHASE_RESUME_FALLBACK_DELAY_MS)
-        schedulePurchaseTimeoutFallback()
+        schedulePurchaseFallback(
+            snapshot,
+            runnable,
+            PURCHASE_RESUME_FALLBACK_DELAY_MS,
+        )
     }
 
-    private fun schedulePurchaseTimeoutFallback() {
-        purchaseTimeoutRunnable?.let(mainHandler::removeCallbacks)
-        val runnable = Runnable {
-            if (purchaseFlowLaunched) resolvePendingPurchaseAfterResume()
+    private fun schedulePurchaseFallback(
+        snapshot: PendingPurchaseOwner,
+        runnable: Runnable,
+        delayMillis: Long,
+    ) {
+        val previous = synchronized(purchaseLifecycleLock) {
+            val current = pendingPurchase
+            if (current?.lifecycle !== snapshot.lifecycle ||
+                current.callback !== snapshot.callback || current.metadata == null
+            ) {
+                return
+            }
+            current.fallbackRunnable.also {
+                pendingPurchase = current.copy(fallbackRunnable = runnable)
+            }
         }
-        purchaseTimeoutRunnable = runnable
-        mainHandler.postDelayed(runnable, PURCHASE_CALLBACK_TIMEOUT_MS)
+        previous?.let(mainHandler::removeCallbacks)
+        mainHandler.postDelayed(runnable, delayMillis)
+        if (!ownsPendingPurchaseFlow(snapshot)) {
+            mainHandler.removeCallbacks(runnable)
+            synchronized(purchaseLifecycleLock) {
+                val current = pendingPurchase
+                if (current?.fallbackRunnable === runnable) {
+                    pendingPurchase = current.copy(fallbackRunnable = null)
+                }
+            }
+        }
     }
 
-    private fun resolvePendingPurchaseAfterResume() {
+    private fun resolvePendingPurchaseAfterResume(snapshot: PendingPurchaseOwner) {
         val client = billingClient ?: return
-        if (!purchaseFlowLaunched) return
+        if (!ownsPendingPurchaseFlow(snapshot)) return
+        val callback = snapshot.callback ?: return
+        val metadata = snapshot.metadata ?: return
 
-        val productType = pendingPurchaseProductType ?: BillingClient.ProductType.INAPP
-        val requestedSkus = pendingPurchaseSkus.toSet()
+        val requestedSkuSet = metadata.requestedSkus.toSet()
         val params = QueryPurchasesParams.newBuilder()
-            .setProductType(productType)
+            .setProductType(metadata.productType)
             .build()
 
         client.queryPurchasesAsync(params) { result, purchases ->
-            if (!purchaseFlowLaunched) return@queryPurchasesAsync
+            if (!ownsPendingPurchaseFlow(snapshot)) {
+                return@queryPurchasesAsync
+            }
 
             if (result.responseCode == BillingClient.BillingResponseCode.OK) {
                 val matched = purchases
                     .filter { purchase ->
-                        requestedSkus.isEmpty() || purchase.products.any { it in requestedSkus }
+                        isPurchaseForPendingRequest(
+                            transactionDateMillis = purchase.purchaseTime.toDouble(),
+                            productIds = purchase.products,
+                            requestedSkus = requestedSkuSet,
+                            launchStartedAtMillis = metadata.launchStartedAtMillis,
+                        )
                     }
                     .map { it.toPurchase() }
 
-                if (matched.isNotEmpty()) {
+                if (matched.isNotEmpty() && completePendingPurchaseFlow(
+                        callback,
+                        Result.success(matched),
+                    )) {
                     matched.forEach { _purchaseUpdatedListener.tryEmit(it) }
-                    completePendingPurchaseFlow(Result.success(matched))
                     return@queryPurchasesAsync
                 }
             }
         }
     }
 
-    private suspend fun recoverPendingPurchaseAfterTimeout(client: BillingClient): List<Purchase> {
-        val matched = queryPendingPurchaseMatches(client)
+    private suspend fun recoverPendingPurchaseAfterTimeout(
+        client: BillingClient,
+        productType: String,
+        requestedSkus: List<String>,
+        requestLifecycle: PurchaseRequestLifecycle,
+        expectedCallback: ((Result<List<Purchase>>) -> Unit)?,
+        launchStartedAtMillis: Double?,
+    ): List<Purchase> {
+        requestLifecycle.terminalResult?.let { return it.getOrThrow() }
+        requestLifecycle.disconnectError.get()?.let { throw PurchaseException(it) }
+        if (!ownsPendingPurchaseRequest(requestLifecycle, expectedCallback)) {
+            requestLifecycle.terminalResult?.let { return it.getOrThrow() }
+            throw PurchaseException(
+                PurchaseError(
+                    code = ErrorCode.ServiceDisconnected,
+                    message = "Purchase request is no longer active",
+                )
+            )
+        }
+
+        val matched = if (launchStartedAtMillis == null) {
+            emptyList()
+        } else {
+            queryPendingPurchaseMatches(
+                client = client,
+                productType = productType,
+                requestedSkus = requestedSkus,
+                launchStartedAtMillis = launchStartedAtMillis,
+            )
+        }
+        requestLifecycle.disconnectError.get()?.let { throw PurchaseException(it) }
+        if (!ownsPendingPurchaseRequest(requestLifecycle, expectedCallback)) {
+            requestLifecycle.terminalResult?.let { return it.getOrThrow() }
+            throw PurchaseException(
+                PurchaseError(
+                    code = ErrorCode.ServiceDisconnected,
+                    message = "Purchase request ended during timeout recovery",
+                )
+            )
+        }
+
         if (matched.isNotEmpty()) {
+            val claimed = expectedCallback?.let { callback ->
+                completePendingPurchaseFlow(callback, Result.success(matched))
+            } ?: clearPendingPurchaseStateForRequest(requestLifecycle)
+            if (!claimed) {
+                requestLifecycle.terminalResult?.let { return it.getOrThrow() }
+                requestLifecycle.disconnectError.get()?.let { throw PurchaseException(it) }
+            }
             matched.forEach { _purchaseUpdatedListener.tryEmit(it) }
-            clearPendingPurchaseFlow()
             return matched
         }
 
@@ -1607,42 +2714,70 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
             code = ErrorCode.UserCancelled,
             message = "User cancelled the operation"
         )
-        _purchaseErrorListener.tryEmit(error)
-        clearPendingPurchaseFlow()
+        val claimed = failPendingPurchaseFlow(requestLifecycle, expectedCallback, error)
+        if (!claimed) {
+            requestLifecycle.terminalResult?.let { return it.getOrThrow() }
+            requestLifecycle.disconnectError.get()?.let { throw PurchaseException(it) }
+        }
         throw PurchaseException(error)
     }
 
-    private suspend fun queryPendingPurchaseMatches(client: BillingClient): List<Purchase> =
-        suspendCancellableCoroutine { continuation ->
-            val productType = pendingPurchaseProductType ?: BillingClient.ProductType.INAPP
-            val requestedSkus = pendingPurchaseSkus.toSet()
-            val params = QueryPurchasesParams.newBuilder()
-                .setProductType(productType)
-                .build()
+    internal suspend fun queryPendingPurchaseMatches(
+        client: BillingClient,
+        productType: String,
+        requestedSkus: List<String>,
+        launchStartedAtMillis: Double,
+    ): List<Purchase> {
+        val requestedSkuSet = requestedSkus.toSet()
+        val params = QueryPurchasesParams.newBuilder()
+            .setProductType(productType)
+            .build()
 
-            client.queryPurchasesAsync(params) { result, purchases ->
-                val matched = if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-                    purchases
+        return awaitBillingQuery(
+            expectedClient = client,
+            unavailableError = PurchaseError(
+                code = ErrorCode.ServiceDisconnected,
+                message = "Purchase billing client is no longer active",
+            ),
+        ) { activeClient, complete ->
+            activeClient.queryPurchasesAsync(params) { result, purchases ->
+                if (result.responseCode != BillingClient.BillingResponseCode.OK) {
+                    val error = result.toBillingOperationError(
+                        "Failed to recover pending purchase",
+                    )
+                    complete(Result.failure(PurchaseException(error)))
+                } else {
+                    val matched = purchases
                         .filter { purchase ->
-                            requestedSkus.isEmpty() || purchase.products.any { it in requestedSkus }
+                            isPurchaseForPendingRequest(
+                                transactionDateMillis = purchase.purchaseTime.toDouble(),
+                                productIds = purchase.products,
+                                requestedSkus = requestedSkuSet,
+                                launchStartedAtMillis = launchStartedAtMillis,
+                            )
                         }
                         .map { it.toPurchase() }
-                } else {
-                    emptyList()
+                    complete(Result.success(matched))
                 }
-                continuation.resume(matched)
             }
         }
+    }
 
     private fun isBillingProxyActivity(activity: Activity): Boolean =
         activity.javaClass.name == "com.android.billingclient.api.ProxyBillingActivity"
 
     private fun schedulePurchaseProxyClosedFallback() {
-        if (!purchaseFlowLaunched) return
-        purchaseFallbackRunnable?.let(mainHandler::removeCallbacks)
-        val runnable = Runnable { resolvePendingPurchaseAfterResume() }
-        purchaseFallbackRunnable = runnable
-        mainHandler.postDelayed(runnable, PURCHASE_PROXY_CLOSED_FALLBACK_DELAY_MS)
+        val snapshot = synchronized(purchaseLifecycleLock) {
+            pendingPurchaseSnapshotLocked() ?: return
+        }
+        val runnable = Runnable {
+            resolvePendingPurchaseAfterResume(snapshot)
+        }
+        schedulePurchaseFallback(
+            snapshot,
+            runnable,
+            PURCHASE_PROXY_CLOSED_FALLBACK_DELAY_MS,
+        )
     }
 
     private fun launchDeepLinkToSubscriptions(options: DeepLinkOptions) {
@@ -1656,11 +2791,36 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
      * Return the user's storefront country code.
      *
      * @see <a href="https://openiap.dev/docs/apis/get-storefront">https://openiap.dev/docs/apis/get-storefront</a>
-     */
+    */
     override suspend fun getStorefront(): String {
-        // Android doesn't have a storefront concept like iOS
-        // Return a default value or country code based on locale
-        return java.util.Locale.getDefault().country
+        val countryCode = try {
+            awaitBillingQueryAndPublish<String?>(ErrorCode.NotPrepared) { client, complete ->
+                client.getBillingConfigAsync(
+                    GetBillingConfigParams.newBuilder().build()
+                ) { result: BillingResult, config: BillingConfig? ->
+                    if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+                        complete(Result.success(config?.countryCode))
+                    } else {
+                        val error = result.toBillingOperationError("Failed to query Play storefront")
+                        complete(Result.failure(PurchaseException(error)))
+                    }
+                }
+            }
+        } catch (error: PurchaseException) {
+            throw error
+        } catch (error: Exception) {
+            failWith(PurchaseError(
+                code = ErrorCode.ServiceError,
+                debugMessage = error.message,
+                message = error.message ?: "Failed to query Play storefront",
+            ))
+        }
+        return authoritativeStorefrontCountryOrNull(countryCode) ?: failWith(
+            PurchaseError(
+                code = ErrorCode.ServiceError,
+                message = "Play returned no authoritative storefront country code",
+            )
+        )
     }
 
     // ---------------------------------------------------------------------
@@ -1717,23 +2877,25 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
      */
     override suspend fun checkAlternativeBillingAvailabilityAndroid(): Boolean {
         return withContext(Dispatchers.IO) {
-            val client = billingClient ?: run {
-                failWith(PurchaseError(code = ErrorCode.NotPrepared, message = "Billing client not ready"))
-            }
-
             when (alternativeBillingMode) {
-                AlternativeBillingModeAndroid.AlternativeOnly -> {
-                    suspendCancellableCoroutine { continuation ->
+                AlternativeBillingModeAndroid.AlternativeOnly ->
+                    awaitBillingQuery { client, complete ->
                         client.isAlternativeBillingOnlyAvailableAsync { billingResult ->
-                            continuation.resume(billingResult.responseCode == BillingClient.BillingResponseCode.OK)
+                            complete(Result.success(
+                                billingResult.responseCode == BillingClient.BillingResponseCode.OK
+                            ))
                         }
                     }
-                }
                 AlternativeBillingModeAndroid.UserChoice -> {
                     // User Choice Billing doesn't have a specific feature type constant
                     // It's enabled via enableUserChoiceBilling() and is available if alternative billing is supported
-                    val result = client.isFeatureSupported(BillingClient.FeatureType.ALTERNATIVE_BILLING_ONLY)
-                    result.responseCode == BillingClient.BillingResponseCode.OK
+                    awaitBillingQuery { client, complete ->
+                        complete(Result.success(
+                            client.isFeatureSupported(
+                                BillingClient.FeatureType.ALTERNATIVE_BILLING_ONLY
+                            ).responseCode == BillingClient.BillingResponseCode.OK
+                        ))
+                    }
                 }
                 else -> false
             }
@@ -1752,17 +2914,15 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         }
 
         return withContext(Dispatchers.Main) {
-            val client = billingClient ?: run {
-                failWith(PurchaseError(code = ErrorCode.NotPrepared, message = "Billing client not ready"))
-            }
-            val activity = currentActivity ?: run {
+            val activity = synchronized(purchaseLifecycleLock) { currentActivity } ?: run {
                 failWith(PurchaseError(code = ErrorCode.ActivityUnavailable, message = "Activity not available"))
             }
 
-            suspendCancellableCoroutine { continuation ->
+            awaitBillingQuery { client, complete ->
                 client.showAlternativeBillingOnlyInformationDialog(activity) { billingResult ->
-                    val success = billingResult.responseCode == BillingClient.BillingResponseCode.OK
-                    continuation.resume(success)
+                    complete(Result.success(
+                        billingResult.responseCode == BillingClient.BillingResponseCode.OK
+                    ))
                 }
             }
         }
@@ -1780,17 +2940,14 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         }
 
         return withContext(Dispatchers.IO) {
-            val client = billingClient ?: run {
-                failWith(PurchaseError(code = ErrorCode.NotPrepared, message = "Billing client not ready"))
-            }
-
-            suspendCancellableCoroutine { continuation ->
+            awaitBillingQuery { client, complete ->
                 client.createAlternativeBillingOnlyReportingDetailsAsync { billingResult, alternativeBillingDetails ->
-                    if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                        continuation.resume(alternativeBillingDetails?.externalTransactionToken)
+                    val token = if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                        alternativeBillingDetails?.externalTransactionToken
                     } else {
-                        continuation.resume(null)
+                        null
                     }
+                    complete(Result.success(token))
                 }
             }
         }
@@ -1810,17 +2967,10 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     override suspend fun isBillingProgramAvailableAndroid(
         program: BillingProgramAndroid
     ): BillingProgramAvailabilityResultAndroid {
-        val client = billingClient ?: throw PurchaseException(
-            PurchaseError(
-                code = ErrorCode.NotPrepared,
-                message = "BillingClient not initialized"
-            )
-        )
-
         val billingProgramConstant = billingProgramConstant(program, "check availability")
 
-        return suspendCancellableCoroutine { continuation ->
-            try {
+        return try {
+            awaitBillingQuery { client, complete ->
                 // Use reflection to call isBillingProgramAvailableAsync (8.2.0+)
                 val listenerClass = Class.forName("com.android.billingclient.api.BillingProgramAvailabilityListener")
                 val listener = java.lang.reflect.Proxy.newProxyInstance(
@@ -1829,8 +2979,32 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                 ) { _, method, args ->
                     if (method.name == "onBillingProgramAvailabilityResponse") {
                         val result = args?.get(0) as? BillingResult
-                        val isAvailable = result?.responseCode == BillingClient.BillingResponseCode.OK
-                        val availabilityDetails = args?.getOrNull(1)
+                        if (result == null) {
+                            complete(Result.failure(
+                                PurchaseException(
+                                    PurchaseError(
+                                        code = ErrorCode.Unknown,
+                                        message = "Missing Billing Program availability result",
+                                    )
+                                )
+                            ))
+                            return@newProxyInstance null
+                        }
+                        val isAvailable = when (result.responseCode) {
+                            BillingClient.BillingResponseCode.OK -> true
+                            BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED -> false
+                            else -> {
+                                complete(Result.failure(
+                                    PurchaseException(
+                                        result.toBillingOperationError(
+                                            "Failed to check billing program availability"
+                                        )
+                                    )
+                                ))
+                                return@newProxyInstance null
+                            }
+                        }
+                        val availabilityDetails = args.getOrNull(1)
                         val choiceDetails =
                             if (program == BillingProgramAndroid.BillingChoice) {
                                 runCatching {
@@ -1851,14 +3025,14 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                                 ?.getMethod("isExternalLinkAvailable")
                                 ?.invoke(choiceDetails) as? Boolean
                         }.getOrNull()
-                        if (continuation.isActive) {
-                            continuation.resume(BillingProgramAvailabilityResultAndroid(
+                        complete(Result.success(
+                            BillingProgramAvailabilityResultAndroid(
                                 billingProgram = program,
                                 choiceScreenType = billingChoiceScreenTypeFromConstant(choiceScreenType),
                                 isAvailable = isAvailable,
                                 isExternalLinkAvailable = isExternalLinkAvailable
-                            ))
-                        }
+                            )
+                        ))
                     }
                     null
                 }
@@ -1869,25 +3043,24 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                     listenerClass
                 )
                 method.invoke(client, billingProgramConstant, listener)
-            } catch (e: NoSuchMethodException) {
-                if (continuation.isActive) {
-                    continuation.resumeWithException(PurchaseException(
-                        PurchaseError(
-                            code = ErrorCode.FeatureNotSupported,
-                            message = "isBillingProgramAvailableAsync requires Billing Library 8.2.0+"
-                        )
-                    ))
-                }
-            } catch (e: Exception) {
-                if (continuation.isActive) {
-                    continuation.resumeWithException(PurchaseException(
-                        PurchaseError(
-                            code = ErrorCode.Unknown,
-                            message = "Failed to check billing program availability: ${e.message}"
-                        )
-                    ))
-                }
             }
+        } catch (error: PurchaseException) {
+            throw error
+        } catch (error: NoSuchMethodException) {
+            throw PurchaseException(PurchaseError(
+                code = ErrorCode.FeatureNotSupported,
+                message = "isBillingProgramAvailableAsync requires Billing Library 8.2.0+",
+            ))
+        } catch (error: ClassNotFoundException) {
+            throw PurchaseException(PurchaseError(
+                code = ErrorCode.FeatureNotSupported,
+                message = "Billing Program availability requires Billing Library 8.2.0+",
+            ))
+        } catch (error: Exception) {
+            throw PurchaseException(PurchaseError(
+                code = ErrorCode.Unknown,
+                message = "Failed to check billing program availability: ${error.message}",
+            ))
         }
     }
 
@@ -1900,17 +3073,10 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         program: BillingProgramAndroid,
         developerBillingType: DeveloperBillingTypeAndroid?
     ): BillingProgramReportingDetailsAndroid {
-        val client = billingClient ?: throw PurchaseException(
-            PurchaseError(
-                code = ErrorCode.NotPrepared,
-                message = "BillingClient not initialized"
-            )
-        )
-
         val billingProgramConstant = billingProgramConstant(program, "create reporting details")
 
-        return suspendCancellableCoroutine { continuation ->
-            try {
+        return try {
+            awaitBillingQuery { client, complete ->
                 val paramsClass = Class.forName("com.android.billingclient.api.BillingProgramReportingDetailsParams")
                 val builderClass = Class.forName("com.android.billingclient.api.BillingProgramReportingDetailsParams\$Builder")
                 val builder = paramsClass.getMethod("newBuilder").invoke(null)
@@ -1929,43 +3095,37 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                     if (method.name == "onCreateBillingProgramReportingDetailsResponse") {
                         val result = args?.get(0) as? BillingResult
                         val details = args?.getOrNull(1)
-
-                        if (result?.responseCode == BillingClient.BillingResponseCode.OK && details != null) {
-                            try {
-                                val tokenMethod = details.javaClass.getMethod("getExternalTransactionToken")
-                                val token = tokenMethod.invoke(details) as? String
-
-                                if (continuation.isActive && token != null) {
-                                    continuation.resume(BillingProgramReportingDetailsAndroid(
+                        val callbackResult = if (
+                            result?.responseCode == BillingClient.BillingResponseCode.OK &&
+                            details != null
+                        ) {
+                            val token = runCatching {
+                                details.javaClass.getMethod("getExternalTransactionToken")
+                                    .invoke(details) as? String
+                            }.getOrNull()
+                            if (token != null) {
+                                Result.success(
+                                    BillingProgramReportingDetailsAndroid(
                                         billingProgram = program,
-                                        externalTransactionToken = token
-                                    ))
-                                } else if (continuation.isActive) {
-                                    continuation.resumeWithException(PurchaseException(
-                                        PurchaseError(
-                                            code = ErrorCode.Unknown,
-                                            message = "Failed to extract external transaction token"
-                                        )
-                                    ))
-                                }
-                            } catch (e: Exception) {
-                                if (continuation.isActive) {
-                                    continuation.resumeWithException(PurchaseException(
-                                        PurchaseError(
-                                            code = ErrorCode.Unknown,
-                                            message = "Failed to extract token: ${e.message}"
-                                        )
-                                    ))
-                                }
-                            }
-                        } else if (continuation.isActive) {
-                            continuation.resumeWithException(PurchaseException(
-                                PurchaseError(
-                                    code = ErrorCode.Unknown,
-                                    message = "Reporting details creation failed: ${result?.debugMessage}"
+                                        externalTransactionToken = token,
+                                    )
                                 )
-                            ))
+                            } else {
+                                Result.failure(PurchaseException(PurchaseError(
+                                    code = ErrorCode.Unknown,
+                                    message = "Failed to extract external transaction token",
+                                )))
+                            }
+                        } else {
+                            val error = result?.toBillingOperationError(
+                                "Failed to create billing program reporting details"
+                            ) ?: PurchaseError(
+                                code = ErrorCode.Unknown,
+                                message = "Missing Billing Program reporting result",
+                            )
+                            Result.failure(PurchaseException(error))
                         }
+                        complete(callbackResult)
                     }
                     null
                 }
@@ -1976,43 +3136,30 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                     listenerClass
                 )
                 method.invoke(client, requestParams, listener)
-            } catch (e: NoSuchMethodException) {
-                if (continuation.isActive) {
-                    continuation.resumeWithException(PurchaseException(
-                        PurchaseError(
-                            code = ErrorCode.FeatureNotSupported,
-                            message = "createBillingProgramReportingDetailsAsync requires Billing Library 8.2.0+"
-                        )
-                    ))
-                }
-            } catch (e: Exception) {
-                if (continuation.isActive) {
-                    continuation.resumeWithException(PurchaseException(
-                        PurchaseError(
-                            code = ErrorCode.Unknown,
-                            message = "Failed to create billing program reporting details: ${e.message}"
-                        )
-                    ))
-                }
             }
+        } catch (error: PurchaseException) {
+            throw error
+        } catch (error: NoSuchMethodException) {
+            throw PurchaseException(PurchaseError(
+                code = ErrorCode.FeatureNotSupported,
+                message = "createBillingProgramReportingDetailsAsync requires Billing Library 8.2.0+",
+            ))
+        } catch (error: ClassNotFoundException) {
+            throw PurchaseException(PurchaseError(
+                code = ErrorCode.FeatureNotSupported,
+                message = "Billing Program reporting requires Billing Library 8.2.0+",
+            ))
+        } catch (error: Exception) {
+            throw PurchaseException(PurchaseError(
+                code = ErrorCode.Unknown,
+                message = "Failed to create billing program reporting details: ${error.message}",
+            ))
         }
     }
 
     override suspend fun getBillingChoiceInfoAndroid(
         params: GetBillingChoiceInfoParamsAndroid
     ): BillingChoiceInfoAndroid {
-        val client = billingClient ?: throw PurchaseException(
-            PurchaseError(
-                code = ErrorCode.NotPrepared,
-                message = "BillingClient not initialized"
-            )
-        )
-        if (!client.isReady) throw PurchaseException(
-            PurchaseError(
-                code = ErrorCode.NotPrepared,
-                message = "BillingClient not ready"
-            )
-        )
         val program = if (params.billingProgram == BillingProgramAndroid.Unspecified) {
             BillingProgramAndroid.BillingChoice
         } else {
@@ -2027,8 +3174,8 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
             )
         }
 
-        return suspendCancellableCoroutine { continuation ->
-            try {
+        return try {
+            awaitBillingQuery { client, complete ->
                 val paramsClass = Class.forName("com.android.billingclient.api.GetBillingChoiceInfoParams")
                 val builderClass = Class.forName("com.android.billingclient.api.GetBillingChoiceInfoParams\$Builder")
                 val builder = paramsClass.getMethod("newBuilder").invoke(null)
@@ -2049,91 +3196,81 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                     if (method.name == "onBillingChoiceInfoResponse") {
                         val result = args?.get(0) as? BillingResult
                         val choiceInfo = args?.getOrNull(1)
-                        if (result?.responseCode == BillingClient.BillingResponseCode.OK && choiceInfo != null) {
-                            val imageUrl = choiceInfo.javaClass
-                                .getMethod("getPlayBillingChoiceImageUrl")
-                                .invoke(choiceInfo) as? String
-                            val loyaltyInfo = choiceInfo.javaClass
-                                .getMethod("getPlayBillingLoyaltyInfo")
-                                .invoke(choiceInfo) as? String
-                            if (imageUrl.isNullOrBlank()) {
-                                if (continuation.isActive) {
-                                    continuation.resumeWithException(PurchaseException(
-                                        PurchaseError(
-                                            code = ErrorCode.Unknown,
-                                            message = "Missing Play Billing choice image URL"
-                                        )
-                                    ))
+                        val callbackResult = if (
+                            result?.responseCode == BillingClient.BillingResponseCode.OK &&
+                            choiceInfo != null
+                        ) {
+                            runCatching {
+                                val imageUrl = choiceInfo.javaClass
+                                    .getMethod("getPlayBillingChoiceImageUrl")
+                                    .invoke(choiceInfo) as? String
+                                check(!imageUrl.isNullOrBlank()) {
+                                    "Missing Play Billing choice image URL"
                                 }
-                            } else if (continuation.isActive) {
-                                continuation.resume(BillingChoiceInfoAndroid(
+                                BillingChoiceInfoAndroid(
                                     playBillingChoiceImageUrl = imageUrl,
-                                    playBillingLoyaltyInfo = loyaltyInfo
-                                ))
-                            }
-                        } else if (continuation.isActive) {
-                            continuation.resumeWithException(PurchaseException(
-                                PurchaseError(
-                                    code = ErrorCode.Unknown,
-                                    message = "Billing Choice info failed: ${result?.debugMessage}"
+                                    playBillingLoyaltyInfo = choiceInfo.javaClass
+                                        .getMethod("getPlayBillingLoyaltyInfo")
+                                        .invoke(choiceInfo) as? String,
                                 )
-                            ))
+                            }.fold(
+                                onSuccess = { Result.success(it) },
+                                onFailure = { error ->
+                                    Result.failure(
+                                        PurchaseException(
+                                            PurchaseError(
+                                                code = ErrorCode.Unknown,
+                                                message = error.message
+                                                    ?: "Failed to parse Billing Choice info",
+                                            )
+                                        )
+                                    )
+                                },
+                            )
+                        } else {
+                            val error = result?.toBillingOperationError(
+                                "Failed to get Billing Choice info"
+                            ) ?: PurchaseError(
+                                code = ErrorCode.Unknown,
+                                message = "Missing Billing Choice info result",
+                            )
+                            Result.failure(PurchaseException(error))
                         }
+                        complete(callbackResult)
                     }
                     null
                 }
                 client.javaClass.getMethod("getBillingChoiceInfoAsync", paramsClass, listenerClass)
                     .invoke(client, requestParams, listener)
-            } catch (e: NoSuchMethodException) {
-                if (continuation.isActive) {
-                    continuation.resumeWithException(PurchaseException(
-                        PurchaseError(
-                            code = ErrorCode.FeatureNotSupported,
-                            message = "getBillingChoiceInfoAsync requires Billing Library 9.1.0+"
-                        )
-                    ))
-                }
-            } catch (e: ClassNotFoundException) {
-                if (continuation.isActive) {
-                    continuation.resumeWithException(PurchaseException(
-                        PurchaseError(
-                            code = ErrorCode.FeatureNotSupported,
-                            message = "GetBillingChoiceInfoParams requires Billing Library 9.1.0+"
-                        )
-                    ))
-                }
-            } catch (e: Exception) {
-                if (continuation.isActive) {
-                    continuation.resumeWithException(PurchaseException(
-                        PurchaseError(
-                            code = ErrorCode.Unknown,
-                            message = "Failed to get Billing Choice info: ${e.message}"
-                        )
-                    ))
-                }
             }
+        } catch (error: PurchaseException) {
+            throw error
+        } catch (error: NoSuchMethodException) {
+            throw PurchaseException(PurchaseError(
+                code = ErrorCode.FeatureNotSupported,
+                message = "getBillingChoiceInfoAsync requires Billing Library 9.1.0+",
+            ))
+        } catch (error: ClassNotFoundException) {
+            throw PurchaseException(PurchaseError(
+                code = ErrorCode.FeatureNotSupported,
+                message = "GetBillingChoiceInfoParams requires Billing Library 9.1.0+",
+            ))
+        } catch (error: Exception) {
+            throw PurchaseException(PurchaseError(
+                code = ErrorCode.Unknown,
+                message = "Failed to get Billing Choice info: ${error.message}",
+            ))
         }
     }
 
     override suspend fun showBillingProgramInformationDialogAndroid(
         params: BillingProgramInformationDialogParamsAndroid
     ): BillingResultAndroid = withContext(Dispatchers.Main) {
-        val client = billingClient ?: throw PurchaseException(
+        val activity = synchronized(purchaseLifecycleLock) { currentActivity }
+            ?: throw PurchaseException(
             PurchaseError(
-                code = ErrorCode.NotPrepared,
-                message = "BillingClient not initialized"
-            )
-        )
-        if (!client.isReady) throw PurchaseException(
-            PurchaseError(
-                code = ErrorCode.NotPrepared,
-                message = "BillingClient not ready"
-            )
-        )
-        val activity = currentActivity ?: throw PurchaseException(
-            PurchaseError(
-                code = ErrorCode.NotPrepared,
-                message = "Activity not available"
+                code = ErrorCode.ActivityUnavailable,
+                message = "Activity not available",
             )
         )
         val program = if (params.billingProgram == BillingProgramAndroid.Unspecified) {
@@ -2150,8 +3287,8 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
             )
         }
 
-        suspendCancellableCoroutine { continuation ->
-            try {
+        try {
+            awaitBillingQuery { client, complete ->
                 val paramsClass = Class.forName("com.android.billingclient.api.BillingProgramInformationDialogParams")
                 val builderClass = Class.forName("com.android.billingclient.api.BillingProgramInformationDialogParams\$Builder")
                 val builder = paramsClass.getMethod("newBuilder").invoke(null)
@@ -2167,12 +3304,12 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                 ) { _, method, args ->
                     if (method.name == "onBillingProgramInformationDialogResponse") {
                         val result = args?.get(0) as? BillingResult
-                        if (continuation.isActive) {
-                            continuation.resume(
-                                result?.toBillingResultAndroid()
-                                    ?: BillingResultAndroid(responseCode = BillingClient.BillingResponseCode.ERROR)
-                            )
-                        }
+                        complete(Result.success(
+                            result?.toBillingResultAndroid()
+                                ?: BillingResultAndroid(
+                                    responseCode = BillingClient.BillingResponseCode.ERROR
+                                )
+                        ))
                     }
                     null
                 }
@@ -2182,61 +3319,40 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                     paramsClass,
                     listenerClass
                 ).invoke(client, activity, requestParams, listener)
-            } catch (e: NoSuchMethodException) {
-                if (continuation.isActive) {
-                    continuation.resumeWithException(PurchaseException(
-                        PurchaseError(
-                            code = ErrorCode.FeatureNotSupported,
-                            message = "showBillingProgramInformationDialog requires Billing Library 9.1.0+"
-                        )
-                    ))
-                }
-            } catch (e: ClassNotFoundException) {
-                if (continuation.isActive) {
-                    continuation.resumeWithException(PurchaseException(
-                        PurchaseError(
-                            code = ErrorCode.FeatureNotSupported,
-                            message = "BillingProgramInformationDialogParams requires Billing Library 9.1.0+"
-                        )
-                    ))
-                }
-            } catch (e: Exception) {
-                if (continuation.isActive) {
-                    continuation.resumeWithException(PurchaseException(
-                        PurchaseError(
-                            code = ErrorCode.Unknown,
-                            message = "Failed to show Billing Choice information dialog: ${e.message}"
-                        )
-                    ))
-                }
             }
+        } catch (error: PurchaseException) {
+            throw error
+        } catch (error: NoSuchMethodException) {
+            throw PurchaseException(PurchaseError(
+                code = ErrorCode.FeatureNotSupported,
+                message = "showBillingProgramInformationDialog requires Billing Library 9.1.0+",
+            ))
+        } catch (error: ClassNotFoundException) {
+            throw PurchaseException(PurchaseError(
+                code = ErrorCode.FeatureNotSupported,
+                message = "BillingProgramInformationDialogParams requires Billing Library 9.1.0+",
+            ))
+        } catch (error: Exception) {
+            throw PurchaseException(PurchaseError(
+                code = ErrorCode.Unknown,
+                message = "Failed to show Billing Choice information dialog: ${error.message}",
+            ))
         }
     }
 
     override suspend fun showInAppMessagesAndroid(
         params: InAppMessageParamsAndroid?
     ): InAppMessageResultAndroid = withContext(Dispatchers.Main) {
-        val client = billingClient ?: throw PurchaseException(
+        val activity = synchronized(purchaseLifecycleLock) { currentActivity }
+            ?: throw PurchaseException(
             PurchaseError(
-                code = ErrorCode.NotPrepared,
-                message = "BillingClient not initialized"
-            )
-        )
-        if (!client.isReady) throw PurchaseException(
-            PurchaseError(
-                code = ErrorCode.NotPrepared,
-                message = "BillingClient not ready"
-            )
-        )
-        val activity = currentActivity ?: throw PurchaseException(
-            PurchaseError(
-                code = ErrorCode.NotPrepared,
-                message = "Activity not available"
+                code = ErrorCode.ActivityUnavailable,
+                message = "Activity not available",
             )
         )
 
-        suspendCancellableCoroutine { continuation ->
-            try {
+        try {
+            awaitBillingQuery { client, complete ->
                 val paramsClass = Class.forName("com.android.billingclient.api.InAppMessageParams")
                 val builderClass = Class.forName("com.android.billingclient.api.InAppMessageParams\$Builder")
                 val builder = paramsClass.getMethod("newBuilder").invoke(null)
@@ -2260,12 +3376,12 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                         val purchaseToken = runCatching {
                             result?.javaClass?.getMethod("getPurchaseToken")?.invoke(result) as? String
                         }.getOrNull()
-                        if (continuation.isActive) {
-                            continuation.resume(InAppMessageResultAndroid(
+                        complete(Result.success(
+                            InAppMessageResultAndroid(
                                 responseCode = inAppMessageResponseCodeFromConstant(responseCode),
-                                purchaseToken = purchaseToken
-                            ))
-                        }
+                                purchaseToken = purchaseToken,
+                            )
+                        ))
                     }
                     null
                 }
@@ -2276,44 +3392,35 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                     listenerClass
                 ).invoke(client, activity, requestParams, listener) as? BillingResult
                 if (submitResult != null &&
-                    submitResult.responseCode != BillingClient.BillingResponseCode.OK &&
-                    continuation.isActive
+                    submitResult.responseCode != BillingClient.BillingResponseCode.OK
                 ) {
-                    continuation.resumeWithException(PurchaseException(
+                    complete(Result.failure(PurchaseException(
                         PurchaseError(
-                            code = ErrorCode.Unknown,
-                            message = "showInAppMessages failed: ${submitResult.debugMessage}"
+                            code = mapBillingResponseCode(submitResult.responseCode),
+                            debugMessage = submitResult.debugMessage,
+                            message = "showInAppMessages failed: ${submitResult.debugMessage}",
+                            responseCode = submitResult.responseCode,
                         )
-                    ))
-                }
-            } catch (e: NoSuchMethodException) {
-                if (continuation.isActive) {
-                    continuation.resumeWithException(PurchaseException(
-                        PurchaseError(
-                            code = ErrorCode.FeatureNotSupported,
-                            message = "showInAppMessages requires Billing Library 4.1.0+"
-                        )
-                    ))
-                }
-            } catch (e: ClassNotFoundException) {
-                if (continuation.isActive) {
-                    continuation.resumeWithException(PurchaseException(
-                        PurchaseError(
-                            code = ErrorCode.FeatureNotSupported,
-                            message = "InAppMessageParams requires Billing Library 4.1.0+"
-                        )
-                    ))
-                }
-            } catch (e: Exception) {
-                if (continuation.isActive) {
-                    continuation.resumeWithException(PurchaseException(
-                        PurchaseError(
-                            code = ErrorCode.Unknown,
-                            message = "Failed to show in-app messages: ${e.message}"
-                        )
-                    ))
+                    )))
                 }
             }
+        } catch (error: PurchaseException) {
+            throw error
+        } catch (error: NoSuchMethodException) {
+            throw PurchaseException(PurchaseError(
+                code = ErrorCode.FeatureNotSupported,
+                message = "showInAppMessages requires Billing Library 4.1.0+",
+            ))
+        } catch (error: ClassNotFoundException) {
+            throw PurchaseException(PurchaseError(
+                code = ErrorCode.FeatureNotSupported,
+                message = "InAppMessageParams requires Billing Library 4.1.0+",
+            ))
+        } catch (error: Exception) {
+            throw PurchaseException(PurchaseError(
+                code = ErrorCode.Unknown,
+                message = "Failed to show in-app messages: ${error.message}",
+            ))
         }
     }
 
@@ -2325,17 +3432,11 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     override suspend fun launchExternalLinkAndroid(
         params: LaunchExternalLinkParamsAndroid
     ): Boolean = withContext(Dispatchers.Main) {
-        val client = billingClient ?: throw PurchaseException(
+        val activity = synchronized(purchaseLifecycleLock) { currentActivity }
+            ?: throw PurchaseException(
             PurchaseError(
-                code = ErrorCode.NotPrepared,
-                message = "BillingClient not initialized"
-            )
-        )
-
-        val activity = currentActivity ?: throw PurchaseException(
-            PurchaseError(
-                code = ErrorCode.NotPrepared,
-                message = "Activity not available"
+                code = ErrorCode.ActivityUnavailable,
+                message = "Activity not available",
             )
         )
 
@@ -2364,8 +3465,8 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
             )
         }
 
-        suspendCancellableCoroutine { continuation ->
-            try {
+        try {
+            awaitBillingQuery { client, complete ->
                 // Build LaunchExternalLinkParams using reflection
                 val paramsClass = Class.forName("com.android.billingclient.api.LaunchExternalLinkParams")
                 val builderClass = Class.forName("com.android.billingclient.api.LaunchExternalLinkParams\$Builder")
@@ -2407,9 +3508,15 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                     if (method.name == "onLaunchExternalLinkResponse") {
                         val result = args?.get(0) as? BillingResult
                         if (result?.responseCode == BillingClient.BillingResponseCode.OK) {
-                            if (continuation.isActive) continuation.resume(true)
+                            complete(Result.success(true))
                         } else {
-                            if (continuation.isActive) continuation.resume(false)
+                            val error = result?.toBillingOperationError(
+                                "Failed to launch external link"
+                            ) ?: PurchaseError(
+                                code = ErrorCode.Unknown,
+                                message = "Missing external link launch result",
+                            )
+                            complete(Result.failure(PurchaseException(error)))
                         }
                     }
                     null
@@ -2423,35 +3530,100 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                     listenerClass
                 )
                 launchMethod.invoke(client, activity, launchParams, listener)
-            } catch (e: NoSuchMethodException) {
-                if (continuation.isActive) continuation.resume(false)
-            } catch (e: Exception) {
-                if (continuation.isActive) continuation.resume(false)
             }
+        } catch (error: PurchaseException) {
+            throw error
+        } catch (error: NoSuchMethodException) {
+            throw PurchaseException(PurchaseError(
+                code = ErrorCode.FeatureNotSupported,
+                message = "launchExternalLink requires Billing Library 8.2.0+",
+            ))
+        } catch (error: ClassNotFoundException) {
+            throw PurchaseException(PurchaseError(
+                code = ErrorCode.FeatureNotSupported,
+                message = "LaunchExternalLinkParams requires Billing Library 8.2.0+",
+            ))
+        } catch (error: Exception) {
+            throw PurchaseException(PurchaseError(
+                code = ErrorCode.Unknown,
+                debugMessage = error.message,
+                message = error.message ?: "Failed to launch external link",
+            ))
         }
     }
 
     // ---------------------------------------------------------------------
     // Activity lifecycle
     // ---------------------------------------------------------------------
-    override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
-        if (currentActivity == null && !isBillingProxyActivity(activity)) currentActivity = activity
-    }
-    override fun onActivityStarted(activity: Activity) {}
-    override fun onActivityResumed(activity: Activity) {
+    private fun activityLifecycleCallbacks(
+        generation: Long,
+    ): Application.ActivityLifecycleCallbacks =
+        object : Application.ActivityLifecycleCallbacks {
+            override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) =
+                handleActivityCreated(generation, activity)
+
+            override fun onActivityResumed(activity: Activity) =
+                handleActivityResumed(generation, activity)
+
+            override fun onActivityDestroyed(activity: Activity) =
+                handleActivityDestroyed(generation, activity)
+
+            override fun onActivityStarted(activity: Activity) = Unit
+            override fun onActivityPaused(activity: Activity) = Unit
+            override fun onActivityStopped(activity: Activity) = Unit
+            override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) = Unit
+        }
+
+    private fun handleActivityCreated(generation: Long, activity: Activity) {
         if (isBillingProxyActivity(activity)) return
-        currentActivity = activity
-        schedulePurchaseResumeFallback()
+        synchronized(purchaseLifecycleLock) {
+            if (
+                activityCallbacksDisposer != null &&
+                activityCallbacksGeneration == generation &&
+                connectionGeneration == generation &&
+                currentActivity == null
+            ) {
+                currentActivity = activity
+            }
+        }
     }
-    override fun onActivityPaused(activity: Activity) {}
-    override fun onActivityStopped(activity: Activity) {}
-    override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
-    override fun onActivityDestroyed(activity: Activity) {
+    private fun handleActivityResumed(generation: Long, activity: Activity) {
+        if (isBillingProxyActivity(activity)) return
+        val ownsCallbacks = synchronized(purchaseLifecycleLock) {
+            if (
+                activityCallbacksDisposer != null &&
+                activityCallbacksGeneration == generation &&
+                connectionGeneration == generation
+            ) {
+                currentActivity = activity
+                true
+            } else {
+                false
+            }
+        }
+        if (ownsCallbacks) schedulePurchaseResumeFallback()
+    }
+    private fun handleActivityDestroyed(generation: Long, activity: Activity) {
+        val ownsCallbacks = synchronized(purchaseLifecycleLock) {
+            activityCallbacksDisposer != null &&
+                activityCallbacksGeneration == generation &&
+                connectionGeneration == generation
+        }
+        if (!ownsCallbacks) return
         if (isBillingProxyActivity(activity)) {
             schedulePurchaseProxyClosedFallback()
             return
         }
-        if (currentActivity == activity) currentActivity = null
+        synchronized(purchaseLifecycleLock) {
+            if (
+                activityCallbacksDisposer != null &&
+                activityCallbacksGeneration == generation &&
+                connectionGeneration == generation &&
+                currentActivity === activity
+            ) {
+                currentActivity = null
+            }
+        }
     }
 
     // ---------------------------------------------------------------------
@@ -2465,7 +3637,9 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     private fun enableDeveloperProvidedBillingProgram(
         builder: BillingClient.Builder,
         program: BillingProgramAndroid,
-        includeDeveloperListener: Boolean
+        includeDeveloperListener: Boolean,
+        sourceClient: () -> BillingClient?,
+        sourceGeneration: Long,
     ) {
         try {
             // Get the EnableBillingProgramParams class
@@ -2486,9 +3660,10 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                 ) { _, method, args ->
                     if (method.name == "onUserSelectedDeveloperBilling") {
                         args?.firstOrNull()?.let { details ->
-                            _developerProvidedBillingListener.tryEmit(
-                                extractDeveloperProvidedBillingDetails(details)
-                            )
+                            val mappedDetails = extractDeveloperProvidedBillingDetails(details)
+                            deliverBillingSessionEvent(sourceClient(), sourceGeneration) {
+                                _developerProvidedBillingListener.tryEmit(mappedDetails)
+                            }
                         }
                     }
                     null
@@ -2506,12 +3681,8 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
             val enableMethod = builder.javaClass.getMethod("enableBillingProgram", enableParamsClass)
             enableMethod.invoke(builder, enableParams)
 
-        } catch (e: NoSuchMethodException) {
-            logWarning("$program requires Billing Library support for developer-provided billing programs")
-        } catch (e: ClassNotFoundException) {
-            logWarning("$program requires Billing Library support for developer-provided billing programs")
-        } catch (e: Exception) {
-            logError("Failed to enable $program program: ${e.message}", e)
+        } catch (error: Exception) {
+            throw billingProgramConfigurationException(program, error)
         }
     }
 
@@ -2520,16 +3691,20 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
      * Used for EXTERNAL_CONTENT_LINK and EXTERNAL_OFFER programs.
      * Note: EXTERNAL_PAYMENTS should use enableExternalPaymentsProgram() instead.
      */
-    private fun enableBillingProgram(builder: BillingClient.Builder, program: BillingProgramAndroid) {
+    private fun enableBillingProgram(
+        builder: BillingClient.Builder,
+        program: BillingProgramAndroid,
+        sourceClient: () -> BillingClient?,
+        sourceGeneration: Long,
+    ) {
         val programConstant = when (program) {
             BillingProgramAndroid.UserChoiceBilling -> {
                 // UserChoiceBilling uses enableUserChoiceBilling() instead of enableBillingProgram()
                 builder.enableUserChoiceBilling { userChoiceDetails ->
-                    val details = UserChoiceBillingDetails(
-                        externalTransactionToken = userChoiceDetails.externalTransactionToken,
-                        products = userChoiceDetails.products.map { it.id }
-                    )
-                    _userChoiceBillingListener.tryEmit(details)
+                    val details = userChoiceDetails.toOpenIapDetails()
+                    deliverBillingSessionEvent(sourceClient(), sourceGeneration) {
+                        _userChoiceBillingListener.tryEmit(details)
+                    }
                 }
                 return
             }
@@ -2547,10 +3722,8 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         try {
             val method = builder.javaClass.getMethod("enableBillingProgram", Int::class.javaPrimitiveType)
             method.invoke(builder, programConstant)
-        } catch (e: NoSuchMethodException) {
-            logWarning("Billing program $program requires Billing Library 8.2.0+")
-        } catch (e: Exception) {
-            logError("Failed to enable billing program $program: ${e.message}", e)
+        } catch (error: Exception) {
+            throw billingProgramConfigurationException(program, error)
         }
     }
 
@@ -2572,14 +3745,23 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
 
             // Set billing program (EXTERNAL_PAYMENTS = 4)
             val billingProgramConstant = when (option.billingProgram) {
-                BillingProgramAndroid.UserChoiceBilling -> 2
+                BillingProgramAndroid.UserChoiceBilling -> throw PurchaseException(
+                    PurchaseError(
+                        code = ErrorCode.DeveloperError,
+                        message = "User Choice Billing cannot be used as a developer billing option",
+                    )
+                )
                 BillingProgramAndroid.ExternalPayments,
                 BillingProgramAndroid.BillingChoice,
                 BillingProgramAndroid.ExternalContentLink,
                 BillingProgramAndroid.ExternalOffer ->
                     billingProgramConstant(option.billingProgram, "apply developer billing option")
-                BillingProgramAndroid.Unspecified ->
-                    BillingClient.BillingProgram.UNSPECIFIED_BILLING_PROGRAM
+                BillingProgramAndroid.Unspecified -> throw PurchaseException(
+                    PurchaseError(
+                        code = ErrorCode.DeveloperError,
+                        message = "Cannot use an unspecified developer billing program",
+                    )
+                )
             }
             val setBillingProgramMethod = paramsBuilderClass.getMethod("setBillingProgram", Int::class.javaPrimitiveType)
             setBillingProgramMethod.invoke(paramsBuilder, billingProgramConstant)
@@ -2621,13 +3803,31 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
 
         } catch (e: NoSuchMethodException) {
             logWarning("DeveloperBillingOption requires Billing Library 8.3.0+")
-            throw e
+            throw PurchaseException(
+                PurchaseError(
+                    code = ErrorCode.FeatureNotSupported,
+                    message = "DeveloperBillingOption requires Play Billing 8.3.0+",
+                )
+            )
         } catch (e: ClassNotFoundException) {
             logWarning("DeveloperBillingOption requires Billing Library 8.3.0+")
+            throw PurchaseException(
+                PurchaseError(
+                    code = ErrorCode.FeatureNotSupported,
+                    message = "DeveloperBillingOption requires Play Billing 8.3.0+",
+                )
+            )
+        } catch (e: PurchaseException) {
             throw e
         } catch (e: Exception) {
             logError("Failed to apply DeveloperBillingOption: ${e.message}", e)
-            throw e
+            throw PurchaseException(
+                PurchaseError(
+                    code = ErrorCode.DeveloperError,
+                    debugMessage = e.message,
+                    message = e.message ?: "Invalid developer billing option",
+                )
+            )
         }
     }
 

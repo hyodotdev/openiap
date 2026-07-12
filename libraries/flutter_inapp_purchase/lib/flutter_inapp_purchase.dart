@@ -300,7 +300,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// Subscription billing-issue event stream (cross-platform).
   ///
   /// Emits when an active subscription needs user attention for a payment
-  /// problem. Unifies StoreKit 2 `Message.Reason.billingIssue` (iOS 18+) and
+  /// problem. Unifies StoreKit 2 `Message.Reason.billingIssue` (iOS / Mac Catalyst 16.4+, visionOS 1.0+) and
   /// Google Play Billing `Purchase.isSuspended` (Play Billing 8.1+). NOT
   /// emitted on the Meta Horizon flavor (Billing 7.0 compat lacks the signal).
   Stream<gentype.Purchase> get subscriptionBillingIssueListener =>
@@ -553,13 +553,11 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   ///
   /// ```dart
   /// await FlutterInappPurchase.instance.requestPurchase(
-  ///   RequestPurchaseProps(
-  ///     request: RequestPurchasePropsByPlatforms(
-  ///       apple: RequestPurchaseIosProps(sku: 'com.app.premium'),
-  ///       google: RequestPurchaseAndroidProps(skus: ['com.app.premium']),
-  ///     ),
-  ///     type: ProductQueryType.InApp,
-  ///   ),
+  ///   RequestPurchaseProps.inApp((
+  ///     apple: RequestPurchaseIosProps(sku: 'com.app.premium'),
+  ///     google: RequestPurchaseAndroidProps(skus: ['com.app.premium']),
+  ///     useAlternativeBilling: null,
+  ///   )),
   /// );
   /// ```
   ///
@@ -743,7 +741,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               payload['replacementMode'] = replacementMode;
             }
 
-            // offerToken for one-time purchase discounts (Android 7.0+)
+            // offerToken for one-time purchase discounts (Android 8.0+)
             if (offerToken != null) {
               payload['offerToken'] = offerToken;
             }
@@ -920,20 +918,30 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// See: https://openiap.dev/docs/apis/get-storefront
   gentype.QueryGetStorefrontHandler get getStorefront => () async {
         if (!isIOS && !_platform.isAndroid) {
-          return '';
+          throw PurchaseError(
+            code: gentype.ErrorCode.IapNotAvailable,
+            message: 'Storefront lookup is not supported on this platform',
+          );
         }
 
         try {
           final String? storefront = await channel.invokeMethod<String>(
             'getStorefront',
           );
-          return storefront ?? '';
+          if (storefront == null || storefront.trim().isEmpty) {
+            throw PurchaseError(
+              code: gentype.ErrorCode.ServiceError,
+              message: 'Storefront lookup returned no country code',
+            );
+          }
+          return storefront;
         } on PlatformException catch (error) {
           throw _purchaseErrorFromPlatformException(
             error,
             'get storefront',
           );
         } catch (error) {
+          if (error is PurchaseError) rethrow;
           throw PurchaseError(
             code: gentype.ErrorCode.ServiceError,
             message: 'Failed to get storefront: ${error.toString()}',
@@ -945,10 +953,10 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   ///
   /// See: https://openiap.dev/docs/apis/ios/get-storefront-ios
   gentype.QueryGetStorefrontIOSHandler get getStorefrontIOS => () async {
-        if (!_platform.isIOS || _platform.isMacOS) {
+        if (!isIOS) {
           throw PurchaseError(
             code: gentype.ErrorCode.IapNotAvailable,
-            message: 'Storefront is only available on iOS',
+            message: 'Storefront is only available on Apple platforms',
           );
         }
 
@@ -956,8 +964,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           final result = await channel.invokeMethod<Map<dynamic, dynamic>>(
             'getStorefrontIOS',
           );
-          if (result != null && result['countryCode'] != null) {
-            return result['countryCode'] as String;
+          final countryCode = result?['countryCode'];
+          if (countryCode is String && countryCode.trim().isNotEmpty) {
+            return countryCode;
           }
           throw PurchaseError(
             code: gentype.ErrorCode.ServiceError,
@@ -981,8 +990,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   ///
   /// See: https://openiap.dev/docs/apis/ios/sync-ios
   gentype.MutationSyncIOSHandler get syncIOS => () async {
-        if (!_platform.isIOS || _platform.isMacOS) {
-          debugPrint('syncIOS is only supported on iOS');
+        if (!isIOS) {
+          debugPrint('syncIOS is only supported on Apple platforms');
           return false;
         }
 
@@ -1006,7 +1015,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// See: https://openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios
   gentype.QueryIsEligibleForIntroOfferIOSHandler
       get isEligibleForIntroOfferIOS => (groupId) async {
-            if (!_platform.isIOS || _platform.isMacOS) {
+            if (!isIOS) {
               return false;
             }
 
@@ -1016,9 +1025,18 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                 {'productId': groupId},
               );
               return result ?? false;
+            } on PlatformException catch (error) {
+              throw _purchaseErrorFromPlatformException(
+                error,
+                'check introductory-offer eligibility',
+              );
             } catch (error) {
-              debugPrint('Error checking intro offer eligibility: $error');
-              return false;
+              if (error is PurchaseError) rethrow;
+              throw PurchaseError(
+                code: gentype.ErrorCode.ServiceError,
+                message:
+                    'Failed to check introductory-offer eligibility: $error',
+              );
             }
           };
 
@@ -1027,7 +1045,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// See: https://openiap.dev/docs/apis/ios/subscription-status-ios
   gentype.QuerySubscriptionStatusIOSHandler get subscriptionStatusIOS =>
       (sku) async {
-        if (!_platform.isIOS || _platform.isMacOS) {
+        if (!isIOS) {
           return <gentype.SubscriptionStatusIOS>[];
         }
 
@@ -1062,9 +1080,17 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             }
           }
           return statuses;
+        } on PlatformException catch (error) {
+          throw _purchaseErrorFromPlatformException(
+            error,
+            'fetch subscription status',
+          );
         } catch (error) {
-          debugPrint('Error getting subscription status: $error');
-          return <gentype.SubscriptionStatusIOS>[];
+          if (error is PurchaseError) rethrow;
+          throw PurchaseError(
+            code: gentype.ErrorCode.ServiceError,
+            message: 'Failed to fetch subscription status: $error',
+          );
         }
       };
 
@@ -1073,16 +1099,25 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// See: https://openiap.dev/docs/apis/ios/clear-transaction-ios
   gentype.MutationClearTransactionIOSHandler get clearTransactionIOS =>
       () async {
-        if (!_platform.isIOS || _platform.isMacOS) {
+        if (!isIOS) {
           return false;
         }
 
         try {
-          await _channel.invokeMethod('clearTransactionIOS');
-          return true;
+          final result =
+              await _channel.invokeMethod<bool>('clearTransactionIOS');
+          return result ?? false;
+        } on PlatformException catch (error) {
+          throw _purchaseErrorFromPlatformException(
+            error,
+            'clear pending transactions',
+          );
         } catch (error) {
-          debugPrint('Error clearing pending transactions: $error');
-          return false;
+          if (error is PurchaseError) rethrow;
+          throw PurchaseError(
+            code: gentype.ErrorCode.ServiceError,
+            message: 'Failed to clear pending transactions: $error',
+          );
         }
       };
 
@@ -1116,9 +1151,17 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           }
 
           return null;
+        } on PlatformException catch (error) {
+          throw _purchaseErrorFromPlatformException(
+            error,
+            'fetch promoted product',
+          );
         } catch (error) {
-          debugPrint('Error getting promoted product: $error');
-          return null;
+          if (error is PurchaseError) rethrow;
+          throw PurchaseError(
+            code: gentype.ErrorCode.ServiceError,
+            message: 'Failed to fetch promoted product: $error',
+          );
         }
       };
 
@@ -1136,21 +1179,30 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             }
 
             try {
-              await _channel
-                  .invokeMethod('requestPurchaseOnPromotedProductIOS');
-              return true;
+              final result = await _channel.invokeMethod<bool>(
+                'requestPurchaseOnPromotedProductIOS',
+              );
+              return result ?? false;
+            } on PlatformException catch (error) {
+              throw _purchaseErrorFromPlatformException(
+                error,
+                'request promoted-product purchase',
+              );
             } catch (error) {
-              debugPrint('Error requesting promoted product purchase: $error');
-              return false;
+              if (error is PurchaseError) rethrow;
+              throw PurchaseError(
+                code: gentype.ErrorCode.PurchaseError,
+                message: 'Failed to request promoted-product purchase: $error',
+              );
             }
           };
 
-  /// Fetch the app transaction (iOS 16+).
+  /// Fetch the app transaction (iOS 16+, macOS 14+).
   ///
   /// See: https://openiap.dev/docs/apis/ios/get-app-transaction-ios
   gentype.QueryGetAppTransactionIOSHandler get getAppTransactionIOS =>
       () async {
-        if (!_platform.isIOS || _platform.isMacOS) {
+        if (!isIOS) {
           return null;
         }
 
@@ -1166,9 +1218,17 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             (key, value) => MapEntry(key.toString(), value),
           );
           return gentype.AppTransaction.fromJson(map);
+        } on PlatformException catch (error) {
+          throw _purchaseErrorFromPlatformException(
+            error,
+            'fetch app transaction',
+          );
         } catch (error) {
-          debugPrint('Error getting app transaction: $error');
-          return null;
+          if (error is PurchaseError) rethrow;
+          throw PurchaseError(
+            code: gentype.ErrorCode.ServiceError,
+            message: 'Failed to fetch app transaction: $error',
+          );
         }
       };
 
@@ -1186,8 +1246,10 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             }
 
             try {
-              await channel.invokeMethod('presentCodeRedemptionSheetIOS');
-              return true;
+              final result = await channel.invokeMethod<bool>(
+                'presentCodeRedemptionSheetIOS',
+              );
+              return result ?? false;
             } on PlatformException catch (error) {
               throw _purchaseErrorFromPlatformException(
                 error,
@@ -1248,8 +1310,19 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             }
 
             try {
-              await channel.invokeMethod('showManageSubscriptionsIOS');
-              return const <gentype.PurchaseIOS>[];
+              final dynamic result = await channel.invokeMethod(
+                'showManageSubscriptionsIOS',
+              );
+              final purchases = extractPurchases(
+                result,
+                platformIsAndroid: false,
+                platformIsIOS: true,
+                acknowledgedAndroidPurchaseTokens:
+                    _acknowledgedAndroidPurchaseTokens,
+              );
+              return purchases.whereType<gentype.PurchaseIOS>().toList(
+                    growable: false,
+                  );
             } on PlatformException catch (error) {
               throw _purchaseErrorFromPlatformException(
                 error,
@@ -1273,19 +1346,32 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   gentype.QueryGetPendingTransactionsIOSHandler get getPendingTransactionsIOS =>
       () async {
         if (_platform.isIOS || _platform.isMacOS) {
-          final dynamic result = await _channel.invokeMethod(
-            'getPendingTransactionsIOS',
-          );
-          final purchases = extractPurchases(
-            result,
-            platformIsAndroid: _platform.isAndroid,
-            platformIsIOS: _platform.isIOS || _platform.isMacOS,
-            acknowledgedAndroidPurchaseTokens:
-                _acknowledgedAndroidPurchaseTokens,
-          );
-          return purchases.whereType<gentype.PurchaseIOS>().toList(
-                growable: false,
-              );
+          try {
+            final dynamic result = await _channel.invokeMethod(
+              'getPendingTransactionsIOS',
+            );
+            final purchases = extractPurchases(
+              result,
+              platformIsAndroid: _platform.isAndroid,
+              platformIsIOS: _platform.isIOS || _platform.isMacOS,
+              acknowledgedAndroidPurchaseTokens:
+                  _acknowledgedAndroidPurchaseTokens,
+            );
+            return purchases.whereType<gentype.PurchaseIOS>().toList(
+                  growable: false,
+                );
+          } on PlatformException catch (error) {
+            throw _purchaseErrorFromPlatformException(
+              error,
+              'fetch pending transactions',
+            );
+          } catch (error) {
+            if (error is PurchaseError) rethrow;
+            throw PurchaseError(
+              code: gentype.ErrorCode.ServiceError,
+              message: 'Failed to fetch pending transactions: $error',
+            );
+          }
         }
         return const <gentype.PurchaseIOS>[];
       };
@@ -1296,19 +1382,32 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   gentype.QueryGetAllTransactionsIOSHandler get getAllTransactionsIOS =>
       () async {
         if (_platform.isIOS || _platform.isMacOS) {
-          final dynamic result = await _channel.invokeMethod(
-            'getAllTransactionsIOS',
-          );
-          final purchases = extractPurchases(
-            result,
-            platformIsAndroid: _platform.isAndroid,
-            platformIsIOS: _platform.isIOS || _platform.isMacOS,
-            acknowledgedAndroidPurchaseTokens:
-                _acknowledgedAndroidPurchaseTokens,
-          );
-          return purchases.whereType<gentype.PurchaseIOS>().toList(
-                growable: false,
-              );
+          try {
+            final dynamic result = await _channel.invokeMethod(
+              'getAllTransactionsIOS',
+            );
+            final purchases = extractPurchases(
+              result,
+              platformIsAndroid: _platform.isAndroid,
+              platformIsIOS: _platform.isIOS || _platform.isMacOS,
+              acknowledgedAndroidPurchaseTokens:
+                  _acknowledgedAndroidPurchaseTokens,
+            );
+            return purchases.whereType<gentype.PurchaseIOS>().toList(
+                  growable: false,
+                );
+          } on PlatformException catch (error) {
+            throw _purchaseErrorFromPlatformException(
+              error,
+              'fetch all transactions',
+            );
+          } catch (error) {
+            if (error is PurchaseError) rethrow;
+            throw PurchaseError(
+              code: gentype.ErrorCode.ServiceError,
+              message: 'Failed to fetch all transactions: $error',
+            );
+          }
         }
         return const <gentype.PurchaseIOS>[];
       };
@@ -1318,7 +1417,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// See: https://openiap.dev/docs/apis/ios/current-entitlement-ios
   gentype.QueryCurrentEntitlementIOSHandler get currentEntitlementIOS =>
       (String sku) async {
-        if (!_platform.isIOS || _platform.isMacOS) {
+        if (!isIOS) {
           return null;
         }
         try {
@@ -1354,7 +1453,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// See: https://openiap.dev/docs/apis/ios/latest-transaction-ios
   gentype.QueryLatestTransactionIOSHandler get latestTransactionIOS =>
       (String sku) async {
-        if (!_platform.isIOS || _platform.isMacOS) {
+        if (!isIOS) {
           return null;
         }
         try {
@@ -1390,7 +1489,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// See: https://openiap.dev/docs/apis/ios/is-transaction-verified-ios
   gentype.QueryIsTransactionVerifiedIOSHandler get isTransactionVerifiedIOS =>
       (String sku) async {
-        if (!_platform.isIOS || _platform.isMacOS) {
+        if (!isIOS) {
           return false;
         }
         try {
@@ -1418,7 +1517,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// See: https://openiap.dev/docs/apis/ios/get-transaction-jws-ios
   gentype.QueryGetTransactionJwsIOSHandler get getTransactionJwsIOS =>
       (String sku) async {
-        if (!_platform.isIOS || _platform.isMacOS) {
+        if (!isIOS) {
           return null;
         }
         try {
@@ -1444,7 +1543,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   ///
   /// See: https://openiap.dev/docs/apis/ios/get-receipt-data-ios
   gentype.QueryGetReceiptDataIOSHandler get getReceiptDataIOS => () async {
-        if (!_platform.isIOS || _platform.isMacOS) {
+        if (!isIOS) {
           return null;
         }
         try {
@@ -1463,12 +1562,12 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
       };
 
-  /// Check eligibility for the external purchase notice sheet (iOS 17.4+).
+  /// Check eligibility for the external purchase notice sheet (iOS 17.4+, macOS 14.4+).
   ///
   /// See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
   gentype.QueryCanPresentExternalPurchaseNoticeIOSHandler
       get canPresentExternalPurchaseNoticeIOS => () async {
-            if (!_platform.isIOS || _platform.isMacOS) {
+            if (!isIOS) {
               return false;
             }
             try {
@@ -1605,15 +1704,20 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             return;
           }
 
-          if (isIOS) {
+          if (_platform.isIOS && !_platform.isMacOS) {
             await _channel.invokeMethod('deepLinkToSubscriptions');
             return;
           }
 
           throw PurchaseError(
-            code: gentype.ErrorCode.IapNotAvailable,
-            message: 'deepLinkToSubscriptions is only available on Apple '
-                'platforms and Android',
+            code: _platform.isMacOS
+                ? gentype.ErrorCode.FeatureNotSupported
+                : gentype.ErrorCode.IapNotAvailable,
+            message: _platform.isMacOS
+                ? 'Subscription-management window integration is not '
+                    'supported on macOS'
+                : 'deepLinkToSubscriptions is only available on iOS and '
+                    'Android',
           );
         } on PlatformException catch (error) {
           throw _purchaseErrorFromPlatformException(
@@ -2292,20 +2396,21 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   gentype.MutationRestorePurchasesHandler get restorePurchases => () async {
         try {
           if (_platform.isIOS || _platform.isMacOS) {
-            try {
-              await syncIOS();
-            } catch (error) {
-              // Soft-fail on sync error; apps can handle via logs
-              debugPrint(
-                '[flutter_inapp_purchase] Error restoring purchases (iOS sync): $error',
+            final synced = await syncIOS();
+            if (!synced) {
+              throw PurchaseError(
+                code: gentype.ErrorCode.SyncError,
+                message: 'App Store sync did not complete',
               );
             }
           }
           // Fetch available purchases using the public API
           await getAvailablePurchases();
         } catch (error) {
-          debugPrint(
-            '[flutter_inapp_purchase] Failed to restore purchases: $error',
+          if (error is PurchaseError) rethrow;
+          throw PurchaseError(
+            code: gentype.ErrorCode.SyncError,
+            message: 'Failed to restore purchases: ${error.toString()}',
           );
         }
       };
@@ -2318,15 +2423,20 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
     final platform = _platform.isIOS || _platform.isMacOS
         ? gentype.IapPlatform.IOS
         : gentype.IapPlatform.Android;
-    final errorCode = errors.ErrorCodeUtils.fromPlatformCode(
-      error.code,
+    final convertedDetails = _deepConvertMap(error.details);
+    final details = convertedDetails is Map<String, dynamic>
+        ? convertedDetails
+        : <String, dynamic>{};
+    return PurchaseError.fromPlatformError(
+      <String, dynamic>{
+        ...details,
+        'code': error.code,
+        'message': 'Failed to $operation [${error.code}]: '
+            '${error.message ?? error.details}',
+        if (details['debugMessage'] == null && convertedDetails is String)
+          'debugMessage': convertedDetails,
+      },
       platform,
-    );
-    return PurchaseError(
-      code: errorCode,
-      platform: platform,
-      message: 'Failed to $operation [${error.code}]: '
-          '${error.message ?? error.details}',
     );
   }
 
@@ -2715,13 +2825,15 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
     }
   }
 
-  /// Present the external purchase notice sheet (iOS 17.4+).
+  /// Present the external purchase notice sheet (iOS 17.4+, macOS 14.4+).
   ///
   /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
   gentype.MutationPresentExternalPurchaseNoticeSheetIOSHandler
       get presentExternalPurchaseNoticeSheetIOS => () async {
-            if (!_platform.isIOS || _platform.isMacOS) {
+            if (!isIOS) {
               return const gentype.ExternalPurchaseNoticeResultIOS(
+                error:
+                    'External purchase notice is only available on Apple platforms',
                 result: gentype.ExternalPurchaseNoticeAction.Dismissed,
               );
             }
@@ -2737,23 +2849,32 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               return const gentype.ExternalPurchaseNoticeResultIOS(
                 result: gentype.ExternalPurchaseNoticeAction.Dismissed,
               );
+            } on PlatformException catch (error) {
+              throw _purchaseErrorFromPlatformException(
+                error,
+                'present external purchase notice',
+              );
             } catch (error) {
-              debugPrint('presentExternalPurchaseNoticeSheetIOS error: $error');
-              return gentype.ExternalPurchaseNoticeResultIOS(
-                result: gentype.ExternalPurchaseNoticeAction.Dismissed,
-                error: error.toString(),
+              if (error is PurchaseError) rethrow;
+              throw PurchaseError(
+                code: gentype.ErrorCode.ServiceError,
+                message: 'Failed to present external purchase notice: $error',
               );
             }
           };
 
-  /// Present an external purchase link, StoreKit External (iOS 16+).
+  /// Present an external purchase link (iOS 16+; unsupported on macOS).
   ///
   /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
   gentype.MutationPresentExternalPurchaseLinkIOSHandler
       get presentExternalPurchaseLinkIOS => (String url) async {
             if (!_platform.isIOS || _platform.isMacOS) {
-              return const gentype.ExternalPurchaseLinkResultIOS(
-                  success: false);
+              return gentype.ExternalPurchaseLinkResultIOS(
+                success: false,
+                error: _platform.isMacOS
+                    ? 'External purchase links are not supported on macOS'
+                    : 'External purchase links are only supported on iOS',
+              );
             }
             try {
               final result = await _channel.invokeMethod<Map<dynamic, dynamic>>(
@@ -2767,18 +2888,23 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               }
               return const gentype.ExternalPurchaseLinkResultIOS(
                   success: false);
+            } on PlatformException catch (error) {
+              throw _purchaseErrorFromPlatformException(
+                error,
+                'present external purchase link',
+              );
             } catch (error) {
-              debugPrint('presentExternalPurchaseLinkIOS error: $error');
-              return gentype.ExternalPurchaseLinkResultIOS(
-                success: false,
-                error: error.toString(),
+              if (error is PurchaseError) rethrow;
+              throw PurchaseError(
+                code: gentype.ErrorCode.ServiceError,
+                message: 'Failed to present external purchase link: $error',
               );
             }
           };
 
-  // MARK: - ExternalPurchaseCustomLink (iOS 18.1+)
+  // MARK: - ExternalPurchaseCustomLink (iOS 18.1+, macOS 15.1+)
 
-  /// Check eligibility for the custom-link variant of external purchase (iOS 18.1+).
+  /// Check eligibility for ExternalPurchaseCustomLink (iOS 18.1+, macOS 15.1+).
   ///
   /// See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
   gentype.QueryIsEligibleForExternalPurchaseCustomLinkIOSHandler
@@ -2806,7 +2932,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             }
           };
 
-  /// Fetch a token for Apple's External Purchase Server reporting API (iOS 18.1+).
+  /// Fetch a token for Apple's External Purchase Server reporting API (iOS 18.1+, macOS 15.1+).
   ///
   /// See: https://openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios
   gentype.QueryGetExternalPurchaseCustomLinkTokenIOSHandler
@@ -2832,15 +2958,22 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               return const gentype.ExternalPurchaseCustomLinkTokenResultIOS(
                 error: 'Failed to get token',
               );
+            } on PlatformException catch (error) {
+              throw _purchaseErrorFromPlatformException(
+                error,
+                'get ExternalPurchaseCustomLink token',
+              );
             } catch (error) {
-              debugPrint('getExternalPurchaseCustomLinkTokenIOS error: $error');
-              return gentype.ExternalPurchaseCustomLinkTokenResultIOS(
-                error: error.toString(),
+              if (error is PurchaseError) rethrow;
+              throw PurchaseError(
+                code: gentype.ErrorCode.ServiceError,
+                message:
+                    'Failed to get ExternalPurchaseCustomLink token: $error',
               );
             }
           };
 
-  /// Present the disclosure sheet required before linking out via ExternalPurchaseCustomLink (iOS 18.1+).
+  /// Present the ExternalPurchaseCustomLink disclosure (iOS 18.1+, macOS 15.1+).
   ///
   /// See: https://openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios
   gentype.MutationShowExternalPurchaseCustomLinkNoticeIOSHandler
@@ -2867,12 +3000,17 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               return const gentype.ExternalPurchaseCustomLinkNoticeResultIOS(
                 continued: false,
               );
+            } on PlatformException catch (error) {
+              throw _purchaseErrorFromPlatformException(
+                error,
+                'show ExternalPurchaseCustomLink notice',
+              );
             } catch (error) {
-              debugPrint(
-                  'showExternalPurchaseCustomLinkNoticeIOS error: $error');
-              return gentype.ExternalPurchaseCustomLinkNoticeResultIOS(
-                continued: false,
-                error: error.toString(),
+              if (error is PurchaseError) rethrow;
+              throw PurchaseError(
+                code: gentype.ErrorCode.ServiceError,
+                message:
+                    'Failed to show ExternalPurchaseCustomLink notice: $error',
               );
             }
           };

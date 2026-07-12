@@ -9,8 +9,14 @@
   },
   "autolinking": {
     "RnIap": {
-      "swift": "HybridRnIap",
-      "kotlin": "HybridRnIap"
+      "ios": {
+        "language": "swift",
+        "implementationClassName": "HybridRnIap"
+      },
+      "android": {
+        "language": "kotlin",
+        "implementationClassName": "HybridRnIap"
+      }
     }
   },
   "ignorePaths": [

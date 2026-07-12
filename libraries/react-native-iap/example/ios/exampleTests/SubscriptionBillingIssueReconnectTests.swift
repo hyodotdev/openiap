@@ -4,13 +4,9 @@ import OpenIAP
 
 /// Reconnect regression coverage for the iOS subscriptionBillingIssue listener.
 ///
-/// The bug: `cleanupExistingState()` (invoked by `endConnection()`) used to leave
-/// `subscriptionBillingIssueSub` non-nil and `subscriptionBillingIssueListeners`
-/// non-empty, even though `OpenIapModule.shared.endConnection()` resets its
-/// listener registry. On reconnect, `attachSubscriptionBillingIssueSubIfNeeded()`
-/// would skip re-registration because the guard `subscriptionBillingIssueSub == nil`
-/// was still false — and users would never see another billing-issue event after
-/// a disconnect/reconnect cycle on the same HybridRnIap instance.
+/// Covers listener attachment and cleanup across a disconnect/reconnect cycle.
+/// Native subscriptions must only exist for an initialized connection, and a
+/// completed `endConnection()` must leave no stale subscription or callback.
 ///
 /// Reflection note: the sub + listeners are `private` in HybridRnIap so `@testable`
 /// alone cannot read them. `Mirror` ignores Swift access control at runtime, so we
@@ -21,11 +17,18 @@ final class SubscriptionBillingIssueReconnectTests: XCTestCase {
     func testEndConnectionClearsBillingIssueSubAndListenersAndReconnectReRegisters() async throws {
         let hybrid = HybridRnIap()
 
-        // 1. Register a listener — attaches the OpenIAP subscription token.
+        // 1. Registration before init stores the callback without attaching a
+        //    native subscription to an inactive connection.
         try hybrid.addSubscriptionBillingIssueListener { _ in }
+        XCTAssertNil(inspectSub(hybrid))
+        XCTAssertEqual(inspectListenerCount(hybrid), 1)
+
+        // 2. Initialization attaches the pending callback exactly once.
+        let initialConnectionResult = try await hybrid.initConnection(config: nil).await()
+        XCTAssertTrue(initialConnectionResult)
         XCTAssertNotNil(
             inspectSub(hybrid),
-            "addSubscriptionBillingIssueListener must attach subscriptionBillingIssueSub"
+            "initConnection must attach subscriptionBillingIssueSub"
         )
         XCTAssertEqual(
             inspectListenerCount(hybrid),
@@ -33,9 +36,7 @@ final class SubscriptionBillingIssueReconnectTests: XCTestCase {
             "listener must be appended to subscriptionBillingIssueListeners"
         )
 
-        // 2. endConnection → cleanupExistingState. This is the regression: the old
-        //    implementation only reset the three original subs (purchaseUpdated,
-        //    purchaseError, promotedProduct) and left the billing-issue slot dirty.
+        // 3. endConnection awaits core cleanup before returning.
         _ = try await hybrid.endConnection().await()
 
         XCTAssertNil(
@@ -48,11 +49,11 @@ final class SubscriptionBillingIssueReconnectTests: XCTestCase {
             "endConnection() must clear subscriptionBillingIssueListeners"
         )
 
-        // 3. Reconnect: register again on the same instance. If step 2 failed to
-        //    nil the sub, `attachSubscriptionBillingIssueSubIfNeeded()`'s guard
-        //    `subscriptionBillingIssueSub == nil` would short-circuit and the
-        //    OpenIAP listener registry would never see the new token.
+        // 4. A new pre-init registration stays detached, then reconnect attaches it.
         try hybrid.addSubscriptionBillingIssueListener { _ in }
+        XCTAssertNil(inspectSub(hybrid))
+        let reconnectResult = try await hybrid.initConnection(config: nil).await()
+        XCTAssertTrue(reconnectResult)
 
         XCTAssertNotNil(
             inspectSub(hybrid),
@@ -63,6 +64,28 @@ final class SubscriptionBillingIssueReconnectTests: XCTestCase {
             1,
             "after re-register, subscriptionBillingIssueListeners must hold the new callback"
         )
+        _ = try await hybrid.endConnection().await()
+    }
+
+    func testInitSubmittedDuringEndRunsAfterTeardown() async throws {
+        let hybrid = HybridRnIap()
+        let initialConnectionResult = try await hybrid.initConnection(config: nil).await()
+        XCTAssertTrue(initialConnectionResult)
+
+        // Submit reconnect before awaiting end. Wrapper FIFO ordering must let end
+        // finish core teardown first, then leave both wrapper and core connected.
+        let endPromise = try hybrid.endConnection()
+        await Task.yield()
+        let reconnectPromise = try hybrid.initConnection(config: nil)
+
+        let endResult = try await endPromise.await()
+        let reconnectResult = try await reconnectPromise.await()
+        XCTAssertTrue(endResult)
+        XCTAssertTrue(reconnectResult)
+        XCTAssertTrue(inspectInitialized(hybrid))
+        _ = try await OpenIapModule.shared.getPendingTransactionsIOS()
+
+        _ = try await hybrid.endConnection().await()
     }
 
     // MARK: - Private reflection helpers
@@ -86,6 +109,10 @@ final class SubscriptionBillingIssueReconnectTests: XCTestCase {
             return -1
         }
         return Mirror(reflecting: child).children.count
+    }
+
+    private func inspectInitialized(_ hybrid: HybridRnIap) -> Bool {
+        childValue(hybrid, label: "isInitialized") as? Bool ?? false
     }
 
     private func childValue(_ object: Any, label: String) -> Any? {

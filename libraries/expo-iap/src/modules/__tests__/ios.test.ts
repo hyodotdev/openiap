@@ -10,6 +10,7 @@ jest.mock('../../ExpoIapModule', () => ({
     beginRefundRequestIOS: jest.fn(),
     showManageSubscriptionsIOS: jest.fn(),
     getReceiptDataIOS: jest.fn(),
+    getStorefront: jest.fn(),
     requestReceiptRefreshIOS: jest.fn(),
     isTransactionVerifiedIOS: jest.fn(),
     getTransactionJwsIOS: jest.fn(),
@@ -50,6 +51,7 @@ import {
   beginRefundRequestIOS,
   showManageSubscriptionsIOS,
   getReceiptIOS,
+  getStorefrontIOS,
   requestReceiptRefreshIOS,
   isTransactionVerifiedIOS,
   getTransactionJwsIOS,
@@ -484,6 +486,24 @@ describe('iOS Module Functions', () => {
       expect(ExpoIapModule.getReceiptDataIOS).toHaveBeenCalledTimes(1);
       expect(result).toBe(mockReceipt);
     });
+
+    it('should return the iOS storefront country code', async () => {
+      (ExpoIapModule.getStorefront as jest.Mock).mockResolvedValue('US');
+
+      await expect(getStorefrontIOS()).resolves.toBe('US');
+    });
+
+    it.each([null, '', '   '])(
+      'should reject an empty iOS storefront value (%p)',
+      async (value) => {
+        (ExpoIapModule.getStorefront as jest.Mock).mockResolvedValue(value);
+
+        await expect(getStorefrontIOS()).rejects.toMatchObject({
+          code: 'service-error',
+          message: expect.stringContaining('no country code'),
+        });
+      },
+    );
 
     it('should call requestReceiptRefreshIOS and return refreshed receipt', async () => {
       const mockReceipt = 'refreshed-base64-receipt-data';

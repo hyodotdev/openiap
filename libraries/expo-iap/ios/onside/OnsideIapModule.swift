@@ -340,7 +340,15 @@ public final class ExpoIapOnsideModule: Module {
     private func getOnsideStorefront() async throws -> String {
         ExpoIapLog.payload("getStorefrontOnside", payload: nil)
         try await ensureObserverRegistered()
-        let storefront = Onside.defaultPaymentQueue().storefront?.countryCode ?? ""
+        guard let storefront = Onside.defaultPaymentQueue().storefront?.countryCode,
+              !storefront.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw IapException.from(
+                PurchaseError.make(
+                    code: .serviceError,
+                    message: "Storefront lookup returned no country code"
+                )
+            )
+        }
         ExpoIapLog.result("getStorefrontOnside", value: storefront)
         return storefront
     }

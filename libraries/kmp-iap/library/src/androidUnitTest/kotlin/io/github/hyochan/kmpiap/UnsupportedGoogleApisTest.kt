@@ -8,7 +8,7 @@ import kotlin.test.assertFailsWith
 
 class UnsupportedGoogleApisTest {
     @Test
-    fun `non-Play stores reject Google in-app messages`() = runTest {
+    fun `non-Play stores reject Google in-app messages and unsupported event resolvers without waiting`() = runTest {
         for ((storeName, store) in listOf(
             "amazon" to Store.AMAZON,
             "horizon" to Store.PLAY_STORE,
@@ -19,11 +19,19 @@ class UnsupportedGoogleApisTest {
                 versionPlatform = "Android $storeName",
             )
 
-            val error = assertFailsWith<PurchaseException> {
-                implementation.showInAppMessagesAndroid(null)
-            }
+            val operations: List<suspend () -> Any?> = listOf(
+                { implementation.showInAppMessagesAndroid(null) },
+                { implementation.userChoiceBillingAndroid() },
+                { implementation.developerProvidedBillingAndroid() },
+                { implementation.subscriptionBillingIssue() },
+            )
 
-            assertEquals(ErrorCode.FeatureNotSupported, error.error.code)
+            for (operation in operations) {
+                val error = assertFailsWith<PurchaseException> {
+                    operation()
+                }
+                assertEquals(ErrorCode.FeatureNotSupported, error.error.code)
+            }
         }
     }
 }

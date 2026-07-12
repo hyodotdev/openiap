@@ -68,6 +68,15 @@ describe('AvailablePurchases Component', () => {
     });
   });
 
+  it('shows purchase-token presence without rendering its value', () => {
+    const {getByText, queryByText} = render(<AvailablePurchases />);
+
+    fireEvent.press(getByText('✅ Active'));
+
+    expect(getByText('Present')).toBeDefined();
+    expect(queryByText('token-1')).toBeNull();
+  });
+
   it('shows Vega guidance instead of opening unsupported subscription management deep links', async () => {
     Object.defineProperty(Platform, 'OS', {
       get: jest.fn(() => 'kepler'),

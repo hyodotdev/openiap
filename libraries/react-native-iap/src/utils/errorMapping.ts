@@ -4,7 +4,11 @@
  * and constructing structured purchase errors.
  */
 
-import {ErrorCode, type IapPlatform} from '../types';
+import {
+  ErrorCode,
+  type IapPlatform,
+  type SubResponseCodeAndroid,
+} from '../types';
 
 /**
  * Error code for duplicate purchase events detected on iOS.
@@ -54,6 +58,7 @@ export interface PurchaseErrorProps {
   productIds?: string[];
   productType?: string;
   isEmptyProductList?: boolean;
+  subResponseCodeAndroid?: SubResponseCodeAndroid;
   platform?: IapPlatform;
 }
 
@@ -65,6 +70,7 @@ export interface PurchaseError extends Error {
   productIds?: string[];
   productType?: string;
   isEmptyProductList?: boolean;
+  subResponseCodeAndroid?: SubResponseCodeAndroid;
   platform?: IapPlatform;
 }
 
@@ -146,6 +152,7 @@ export const createPurchaseError = (
   error.productIds = props.productIds;
   error.productType = props.productType;
   error.isEmptyProductList = props.isEmptyProductList;
+  error.subResponseCodeAndroid = props.subResponseCodeAndroid;
   error.platform = props.platform;
   return error;
 };
@@ -170,6 +177,7 @@ export const createPurchaseErrorFromPlatform = (
     productIds: errorData.productIds,
     productType: errorData.productType,
     isEmptyProductList: errorData.isEmptyProductList,
+    subResponseCodeAndroid: errorData.subResponseCodeAndroid,
     platform,
   });
 };

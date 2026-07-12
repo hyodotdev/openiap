@@ -37,33 +37,43 @@ internal sealed partial class OpenIapAndroid
     // instead of the real BillingClient / Kotlin error from the module.
     public async Task<RequestPurchaseResult?> RequestPurchaseAsync(RequestPurchaseProps @params)
     {
+        ValidatePurchaseRequest(@params);
         RefreshCurrentActivity();
         var json = JsonSerializer.Serialize(@params, JsonOptions.Default);
         var result = await Invoke(cb => _module.RequestPurchase(json, cb));
         return DecodeRequestPurchaseResult(result);
     }
 
-    public async Task<string> FinishTransactionAsync(PurchaseInput purchase, bool? isConsumable = null)
+    private static void ValidatePurchaseRequest(RequestPurchaseProps @params)
+    {
+        try { @params.Validate(); }
+        catch (InvalidOperationException ex)
+        {
+            throw OpenIapErrorMapper.Wrap(ErrorCode.DeveloperError, ex.Message);
+        }
+    }
+
+    public async Task<VoidResult> FinishTransactionAsync(PurchaseInput purchase, bool? isConsumable = null)
     {
         // PurchaseInput wraps Purchase; serialize the inner record so the wire
         // shape stays a flat Purchase JSON object (matches what the module expects).
         var json = JsonSerializer.Serialize(purchase.Value, JsonOptions.Default);
         var consumable = isConsumable.HasValue ? Java.Lang.Boolean.ValueOf(isConsumable.Value) : null;
-        var result = await Invoke(cb => _module.FinishTransaction(json, consumable, cb));
-        return DecodeStringValue(result);
+        await Invoke(cb => _module.FinishTransaction(json, consumable, cb));
+        return new VoidResult();
     }
 
-    public async Task<string> RestorePurchasesAsync()
+    public async Task<VoidResult> RestorePurchasesAsync()
     {
-        var result = await Invoke(cb => _module.RestorePurchases(cb));
-        return DecodeStringValue(result);
+        await Invoke(cb => _module.RestorePurchases(cb));
+        return new VoidResult();
     }
 
-    public async Task<string> DeepLinkToSubscriptionsAsync(DeepLinkOptions? options = null)
+    public async Task<VoidResult> DeepLinkToSubscriptionsAsync(DeepLinkOptions? options = null)
     {
         var json = options is null ? null : JsonSerializer.Serialize(options, JsonOptions.Default);
-        var result = await Invoke(cb => _module.DeepLinkToSubscriptions(json, cb));
-        return DecodeStringValue(result);
+        await Invoke(cb => _module.DeepLinkToSubscriptions(json, cb));
+        return new VoidResult();
     }
 
     public async Task<VerifyPurchaseResult> ValidateReceiptAsync(VerifyPurchaseProps options)
@@ -210,7 +220,10 @@ internal sealed partial class OpenIapAndroid
     public async Task<string> GetStorefrontAsync()
     {
         var result = await Invoke(cb => _module.GetStorefront(cb));
-        return DecodeStringValue(result);
+        var storefront = DecodeStringValue(result);
+        if (string.IsNullOrWhiteSpace(storefront))
+            throw OpenIapErrorMapper.Wrap(ErrorCode.ServiceError, "Storefront lookup returned no country code");
+        return storefront;
     }
 
     // ---- iOS-only queries (defaults / throw not-supported) --------------
@@ -223,7 +236,7 @@ internal sealed partial class OpenIapAndroid
     public Task<IReadOnlyList<PurchaseIOS>> GetPendingTransactionsIOSAsync() => Task.FromResult<IReadOnlyList<PurchaseIOS>>(Array.Empty<PurchaseIOS>());
     public Task<ProductIOS?> GetPromotedProductIOSAsync() => Task.FromResult<ProductIOS?>(null);
     public Task<string?> GetReceiptDataIOSAsync() => Task.FromResult<string?>(null);
-    public Task<string> GetStorefrontIOSAsync() => GetStorefrontAsync();
+    public Task<string> GetStorefrontIOSAsync() => NotSupportedIOS<string>("getStorefrontIOS");
     public Task<string?> GetTransactionJwsIOSAsync(string sku) => Task.FromResult<string?>(null);
     public Task<bool> IsEligibleForExternalPurchaseCustomLinkIOSAsync() => Task.FromResult(false);
     public Task<bool> IsEligibleForIntroOfferIOSAsync(string groupId) => Task.FromResult(false);

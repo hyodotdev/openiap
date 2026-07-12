@@ -10,19 +10,36 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import platform.Foundation.*
 import cocoapods.openiap.*
 import platform.darwin.NSObject
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
 
 internal fun errorCodeFromRawValue(
     raw: String?,
     fallback: ErrorCode = ErrorCode.Unknown
 ): ErrorCode =
     raw?.let { runCatching { ErrorCode.fromJson(it) }.getOrNull() } ?: fallback
+
+internal fun requireStorefront(value: String?): String =
+    value?.takeIf { it.isNotBlank() }
+        ?: throw PurchaseException(
+            PurchaseError(
+                code = ErrorCode.Unknown,
+                message = "App Store storefront is unavailable"
+            )
+        )
+
+internal class IosConnectionLifecycle {
+    private val mutex = Mutex()
+
+    suspend fun <T> run(block: suspend () -> T): T = mutex.withLock {
+        withContext(NonCancellable) { block() }
+    }
+}
 
 // Completion handlers from the Swift bridge surface typed PurchaseError values
 // through NSError.userInfo; use the same code resolver as listener dictionaries.
@@ -93,7 +110,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     )
     override val promotedProductListener: Flow<String?> = _promotedProductFlow.asSharedFlow()
 
-    // StoreKit 2 Message.billingIssue bridge (iOS 18+).
+    // StoreKit 2 Message.billingIssue bridge (iOS / Mac Catalyst 16.4+).
     // Reference: https://developer.apple.com/documentation/storekit/message/reason/4123328-billingissue
     // Backed by openIapModule.addSubscriptionBillingIssueListener, set up in setupListeners()
     // and removed in endConnection().
@@ -105,6 +122,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     override val subscriptionBillingIssueListener: Flow<Purchase> = _subscriptionBillingIssueFlow.asSharedFlow()
 
     private var isConnected = false
+    private val connectionLifecycle = IosConnectionLifecycle()
     private val coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     // Listener subscriptions
@@ -140,7 +158,8 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             val error = PurchaseError(
                 code = errorCode,
                 message = map["message"] as? String ?: "",
-                productId = map["productId"] as? String
+                productId = map["productId"] as? String,
+                debugMessage = map["debugMessage"] as? String,
             )
             coroutineScope.launch {
                 _purchaseErrorFlow.emit(error)
@@ -154,7 +173,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             }
         }
 
-        // Subscription billing-issue listener (iOS 18+ Message.billingIssue via OpenIapModule)
+        // Subscription billing-issue listener (iOS / Mac Catalyst 16.4+ via OpenIapModule)
         subscriptionBillingIssueSubscription = openIapModule.addSubscriptionBillingIssueListener { dictionary ->
             val purchase = convertAnyToPurchase(dictionary)
             if (purchase != null) {
@@ -169,10 +188,8 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
 
     override fun getStore(): Store = Store.APP_STORE
 
-    override suspend fun canMakePayments(): Boolean {
-        // OpenIAP will check this during initConnection
-        return isConnected
-    }
+    override suspend fun canMakePayments(): Boolean =
+        withContext(Dispatchers.Main) { isConnected }
 
     // -------------------------------------------------------------------------
     // MutationResolver Implementation
@@ -189,47 +206,54 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      *
      * @see <a href="https://openiap.dev/docs/apis/init-connection">init-connection</a>
      */
-    override suspend fun initConnection(config: InitConnectionConfig?): Boolean = suspendCoroutine { continuation ->
-        // iOS doesn't use alternative billing config, it's Android only
-        openIapModule.initConnectionWithCompletion { success, error ->
-            if (error != null) {
-                continuation.resumeWithException(error.toPurchaseException())
-            } else {
-                isConnected = success
-                // Re-register listeners after endConnection()/initConnection() cycles.
-                // init{} runs only on first construction; without this, flows stop
-                // emitting after a disconnect + reconnect.
-                if (success) {
-                    setupListeners()
+    override suspend fun initConnection(config: InitConnectionConfig?): Boolean =
+        connectionLifecycle.run {
+            withContext(Dispatchers.Main) {
+                val success = suspendCancellableCoroutine { continuation ->
+                    // iOS doesn't use alternative billing config, it's Android only
+                    openIapModule.initConnectionWithCompletion { result, error ->
+                        if (error != null) {
+                            continuation.resumeWithExceptionIfActive(error.toPurchaseException())
+                        } else {
+                            continuation.resumeIfActive(result)
+                        }
+                    }
                 }
-                continuation.resume(success)
+                isConnected = success
+                if (success) setupListeners()
+                success
             }
         }
-    }
 
     /**
      * Close the store connection and release resources.
      *
      * @see <a href="https://openiap.dev/docs/apis/end-connection">https://openiap.dev/docs/apis/end-connection</a>
      */
-    override suspend fun endConnection(): Boolean = suspendCoroutine { continuation ->
-        // Remove all listeners and null the subscription tokens so initConnection()
-        // can freshly re-register without orphaning the previous subscriptions.
-        purchaseSubscription?.let { openIapModule.removeListener(it) }
-        purchaseSubscription = null
-        errorSubscription?.let { openIapModule.removeListener(it) }
-        errorSubscription = null
-        promotedProductSubscription?.let { openIapModule.removeListener(it) }
-        promotedProductSubscription = null
-        subscriptionBillingIssueSubscription?.let { openIapModule.removeListener(it) }
-        subscriptionBillingIssueSubscription = null
+    override suspend fun endConnection(): Boolean = connectionLifecycle.run {
+        withContext(Dispatchers.Main) {
+            // Remove all listeners so the next init can attach a fresh set.
+            purchaseSubscription?.let { openIapModule.removeListener(it) }
+            purchaseSubscription = null
+            errorSubscription?.let { openIapModule.removeListener(it) }
+            errorSubscription = null
+            promotedProductSubscription?.let { openIapModule.removeListener(it) }
+            promotedProductSubscription = null
+            subscriptionBillingIssueSubscription?.let { openIapModule.removeListener(it) }
+            subscriptionBillingIssueSubscription = null
 
-        openIapModule.endConnectionWithCompletion { success, error ->
-            if (error != null) {
-                continuation.resumeWithException(error.toPurchaseException())
-            } else {
+            try {
+                suspendCancellableCoroutine { continuation ->
+                    openIapModule.endConnectionWithCompletion { success, error ->
+                        if (error != null) {
+                            continuation.resumeWithExceptionIfActive(error.toPurchaseException())
+                        } else {
+                            continuation.resumeIfActive(success)
+                        }
+                    }
+                }
+            } finally {
                 isConnected = false
-                continuation.resume(success)
             }
         }
     }
@@ -251,20 +275,20 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @see <a href="https://openiap.dev/docs/apis/request-purchase">request-purchase</a>
      */
     override suspend fun requestPurchase(params: RequestPurchaseProps): RequestPurchaseResult? =
-        suspendCoroutine { continuation ->
+        suspendCancellableCoroutine { continuation ->
             requireIosSku(params)?.let { message ->
-                continuation.resumeWithException(Exception(message))
-                return@suspendCoroutine
+                continuation.resumeWithExceptionIfActive(Exception(message))
+                return@suspendCancellableCoroutine
             }
 
             openIapModule.requestPurchaseWithPayload(params.toJson().toObjCMap()) { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(error.toPurchaseException())
+                    continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                 } else if (result != null) {
                     val purchase = convertAnyToPurchase(result)
-                    continuation.resume(purchase?.let { RequestPurchaseResultPurchase(it) })
+                    continuation.resumeIfActive(purchase?.let { RequestPurchaseResultPurchase(it) })
                 } else {
-                    continuation.resume(null)
+                    continuation.resumeIfActive(null)
                 }
             }
         }
@@ -311,12 +335,12 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @see <a href="https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios">https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios</a>
      */
     override suspend fun requestPurchaseOnPromotedProductIOS(): Boolean =
-        suspendCoroutine { continuation ->
+        suspendCancellableCoroutine { continuation ->
             openIapModule.requestPurchaseOnPromotedProductIOSWithCompletion { success, error ->
                 if (error != null) {
-                    continuation.resumeWithException(error.toPurchaseException())
+                    continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                 } else {
-                    continuation.resume(success)
+                    continuation.resumeIfActive(success)
                 }
             }
         }
@@ -326,12 +350,12 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      *
      * @see <a href="https://openiap.dev/docs/apis/restore-purchases">https://openiap.dev/docs/apis/restore-purchases</a>
      */
-    override suspend fun restorePurchases(): Unit = suspendCoroutine { continuation ->
+    override suspend fun restorePurchases(): Unit = suspendCancellableCoroutine { continuation ->
         openIapModule.restorePurchasesWithCompletion { error ->
             if (error != null) {
-                continuation.resumeWithException(error.toPurchaseException())
+                continuation.resumeWithExceptionIfActive(error.toPurchaseException())
             } else {
-                continuation.resume(Unit)
+                continuation.resumeIfActive(Unit)
             }
         }
     }
@@ -350,7 +374,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @see <a href="https://openiap.dev/docs/apis/finish-transaction">finish-transaction</a>
      */
     override suspend fun finishTransaction(purchase: PurchaseInput, isConsumable: Boolean?): Unit =
-        suspendCoroutine { continuation ->
+        suspendCancellableCoroutine { continuation ->
             val transactionId = purchase.id
             val productId = purchase.productId
 
@@ -360,9 +384,9 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 isConsumable = isConsumable ?: false
             ) { error ->
                 if (error != null) {
-                    continuation.resumeWithException(error.toPurchaseException())
+                    continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                 } else {
-                    continuation.resume(Unit)
+                    continuation.resumeIfActive(Unit)
                 }
             }
         }
@@ -373,12 +397,12 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @see <a href="https://openiap.dev/docs/apis/deep-link-to-subscriptions">https://openiap.dev/docs/apis/deep-link-to-subscriptions</a>
      */
     override suspend fun deepLinkToSubscriptions(options: DeepLinkOptions?): Unit =
-        suspendCoroutine { continuation ->
+        suspendCancellableCoroutine { continuation ->
             openIapModule.deepLinkToSubscriptionsWithCompletion { error ->
                 if (error != null) {
-                    continuation.resumeWithException(error.toPurchaseException())
+                    continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                 } else {
-                    continuation.resume(Unit)
+                    continuation.resumeIfActive(Unit)
                 }
             }
         }
@@ -389,12 +413,12 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @see <a href="https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios">https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios</a>
      */
     override suspend fun presentCodeRedemptionSheetIOS(): Boolean =
-        suspendCoroutine { continuation ->
+        suspendCancellableCoroutine { continuation ->
             openIapModule.presentCodeRedemptionSheetIOSWithCompletion { success, error ->
                 if (error != null) {
-                    continuation.resumeWithException(error.toPurchaseException())
+                    continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                 } else {
-                    continuation.resume(success)
+                    continuation.resumeIfActive(success)
                 }
             }
         }
@@ -405,12 +429,12 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @see <a href="https://openiap.dev/docs/apis/ios/begin-refund-request-ios">https://openiap.dev/docs/apis/ios/begin-refund-request-ios</a>
      */
     override suspend fun beginRefundRequestIOS(sku: String): String? =
-        suspendCoroutine { continuation ->
+        suspendCancellableCoroutine { continuation ->
             openIapModule.beginRefundRequestIOSWithSku(sku) { status, error ->
                 if (error != null) {
-                    continuation.resumeWithException(error.toPurchaseException())
+                    continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                 } else {
-                    continuation.resume(status)
+                    continuation.resumeIfActive(status)
                 }
             }
         }
@@ -420,12 +444,12 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      *
      * @see <a href="https://openiap.dev/docs/apis/ios/clear-transaction-ios">https://openiap.dev/docs/apis/ios/clear-transaction-ios</a>
      */
-    override suspend fun clearTransactionIOS(): Boolean = suspendCoroutine { continuation ->
+    override suspend fun clearTransactionIOS(): Boolean = suspendCancellableCoroutine { continuation ->
         openIapModule.clearTransactionIOSWithCompletion { success, error ->
             if (error != null) {
-                continuation.resumeWithException(error.toPurchaseException())
+                continuation.resumeWithExceptionIfActive(error.toPurchaseException())
             } else {
-                continuation.resume(success)
+                continuation.resumeIfActive(success)
             }
         }
     }
@@ -436,15 +460,15 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @see <a href="https://openiap.dev/docs/apis/ios/show-manage-subscriptions-ios">https://openiap.dev/docs/apis/ios/show-manage-subscriptions-ios</a>
      */
     override suspend fun showManageSubscriptionsIOS(): List<PurchaseIOS> =
-        suspendCoroutine { continuation ->
+        suspendCancellableCoroutine { continuation ->
             openIapModule.showManageSubscriptionsIOSWithCompletion { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(error.toPurchaseException())
+                    continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                 } else if (result != null) {
                     val purchases = convertAnyListToPurchaseIOSList(result)
-                    continuation.resume(purchases)
+                    continuation.resumeIfActive(purchases)
                 } else {
-                    continuation.resume(emptyList())
+                    continuation.resumeIfActive(emptyList())
                 }
             }
         }
@@ -454,12 +478,12 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      *
      * @see <a href="https://openiap.dev/docs/apis/ios/sync-ios">https://openiap.dev/docs/apis/ios/sync-ios</a>
      */
-    override suspend fun syncIOS(): Boolean = suspendCoroutine { continuation ->
+    override suspend fun syncIOS(): Boolean = suspendCancellableCoroutine { continuation ->
         openIapModule.syncIOSWithCompletion { success, error ->
             if (error != null) {
-                continuation.resumeWithException(error.toPurchaseException())
+                continuation.resumeWithExceptionIfActive(error.toPurchaseException())
             } else {
-                continuation.resume(success)
+                continuation.resumeIfActive(success)
             }
         }
     }
@@ -491,34 +515,34 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @see <a href="https://openiap.dev/docs/apis/fetch-products">fetch-products</a>
      */
     override suspend fun fetchProducts(params: ProductRequest): FetchProductsResult =
-        suspendCoroutine { continuation ->
+        suspendCancellableCoroutine { continuation ->
             val skus = params.skus
             val type = params.type?.rawValue
 
             openIapModule.fetchProductsWithSkus(skus, type = type) { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(error.toPurchaseException())
+                    continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                 } else if (result != null) {
                     // Convert [Any] to products or subscriptions based on type
                     when (params.type) {
                         ProductQueryType.Subs -> {
                             val subscriptions = convertAnyListToProductSubscriptions(result)
-                            continuation.resume(FetchProductsResultSubscriptions(subscriptions))
+                            continuation.resumeIfActive(FetchProductsResultSubscriptions(subscriptions))
                         }
                         ProductQueryType.All -> {
                             val items = convertAnyListToProductOrSubscriptions(result)
-                            continuation.resume(FetchProductsResultAll(items))
+                            continuation.resumeIfActive(FetchProductsResultAll(items))
                         }
                         else -> {
                             val products = convertAnyListToProducts(result)
-                            continuation.resume(FetchProductsResultProducts(products))
+                            continuation.resumeIfActive(FetchProductsResultProducts(products))
                         }
                     }
                 } else {
                     when (params.type) {
-                        ProductQueryType.Subs -> continuation.resume(FetchProductsResultSubscriptions(emptyList()))
-                        ProductQueryType.All -> continuation.resume(FetchProductsResultAll(emptyList()))
-                        else -> continuation.resume(FetchProductsResultProducts(emptyList()))
+                        ProductQueryType.Subs -> continuation.resumeIfActive(FetchProductsResultSubscriptions(emptyList()))
+                        ProductQueryType.All -> continuation.resumeIfActive(FetchProductsResultAll(emptyList()))
+                        else -> continuation.resumeIfActive(FetchProductsResultProducts(emptyList()))
                     }
                 }
             }
@@ -536,15 +560,15 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @see <a href="https://openiap.dev/docs/apis/get-available-purchases">get-available-purchases</a>
      */
     override suspend fun getAvailablePurchases(options: PurchaseOptions?): List<Purchase> =
-        suspendCoroutine { continuation ->
+        suspendCancellableCoroutine { continuation ->
             openIapModule.getAvailablePurchasesWithCompletion { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(error.toPurchaseException())
+                    continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                 } else if (result != null) {
                     val purchases = convertAnyListToPurchases(result)
-                    continuation.resume(purchases)
+                    continuation.resumeIfActive(purchases)
                 } else {
-                    continuation.resume(emptyList())
+                    continuation.resumeIfActive(emptyList())
                 }
             }
         }
@@ -563,12 +587,16 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      *
      * @see <a href="https://openiap.dev/docs/apis/ios/get-storefront-ios">https://openiap.dev/docs/apis/ios/get-storefront-ios</a>
      */
-    override suspend fun getStorefrontIOS(): String = suspendCoroutine { continuation ->
+    override suspend fun getStorefrontIOS(): String = suspendCancellableCoroutine { continuation ->
         openIapModule.getStorefrontIOSWithCompletion { result, error ->
             if (error != null) {
-                continuation.resume("US") // Default fallback
+                continuation.resumeWithExceptionIfActive(error.toPurchaseException())
             } else {
-                continuation.resume(result ?: "US")
+                try {
+                    continuation.resumeIfActive(requireStorefront(result))
+                } catch (storefrontError: PurchaseException) {
+                    continuation.resumeWithExceptionIfActive(storefrontError)
+                }
             }
         }
     }
@@ -579,15 +607,15 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @see <a href="https://openiap.dev/docs/apis/ios/get-pending-transactions-ios">https://openiap.dev/docs/apis/ios/get-pending-transactions-ios</a>
      */
     override suspend fun getPendingTransactionsIOS(): List<PurchaseIOS> =
-        suspendCoroutine { continuation ->
+        suspendCancellableCoroutine { continuation ->
             openIapModule.getPendingTransactionsIOSWithCompletion { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(error.toPurchaseException())
+                    continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                 } else if (result != null) {
                     val purchases = convertAnyListToPurchaseIOSList(result)
-                    continuation.resume(purchases)
+                    continuation.resumeIfActive(purchases)
                 } else {
-                    continuation.resume(emptyList())
+                    continuation.resumeIfActive(emptyList())
                 }
             }
         }
@@ -598,15 +626,15 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @see <a href="https://openiap.dev/docs/apis/ios/get-all-transactions-ios">https://openiap.dev/docs/apis/ios/get-all-transactions-ios</a>
      */
     override suspend fun getAllTransactionsIOS(): List<PurchaseIOS> =
-        suspendCoroutine { continuation ->
+        suspendCancellableCoroutine { continuation ->
             openIapModule.getAllTransactionsIOSWithCompletion { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(error.toPurchaseException())
+                    continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                 } else if (result != null) {
                     val purchases = convertAnyListToPurchaseIOSList(result)
-                    continuation.resume(purchases)
+                    continuation.resumeIfActive(purchases)
                 } else {
-                    continuation.resume(emptyList())
+                    continuation.resumeIfActive(emptyList())
                 }
             }
         }
@@ -616,12 +644,12 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      *
      * @see <a href="https://openiap.dev/docs/apis/ios/get-receipt-data-ios">https://openiap.dev/docs/apis/ios/get-receipt-data-ios</a>
      */
-    override suspend fun getReceiptDataIOS(): String? = suspendCoroutine { continuation ->
+    override suspend fun getReceiptDataIOS(): String? = suspendCancellableCoroutine { continuation ->
         openIapModule.getReceiptDataIOSWithCompletion { result, error ->
             if (error != null) {
-                continuation.resume(null)
+                continuation.resumeIfActive(null)
             } else {
-                continuation.resume(result)
+                continuation.resumeIfActive(result)
             }
         }
     }
@@ -631,15 +659,15 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      *
      * @see <a href="https://openiap.dev/docs/apis/ios/get-promoted-product-ios">https://openiap.dev/docs/apis/ios/get-promoted-product-ios</a>
      */
-    override suspend fun getPromotedProductIOS(): ProductIOS? = suspendCoroutine { continuation ->
+    override suspend fun getPromotedProductIOS(): ProductIOS? = suspendCancellableCoroutine { continuation ->
         openIapModule.getPromotedProductIOSWithCompletion { result, error ->
             if (error != null) {
-                continuation.resumeWithException(error.toPurchaseException())
+                continuation.resumeWithExceptionIfActive(error.toPurchaseException())
             } else if (result != null) {
                 val product = convertAnyToProductIOS(result)
-                continuation.resume(product)
+                continuation.resumeIfActive(product)
             } else {
-                continuation.resume(null)
+                continuation.resumeIfActive(null)
             }
         }
     }
@@ -650,14 +678,14 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @see <a href="https://openiap.dev/docs/apis/get-active-subscriptions">https://openiap.dev/docs/apis/get-active-subscriptions</a>
      */
     override suspend fun getActiveSubscriptions(subscriptionIds: List<String>?): List<ActiveSubscription> =
-        suspendCoroutine { continuation ->
+        suspendCancellableCoroutine { continuation ->
             openIapModule.getActiveSubscriptionsWithCompletion { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(error.toPurchaseException())
+                    continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                     return@getActiveSubscriptionsWithCompletion
                 }
 
-                continuation.resume(filterActiveSubscriptions(result, subscriptionIds))
+                continuation.resumeIfActive(filterActiveSubscriptions(result, subscriptionIds))
             }
         }
 
@@ -667,12 +695,12 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @see <a href="https://openiap.dev/docs/apis/ios/get-app-transaction-ios">https://openiap.dev/docs/apis/ios/get-app-transaction-ios</a>
      */
     override suspend fun getAppTransactionIOS(): AppTransaction? =
-        suspendCoroutine { continuation ->
+        suspendCancellableCoroutine { continuation ->
             // Note: getAppTransactionIOS requires iOS 16.0+
             // The @available annotation on the Swift side handles version checking
             openIapModule.getAppTransactionIOSWithCompletion { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(error.toPurchaseException())
+                    continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                     return@getAppTransactionIOSWithCompletion
                 }
 
@@ -685,7 +713,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     }
                 }
 
-                continuation.resume(appTransaction)
+                continuation.resumeIfActive(appTransaction)
             }
         }
 
@@ -695,15 +723,15 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @see <a href="https://openiap.dev/docs/apis/ios/current-entitlement-ios">https://openiap.dev/docs/apis/ios/current-entitlement-ios</a>
      */
     override suspend fun currentEntitlementIOS(sku: String): PurchaseIOS? =
-        suspendCoroutine { continuation ->
+        suspendCancellableCoroutine { continuation ->
             openIapModule.currentEntitlementIOSWithSku(sku) { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(error.toPurchaseException())
+                    continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                     return@currentEntitlementIOSWithSku
                 }
 
                 val purchase = convertAnyToPurchaseIOS(result)
-                continuation.resume(purchase)
+                continuation.resumeIfActive(purchase)
             }
         }
 
@@ -713,14 +741,14 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @see <a href="https://openiap.dev/docs/apis/ios/get-transaction-jws-ios">https://openiap.dev/docs/apis/ios/get-transaction-jws-ios</a>
      */
     override suspend fun getTransactionJwsIOS(sku: String): String? =
-        suspendCoroutine { continuation ->
+        suspendCancellableCoroutine { continuation ->
             openIapModule.getTransactionJwsIOSWithSku(sku) { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(error.toPurchaseException())
+                    continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                     return@getTransactionJwsIOSWithSku
                 }
 
-                continuation.resume(result)
+                continuation.resumeIfActive(result)
             }
         }
 
@@ -730,26 +758,26 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @see <a href="https://openiap.dev/docs/apis/has-active-subscriptions">https://openiap.dev/docs/apis/has-active-subscriptions</a>
      */
     override suspend fun hasActiveSubscriptions(subscriptionIds: List<String>?): Boolean =
-        suspendCoroutine { continuation ->
+        suspendCancellableCoroutine { continuation ->
             if (subscriptionIds.isNullOrEmpty()) {
                 openIapModule.hasActiveSubscriptionsWithCompletion { hasActive, error ->
                     if (error != null) {
-                        continuation.resumeWithException(error.toPurchaseException())
+                        continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                         return@hasActiveSubscriptionsWithCompletion
                     }
 
-                    continuation.resume(hasActive)
+                    continuation.resumeIfActive(hasActive)
                 }
-                return@suspendCoroutine
+                return@suspendCancellableCoroutine
             }
 
             openIapModule.getActiveSubscriptionsWithCompletion { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(error.toPurchaseException())
+                    continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                     return@getActiveSubscriptionsWithCompletion
                 }
 
-                continuation.resume(filterActiveSubscriptions(result, subscriptionIds).isNotEmpty())
+                continuation.resumeIfActive(filterActiveSubscriptions(result, subscriptionIds).isNotEmpty())
             }
         }
 
@@ -780,14 +808,14 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @see <a href="https://openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios">https://openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios</a>
      */
     override suspend fun isEligibleForIntroOfferIOS(groupID: String): Boolean =
-        suspendCoroutine { continuation ->
+        suspendCancellableCoroutine { continuation ->
             openIapModule.isEligibleForIntroOfferIOSWithGroupID(groupID) { isEligible, error ->
                 if (error != null) {
-                    continuation.resumeWithException(error.toPurchaseException())
+                    continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                     return@isEligibleForIntroOfferIOSWithGroupID
                 }
 
-                continuation.resume(isEligible)
+                continuation.resumeIfActive(isEligible)
             }
         }
 
@@ -797,14 +825,14 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @see <a href="https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios">https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios</a>
      */
     override suspend fun isEligibleForExternalPurchaseCustomLinkIOS(): Boolean =
-        suspendCoroutine { continuation ->
+        suspendCancellableCoroutine { continuation ->
             openIapModule.isEligibleForExternalPurchaseCustomLinkIOSWithCompletion { isEligible, error ->
                 if (error != null) {
-                    continuation.resumeWithException(error.toPurchaseException())
+                    continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                     return@isEligibleForExternalPurchaseCustomLinkIOSWithCompletion
                 }
 
-                continuation.resume(isEligible)
+                continuation.resumeIfActive(isEligible)
             }
         }
 
@@ -816,15 +844,15 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     override suspend fun showExternalPurchaseCustomLinkNoticeIOS(
         noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS
     ): ExternalPurchaseCustomLinkNoticeResultIOS =
-        suspendCoroutine { continuation ->
+        suspendCancellableCoroutine { continuation ->
             openIapModule.showExternalPurchaseCustomLinkNoticeIOSWithNoticeType(noticeType.rawValue) { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(error.toPurchaseException())
+                    continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                     return@showExternalPurchaseCustomLinkNoticeIOSWithNoticeType
                 }
 
                 if (result == null) {
-                    continuation.resume(
+                    continuation.resumeIfActive(
                         ExternalPurchaseCustomLinkNoticeResultIOS(
                             continued = false,
                             error = "Null result from OpenIAP"
@@ -839,7 +867,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 } catch (e: Exception) {
                     ExternalPurchaseCustomLinkNoticeResultIOS(continued = false, error = e.message)
                 }
-                continuation.resume(notice)
+                continuation.resumeIfActive(notice)
             }
         }
 
@@ -851,15 +879,15 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     override suspend fun getExternalPurchaseCustomLinkTokenIOS(
         tokenType: ExternalPurchaseCustomLinkTokenTypeIOS
     ): ExternalPurchaseCustomLinkTokenResultIOS =
-        suspendCoroutine { continuation ->
+        suspendCancellableCoroutine { continuation ->
             openIapModule.getExternalPurchaseCustomLinkTokenIOSWithTokenType(tokenType.rawValue) { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(error.toPurchaseException())
+                    continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                     return@getExternalPurchaseCustomLinkTokenIOSWithTokenType
                 }
 
                 if (result == null) {
-                    continuation.resume(
+                    continuation.resumeIfActive(
                         ExternalPurchaseCustomLinkTokenResultIOS(
                             token = null,
                             error = "Null result from OpenIAP"
@@ -874,7 +902,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 } catch (e: Exception) {
                     ExternalPurchaseCustomLinkTokenResultIOS(token = null, error = e.message)
                 }
-                continuation.resume(tokenResult)
+                continuation.resumeIfActive(tokenResult)
             }
         }
 
@@ -884,14 +912,14 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @see <a href="https://openiap.dev/docs/apis/ios/is-transaction-verified-ios">https://openiap.dev/docs/apis/ios/is-transaction-verified-ios</a>
      */
     override suspend fun isTransactionVerifiedIOS(sku: String): Boolean =
-        suspendCoroutine { continuation ->
+        suspendCancellableCoroutine { continuation ->
             openIapModule.isTransactionVerifiedIOSWithSku(sku) { isVerified, error ->
                 if (error != null) {
-                    continuation.resumeWithException(error.toPurchaseException())
+                    continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                     return@isTransactionVerifiedIOSWithSku
                 }
 
-                continuation.resume(isVerified)
+                continuation.resumeIfActive(isVerified)
             }
         }
 
@@ -901,15 +929,15 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @see <a href="https://openiap.dev/docs/apis/ios/latest-transaction-ios">https://openiap.dev/docs/apis/ios/latest-transaction-ios</a>
      */
     override suspend fun latestTransactionIOS(sku: String): PurchaseIOS? =
-        suspendCoroutine { continuation ->
+        suspendCancellableCoroutine { continuation ->
             openIapModule.latestTransactionIOSWithSku(sku) { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(error.toPurchaseException())
+                    continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                     return@latestTransactionIOSWithSku
                 }
 
                 val purchase = convertAnyToPurchaseIOS(result)
-                continuation.resume(purchase)
+                continuation.resumeIfActive(purchase)
             }
         }
 
@@ -919,10 +947,10 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @see <a href="https://openiap.dev/docs/apis/ios/subscription-status-ios">https://openiap.dev/docs/apis/ios/subscription-status-ios</a>
      */
     override suspend fun subscriptionStatusIOS(sku: String): List<SubscriptionStatusIOS> =
-        suspendCoroutine { continuation ->
+        suspendCancellableCoroutine { continuation ->
             openIapModule.subscriptionStatusIOSWithSku(sku) { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(error.toPurchaseException())
+                    continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                     return@subscriptionStatusIOSWithSku
                 }
 
@@ -935,7 +963,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     }
                 } ?: emptyList()
 
-                continuation.resume(statuses)
+                continuation.resumeIfActive(statuses)
             }
         }
 
@@ -955,16 +983,16 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             )
         }
 
-        return suspendCoroutine { continuation ->
+        return suspendCancellableCoroutine { continuation ->
             openIapModule.verifyPurchaseWithSku(sku) { result, error ->
                 if (error != null) {
-                    continuation.resumeWithException(error.toPurchaseException())
+                    continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                     return@verifyPurchaseWithSku
                 }
 
                 val map = (result as? Map<*, *>)?.mapKeys { it.key.toString() }
                 if (map == null) {
-                    continuation.resumeWithException(
+                    continuation.resumeWithExceptionIfActive(
                         PurchaseException(
                             PurchaseError(
                                 code = ErrorCode.PurchaseVerificationFailed,
@@ -976,9 +1004,9 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 }
 
                 try {
-                    continuation.resume(VerifyPurchaseResultIOS.fromJson(map))
+                    continuation.resumeIfActive(VerifyPurchaseResultIOS.fromJson(map))
                 } catch (e: Exception) {
-                    continuation.resumeWithException(
+                    continuation.resumeWithExceptionIfActive(
                         PurchaseException(
                             PurchaseError(
                                 code = ErrorCode.PurchaseVerificationFailed,
@@ -1031,7 +1059,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             )
         }
 
-        return suspendCoroutine { continuation ->
+        return suspendCancellableCoroutine { continuation ->
             val provider = options.provider.rawValue
             val apiKey = iapkit.apiKey
             val jws = iapkit.apple.jws
@@ -1043,7 +1071,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             ) { result, error ->
                 if (error != null) {
                     val nsError = error
-                    continuation.resumeWithException(
+                    continuation.resumeWithExceptionIfActive(
                         PurchaseException(
                             PurchaseError(
                                 code = ErrorCode.PurchaseVerificationFailed,
@@ -1055,7 +1083,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 }
 
                 if (result == null) {
-                    continuation.resumeWithException(
+                    continuation.resumeWithExceptionIfActive(
                         PurchaseException(
                             PurchaseError(
                                 code = ErrorCode.PurchaseVerificationFailed,
@@ -1088,14 +1116,14 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                         store = store
                     )
 
-                    continuation.resume(
+                    continuation.resumeIfActive(
                         VerifyPurchaseWithProviderResult(
                             iapkit = iapkitResult,
                             provider = options.provider
                         )
                     )
                 } catch (e: Exception) {
-                    continuation.resumeWithException(
+                    continuation.resumeWithExceptionIfActive(
                         PurchaseException(
                             PurchaseError(
                                 code = ErrorCode.PurchaseVerificationFailed,
@@ -1115,13 +1143,9 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     override suspend fun purchaseUpdated(options: PurchaseUpdatedListenerOptions?): Purchase =
         purchaseUpdatedListener(options).first()
 
-    override suspend fun purchaseError(): PurchaseError {
-        throw UnsupportedOperationException("Use purchaseErrorListener Flow instead")
-    }
+    override suspend fun purchaseError(): PurchaseError = purchaseErrorListener.first()
 
-    override suspend fun promotedProductIOS(): String {
-        throw UnsupportedOperationException("Use promotedProductListener Flow instead")
-    }
+    override suspend fun promotedProductIOS(): String = promotedProductListener.filterNotNull().first()
 
     // Cross-platform billing-issue handler — iOS impl backed by StoreKit.Message listener
     // via openIapModule.addSubscriptionBillingIssueListener. Consumers should collect
@@ -1575,10 +1599,10 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @see <a href="https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios">https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios</a>
      */
     override suspend fun presentExternalPurchaseLinkIOS(url: String): ExternalPurchaseLinkResultIOS =
-        suspendCoroutine { continuation ->
+        suspendCancellableCoroutine { continuation ->
             openIapModule.presentExternalPurchaseLinkIOSWithUrl(url) { result, error ->
                 if (error != null) {
-                    continuation.resume(
+                    continuation.resumeIfActive(
                         ExternalPurchaseLinkResultIOS(
                             success = false,
                             error = error.localizedDescription
@@ -1588,7 +1612,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 }
 
                 val resultDict = (result as? Map<*, *>)?.mapKeys { it.key.toString() } ?: emptyMap()
-                continuation.resume(
+                continuation.resumeIfActive(
                     ExternalPurchaseLinkResultIOS(
                         success = resultDict["success"] as? Boolean ?: false,
                         error = resultDict["error"] as? String
@@ -1603,10 +1627,10 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @see <a href="https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios">https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios</a>
      */
     override suspend fun presentExternalPurchaseNoticeSheetIOS(): ExternalPurchaseNoticeResultIOS =
-        suspendCoroutine { continuation ->
+        suspendCancellableCoroutine { continuation ->
             openIapModule.presentExternalPurchaseNoticeSheetIOSWithCompletion { result, error ->
                 if (error != null) {
-                    continuation.resume(
+                    continuation.resumeIfActive(
                         ExternalPurchaseNoticeResultIOS(
                             result = ExternalPurchaseNoticeAction.Dismissed,
                             error = error.localizedDescription
@@ -1621,7 +1645,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     else -> ExternalPurchaseNoticeAction.Dismissed
                 }
 
-                continuation.resume(
+                continuation.resumeIfActive(
                     ExternalPurchaseNoticeResultIOS(
                         result = action,
                         error = resultDict["error"] as? String
@@ -1636,9 +1660,9 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @see <a href="https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios">https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios</a>
      */
     override suspend fun canPresentExternalPurchaseNoticeIOS(): Boolean =
-        suspendCoroutine { continuation ->
+        suspendCancellableCoroutine { continuation ->
             openIapModule.canPresentExternalPurchaseNoticeIOSWithCompletion { canPresent, error ->
-                continuation.resume(error == null && canPresent)
+                continuation.resumeIfActive(error == null && canPresent)
             }
         }
 

@@ -40,11 +40,6 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
       {}; // Track processed error messages
   VerificationMethod _verificationMethod = VerificationMethod.ignore;
 
-  String _formatTokenValue(String? value) {
-    if (value == null || value.isEmpty) return 'none';
-    return value;
-  }
-
   @override
   void initState() {
     super.initState();
@@ -107,7 +102,7 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
         final txId = purchase.transactionIdFor;
         debugPrint('TransactionId: ${txId ?? 'N/A'}');
         debugPrint(
-            'PurchaseToken: ${_formatTokenValue(purchase.purchaseToken)}');
+            'Has purchase credential: ${purchase.purchaseToken?.isNotEmpty ?? false}');
         debugPrint(
           'Purchase data: productId=${purchase.productId}, platform=${purchase.platform}, state=${purchase.purchaseState}',
         );
@@ -159,7 +154,7 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
     debugPrint('  Is acknowledged Android: $acknowledgedAndroid');
     debugPrint('  Transaction ID: ${transactionId ?? 'N/A'}');
     debugPrint(
-        '  Purchase token: ${_formatTokenValue(purchase.purchaseToken)}');
+        '  Has purchase credential: ${purchase.purchaseToken?.isNotEmpty ?? false}');
     debugPrint('  ID: ${purchase.id} (${purchase.id.runtimeType})');
     debugPrint('  IDs array: ${purchase.ids}');
     if (purchase.platform == IapPlatform.IOS) {
@@ -242,7 +237,8 @@ Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpt
     }
 
     debugPrint('✅ Purchase detected as successful: ${purchase.productId}');
-    debugPrint('Purchase token: ${_formatTokenValue(purchase.purchaseToken)}');
+    debugPrint(
+        'Has purchase credential: ${purchase.purchaseToken?.isNotEmpty ?? false}');
     debugPrint('ID: ${purchase.id}'); // OpenIAP standard
     debugPrint('Transaction ID: ${transactionId ?? 'N/A'}');
 
@@ -256,9 +252,6 @@ Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpt
       _isProcessing = false;
       _currentPurchase = purchase;
 
-      final receiptStatus = purchase.purchaseToken ?? 'N/A';
-      final tokenStatus = purchase.purchaseToken ?? 'N/A';
-
       // Format purchase result like KMP-IAP
       _purchaseResult = '''
 ✅ Purchase successful (${defaultTargetPlatform.name})
@@ -266,8 +259,7 @@ Product: ${purchase.productId}
 ID: ${purchase.id.isNotEmpty ? purchase.id : "N/A"}
 Transaction ID: ${transactionId ?? "N/A"}
 Date: ${purchase.transactionDate}
-Receipt: $receiptStatus
-Purchase Token: $tokenStatus
+Purchase credential: ${purchase.purchaseToken?.isNotEmpty == true ? 'Present' : 'Missing'}
       '''
           .trim();
     });
@@ -394,7 +386,7 @@ $_purchaseResult
 
 $statusText Local Verification (iOS)
 Valid: ${iosResult.isValid}
-JWS: ${purchase.purchaseToken ?? 'N/A'}
+JWS: ${purchase.purchaseToken?.isNotEmpty == true ? 'Present' : 'Missing'}
           '''
               .trim();
         });
@@ -432,7 +424,7 @@ Auto Renewing: ${androidResult.autoRenewing}
     try {
       debugPrint('Verifying purchase with IAPKit...');
       final jwsOrToken = purchase.purchaseToken ?? '';
-      debugPrint('Token for verification: $jwsOrToken');
+      debugPrint('Has verification credential: ${jwsOrToken.isNotEmpty}');
 
       final result = await _iap.verifyPurchaseWithProvider(
         provider: PurchaseVerificationProvider.Iapkit,
@@ -444,7 +436,8 @@ Auto Renewing: ${androidResult.autoRenewing}
         ),
       );
 
-      debugPrint('IAPKit verification result: $result');
+      debugPrint(
+          'IAPKit verification completed: hasIapkit=${result.iapkit != null}');
 
       if (result.iapkit != null) {
         final iapkitResult = result.iapkit!;
@@ -859,7 +852,7 @@ Store: ${iapkitResult.store.value}
                                         setState(() {
                                           _purchaseResult = '''
 📊 Available Purchases: ${purchases.length}
-${purchases.map((p) => '- ${p.productId}: ${p.purchaseToken ?? 'none'}').join('\n')}
+${purchases.map((p) => '- ${p.productId}: credential ${p.purchaseToken?.isNotEmpty == true ? 'present' : 'missing'}').join('\n')}
                                           '''
                                               .trim();
                                           _isProcessing = false;

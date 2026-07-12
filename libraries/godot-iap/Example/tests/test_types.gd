@@ -188,14 +188,15 @@ func test_purchase_ios_to_dict() -> void:
 func test_request_purchase_props_creation() -> void:
 	var props = Types.RequestPurchaseProps.new()
 	props.type = Types.ProductQueryType.SUBS
-	props.request = Types.RequestPurchasePropsByPlatforms.new()
-	props.request.google = Types.RequestPurchaseAndroidProps.new()
+	props.request_subscription = Types.RequestSubscriptionPropsByPlatforms.new()
+	props.request_subscription.google = Types.RequestSubscriptionAndroidProps.new()
 
 	var skus: Array[String] = ["subscription_monthly"]
-	props.request.google.skus = skus
+	props.request_subscription.google.skus = skus
 
 	_assert_equal(props.type, Types.ProductQueryType.SUBS, "RequestPurchaseProps type should be SUBS")
-	_assert_equal(props.request.google.skus[0], "subscription_monthly", "Google skus should match")
+	_assert_equal(props.request_subscription.google.skus[0], "subscription_monthly", "Google skus should match")
+	_assert_true(props.to_dict().has("requestSubscription"), "Subscription props should use requestSubscription")
 
 
 # ============================================

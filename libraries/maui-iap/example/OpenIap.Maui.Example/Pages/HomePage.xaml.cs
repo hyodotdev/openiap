@@ -1,34 +1,11 @@
-using OpenIap;
-using OpenIap.Maui;
-
 namespace OpenIap.Maui.Example.Pages;
 
-// Mirrors libraries/expo-iap/example/app/index.tsx — landing menu with a
-// storefront probe in the header.
+// Mirrors libraries/expo-iap/example/app/index.tsx — landing menu.
 public partial class HomePage : ContentPage
 {
     public HomePage()
     {
         InitializeComponent();
-    }
-
-    protected override async void OnAppearing()
-    {
-        base.OnAppearing();
-
-        try
-        {
-            var query = (QueryResolver)OpenIapClient.Instance;
-            var storefront = await query.GetStorefrontAsync();
-            StorefrontLabel.Text = string.IsNullOrEmpty(storefront)
-                ? "Best Practice Implementations"
-                : $"Best Practice Implementations (Store: {storefront})";
-        }
-        catch
-        {
-            // Silently fall back on platforms without a wired binding.
-            StorefrontLabel.Text = "Best Practice Implementations";
-        }
     }
 
     private async void OnAllProductsClicked(object sender, EventArgs e)

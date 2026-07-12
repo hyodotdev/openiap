@@ -80,6 +80,58 @@ describe('Amazon Vega adapter', () => {
     expect(service.getUserData).not.toHaveBeenCalled();
   });
 
+  it('returns the store-authoritative Amazon marketplace', async () => {
+    const service = createService();
+    const module = createVegaIapModule(service);
+
+    await expect(module.getStorefront()).resolves.toBe('US');
+    expect(service.getUserData).toHaveBeenCalledWith({
+      fetchUserProfileAccessConsentStatus: false,
+    });
+  });
+
+  it.each([
+    {responseCode: 1, userData: null},
+    {responseCode: 1, userData: {countryCode: ' ', marketplace: ''}},
+  ])('rejects missing Amazon storefront data', async (response) => {
+    const service = createService();
+    service.getUserData.mockResolvedValueOnce(response);
+    const module = createVegaIapModule(service);
+
+    await expect(module.getStorefront()).rejects.toMatchObject({
+      code: ErrorCode.ServiceError,
+      message: expect.stringContaining('no country code'),
+    });
+  });
+
+  it('maps Amazon user-data parser failures to a storefront error', async () => {
+    const service = createService();
+    service.getUserData.mockRejectedValueOnce(
+      new Error(
+        '[AmazonIAPSDK] Unable to parse the response : userId is not found while parsing Json',
+      ),
+    );
+    const module = createVegaIapModule(service);
+
+    await expect(module.getStorefront()).rejects.toMatchObject({
+      code: ErrorCode.ServiceError,
+      message: expect.stringContaining('no country code'),
+    });
+  });
+
+  it('normalizes non-OpenIAP coded user-data errors', async () => {
+    const service = createService();
+    service.getUserData.mockRejectedValueOnce(
+      Object.assign(new Error('request timed out'), {code: 'ETIMEDOUT'}),
+    );
+    const module = createVegaIapModule(service);
+
+    await expect(module.getStorefront()).rejects.toMatchObject({
+      code: ErrorCode.ServiceError,
+      message: expect.stringContaining('request timed out'),
+    });
+  });
+
   it('maps Vega products to Nitro Android products', async () => {
     const service = createService();
     const module = createVegaIapModule(service);
@@ -195,6 +247,7 @@ describe('Amazon Vega adapter', () => {
       expect.objectContaining({
         productId: 'coins_100',
         purchaseToken: 'receipt-1',
+        currentPlanId: null,
         store: 'amazon',
       }),
     ]);
@@ -406,11 +459,46 @@ describe('Amazon Vega adapter', () => {
       expect(errorListener).toHaveBeenCalledWith(
         expect.objectContaining({
           code: ErrorCode.PurchaseError,
+          productId: 'coins_100',
         }),
       );
     } finally {
       jest.useRealTimers();
     }
+  });
+
+  it('preserves structured purchase diagnostics in Vega error events', async () => {
+    const service = createService();
+    const purchaseError = Object.assign(new Error('query failed'), {
+      code: ErrorCode.QueryProduct,
+      debugMessage: 'store query failed',
+      isEmptyProductList: false,
+      productId: 'coins_100',
+      productIds: ['coins_100', 'coins_200'],
+      productType: 'in-app',
+      responseCode: 7,
+      subResponseCodeAndroid: 'user-ineligible' as const,
+    });
+    service.purchase.mockRejectedValueOnce(purchaseError);
+    const module = createVegaIapModule(service);
+    const errorListener = jest.fn();
+    module.addPurchaseErrorListener(errorListener);
+
+    await expect(
+      module.requestPurchase({android: {skus: ['coins_100']}}),
+    ).rejects.toBe(purchaseError);
+    expect(errorListener).toHaveBeenCalledWith({
+      code: ErrorCode.QueryProduct,
+      debugMessage: 'store query failed',
+      isEmptyProductList: false,
+      message: 'query failed',
+      productId: 'coins_100',
+      productIds: ['coins_100', 'coins_200'],
+      productType: 'in-app',
+      purchaseToken: undefined,
+      responseCode: 7,
+      subResponseCodeAndroid: 'user-ineligible',
+    });
   });
 
   it('does not fulfill recovered purchases before the app finishes them', async () => {

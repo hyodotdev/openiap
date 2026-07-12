@@ -9,7 +9,9 @@ enum ExpoIapLog {
         "apikey",
         "secret",
         "jws",
-        "receiptid",
+        "receipt",
+        "dataandroid",
+        "signatureandroid",
         "userid",
         "password",
         "bearer",
@@ -103,6 +105,16 @@ enum ExpoIapLog {
 
     private static func sanitize(_ value: Any?) -> Any? {
         guard let value else { return nil }
+
+        if let string = value as? String {
+            let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard trimmed.first == "{" || trimmed.first == "[",
+                  let data = trimmed.data(using: .utf8),
+                  let json = try? JSONSerialization.jsonObject(with: data) else {
+                return string
+            }
+            return sanitize(json) ?? string
+        }
 
         if let dictionary = value as? [String: Any] {
             return sanitizeDictionary(dictionary)

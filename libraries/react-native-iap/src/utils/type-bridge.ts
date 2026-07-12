@@ -8,6 +8,7 @@
 import type {
   NitroProduct,
   NitroPurchase,
+  NitroRenewalInfoIOS,
   NitroSubscriptionStatus,
 } from '../specs/RnIap.nitro';
 import type {
@@ -25,6 +26,7 @@ import type {
   Purchase,
   PurchaseAndroid,
   PurchaseIOS,
+  RenewalInfoIOS,
   SubscriptionStatusIOS,
 } from '../types';
 import {RnIapConsole} from './debug';
@@ -189,6 +191,30 @@ function toNullableBoolean(value: unknown): boolean | null {
   if (typeof value === 'number') return value !== 0;
   if (typeof value === 'string') return value.toLowerCase() === 'true';
   return null;
+}
+
+function convertNitroRenewalInfoToRenewalInfoIOS(
+  renewalInfo: NitroRenewalInfoIOS,
+): RenewalInfoIOS {
+  return {
+    autoRenewPreference: toNullableString(renewalInfo.autoRenewPreference),
+    commitmentInfo: renewalInfo.commitmentInfo ?? null,
+    expirationReason: toNullableString(renewalInfo.expirationReason),
+    gracePeriodExpirationDate: toNullableNumber(
+      renewalInfo.gracePeriodExpirationDate,
+    ),
+    isInBillingRetry: toNullableBoolean(renewalInfo.isInBillingRetry),
+    jsonRepresentation: toNullableString(renewalInfo.jsonRepresentation),
+    pendingUpgradeProductId: toNullableString(
+      renewalInfo.pendingUpgradeProductId,
+    ),
+    priceIncreaseStatus: toNullableString(renewalInfo.priceIncreaseStatus),
+    renewalBillingPlanType: renewalInfo.renewalBillingPlanType ?? null,
+    renewalDate: toNullableNumber(renewalInfo.renewalDate),
+    renewalOfferId: toNullableString(renewalInfo.renewalOfferId),
+    renewalOfferType: toNullableString(renewalInfo.renewalOfferType),
+    willAutoRenew: renewalInfo.willAutoRenew ?? false,
+  };
 }
 
 function parseSubscriptionOffers(value?: Nullable<string> | any[]) {
@@ -442,8 +468,13 @@ export function convertNitroPurchaseToPurchase(
       quantity: nitroPurchase.quantity ?? 1,
       purchaseState,
       isAutoRenewing: Boolean(nitroPurchase.isAutoRenewing),
+      currentPlanId: toNullableString(nitroPurchase.currentPlanId),
+      ids: nitroPurchase.ids ?? null,
       // PurchaseIOS requires both id and transactionId (they are the same value)
       transactionId: nitroPurchase.id,
+      advancedCommerceInfoIOS: nitroPurchase.advancedCommerceInfoIOS ?? null,
+      billingPlanTypeIOS: nitroPurchase.billingPlanTypeIOS ?? null,
+      commitmentInfoIOS: nitroPurchase.commitmentInfoIOS ?? null,
       quantityIOS: toNullableNumber(nitroPurchase.quantityIOS),
       originalTransactionDateIOS: toNullableNumber(
         nitroPurchase.originalTransactionDateIOS,
@@ -488,39 +519,7 @@ export function convertNitroPurchaseToPurchase(
         nitroPurchase.webOrderLineItemIdIOS,
       ),
       renewalInfoIOS: nitroPurchase.renewalInfoIOS
-        ? {
-            autoRenewPreference: toNullableString(
-              nitroPurchase.renewalInfoIOS.autoRenewPreference,
-            ),
-            expirationReason: toNullableString(
-              nitroPurchase.renewalInfoIOS.expirationReason,
-            ),
-            gracePeriodExpirationDate: toNullableNumber(
-              nitroPurchase.renewalInfoIOS.gracePeriodExpirationDate,
-            ),
-            isInBillingRetry: toNullableBoolean(
-              nitroPurchase.renewalInfoIOS.isInBillingRetry,
-            ),
-            jsonRepresentation: toNullableString(
-              nitroPurchase.renewalInfoIOS.jsonRepresentation,
-            ),
-            pendingUpgradeProductId: toNullableString(
-              nitroPurchase.renewalInfoIOS.pendingUpgradeProductId,
-            ),
-            priceIncreaseStatus: toNullableString(
-              nitroPurchase.renewalInfoIOS.priceIncreaseStatus,
-            ),
-            renewalDate: toNullableNumber(
-              nitroPurchase.renewalInfoIOS.renewalDate,
-            ),
-            renewalOfferId: toNullableString(
-              nitroPurchase.renewalInfoIOS.renewalOfferId,
-            ),
-            renewalOfferType: toNullableString(
-              nitroPurchase.renewalInfoIOS.renewalOfferType,
-            ),
-            willAutoRenew: nitroPurchase.renewalInfoIOS.willAutoRenew ?? false,
-          }
+        ? convertNitroRenewalInfoToRenewalInfoIOS(nitroPurchase.renewalInfoIOS)
         : null,
     };
     return iosPurchase;
@@ -537,6 +536,8 @@ export function convertNitroPurchaseToPurchase(
     quantity: nitroPurchase.quantity ?? 1,
     purchaseState,
     isAutoRenewing: Boolean(nitroPurchase.isAutoRenewing),
+    currentPlanId: toNullableString(nitroPurchase.currentPlanId),
+    ids: nitroPurchase.ids ?? null,
     // PurchaseAndroid has optional transactionId (may differ from id/orderId)
     transactionId: toNullableString(nitroPurchase.id),
     autoRenewingAndroid: toNullableBoolean(
@@ -558,6 +559,8 @@ export function convertNitroPurchaseToPurchase(
       nitroPurchase.developerPayloadAndroid,
     ),
     isSuspendedAndroid: toNullableBoolean(nitroPurchase.isSuspendedAndroid),
+    pendingPurchaseUpdateAndroid:
+      nitroPurchase.pendingPurchaseUpdateAndroid ?? null,
   };
 
   return androidPurchase;
@@ -572,13 +575,7 @@ export function convertNitroSubscriptionStatusToSubscriptionStatusIOS(
   return {
     state: String(nitro.state ?? ''),
     renewalInfo: nitro.renewalInfo
-      ? {
-          autoRenewPreference: toNullableString(
-            nitro.renewalInfo.autoRenewPreference,
-          ),
-          jsonRepresentation: JSON.stringify(nitro.renewalInfo),
-          willAutoRenew: Boolean(nitro.renewalInfo.autoRenewStatus),
-        }
+      ? convertNitroRenewalInfoToRenewalInfoIOS(nitro.renewalInfo)
       : undefined,
   };
 }

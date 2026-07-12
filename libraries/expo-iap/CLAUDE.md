@@ -39,7 +39,7 @@
 Before committing any changes:
 
 1. Run `bun run lint` to ensure code quality
-2. Run `bun run typecheck` to verify TypeScript types
+2. Run `bun run lint:tsc` to verify TypeScript types
 3. Run `bun run test` to verify all tests pass (Note: Use `bun run test`, not `bun test`)
 4. **IMPORTANT**: Run tests in the example directory as well:
    - `cd example && bun run test`

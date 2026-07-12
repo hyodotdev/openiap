@@ -696,7 +696,7 @@ public partial class SubscriptionFlowPage : ContentPage
             var mutate = (MutationResolver)OpenIapClient.Instance;
             if (_verification == VerificationMethod.Local)
             {
-                var result = await mutate.VerifyPurchaseAsync(new VerifyPurchaseProps
+                await mutate.VerifyPurchaseAsync(new VerifyPurchaseProps
                 {
                     Apple = new VerifyPurchaseAppleOptions { Sku = common.ProductId },
                     Google = new VerifyPurchaseGoogleOptions
@@ -708,7 +708,7 @@ public partial class SubscriptionFlowPage : ContentPage
                         IsSub = true,
                     },
                 });
-                Console.WriteLine($"[SubscriptionFlow] local verify: {result}");
+                Console.WriteLine("[SubscriptionFlow] local verification completed");
             }
             else if (_verification == VerificationMethod.Iapkit)
             {
@@ -885,7 +885,7 @@ public partial class SubscriptionFlowPage : ContentPage
             if (sand.SubscriptionOfferDetailsAndroid is { Count: > 0 } details)
             {
                 AppendDetail($"Android Offer Tokens ({details.Count}):",
-                    string.Join(", ", details.Select(o => $"{o.BasePlanId}: {Mask(o.OfferToken)}")));
+                    string.Join(", ", details.Select(o => $"{o.BasePlanId}: present")));
             }
 
             if (sand.SubscriptionOffers is { Count: > 0 } offers)
@@ -1102,7 +1102,7 @@ public partial class SubscriptionFlowPage : ContentPage
         var name = offer.BasePlanIdAndroid ?? offer.Id;
         var token = string.IsNullOrEmpty(offer.OfferTokenAndroid)
             ? null
-            : $" token={Mask(offer.OfferTokenAndroid)}";
+            : " token=present";
         return $"{name}: {offer.DisplayPrice}{token}";
     }
 
@@ -1154,9 +1154,6 @@ public partial class SubscriptionFlowPage : ContentPage
 
     private static string FormatDate(double milliseconds)
         => DateTimeOffset.FromUnixTimeMilliseconds((long)milliseconds).LocalDateTime.ToString("d");
-
-    private static string Mask(string value)
-        => value.Length <= 12 ? value : $"{value[..6]}…{value[^4..]}";
 
     private static bool IsApplePlatform
     {

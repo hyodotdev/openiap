@@ -20,7 +20,7 @@
                    Text="https://kit.openiap.dev"
                    FontSize="14" />
             <Label Text="IAPKit API Key" FontAttributes="Bold" Margin="0,6,0,0" />
-            <Entry x:Name="ApiKeyEntry" Placeholder="iapkit_*" FontSize="14" />
+            <Entry x:Name="ApiKeyEntry" Placeholder="iapkit_*" FontSize="14" IsPassword="True" />
             <Label x:Name="EndpointLabel"
                    Text="api key: MISSING"
                    FontSize="12"

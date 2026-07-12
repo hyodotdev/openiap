@@ -2,11 +2,16 @@ import {
   convertNitroProductToProduct,
   convertProductToProductSubscription,
   convertNitroPurchaseToPurchase,
+  convertNitroSubscriptionStatusToSubscriptionStatusIOS,
   validateNitroProduct,
   validateNitroPurchase,
   checkTypeSynchronization,
 } from '../../utils/type-bridge';
-import type {NitroProduct, NitroPurchase} from '../../specs/RnIap.nitro';
+import type {
+  NitroProduct,
+  NitroPurchase,
+  NitroSubscriptionStatus,
+} from '../../specs/RnIap.nitro';
 
 describe('type-bridge utilities', () => {
   describe('convertNitroProductToProduct', () => {
@@ -416,6 +421,57 @@ describe('type-bridge utilities', () => {
       expect(result.purchaseState).toBe('purchased');
     });
 
+    it('preserves common and StoreKit purchase metadata', () => {
+      const nitroPurchase = {
+        id: 'tx-ios-metadata',
+        productId: 'sku-ios',
+        transactionDate: 123,
+        platform: 'ios',
+        store: 'apple',
+        quantity: 1,
+        purchaseState: 'purchased',
+        isAutoRenewing: true,
+        currentPlanId: 'premium-monthly',
+        ids: ['sku-ios', 'item-addon'],
+        advancedCommerceInfoIOS: {items: []},
+        billingPlanTypeIOS: 'monthly',
+        commitmentInfoIOS: {
+          billingPeriodNumber: 3,
+          commitmentExpiresDate: 456,
+          commitmentPrice: 9.99,
+          totalBillingPeriods: 12,
+        },
+        renewalInfoIOS: {
+          willAutoRenew: true,
+          commitmentInfo: {
+            commitmentAutoRenewProductId: 'sku-ios',
+            commitmentAutoRenewStatus: true,
+            commitmentRenewalBillingPlanType: 'monthly',
+            commitmentRenewalDate: 789,
+            commitmentRenewalPrice: 9.99,
+          },
+          renewalBillingPlanType: 'monthly',
+        },
+      } as NitroPurchase;
+
+      const result = convertNitroPurchaseToPurchase(nitroPurchase);
+      expect(result).toEqual(
+        expect.objectContaining({
+          currentPlanId: 'premium-monthly',
+          ids: ['sku-ios', 'item-addon'],
+          advancedCommerceInfoIOS: {items: []},
+          billingPlanTypeIOS: 'monthly',
+          commitmentInfoIOS: expect.objectContaining({totalBillingPeriods: 12}),
+          renewalInfoIOS: expect.objectContaining({
+            commitmentInfo: expect.objectContaining({
+              commitmentAutoRenewProductId: 'sku-ios',
+            }),
+            renewalBillingPlanType: 'monthly',
+          }),
+        }),
+      );
+    });
+
     it('normalizes restored purchases to purchased state', () => {
       // Test legacy 'restored' state from native layer (not part of PurchaseState type)
       const nitroPurchase = {
@@ -472,6 +528,37 @@ describe('type-bridge utilities', () => {
       expect(result.autoRenewingAndroid).toBe(true);
     });
 
+    it('preserves Android pending purchase metadata', () => {
+      const nitroPurchase = {
+        id: 'tx-pending-update',
+        productId: 'sku-old',
+        transactionDate: 456,
+        platform: 'android',
+        store: 'google',
+        quantity: 1,
+        purchaseState: 'pending',
+        isAutoRenewing: true,
+        currentPlanId: 'premium-yearly',
+        ids: ['sku-old', 'sku-new'],
+        pendingPurchaseUpdateAndroid: {
+          products: ['sku-new'],
+          purchaseToken: 'pending-token',
+        },
+      } as NitroPurchase;
+
+      const result = convertNitroPurchaseToPurchase(nitroPurchase);
+      expect(result).toEqual(
+        expect.objectContaining({
+          currentPlanId: 'premium-yearly',
+          ids: ['sku-old', 'sku-new'],
+          pendingPurchaseUpdateAndroid: {
+            products: ['sku-new'],
+            purchaseToken: 'pending-token',
+          },
+        }),
+      );
+    });
+
     it('preserves Amazon store on Android purchases', () => {
       const nitroPurchase: NitroPurchase = {
         id: 'receipt-amazon',
@@ -487,6 +574,48 @@ describe('type-bridge utilities', () => {
 
       const result = convertNitroPurchaseToPurchase(nitroPurchase);
       expect(result.store).toBe('amazon');
+    });
+  });
+
+  describe('convertNitroSubscriptionStatusToSubscriptionStatusIOS', () => {
+    it('preserves billing retry and commitment renewal metadata', () => {
+      const nitroStatus: NitroSubscriptionStatus = {
+        state: 1,
+        platform: 'ios',
+        renewalInfo: {
+          willAutoRenew: true,
+          expirationReason: 'billing-error',
+          isInBillingRetry: true,
+          jsonRepresentation: '{"status":"billing-retry"}',
+          renewalBillingPlanType: 'monthly',
+          renewalDate: 456,
+          commitmentInfo: {
+            commitmentAutoRenewProductId: 'premium_monthly',
+            commitmentAutoRenewStatus: true,
+            commitmentRenewalBillingPlanType: 'monthly',
+            commitmentRenewalDate: 123,
+            commitmentRenewalPrice: 9.99,
+          },
+        },
+      };
+
+      expect(
+        convertNitroSubscriptionStatusToSubscriptionStatusIOS(nitroStatus),
+      ).toEqual(
+        expect.objectContaining({
+          renewalInfo: expect.objectContaining({
+            isInBillingRetry: true,
+            expirationReason: 'billing-error',
+            jsonRepresentation: '{"status":"billing-retry"}',
+            renewalBillingPlanType: 'monthly',
+            renewalDate: 456,
+            willAutoRenew: true,
+            commitmentInfo: expect.objectContaining({
+              commitmentAutoRenewProductId: 'premium_monthly',
+            }),
+          }),
+        }),
+      );
     });
   });
 

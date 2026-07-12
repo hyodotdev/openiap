@@ -37,8 +37,8 @@ import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
 import dev.hyo.openiap.BillingChoiceImageLayoutAndroid as OpenIapBillingChoiceImageLayout
-import dev.hyo.openiap.BillingProgramInformationDialogParamsAndroid as OpenIapBillingProgramInformationDialogParams
 import dev.hyo.openiap.BillingProgramAndroid as OpenIapBillingProgram
+import dev.hyo.openiap.BillingProgramInformationDialogParamsAndroid as OpenIapBillingProgramInformationDialogParams
 import dev.hyo.openiap.DeveloperBillingTypeAndroid as OpenIapDeveloperBillingType
 import dev.hyo.openiap.ExternalLinkLaunchModeAndroid as OpenIapExternalLinkLaunchMode
 import dev.hyo.openiap.ExternalLinkTypeAndroid as OpenIapExternalLinkType
@@ -46,6 +46,15 @@ import dev.hyo.openiap.GetBillingChoiceInfoParamsAndroid as OpenIapGetBillingCho
 import dev.hyo.openiap.InAppMessageCategoryAndroid as OpenIapInAppMessageCategory
 import dev.hyo.openiap.InAppMessageParamsAndroid as OpenIapInAppMessageParams
 import dev.hyo.openiap.LaunchExternalLinkParamsAndroid as OpenIapLaunchExternalLinkParams
+
+internal suspend fun endExpoConnectionWithCleanup(
+    endConnection: suspend () -> Boolean,
+    cleanup: () -> Unit,
+): Boolean = try {
+    endConnection()
+} finally {
+    cleanup()
+}
 
 class ExpoIapModule : Module() {
     companion object {
@@ -69,7 +78,7 @@ class ExpoIapModule : Module() {
 
     // Pass openIap directly to OpenIapStore to avoid reflection-based module loading
     private val openIapStore: OpenIapStore by lazy { OpenIapStore(openIap) }
-    private var listenersAttached = false
+    private var listenerHandles: ExpoIapHelper.ListenerHandles? = null
     private val pendingEvents = ConcurrentLinkedQueue<Pair<String, Map<String, Any?>>>()
     private val connectionReady = AtomicBoolean(false)
     private val connectionMutex = Mutex()
@@ -115,20 +124,20 @@ class ExpoIapModule : Module() {
                             }
 
                             // Attach listeners early to avoid races during init
-                            if (!listenersAttached) {
-                                listenersAttached = true
-                                ExpoIapHelper.setupListeners(
-                                    openIap,
-                                    this@ExpoIapModule,
-                                    scope,
-                                    connectionReady,
-                                    pendingEvents,
-                                    EVENT_PURCHASE_UPDATED,
-                                    EVENT_PURCHASE_ERROR,
-                                    EVENT_USER_CHOICE_BILLING,
-                                    EVENT_DEVELOPER_PROVIDED_BILLING,
-                                    EVENT_SUBSCRIPTION_BILLING_ISSUE,
-                                )
+                            if (listenerHandles == null) {
+                                listenerHandles =
+                                    ExpoIapHelper.setupListeners(
+                                        openIap,
+                                        this@ExpoIapModule,
+                                        scope,
+                                        connectionReady,
+                                        pendingEvents,
+                                        EVENT_PURCHASE_UPDATED,
+                                        EVENT_PURCHASE_ERROR,
+                                        EVENT_USER_CHOICE_BILLING,
+                                        EVENT_DEVELOPER_PROVIDED_BILLING,
+                                        EVENT_SUBSCRIPTION_BILLING_ISSUE,
+                                    )
                             }
 
                             // Parse config from Map to InitConnectionConfig
@@ -166,14 +175,27 @@ class ExpoIapModule : Module() {
                 ExpoIapLog.payload("endConnection", null)
                 scope.launch {
                     connectionMutex.withLock {
-                        runCatching { openIap.endConnection() }
-                        ExpoIapHelper.cleanupListeners(openIap)
-                        // Reset connection state and clear any buffered events
-                        connectionReady.set(false)
-                        pendingEvents.clear()
-                        listenersAttached = false
-                        ExpoIapLog.result("endConnection", true)
-                        promise.resolve(true)
+                        try {
+                            val result = endExpoConnectionWithCleanup(
+                                endConnection = { openIap.endConnection() },
+                                cleanup = {
+                                    ExpoIapHelper.cleanupListeners(openIap, listenerHandles)
+                                    listenerHandles = null
+                                    PromiseUtils.rejectAllPendingPromises()
+                                    connectionReady.set(false)
+                                    pendingEvents.clear()
+                                },
+                            )
+                            ExpoIapLog.result("endConnection", result)
+                            promise.resolve(result)
+                        } catch (error: Exception) {
+                            ExpoIapLog.failure("endConnection", error)
+                            promise.reject(
+                                OpenIapError.ServiceDisconnected.CODE,
+                                error.message,
+                                error,
+                            )
+                        }
                     }
                 }
             }
@@ -198,7 +220,26 @@ class ExpoIapModule : Module() {
                         promise.resolve(payload)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("fetchProducts", e)
-                        promise.reject(OpenIapError.QueryProduct.CODE, e.message, null)
+                        val errorMap =
+                            if (e is OpenIapError) {
+                                ExpoIapHelper.serializeOpenIapError(e)
+                            } else {
+                                mapOf(
+                                    "code" to OpenIapError.QueryProduct.CODE,
+                                    "message" to "Failed to query products",
+                                    "debugMessage" to e.message,
+                                    "platform" to "android",
+                                    "productIds" to skuArr.toList(),
+                                    "productType" to type,
+                                )
+                            }
+                        val errorCode =
+                            errorMap["code"] as? String ?: OpenIapError.QueryProduct.CODE
+                        promise.reject(
+                            errorCode,
+                            ExpoIapHelper.serializeErrorEnvelope(errorMap),
+                            null,
+                        )
                     }
                 }
             }
@@ -344,7 +385,7 @@ class ExpoIapModule : Module() {
                         ExpoIapLog.failure("requestPurchase", e)
                         val errorMap =
                             if (e is OpenIapError) {
-                                e.toJSON()
+                                ExpoIapHelper.serializeOpenIapError(e)
                             } else {
                                 mapOf(
                                     "code" to OpenIapError.PurchaseFailed.CODE,
@@ -367,7 +408,7 @@ class ExpoIapModule : Module() {
                         }
                         ExpoIapHelper.rejectPurchasePromises(
                             errorCode,
-                            e.message,
+                            ExpoIapHelper.serializeErrorEnvelope(errorMap),
                             null,
                         )
                     }
@@ -455,7 +496,10 @@ class ExpoIapModule : Module() {
                         // Note: OpenIapModule.createAlternativeBillingReportingToken() doesn't accept sku parameter
                         // The sku parameter is ignored for now - may be used in future versions
                         val token = openIap.createAlternativeBillingReportingToken()
-                        ExpoIapLog.result("createAlternativeBillingTokenAndroid", token)
+                        ExpoIapLog.result(
+                            "createAlternativeBillingTokenAndroid",
+                            if (token.isNullOrBlank()) "<empty>" else "<token>",
+                        )
                         promise.resolve(token)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("createAlternativeBillingTokenAndroid", e)
@@ -599,13 +643,17 @@ class ExpoIapModule : Module() {
                         val request =
                             OpenIapGetBillingChoiceInfoParams(
                                 billingProgram = mapBillingProgram(params["billingProgram"] as? String ?: "billing-choice"),
-                                playBillingChoiceImageLayout = mapBillingChoiceImageLayout(
-                                    params["playBillingChoiceImageLayout"] as? String ?: "rectangular-four-by-one",
-                                ),
+                                playBillingChoiceImageLayout =
+                                    mapBillingChoiceImageLayout(
+                                        params["playBillingChoiceImageLayout"] as? String ?: "rectangular-four-by-one",
+                                    ),
                                 userLocale = params["userLocale"] as? String,
                             )
                         val result = openIapStore.getBillingChoiceInfo(request)
-                        ExpoIapLog.result("getBillingChoiceInfoAndroid", mapOf("hasImageUrl" to result.playBillingChoiceImageUrl.isNotBlank()))
+                        ExpoIapLog.result(
+                            "getBillingChoiceInfoAndroid",
+                            mapOf("hasImageUrl" to result.playBillingChoiceImageUrl.isNotBlank()),
+                        )
                         promise.resolve(result.toJson())
                     } catch (e: Exception) {
                         ExpoIapLog.failure("getBillingChoiceInfoAndroid", e)
@@ -614,7 +662,9 @@ class ExpoIapModule : Module() {
                 }
             }
 
-            AsyncFunction("createBillingProgramReportingDetailsAndroid") { program: String, developerBillingType: String?, promise: Promise ->
+            AsyncFunction(
+                "createBillingProgramReportingDetailsAndroid",
+            ) { program: String, developerBillingType: String?, promise: Promise ->
                 ExpoIapLog.payload(
                     "createBillingProgramReportingDetailsAndroid",
                     mapOf("program" to program, "developerBillingType" to developerBillingType),
@@ -693,8 +743,9 @@ class ExpoIapModule : Module() {
                         val categories =
                             (params?.get("categories") as? List<*>)
                                 ?.map { entry ->
-                                    val category = entry as? String
-                                        ?: throw IllegalArgumentException("In-app message category must be a string: $entry")
+                                    val category =
+                                        entry as? String
+                                            ?: throw IllegalArgumentException("In-app message category must be a string: $entry")
                                     mapInAppMessageCategory(category)
                                         ?: throw IllegalArgumentException("Unknown in-app message category: $category")
                                 }
@@ -761,7 +812,11 @@ class ExpoIapModule : Module() {
             }
 
             OnDestroy {
-                ExpoIapHelper.cleanupListeners(openIap)
+                ExpoIapHelper.cleanupListeners(openIap, listenerHandles)
+                listenerHandles = null
+                connectionReady.set(false)
+                pendingEvents.clear()
+                PromiseUtils.rejectAllPendingPromises()
                 job.cancel()
             }
         }

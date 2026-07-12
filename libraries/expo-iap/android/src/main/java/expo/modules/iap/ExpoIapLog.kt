@@ -12,7 +12,9 @@ internal object ExpoIapLog {
         "apikey",
         "secret",
         "jws",
-        "receiptid",
+        "receipt",
+        "dataandroid",
+        "signatureandroid",
         "userid",
         "password",
         "bearer"
@@ -54,7 +56,7 @@ internal object ExpoIapLog {
         }
     }
 
-    private fun stringify(value: Any?): String {
+    internal fun stringify(value: Any?): String {
         val sanitized = sanitize(value) ?: return "null"
         return when (sanitized) {
             is String -> sanitized
@@ -66,14 +68,31 @@ internal object ExpoIapLog {
     }
 
     private fun sanitize(value: Any?): Any? {
-        if (value == null) return null
+        if (value == null || value === JSONObject.NULL) return null
 
         return when (value) {
+            is String -> sanitizeJsonString(value)
+            is JSONObject -> sanitizeMap(
+                value.keys().asSequence().associateWith(value::opt),
+            )
+            is JSONArray -> (0 until value.length()).mapNotNull { sanitize(value.opt(it)) }
             is Map<*, *> -> sanitizeMap(value)
             is List<*> -> value.mapNotNull { sanitize(it) }
             is Array<*> -> value.mapNotNull { sanitize(it) }
             else -> value
         }
+    }
+
+    private fun sanitizeJsonString(value: String): Any {
+        val trimmed = value.trim()
+        val json = runCatching {
+            when (trimmed.firstOrNull()) {
+                '{' -> JSONObject(trimmed)
+                '[' -> JSONArray(trimmed)
+                else -> null
+            }
+        }.getOrNull() ?: return value
+        return sanitize(json) ?: value
     }
 
     private fun sanitizeMap(source: Map<*, *>): Map<String, Any?> {

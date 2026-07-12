@@ -35,6 +35,7 @@ import {
   hasActiveSubscriptions,
   verifyPurchase,
   verifyPurchaseWithProvider,
+  ErrorCode,
 } from '../index';
 import * as iosMod from '../modules/ios';
 import * as androidMod from '../modules/android';
@@ -233,7 +234,17 @@ describe('Public API (index.ts)', () => {
         expect.any(Function),
       );
       const passed = addListener.mock.calls[0][1];
-      const err = {message: 'm', code: 'UNKNOWN'} as any;
+      const err = {
+        message: 'm',
+        code: 'query-product',
+        responseCode: 7,
+        debugMessage: 'query failed',
+        productId: 'sku1',
+        productIds: ['sku1', 'sku2'],
+        productType: 'subs',
+        isEmptyProductList: false,
+        subResponseCodeAndroid: 'user-ineligible',
+      } as any;
       passed(err);
       expect(fn).toHaveBeenCalledWith(err);
     });
@@ -496,6 +507,30 @@ describe('Public API (index.ts)', () => {
         {platform: 'ios', id: 'b'},
       ]);
     });
+
+    it('restores Android query diagnostics from the native error envelope', async () => {
+      (Platform as any).OS = 'android';
+      (Platform as any).select = (obj: any) => obj.android;
+      const payload = {
+        code: 'query-product',
+        message: 'Failed to query products',
+        debugMessage: 'Item unavailable',
+        responseCode: 4,
+        productIds: ['missing'],
+        productType: 'subs',
+        isEmptyProductList: false,
+        platform: 'android',
+      };
+      (ExpoIapModule.fetchProducts as jest.Mock) = jest
+        .fn()
+        .mockRejectedValue(
+          new Error(`OPENIAP_ERROR_JSON:${JSON.stringify(payload)}`),
+        );
+
+      await expect(
+        fetchProducts({skus: ['missing'], type: 'subs'}),
+      ).rejects.toMatchObject(payload);
+    });
   });
 
   describe('requestPurchase', () => {
@@ -549,6 +584,37 @@ describe('Public API (index.ts)', () => {
       });
 
       expect(res).toEqual([{id: 'a', platform: 'ios'}]);
+    });
+
+    it('restores iOS purchase diagnostics from the native error envelope', async () => {
+      (Platform as any).OS = 'ios';
+      const payload = {
+        code: 'sku-not-found',
+        message: 'Product not found',
+        debugMessage: 'StoreKit returned no product',
+        productId: 'missing_sku',
+        platform: 'ios',
+      };
+      (ExpoIapModule.requestPurchase as jest.Mock) = jest
+        .fn()
+        .mockRejectedValue(
+          new Error(
+            `Call rejected.\n→ Caused by: OPENIAP_ERROR_JSON:${JSON.stringify(
+              payload,
+            )}`,
+          ),
+        );
+
+      await expect(
+        requestPurchase({
+          request: {ios: {sku: 'missing_sku'}},
+          type: 'in-app',
+        }),
+      ).rejects.toMatchObject({
+        ...payload,
+        productIds: ['missing_sku'],
+        productType: 'in-app',
+      });
     });
 
     it('returns empty array when iOS subs resolves null', async () => {
@@ -1110,7 +1176,6 @@ describe('Public API (index.ts)', () => {
         delete (ExpoIapModule as any).USING_ONSIDE_SDK;
       }
     });
-
   });
 
   describe('finishTransaction', () => {
@@ -1248,6 +1313,51 @@ describe('Public API (index.ts)', () => {
       expect(res).toBe('CA');
 
       delete (ExpoIapModule as any).getStorefront;
+    });
+
+    it.each([null, undefined, '', '   '])(
+      'getStorefront rejects an empty native value (%p)',
+      async (value) => {
+        (ExpoIapModule as any).getStorefront = jest.fn(() => value);
+
+        await expect(getStorefront()).rejects.toMatchObject({
+          code: ErrorCode.ServiceError,
+          message: expect.stringContaining('no country code'),
+        });
+
+        delete (ExpoIapModule as any).getStorefront;
+      },
+    );
+
+    it('getStorefront rejects when the native method is missing', async () => {
+      delete (ExpoIapModule as any).getStorefront;
+
+      await expect(getStorefront()).rejects.toMatchObject({
+        code: ErrorCode.FeatureNotSupported,
+        message: expect.stringContaining('not available on this build'),
+      });
+    });
+
+    it('getStorefront normalizes native exceptions', async () => {
+      (ExpoIapModule as any).getStorefront = jest.fn(() => {
+        throw new Error('storefront exploded');
+      });
+
+      await expect(getStorefront()).rejects.toMatchObject({
+        code: ErrorCode.ServiceError,
+        debugMessage: 'storefront exploded',
+      });
+
+      delete (ExpoIapModule as any).getStorefront;
+    });
+
+    it('getStorefront rejects unsupported platforms', async () => {
+      (Platform as any).OS = 'web';
+
+      await expect(getStorefront()).rejects.toMatchObject({
+        code: ErrorCode.FeatureNotSupported,
+        message: expect.stringContaining('not supported on web'),
+      });
     });
   });
 

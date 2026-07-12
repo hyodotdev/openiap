@@ -264,7 +264,7 @@ export default function AvailablePurchases() {
     console.log(
       '[AVAILABLE-PURCHASES] subscriptions (products):',
       subscriptions.length,
-      subscriptions,
+      'items',
     );
   }, [subscriptions]);
 
@@ -454,9 +454,7 @@ export default function AvailablePurchases() {
                 {selectedSubscription.purchaseToken && (
                   <View style={styles.purchaseRow}>
                     <Text style={styles.label}>Purchase Token</Text>
-                    <Text style={styles.value}>
-                      {selectedSubscription.purchaseToken}
-                    </Text>
+                    <Text style={styles.value}>Present</Text>
                   </View>
                 )}
                 <View style={styles.purchaseRow}>

@@ -59,6 +59,22 @@ function isSubscriptionFlowProduct(productId: string): boolean {
   );
 }
 
+function stringifyForDisplay(value: unknown): string {
+  return (
+    JSON.stringify(
+      value,
+      (key, item) =>
+        item &&
+        /(?:token|apiKey|signatureAndroid|dataAndroid|receipt|jws|jsonRepresentation|rawSignedPayload)/i.test(
+          key,
+        )
+          ? 'Present'
+          : item,
+      2,
+    ) ?? ''
+  );
+}
+
 /**
  * Subscription Flow Example - Subscription Products
  *
@@ -249,8 +265,8 @@ function SubscriptionFlow({
         message: canUpgrade
           ? 'Upgrade available'
           : isDowngrade
-            ? 'Downgrade option'
-            : undefined,
+          ? 'Downgrade option'
+          : undefined,
       };
     },
     [getCurrentSubscription, isCancelled],
@@ -534,7 +550,7 @@ function SubscriptionFlow({
     const subscription = selectedSubscription;
     if (!subscription) return null;
 
-    const jsonString = JSON.stringify(subscription, null, 2);
+    const jsonString = stringifyForDisplay(subscription);
 
     const copyToClipboard = async () => {
       try {
@@ -547,8 +563,6 @@ function SubscriptionFlow({
 
     const logToConsole = () => {
       console.log('=== SUBSCRIPTION DATA ===');
-      console.log(subscription);
-      console.log('=== SUBSCRIPTION JSON ===');
       console.log(jsonString);
       Alert.alert('Console', 'Subscription data logged to console');
     };
@@ -864,8 +878,8 @@ function SubscriptionFlow({
               {verificationMethod === 'ignore'
                 ? '❌ None (Skip)'
                 : verificationMethod === 'local'
-                  ? '📱 Local (Device)'
-                  : '☁️ IAPKit (Server)'}
+                ? '📱 Local (Device)'
+                : '☁️ IAPKit (Server)'}
             </Text>
             <Text style={styles.verificationButtonIcon}>▼</Text>
           </TouchableOpacity>
@@ -1132,7 +1146,7 @@ function SubscriptionFlow({
                         onPress={() => {
                           Alert.alert(
                             'Renewal Info Details',
-                            JSON.stringify(renewalInfo, null, 2),
+                            stringifyForDisplay(renewalInfo),
                             [{text: 'OK'}],
                           );
                         }}
@@ -1222,7 +1236,7 @@ function SubscriptionFlow({
                         onPress={() => {
                           Alert.alert(
                             'Renewal Info Details',
-                            JSON.stringify(renewalInfo, null, 2),
+                            stringifyForDisplay(renewalInfo),
                             [{text: 'OK'}],
                           );
                         }}
@@ -1579,12 +1593,7 @@ function SubscriptionFlowContainer() {
     // Android: purchaseState check
     // ------------------------------------------------------------
     onPurchaseSuccess: async (purchase) => {
-      const {purchaseToken: tokenToMask, ...rest} = purchase as any;
-      const masked = {
-        ...rest,
-        ...(tokenToMask ? {purchaseToken: 'hidden'} : {}),
-      };
-      console.log('Subscription successful:', masked);
+      console.log('Subscription successful:', purchase.productId);
       console.log('[SubscriptionFlow] onPurchaseSuccess called');
       console.log(
         '[SubscriptionFlow] Current verificationMethod ref:',
@@ -1621,9 +1630,9 @@ function SubscriptionFlowContainer() {
       const normalizedPurchaseStore = purchaseStore?.toLowerCase() ?? '';
       const hasAndroidPurchaseIdentity = Boolean(
         purchase.purchaseToken ||
-        purchase.id ||
-        purchase.transactionId ||
-        purchase.productId,
+          purchase.id ||
+          purchase.transactionId ||
+          purchase.productId,
       );
 
       if (Platform.OS === 'ios' && purchasePlatform === 'ios') {
@@ -1637,11 +1646,11 @@ function SubscriptionFlowContainer() {
         isPurchased = hasValidToken || hasValidTransactionId;
         isRestoration = Boolean(
           'originalTransactionIdentifierIOS' in purchase &&
-          purchase.originalTransactionIdentifierIOS &&
-          purchase.originalTransactionIdentifierIOS !== purchase.id &&
-          'transactionReasonIOS' in purchase &&
-          purchase.transactionReasonIOS &&
-          purchase.transactionReasonIOS !== 'PURCHASE',
+            purchase.originalTransactionIdentifierIOS &&
+            purchase.originalTransactionIdentifierIOS !== purchase.id &&
+            'transactionReasonIOS' in purchase &&
+            purchase.transactionReasonIOS &&
+            purchase.transactionReasonIOS !== 'PURCHASE',
         );
 
         console.log('iOS Purchase Analysis:');
@@ -1769,7 +1778,7 @@ function SubscriptionFlowContainer() {
           if (currentVerificationMethod === 'local') {
             console.log('[SubscriptionFlow] Verifying with local method...');
             // All platform options can be provided - the library handles platform detection internally
-            const result = await verifyPurchase({
+            await verifyPurchase({
               apple: {sku: productId},
               google: {
                 sku: productId,
@@ -1780,10 +1789,7 @@ function SubscriptionFlowContainer() {
               },
               // horizon: { sku: productId, userId: '', accessToken: '' }
             });
-            console.log(
-              '[SubscriptionFlow] Local verification result:',
-              result,
-            );
+            console.log('[SubscriptionFlow] Local verification completed');
           } else if (currentVerificationMethod === 'iapkit') {
             console.log('[SubscriptionFlow] Verifying with IAPKit...');
             console.log(
@@ -1813,21 +1819,8 @@ function SubscriptionFlowContainer() {
               iapkit: iapkitPayload,
             };
             iapkitVerifyRequest = verifyRequest;
-            const iapkitLogPayload = {
-              ...iapkitPayload,
-              ...(iapkitPayload.apiKey ? {apiKey: '***hidden***'} : {}),
-            };
-
             console.log(
-              '[SubscriptionFlow] Sending IAPKit verification request:',
-              JSON.stringify(
-                {
-                  provider: verifyRequest.provider,
-                  iapkit: iapkitLogPayload,
-                },
-                null,
-                2,
-              ),
+              '[SubscriptionFlow] Sending IAPKit verification request',
             );
 
             const result = await verifyPurchaseWithProvider(verifyRequest);
@@ -1889,8 +1882,9 @@ function SubscriptionFlowContainer() {
       if (didFinishTransaction) {
         if (Platform.OS === 'android' && iapkitVerifyRequest) {
           try {
-            const refreshedResult =
-              await verifyPurchaseWithProvider(iapkitVerifyRequest);
+            const refreshedResult = await verifyPurchaseWithProvider(
+              iapkitVerifyRequest,
+            );
             console.log(
               '[SubscriptionFlow] IAPKit state after finishTransaction:',
               refreshedResult,

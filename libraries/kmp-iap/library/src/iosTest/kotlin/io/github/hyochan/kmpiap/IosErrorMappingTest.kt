@@ -3,6 +3,7 @@ package io.github.hyochan.kmpiap
 import io.github.hyochan.kmpiap.openiap.ErrorCode
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import platform.Foundation.NSError
 import platform.Foundation.NSNull
@@ -60,5 +61,15 @@ class IosErrorMappingTest {
         assertEquals(ErrorCode.UserCancelled, exception.error.code)
         assertEquals("Request Canceled", exception.error.message)
         assertNull(exception.error.debugMessage)
+    }
+
+    @Test
+    fun testMissingStorefrontDoesNotInventCountry() {
+        val exception = assertFailsWith<PurchaseException> {
+            requireStorefront(null)
+        }
+
+        assertEquals(ErrorCode.Unknown, exception.error.code)
+        assertEquals("App Store storefront is unavailable", exception.error.message)
     }
 }

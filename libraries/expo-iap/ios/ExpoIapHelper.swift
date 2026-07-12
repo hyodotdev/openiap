@@ -4,18 +4,31 @@ import OpenIAP
 
 /// Exception wrapper for PurchaseError that preserves OpenIAP error codes
 /// This ensures consistent error format between try-catch and onPurchaseError callback
-final class IapException: GenericException<(code: String, message: String, productId: String?)>, @unchecked Sendable {
-    override var code: String { param.code }
-    override var reason: String { param.message }
+final class IapException: GenericException<(code: String, envelope: String)>, @unchecked Sendable {
+    private static let envelopePrefix = "OPENIAP_ERROR_JSON:"
 
-    var productId: String? { param.productId }
+    override var code: String { param.code }
+    override var reason: String { param.envelope }
 
     static func from(_ error: PurchaseError) -> IapException {
-        let payload = OpenIapSerialization.encode(error)
+        var payload = OpenIapSerialization.encode(error)
+        payload["platform"] = "ios"
+
         let code = payload["code"] as? String ?? "unknown"
-        let message = payload["message"] as? String ?? error.localizedDescription
-        let productId = payload["productId"] as? String
-        return IapException((code: code, message: message, productId: productId))
+        if let data = try? JSONSerialization.data(withJSONObject: payload),
+           let json = String(data: data, encoding: .utf8) {
+            return IapException((code: code, envelope: envelopePrefix + json))
+        }
+
+        let fallbackPayload: [String: String] = [
+            "code": code,
+            "message": error.message,
+            "platform": "ios"
+        ]
+        let fallbackData = try? JSONSerialization.data(withJSONObject: fallbackPayload)
+        let fallbackJson = fallbackData.flatMap { String(data: $0, encoding: .utf8) }
+            ?? "{\"code\":\"unknown\",\"message\":\"Unknown error occurred\",\"platform\":\"ios\"}"
+        return IapException((code: code, envelope: envelopePrefix + fallbackJson))
     }
 }
 

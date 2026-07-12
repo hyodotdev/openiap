@@ -240,16 +240,22 @@ func _test_purchase_ios() -> void:
 func _test_request_purchase_props() -> void:
 	print("Testing RequestPurchaseProps...")
 
-	var props = Types.RequestPurchaseProps.new()
-	props.type = Types.ProductQueryType.SUBS
-	props.request = Types.RequestPurchasePropsByPlatforms.new()
-	props.request.google = Types.RequestPurchaseAndroidProps.new()
+	var platforms = Types.RequestSubscriptionPropsByPlatforms.new()
+	platforms.google = Types.RequestSubscriptionAndroidProps.new()
+	var props = Types.RequestPurchaseProps.subs(platforms)
 
 	var skus: Array[String] = ["subscription_monthly"]
-	props.request.google.skus = skus
+	props.request_subscription.google.skus = skus
 
 	_assert_equal(props.type, Types.ProductQueryType.SUBS, "Type should be SUBS")
-	_assert_equal(props.request.google.skus[0], "subscription_monthly", "Google skus should match")
+	_assert_equal(props.request_subscription.google.skus[0], "subscription_monthly", "Google skus should match")
+	_assert_equal(props.to_dict().has("requestSubscription"), true, "Subscription props should use requestSubscription")
+	_assert_equal(props.to_dict().has("requestPurchase"), false, "Subscription props should omit requestPurchase")
+
+	var parsed = Types.RequestPurchaseProps.from_dict({
+		"requestSubscription": {"google": {"skus": ["subscription_yearly"]}}
+	})
+	_assert_equal(parsed.type, Types.ProductQueryType.SUBS, "Subscription branch should infer SUBS type")
 
 
 # ============================================

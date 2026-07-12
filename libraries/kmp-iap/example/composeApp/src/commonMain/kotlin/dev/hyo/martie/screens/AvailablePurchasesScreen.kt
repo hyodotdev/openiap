@@ -1,7 +1,6 @@
 package dev.hyo.martie.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,14 +25,11 @@ import io.github.hyochan.kmpiap.openiap.*
 import io.github.hyochan.kmpiap.toPurchaseInput
 import kotlinx.datetime.Instant
 import kotlinx.coroutines.*
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 
 @OptIn(ExperimentalMaterial3Api::class, kotlin.time.ExperimentalTime::class)
 @Composable
 fun AvailablePurchasesScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
-    val json = remember { Json { prettyPrint = true; ignoreUnknownKeys = true } }
     
     // Create IAP instance
     val kmpIAP = remember { KmpIAP() }
@@ -569,39 +565,7 @@ fun PurchaseCard(
     showAction: Boolean = true
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable {
-                // Log purchase details to console in JSON format
-                println("\n========== PURCHASE DETAILS (JSON) ==========")
-                val json = Json {
-                    prettyPrint = true
-                    encodeDefaults = true
-                }
-
-                // Use toJson() method from Purchase interface
-                val purchaseMap = purchase.toJson()
-                val jsonString = buildString {
-                    appendLine("{")
-                    purchaseMap.entries.forEachIndexed { index, (key, value) ->
-                        append("  \"$key\": ")
-                        when (value) {
-                            is String -> append("\"$value\"")
-                            is Number -> append(value)
-                            is Boolean -> append(value)
-                            null -> append("null")
-                            else -> append("\"$value\"")
-                        }
-                        if (index < purchaseMap.size - 1) append(",")
-                        appendLine()
-                    }
-                    append("}")
-                }
-                println(jsonString)
-                println("Is Subscription: $isSubscription")
-                println("Is Acknowledged: $isAcknowledged")
-                println("====================================\n")
-            },
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)

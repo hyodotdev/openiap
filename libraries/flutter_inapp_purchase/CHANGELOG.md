@@ -205,7 +205,7 @@ centralized in the OpenIAP release notes and GitHub Releases.
 
 ### New Features
 
-- **One-Time Purchase Discounts (Android 7.0+)**: Added `offerToken` field to `RequestPurchaseAndroidProps` for applying discounts to non-subscription purchases
+- **One-Time Purchase Discounts (Android 8.0+)**: Added `offerToken` field to `RequestPurchaseAndroidProps` for applying discounts to non-subscription purchases
 
 ### Breaking Changes
 
@@ -488,7 +488,7 @@ centralized in the OpenIAP release notes and GitHub Releases.
   }
   ```
 
-- **One-Time Product Discounts (Android 7.0+)**: New fields in `ProductAndroidOneTimePurchaseOfferDetail`
+- **One-Time Product Discounts (Android 8.0+)**: New fields in `ProductAndroidOneTimePurchaseOfferDetail`
   - `offerId` - Unique offer identifier
   - `fullPriceMicros` - Full (non-discounted) price
   - `discountDisplayInfo` - Discount percentage and amount

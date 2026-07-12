@@ -32,6 +32,19 @@ export function DataModalProvider({children}: {children: React.ReactNode}) {
   const [data, setData] = useState<any>(null);
   const [title, setTitle] = useState('Data Details');
   const resetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const serializedData = data
+    ? (JSON.stringify(
+        data,
+        (key, value) =>
+          value &&
+          /(?:token|apiKey|signatureAndroid|dataAndroid|receipt|jws|jsonRepresentation|rawSignedPayload)/i.test(
+            key,
+          )
+            ? 'Present'
+            : value,
+        2,
+      ) ?? '')
+    : '';
 
   const showData = useCallback((newData: any, newTitle?: string) => {
     if (resetTimeoutRef.current) {
@@ -61,13 +74,10 @@ export function DataModalProvider({children}: {children: React.ReactNode}) {
   }, []);
 
   const handleCopy = useCallback(() => {
-    if (!data) return;
-
-    const jsonString = JSON.stringify(data, null, 2);
-
-    Clipboard.setString(jsonString);
+    if (!serializedData) return;
+    Clipboard.setString(serializedData);
     Alert.alert('Copied', 'Data copied to clipboard');
-  }, [data]);
+  }, [serializedData]);
 
   return (
     <DataModalContext.Provider value={{showData, hideModal}}>
@@ -91,12 +101,7 @@ export function DataModalProvider({children}: {children: React.ReactNode}) {
 
             {/* Content */}
             <ScrollView style={styles.content}>
-              <Text style={styles.jsonText}>
-                {(() => {
-                  if (!data) return '';
-                  return JSON.stringify(data, null, 2);
-                })()}
-              </Text>
+              <Text style={styles.jsonText}>{serializedData}</Text>
             </ScrollView>
 
             {/* Footer */}

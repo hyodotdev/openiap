@@ -49,14 +49,6 @@ import kotlinx.coroutines.*
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.buildJsonArray
-import kotlinx.serialization.json.buildJsonObject
 
 private val PRODUCT_IDS = InAppProductIds
 
@@ -73,7 +65,6 @@ enum class VerificationMethod(val label: String, val icon: String) {
 @Composable
 fun PurchaseFlowScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
-    val json = remember { Json { prettyPrint = true; ignoreUnknownKeys = true } }
     
     // Use global IAP instance for this example
     // This demonstrates using the pre-created singleton instance
@@ -105,16 +96,10 @@ fun PurchaseFlowScreen(navController: NavController) {
                     PurchaseState.Purchased -> {
                         isProcessing = false
 
-                        println("\n========== PURCHASE SUCCESS (JSON) ==========")
-                        val json = Json {
-                            prettyPrint = true
-                            encodeDefaults = true
-                            ignoreUnknownKeys = true
-                        }
-
-                        val jsonString = purchase.toPrettyJson(json)
-                        println(jsonString)
-                        println("=============================================\n")
+                        println(
+                            "[KMP-IAP Example] Purchase succeeded: " +
+                                "productId=${purchase.productId}, credential=${credentialStatus(purchase.purchaseToken)}"
+                        )
 
                         val dateText = Instant.fromEpochMilliseconds(purchase.transactionDate.toLong())
                             .toLocalDateTime(TimeZone.currentSystemDefault())
@@ -123,7 +108,7 @@ fun PurchaseFlowScreen(navController: NavController) {
                     Product: ${purchase.productId}
                     Transaction ID: ${purchase.id.ifEmpty { "N/A" }}
                     Date: $dateText
-                    Receipt: ${purchase.purchaseToken ?: "N/A"}
+                    Purchase credential: ${credentialStatus(purchase.purchaseToken)}
                 """.trimIndent()
 
                         scope.launch {
@@ -149,10 +134,10 @@ fun PurchaseFlowScreen(navController: NavController) {
                                             verificationResult = when (result) {
                                                 is VerifyPurchaseResultIOS -> "📱 Local Verification (iOS):\n" +
                                                     "Valid: ${result.isValid}\n" +
-                                                    "Receipt: ${purchase.purchaseToken ?: "N/A"}"
+                                                    "Purchase credential: ${credentialStatus(purchase.purchaseToken)}"
                                                 is VerifyPurchaseResultAndroid -> "📱 Local Verification (Android):\n" +
                                                     "Product: ${result.productId}\n" +
-                                                    "Receipt ID: ${result.receiptId}"
+                                                    "Receipt ID: ${credentialStatus(result.receiptId)}"
                                                 is VerifyPurchaseResultHorizon -> "📱 Horizon Verification:\n" +
                                                     "Success: ${result.success}\n" +
                                                     "Grant Time: ${result.grantTime ?: "N/A"}"
@@ -679,21 +664,7 @@ fun ProductCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable {
-                // Log product details to console in JSON format
-                println("\n========== PRODUCT DETAILS (JSON) ==========")
-                val json = Json {
-                    prettyPrint = true
-                    encodeDefaults = true
-                }
-
-                val jsonString = product.toPrettyJson(json)
-                println(jsonString)
-                println("====================================\n")
-
-                // Show details dialog
-                showDetailsDialog = true
-            },
+            .clickable { showDetailsDialog = true },
         colors = CardDefaults.cardColors(containerColor = Color.White),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -926,7 +897,7 @@ fun ProductCard(
                     if (product is io.github.hyochan.kmpiap.openiap.ProductIOS) {
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = "iOS Product - see console for full JSON details",
+                            text = "iOS Product",
                             fontSize = 12.sp,
                             color = AppColors.Secondary
                         )
@@ -982,64 +953,4 @@ internal fun ProductDetailRow(label: String, value: String) {
     }
 }
 
-private fun Purchase.toPrettyJson(json: Json): String = toJson().toPrettyJson(json)
-
-private fun Product.toPrettyJson(json: Json): String = toJson().toPrettyJson(json)
-
-private fun Map<String, Any?>.toPrettyJson(json: Json): String {
-    return runCatching {
-        val element = toJsonElement()
-        json.encodeToString(JsonElement.serializer(), element)
-    }.getOrElse { error ->
-        println("[KMP-IAP Example] Failed to encode map to JSON: ${error.message}")
-        buildString {
-            appendLine("{")
-            val entries = this@toPrettyJson.entries.toList()
-            entries.forEachIndexed { index, (key, value) ->
-                append("  \"")
-                append(key)
-                append("\": \"")
-                append(value?.toString() ?: "null")
-                append("\"")
-                if (index < entries.lastIndex) {
-                    append(',')
-                }
-                appendLine()
-            }
-            append('}')
-        }
-    }
-}
-
-private fun Map<String, Any?>.toJsonElement(): JsonElement = buildJsonObject {
-    this@toJsonElement.forEach { (key, value) ->
-        put(key, value.toJsonElement())
-    }
-}
-
-private fun Iterable<*>.toJsonArray(): JsonArray = buildJsonArray {
-    this@toJsonArray.forEach { item ->
-        add(item.toJsonElement())
-    }
-}
-
-private fun Any?.toJsonElement(): JsonElement = when (this) {
-    null -> JsonNull
-    is Boolean -> JsonPrimitive(this)
-    is Number -> JsonPrimitive(this)
-    is String -> JsonPrimitive(this)
-    is Map<*, *> -> this.toStringKeyMapOrNull()?.toJsonElement() ?: JsonPrimitive(toString())
-    is Iterable<*> -> this.toJsonArray()
-    is Array<*> -> this.asList().toJsonArray()
-    else -> JsonPrimitive(this.toString())
-}
-
-private fun Map<*, *>.toStringKeyMapOrNull(): Map<String, Any?>? {
-    if (isEmpty()) return emptyMap<String, Any?>()
-    val result = mutableMapOf<String, Any?>()
-    for ((key, value) in this) {
-        val stringKey = key as? String ?: return null
-        result[stringKey] = value
-    }
-    return result
-}
+private fun credentialStatus(value: String?): String = if (value.isNullOrEmpty()) "missing" else "present"

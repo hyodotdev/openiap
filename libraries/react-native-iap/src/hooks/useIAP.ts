@@ -311,9 +311,9 @@ export interface UseIapOptions {
     details: DeveloperProvidedBillingDetailsAndroid,
   ) => void;
   /**
-   * Fires when an active subscription enters a billing-issue state
-   * (StoreKit 2 Message.billingIssue on iOS 18+, Purchase.isSuspended on
-   * Play Billing 8.1+). Not invoked on Meta Horizon.
+   * Fires when a subscription enters a billing-issue state
+   * (StoreKit 2 Message.billingIssue on iOS / Mac Catalyst 16.4+ and visionOS 1.0+, Purchase.isSuspended on
+   * Play Billing 8.1+). Not invoked on Meta Horizon or Amazon Appstore.
    *
    * Recommended: call deepLinkToSubscriptions on the returned purchase so
    * the user can update their payment method in the platform subscription
@@ -435,7 +435,10 @@ export function useIAP(options?: UseIapOptions): UseIap {
           skus: params.skus,
           type: requestType,
         });
-        RnIapConsole.debug('[useIAP] fetchProducts result:', result);
+        RnIapConsole.debug(
+          '[useIAP] fetchProducts count:',
+          result?.length ?? 0,
+        );
         const items = (result ?? []) as (Product | ProductSubscription)[];
 
         // fetchProducts already returns properly filtered results based on type

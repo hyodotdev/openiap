@@ -41,6 +41,9 @@ const formatList = (
     .join(', ');
 };
 
+const formatPresence = (value: unknown): string | undefined =>
+  value ? 'Present' : undefined;
+
 const pushRow = (
   rows: PurchaseDetailRow[],
   label: string,
@@ -92,7 +95,7 @@ export const buildPurchaseRows = (purchase: Purchase): PurchaseDetailRow[] => {
     pushRow(
       rows,
       'appAccountToken',
-      iosPurchase.appAccountToken ?? null,
+      formatPresence(iosPurchase.appAccountToken),
     );
     pushRow(rows, 'appBundleIdIOS', iosPurchase.appBundleIdIOS);
     pushRow(rows, 'countryCodeIOS', iosPurchase.countryCodeIOS);
@@ -141,7 +144,7 @@ export const buildPurchaseRows = (purchase: Purchase): PurchaseDetailRow[] => {
     pushRow(
       rows,
       'signatureAndroid',
-      androidPurchase.signatureAndroid ?? null,
+      formatPresence(androidPurchase.signatureAndroid),
     );
     pushRow(rows, 'packageNameAndroid', androidPurchase.packageNameAndroid);
     pushRow(
@@ -169,14 +172,10 @@ export const buildPurchaseRows = (purchase: Purchase): PurchaseDetailRow[] => {
       'autoRenewingAndroid',
       formatBoolean(androidPurchase.autoRenewingAndroid),
     );
-    pushRow(
-      rows,
-      'dataAndroid',
-      androidPurchase.dataAndroid ?? null,
-    );
+    pushRow(rows, 'dataAndroid', formatPresence(androidPurchase.dataAndroid));
   }
 
-  pushRow(rows, 'purchaseToken', purchase.purchaseToken ?? null);
+  pushRow(rows, 'purchaseToken', formatPresence(purchase.purchaseToken));
 
   return rows;
 };

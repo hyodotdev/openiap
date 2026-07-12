@@ -133,7 +133,7 @@ interface KmpInAppPurchase : MutationResolver, QueryResolver, SubscriptionResolv
      * Listener for subscription billing-issue events (cross-platform).
      *
      * Emits once per affected purchase when:
-     * - iOS 18+: StoreKit delivers `Message.Reason.billingIssue` for a subscription
+     * - iOS / Mac Catalyst 16.4+: StoreKit delivers `Message.Reason.billingIssue` for a subscription
      *   whose RenewalState is `.inBillingRetryPeriod` or `.inGracePeriod`.
      * - Android (Play Billing 8.1+): `getAvailablePurchases` encounters a purchase
      *   with `isSuspendedAndroid == true` (deduped by purchase token).

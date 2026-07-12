@@ -24,7 +24,7 @@ func _ready() -> void:
 	_run_types_tests()
 
 	# Run godot_iap.gd tests
-	_run_godot_iap_tests()
+	await _run_godot_iap_tests()
 
 	# Print final summary
 	print("\n")
@@ -84,25 +84,25 @@ func _run_godot_iap_tests() -> void:
 	var failed := 0
 
 	# Connection tests
-	if _test_connection():
+	if await _test_connection():
 		passed += 1
 	else:
 		failed += 1
 
 	# Fetch products test
-	if _test_fetch_products():
+	if await _test_fetch_products():
 		passed += 1
 	else:
 		failed += 1
 
 	# Available purchases test
-	if _test_available_purchases():
+	if await _test_available_purchases():
 		passed += 1
 	else:
 		failed += 1
 
 	# Finish transaction test
-	if _test_finish_transaction():
+	if await _test_finish_transaction():
 		passed += 1
 	else:
 		failed += 1
@@ -216,12 +216,12 @@ func _test_enums() -> bool:
 func _test_connection() -> bool:
 	print("  Testing connection...")
 
-	var init_result = GodotIapPlugin.init_connection()
+	var init_result = await GodotIapPlugin.init_connection()
 	if init_result != true:
 		print("    FAIL: init_connection should return true")
 		return false
 
-	var end_result = GodotIapPlugin.end_connection()
+	var end_result = await GodotIapPlugin.end_connection()
 	if end_result != true:
 		print("    FAIL: end_connection should return true")
 		return false
@@ -238,7 +238,7 @@ func _test_fetch_products() -> bool:
 	request.skus = skus
 	request.type = Types.ProductQueryType.IN_APP
 
-	var products = GodotIapPlugin.fetch_products(request)
+	var products = await GodotIapPlugin.fetch_products(request)
 	if not (products is Array):
 		print("    FAIL: fetch_products should return Array")
 		return false
@@ -250,7 +250,7 @@ func _test_fetch_products() -> bool:
 func _test_available_purchases() -> bool:
 	print("  Testing get_available_purchases...")
 
-	var purchases = GodotIapPlugin.get_available_purchases()
+	var purchases = await GodotIapPlugin.get_available_purchases()
 	if not (purchases is Array):
 		print("    FAIL: get_available_purchases should return Array")
 		return false
@@ -266,7 +266,7 @@ func _test_finish_transaction() -> bool:
 	purchase.product_id = "test_consumable"
 	purchase.purchase_token = "mock_token"
 
-	var result = GodotIapPlugin.finish_transaction(purchase, true)
+	var result = await GodotIapPlugin.finish_transaction(purchase, true)
 	if not (result is Types.VoidResult):
 		print("    FAIL: finish_transaction should return VoidResult")
 		return false

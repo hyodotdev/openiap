@@ -98,6 +98,7 @@ dependencies {
     compileOnly(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar", "*.aar"))))
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:$googleCoroutinesVersion")
+    testImplementation("junit:junit:4.13.2")
 }
 
 // Copy the built AAR to the addons directory for Godot

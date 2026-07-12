@@ -314,13 +314,23 @@ const purchaseUpdateDuplicateNativeHandler: NitroPurchaseListener = (
 const purchaseErrorJsListeners = new Set<(error: PurchaseError) => void>();
 let purchaseErrorNativeAttached = false;
 const purchaseErrorNativeHandler: NitroPurchaseErrorListener = (error) => {
+  const normalizedCode =
+    error.code === DUPLICATE_PURCHASE_CODE
+      ? ErrorCode.DuplicatePurchase
+      : normalizeErrorCodeFromNative(error.code);
   const normalized: PurchaseError = {
-    code:
-      error.code === DUPLICATE_PURCHASE_CODE
-        ? ErrorCode.DuplicatePurchase
-        : normalizeErrorCodeFromNative(error.code),
+    code: normalizedCode,
     message: error.message,
-    productId: undefined,
+    responseCode:
+      normalizedCode === ErrorCode.QueryProduct
+        ? error.responseCode
+        : undefined,
+    debugMessage: error.debugMessage,
+    productId: error.productId,
+    productIds: error.productIds,
+    productType: error.productType,
+    isEmptyProductList: error.isEmptyProductList,
+    subResponseCodeAndroid: error.subResponseCodeAndroid,
   };
   for (const listener of purchaseErrorJsListeners) {
     try {
@@ -712,8 +722,8 @@ export const developerProvidedBillingListenerAndroid = (
 /**
  * Listen for subscription billing-issue events (cross-platform).
  *
- * Fires when an active subscription enters a billing-issue state:
- * - iOS 18+ / Mac Catalyst 18+: via StoreKit 2 `Message.Reason.billingIssue`.
+ * Fires when a subscription enters a billing-issue state:
+ * - iOS / Mac Catalyst 16.4+ and visionOS 1.0+: via StoreKit 2 `Message.Reason.billingIssue`.
  * - Android (Play Billing 8.1+): when `isSuspendedAndroid === true` is observed.
  * - Horizon / iOS 17 / older platforms: never fires.
  *
@@ -854,7 +864,8 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
 
     if (normalizedType === 'all') {
       const converted = (await fetchAndConvert('all')) as (
-        Product | ProductSubscription
+        | Product
+        | ProductSubscription
       )[];
 
       RnIapConsole.debug(
@@ -1108,6 +1119,12 @@ export const getStorefrontIOS: QueryField<'getStorefrontIOS'> = async () => {
 
   try {
     const storefront = await IAP.instance.getStorefrontIOS();
+    if (typeof storefront !== 'string' || storefront.trim().length === 0) {
+      throw createPurchaseError({
+        code: ErrorCode.ServiceError,
+        message: 'Storefront lookup returned no country code.',
+      });
+    }
     return storefront;
   } catch (error) {
     RnIapConsole.error('Failed to get storefront:', error);
@@ -1122,35 +1139,50 @@ export const getStorefrontIOS: QueryField<'getStorefrontIOS'> = async () => {
  */
 export const getStorefront: QueryField<'getStorefront'> = async () => {
   if (Platform.OS !== 'ios' && !isAndroidStoreRuntime()) {
-    RnIapConsole.warn(
-      '[getStorefront] Storefront lookup is only supported on iOS, Android, and Vega OS.',
-    );
-    return '';
+    throw createPurchaseError({
+      code: ErrorCode.FeatureNotSupported,
+      message: `Storefront lookup is not supported on ${Platform.OS}.`,
+    });
   }
 
   const hasUnifiedMethod = typeof IAP.instance.getStorefront === 'function';
 
-  if (!hasUnifiedMethod && Platform.OS === 'ios') {
-    return getStorefrontIOS();
+  if (!hasUnifiedMethod && Platform.OS !== 'ios') {
+    throw createPurchaseError({
+      code: ErrorCode.FeatureNotSupported,
+      message: 'Native getStorefront is not available on this build.',
+      platform: 'android',
+    });
   }
 
-  if (!hasUnifiedMethod) {
-    RnIapConsole.warn(
-      '[getStorefront] Native getStorefront is not available on this build.',
-    );
-    return '';
-  }
-
+  let storefront: string | null | undefined;
   try {
-    const storefront = await IAP.instance.getStorefront();
-    return storefront ?? '';
+    storefront = hasUnifiedMethod
+      ? await IAP.instance.getStorefront()
+      : await getStorefrontIOS();
   } catch (error) {
-    RnIapConsole.error(
+    const parsedError = parseErrorAndLogIfNeeded(
       `[getStorefront] Failed to get storefront on ${Platform.OS}:`,
       error,
     );
-    throw error;
+    throw createPurchaseError({
+      code: parsedError.code,
+      message: parsedError.message,
+      responseCode: parsedError.responseCode,
+      debugMessage: parsedError.debugMessage,
+      platform: Platform.OS === 'ios' ? 'ios' : 'android',
+    });
   }
+
+  if (typeof storefront !== 'string' || storefront.trim().length === 0) {
+    throw createPurchaseError({
+      code: ErrorCode.ServiceError,
+      message: 'Storefront lookup returned no country code.',
+      platform: Platform.OS === 'ios' ? 'ios' : 'android',
+    });
+  }
+
+  return storefront;
 };
 
 /**
@@ -1851,7 +1883,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
           androidRequest.developerBillingOption;
       }
 
-      // One-time purchase offerToken (Android 7.0+)
+      // One-time purchase offerToken (Android 8.0+)
       if (!isSubs) {
         const purchaseRequest = androidRequest as RequestPurchaseAndroidProps;
         if (purchaseRequest.offerToken) {
@@ -2415,19 +2447,7 @@ export const requestPurchaseOnPromotedProductIOS: MutationField<
   }
 
   try {
-    await IAP.instance.buyPromotedProductIOS();
-    const pending = await IAP.instance.getPendingTransactionsIOS();
-    const latest = pending.find((purchase) => purchase != null);
-    if (!latest) {
-      throw new Error('No promoted purchase available after request');
-    }
-
-    const converted = convertNitroPurchaseToPurchase(latest);
-    if (converted.platform !== 'ios') {
-      throw new Error('Promoted purchase result not available for iOS');
-    }
-
-    return true;
+    return await IAP.instance.buyPromotedProductIOS();
   } catch (error) {
     const parsedError = parseErrorAndLogIfNeeded(
       '[requestPurchaseOnPromotedProductIOS] Failed:',

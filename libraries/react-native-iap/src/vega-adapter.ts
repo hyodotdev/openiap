@@ -9,6 +9,7 @@ import type {
   RnIap,
 } from './specs/RnIap.nitro';
 import {ErrorCode} from './types';
+import type {SubResponseCodeAndroid} from './types';
 
 type ResponseOperation =
   | 'product-data'
@@ -97,9 +98,13 @@ interface VegaUserDataRequest {
 interface VegaError extends Error {
   code?: ErrorCode;
   debugMessage?: string;
+  isEmptyProductList?: boolean;
   platform?: 'android';
   productId?: string;
+  productIds?: string[];
+  productType?: string;
   responseCode?: number;
+  subResponseCodeAndroid?: SubResponseCodeAndroid;
 }
 
 export interface VegaPurchasingService {
@@ -151,8 +156,12 @@ function parseVegaErrorPayload(error: unknown): Record<string, unknown> {
   if (
     vegaError.code != null ||
     vegaError.debugMessage != null ||
+    vegaError.isEmptyProductList != null ||
     vegaError.productId != null ||
-    vegaError.responseCode != null
+    vegaError.productIds != null ||
+    vegaError.productType != null ||
+    vegaError.responseCode != null ||
+    vegaError.subResponseCodeAndroid != null
   ) {
     return {
       code: vegaError.code,
@@ -160,6 +169,10 @@ function parseVegaErrorPayload(error: unknown): Record<string, unknown> {
       responseCode: vegaError.responseCode,
       debugMessage: vegaError.debugMessage,
       productId: vegaError.productId,
+      productIds: vegaError.productIds,
+      productType: vegaError.productType,
+      isEmptyProductList: vegaError.isEmptyProductList,
+      subResponseCodeAndroid: vegaError.subResponseCodeAndroid,
       platform: vegaError.platform,
     };
   }
@@ -176,9 +189,12 @@ function parseVegaErrorPayload(error: unknown): Record<string, unknown> {
 function toPurchaseErrorResult(
   error: unknown,
   fallbackMessage: string,
+  productId?: string,
 ): NitroPurchaseResult {
   const parsed = parseVegaErrorPayload(error);
   const responseCode = parsed.responseCode;
+  const parsedProductIds = parsed.productIds;
+  const parsedSubResponseCode = parsed.subResponseCodeAndroid;
   return {
     responseCode: typeof responseCode === 'number' ? responseCode : -1,
     code:
@@ -192,6 +208,23 @@ function toPurchaseErrorResult(
     debugMessage:
       typeof parsed.debugMessage === 'string' ? parsed.debugMessage : undefined,
     purchaseToken: undefined,
+    productId:
+      typeof parsed.productId === 'string' ? parsed.productId : productId,
+    productIds: Array.isArray(parsedProductIds)
+      ? parsedProductIds.filter(
+          (candidate): candidate is string => typeof candidate === 'string',
+        )
+      : undefined,
+    productType:
+      typeof parsed.productType === 'string' ? parsed.productType : undefined,
+    isEmptyProductList:
+      typeof parsed.isEmptyProductList === 'boolean'
+        ? parsed.isEmptyProductList
+        : undefined,
+    subResponseCodeAndroid:
+      typeof parsedSubResponseCode === 'string'
+        ? (parsedSubResponseCode as SubResponseCodeAndroid)
+        : undefined,
   };
 }
 
@@ -564,6 +597,8 @@ function mapReceipt(
     productId,
     transactionDate: toTimestamp(receipt.purchaseDate),
     purchaseToken: receiptId,
+    currentPlanId: type === 'subs' ? productId : null,
+    ids: productId ? [productId] : [],
     platform: 'android',
     store: 'amazon',
     quantity: 1,
@@ -719,8 +754,34 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
   };
 
   const getStorefront = async (): Promise<string> => {
-    await getUserData();
-    return cachedUserData?.marketplace ?? cachedUserData?.countryCode ?? '';
+    try {
+      const userData = await getUserData();
+      const storefront = userData?.marketplace ?? userData?.countryCode;
+      if (typeof storefront !== 'string' || storefront.trim().length === 0) {
+        throw createVegaError(
+          ErrorCode.ServiceError,
+          'Amazon Vega storefront lookup returned no country code.',
+        );
+      }
+      return storefront;
+    } catch (error) {
+      const errorCode =
+        error instanceof Error
+          ? (error as Error & {code?: unknown}).code
+          : undefined;
+      if (
+        typeof errorCode === 'string' &&
+        Object.values(ErrorCode).includes(errorCode as ErrorCode)
+      ) {
+        throw error;
+      }
+      throw createVegaError(
+        ErrorCode.ServiceError,
+        `Failed to get Amazon Vega storefront: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   };
 
   const getPurchaseUpdateReceipts = async (): Promise<VegaReceipt[]> => {
@@ -1322,6 +1383,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
           toPurchaseErrorResult(
             error,
             'Failed to complete Amazon Vega purchase',
+            sku,
           ),
         );
         throw error;
@@ -1401,7 +1463,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
     async getPromotedProductIOS(): Promise<null> {
       return throwUnsupportedFeature('getPromotedProductIOS');
     },
-    async buyPromotedProductIOS(): Promise<void> {
+    async buyPromotedProductIOS(): Promise<boolean> {
       return throwUnsupportedFeature('buyPromotedProductIOS');
     },
     async presentCodeRedemptionSheetIOS(): Promise<boolean> {

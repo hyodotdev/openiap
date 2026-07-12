@@ -26,6 +26,7 @@ const sampleSubscription = {
   currency: 'USD',
   platform: 'android' as const,
   nameAndroid: 'Premium Subscription',
+  offerTokenAndroid: 'offer-secret',
 } as any; // Mock object, actual types vary by platform
 
 describe('SubscriptionFlow Screen', () => {
@@ -400,7 +401,7 @@ describe('SubscriptionFlow Screen', () => {
     expect(getByText('🖥️ Console')).toBeTruthy();
   });
 
-  it('logs subscription data to console', async () => {
+  it('logs redacted subscription data to console', async () => {
     const consoleSpy = jest.spyOn(console, 'log');
 
     const {getByText} = render(<SubscriptionFlow />);
@@ -417,9 +418,10 @@ describe('SubscriptionFlow Screen', () => {
 
     expect(consoleSpy).toHaveBeenCalledWith('=== SUBSCRIPTION DATA ===');
     expect(consoleSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: 'dev.hyo.martie.premium',
-      }),
+      expect.stringContaining('"offerTokenAndroid": "Present"'),
+    );
+    expect(consoleSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining('offer-secret'),
     );
   });
 
