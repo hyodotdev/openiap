@@ -1,5 +1,11 @@
 # Changelog
 
+## 9.4.1 (2026-07-12)
+
+- No direct Flutter package changes found between releases; this release picks up the latest OpenIAP native package updates.
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
+
+
 ## 9.4.0 (2026-07-11)
 
 - No direct Flutter package changes found between releases; this release picks up the latest OpenIAP native package updates.
