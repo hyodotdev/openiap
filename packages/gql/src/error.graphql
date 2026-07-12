@@ -58,8 +58,8 @@ type PurchaseError {
   # Android QueryProduct diagnostics. Present for openiap-google QueryProduct
   # failures when the native billing layer exposes the values.
   responseCode: Int
-  # Available in the next OpenIAP spec / openiap-google release after Spec
-  # 2.1.0 / openiap-google 2.3.0 (requires Play Billing 8.0+). Android-only
+  # Available in OpenIAP Spec 2.3.0 / openiap-google 2.4.0 (requires Play
+  # Billing 8.0+). Android-only
   # diagnostic returned by
   # PurchasesUpdatedListener.onPurchasesUpdated. Null when the callback does not
   # expose the value or on non-Android platforms.
