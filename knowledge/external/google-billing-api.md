@@ -9,15 +9,15 @@ Google Play Billing Library enables in-app purchases and subscriptions on Androi
 
 ## Version History
 
-| Version | Release Date | Key Features |
-|---------|--------------|--------------|
-| 8.0 | 2025-06-30 | Auto-reconnect, product-level status codes, one-time products with multiple offers, sub-response codes |
-| 8.1 | 2025-11-06 | Suspended subscriptions (`isSuspended`), `includeSuspended` parameter, pre-order details, product-level subscription replacement, `KEEP_EXISTING` mode |
-| 8.2 | 2025-12-09 | Billing Programs API (external content links, external offers), deprecates old External Offers API |
-| 8.2.1 | 2025-12-15 | Bug fix for `isBillingProgramAvailableAsync()` and `createBillingProgramReportingDetailsAsync()` |
-| 8.3 | 2025-12-23 | External Payments program (Japan only), developer billing options |
-| 9.0 | 2026-05-19 | Removes older deprecated APIs, reclassifies blocked Play Store activity errors, adds richer sub-response handling, target SDK 35 |
-| 9.1 | 2026-06-18 | Billing Choice APIs: `getBillingChoiceInfoAsync()`, `showBillingProgramInformationDialog()`, choice-screen details |
+| Version | Release Date | Key Features                                                                                                                                           |
+| ------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 8.0     | 2025-06-30   | Auto-reconnect, product-level status codes, one-time products with multiple offers, sub-response codes                                                 |
+| 8.1     | 2025-11-06   | Suspended subscriptions (`isSuspended`), `includeSuspended` parameter, pre-order details, product-level subscription replacement, `KEEP_EXISTING` mode |
+| 8.2     | 2025-12-09   | Billing Programs API (external content links, external offers), deprecates old External Offers API                                                     |
+| 8.2.1   | 2025-12-15   | Bug fix for `isBillingProgramAvailableAsync()` and `createBillingProgramReportingDetailsAsync()`                                                       |
+| 8.3     | 2025-12-23   | External Payments program (Japan only), developer billing options                                                                                      |
+| 9.0     | 2026-05-19   | Removes older deprecated APIs, reclassifies blocked Play Store activity errors, adds richer sub-response handling, target SDK 35                       |
+| 9.1     | 2026-06-18   | Billing Choice APIs: `getBillingChoiceInfoAsync()`, `showBillingProgramInformationDialog()`, choice-screen details                                     |
 
 **Current Version**: 9.1.0 (as of July 2026)
 
@@ -25,6 +25,28 @@ Google Play Billing Library enables in-app purchases and subscriptions on Androi
 > Billing Choice APIs are implemented only in the Play flavor; Horizon and
 > Amazon variants keep unsupported/default behavior for APIs that do not exist
 > in their store SDKs.
+
+### External Offer integration rule (8.2.1+)
+
+Although the Billing Programs APIs were introduced in 8.2.0, Google requires
+8.2.1 or later for External Offer integrations because 8.2.1 fixes the
+availability and reporting-details APIs. The in-app sequence is:
+
+1. Enable only `BillingProgram.EXTERNAL_OFFER` while building the client.
+2. Check `isBillingProgramAvailableAsync`.
+3. Call `createBillingProgramReportingDetailsAsync` immediately before each
+   redirect session. Do not cache or reuse its external transaction token for a
+   later redirect. Google permits the same token to report multiple purchases
+   made during that one external-offer session.
+4. Call `launchExternalLink` and proceed only when it succeeds.
+5. If payment completes, report the transaction and token from the backend.
+
+Do not also enable the deprecated `enableExternalOffer` or
+`enableAlternativeBillingOnly` modes. Those legacy flows use different APIs
+and must remain available only through explicit legacy configuration.
+
+Official references: [External Offer in-app integration](https://developer.android.com/google/play/billing/external/integration),
+[Play Billing release notes](https://developer.android.com/google/play/billing/release-notes).
 
 ## Core Classes
 
@@ -91,22 +113,30 @@ val params = QueryProductDetailsParams.newBuilder()
     .setProductList(productList)
     .build()
 
-billingClient.queryProductDetailsAsync(params) { billingResult, productDetailsList ->
-    // Handle product details
+billingClient.queryProductDetailsAsync(params) { billingResult, queryResult ->
+    if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+        queryResult.productDetailsList.forEach { productDetails ->
+            // Handle fetched product details
+        }
+        queryResult.unfetchedProductList.forEach { unfetchedProduct ->
+            // Inspect unfetchedProduct.statusCode for per-product failures
+        }
+    }
 }
 ```
 
 ### ProductDetails Properties
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `productId` | String | Unique product identifier |
-| `productType` | String | "subs" or "inapp" |
-| `title` | String | Localized product title |
-| `name` | String | Product name |
-| `description` | String | Localized description |
-| `oneTimePurchaseOfferDetails` | Object | For INAPP products |
-| `subscriptionOfferDetails` | List | For subscription products |
+| Property                          | Type   | Description                                           |
+| --------------------------------- | ------ | ----------------------------------------------------- |
+| `productId`                       | String | Unique product identifier                             |
+| `productType`                     | String | "subs" or "inapp"                                     |
+| `title`                           | String | Localized product title                               |
+| `name`                            | String | Product name                                          |
+| `description`                     | String | Localized description                                 |
+| `oneTimePurchaseOfferDetailsList` | List   | All INAPP purchase options and discount offers (8.0+) |
+| `oneTimePurchaseOfferDetails`     | Object | Legacy single-offer compatibility accessor            |
+| `subscriptionOfferDetails`        | List   | For subscription products                             |
 
 ### Subscription Offer Details
 
@@ -234,30 +264,31 @@ billingClient.queryPurchasesAsync(
 
 ## Purchase Properties
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `orderId` | String | Unique order identifier |
-| `purchaseToken` | String | Token for verification |
-| `purchaseState` | Int | PENDING, PURCHASED, UNSPECIFIED |
-| `purchaseTime` | Long | Timestamp in milliseconds |
-| `products` | List<String> | Product IDs in purchase |
-| `isAcknowledged` | Boolean | Whether acknowledged |
-| `isAutoRenewing` | Boolean | Auto-renewal status |
-| `quantity` | Int | Quantity purchased |
+| Property         | Type         | Description                     |
+| ---------------- | ------------ | ------------------------------- |
+| `orderId`        | String       | Unique order identifier         |
+| `purchaseToken`  | String       | Token for verification          |
+| `purchaseState`  | Int          | PENDING, PURCHASED, UNSPECIFIED |
+| `purchaseTime`   | Long         | Timestamp in milliseconds       |
+| `products`       | List<String> | Product IDs in purchase         |
+| `isAcknowledged` | Boolean      | Whether acknowledged            |
+| `isAutoRenewing` | Boolean      | Auto-renewal status             |
+| `quantity`       | Int          | Quantity purchased              |
 
 ## Response Codes
 
-| Code | Constant | Description |
-|------|----------|-------------|
-| 0 | OK | Success |
-| 1 | USER_CANCELED | User cancelled |
-| 2 | SERVICE_UNAVAILABLE | Network error |
-| 3 | BILLING_UNAVAILABLE | Billing not available |
-| 4 | ITEM_UNAVAILABLE | Item not available |
-| 5 | DEVELOPER_ERROR | Invalid arguments |
-| 6 | ERROR | Fatal error |
-| 7 | ITEM_ALREADY_OWNED | Already owned |
-| 8 | ITEM_NOT_OWNED | Not owned |
+| Code | Constant            | Description                              |
+| ---- | ------------------- | ---------------------------------------- |
+| 0    | OK                  | Success                                  |
+| 1    | USER_CANCELED       | User cancelled                           |
+| 2    | SERVICE_UNAVAILABLE | Billing service is currently unavailable |
+| 3    | BILLING_UNAVAILABLE | Billing not available                    |
+| 4    | ITEM_UNAVAILABLE    | Item not available                       |
+| 5    | DEVELOPER_ERROR     | Invalid arguments                        |
+| 6    | ERROR               | Fatal error                              |
+| 7    | ITEM_ALREADY_OWNED  | Already owned                            |
+| 8    | ITEM_NOT_OWNED      | Not owned                                |
+| 12   | NETWORK_ERROR       | Network connection problem               |
 
 ## Feature Support
 
@@ -281,28 +312,38 @@ if (result.responseCode == BillingClient.BillingResponseCode.OK) {
 In Billing Library 8.0+, `queryProductDetailsAsync()` returns products that couldn't be fetched with a status code explaining why.
 
 ```kotlin
-billingClient.queryProductDetailsAsync(params) { billingResult, productDetailsList ->
-    productDetailsList.forEach { productDetails ->
-        when (productDetails.productStatus) {
-            ProductDetails.ProductStatus.OK -> {
-                // Product fetched successfully
-            }
-            ProductDetails.ProductStatus.NOT_FOUND -> {
+billingClient.queryProductDetailsAsync(params) { billingResult, queryResult ->
+    if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
+        return@queryProductDetailsAsync
+    }
+
+    queryResult.productDetailsList.forEach { productDetails ->
+        // Product fetched successfully
+    }
+
+    queryResult.unfetchedProductList.forEach { unfetchedProduct ->
+        when (unfetchedProduct.statusCode) {
+            UnfetchedProduct.StatusCode.PRODUCT_NOT_FOUND -> {
                 // SKU doesn't exist in Play Console
             }
-            ProductDetails.ProductStatus.NO_OFFERS_AVAILABLE -> {
+            UnfetchedProduct.StatusCode.NO_ELIGIBLE_OFFER -> {
                 // User not eligible for any offers
+            }
+            UnfetchedProduct.StatusCode.INVALID_PRODUCT_ID_FORMAT,
+            UnfetchedProduct.StatusCode.UNKNOWN -> {
+                // Invalid request or an unspecified per-product failure
             }
         }
     }
 }
 ```
 
-| Status | Description |
-|--------|-------------|
-| `OK` | Product fetched successfully |
-| `NOT_FOUND` | SKU doesn't exist in Play Console |
-| `NO_OFFERS_AVAILABLE` | User not eligible for any offers |
+| Status                      | Description                       |
+| --------------------------- | --------------------------------- |
+| `PRODUCT_NOT_FOUND`         | SKU doesn't exist in Play Console |
+| `NO_ELIGIBLE_OFFER`         | User not eligible for any offers  |
+| `INVALID_PRODUCT_ID_FORMAT` | Product ID format is invalid      |
+| `UNKNOWN`                   | Unspecified per-product failure   |
 
 ## Suspended Subscriptions (8.1+)
 
@@ -342,27 +383,34 @@ billingClient.queryPurchasesAsync(params) { billingResult, purchases ->
 `BillingResult` includes a sub-response code for more granular error information:
 
 ```kotlin
-val result = billingClient.launchBillingFlow(activity, params)
-when (result.onPurchasesUpdatedSubResponseCode) {
+override fun onPurchasesUpdated(result: BillingResult, purchases: List<Purchase>?) {
+  when (result.onPurchasesUpdatedSubResponseCode) {
     BillingClient.OnPurchasesUpdatedSubResponseCode.PAYMENT_DECLINED_DUE_TO_INSUFFICIENT_FUNDS -> {
         // User's payment method has insufficient funds
     }
     BillingClient.OnPurchasesUpdatedSubResponseCode.USER_INELIGIBLE -> {
         // User doesn't meet offer eligibility requirements
     }
+  }
 }
 ```
 
-| Sub-Response Code | Description |
-|-------------------|-------------|
-| `PAYMENT_DECLINED_DUE_TO_INSUFFICIENT_FUNDS` | User's payment method has insufficient funds |
-| `USER_INELIGIBLE` | User doesn't meet subscription offer eligibility |
-| `NO_APPLICABLE_SUB_RESPONSE_CODE` | No specific sub-code applies |
+| Sub-Response Code                            | Description                                      |
+| -------------------------------------------- | ------------------------------------------------ |
+| `PAYMENT_DECLINED_DUE_TO_INSUFFICIENT_FUNDS` | User's payment method has insufficient funds     |
+| `USER_INELIGIBLE`                            | User doesn't meet subscription offer eligibility |
+| `NO_APPLICABLE_SUB_RESPONSE_CODE`            | No specific sub-code applies                     |
 
 PBL 9 makes sub-response-code handling part of the migration checklist. It also
 changes blocked Play Store app cases from generic `ERROR` to
 `BILLING_UNAVAILABLE`, with a debug message explaining that Play Store is
 blocked.
+
+> **OpenIAP Note**: Purchase failures delivered by
+> `purchaseErrorListener` preserve this value as
+> `PurchaseError.subResponseCodeAndroid` when Play supplies it. Available in
+> the next OpenIAP spec / openiap-google release after Spec 2.1.0 /
+> openiap-google 2.3.0 (requires Play Billing 8.0+).
 
 ## Subscription Product Replacement (8.1+)
 
@@ -383,14 +431,39 @@ val productDetailsParams = BillingFlowParams.ProductDetailsParams.newBuilder()
 
 ### Replacement Modes
 
-| Mode | Description |
-|------|-------------|
-| `WITH_TIME_PRORATION` | Immediate, expiration time prorated |
-| `CHARGE_PRORATED_PRICE` | Immediate, same billing cycle |
-| `CHARGE_FULL_PRICE` | Immediate, full price charged |
-| `WITHOUT_PRORATION` | Takes effect on old plan expiration |
-| `DEFERRED` | Deferred, no charge |
-| `KEEP_EXISTING` | Keep existing payment schedule (8.1+) |
+| Mode                    | Description                           |
+| ----------------------- | ------------------------------------- |
+| `WITH_TIME_PRORATION`   | Immediate, expiration time prorated   |
+| `CHARGE_PRORATED_PRICE` | Immediate, same billing cycle         |
+| `CHARGE_FULL_PRICE`     | Immediate, full price charged         |
+| `WITHOUT_PRORATION`     | Takes effect on old plan expiration   |
+| `DEFERRED`              | Deferred, no charge                   |
+| `KEEP_EXISTING`         | Keep existing payment schedule (8.1+) |
+
+## User Choice Billing Details (9.1+ fields)
+
+`UserChoiceBillingListener` receives `UserChoiceDetails` when the user selects
+developer billing from Google's user-choice screen. Read product identifiers
+from `UserChoiceDetails.Product.getId()`; `Product.toString()` is diagnostic
+text and is not the product ID contract.
+
+```kotlin
+val listener = UserChoiceBillingListener { details ->
+    val externalTransactionToken = details.externalTransactionToken
+    val originalExternalTransactionId = details.originalExternalTransactionId
+    val products = details.products.map { product ->
+        Triple(product.id, product.type, product.offerToken)
+    }
+}
+```
+
+OpenIAP keeps the compatibility `products` ID list and also exposes
+`productDetailsAndroid` with each product's ID, type, and optional offer token.
+For a developer-billed subscription replacement, forward
+`originalExternalTransactionId` together with the external transaction token
+to the backend reporting flow. These two fields are available in the next
+OpenIAP spec / openiap-google release after Spec 2.1.0 / openiap-google 2.3.0
+(requires Play Billing 9.1+).
 
 ## External Payments Program (8.3+)
 
@@ -450,12 +523,12 @@ billingClient.launchBillingFlow(activity, params)
 
 ### Key Types (8.3+)
 
-| Type | Purpose |
-|------|---------|
-| `DeveloperBillingOptionParams` | Configures developer billing on `BillingFlowParams` |
-| `DeveloperProvidedBillingListener` | Callback when user picks developer-provided billing |
-| `DeveloperProvidedBillingDetails` | Nullable token/link/original-ID fields plus selected products |
-| `BillingClient.BillingProgram.EXTERNAL_PAYMENTS` | External Payments program constant |
+| Type                                             | Purpose                                                       |
+| ------------------------------------------------ | ------------------------------------------------------------- |
+| `DeveloperBillingOptionParams`                   | Configures developer billing on `BillingFlowParams`           |
+| `DeveloperProvidedBillingListener`               | Callback when user picks developer-provided billing           |
+| `DeveloperProvidedBillingDetails`                | Nullable token/link/original-ID fields plus selected products |
+| `BillingClient.BillingProgram.EXTERNAL_PAYMENTS` | External Payments program constant                            |
 
 > **OpenIAP Note**: Exposed through `enableBillingProgramAndroid`,
 > `developerBillingOption`, and the developer-provided billing listener.
@@ -470,27 +543,27 @@ or the app renders a billing choice screen.
 
 ### Integration Scenarios
 
-| Scenario | Choice renderer | Developer payment | BillingClient setup | Required flow |
-|----------|-----------------|-------------------|---------------------|---------------|
-| 1A | Google | In app | `EnableBillingProgramParams` with `DeveloperProvidedBillingListener` | Pass a minimal `DeveloperBillingOptionParams`; Play returns the token through the listener |
-| 1B | Developer | In app | `EnableBillingProgramParams` without the listener | Fetch choice info, create an `IN_APP` token, show the information dialog, then render the choice UI |
-| 2A | Google | External link | `EnableBillingProgramParams` with `DeveloperProvidedBillingListener` | Create an `EXTERNAL_LINK` token and pass it with the URI through `DeveloperBillingOptionParams` |
-| 2B | Developer | External link | `EnableBillingProgramParams` without the listener | Fetch choice info, create an `EXTERNAL_LINK` token, render the choice UI, then pass the token to `launchExternalLink` |
+| Scenario | Choice renderer | Developer payment | BillingClient setup                                                  | Required flow                                                                                                         |
+| -------- | --------------- | ----------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| 1A       | Google          | In app            | `EnableBillingProgramParams` with `DeveloperProvidedBillingListener` | Pass a minimal `DeveloperBillingOptionParams`; Play returns the token through the listener                            |
+| 1B       | Developer       | In app            | `EnableBillingProgramParams` without the listener                    | Fetch choice info, create an `IN_APP` token, show the information dialog, then render the choice UI                   |
+| 2A       | Google          | External link     | `EnableBillingProgramParams` with `DeveloperProvidedBillingListener` | Create an `EXTERNAL_LINK` token and pass it with the URI through `DeveloperBillingOptionParams`                       |
+| 2B       | Developer       | External link     | `EnableBillingProgramParams` without the listener                    | Fetch choice info, create an `EXTERNAL_LINK` token, render the choice UI, then pass the token to `launchExternalLink` |
 
 The setup must match `choiceScreenType` from Play Console. Registering the
 listener in a developer-rendered integration is not equivalent to omitting it.
 
-| API / Type | Purpose |
-|------------|---------|
-| `BillingClient.getBillingChoiceInfoAsync()` | Fetches billing choices available to the current user |
-| `BillingChoiceInfo` | Contains choice-screen data, including image URLs and loyalty details |
-| `GetBillingChoiceInfoParams` | Configures the billing-choice info request |
-| `BillingClient.showBillingProgramInformationDialog()` | Shows an information dialog for a billing program |
-| `BillingProgramInformationDialogParams` | Configures the information dialog |
-| `LaunchExternalLinkParams.setExternalTransactionToken()` | Supplies the pre-generated token for a developer-rendered external-link flow |
-| `BillingProgramAvailabilityDetails.BillingChoiceAvailabilityDetails` | Returns choice-screen type and external-link availability |
-| `DeveloperBillingOptionParams` | Selects in-app or external-link developer billing during purchase |
-| `BillingProgramReportingDetailsParams.DeveloperBillingType` | Distinguishes `IN_APP` and `EXTERNAL_LINK` reporting |
+| API / Type                                                           | Purpose                                                                      |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `BillingClient.getBillingChoiceInfoAsync()`                          | Fetches billing choices available to the current user                        |
+| `BillingChoiceInfo`                                                  | Contains choice-screen data, including image URLs and loyalty details        |
+| `GetBillingChoiceInfoParams`                                         | Configures the billing-choice info request                                   |
+| `BillingClient.showBillingProgramInformationDialog()`                | Shows an information dialog for a billing program                            |
+| `BillingProgramInformationDialogParams`                              | Configures the information dialog                                            |
+| `LaunchExternalLinkParams.setExternalTransactionToken()`             | Supplies the pre-generated token for a developer-rendered external-link flow |
+| `BillingProgramAvailabilityDetails.BillingChoiceAvailabilityDetails` | Returns choice-screen type and external-link availability                    |
+| `DeveloperBillingOptionParams`                                       | Selects in-app or external-link developer billing during purchase            |
+| `BillingProgramReportingDetailsParams.DeveloperBillingType`          | Distinguishes `IN_APP` and `EXTERNAL_LINK` reporting                         |
 
 ### Developer Billing Purchase Options
 
@@ -540,10 +613,10 @@ Supported image layouts are `RECTANGULAR_FOUR_BY_ONE`,
 
 For `BILLING_CHOICE`, `BillingProgramAvailabilityDetails` can include:
 
-| Field | Meaning |
-|-------|---------|
-| `choiceScreenType` | `UNSPECIFIED`, `DEVELOPER_RENDERED`, or `GOOGLE_RENDERED` |
-| `isExternalLinkAvailable` | Whether the user is eligible for an external-link option |
+| Field                     | Meaning                                                   |
+| ------------------------- | --------------------------------------------------------- |
+| `choiceScreenType`        | `UNSPECIFIED`, `DEVELOPER_RENDERED`, or `GOOGLE_RENDERED` |
+| `isExternalLinkAvailable` | Whether the user is eligible for an external-link option  |
 
 ### Information Dialog
 
@@ -608,4 +681,4 @@ val updateParams = BillingFlowParams.SubscriptionUpdateParams.newBuilder()
 5. **Check product status codes** (8.0+) to understand why products weren't fetched
 6. **Check isSuspended** (8.1+) before granting entitlements
 7. **Distinguish in-app and external-link Billing Choice** when configuring and reporting developer billing
-8. **Cache product details** to avoid repeated queries
+8. **Query fresh ProductDetails before purchase**; stale objects can make `launchBillingFlow()` fail

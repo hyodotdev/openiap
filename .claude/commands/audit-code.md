@@ -37,7 +37,7 @@ Use WebSearch to get the latest platform API information:
 **Google Play Billing Library:**
 
 - Search: "Google Play Billing Library release notes site:developer.android.com"
-- Read the configured version from `packages/google/gradle/libs.versions.toml`
+- Read the configured version from `packages/google/openiap/build.gradle.kts`
   and compare it with the latest stable version in the official release notes
 - Key areas: one-time products, subscription offers, billing programs, Billing Choice, in-app messages
 
@@ -53,6 +53,13 @@ Use WebSearch to get the latest platform API information:
 - Check compatibility with Google Play Billing Library version
 - Key areas: billing compatibility SDK version, API parity with Play flavor
 
+**Amazon Appstore SDK:**
+
+- Search: "Amazon Appstore SDK release notes site:developer.amazon.com"
+- Compare the configured dependency in `packages/google/openiap/build.gradle.kts`
+  with the latest official release
+- Key areas: pending purchases, fulfillment results, add-on subscriptions
+
 ### 3. Analyze Codebase
 
 Check each package against internal rules AND latest API capabilities:
@@ -60,7 +67,7 @@ Check each package against internal rules AND latest API capabilities:
 **Packages to analyze:**
 
 - `packages/apple/Sources/` - iOS/macOS Swift code
-- `packages/google/openiap/src/main/` - Android Kotlin code
+- `packages/google/openiap/src/{main,play,horizon,amazon}/` - Android Kotlin code
 - `packages/gql/src/` - GraphQL schema (API definitions)
 
 **Rules to check (from knowledge/internal/):**
@@ -91,14 +98,17 @@ Compare current implementation against latest platform APIs:
 
 **StoreKit 2 (check packages/gql/src/api-ios.graphql):**
 
-| Feature                        | Version  | Check                                   |
-| ------------------------------ | -------- | --------------------------------------- |
-| Win-back offers                | iOS 18   | Supported in schema?                    |
-| Consumable transaction history | iOS 18   | getPendingTransactionsIOS returns them? |
-| Billing issue messages         | iOS 18   | Event listener exists?                  |
-| Advanced Commerce API          | iOS 18.4 | AdvancedCommerceProduct type?           |
-| appTransactionID               | iOS 18.4 | In AppTransaction type?                 |
-| Expanded offer codes           | iOS 18.4 | For consumables/non-consumables?        |
+| Feature                        | Version                            | Check                                    |
+| ------------------------------ | ---------------------------------- | ---------------------------------------- |
+| Win-back offers                | iOS 18                             | Supported in schema?                     |
+| Consumable transaction history | iOS 18                             | getAllTransactionsIOS returns them?      |
+| Billing issue messages         | iOS/Mac Catalyst 16.4, visionOS 1.0 | Event listener exists and messages still display? |
+| Advanced Commerce API          | iOS 18.4                           | AdvancedCommerceProduct type?            |
+| appTransactionID               | iOS 18.4                           | In AppTransaction type?                  |
+| Expanded offer codes           | iOS 18.4                           | For consumables/non-consumables?         |
+| Monthly annual commitments     | iOS 26.4+ runtime / Xcode 26.5 SDK | Pricing terms and purchase option wired? |
+| Verified offer-code redemption | Xcode 27 beta                      | New result/options API represented?      |
+| Group purchase seats           | WWDC 26                            | Seat-count request support or roadmap?   |
 
 **Meta Horizon (check packages/google/openiap/src/horizon/):**
 
@@ -110,13 +120,23 @@ Compare current implementation against latest platform APIs:
 | getAvailableItems (Horizon-only)      | Implemented?                                |
 | verifyPurchase S2S                    | verify_entitlement endpoint?                |
 
+**Amazon Appstore (check packages/google/openiap/src/amazon/):**
+
+| Feature              | Check                                       |
+| -------------------- | ------------------------------------------- |
+| Appstore SDK version | Compare configured value with official docs |
+| Pending purchases    | Enabled before starting a purchase?         |
+| Fulfillment          | Receipts reported with the correct result?  |
+| Add-on subscriptions | Supported only when explicitly contracted?  |
+
 **Version Compatibility (CRITICAL):**
 
 | Check                       | Expected                             |
 | --------------------------- | ------------------------------------ |
-| Play flavor Billing version | Read from the Google version catalog |
+| Play flavor Billing version | Read from the Google build script    |
 | Horizon SDK compatible with | Billing 7.0 API                      |
-| Shared code uses            | Only 7.0-compatible APIs             |
+| Amazon Appstore SDK         | Latest audited stable version        |
+| Shared code uses            | No flavor-specific store SDK APIs    |
 | Framework requirements      | Read package metadata and setup docs |
 
 ### 5. Analysis Checklist
@@ -135,8 +155,8 @@ packages/google (Kotlin):
 - [ ] Functions do NOT have `Android` suffix (it's Android-only package)
 - [ ] Cross-platform functions have NO suffix
 - [ ] Types.kt is not manually edited (auto-generated)
-- [ ] Both Play and Horizon flavors compile
-- [ ] Shared code uses only Billing 7.0 APIs
+- [ ] Play, Horizon, and Amazon flavors compile
+- [ ] Shared code is store-agnostic; Play-only APIs stay in `src/play`
 
 packages/gql (GraphQL):
 
@@ -149,6 +169,7 @@ packages/gql (GraphQL):
 - [ ] Configured Google Play Billing features implemented end-to-end
 - [ ] StoreKit 2 iOS 18+ features implemented
 - [ ] Meta Horizon Billing SDK up to date
+- [ ] Amazon Appstore SDK up to date
 - [ ] External API docs updated with new features
 - [ ] New API comments lead with OpenIAP spec/package versions, then list the
       upstream platform SDK requirement
@@ -156,7 +177,8 @@ packages/gql (GraphQL):
 **Version Compatibility:**
 
 - [ ] horizon-billing-compatibility matches latest
-- [ ] Shared code avoids Billing 8.x/9.x-only APIs
+- [ ] Amazon Appstore SDK matches the latest audited stable release
+- [ ] Shared code avoids flavor-specific SDK APIs
 - [ ] react-native-iap/expo-iap compatible versions documented
 
 ### 6. Fix Issues
@@ -179,6 +201,7 @@ Update external API reference docs:
 - `google-billing-api.md` - Add new Google Play Billing features
 - `storekit2-api.md` - Add new StoreKit 2 features
 - `horizon-api.md` - Add new Meta Horizon Billing features, version compatibility
+- `amazon-iap-api.md` - Add Amazon Appstore SDK features and version compatibility
 
 #### 7b. User Documentation (packages/docs/)
 
@@ -338,14 +361,33 @@ Product fetch status codes (Billing 8.0+).
 
 ### 8. Final Verification
 
+Run the complete, fail-fast native matrix in
+[`verify-all.md` step 1](verify-all.md#1-build-verification) without omitting its
+consumer builds. That matrix is the verification SSOT and includes:
+
+- React Native Nitrogen generation plus Android Gradle and iOS Xcode builds
+- Expo clean native prebuilds plus Android Gradle and iOS Xcode builds
+- Flutter Android and iOS consumer builds
+- Godot Android and iOS bridge builds
+- KMP tests and all three Android example flavors
+- MAUI Android bindings for Play, Amazon, and Horizon, plus iOS/macCatalyst
+  bindings and platform TFMs (the shared `net9.0`/`net10.0` TFMs are not a
+  substitute)
+
+After that matrix passes, rerun the audit-specific consistency gates:
+
 ```bash
-# Type check all packages
-cd packages/apple && swift build
-cd packages/google && ./gradlew :openiap:compilePlayDebugKotlin && ./gradlew :openiap:compileHorizonDebugKotlin
-cd packages/gql && bun run typecheck
+set -euo pipefail
+
+# Recompile agent-facing knowledge and verify docs/API parity.
+(cd scripts/agent && bun run compile:ai && bun test && bun run typecheck)
+(cd packages/docs && bun run format:check && bun run build)
+bun run audit:parity
+bun run audit:docs
+git diff --check
 ```
 
-**Important**: Always test BOTH Google flavors (Play and Horizon).
+**Important**: Always test ALL THREE Google flavors (Play, Horizon, and Amazon).
 
 ## Quick Commands
 

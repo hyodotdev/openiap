@@ -8,6 +8,7 @@ Android in-app purchase library supporting:
 
 - Google Play Billing (play variant)
 - Horizon Store (horizon variant)
+- Amazon Appstore (amazon variant)
 
 ## Directory Structure
 
@@ -23,8 +24,10 @@ packages/google/
 │       │   └── utils/             # Helper utilities
 │       ├── play/java/dev/hyo/openiap/
 │       │   └── OpenIapModule.kt   # Play Store implementation
-│       └── horizon/java/dev/hyo/openiap/
-│           └── OpenIapModule.kt   # Horizon implementation
+│       ├── horizon/java/dev/hyo/openiap/
+│       │   └── OpenIapModule.kt   # Horizon implementation
+│       └── amazon/java/dev/hyo/openiap/
+│           └── OpenIapModule.kt   # Amazon Appstore implementation
 ├── Example/                       # Sample app
 ├── scripts/
 │   └── generate-types.sh
@@ -37,7 +40,7 @@ packages/google/
 | --------- | ------------------ | ------------------------- |
 | `play`    | Google Play Store  | Play Billing 9.1.0        |
 | `horizon` | Meta Horizon Store | Horizon SDK 2.0.0         |
-| `amazon`  | Amazon Appstore    | Amazon Appstore SDK 3.0.8 |
+| `amazon`  | Amazon Appstore    | Amazon Appstore SDK 3.0.9 |
 
 ## Type Generation
 

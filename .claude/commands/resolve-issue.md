@@ -89,12 +89,12 @@ git checkout -b fix/<library>-<short-description>
 
 | Package | Commands |
 |---------|----------|
-| `packages/gql/` | `cd packages/gql && bun run lint && bun run typecheck` |
+| `packages/gql/` | `cd packages/gql && bun run test` |
 | `packages/docs/` | `cd packages/docs && bun run lint && bun run typecheck` |
 | `packages/apple/` | `cd packages/apple && swift build` |
-| `packages/google/` | `cd packages/google && ./gradlew :openiap:compilePlayDebugKotlin && ./gradlew :openiap:compileHorizonDebugKotlin` |
+| `packages/google/` | `cd packages/google && ./gradlew :openiap:compilePlayDebugKotlin && ./gradlew :openiap:compileHorizonDebugKotlin && ./gradlew :openiap:compileAmazonDebugKotlin` |
 | `libraries/react-native-iap/` | `cd libraries/react-native-iap && yarn typecheck && yarn lint` |
-| `libraries/expo-iap/` | `cd libraries/expo-iap && bun run typecheck && bun run lint` |
+| `libraries/expo-iap/` | `cd libraries/expo-iap && bun run lint:tsc && bun run lint` |
 | `libraries/flutter_inapp_purchase/` | `cd libraries/flutter_inapp_purchase && flutter analyze && flutter test` |
 | `libraries/kmp-iap/` | `cd libraries/kmp-iap && ./gradlew :library:build` |
 

@@ -50,12 +50,19 @@ knowledge/
 │   ├── 03-coding-style.md          # TypeScript/Swift/Kotlin style rules
 │   ├── 04-platform-packages.md     # Apple/Google/GQL package workflows
 │   ├── 05-docs-patterns.md         # React modal patterns, components
-│   └── 06-git-deployment.md        # Git conventions, deployment
+│   ├── 06-git-deployment.md        # Git conventions, deployment
+│   ├── 07-docs-consistency.md      # Documentation SSOT audits
+│   ├── 08-gv-cloud-workspaces.md   # Cloud workspace safety
+│   └── sandbox-subscription-billing-issue.md
 ├── external/                        # REFERENCE - External APIs
-│   ├── storekit2-api.md            # Apple StoreKit 2 reference
+│   ├── amazon-iap-api.md           # Amazon Appstore SDK reference
 │   ├── google-billing-api.md       # Google Play Billing reference
-│   ├── expo-iap-api.md             # expo-iap API reference
-│   └── react-native-iap-api.md     # react-native-iap API reference
+│   ├── horizon-api.md              # Meta Horizon billing reference
+│   ├── storekit2-api.md            # Apple StoreKit 2 reference
+│   └── webhook-mapping.md          # Cross-store webhook mapping
+├── archive/                         # Historical references; not indexed
+│   ├── expo-iap-api.md             # Archived legacy expo-iap API
+│   └── react-native-iap-api.md     # Archived legacy react-native-iap API
 └── _claude-context/                 # COMPILED - For Claude Code CLI
     └── context.md                   # Auto-generated combined context
 ```
@@ -77,7 +84,7 @@ bun run compile
 cd scripts/agent
 
 # Compile context.md for Claude Code
-bun run compile:claude
+bun run compile:ai
 
 # Use with Claude Code
 claude --context knowledge/_claude-context/context.md
@@ -129,6 +136,6 @@ cd scripts/agent
 bun run compile
 
 # Or individually:
-bun run compile:claude  # Claude Code context.md
+bun run compile:ai      # Claude Code context.md
 bun run compile:local   # Local RAG LanceDB index
 ```

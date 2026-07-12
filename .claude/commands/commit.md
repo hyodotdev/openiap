@@ -389,6 +389,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 - [x] `swift build` passes
 - [x] `./gradlew :openiap:compilePlayDebugKotlin` passes
 - [x] `./gradlew :openiap:compileHorizonDebugKotlin` passes
+- [x] `./gradlew :openiap:compileAmazonDebugKotlin` passes
 - [x] `bun run typecheck` passes (docs)
 
 🤖 Generated with [Claude Code](https://claude.ai/code)

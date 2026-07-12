@@ -77,17 +77,23 @@ Sources/
 
 ### packages/google
 
-**Purpose:** Android Google Play Billing implementation.
+**Purpose:** Android billing implementations for Google Play, Meta Horizon, and
+Amazon Appstore. Vega OS is a separate JavaScript/Kepler runtime adapter, not an
+Android Gradle flavor.
 
 Directory structure:
 
 ```
-openiap/src/main/
-├── java/dev/hyo/openiap/
-│   ├── OpenIapModule.kt
-│   ├── Models.kt
-│   ├── Types.kt         # AUTO-GENERATED - DO NOT EDIT
-│   └── utils/           # Internal helpers
+openiap/src/
+├── main/java/dev/hyo/openiap/       # Shared contracts and store facade
+│   ├── OpenIapProtocol.kt
+│   ├── Types.kt                     # AUTO-GENERATED - DO NOT EDIT
+│   ├── helpers/
+│   ├── listener/
+│   └── store/
+├── play/java/dev/hyo/openiap/       # Google Play Billing implementation
+├── horizon/java/dev/hyo/openiap/    # Meta Horizon implementation
+└── amazon/java/dev/hyo/openiap/     # Amazon Appstore implementation
 ```
 
 ### packages/docs
@@ -120,13 +126,16 @@ openiap/src/main/
 
 ```swift
 // OpenIapModule.swift
-public final class OpenIapModule: OpenIapProtocol {
+public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     public static let shared = OpenIapModule()
 
-    private init() {}
+    private override init() {
+        super.init()
+    }
 
-    // All public methods here
-    public func fetchProducts(_ productIds: [String]) async throws -> [ProductIOS]
+    public func fetchProducts(
+        _ params: ProductRequest
+    ) async throws -> FetchProductsResult
 }
 ```
 
@@ -134,17 +143,14 @@ public final class OpenIapModule: OpenIapProtocol {
 
 ```kotlin
 // OpenIapModule.kt
-class OpenIapModule private constructor(
+class OpenIapModule(
     private val context: Context
-) {
-    companion object {
-        @Volatile
-        private var instance: OpenIapModule? = null
-
-        fun getInstance(context: Context): OpenIapModule {
-            return instance ?: synchronized(this) {
-                instance ?: OpenIapModule(context).also { instance = it }
-            }
+) : OpenIapProtocol {
+    override val fetchProducts: QueryFetchProductsHandler = { params ->
+        when (params.type ?: ProductQueryType.InApp) {
+            ProductQueryType.InApp -> FetchProductsResultProducts(emptyList())
+            ProductQueryType.Subs -> FetchProductsResultSubscriptions(emptyList())
+            ProductQueryType.All -> FetchProductsResultAll(emptyList())
         }
     }
 }
@@ -155,17 +161,13 @@ class OpenIapModule private constructor(
 ### Swift
 
 ```swift
-public enum OpenIapError: Error {
-    case notInitialized
-    case productNotFound(String)
-    case purchaseFailed(String)
-    case verificationFailed
-}
-
-// Usage
-public func fetchProducts(_ ids: [String]) async throws -> [ProductIOS] {
-    guard isInitialized else {
-        throw OpenIapError.notInitialized
+public func fetchProducts(
+    _ params: ProductRequest
+) async throws -> FetchProductsResult {
+    guard !params.skus.isEmpty else {
+        let error = makePurchaseError(code: .emptySkuList)
+        emitPurchaseError(error)
+        throw error
     }
     // ...
 }
@@ -174,11 +176,11 @@ public func fetchProducts(_ ids: [String]) async throws -> [ProductIOS] {
 ### Kotlin
 
 ```kotlin
-sealed class OpenIapError : Exception() {
-    object NotInitialized : OpenIapError()
-    data class ProductNotFound(val productId: String) : OpenIapError()
-    data class PurchaseFailed(val message: String) : OpenIapError()
-}
+if (!billingClient.isReady) throw OpenIapError.NotPrepared
+if (params.skus.isEmpty()) throw OpenIapError.EmptySkuList
+
+// Preserve the native diagnostic for wrapper SDKs.
+throw OpenIapError.PurchaseFailed(debugMessage = billingResult.debugMessage)
 ```
 
 ## Async Pattern
@@ -187,20 +189,26 @@ sealed class OpenIapError : Exception() {
 
 ```swift
 // CORRECT - Use async/await
-public func fetchProducts(_ ids: [String]) async throws -> [ProductIOS]
+public func fetchProducts(_ params: ProductRequest) async throws -> FetchProductsResult
 
 // INCORRECT - Don't use completion handlers
-public func fetchProducts(_ ids: [String], completion: @escaping (Result<[ProductIOS], Error>) -> Void)
+public func fetchProducts(
+    _ params: ProductRequest,
+    completion: @escaping (Result<FetchProductsResult, Error>) -> Void
+)
 ```
 
 ### Kotlin (Coroutines)
 
 ```kotlin
 // CORRECT - Use suspend functions
-suspend fun fetchProducts(productIds: List<String>): List<ProductAndroid>
+suspend fun fetchProducts(params: ProductRequest): FetchProductsResult
 
 // INCORRECT - Don't use callbacks
-fun fetchProducts(productIds: List<String>, callback: (List<ProductAndroid>) -> Unit)
+fun fetchProducts(
+    params: ProductRequest,
+    callback: (Result<FetchProductsResult>) -> Unit
+)
 ```
 
 ## GraphQL Promise/Future Convention

@@ -21,6 +21,8 @@
  *   6. Checks docs-local version metadata against package/library SSOT files
  *      so `src/lib/versioning.ts` never drifts or imports outside the docs
  *      package root used by Vercel.
+ *   7. Lints fenced active-doc code examples for a small set of recurring,
+ *      language-specific phantom API patterns (release history excluded).
  *
  * Exit code 0 = clean, 1 = at least one drift detected.
  *
@@ -37,6 +39,7 @@ const DOC_ROOTS = [
   resolve(REPO_ROOT, 'packages/docs/src/pages/docs/types'),
 ];
 const DOC_PAGES_DIR = resolve(REPO_ROOT, 'packages/docs/src/pages');
+const ACTIVE_DOCS_ROOT = resolve(REPO_ROOT, 'packages/docs/src/pages/docs');
 const TYPES_FILE = resolve(REPO_ROOT, 'libraries/expo-iap/src/types.ts');
 const RELEASE_NOTES_FILE = resolve(
   REPO_ROOT,
@@ -62,6 +65,105 @@ type Drift = {
   rule: string;
   message: string;
 };
+
+type CodeExampleRule = {
+  language?: string;
+  pattern: RegExp;
+  message: string;
+};
+
+const CODE_EXAMPLE_RULES: CodeExampleRule[] = [
+  {
+    language: 'csharp',
+    pattern: /@Deprecated|Task<(?:Boolean|String|List<)|\bList<String>\b/,
+    message:
+      'C# examples must use C# attributes and primitive/collection types (`[Obsolete]`, `bool`, `string`, `IReadOnlyList<T>`).',
+  },
+  {
+    language: 'csharp',
+    pattern:
+      /\?:\s*return|\bwhen\s*\(|(?:^|\n)\s*(?:else|null)\s*->|\?\.let\s*\{|\bprintln\s*\(/m,
+    message: 'C# example contains Kotlin syntax.',
+  },
+  {
+    language: 'dart',
+    pattern:
+      /\b(?:purchaseUpdatedStream|purchaseErrorStream|userChoiceBillingStream)\b/,
+    message:
+      'Flutter examples must use the current listener streams (`purchaseUpdatedListener`, `purchaseErrorListener`, or `userChoiceBillingAndroid`).',
+  },
+  {
+    language: 'dart',
+    pattern: /\.finishTransaction\(\s*(?!purchase\s*:)[A-Za-z_]\w*\s*(?:,|\))/,
+    message:
+      'Flutter `finishTransaction` requires the named `purchase:` argument.',
+  },
+  {
+    pattern: /OpenIapStore\.shared/,
+    message:
+      'Apple/native store examples must construct or inject `OpenIapStore`; no `shared` singleton exists.',
+  },
+  {
+    pattern:
+      /\b(?:verifyPurchase|verify_purchase)\b[\s\S]{0,400}\b(?:serverUrl|server_url)\b/,
+    message:
+      '`verifyPurchase` accepts platform verification options, not a Purchase plus server URL.',
+  },
+  {
+    language: 'typescript',
+    pattern: /requestPurchase\(\{\s*(?:sku|purchaseToken|replacementMode)\s*:/,
+    message:
+      'TypeScript `requestPurchase` must use the `request` platform union and explicit `type`.',
+  },
+  {
+    language: 'swift',
+    pattern: /\bsubscription\.remove\(\)/,
+    message:
+      'Swift listener tokens are removed with `OpenIapModule.shared.removeListener(subscription)`.',
+  },
+  {
+    language: 'gdscript',
+    pattern:
+      /\bvar\s+([A-Za-z_]\w*)\s*=\s*(?:Types\.)?RequestPurchaseProps\.new\(\)[\s\S]{0,200}\b\1\.sku\s*=/,
+    message:
+      'RequestPurchaseProps has no top-level sku; populate one request branch or use in_app().',
+  },
+  {
+    pattern:
+      /(?:console\.log|println|print|Console\.WriteLine|Log\.[a-z]+)\([^)]{0,200}\b(?:offerToken|offer_token|OfferToken)\b/,
+    message: 'Offer tokens must not be written to application logs.',
+  },
+];
+
+export function auditActiveCodeExampleSource(
+  filePath: string,
+  src: string
+): Drift[] {
+  if (resolve(filePath) === RELEASE_NOTES_FILE) return [];
+
+  const drifts: Drift[] = [];
+  const blockRe =
+    /<CodeBlock\b[^>]*\blanguage="([^"]+)"[^>]*>\s*\{`([\s\S]*?)`\}\s*<\/CodeBlock>/g;
+  let blockMatch: RegExpExecArray | null;
+  while ((blockMatch = blockRe.exec(src)) !== null) {
+    const language = blockMatch[1];
+    const block = blockMatch[2];
+    const blockOffset = blockMatch.index + blockMatch[0].indexOf(block);
+
+    for (const rule of CODE_EXAMPLE_RULES) {
+      if (rule.language && rule.language !== language) continue;
+      const violation = rule.pattern.exec(block);
+      if (!violation) continue;
+      drifts.push({
+        file: filePath,
+        line: lineNumberAt(src, blockOffset + violation.index),
+        rule: 'R11',
+        message: `${rule.message} (language: ${language})`,
+      });
+    }
+  }
+  return drifts;
+}
 
 async function walkTsxFiles(root: string): Promise<string[]> {
   const out: string[] = [];
@@ -802,6 +904,14 @@ async function main() {
     }
   }
 
+  const activeDocPages = await walkTsxFiles(ACTIVE_DOCS_ROOT);
+  for (const file of activeDocPages) {
+    if (resolve(file) === RELEASE_NOTES_FILE) continue;
+    drifts.push(
+      ...auditActiveCodeExampleSource(file, readFileSync(file, 'utf8'))
+    );
+  }
+
   drifts.push(...auditReleaseNotePackageLinks(RELEASE_NOTES_FILE));
   drifts.push(...auditVersionMetadata());
 
@@ -841,8 +951,10 @@ async function main() {
   process.exit(0);
 }
 
-main().catch((err) => {
-  console.error('audit-docs: fatal error');
-  console.error(err);
-  process.exit(2);
-});
+if (import.meta.main) {
+  main().catch((err) => {
+    console.error('audit-docs: fatal error');
+    console.error(err);
+    process.exit(2);
+  });
+}

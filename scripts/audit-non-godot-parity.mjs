@@ -1081,6 +1081,27 @@ function checkFlutter() {
     ],
     "Flutter iOS deepLinkToSubscriptions bridge",
   );
+  for (const nativePlugin of [flutterIosPlugin, flutterMacosPlugin]) {
+    expectIncludes(
+      nativePlugin,
+      [
+        "private func purchaseErrorDetails(",
+        "private func flutterError(",
+        "var details = OpenIapSerialization.encode(error)",
+        "let compacted = self.purchaseErrorDetails(error)",
+        "details: purchaseErrorDetails(error, fallbackProductId: fallbackProductId)",
+      ],
+      "Flutter Apple PurchaseError diagnostic bridge",
+    );
+    expectNotIncludes(
+      nativePlugin,
+      [
+        "details: purchaseError.productId",
+        '"productId": error.productId',
+      ],
+      "Flutter Apple PurchaseError diagnostics must remain structured",
+    );
+  }
   expectIncludes(
     flutterMacosPlugin,
     [
@@ -1095,6 +1116,45 @@ function checkFlutter() {
       "subscriptionBillingIssueListener",
     ],
     "Flutter macOS channel parity",
+  );
+  const flutterMacosSupportedMethods = [
+    "syncIOS",
+    "isEligibleForIntroOfferIOS",
+    "subscriptionStatusIOS",
+    "clearTransactionIOS",
+    "getPendingTransactionsIOS",
+    "getAllTransactionsIOS",
+    "getAppTransactionIOS",
+    "currentEntitlementIOS",
+    "latestTransactionIOS",
+    "isTransactionVerifiedIOS",
+    "getTransactionJwsIOS",
+    "getReceiptDataIOS",
+    "canPresentExternalPurchaseNoticeIOS",
+    "presentExternalPurchaseNoticeSheetIOS",
+    "isEligibleForExternalPurchaseCustomLinkIOS",
+    "getExternalPurchaseCustomLinkTokenIOS",
+    "showExternalPurchaseCustomLinkNoticeIOS",
+  ];
+  for (const method of flutterMacosSupportedMethods) {
+    expectIncludes(
+      flutterMacosPlugin,
+      [
+        `case "${method}"`,
+        `private func ${method}(`,
+        `OpenIapModule.shared.${method}(`,
+      ],
+      `Flutter macOS ${method} bridge`,
+    );
+  }
+  expectIncludes(
+    flutterMacosPlugin,
+    [
+      'case "getStorefrontIOS"',
+      "private func getStorefrontIOS(",
+      "OpenIapModule.shared.getStorefront()",
+    ],
+    "Flutter macOS storefront bridge",
   );
   expectIncludes(
     "libraries/flutter_inapp_purchase/android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt",
@@ -1133,7 +1193,7 @@ function checkFlutter() {
   expectIncludes(
     "libraries/react-native-iap/ios/HybridRnIap.swift",
     [
-      "func buyPromotedProductIOS() throws -> Promise<Void>",
+      "func buyPromotedProductIOS() throws -> Promise<Bool>",
       "OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()",
       "throw OpenIapException.from(purchaseError)",
     ],
@@ -1328,6 +1388,16 @@ function checkKmp() {
     "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseAndroid.kt",
     ["requestPurchaseOnPromotedProductIOS(): Boolean = false"],
     "KMP Android promoted product bridge",
+  );
+  expectIncludes(
+    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseAndroid.kt",
+    [
+      "val requestedProductIds = params.skus.distinct()",
+      "return awaitBillingQuery(",
+      "client.queryProductDetailsAsync(queryParams)",
+      "complete(Result.failure(PurchaseException(error)))",
+    ],
+    "KMP fresh, fail-closed product query",
   );
   expectIncludes(
     "libraries/kmp-iap/example/gradle.properties",
@@ -1655,7 +1725,7 @@ function checkBillingChoiceFieldBindings() {
   );
   expectIncludes(
     ".claude/guides/05-google-package.md",
-    ["Play Billing 9.1.0", "Horizon SDK 2.0.0", "Amazon Appstore SDK 3.0.8"],
+    ["Play Billing 9.1.0", "Horizon SDK 2.0.0", "Amazon Appstore SDK 3.0.9"],
     "Google package guide store versions",
   );
   expectNotIncludes(
@@ -1703,12 +1773,16 @@ function checkBillingChoiceFieldBindings() {
     "packages/google/openiap/src/play/java/dev/hyo/openiap/OpenIapModule.kt",
     [
       "billingChoiceScreenType = config?.billingChoiceScreenTypeAndroid",
-      "billingChoiceScreenType != BillingChoiceScreenTypeAndroid.DeveloperRendered",
+      "configuration.billingChoiceScreenType !=",
       "setOriginalExternalTransactionId",
       "params.externalTransactionToken",
       'getMethod("getLinkUri")',
       'getMethod("getOriginalExternalTransactionId")',
       'getMethod("getProducts")',
+      'getMethod("getId")',
+      'getMethod("getOfferToken")',
+      'getMethod("getType")',
+      "productDetailsAndroid = productDetails",
       "?.takeIf { it.isNotBlank() }",
       "DeveloperProvidedBillingProductAndroid(",
       "BillingClient.BillingProgram.BILLING_CHOICE",
@@ -1719,6 +1793,11 @@ function checkBillingChoiceFieldBindings() {
       "resolveLegacySubscriptionReplacementMode(",
     ],
     "Google Billing Choice field bindings",
+  );
+  expectNotIncludes(
+    "packages/google/openiap/src/play/java/dev/hyo/openiap/OpenIapModule.kt",
+    ["products.map { it.toString() }"],
+    "Google UserChoiceDetails product ID mapping",
   );
   expectIncludes(
     "packages/google/openiap/src/horizon/java/dev/hyo/openiap/OpenIapModule.kt",
@@ -1800,6 +1879,7 @@ function checkBillingChoiceFieldBindings() {
       "externalTransactionToken = params.externalTransactionToken.unwrapString()",
       "linkUri = details.linkUri.wrapVariant()",
       "originalExternalTransactionId = details.originalExternalTransactionId.wrapVariant()",
+      "productDetailsAndroid = details.productDetailsAndroid.map",
       "products = details.products.map",
       "subResponseCode = mapSubResponseCode(result.subResponseCode)",
     ],
@@ -2000,7 +2080,7 @@ function checkBillingChoiceFieldBindings() {
   expectIncludes(
     "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseAndroid.kt",
     [
-      "billingChoiceScreenType = config?.billingChoiceScreenTypeAndroid",
+      "val requestedBillingChoiceScreenType = config?.billingChoiceScreenTypeAndroid",
       "includeDeveloperListener =",
       "setOriginalExternalTransactionId",
       "params.externalTransactionToken",
@@ -2008,6 +2088,9 @@ function checkBillingChoiceFieldBindings() {
       'invokeOptionalStringGetter("getLinkUri")',
       'invokeOptionalStringGetter("getOriginalExternalTransactionId")',
       'invokeOptionalListGetter("getProducts")',
+      "private fun com.android.billingclient.api.UserChoiceDetails.toOpenIapDetails()",
+      "originalExternalTransactionId = originalExternalTransactionId",
+      "productDetailsAndroid = productDetails",
       "runCatching { javaClass.getMethod(methodName)",
       "?.takeIf { it.isNotBlank() }",
       "subResponseCode = onPurchasesUpdatedSubResponseCode.toOpenIapSubResponseCode()",
@@ -2015,7 +2098,7 @@ function checkBillingChoiceFieldBindings() {
       "BillingProgramReportingDetailsParams.DeveloperBillingType.IN_APP",
       "InAppMessageParams.InAppMessageCategoryId.TRANSACTIONAL",
       "hasProductLevelReplacementParams = subscriptionProductReplacementParams != null",
-      "continuation.resume(false)",
+      "toBillingOperationError(",
     ],
     "KMP Billing Choice Android bindings",
   );
@@ -2165,6 +2248,60 @@ function checkBillingChoiceFieldBindings() {
     ["JsonSerializer.Deserialize<DeveloperProvidedBillingDetailsAndroid>"],
     "MAUI Billing Choice event payload",
   );
+
+  for (const [file, bindings] of [
+    [
+      "packages/gql/src/error.graphql",
+      ["subResponseCodeAndroid: SubResponseCodeAndroid"],
+    ],
+    [
+      "packages/google/openiap/src/main/java/dev/hyo/openiap/OpenIapError.kt",
+      ['put("subResponseCodeAndroid", subResponseCode?.toJson())'],
+    ],
+    [
+      "packages/google/openiap/src/main/java/dev/hyo/openiap/helpers/CommonHelpers.kt",
+      ["subResponseCodeAndroid = this.subResponseCode"],
+    ],
+    [
+      "libraries/react-native-iap/src/specs/RnIap.nitro.ts",
+      ["subResponseCodeAndroid?: SubResponseCodeAndroid;"],
+    ],
+    [
+      "libraries/react-native-iap/src/index.ts",
+      ["subResponseCodeAndroid: error.subResponseCodeAndroid"],
+    ],
+    [
+      "libraries/expo-iap/src/utils/errorMapping.ts",
+      ["error.subResponseCodeAndroid = props.subResponseCodeAndroid"],
+    ],
+    [
+      "libraries/flutter_inapp_purchase/lib/helpers.dart",
+      ["typedef PurchaseResult = iap_err.PurchaseResult;"],
+    ],
+    [
+      "libraries/flutter_inapp_purchase/lib/errors.dart",
+      ["errorData['subResponseCodeAndroid']", "json['subResponseCodeAndroid']"],
+    ],
+    [
+      "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/Helper.kt",
+      [
+        "subResponseCodeAndroid = onPurchasesUpdatedSubResponseCode.toOpenIapSubResponseCode()",
+      ],
+    ],
+    [
+      "libraries/maui-iap/android/openiap/src/main/java/dev/hyo/openiap/maui/OpenIapMauiModule.kt",
+      ['"subResponseCodeAndroid" to diagnostics["subResponseCodeAndroid"]'],
+    ],
+    [
+      "libraries/godot-iap/addons/godot-iap/types.gd",
+      [
+        "var sub_response_code_android: Variant = null",
+        'dict["subResponseCodeAndroid"]',
+      ],
+    ],
+  ]) {
+    expectIncludes(file, bindings, "PurchaseError sub-response parity");
+  }
 }
 
 function checkFrameworkDependencyHygiene() {
@@ -3701,7 +3838,6 @@ function checkFrameworkDependencyHygiene() {
     [
       "ErrorCode.userCancelled.rawValue",
       "ErrorCode.developerError.rawValue",
-      "ErrorCode.purchaseError.rawValue",
       "ErrorCode.syncError.rawValue",
       '@available(*, deprecated, message: "Use promotedProductIOS signal with requestPurchase instead.")',
       '@available(*, deprecated, message: "Use verifyPurchase instead.")',
@@ -4560,7 +4696,7 @@ function checkFrameworkDependencyHygiene() {
         '@Suppress("DEPRECATION")',
         "val isAvailable = iap.checkAlternativeBillingAvailability()",
         "val token = iap.createAlternativeBillingReportingToken()",
-        "val payload = JSONObject(e.toJSON())",
+        "val payload = JSONObject(serializeOpenIapError(e))",
       ],
       "Flutter Android plugin must preserve legacy alternative billing handlers",
     );

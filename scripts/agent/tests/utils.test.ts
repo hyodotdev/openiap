@@ -4,6 +4,7 @@
 
 import { describe, expect, test } from "bun:test";
 import * as crypto from "crypto";
+import { extractGraphQLSymbols } from "../indexer.js";
 
 // ============================================================================
 // Test utility functions extracted from indexer.ts
@@ -30,6 +31,7 @@ function getLanguage(filePath: string): string {
     tsx: "typescript-react",
     js: "javascript",
     jsx: "javascript-react",
+    graphql: "graphql",
   };
   return langMap[ext] || "unknown";
 }
@@ -170,9 +172,39 @@ describe("getLanguage", () => {
     expect(getLanguage("script.js")).toBe("javascript");
   });
 
+  test("should identify GraphQL schema files", () => {
+    expect(getLanguage("schema.graphql")).toBe("graphql");
+  });
+
   test("should return unknown for unrecognized extensions", () => {
     expect(getLanguage("file.py")).toBe("unknown");
     expect(getLanguage("file.md")).toBe("unknown");
+  });
+});
+
+describe("extractGraphQLSymbols", () => {
+  test("indexes zero-argument and multiline root operations", () => {
+    const symbols = extractGraphQLSymbols(`
+extend type Query {
+  getStorefront: String!
+  getBillingChoiceInfoAndroid(
+    params: GetBillingChoiceInfoParamsAndroid
+  ): BillingChoiceInfoAndroid
+}
+
+input GetBillingChoiceInfoParamsAndroid {
+  includeImages: Boolean
+}
+`);
+
+    expect(
+      symbols
+        .filter((symbol) => symbol.kind === "function")
+        .map((symbol) => symbol.name),
+    ).toEqual(["getStorefront", "getBillingChoiceInfoAndroid"]);
+    expect(symbols.map((symbol) => symbol.name)).toContain(
+      "GetBillingChoiceInfoParamsAndroid",
+    );
   });
 });
 
