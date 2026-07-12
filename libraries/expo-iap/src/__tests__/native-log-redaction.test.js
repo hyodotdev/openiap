@@ -100,6 +100,9 @@ describe('native error and listener bridges', () => {
     expect(androidHelper).toContain('serializeErrorEnvelope(errorJson)');
     expect(iosHelper).toContain('OPENIAP_ERROR_JSON:');
     expect(iosHelper).toContain('OpenIapSerialization.encode(error)');
+    expect(iosHelper).toContain(
+      'if JSONSerialization.isValidJSONObject(payload),',
+    );
     expect(iosModule).toContain('throw IapException.from(error)');
   });
 

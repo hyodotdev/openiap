@@ -50,6 +50,12 @@ describe('errorMapping utilities', () => {
     expect(ErrorCodeUtils.fromPlatformCode('E_STRANGE', 'ios')).toBe(
       ErrorCode.Unknown,
     );
+    expect(ErrorCodeUtils.fromPlatformCode(null, 'ios')).toBe(
+      ErrorCode.Unknown,
+    );
+    expect(ErrorCodeUtils.fromPlatformCode(undefined, 'android')).toBe(
+      ErrorCode.Unknown,
+    );
   });
 
   it('normalizes E-prefixed standard error codes', () => {

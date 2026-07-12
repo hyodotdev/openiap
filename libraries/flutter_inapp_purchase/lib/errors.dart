@@ -20,6 +20,11 @@ openiap_types.SubResponseCodeAndroid? parseSubResponseCodeAndroid(
   }
 }
 
+List<String>? _parseProductIds(dynamic value) {
+  if (value is! List<dynamic>) return null;
+  return value.map((dynamic id) => id.toString()).toList();
+}
+
 /// Get current platform
 IapPlatform getCurrentPlatform() {
   if (defaultTargetPlatform == TargetPlatform.iOS ||
@@ -241,9 +246,7 @@ class PurchaseError implements Exception {
       debugMessage: errorData['debugMessage']?.toString(),
       code: errorCode,
       productId: errorData['productId']?.toString(),
-      productIds: (errorData['productIds'] as List<dynamic>?)
-          ?.map((dynamic id) => id.toString())
-          .toList(),
+      productIds: _parseProductIds(errorData['productIds']),
       productType: errorData['productType']?.toString(),
       isEmptyProductList: errorData['isEmptyProductList'] as bool?,
       subResponseCodeAndroid: parseSubResponseCodeAndroid(
@@ -296,9 +299,7 @@ class PurchaseResult {
       code: json['code']?.toString(),
       message: json['message']?.toString(),
       productId: json['productId']?.toString(),
-      productIds: (json['productIds'] as List<dynamic>?)
-          ?.map((dynamic id) => id.toString())
-          .toList(),
+      productIds: _parseProductIds(json['productIds']),
       productType: json['productType']?.toString(),
       isEmptyProductList: json['isEmptyProductList'] as bool?,
       subResponseCodeAndroid: parseSubResponseCodeAndroid(

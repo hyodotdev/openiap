@@ -127,6 +127,15 @@ void main() {
 
       expect(error.getPlatformCode(), 'E_NOT_PREPARED');
     });
+
+    test('fromPlatformError ignores malformed productIds', () {
+      final error = errors.PurchaseError.fromPlatformError(<String, dynamic>{
+        'message': 'Something went wrong',
+        'productIds': 'not-a-list',
+      }, types.IapPlatform.Android);
+
+      expect(error.productIds, isNull);
+    });
   });
 
   group('Error messages', () {
@@ -188,6 +197,14 @@ void main() {
         types.SubResponseCodeAndroid.NoApplicableSubResponseCode,
       );
       expect(roundTrip.purchaseTokenAndroid, 'token');
+    });
+
+    test('PurchaseResult ignores malformed productIds', () {
+      final result = errors.PurchaseResult.fromJSON(<String, dynamic>{
+        'productIds': 'not-a-list',
+      });
+
+      expect(result.productIds, isNull);
     });
 
     test('ConnectionResult serialization', () {

@@ -300,9 +300,12 @@ export const ErrorCodeUtils = {
   // OpenIAP native bridges already exchange canonical error-code strings.
   getNativeErrorCode: (errorCode: ErrorCode): string => errorCode,
   fromPlatformCode: (
-    platformCode: string | number,
+    platformCode: string | number | null | undefined,
     platform: IapPlatform,
   ): ErrorCode => {
+    if (platformCode == null) {
+      return ErrorCode.Unknown;
+    }
     if (typeof platformCode === 'number') {
       return normalizePlatform(platform) === 'android'
         ? LEGACY_ANDROID_RESPONSE_CODES.get(platformCode) ?? ErrorCode.Unknown

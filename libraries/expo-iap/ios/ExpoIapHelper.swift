@@ -15,7 +15,8 @@ final class IapException: GenericException<(code: String, envelope: String)>, @u
         payload["platform"] = "ios"
 
         let code = payload["code"] as? String ?? "unknown"
-        if let data = try? JSONSerialization.data(withJSONObject: payload),
+        if JSONSerialization.isValidJSONObject(payload),
+           let data = try? JSONSerialization.data(withJSONObject: payload),
            let json = String(data: data, encoding: .utf8) {
             return IapException((code: code, envelope: envelopePrefix + json))
         }
