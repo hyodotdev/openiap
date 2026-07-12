@@ -162,6 +162,7 @@ function AlternativeBillingScreen() {
           'external-offer': 'External Offer',
           'external-payments': 'External Payments',
           'user-choice-billing': 'User Choice Billing',
+          'billing-choice': 'Billing Choice',
         };
 
         setPurchaseResult(
@@ -233,8 +234,9 @@ function AlternativeBillingScreen() {
 
       try {
         // Step 1: Check if billing program is available
-        const availability =
-          await isBillingProgramAvailableAndroid(billingProgram);
+        const availability = await isBillingProgramAvailableAndroid(
+          billingProgram,
+        );
         console.log('[Android] Billing program available:', availability);
 
         if (!availability.isAvailable) {
@@ -262,21 +264,21 @@ function AlternativeBillingScreen() {
         setPurchaseResult('Getting reporting token...');
 
         // Step 3: Get reporting details (after payment completes externally)
-        const details =
-          await createBillingProgramReportingDetailsAndroid(billingProgram);
+        const details = await createBillingProgramReportingDetailsAndroid(
+          billingProgram,
+        );
+        const hasReportingToken = Boolean(details.externalTransactionToken);
         console.log('[Android] Reporting details:', {
           billingProgram: details.billingProgram,
-          hasExternalTransactionToken: Boolean(
-            details.externalTransactionToken,
-          ),
+          hasExternalTransactionToken: hasReportingToken,
         });
 
         setPurchaseResult(
           `✅ Billing Programs API flow completed\n\nProduct: ${
             product.id
-          }\nProgram: ${
-            details.billingProgram
-          }\nToken: ${details.externalTransactionToken}\n\n⚠️ Important:\n1. Report token to Google Play within 24 hours\n2. Process payment on your external site`,
+          }\nProgram: ${details.billingProgram}\nToken: ${
+            hasReportingToken ? 'Present' : 'Missing'
+          }\n\n⚠️ Important:\n1. Report token to Google Play within 24 hours\n2. Process payment on your external site`,
         );
 
         Alert.alert(
@@ -370,8 +372,8 @@ function AlternativeBillingScreen() {
           {isVega
             ? 'Not supported on Amazon Vega'
             : Platform.OS === 'ios'
-              ? 'External purchase links (iOS 16.0+)'
-              : 'Google Play alternative billing'}
+            ? 'External purchase links (iOS 16.0+)'
+            : 'Google Play alternative billing'}
         </Text>
       </View>
 
@@ -453,10 +455,10 @@ function AlternativeBillingScreen() {
                 {billingProgram === 'external-offer'
                   ? 'External Offer'
                   : billingProgram === 'external-payments'
-                    ? 'External Payments'
-                    : billingProgram === 'external-content-link'
-                      ? 'External Content Link'
-                      : billingProgram}
+                  ? 'External Payments'
+                  : billingProgram === 'external-content-link'
+                  ? 'External Content Link'
+                  : billingProgram}
               </Text>
               <Text style={styles.modeSelectorArrow}>▼</Text>
             </TouchableOpacity>
@@ -589,12 +591,12 @@ function AlternativeBillingScreen() {
                 {isProcessing
                   ? 'Processing...'
                   : isVega
-                    ? 'Not supported on Vega'
-                    : Platform.OS === 'ios'
-                      ? '🛒 Buy (External URL)'
-                      : androidBillingFlow === 'billing-programs'
-                        ? '🛒 Buy (Billing Programs)'
-                        : '🛒 Buy (User Choice Billing)'}
+                  ? 'Not supported on Vega'
+                  : Platform.OS === 'ios'
+                  ? '🛒 Buy (External URL)'
+                  : androidBillingFlow === 'billing-programs'
+                  ? '🛒 Buy (Billing Programs)'
+                  : '🛒 Buy (User Choice Billing)'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -746,19 +748,19 @@ function AlternativeBillingScreen() {
                   {program === 'external-offer'
                     ? 'External Offer'
                     : program === 'external-payments'
-                      ? 'External Payments'
-                      : program === 'external-content-link'
-                        ? 'External Content Link'
-                        : program}
+                    ? 'External Payments'
+                    : program === 'external-content-link'
+                    ? 'External Content Link'
+                    : program}
                 </Text>
                 <Text style={styles.modeOptionDescription}>
                   {program === 'external-offer'
                     ? 'For apps that offer digital content outside Google Play. Requires approval.'
                     : program === 'external-payments'
-                      ? 'For apps in eligible regions to use alternative payment processors.'
-                      : program === 'external-content-link'
-                        ? 'For linking to external content already purchased outside the app.'
-                        : ''}
+                    ? 'For apps in eligible regions to use alternative payment processors.'
+                    : program === 'external-content-link'
+                    ? 'For linking to external content already purchased outside the app.'
+                    : ''}
                 </Text>
               </TouchableOpacity>
             ))}

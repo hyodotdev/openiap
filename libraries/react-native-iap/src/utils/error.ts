@@ -110,11 +110,11 @@ const parseNSErrorJsonPayload = (rawString: string): IapError | null => {
   return null;
 };
 
-const parseStructuredError = (error: Error): IapError | null => {
-  const errorWithCode = error as Error & {code?: unknown} & Record<
-      string,
-      unknown
-    >;
+const parseStructuredError = (error: object): IapError | null => {
+  const errorWithCode = error as {code?: unknown; message?: unknown} & Record<
+    string,
+    unknown
+  >;
 
   if (errorWithCode.code != null) {
     const {code, message, ...extraFields} = errorWithCode;
@@ -122,7 +122,7 @@ const parseStructuredError = (error: Error): IapError | null => {
     return {
       ...extraFields,
       code: String(code),
-      message: typeof message === 'string' ? message : error.message,
+      message: typeof message === 'string' ? message : 'Unknown error occurred',
     };
   }
 
@@ -143,13 +143,16 @@ const parseStructuredError = (error: Error): IapError | null => {
 export function parseErrorStringToJsonObj(
   errorString: string | Error | unknown,
 ): IapError {
-  // Handle Error objects
-  if (errorString instanceof Error) {
+  // Nitro can reject with either Error instances or plain structured objects.
+  if (typeof errorString === 'object' && errorString !== null) {
     const structuredError = parseStructuredError(errorString);
     if (structuredError) {
       return structuredError;
     }
+  }
 
+  // Parse an Error's message after checking for attached structured fields.
+  if (errorString instanceof Error) {
     errorString = errorString.message;
   }
 

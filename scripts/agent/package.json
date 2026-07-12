@@ -4,7 +4,7 @@
   "description": "OpenIAP Hybrid Mode - Shared Brain, Dual Body Architecture",
   "type": "module",
   "scripts": {
-    "compile": "bun run compile:ai && bun run compile:local",
+    "compile": "bun run indexer.ts --compile",
     "compile:ai": "bun run compile-context.ts",
     "compile:local": "bun run indexer.ts",
     "compile:local:knowledge": "bun run indexer.ts --knowledge",
@@ -22,6 +22,7 @@
     "chalk": "^5.3.0",
     "dotenv": "^16.4.5",
     "glob": "^10.4.5",
+    "graphql": "^16.11.0",
     "inquirer": "^10.2.2",
     "langchain": "^0.3.0",
     "vectordb": "^0.11.0"

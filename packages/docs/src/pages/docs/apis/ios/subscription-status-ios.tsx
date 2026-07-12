@@ -12,7 +12,7 @@ function SubscriptionStatusIOS() {
     <div className="doc-page">
       <SEO
         title="subscriptionStatusIOS"
-        description="Get detailed subscription status using StoreKit 2 (iOS 15+)."
+        description="Get detailed subscription status using StoreKit 2 (iOS 15+, macOS 14+)."
         path="/docs/apis/ios/subscription-status-ios"
         keywords="subscriptionStatusIOS, StoreKit 2, subscription state"
       />
@@ -20,14 +20,17 @@ function SubscriptionStatusIOS() {
         <span className="platform-badge platform-badge--ios">iOS</span>{' '}
         subscriptionStatusIOS
       </h1>
-      <p>Get detailed subscription status using StoreKit 2 (iOS 15+).</p>
+      <p>
+        Get detailed subscription status using StoreKit 2 (iOS 15+, macOS 14+).
+      </p>
       <p>
         Wraps <code>Product.SubscriptionInfo.status</code> — returns an array
         projected onto <code>SubscriptionStatusIOS</code>, which exposes only{' '}
         <code>renewalInfo</code> and <code>state</code>. The{' '}
         <code>transaction</code> field on Apple's <code>Status</code> type is
         not surfaced by this wrapper; if you need the underlying transaction,
-        call <code>latestTransactionIOS(sku)</code> separately. iOS 15+. See the{' '}
+        call <code>latestTransactionIOS(sku)</code> separately. iOS 15+, macOS
+        14+. See the{' '}
         <a
           href="https://developer.apple.com/documentation/storekit/product/subscriptioninfo/status"
           target="_blank"
@@ -54,7 +57,7 @@ function SubscriptionStatusIOS() {
             <CodeBlock language="dart">{`Future<List<SubscriptionStatusIOS>> subscriptionStatusIOS(String sku);`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task<List<SubscriptionStatusIOS>> SubscriptionStatusIOSAsync(String Sku)`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<IReadOnlyList<SubscriptionStatusIOS>> SubscriptionStatusIOSAsync(string sku);`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func subscription_status_ios(sku: String) -> Variant`}</CodeBlock>
@@ -126,7 +129,7 @@ if (Platform.OS === 'ios') {
 }`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`if (Platform.isIOS) {
+            <CodeBlock language="dart">{`if (Platform.isIOS || Platform.isMacOS) {
   final status = await FlutterInappPurchase.instance
       .subscriptionStatusIOS('com.app.monthly');
 }`}</CodeBlock>

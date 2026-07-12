@@ -317,8 +317,9 @@ The code map scans these patterns by default:
 ```typescript
 sourcePatterns: [
   "packages/apple/Sources/**/*.swift",
-  "packages/google/openiap/src/main/**/*.kt",
+  "packages/google/openiap/src/{main,play,horizon,amazon}/**/*.kt",
   "packages/gql/src/**/*.ts",
+  "packages/gql/**/*.graphql",
   "packages/docs/src/**/*.{ts,tsx}",
 ]
 ```

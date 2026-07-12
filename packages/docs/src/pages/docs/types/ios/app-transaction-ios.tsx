@@ -11,12 +11,12 @@ function AppTransactionIos() {
   return (
     <div className="doc-page">
       <SEO
-        title="AppTransactionIOS"
-        description="AppTransactionIOS type definition and field reference."
+        title="AppTransaction"
+        description="AppTransaction type definition and field reference."
         path="/docs/types/ios/app-transaction-ios"
-        keywords="AppTransactionIOS, AppTransaction, OpenIAP types, App Transaction"
+        keywords="AppTransaction, OpenIAP types, App Transaction"
       />
-      <h1>AppTransactionIOS</h1>
+      <h1>AppTransaction</h1>
       <section>
         <AnchorLink id="app-transaction" level="h2">
           AppTransaction
@@ -159,14 +159,14 @@ function AppTransactionIos() {
   originalPurchaseDate: number;  // epoch ms
   deviceVerification: string;
   deviceVerificationNonce: string;
-  environment: 'Sandbox' | 'Production';
+  environment: string;
   signedDate: number;  // epoch ms
   appId: number;
   appVersionId: number;
-  preorderDate?: number;  // epoch ms
+  preorderDate?: number | null;  // epoch ms
   // iOS 18.4+ properties
-  appTransactionId?: string;
-  originalPlatform?: string;
+  appTransactionId?: string | null;
+  originalPlatform?: string | null;
 }`}</CodeBlock>
             ),
             swift: (
@@ -174,14 +174,14 @@ function AppTransactionIos() {
     let bundleId: String
     let appVersion: String
     let originalAppVersion: String
-    let originalPurchaseDate: Date
+    let originalPurchaseDate: Double  // epoch ms
     let deviceVerification: String
     let deviceVerificationNonce: String
     let environment: String  // "Sandbox" | "Production"
-    let signedDate: Date
-    let appId: Int
-    let appVersionId: Int
-    let preorderDate: Date?
+    let signedDate: Double  // epoch ms
+    let appId: Double
+    let appVersionId: Double
+    let preorderDate: Double?  // epoch ms
     // iOS 18.4+ properties
     let appTransactionId: String?
     let originalPlatform: String?
@@ -192,14 +192,14 @@ function AppTransactionIos() {
     val bundleId: String,
     val appVersion: String,
     val originalAppVersion: String,
-    val originalPurchaseDate: Long,  // epoch ms
+    val originalPurchaseDate: Double,  // epoch ms
     val deviceVerification: String,
     val deviceVerificationNonce: String,
     val environment: String,  // "Sandbox" | "Production"
-    val signedDate: Long,  // epoch ms
-    val appId: Long,
-    val appVersionId: Long,
-    val preorderDate: Long? = null,
+    val signedDate: Double,  // epoch ms
+    val appId: Double,
+    val appVersionId: Double,
+    val preorderDate: Double? = null,
     // iOS 18.4+ properties
     val appTransactionId: String? = null,
     val originalPlatform: String? = null
@@ -210,14 +210,14 @@ function AppTransactionIos() {
   final String bundleId;
   final String appVersion;
   final String originalAppVersion;
-  final int originalPurchaseDate;  // epoch ms
+  final double originalPurchaseDate;  // epoch ms
   final String deviceVerification;
   final String deviceVerificationNonce;
   final String environment;  // "Sandbox" | "Production"
-  final int signedDate;  // epoch ms
-  final int appId;
-  final int appVersionId;
-  final int? preorderDate;
+  final double signedDate;  // epoch ms
+  final double appId;
+  final double appVersionId;
+  final double? preorderDate;
   // iOS 18.4+ properties
   final String? appTransactionId;
   final String? originalPlatform;
@@ -261,22 +261,22 @@ public sealed record AppTransaction
 }`}</CodeBlock>
             ),
             gdscript: (
-              <CodeBlock language="gdscript">{`class_name AppTransaction
+              <CodeBlock language="gdscript">{`class AppTransaction:
 
-var bundle_id: String
-var app_version: String
-var original_app_version: String
-var original_purchase_date: int  # epoch ms
-var device_verification: String
-var device_verification_nonce: String
-var environment: String  # "Sandbox" | "Production"
-var signed_date: int  # epoch ms
-var app_id: int
-var app_version_id: int
-var preorder_date: int  # optional, epoch ms
-# iOS 18.4+ properties
-var app_transaction_id: String  # optional
-var original_platform: String  # optional`}</CodeBlock>
+    var bundle_id: String
+    var app_version: String
+    var original_app_version: String
+    var original_purchase_date: float  # epoch ms
+    var device_verification: String
+    var device_verification_nonce: String
+    var environment: String
+    var signed_date: float  # epoch ms
+    var app_id: float
+    var app_version_id: float
+    var preorder_date: Variant  # optional, epoch ms
+    # iOS 18.4+ properties
+    var app_transaction_id: Variant
+    var original_platform: Variant`}</CodeBlock>
             ),
           }}
         </LanguageTabs>

@@ -28,30 +28,31 @@ function PromotedProductListenerIOS() {
         {{
           typescript: (
             <CodeBlock language="typescript">{`promotedProductListenerIOS(
-  listener: (productId: string) => void
-): Subscription`}</CodeBlock>
+  listener: (product: Product) => void
+): EventSubscription`}</CodeBlock>
           ),
           swift: (
-            <CodeBlock language="swift">{`// AsyncSequence approach
-var promotedProducts: AsyncStream<String>
-
-// Combine approach
-var promotedProductPublisher: AnyPublisher<String, Never>`}</CodeBlock>
+            <CodeBlock language="swift">{`func promotedProductListenerIOS(
+    _ listener: @escaping (String) -> Void
+) -> Subscription`}</CodeBlock>
           ),
           kotlin: (
             <CodeBlock language="kotlin">{`// iOS only - not available on Android`}</CodeBlock>
           ),
           kmp: (
-            <CodeBlock language="kotlin">{`// iOS only - not available on Android`}</CodeBlock>
+            <CodeBlock language="kotlin">{`// Emits on iOS targets; it stays silent on Android.
+val promotedProductListener: Flow<String?>`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`Stream<String> get promotedProductStream; // iOS only`}</CodeBlock>
+            <CodeBlock language="dart">{`// iOS only
+Stream<String?> get purchasePromoted;`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// iOS only - not available on Android`}</CodeBlock>
+// Emits on iOS; it stays silent on Android.
+IObservable<string> promotedProducts = OpenIapClient.Instance.PromotedProductIOS;`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
@@ -62,30 +63,21 @@ using OpenIap.Maui;
           typescript: (
             <CodeBlock language="typescript">{`import {
   promotedProductListenerIOS,
-  fetchProducts,
   requestPurchase
 } from 'expo-iap';
 
-const subscription = promotedProductListenerIOS(async (productId) => {
+const subscription = promotedProductListenerIOS(async (product) => {
+  const productId = product.id;
   console.log('Promoted product tapped:', productId);
 
-  // Fetch product details
-  const products = await fetchProducts({
-    skus: [productId],
-    type: 'in-app'
-  });
+  // expo-iap and react-native-iap deliver the fetched Product object.
+  const confirmed = await showPurchaseConfirmation(product);
 
-  if (products.length > 0) {
-    // Show product info to user and confirm purchase
-    const confirmed = await showPurchaseConfirmation(products[0]);
-
-    if (confirmed) {
-      // Purchase directly using requestPurchase with the received SKU
-      await requestPurchase({
-        request: { apple: { sku: productId } },
-        type: 'in-app'
-      });
-    }
+  if (confirmed) {
+    await requestPurchase({
+      request: { apple: { sku: productId } },
+      type: 'in-app'
+    });
   }
 });
 
@@ -95,50 +87,83 @@ subscription.remove();`}</CodeBlock>
           swift: (
             <CodeBlock language="swift">{`import OpenIap
 
-// Using async/await
-Task {
-    for await productId in OpenIapModule.shared.promotedProducts {
+let subscription = OpenIapModule.shared.promotedProductListenerIOS { productId in
+    Task {
         print("Promoted product tapped: \\(productId)")
 
-        // Fetch product details
-        let products = try await OpenIapModule.shared.fetchProducts(
-            ProductRequest(skus: [productId], type: .inApp)
-        )
+        do {
+            let result = try await OpenIapModule.shared.fetchProducts(
+                ProductRequest(skus: [productId], type: .inApp)
+            )
+            guard case let .products(products) = result,
+                  let product = products?.first,
+                  await showPurchaseConfirmation(product) else { return }
 
-        if let product = products.first {
-            // Show product info to user and confirm purchase
-            if await showPurchaseConfirmation(product) {
-                // Purchase directly using requestPurchase with the received SKU
-                try await OpenIapModule.shared.requestPurchase(
-                    RequestPurchaseProps(
-                        request: .purchase(RequestPurchasePropsByPlatforms(
+            try await OpenIapModule.shared.requestPurchase(
+                RequestPurchaseProps(
+                    request: .purchase(
+                        RequestPurchasePropsByPlatforms(
                             apple: RequestPurchaseIosProps(sku: productId)
-                        )),
-                        type: .inApp
+                        )
                     )
                 )
-            }
+            )
+        } catch {
+            print("Promoted purchase failed: \\(error.localizedDescription)")
         }
     }
 }
 
-// Or using Combine
-OpenIapModule.shared.promotedProductPublisher
-    .sink { productId in
-        print("Promoted product: \\(productId)")
+// Keep the token in the owning object, then call this on teardown.
+func stopListeningForPromotedProducts() {
+    OpenIapModule.shared.removeListener(subscription)
+}`}</CodeBlock>
+          ),
+          kmp: (
+            <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.openiap.*
+
+val iap = KmpIAP()
+
+scope.launch {
+    iap.promotedProductListener.collect { productId ->
+        productId ?: return@collect
+
+        val result = iap.fetchProducts(
+            ProductRequest(skus = listOf(productId), type = ProductQueryType.InApp)
+        )
+        val product = (result as? FetchProductsResultProducts)
+            ?.value
+            ?.firstOrNull()
+
+        if (product != null && showPurchaseConfirmation(product)) {
+            iap.requestPurchase(
+                RequestPurchaseProps(
+                    request = RequestPurchaseProps.Request.Purchase(
+                        RequestPurchasePropsByPlatforms(
+                            apple = RequestPurchaseIosProps(sku = productId)
+                        )
+                    ),
+                    type = ProductQueryType.InApp
+                )
+            )
+        }
     }
-    .store(in: &cancellables)`}</CodeBlock>
+}`}</CodeBlock>
           ),
           dart: (
             <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
 // iOS only - will not fire on Android
-final subscription = FlutterInappPurchase.promotedProductIOS.listen((productId) async {
+final iap = FlutterInappPurchase.instance;
+final subscription = iap.purchasePromoted.listen((productId) async {
+  if (productId == null) return;
   print('Promoted product tapped: $productId');
 
   // Fetch product details
-  final products = await FlutterInappPurchase.instance.fetchProducts(
-    ProductRequest(skus: [productId!], type: ProductQueryType.InApp),
+  final products = await iap.fetchProducts<Product>(
+    skus: [productId],
+    type: ProductQueryType.InApp,
   );
 
   if (products.isNotEmpty) {
@@ -147,13 +172,12 @@ final subscription = FlutterInappPurchase.promotedProductIOS.listen((productId) 
 
     if (confirmed) {
       // Purchase directly using requestPurchase with the received SKU
-      await FlutterInappPurchase.instance.requestPurchase(
-        RequestPurchaseProps(
-          request: RequestPurchasePropsByPlatforms(
-            apple: RequestPurchaseIosProps(sku: productId!),
-          ),
-          type: ProductQueryType.InApp,
-        ),
+      await iap.requestPurchase(
+        RequestPurchaseProps.inApp((
+          apple: RequestPurchaseIosProps(sku: productId),
+          google: null,
+          useAlternativeBilling: null,
+        )),
       );
     }
   }
@@ -163,9 +187,33 @@ final subscription = FlutterInappPurchase.promotedProductIOS.listen((productId) 
 subscription.cancel();`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`// .NET MAUI — see OpenIap.Maui.OpenIapClient.Instance.
-// The full operation surface lives on OpenIap.QueryResolver /
-// MutationResolver / SubscriptionResolver (auto-generated from the schema).`}</CodeBlock>
+            <CodeBlock language="csharp">{`using OpenIap;
+using OpenIap.Maui;
+
+var iap = OpenIapClient.Instance;
+var query = (QueryResolver)iap;
+var mutate = (MutationResolver)iap;
+
+using var subscription = iap.PromotedProductIOS.Subscribe(async productId =>
+{
+    var result = await query.FetchProductsAsync(new ProductRequest
+    {
+        Skus = new[] { productId },
+        Type = ProductQueryType.InApp,
+    });
+
+    var product = (result as FetchProductsResultProducts)?.Value?.FirstOrDefault();
+    if (product is null || !await ShowPurchaseConfirmationAsync(product)) return;
+
+    await mutate.RequestPurchaseAsync(new RequestPurchaseProps
+    {
+        RequestPurchase = new RequestPurchasePropsByPlatforms
+        {
+            Apple = new RequestPurchaseIosProps { Sku = productId },
+        },
+        Type = ProductQueryType.InApp,
+    });
+});`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

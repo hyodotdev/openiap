@@ -306,7 +306,7 @@ export const apiData: ApiItem[] = [
     title: 'getAllTransactionsIOS',
     category: 'iOS Specific',
     description:
-      'Get the full StoreKit 2 transaction history as PurchaseIOS values (iOS 18+ requires SK2ConsumableTransactionHistory Info.plist key for consumables)',
+      'Get the full StoreKit 2 transaction history as PurchaseIOS values (iOS 18+ requires SKIncludeConsumableInAppPurchaseHistory Info.plist key for consumables)',
     parameters: '',
     returns: '[PurchaseIOS!]!',
     path: '/docs/apis/ios/get-all-transactions-ios',

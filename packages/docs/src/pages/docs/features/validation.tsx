@@ -37,7 +37,7 @@ function Validation() {
             <a href="#verify-purchase">
               <code>verifyPurchase</code>
             </a>
-            : Send to your own validation server
+            : Verify with explicit Apple, Google, or Horizon options
           </li>
           <li>
             <a href="#verify-purchase-with-provider">
@@ -63,7 +63,13 @@ function Validation() {
         <AnchorLink id="verify-purchase" level="h2">
           verifyPurchase
         </AnchorLink>
-        <p>Verify a purchase with your backend server.</p>
+        <p>
+          Verify a purchase with explicit platform options. The current API
+          accepts <code>apple</code>, <code>google</code>, or{' '}
+          <code>horizon</code>; it does not accept a Purchase object or a server
+          URL. Keep Google and Horizon access tokens on trusted infrastructure
+          whenever possible.
+        </p>
 
         <h4>Signature</h4>
         <LanguageTabs>
@@ -72,7 +78,7 @@ function Validation() {
               <CodeBlock language="typescript">{`verifyPurchase(options: VerifyPurchaseProps): Promise<VerifyPurchaseResult>`}</CodeBlock>
             ),
             swift: (
-              <CodeBlock language="swift">{`func verifyPurchase(options: VerifyPurchaseProps) async throws -> VerifyPurchaseResult`}</CodeBlock>
+              <CodeBlock language="swift">{`func verifyPurchase(_ options: VerifyPurchaseProps) async throws -> VerifyPurchaseResult`}</CodeBlock>
             ),
             kotlin: (
               <CodeBlock language="kotlin">{`suspend fun verifyPurchase(options: VerifyPurchaseProps): VerifyPurchaseResult`}</CodeBlock>
@@ -81,7 +87,11 @@ function Validation() {
               <CodeBlock language="kotlin">{`suspend fun verifyPurchase(options: VerifyPurchaseProps): VerifyPurchaseResult`}</CodeBlock>
             ),
             dart: (
-              <CodeBlock language="dart">{`Future<VerifyPurchaseResult> verifyPurchase(VerifyPurchaseProps options);`}</CodeBlock>
+              <CodeBlock language="dart">{`Future<VerifyPurchaseResult> verifyPurchase({
+  VerifyPurchaseAppleOptions? apple,
+  VerifyPurchaseGoogleOptions? google,
+  VerifyPurchaseHorizonOptions? horizon,
+});`}</CodeBlock>
             ),
             csharp: (
               <CodeBlock language="csharp">{`Task<VerifyPurchaseResult> VerifyPurchaseAsync(VerifyPurchaseProps options);`}</CodeBlock>
@@ -99,35 +109,55 @@ function Validation() {
               <CodeBlock language="typescript">{`import { verifyPurchase } from 'expo-iap';
 
 const result = await verifyPurchase({
-  purchase,
-  serverUrl: 'https://your-server.com/api/verify',
+  apple: { sku: purchase.productId },
 });
 
-if (result.isValid) {
+if ('isValid' in result && result.isValid) {
   await grantEntitlement(purchase.productId);
   await finishTransaction({ purchase, isConsumable: false });
 }`}</CodeBlock>
             ),
             swift: (
               <CodeBlock language="swift">{`let result = try await OpenIapModule.shared.verifyPurchase(
-    VerifyPurchaseProps(purchase: purchase, serverUrl: "https://your-server.com/api/verify")
-)`}</CodeBlock>
+    VerifyPurchaseProps(
+        apple: VerifyPurchaseAppleOptions(sku: purchase.productId)
+    )
+)
+
+if case let .verifyPurchaseResultIos(iosResult) = result,
+   iosResult.isValid {
+    await grantEntitlement(purchase.productId)
+}`}</CodeBlock>
             ),
             kotlin: (
-              <CodeBlock language="kotlin">{`val result = openIapStore.verifyPurchase(
-    VerifyPurchaseProps(purchase = purchase, serverUrl = "https://your-server.com/api/verify")
+              <CodeBlock language="kotlin">{`// Keep accessToken on trusted infrastructure; shown here to document the API shape.
+val result = module.verifyPurchase(
+    VerifyPurchaseProps(
+        google = VerifyPurchaseGoogleOptions(
+            accessToken = accessToken,
+            isSub = false,
+            packageName = context.packageName,
+            purchaseToken = requireNotNull(purchase.purchaseToken),
+            sku = purchase.productId
+        )
+    )
 )`}</CodeBlock>
             ),
             kmp: (
               <CodeBlock language="kotlin">{`val result = kmpIAP.verifyPurchase(
-    VerifyPurchaseProps(purchase = purchase, serverUrl = "https://your-server.com/api/verify")
+    VerifyPurchaseProps(
+        apple = VerifyPurchaseAppleOptions(sku = purchase.productId)
+    )
 )`}</CodeBlock>
             ),
             dart: (
               <CodeBlock language="dart">{`final result = await FlutterInappPurchase.instance.verifyPurchase(
-  purchase: purchase,
-  serverUrl: 'https://your-server.com/api/verify',
-);`}</CodeBlock>
+  apple: VerifyPurchaseAppleOptions(sku: purchase.productId),
+);
+
+if (result is VerifyPurchaseResultIOS && result.isValid) {
+  await grantEntitlement(purchase.productId);
+}`}</CodeBlock>
             ),
             csharp: (
               <CodeBlock language="csharp">{`using OpenIap;
@@ -147,12 +177,12 @@ var result = await ((MutationResolver)OpenIapClient.Instance).VerifyPurchaseAsyn
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`var options = VerifyPurchaseProps.new()
-options.purchase = purchase
-options.server_url = "https://your-server.com/api/verify"
+options.apple = VerifyPurchaseAppleOptions.new()
+options.apple.sku = purchase.product_id
 
 var result = await iap.verify_purchase(options)
 
-if result.is_valid:
+if result is VerifyPurchaseResultIOS and result.is_valid:
     await grant_entitlement(purchase.product_id)
     await iap.finish_transaction(purchase, false)`}</CodeBlock>
             ),
@@ -350,12 +380,10 @@ if (result.iapkit?.isValid && result.iapkit?.state === 'entitled') {
             ),
             dart: (
               <CodeBlock language="dart">{`final result = await iap.verifyPurchaseWithProvider(
-  VerifyPurchaseWithProviderProps(
-    provider: PurchaseVerificationProvider.iapkit,
-    iapkit: RequestVerifyPurchaseWithIapkitProps(
-      apiKey: 'openiap-kit_<your-key>',
-      apple: RequestVerifyPurchaseWithIapkitAppleProps(jws: purchase.purchaseToken ?? ''),
-    ),
+  provider: PurchaseVerificationProvider.Iapkit,
+  iapkit: RequestVerifyPurchaseWithIapkitProps(
+    apiKey: 'openiap-kit_<your-key>',
+    apple: RequestVerifyPurchaseWithIapkitAppleProps(jws: purchase.purchaseToken ?? ''),
   ),
 );`}</CodeBlock>
             ),
@@ -363,17 +391,24 @@ if (result.iapkit?.isValid && result.iapkit?.state === 'entitled') {
               <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var result = module.verifyPurchaseWithProvider(
-    VerifyPurchaseWithProviderProps(
-        iapkit = RequestVerifyPurchaseWithIapkitProps(
-            apiKey = "openiap-kit_<your-key>",
-            google = RequestVerifyPurchaseWithIapkitGoogleProps(
-                purchaseToken = purchase.purchaseToken
-            )
-        ),
-        provider = PurchaseVerificationProvider.Iapkit
-    )
-)`}</CodeBlock>
+var result = await ((MutationResolver)OpenIapClient.Instance)
+    .VerifyPurchaseWithProviderAsync(new VerifyPurchaseWithProviderProps
+    {
+        Provider = PurchaseVerificationProvider.Iapkit,
+        Iapkit = new RequestVerifyPurchaseWithIapkitProps
+        {
+            ApiKey = "openiap-kit_<your-key>",
+            Google = new RequestVerifyPurchaseWithIapkitGoogleProps
+            {
+                PurchaseToken = purchase.PurchaseToken!,
+            },
+        },
+    });
+
+if (result.Iapkit?.IsValid == true)
+{
+    await GrantEntitlementAsync(purchase.ProductId);
+}`}</CodeBlock>
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`var iapkit_props = RequestVerifyPurchaseWithIapkitProps.new()

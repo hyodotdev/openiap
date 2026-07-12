@@ -61,7 +61,7 @@ interface DeepLinkOptions {
 }`}</CodeBlock>
           ),
           swift: (
-            <CodeBlock language="swift">{`func deepLinkToSubscriptions() async throws`}</CodeBlock>
+            <CodeBlock language="swift">{`func deepLinkToSubscriptions(_ options: DeepLinkOptions?) async throws`}</CodeBlock>
           ),
           kotlin: (
             <CodeBlock language="kotlin">{`suspend fun deepLinkToSubscriptions(options: DeepLinkOptions? = null)`}</CodeBlock>
@@ -73,7 +73,7 @@ interface DeepLinkOptions {
             <CodeBlock language="dart">{`Future<void> deepLinkToSubscriptions({String? skuAndroid, String? packageNameAndroid});`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task<string> DeepLinkToSubscriptionsAsync(DeepLinkOptions? options = null);`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<VoidResult> DeepLinkToSubscriptionsAsync(DeepLinkOptions? options = null);`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func deep_link_to_subscriptions(options: DeepLinkOptions) -> Types.VoidResult`}</CodeBlock>
@@ -167,7 +167,7 @@ function ManageSubscriptionsButton() {
 }`}</CodeBlock>
           ),
           swift: (
-            <CodeBlock language="swift">{`try await OpenIapModule.shared.deepLinkToSubscriptions()`}</CodeBlock>
+            <CodeBlock language="swift">{`try await OpenIapModule.shared.deepLinkToSubscriptions(nil)`}</CodeBlock>
           ),
           kotlin: (
             <CodeBlock language="kotlin">{`openIapStore.deepLinkToSubscriptions(

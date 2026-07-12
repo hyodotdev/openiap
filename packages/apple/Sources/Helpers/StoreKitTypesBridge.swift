@@ -171,6 +171,7 @@ enum StoreKitTypesBridge {
         let ownershipDescription = ownershipTypeDescription(from: transaction.ownershipType)
         let reasonDetails = transactionReasonDetails(from: transaction)
         let advancedCommerceInfo: AdvancedCommerceInfoIOS? = extractAdvancedCommerceInfo(from: transaction)
+        let currencyCode = transactionCurrencyCode(from: transaction)
 
         return PurchaseIOS(
             advancedCommerceInfoIOS: advancedCommerceInfo,
@@ -185,8 +186,12 @@ enum StoreKitTypesBridge {
                     transaction.storefrontCountryCode
                 }
             }(),
-            currencyCodeIOS: nil,
-            currencySymbolIOS: nil,
+            currencyCodeIOS: currencyCode,
+            currencySymbolIOS: currencySymbol(for: currencyCode),
+            currentPlanId: currentPlanId(
+                productId: transaction.productID,
+                productType: transaction.productType
+            ),
             environmentIOS: environment,
             expirationDateIOS: expirationDate,
             id: transactionId,
@@ -320,7 +325,7 @@ enum StoreKitTypesBridge {
                         commitmentInfo: renewalCommitmentInfoIOS(from: info),
                         expirationReason: info.expirationReason?.rawValue.description,
                         gracePeriodExpirationDate: info.gracePeriodExpirationDate?.milliseconds,
-                        isInBillingRetry: nil,  // Not available in RenewalInfo, available in Status
+                        isInBillingRetry: info.isInBillingRetry,
                         jsonRepresentation: nil,
                         pendingUpgradeProductId: pendingProductId,
                         priceIncreaseStatus: priceIncrease,
@@ -357,7 +362,7 @@ enum StoreKitTypesBridge {
                         commitmentInfo: renewalCommitmentInfoIOS(from: info),
                         expirationReason: info.expirationReason?.rawValue.description,
                         gracePeriodExpirationDate: info.gracePeriodExpirationDate?.milliseconds,
-                        isInBillingRetry: nil,  // Not available in RenewalInfo, available in Status
+                        isInBillingRetry: info.isInBillingRetry,
                         jsonRepresentation: nil,
                         pendingUpgradeProductId: pendingProductId,
                         priceIncreaseStatus: priceIncrease,
@@ -410,7 +415,8 @@ enum StoreKitTypesBridge {
 
         // Subscription-only options (only available on RequestSubscriptionIosProps)
         if let subscriptionProps = props as? RequestSubscriptionIosProps {
-            // Billing plan selection for annual subscriptions with monthly commitment (iOS 26.4+)
+            // Billing plan selection is available at runtime on iOS 26.4+, but
+            // compiling the StoreKit API requires the Xcode 26.5 SDK.
             if let billingPlanType = subscriptionProps.billingPlanType {
                 #if compiler(>=6.3)
                 if #available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *) {
@@ -437,7 +443,7 @@ enum StoreKitTypesBridge {
                 throw PurchaseError.make(
                     code: .featureNotSupported,
                     productId: props.sku,
-                    message: "billingPlanType requires Xcode 26.4+ / Swift 6.3 compiler+."
+                    message: "billingPlanType requires Xcode 26.5+ / Swift 6.3 compiler+."
                 )
                 #endif
             }
@@ -454,10 +460,11 @@ enum StoreKitTypesBridge {
                             message: "Win-back offer requires product context. Fetch the product before calling requestPurchase."
                         )
                     }
-                    // Find the win-back offer from the product's promotional offers
+                    // StoreKit keeps win-back offers in a dedicated collection; they
+                    // are not included in promotionalOffers.
                     if let subscription = product.subscription {
-                        let winBackOffer = subscription.promotionalOffers.first { offer in
-                            offer.id == winBackInput.offerId && offer.type == .winBack
+                        let winBackOffer = subscription.winBackOffers.first { offer in
+                            offer.id == winBackInput.offerId
                         }
                         if let offer = winBackOffer {
                             options.insert(.winBackOffer(offer))
@@ -567,6 +574,40 @@ enum StoreKitTypesBridge {
             return product.priceFormatStyle.locale.currencyCode
         }
         #endif
+    }
+
+    static func transactionCurrencyCode(from transaction: StoreKit.Transaction) -> String? {
+        #if os(macOS) || os(tvOS) || os(visionOS)
+        // This bridge's deployment floors on these platforms already include
+        // Transaction.currency, so compiling the deprecated fallback would
+        // produce a misleading warning on macOS builds.
+        return transaction.currency?.identifier
+        #else
+        if #available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, visionOS 1.0, *) {
+            return transaction.currency?.identifier
+        }
+        return transaction.currencyCode
+        #endif
+    }
+
+    static func currencySymbol(for currencyCode: String?) -> String? {
+        guard let currencyCode, !currencyCode.isEmpty else { return nil }
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = currencyCode
+        return formatter.currencySymbol
+    }
+
+    static func currentPlanId(
+        productId: String,
+        productType: StoreKit.Product.ProductType
+    ) -> String? {
+        switch productType {
+        case .autoRenewable, .nonRenewable:
+            return productId
+        default:
+            return nil
+        }
     }
 
     static func renewalOfferInfoIOS(from info: StoreKit.Product.SubscriptionInfo.RenewalInfo) -> (id: String?, type: String?)? {
@@ -975,7 +1016,7 @@ private extension StoreKitTypesBridge {
         }
 
         guard let signature = Data(base64Encoded: offer.signature) else {
-            OpenIapLog.error("❌ Invalid signature format (must be base64): \(offer.signature)")
+            OpenIapLog.error("❌ Invalid signature format (must be base64); value omitted")
             return nil
         }
 

@@ -62,7 +62,11 @@ function InitConnection() {
             <CodeBlock language="kotlin">{`suspend fun initConnection(config: InitConnectionConfig? = null): Boolean`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`Future<bool> initConnection({InitConnectionConfig? config});`}</CodeBlock>
+            <CodeBlock language="dart">{`Future<bool> initConnection({
+  AlternativeBillingModeAndroid? alternativeBillingModeAndroid,
+  BillingChoiceScreenTypeAndroid? billingChoiceScreenTypeAndroid,
+  BillingProgramAndroid? enableBillingProgramAndroid,
+});`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`Task<bool> InitConnectionAsync(InitConnectionConfig? config = null);`}</CodeBlock>

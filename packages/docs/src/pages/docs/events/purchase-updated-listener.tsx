@@ -158,32 +158,31 @@ subscription.remove();`}</CodeBlock>
           swift: (
             <CodeBlock language="swift">{`import OpenIap
 
-// Using async/await
-Task {
-    for await purchase in OpenIapModule.shared.purchaseUpdates {
+let subscription = OpenIapModule.shared.purchaseUpdatedListener { purchase in
+    Task {
         print("Purchase updated: \\(purchase.productId)")
 
         // Validate and deliver
         if await validateReceipt(purchase) {
             await deliverProduct(purchase.productId)
-            try await OpenIapModule.shared.finishTransaction(purchase)
+            try await OpenIapModule.shared.finishTransaction(
+                purchase: purchase,
+                isConsumable: false
+            )
         }
     }
 }
 
-// Or using Combine
-OpenIapModule.shared.purchaseUpdatedPublisher
-    .sink { purchase in
-        print("Purchase updated: \\(purchase.productId)")
-    }
-    .store(in: &cancellables)`}</CodeBlock>
+// Cleanup when done
+OpenIapModule.shared.removeListener(subscription)`}</CodeBlock>
           ),
           kotlin: (
-            <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapStore
+            <CodeBlock language="kotlin">{`import dev.hyo.openiap.store.OpenIapStore
 
 // Using Flow
 lifecycleScope.launch {
-    openIapStore.purchaseUpdates.collect { purchase ->
+    openIapStore.currentPurchase.collect { purchase ->
+        purchase ?: return@collect
         println("Purchase updated: \${purchase.productId}")
 
         // Validate and deliver
@@ -192,11 +191,6 @@ lifecycleScope.launch {
             openIapStore.finishTransaction(purchase, isConsumable = false)
         }
     }
-}
-
-// Or with callback
-openIapStore.setPurchaseUpdatedListener { purchase ->
-    println("Purchase updated: \${purchase.productId}")
 }`}</CodeBlock>
           ),
           kmp: (
@@ -206,7 +200,7 @@ val kmpIAP = KmpIAP()
 
 // Using Flow
 lifecycleScope.launch {
-    kmpIAP.purchaseUpdates.collect { purchase ->
+    kmpIAP.purchaseUpdatedListener.collect { purchase ->
         println("Purchase updated: \${purchase.productId}")
 
         // Validate and deliver
@@ -215,28 +209,23 @@ lifecycleScope.launch {
             kmpIAP.finishTransaction(purchase, isConsumable = false)
         }
     }
-}
-
-// Or with callback
-kmpIAP.setPurchaseUpdatedListener { purchase ->
-    println("Purchase updated: \${purchase.productId}")
 }`}</CodeBlock>
           ),
           dart: (
             <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
-final subscription = FlutterInappPurchase.purchaseUpdated.listen((purchase) async {
-  print('Purchase updated: \${purchase?.productId}');
+final subscription = FlutterInappPurchase.instance.purchaseUpdatedListener.listen((purchase) async {
+  print('Purchase updated: \${purchase.productId}');
 
   // Validate the receipt
   final isValid = await validateReceipt(purchase);
 
   if (isValid) {
     // Deliver content to user
-    await deliverProduct(purchase!.productId);
+    await deliverProduct(purchase.productId);
 
     // Finish the transaction
-    await FlutterInappPurchase.instance.finishTransaction(purchase);
+    await FlutterInappPurchase.instance.finishTransaction(purchase: purchase);
   }
 });
 

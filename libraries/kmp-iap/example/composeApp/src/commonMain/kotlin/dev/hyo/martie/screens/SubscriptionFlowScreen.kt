@@ -114,7 +114,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                     Product: ${purchase.productId}
                     Transaction ID: ${purchase.id.ifEmpty { "N/A" }}
                     Date: $dateText
-                    Receipt: ${purchase.purchaseToken ?: "N/A"}
+                    Purchase credential: ${credentialStatus(purchase.purchaseToken)}
                 """.trimIndent()
 
                         scope.launch {
@@ -140,10 +140,10 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                             verificationResult = when (result) {
                                                 is VerifyPurchaseResultIOS -> "📱 Local Verification (iOS):\n" +
                                                     "Valid: ${result.isValid}\n" +
-                                                    "Receipt: ${purchase.purchaseToken ?: "N/A"}"
+                                                    "Purchase credential: ${credentialStatus(purchase.purchaseToken)}"
                                                 is VerifyPurchaseResultAndroid -> "📱 Local Verification (Android):\n" +
                                                     "Product: ${result.productId}\n" +
-                                                    "Receipt ID: ${result.receiptId}"
+                                                    "Receipt ID: ${credentialStatus(result.receiptId)}"
                                                 is VerifyPurchaseResultHorizon -> "📱 Horizon Verification:\n" +
                                                     "Success: ${result.success}\n" +
                                                     "Grant Time: ${result.grantTime ?: "N/A"}"
@@ -984,7 +984,7 @@ fun SubscriptionCard(
                             println("    Type: ${offer.type}")
                             println("    Payment Mode: ${offer.paymentMode}")
                             offer.basePlanIdAndroid?.let { println("    Base Plan: $it") }
-                            offer.offerTokenAndroid?.let { println("    Token: $it") }
+                            println("    Has offer credential: ${!offer.offerTokenAndroid.isNullOrBlank()}")
                         }
                     }
                     is ProductSubscriptionIOS -> {
@@ -1228,3 +1228,5 @@ fun SubscriptionCard(
         }
     }
 }
+
+private fun credentialStatus(value: String?): String = if (value.isNullOrEmpty()) "missing" else "present"

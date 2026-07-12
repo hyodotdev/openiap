@@ -60,7 +60,8 @@ extend type Mutation {
   """
   Check whether a billing program (e.g., External Payments) is available for the current user.
   Replaces the deprecated isExternalOfferAvailableAsync API.
-  Available in Google Play Billing Library 8.2.0+.
+  Introduced in Google Play Billing Library 8.2.0. External Offer and External
+  Content Link integrations must use 8.2.1+ because 8.2.1 fixes this API.
   Returns availability result with isAvailable flag.
   Throws OpenIapError.NotPrepared if billing client not ready.
   See: https://openiap.dev/docs/apis/android/is-billing-program-available-android
@@ -71,7 +72,11 @@ extend type Mutation {
   ): BillingProgramAvailabilityResultAndroid!
 
   """
-  Create the reporting payload Google requires after a Developer-Provided Billing transaction (Play Billing 8.3.0+).
+  Create the reporting details and external transaction token required by a billing program.
+  Introduced in Play Billing 8.2.0. External Offer and External Content Link integrations
+  must use 8.2.1+ and create fresh details immediately before every redirect session;
+  do not cache the token for a later redirect. The same token may report multiple purchases
+  made during one External Offer session.
   Replaces the deprecated createExternalOfferReportingDetailsAsync API.
   Returns external transaction token needed for reporting external transactions.
   developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted,
@@ -88,7 +93,8 @@ extend type Mutation {
   ): BillingProgramReportingDetailsAndroid!
 
   """
-  Launch an external content/offer link from inside the Billing Programs flow (Play Billing 8.2.0+),
+  Launch an external content/offer link from inside the Billing Programs flow (introduced in
+  Play Billing 8.2.0; External Offer and External Content Link require 8.2.1+),
   including developer-rendered Billing Choice external-link flows.
   Billing Choice availability: OpenIAP Spec 2.1.0 / openiap-google 2.3.0
   (requires Play Billing 9.1.0+).

@@ -1,7 +1,6 @@
 using OpenIap;
 using OpenIap.Maui;
 using OpenIap.Maui.Example.Utils;
-using System.Text.Json;
 
 namespace OpenIap.Maui.Example.Pages;
 
@@ -10,11 +9,6 @@ namespace OpenIap.Maui.Example.Pages;
 // sections, and opens a details overlay with type-narrowed information.
 public partial class AllProductsPage : ContentPage
 {
-    private static readonly JsonSerializerOptions PrettyJson = new(JsonSerializerDefaults.Web)
-    {
-        WriteIndented = true,
-    };
-
     private readonly List<Product> _products = new();
     private readonly List<ProductSubscription> _subscriptions = new();
 
@@ -235,7 +229,6 @@ public partial class AllProductsPage : ContentPage
                     AppendDiscountOffers(pand.DiscountOffers);
                     AppendSubscriptionOffers(pand.SubscriptionOffers);
                 }
-                AppendRawJson(item);
                 break;
             case ProductSubscription s:
                 var sc = (ProductCommon)s;
@@ -265,7 +258,6 @@ public partial class AllProductsPage : ContentPage
                     AppendDiscountOffers(sand.DiscountOffers);
                     AppendSubscriptionOffers(sand.SubscriptionOffers);
                 }
-                AppendRawJson(item);
                 break;
         }
         DetailsOverlay.IsVisible = true;
@@ -355,7 +347,7 @@ public partial class AllProductsPage : ContentPage
             AppendOfferTitle(offer.BasePlanId + (string.IsNullOrEmpty(offer.OfferId) ? string.Empty : $" - {offer.OfferId}"));
             var offerTokenStatus = string.IsNullOrEmpty(offer.OfferToken)
                 ? "missing"
-                : offer.OfferToken;
+                : "present";
             AppendOfferDetail($"Offer Token: {offerTokenStatus}");
             AppendOfferDetail($"Tags: {FormatList(offer.OfferTags)}");
             foreach (var phase in offer.PricingPhases.PricingPhaseList)
@@ -390,24 +382,6 @@ public partial class AllProductsPage : ContentPage
                 AppendOfferDetail($"Price: {phase.FormattedPrice} · Period: {phase.BillingPeriod} · Cycles: {phase.BillingCycleCount} · Recurrence: {phase.RecurrenceMode}");
             }
         }
-    }
-
-    private void AppendRawJson(object item)
-    {
-        try
-        {
-            AppendSection("Raw Product JSON");
-            AppendOfferDetail(SerializeProductPreview(item));
-        }
-        catch (Exception ex)
-        {
-            AppendOfferDetail($"Unable to serialize product: {ex.Message}");
-        }
-    }
-
-    private static string SerializeProductPreview(object item)
-    {
-        return JsonSerializer.Serialize(item, item.GetType(), PrettyJson);
     }
 
     private void AppendSection(string title)

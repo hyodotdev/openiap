@@ -53,9 +53,10 @@ function ShowBillingProgramInformationDialogAndroid() {
 ): Promise<BillingResultAndroid>`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`Future<BillingResultAndroid> showBillingProgramInformationDialogAndroid(
-  BillingProgramInformationDialogParamsAndroid params,
-);`}</CodeBlock>
+            <CodeBlock language="dart">{`Future<BillingResultAndroid> showBillingProgramInformationDialogAndroid({
+  required BillingProgramAndroid billingProgram,
+  required String externalTransactionToken,
+});`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`Task<BillingResultAndroid> ShowBillingProgramInformationDialogAndroidAsync(
@@ -150,10 +151,8 @@ if (Platform.OS === 'android') {
             <CodeBlock language="dart">{`if (Platform.isAndroid) {
   final result = await FlutterInappPurchase.instance
       .showBillingProgramInformationDialogAndroid(
-    BillingProgramInformationDialogParamsAndroid(
-      billingProgram: BillingProgramAndroid.BillingChoice,
-      externalTransactionToken: reportingDetails.externalTransactionToken,
-    ),
+    billingProgram: BillingProgramAndroid.BillingChoice,
+    externalTransactionToken: reportingDetails.externalTransactionToken,
   );
 }`}</CodeBlock>
           ),

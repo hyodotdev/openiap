@@ -12,7 +12,7 @@ function GetAppTransactionIOS() {
     <div className="doc-page">
       <SEO
         title="getAppTransactionIOS"
-        description="Fetch the current app transaction (iOS 16+)."
+        description="Fetch the current app transaction (iOS 16+, macOS 14+)."
         path="/docs/apis/ios/get-app-transaction-ios"
         keywords="getAppTransactionIOS, app transaction, StoreKit 2"
       />
@@ -20,10 +20,10 @@ function GetAppTransactionIOS() {
         <span className="platform-badge platform-badge--ios">iOS</span>{' '}
         getAppTransactionIOS
       </h1>
-      <p>Fetch the current app transaction (iOS 16+).</p>
+      <p>Fetch the current app transaction (iOS 16+, macOS 14+).</p>
       <p>
         Wraps <code>AppTransaction.shared</code> — the JWS-verified record of
-        how the app was acquired. iOS 16+. See the{' '}
+        how the app was acquired. iOS 16+, macOS 14+. See the{' '}
         <a
           href="https://developer.apple.com/documentation/storekit/apptransaction"
           target="_blank"
@@ -38,7 +38,7 @@ function GetAppTransactionIOS() {
       <LanguageTabs>
         {{
           swift: (
-            <CodeBlock language="swift">{`func getAppTransactionIOS() async throws -> AppTransactionIOS?`}</CodeBlock>
+            <CodeBlock language="swift">{`func getAppTransactionIOS() async throws -> AppTransaction?`}</CodeBlock>
           ),
           kotlin: (
             <CodeBlock language="kotlin">{`suspend fun getAppTransactionIOS(): AppTransaction?`}</CodeBlock>
@@ -50,7 +50,7 @@ function GetAppTransactionIOS() {
             <CodeBlock language="dart">{`Future<AppTransaction?> getAppTransactionIOS();`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task<AppTransaction?> GetAppTransactionIOSAsync()`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<AppTransaction?> GetAppTransactionIOSAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func get_app_transaction_ios() -> Variant`}</CodeBlock>
@@ -66,7 +66,8 @@ function GetAppTransactionIOS() {
           <code>Promise&lt;AppTransaction | null&gt;</code>
         </Link>{' '}
         — JWS-verified record of how the app was acquired. Returns{' '}
-        <code>null</code> on iOS &lt; 16 or when no transaction is available.
+        <code>null</code> when no app transaction is available. Requires iOS 16+
+        or macOS 14+.
       </p>
 
       <h2>Example</h2>
@@ -88,7 +89,7 @@ if (Platform.OS === 'ios') {
 }`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`if (Platform.isIOS) {
+            <CodeBlock language="dart">{`if (Platform.isIOS || Platform.isMacOS) {
   final appTx = await FlutterInappPurchase.instance.getAppTransactionIOS();
 }`}</CodeBlock>
           ),
@@ -109,7 +110,7 @@ var appTx = await ((QueryResolver)OpenIapClient.Instance).GetAppTransactionIOSAs
       <p className="type-link">
         See:{' '}
         <Link to="/docs/types/ios/app-transaction-ios">
-          <code>AppTransactionIOS</code>
+          <code>AppTransaction</code>
         </Link>{' '}
         for the full field reference (<code>bundleId</code>,{' '}
         <code>appVersion</code>, <code>originalAppVersion</code>,{' '}

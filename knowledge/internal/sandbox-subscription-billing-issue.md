@@ -32,7 +32,7 @@ cd ../flutter_inapp_purchase && flutter analyze
 
 **Prereqs**
 
-- Physical iOS device running **iOS 18.0 or later** (the `Message.Reason.billingIssue` API is iOS 18+ / Mac Catalyst 18+; the iOS Simulator does not deliver StoreKit Messages).
+- Physical iOS/iPadOS device running **16.4 or later** (`Message.Reason.billingIssue` is available on iOS/iPadOS and Mac Catalyst 16.4+, and visionOS 1.0+; the iOS Simulator does not deliver StoreKit Messages).
 - A sandbox Apple ID enrolled in App Store Connect → Users and Access → Sandbox Testers.
 - An auto-renewable subscription product configured on App Store Connect, and the Example project's `subscriptionIds` list pointing at it (`dev.hyo.martie.premium` by default).
 
@@ -62,12 +62,14 @@ cd ../flutter_inapp_purchase && flutter analyze
   ```
 
 - Banner visible on `SubscriptionFlowScreen`.
-- `Transaction.currentEntitlements` shows the affected subscription in `.inBillingRetryPeriod` or `.inGracePeriod`.
+- `Product.SubscriptionInfo.status(for:)` shows the affected subscription in
+  `.inBillingRetryPeriod` or `.inGracePeriod`. A retrying subscription without
+  grace-period access is not expected in `Transaction.currentEntitlements`.
 
 **If nothing fires**
 
-- iOS < 18 — silent no-op by design (confirm with `#available` trace in logs).
-- tvOS / watchOS / native macOS (non-Catalyst) / visionOS build — silent no-op by design (StoreKit.Message API is iOS / Mac Catalyst only).
+- iOS < 16.4 — silent no-op by design (confirm with `#available` trace in logs).
+- tvOS / watchOS / native macOS (non-Catalyst) build — silent no-op by design (the listener supports iOS/iPadOS, Mac Catalyst, and visionOS).
 - App not foregrounded when the message is posted — StoreKit delivers on next `Message.messages` await; bring the app to foreground.
 
 ---
@@ -106,8 +108,14 @@ cd ../flutter_inapp_purchase && flutter analyze
 
 **Horizon flavor (do NOT attempt)**
 
-- The Horizon flavor's `addSubscriptionBillingIssueListener` is a documented no-op. Verified by
-  `SubscriptionBillingIssueHorizonNoOpTest` (Robolectric, runs on CI). There is no sandbox path on Horizon because the Billing Compatibility SDK 2.0.0 targets Play Billing 7.0 which does not expose `Purchase.isSuspended`.
+- The Horizon flavor's `addSubscriptionBillingIssueListener` registration is a
+  documented no-op, while the generated `subscriptionBillingIssue` resolver
+  fails immediately with `FeatureNotSupported` instead of waiting forever.
+  `SubscriptionBillingIssueHorizonNoOpTest` verifies listener registration,
+  and `SubscriptionHandlersBillingIssueHorizonTest` verifies the fail-fast
+  resolver with Robolectric in CI. There is no sandbox path on Horizon because
+  the Billing Compatibility SDK 2.0.0 targets Play Billing 7.0, which does not
+  expose `Purchase.isSuspended`.
 
 ---
 
@@ -129,8 +137,8 @@ Use `libraries-versions.jsonc` to point example apps at the local monorepo sourc
 
 | Layer | Mechanism | Status |
 |-------|-----------|--------|
-| Horizon no-op guarantee | Robolectric unit test (`SubscriptionBillingIssueHorizonNoOpTest`) | Runs on CI |
+| Horizon listener no-op / resolver fail-fast guarantee | Robolectric tests (`SubscriptionBillingIssueHorizonNoOpTest`, `SubscriptionHandlersBillingIssueHorizonTest`) | Runs on CI |
 | Play-flavor compile of listener surface | `compilePlayDebugKotlin` | Runs on CI |
 | Apple Swift test fakes implement protocol | `swift test` | Runs on CI |
 | Downstream types synced | Gen check by each library's typecheck task | Runs on CI |
-| Live sandbox behavior (iOS 18 message + Play suspended) | Manual, this document | Release QA |
+| Live sandbox behavior (iOS 16.4+ message + Play suspended) | Manual, this document | Release QA |

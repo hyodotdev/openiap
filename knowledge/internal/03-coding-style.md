@@ -254,14 +254,19 @@ await transaction.finish();
 /**
  * Fetches products from the App Store.
  *
- * @param productIds - Array of product identifiers to fetch
- * @returns Array of products matching the given IDs
+ * @param request - Product identifiers and product type to fetch
+ * @returns Products matching the requested query type
  * @throws {ProductNotFoundError} If no products match the given IDs
  *
  * @example
- * const products = await fetchProducts(['com.app.premium', 'com.app.pro']);
+ * const products = await fetchProducts({
+ *   skus: ['com.app.premium', 'com.app.pro'],
+ *   type: 'in-app',
+ * });
  */
-async function fetchProducts(productIds: string[]): Promise<Product[]> {
+async function fetchProducts(
+    request: ProductRequest
+): Promise<FetchProductsResult> {
     // ...
 }
 ```

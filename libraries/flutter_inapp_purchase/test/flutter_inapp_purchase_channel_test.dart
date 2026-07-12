@@ -1736,7 +1736,7 @@ void main() {
       });
 
       final iap = FlutterInappPurchase.private(
-        FakePlatform(operatingSystem: 'ios'),
+        FakePlatform(operatingSystem: 'android'),
       );
 
       final purchaseErrorFuture = iap.purchaseError.first;
@@ -1746,8 +1746,14 @@ void main() {
 
       final errorPayload = <String, dynamic>{
         'responseCode': 5,
-        'code': 'DEVELOPER_ERROR',
+        'debugMessage': 'Billing response rejected the selected offer',
+        'code': 'developer-error',
         'message': 'Validation failed',
+        'productId': 'premium-monthly',
+        'productIds': <String>['premium-monthly', 'premium-yearly'],
+        'productType': 'subs',
+        'isEmptyProductList': false,
+        'subResponseCodeAndroid': 'user-ineligible',
       };
 
       await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -1764,8 +1770,40 @@ void main() {
 
       expect(purchaseError, isNotNull);
       expect(purchaseError!.message, 'Validation failed');
+      expect(purchaseError.responseCode, 5);
+      expect(
+        purchaseError.debugMessage,
+        'Billing response rejected the selected offer',
+      );
+      expect(purchaseError.productId, 'premium-monthly');
+      expect(
+        purchaseError.productIds,
+        <String>['premium-monthly', 'premium-yearly'],
+      );
+      expect(purchaseError.productType, 'subs');
+      expect(purchaseError.isEmptyProductList, isFalse);
+      expect(
+        purchaseError.subResponseCodeAndroid,
+        types.SubResponseCodeAndroid.UserIneligible,
+      );
       expect(listenerError.code, types.ErrorCode.DeveloperError);
       expect(listenerError.message, 'Validation failed');
+      expect(listenerError.responseCode, 5);
+      expect(
+        listenerError.debugMessage,
+        'Billing response rejected the selected offer',
+      );
+      expect(listenerError.productId, 'premium-monthly');
+      expect(
+        listenerError.productIds,
+        <String>['premium-monthly', 'premium-yearly'],
+      );
+      expect(listenerError.productType, 'subs');
+      expect(listenerError.isEmptyProductList, isFalse);
+      expect(
+        listenerError.subResponseCodeAndroid,
+        types.SubResponseCodeAndroid.UserIneligible,
+      );
     });
 
     test('connection-updated emits ConnectionResult', () async {
@@ -1917,7 +1955,38 @@ void main() {
       expect(availableCalls, 1);
     });
 
-    test('restorePurchases swallows sync errors and still fetches', () async {
+    test('restorePurchases triggers sync and fetch on macOS', () async {
+      int syncCalls = 0;
+      int availableCalls = 0;
+
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        switch (call.method) {
+          case 'initConnection':
+            return true;
+          case 'syncIOS':
+            syncCalls += 1;
+            return true;
+          case 'getAvailableItems':
+            availableCalls += 1;
+            return <Map<String, dynamic>>[];
+        }
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'macos'),
+      );
+
+      expect(await iap.initConnection(), isTrue);
+      await iap.restorePurchases();
+
+      expect(syncCalls, 1);
+      expect(availableCalls, 1);
+    });
+
+    test('restorePurchases propagates sync errors and stops fetching',
+        () async {
       int availableCalls = 0;
 
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -1940,9 +2009,50 @@ void main() {
       );
 
       expect(await iap.initConnection(), isTrue);
-      await iap.restorePurchases();
+      await expectLater(
+        iap.restorePurchases(),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.message,
+            'message',
+            contains('sync iOS purchases'),
+          ),
+        ),
+      );
 
-      expect(availableCalls, 1);
+      expect(availableCalls, 0);
+    });
+
+    test('restorePurchases rejects an incomplete native sync', () async {
+      int availableCalls = 0;
+
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        if (call.method == 'initConnection') return true;
+        if (call.method == 'syncIOS') return false;
+        if (call.method == 'getAvailableItems') {
+          availableCalls += 1;
+          return <Map<String, dynamic>>[];
+        }
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'macos'),
+      );
+      expect(await iap.initConnection(), isTrue);
+
+      await expectLater(
+        iap.restorePurchases(),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            types.ErrorCode.SyncError,
+          ),
+        ),
+      );
+      expect(availableCalls, 0);
     });
 
     test('restorePurchases fetches purchases directly on Android', () async {
@@ -1974,6 +2084,36 @@ void main() {
 
       expect(availableCalls, 1);
       expect(endCalls, 0);
+    });
+
+    test('restorePurchases propagates available-purchase errors', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        if (call.method == 'initConnection') return true;
+        if (call.method == 'getAvailableItems') {
+          throw PlatformException(
+            code: 'service-error',
+            message: 'Store query failed',
+          );
+        }
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+      expect(await iap.initConnection(), isTrue);
+
+      await expectLater(
+        iap.restorePurchases(),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            types.ErrorCode.ServiceError,
+          ),
+        ),
+      );
     });
 
     test('syncIOS returns true when native calls succeed', () async {

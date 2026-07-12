@@ -37,10 +37,20 @@ internal sealed partial class OpenIapAndroid
     // instead of the real BillingClient / Kotlin error from the module.
     public async Task<RequestPurchaseResult?> RequestPurchaseAsync(RequestPurchaseProps @params)
     {
+        ValidatePurchaseRequest(@params);
         RefreshCurrentActivity();
         var json = JsonSerializer.Serialize(@params, JsonOptions.Default);
         var result = await Invoke(cb => _module.RequestPurchase(json, cb));
         return DecodeRequestPurchaseResult(result);
+    }
+
+    private static void ValidatePurchaseRequest(RequestPurchaseProps @params)
+    {
+        try { @params.Validate(); }
+        catch (InvalidOperationException ex)
+        {
+            throw OpenIapErrorMapper.Wrap(ErrorCode.DeveloperError, ex.Message);
+        }
     }
 
     public async Task<string> FinishTransactionAsync(PurchaseInput purchase, bool? isConsumable = null)
@@ -210,7 +220,10 @@ internal sealed partial class OpenIapAndroid
     public async Task<string> GetStorefrontAsync()
     {
         var result = await Invoke(cb => _module.GetStorefront(cb));
-        return DecodeStringValue(result);
+        var storefront = DecodeStringValue(result);
+        if (string.IsNullOrWhiteSpace(storefront))
+            throw OpenIapErrorMapper.Wrap(ErrorCode.ServiceError, "Storefront lookup returned no country code");
+        return storefront;
     }
 
     // ---- iOS-only queries (defaults / throw not-supported) --------------
@@ -223,7 +236,7 @@ internal sealed partial class OpenIapAndroid
     public Task<IReadOnlyList<PurchaseIOS>> GetPendingTransactionsIOSAsync() => Task.FromResult<IReadOnlyList<PurchaseIOS>>(Array.Empty<PurchaseIOS>());
     public Task<ProductIOS?> GetPromotedProductIOSAsync() => Task.FromResult<ProductIOS?>(null);
     public Task<string?> GetReceiptDataIOSAsync() => Task.FromResult<string?>(null);
-    public Task<string> GetStorefrontIOSAsync() => GetStorefrontAsync();
+    public Task<string> GetStorefrontIOSAsync() => NotSupportedIOS<string>("getStorefrontIOS");
     public Task<string?> GetTransactionJwsIOSAsync(string sku) => Task.FromResult<string?>(null);
     public Task<bool> IsEligibleForExternalPurchaseCustomLinkIOSAsync() => Task.FromResult(false);
     public Task<bool> IsEligibleForIntroOfferIOSAsync(string groupId) => Task.FromResult(false);

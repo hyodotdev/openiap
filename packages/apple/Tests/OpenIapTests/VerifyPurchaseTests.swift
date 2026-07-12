@@ -78,24 +78,155 @@ final class VerifyPurchaseTests: XCTestCase {
         XCTAssertEqual(2, module.getStorefrontCallCount)
         XCTAssertEqual(0, module.getStorefrontIOSCallCount)
     }
+
+    @MainActor
+    func testStoreForwardsTransactionAndSubscriptionManagementResults() async throws {
+        let purchase = makePurchase(id: "transaction-1")
+        let module = FakeOpenIapModule(
+            validateResult: .verifyPurchaseResultIos(makeVerifyPurchaseResult()),
+            allTransactionsResult: [purchase],
+            manageSubscriptionsResult: [purchase],
+            presentCodeResult: false,
+            clearTransactionResult: false
+        )
+        let store = OpenIapStore(module: module)
+
+        let allTransactions = try await store.getAllTransactionsIOS()
+        XCTAssertEqual(allTransactions.map(\.id), ["transaction-1"])
+
+        let changedTransactions = try await store.showManageSubscriptionsResultIOS()
+        XCTAssertEqual(changedTransactions.map(\.id), ["transaction-1"])
+
+        let presentedCodeRedemptionSheet = try await store.presentCodeRedemptionSheetResultIOS()
+        let clearedTransactions = try await store.clearTransactionResultIOS()
+        XCTAssertFalse(presentedCodeRedemptionSheet)
+        XCTAssertFalse(clearedTransactions)
+
+        try await store.showManageSubscriptionsIOS()
+        try await store.presentCodeRedemptionSheetIOS()
+        try await store.clearTransactionIOS()
+
+        let options = DeepLinkOptions(packageNameAndroid: "dev.hyo.app", skuAndroid: "premium")
+        try await store.deepLinkToSubscriptions(options)
+        XCTAssertEqual(module.deepLinkCallCount, 1)
+        XCTAssertEqual(module.lastDeepLinkOptions?.packageNameAndroid, "dev.hyo.app")
+        XCTAssertEqual(module.lastDeepLinkOptions?.skuAndroid, "premium")
+    }
+
+    @MainActor
+    func testRestorePurchasesRefreshesStoreState() async throws {
+        let purchase = makePurchase(id: "restored-transaction")
+        let module = FakeOpenIapModule(
+            validateResult: .verifyPurchaseResultIos(makeVerifyPurchaseResult()),
+            availablePurchasesResult: [.purchaseIos(purchase)]
+        )
+        let store = OpenIapStore(module: module)
+
+        try await store.restorePurchases()
+
+        XCTAssertEqual(module.restorePurchasesCallCount, 1)
+        XCTAssertEqual(module.lastPurchaseOptions?.onlyIncludeActiveItemsIOS, true)
+        XCTAssertEqual(store.iosAvailablePurchases.map(\.id), ["restored-transaction"])
+        XCTAssertFalse(store.status.loadings.restorePurchases)
+    }
+
+    @MainActor
+    func testStorePublishesSubscriptionBillingIssue() async {
+        let purchase = makePurchase(id: "billing-issue-transaction")
+        let callback = expectation(description: "subscription billing issue callback")
+        var callbackPurchaseId: String?
+        let module = FakeOpenIapModule(
+            validateResult: .verifyPurchaseResultIos(makeVerifyPurchaseResult())
+        )
+        let store = OpenIapStore(
+            onSubscriptionBillingIssue: { issue in
+                callbackPurchaseId = issue.id
+                callback.fulfill()
+            },
+            module: module
+        )
+
+        module.emitSubscriptionBillingIssue(.purchaseIos(purchase))
+        await fulfillment(of: [callback], timeout: 1.0)
+
+        XCTAssertEqual(callbackPurchaseId, "billing-issue-transaction")
+        XCTAssertEqual(store.currentSubscriptionBillingIssue?.id, "billing-issue-transaction")
+    }
+
+    func testChangedPurchasesReturnsOnlyAddedOrModifiedTransactions() {
+        let unchanged = makePurchase(id: "unchanged")
+        let previousChanged = makePurchase(id: "changed", isAutoRenewing: false)
+        let currentChanged = makePurchase(id: "changed", isAutoRenewing: true)
+        let added = makePurchase(id: "added")
+
+        let result = OpenIapModule.changedPurchasesIOS(
+            [unchanged, currentChanged, added],
+            comparedTo: [unchanged, previousChanged]
+        )
+
+        XCTAssertEqual(result.map(\.id), ["changed", "added"])
+    }
+
+    private func makeVerifyPurchaseResult() -> VerifyPurchaseResultIOS {
+        VerifyPurchaseResultIOS(
+            isValid: true,
+            jwsRepresentation: "jws-token",
+            latestTransaction: nil,
+            receiptData: "base64-receipt"
+        )
+    }
+
+    private func makePurchase(id: String, isAutoRenewing: Bool = false) -> PurchaseIOS {
+        PurchaseIOS(
+            id: id,
+            isAutoRenewing: isAutoRenewing,
+            platform: .ios,
+            productId: "premium",
+            purchaseState: .purchased,
+            quantity: 1,
+            store: .apple,
+            transactionDate: 1,
+            transactionId: id
+        )
+    }
 }
 
 @available(iOS 15.0, macOS 14.0, *)
 private final class FakeOpenIapModule: OpenIapModuleProtocol {
     private let validateResult: VerifyPurchaseResult
     private let providerResult: VerifyPurchaseWithProviderResult
+    private let availablePurchasesResult: [Purchase]
+    private let allTransactionsResult: [PurchaseIOS]
+    private let manageSubscriptionsResult: [PurchaseIOS]
+    private let presentCodeResult: Bool
+    private let clearTransactionResult: Bool
+    private var subscriptionBillingIssueHandler: SubscriptionBillingIssueListener?
     private(set) var getStorefrontCallCount = 0
     private(set) var getStorefrontIOSCallCount = 0
+    private(set) var restorePurchasesCallCount = 0
+    private(set) var deepLinkCallCount = 0
+    private(set) var lastDeepLinkOptions: DeepLinkOptions?
+    private(set) var lastPurchaseOptions: PurchaseOptions?
 
     init(
         validateResult: VerifyPurchaseResult,
         providerResult: VerifyPurchaseWithProviderResult = VerifyPurchaseWithProviderResult(
             iapkit: nil,
             provider: .iapkit
-        )
+        ),
+        availablePurchasesResult: [Purchase] = [],
+        allTransactionsResult: [PurchaseIOS] = [],
+        manageSubscriptionsResult: [PurchaseIOS] = [],
+        presentCodeResult: Bool = true,
+        clearTransactionResult: Bool = true
     ) {
         self.validateResult = validateResult
         self.providerResult = providerResult
+        self.availablePurchasesResult = availablePurchasesResult
+        self.allTransactionsResult = allTransactionsResult
+        self.manageSubscriptionsResult = manageSubscriptionsResult
+        self.presentCodeResult = presentCodeResult
+        self.clearTransactionResult = clearTransactionResult
     }
 
     // MARK: - Connection Management
@@ -109,14 +240,17 @@ private final class FakeOpenIapModule: OpenIapModuleProtocol {
     // MARK: - Purchase Management
     func requestPurchase(_ params: RequestPurchaseProps) async throws -> RequestPurchaseResult? { nil }
     func requestPurchaseOnPromotedProductIOS() async throws -> Bool { false }
-    func restorePurchases() async throws -> Void { () }
-    func getAvailablePurchases(_ options: PurchaseOptions?) async throws -> [Purchase] { [] }
-    func getAllTransactionsIOS() async throws -> [PurchaseIOS] { [] }
+    func restorePurchases() async throws -> Void { restorePurchasesCallCount += 1 }
+    func getAvailablePurchases(_ options: PurchaseOptions?) async throws -> [Purchase] {
+        lastPurchaseOptions = options
+        return availablePurchasesResult
+    }
+    func getAllTransactionsIOS() async throws -> [PurchaseIOS] { allTransactionsResult }
 
     // MARK: - Transaction Management
     func finishTransaction(purchase: PurchaseInput, isConsumable: Bool?) async throws -> Void { () }
     func getPendingTransactionsIOS() async throws -> [PurchaseIOS] { [] }
-    func clearTransactionIOS() async throws -> Bool { true }
+    func clearTransactionIOS() async throws -> Bool { clearTransactionResult }
     func isTransactionVerifiedIOS(sku: String) async throws -> Bool { false }
     func getTransactionJwsIOS(sku: String) async throws -> String? { nil }
     func currentEntitlementIOS(sku: String) async throws -> PurchaseIOS? { nil }
@@ -165,9 +299,12 @@ private final class FakeOpenIapModule: OpenIapModuleProtocol {
 
     // MARK: - Misc
     func syncIOS() async throws -> Bool { true }
-    func presentCodeRedemptionSheetIOS() async throws -> Bool { true }
-    func showManageSubscriptionsIOS() async throws -> [PurchaseIOS] { [] }
-    func deepLinkToSubscriptions(_ options: DeepLinkOptions?) async throws -> Void { () }
+    func presentCodeRedemptionSheetIOS() async throws -> Bool { presentCodeResult }
+    func showManageSubscriptionsIOS() async throws -> [PurchaseIOS] { manageSubscriptionsResult }
+    func deepLinkToSubscriptions(_ options: DeepLinkOptions?) async throws -> Void {
+        deepLinkCallCount += 1
+        lastDeepLinkOptions = options
+    }
 
     // MARK: - Event Listeners
     func purchaseUpdatedListener(
@@ -186,7 +323,12 @@ private final class FakeOpenIapModule: OpenIapModuleProtocol {
     }
 
     func subscriptionBillingIssueListener(_ listener: @escaping SubscriptionBillingIssueListener) -> Subscription {
-        Subscription(eventType: .subscriptionBillingIssue)
+        subscriptionBillingIssueHandler = listener
+        return Subscription(eventType: .subscriptionBillingIssue)
+    }
+
+    func emitSubscriptionBillingIssue(_ purchase: Purchase) {
+        subscriptionBillingIssueHandler?(purchase)
     }
 
     func removeListener(_ subscription: Subscription) {

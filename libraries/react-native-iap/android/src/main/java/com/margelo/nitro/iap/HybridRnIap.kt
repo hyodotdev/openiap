@@ -58,7 +58,6 @@ import java.util.Locale
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.CompletableDeferred
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -76,6 +75,15 @@ class OpenIapException(private val errorJson: String, cause: Throwable? = null) 
         // Don't fill in stack trace to avoid it being serialized
         return this
     }
+}
+
+internal suspend fun endRnConnectionWithCleanup(
+    endConnection: suspend () -> Boolean,
+    cleanup: () -> Unit,
+): Boolean = try {
+    endConnection()
+} finally {
+    cleanup()
 }
 
 class HybridRnIap : HybridRnIapSpec() {
@@ -103,14 +111,24 @@ class HybridRnIap : HybridRnIapSpec() {
     private val subscriptionBillingIssueListeners = mutableListOf<(NitroPurchase) -> Unit>()
     private var listenersAttached = false
     private var isInitialized = false
-    private var initDeferred: CompletableDeferred<Boolean>? = null
-    private val initLock = Any()
+    private val connectionLifecycleQueue = ConnectionLifecycleQueue()
     
     // Connection methods
     // Variant wrapper helpers for nitrogen 0.35.0 compatibility
     private fun String?.wrapVariant(): Variant_NullType_String? = this?.let { Variant_NullType_String.Second(it) }
     private fun Double?.wrapVariant(): Variant_NullType_Double? = this?.let { Variant_NullType_Double.Second(it) }
     private fun Boolean?.wrapVariant(): Variant_NullType_Boolean? = this?.let { Variant_NullType_Boolean.Second(it) }
+    private fun List<String>?.wrapVariant(): Variant_NullType_Array_String_? =
+        this?.let { Variant_NullType_Array_String_.Second(it.toTypedArray()) }
+    private fun dev.hyo.openiap.PendingPurchaseUpdateAndroid?.wrapVariant(): Variant_NullType_PendingPurchaseUpdateAndroid? =
+        this?.let {
+            Variant_NullType_PendingPurchaseUpdateAndroid.Second(
+                PendingPurchaseUpdateAndroid(
+                    products = it.products.toTypedArray(),
+                    purchaseToken = it.purchaseToken
+                )
+            )
+        }
     private fun Variant_NullType_String?.unwrapString(): String? = (this as? Variant_NullType_String.Second)?.value
     private fun Variant_NullType_Double?.unwrapDouble(): Double? = (this as? Variant_NullType_Double.Second)?.value
     private fun Variant_NullType_Boolean?.unwrapBool(): Boolean? = (this as? Variant_NullType_Boolean.Second)?.value
@@ -120,14 +138,10 @@ class HybridRnIap : HybridRnIapSpec() {
     }
 
     override fun initConnection(config: Variant_NullType_InitConnectionConfig?): Promise<Boolean> {
-        return Promise.async {
-            val configValue = (config as? Variant_NullType_InitConnectionConfig.Second)?.value
+        val configValue = (config as? Variant_NullType_InitConnectionConfig.Second)?.value
+        val performInit: suspend () -> Boolean = initOperation@{
             RnIapLog.payload("initConnection", configValue)
-            // Fast-path: if already initialized, return immediately
-            if (isInitialized) {
-                RnIapLog.result("initConnection", true)
-                return@async true
-            }
+            if (isInitialized) return@initOperation true
 
             // CRITICAL: Set Activity BEFORE calling initConnection
             // Horizon SDK needs Activity to initialize OVRPlatform with proper returnComponent
@@ -162,28 +176,14 @@ class HybridRnIap : HybridRnIapSpec() {
                 )
             }
 
-            // Single-flight: capture or create the shared Deferred atomically
-            val wasExisting = synchronized(initLock) {
-                if (initDeferred == null) {
-                    initDeferred = CompletableDeferred()
-                    false
-                } else true
-            }
-            if (wasExisting) {
-                val result = initDeferred!!.await()
-                RnIapLog.result("initConnection.await", result)
-                return@async result
-            }
-
             try {
                 if (!listenersAttached) {
-                    listenersAttached = true
                     RnIapLog.payload("listeners.attach", null)
                     openIap.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { p ->
                         runCatching {
                             RnIapLog.result(
                                 "purchaseUpdatedListener",
-                                mapOf("id" to p.id, "sku" to p.productId)
+                                mapOf("productId" to p.productId)
                             )
                             sendPurchaseUpdate(convertToNitroPurchase(p))
                         }.onFailure { RnIapLog.failure("purchaseUpdatedListener", it) }
@@ -205,8 +205,30 @@ class HybridRnIap : HybridRnIapSpec() {
                                 "userChoiceBillingListener",
                                 mapOf("products" to details.products, "token" to details.externalTransactionToken)
                             )
+                            val originalTransactionId = runCatching {
+                                details.javaClass
+                                    .getMethod("getOriginalExternalTransactionId")
+                                    .invoke(details) as? String
+                            }.getOrNull()
+                            val productDetails = runCatching {
+                                (details.javaClass.getMethod("getProductDetailsAndroid").invoke(details) as? List<*>)
+                                    ?.mapNotNull { it as? dev.hyo.openiap.DeveloperProvidedBillingProductAndroid }
+                            }.getOrNull()
                             val nitroDetails = UserChoiceBillingDetails(
                                 externalTransactionToken = details.externalTransactionToken,
+                                originalExternalTransactionId = originalTransactionId.wrapVariant(),
+                                productDetailsAndroid = productDetails?.map { product ->
+                                    DeveloperProvidedBillingProductAndroid(
+                                        id = product.id,
+                                        offerToken = product.offerToken.wrapVariant(),
+                                        type = when (product.type) {
+                                            OpenIapProductType.InApp -> ProductType.IN_APP
+                                            OpenIapProductType.Subs -> ProductType.SUBS
+                                        }
+                                    )
+                                }?.toTypedArray()?.let {
+                                    Variant_NullType_Array_DeveloperProvidedBillingProductAndroid_.Second(it)
+                                },
                                 products = details.products.toTypedArray()
                             )
                             sendUserChoiceBilling(nitroDetails)
@@ -237,6 +259,7 @@ class HybridRnIap : HybridRnIapSpec() {
                             sendDeveloperProvidedBilling(nitroDetails)
                         }.onFailure { RnIapLog.failure("developerProvidedBillingListener", it) }
                     })
+                    listenersAttached = true
                     RnIapLog.result("listeners.attach", "attached")
                 }
             } catch (err: CancellationException) {
@@ -253,18 +276,10 @@ class HybridRnIap : HybridRnIapSpec() {
                         messageOverride = "Failed to register billing listeners: $errorMessage"
                     )
                 )
-                synchronized(initLock) {
-                    initDeferred?.let { deferred ->
-                        if (!deferred.isCompleted) deferred.completeExceptionally(wrapped)
-                    }
-                    initDeferred = null
-                }
                 isInitialized = false
                 throw wrapped
             }
 
-            // We created it above; reuse the shared instance
-            val deferred = initDeferred!!
             try {
                 // Convert Nitro config to OpenIAP config
                 // Note: enableBillingProgramAndroid is passed to OpenIapInitConnectionConfig
@@ -289,6 +304,8 @@ class HybridRnIap : HybridRnIapSpec() {
                     withContext(Dispatchers.Main) {
                         openIap.initConnection(openIapConfig)
                     }
+                } catch (err: CancellationException) {
+                    throw err
                 } catch (err: Throwable) {
                     val error = OpenIapError.InitConnection
                     RnIapLog.failure("initConnection.native", err)
@@ -310,42 +327,57 @@ class HybridRnIap : HybridRnIapSpec() {
                         )
                     )
                 }
-                isInitialized = true
-                deferred.complete(true)
-                RnIapLog.result("initConnection", true)
                 true
             } catch (e: Exception) {
-                // Complete exceptionally so all concurrent awaiters receive the same failure
-                if (!deferred.isCompleted) deferred.completeExceptionally(e)
-                isInitialized = false
                 RnIapLog.failure("initConnection", e)
                 throw e
-            } finally {
-                initDeferred = null
             }
+        }
+        val invocation = connectionLifecycleQueue.enqueueInit(
+            operation = performInit,
+            onCommitted = { value ->
+                isInitialized = value
+                RnIapLog.result("initConnection", value)
+            },
+            onFailed = { isInitialized = false }
+        )
+        return Promise.async {
+            invocation.await()
         }
     }
     
     override fun endConnection(): Promise<Boolean> {
-        return Promise.async {
+        val pendingInitError = OpenIapException(
+            toErrorJson(
+                error = OpenIapError.ServiceDisconnected(
+                    "Connection ended while initialization was in progress"
+                )
+            )
+        )
+        val invocation = connectionLifecycleQueue.enqueueEnd(pendingInitError) {
             RnIapLog.payload("endConnection", null)
-            runCatching { openIap.endConnection() }
-            productTypeBySku.clear()
-            isInitialized = false
-            listenersAttached = false
-            synchronized(purchaseUpdatedListeners) {
-                purchaseUpdatedListeners.clear()
-                nextPurchaseUpdatedListenerToken = 1.0
-            }
-            synchronized(purchaseErrorListeners) { purchaseErrorListeners.clear() }
-            promotedProductListenersIOS.clear()
-            synchronized(userChoiceBillingListenersAndroid) { userChoiceBillingListenersAndroid.clear() }
-            synchronized(developerProvidedBillingListenersAndroid) { developerProvidedBillingListenersAndroid.clear() }
-            synchronized(subscriptionBillingIssueListeners) { subscriptionBillingIssueListeners.clear() }
-            detachSubscriptionBillingIssueIfNeeded()
-            initDeferred = null
-            RnIapLog.result("endConnection", true)
-            true
+            val result = endRnConnectionWithCleanup(
+                endConnection = { openIap.endConnection() },
+                cleanup = {
+                    productTypeBySku.clear()
+                    isInitialized = false
+                    // Native listener sets persist; clear only bridge callbacks.
+                    synchronized(purchaseUpdatedListeners) {
+                        purchaseUpdatedListeners.clear()
+                        nextPurchaseUpdatedListenerToken = 1.0
+                    }
+                    synchronized(purchaseErrorListeners) { purchaseErrorListeners.clear() }
+                    promotedProductListenersIOS.clear()
+                    synchronized(userChoiceBillingListenersAndroid) { userChoiceBillingListenersAndroid.clear() }
+                    synchronized(developerProvidedBillingListenersAndroid) { developerProvidedBillingListenersAndroid.clear() }
+                    clearSubscriptionBillingIssueListeners()
+                },
+            )
+            RnIapLog.result("endConnection", result)
+            result
+        }
+        return Promise.async {
+            invocation.await()
         }
     }
     
@@ -572,14 +604,13 @@ class HybridRnIap : HybridRnIapSpec() {
                     openIap.requestPurchase(requestProps)
                 }
                 val purchases = result.purchasesOrEmpty()
-                purchases.forEach { p ->
-                    runCatching {
-                        RnIapLog.result(
-                            "requestPurchase.native",
-                            mapOf("id" to p.id, "sku" to p.productId)
-                        )
-                    }.onFailure { RnIapLog.failure("requestPurchase.native", it) }
-                }
+                RnIapLog.result(
+                    "requestPurchase.native",
+                    mapOf(
+                        "purchaseCount" to purchases.size,
+                        "productIds" to purchases.map { it.productId }
+                    )
+                )
 
                 defaultResult
             } catch (e: Exception) {
@@ -639,7 +670,10 @@ class HybridRnIap : HybridRnIapSpec() {
             }
             RnIapLog.result(
                 "getAvailablePurchases",
-                result.map { mapOf("id" to it.id, "sku" to it.productId) }
+                mapOf(
+                    "purchaseCount" to result.size,
+                    "productIds" to result.map { it.productId }
+                )
             )
             result.map { convertToNitroPurchase(it) }.toTypedArray()
         }
@@ -752,7 +786,12 @@ class HybridRnIap : HybridRnIapSpec() {
                         debugMessage = "Missing purchaseToken",
                         code = OpenIapError.toCode(OpenIapError.DeveloperError()),
                         message = "Missing purchaseToken",
-                        purchaseToken = null
+                        purchaseToken = null,
+                        productId = null,
+                        productIds = null,
+                        productType = null,
+                        isEmptyProductList = null,
+                        subResponseCodeAndroid = null
                     )
                 )
             }
@@ -768,7 +807,12 @@ class HybridRnIap : HybridRnIapSpec() {
                         debugMessage = e.message,
                         code = OpenIapError.toCode(err),
                         message = e.message?.takeIf { it.isNotBlank() } ?: err.message,
-                        purchaseToken = purchaseToken
+                        purchaseToken = purchaseToken,
+                        productId = null,
+                        productIds = null,
+                        productType = null,
+                        isEmptyProductList = null,
+                        subResponseCodeAndroid = null
                     )
                 )
             }
@@ -785,7 +829,12 @@ class HybridRnIap : HybridRnIapSpec() {
                         debugMessage = null,
                         code = "0",
                         message = "OK",
-                        purchaseToken = purchaseToken
+                        purchaseToken = purchaseToken,
+                        productId = null,
+                        productIds = null,
+                        productType = null,
+                        isEmptyProductList = null,
+                        subResponseCodeAndroid = null
                     )
                 )
                 RnIapLog.result("finishTransaction", mapOf("success" to true))
@@ -799,7 +848,12 @@ class HybridRnIap : HybridRnIapSpec() {
                         debugMessage = e.message,
                         code = OpenIapError.toCode(err),
                         message = e.message?.takeIf { it.isNotBlank() } ?: err.message,
-                        purchaseToken = null
+                        purchaseToken = null,
+                        productId = null,
+                        productIds = null,
+                        productType = null,
+                        isEmptyProductList = null,
+                        subResponseCodeAndroid = null
                     )
                 )
             }
@@ -812,11 +866,30 @@ class HybridRnIap : HybridRnIapSpec() {
                 ensureConnection()
                 RnIapLog.payload("getStorefront", null)
                 val value = openIap.getStorefront()
+                if (value.isBlank()) {
+                    throw OpenIapError.ServiceUnavailable(
+                        "Storefront lookup returned no country code"
+                    )
+                }
                 RnIapLog.result("getStorefront", value)
                 value
+            } catch (e: OpenIapException) {
+                RnIapLog.failure("getStorefront", e)
+                throw e
+            } catch (e: OpenIapError) {
+                RnIapLog.failure("getStorefront", e)
+                throw OpenIapException(toErrorJson(e))
             } catch (e: Exception) {
                 RnIapLog.failure("getStorefront", e)
-                ""
+                val error = OpenIapError.ServiceUnavailable(e.message)
+                throw OpenIapException(
+                    toErrorJson(
+                        error = error,
+                        debugMessage = e.message,
+                        messageOverride = "Failed to get storefront"
+                    ),
+                    e
+                )
             }
         }
     }
@@ -913,7 +986,12 @@ class HybridRnIap : HybridRnIapSpec() {
             debugMessage = debugMessage,
             code = errorCode,
             message = message,
-            purchaseToken = null
+            purchaseToken = null,
+            productId = sku,
+            productIds = null,
+            productType = null,
+            isEmptyProductList = null,
+            subResponseCodeAndroid = null
         )
     }
 
@@ -1117,11 +1195,16 @@ class HybridRnIap : HybridRnIapSpec() {
             productId = purchase.productId,
             transactionDate = purchase.transactionDate,
             purchaseToken = purchase.purchaseToken.wrapVariant(),
+            currentPlanId = purchase.currentPlanId.wrapVariant(),
+            ids = purchase.ids.wrapVariant(),
             platform = IapPlatform.ANDROID,
             store = mapIapStore(purchase.store),
             quantity = purchase.quantity.toDouble(),
             purchaseState = mapPurchaseState(purchase.purchaseState),
             isAutoRenewing = purchase.isAutoRenewing,
+            advancedCommerceInfoIOS = null,
+            billingPlanTypeIOS = null,
+            commitmentInfoIOS = null,
             quantityIOS = null,
             originalTransactionDateIOS = null,
             originalTransactionIdentifierIOS = null,
@@ -1154,7 +1237,8 @@ class HybridRnIap : HybridRnIapSpec() {
             obfuscatedAccountIdAndroid = androidPurchase?.obfuscatedAccountIdAndroid.wrapVariant(),
             obfuscatedProfileIdAndroid = androidPurchase?.obfuscatedProfileIdAndroid.wrapVariant(),
             developerPayloadAndroid = androidPurchase?.developerPayloadAndroid.wrapVariant(),
-            isSuspendedAndroid = androidPurchase?.isSuspendedAndroid.wrapVariant()
+            isSuspendedAndroid = androidPurchase?.isSuspendedAndroid.wrapVariant(),
+            pendingPurchaseUpdateAndroid = androidPurchase?.pendingPurchaseUpdateAndroid.wrapVariant()
         )
     }
 
@@ -1225,10 +1309,10 @@ class HybridRnIap : HybridRnIapSpec() {
         }
     }
 
-    override fun buyPromotedProductIOS(): Promise<Unit> {
+    override fun buyPromotedProductIOS(): Promise<Boolean> {
         return Promise.async {
             // Android doesn't have promoted products like iOS App Store
-            // This is an iOS-only feature, so we do nothing on Android
+            false
         }
     }
 
@@ -1310,11 +1394,17 @@ class HybridRnIap : HybridRnIapSpec() {
 
                 // Call OpenIAP's verifyPurchase - this makes the actual Google Play API call
                 val verifyResult = openIap.verifyPurchase(props)
-                RnIapLog.result("validateReceipt", verifyResult.toString())
 
                 // Cast to Android result type (on Android, verifyPurchase returns VerifyPurchaseResultAndroid)
                 val androidResult = verifyResult as? VerifyPurchaseResultAndroid
                     ?: throw OpenIapException(toErrorJson(OpenIapError.InvalidPurchaseVerification, debugMessage = "Unexpected result type from verifyPurchase"))
+                RnIapLog.result(
+                    "validateReceipt",
+                    mapOf(
+                        "productId" to androidResult.productId,
+                        "testTransaction" to androidResult.testTransaction
+                    )
+                )
 
                 // Convert OpenIAP result to Nitro result
                 val result = NitroReceiptValidationResultAndroid(
@@ -1561,7 +1651,10 @@ class HybridRnIap : HybridRnIapSpec() {
                 val token = withContext(Dispatchers.Main) {
                     openIap.createAlternativeBillingReportingToken()
                 }
-                RnIapLog.result("createAlternativeBillingTokenAndroid", token)
+                RnIapLog.result(
+                    "createAlternativeBillingTokenAndroid",
+                    if (token.isNullOrBlank()) "<empty>" else "<token>"
+                )
                 token?.let { Variant_NullType_String.Second(it) } ?: Variant_NullType_String.First(NullType.NULL)
             } catch (err: Throwable) {
                 RnIapLog.failure("createAlternativeBillingTokenAndroid", err)
@@ -1618,15 +1711,19 @@ class HybridRnIap : HybridRnIapSpec() {
     private var subscriptionBillingIssueNativeListener: dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener? = null
 
     override fun addSubscriptionBillingIssueListener(listener: (purchase: NitroPurchase) -> Unit) {
-        synchronized(subscriptionBillingIssueListeners) {
-            subscriptionBillingIssueListeners.add(listener)
+        synchronized(subscriptionBillingIssueAttachLock) {
+            synchronized(subscriptionBillingIssueListeners) {
+                subscriptionBillingIssueListeners.add(listener)
+            }
+            attachSubscriptionBillingIssueIfNeeded()
         }
-        attachSubscriptionBillingIssueIfNeeded()
     }
 
     override fun removeSubscriptionBillingIssueListener(listener: (purchase: NitroPurchase) -> Unit) {
-        synchronized(subscriptionBillingIssueListeners) {
-            subscriptionBillingIssueListeners.remove(listener)
+        synchronized(subscriptionBillingIssueAttachLock) {
+            synchronized(subscriptionBillingIssueListeners) {
+                subscriptionBillingIssueListeners.remove(listener)
+            }
         }
     }
 
@@ -1655,6 +1752,15 @@ class HybridRnIap : HybridRnIapSpec() {
             }
             subscriptionBillingIssueNativeListener = null
             subscriptionBillingIssueAttached = false
+        }
+    }
+
+    private fun clearSubscriptionBillingIssueListeners() {
+        synchronized(subscriptionBillingIssueAttachLock) {
+            synchronized(subscriptionBillingIssueListeners) {
+                subscriptionBillingIssueListeners.clear()
+            }
+            detachSubscriptionBillingIssueIfNeeded()
         }
     }
 
@@ -2048,6 +2154,13 @@ class HybridRnIap : HybridRnIapSpec() {
             ?: OpenIapError.Companion.defaultMessage(code)
         val diagnostics = error.toJSON()
         val responseCode = (diagnostics["responseCode"] as? Number)?.toInt()
+        val diagnosticProductId = productId
+            ?: diagnostics["productId"] as? String
+            ?: when (error) {
+                is OpenIapError.ProductNotFound -> error.productId
+                is OpenIapError.SkuNotFound -> error.sku
+                else -> null
+            }
         val productIds = diagnostics["productIds"] as? List<*>
         val productType = diagnostics["productType"] as? String
         val isEmptyProductList = diagnostics["isEmptyProductList"] as? Boolean
@@ -2057,15 +2170,18 @@ class HybridRnIap : HybridRnIapSpec() {
             "message" to message
         )
 
-        errorMap["responseCode"] = responseCode ?: -1
+        responseCode?.let { errorMap["responseCode"] = it }
         debugMessage
             ?.let { errorMap["debugMessage"] = it }
             ?: (diagnostics["debugMessage"] as? String)?.let { errorMap["debugMessage"] = it }
             ?: error.message?.let { errorMap["debugMessage"] = it }
-        productId?.let { errorMap["productId"] = it }
+        diagnosticProductId?.let { errorMap["productId"] = it }
         if (!productIds.isNullOrEmpty()) errorMap["productIds"] = productIds
         productType?.let { errorMap["productType"] = it }
         isEmptyProductList?.let { errorMap["isEmptyProductList"] = it }
+        (diagnostics["subResponseCodeAndroid"] as? String)?.let {
+            errorMap["subResponseCodeAndroid"] = it
+        }
 
         return try {
             JSONObject(errorMap).toString()
@@ -2135,12 +2251,30 @@ class HybridRnIap : HybridRnIapSpec() {
         val diagnostics = error.toJSON()
         val responseCode = (diagnostics["responseCode"] as? Number)?.toDouble()
         val diagnosticMessage = diagnostics["debugMessage"] as? String
+        val diagnosticProductId = productId
+            ?: diagnostics["productId"] as? String
+            ?: when (error) {
+                is OpenIapError.ProductNotFound -> error.productId
+                is OpenIapError.SkuNotFound -> error.sku
+                else -> null
+            }
+        val productIds = (diagnostics["productIds"] as? Iterable<*>)
+            ?.filterIsInstance<String>()
+            ?.toTypedArray()
+        val subResponseCode = (diagnostics["subResponseCodeAndroid"] as? String)?.let {
+            runCatching { OpenIapSubResponseCodeAndroid.fromJson(it) }.getOrNull()
+        }
         return NitroPurchaseResult(
             responseCode = responseCode ?: -1.0,
             debugMessage = debugMessage ?: diagnosticMessage ?: error.message,
             code = code,
             message = message,
-            purchaseToken = null
+            purchaseToken = null,
+            productId = diagnosticProductId,
+            productIds = productIds,
+            productType = diagnostics["productType"] as? String,
+            isEmptyProductList = diagnostics["isEmptyProductList"] as? Boolean,
+            subResponseCodeAndroid = mapSubResponseCode(subResponseCode)
         )
     }
 }

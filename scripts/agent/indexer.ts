@@ -14,10 +14,10 @@
  *    - Stores as type: 'code_map' for code navigation
  *
  * Usage:
- *   bun run index               # Index everything
- *   bun run index --knowledge   # Only index knowledge files
- *   bun run index --code        # Only index code map
- *   bun run index --compile     # Also compile Claude context file
+ *   bun run compile:local            # Index everything
+ *   bun run compile:local:knowledge  # Only index knowledge files
+ *   bun run compile:local:code       # Only index code map
+ *   bun run compile                  # Index everything and compile AI context
  */
 
 import "dotenv/config";
@@ -28,7 +28,9 @@ import { glob } from "glob";
 import chalk from "chalk";
 import * as lancedb from "vectordb";
 import { OllamaEmbeddings } from "@langchain/ollama";
+import { Kind, parse } from "graphql";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
+import { compileContext } from "./compile-context.js";
 
 // ============================================================================
 // Custom Markdown Header Splitter
@@ -139,8 +141,9 @@ const CONFIG = {
   // Code scanning patterns
   sourcePatterns: [
     "packages/apple/Sources/**/*.swift",
-    "packages/google/openiap/src/main/**/*.kt",
+    "packages/google/openiap/src/{main,play,horizon,amazon}/**/*.kt",
     "packages/gql/src/**/*.ts",
+    "packages/gql/**/*.graphql",
     "packages/docs/src/**/*.{ts,tsx}",
   ],
 
@@ -229,6 +232,7 @@ function getLanguage(filePath: string): string {
     ".tsx": "typescript-react",
     ".js": "javascript",
     ".jsx": "javascript-react",
+    ".graphql": "graphql",
   };
   return langMap[ext] || "unknown";
 }
@@ -435,6 +439,53 @@ function extractTypeScriptSymbols(content: string): CodeSymbol[] {
 }
 
 /**
+ * Extract type definitions from GraphQL schema files.
+ */
+export function extractGraphQLSymbols(content: string): CodeSymbol[] {
+  const symbols: CodeSymbol[] = [];
+  for (const definition of parse(content).definitions) {
+    const nameNode = "name" in definition ? definition.name : undefined;
+    const name = nameNode?.value;
+    if (!name || !definition.kind.includes("Type")) continue;
+
+    const kind: CodeSymbol["kind"] =
+      definition.kind === Kind.ENUM_TYPE_DEFINITION ||
+      definition.kind === Kind.ENUM_TYPE_EXTENSION
+        ? "enum"
+        : definition.kind === Kind.INTERFACE_TYPE_DEFINITION ||
+            definition.kind === Kind.INTERFACE_TYPE_EXTENSION
+          ? "interface"
+          : "type";
+
+    symbols.push({
+      name,
+      kind,
+      signature: name,
+      exported: true,
+      line: nameNode.loc?.startToken.line ?? 1,
+    });
+
+    if (
+      !["Query", "Mutation", "Subscription"].includes(name) ||
+      !("fields" in definition)
+    ) {
+      continue;
+    }
+    for (const field of definition.fields ?? []) {
+      symbols.push({
+        name: field.name.value,
+        kind: "function",
+        signature: `${name}.${field.name.value}`,
+        exported: true,
+        line: field.name.loc?.startToken.line ?? 1,
+      });
+    }
+  }
+
+  return symbols;
+}
+
+/**
  * Extract symbols based on file type
  */
 function extractSymbols(content: string, language: string): CodeSymbol[] {
@@ -446,6 +497,8 @@ function extractSymbols(content: string, language: string): CodeSymbol[] {
     case "typescript":
     case "typescript-react":
       return extractTypeScriptSymbols(content);
+    case "graphql":
+      return extractGraphQLSymbols(content);
     default:
       return [];
   }
@@ -734,66 +787,8 @@ ${symbols.length > 50 ? `... and ${symbols.length - 50} more` : ""}
 // ============================================================================
 
 async function compileClaudeContext(): Promise<void> {
-  console.log(chalk.blue("\n📝 Compiling Claude Code Context...\n"));
-
-  const contextDir = path.join(CONFIG.knowledgeRoot, "_claude-context");
-  if (!fs.existsSync(contextDir)) {
-    fs.mkdirSync(contextDir, { recursive: true });
-  }
-
-  // Read all internal knowledge files
-  const internalFiles = await glob(
-    path.join(CONFIG.knowledgeRoot, "internal/**/*.md")
-  );
-
-  let combinedContext = `# OpenIAP Project Context
-
-> This file is auto-generated for use with Claude Code CLI.
-> Last updated: ${new Date().toISOString()}
-
----
-
-`;
-
-  // Combine all internal rules
-  combinedContext += "# INTERNAL RULES (MANDATORY)\n\n";
-  combinedContext +=
-    "The following rules MUST be followed without exception.\n\n";
-
-  for (const filePath of internalFiles.sort()) {
-    const content = readFile(filePath);
-    if (!content) continue;
-
-    const filename = path.basename(filePath);
-    combinedContext += `---\n\n`;
-    combinedContext += content;
-    combinedContext += "\n\n";
-  }
-
-  // Add project structure summary
-  combinedContext += "---\n\n# PROJECT STRUCTURE\n\n";
-  combinedContext += "```\n";
-  combinedContext += `openiap/
-├── packages/
-│   ├── apple/        # iOS/macOS StoreKit 2 library
-│   ├── google/       # Android Google Play Billing library
-│   ├── gql/          # GraphQL schema & type generation
-│   └── docs/         # Documentation site
-├── knowledge/        # Shared knowledge base
-│   ├── internal/     # Project philosophy (this context)
-│   └── external/     # External API reference
-└── scripts/agent/    # RAG agent scripts
-`;
-  combinedContext += "```\n";
-
-  // Write context file
-  const contextPath = path.join(contextDir, "context.md");
-  fs.writeFileSync(contextPath, combinedContext);
-
-  console.log(chalk.green(`   ✓ Created: ${contextPath}`));
-  console.log(
-    chalk.gray(`   Usage: claude --context ${contextPath}`)
-  );
+  // Keep one canonical compiler for context.md and both llms reference files.
+  await compileContext();
 }
 
 // ============================================================================
@@ -874,7 +869,7 @@ async function main(): Promise<void> {
   }
 
   // Compile Claude context
-  if (compile || (!onlyCode && !onlyKnowledge)) {
+  if (compile) {
     await compileClaudeContext();
   }
 
@@ -907,7 +902,9 @@ async function main(): Promise<void> {
   console.log();
 }
 
-main().catch((error) => {
-  console.error(chalk.red("\n❌ Indexing failed:"), error);
-  process.exit(1);
-});
+if (import.meta.main) {
+  main().catch((error) => {
+    console.error(chalk.red("\n❌ Indexing failed:"), error);
+    process.exit(1);
+  });
+}

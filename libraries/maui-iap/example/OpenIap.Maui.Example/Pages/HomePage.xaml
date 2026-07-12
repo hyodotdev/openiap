@@ -15,8 +15,7 @@
                        FontAttributes="Bold"
                        TextColor="#000"
                        HorizontalTextAlignment="Center" />
-                <Label x:Name="StorefrontLabel"
-                       Text="Best Practice Implementations"
+                <Label Text="Best Practice Implementations"
                        FontSize="18"
                        TextColor="#333"
                        HorizontalTextAlignment="Center" />

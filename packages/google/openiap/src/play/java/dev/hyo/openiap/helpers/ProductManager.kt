@@ -5,10 +5,7 @@ import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.UnfetchedProduct
 import dev.hyo.openiap.OpenIapError
-import dev.hyo.openiap.OpenIapLog
-import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicBoolean
 
 internal data class ProductQueryResult(
     val productDetails: List<ProductDetails>,
@@ -18,10 +15,9 @@ internal data class ProductQueryResult(
 /**
  * Manages ProductDetails caching and queries.
  *
- * Caches ProductDetails objects from Google Play Billing Library.
- * Note: ProductDetails should be immutable, but to ensure data integrity,
- * we store a reference and always query fresh data if the cached object
- * appears to have incomplete data (defensive programming).
+ * Retains the latest ProductDetails for purchase-event correlation and
+ * enrichment. Public product fetches always query Play because prices, offer
+ * eligibility, and availability can change while a connection is alive.
  */
 internal class ProductManager {
     private data class CacheKey(val productId: String, val productType: String)
@@ -44,19 +40,16 @@ internal class ProductManager {
 
     /**
      * Returns ProductDetails for the requested productIds.
-     * - Uses cache when available
-     * - Queries missing ones and updates the cache
+     * - Queries every requested product ID and replaces matching cache entries
      * - Preserves input ordering in the returned list
-     *
-     * IMPORTANT: Always validates cached ProductDetails have complete data.
-     * If cached data appears incomplete (e.g., missing offer details),
-     * it will be re-queried from Google Play Billing.
      */
     suspend fun getOrQuery(
         client: BillingClient,
         productIds: List<String>,
         productType: String,
-    ): List<ProductDetails> = getOrQueryWithStatus(client, productIds, productType).productDetails
+        operations: ActiveStoreOperationRegistry<BillingClient>,
+    ): List<ProductDetails> =
+        getOrQueryWithStatus(client, productIds, productType, operations).productDetails
 
     /**
      * Returns fetched details together with Billing 8 per-product failures.
@@ -66,45 +59,13 @@ internal class ProductManager {
         client: BillingClient,
         productIds: List<String>,
         productType: String,
+        operations: ActiveStoreOperationRegistry<BillingClient>,
     ): ProductQueryResult {
         if (productIds.isEmpty()) return ProductQueryResult(emptyList(), emptyList())
 
-        // Check which products are missing or have incomplete data
-        val needsQuery = mutableListOf<String>()
+        val requestedProductIds = productIds.distinct()
 
-        for (productId in productIds.distinct()) {
-            val key = CacheKey(productId, productType)
-            val cached = cache[key]
-            if (cached == null) {
-                needsQuery.add(productId)
-            } else {
-                // Validate cached ProductDetails has complete data
-                val isComplete = when (productType) {
-                    BillingClient.ProductType.INAPP -> {
-                        cached.oneTimePurchaseOfferDetails != null
-                    }
-                    BillingClient.ProductType.SUBS -> {
-                        !cached.subscriptionOfferDetails.isNullOrEmpty()
-                    }
-                    else -> true
-                }
-
-                if (!isComplete) {
-                    OpenIapLog.w("Cached ProductDetails for '$productId' has incomplete data, will re-query", "ProductManager")
-                    needsQuery.add(productId)
-                    cache.remove(key)
-                }
-            }
-        }
-
-        if (needsQuery.isEmpty()) {
-            return ProductQueryResult(
-                productDetails = productIds.mapNotNull { cache[CacheKey(it, productType)] },
-                unfetchedProducts = emptyList(),
-            )
-        }
-
-        val productList = needsQuery.map { sku ->
+        val productList = requestedProductIds.map { sku ->
             QueryProductDetailsParams.Product.newBuilder()
                 .setProductId(sku)
                 .setProductType(productType)
@@ -114,39 +75,34 @@ internal class ProductManager {
             .setProductList(productList)
             .build()
 
-        return suspendCancellableCoroutine { cont ->
-            val resumer = cont.resumeGuard()
-            val didHandleProductDetails = AtomicBoolean(false)
+        return operations.await(client) { operation ->
             client.queryProductDetailsAsync(params) { billingResult, result ->
-                if (!didHandleProductDetails.compareAndSet(false, true)) return@queryProductDetailsAsync
-
-                // Always update cache even if coroutine was cancelled
-                if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                    val list = result.productDetailsList.orEmpty()
-                    putAll(list)
-                }
-
                 if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
-                    resumer.resumeWithException(
+                    operation.fail(
                         OpenIapError.QueryProduct.withDiagnostics(
                             responseCode = billingResult.responseCode,
                             debugMessage = billingResult.debugMessage,
-                            productIds = needsQuery.toList(),
+                            productIds = requestedProductIds,
                             productType = productType,
                             isEmptyProductList = result.productDetailsList.isNullOrEmpty()
                         )
                     )
                     return@queryProductDetailsAsync
                 }
-                // Preserve requested order and include cached + newly-fetched
-                resumer.resume(
+                val list = result.productDetailsList.orEmpty()
+                val freshDetailsById = list
+                    .associateBy { it.productId }
+                operation.succeed(
                     ProductQueryResult(
-                        productDetails = productIds.mapNotNull {
-                            cache[CacheKey(it, productType)]
-                        },
+                        productDetails = productIds.mapNotNull(freshDetailsById::get),
                         unfetchedProducts = result.unfetchedProductList.orEmpty(),
                     )
-                )
+                ) {
+                    requestedProductIds.forEach { productId ->
+                        cache.remove(CacheKey(productId, productType))
+                    }
+                    putAll(list)
+                }
             }
         }
     }

@@ -801,15 +801,18 @@ void main() {
       },
     );
 
-    test(
-        'convertToPurchaseError forwards debugMessage and responseCode '
-        'from PurchaseResult', () {
+    test('convertToPurchaseError preserves Android diagnostics', () {
       final result = PurchaseResult.fromJSON(<String, dynamic>{
         'responseCode': 5,
         'debugMessage':
             'Deferred replacement requires the base offer, got a promo offer',
         'code': 'developer-error',
         'message': 'Invalid arguments provided to the API',
+        'productId': 'premium-monthly',
+        'productIds': <String>['premium-monthly', 'premium-yearly'],
+        'productType': 'subs',
+        'isEmptyProductList': false,
+        'subResponseCodeAndroid': 'payment-declined-due-to-insufficient-funds',
       });
 
       final error = convertToPurchaseError(
@@ -825,6 +828,17 @@ void main() {
         'Deferred replacement requires the base offer, got a promo offer',
       );
       expect(error.responseCode, 5);
+      expect(error.productId, 'premium-monthly');
+      expect(
+        error.productIds,
+        <String>['premium-monthly', 'premium-yearly'],
+      );
+      expect(error.productType, 'subs');
+      expect(error.isEmptyProductList, isFalse);
+      expect(
+        error.subResponseCodeAndroid,
+        types.SubResponseCodeAndroid.PaymentDeclinedDueToInsufficientFunds,
+      );
       expect(error.platform, types.IapPlatform.Android);
     });
   });

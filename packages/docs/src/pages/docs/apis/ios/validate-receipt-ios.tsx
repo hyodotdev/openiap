@@ -51,7 +51,7 @@ function ValidateReceiptIOS() {
         {{
           swift: (
             <CodeBlock language="swift">{`@available(*, deprecated, message: "Use verifyPurchase()")
-func validateReceiptIOS(options: ReceiptValidationProps) async throws -> ReceiptValidationResultIOS`}</CodeBlock>
+func validateReceiptIOS(_ options: VerifyPurchaseProps) async throws -> VerifyPurchaseResultIOS`}</CodeBlock>
           ),
           kotlin: (
             <CodeBlock language="kotlin">{`@Deprecated("Use verifyPurchase()")
@@ -62,7 +62,11 @@ suspend fun validateReceiptIOS(options: VerifyPurchaseProps): VerifyPurchaseResu
           ),
           dart: (
             <CodeBlock language="dart">{`@Deprecated('Use verifyPurchase()')
-Future<VerifyPurchaseResultIOS> validateReceiptIOS(VerifyPurchaseProps options);`}</CodeBlock>
+Future<VerifyPurchaseResultIOS> validateReceiptIOS({
+  VerifyPurchaseAppleOptions? apple,
+  VerifyPurchaseGoogleOptions? google,
+  VerifyPurchaseHorizonOptions? horizon,
+});`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`[System.Obsolete("Use VerifyPurchaseAsync instead.")]
@@ -108,22 +112,30 @@ Task<VerifyPurchaseResultIOS> ValidateReceiptIOSAsync(VerifyPurchaseProps option
         {{
           swift: (
             <CodeBlock language="swift">{`// Deprecated — prefer verifyPurchase().
-try await OpenIapModule.shared.validateReceiptIOS(options: .init(sku: "com.app.premium"))`}</CodeBlock>
+try await OpenIapModule.shared.validateReceiptIOS(
+    VerifyPurchaseProps(
+        apple: VerifyPurchaseAppleOptions(sku: "com.app.premium")
+    )
+)`}</CodeBlock>
           ),
           kotlin: (
             <CodeBlock language="kotlin">{`// kmp-iap (iOS targets only — no-op on Android)
 // Deprecated — prefer verifyPurchase().
-kmpIAP.validateReceiptIOS(options = VerifyPurchaseProps(sku = "com.app.premium"))`}</CodeBlock>
+kmpIAP.validateReceiptIOS(
+    options = VerifyPurchaseProps(
+        apple = VerifyPurchaseAppleOptions(sku = "com.app.premium")
+    )
+)`}</CodeBlock>
           ),
           typescript: (
             <CodeBlock language="typescript">{`// Deprecated — prefer verifyPurchase().
-await validateReceiptIOS({ sku: 'com.app.premium' });`}</CodeBlock>
+await validateReceiptIOS({ apple: { sku: 'com.app.premium' } });`}</CodeBlock>
           ),
           dart: (
             <CodeBlock language="dart">{`// Deprecated — prefer verifyPurchase().
 if (Platform.isIOS) {
   await FlutterInappPurchase.instance.validateReceiptIOS(
-    VerifyPurchaseProps(sku: 'com.app.premium'),
+    apple: VerifyPurchaseAppleOptions(sku: 'com.app.premium'),
   );
 }`}</CodeBlock>
           ),
@@ -144,7 +156,9 @@ await ((QueryResolver)OpenIapClient.Instance).ValidateReceiptIOSAsync(
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":
-    var result = await iap.validate_receipt_ios({"sku": "com.app.premium"})`}</CodeBlock>
+    var result = await iap.validate_receipt_ios({
+        "apple": {"sku": "com.app.premium"}
+    })`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

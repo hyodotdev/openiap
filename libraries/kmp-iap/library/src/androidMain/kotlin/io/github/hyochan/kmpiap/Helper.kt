@@ -8,8 +8,6 @@ import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryProductDetailsResult
-import kotlin.coroutines.resume
-import kotlinx.coroutines.suspendCancellableCoroutine
 import io.github.hyochan.kmpiap.openiap.BillingProgramAndroid
 import io.github.hyochan.kmpiap.openiap.DiscountAmountAndroid
 import io.github.hyochan.kmpiap.openiap.DiscountDisplayInfoAndroid
@@ -47,10 +45,13 @@ import io.github.hyochan.kmpiap.openiap.SubscriptionReplacementModeAndroid
 import io.github.hyochan.kmpiap.openiap.ValidTimeWindowAndroid
 import io.github.hyochan.kmpiap.openiap.SubResponseCodeAndroid
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.selects.select
 import com.android.billingclient.api.BillingFlowParams
 import dev.hyo.openiap.BillingProgramAndroid as OpenIapBillingProgram
 import dev.hyo.openiap.ExternalLinkLaunchModeAndroid as OpenIapExternalLinkLaunchMode
@@ -74,11 +75,6 @@ internal data class ProductQueryOutcome(
 internal data class ProductQueryOutcomes(
     val inApp: ProductQueryOutcome,
     val subscriptions: ProductQueryOutcome,
-)
-
-internal data class ProductCacheKey(
-    val productId: String,
-    val productType: String,
 )
 
 internal suspend fun collectProductQueryOutcomes(
@@ -106,13 +102,18 @@ internal suspend fun collectProductQueryOutcomes(
                     async { capture(querySubscriptions) },
                 )
             }
-            val firstError = inAppResult.exceptionOrNull()
-                ?: subscriptionsResult.exceptionOrNull()
+            val errors = listOfNotNull(
+                inAppResult.exceptionOrNull(),
+                subscriptionsResult.exceptionOrNull(),
+            )
+            errors.firstOrNull { error ->
+                (error as? PurchaseException)?.error?.code == ErrorCode.ServiceDisconnected
+            }?.let { throw it }
             val failedOutcome = ProductQueryOutcome(emptyList(), emptyList(), false)
             val inApp = inAppResult.getOrElse { failedOutcome }
             val subscriptions = subscriptionsResult.getOrElse { failedOutcome }
             if (!inApp.succeeded && !subscriptions.succeeded) {
-                throw checkNotNull(firstError)
+                throw errors.first()
             }
             ProductQueryOutcomes(inApp, subscriptions)
         }
@@ -206,10 +207,6 @@ internal fun emitFailureAndThrow(
     throw PurchaseException(error)
 }
 
-internal fun clearProductCache(cache: MutableMap<ProductCacheKey, ProductDetails>) {
-    cache.clear()
-}
-
 internal fun ensureConnectedOrFail(
     isConnected: Boolean,
     fail: (PurchaseError) -> Nothing
@@ -227,18 +224,69 @@ internal fun ensureConnectedOrFail(
 internal fun isPurchaseTokenValid(purchase: Purchase): Boolean =
     purchase.purchaseToken?.isNotEmpty() == true
 
+internal fun authoritativeStorefrontCountryOrNull(countryCode: String?): String? =
+    countryCode?.trim()?.takeIf { it.isNotEmpty() }
+
+@Suppress("DEPRECATION")
 internal fun mapBillingResponseCode(responseCode: Int): ErrorCode = when (responseCode) {
     BillingClient.BillingResponseCode.USER_CANCELED -> ErrorCode.UserCancelled
+    BillingClient.BillingResponseCode.NETWORK_ERROR -> ErrorCode.NetworkError
     BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE -> ErrorCode.ServiceError
+    BillingClient.BillingResponseCode.SERVICE_TIMEOUT -> ErrorCode.ServiceTimeout
     BillingClient.BillingResponseCode.BILLING_UNAVAILABLE -> ErrorCode.BillingUnavailable
     BillingClient.BillingResponseCode.ITEM_UNAVAILABLE -> ErrorCode.ItemUnavailable
     BillingClient.BillingResponseCode.DEVELOPER_ERROR -> ErrorCode.DeveloperError
-    BillingClient.BillingResponseCode.ERROR -> ErrorCode.Unknown
+    BillingClient.BillingResponseCode.ERROR -> ErrorCode.ServiceError
     BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> ErrorCode.AlreadyOwned
     BillingClient.BillingResponseCode.ITEM_NOT_OWNED -> ErrorCode.ItemNotOwned
     BillingClient.BillingResponseCode.SERVICE_DISCONNECTED -> ErrorCode.ServiceDisconnected
     BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED -> ErrorCode.FeatureNotSupported
     else -> ErrorCode.Unknown
+}
+
+internal fun BillingResult.toBillingOperationError(
+    defaultMessage: String,
+    requestProductId: String? = null,
+): PurchaseError {
+    val code = mapBillingResponseCode(responseCode)
+    val diagnosticMessage = debugMessage.takeIf { it.isNotBlank() }
+    return PurchaseError(
+        code = code,
+        debugMessage = diagnosticMessage,
+        message = diagnosticMessage ?: defaultMessage,
+        productId = requestProductId,
+        responseCode = responseCode,
+        subResponseCodeAndroid = onPurchasesUpdatedSubResponseCode.toOpenIapSubResponseCode(),
+    )
+}
+
+internal fun BillingResult.toPurchaseUpdateError(requestProductId: String? = null): PurchaseError =
+    toBillingOperationError(
+        defaultMessage = if (
+            mapBillingResponseCode(responseCode) == ErrorCode.UserCancelled
+        ) {
+            "User cancelled the operation"
+        } else {
+            "Purchase failed"
+        },
+        requestProductId = requestProductId,
+    )
+
+internal fun BillingResult.toQueryProductError(
+    productIds: List<String>,
+    productType: String,
+    isEmptyProductList: Boolean,
+): PurchaseError {
+    val diagnosticMessage = debugMessage.takeIf { it.isNotBlank() }
+    return PurchaseError(
+        code = ErrorCode.QueryProduct,
+        debugMessage = diagnosticMessage,
+        isEmptyProductList = isEmptyProductList,
+        message = diagnosticMessage ?: "Failed to query product details",
+        productIds = productIds,
+        productType = productType,
+        responseCode = responseCode,
+    )
 }
 
 internal fun Int.toOpenIapSubResponseCode(): SubResponseCodeAndroid? = when (this) {
@@ -338,19 +386,17 @@ internal suspend fun loadProductDetails(
     client: BillingClient,
     productType: String,
     skus: List<String>,
-    cache: MutableMap<ProductCacheKey, ProductDetails>,
-    errorFlow: MutableSharedFlow<PurchaseError>
-): Map<String, ProductDetails>? {
+    disconnectSignal: Deferred<PurchaseError>? = null,
+): Map<String, ProductDetails> {
+    val requestedSkus = skus.distinct()
     val details = mutableMapOf<String, ProductDetails>()
-    skus.forEach { sku ->
-        cache[ProductCacheKey(sku, productType)]?.let { details[sku] = it }
-    }
 
-    val missing = skus.filterNot(details::containsKey)
-    if (missing.isNotEmpty()) {
+    // Google discourages reusing cached ProductDetails for a purchase. Always
+    // refresh every requested SKU immediately before building BillingFlowParams.
+    if (requestedSkus.isNotEmpty()) {
         val params = QueryProductDetailsParams.newBuilder()
             .setProductList(
-                missing.map { sku ->
+                requestedSkus.map { sku ->
                     QueryProductDetailsParams.Product.newBuilder()
                         .setProductId(sku)
                         .setProductType(productType)
@@ -359,43 +405,66 @@ internal suspend fun loadProductDetails(
             )
             .build()
 
-        val success = suspendCancellableCoroutine<Boolean> { continuation ->
-            client.queryProductDetailsAsync(params) { billingResult: BillingResult, queryResult: QueryProductDetailsResult ->
-                if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                    queryResult.productDetailsList.forEach { detail ->
-                        cache[ProductCacheKey(detail.productId, detail.productType)] = detail
-                    }
-                    continuation.resume(true)
-                } else {
-                    continuation.resume(false)
-                }
+        val queryDeferred = CompletableDeferred<Pair<BillingResult, QueryProductDetailsResult>>()
+        client.queryProductDetailsAsync(params) { billingResult: BillingResult, queryResult: QueryProductDetailsResult ->
+            queryDeferred.complete(billingResult to queryResult)
+        }
+        val (billingResult, queryResult) = if (disconnectSignal == null) {
+            queryDeferred.await()
+        } else {
+            select {
+                queryDeferred.onAwait { it }
+                disconnectSignal.onAwait { error -> throw PurchaseException(error) }
             }
         }
 
-        if (!success) {
-            errorFlow.tryEmit(
-                PurchaseError(code = ErrorCode.QueryProduct, message = "Failed to query product details")
+        if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
+            throw PurchaseException(
+                billingResult.toQueryProductError(
+                    productIds = requestedSkus,
+                    productType = productType,
+                    isEmptyProductList = queryResult.productDetailsList.isEmpty(),
+                )
             )
-            return null
         }
 
-        skus.forEach { sku ->
-            cache[ProductCacheKey(sku, productType)]?.let { details[sku] = it }
+        if (queryResult.productDetailsList.isEmpty()) {
+            throw PurchaseException(
+                billingResult.toQueryProductError(
+                    productIds = requestedSkus,
+                    productType = productType,
+                    isEmptyProductList = true,
+                )
+            )
+        }
+
+        queryResult.productDetailsList.forEach { detail ->
+            details[detail.productId] = detail
         }
     }
 
-    if (details.size != skus.size) {
-        val missingSku = skus.firstOrNull { !details.containsKey(it) }.orEmpty()
-        errorFlow.tryEmit(
-            PurchaseError(code = ErrorCode.SkuNotFound, message = "Product not found: $missingSku")
+    if (details.size != requestedSkus.size) {
+        val missingSku = requestedSkus.firstOrNull { !details.containsKey(it) }.orEmpty()
+        throw PurchaseException(
+            PurchaseError(
+                code = ErrorCode.SkuNotFound,
+                message = "Product not found: $missingSku",
+                productId = missingSku,
+            )
         )
-        return null
     }
 
     return details
 }
 
 internal fun Long.toOpenIapTransactionDate(): Double = toDouble()
+
+internal fun billingPurchaseIsSuspended(purchase: Any): Boolean =
+    listOf("getIsSuspended", "isSuspended").firstNotNullOfOrNull { methodName ->
+        runCatching {
+            purchase.javaClass.getMethod(methodName).invoke(purchase) as? Boolean
+        }.getOrNull()
+    } ?: false
 
 internal fun com.android.billingclient.api.Purchase.toPurchase(): Purchase {
     val purchaseStateEnum = when (purchaseState) {
@@ -415,6 +484,7 @@ internal fun com.android.billingclient.api.Purchase.toPurchase(): Purchase {
         ids = products,
         isAcknowledgedAndroid = isAcknowledged,
         isAutoRenewing = isAutoRenewing,
+        isSuspendedAndroid = billingPurchaseIsSuspended(this),
         obfuscatedAccountIdAndroid = accountIdentifiers?.obfuscatedAccountId,
         obfuscatedProfileIdAndroid = accountIdentifiers?.obfuscatedProfileId,
         packageNameAndroid = packageName,

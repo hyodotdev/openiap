@@ -1,7 +1,10 @@
 package dev.hyo.openiap
 
+import dev.hyo.openiap.helpers.toPurchaseError
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -16,6 +19,7 @@ private const val BILLING_RESPONSE_ITEM_NOT_OWNED = 8
 private const val BILLING_RESPONSE_SERVICE_DISCONNECTED = -1
 private const val BILLING_RESPONSE_FEATURE_NOT_SUPPORTED = -2
 private const val BILLING_RESPONSE_SERVICE_TIMEOUT = -3
+private const val BILLING_RESPONSE_NETWORK_ERROR = 12
 private const val BILLING_PRODUCT_TYPE_SUBS = "subs"
 
 class OpenIapErrorTest {
@@ -25,6 +29,7 @@ class OpenIapErrorTest {
         val error = OpenIapError.ProductNotFound("test_product")
         assertEquals(ErrorCode.SkuNotFound.rawValue, error.code)
         assertEquals("Product not found", error.message)
+        assertEquals("test_product", error.toJSON()["productId"])
     }
 
     @Test
@@ -54,6 +59,14 @@ class OpenIapErrorTest {
         val error = OpenIapError.PurchaseDeferred
         assertEquals(ErrorCode.DeferredPayment.rawValue, error.code)
         assertEquals("Purchase was deferred", error.message)
+    }
+
+    @Test
+    fun `per-request deferred purchase preserves product diagnostics`() {
+        val error = OpenIapError.DeferredPurchase().withProductId("premium")
+
+        assertEquals(ErrorCode.DeferredPayment.rawValue, error.toJSON()["code"])
+        assertEquals("premium", error.toJSON()["productId"])
     }
 
     @Test
@@ -154,6 +167,42 @@ class OpenIapErrorTest {
         assertEquals(listOf("premium_monthly", "lifetime"), json["productIds"])
         assertEquals(BILLING_PRODUCT_TYPE_SUBS, json["productType"])
         assertEquals(true, json["isEmptyProductList"])
+
+        val purchaseError = error.toPurchaseError()
+        assertEquals("Invalid product ID", purchaseError.debugMessage)
+        assertEquals(BILLING_RESPONSE_DEVELOPER_ERROR, purchaseError.responseCode)
+        assertEquals(listOf("premium_monthly", "lifetime"), purchaseError.productIds)
+        assertEquals(BILLING_PRODUCT_TYPE_SUBS, purchaseError.productType)
+        assertEquals(true, purchaseError.isEmptyProductList)
+    }
+
+    @Test
+    fun `toPurchaseError preserves debug message for non-query failures`() {
+        val purchaseError = OpenIapError.DeveloperError("Invalid offer token").toPurchaseError()
+
+        assertEquals("Invalid offer token", purchaseError.debugMessage)
+    }
+
+    @Test
+    fun `toPurchaseError preserves request product context for launch failures`() {
+        val error = OpenIapError.NetworkFailure("Connection lost")
+            .withProductId("premium")
+
+        assertEquals("premium", error.toJSON()["productId"])
+        assertEquals("premium", error.toPurchaseError().productId)
+    }
+
+    @Test
+    fun `toJSON preserves Play purchase sub-response diagnostics`() {
+        val error = OpenIapError.BillingError(debugMessage = "Payment declined")
+            .withSubResponseCode(
+                SubResponseCodeAndroid.PaymentDeclinedDueToInsufficientFunds,
+            )
+
+        assertEquals(
+            SubResponseCodeAndroid.PaymentDeclinedDueToInsufficientFunds.rawValue,
+            error.toJSON()["subResponseCodeAndroid"],
+        )
     }
 
     @Test
@@ -180,6 +229,7 @@ class OpenIapErrorTest {
         val error = OpenIapError.SkuNotFound("test_sku")
         assertEquals(ErrorCode.SkuNotFound.rawValue, error.code)
         assertEquals("SKU not found", error.message)
+        assertEquals("test_sku", error.toJSON()["productId"])
     }
 
     @Test
@@ -187,6 +237,23 @@ class OpenIapErrorTest {
         val error = OpenIapError.SkuOfferMismatch
         assertEquals(ErrorCode.SkuOfferMismatch.rawValue, error.code)
         assertEquals("SKU and offer token count mismatch", error.message)
+    }
+
+    @Test
+    fun `SkuOfferMismatch retains its JVM singleton field`() {
+        val instance = OpenIapError.SkuOfferMismatch.javaClass.getField("INSTANCE").get(null)
+
+        assertSame(OpenIapError.SkuOfferMismatch, instance)
+    }
+
+    @Test
+    fun `SkuOfferMismatch request diagnostics are isolated`() {
+        val first = OpenIapError.SkuOfferMismatchFailure().withProductId("first")
+        val second = OpenIapError.SkuOfferMismatchFailure()
+
+        assertEquals("first", first.toJSON()["productId"])
+        assertNull(second.toJSON()["productId"])
+        assertNull(OpenIapError.SkuOfferMismatch.toJSON()["productId"])
     }
 
     @Test
@@ -333,9 +400,38 @@ class OpenIapErrorTest {
     }
 
     @Test
+    fun `fromBillingResponseCode retains its published JVM signatures`() {
+        val extensions = Class.forName("dev.hyo.openiap.OpenIapErrorExtensionsKt")
+        val companion = OpenIapError.Companion::class.java
+        val intType = Int::class.javaPrimitiveType
+
+        extensions.getMethod(
+            "fromBillingResponseCode",
+            companion,
+            intType,
+            String::class.java,
+        )
+        extensions.getMethod(
+            "fromBillingResponseCode\$default",
+            companion,
+            intType,
+            String::class.java,
+            intType,
+            Any::class.java,
+        )
+    }
+
+    @Test
     fun `fromBillingResponseCode returns UnknownError for unknown response codes`() {
         val unknownError = OpenIapError.fromBillingResponseCode(999)
         assertTrue(unknownError is OpenIapError.UnknownError)
+    }
+
+    @Test
+    fun `fromBillingResponseCode maps network failures to NetworkError`() {
+        val error = OpenIapError.fromBillingResponseCode(BILLING_RESPONSE_NETWORK_ERROR)
+
+        assertEquals(ErrorCode.NetworkError.rawValue, error.code)
     }
 
     @Test
@@ -354,6 +450,7 @@ class OpenIapErrorTest {
             BILLING_RESPONSE_SERVICE_DISCONNECTED,
             BILLING_RESPONSE_FEATURE_NOT_SUPPORTED,
             BILLING_RESPONSE_SERVICE_TIMEOUT,
+            BILLING_RESPONSE_NETWORK_ERROR,
             999 // else branch → UnknownError
         )
         codesToAssert.forEach { code ->

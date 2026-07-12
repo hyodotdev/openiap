@@ -1,6 +1,7 @@
 import {
   createPurchaseError,
   createPurchaseErrorFromPlatform,
+  createPurchaseErrorFromNativeException,
   ErrorCodeUtils,
   getUserFriendlyErrorMessage,
   isNetworkError,
@@ -9,69 +10,92 @@ import {
 } from '../utils/errorMapping';
 import {ErrorCode} from '../types';
 
-jest.mock('../ExpoIapModule', () => {
-  // Both iOS and Android export 'ERROR_CODES'
-  // Define once and reuse to match actual implementation where
-  // NATIVE_ERROR_CODES = ExpoIapModule.ERROR_CODES || {}
-  const mockErrorCodes = {
-    // ErrorCode.AlreadyOwned
-    'already-owned': 'ALREADY_OWNED',
-    // ErrorCode.BillingUnavailable
-    'billing-unavailable': 3,
-    // ErrorCode.NetworkError
-    'network-error': 'NATIVE_NETWORK',
-    // ErrorCode.Unknown
-    unknown: 'NATIVE_UNKNOWN',
-    // ErrorCode.UserCancelled
-    'user-cancelled': 'USER_CANCELLED',
-  };
-
-  return {
-    __esModule: true,
-    default: {
-      ERROR_CODES: mockErrorCodes,
-    },
-    NATIVE_ERROR_CODES: mockErrorCodes,
-  };
-});
-
 describe('errorMapping utilities', () => {
   it('creates purchase error from platform code string', () => {
     const err = createPurchaseErrorFromPlatform(
-      {code: 'ALREADY_OWNED', message: 'dup'},
-      'ios',
+      {
+        code: 'ALREADY_OWNED',
+        message: 'dup',
+        responseCode: 7,
+        debugMessage: 'native detail',
+        productId: 'sku1',
+        productIds: ['sku1', 'sku2'],
+        productType: 'subs',
+        isEmptyProductList: false,
+        subResponseCodeAndroid: 'payment-declined-due-to-insufficient-funds',
+      },
+      'android',
     );
     expect(err.code).toBe(ErrorCode.AlreadyOwned);
-    expect(err.platform).toBe('ios');
+    expect(err.platform).toBe('android');
     expect(err.message).toBe('dup');
+    expect(err.responseCode).toBe(7);
+    expect(err.debugMessage).toBe('native detail');
+    expect(err.productId).toBe('sku1');
+    expect(err.productIds).toEqual(['sku1', 'sku2']);
+    expect(err.productType).toBe('subs');
+    expect(err.isEmptyProductList).toBe(false);
+    expect(err.subResponseCodeAndroid).toBe(
+      'payment-declined-due-to-insufficient-funds',
+    );
   });
 
-  it('maps numeric platform code via native table', () => {
+  it('maps legacy numeric Android billing response codes explicitly', () => {
     const resolved = ErrorCodeUtils.fromPlatformCode(3, 'android');
     expect(resolved).toBe(ErrorCode.BillingUnavailable);
+    expect(ErrorCodeUtils.fromPlatformCode(3, 'ios')).toBe(ErrorCode.Unknown);
   });
 
   it('falls back to unknown for unmapped codes', () => {
     expect(ErrorCodeUtils.fromPlatformCode('E_STRANGE', 'ios')).toBe(
       ErrorCode.Unknown,
     );
+    expect(ErrorCodeUtils.fromPlatformCode(null, 'ios')).toBe(
+      ErrorCode.Unknown,
+    );
+    expect(ErrorCodeUtils.fromPlatformCode(undefined, 'android')).toBe(
+      ErrorCode.Unknown,
+    );
   });
 
-  it('returns native platform code when available', () => {
+  it('normalizes E-prefixed standard error codes', () => {
+    expect(ErrorCodeUtils.fromPlatformCode('E_USER_CANCELLED', 'ios')).toBe(
+      ErrorCode.UserCancelled,
+    );
+  });
+
+  it('round-trips canonical codes instead of native message constants', () => {
     const platformCode = ErrorCodeUtils.toPlatformCode(
       ErrorCode.NetworkError,
       'ios',
     );
-    expect(platformCode).toBe('NATIVE_NETWORK');
+    expect(platformCode).toBe(ErrorCode.NetworkError);
+    expect(ErrorCodeUtils.getNativeErrorCode(ErrorCode.NetworkError)).toBe(
+      ErrorCode.NetworkError,
+    );
   });
 
-  it('validates error code support per platform', () => {
-    expect(
-      ErrorCodeUtils.isValidForPlatform(ErrorCode.NetworkError, 'ios'),
-    ).toBe(true);
-    expect(
-      ErrorCodeUtils.isValidForPlatform(ErrorCode.QueryProduct, 'android'),
-    ).toBe(false);
+  it('validates every canonical code independently of platform', () => {
+    for (const code of Object.values(ErrorCode)) {
+      expect(ErrorCodeUtils.isValidForPlatform(code, 'ios')).toBe(true);
+      expect(ErrorCodeUtils.isValidForPlatform(code, 'android')).toBe(true);
+    }
+  });
+
+  it('does not depend on enumerable native ERROR_CODES message proxies', () => {
+    const messages = new Proxy<Record<string, string>>(
+      {},
+      {
+        get: (_target, code: string) =>
+          code === ErrorCode.NetworkError ? 'Network connection error' : '',
+      },
+    );
+
+    expect(messages[ErrorCode.NetworkError]).toBe('Network connection error');
+    expect(Object.entries(messages)).toEqual([]);
+    expect(ErrorCodeUtils.fromPlatformCode('NETWORK_ERROR', 'android')).toBe(
+      ErrorCode.NetworkError,
+    );
   });
 
   it('detects specific error categories', () => {
@@ -124,6 +148,10 @@ describe('errorMapping utilities', () => {
       debugMessage: 'dbg',
       code: ErrorCode.PurchaseError,
       productId: 'sku1',
+      productIds: ['sku1', 'sku2'],
+      productType: 'subs',
+      isEmptyProductList: false,
+      subResponseCodeAndroid: 'user-ineligible',
       platform: 'android',
     });
 
@@ -132,6 +160,56 @@ describe('errorMapping utilities', () => {
     expect(native.debugMessage).toBe('dbg');
     expect(native.code).toBe(ErrorCode.PurchaseError);
     expect(native.productId).toBe('sku1');
+    expect(native.productIds).toEqual(['sku1', 'sku2']);
+    expect(native.productType).toBe('subs');
+    expect(native.isEmptyProductList).toBe(false);
+    expect(native.subResponseCodeAndroid).toBe('user-ineligible');
     expect(native.platform).toBe('android');
+  });
+
+  it('restores canonical fields from a decorated native JSON envelope', () => {
+    const payload = {
+      code: 'query-product',
+      message: 'Product query failed',
+      debugMessage: 'Billing returned {ITEM_UNAVAILABLE}',
+      responseCode: 4,
+      productId: 'premium_monthly',
+      productIds: ['premium_monthly', 'premium_yearly'],
+      productType: 'subs',
+      isEmptyProductList: false,
+      subResponseCodeAndroid: 'user-ineligible',
+      platform: 'android',
+    };
+    const error = new Error(
+      `Call to function rejected.\n→ Caused by: OPENIAP_ERROR_JSON:${JSON.stringify(
+        payload,
+      )}`,
+    ) as Error & {code: string};
+    error.code = 'query-product';
+
+    const restored = createPurchaseErrorFromNativeException(error, 'android');
+
+    expect(restored).toMatchObject(payload);
+    expect(restored.name).toBe('[expo-iap]: PurchaseError');
+  });
+
+  it('falls back to direct native fields when no envelope is present', () => {
+    const restored = createPurchaseErrorFromNativeException(
+      {
+        code: 'sku-not-found',
+        message: 'Missing product',
+        productId: 'missing_sku',
+        debugMessage: 'Store lookup returned no match',
+      },
+      'ios',
+    );
+
+    expect(restored).toMatchObject({
+      code: ErrorCode.SkuNotFound,
+      message: 'Missing product',
+      productId: 'missing_sku',
+      debugMessage: 'Store lookup returned no match',
+      platform: 'ios',
+    });
   });
 });

@@ -27,6 +27,31 @@ import {
   PLATFORM_TYPE_DEFAULTS,
 } from '../core/utils.js';
 
+interface CompatibleDataClassShape {
+  primaryFields: string[];
+  extraFields: string[];
+}
+
+const COMPATIBLE_DATA_CLASS_SHAPES: Record<string, CompatibleDataClassShape> = {
+  PurchaseError: {
+    primaryFields: [
+      'code',
+      'debugMessage',
+      'isEmptyProductList',
+      'message',
+      'productId',
+      'productIds',
+      'productType',
+      'responseCode',
+    ],
+    extraFields: ['subResponseCodeAndroid'],
+  },
+  UserChoiceBillingDetails: {
+    primaryFields: ['externalTransactionToken', 'products'],
+    extraFields: ['productDetailsAndroid', 'originalExternalTransactionId'],
+  },
+};
+
 export class KotlinPlugin extends CodegenPlugin {
   readonly name = 'kotlin';
   readonly fileExtension = '.kt';
@@ -239,6 +264,12 @@ export class KotlinPlugin extends CodegenPlugin {
       return;
     }
 
+    const compatibleShape = COMPATIBLE_DATA_CLASS_SHAPES[irObject.name];
+    if (compatibleShape) {
+      this.generateCompatibleDataClass(irObject, compatibleShape);
+      return;
+    }
+
     // Sort fields alphabetically for Kotlin
     const sortedFields = [...irObject.fields].sort((a, b) => a.name.localeCompare(b.name));
 
@@ -260,14 +291,7 @@ export class KotlinPlugin extends CodegenPlugin {
       const suffix = index === sortedFields.length - 1 ? '' : ',';
       const overrideKeyword = field.isOverride ? 'override ' : '';
 
-      // Handle platform defaults
-      const defaults = PLATFORM_TYPE_DEFAULTS[irObject.name];
-      let defaultValue = field.type.nullable ? ' = null' : '';
-      if (defaults && field.name === 'platform') {
-        defaultValue = ` = IapPlatform.${toPascalCase(defaults.platform)}`;
-      } else if (defaults && field.name === 'type') {
-        defaultValue = ` = ProductType.${toPascalCase(defaults.type)}`;
-      }
+      const defaultValue = this.getObjectFieldDefault(irObject.name, field);
 
       this.emit(`    ${overrideKeyword}val ${propertyName}: ${propertyType}${defaultValue}${suffix}`);
     });
@@ -308,6 +332,96 @@ export class KotlinPlugin extends CodegenPlugin {
     this.emit('    )');
     this.emit('}');
     this.emit('');
+  }
+
+  /** Preserve published data-class JVM descriptors for additive fields. */
+  private generateCompatibleDataClass(
+    irObject: IRObject,
+    shape: CompatibleDataClassShape
+  ): void {
+    const field = (name: string): IRField => {
+      const value = irObject.fields.find((candidate) => candidate.name === name);
+      if (!value) throw new Error(`${irObject.name} is missing ${name}`);
+      return value;
+    };
+    const primaryFields = shape.primaryFields.map(field);
+    const extraFields = shape.extraFields.map(field);
+    if (primaryFields.length + extraFields.length !== irObject.fields.length) {
+      throw new Error(`${irObject.name} compatibility shape is incomplete`);
+    }
+    if (extraFields.some((value) => !value.type.nullable)) {
+      throw new Error(`${irObject.name} compatibility fields must be nullable`);
+    }
+
+    this.generateDocComment(irObject.description);
+    this.emit(`public data class ${irObject.name}(`);
+    primaryFields.forEach((value, index) => {
+      this.generateDocComment(value.description, '    ');
+      const suffix = index === primaryFields.length - 1 ? '' : ',';
+      const defaultValue = this.getObjectFieldDefault(irObject.name, value);
+      this.emit(`    val ${value.name}: ${this.getPropertyType(value.type)}${defaultValue}${suffix}`);
+    });
+    this.emit(') {');
+    this.emit('');
+
+    for (const value of extraFields) {
+      this.generateDocComment(value.description, '    ');
+      this.emit(`    var ${value.name}: ${this.getPropertyType(value.type)} = null`);
+      this.emit('        private set');
+      this.emit('');
+    }
+
+    this.emit('    constructor(');
+    for (const value of primaryFields) {
+      const defaultValue = this.getObjectFieldDefault(irObject.name, value);
+      this.emit(`        ${value.name}: ${this.getPropertyType(value.type)}${defaultValue},`);
+    }
+    extraFields.forEach((value, index) => {
+      const defaultValue = index === 0 ? '' : ' = null';
+      this.emit(`        ${value.name}: ${this.getPropertyType(value.type)}${defaultValue},`);
+    });
+    this.emit('    ) : this(');
+    for (const value of primaryFields) {
+      this.emit(`        ${value.name} = ${value.name},`);
+    }
+    this.emit('    ) {');
+    for (const value of extraFields) {
+      this.emit(`        this.${value.name} = ${value.name}`);
+    }
+    this.emit('    }');
+    this.emit('');
+
+    this.emit('    companion object {');
+    this.emit(`        fun fromJson(json: Map<String, Any?>): ${irObject.name} {`);
+    this.emit(`            return ${irObject.name}(`);
+    for (const value of [...primaryFields, ...extraFields]) {
+      const expression = this.buildFromJsonExpression(value.type, `json["${value.name}"]`);
+      this.emit(`                ${value.name} = ${expression},`);
+    }
+    this.emit('            )');
+    this.emit('        }');
+    this.emit('    }');
+    this.emit('');
+    this.emit('    fun toJson(): Map<String, Any?> = mapOf(');
+    this.emit(`        "__typename" to "${irObject.name}",`);
+    for (const value of irObject.fields) {
+      const expression = this.buildToJsonExpression(value.type, value.name);
+      this.emit(`        "${value.name}" to ${expression},`);
+    }
+    this.emit('    )');
+    this.emit('}');
+    this.emit('');
+  }
+
+  private getObjectFieldDefault(objectName: string, field: IRField): string {
+    const defaults = PLATFORM_TYPE_DEFAULTS[objectName];
+    if (defaults && field.name === 'platform') {
+      return ` = IapPlatform.${toPascalCase(defaults.platform)}`;
+    }
+    if (defaults && field.name === 'type') {
+      return ` = ProductType.${toPascalCase(defaults.type)}`;
+    }
+    return field.type.nullable ? ' = null' : '';
   }
 
   private generateResultUnionObject(irObject: IRObject): void {
@@ -552,20 +666,23 @@ export class KotlinPlugin extends CodegenPlugin {
     this.emit('            val rawType = (json["type"] as String?)?.let { ProductQueryType.fromJson(it) }');
     this.emit('            val useAlternativeBilling = json["useAlternativeBilling"] as Boolean?');
     this.emit('            val purchaseJson = json["requestPurchase"] as Map<String, Any?>?');
+    this.emit('            val subscriptionJson = json["requestSubscription"] as Map<String, Any?>?');
+    this.emit('            require((purchaseJson == null) != (subscriptionJson == null)) {');
+    this.emit('                "RequestPurchaseProps requires exactly one of requestPurchase or requestSubscription"');
+    this.emit('            }');
     this.emit('            if (purchaseJson != null) {');
     this.emit('                val request = Request.Purchase(RequestPurchasePropsByPlatforms.fromJson(purchaseJson))');
     this.emit('                val finalType = rawType ?: ProductQueryType.InApp');
     this.emit('                require(finalType == ProductQueryType.InApp) { "type must be IN_APP when requestPurchase is provided" }');
     this.emit('                return RequestPurchaseProps(request = request, type = finalType, useAlternativeBilling = useAlternativeBilling)');
     this.emit('            }');
-    this.emit('            val subscriptionJson = json["requestSubscription"] as Map<String, Any?>?');
     this.emit('            if (subscriptionJson != null) {');
     this.emit('                val request = Request.Subscription(RequestSubscriptionPropsByPlatforms.fromJson(subscriptionJson))');
     this.emit('                val finalType = rawType ?: ProductQueryType.Subs');
     this.emit('                require(finalType == ProductQueryType.Subs) { "type must be SUBS when requestSubscription is provided" }');
     this.emit('                return RequestPurchaseProps(request = request, type = finalType, useAlternativeBilling = useAlternativeBilling)');
     this.emit('            }');
-    this.emit('            throw IllegalArgumentException("RequestPurchaseProps requires requestPurchase or requestSubscription")');
+    this.emit('            error("RequestPurchaseProps branch validation failed")');
     this.emit('        }');
     this.emit('    }');
     this.emit('');

@@ -71,7 +71,7 @@ appropriate labels before merging.
 - For GraphQL schema/API changes, follow the SDK Parity Checklist in
   `knowledge/internal/04-platform-packages.md`.
 - Run the package-specific verification commands for touched paths.
-- For Android package work, compile both Play and Horizon variants when relevant.
+- For Android package work, compile Play, Horizon, and Amazon variants when relevant.
 - For docs/API/type docs changes, run `bun audit:docs` or the documented audit
   command before pushing.
 - For release-note package lists, verify versions from package metadata and

@@ -60,19 +60,25 @@ interface PurchaseOptions {
 }`}</CodeBlock>
           ),
           swift: (
-            <CodeBlock language="swift">{`func getAvailablePurchases(options: PurchaseOptions? = nil) async throws -> [Purchase]`}</CodeBlock>
+            <CodeBlock language="swift">{`func getAvailablePurchases(_ options: PurchaseOptions?) async throws -> [Purchase]`}</CodeBlock>
           ),
           kotlin: (
-            <CodeBlock language="kotlin">{`suspend fun getAvailablePurchases(): List<Purchase>`}</CodeBlock>
+            <CodeBlock language="kotlin">{`suspend fun getAvailablePurchases(options: PurchaseOptions? = null): List<Purchase>`}</CodeBlock>
           ),
           kmp: (
-            <CodeBlock language="kotlin">{`suspend fun getAvailablePurchases(): List<Purchase>`}</CodeBlock>
+            <CodeBlock language="kotlin">{`suspend fun getAvailablePurchases(options: PurchaseOptions? = null): List<Purchase>`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`Future<List<Purchase>> getAvailablePurchases({PurchaseOptions? options});`}</CodeBlock>
+            <CodeBlock language="dart">{`Future<List<Purchase>> getAvailablePurchases({
+  bool? alsoPublishToEventListenerIOS,
+  bool? includeSuspendedAndroid,
+  bool? onlyIncludeActiveItemsIOS,
+});`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task<List<Purchase>> GetAvailablePurchasesAsync()`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<IReadOnlyList<Purchase>> GetAvailablePurchasesAsync(
+    PurchaseOptions? options = null
+);`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func get_available_purchases(options: PurchaseOptions = null) -> Array[Purchase]`}</CodeBlock>
@@ -102,11 +108,11 @@ interface PurchaseOptions {
         <li>
           <code>onlyIncludeActiveItemsIOS</code>{' '}
           <em>
-            (optional, <code>boolean</code>, default <code>false</code>)
+            (optional, <code>boolean</code>, default <code>true</code>)
           </em>{' '}
-          — <strong>iOS.</strong> Switch from <code>Transaction.all</code> (full
-          history) to <code>Transaction.currentEntitlements</code> (active
-          only).
+          — <strong>iOS.</strong> Use{' '}
+          <code>Transaction.currentEntitlements</code> (active only). Pass{' '}
+          <code>false</code> to use <code>Transaction.all</code> instead.
         </li>
         <li>
           <code>includeSuspendedAndroid</code>{' '}
@@ -177,10 +183,10 @@ function PendingPurchases() {
 }`}</CodeBlock>
           ),
           swift: (
-            <CodeBlock language="swift">{`let purchases = try await OpenIapModule.shared.getAvailablePurchases()`}</CodeBlock>
+            <CodeBlock language="swift">{`let purchases = try await OpenIapModule.shared.getAvailablePurchases(nil)`}</CodeBlock>
           ),
           kotlin: (
-            <CodeBlock language="kotlin">{`val purchases = openIapStore.getAvailablePurchases()`}</CodeBlock>
+            <CodeBlock language="kotlin">{`val purchases = openIapStore.getAvailablePurchases(null)`}</CodeBlock>
           ),
           kmp: (
             <CodeBlock language="kotlin">{`val purchases = kmpIAP.getAvailablePurchases()`}</CodeBlock>

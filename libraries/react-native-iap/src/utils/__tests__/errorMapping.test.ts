@@ -29,7 +29,11 @@ describe('errorMapping', () => {
         responseCode: 1,
         debugMessage: 'Debug info',
         productId: 'test.product',
-        platform: 'ios',
+        productIds: ['test.product', 'test.product.yearly'],
+        productType: 'subs',
+        isEmptyProductList: false,
+        subResponseCodeAndroid: 'payment-declined-due-to-insufficient-funds',
+        platform: 'android',
       });
 
       expect(error.message).toBe('Test error');
@@ -37,7 +41,13 @@ describe('errorMapping', () => {
       expect(error.responseCode).toBe(1);
       expect(error.debugMessage).toBe('Debug info');
       expect(error.productId).toBe('test.product');
-      expect(error.platform).toBe('ios');
+      expect(error.productIds).toEqual(['test.product', 'test.product.yearly']);
+      expect(error.productType).toBe('subs');
+      expect(error.isEmptyProductList).toBe(false);
+      expect(error.subResponseCodeAndroid).toBe(
+        'payment-declined-due-to-insufficient-funds',
+      );
+      expect(error.platform).toBe('android');
     });
 
     it('should convert string error code to ErrorCode enum', () => {
@@ -57,13 +67,27 @@ describe('errorMapping', () => {
           code: 'E_USER_CANCELLED',
           message: 'User cancelled',
           responseCode: 1,
+          debugMessage: 'native detail',
+          productId: 'test.product',
+          productIds: ['test.product'],
+          productType: 'in-app',
+          isEmptyProductList: false,
+          subResponseCodeAndroid: 'no-applicable-sub-response-code',
         },
-        'ios',
+        'android',
       );
 
       expect(error.code).toBe(ErrorCode.UserCancelled);
       expect(error.message).toBe('User cancelled');
-      expect(error.platform).toBe('ios');
+      expect(error.debugMessage).toBe('native detail');
+      expect(error.productId).toBe('test.product');
+      expect(error.productIds).toEqual(['test.product']);
+      expect(error.productType).toBe('in-app');
+      expect(error.isEmptyProductList).toBe(false);
+      expect(error.subResponseCodeAndroid).toBe(
+        'no-applicable-sub-response-code',
+      );
+      expect(error.platform).toBe('android');
     });
 
     it('should use default error code when none provided', () => {

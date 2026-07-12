@@ -246,34 +246,37 @@ Before writing or editing anything, **ALWAYS** review:
 ```text
 openiap/
 ├── src/
-│   ├── main/           # Shared code (both flavors)
+│   ├── main/           # Store-agnostic code shared by every flavor
 │   ├── play/           # Play Store specific code
-│   └── horizon/        # Meta Horizon specific code
+│   ├── horizon/        # Meta Horizon specific code
+│   └── amazon/         # Amazon Appstore / Fire OS specific code
 ├── Example/            # Sample application
 └── scripts/            # Automation
 ```
 
 ### Build Flavors
 
-The Google package supports **two build flavors**:
+The Google package supports **three build flavors**:
 
-| Flavor           | Store             | API                         | Description              |
-| ---------------- | ----------------- | --------------------------- | ------------------------ |
-| `play` (default) | Google Play Store | Google Play Billing Library | Standard Android billing |
-| `horizon`        | Meta Quest Store  | Meta Horizon API            | VR/Quest billing         |
+| Flavor           | Store             | API                                  | Description              |
+| ---------------- | ----------------- | ------------------------------------ | ------------------------ |
+| `play` (default) | Google Play Store | Google Play Billing Library          | Standard Android billing |
+| `horizon`        | Meta Quest Store  | Meta Horizon Billing Compatibility   | VR/Quest billing         |
+| `amazon`         | Amazon Appstore   | Amazon Appstore SDK                  | Fire OS billing          |
 
 **Flavor-specific source directories:**
 
-- `src/main/` - Shared code for both flavors
+- `src/main/` - Store-agnostic code shared by every flavor
 - `src/play/` - Play Store specific implementations
 - `src/horizon/` - Meta Horizon specific implementations
+- `src/amazon/` - Amazon Appstore specific implementations
 
 ### Critical Rules
 
 1. **DO NOT edit generated files**: `openiap/src/main/java/dev/hyo/openiap/Types.kt` is auto-generated
 2. Put reusable Kotlin helpers in `openiap/src/main/java/dev/hyo/openiap/utils/`
 3. Run `./scripts/generate-types.sh` to regenerate types
-4. **Test BOTH flavors** when making changes to shared code
+4. **Test ALL THREE flavors** when making changes to shared code
 5. **Never persist local receipt-to-SKU aliases as entitlement identity**:
    store-specific adapters may cache data for performance or correlate an
    in-flight request by request ID, but they must not permanently rewrite
@@ -293,18 +296,29 @@ The Google package supports **two build flavors**:
 ./gradlew :openiap:compileHorizonDebugKotlin
 ./gradlew :openiap:assembleHorizonDebug
 
-# Run tests (both flavors)
+# Amazon / Fire OS flavor
+./gradlew :openiap:compileAmazonDebugKotlin
+./gradlew :openiap:assembleAmazonDebug
+
+# Run tests (all flavors)
 ./gradlew :openiap:test
 ```
 
 ### Version Compatibility
 
-| Flavor  | Billing Library               | Version                    |
-| ------- | ----------------------------- | -------------------------- |
-| Play    | Google Play Billing           | 9.1.0                      |
-| Horizon | horizon-billing-compatibility | 2.0.0 (GPB 7.0 compatible) |
+| Flavor  | Billing Library               | Version                     |
+| ------- | ----------------------------- | --------------------------- |
+| Play    | Google Play Billing           | 9.1.0                       |
+| Horizon | horizon-billing-compatibility | 2.0.0 (GPB 7.0 compatible)  |
+| Amazon  | Amazon Appstore SDK           | 3.0.9                       |
 
-**CRITICAL**: Horizon SDK implements **Billing 7.0 API**, not 8.x/9.x. When writing shared code in `src/main/`:
+**CRITICAL**: `src/main/` is also compiled by the Amazon flavor, whose SDK is
+not Google Billing-compatible. Keep native store SDK types and calls out of
+`src/main/`; put them in the matching flavor source set.
+
+Horizon implements the **Billing 7.0 API**, not 8.x/9.x. Code intentionally
+shared only between the Play and Horizon implementations must stay within the
+following compatibility boundary:
 
 **Safe APIs (exist in both 7.0 and 9.x):**
 
@@ -337,14 +351,29 @@ Meta Horizon has different APIs from Google Play:
 - `VerifyPurchaseHorizonOptions` - Horizon verification parameters
 - `VerifyPurchaseResultHorizon` - Horizon verification result
 
+### Amazon-Specific APIs
+
+Amazon Appstore SDK is not Google Billing-compatible. The `amazon` source set
+maps OpenIAP product queries, purchases, restore calls, and fulfillment to
+`PurchasingService` / `PurchasingListener`.
+
+- Call `PurchasingService.enablePendingPurchases()` before starting a purchase
+  so pending Amazon Kids approvals can be delivered.
+- Finish fulfilled transactions with
+  `PurchasingService.notifyFulfillment(receiptId, FULFILLED)`.
+- Appstore SDK 3.0.9 adds `EXISTING_PURCHASE` and `NOT_ELIGIBLE` fulfillment
+  results and opt-in add-on subscriptions for selected partners. Do not expose
+  those as generally available OpenIAP features without an end-to-end contract.
+
 ### Updating openiap-gql Version
 
 1. Edit `openiap-versions.json` and update the `spec` field
 2. Run `./scripts/generate-types.sh` to download and regenerate Types.kt
-3. Compile BOTH flavors to verify:
+3. Compile ALL THREE flavors to verify:
    ```bash
    ./gradlew :openiap:compilePlayDebugKotlin
    ./gradlew :openiap:compileHorizonDebugKotlin
+   ./gradlew :openiap:compileAmazonDebugKotlin
    ```
 
 ---

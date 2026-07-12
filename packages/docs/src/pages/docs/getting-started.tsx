@@ -107,7 +107,6 @@ function GettingStarted() {
   requestPurchase,
   finishTransaction,
   purchaseUpdatedListener,
-  verifyPurchase,
 } from 'expo-iap';
 
 // 1. Open the store connection on app start.
@@ -120,16 +119,16 @@ const products = await fetchProducts({
 });
 
 // 3. Listen for purchase results — requestPurchase is event-based.
-purchaseUpdatedListener(async (purchase) => {
-  const { isValid } = await verifyPurchase({
-    purchase,
-    serverUrl: 'https://your-server.com/api/verify',
-  });
+const purchaseSubscription = purchaseUpdatedListener(async (purchase) => {
+  // Your backend verifies the store token/JWS and returns an entitlement decision.
+  const { isValid } = await yourBackend.verifyPurchase(purchase);
   if (!isValid) return;
 
   await grantEntitlement(purchase.productId);
   await finishTransaction({ purchase, isConsumable: false });
 });
+
+// On app shutdown: purchaseSubscription.remove();
 
 // 4. Initiate a purchase.
 await requestPurchase({
@@ -154,19 +153,30 @@ let products = try await store.fetchProducts(
 )
 
 // 3. Listen for purchase results — requestPurchase is event-based.
-Task {
-    for await purchase in store.purchaseUpdates {
+// Keep this token alive for as long as purchases should be observed.
+let purchaseSubscription = store.purchaseUpdatedListener { purchase in
+    Task {
         // Verify on your backend, grant entitlement, then finish.
-        try await store.finishTransaction(purchase, isConsumable: false)
+        do {
+            try await store.finishTransaction(
+                purchase: purchase,
+                isConsumable: false
+            )
+        } catch {
+            print("Failed to finish transaction: \(error)")
+        }
     }
 }
+
+// On app shutdown:
+// store.removeListener(purchaseSubscription)
 
 // 4. Initiate a purchase.
 try await store.requestPurchase(
     RequestPurchaseProps(
-        request: RequestPurchasePropsByPlatforms(
+        request: .purchase(RequestPurchasePropsByPlatforms(
             apple: RequestPurchaseIosProps(sku: "com.app.premium")
-        ),
+        )),
         type: .inApp
     )
 )`}</CodeBlock>
@@ -174,6 +184,7 @@ try await store.requestPurchase(
             kotlin: (
               <CodeBlock language="kotlin">{`import dev.hyo.openiap.store.OpenIapStore
 import dev.hyo.openiap.*
+import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 
 val store = OpenIapStore(context)
 
@@ -189,26 +200,36 @@ val products = store.fetchProducts(
 )
 
 // 3. Listen for purchase results.
-scope.launch {
-    store.purchaseUpdates.collect { purchase ->
+val purchaseListener = OpenIapPurchaseUpdateListener { purchase ->
+    scope.launch {
         // Verify on your backend, grant entitlement, then finish.
         store.finishTransaction(purchase, isConsumable = false)
     }
 }
+store.addPurchaseUpdateListener(purchaseListener)
 
 // 4. Initiate a purchase.
 store.requestPurchase(
     RequestPurchaseProps(
-        request = RequestPurchasePropsByPlatforms(
-            google = RequestPurchaseAndroidProps(skus = listOf("com.app.premium"))
+        request = RequestPurchaseProps.Request.Purchase(
+            RequestPurchasePropsByPlatforms(
+                google = RequestPurchaseAndroidProps(skus = listOf("com.app.premium"))
+            )
         ),
         type = ProductQueryType.InApp
     )
-)`}</CodeBlock>
+)
+
+// Call when the owning lifecycle ends.
+fun disposePurchaseListener() {
+    store.removePurchaseUpdateListener(purchaseListener)
+}`}</CodeBlock>
             ),
             kmp: (
-              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.kmpIAP
-import io.github.hyochan.kmpiap.types.*
+              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.openiap.*
+
+val kmpIAP = KmpIAP()
 
 // 1. Open the store connection on app start.
 kmpIAP.initConnection()
@@ -223,7 +244,7 @@ val products = kmpIAP.fetchProducts(
 
 // 3. Listen for purchase results.
 scope.launch {
-    kmpIAP.purchaseUpdates.collect { purchase ->
+    kmpIAP.purchaseUpdatedListener.collect { purchase ->
         // Verify on your backend, grant entitlement, then finish.
         kmpIAP.finishTransaction(purchase, isConsumable = false)
     }
@@ -232,9 +253,11 @@ scope.launch {
 // 4. Initiate a purchase.
 kmpIAP.requestPurchase(
     RequestPurchaseProps(
-        request = RequestPurchasePropsByPlatforms(
-            apple = RequestPurchaseIosProps(sku = "com.app.premium"),
-            google = RequestPurchaseAndroidProps(skus = listOf("com.app.premium"))
+        request = RequestPurchaseProps.Request.Purchase(
+            RequestPurchasePropsByPlatforms(
+                apple = RequestPurchaseIosProps(sku = "com.app.premium"),
+                google = RequestPurchaseAndroidProps(skus = listOf("com.app.premium"))
+            )
         ),
         type = ProductQueryType.InApp
     )
@@ -268,27 +291,24 @@ final iap = FlutterInappPurchase.instance;
 await iap.initConnection();
 
 // 2. Fetch products by SKU.
-final FetchProductsResult result = await iap.fetchProducts(
+final products = await iap.fetchProducts<Product>(
   skus: ['com.app.premium'],
   type: ProductQueryType.InApp,
 );
 
 // 3. Listen for purchase results.
-FlutterInappPurchase.purchaseUpdatedStream.listen((purchase) async {
-  if (purchase == null) return;
+final purchaseSubscription = iap.purchaseUpdatedListener.listen((purchase) async {
   // Verify on your backend, grant entitlement, then finish.
-  await iap.finishTransaction(purchase, isConsumable: false);
+  await iap.finishTransaction(purchase: purchase, isConsumable: false);
 });
 
 // 4. Initiate a purchase.
 await iap.requestPurchase(
-  RequestPurchaseProps(
-    request: RequestPurchasePropsByPlatforms(
-      apple: RequestPurchaseIosProps(sku: 'com.app.premium'),
-      google: RequestPurchaseAndroidProps(skus: ['com.app.premium']),
-    ),
-    type: ProductQueryType.InApp,
-  ),
+  RequestPurchaseProps.inApp((
+    apple: RequestPurchaseIosProps(sku: 'com.app.premium'),
+    google: RequestPurchaseAndroidProps(skus: ['com.app.premium']),
+    useAlternativeBilling: null,
+  )),
 );
 
 // --- Or via the builder DSL ---
@@ -301,7 +321,10 @@ await iap.requestPurchaseWithBuilder(
       ..android.skus = ['com.app.premium']
       ..ios.sku = 'com.app.premium';
   },
-);`}</CodeBlock>
+);
+
+// Call from State.dispose().
+Future<void> disposePurchaseListener() => purchaseSubscription.cancel();`}</CodeBlock>
             ),
             csharp: (
               <CodeBlock language="csharp">{`using OpenIap;
@@ -342,8 +365,8 @@ await mutation.RequestPurchaseAsync(new RequestPurchaseProps
     Type = ProductQueryType.InApp,
 });
 
-// Cleanup when the page goes away.
-subscription.Dispose();`}</CodeBlock>
+// Call when the page goes away.
+void DisposePurchaseListener() => subscription.Dispose();`}</CodeBlock>
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`# 1. Open the store connection on app start.

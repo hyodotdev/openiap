@@ -1,6 +1,5 @@
 package io.github.hyochan.kmpiap
 
-import com.android.billingclient.api.BillingClient
 import io.github.hyochan.kmpiap.openiap.ErrorCode
 import io.github.hyochan.kmpiap.openiap.ProductQueryType
 import io.github.hyochan.kmpiap.openiap.ProductStatusAndroid
@@ -53,17 +52,6 @@ class ProductStatusAndroidTest {
         assertEquals(ProductStatusAndroid.NoOffersAvailable, subscription.productStatusAndroid)
         assertTrue(subscription.subscriptionOfferDetailsAndroid.isEmpty())
         assertTrue(subscription.subscriptionOffers.isEmpty())
-    }
-
-    @Test
-    fun `keeps in-app and subscription cache entries for the same sku separate`() {
-        val inAppKey = ProductCacheKey("shared.sku", BillingClient.ProductType.INAPP)
-        val subscriptionKey = ProductCacheKey("shared.sku", BillingClient.ProductType.SUBS)
-        val cache = mapOf(inAppKey to "in-app", subscriptionKey to "subscription")
-
-        assertEquals(2, cache.size)
-        assertEquals("in-app", cache[inAppKey])
-        assertEquals("subscription", cache[subscriptionKey])
     }
 
     @Test

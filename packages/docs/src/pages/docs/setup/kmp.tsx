@@ -309,13 +309,29 @@ scope.launch {
           </a>
         </h3>
         <CodeBlock language="kotlin">
-          {`// Fetch products
+          {`import io.github.hyochan.kmpiap.openiap.*
+
+// Fetch products
 val products = kmpIAP.fetchProducts(
-    skus = listOf("premium", "coins_100")
+    ProductRequest(
+        skus = listOf("premium", "coins_100"),
+        type = ProductQueryType.InApp
+    )
 )
 
 // Purchase
-kmpIAP.requestPurchase(sku = "premium")
+kmpIAP.requestPurchase(
+    RequestPurchaseProps(
+        request = RequestPurchaseProps.Request.Purchase(
+            RequestPurchasePropsByPlatforms(
+                google = RequestPurchaseAndroidProps(
+                    skus = listOf("premium")
+                )
+            )
+        ),
+        type = ProductQueryType.InApp
+    )
+)
 
 // Cleanup
 kmpIAP.endConnection()`}

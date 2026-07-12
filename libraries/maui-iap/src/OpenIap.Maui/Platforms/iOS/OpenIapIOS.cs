@@ -300,7 +300,7 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
             return tcs.Task;
         }
 
-        Console.WriteLine($"[OpenIapIOS] FinishTransactionAsync dispatch: id={p.Id}, productId={p.ProductId}, consumable={isConsumable ?? false}");
+        Console.WriteLine($"[OpenIapIOS] FinishTransactionAsync dispatch: productId={p.ProductId}, consumable={isConsumable ?? false}");
         _module.FinishTransaction(
             p.Id,
             p.ProductId,
@@ -309,7 +309,7 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
             {
                 try
                 {
-                    Console.WriteLine($"[OpenIapIOS] FinishTransactionAsync callback: id={p.Id}, err={err?.LocalizedDescription ?? "nil"}");
+                    Console.WriteLine($"[OpenIapIOS] FinishTransactionAsync callback: productId={p.ProductId}, hasError={err is not null}");
                     if (err is not null) tcs.TrySetException(MapNSError(err));
                     else tcs.TrySetResult(p.Id);
                 }
@@ -318,34 +318,16 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
         return tcs.Task;
     }
 
-    public Task<string> RestorePurchasesAsync()
+    public async Task<string> RestorePurchasesAsync()
     {
-        var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _module.RestorePurchases(err =>
-        {
-            try
-            {
-                if (err is not null) tcs.TrySetException(MapNSError(err));
-                else tcs.TrySetResult(string.Empty);
-            }
-            catch (Exception ex) { tcs.TrySetException(ex); }
-        });
-        return tcs.Task;
+        await InvokeVoid(_module.RestorePurchases);
+        return string.Empty;
     }
 
-    public Task<string> DeepLinkToSubscriptionsAsync(DeepLinkOptions? options = null)
+    public async Task<string> DeepLinkToSubscriptionsAsync(DeepLinkOptions? options = null)
     {
-        var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _module.DeepLinkToSubscriptions(err =>
-        {
-            try
-            {
-                if (err is not null) tcs.TrySetException(MapNSError(err));
-                else tcs.TrySetResult(string.Empty);
-            }
-            catch (Exception ex) { tcs.TrySetException(ex); }
-        });
-        return tcs.Task;
+        await InvokeVoid(_module.DeepLinkToSubscriptions);
+        return string.Empty;
     }
 
     public Task<VerifyPurchaseResult> ValidateReceiptAsync(VerifyPurchaseProps options) => VerifyPurchaseAsync(options);
@@ -515,7 +497,9 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
     public async Task<string> GetStorefrontAsync()
     {
         var storefront = await InvokeNullableString(cb => _module.GetStorefront(cb));
-        return storefront ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(storefront))
+            throw OpenIapErrorMapper.Wrap(ErrorCode.ServiceError, "Storefront lookup returned no country code");
+        return storefront;
     }
 
     public Task<bool> CanPresentExternalPurchaseNoticeIOSAsync()
@@ -584,6 +568,12 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
 
     private static void ValidateIosPurchaseRequest(RequestPurchaseProps @params)
     {
+        try { @params.Validate(); }
+        catch (InvalidOperationException ex)
+        {
+            throw OpenIapErrorMapper.Wrap(ErrorCode.DeveloperError, ex.Message);
+        }
+
         if (@params.RequestPurchase is { } purchaseEnv)
         {
             var iosProps = purchaseEnv.Apple ?? purchaseEnv.IOS;
@@ -681,6 +671,21 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
     // Every Invoke* helper wraps its callback body in catch (Exception) so a
     // managed exception thrown on the libdispatch worker that runs the Swift
     // block trampoline cannot escape into mono's native unwind path.
+    private Task<VoidResult> InvokeVoid(Action<Action<NSError?>> dispatch)
+    {
+        var tcs = new TaskCompletionSource<VoidResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        dispatch(err =>
+        {
+            try
+            {
+                if (err is not null) tcs.TrySetException(MapNSError(err));
+                else tcs.TrySetResult(new VoidResult());
+            }
+            catch (Exception ex) { tcs.TrySetException(ex); }
+        });
+        return tcs.Task;
+    }
+
     private Task<bool> InvokeBool(Action<Action<bool, NSError?>> dispatch)
     {
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);

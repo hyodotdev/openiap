@@ -11,9 +11,9 @@ function IsEligibleForExternalPurchaseCustomLinkIOS() {
     <div className="doc-page">
       <SEO
         title="isEligibleForExternalPurchaseCustomLinkIOS"
-        description="Check whether the app can use the iOS 18.1+ ExternalPurchaseCustomLink API."
+        description="Check whether the app can use ExternalPurchaseCustomLink (iOS 18.1+, macOS 15.1+)."
         path="/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios"
-        keywords="isEligibleForExternalPurchaseCustomLinkIOS, ExternalPurchaseCustomLink, StoreKit, iOS 18.1"
+        keywords="isEligibleForExternalPurchaseCustomLinkIOS, ExternalPurchaseCustomLink, StoreKit, iOS 18.1, macOS 15.1"
       />
       <h1>
         <span className="platform-badge platform-badge--ios">iOS</span>{' '}
@@ -28,13 +28,13 @@ function IsEligibleForExternalPurchaseCustomLinkIOS() {
         >
           ExternalPurchaseCustomLink
         </a>{' '}
-        API (iOS 18.1+). Returns <code>true</code> when the bundle is approved
-        for the corresponding entitlement and music-streaming-app-style flows
-        are allowed.
+        API (iOS 18.1+, macOS 15.1+). Returns <code>true</code> when the bundle
+        is approved for the corresponding entitlement and
+        music-streaming-app-style flows are allowed.
       </p>
       <p>
-        Wraps <code>ExternalPurchaseCustomLink.isEligible</code> — iOS 18.1+.
-        See the{' '}
+        Wraps <code>ExternalPurchaseCustomLink.isEligible</code> — iOS 18.1+,
+        macOS 15.1+. See the{' '}
         <a
           href="https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible"
           target="_blank"
@@ -61,7 +61,7 @@ function IsEligibleForExternalPurchaseCustomLinkIOS() {
             <CodeBlock language="dart">{`Future<bool> isEligibleForExternalPurchaseCustomLinkIOS();`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task<Boolean> IsEligibleForExternalPurchaseCustomLinkIOSAsync()`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<bool> IsEligibleForExternalPurchaseCustomLinkIOSAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func is_eligible_for_external_purchase_custom_link_ios() -> Variant`}</CodeBlock>
@@ -74,7 +74,7 @@ function IsEligibleForExternalPurchaseCustomLinkIOS() {
       </AnchorLink>
       <p>
         <code>Promise&lt;boolean&gt;</code> — Whether the app can use
-        ExternalPurchaseCustomLink (iOS 18.1+).
+        ExternalPurchaseCustomLink (iOS 18.1+, macOS 15.1+).
       </p>
 
       <h2>Example</h2>
@@ -96,7 +96,7 @@ if (Platform.OS === 'ios') {
 }`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`if (Platform.isIOS) {
+            <CodeBlock language="dart">{`if (Platform.isIOS || Platform.isMacOS) {
   final ok = await FlutterInappPurchase.instance
       .isEligibleForExternalPurchaseCustomLinkIOS();
 }`}</CodeBlock>

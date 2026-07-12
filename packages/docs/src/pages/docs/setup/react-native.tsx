@@ -370,7 +370,13 @@ const errorSub = purchaseErrorListener((error) => {
 
 // Fetch and purchase
 const products = await fetchProducts({ skus: ['premium'] });
-await requestPurchase({ request: { apple: { sku: 'premium' } } });
+await requestPurchase({
+  request: {
+    apple: { sku: 'premium' },
+    google: { skus: ['premium'] },
+  },
+  type: 'in-app',
+});
 
 // Cleanup on unmount
 purchaseSub.remove();

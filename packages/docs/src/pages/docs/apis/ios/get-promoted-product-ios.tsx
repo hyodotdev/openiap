@@ -39,7 +39,7 @@ function GetPromotedProductIOS() {
       <LanguageTabs>
         {{
           swift: (
-            <CodeBlock language="swift">{`func getPromotedProductIOS() async throws -> Product?`}</CodeBlock>
+            <CodeBlock language="swift">{`func getPromotedProductIOS() async throws -> ProductIOS?`}</CodeBlock>
           ),
           kotlin: (
             <CodeBlock language="kotlin">{`suspend fun getPromotedProductIOS(): ProductIOS?`}</CodeBlock>
@@ -51,7 +51,7 @@ function GetPromotedProductIOS() {
             <CodeBlock language="dart">{`Future<ProductIOS?> getPromotedProductIOS();`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task<ProductIOS?> GetPromotedProductIOSAsync()`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<ProductIOS?> GetPromotedProductIOSAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func get_promoted_product_ios() -> Variant`}</CodeBlock>

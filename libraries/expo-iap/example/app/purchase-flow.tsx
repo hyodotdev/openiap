@@ -183,14 +183,6 @@ function PurchaseFlow({
     setSelectedIndex: setTvSelectedProductIndex,
   } = useVegaTvSelection({
     itemCount: visibleProducts.length,
-    isItemDisabled: () => isProcessing,
-    onSelect: (index) => {
-      const selectedProduct = visibleProducts[index];
-      if (selectedProduct) {
-        handlePurchase(selectedProduct.id);
-      }
-    },
-    suppressSelection: isProcessing || Boolean(purchaseResult),
   });
 
   const handleCopyResult = async () => {
@@ -370,8 +362,7 @@ function PurchaseFlow({
                   hasTVPreferredFocus={index === tvSelectedProductIndex}
                   style={[
                     styles.purchaseButton,
-                    index === tvSelectedProductIndex &&
-                      styles.tvFocusedButton,
+                    index === tvSelectedProductIndex && styles.tvFocusedButton,
                     isProcessing && {opacity: 0.5},
                   ]}
                   onPress={() => handlePurchase(product.id)}
@@ -810,13 +801,7 @@ function PurchaseFlowContainer() {
         return;
       }
 
-      const {purchaseToken: tokenToMask, ...rest} = purchase;
-
-      const masked = {
-        ...rest,
-        ...(tokenToMask ? {purchaseToken: 'hidden'} : {}),
-      };
-      console.log('Purchase successful:', masked);
+      console.log('Purchase successful:', purchase.productId);
       console.log('[PurchaseFlow] purchaseState:', purchase.purchaseState);
       const productId = purchase.productId ?? '';
       if (!isPurchaseFlowProduct(productId)) {
@@ -836,7 +821,10 @@ function PurchaseFlowContainer() {
 
       const isConsumablePurchase = CONSUMABLE_PRODUCT_ID_SET.has(productId);
       if (!isConsumablePurchase) {
-        console.log('[PurchaseFlow] Non-consumable purchase recorded:', productId);
+        console.log(
+          '[PurchaseFlow] Non-consumable purchase recorded:',
+          productId,
+        );
       }
 
       // ------------------------------------------------------------
@@ -859,7 +847,7 @@ function PurchaseFlowContainer() {
           if (currentVerificationMethod === 'local') {
             console.log('[PurchaseFlow] Verifying with local method...');
             // All platform options can be provided - the library handles platform detection internally
-            const result = await verifyPurchase({
+            await verifyPurchase({
               apple: {sku: productId},
               google: {
                 sku: productId,
@@ -869,7 +857,7 @@ function PurchaseFlowContainer() {
               },
               // horizon: { sku: productId, userId: '', accessToken: '' }
             });
-            console.log('[PurchaseFlow] Local verification result:', result);
+            console.log('[PurchaseFlow] Local verification completed');
             // Option 2: IAPKit verification (server-based)
           } else if (currentVerificationMethod === 'iapkit') {
             console.log('[PurchaseFlow] Verifying with IAPKit...');
@@ -899,22 +887,7 @@ function PurchaseFlowContainer() {
               provider: 'iapkit',
               iapkit: iapkitPayload,
             };
-            const iapkitLogPayload = {
-              ...iapkitPayload,
-              ...(iapkitPayload.apiKey ? {apiKey: '***hidden***'} : {}),
-            };
-
-            console.log(
-              '[PurchaseFlow] Sending IAPKit verification request:',
-              JSON.stringify(
-                  {
-                    provider: verifyRequest.provider,
-                    iapkit: iapkitLogPayload,
-                  },
-                  null,
-                  2,
-              ),
-            );
+            console.log('[PurchaseFlow] Sending IAPKit verification request');
 
             const result = await verifyPurchaseWithProvider(verifyRequest);
             console.log('[PurchaseFlow] IAPKit verification result:', result);

@@ -34,8 +34,19 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
     private lateinit var openIap: OpenIapModule
     private lateinit var store: OpenIapStore
-    private var isInitialized = false
+    private val connectionLifecycle = GodotIapConnectionLifecycle()
+    private val isInitialized: Boolean
+        get() = connectionLifecycle.isConnected
     private val pluginScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    private fun serializeOpenIapError(error: OpenIapError): Map<String, Any?> =
+        error.toJSON().toMutableMap().apply {
+            when (error) {
+                is OpenIapError.ProductNotFound -> this["productId"] = error.productId
+                is OpenIapError.SkuNotFound -> this["productId"] = error.sku
+                else -> Unit
+            }
+        }
 
     // Listeners
     private val purchaseUpdateListener = OpenIapPurchaseUpdateListener { purchase ->
@@ -46,7 +57,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
     private val purchaseErrorListener = OpenIapPurchaseErrorListener { error ->
         GodotIapLog.failure("Purchase", Exception(error.message))
-        val errorPayload = error.toJSON()
+        val errorPayload = serializeOpenIapError(error)
         emitSignal("purchase_error", JSONObject(errorPayload).toString())
     }
 
@@ -107,58 +118,92 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
             return false
         }
 
-        return runBlocking {
-            try {
-                // Use OpenIapModule directly like expo-iap does
-                openIap = OpenIapModule(activity)
-                store = OpenIapStore(openIap)
-                store.addPurchaseUpdateListener(purchaseUpdateListener)
-                store.addPurchaseErrorListener(purchaseErrorListener)
-                store.addUserChoiceBillingListener(userChoiceBillingListener)
-                store.addDeveloperProvidedBillingListener(developerProvidedBillingListener)
-                openIap.addSubscriptionBillingIssueListener(subscriptionBillingIssueListener)
-
-                val result = store.initConnection(config)
-                isInitialized = result
-
-                if (result) {
-                    emitSignal("connected")
-                }
-
-                GodotIapLog.result("initConnection", result)
-                result
-            } catch (e: Exception) {
-                GodotIapLog.failure("initConnection", e)
-                false
-            }
+        val normalizedConfig = (config ?: InitConnectionConfig()).toJson()
+        val result = try {
+            connectionLifecycle.init(
+                config = normalizedConfig,
+                onConfigMismatch = {
+                    purchaseErrorListener.onPurchaseError(
+                        OpenIapError.DeveloperError(
+                            "Connection is already initialized with different billing configuration. " +
+                                "Call endConnection before changing configuration."
+                        )
+                    )
+                },
+                connect = {
+                    runBlocking {
+                        val candidateModule = OpenIapModule(activity)
+                        val candidateStore = OpenIapStore(candidateModule)
+                        attachListeners(candidateModule, candidateStore)
+                        try {
+                            val connected = candidateStore.initConnection(config)
+                            if (connected) {
+                                openIap = candidateModule
+                                store = candidateStore
+                            } else {
+                                runCatching { candidateStore.endConnection() }
+                                detachListeners(candidateModule, candidateStore)
+                            }
+                            connected
+                        } catch (error: Exception) {
+                            // Preserve listeners until endConnection has had a chance
+                            // to publish any pending lifecycle failure.
+                            runCatching { candidateStore.endConnection() }
+                            detachListeners(candidateModule, candidateStore)
+                            throw error
+                        }
+                    }
+                },
+            )
+        } catch (error: Exception) {
+            GodotIapLog.failure("initConnection", error)
+            GodotIapConnectionLifecycle.InitResult(false, false)
         }
+
+        if (result.didConnect) emitSignal("connected")
+        GodotIapLog.result("initConnection", result.success)
+        return result.success
     }
 
     @UsedByGodot
     fun endConnection(): Boolean {
         GodotIapLog.debug("endConnection called")
 
-        if (!isInitialized) return true
-
-        return runBlocking {
-            try {
-                store.removePurchaseUpdateListener(purchaseUpdateListener)
-                store.removePurchaseErrorListener(purchaseErrorListener)
-                store.removeUserChoiceBillingListener(userChoiceBillingListener)
-                store.removeDeveloperProvidedBillingListener(developerProvidedBillingListener)
-                openIap.removeSubscriptionBillingIssueListener(subscriptionBillingIssueListener)
-
-                val result = store.endConnection()
-                isInitialized = false
-                emitSignal("disconnected")
-
-                GodotIapLog.result("endConnection", result)
-                result
-            } catch (e: Exception) {
-                GodotIapLog.failure("endConnection", e)
-                false
-            }
+        val result = try {
+            connectionLifecycle.end(
+                disconnect = {
+                    runBlocking {
+                        runCatching { store.endConnection() }
+                            .onFailure { GodotIapLog.failure("endConnection", it) }
+                            .getOrDefault(false)
+                    }
+                },
+                cleanupListeners = { detachListeners(openIap, store) },
+            )
+        } catch (error: Exception) {
+            GodotIapLog.failure("endConnection", error)
+            GodotIapConnectionLifecycle.EndResult(false, false)
         }
+
+        if (result.didEnd) emitSignal("disconnected")
+        GodotIapLog.result("endConnection", result.success)
+        return result.success
+    }
+
+    private fun attachListeners(module: OpenIapModule, targetStore: OpenIapStore): Unit {
+        targetStore.addPurchaseUpdateListener(purchaseUpdateListener)
+        targetStore.addPurchaseErrorListener(purchaseErrorListener)
+        targetStore.addUserChoiceBillingListener(userChoiceBillingListener)
+        targetStore.addDeveloperProvidedBillingListener(developerProvidedBillingListener)
+        module.addSubscriptionBillingIssueListener(subscriptionBillingIssueListener)
+    }
+
+    private fun detachListeners(module: OpenIapModule, targetStore: OpenIapStore): Unit {
+        targetStore.removePurchaseUpdateListener(purchaseUpdateListener)
+        targetStore.removePurchaseErrorListener(purchaseErrorListener)
+        targetStore.removeUserChoiceBillingListener(userChoiceBillingListener)
+        targetStore.removeDeveloperProvidedBillingListener(developerProvidedBillingListener)
+        module.removeSubscriptionBillingIssueListener(subscriptionBillingIssueListener)
     }
 
     // ==========================================
@@ -318,7 +363,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 store.requestPurchase(requestProps)
             } catch (e: OpenIapError) {
                 GodotIapLog.failure("requestPurchase", e)
-                emitSignal("purchase_error", JSONObject(e.toJSON()).toString())
+                emitSignal("purchase_error", JSONObject(serializeOpenIapError(e)).toString())
             } catch (e: Exception) {
                 GodotIapLog.failure("requestPurchase", e)
                 emitSignal(
@@ -353,26 +398,40 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
         return runBlocking {
             try {
-                val json = JSONObject(purchaseJson)
-                val productId = json.getString("productId")
-
-                // Get the actual purchase from available purchases
-                val purchases = store.getAvailablePurchases(null)
-                val purchase = purchases.find { it.productId == productId }
-
-                if (purchase != null) {
-                    store.finishTransaction(purchase, isConsumable)
-                    GodotIapLog.result("finishTransaction", "success")
-                    JSONObject().apply {
-                        put("success", true)
-                    }.toString()
+                val requestedPurchase = PurchaseAndroid.fromJson(
+                    GodotIapHelper.jsonObjectToMap(JSONObject(purchaseJson))
+                )
+                val purchase = if (!requestedPurchase.purchaseToken.isNullOrBlank()) {
+                    requestedPurchase
                 } else {
-                    GodotIapLog.warning("finishTransaction: Purchase not found")
-                    JSONObject().apply {
-                        put("success", false)
-                        put("error", "Purchase not found")
-                    }.toString()
+                    val requestedIds = setOfNotNull(
+                        requestedPurchase.transactionId?.takeIf { it.isNotBlank() },
+                        requestedPurchase.id.takeIf { it.isNotBlank() },
+                    )
+                    require(requestedIds.isNotEmpty()) {
+                        "purchaseToken, transactionId, or id is required"
+                    }
+
+                    val exactMatches = store.getAvailablePurchases(null).filter { candidate ->
+                        candidate.id in requestedIds ||
+                            (candidate as? PurchaseAndroid)?.transactionId?.let {
+                                it in requestedIds
+                            } == true
+                    }
+                    require(exactMatches.size == 1) {
+                        when {
+                            exactMatches.isEmpty() -> "Purchase not found for the supplied transaction identity"
+                            else -> "Multiple purchases matched the supplied transaction identity"
+                        }
+                    }
+                    exactMatches.single()
                 }
+
+                store.finishTransaction(purchase, isConsumable)
+                GodotIapLog.result("finishTransaction", "success")
+                JSONObject().apply {
+                    put("success", true)
+                }.toString()
             } catch (e: Exception) {
                 GodotIapLog.failure("finishTransaction", e)
                 JSONObject().apply {
@@ -421,7 +480,22 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
     }
 
     @UsedByGodot
-    fun getAvailablePurchases(): String {
+    fun getAvailablePurchases(): String = getAvailablePurchasesInternal(null)
+
+    @UsedByGodot
+    fun getAvailablePurchasesWithOptions(optionsJson: String): String {
+        val options = try {
+            PurchaseOptions.fromJson(
+                GodotIapHelper.jsonObjectToMap(JSONObject(optionsJson))
+            )
+        } catch (e: Exception) {
+            GodotIapLog.failure("getAvailablePurchasesWithOptions", e)
+            return JSONArray().toString()
+        }
+        return getAvailablePurchasesInternal(options)
+    }
+
+    private fun getAvailablePurchasesInternal(options: PurchaseOptions?): String {
         GodotIapLog.debug("getAvailablePurchases called")
 
         if (!isInitialized) {
@@ -430,7 +504,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
         return runBlocking {
             try {
-                val purchases = store.getAvailablePurchases(null)
+                val purchases = store.getAvailablePurchases(options)
                 val purchasesArray = JSONArray()
 
                 purchases.forEach { purchase ->

@@ -81,7 +81,7 @@ internal object BillingConverters {
 
     /**
      * Converts a ProductDetails.OneTimePurchaseOfferDetails to ProductAndroidOneTimePurchaseOfferDetail
-     * This includes all discount-related fields available in Billing Library 7.0+
+     * This includes all discount-related fields available in Billing Library 8.0+
      */
     private fun ProductDetails.OneTimePurchaseOfferDetails.toOfferDetail(): ProductAndroidOneTimePurchaseOfferDetail {
         // Extract discount display info if available
@@ -123,7 +123,7 @@ internal object BillingConverters {
             )
         }
 
-        // Extract rental details if available (Billing Library 7.0+)
+        // Extract rental details if available (Billing Library 8.0+)
         val rental = runCatching { rentalDetails }?.getOrNull()?.let { details ->
             RentalDetailsAndroid(
                 rentalPeriod = details.rentalPeriod,
@@ -131,7 +131,7 @@ internal object BillingConverters {
             )
         }
 
-        // Extract purchase option ID if available (Billing Library 7.0+)
+        // Extract purchase option ID if available (Billing Library 8.0+)
         val purchaseOptId = runCatching { purchaseOptionId }.getOrNull()
 
         return ProductAndroidOneTimePurchaseOfferDetail(
@@ -491,7 +491,7 @@ fun PurchaseAndroid.toActiveSubscription(): ActiveSubscription = ActiveSubscript
     autoRenewingAndroid = autoRenewingAndroid,
     basePlanIdAndroid = currentPlanId,
     currentPlanId = currentPlanId,
-    isActive = true,
+    isActive = purchaseState == PurchaseState.Purchased,
     productId = productId,
     purchaseToken = purchaseToken,
     purchaseTokenAndroid = purchaseToken,

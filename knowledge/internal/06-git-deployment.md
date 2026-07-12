@@ -293,6 +293,14 @@ Version ownership is split:
 - Deploy script (`npm run deploy`) uses the current `spec` version by default,
   and updates `spec` only when an explicit version is passed
 
+When a maintainer explicitly declares a stable native/spec release train and
+selects its native train version, use that version as the requested spec target.
+Manually set only the root `spec` field and `packages/gql/package.json`, then run
+`./scripts/sync-versions.sh` to refresh derived copies; the `apple` and `google`
+fields remain release-workflow-owned. This is not standing lockstep versioning:
+without that explicit train instruction, do not infer or auto-align `spec` from
+native package versions.
+
 Release workflows write stable values on `main` and prerelease values on
 `next`. Manual edits are not a substitute for selecting the correct workflow
 branch.

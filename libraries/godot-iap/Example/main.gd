@@ -205,7 +205,7 @@ func _on_buy_premium_year_pressed() -> void:
 
 
 func _on_restore_pressed() -> void:
-	IapManager.restore_purchases()
+	await IapManager.restore_purchases()
 
 
 func _on_purchase_completed(product_id: String) -> void:

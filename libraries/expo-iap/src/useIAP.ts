@@ -175,7 +175,7 @@ export interface UseIAPOptions {
   onDeveloperProvidedBillingAndroid?: (
     details: DeveloperProvidedBillingDetailsAndroid,
   ) => void;
-  /** Fires when an active subscription enters a billing-issue state. */
+  /** Fires when a subscription enters a billing-issue state. */
   onSubscriptionBillingIssue?: (purchase: Purchase) => void;
   /**
    * Alternative billing mode for Android

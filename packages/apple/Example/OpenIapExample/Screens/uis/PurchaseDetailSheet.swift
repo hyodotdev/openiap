@@ -28,8 +28,8 @@ struct PurchaseDetailSheet: View {
 
         items.append(DetailItem(label: "Transaction Date", value: formattedDate(purchase.transactionDate)))
 
-        if let token = purchase.purchaseToken, token.isEmpty == false {
-            items.append(DetailItem(label: "Purchase Token", value: token))
+        if purchase.purchaseToken?.isEmpty == false {
+            items.append(DetailItem(label: "Purchase Token", value: "Present"))
         }
 
         return items
@@ -47,8 +47,8 @@ struct PurchaseDetailSheet: View {
         if let originalId = purchase.originalTransactionIdentifierIOS, originalId.isEmpty == false {
             items.append(DetailItem(label: "Original Transaction ID", value: originalId))
         }
-        if let token = purchase.appAccountToken, token.isEmpty == false {
-            items.append(DetailItem(label: "App Account Token", value: token))
+        if purchase.appAccountToken?.isEmpty == false {
+            items.append(DetailItem(label: "App Account Token", value: "Present"))
         }
         if let expiration = purchase.expirationDateIOS {
             items.append(DetailItem(label: "Expiration Date", value: formattedDate(expiration)))

@@ -3,6 +3,7 @@
 // Internal modules
 // import removed: use purchaseUpdatedListener directly in app code
 import ExpoIapModule from '../ExpoIapModule';
+import {ErrorCode} from '../types';
 
 // Types
 import type {
@@ -19,7 +20,11 @@ import type {
   VerifyPurchaseResultIOS,
   SubscriptionStatusIOS,
 } from '../types';
-import type {PurchaseError} from '../utils/errorMapping';
+import {
+  createPurchaseError,
+  createPurchaseErrorFromNativeException,
+  type PurchaseError,
+} from '../utils/errorMapping';
 import {Linking} from 'react-native';
 
 export type TransactionEvent = {
@@ -206,14 +211,40 @@ export const getReceiptIOS = getReceiptDataIOS;
  *   resolves to the iOS storefront on iOS. This helper is kept as an iOS-only
  *   alias so consumers who previously imported `getStorefrontIOS` do not break.
  *
- * @returns {Promise<string>} ISO 3166-1 alpha-2 country code (e.g. "US")
+ * @returns {Promise<string>} ISO 3166-1 alpha-3 country code (e.g. "USA")
  *
  * @platform iOS
  *
  * @see {@link https://openiap.dev/docs/apis/ios/get-storefront-ios}
  */
 export const getStorefrontIOS: QueryField<'getStorefrontIOS'> = async () => {
-  return ExpoIapModule.getStorefront();
+  if (typeof ExpoIapModule.getStorefront !== 'function') {
+    throw createPurchaseError({
+      code: ErrorCode.FeatureNotSupported,
+      message: 'Native getStorefront is not available on this build.',
+      platform: 'ios',
+    });
+  }
+
+  let storefront: unknown;
+  try {
+    storefront = await ExpoIapModule.getStorefront();
+  } catch (error) {
+    throw createPurchaseErrorFromNativeException(error, 'ios', {
+      code: ErrorCode.ServiceError,
+      message: 'Failed to get storefront.',
+      debugMessage: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  if (typeof storefront !== 'string' || storefront.trim().length === 0) {
+    throw createPurchaseError({
+      code: ErrorCode.ServiceError,
+      message: 'Storefront lookup returned no country code.',
+      platform: 'ios',
+    });
+  }
+  return storefront;
 };
 
 /**
@@ -386,11 +417,10 @@ export const getPromotedProductIOS: QueryField<
  */
 export const requestPurchaseOnPromotedProductIOS: MutationField<
   'requestPurchaseOnPromotedProductIOS'
-> =
-  async () => {
-    const result = await ExpoIapModule.requestPurchaseOnPromotedProductIOS();
-    return result ?? true;
-  };
+> = async () => {
+  const result = await ExpoIapModule.requestPurchaseOnPromotedProductIOS();
+  return result ?? true;
+};
 
 /**
  * Get pending transactions that haven't been finished yet (iOS only).
@@ -472,11 +502,10 @@ export const canPresentExternalPurchaseNoticeIOS: QueryField<
  */
 export const presentExternalPurchaseNoticeSheetIOS: MutationField<
   'presentExternalPurchaseNoticeSheetIOS'
-> =
-  async () => {
-    const result = await ExpoIapModule.presentExternalPurchaseNoticeSheetIOS();
-    return result as ExternalPurchaseNoticeResultIOS;
-  };
+> = async () => {
+  const result = await ExpoIapModule.presentExternalPurchaseNoticeSheetIOS();
+  return result as ExternalPurchaseNoticeResultIOS;
+};
 
 /**
  * Present an external purchase link to redirect users to your website (iOS 16.0+).
@@ -506,10 +535,9 @@ export const presentExternalPurchaseLinkIOS: MutationField<
  */
 export const isEligibleForExternalPurchaseCustomLinkIOS: QueryField<
   'isEligibleForExternalPurchaseCustomLinkIOS'
-> =
-  async () => {
-    return !!(await ExpoIapModule.isEligibleForExternalPurchaseCustomLinkIOS());
-  };
+> = async () => {
+  return !!(await ExpoIapModule.isEligibleForExternalPurchaseCustomLinkIOS());
+};
 
 /**
  * Get external purchase token for reporting to Apple (iOS 18.1+).

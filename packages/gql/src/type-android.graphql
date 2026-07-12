@@ -59,7 +59,7 @@ type PreorderDetailsAndroid {
 
 """
 Rental details for one-time purchase products that can be rented (Android)
-Available in Google Play Billing Library 7.0+
+Available in Google Play Billing Library 8.0+
 """
 type RentalDetailsAndroid {
   """
@@ -75,7 +75,7 @@ type RentalDetailsAndroid {
 
 """
 Valid time window for when an offer is available (Android)
-Available in Google Play Billing Library 7.0+
+Available in Google Play Billing Library 8.0+
 """
 type ValidTimeWindowAndroid {
   """
@@ -90,7 +90,7 @@ type ValidTimeWindowAndroid {
 
 """
 Limited quantity information for one-time purchase offers (Android)
-Available in Google Play Billing Library 7.0+
+Available in Google Play Billing Library 8.0+
 """
 type LimitedQuantityInfoAndroid {
   """
@@ -105,7 +105,7 @@ type LimitedQuantityInfoAndroid {
 
 """
 Discount amount details for one-time purchase offers (Android)
-Available in Google Play Billing Library 7.0+
+Available in Google Play Billing Library 8.0+
 """
 type DiscountAmountAndroid {
   """
@@ -120,7 +120,7 @@ type DiscountAmountAndroid {
 
 """
 Discount display information for one-time purchase offers (Android)
-Available in Google Play Billing Library 7.0+
+Available in Google Play Billing Library 8.0+
 """
 type DiscountDisplayInfoAndroid {
   """
@@ -137,7 +137,7 @@ type DiscountDisplayInfoAndroid {
 
 """
 One-time purchase offer details (Android).
-Available in Google Play Billing Library 7.0+
+Available in Google Play Billing Library 8.0+
 @deprecated Use the standardized DiscountOffer type instead for cross-platform compatibility.
 @see https://openiap.dev/docs/types#discount-offer
 """
@@ -188,7 +188,7 @@ type ProductAndroidOneTimePurchaseOfferDetail
   """
   Purchase option ID for this offer (Android)
   Used to identify which purchase option the user selected.
-  Available in Google Play Billing Library 7.0+
+  Available in Google Play Billing Library 8.0+
   """
   purchaseOptionId: String
 }
@@ -276,7 +276,7 @@ type ProductAndroid implements ProductCommon {
   # Deprecated platform-specific fields
   """
   One-time purchase offer details including discounts (Android)
-  Returns all eligible offers. Available in Google Play Billing Library 7.0+
+  Returns all eligible offers. Available in Google Play Billing Library 8.0+
   @deprecated Use discountOffers instead for cross-platform compatibility.
   """
   oneTimePurchaseOfferDetailsAndroid: [ProductAndroidOneTimePurchaseOfferDetail!]
@@ -330,7 +330,7 @@ type ProductSubscriptionAndroid implements ProductCommon {
   # Deprecated platform-specific fields
   """
   One-time purchase offer details including discounts (Android)
-  Returns all eligible offers. Available in Google Play Billing Library 7.0+
+  Returns all eligible offers. Available in Google Play Billing Library 8.0+
   @deprecated Use discountOffers instead for cross-platform compatibility.
   """
   oneTimePurchaseOfferDetailsAndroid: [ProductAndroidOneTimePurchaseOfferDetail!]
@@ -429,7 +429,7 @@ input RequestPurchaseAndroidProps {
   """
   isOfferPersonalized: Boolean
   """
-  Offer token for one-time purchase discounts (7.0+).
+  Offer token for one-time purchase discounts (8.0+).
   Pass the offerToken from oneTimePurchaseOfferDetailsAndroid or discountOffers
   to apply a discount offer to the purchase.
   """
@@ -482,6 +482,9 @@ input RequestSubscriptionAndroidProps {
   """
   Product-level replacement parameters (8.1.0+)
   Use this instead of replacementMode for item-level replacement
+  This singular form requires skus to contain exactly one target product.
+  Multi-item subscription changes need a per-target replacement mapping and
+  are rejected rather than applying one oldProductId to multiple products.
   """
   subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid
   """
@@ -685,15 +688,29 @@ type UserChoiceBillingDetails {
   """
   externalTransactionToken: String!
   """
+  External transaction ID of the originating subscription when the user is
+  upgrading or downgrading a developer-billed subscription. Available in
+  OpenIAP Spec 2.3.0 / openiap-google 2.3.1 (requires Play Billing 9.1+).
+  """
+  originalExternalTransactionId: String
+  """
   List of product IDs selected by the user
   """
   products: [String!]!
+  """
+  Structured product details selected in the user-choice flow, including the
+  product type and offer token. Legacy payloads may omit this field; use
+  products as the product-ID fallback. Available in OpenIAP Spec 2.3.0 /
+  openiap-google 2.3.1 (requires Play Billing 9.1+).
+  """
+  productDetailsAndroid: [DeveloperProvidedBillingProductAndroid!]
 }
 
 # External Billing Programs (Google Play Billing Library 8.2.0+)
 """
 Billing program types for Google Play Billing Programs (Android)
-Available in Google Play Billing Library 8.2.0+, EXTERNAL_PAYMENTS added in 8.3.0,
+Available in Google Play Billing Library 8.2.0 (External Offer and External Content Link
+integrations require 8.2.1+), EXTERNAL_PAYMENTS added in 8.3.0,
 BILLING_CHOICE added in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
 (requires Play Billing 9.1.0+).
 """
@@ -829,7 +846,8 @@ type BillingChoiceInfoAndroid {
 """
 Launch mode for external link flow (Android)
 Determines how the external URL is launched
-Available in Google Play Billing Library 8.2.0+
+Introduced in Google Play Billing Library 8.2.0. External Offer and External Content Link
+integrations require 8.2.1+ and fresh details immediately before every redirect session.
 """
 enum ExternalLinkLaunchModeAndroid {
   """
@@ -909,7 +927,8 @@ type BillingProgramReportingDetailsAndroid {
   billingProgram: BillingProgramAndroid!
   """
   External transaction token used to report transactions made outside of Google Play Billing.
-  This token must be used when reporting the external transaction to Google.
+  Do not cache it for a later redirect session. For External Offer, the same token may report
+  multiple purchases made during the session that generated it.
   """
   externalTransactionToken: String!
 }

@@ -175,7 +175,7 @@ export default function AvailablePurchases() {
     console.log(
       '[AVAILABLE-PURCHASES] subscriptions (products):',
       subscriptions.length,
-      subscriptions,
+      'items',
     );
   }, [subscriptions]);
 

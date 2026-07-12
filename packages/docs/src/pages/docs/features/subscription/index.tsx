@@ -219,10 +219,10 @@ await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`var props = RequestPurchaseProps.new()
-props.request = RequestSubscriptionPropsByPlatforms.new()
-props.request.apple = RequestSubscriptionIosProps.new()
-props.request.apple.sku = "premium_annual"
-props.request.apple.billing_plan_type = SubscriptionBillingPlanTypeIOS.MONTHLY
+props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
+props.request_subscription.apple = RequestSubscriptionIosProps.new()
+props.request_subscription.apple.sku = "premium_annual"
+props.request_subscription.apple.billing_plan_type = SubscriptionBillingPlanTypeIOS.MONTHLY
 props.type = ProductQueryType.SUBS
 
 await iap.request_purchase(props)`}</CodeBlock>
@@ -354,7 +354,10 @@ await iap.request_purchase(props)`}</CodeBlock>
                 <LanguageTabs>
                   {{
                     typescript: (
-                      <CodeBlock language="typescript">{`import { fetchProducts } from 'expo-iap';
+                      <CodeBlock language="typescript">{`import {
+  fetchProducts,
+  type ProductSubscriptionIOS,
+} from 'expo-iap';
 
 // Fetch subscription products
 const subscriptions = await fetchProducts({
@@ -362,7 +365,12 @@ const subscriptions = await fetchProducts({
   type: 'subs',
 });
 
-const subscription = subscriptions.find((s) => s.id === 'premium_monthly');
+const subscription = subscriptions?.find(
+  (product): product is ProductSubscriptionIOS =>
+    product.platform === 'ios' &&
+    product.type === 'subs' &&
+    product.id === 'premium_monthly',
+);
 
 // Check for introductory offer
 if (subscription?.subscriptionInfoIOS?.introductoryOffer) {
@@ -382,12 +390,12 @@ if (subscription?.discountsIOS) {
                     swift: (
                       <CodeBlock language="swift">{`import OpenIap
 
-let iapStore = OpenIapStore.shared
+let iapStore = OpenIapStore()
 
 // Fetch subscription products
 try await iapStore.fetchProducts(skus: ["premium_monthly"], type: .subs)
 
-let subscription = iapStore.iosProducts.first { $0.id == "premium_monthly" }
+let subscription = iapStore.iosSubscriptionProducts.first { $0.id == "premium_monthly" }
 
 // Check for introductory offer
 if let introOffer = subscription?.subscriptionInfoIOS?.introductoryOffer {
@@ -404,49 +412,28 @@ if let discounts = subscription?.discountsIOS {
 }`}</CodeBlock>
                     ),
                     kotlin: (
-                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapStore
-import dev.hyo.openiap.models.*
-
-// KMP iOS target
-val iapStore = OpenIapStore.shared
-
-// Fetch subscription products
-iapStore.fetchProducts(
-    skus = listOf("premium_monthly"),
-    type = ProductQueryType.Subs
-)
-
-val subscription = iapStore.iosProducts
-    .filterIsInstance<ProductIOS>()
-    .find { it.id == "premium_monthly" }
-
-// Check for introductory offer
-subscription?.subscriptionInfoIOS?.introductoryOffer?.let { introOffer ->
-    println("Intro offer: \${introOffer.displayPrice}")
-    println("Payment mode: \${introOffer.paymentMode}")
-    println("Period: \${introOffer.period.unit} x \${introOffer.periodCount}")
-}
-
-// Check for promotional offers
-subscription?.discountsIOS?.forEach { discount ->
-    println("Promo: \${discount.identifier} - \${discount.localizedPrice}")
-}`}</CodeBlock>
+                      <CodeBlock language="kotlin">{`// StoreKit product fields are iOS-only.
+// Use the Swift tab in a native Apple app, or the KMP tab in shared code.`}</CodeBlock>
                     ),
                     kmp: (
                       <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
-import io.github.hyochan.kmpiap.*
+import io.github.hyochan.kmpiap.openiap.*
 
 // KMP iOS target
 val kmpIAP = KmpIAP()
 
 // Fetch subscription products
-kmpIAP.fetchProducts(
-    skus = listOf("premium_monthly"),
-    type = ProductQueryType.Subs
+val result = kmpIAP.fetchProducts(
+    ProductRequest(
+        skus = listOf("premium_monthly"),
+        type = ProductQueryType.Subs
+    )
 )
 
-val subscription = kmpIAP.iosProducts
-    .filterIsInstance<ProductIOS>()
+val subscription = (result as? FetchProductsResultSubscriptions)
+    ?.value
+    .orEmpty()
+    .filterIsInstance<ProductSubscriptionIOS>()
     .find { it.id == "premium_monthly" }
 
 // Check for introductory offer
@@ -467,17 +454,19 @@ subscription?.discountsIOS?.forEach { discount ->
 final iap = FlutterInappPurchase.instance;
 
 // Fetch subscription products
-final subscriptions = await iap.getSubscriptions(['premium_monthly']);
+final subscriptions = await iap.fetchProducts<ProductSubscriptionIOS>(
+  skus: ['premium_monthly'],
+  type: ProductQueryType.Subs,
+);
 final subscription = subscriptions.firstWhere(
-  (s) => s.productId == 'premium_monthly',
+  (s) => s.id == 'premium_monthly',
 );
 
 // Check for introductory offer (iOS)
-if (subscription.introductoryPriceIOS != null) {
-  final intro = subscription.introductoryPriceIOS!;
-  print('Intro price: \${intro.localizedPrice}');
-  print('Period: \${intro.subscriptionPeriod}');
-  print('Cycles: \${intro.numberOfPeriods}');
+if (subscription.subscriptionInfoIOS?.introductoryOffer case final intro?) {
+  print('Intro price: \${intro.displayPrice}');
+  print('Period: \${intro.period.unit}');
+  print('Cycles: \${intro.periodCount}');
 }
 
 // Check for promotional offers (iOS)
@@ -605,8 +594,8 @@ if isEligible, let offerText = displayIntroOffer(subscription) {
 }`}</CodeBlock>
                     ),
                     kotlin: (
-                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapStore
-import dev.hyo.openiap.models.*
+                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.*
+import dev.hyo.openiap.store.OpenIapStore
 
 // KMP iOS target
 fun displayIntroOffer(subscription: ProductIOS): String? {
@@ -629,7 +618,7 @@ if (isEligible) {
                     ),
                     kmp: (
                       <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
-import io.github.hyochan.kmpiap.*
+import io.github.hyochan.kmpiap.openiap.*
 
 // KMP iOS target
 fun displayIntroOffer(subscription: ProductIOS): String? {
@@ -651,12 +640,12 @@ if (isEligible) {
 }`}</CodeBlock>
                     ),
                     dart: (
-                      <CodeBlock language="dart">{`String? displayIntroOffer(IAPItem subscription) {
-  final offer = subscription.introductoryPriceIOS;
+                      <CodeBlock language="dart">{`String? displayIntroOffer(ProductSubscriptionIOS subscription) {
+  final offer = subscription.subscriptionInfoIOS?.introductoryOffer;
   if (offer == null) return null;
 
   // Display intro offer details
-  return '\${offer.localizedPrice} for \${offer.numberOfPeriods} \${offer.subscriptionPeriod}';
+  return '\${offer.displayPrice} for \${offer.periodCount} \${offer.period.unit.name}';
 }
 
 // Check eligibility
@@ -814,43 +803,12 @@ func purchaseWithPromoOffer(
 }`}</CodeBlock>
                     ),
                     kotlin: (
-                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapStore
-import dev.hyo.openiap.models.*
-
-// KMP iOS target
-suspend fun purchaseWithPromoOffer(
-    subscriptionId: String,
-    offerId: String
-) {
-    // 1. Generate signature on your backend
-    val nonce = java.util.UUID.randomUUID().toString()
-    val timestamp = System.currentTimeMillis()
-
-    val signatureResponse = generateSignatureOnServer(
-        productId = subscriptionId,
-        offerId = offerId,
-        nonce = nonce,
-        timestamp = timestamp
-    )
-
-    // 2. Purchase with the promotional offer
-    iapStore.requestPurchase(
-        sku = subscriptionId,
-        type = ProductQueryType.Subs,
-        withOffer = DiscountOfferInputIOS(
-            identifier = offerId,
-            keyIdentifier = signatureResponse.keyIdentifier,
-            nonce = nonce,
-            signature = signatureResponse.signature,
-            timestamp = timestamp
-        ),
-        autoFinish = false
-    )
-}`}</CodeBlock>
+                      <CodeBlock language="kotlin">{`// StoreKit promotional offers are iOS-only.
+// Use the Swift tab in a native Apple app, or the KMP tab in shared code.`}</CodeBlock>
                     ),
                     kmp: (
                       <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
-import io.github.hyochan.kmpiap.*
+import io.github.hyochan.kmpiap.openiap.*
 
 // KMP iOS target
 suspend fun purchaseWithPromoOffer(
@@ -859,7 +817,7 @@ suspend fun purchaseWithPromoOffer(
 ) {
     // 1. Generate signature on your backend
     val nonce = java.util.UUID.randomUUID().toString()
-    val timestamp = System.currentTimeMillis()
+    val timestamp = System.currentTimeMillis().toDouble()
 
     val signatureResponse = generateSignatureOnServer(
         productId = subscriptionId,
@@ -870,16 +828,24 @@ suspend fun purchaseWithPromoOffer(
 
     // 2. Purchase with the promotional offer
     kmpIAP.requestPurchase(
-        sku = subscriptionId,
-        type = ProductQueryType.Subs,
-        withOffer = DiscountOfferInputIOS(
-            identifier = offerId,
-            keyIdentifier = signatureResponse.keyIdentifier,
-            nonce = nonce,
-            signature = signatureResponse.signature,
-            timestamp = timestamp
-        ),
-        autoFinish = false
+        RequestPurchaseProps(
+            request = RequestPurchaseProps.Request.Subscription(
+                RequestSubscriptionPropsByPlatforms(
+                    apple = RequestSubscriptionIosProps(
+                        sku = subscriptionId,
+                        withOffer = DiscountOfferInputIOS(
+                            identifier = offerId,
+                            keyIdentifier = signatureResponse.keyIdentifier,
+                            nonce = nonce,
+                            signature = signatureResponse.signature,
+                            timestamp = timestamp
+                        ),
+                        andDangerouslyFinishTransactionAutomatically = false
+                    )
+                )
+            ),
+            type = ProductQueryType.Subs
+        )
     )
 }`}</CodeBlock>
                     ),
@@ -904,15 +870,21 @@ suspend fun purchaseWithPromoOffer(
   final signature = jsonDecode(response.body);
 
   // 2. Purchase with the promotional offer
-  await iap.requestSubscription(
-    sku: subscriptionId,
-    withOfferIOS: DiscountOfferIOS(
-      identifier: offerId,
-      keyIdentifier: signature['keyIdentifier'],
-      nonce: nonce,
-      signature: signature['signature'],
-      timestamp: timestamp,
-    ),
+  await iap.requestPurchase(
+    RequestPurchaseProps.subs((
+      apple: RequestSubscriptionIosProps(
+        sku: subscriptionId,
+        withOffer: DiscountOfferInputIOS(
+          identifier: offerId,
+          keyIdentifier: signature['keyIdentifier'],
+          nonce: nonce,
+          signature: signature['signature'],
+          timestamp: timestamp.toDouble(),
+        ),
+      ),
+      google: null,
+      useAlternativeBilling: null,
+    )),
   );
 }`}</CodeBlock>
                     ),
@@ -979,16 +951,16 @@ async Task PurchaseWithPromoOfferAsync(string subscriptionId, string offerId)
 
     # 2. Purchase with the promotional offer
     var props = RequestPurchaseProps.new()
-    props.request = RequestPurchasePropsByPlatforms.new()
-    props.request.apple = RequestPurchaseIosProps.new()
-    props.request.apple.sku = subscription_id
-    props.request.apple.with_offer = DiscountOfferInputIOS.new()
-    props.request.apple.with_offer.identifier = offer_id
-    props.request.apple.with_offer.key_identifier = signature["keyIdentifier"]
-    props.request.apple.with_offer.nonce = nonce
-    props.request.apple.with_offer.signature = signature["signature"]
-    props.request.apple.with_offer.timestamp = timestamp
-    props.type = ProductType.SUBS
+    props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
+    props.request_subscription.apple = RequestSubscriptionIosProps.new()
+    props.request_subscription.apple.sku = subscription_id
+    props.request_subscription.apple.with_offer = DiscountOfferInputIOS.new()
+    props.request_subscription.apple.with_offer.identifier = offer_id
+    props.request_subscription.apple.with_offer.key_identifier = signature["keyIdentifier"]
+    props.request_subscription.apple.with_offer.nonce = nonce
+    props.request_subscription.apple.with_offer.signature = signature["signature"]
+    props.request_subscription.apple.with_offer.timestamp = timestamp
+    props.type = ProductQueryType.SUBS
 
     await iap.request_purchase(props)`}</CodeBlock>
                     ),
@@ -1032,32 +1004,29 @@ func purchaseSubscription(subscriptionId: String) async throws {
 }`}</CodeBlock>
                     ),
                     kotlin: (
-                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapStore
-import dev.hyo.openiap.models.*
-
-// KMP iOS target
-suspend fun purchaseSubscription(subscriptionId: String) {
-    // Simply request purchase
-    // Intro offer is applied automatically when eligible
-    iapStore.requestPurchase(
-        sku = subscriptionId,
-        type = ProductQueryType.Subs,
-        autoFinish = false
-    )
-}`}</CodeBlock>
+                      <CodeBlock language="kotlin">{`// StoreKit subscriptions are iOS-only.
+// Use the Swift tab in a native Apple app, or the KMP tab in shared code.`}</CodeBlock>
                     ),
                     kmp: (
                       <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
-import io.github.hyochan.kmpiap.*
+import io.github.hyochan.kmpiap.openiap.*
 
 // KMP iOS target
 suspend fun purchaseSubscription(subscriptionId: String) {
     // Simply request purchase
     // Intro offer is applied automatically when eligible
     kmpIAP.requestPurchase(
-        sku = subscriptionId,
-        type = ProductQueryType.Subs,
-        autoFinish = false
+        RequestPurchaseProps(
+            request = RequestPurchaseProps.Request.Subscription(
+                RequestSubscriptionPropsByPlatforms(
+                    apple = RequestSubscriptionIosProps(
+                        sku = subscriptionId,
+                        andDangerouslyFinishTransactionAutomatically = false
+                    )
+                )
+            ),
+            type = ProductQueryType.Subs
+        )
     )
 }`}</CodeBlock>
                     ),
@@ -1065,7 +1034,13 @@ suspend fun purchaseSubscription(subscriptionId: String) {
                       <CodeBlock language="dart">{`Future<void> purchaseSubscription(String subscriptionId) async {
   // iOS: Simply request purchase
   // Intro offer is applied automatically when eligible
-  await iap.requestSubscription(sku: subscriptionId);
+  await iap.requestPurchase(
+    RequestPurchaseProps.subs((
+      apple: RequestSubscriptionIosProps(sku: subscriptionId),
+      google: null,
+      useAlternativeBilling: null,
+    )),
+  );
 }`}</CodeBlock>
                     ),
                     csharp: (
@@ -1094,10 +1069,10 @@ async Task PurchaseSubscriptionAsync(string subscriptionId)
     # iOS: Simply request purchase
     # Intro offer is applied automatically when eligible
     var props = RequestPurchaseProps.new()
-    props.request = RequestPurchasePropsByPlatforms.new()
-    props.request.apple = RequestPurchaseIosProps.new()
-    props.request.apple.sku = subscription_id
-    props.type = ProductType.SUBS
+    props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
+    props.request_subscription.apple = RequestSubscriptionIosProps.new()
+    props.request_subscription.apple.sku = subscription_id
+    props.type = ProductQueryType.SUBS
 
     await iap.request_purchase(props)`}</CodeBlock>
                     ),
@@ -1142,29 +1117,35 @@ async Task PurchaseSubscriptionAsync(string subscriptionId)
                 <LanguageTabs>
                   {{
                     typescript: (
-                      <CodeBlock language="typescript">{`interface SubscriptionOfferDetailsAndroid {
+                      <CodeBlock language="typescript">{`interface ProductSubscriptionAndroidOfferDetails {
   basePlanId: string;      // Base plan identifier
+  installmentPlanDetails?: InstallmentPlanDetailsAndroid | null;
   offerId?: string | null; // Offer ID (null for base plan)
   offerTags: string[];     // Tags for categorization
   offerToken: string;      // Required for purchase
-  pricingPhases: {
-    pricingPhaseList: Array<{
-      formattedPrice: string;      // e.g., "$9.99"
-      priceAmountMicros: number;   // Price in micros
-      priceCurrencyCode: string;   // e.g., "USD"
-      billingPeriod: string;       // e.g., "P1M" (1 month)
-      billingCycleCount: number;   // Number of cycles
-      recurrenceMode: number;      // 1=infinite, 2=finite, 3=non-recurring
-    }>;
-  };
+  pricingPhases: PricingPhasesAndroid;
+}
+
+interface PricingPhasesAndroid {
+  pricingPhaseList: PricingPhaseAndroid[];
+}
+
+interface PricingPhaseAndroid {
+  formattedPrice: string;      // e.g., "$9.99"
+  priceAmountMicros: string;   // Price in micros
+  priceCurrencyCode: string;   // e.g., "USD"
+  billingPeriod: string;       // e.g., "P1M" (1 month)
+  billingCycleCount: number;   // Number of cycles
+  recurrenceMode: number;      // 1=infinite, 2=finite, 3=non-recurring
 }`}</CodeBlock>
                     ),
                     swift: (
                       <CodeBlock language="swift">{`// Android-only - use Kotlin for Android implementation`}</CodeBlock>
                     ),
                     kotlin: (
-                      <CodeBlock language="kotlin">{`data class SubscriptionOfferDetailsAndroid(
+                      <CodeBlock language="kotlin">{`data class ProductSubscriptionAndroidOfferDetails(
     val basePlanId: String,       // Base plan identifier
+    val installmentPlanDetails: InstallmentPlanDetailsAndroid? = null,
     val offerId: String? = null,  // Offer ID (null for base plan)
     val offerTags: List<String>,  // Tags for categorization
     val offerToken: String,       // Required for purchase
@@ -1173,7 +1154,7 @@ async Task PurchaseSubscriptionAsync(string subscriptionId)
 
 data class PricingPhaseAndroid(
     val formattedPrice: String,      // e.g., "$9.99"
-    val priceAmountMicros: Long,     // Price in micros
+    val priceAmountMicros: String,   // Price in micros
     val priceCurrencyCode: String,   // e.g., "USD"
     val billingPeriod: String,       // e.g., "P1M" (1 month)
     val billingCycleCount: Int,      // Number of cycles
@@ -1181,8 +1162,9 @@ data class PricingPhaseAndroid(
 )`}</CodeBlock>
                     ),
                     kmp: (
-                      <CodeBlock language="kotlin">{`data class SubscriptionOfferDetailsAndroid(
+                      <CodeBlock language="kotlin">{`data class ProductSubscriptionAndroidOfferDetails(
     val basePlanId: String,       // Base plan identifier
+    val installmentPlanDetails: InstallmentPlanDetailsAndroid? = null,
     val offerId: String? = null,  // Offer ID (null for base plan)
     val offerTags: List<String>,  // Tags for categorization
     val offerToken: String,       // Required for purchase
@@ -1191,7 +1173,7 @@ data class PricingPhaseAndroid(
 
 data class PricingPhaseAndroid(
     val formattedPrice: String,      // e.g., "$9.99"
-    val priceAmountMicros: Long,     // Price in micros
+    val priceAmountMicros: String,   // Price in micros
     val priceCurrencyCode: String,   // e.g., "USD"
     val billingPeriod: String,       // e.g., "P1M" (1 month)
     val billingCycleCount: Int,      // Number of cycles
@@ -1199,8 +1181,9 @@ data class PricingPhaseAndroid(
 )`}</CodeBlock>
                     ),
                     dart: (
-                      <CodeBlock language="dart">{`class SubscriptionOfferDetailsAndroid {
+                      <CodeBlock language="dart">{`class ProductSubscriptionAndroidOfferDetails {
   final String basePlanId;      // Base plan identifier
+  final InstallmentPlanDetailsAndroid? installmentPlanDetails;
   final String? offerId;        // Offer ID (null for base plan)
   final List<String> offerTags; // Tags for categorization
   final String offerToken;      // Required for purchase
@@ -1214,6 +1197,7 @@ using System.Collections.Generic;
 public sealed record ProductSubscriptionAndroidOfferDetails
 {
     public required string BasePlanId { get; init; }       // Base plan identifier
+    public InstallmentPlanDetailsAndroid? InstallmentPlanDetails { get; init; }
     public string? OfferId { get; init; }                  // Null for base plan
     public required IReadOnlyList<string> OfferTags { get; init; }
     public required string OfferToken { get; init; }       // Required for purchase
@@ -1231,17 +1215,17 @@ public sealed record PricingPhaseAndroid
 }`}</CodeBlock>
                     ),
                     gdscript: (
-                      <CodeBlock language="gdscript">{`class_name SubscriptionOfferDetailsAndroid
-
-var base_plan_id: String      # Base plan identifier
-var offer_id: String          # Offer ID (empty for base plan)
-var offer_tags: Array[String] # Tags for categorization
-var offer_token: String       # Required for purchase
-var pricing_phases: PricingPhasesAndroid
+                      <CodeBlock language="gdscript">{`class ProductSubscriptionAndroidOfferDetails:
+    var base_plan_id: String      # Base plan identifier
+    var installment_plan_details: InstallmentPlanDetailsAndroid
+    var offer_id: Variant         # Null for base plan
+    var offer_tags: Array[String] # Tags for categorization
+    var offer_token: String       # Required for purchase
+    var pricing_phases: PricingPhasesAndroid
 
 class PricingPhaseAndroid:
     var formatted_price: String       # e.g., "$9.99"
-    var price_amount_micros: int      # Price in micros
+    var price_amount_micros: String   # Price in micros
     var price_currency_code: String   # e.g., "USD"
     var billing_period: String        # e.g., "P1M" (1 month)
     var billing_cycle_count: int      # Number of cycles
@@ -1256,7 +1240,10 @@ class PricingPhaseAndroid:
                 <LanguageTabs>
                   {{
                     typescript: (
-                      <CodeBlock language="typescript">{`import { fetchProducts } from 'expo-iap';
+                      <CodeBlock language="typescript">{`import {
+  fetchProducts,
+  type ProductSubscriptionAndroid,
+} from 'expo-iap';
 
 // Fetch subscription products
 const subscriptions = await fetchProducts({
@@ -1264,18 +1251,23 @@ const subscriptions = await fetchProducts({
   type: 'subs',
 });
 
-const subscription = subscriptions.find((s) => s.id === 'premium_monthly');
+const subscription = subscriptions?.find(
+  (product): product is ProductSubscriptionAndroid =>
+    product.platform === 'android' &&
+    product.type === 'subs' &&
+    product.id === 'premium_monthly',
+);
 
 // Access Android offer details
-if (subscription?.subscriptionOfferDetailsAndroid) {
+if (subscription) {
   subscription.subscriptionOfferDetailsAndroid.forEach((offer) => {
     console.log('Base Plan:', offer.basePlanId);
     console.log('Offer ID:', offer.offerId ?? 'Base plan');
-    console.log('Offer Token:', offer.offerToken);
+    console.log('Offer token selected');
 
     // Check pricing phases
     offer.pricingPhases.pricingPhaseList.forEach((phase) => {
-      if (phase.priceAmountMicros === 0) {
+      if (phase.priceAmountMicros === '0') {
         console.log(\`Free trial: \${phase.billingPeriod}\`);
       } else if (phase.recurrenceMode === 2) {
         console.log(\`Intro: \${phase.formattedPrice} for \${phase.billingPeriod}\`);
@@ -1290,10 +1282,10 @@ if (subscription?.subscriptionOfferDetailsAndroid) {
                       <CodeBlock language="swift">{`// Android-only - use Kotlin for Android implementation`}</CodeBlock>
                     ),
                     kotlin: (
-                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapStore
-import dev.hyo.openiap.models.*
+                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.*
+import dev.hyo.openiap.store.OpenIapStore
 
-val iapStore = OpenIapStore.getInstance(context)
+val iapStore = OpenIapStore(context)
 
 // Fetch subscription products
 val request = ProductRequest(
@@ -1311,12 +1303,12 @@ val subscription = subscriptions.find { it.id == "premium_monthly" }
 subscription?.subscriptionOfferDetailsAndroid?.forEach { offer ->
     println("Base Plan: \${offer.basePlanId}")
     println("Offer ID: \${offer.offerId ?: "Base plan"}")
-    println("Offer Token: \${offer.offerToken}")
+    println("Offer token selected")
 
     // Check pricing phases
     offer.pricingPhases.pricingPhaseList.forEach { phase ->
         when {
-            phase.priceAmountMicros == 0L ->
+            phase.priceAmountMicros == "0" ->
                 println("Free trial: \${phase.billingPeriod}")
             phase.recurrenceMode == 2 ->
                 println("Intro: \${phase.formattedPrice} for \${phase.billingPeriod}")
@@ -1328,7 +1320,7 @@ subscription?.subscriptionOfferDetailsAndroid?.forEach { offer ->
                     ),
                     kmp: (
                       <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
-import io.github.hyochan.kmpiap.*
+import io.github.hyochan.kmpiap.openiap.*
 
 val kmpIAP = KmpIAP()
 
@@ -1337,10 +1329,12 @@ val request = ProductRequest(
     skus = listOf("premium_monthly"),
     type = ProductQueryType.Subs
 )
-kmpIAP.fetchProducts(request)
+val result = kmpIAP.fetchProducts(request)
 
 // Access Android offer details
-val subscriptions = kmpIAP.subscriptions.value
+val subscriptions = (result as? FetchProductsResultSubscriptions)
+    ?.value
+    .orEmpty()
     .filterIsInstance<ProductSubscriptionAndroid>()
 
 val subscription = subscriptions.find { it.id == "premium_monthly" }
@@ -1348,12 +1342,12 @@ val subscription = subscriptions.find { it.id == "premium_monthly" }
 subscription?.subscriptionOfferDetailsAndroid?.forEach { offer ->
     println("Base Plan: \${offer.basePlanId}")
     println("Offer ID: \${offer.offerId ?: "Base plan"}")
-    println("Offer Token: \${offer.offerToken}")
+    println("Offer token selected")
 
     // Check pricing phases
     offer.pricingPhases.pricingPhaseList.forEach { phase ->
         when {
-            phase.priceAmountMicros == 0L ->
+            phase.priceAmountMicros == "0" ->
                 println("Free trial: \${phase.billingPeriod}")
             phase.recurrenceMode == 2 ->
                 println("Intro: \${phase.formattedPrice} for \${phase.billingPeriod}")
@@ -1369,21 +1363,23 @@ subscription?.subscriptionOfferDetailsAndroid?.forEach { offer ->
 final iap = FlutterInappPurchase.instance;
 
 // Fetch subscription products
-final subscriptions = await iap.getSubscriptions(['premium_monthly']);
+final subscriptions = await iap.fetchProducts<ProductSubscriptionAndroid>(
+  skus: ['premium_monthly'],
+  type: ProductQueryType.Subs,
+);
 final subscription = subscriptions.firstWhere(
-  (s) => s.productId == 'premium_monthly',
+  (s) => s.id == 'premium_monthly',
 );
 
 // Access Android offer details
-if (subscription.subscriptionOfferDetailsAndroid != null) {
-  for (final offer in subscription.subscriptionOfferDetailsAndroid!) {
+for (final offer in subscription.subscriptionOfferDetailsAndroid) {
     print('Base Plan: \${offer.basePlanId}');
     print('Offer ID: \${offer.offerId ?? "Base plan"}');
-    print('Offer Token: \${offer.offerToken}');
+    print('Offer token selected');
 
     // Check pricing phases
-    for (final phase in offer.pricingPhases?.pricingPhaseList ?? []) {
-      if (phase.priceAmountMicros == 0) {
+    for (final phase in offer.pricingPhases.pricingPhaseList) {
+      if (phase.priceAmountMicros == '0') {
         print('Free trial: \${phase.billingPeriod}');
       } else if (phase.recurrenceMode == 2) {
         print('Intro: \${phase.formattedPrice} for \${phase.billingPeriod}');
@@ -1391,7 +1387,6 @@ if (subscription.subscriptionOfferDetailsAndroid != null) {
         print('Regular: \${phase.formattedPrice} per \${phase.billingPeriod}');
       }
     }
-  }
 }`}</CodeBlock>
                     ),
                     csharp: (
@@ -1417,7 +1412,7 @@ foreach (var offer in subscription?.SubscriptionOfferDetailsAndroid
 {
     Console.WriteLine($"Base Plan: {offer.BasePlanId}");
     Console.WriteLine($"Offer ID: {offer.OfferId ?? "Base plan"}");
-    Console.WriteLine($"Offer Token: {offer.OfferToken}");
+    Console.WriteLine("Offer token selected");
 
     // Check pricing phases
     foreach (var phase in offer.PricingPhases.PricingPhaseList)
@@ -1455,11 +1450,11 @@ if subscription and subscription.subscription_offer_details_android:
     for offer in subscription.subscription_offer_details_android:
         print("Base Plan: %s" % offer.base_plan_id)
         print("Offer ID: %s" % (offer.offer_id if offer.offer_id else "Base plan"))
-        print("Offer Token: %s" % offer.offer_token)
+        print("Offer token selected")
 
         # Check pricing phases
         for phase in offer.pricing_phases.pricing_phase_list:
-            if phase.price_amount_micros == 0:
+            if phase.price_amount_micros == "0":
                 print("Free trial: %s" % phase.billing_period)
             elif phase.recurrence_mode == 2:
                 print("Intro: %s for %s" % [phase.formatted_price, phase.billing_period])
@@ -1512,7 +1507,7 @@ const purchaseSubscription = async (subscriptionId: string) => {
                       <CodeBlock language="swift">{`// Android-only - use Kotlin for Android implementation`}</CodeBlock>
                     ),
                     kotlin: (
-                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.models.*
+                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.*
 
 suspend fun purchaseSubscription(subscriptionId: String) {
     val subscription = iapStore.subscriptions.value
@@ -1539,7 +1534,7 @@ suspend fun purchaseSubscription(subscriptionId: String) {
     val props = RequestPurchaseProps(
         request = RequestPurchaseProps.Request.Subscription(
             RequestSubscriptionPropsByPlatforms(
-                android = RequestSubscriptionAndroidProps(
+                google = RequestSubscriptionAndroidProps(
                     skus = listOf(subscriptionId),
                     subscriptionOffers = subscriptionOffers // Required
                 )
@@ -1552,10 +1547,16 @@ suspend fun purchaseSubscription(subscriptionId: String) {
 }`}</CodeBlock>
                     ),
                     kmp: (
-                      <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.*
+                      <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.openiap.*
 
 suspend fun purchaseSubscription(subscriptionId: String) {
-    val subscription = kmpIAP.subscriptions.value
+    val result = kmpIAP.fetchProducts(
+        ProductRequest(listOf(subscriptionId), ProductQueryType.Subs)
+    )
+    val subscription = (result as? FetchProductsResultSubscriptions)
+        ?.value
+        .orEmpty()
         .filterIsInstance<ProductSubscriptionAndroid>()
         .find { it.id == subscriptionId }
         ?: return
@@ -1579,7 +1580,7 @@ suspend fun purchaseSubscription(subscriptionId: String) {
     val props = RequestPurchaseProps(
         request = RequestPurchaseProps.Request.Subscription(
             RequestSubscriptionPropsByPlatforms(
-                android = RequestSubscriptionAndroidProps(
+                google = RequestSubscriptionAndroidProps(
                     skus = listOf(subscriptionId),
                     subscriptionOffers = subscriptionOffers // Required
                 )
@@ -1593,28 +1594,36 @@ suspend fun purchaseSubscription(subscriptionId: String) {
                     ),
                     dart: (
                       <CodeBlock language="dart">{`Future<void> purchaseSubscription(String subscriptionId) async {
-  final subscriptions = await iap.getSubscriptions([subscriptionId]);
+  final subscriptions = await iap.fetchProducts<ProductSubscriptionAndroid>(
+    skus: [subscriptionId],
+    type: ProductQueryType.Subs,
+  );
   final subscription = subscriptions.firstWhere(
-    (s) => s.productId == subscriptionId,
+    (s) => s.id == subscriptionId,
   );
 
   // Build subscriptionOffers from fetched data
   final subscriptionOffers = subscription.subscriptionOfferDetailsAndroid
-      ?.where((offer) => offer.offerToken != null)
-      .map((offer) => SubscriptionOfferAndroid(
+      .map((offer) => AndroidSubscriptionOfferInput(
             sku: subscriptionId,
-            offerToken: offer.offerToken!,
+            offerToken: offer.offerToken,
           ))
-      .toList() ?? [];
+      .toList();
 
   if (subscriptionOffers.isEmpty) {
     print('No subscription offers available');
     return;
   }
 
-  await iap.requestSubscription(
-    sku: subscriptionId,
-    subscriptionOffers: subscriptionOffers, // Required
+  await iap.requestPurchase(
+    RequestPurchaseProps.subs((
+      apple: null,
+      google: RequestSubscriptionAndroidProps(
+        skus: [subscriptionId],
+        subscriptionOffers: subscriptionOffers,
+      ),
+      useAlternativeBilling: null,
+    )),
   );
 }`}</CodeBlock>
                     ),
@@ -1687,11 +1696,11 @@ async Task PurchaseSubscriptionAsync(string subscriptionId, ProductSubscriptionA
         return
 
     var props = RequestPurchaseProps.new()
-    props.request = RequestSubscriptionPropsByPlatforms.new()
-    props.request.google = RequestSubscriptionAndroidProps.new()
-    props.request.google.skus = [subscription_id]
-    props.request.google.subscription_offers = subscription_offers  # Required
-    props.type = ProductType.SUBS
+    props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
+    props.request_subscription.google = RequestSubscriptionAndroidProps.new()
+    props.request_subscription.google.skus = [subscription_id]
+    props.request_subscription.google.subscription_offers = subscription_offers  # Required
+    props.type = ProductQueryType.SUBS
 
     await iap.request_purchase(props)`}</CodeBlock>
                     ),
@@ -1730,7 +1739,7 @@ async Task PurchaseSubscriptionAsync(string subscriptionId, ProductSubscriptionA
                 </p>
                 <ul>
                   <li>
-                    <code>SubscriptionOfferDetailsAndroid</code> (from{' '}
+                    <code>ProductSubscriptionAndroidOfferDetails</code> (from{' '}
                     <code>fetchProducts</code>) - ✅ Contains{' '}
                     <code>basePlanId</code>
                   </li>
@@ -1856,7 +1865,7 @@ suspend fun handlePurchase(basePlanId: String) {
         RequestPurchaseProps(
             request = RequestPurchaseProps.Request.Subscription(
                 RequestSubscriptionPropsByPlatforms(
-                    android = RequestSubscriptionAndroidProps(
+                    google = RequestSubscriptionAndroidProps(
                         skus = listOf(subscriptionGroupId),
                         subscriptionOffers = listOf(
                             AndroidSubscriptionOfferInput(
@@ -1900,7 +1909,7 @@ suspend fun handlePurchase(basePlanId: String) {
         RequestPurchaseProps(
             request = RequestPurchaseProps.Request.Subscription(
                 RequestSubscriptionPropsByPlatforms(
-                    android = RequestSubscriptionAndroidProps(
+                    google = RequestSubscriptionAndroidProps(
                         skus = listOf(subscriptionGroupId),
                         subscriptionOffers = listOf(
                             AndroidSubscriptionOfferInput(
@@ -1934,7 +1943,7 @@ fun onPurchaseSuccess(purchase: PurchaseAndroid) {
 String? purchasedBasePlanId;
 
 Future<void> handlePurchase(String basePlanId) async {
-  final offers = subscription.subscriptionOfferDetailsAndroid ?? [];
+  final offers = subscription.subscriptionOfferDetailsAndroid;
   final offer = offers.firstWhere(
     (o) => o.basePlanId == basePlanId && o.offerId == null,
   );
@@ -1942,19 +1951,25 @@ Future<void> handlePurchase(String basePlanId) async {
   // Store it before purchase
   purchasedBasePlanId = basePlanId;
 
-  await iap.requestSubscription(
-    sku: subscriptionGroupId,
-    subscriptionOffers: [
-      SubscriptionOfferAndroid(
-        sku: subscriptionGroupId,
-        offerToken: offer.offerToken!,
+  await iap.requestPurchase(
+    RequestPurchaseProps.subs((
+      apple: null,
+      google: RequestSubscriptionAndroidProps(
+        skus: [subscriptionGroupId],
+        subscriptionOffers: [
+          AndroidSubscriptionOfferInput(
+            sku: subscriptionGroupId,
+            offerToken: offer.offerToken,
+          ),
+        ],
       ),
-    ],
+      useAlternativeBilling: null,
+    )),
   );
 }
 
 // 2. Use YOUR tracked value in purchase callback
-void onPurchaseSuccess(PurchasedItem purchase) {
+void onPurchaseSuccess(Purchase purchase) {
   // DON'T use purchase.currentPlanId - it may be wrong!
   final actualBasePlanId = purchasedBasePlanId;
 
@@ -2046,14 +2061,14 @@ func handle_purchase(base_plan_id: String) -> void:
     purchased_base_plan_id = base_plan_id
 
     var props = RequestPurchaseProps.new()
-    props.request = RequestSubscriptionPropsByPlatforms.new()
-    props.request.google = RequestSubscriptionAndroidProps.new()
-    props.request.google.skus = [subscription_group_id]
+    props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
+    props.request_subscription.google = RequestSubscriptionAndroidProps.new()
+    props.request_subscription.google.skus = [subscription_group_id]
     var offer_input = AndroidSubscriptionOfferInput.new()
     offer_input.sku = subscription_group_id
     offer_input.offer_token = offer.offer_token
-    props.request.google.subscription_offers = [offer_input]
-    props.type = ProductType.SUBS
+    props.request_subscription.google.subscription_offers = [offer_input]
+    props.type = ProductQueryType.SUBS
 
     await iap.request_purchase(props)
 
@@ -2171,7 +2186,7 @@ const selectOffer = (
       // Find offer with free trial or intro pricing
       return offers.find((offer) =>
         offer.pricingPhases.pricingPhaseList.some(
-          (phase) => phase.priceAmountMicros === 0 || phase.recurrenceMode === 2,
+          (phase) => phase.priceAmountMicros === '0' || phase.recurrenceMode === 2,
         ),
       );
     case 'promotional':
@@ -2220,14 +2235,14 @@ const purchaseWithOffer = async (
 fun selectOffer(
     subscription: ProductSubscriptionAndroid,
     offerType: OfferType
-): SubscriptionOfferDetailsAndroid? {
+): ProductSubscriptionAndroidOfferDetails? {
     val offers = subscription.subscriptionOfferDetailsAndroid ?: return null
 
     return when (offerType) {
         OfferType.Base -> offers.find { it.offerId == null }
         OfferType.Introductory -> offers.find { offer ->
             offer.pricingPhases.pricingPhaseList.any { phase ->
-                phase.priceAmountMicros == 0L || phase.recurrenceMode == 2
+                phase.priceAmountMicros == "0" || phase.recurrenceMode == 2
             }
         }
         OfferType.Promotional -> offers.find { offer ->
@@ -2255,7 +2270,7 @@ suspend fun purchaseWithOffer(
     val props = RequestPurchaseProps(
         request = RequestPurchaseProps.Request.Subscription(
             RequestSubscriptionPropsByPlatforms(
-                android = RequestSubscriptionAndroidProps(
+                google = RequestSubscriptionAndroidProps(
                     skus = listOf(subscriptionId),
                     subscriptionOffers = listOf(
                         AndroidSubscriptionOfferInput(
@@ -2278,14 +2293,14 @@ suspend fun purchaseWithOffer(
 fun selectOffer(
     subscription: ProductSubscriptionAndroid,
     offerType: OfferType
-): SubscriptionOfferDetailsAndroid? {
+): ProductSubscriptionAndroidOfferDetails? {
     val offers = subscription.subscriptionOfferDetailsAndroid ?: return null
 
     return when (offerType) {
         OfferType.Base -> offers.find { it.offerId == null }
         OfferType.Introductory -> offers.find { offer ->
             offer.pricingPhases.pricingPhaseList.any { phase ->
-                phase.priceAmountMicros == 0L || phase.recurrenceMode == 2
+                phase.priceAmountMicros == "0" || phase.recurrenceMode == 2
             }
         }
         OfferType.Promotional -> offers.find { offer ->
@@ -2299,7 +2314,12 @@ suspend fun purchaseWithOffer(
     subscriptionId: String,
     offerType: OfferType
 ) {
-    val subscription = kmpIAP.subscriptions.value
+    val result = kmpIAP.fetchProducts(
+        ProductRequest(listOf(subscriptionId), ProductQueryType.Subs)
+    )
+    val subscription = (result as? FetchProductsResultSubscriptions)
+        ?.value
+        .orEmpty()
         .filterIsInstance<ProductSubscriptionAndroid>()
         .find { it.id == subscriptionId }
         ?: return
@@ -2313,7 +2333,7 @@ suspend fun purchaseWithOffer(
     val props = RequestPurchaseProps(
         request = RequestPurchaseProps.Request.Subscription(
             RequestSubscriptionPropsByPlatforms(
-                android = RequestSubscriptionAndroidProps(
+                google = RequestSubscriptionAndroidProps(
                     skus = listOf(subscriptionId),
                     subscriptionOffers = listOf(
                         AndroidSubscriptionOfferInput(
@@ -2333,32 +2353,25 @@ suspend fun purchaseWithOffer(
                     dart: (
                       <CodeBlock language="dart">{`enum OfferType { base, introductory, promotional }
 
-SubscriptionOfferDetailsAndroid? selectOffer(
-  IAPItem subscription,
+ProductSubscriptionAndroidOfferDetails? selectOffer(
+  ProductSubscriptionAndroid subscription,
   OfferType offerType,
 ) {
   final offers = subscription.subscriptionOfferDetailsAndroid;
   if (offers == null) return null;
 
-  switch (offerType) {
-    case OfferType.base:
-      return offers.firstWhere(
-        (offer) => offer.offerId == null,
-        orElse: () => offers.first,
-      );
-    case OfferType.introductory:
-      return offers.firstWhere(
-        (offer) => offer.pricingPhases?.pricingPhaseList?.any(
-          (phase) => phase.priceAmountMicros == 0 || phase.recurrenceMode == 2,
-        ) ?? false,
-        orElse: () => null,
-      );
-    case OfferType.promotional:
-      return offers.firstWhere(
-        (offer) => offer.offerTags?.any((tag) => tag.contains('promo')) ?? false,
-        orElse: () => null,
-      );
+  for (final offer in offers) {
+    final matches = switch (offerType) {
+      OfferType.base => offer.offerId == null,
+      OfferType.introductory => offer.pricingPhases.pricingPhaseList.any(
+          (phase) => phase.priceAmountMicros == '0' || phase.recurrenceMode == 2,
+        ),
+      OfferType.promotional =>
+        offer.offerTags.any((tag) => tag.contains('promo')),
+    };
+    if (matches) return offer;
   }
+  return null;
 }
 
 // Purchase with selected offer
@@ -2366,9 +2379,12 @@ Future<void> purchaseWithOffer(
   String subscriptionId,
   OfferType offerType,
 ) async {
-  final subscriptions = await iap.getSubscriptions([subscriptionId]);
+  final subscriptions = await iap.fetchProducts<ProductSubscriptionAndroid>(
+    skus: [subscriptionId],
+    type: ProductQueryType.Subs,
+  );
   final subscription = subscriptions.firstWhere(
-    (s) => s.productId == subscriptionId,
+    (s) => s.id == subscriptionId,
   );
 
   final selectedOffer = selectOffer(subscription, offerType);
@@ -2377,14 +2393,20 @@ Future<void> purchaseWithOffer(
     return;
   }
 
-  await iap.requestSubscription(
-    sku: subscriptionId,
-    subscriptionOffers: [
-      SubscriptionOfferAndroid(
-        sku: subscriptionId,
-        offerToken: selectedOffer.offerToken!,
+  await iap.requestPurchase(
+    RequestPurchaseProps.subs((
+      apple: null,
+      google: RequestSubscriptionAndroidProps(
+        skus: [subscriptionId],
+        subscriptionOffers: [
+          AndroidSubscriptionOfferInput(
+            sku: subscriptionId,
+            offerToken: selectedOffer.offerToken,
+          ),
+        ],
       ),
-    ],
+      useAlternativeBilling: null,
+    )),
   );
 }`}</CodeBlock>
                     ),
@@ -2464,7 +2486,7 @@ async Task PurchaseWithOfferAsync(
                     gdscript: (
                       <CodeBlock language="gdscript">{`enum OfferType { BASE, INTRODUCTORY, PROMOTIONAL }
 
-func select_offer(subscription: ProductSubscriptionAndroid, offer_type: int) -> SubscriptionOfferDetailsAndroid:
+func select_offer(subscription: ProductSubscriptionAndroid, offer_type: int) -> ProductSubscriptionAndroidOfferDetails:
     var offers = subscription.subscription_offer_details_android
     if not offers:
         return null
@@ -2479,7 +2501,7 @@ func select_offer(subscription: ProductSubscriptionAndroid, offer_type: int) -> 
         OfferType.INTRODUCTORY:
             for offer in offers:
                 for phase in offer.pricing_phases.pricing_phase_list:
-                    if phase.price_amount_micros == 0 or phase.recurrence_mode == 2:
+                    if phase.price_amount_micros == "0" or phase.recurrence_mode == 2:
                         return offer
             return null
 
@@ -2511,14 +2533,14 @@ func purchase_with_offer(subscription_id: String, offer_type: int) -> void:
         return
 
     var props = RequestPurchaseProps.new()
-    props.request = RequestSubscriptionPropsByPlatforms.new()
-    props.request.google = RequestSubscriptionAndroidProps.new()
-    props.request.google.skus = [subscription_id]
+    props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
+    props.request_subscription.google = RequestSubscriptionAndroidProps.new()
+    props.request_subscription.google.skus = [subscription_id]
     var offer_input = AndroidSubscriptionOfferInput.new()
     offer_input.sku = subscription_id
     offer_input.offer_token = selected_offer.offer_token
-    props.request.google.subscription_offers = [offer_input]
-    props.type = ProductType.SUBS
+    props.request_subscription.google.subscription_offers = [offer_input]
+    props.type = ProductQueryType.SUBS
 
     await iap.request_purchase(props)`}</CodeBlock>
                     ),
@@ -2751,16 +2773,15 @@ func purchase_with_offer(subscription_id: String, offer_type: int) -> void:
         <LanguageTabs>
           {{
             typescript: (
-              <CodeBlock language="typescript">{`import { verifyPurchase, type Purchase } from 'expo-iap';
+              <CodeBlock language="typescript">{`import type { Purchase } from 'expo-iap';
 import { Platform } from 'react-native';
 
 const verifySubscription = async (purchase: Purchase) => {
-  const result = await verifyPurchase({
-    purchase,
-    serverUrl: Platform.select({
-      ios: 'https://your-server.com/api/verify-ios',
-      android: 'https://your-server.com/api/verify-android',
-    })!,
+  // yourBackend is your authenticated networking client.
+  const result = await yourBackend.verifySubscription({
+    platform: Platform.OS,
+    productId: purchase.productId,
+    purchaseToken: purchase.purchaseToken,
   });
 
   if (result.isValid) {
@@ -2774,14 +2795,11 @@ const verifySubscription = async (purchase: Purchase) => {
               <CodeBlock language="swift">{`import OpenIap
 
 func verifySubscription(_ purchase: PurchaseIOS) async -> Bool {
-    let iapStore = OpenIapStore.shared
-
     do {
-        let result = try await iapStore.verifyPurchase(
-            purchase: purchase,
-            serverUrl: "https://your-server.com/api/verify-ios"
+        return try await yourBackend.verifyAppleSubscription(
+            productId: purchase.productId,
+            jws: purchase.purchaseToken ?? ""
         )
-        return result.isValid
     } catch {
         print("Verification error: \\(error.localizedDescription)")
         return false
@@ -2789,16 +2807,14 @@ func verifySubscription(_ purchase: PurchaseIOS) async -> Bool {
 }`}</CodeBlock>
             ),
             kotlin: (
-              <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapStore
-import dev.hyo.openiap.models.*
+              <CodeBlock language="kotlin">{`import dev.hyo.openiap.*
 
 suspend fun verifySubscription(purchase: PurchaseAndroid): Boolean {
     return try {
-        val result = iapStore.verifyPurchase(
-            purchase = purchase,
-            serverUrl = "https://your-server.com/api/verify-android"
+        yourBackend.verifyGoogleSubscription(
+            productId = purchase.productId,
+            purchaseToken = requireNotNull(purchase.purchaseToken)
         )
-        result.isValid
     } catch (e: Exception) {
         println("Verification error: \${e.message}")
         false
@@ -2806,16 +2822,14 @@ suspend fun verifySubscription(purchase: PurchaseAndroid): Boolean {
 }`}</CodeBlock>
             ),
             kmp: (
-              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
-import io.github.hyochan.kmpiap.*
+              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.openiap.*
 
 suspend fun verifySubscription(purchase: PurchaseAndroid): Boolean {
     return try {
-        val result = kmpIAP.verifyPurchase(
-            purchase = purchase,
-            serverUrl = "https://your-server.com/api/verify-android"
+        yourBackend.verifyGoogleSubscription(
+            productId = purchase.productId,
+            purchaseToken = requireNotNull(purchase.purchaseToken)
         )
-        result.isValid
     } catch (e: Exception) {
         println("Verification error: \${e.message}")
         false
@@ -2823,20 +2837,14 @@ suspend fun verifySubscription(purchase: PurchaseAndroid): Boolean {
 }`}</CodeBlock>
             ),
             dart: (
-              <CodeBlock language="dart">{`import 'dart:io';
-import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+              <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
-Future<bool> verifySubscription(ProductPurchase purchase) async {
-  final iap = FlutterInappPurchase.instance;
-
+Future<bool> verifySubscription(Purchase purchase) async {
   try {
-    final result = await iap.verifyPurchase(
-      purchase: purchase,
-      serverUrl: Platform.isIOS
-          ? 'https://your-server.com/api/verify-ios'
-          : 'https://your-server.com/api/verify-android',
+    return await yourBackend.verifySubscription(
+      productId: purchase.productId,
+      purchaseToken: purchase.purchaseToken,
     );
-    return result.isValid;
   } catch (e) {
     print('Verification error: $e');
     return false;
@@ -2863,23 +2871,14 @@ async Task<bool> VerifySubscriptionAsync(PurchaseAndroid purchase)
 }`}</CodeBlock>
             ),
             gdscript: (
-              <CodeBlock language="gdscript">{`func verify_subscription(purchase: Purchase) -> bool:
-    var props = VerifyPurchaseProps.new()
-    props.purchase = purchase
-
-    # Use platform-specific server URL
-    if OS.get_name() == "iOS":
-        props.server_url = "https://your-server.com/api/verify-ios"
-    else:
-        props.server_url = "https://your-server.com/api/verify-android"
-
-    var result = await iap.verify_purchase(props)
-
-    if result.is_valid:
-        return true
-
-    print("Verification error")
-    return false`}</CodeBlock>
+              <CodeBlock language="gdscript">{`func verify_subscription(purchase: Dictionary) -> bool:
+    # your_backend is your authenticated HTTP client/autoload.
+    var result = await your_backend.verify_subscription({
+        "productId": purchase.get("productId", ""),
+        "purchaseToken": purchase.get("purchaseToken", ""),
+        "platform": OS.get_name()
+    })
+    return result.get("isValid", false)`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
@@ -2903,13 +2902,13 @@ if (hasActive) {
 const activeSubscriptions = await getActiveSubscriptions();
 activeSubscriptions.forEach((sub) => {
   console.log('Active subscription:', sub.productId);
-  console.log('Expires:', sub.expirationDate);
+  console.log('Expires:', sub.expirationDateIOS);
 });`}</CodeBlock>
             ),
             swift: (
               <CodeBlock language="swift">{`import OpenIap
 
-let iapStore = OpenIapStore.shared
+let iapStore = OpenIapStore()
 
 // Check if user has any active subscription
 let hasActive = try await iapStore.hasActiveSubscriptions()
@@ -2918,16 +2917,17 @@ if hasActive {
 }
 
 // Get all active subscriptions
-let activeSubscriptions = try await iapStore.getActiveSubscriptions()
+try await iapStore.getActiveSubscriptions()
+let activeSubscriptions = iapStore.activeSubscriptions
 for subscription in activeSubscriptions {
     print("Active subscription: \\(subscription.productId)")
-    if let expiration = subscription.expirationDate {
+    if let expiration = subscription.expirationDateIOS {
         print("Expires: \\(expiration)")
     }
 }`}</CodeBlock>
             ),
             kotlin: (
-              <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapStore
+              <CodeBlock language="kotlin">{`import dev.hyo.openiap.store.OpenIapStore
 
 // Check if user has any active subscription
 val hasActive = iapStore.hasActiveSubscriptions()
@@ -2939,7 +2939,7 @@ if (hasActive) {
 val activeSubscriptions = iapStore.getActiveSubscriptions()
 activeSubscriptions.forEach { subscription ->
     println("Active subscription: \${subscription.productId}")
-    subscription.expirationDate?.let { expiration ->
+    subscription.expirationDateIOS?.let { expiration ->
         println("Expires: $expiration")
     }
 }`}</CodeBlock>
@@ -2957,7 +2957,7 @@ if (hasActive) {
 val activeSubscriptions = kmpIAP.getActiveSubscriptions()
 activeSubscriptions.forEach { subscription ->
     println("Active subscription: \${subscription.productId}")
-    subscription.expirationDate?.let { expiration ->
+    subscription.expirationDateIOS?.let { expiration ->
         println("Expires: $expiration")
     }
 }`}</CodeBlock>
@@ -2977,8 +2977,8 @@ if (hasActive) {
 final activeSubscriptions = await iap.getActiveSubscriptions();
 for (final subscription in activeSubscriptions) {
   print('Active subscription: \${subscription.productId}');
-  if (subscription.expirationDate != null) {
-    print('Expires: \${subscription.expirationDate}');
+  if (subscription.expirationDateIOS != null) {
+    print('Expires: \${subscription.expirationDateIOS}');
   }
 }`}</CodeBlock>
             ),
@@ -3017,8 +3017,8 @@ if has_active:
 var active_subscriptions = await iap.get_active_subscriptions()
 for subscription in active_subscriptions:
     print("Active subscription: %s" % subscription.product_id)
-    if subscription.expiration_date:
-        print("Expires: %s" % subscription.expiration_date)`}</CodeBlock>
+    if subscription.expiration_date_ios:
+        print("Expires: %s" % subscription.expiration_date_ios)`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
@@ -3164,7 +3164,7 @@ const checkFromActiveSubscriptions = async () => {
                     swift: (
                       <CodeBlock language="swift">{`import OpenIap
 
-let iapStore = OpenIapStore.shared
+let iapStore = OpenIapStore()
 
 // Method 1: Using subscriptionStatusIOS for detailed state
 func checkSubscriptionStatus(sku: String) async throws -> (hasAccess: Bool, status: String) {
@@ -3202,7 +3202,8 @@ func checkSubscriptionStatus(sku: String) async throws -> (hasAccess: Bool, stat
 
 // Method 2: Using ActiveSubscription for quick checks
 func checkFromActiveSubscriptions() async throws {
-    let subs = try await iapStore.getActiveSubscriptions()
+    try await iapStore.getActiveSubscriptions()
+    let subs = iapStore.activeSubscriptions
 
     for sub in subs {
         let renewalInfo = sub.renewalInfoIOS
@@ -3232,8 +3233,8 @@ func checkFromActiveSubscriptions() async throws {
 }`}</CodeBlock>
                     ),
                     kotlin: (
-                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapStore
-import dev.hyo.openiap.models.*
+                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.*
+import dev.hyo.openiap.store.OpenIapStore
 
 // Note: subscriptionStatusIOS is iOS-only
 // For KMP iOS target:
@@ -3297,7 +3298,7 @@ suspend fun checkFromActiveSubscriptions() {
                     ),
                     kmp: (
                       <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
-import io.github.hyochan.kmpiap.*
+import io.github.hyochan.kmpiap.openiap.*
 
 // Note: subscriptionStatusIOS is iOS-only
 // For KMP iOS target:
@@ -3632,14 +3633,14 @@ const checkAndroidSubscription = async () => {
                       <CodeBlock language="swift">{`// Android-only - see Kotlin implementation`}</CodeBlock>
                     ),
                     kotlin: (
-                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapStore
-import dev.hyo.openiap.models.*
+                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.*
+import dev.hyo.openiap.store.OpenIapStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 // Client-side: Can only check if purchase exists
 suspend fun checkAndroidSubscription(): Map<String, Any> {
-    val purchases = iapStore.getAvailablePurchases()
+    val purchases = iapStore.getAvailablePurchases(null)
 
     val subscriptionPurchases = purchases.filter {
         it.productId.contains("subscription")
@@ -3683,7 +3684,7 @@ suspend fun checkAndroidSubscription(): Map<String, Any> {
                     ),
                     kmp: (
                       <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
-import io.github.hyochan.kmpiap.*
+import io.github.hyochan.kmpiap.openiap.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -4022,7 +4023,7 @@ const manageSubscriptions = async () => {
             swift: (
               <CodeBlock language="swift">{`import OpenIap
 
-let iapStore = OpenIapStore.shared
+let iapStore = OpenIapStore()
 
 // Open subscription management page
 func manageSubscriptions() async {
@@ -4030,7 +4031,7 @@ func manageSubscriptions() async {
 }`}</CodeBlock>
             ),
             kotlin: (
-              <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapStore
+              <CodeBlock language="kotlin">{`import dev.hyo.openiap.store.OpenIapStore
 
 // Open subscription management page
 fun manageSubscriptions() {

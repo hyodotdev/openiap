@@ -101,7 +101,7 @@ input RequestPurchaseAndroidProps {
 | Field Location | Suffix Required? | Example |
 |----------------|------------------|---------|
 | Inside Android-only input type | NO | `offerToken` in `RequestPurchaseAndroidProps` |
-| Inside iOS-only input type | NO | `appAccountToken` in `RequestPurchaseIOSProps` |
+| Inside iOS-only input type | NO | `appAccountToken` in `RequestPurchaseIosProps` |
 | Cross-platform type | YES for platform-specific | `nameAndroid` in `ProductAndroid` |
 | Cross-platform type reference | YES | `developerBillingOption: DeveloperBillingOptionParamsAndroid` |
 | Internal implementation | NO (not API) | `val offerToken` in Kotlin data class |

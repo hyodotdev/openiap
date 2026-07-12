@@ -19,7 +19,7 @@ function Discount() {
       <h1>Discounts</h1>
       <p>
         Display and handle discounted one-time purchase products on Google Play.
-        This feature requires Google Play Billing Library 7.0+ and allows you to
+        This feature requires Google Play Billing Library 8.0+ and allows you to
         show original prices, discount percentages, and promotional offers.
       </p>
 
@@ -45,7 +45,7 @@ function Discount() {
           Overview
         </AnchorLink>
         <p>
-          Google Play Billing Library 7.0+ introduced support for one-time
+          Google Play Billing Library 8.0+ introduced support for one-time
           purchase discounts. When you configure a discount in Google Play
           Console, the library provides:
         </p>
@@ -346,16 +346,21 @@ products.forEach((product) => {
 // Products are fetched the same way, but discount fields will not be present.`}</CodeBlock>
             ),
             kotlin: (
-              <CodeBlock language="kotlin">{`import dev.hyo.openiap.store.OpenIapStore
+              <CodeBlock language="kotlin">{`import dev.hyo.openiap.*
+import dev.hyo.openiap.store.OpenIapStore
 
-val iapStore = OpenIapStore.shared
+val iapStore = OpenIapStore(context)
 
-val products = iapStore.fetchProducts(
+val result = iapStore.fetchProducts(
     ProductRequest(
         skus = listOf("premium_feature", "coins_100"),
         type = ProductQueryType.InApp
     )
 )
+val products = (result as? FetchProductsResultProducts)
+    ?.value
+    .orEmpty()
+    .filterIsInstance<ProductAndroid>()
 
 products.forEach { product ->
     val offers = product.oneTimePurchaseOfferDetailsAndroid
@@ -380,15 +385,20 @@ products.forEach { product ->
             ),
             kmp: (
               <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.openiap.*
 
 val kmpIAP = KmpIAP()
 
-val products = kmpIAP.fetchProducts(
+val result = kmpIAP.fetchProducts(
     ProductRequest(
         skus = listOf("premium_feature", "coins_100"),
         type = ProductQueryType.InApp
     )
 )
+val products = (result as? FetchProductsResultProducts)
+    ?.value
+    .orEmpty()
+    .filterIsInstance<ProductAndroid>()
 
 products.forEach { product ->
     val offers = product.oneTimePurchaseOfferDetailsAndroid
@@ -412,19 +422,20 @@ products.forEach { product ->
 }`}</CodeBlock>
             ),
             dart: (
-              <CodeBlock language="dart">{`final products = await FlutterInappPurchase.instance.fetchProducts(
+              <CodeBlock language="dart">{`final products = await FlutterInappPurchase.instance.fetchProducts<Product>(
   skus: ['premium_feature', 'coins_100'],
 );
 
 for (final product in products) {
+  if (product is! ProductAndroid) continue;
   final offers = product.oneTimePurchaseOfferDetailsAndroid;
 
   if (offers != null && offers.isNotEmpty) {
     final firstOffer = offers.first;
     final hasDiscount = firstOffer.discountDisplayInfo != null;
 
-    print('Product: \${product.productId}');
-    print('Display Price: \${product.localizedPrice}');
+    print('Product: \${product.id}');
+    print('Display Price: \${product.displayPrice}');
 
     if (hasDiscount) {
       final discount = firstOffer.discountDisplayInfo!;
@@ -1288,7 +1299,7 @@ async function purchaseWithOffer(
     request: {
       google: {
         skus: [product.id],
-        // Include offerTokenAndroid for discounted purchases (Android 7.0+)
+        // Include offerTokenAndroid for discounted purchases (Android 8.0+)
         offerToken: selectedOffer.offerToken,
       },
     },
@@ -1319,7 +1330,7 @@ async function purchaseWithOffer(
                 RequestPurchasePropsByPlatforms(
                     google = RequestPurchaseAndroidProps(
                         skus = listOf(product.id),
-                        // Include offerTokenAndroid for discounted purchases (Android 7.0+)
+                        // Include offerTokenAndroid for discounted purchases (Android 8.0+)
                         offerToken = selectedOffer.offerToken
                     )
                 )
@@ -1348,7 +1359,7 @@ async function purchaseWithOffer(
                 RequestPurchasePropsByPlatforms(
                     google = RequestPurchaseAndroidProps(
                         skus = listOf(product.id),
-                        // Include offerTokenAndroid for discounted purchases (Android 7.0+)
+                        // Include offerTokenAndroid for discounted purchases (Android 8.0+)
                         offerToken = selectedOffer.offerToken
                     )
                 )
@@ -1379,7 +1390,7 @@ async Task PurchaseWithOfferAsync(ProductAndroid product, int offerIndex = 0)
             Google = new RequestPurchaseAndroidProps
             {
                 Skus = new[] { product.Id },
-                // Include OfferToken for discounted purchases (Android 7.0+).
+                // Include OfferToken for discounted purchases (Android 8.0+).
                 OfferToken = selectedOffer.OfferToken,
             },
         },
@@ -1455,7 +1466,7 @@ async Task PurchaseWithOfferAsync(ProductAndroid product, int offerIndex = 0)
         <div className="alert-card alert-card--warning">
           <p>
             <strong>Note:</strong> Discount features require Google Play Billing
-            Library 7.0+. Make sure your app uses a compatible version of the
+            Library 8.0+. Make sure your app uses a compatible version of the
             OpenIAP library.
           </p>
         </div>
@@ -1522,11 +1533,11 @@ async Task PurchaseWithOfferAsync(ProductAndroid product, int offerIndex = 0)
           <li>
             Google ·{' '}
             <a
-              href="https://developer.android.com/google/play/billing/release-notes#7-0-0"
+              href="https://developer.android.com/google/play/billing/release-notes#8-0-0"
               target="_blank"
               rel="noopener noreferrer"
             >
-              Play Billing Library 7.0 release notes
+              Play Billing Library 8.0 release notes
             </a>
           </li>
         </ul>

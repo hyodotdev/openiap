@@ -49,7 +49,7 @@ function HasActiveSubscriptions() {
             <CodeBlock language="typescript">{`hasActiveSubscriptions(subscriptionIds?: string[]): Promise<boolean>`}</CodeBlock>
           ),
           swift: (
-            <CodeBlock language="swift">{`func hasActiveSubscriptions(subscriptionIds: [String]? = nil) async throws -> Bool`}</CodeBlock>
+            <CodeBlock language="swift">{`func hasActiveSubscriptions(_ subscriptionIds: [String]?) async throws -> Bool`}</CodeBlock>
           ),
           kotlin: (
             <CodeBlock language="kotlin">{`suspend fun hasActiveSubscriptions(subscriptionIds: List<String>? = null): Boolean`}</CodeBlock>
@@ -58,10 +58,14 @@ function HasActiveSubscriptions() {
             <CodeBlock language="kotlin">{`suspend fun hasActiveSubscriptions(subscriptionIds: List<String>? = null): Boolean`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`Future<bool> hasActiveSubscriptions({List<String>? subscriptionIds});`}</CodeBlock>
+            <CodeBlock language="dart">{`Future<bool> hasActiveSubscriptions([
+  List<String>? subscriptionIds,
+]);`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task<Boolean> HasActiveSubscriptionsAsync(List<String>? SubscriptionIds = null)`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<bool> HasActiveSubscriptionsAsync(
+    IReadOnlyList<string>? subscriptionIds = null
+);`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func has_active_subscriptions(subscription_ids: Array[String] = []) -> bool`}</CodeBlock>
@@ -122,7 +126,7 @@ function PremiumGate({ children }: { children: React.ReactNode }) {
 }`}</CodeBlock>
           ),
           swift: (
-            <CodeBlock language="swift">{`let isPremium = try await OpenIapModule.shared.hasActiveSubscriptions()`}</CodeBlock>
+            <CodeBlock language="swift">{`let isPremium = try await OpenIapModule.shared.hasActiveSubscriptions(nil)`}</CodeBlock>
           ),
           kotlin: (
             <CodeBlock language="kotlin">{`val isPremium = openIapStore.hasActiveSubscriptions()`}</CodeBlock>

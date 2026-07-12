@@ -4,8 +4,11 @@
  * and constructing structured purchase errors.
  */
 
-import {NATIVE_ERROR_CODES} from '../ExpoIapModule';
-import {ErrorCode, IapPlatform} from '../types';
+import {
+  ErrorCode,
+  type IapPlatform,
+  type SubResponseCodeAndroid,
+} from '../types';
 
 const toKebabCase = (str: string): string => {
   if (str.includes('_')) {
@@ -27,6 +30,10 @@ export interface PurchaseErrorProps {
   debugMessage?: string;
   code?: ErrorCode | string | number;
   productId?: string;
+  productIds?: string[];
+  productType?: string;
+  isEmptyProductList?: boolean;
+  subResponseCodeAndroid?: SubResponseCodeAndroid;
   platform?: IapPlatform;
 }
 
@@ -35,8 +42,59 @@ export interface PurchaseError extends Error {
   debugMessage?: string;
   code?: ErrorCode;
   productId?: string;
+  productIds?: string[];
+  productType?: string;
+  isEmptyProductList?: boolean;
+  subResponseCodeAndroid?: SubResponseCodeAndroid;
   platform?: IapPlatform;
 }
+
+/**
+ * Prefix shared with the native Expo bridges. Expo Modules only transports an
+ * exception code and message for rejected async functions, so native bridges
+ * append the canonical PurchaseError payload to the message with this marker.
+ */
+export const OPENIAP_ERROR_ENVELOPE_PREFIX = 'OPENIAP_ERROR_JSON:';
+
+type UnknownRecord = Record<string, unknown>;
+
+const asRecord = (value: unknown): UnknownRecord | undefined =>
+  typeof value === 'object' && value !== null
+    ? (value as UnknownRecord)
+    : undefined;
+
+const asString = (value: unknown): string | undefined =>
+  typeof value === 'string' ? value : undefined;
+
+const asNumber = (value: unknown): number | undefined =>
+  typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+
+const asBoolean = (value: unknown): boolean | undefined =>
+  typeof value === 'boolean' ? value : undefined;
+
+const asStringArray = (value: unknown): string[] | undefined =>
+  Array.isArray(value)
+    ? value.filter(
+        (candidate): candidate is string => typeof candidate === 'string',
+      )
+    : undefined;
+
+const parseNativeErrorEnvelope = (
+  message: string,
+): UnknownRecord | undefined => {
+  const markerIndex = message.indexOf(OPENIAP_ERROR_ENVELOPE_PREFIX);
+  if (markerIndex < 0) return undefined;
+
+  try {
+    return asRecord(
+      JSON.parse(
+        message.slice(markerIndex + OPENIAP_ERROR_ENVELOPE_PREFIX.length),
+      ),
+    );
+  } catch {
+    return undefined;
+  }
+};
 
 const normalizePlatform = (platform: IapPlatform): 'ios' | 'android' =>
   typeof platform === 'string' && platform.toLowerCase() === 'ios'
@@ -96,6 +154,23 @@ export const ErrorCodeMapping = {
 
 const OPENIAP_ERROR_CODE_SET: Set<string> = new Set(Object.values(ErrorCode));
 
+// Legacy Google Play Billing response codes accepted by older JS call sites.
+// Native ERROR_CODES constants are code -> message tables, not response-code maps.
+const LEGACY_ANDROID_RESPONSE_CODES = new Map<number, ErrorCode>([
+  [-3, ErrorCode.ServiceTimeout],
+  [-2, ErrorCode.FeatureNotSupported],
+  [-1, ErrorCode.ServiceDisconnected],
+  [1, ErrorCode.UserCancelled],
+  [2, ErrorCode.ServiceError],
+  [3, ErrorCode.BillingUnavailable],
+  [4, ErrorCode.ItemUnavailable],
+  [5, ErrorCode.DeveloperError],
+  [6, ErrorCode.ServiceError],
+  [7, ErrorCode.AlreadyOwned],
+  [8, ErrorCode.ItemNotOwned],
+  [12, ErrorCode.NetworkError],
+]);
+
 export const createPurchaseError = (
   props: PurchaseErrorProps,
 ): PurchaseError => {
@@ -113,6 +188,10 @@ export const createPurchaseError = (
   error.debugMessage = props.debugMessage;
   error.code = errorCode;
   error.productId = props.productId;
+  error.productIds = props.productIds;
+  error.productType = props.productType;
+  error.isEmptyProductList = props.isEmptyProductList;
+  error.subResponseCodeAndroid = props.subResponseCodeAndroid;
   error.platform = props.platform;
   return error;
 };
@@ -134,88 +213,115 @@ export const createPurchaseErrorFromPlatform = (
     debugMessage: errorData.debugMessage,
     code: errorCode,
     productId: errorData.productId,
+    productIds: errorData.productIds,
+    productType: errorData.productType,
+    isEmptyProductList: errorData.isEmptyProductList,
+    subResponseCodeAndroid: errorData.subResponseCodeAndroid,
     platform,
   });
 };
 
+/**
+ * Rebuild a canonical PurchaseError from an Expo Modules Promise rejection.
+ *
+ * Native Expo async functions cannot attach arbitrary fields to the rejected
+ * JavaScript Error. The iOS and Android bridges therefore place the complete
+ * payload in a marked JSON envelope inside the rejection message. This helper
+ * also accepts direct fields so the Vega/Onside adapters and older native
+ * builds continue to work.
+ */
+export const createPurchaseErrorFromNativeException = (
+  error: unknown,
+  platform: IapPlatform,
+  fallback: PurchaseErrorProps = {},
+): PurchaseError => {
+  const direct = asRecord(error) ?? {};
+  const nativeMessage =
+    asString(direct.message) ??
+    (typeof error === 'string' ? error : undefined) ??
+    fallback.message ??
+    'Unknown error occurred';
+  const envelope = parseNativeErrorEnvelope(nativeMessage) ?? {};
+
+  const envelopePlatform = asString(envelope.platform);
+  const resolvedPlatform: IapPlatform =
+    envelopePlatform === 'ios' || envelopePlatform === 'android'
+      ? envelopePlatform
+      : platform;
+  const subResponseCode =
+    asString(envelope.subResponseCodeAndroid) ??
+    asString(direct.subResponseCodeAndroid) ??
+    fallback.subResponseCodeAndroid;
+
+  return createPurchaseErrorFromPlatform(
+    {
+      code:
+        asString(envelope.code) ??
+        asNumber(envelope.code) ??
+        asString(direct.code) ??
+        asNumber(direct.code) ??
+        fallback.code ??
+        ErrorCode.Unknown,
+      message: asString(envelope.message) ?? fallback.message ?? nativeMessage,
+      debugMessage:
+        asString(envelope.debugMessage) ??
+        asString(direct.debugMessage) ??
+        fallback.debugMessage,
+      responseCode:
+        asNumber(envelope.responseCode) ??
+        asNumber(direct.responseCode) ??
+        fallback.responseCode,
+      productId:
+        asString(envelope.productId) ??
+        asString(direct.productId) ??
+        fallback.productId,
+      productIds:
+        asStringArray(envelope.productIds) ??
+        asStringArray(direct.productIds) ??
+        fallback.productIds,
+      productType:
+        asString(envelope.productType) ??
+        asString(direct.productType) ??
+        fallback.productType,
+      isEmptyProductList:
+        asBoolean(envelope.isEmptyProductList) ??
+        asBoolean(direct.isEmptyProductList) ??
+        fallback.isEmptyProductList,
+      subResponseCodeAndroid: subResponseCode as
+        | SubResponseCodeAndroid
+        | undefined,
+      platform: resolvedPlatform,
+    },
+    resolvedPlatform,
+  );
+};
+
 export const ErrorCodeUtils = {
-  getNativeErrorCode: (errorCode: ErrorCode): string => {
-    return (
-      (NATIVE_ERROR_CODES as Record<string, string | undefined>)[errorCode] ??
-      errorCode
-    );
-  },
+  // OpenIAP native bridges already exchange canonical error-code strings.
+  getNativeErrorCode: (errorCode: ErrorCode): string => errorCode,
   fromPlatformCode: (
-    platformCode: string | number,
-    _platform: IapPlatform,
+    platformCode: string | number | null | undefined,
+    platform: IapPlatform,
   ): ErrorCode => {
-    if (typeof platformCode === 'string' && platformCode.startsWith('E_')) {
-      const withoutE = platformCode.substring(2);
-      const camelCased = toKebabCase(withoutE);
-      const withE = `E_${camelCased}`;
-      if (OPENIAP_ERROR_CODE_SET.has(withE)) {
-        const match = Object.entries(COMMON_ERROR_CODE_MAP).find(
-          ([, value]) => value === withE,
-        );
-        if (match) {
-          return match[0] as ErrorCode;
-        }
-      }
+    if (platformCode == null) {
+      return ErrorCode.Unknown;
     }
-
-    const normalizedCode =
-      typeof platformCode === 'string'
-        ? toKebabCase(platformCode)
-        : platformCode;
-
-    for (const [standardized, nativeCode] of Object.entries(
-      (NATIVE_ERROR_CODES || {}) as Record<string, string | number>,
-    )) {
-      const normalizedNative =
-        typeof nativeCode === 'string' ? toKebabCase(nativeCode) : nativeCode;
-      if (
-        normalizedNative === normalizedCode &&
-        OPENIAP_ERROR_CODE_SET.has(standardized)
-      ) {
-        const match = Object.entries(COMMON_ERROR_CODE_MAP).find(
-          ([, mappedCode]) => mappedCode === standardized,
-        );
-        if (match) {
-          return match[0] as ErrorCode;
-        }
-      }
+    if (typeof platformCode === 'number') {
+      return normalizePlatform(platform) === 'android'
+        ? LEGACY_ANDROID_RESPONSE_CODES.get(platformCode) ?? ErrorCode.Unknown
+        : ErrorCode.Unknown;
     }
-
-    for (const [errorCode, mappedCode] of Object.entries(
-      COMMON_ERROR_CODE_MAP,
-    )) {
-      if (
-        mappedCode === normalizedCode ||
-        mappedCode === `E_${normalizedCode}`
-      ) {
-        return errorCode as ErrorCode;
-      }
-    }
-
-    return ErrorCode.Unknown;
+    const normalized = toKebabCase(platformCode.replace(/^E_/i, ''));
+    return OPENIAP_ERROR_CODE_SET.has(normalized)
+      ? (normalized as ErrorCode)
+      : ErrorCode.Unknown;
   },
   toPlatformCode: (
     errorCode: ErrorCode,
     _platform: IapPlatform,
-  ): string | number => {
-    const native = (NATIVE_ERROR_CODES as Record<string, string | number>)[
-      errorCode
-    ];
-    return native ?? COMMON_ERROR_CODE_MAP[errorCode] ?? 'E_UNKNOWN';
-  },
-  isValidForPlatform: (
-    errorCode: ErrorCode,
-    platform: IapPlatform,
-  ): boolean => {
-    return (
-      (NATIVE_ERROR_CODES as Record<string, unknown>)[errorCode] !== undefined
-    );
-  },
+  ): string | number => errorCode,
+  isValidForPlatform: (errorCode: ErrorCode, _platform: IapPlatform): boolean =>
+    OPENIAP_ERROR_CODE_SET.has(errorCode),
 };
 
 // ---------------------------------------------------------------------------

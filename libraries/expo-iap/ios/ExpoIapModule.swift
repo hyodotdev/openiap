@@ -61,18 +61,32 @@ public final class ExpoIapModule: Module {
 
         AsyncFunction("fetchProducts") { (params: [String: Any]) async throws -> [[String: Any]] in
             ExpoIapLog.payload("fetchProducts", payload: params)
-            let request = try ExpoIapHelper.decodeProductRequest(from: params)
-            let result = try await OpenIapModule.shared.fetchProducts(request)
-            let products = ExpoIapHelper.sanitizeArray(OpenIapSerialization.products(result))
-            ExpoIapLog.result("fetchProducts", value: products)
-            return products
+            do {
+                let request = try ExpoIapHelper.decodeProductRequest(from: params)
+                let result = try await OpenIapModule.shared.fetchProducts(request)
+                let products = ExpoIapHelper.sanitizeArray(OpenIapSerialization.products(result))
+                ExpoIapLog.result("fetchProducts", value: products)
+                return products
+            } catch let error as PurchaseError {
+                ExpoIapLog.failure("fetchProducts", error: error)
+                throw IapException.from(error)
+            } catch {
+                ExpoIapLog.failure("fetchProducts", error: error)
+                throw IapException.from(
+                    PurchaseError.make(
+                        code: .queryProduct,
+                        message: "Failed to query products",
+                        debugMessage: error.localizedDescription
+                    )
+                )
+            }
         }
 
         AsyncFunction("requestPurchase") { (payload: [String: Any]) async throws -> Any? in
             ExpoIapLog.payload("requestPurchase", payload: payload)
-            let props = try ExpoIapHelper.decodeRequestPurchaseProps(from: payload)
 
             do {
+                let props = try ExpoIapHelper.decodeRequestPurchaseProps(from: payload)
                 guard let result = try await OpenIapModule.shared.requestPurchase(props) else {
                     ExpoIapLog.result("requestPurchase", value: nil)
                     return nil
@@ -96,7 +110,12 @@ public final class ExpoIapModule: Module {
             } catch {
                 ExpoIapLog.failure("requestPurchase", error: error)
                 throw IapException.from(
-                    PurchaseError.make(code: .purchaseError, message: error.localizedDescription))
+                    PurchaseError.make(
+                        code: .purchaseError,
+                        message: "Failed to request purchase",
+                        debugMessage: error.localizedDescription
+                    )
+                )
             }
         }
 

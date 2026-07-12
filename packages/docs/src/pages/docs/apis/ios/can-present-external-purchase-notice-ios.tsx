@@ -11,7 +11,7 @@ function CanPresentExternalPurchaseNoticeIOS() {
     <div className="doc-page">
       <SEO
         title="canPresentExternalPurchaseNoticeIOS"
-        description="Check if external purchase notice sheet can be presented (iOS 17.4+)."
+        description="Check if external purchase notice sheet can be presented (iOS 17.4+, macOS 14.4+)."
         path="/docs/apis/ios/can-present-external-purchase-notice-ios"
         keywords="canPresentExternalPurchaseNoticeIOS, external purchase notice"
       />
@@ -20,11 +20,13 @@ function CanPresentExternalPurchaseNoticeIOS() {
         canPresentExternalPurchaseNoticeIOS
       </h1>
       <p>
-        Check if external purchase notice sheet can be presented (iOS 17.4+).
+        Check if external purchase notice sheet can be presented (iOS 17.4+,
+        macOS 14.4+).
       </p>
       <p>
         Wraps <code>ExternalPurchase.canPresent</code> — gate before calling{' '}
-        <code>presentExternalPurchaseNoticeSheetIOS</code>. iOS 17.4+. See the{' '}
+        <code>presentExternalPurchaseNoticeSheetIOS</code>. iOS 17.4+, macOS
+        14.4+. See the{' '}
         <a
           href="https://developer.apple.com/documentation/storekit/externalpurchase/canpresent"
           target="_blank"
@@ -51,7 +53,7 @@ function CanPresentExternalPurchaseNoticeIOS() {
             <CodeBlock language="dart">{`Future<bool> canPresentExternalPurchaseNoticeIOS();`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task<Boolean> CanPresentExternalPurchaseNoticeIOSAsync()`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<bool> CanPresentExternalPurchaseNoticeIOSAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func can_present_external_purchase_notice_ios() -> bool`}</CodeBlock>
@@ -64,7 +66,8 @@ function CanPresentExternalPurchaseNoticeIOS() {
       </AnchorLink>
       <p>
         <code>Promise&lt;boolean&gt;</code> — <code>true</code> if the
-        external-purchase notice sheet can be presented (iOS 17.4+).
+        external-purchase notice sheet can be presented (iOS 17.4+, macOS
+        14.4+).
       </p>
 
       <h2>Example</h2>
@@ -86,7 +89,7 @@ if (Platform.OS === 'ios') {
 }`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`if (Platform.isIOS) {
+            <CodeBlock language="dart">{`if (Platform.isIOS || Platform.isMacOS) {
   final can = await FlutterInappPurchase.instance
       .canPresentExternalPurchaseNoticeIOS();
 }`}</CodeBlock>

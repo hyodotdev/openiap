@@ -71,9 +71,13 @@ suspend fun launchExternalLink(
 ): Promise<boolean>`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`Future<bool> launchExternalLinkAndroid(
-  LaunchExternalLinkParamsAndroid params,
-);`}</CodeBlock>
+            <CodeBlock language="dart">{`Future<bool> launchExternalLinkAndroid({
+  required BillingProgramAndroid billingProgram,
+  String? externalTransactionToken,
+  required ExternalLinkLaunchModeAndroid launchMode,
+  required ExternalLinkTypeAndroid linkType,
+  required String linkUri,
+});`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`// Returns true if launched successfully
@@ -207,13 +211,11 @@ if (Platform.OS === 'android') {
           dart: (
             <CodeBlock language="dart">{`if (Platform.isAndroid) {
   await FlutterInappPurchase.instance.launchExternalLinkAndroid(
-    LaunchExternalLinkParamsAndroid(
-      billingProgram: BillingProgramAndroid.BillingChoice,
-      externalTransactionToken: reportingDetails.externalTransactionToken,
-      launchMode: ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
-      linkType: ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
-      linkUri: 'https://example.com/offer',
-    ),
+    billingProgram: BillingProgramAndroid.BillingChoice,
+    externalTransactionToken: reportingDetails.externalTransactionToken,
+    launchMode: ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+    linkType: ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
+    linkUri: 'https://example.com/offer',
   );
 }`}</CodeBlock>
           ),

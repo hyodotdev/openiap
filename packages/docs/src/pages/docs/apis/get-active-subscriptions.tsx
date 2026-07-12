@@ -61,7 +61,7 @@ function GetActiveSubscriptions() {
             <CodeBlock language="typescript">{`getActiveSubscriptions(subscriptionIds?: string[]): Promise<ActiveSubscription[]>`}</CodeBlock>
           ),
           swift: (
-            <CodeBlock language="swift">{`func getActiveSubscriptions(subscriptionIds: [String]? = nil) async throws -> [ActiveSubscription]`}</CodeBlock>
+            <CodeBlock language="swift">{`func getActiveSubscriptions(_ subscriptionIds: [String]?) async throws -> [ActiveSubscription]`}</CodeBlock>
           ),
           kotlin: (
             <CodeBlock language="kotlin">{`suspend fun getActiveSubscriptions(subscriptionIds: List<String>? = null): List<ActiveSubscription>`}</CodeBlock>
@@ -70,10 +70,14 @@ function GetActiveSubscriptions() {
             <CodeBlock language="kotlin">{`suspend fun getActiveSubscriptions(subscriptionIds: List<String>? = null): List<ActiveSubscription>`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`Future<List<ActiveSubscription>> getActiveSubscriptions({List<String>? subscriptionIds});`}</CodeBlock>
+            <CodeBlock language="dart">{`Future<List<ActiveSubscription>> getActiveSubscriptions([
+  List<String>? subscriptionIds,
+]);`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task<List<ActiveSubscription>> GetActiveSubscriptionsAsync(List<String>? SubscriptionIds = null)`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<IReadOnlyList<ActiveSubscription>> GetActiveSubscriptionsAsync(
+    IReadOnlyList<string>? subscriptionIds = null
+);`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func get_active_subscriptions(subscription_ids: Array[String] = []) -> Array[ActiveSubscription]`}</CodeBlock>
@@ -202,7 +206,7 @@ function SubscriptionStatus() {
 }`}</CodeBlock>
           ),
           swift: (
-            <CodeBlock language="swift">{`let subscriptions = try await OpenIapModule.shared.getActiveSubscriptions()`}</CodeBlock>
+            <CodeBlock language="swift">{`let subscriptions = try await OpenIapModule.shared.getActiveSubscriptions(nil)`}</CodeBlock>
           ),
           kotlin: (
             <CodeBlock language="kotlin">{`val subscriptions = openIapStore.getActiveSubscriptions()`}</CodeBlock>

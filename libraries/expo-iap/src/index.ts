@@ -23,6 +23,7 @@ import type {
   AndroidSubscriptionOfferInput,
   DeepLinkOptions,
   DeveloperProvidedBillingDetailsAndroid,
+  IapPlatform,
   MutationField,
   MutationRequestPurchaseArgs,
   MutationValidateReceiptArgs,
@@ -42,7 +43,13 @@ import type {
   UserChoiceBillingDetails,
 } from './types';
 import {ErrorCode} from './types';
-import {createPurchaseError, type PurchaseError} from './utils/errorMapping';
+import {
+  createPurchaseError,
+  createPurchaseErrorFromNativeException,
+  OPENIAP_ERROR_ENVELOPE_PREFIX,
+  type PurchaseError,
+  type PurchaseErrorProps,
+} from './utils/errorMapping';
 
 // Export all types
 export * from './types';
@@ -63,8 +70,8 @@ export enum OpenIapEvent {
    */
   DeveloperProvidedBillingAndroid = 'developer-provided-billing-android',
   /**
-   * Fired when an active subscription enters a billing-issue state (cross-platform).
-   * Unifies StoreKit 2 `Message.Reason.billingIssue` (iOS 18+) and Play Billing 8.1+
+   * Fired when a subscription enters a billing-issue state (cross-platform).
+   * Unifies StoreKit 2 `Message.Reason.billingIssue` (iOS / Mac Catalyst 16.4+, visionOS 1.0+) and Play Billing 8.1+
    * `Purchase.isSuspended`. NOT fired on the Meta Horizon flavor.
    */
   SubscriptionBillingIssue = 'subscription-billing-issue',
@@ -526,7 +533,7 @@ export const developerProvidedBillingListenerAndroid = (
  *
  * Fires when a user's active subscription enters a state that needs attention
  * for a payment problem. Unifies:
- * - iOS 18+ / Mac Catalyst 18+: StoreKit 2 `Message.Reason.billingIssue`.
+ * - iOS / Mac Catalyst 16.4+ and visionOS 1.0+: StoreKit 2 `Message.Reason.billingIssue`.
  * - Android (Play Billing 8.1+): when `Purchase.isSuspendedAndroid === true`.
  * - Meta Horizon / iOS 17 / older platforms: never fires.
  *
@@ -610,6 +617,39 @@ export const endConnection: MutationField<'endConnection'> = async () => {
   return result;
 };
 
+const invokeNativeWithPurchaseError = async <T>(
+  operation: () => Promise<T>,
+  platform: IapPlatform,
+  fallback: PurchaseErrorProps,
+): Promise<T> => {
+  try {
+    return await operation();
+  } catch (error) {
+    const nativeError =
+      typeof error === 'object' && error !== null
+        ? (error as Record<string, unknown>)
+        : undefined;
+    const nativeMessage =
+      typeof nativeError?.message === 'string'
+        ? nativeError.message
+        : typeof error === 'string'
+        ? error
+        : '';
+    const hasCanonicalFields =
+      nativeMessage.includes(OPENIAP_ERROR_ENVELOPE_PREFIX) ||
+      nativeError?.code !== undefined ||
+      nativeError?.responseCode !== undefined ||
+      nativeError?.debugMessage !== undefined ||
+      nativeError?.productId !== undefined ||
+      nativeError?.productIds !== undefined;
+
+    // Preserve the identity of unrelated JavaScript errors (including adapter
+    // or test errors) while normalizing native OpenIAP rejections.
+    if (!hasCanonicalFields) throw error;
+    throw createPurchaseErrorFromNativeException(error, platform, fallback);
+  }
+};
+
 /**
  * Retrieve products or subscriptions from the store by SKU.
  *
@@ -690,12 +730,30 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
   };
 
   if (Platform.OS === 'ios') {
-    const rawItems = await ExpoIapModule.fetchProducts({skus, type: native});
+    const rawItems = await invokeNativeWithPurchaseError<unknown[]>(
+      () => ExpoIapModule.fetchProducts({skus, type: native}),
+      'ios',
+      {
+        code: ErrorCode.QueryProduct,
+        message: 'Failed to query products',
+        productIds: skus,
+        productType: canonical,
+      },
+    );
     return castResult(filterIosItems(rawItems));
   }
 
   if (isAndroidStoreRuntime()) {
-    const rawItems = await ExpoIapModule.fetchProducts(native, skus);
+    const rawItems = await invokeNativeWithPurchaseError<unknown[]>(
+      () => ExpoIapModule.fetchProducts(native, skus),
+      'android',
+      {
+        code: ErrorCode.QueryProduct,
+        message: 'Failed to query products',
+        productIds: skus,
+        productType: canonical,
+      },
+    );
     return castResult(filterAndroidItems(rawItems));
   }
 
@@ -833,9 +891,40 @@ export const hasActiveSubscriptions: QueryField<
  */
 export const getStorefront: QueryField<'getStorefront'> = async () => {
   if (Platform.OS !== 'ios' && !isAndroidStoreRuntime()) {
-    return '';
+    throw createPurchaseError({
+      code: ErrorCode.FeatureNotSupported,
+      message: `Storefront lookup is not supported on ${Platform.OS}.`,
+    });
   }
-  return ExpoIapModule.getStorefront();
+
+  const platform: IapPlatform = Platform.OS === 'ios' ? 'ios' : 'android';
+  if (typeof ExpoIapModule.getStorefront !== 'function') {
+    throw createPurchaseError({
+      code: ErrorCode.FeatureNotSupported,
+      message: 'Native getStorefront is not available on this build.',
+      platform,
+    });
+  }
+
+  let storefront: unknown;
+  try {
+    storefront = await ExpoIapModule.getStorefront();
+  } catch (error) {
+    throw createPurchaseErrorFromNativeException(error, platform, {
+      code: ErrorCode.ServiceError,
+      message: 'Failed to get storefront.',
+      debugMessage: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  if (typeof storefront !== 'string' || storefront.trim().length === 0) {
+    throw createPurchaseError({
+      code: ErrorCode.ServiceError,
+      message: 'Storefront lookup returned no country code.',
+      platform,
+    });
+  }
+  return storefront;
 };
 
 /**
@@ -932,10 +1021,17 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
       useAlternativeBilling: args.useAlternativeBilling,
     };
 
-    const purchase = (await ExpoIapModule.requestPurchase(payload)) as
-      | Purchase
-      | Purchase[]
-      | null;
+    const purchase = (await invokeNativeWithPurchaseError(
+      () => ExpoIapModule.requestPurchase(payload),
+      'ios',
+      {
+        code: ErrorCode.PurchaseError,
+        message: 'Failed to request purchase',
+        productId: normalizedRequest.sku,
+        productIds: [normalizedRequest.sku],
+        productType: canonical,
+      },
+    )) as Purchase | Purchase[] | null;
 
     if (Array.isArray(purchase)) {
       return normalizePurchaseArray(purchase);
@@ -979,18 +1075,29 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
         developerBillingOption,
       } = normalizedRequest;
 
-      const result = (await ExpoIapModule.requestPurchase({
-        type: native,
-        skuArr: skus,
-        purchaseToken: undefined,
-        replacementMode: -1,
-        obfuscatedAccountId: obfuscatedAccountId,
-        obfuscatedProfileId: obfuscatedProfileId,
-        offerToken: offerToken,
-        developerBillingOption: developerBillingOption ?? undefined,
-        offerTokenArr: [],
-        isOfferPersonalized: isOfferPersonalized ?? false,
-      })) as Purchase[];
+      const result = (await invokeNativeWithPurchaseError(
+        () =>
+          ExpoIapModule.requestPurchase({
+            type: native,
+            skuArr: skus,
+            purchaseToken: undefined,
+            replacementMode: -1,
+            obfuscatedAccountId: obfuscatedAccountId,
+            obfuscatedProfileId: obfuscatedProfileId,
+            offerToken: offerToken,
+            developerBillingOption: developerBillingOption ?? undefined,
+            offerTokenArr: [],
+            isOfferPersonalized: isOfferPersonalized ?? false,
+          }),
+        'android',
+        {
+          code: ErrorCode.PurchaseError,
+          message: 'Failed to request purchase',
+          productId: skus[0],
+          productIds: skus,
+          productType: canonical,
+        },
+      )) as Purchase[];
 
       return normalizePurchaseArray(result);
     }
@@ -1033,24 +1140,35 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
       const replacementMode = replacementModeInput ?? -1;
       const purchaseToken = purchaseTokenInput ?? undefined;
 
-      const result = (await ExpoIapModule.requestPurchase({
-        type: native,
-        skuArr: skus,
-        purchaseToken,
-        originalExternalTransactionId:
-          originalExternalTransactionId ?? undefined,
-        replacementMode,
-        obfuscatedAccountId: obfuscatedAccountId,
-        obfuscatedProfileId: obfuscatedProfileId,
-        offerTokenArr: normalizedOffers.map(
-          (offer: AndroidSubscriptionOfferInput) => offer.offerToken,
-        ),
-        subscriptionOffers: normalizedOffers,
-        isOfferPersonalized: isOfferPersonalized ?? false,
-        developerBillingOption: developerBillingOption ?? undefined,
-        subscriptionProductReplacementParams:
-          subscriptionProductReplacementParams ?? undefined,
-      })) as Purchase[];
+      const result = (await invokeNativeWithPurchaseError(
+        () =>
+          ExpoIapModule.requestPurchase({
+            type: native,
+            skuArr: skus,
+            purchaseToken,
+            originalExternalTransactionId:
+              originalExternalTransactionId ?? undefined,
+            replacementMode,
+            obfuscatedAccountId: obfuscatedAccountId,
+            obfuscatedProfileId: obfuscatedProfileId,
+            offerTokenArr: normalizedOffers.map(
+              (offer: AndroidSubscriptionOfferInput) => offer.offerToken,
+            ),
+            subscriptionOffers: normalizedOffers,
+            isOfferPersonalized: isOfferPersonalized ?? false,
+            developerBillingOption: developerBillingOption ?? undefined,
+            subscriptionProductReplacementParams:
+              subscriptionProductReplacementParams ?? undefined,
+          }),
+        'android',
+        {
+          code: ErrorCode.PurchaseError,
+          message: 'Failed to request purchase',
+          productId: skus[0],
+          productIds: skus,
+          productType: canonical,
+        },
+      )) as Purchase[];
 
       return normalizePurchaseArray(result);
     }

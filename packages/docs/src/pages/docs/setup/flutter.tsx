@@ -217,14 +217,14 @@ late StreamSubscription errorSub;
 await iap.initConnection();
 
 // Setup listeners
-purchaseSub = iap.purchaseUpdatedStream.listen((purchase) async {
+purchaseSub = iap.purchaseUpdatedListener.listen((purchase) async {
   // Validate receipt, then:
   // CRITICAL: Android auto-refunds after 3 days if not called!
-  await iap.finishTransaction(purchase, isConsumable: true);
+  await iap.finishTransaction(purchase: purchase, isConsumable: true);
 });
 
-errorSub = iap.purchaseErrorStream.listen((error) {
-  if (error.code == ErrorCode.userCancelled) return;
+errorSub = iap.purchaseErrorListener.listen((error) {
+  if (error.code == ErrorCode.UserCancelled) return;
   print('\${error.code}: \${error.message}');
 });
 
@@ -233,7 +233,7 @@ errorSub = iap.purchaseErrorStream.listen((error) {
 void dispose() {
   purchaseSub.cancel();
   errorSub.cancel();
-  iap.endConnection();
+  unawaited(iap.endConnection());
   super.dispose();
 }`}
         </CodeBlock>
@@ -284,13 +284,25 @@ for (final product in products) {
           </a>
         </h3>
         <CodeBlock language="dart">
-          {`// Request purchase (results come through purchaseUpdatedStream)
-await iap.requestPurchase(sku: 'premium');
+          {`// Request purchase (results come through purchaseUpdatedListener)
+await iap.requestPurchase(
+  RequestPurchaseProps.inApp((
+    apple: RequestPurchaseIosProps(sku: 'premium'),
+    google: RequestPurchaseAndroidProps(skus: ['premium']),
+    useAlternativeBilling: null,
+  )),
+);
 
 // Or with subscription offers
-await iap.requestPurchaseWithBuilder(
-  sku: 'monthly_pro',
-  subscriptionOffers: [offer],
+await iap.requestPurchase(
+  RequestPurchaseProps.subs((
+    apple: RequestSubscriptionIosProps(sku: 'monthly_pro'),
+    google: RequestSubscriptionAndroidProps(
+      skus: ['monthly_pro'],
+      subscriptionOffers: [offer],
+    ),
+    useAlternativeBilling: null,
+  )),
 );`}
         </CodeBlock>
 
@@ -305,8 +317,8 @@ await iap.requestPurchaseWithBuilder(
         >
           <strong>Important:</strong> Flutter uses <strong>Streams</strong> for
           purchase events, not callbacks. Always set up{' '}
-          <code>purchaseUpdatedStream</code> and{' '}
-          <code>purchaseErrorStream</code> listeners before calling{' '}
+          <code>purchaseUpdatedListener</code> and{' '}
+          <code>purchaseErrorListener</code> listeners before calling{' '}
           <code>requestPurchase</code>.
         </div>
 
@@ -322,9 +334,7 @@ final purchases = await iap.getAvailablePurchases();
 
 // Include expired subscriptions (iOS)
 final allPurchases = await iap.getAvailablePurchases(
-  PurchaseOptions(
-    onlyIncludeActiveItemsIOS: false,
-  ),
+  onlyIncludeActiveItemsIOS: false,
 );`}
         </CodeBlock>
       </section>

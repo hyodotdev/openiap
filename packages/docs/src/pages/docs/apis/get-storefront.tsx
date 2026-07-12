@@ -60,7 +60,7 @@ function GetStorefront() {
             <CodeBlock language="dart">{`Future<String> getStorefront();`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task<String> GetStorefrontAsync()`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<string> GetStorefrontAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func get_storefront() -> String`}</CodeBlock>
@@ -72,10 +72,14 @@ function GetStorefront() {
         Returns
       </AnchorLink>
       <p>
-        <code>Promise&lt;string&gt;</code> — ISO 3166-1 alpha-2 country code of
-        the user's storefront (e.g. <code>"US"</code>, <code>"KR"</code>), or an
-        empty string when the storefront can't be determined. Returns the App
-        Store / Play Store account region, NOT the device locale.
+        <code>Promise&lt;string&gt;</code> — the store account&apos;s country
+        code. StoreKit returns ISO 3166-1 alpha-3 (for example{' '}
+        <code>"USA"</code> or <code>"KOR"</code>). Google Play Billing and
+        Horizon return alpha-2 country codes, while Amazon returns its
+        alpha-2-like <code>UserData.marketplace</code> value (for example{' '}
+        <code>"US"</code> or <code>"DE"</code>). This is not the device locale.
+        A failed store lookup rejects or throws a platform-mapped purchase
+        error.
       </p>
 
       <h2>Example</h2>
@@ -88,7 +92,7 @@ import { getStorefront } from 'expo-iap';
 // import { getStorefront } from 'react-native-iap';
 
 const countryCode = await getStorefront();
-console.log(countryCode); // "US", "JP", "GB", etc.
+console.log(countryCode); // iOS: "USA"; Android/Amazon: "US"
 
 // --- Or alongside the useIAP() hook (also exported from react-native-iap) ---
 // getStorefront is a module-level helper; useIAP doesn't expose it on the

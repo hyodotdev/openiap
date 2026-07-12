@@ -366,7 +366,7 @@ const Types = preload("res://addons/godot-iap/types.gd")
 enum DiscountOfferType {
     INTRODUCTORY = 0,  # First-time purchase discount
     PROMOTIONAL = 1,   # Existing/returning customer offer
-    ONE_TIME = 2,      # Android-only one-time discount (Billing 7.0+)
+    ONE_TIME = 2,      # Android-only one-time discount (Billing 8.0+)
 }
 
 # Payment modes for subscription offers
@@ -411,7 +411,7 @@ func _display_discount_offer(offer: Types.DiscountOffer):
 
     # Android-specific fields
     if OS.get_name() == "Android":
-        print("    Offer Token: %s" % offer.offer_token_android)
+        print("    Offer token selected")
         if offer.percentage_discount_android > 0:
             print("    Discount: %d%% off" % offer.percentage_discount_android)
 

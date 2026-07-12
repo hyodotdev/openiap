@@ -25,7 +25,7 @@ function DiscountOffer() {
           Unified discount-offer type covering both subscription discounts (
           <code>Introductory</code>, <code>Promotional</code>) and one-time
           product offers (<code>OneTime</code>, Android only on Google Play
-          Billing Library 7.0+). For iOS-specific WinBack offers see{' '}
+          Billing Library 8.0+). For iOS-specific WinBack offers see{' '}
           <Link to="/docs/types/ios/discount-offer-ios">DiscountOfferIOS</Link>;
           iOS does not support one-time product discounts.
         </p>
@@ -128,7 +128,7 @@ function DiscountOffer() {
               <td>
                 Type of offer: <code>Introductory</code>,{' '}
                 <code>Promotional</code>, or <code>OneTime</code> (Android-only
-                Play Billing 7.0+ feature).
+                Play Billing 8.0+ feature).
               </td>
             </tr>
           </tbody>
@@ -256,7 +256,7 @@ function DiscountOffer() {
               </td>
               <td>
                 Purchase option ID for identifying which purchase option was
-                selected (7.0+)
+                selected (8.0+)
               </td>
             </tr>
           </tbody>

@@ -208,7 +208,7 @@ class AndroidOptionsBuilder {
     var subscriptionOffers: List<AndroidSubscriptionOfferInput> = emptyList()
     var subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid? = null
     /**
-     * Offer token for one-time purchase discounts (Android 7.0+).
+     * Offer token for one-time purchase discounts (Android 8.0+).
      * Pass the offerToken from oneTimePurchaseOfferDetailsAndroid or discountOffers
      * to apply a discount offer to the purchase.
      */

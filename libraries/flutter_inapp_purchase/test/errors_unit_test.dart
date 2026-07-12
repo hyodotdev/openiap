@@ -97,11 +97,24 @@ void main() {
         'responseCode': 3,
         'debugMessage': 'debug',
         'productId': 'sku',
+        'productIds': <String>['sku', 'sku-2'],
+        'productType': 'subs',
+        'isEmptyProductList': false,
+        'subResponseCodeAndroid': 'user-ineligible',
       }, types.IapPlatform.Android);
 
       expect(error.message, 'Something went wrong');
       expect(error.code, types.ErrorCode.ServiceError);
+      expect(error.responseCode, 3);
+      expect(error.debugMessage, 'debug');
       expect(error.productId, 'sku');
+      expect(error.productIds, <String>['sku', 'sku-2']);
+      expect(error.productType, 'subs');
+      expect(error.isEmptyProductList, isFalse);
+      expect(
+        error.subResponseCodeAndroid,
+        types.SubResponseCodeAndroid.UserIneligible,
+      );
       expect(error.platform, types.IapPlatform.Android);
     });
 
@@ -113,6 +126,15 @@ void main() {
       );
 
       expect(error.getPlatformCode(), 'E_NOT_PREPARED');
+    });
+
+    test('fromPlatformError ignores malformed productIds', () {
+      final error = errors.PurchaseError.fromPlatformError(<String, dynamic>{
+        'message': 'Something went wrong',
+        'productIds': 'not-a-list',
+      }, types.IapPlatform.Android);
+
+      expect(error.productIds, isNull);
     });
   });
 
@@ -153,13 +175,36 @@ void main() {
         debugMessage: 'debug',
         code: 'E_UNKNOWN',
         message: 'message',
+        productId: 'sku',
+        productIds: <String>['sku', 'sku-2'],
+        productType: 'inapp',
+        isEmptyProductList: false,
+        subResponseCodeAndroid:
+            types.SubResponseCodeAndroid.NoApplicableSubResponseCode,
         purchaseTokenAndroid: 'token',
       );
 
       final json = result.toJson();
       final roundTrip = errors.PurchaseResult.fromJSON(json);
       expect(roundTrip.responseCode, 1);
+      expect(roundTrip.debugMessage, 'debug');
+      expect(roundTrip.productId, 'sku');
+      expect(roundTrip.productIds, <String>['sku', 'sku-2']);
+      expect(roundTrip.productType, 'inapp');
+      expect(roundTrip.isEmptyProductList, isFalse);
+      expect(
+        roundTrip.subResponseCodeAndroid,
+        types.SubResponseCodeAndroid.NoApplicableSubResponseCode,
+      );
       expect(roundTrip.purchaseTokenAndroid, 'token');
+    });
+
+    test('PurchaseResult ignores malformed productIds', () {
+      final result = errors.PurchaseResult.fromJSON(<String, dynamic>{
+        'productIds': 'not-a-list',
+      });
+
+      expect(result.productIds, isNull);
     });
 
     test('ConnectionResult serialization', () {
@@ -265,6 +310,10 @@ void main() {
               throw PlatformException(
                 code: 'service-error',
                 message: 'Store service unavailable',
+                details: <String, dynamic>{
+                  'debugMessage': 'StoreKit purchase request failed',
+                  'productId': 'test_sku',
+                },
               );
             }
             return null;
@@ -287,6 +336,8 @@ void main() {
           fail('Expected PurchaseError');
         } on errors.PurchaseError catch (e) {
           expect(e.code, types.ErrorCode.ServiceError);
+          expect(e.debugMessage, 'StoreKit purchase request failed');
+          expect(e.productId, 'test_sku');
         }
       },
     );
@@ -358,9 +409,9 @@ void main() {
     );
 
     test(
-      'fetchProducts maps PlatformException error code',
+      'fetchProducts preserves Android diagnostic details',
       () async {
-        debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+        debugDefaultTargetPlatformOverride = TargetPlatform.android;
 
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
@@ -368,8 +419,17 @@ void main() {
           (MethodCall call) async {
             if (call.method == 'fetchProducts') {
               throw PlatformException(
-                code: 'item-unavailable',
+                code: 'query-product',
                 message: 'Products not found',
+                details: <String, dynamic>{
+                  'responseCode': 5,
+                  'debugMessage': 'Invalid product query',
+                  'productId': 'test_sku',
+                  'productIds': <String>['test_sku', 'missing_sku'],
+                  'productType': 'inapp',
+                  'isEmptyProductList': false,
+                  'subResponseCodeAndroid': 'user-ineligible',
+                },
               );
             }
             return null;
@@ -377,7 +437,7 @@ void main() {
         );
 
         final iap = FlutterInappPurchase.private(
-          FakePlatform(operatingSystem: 'ios'),
+          FakePlatform(operatingSystem: 'android'),
         );
         await iap.initConnection();
 
@@ -387,7 +447,17 @@ void main() {
           );
           fail('Expected PurchaseError');
         } on errors.PurchaseError catch (e) {
-          expect(e.code, types.ErrorCode.ItemUnavailable);
+          expect(e.code, types.ErrorCode.QueryProduct);
+          expect(e.responseCode, 5);
+          expect(e.debugMessage, 'Invalid product query');
+          expect(e.productId, 'test_sku');
+          expect(e.productIds, <String>['test_sku', 'missing_sku']);
+          expect(e.productType, 'inapp');
+          expect(e.isEmptyProductList, isFalse);
+          expect(
+            e.subResponseCodeAndroid,
+            types.SubResponseCodeAndroid.UserIneligible,
+          );
         }
       },
     );
@@ -457,6 +527,75 @@ void main() {
         }
       },
     );
+
+    test('getStorefront rejects null and blank native values', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      final values = <String?>[null, '', '   '];
+
+      for (final value in values) {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (MethodCall call) async {
+          if (call.method == 'getStorefront') return value;
+          return null;
+        });
+
+        final iap = FlutterInappPurchase.private(
+          FakePlatform(operatingSystem: 'android'),
+        );
+
+        await expectLater(
+          iap.getStorefront(),
+          throwsA(
+            isA<errors.PurchaseError>()
+                .having(
+                  (error) => error.code,
+                  'code',
+                  types.ErrorCode.ServiceError,
+                )
+                .having(
+                  (error) => error.message,
+                  'message',
+                  contains('no country code'),
+                ),
+          ),
+        );
+      }
+    });
+
+    test('getStorefront maps a missing native method to an error', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+
+      await expectLater(
+        iap.getStorefront(),
+        throwsA(
+          isA<errors.PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            types.ErrorCode.ServiceError,
+          ),
+        ),
+      );
+    });
+
+    test('getStorefront rejects unsupported platforms', () async {
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'linux'),
+      );
+
+      await expectLater(
+        iap.getStorefront(),
+        throwsA(
+          isA<errors.PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            types.ErrorCode.IapNotAvailable,
+          ),
+        ),
+      );
+    });
 
     test(
       'getStorefrontIOS maps PlatformException error code',

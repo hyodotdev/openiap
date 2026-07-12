@@ -4,6 +4,34 @@ import XCTest
 
 final class OpenIapTests: XCTestCase {
 
+    func testConnectedGenerationIsInvalidatedWhenEndingBegins() async throws {
+        let lifecycle = OpenIapConnectionLifecycle()
+        let initWork = try XCTUnwrap(lifecycle.makeInitTask { _ in true })
+
+        try lifecycle.startTransactionListenerTask(generation: initWork.generation) {
+            Task<Void, Error> {}
+        }
+        XCTAssertEqual(lifecycle.currentConnectedGeneration(), initWork.generation)
+        XCTAssertTrue(lifecycle.isConnected(generation: initWork.generation))
+        XCTAssertTrue(lifecycle.isCurrentGeneration(initWork.generation))
+
+        let endTask = lifecycle.makeEndTask {
+            _ = lifecycle.detachResourcesForCleanup()
+        }
+        XCTAssertNil(lifecycle.currentConnectedGeneration())
+        XCTAssertFalse(lifecycle.isConnected(generation: initWork.generation))
+        XCTAssertFalse(lifecycle.isCurrentGeneration(initWork.generation))
+        XCTAssertThrowsError(
+            try lifecycle.startMessageListenerTask(generation: initWork.generation) {
+                Task<Void, Never> {}
+            }
+        ) { error in
+            XCTAssertTrue(error is CancellationError)
+        }
+        await endTask.value
+        XCTAssertNil(lifecycle.currentConnectedGeneration())
+    }
+
     func testProductIOS() {
         let product = makeSampleProduct()
         XCTAssertEqual(product.id, "dev.hyo.premium")
@@ -61,9 +89,20 @@ final class OpenIapTests: XCTestCase {
         XCTAssertEqual(error.message, "User cancelled the purchase flow")
     }
 
+    func testPurchaseErrorMakePreservesOptionalDiagnostic() {
+        let error = PurchaseError.make(
+            code: .serviceError,
+            productId: "sku",
+            message: "Store service error",
+            debugMessage: "StoreKit diagnostic"
+        )
+        XCTAssertEqual(error.debugMessage, "StoreKit diagnostic")
+    }
+
     func testPurchaseErrorWrapMapsStoreKitUserCancelled() {
         let error = PurchaseError.wrap(StoreKitError.userCancelled, fallback: .serviceError)
         XCTAssertEqual(error.code, .userCancelled)
+        XCTAssertEqual(error.debugMessage, error.message)
     }
 
     func testPurchaseErrorWrapMapsSKPaymentCancelled() {
@@ -87,13 +126,26 @@ final class OpenIapTests: XCTestCase {
         XCTAssertEqual(error.code, .userCancelled)
     }
 
+    func testPurchaseErrorWrapPreservesNativeDiagnostic() {
+        let nativeError = NSError(
+            domain: "OpenIapTests",
+            code: 42,
+            userInfo: [NSLocalizedDescriptionKey: "StoreKit diagnostic"]
+        )
+        let error = PurchaseError.wrap(nativeError, fallback: .serviceError, productId: "sku")
+
+        XCTAssertEqual(error.message, "StoreKit diagnostic")
+        XCTAssertEqual(error.debugMessage, "StoreKit diagnostic")
+        XCTAssertEqual(error.productId, "sku")
+    }
+
     @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
     func testPromotedProductListenerConsumesPendingIdentifier() async {
         let state = IapState()
         let initialListeners = await state.recordPromotedProductAndSnapshotListeners("dev.hyo.promoted")
 
-        let pendingSku = await state.addPromotedProductListener((UUID(), { _ in }))
-        let consumedSku = await state.addPromotedProductListener((UUID(), { _ in }))
+        let pendingSku = state.addPromotedProductListener((UUID(), { _ in }))
+        let consumedSku = state.addPromotedProductListener((UUID(), { _ in }))
 
         XCTAssertTrue(initialListeners.isEmpty)
         XCTAssertEqual(pendingSku, "dev.hyo.promoted")
@@ -103,10 +155,10 @@ final class OpenIapTests: XCTestCase {
     @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
     func testPromotedProductSnapshotPreventsLateListenerDuplicate() async {
         let state = IapState()
-        _ = await state.addPromotedProductListener((UUID(), { _ in }))
+        _ = state.addPromotedProductListener((UUID(), { _ in }))
 
         let listeners = await state.recordPromotedProductAndSnapshotListeners("dev.hyo.promoted")
-        let pendingSku = await state.addPromotedProductListener((UUID(), { _ in }))
+        let pendingSku = state.addPromotedProductListener((UUID(), { _ in }))
 
         XCTAssertEqual(listeners.count, 1)
         XCTAssertNil(pendingSku)
@@ -144,12 +196,12 @@ final class OpenIapTests: XCTestCase {
     func testPurchaseUpdateDuplicateSnapshotOnlyIncludesOptInListeners() async {
         let state = IapState()
 
-        await state.addPurchaseUpdatedListener(
+        state.addPurchaseUpdatedListener(
             id: UUID(),
             listener: { _ in },
             options: nil
         )
-        await state.addPurchaseUpdatedListener(
+        state.addPurchaseUpdatedListener(
             id: UUID(),
             listener: { _ in },
             options: PurchaseUpdatedListenerOptions(
@@ -157,11 +209,23 @@ final class OpenIapTests: XCTestCase {
             )
         )
 
-        let normalListeners = await state.snapshotPurchaseUpdated()
-        let duplicateListeners = await state.snapshotPurchaseUpdated(isDuplicate: true)
+        let normalListeners = state.snapshotPurchaseUpdated()
+        let duplicateListeners = state.snapshotPurchaseUpdated(isDuplicate: true)
 
         XCTAssertEqual(normalListeners.count, 2)
         XCTAssertEqual(duplicateListeners.count, 1)
+    }
+
+    @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
+    func testListenerRegistrationAndRemovalAreImmediate() {
+        let state = IapState()
+        let subscriptionId = UUID()
+
+        state.addSubscriptionBillingIssueListener((subscriptionId, { _ in }))
+        XCTAssertTrue(state.hasSubscriptionBillingIssueListeners())
+
+        state.removeListener(id: subscriptionId, type: .subscriptionBillingIssue)
+        XCTAssertFalse(state.hasSubscriptionBillingIssueListeners())
     }
 
     func testPurchaseIOSWithRenewalInfo() {
@@ -220,6 +284,36 @@ final class OpenIapTests: XCTestCase {
         XCTAssertEqual(purchase.renewalInfoIOS?.autoRenewPreference, "dev.hyo.premium_year")
         XCTAssertEqual(purchase.renewalInfoIOS?.pendingUpgradeProductId, "dev.hyo.premium_year")
         XCTAssertEqual(purchase.renewalInfoIOS?.renewalDate, 1729087555000)
+    }
+
+    @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
+    func testCurrentPlanIdOnlyMapsSubscriptionProductTypes() {
+        XCTAssertEqual(
+            StoreKitTypesBridge.currentPlanId(
+                productId: "dev.hyo.premium",
+                productType: .autoRenewable
+            ),
+            "dev.hyo.premium"
+        )
+        XCTAssertEqual(
+            StoreKitTypesBridge.currentPlanId(
+                productId: "dev.hyo.season-pass",
+                productType: .nonRenewable
+            ),
+            "dev.hyo.season-pass"
+        )
+        XCTAssertNil(
+            StoreKitTypesBridge.currentPlanId(
+                productId: "dev.hyo.coins",
+                productType: .consumable
+            )
+        )
+        XCTAssertNil(
+            StoreKitTypesBridge.currentPlanId(
+                productId: "dev.hyo.unlock",
+                productType: .nonConsumable
+            )
+        )
     }
 
     func testPurchaseIOSSerializationWithRenewalInfo() throws {
@@ -478,6 +572,50 @@ final class OpenIapTests: XCTestCase {
         let data = try JSONEncoder().encode(props)
         let decoded = try JSONDecoder().decode(RequestPurchaseIosProps.self, from: data)
         XCTAssertNil(decoded.advancedCommerceData)
+    }
+
+    func testRequestPurchasePropsDecoderRejectsBothBranches() throws {
+        let json = """
+        {
+          "requestPurchase": {"apple": {"sku": "dev.hyo.coins"}},
+          "requestSubscription": {"apple": {"sku": "dev.hyo.premium"}}
+        }
+        """
+
+        XCTAssertThrowsError(
+            try JSONDecoder().decode(
+                RequestPurchaseProps.self,
+                from: Data(json.utf8)
+            )
+        )
+    }
+
+    func testRequestPurchasePropsDecoderRejectsMismatchedType() throws {
+        let json = """
+        {
+          "requestSubscription": {"apple": {"sku": "dev.hyo.premium"}},
+          "type": "in-app"
+        }
+        """
+
+        XCTAssertThrowsError(
+            try JSONDecoder().decode(
+                RequestPurchaseProps.self,
+                from: Data(json.utf8)
+            )
+        )
+    }
+
+    func testRequestPurchasePropsDecoderInfersSubscriptionType() throws {
+        let json = """
+        {"requestSubscription": {"apple": {"sku": "dev.hyo.premium"}}}
+        """
+        let decoded = try JSONDecoder().decode(
+            RequestPurchaseProps.self,
+            from: Data(json.utf8)
+        )
+
+        XCTAssertEqual(decoded.type, .subs)
     }
 
     @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)

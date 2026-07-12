@@ -34,7 +34,7 @@ public static class BuildPurchaseRows
         {
             case PurchaseIOS ios:
                 Push(rows, "quantityIOS", ios.QuantityIOS.ToString());
-                Push(rows, "appAccountToken", ios.AppAccountToken);
+                Push(rows, "appAccountToken", Presence(ios.AppAccountToken));
                 Push(rows, "appBundleIdIOS", ios.AppBundleIdIOS);
                 Push(rows, "countryCodeIOS", ios.CountryCodeIOS);
                 Push(rows, "currencyCodeIOS", ios.CurrencyCodeIOS);
@@ -63,7 +63,7 @@ public static class BuildPurchaseRows
                 }
                 break;
             case PurchaseAndroid android:
-                Push(rows, "signatureAndroid", android.SignatureAndroid);
+                Push(rows, "signatureAndroid", Presence(android.SignatureAndroid));
                 Push(rows, "packageNameAndroid", android.PackageNameAndroid);
                 Push(rows, "developerPayloadAndroid", android.DeveloperPayloadAndroid);
                 Push(rows, "obfuscatedAccountIdAndroid",
@@ -74,11 +74,11 @@ public static class BuildPurchaseRows
                     FormatBoolean(android.IsAcknowledgedAndroid));
                 Push(rows, "autoRenewingAndroid",
                     FormatBoolean(android.AutoRenewingAndroid));
-                Push(rows, "dataAndroid", android.DataAndroid);
+                Push(rows, "dataAndroid", Presence(android.DataAndroid));
                 break;
         }
 
-        Push(rows, "purchaseToken", common.PurchaseToken);
+        Push(rows, "purchaseToken", Presence(common.PurchaseToken));
         return rows;
     }
 
@@ -100,6 +100,9 @@ public static class BuildPurchaseRows
 
     private static string? FormatBoolean(bool? value) =>
         value.HasValue ? (value.Value ? "Yes" : "No") : null;
+
+    private static string? Presence(string? value) =>
+        string.IsNullOrEmpty(value) ? null : "present";
 
     private static string? FormatDate(double? timestamp)
     {

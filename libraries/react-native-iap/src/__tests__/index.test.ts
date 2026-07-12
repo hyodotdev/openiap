@@ -36,7 +36,7 @@ const mockIap: any = {
   getStorefrontIOS: jest.fn(async () => 'USA'),
   getAppTransactionIOS: jest.fn(async () => null),
   requestPromotedProductIOS: jest.fn(async () => null),
-  buyPromotedProductIOS: jest.fn(async () => undefined),
+  buyPromotedProductIOS: jest.fn(async () => true),
   presentCodeRedemptionSheetIOS: jest.fn(async () => true),
   getAllTransactionsIOS: jest.fn(async () => []),
 
@@ -124,6 +124,7 @@ describe('Public API (src/index.ts)', () => {
     mockIap.deepLinkToSubscriptionsIOS = undefined;
     mockIap.getReceiptIOS = undefined;
     mockIap.requestReceiptRefreshIOS = undefined;
+    mockIap.getStorefrontIOS = jest.fn(async () => 'USA');
     mockIap.getStorefront = jest.fn(async () => 'USA');
     mockIap.addSubscriptionBillingIssueListener.mockReset();
     mockIap.addSubscriptionBillingIssueListener.mockImplementation(
@@ -252,14 +253,44 @@ describe('Public API (src/index.ts)', () => {
       const sub = IAP.purchaseErrorListener(listener);
       expect(typeof sub.remove).toBe('function');
 
-      const err = {code: 'E_UNKNOWN', message: 'oops'};
+      const err = {
+        code: 'query-product',
+        message: 'oops',
+        responseCode: 12,
+        debugMessage: 'billing unavailable',
+        productId: 'premium_monthly',
+        productIds: ['premium_monthly', 'premium_yearly'],
+        productType: 'subs',
+        isEmptyProductList: false,
+        subResponseCodeAndroid: 'user-ineligible',
+      };
       expect(mockIap.addPurchaseErrorListener).toHaveBeenCalledTimes(1);
       const nativeHandler = mockIap.addPurchaseErrorListener.mock.calls[0][0];
       nativeHandler(err);
       expect(listener).toHaveBeenCalledWith(
         expect.objectContaining({
-          code: ErrorCode.Unknown,
+          code: ErrorCode.QueryProduct,
           message: 'oops',
+          responseCode: 12,
+          debugMessage: 'billing unavailable',
+          productId: 'premium_monthly',
+          productIds: ['premium_monthly', 'premium_yearly'],
+          productType: 'subs',
+          isEmptyProductList: false,
+          subResponseCodeAndroid: 'user-ineligible',
+        }),
+      );
+
+      nativeHandler({
+        code: 'network-error',
+        message: 'offline',
+        responseCode: -1,
+      });
+      expect(listener).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          code: ErrorCode.NetworkError,
+          message: 'offline',
+          responseCode: undefined,
         }),
       );
 
@@ -1139,15 +1170,49 @@ describe('Public API (src/index.ts)', () => {
       expect(mockIap.getStorefront).toHaveBeenCalledTimes(1);
     });
 
-    it('getStorefront returns empty string and warns when native method missing', async () => {
+    it('getStorefront rejects with a canonical error when native method is missing', async () => {
       (Platform as any).OS = 'android';
       mockIap.getStorefront = undefined;
-      await expect(IAP.getStorefront()).resolves.toBe('');
-      // RnIapConsole.warn adds "[RN-IAP]" prefix
-      expect(console.warn).toHaveBeenCalledWith(
-        '[RN-IAP]',
-        expect.stringContaining('Native getStorefront is not available'),
-      );
+      await expect(IAP.getStorefront()).rejects.toMatchObject({
+        code: IAP.ErrorCode.FeatureNotSupported,
+        message: expect.stringContaining(
+          'Native getStorefront is not available',
+        ),
+      });
+    });
+
+    it.each([null, undefined, '', '   '])(
+      'getStorefront rejects an empty native value (%p)',
+      async (value) => {
+        (Platform as any).OS = 'android';
+        mockIap.getStorefront = jest.fn(async () => value);
+
+        await expect(IAP.getStorefront()).rejects.toMatchObject({
+          code: IAP.ErrorCode.ServiceError,
+          message: expect.stringContaining('no country code'),
+        });
+      },
+    );
+
+    it('getStorefront normalizes native exceptions', async () => {
+      (Platform as any).OS = 'android';
+      mockIap.getStorefront = jest.fn(async () => {
+        throw new Error('storefront exploded');
+      });
+
+      await expect(IAP.getStorefront()).rejects.toMatchObject({
+        code: IAP.ErrorCode.Unknown,
+        message: expect.stringContaining('storefront exploded'),
+      });
+    });
+
+    it('getStorefront rejects unsupported platforms', async () => {
+      (Platform as any).OS = 'web';
+
+      await expect(IAP.getStorefront()).rejects.toMatchObject({
+        code: IAP.ErrorCode.FeatureNotSupported,
+        message: expect.stringContaining('not supported on web'),
+      });
     });
   });
 
@@ -1160,6 +1225,19 @@ describe('Public API (src/index.ts)', () => {
         /only available on iOS/,
       );
     });
+
+    it.each([null, '', '   '])(
+      'getStorefrontIOS rejects an empty native value (%p)',
+      async (value) => {
+        (Platform as any).OS = 'ios';
+        mockIap.getStorefrontIOS.mockResolvedValueOnce(value);
+
+        await expect(IAP.getStorefrontIOS()).rejects.toMatchObject({
+          code: IAP.ErrorCode.ServiceError,
+          message: expect.stringContaining('no country code'),
+        });
+      },
+    );
 
     it('getAppTransactionIOS returns value on iOS and throws on Android', async () => {
       (Platform as any).OS = 'ios';
@@ -1207,10 +1285,12 @@ describe('Public API (src/index.ts)', () => {
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
+        currentPlanId: 'premium_monthly',
       };
       mockIap.showManageSubscriptionsIOS = jest.fn(async () => [nitro]);
       const res = await IAP.showManageSubscriptionsIOS();
       expect(res[0].productId).toBe('p2');
+      expect(res[0].currentPlanId).toBe('premium_monthly');
     });
 
     it('showManageSubscriptionsIOS returns [] on non‑iOS', async () => {
@@ -1237,29 +1317,34 @@ describe('Public API (src/index.ts)', () => {
       expect(p2?.id).toBe('sku2');
     });
 
-    it('requestPurchaseOnPromotedProductIOS triggers native purchase', async () => {
-      (Platform as any).OS = 'ios';
-      mockIap.buyPromotedProductIOS = jest.fn(async () => undefined);
-      const pending = {
-        id: 'tid',
-        productId: 'sku2',
-        transactionDate: Date.now(),
-        platform: 'ios',
-        quantity: 1,
-        purchaseState: 'purchased',
-        isAutoRenewing: false,
-      } as any;
-      mockIap.getPendingTransactionsIOS = jest.fn(async () => [pending]);
-      const result = await IAP.requestPurchaseOnPromotedProductIOS();
-      expect(result).toBe(true);
-      expect(mockIap.buyPromotedProductIOS).toHaveBeenCalledTimes(1);
-      expect(mockIap.getPendingTransactionsIOS).toHaveBeenCalledTimes(1);
-    });
+    it.each([true, false])(
+      'requestPurchaseOnPromotedProductIOS returns the native %s result',
+      async (nativeResult) => {
+        (Platform as any).OS = 'ios';
+        mockIap.buyPromotedProductIOS = jest.fn(async () => nativeResult);
+        const result = await IAP.requestPurchaseOnPromotedProductIOS();
+        expect(result).toBe(nativeResult);
+        expect(mockIap.buyPromotedProductIOS).toHaveBeenCalledTimes(1);
+        expect(mockIap.getPendingTransactionsIOS).not.toHaveBeenCalled();
+      },
+    );
 
     it('clearTransactionIOS resolves without throwing', async () => {
       (Platform as any).OS = 'ios';
       mockIap.clearTransactionIOS = jest.fn(async () => undefined);
       await expect(IAP.clearTransactionIOS()).resolves.toBe(true);
+    });
+
+    it('clearTransactionIOS surfaces native failures', async () => {
+      (Platform as any).OS = 'ios';
+      mockIap.clearTransactionIOS = jest.fn(async () => {
+        throw {code: 'service-error', message: 'Clear failed'};
+      });
+
+      await expect(IAP.clearTransactionIOS()).rejects.toMatchObject({
+        code: ErrorCode.ServiceError,
+        message: 'Clear failed',
+      });
     });
 
     it('beginRefundRequestIOS returns status string', async () => {
@@ -1275,7 +1360,7 @@ describe('Public API (src/index.ts)', () => {
           state: 1,
           platform: 'ios',
           isAutoRenewing: true,
-          renewalInfo: {autoRenewStatus: true, platform: 'ios'},
+          renewalInfo: {willAutoRenew: true},
         },
       ]);
       const res = await IAP.subscriptionStatusIOS('sku');

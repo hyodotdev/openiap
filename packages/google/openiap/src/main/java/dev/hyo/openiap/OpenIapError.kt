@@ -7,6 +7,20 @@ sealed class OpenIapError : Exception() {
     abstract val code: String
     abstract override val message: String
 
+    var subResponseCode: SubResponseCodeAndroid? = null
+        private set
+
+    internal fun withSubResponseCode(value: SubResponseCodeAndroid?): OpenIapError = apply {
+        subResponseCode = value
+    }
+
+    internal var requestProductId: String? = null
+        private set
+
+    internal fun withProductId(value: String?): OpenIapError = apply {
+        requestProductId = value
+    }
+
     /**
      * Optional raw debug message surfaced from the underlying billing layer
      * (e.g. Google Play's `BillingResult.debugMessage`). Subclasses that
@@ -15,12 +29,21 @@ sealed class OpenIapError : Exception() {
      */
     open val debugMessage: String? = null
 
-    open fun toJSON(): Map<String, Any?> = mapOf(
-        "code" to toCode(this),
-        "message" to (this.message ?: ""),
-        "platform" to "android",
-        "debugMessage" to debugMessage,
-    )
+    open fun toJSON(): Map<String, Any?> = buildMap {
+        put("code", toCode(this@OpenIapError))
+        put("message", this@OpenIapError.message ?: "")
+        put("platform", "android")
+        put("debugMessage", debugMessage)
+        put("subResponseCodeAndroid", subResponseCode?.toJson())
+        val productId = when (val error = this@OpenIapError) {
+            is ProductNotFound -> error.productId
+            is SkuNotFound -> error.sku
+            else -> requestProductId
+        }
+        if (productId != null) {
+            put("productId", productId)
+        }
+    }
 
     class ProductNotFound(val productId: String) : OpenIapError() {
         val CODE = ErrorCode.SkuNotFound.rawValue
@@ -57,6 +80,12 @@ sealed class OpenIapError : Exception() {
         override val message: String = MESSAGE
 
         const val MESSAGE = "Purchase was deferred"
+    }
+
+    /** Per-request deferred purchase carrying request diagnostics. */
+    internal data class DeferredPurchase(override val debugMessage: String? = null) : OpenIapError() {
+        override val code: String = PurchaseDeferred.CODE
+        override val message: String = PurchaseDeferred.MESSAGE
     }
 
     object PaymentNotAllowed : OpenIapError() {
@@ -117,6 +146,12 @@ sealed class OpenIapError : Exception() {
         const val MESSAGE = "Network connection error"
         override val code: String = CODE
         override val message: String = MESSAGE
+    }
+
+    /** Per-request Play Billing network failure carrying callback diagnostics. */
+    internal data class NetworkFailure(override val debugMessage: String? = null) : OpenIapError() {
+        override val code: String = NetworkError.CODE
+        override val message: String = NetworkError.MESSAGE
     }
 
     object VerificationFailed : OpenIapError() {
@@ -225,6 +260,12 @@ sealed class OpenIapError : Exception() {
         const val MESSAGE = "SKU and offer token count mismatch"
         override val code: String = CODE
         override val message: String = MESSAGE
+    }
+
+    /** Per-request offer mismatch carrying purchase diagnostics. */
+    internal class SkuOfferMismatchFailure : OpenIapError() {
+        override val code: String = SkuOfferMismatch.CODE
+        override val message: String = SkuOfferMismatch.MESSAGE
     }
 
     object MissingCurrentActivity : OpenIapError() {

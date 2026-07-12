@@ -7,15 +7,40 @@ import dev.hyo.openiap.OpenIapModule
 import dev.hyo.openiap.ProductQueryType
 import dev.hyo.openiap.SubscriptionProductReplacementParamsAndroid
 import dev.hyo.openiap.SubscriptionReplacementModeAndroid
+import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
+import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
+import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
+import dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener
+import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 import java.util.Locale
 import java.util.concurrent.ConcurrentLinkedQueue
 
 object ExpoIapHelper {
     private const val MAX_BUFFERED_EVENTS = 200
+    internal const val ERROR_ENVELOPE_PREFIX = "OPENIAP_ERROR_JSON:"
+
+    data class ListenerHandles(
+        val purchaseUpdate: OpenIapPurchaseUpdateListener,
+        val purchaseError: OpenIapPurchaseErrorListener,
+        val userChoiceBilling: OpenIapUserChoiceBillingListener,
+        val developerProvidedBilling: OpenIapDeveloperProvidedBillingListener,
+        val subscriptionBillingIssue: OpenIapSubscriptionBillingIssueListener,
+    )
+
+    internal fun serializeOpenIapError(error: OpenIapError): Map<String, Any?> =
+        error.toJSON() +
+            when (error) {
+                is OpenIapError.ProductNotFound -> mapOf("productId" to error.productId)
+                is OpenIapError.SkuNotFound -> mapOf("productId" to error.sku)
+                else -> emptyMap()
+            }
+
+    internal fun serializeErrorEnvelope(payload: Map<String, Any?>): String = ERROR_ENVELOPE_PREFIX + JSONObject(payload).toString()
 
     fun emitOrQueue(
         module: Module,
@@ -57,29 +82,31 @@ object ExpoIapHelper {
         // Support nested request.google / request.android structure
         // If the params contain a "request" key with nested platform-specific data,
         // extract and flatten it before parsing.
-        val effective: Map<String, Any?> = run {
-            val request = params["request"] as? Map<*, *>
-            if (request != null) {
-                val nested = (request["google"] as? Map<*, *>)
-                    ?: (request["android"] as? Map<*, *>)
-                if (nested != null) {
-                    val flat = mutableMapOf<String, Any?>()
-                    // Carry over top-level fields like type, useAlternativeBilling
-                    for ((k, v) in params) {
-                        if (k != "request") flat[k] = v
+        val effective: Map<String, Any?> =
+            run {
+                val request = params["request"] as? Map<*, *>
+                if (request != null) {
+                    val nested =
+                        (request["google"] as? Map<*, *>)
+                            ?: (request["android"] as? Map<*, *>)
+                    if (nested != null) {
+                        val flat = mutableMapOf<String, Any?>()
+                        // Carry over top-level fields like type, useAlternativeBilling
+                        for ((k, v) in params) {
+                            if (k != "request") flat[k] = v
+                        }
+                        // Overlay platform-specific fields
+                        for ((k, v) in nested) {
+                            if (k is String) flat[k] = v
+                        }
+                        flat
+                    } else {
+                        params
                     }
-                    // Overlay platform-specific fields
-                    for ((k, v) in nested) {
-                        if (k is String) flat[k] = v
-                    }
-                    flat
                 } else {
                     params
                 }
-            } else {
-                params
             }
-        }
 
         val type = effective["type"] as? String
         val skus: List<String> =
@@ -107,9 +134,11 @@ object ExpoIapHelper {
         val replacementMode = effective["replacementMode"] as? Number
         val developerBillingOption =
             (effective["developerBillingOption"] as? Map<*, *>)?.let { optionMap ->
-                val json = optionMap.entries.mapNotNull { (key, value) ->
-                    (key as? String)?.let { it to value }
-                }.toMap()
+                val json =
+                    optionMap.entries
+                        .mapNotNull { (key, value) ->
+                            (key as? String)?.let { it to value }
+                        }.toMap()
                 DeveloperBillingOptionParamsAndroid.fromJson(json)
             }
         val subscriptionProductReplacementParams =
@@ -125,7 +154,7 @@ object ExpoIapHelper {
                     )
                 }
             }
-        // offerToken for one-time purchase discounts (Android 7.0+)
+        // offerToken for one-time purchase discounts (Android 8.0+)
         val offerToken = effective["offerToken"] as? String
 
         return RequestPurchaseParams(
@@ -162,7 +191,7 @@ object ExpoIapHelper {
         val obfuscatedAccountId: String?,
         val obfuscatedProfileId: String?,
         val isOfferPersonalized: Boolean,
-        /** Offer token for one-time purchase discounts (Android 7.0+) */
+        /** Offer token for one-time purchase discounts (Android 8.0+) */
         val offerToken: String?,
         val offerTokenArr: List<String>,
         val explicitSubscriptionOffers: List<AndroidSubscriptionOfferInput>,
@@ -239,25 +268,43 @@ object ExpoIapHelper {
         eventUserChoiceBilling: String,
         eventDeveloperProvidedBilling: String,
         eventSubscriptionBillingIssue: String,
-    ) {
-        openIap.addPurchaseUpdateListener { p ->
-            runCatching {
-                emitOrQueue(
-                    module,
-                    scope,
-                    connectionReady,
-                    pendingEvents,
-                    eventPurchaseUpdated,
-                    p.toJson(),
-                )
-            }.onFailure { error ->
-                ExpoIapLog.failure("buffer/send PURCHASE_UPDATED", error)
-                // Emit as purchase error so user knows something went wrong
-                val errorPayload =
-                    mapOf(
-                        "code" to OpenIapError.PurchaseFailed.CODE,
-                        "message" to "Failed to process purchase update: ${error.message}",
+    ): ListenerHandles {
+        val purchaseUpdateListener =
+            OpenIapPurchaseUpdateListener { p ->
+                runCatching {
+                    emitOrQueue(
+                        module,
+                        scope,
+                        connectionReady,
+                        pendingEvents,
+                        eventPurchaseUpdated,
+                        p.toJson(),
                     )
+                }.onFailure { error ->
+                    ExpoIapLog.failure("buffer/send PURCHASE_UPDATED", error)
+                    // Emit as purchase error so user knows something went wrong
+                    val errorPayload =
+                        mapOf(
+                            "code" to OpenIapError.PurchaseFailed.CODE,
+                            "message" to "Failed to process purchase update: ${error.message}",
+                        )
+                    runCatching {
+                        emitOrQueue(
+                            module,
+                            scope,
+                            connectionReady,
+                            pendingEvents,
+                            eventPurchaseError,
+                            errorPayload,
+                        )
+                    }.onFailure { ExpoIapLog.failure("send error event", it) }
+                }
+            }
+        openIap.addPurchaseUpdateListener(purchaseUpdateListener)
+
+        val purchaseErrorListener =
+            OpenIapPurchaseErrorListener { e ->
+                val errorJson = serializeOpenIapError(e)
                 runCatching {
                     emitOrQueue(
                         module,
@@ -265,94 +312,108 @@ object ExpoIapHelper {
                         connectionReady,
                         pendingEvents,
                         eventPurchaseError,
-                        errorPayload,
+                        errorJson,
                     )
-                }.onFailure { ExpoIapLog.failure("send error event", it) }
+                }.onFailure { error ->
+                    ExpoIapLog.failure("buffer/send PURCHASE_ERROR", error)
+                    // Critical: if we can't emit the original error, at least try to emit a generic one
+                    val fallbackPayload =
+                        mapOf(
+                            "code" to OpenIapError.UnknownError.CODE,
+                            "message" to "Failed to emit purchase error: ${error.message}",
+                        )
+                    runCatching {
+                        emitOrQueue(
+                            module,
+                            scope,
+                            connectionReady,
+                            pendingEvents,
+                            eventPurchaseError,
+                            fallbackPayload,
+                        )
+                    }.onFailure { ExpoIapLog.failure("send fallback error event", it) }
+                }
+                // Also reject any pending purchase promises to match iOS behavior
+                val errorCode = errorJson["code"] as? String ?: OpenIapError.PurchaseFailed.CODE
+                rejectPurchasePromises(
+                    errorCode,
+                    serializeErrorEnvelope(errorJson),
+                    null,
+                )
             }
-        }
-        openIap.addPurchaseErrorListener { e ->
-            val errorJson = e.toJSON()
-            runCatching {
-                emitOrQueue(
+        openIap.addPurchaseErrorListener(purchaseErrorListener)
+
+        val userChoiceBillingListener =
+            OpenIapUserChoiceBillingListener { details ->
+                safeEmitEvent(
                     module,
                     scope,
                     connectionReady,
                     pendingEvents,
+                    eventUserChoiceBilling,
+                    details.toJson(),
                     eventPurchaseError,
-                    errorJson,
+                    "alternative-billing-not-available",
+                    "Failed to process user choice billing",
+                    "USER_CHOICE_BILLING",
                 )
-            }.onFailure { error ->
-                ExpoIapLog.failure("buffer/send PURCHASE_ERROR", error)
-                // Critical: if we can't emit the original error, at least try to emit a generic one
-                val fallbackPayload =
-                    mapOf(
-                        "code" to OpenIapError.UnknownError.CODE,
-                        "message" to "Failed to emit purchase error: ${error.message}",
-                    )
-                runCatching {
-                    emitOrQueue(
-                        module,
-                        scope,
-                        connectionReady,
-                        pendingEvents,
-                        eventPurchaseError,
-                        fallbackPayload,
-                    )
-                }.onFailure { ExpoIapLog.failure("send fallback error event", it) }
             }
-            // Also reject any pending purchase promises to match iOS behavior
-            val errorCode = errorJson["code"] as? String ?: OpenIapError.PurchaseFailed.CODE
-            val errorMessage = errorJson["message"] as? String ?: "Purchase failed"
-            rejectPurchasePromises(errorCode, errorMessage, null)
-        }
-        openIap.addUserChoiceBillingListener { details ->
-            safeEmitEvent(
-                module,
-                scope,
-                connectionReady,
-                pendingEvents,
-                eventUserChoiceBilling,
-                details.toJson(),
-                eventPurchaseError,
-                "alternative-billing-not-available",
-                "Failed to process user choice billing",
-                "USER_CHOICE_BILLING",
-            )
-        }
+        openIap.addUserChoiceBillingListener(userChoiceBillingListener)
+
         // Developer Provided Billing listener for External Payments (8.3.0+) and Billing Choice (9.1.0+)
-        openIap.addDeveloperProvidedBillingListener { details ->
-            safeEmitEvent(
-                module,
-                scope,
-                connectionReady,
-                pendingEvents,
-                eventDeveloperProvidedBilling,
-                details.toJson(),
-                eventPurchaseError,
-                "developer-billing-error",
-                "Failed to process developer provided billing",
-                "DEVELOPER_PROVIDED_BILLING",
-            )
-        }
+        val developerProvidedBillingListener =
+            OpenIapDeveloperProvidedBillingListener { details ->
+                safeEmitEvent(
+                    module,
+                    scope,
+                    connectionReady,
+                    pendingEvents,
+                    eventDeveloperProvidedBilling,
+                    details.toJson(),
+                    eventPurchaseError,
+                    "developer-billing-error",
+                    "Failed to process developer provided billing",
+                    "DEVELOPER_PROVIDED_BILLING",
+                )
+            }
+        openIap.addDeveloperProvidedBillingListener(developerProvidedBillingListener)
+
         // Subscription billing-issue listener (Play Billing 8.1+ isSuspended; no-op on Horizon)
-        openIap.addSubscriptionBillingIssueListener { purchase ->
-            safeEmitEvent(
-                module,
-                scope,
-                connectionReady,
-                pendingEvents,
-                eventSubscriptionBillingIssue,
-                purchase.toJson(),
-                eventPurchaseError,
-                "subscription-billing-issue-error",
-                "Failed to process subscription billing issue",
-                "SUBSCRIPTION_BILLING_ISSUE",
-            )
-        }
+        val subscriptionBillingIssueListener =
+            OpenIapSubscriptionBillingIssueListener { purchase ->
+                safeEmitEvent(
+                    module,
+                    scope,
+                    connectionReady,
+                    pendingEvents,
+                    eventSubscriptionBillingIssue,
+                    purchase.toJson(),
+                    eventPurchaseError,
+                    "subscription-billing-issue-error",
+                    "Failed to process subscription billing issue",
+                    "SUBSCRIPTION_BILLING_ISSUE",
+                )
+            }
+        openIap.addSubscriptionBillingIssueListener(subscriptionBillingIssueListener)
+
+        return ListenerHandles(
+            purchaseUpdate = purchaseUpdateListener,
+            purchaseError = purchaseErrorListener,
+            userChoiceBilling = userChoiceBillingListener,
+            developerProvidedBilling = developerProvidedBillingListener,
+            subscriptionBillingIssue = subscriptionBillingIssueListener,
+        )
     }
 
-    fun cleanupListeners(openIap: OpenIapModule) {
-        // Android doesn't have explicit listeners to clean up
-        // This function is kept for API compatibility with iOS
+    fun cleanupListeners(
+        openIap: OpenIapModule,
+        handles: ListenerHandles?,
+    ) {
+        if (handles == null) return
+        openIap.removePurchaseUpdateListener(handles.purchaseUpdate)
+        openIap.removePurchaseErrorListener(handles.purchaseError)
+        openIap.removeUserChoiceBillingListener(handles.userChoiceBilling)
+        openIap.removeDeveloperProvidedBillingListener(handles.developerProvidedBilling)
+        openIap.removeSubscriptionBillingIssueListener(handles.subscriptionBillingIssue)
     }
 }

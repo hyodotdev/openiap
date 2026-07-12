@@ -63,6 +63,13 @@ const GRAPHQL_TO_CSHARP: Record<string, string> = {
 
 const NAMESPACE = 'OpenIap';
 
+// Preserve the published MAUI 1.x CLR signatures until a coordinated 2.0.
+const MAUI_1_X_STRING_RESULT_OPERATIONS = new Set([
+  'deepLinkToSubscriptions',
+  'finishTransaction',
+  'restorePurchases',
+]);
+
 export class CSharpPlugin extends CodegenPlugin {
   readonly name = 'csharp';
   readonly fileExtension = '.cs';
@@ -532,7 +539,7 @@ export class CSharpPlugin extends CodegenPlugin {
 
   private generateRequestPurchaseProps(irInput: IRInput): void {
     this.emitDoc(irInput.description);
-    this.emit('public sealed record RequestPurchaseProps');
+    this.emit('public sealed record RequestPurchaseProps : IJsonOnDeserialized');
     this.emit('{');
     this.emit('    [JsonPropertyName("requestPurchase")]');
     this.emit('    public RequestPurchasePropsByPlatforms? RequestPurchase { get; init; }');
@@ -545,6 +552,20 @@ export class CSharpPlugin extends CodegenPlugin {
     this.emit('');
     this.emit('    [JsonPropertyName("useAlternativeBilling")]');
     this.emit('    public bool? UseAlternativeBilling { get; init; }');
+    this.emit('');
+    this.emit('    public void Validate()');
+    this.emit('    {');
+    this.emit('        var hasPurchase = RequestPurchase is not null;');
+    this.emit('        var hasSubscription = RequestSubscription is not null;');
+    this.emit('        if (hasPurchase == hasSubscription)');
+    this.emit('            throw new InvalidOperationException("RequestPurchaseProps requires exactly one of requestPurchase or requestSubscription");');
+    this.emit('        if (hasPurchase && Type != ProductQueryType.InApp)');
+    this.emit('            throw new InvalidOperationException("type must be IN_APP when requestPurchase is provided");');
+    this.emit('        if (hasSubscription && Type != ProductQueryType.Subs)');
+    this.emit('            throw new InvalidOperationException("type must be SUBS when requestSubscription is provided");');
+    this.emit('    }');
+    this.emit('');
+    this.emit('    void IJsonOnDeserialized.OnDeserialized() => Validate();');
     this.emit('}');
     this.emit('');
   }
@@ -583,6 +604,7 @@ export class CSharpPlugin extends CodegenPlugin {
   }
 
   private getOperationReturnType(field: IROperationField): string {
+    if (MAUI_1_X_STRING_RESULT_OPERATIONS.has(field.name)) return 'string';
     const resolved = field.resolvedReturnType;
     if (resolved.kind === 'list') {
       const inner = this.mapType(resolved.elementType!);
@@ -590,7 +612,7 @@ export class CSharpPlugin extends CodegenPlugin {
       const list = `IReadOnlyList<${element}>`;
       return resolved.nullable ? `${list}?` : list;
     }
-    if (resolved.kind === 'scalar' && resolved.name === undefined) {
+    if (resolved.kind === 'scalar' && resolved.name === 'Void') {
       return 'VoidResult';
     }
     if (resolved.name === 'VoidResult') return 'VoidResult';

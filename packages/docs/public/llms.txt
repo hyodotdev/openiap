@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Full Reference: https://openiap.dev/llms-full.txt
-> Generated: 2026-07-11T02:27:42.616Z
+> Generated: 2026-07-11T14:26:24.433Z
 
 ## Installation
 
@@ -83,10 +83,8 @@ await endConnection();
 ### Fetch Products
 ```typescript
 const products = await fetchProducts({
-  products: [
-    { id: 'com.app.premium', type: 'in-app' },
-    { id: 'com.app.monthly', type: 'subs' },
-  ],
+  skus: ['com.app.premium', 'com.app.pro'],
+  type: 'in-app',
 });
 ```
 
@@ -125,7 +123,11 @@ const purchases = await getAvailablePurchases();
 ## Events (React Native/Expo)
 
 ```typescript
-import { purchaseUpdatedListener, purchaseErrorListener } from 'expo-iap';
+import {
+  ErrorCode,
+  purchaseUpdatedListener,
+  purchaseErrorListener,
+} from 'expo-iap';
 
 // Set up before any purchase request
 const purchaseUpdateSubscription = purchaseUpdatedListener(async (purchase) => {
@@ -136,7 +138,7 @@ const purchaseUpdateSubscription = purchaseUpdatedListener(async (purchase) => {
 });
 
 const purchaseErrorSubscription = purchaseErrorListener((error) => {
-  if (error.code === 'UserCancelled') return; // Normal flow
+  if (error.code === ErrorCode.UserCancelled) return; // Normal flow
   console.error('Purchase error:', error.message);
 });
 
@@ -147,42 +149,51 @@ purchaseErrorSubscription.remove();
 
 ## Core Types
 
-### Product
+### Shared Product Fields
 ```typescript
-interface Product {
-  id: string;           // Product identifier (SKU)
-  title: string;        // Display name
-  description: string;  // Product description
-  price: string;        // Formatted price string
-  priceAmount: number;  // Price as number
-  currency: string;     // ISO 4217 currency code
+interface ProductCommon {
+  id: string;              // Product identifier (SKU)
+  title: string;           // Store title
+  description: string;     // Product description
+  displayPrice: string;    // Localized price
+  price?: number | null;   // Numeric price when available
+  currency: string;        // ISO 4217 currency code
+  platform: 'android' | 'ios';
   type: 'in-app' | 'subs';
 }
+
+type Product = ProductAndroid | ProductIOS;
+type ProductSubscription = ProductSubscriptionAndroid | ProductSubscriptionIOS;
 ```
 
 ### Purchase
 ```typescript
-interface Purchase {
-  productId: string;         // Purchased product ID
-  transactionId: string;     // Platform transaction ID
-  transactionDate: number;   // Purchase timestamp
+interface PurchaseCommon {
+  id: string;
+  productId: string;
+  transactionDate: number;
   purchaseState: PurchaseState;
-  // iOS specific
-  originalTransactionId?: string;
-  // Android specific
-  purchaseToken?: string;
-  orderId?: string;
+  purchaseToken?: string | null;
+  quantity: number;
+  isAutoRenewing: boolean;
 }
 
-type PurchaseState = 'purchased' | 'pending' | 'restored';
+type Purchase = PurchaseAndroid | PurchaseIOS;
+type PurchaseState = 'pending' | 'purchased' | 'unknown';
 ```
 
 ### PurchaseError
 ```typescript
 interface PurchaseError {
-  code: string;       // Error code
-  message: string;    // Human-readable message
-  productId?: string; // Related SKU
+  code: ErrorCode;                                  // Generated kebab-case error enum
+  message: string;                                  // Human-readable message
+  productId?: string | null;                        // Related SKU when available
+  debugMessage?: string | null;                     // Native diagnostic
+  responseCode?: number | null;                     // Android query response code
+  productIds?: string[] | null;                     // Android requested product IDs
+  productType?: string | null;                      // Android product type
+  isEmptyProductList?: boolean | null;              // Android query returned no products
+  subResponseCodeAndroid?: SubResponseCodeAndroid | null; // Play purchase-update detail
 }
 ```
 
@@ -190,12 +201,13 @@ interface PurchaseError {
 
 | Code | Description | Action |
 |------|-------------|--------|
-| UserCancelled | User cancelled purchase | No action needed |
-| ItemUnavailable | Product not in store | Check store config |
-| AlreadyOwned | Already purchased | Restore purchases |
-| NetworkError | Network issue | Retry with backoff |
-| ServiceError | Store service error | Retry later |
-| NotPrepared | initConnection not called | Call initConnection first |
+| user-cancelled | User cancelled purchase | No action needed |
+| duplicate-purchase | A purchase request is already in progress | Wait for the active request instead of starting another |
+| item-unavailable | Product not in store | Check store config |
+| already-owned | Already purchased | Restore purchases |
+| network-error | Network issue | Retry with backoff |
+| service-error | Store service error | Retry later |
+| not-prepared | initConnection not called | Call initConnection first |
 
 ## API Naming Convention
 
@@ -218,9 +230,9 @@ interface PurchaseError {
 ## Purchase Flow Summary
 
 1. initConnection()
-2. fetchProducts([...skus])
+2. fetchProducts({ skus: [...], type: 'in-app' })
 3. Set up purchaseUpdatedListener
-4. requestPurchase({ sku })
+4. requestPurchase({ request: { apple: { sku }, google: { skus: [sku] } }, type: 'in-app' })
 5. In listener: verify -> grant -> finishTransaction()
 6. endConnection() on cleanup
 

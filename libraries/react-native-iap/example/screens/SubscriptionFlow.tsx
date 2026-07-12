@@ -57,6 +57,22 @@ function isSubscriptionFlowProduct(productId: string): boolean {
   );
 }
 
+function stringifyForDisplay(value: unknown): string {
+  return (
+    JSON.stringify(
+      value,
+      (key, item) =>
+        item &&
+        /(?:token|apiKey|signatureAndroid|dataAndroid|receipt|jws|jsonRepresentation|rawSignedPayload)/i.test(
+          key,
+        )
+          ? 'Present'
+          : item,
+      2,
+    ) ?? ''
+  );
+}
+
 function formatPurchaseDate(transactionDate: Purchase['transactionDate']) {
   if (!transactionDate) {
     return 'N/A';
@@ -412,7 +428,8 @@ function SubscriptionFlow({
 
                 // For Android, get purchase token from activeSubscriptions
                 const extendedSub = currentSub as
-                  ExtendedActiveSubscription | undefined;
+                  | ExtendedActiveSubscription
+                  | undefined;
                 const purchaseToken =
                   extendedSub?.purchaseToken ||
                   extendedSub?.purchaseTokenAndroid;
@@ -441,20 +458,6 @@ function SubscriptionFlow({
                 // 5 = IMMEDIATE_WITHOUT_PRORATION
                 // For same product with different offers, OpenIAP uses CHARGE_FULL_PRICE (5)
                 const replacementMode = 5; // IMMEDIATE_WITHOUT_PRORATION as per OpenIAP example
-
-                console.log('Plan change params:', {
-                  skus: [targetProductId],
-                  currentBasePlanId,
-                  targetBasePlanId,
-                  offerToken: targetOffer.offerTokenAndroid,
-                  replacementMode,
-                  purchaseToken: tokenString || 'missing',
-                  allOffers: androidOffers?.map((o) => ({
-                    basePlanId: o.basePlanIdAndroid,
-                    offerId: o.id,
-                    offerToken: o.offerTokenAndroid,
-                  })),
-                });
 
                 // Make the request with proper token
                 void requestPurchase({
@@ -506,8 +509,7 @@ function SubscriptionFlow({
     [subscriptions, activeSubscriptions, setIsProcessing, setPurchaseResult],
   );
 
-  const copyToClipboard = (subscription: ProductSubscription) => {
-    const jsonString = JSON.stringify(subscription, null, 2);
+  const copyToClipboard = (jsonString: string) => {
     Clipboard.setString(jsonString);
     Alert.alert('Copied', 'Subscription JSON copied to clipboard');
   };
@@ -515,7 +517,7 @@ function SubscriptionFlow({
   const renderSubscriptionDetails = useMemo(() => {
     if (!selectedSubscription) return null;
 
-    const jsonString = JSON.stringify(selectedSubscription, null, 2);
+    const jsonString = stringifyForDisplay(selectedSubscription);
 
     // Check for subscription offers (cross-platform)
     const hasSubscriptionOffers =
@@ -644,7 +646,7 @@ function SubscriptionFlow({
                           style={[styles.offerValue, styles.offerTokenText]}
                           numberOfLines={2}
                         >
-                          {offer.offerTokenAndroid}
+                          Present
                         </Text>
                       </>
                     )}
@@ -704,7 +706,7 @@ function SubscriptionFlow({
         <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={[styles.actionButton, styles.copyButton]}
-            onPress={() => copyToClipboard(selectedSubscription)}
+            onPress={() => copyToClipboard(jsonString)}
           >
             <Text style={styles.actionButtonText}>📋 Copy</Text>
           </TouchableOpacity>
@@ -712,8 +714,6 @@ function SubscriptionFlow({
             style={[styles.actionButton, styles.consoleButton]}
             onPress={() => {
               console.log('=== SUBSCRIPTION DATA ===');
-              console.log(selectedSubscription);
-              console.log('=== SUBSCRIPTION JSON ===');
               console.log(jsonString);
               Alert.alert('Console', 'Subscription data logged to console');
             }}
@@ -901,11 +901,6 @@ function SubscriptionFlow({
                     sub.productId === 'dev.hyo.martie.premium_year') &&
                   matchingSubscription
                 ) {
-                  // Log the full data to understand what's available
-                  console.log(
-                    'ActiveSubscription data:',
-                    JSON.stringify(sub, null, 2),
-                  );
                   const extendedSub = sub as ExtendedActiveSubscription;
                   console.log(
                     'Product ID:',
@@ -1106,8 +1101,7 @@ function SubscriptionFlow({
                                 </Text>
                                 <Text style={styles.statusValue}>
                                   {new Date(
-                                    sub.renewalInfoIOS
-                                      .gracePeriodExpirationDate,
+                                    sub.renewalInfoIOS.gracePeriodExpirationDate,
                                   ).toLocaleDateString()}
                                 </Text>
                               </View>
@@ -1294,20 +1288,14 @@ function SubscriptionFlow({
                   <TouchableOpacity
                     style={styles.viewRenewalInfoButton}
                     onPress={() => {
-                      Alert.alert(
-                        'Renewal Info',
-                        JSON.stringify(renewalInfo, null, 2),
-                        [
-                          {
-                            text: 'Copy',
-                            onPress: () =>
-                              Clipboard.setString(
-                                JSON.stringify(renewalInfo, null, 2),
-                              ),
-                          },
-                          {text: 'Close'},
-                        ],
-                      );
+                      const details = stringifyForDisplay(renewalInfo);
+                      Alert.alert('Renewal Info', details, [
+                        {
+                          text: 'Copy',
+                          onPress: () => Clipboard.setString(details),
+                        },
+                        {text: 'Close'},
+                      ]);
                     }}
                   >
                     <Text style={styles.viewRenewalInfoButtonText}>
@@ -1379,20 +1367,14 @@ function SubscriptionFlow({
                   <TouchableOpacity
                     style={styles.viewRenewalInfoButton}
                     onPress={() => {
-                      Alert.alert(
-                        'Renewal Info',
-                        JSON.stringify(renewalInfo, null, 2),
-                        [
-                          {
-                            text: 'Copy',
-                            onPress: () =>
-                              Clipboard.setString(
-                                JSON.stringify(renewalInfo, null, 2),
-                              ),
-                          },
-                          {text: 'Close'},
-                        ],
-                      );
+                      const details = stringifyForDisplay(renewalInfo);
+                      Alert.alert('Renewal Info', details, [
+                        {
+                          text: 'Copy',
+                          onPress: () => Clipboard.setString(details),
+                        },
+                        {text: 'Close'},
+                      ]);
                     }}
                   >
                     <Text style={styles.viewRenewalInfoButtonText}>
@@ -1689,16 +1671,7 @@ function SubscriptionFlowContainer() {
     // iOS: Check transactionState (purchased/pending/failed/deferred)
     // Android: Check purchaseState (0=pending, 1=purchased, 2=failed)
     onPurchaseSuccess: async (purchase: Purchase) => {
-      const {
-        purchaseToken: tokenToMask,
-        purchaseTokenAndroid: androidTokenToMask,
-        ...purchaseRest
-      } = purchase as ExtendedPurchase;
-      console.log('Purchase successful:', {
-        ...purchaseRest,
-        ...(tokenToMask ? {purchaseToken: 'hidden'} : {}),
-        ...(androidTokenToMask ? {purchaseTokenAndroid: 'hidden'} : {}),
-      });
+      console.log('Purchase successful:', purchase.productId);
       const productId = purchase.productId ?? '';
       if (!isSubscriptionFlowProduct(productId)) {
         console.log('[SubscriptionFlow] ignoring non-subscription product:', {
@@ -1742,7 +1715,7 @@ function SubscriptionFlowContainer() {
             );
           } else {
             // Fallback if we can't find the matching offer
-            console.log('Could not map offerToken to basePlanId');
+            console.log('Could not map selected offer to base plan');
           }
         }
       }
@@ -1784,7 +1757,7 @@ function SubscriptionFlowContainer() {
             console.log('[SubscriptionFlow] Verifying with local method...');
             // New platform-specific verification API - provide all platform options
             // The library internally handles which options to use based on platform
-            const result = await verifyPurchase({
+            await verifyPurchase({
               apple: {sku: productId},
               google: {
                 sku: productId,
@@ -1797,10 +1770,7 @@ function SubscriptionFlowContainer() {
               },
               // horizon: { sku: productId, userId: '...', accessToken: '...' }
             });
-            console.log(
-              '[SubscriptionFlow] Local verification result:',
-              result,
-            );
+            console.log('[SubscriptionFlow] Local verification completed');
           } else if (currentVerificationMethod === 'iapkit') {
             console.log('[SubscriptionFlow] Verifying with IAPKit...');
             // NOTE: Set your API key in .env file as IAPKIT_API_KEY
@@ -1842,21 +1812,8 @@ function SubscriptionFlowContainer() {
               iapkit: iapkitPayload,
             };
             iapkitVerifyRequest = verifyRequest;
-            const iapkitLogPayload = {
-              ...iapkitPayload,
-              apiKey: '***hidden***',
-            };
-
             console.log(
-              '[SubscriptionFlow] Sending IAPKit verification request:',
-              JSON.stringify(
-                {
-                  provider: verifyRequest.provider,
-                  iapkit: iapkitLogPayload,
-                },
-                null,
-                2,
-              ),
+              '[SubscriptionFlow] Sending IAPKit verification request',
             );
 
             const result = await verifyPurchaseWithProvider(verifyRequest);
@@ -2309,17 +2266,8 @@ function SubscriptionFlowContainer() {
               sub.renewalInfoIOS.renewalOfferId,
             );
             console.log(
-              '    🆕 jsonRepresentation:',
-              sub.renewalInfoIOS.jsonRepresentation
-                ? `<${sub.renewalInfoIOS.jsonRepresentation.substring(
-                    0,
-                    50,
-                  )}...>`
-                : 'null/undefined',
-            );
-            console.log(
-              '    Full renewalInfoIOS:',
-              JSON.stringify(sub.renewalInfoIOS, null, 2),
+              '    has jsonRepresentation:',
+              Boolean(sub.renewalInfoIOS.jsonRepresentation),
             );
           } else {
             console.log('  ❌ renewalInfoIOS is NULL/UNDEFINED');

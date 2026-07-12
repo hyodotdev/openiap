@@ -1140,31 +1140,39 @@ if (result.isAvailable) {
 
 // Enable External Payments via InitConnectionConfig
 await FlutterInappPurchase.instance.initConnection(
-  config: InitConnectionConfig(
-    enableBillingProgramAndroid: BillingProgramAndroid.externalPayments,
-  ),
+  enableBillingProgramAndroid: BillingProgramAndroid.ExternalPayments,
 );
 
 // Listen for developer billing selection
-FlutterInappPurchase.developerProvidedBillingStream.listen((details) {
+final developerBillingSubscription = FlutterInappPurchase.instance
+    .developerProvidedBillingAndroid
+    .listen((details) {
   print('External transaction token received; send it to your backend without logging it.');
   // Report token to Google via your backend within 24 hours
 });
 
 // Check availability (Japan only)
 final result = await FlutterInappPurchase.instance
-    .isBillingProgramAvailableAndroid(BillingProgramAndroid.externalPayments);
+    .isBillingProgramAvailableAndroid(BillingProgramAndroid.ExternalPayments);
 if (result.isAvailable) {
   // Purchase with developer billing option
   await FlutterInappPurchase.instance.requestPurchase(
-    'product_id',
-    developerBillingOption: DeveloperBillingOptionParamsAndroid(
-      billingProgram: BillingProgramAndroid.externalPayments,
-      linkUri: 'https://your-site.com/checkout',
-      launchMode: DeveloperBillingLaunchModeAndroid.launchInExternalBrowserOrApp,
-    ),
+    RequestPurchaseProps.inApp((
+      apple: null,
+      google: RequestPurchaseAndroidProps(
+        skus: ['product_id'],
+        developerBillingOption: DeveloperBillingOptionParamsAndroid(
+          billingProgram: BillingProgramAndroid.ExternalPayments,
+          linkUri: 'https://your-site.com/checkout',
+          launchMode: DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+        ),
+      ),
+      useAlternativeBilling: null,
+    )),
   );
-}`}</CodeBlock>
+}
+
+await developerBillingSubscription.cancel();`}</CodeBlock>
             ),
             csharp: (
               <CodeBlock language="csharp">{`using OpenIap;

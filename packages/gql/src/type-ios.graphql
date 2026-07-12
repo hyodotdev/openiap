@@ -470,7 +470,7 @@ type RenewalInfoIOS {
 
   """
   True if subscription failed to renew due to billing issue and is retrying
-  Note: Not directly available in RenewalInfo, available in Status
+  StoreKit exposes this directly as RenewalInfo.isInBillingRetry.
   """
   isInBillingRetry: Boolean
 

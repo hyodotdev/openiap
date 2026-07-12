@@ -438,6 +438,11 @@ iap_err.PurchaseError convertToPurchaseError(
     code: code,
     responseCode: result.responseCode,
     debugMessage: result.debugMessage,
+    productId: result.productId,
+    productIds: result.productIds,
+    productType: result.productType,
+    isEmptyProductList: result.isEmptyProductList,
+    subResponseCodeAndroid: result.subResponseCodeAndroid,
     platform: platform,
   );
 }
@@ -1217,38 +1222,5 @@ List<PurchaseResult>? extractResult(dynamic result) {
   return decoded;
 }
 
-class PurchaseResult {
-  PurchaseResult({
-    this.responseCode,
-    this.debugMessage,
-    this.code,
-    this.message,
-    this.purchaseTokenAndroid,
-  });
-
-  final int? responseCode;
-  final String? debugMessage;
-  final String? code;
-  final String? message;
-  final String? purchaseTokenAndroid;
-
-  factory PurchaseResult.fromJSON(Map<String, dynamic> json) {
-    return PurchaseResult(
-      responseCode: json['responseCode'] as int?,
-      debugMessage: json['debugMessage']?.toString(),
-      code: json['code']?.toString(),
-      message: json['message']?.toString(),
-      purchaseTokenAndroid: json['purchaseTokenAndroid']?.toString(),
-    );
-  }
-}
-
-class ConnectionResult {
-  ConnectionResult({this.msg});
-
-  final String? msg;
-
-  factory ConnectionResult.fromJSON(Map<String, dynamic> json) {
-    return ConnectionResult(msg: json['msg']?.toString());
-  }
-}
+typedef PurchaseResult = iap_err.PurchaseResult;
+typedef ConnectionResult = iap_err.ConnectionResult;

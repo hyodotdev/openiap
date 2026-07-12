@@ -61,8 +61,23 @@ public extension PurchaseError {
         productId: String? = nil,
         message: String? = nil
     ) -> PurchaseError {
+        make(
+            code: code,
+            productId: productId,
+            message: message,
+            debugMessage: nil
+        )
+    }
+
+    static func make(
+        code: ErrorCode,
+        productId: String? = nil,
+        message: String? = nil,
+        debugMessage: String?
+    ) -> PurchaseError {
         PurchaseError(
             code: code,
+            debugMessage: debugMessage,
             message: message ?? defaultMessage(for: code),
             productId: productId
         )
@@ -75,8 +90,27 @@ public extension PurchaseError {
         productId: String? = nil,
         message: String? = nil
     ) -> PurchaseError {
+        make(
+            code: code,
+            productId: productId,
+            message: message,
+            debugMessage: nil
+        )
+    }
+
+    static func make(
+        code: String,
+        productId: String? = nil,
+        message: String? = nil,
+        debugMessage: String?
+    ) -> PurchaseError {
         let resolved = ErrorCode(rawValue: code) ?? .unknown
-        return make(code: resolved, productId: productId, message: message)
+        return make(
+            code: resolved,
+            productId: productId,
+            message: message,
+            debugMessage: debugMessage
+        )
     }
 
     static func emptySkuList(message: String? = nil) -> PurchaseError {
@@ -128,7 +162,12 @@ public extension PurchaseError {
         }
 
         if isStoreKitCancellation(error) {
-            return make(code: .userCancelled, productId: productId, message: error.localizedDescription)
+            return make(
+                code: .userCancelled,
+                productId: productId,
+                message: error.localizedDescription,
+                debugMessage: error.localizedDescription
+            )
         }
 
         // Map StoreKit 2 errors to PurchaseError
@@ -148,10 +187,20 @@ public extension PurchaseError {
             default:
                 errorCode = fallback
             }
-            return make(code: errorCode, productId: productId, message: error.localizedDescription)
+            return make(
+                code: errorCode,
+                productId: productId,
+                message: error.localizedDescription,
+                debugMessage: error.localizedDescription
+            )
         }
 
         // Fallback for other error types
-        return make(code: fallback, productId: productId, message: error.localizedDescription)
+        return make(
+            code: fallback,
+            productId: productId,
+            message: error.localizedDescription,
+            debugMessage: error.localizedDescription
+        )
     }
 }

@@ -109,9 +109,11 @@ public protocol OpenIapModuleProtocol {
     ) -> Subscription
     func purchaseErrorListener(_ listener: @escaping PurchaseErrorListener) -> Subscription
     func promotedProductListenerIOS(_ listener: @escaping PromotedProductListener) -> Subscription
-    /// Listener for subscription billing-issue events (iOS 18+).
-    /// Fires when StoreKit delivers a `Message.Reason.billingIssue` for a currently
-    /// active auto-renewable subscription. On iOS 17 and earlier this is a no-op.
+    /// Listener for subscription billing-issue events (iOS / Mac Catalyst 16.4+, visionOS 1.0+).
+    /// Fires when StoreKit delivers a `Message.Reason.billingIssue` for an
+    /// auto-renewable subscription in retry or grace period. A retrying
+    /// subscription may no longer be a current entitlement. On older versions,
+    /// and on macOS, tvOS, or watchOS, this is a no-op.
     func subscriptionBillingIssueListener(_ listener: @escaping SubscriptionBillingIssueListener) -> Subscription
     func removeListener(_ subscription: Subscription)
     func removeAllListeners()

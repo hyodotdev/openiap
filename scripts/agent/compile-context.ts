@@ -113,6 +113,32 @@ function withFinalNewline(content: string): string {
   return `${content.trimEnd()}\n`;
 }
 
+export function normalizeGeneratedTimestamps(content: string): string {
+  return content.replace(
+    /^(> (?:Last updated|Generated): ).+$/gm,
+    "$1<TIMESTAMP>",
+  );
+}
+
+export function writeGeneratedFileIfChanged(
+  filePath: string,
+  content: string,
+): boolean {
+  const finalizedContent = withFinalNewline(content);
+  if (fs.existsSync(filePath)) {
+    const existingContent = fs.readFileSync(filePath, "utf-8");
+    if (
+      normalizeGeneratedTimestamps(existingContent) ===
+      normalizeGeneratedTimestamps(finalizedContent)
+    ) {
+      return false;
+    }
+  }
+
+  fs.writeFileSync(filePath, finalizedContent);
+  return true;
+}
+
 function ensureSymlink(linkPath: string, targetPath: string): void {
   try {
     const currentTarget = fs.readlinkSync(linkPath);
@@ -398,7 +424,7 @@ const { connected, fetchProducts, requestPurchase, finishTransaction } = useIAP(
 
 await fetchProducts({ skus: ['premium'], type: 'in-app' });
 await requestPurchase({
-  request: { ios: { sku: 'premium' }, android: { skus: ['premium'] } },
+  request: { apple: { sku: 'premium' }, google: { skus: ['premium'] } },
   type: 'in-app',
 });
 \`\`\`
@@ -409,10 +435,10 @@ final iap = FlutterInappPurchase.instance;
 await iap.initConnection();
 final products = await iap.fetchProducts<Product>(
   skus: ['premium'],
-  type: ProductQueryType.inApp,
+  type: ProductQueryType.InApp,
 );
-iap.purchaseUpdated.listen((purchase) async {
-  await iap.finishTransaction(purchase, isConsumable: true);
+iap.purchaseUpdatedListener.listen((purchase) async {
+  await iap.finishTransaction(purchase: purchase, isConsumable: true);
 });
 \`\`\`
 
@@ -420,7 +446,7 @@ iap.purchaseUpdated.listen((purchase) async {
 \`\`\`gdscript
 GodotIapPlugin.purchase_updated.connect(_on_purchase_updated)
 GodotIapPlugin.init_connection()
-GodotIapPlugin.fetch_products(request)
+await GodotIapPlugin.fetch_products(request)
 GodotIapPlugin.request_purchase(props)
 \`\`\`
 
@@ -428,7 +454,10 @@ GodotIapPlugin.request_purchase(props)
 \`\`\`kotlin
 val iap = KmpIAP()
 iap.initConnection()
-val products = iap.fetchProducts(skus = listOf("premium"))
+val products = iap.fetchProducts {
+    skus = listOf("premium")
+    type = ProductQueryType.InApp
+}
 iap.purchaseUpdatedListener.collect { purchase ->
     iap.finishTransaction(purchase = purchase, isConsumable = true)
 }
@@ -574,10 +603,8 @@ await endConnection();
 ### Fetch Products
 \`\`\`typescript
 const products = await fetchProducts({
-  products: [
-    { id: 'com.app.premium', type: 'in-app' },
-    { id: 'com.app.monthly', type: 'subs' },
-  ],
+  skus: ['com.app.premium', 'com.app.pro'],
+  type: 'in-app',
 });
 \`\`\`
 
@@ -616,7 +643,11 @@ const purchases = await getAvailablePurchases();
 ## Events (React Native/Expo)
 
 \`\`\`typescript
-import { purchaseUpdatedListener, purchaseErrorListener } from 'expo-iap';
+import {
+  ErrorCode,
+  purchaseUpdatedListener,
+  purchaseErrorListener,
+} from 'expo-iap';
 
 // Set up before any purchase request
 const purchaseUpdateSubscription = purchaseUpdatedListener(async (purchase) => {
@@ -627,7 +658,7 @@ const purchaseUpdateSubscription = purchaseUpdatedListener(async (purchase) => {
 });
 
 const purchaseErrorSubscription = purchaseErrorListener((error) => {
-  if (error.code === 'UserCancelled') return; // Normal flow
+  if (error.code === ErrorCode.UserCancelled) return; // Normal flow
   console.error('Purchase error:', error.message);
 });
 
@@ -638,42 +669,51 @@ purchaseErrorSubscription.remove();
 
 ## Core Types
 
-### Product
+### Shared Product Fields
 \`\`\`typescript
-interface Product {
-  id: string;           // Product identifier (SKU)
-  title: string;        // Display name
-  description: string;  // Product description
-  price: string;        // Formatted price string
-  priceAmount: number;  // Price as number
-  currency: string;     // ISO 4217 currency code
+interface ProductCommon {
+  id: string;              // Product identifier (SKU)
+  title: string;           // Store title
+  description: string;     // Product description
+  displayPrice: string;    // Localized price
+  price?: number | null;   // Numeric price when available
+  currency: string;        // ISO 4217 currency code
+  platform: 'android' | 'ios';
   type: 'in-app' | 'subs';
 }
+
+type Product = ProductAndroid | ProductIOS;
+type ProductSubscription = ProductSubscriptionAndroid | ProductSubscriptionIOS;
 \`\`\`
 
 ### Purchase
 \`\`\`typescript
-interface Purchase {
-  productId: string;         // Purchased product ID
-  transactionId: string;     // Platform transaction ID
-  transactionDate: number;   // Purchase timestamp
+interface PurchaseCommon {
+  id: string;
+  productId: string;
+  transactionDate: number;
   purchaseState: PurchaseState;
-  // iOS specific
-  originalTransactionId?: string;
-  // Android specific
-  purchaseToken?: string;
-  orderId?: string;
+  purchaseToken?: string | null;
+  quantity: number;
+  isAutoRenewing: boolean;
 }
 
-type PurchaseState = 'purchased' | 'pending' | 'restored';
+type Purchase = PurchaseAndroid | PurchaseIOS;
+type PurchaseState = 'pending' | 'purchased' | 'unknown';
 \`\`\`
 
 ### PurchaseError
 \`\`\`typescript
 interface PurchaseError {
-  code: string;       // Error code
-  message: string;    // Human-readable message
-  productId?: string; // Related SKU
+  code: ErrorCode;                                  // Generated kebab-case error enum
+  message: string;                                  // Human-readable message
+  productId?: string | null;                        // Related SKU when available
+  debugMessage?: string | null;                     // Native diagnostic
+  responseCode?: number | null;                     // Android query response code
+  productIds?: string[] | null;                     // Android requested product IDs
+  productType?: string | null;                      // Android product type
+  isEmptyProductList?: boolean | null;              // Android query returned no products
+  subResponseCodeAndroid?: SubResponseCodeAndroid | null; // Play purchase-update detail
 }
 \`\`\`
 
@@ -681,12 +721,13 @@ interface PurchaseError {
 
 | Code | Description | Action |
 |------|-------------|--------|
-| UserCancelled | User cancelled purchase | No action needed |
-| ItemUnavailable | Product not in store | Check store config |
-| AlreadyOwned | Already purchased | Restore purchases |
-| NetworkError | Network issue | Retry with backoff |
-| ServiceError | Store service error | Retry later |
-| NotPrepared | initConnection not called | Call initConnection first |
+| user-cancelled | User cancelled purchase | No action needed |
+| duplicate-purchase | A purchase request is already in progress | Wait for the active request instead of starting another |
+| item-unavailable | Product not in store | Check store config |
+| already-owned | Already purchased | Restore purchases |
+| network-error | Network issue | Retry with backoff |
+| service-error | Store service error | Retry later |
+| not-prepared | initConnection not called | Call initConnection first |
 
 ## API Naming Convention
 
@@ -709,9 +750,9 @@ interface PurchaseError {
 ## Purchase Flow Summary
 
 1. initConnection()
-2. fetchProducts([...skus])
+2. fetchProducts({ skus: [...], type: 'in-app' })
 3. Set up purchaseUpdatedListener
-4. requestPurchase({ sku })
+4. requestPurchase({ request: { apple: { sku }, google: { skus: [sku] } }, type: 'in-app' })
 5. In listener: verify -> grant -> finishTransaction()
 6. endConnection() on cleanup
 
@@ -727,13 +768,13 @@ interface PurchaseError {
   // The website serves packages/docs/public. Root files are symlinks to avoid
   // drift between local repository readers and deployed docs.
   fs.mkdirSync(CONFIG.llmsOutputDir, { recursive: true });
-  fs.writeFileSync(
+  writeGeneratedFileIfChanged(
     path.join(CONFIG.llmsOutputDir, "llms.txt"),
-    withFinalNewline(quickContent),
+    quickContent,
   );
-  fs.writeFileSync(
+  writeGeneratedFileIfChanged(
     path.join(CONFIG.llmsOutputDir, "llms-full.txt"),
-    withFinalNewline(fullContent),
+    fullContent,
   );
   for (const [filename, targetPath] of Object.entries(
     CONFIG.rootLlmsSymlinks,
@@ -757,7 +798,7 @@ interface PurchaseError {
 // Main Function
 // ============================================================================
 
-async function compileContext(): Promise<void> {
+export async function compileContext(): Promise<void> {
   console.log(chalk.bold.cyan("\n" + "═".repeat(60)));
   console.log(chalk.bold.cyan("📝 Claude Code Context Compiler"));
   console.log(chalk.bold.cyan("═".repeat(60)));
@@ -862,10 +903,12 @@ openiap/
 │   │       ├── Models/      # Official types
 │   │       ├── Helpers/     # Internal helpers
 │   │       └── OpenIapModule.swift
-│   ├── google/       # Android Play Billing (Kotlin)
-│   │   └── openiap/src/main/
-│   │       ├── java/dev/hyo/openiap/
-│   │       └── Types.kt     # AUTO-GENERATED
+│   ├── google/       # Android store implementations (Kotlin)
+│   │   └── openiap/src/
+│   │       ├── main/java/dev/hyo/openiap/     # Shared code + generated Types.kt
+│   │       ├── play/java/dev/hyo/openiap/     # Google Play Billing
+│   │       ├── horizon/java/dev/hyo/openiap/  # Meta Horizon Billing
+│   │       └── amazon/java/dev/hyo/openiap/   # Amazon Appstore
 │   ├── gql/          # GraphQL schema & type generation
 │   └── docs/         # Documentation site
 ├── knowledge/        # Shared knowledge base
@@ -888,7 +931,7 @@ openiap/
   // =========================================================================
 
   const outputPath = path.join(CONFIG.outputDir, CONFIG.outputFile);
-  fs.writeFileSync(outputPath, withFinalNewline(output));
+  writeGeneratedFileIfChanged(outputPath, output);
 
   // =========================================================================
   // Generate LLMs.txt Files
@@ -948,7 +991,9 @@ openiap/
 // Entry Point
 // ============================================================================
 
-compileContext().catch((error) => {
-  console.error(chalk.red("\n❌ Compilation failed:"), error);
-  process.exit(1);
-});
+if (import.meta.main) {
+  compileContext().catch((error) => {
+    console.error(chalk.red("\n❌ Compilation failed:"), error);
+    process.exit(1);
+  });
+}

@@ -12,9 +12,9 @@ function ShowExternalPurchaseCustomLinkNoticeIOS() {
     <div className="doc-page">
       <SEO
         title="showExternalPurchaseCustomLinkNoticeIOS"
-        description="Show the iOS 18.1+ ExternalPurchaseCustomLink notice sheet before linking out to external purchases."
+        description="Show the ExternalPurchaseCustomLink notice sheet (iOS 18.1+, macOS 15.1+)."
         path="/docs/apis/ios/show-external-purchase-custom-link-notice-ios"
-        keywords="showExternalPurchaseCustomLinkNoticeIOS, ExternalPurchaseCustomLink notice, StoreKit, iOS 18.1"
+        keywords="showExternalPurchaseCustomLinkNoticeIOS, ExternalPurchaseCustomLink notice, StoreKit, iOS 18.1, macOS 15.1"
       />
       <h1>
         <span className="platform-badge platform-badge--ios">iOS</span>{' '}
@@ -29,13 +29,14 @@ function ShowExternalPurchaseCustomLinkNoticeIOS() {
         >
           ExternalPurchaseCustomLink
         </a>{' '}
-        (iOS 18.1+). Apple requires this sheet to be presented after a
-        deliberate customer interaction, before you can route the user to an
-        external purchase URL.
+        (iOS 18.1+, macOS 15.1+). Apple requires this sheet to be presented
+        after a deliberate customer interaction, before you can route the user
+        to an external purchase URL.
       </p>
       <p>
         Wraps <code>ExternalPurchaseCustomLink.showNotice(type:)</code> —
-        required disclosure sheet before linking out. iOS 18.1+. See the{' '}
+        required disclosure sheet before linking out. iOS 18.1+, macOS 15.1+.
+        See the{' '}
         <a
           href="https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/shownotice(type:)"
           target="_blank"
@@ -51,7 +52,7 @@ function ShowExternalPurchaseCustomLinkNoticeIOS() {
         {{
           swift: (
             <CodeBlock language="swift">{`func showExternalPurchaseCustomLinkNoticeIOS(
-    noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS
+    _ noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS
 ) async throws -> ExternalPurchaseCustomLinkNoticeResultIOS`}</CodeBlock>
           ),
           kotlin: (
@@ -123,7 +124,7 @@ function ShowExternalPurchaseCustomLinkNoticeIOS() {
         {{
           swift: (
             <CodeBlock language="swift">{`let result = try await OpenIapModule.shared.showExternalPurchaseCustomLinkNoticeIOS(
-    noticeType: .browser
+    .browser
 )`}</CodeBlock>
           ),
           kotlin: (
@@ -142,7 +143,7 @@ if (Platform.OS === 'ios') {
 }`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`if (Platform.isIOS) {
+            <CodeBlock language="dart">{`if (Platform.isIOS || Platform.isMacOS) {
   await FlutterInappPurchase.instance.showExternalPurchaseCustomLinkNoticeIOS(
     ExternalPurchaseCustomLinkNoticeTypeIOS.Browser,
   );

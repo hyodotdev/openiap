@@ -12,7 +12,7 @@ function GetReceiptDataIOS() {
     <div className="doc-page">
       <SEO
         title="getReceiptDataIOS"
-        description="Get base64-encoded receipt data for legacy validation."
+        description="Get base64-encoded receipt data for legacy validation (iOS 15+, macOS 14+)."
         path="/docs/apis/ios/get-receipt-data-ios"
         keywords="getReceiptDataIOS, receipt, legacy validation"
       />
@@ -20,7 +20,10 @@ function GetReceiptDataIOS() {
         <span className="platform-badge platform-badge--ios">iOS</span>{' '}
         getReceiptDataIOS
       </h1>
-      <p>Get base64-encoded receipt data for legacy validation.</p>
+      <p>
+        Get base64-encoded receipt data for legacy validation (iOS 15+, macOS
+        14+).
+      </p>
       <p>
         Reads <code>Bundle.main.appStoreReceiptURL</code> and base64-encodes the
         file. Legacy StoreKit 1 flow — prefer JWS / <code>verifyPurchase</code>.
@@ -51,7 +54,7 @@ function GetReceiptDataIOS() {
             <CodeBlock language="dart">{`Future<String?> getReceiptDataIOS();`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task<String?> GetReceiptDataIOSAsync()`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<string?> GetReceiptDataIOSAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func get_receipt_data_ios() -> String`}</CodeBlock>
@@ -86,7 +89,7 @@ if (Platform.OS === 'ios') {
 }`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`if (Platform.isIOS) {
+            <CodeBlock language="dart">{`if (Platform.isIOS || Platform.isMacOS) {
   final data = await FlutterInappPurchase.instance.getReceiptDataIOS();
 }`}</CodeBlock>
           ),

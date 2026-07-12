@@ -42,7 +42,7 @@ val purchaseErrors: Flow<PurchaseError>`}</CodeBlock>
 val purchaseErrors: Flow<PurchaseError>`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`Stream<PurchaseError> get purchaseErrorStream;`}</CodeBlock>
+            <CodeBlock language="dart">{`Stream<PurchaseError> get purchaseErrorListener;`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`using OpenIap;
@@ -91,9 +91,8 @@ subscription.remove();`}</CodeBlock>
           swift: (
             <CodeBlock language="swift">{`import OpenIap
 
-// Using async/await
-Task {
-    for await error in OpenIapModule.shared.purchaseErrors {
+let subscription = OpenIapModule.shared.purchaseErrorListener { error in
+    Task {
         print("Purchase error: \\(error.code) - \\(error.message)")
 
         switch error.code {
@@ -111,30 +110,25 @@ Task {
     }
 }
 
-// Or using Combine
-OpenIapModule.shared.purchaseErrorPublisher
-    .sink { error in
-        print("Purchase error: \\(error.code)")
-    }
-    .store(in: &cancellables)`}</CodeBlock>
+// Cleanup when done
+OpenIapModule.shared.removeListener(subscription)`}</CodeBlock>
           ),
           kotlin: (
-            <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapError
-
-// Using Flow
+            <CodeBlock language="kotlin">{`// OpenIapStore exposes the latest typed error through status.
 lifecycleScope.launch {
-    openIapStore.purchaseErrors.collect { error ->
+    openIapStore.status.collect { status ->
+        val error = status.lastError ?: return@collect
         println("Purchase error: \${error.code} - \${error.message}")
 
         when (error.code) {
-            OpenIapError.UserCancelled -> {
+            "user-cancelled" -> {
                 // User cancelled - no action needed
             }
-            OpenIapError.AlreadyOwned -> {
+            "already-owned" -> {
                 // Restore purchases instead
                 openIapStore.restorePurchases()
             }
-            OpenIapError.NetworkError -> {
+            "network-error" -> {
                 showRetryDialog()
             }
             else -> {
@@ -142,32 +136,28 @@ lifecycleScope.launch {
             }
         }
     }
-}
-
-// Or with callback
-openIapStore.setPurchaseErrorListener { error ->
-    println("Purchase error: \${error.code}")
 }`}</CodeBlock>
           ),
           kmp: (
             <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.openiap.ErrorCode
 
 val kmpIAP = KmpIAP()
 
 // Using Flow
 lifecycleScope.launch {
-    kmpIAP.purchaseErrors.collect { error ->
+    kmpIAP.purchaseErrorListener.collect { error ->
         println("Purchase error: \${error.code} - \${error.message}")
 
         when (error.code) {
-            OpenIapError.UserCancelled -> {
+            ErrorCode.UserCancelled -> {
                 // User cancelled - no action needed
             }
-            OpenIapError.AlreadyOwned -> {
+            ErrorCode.AlreadyOwned -> {
                 // Restore purchases instead
                 kmpIAP.restorePurchases()
             }
-            OpenIapError.NetworkError -> {
+            ErrorCode.NetworkError -> {
                 showRetryDialog()
             }
             else -> {
@@ -175,32 +165,27 @@ lifecycleScope.launch {
             }
         }
     }
-}
-
-// Or with callback
-kmpIAP.setPurchaseErrorListener { error ->
-    println("Purchase error: \${error.code}")
 }`}</CodeBlock>
           ),
           dart: (
             <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
-final subscription = FlutterInappPurchase.purchaseError.listen((error) {
-  print('Purchase error: \${error?.code} - \${error?.message}');
+final subscription = FlutterInappPurchase.instance.purchaseErrorListener.listen((error) {
+  print('Purchase error: \${error.code} - \${error.message}');
 
-  switch (error?.code) {
-    case 'E_USER_CANCELLED':
+  switch (error.code) {
+    case ErrorCode.UserCancelled:
       // User cancelled - no action needed
       break;
-    case 'E_ALREADY_OWNED':
+    case ErrorCode.AlreadyOwned:
       // Restore purchases instead
       FlutterInappPurchase.instance.restorePurchases();
       break;
-    case 'E_NETWORK_ERROR':
+    case ErrorCode.NetworkError:
       showRetryDialog();
       break;
     default:
-      showErrorMessage(error?.message ?? 'Unknown error');
+      showErrorMessage(error.message);
   }
 });
 

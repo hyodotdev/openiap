@@ -4,6 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
 class ProductDetailModal extends StatelessWidget {
+  static final _sensitiveField = RegExp(
+    r'token|apiKey|signatureAndroid|dataAndroid|receipt|jws|jsonRepresentation|rawSignedPayload',
+    caseSensitive: false,
+  );
+
   final ProductCommon item; // Can be Product or Subscription
   final ProductCommon? product;
 
@@ -45,6 +50,21 @@ class ProductDetailModal extends StatelessWidget {
       'currency': item.currency,
       'price': item.price,
     }..removeWhere((key, value) => value == null);
+  }
+
+  Object? _sanitizeForDisplay(Object? value) {
+    if (value is List) return value.map(_sanitizeForDisplay).toList();
+    if (value is Map) {
+      return value.map(
+        (key, item) => MapEntry(
+          key,
+          item != null && _sensitiveField.hasMatch('$key')
+              ? 'Present'
+              : _sanitizeForDisplay(item),
+        ),
+      );
+    }
+    return value;
   }
 
   Widget _buildSection(String title, Widget content) {
@@ -147,7 +167,7 @@ class ProductDetailModal extends StatelessWidget {
             if (offer.offerToken.isNotEmpty)
               _buildDetailRow(
                 'Offer Token',
-                offer.offerToken,
+                'Present',
               ),
             if (offer.offerTags.isNotEmpty)
               _buildDetailRow('Tags', offer.offerTags.join(', ')),
@@ -288,7 +308,8 @@ class ProductDetailModal extends StatelessWidget {
         : product != null && product is ProductSubscription
             ? (product as ProductSubscription).toJson()
             : _serializeItem(item);
-    final jsonString = const JsonEncoder.withIndent('  ').convert(jsonData);
+    final jsonString = const JsonEncoder.withIndent('  ')
+        .convert(_sanitizeForDisplay(jsonData));
 
     return DraggableScrollableSheet(
       initialChildSize: 0.7,
@@ -440,7 +461,7 @@ class ProductDetailModal extends StatelessWidget {
                                         ),
                                         _buildDetailRow(
                                           'Offer Token',
-                                          offer.offerToken,
+                                          'Present',
                                         ),
                                         if (offer.offerTags.isNotEmpty)
                                           _buildDetailRow(
@@ -607,7 +628,7 @@ class ProductDetailModal extends StatelessWidget {
                             child: SingleChildScrollView(
                               scrollDirection: Axis.horizontal,
                               child: SelectableText(
-                                product.toString(),
+                                '${product.runtimeType}',
                                 style: const TextStyle(fontSize: 12),
                               ),
                             ),
@@ -620,8 +641,6 @@ class ProductDetailModal extends StatelessWidget {
                                 debugPrint(
                                     '=== Original Product Object for ${item.id} ===');
                                 debugPrint('Type: ${product.runtimeType}');
-                                debugPrint(product.toString());
-
                                 // Print additional details based on product type
                                 final prod =
                                     product!; // We know it's not null in this context
@@ -644,7 +663,7 @@ class ProductDetailModal extends StatelessWidget {
                                           .subscriptionOfferDetailsAndroid
                                           .isNotEmpty) {
                                     debugPrint(
-                                        'Offer Details: ${subscription.subscriptionOfferDetailsAndroid}');
+                                        'Offer Details: ${subscription.subscriptionOfferDetailsAndroid.length}');
                                   }
                                 }
                                 debugPrint(

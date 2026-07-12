@@ -234,7 +234,7 @@ fun SubscriptionFlowScreen(
                         println("    Offer $index:")
                         println("      Base Plan: ${offer.basePlanId}")
                         println("      Offer ID: ${offer.offerId}")
-                        println("      Offer Token: ${offer.offerToken}")
+                        println("      Offer Token: present")
                         offer.pricingPhases.pricingPhaseList.forEachIndexed { phaseIndex, phase ->
                             println("      Phase $phaseIndex: ${phase.formattedPrice} for ${phase.billingPeriod}")
                         }
@@ -1248,7 +1248,7 @@ fun SubscriptionFlowScreen(
                                             }
                                         }
                                         if (monthlyOffer != null) {
-                                            println("SubscriptionFlow: Using MONTHLY offer token: ${monthlyOffer.offerToken}")
+                                            println("SubscriptionFlow: Using MONTHLY offer")
                                             listOf(AndroidSubscriptionOfferInput(
                                                 offerToken = monthlyOffer.offerToken,
                                                 sku = product.id

@@ -434,19 +434,16 @@ class OpenIapMauiModule(context: Context) {
      */
     private fun encodeError(e: OpenIapError): Map<String, Any?> {
         val diagnostics = e.toJSON()
-        val productId = when (e) {
-            is OpenIapError.ProductNotFound -> e.productId
-            else -> null
-        }
         return mapOf(
             "code" to e.code,
             "message" to e.message,
-            "productId" to productId,
+            "productId" to diagnostics["productId"],
             "debugMessage" to e.debugMessage,
             "responseCode" to diagnostics["responseCode"],
             "productIds" to diagnostics["productIds"],
             "productType" to diagnostics["productType"],
             "isEmptyProductList" to diagnostics["isEmptyProductList"],
+            "subResponseCodeAndroid" to diagnostics["subResponseCodeAndroid"],
         )
     }
 

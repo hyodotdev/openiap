@@ -83,6 +83,9 @@ openiap/
 - `openiap-versions.json` - Tracks only `spec`, `google`, and `apple`. Google
   and Apple are CI-managed; the spec may be bumped directly in a feature PR
   when explicitly requested, together with `packages/gql/package.json`.
+  For an explicitly coordinated stable native/spec train, use the
+  maintainer-selected native train version as the requested spec target;
+  otherwise never infer or auto-align versions.
 
 Framework library package versions (React Native, Expo, Flutter, Godot, KMP,
 MAUI) live in their own package metadata / release workflows. Do not add

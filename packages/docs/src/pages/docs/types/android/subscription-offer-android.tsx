@@ -3,7 +3,7 @@ import AnchorLink from '../../../../components/AnchorLink';
 import SEO from '../../../../components/SEO';
 import { useScrollToHash } from '../../../../hooks/useScrollToHash';
 
-function SubscriptionOfferAndroid() {
+function ProductSubscriptionAndroidOfferDetailsPage() {
   useScrollToHash();
 
   return (
@@ -12,7 +12,7 @@ function SubscriptionOfferAndroid() {
         title="ProductSubscriptionAndroidOfferDetails (Deprecated)"
         description="Deprecated. Use the cross-platform SubscriptionOffer type instead. ProductSubscriptionAndroidOfferDetails type definition and field reference."
         path="/docs/types/android/subscription-offer-android"
-        keywords="ProductSubscriptionAndroidOfferDetails, SubscriptionOfferAndroid, deprecated, OpenIAP types"
+        keywords="ProductSubscriptionAndroidOfferDetails, deprecated, OpenIAP types"
       />
       <h1>ProductSubscriptionAndroidOfferDetails</h1>
       <section>
@@ -183,4 +183,4 @@ function SubscriptionOfferAndroid() {
   );
 }
 
-export default SubscriptionOfferAndroid;
+export default ProductSubscriptionAndroidOfferDetailsPage;

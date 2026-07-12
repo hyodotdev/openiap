@@ -113,10 +113,10 @@ type FetchProductsResult =
             <CodeBlock language="swift">{`func fetchProducts(_ params: ProductRequest) async throws -> FetchProductsResult`}</CodeBlock>
           ),
           kotlin: (
-            <CodeBlock language="kotlin">{`suspend fun fetchProducts(request: ProductRequest): FetchProductsResult`}</CodeBlock>
+            <CodeBlock language="kotlin">{`suspend fun fetchProducts(params: ProductRequest): FetchProductsResult`}</CodeBlock>
           ),
           kmp: (
-            <CodeBlock language="kotlin">{`suspend fun fetchProducts(request: ProductRequest): FetchProductsResult`}</CodeBlock>
+            <CodeBlock language="kotlin">{`suspend fun fetchProducts(params: ProductRequest): FetchProductsResult`}</CodeBlock>
           ),
           dart: (
             <CodeBlock language="dart">{`Future<List<T>> fetchProducts<T extends ProductCommon>({
@@ -131,7 +131,7 @@ type FetchProductsResult =
 func fetch_products(request: ProductRequest) -> Array`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task<FetchProductsResult> FetchProductsAsync(ProductRequest request);
+            <CodeBlock language="csharp">{`Task<FetchProductsResult> FetchProductsAsync(ProductRequest @params);
 
 // FetchProductsResult is a sealed record union; pattern-match on the variant.
 public abstract record FetchProductsResult;

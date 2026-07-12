@@ -12,7 +12,7 @@ function EnableBillingProgramAndroid() {
     <div className="doc-page">
       <SEO
         title="enableBillingProgramAndroid"
-        description="Step 0 of Billing Programs API. Enable a billing program before initConnection() (Billing Library 8.2.0+)."
+        description="Step 0 of Billing Programs API. Enable a billing program before initConnection(); External Offer requires Play Billing 8.2.1+."
         path="/docs/apis/android/enable-billing-program-android"
         keywords="enableBillingProgramAndroid, Billing Programs API, External Offer"
       />
@@ -38,7 +38,9 @@ function EnableBillingProgramAndroid() {
         Sets <code>enableBillingProgramAndroid</code> on{' '}
         <code>InitConnectionConfig</code>; under the hood it configures{' '}
         <code>BillingClient.Builder.enableBillingPrograms(...)</code> (Play
-        Billing 8.2.0+). Use <code>'billing-choice'</code> for Play Billing
+        Billing 8.2.0+). External Offer integrations must use Play Billing
+        8.2.1+ and create fresh reporting details immediately before each
+        external-link launch. Use <code>'billing-choice'</code> for Play Billing
         Billing Choice. See the{' '}
         <a
           href="https://developer.android.com/google/play/billing/billing-programs"
@@ -74,12 +76,11 @@ data class InitConnectionConfig(
 }): Promise<boolean>`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`Future<bool> initConnection({InitConnectionConfig? config});
-
-class InitConnectionConfig {
-  final BillingProgramAndroid? enableBillingProgramAndroid;
-  // ...other fields
-}`}</CodeBlock>
+            <CodeBlock language="dart">{`Future<bool> initConnection({
+  AlternativeBillingModeAndroid? alternativeBillingModeAndroid,
+  BillingChoiceScreenTypeAndroid? billingChoiceScreenTypeAndroid,
+  BillingProgramAndroid? enableBillingProgramAndroid,
+});`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`using OpenIap;
@@ -164,9 +165,7 @@ function App() {
           dart: (
             <CodeBlock language="dart">{`if (Platform.isAndroid) {
   await FlutterInappPurchase.instance.initConnection(
-    config: InitConnectionConfig(
-      enableBillingProgramAndroid: BillingProgramAndroid.externalOffer,
-    ),
+    enableBillingProgramAndroid: BillingProgramAndroid.ExternalOffer,
   );
 }`}</CodeBlock>
           ),

@@ -25,6 +25,7 @@ import type {HybridObject} from 'react-native-nitro-modules';
 // removing the types entirely.
 import type {
   ActiveSubscription,
+  AdvancedCommerceInfoIOS,
   AndroidSubscriptionOfferInput,
   DeepLinkOptions,
   InitConnectionConfig,
@@ -53,8 +54,12 @@ import type {
   RequestSubscriptionIosProps,
   UserChoiceBillingDetails,
   PaymentModeIOS,
+  PendingPurchaseUpdateAndroid,
+  RenewalCommitmentInfoIOS,
+  SubscriptionBillingPlanTypeIOS,
   SubscriptionProductReplacementParamsAndroid,
   SubResponseCodeAndroid,
+  TransactionCommitmentInfoIOS,
   WinBackOfferInputIOS,
 } from '../types';
 
@@ -236,7 +241,7 @@ export interface NitroRequestPurchaseAndroid {
   obfuscatedProfileId?: RequestSubscriptionAndroidProps['obfuscatedProfileId'];
   isOfferPersonalized?: RequestSubscriptionAndroidProps['isOfferPersonalized'];
   /**
-   * Offer token for one-time purchase discounts (7.0+).
+   * Offer token for one-time purchase discounts (8.0+).
    * Pass the offerToken from oneTimePurchaseOfferDetailsAndroid or discountOffers
    * to apply a discount offer to the purchase.
    */
@@ -361,24 +366,12 @@ export interface NitroInAppMessageParamsAndroid {
 // ╚══════════════════════════════════════════════════════════════════════════╝
 
 /**
- * Subscription renewal information (iOS only)
- */
-export interface NitroSubscriptionRenewalInfo {
-  autoRenewStatus: boolean;
-  autoRenewPreference?: string | null;
-  expirationReason?: number | null;
-  gracePeriodExpirationDate?: number | null;
-  currentProductID?: string | null;
-  platform: string;
-}
-
-/**
  * Subscription status information (iOS only)
  */
 export interface NitroSubscriptionStatus {
   state: number;
   platform: string;
-  renewalInfo?: NitroSubscriptionRenewalInfo | null;
+  renewalInfo?: NitroRenewalInfoIOS | null;
 }
 
 /**
@@ -390,6 +383,11 @@ export interface NitroPurchaseResult {
   code: string;
   message: string;
   purchaseToken?: string;
+  productId?: string;
+  productIds?: string[];
+  productType?: string;
+  isEmptyProductList?: boolean;
+  subResponseCodeAndroid?: SubResponseCodeAndroid;
 }
 
 export interface NitroBillingResultAndroid {
@@ -560,7 +558,7 @@ export interface NitroValidTimeWindowAndroid {
 
 /**
  * Android one-time purchase offer details
- * Available in Google Play Billing Library 7.0+
+ * Available in Google Play Billing Library 8.0+
  */
 export interface NitroOneTimePurchaseOfferDetail {
   discountDisplayInfo?: NitroDiscountDisplayInfoAndroid | null;
@@ -583,6 +581,8 @@ export interface NitroPurchase {
   productId: PurchaseCommon['productId'];
   transactionDate: PurchaseCommon['transactionDate'];
   purchaseToken?: PurchaseCommon['purchaseToken'];
+  currentPlanId?: PurchaseCommon['currentPlanId'];
+  ids?: PurchaseCommon['ids'];
   /** @deprecated Use store instead */
   platform: IapPlatform;
   /** Store where purchase was made */
@@ -591,6 +591,9 @@ export interface NitroPurchase {
   purchaseState: PurchaseCommon['purchaseState'];
   isAutoRenewing: PurchaseCommon['isAutoRenewing'];
   // iOS specific fields
+  advancedCommerceInfoIOS?: AdvancedCommerceInfoIOS | null;
+  billingPlanTypeIOS?: SubscriptionBillingPlanTypeIOS | null;
+  commitmentInfoIOS?: TransactionCommitmentInfoIOS | null;
   quantityIOS?: number | null;
   originalTransactionDateIOS?: number | null;
   originalTransactionIdentifierIOS?: string | null;
@@ -625,6 +628,7 @@ export interface NitroPurchase {
   obfuscatedProfileIdAndroid?: string | null;
   developerPayloadAndroid?: string | null;
   isSuspendedAndroid?: boolean | null;
+  pendingPurchaseUpdateAndroid?: PendingPurchaseUpdateAndroid | null;
 }
 
 /**
@@ -656,12 +660,14 @@ export interface NitroActiveSubscription {
 export interface NitroRenewalInfoIOS {
   willAutoRenew: boolean;
   autoRenewPreference?: string | null;
+  commitmentInfo?: RenewalCommitmentInfoIOS | null;
   pendingUpgradeProductId?: string | null;
   renewalDate?: number | null;
   expirationReason?: string | null;
   isInBillingRetry?: boolean | null;
   gracePeriodExpirationDate?: number | null;
   priceIncreaseStatus?: string | null;
+  renewalBillingPlanType?: SubscriptionBillingPlanTypeIOS | null;
   renewalOfferType?: string | null;
   renewalOfferId?: string | null;
   jsonRepresentation?: string | null;
@@ -880,10 +886,10 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
 
   /**
    * Buy the promoted product from the App Store (iOS only)
-   * @returns Promise<void>
+   * @returns Promise<boolean> - Whether a promoted product was available and the request was initiated
    * @platform iOS
    */
-  buyPromotedProductIOS(): Promise<void>;
+  buyPromotedProductIOS(): Promise<boolean>;
 
   /**
    * Present the code redemption sheet for offer codes (iOS only)
@@ -940,7 +946,7 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
 
   /**
    * Get the full StoreKit 2 transaction history as PurchaseIOS values.
-   * Requires SK2ConsumableTransactionHistory Info.plist key for finished consumables (iOS 18+).
+   * Requires SKIncludeConsumableInAppPurchaseHistory Info.plist key for finished consumables (iOS 18+).
    * @returns Promise<NitroPurchase[]> - Array of all transactions
    * @platform iOS
    */
@@ -1188,7 +1194,7 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
    *
    * Fires when a user's active subscription enters a state that needs attention
    * (payment method failed, card expired, etc.). Unifies:
-   * - StoreKit 2 `Message.Reason.billingIssue` (iOS 18+ / Mac Catalyst 18+)
+   * - StoreKit 2 `Message.Reason.billingIssue` (iOS / Mac Catalyst 16.4+, visionOS 1.0+)
    * - Google Play Billing `Purchase.isSuspended` (Play Billing 8.1+)
    *
    * NOT fired on Meta Horizon (Billing 7.0 compat SDK lacks the suspended signal).

@@ -4,13 +4,13 @@ import CodeBlock from '../../../../components/CodeBlock';
 import SEO from '../../../../components/SEO';
 import { useScrollToHash } from '../../../../hooks/useScrollToHash';
 
-function SubscriptionBillingPlanIOS() {
+function SubscriptionBillingPlansIOS() {
   useScrollToHash();
 
   return (
     <div className="doc-page">
       <SEO
-        title="SubscriptionBillingPlanIOS"
+        title="Subscription Billing Plans"
         description="StoreKit 26.4 billing plan and commitment fields for iOS subscriptions."
         path="/docs/types/ios/subscription-billing-plan-ios"
         keywords="SubscriptionBillingPlanTypeIOS, SubscriptionPricingTermsIOS, commitment subscription, StoreKit billing plan"
@@ -318,4 +318,4 @@ function SubscriptionBillingPlanIOS() {
   );
 }
 
-export default SubscriptionBillingPlanIOS;
+export default SubscriptionBillingPlansIOS;

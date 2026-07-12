@@ -111,9 +111,13 @@ the target file (and anchor when given) exists.
 ### R6 — Native version constraints are honest
 
 `enableBillingProgramAndroid: 'external-payments'` is gated to Play Billing
-8.3.0+ (Japan only); the 8.2.0+ programs are `EXTERNAL_CONTENT_LINK` /
-`EXTERNAL_OFFER`. A doc page that mixes these up misleads readers about
-what works on which SDK.
+8.3.0+ (Japan only). `EXTERNAL_CONTENT_LINK` / `EXTERNAL_OFFER` were introduced
+in 8.2.0, but their production integration must require 8.2.1+ because Google
+fixed the availability and reporting-details APIs in that release. External
+Offer examples must generate fresh reporting details for each redirect session
+immediately before `launchExternalLink`; they must not teach the deprecated external-offer or
+alternative-only dialog/token flow. A page that mixes these up misleads readers
+about what works on which SDK.
 
 When you write `<X> 8.2.0+`, you should be able to point to the matching
 release-notes line. Don't paraphrase — quote the version requirement

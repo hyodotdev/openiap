@@ -346,7 +346,9 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 8),
-                    Row(
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -366,7 +368,6 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 6,
@@ -388,7 +389,6 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
                         if (!kIsWeb &&
                             defaultTargetPlatform == TargetPlatform.android &&
                             product is ProductAndroid) ...[
-                          const SizedBox(width: 8),
                           if (product.oneTimePurchaseOfferDetailsAndroid !=
                               null)
                             Container(

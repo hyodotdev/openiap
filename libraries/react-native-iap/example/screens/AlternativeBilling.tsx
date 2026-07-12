@@ -87,9 +87,8 @@ function AlternativeBillingScreen() {
   const [showModeSelector, setShowModeSelector] = useState(false);
   const [showProgramSelector, setShowProgramSelector] = useState(false);
   const [purchaseResult, setPurchaseResult] = useState<string>('');
-  const [externalPaymentsToken, setExternalPaymentsToken] = useState<
-    string | null
-  >(null);
+  const [hasExternalPaymentsToken, setHasExternalPaymentsToken] =
+    useState(false);
   const [lastPurchase, setLastPurchase] = useState<Purchase | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
@@ -169,7 +168,7 @@ function AlternativeBillingScreen() {
           Boolean(externalTransactionToken),
         );
 
-        setExternalPaymentsToken(externalTransactionToken);
+        setHasExternalPaymentsToken(Boolean(externalTransactionToken));
         setIsProcessing(false);
         setPurchaseResult(
           externalTransactionToken
@@ -314,7 +313,7 @@ function AlternativeBillingScreen() {
         console.log('[Android] Reporting token created:', hasReportingToken);
 
         setPurchaseResult(
-          `✅ Billing Programs API completed\n\nProgram: ${billingProgram}\nURL: ${externalUrl}\nToken: ${details.externalTransactionToken ?? 'missing'}\n\n⚠️ Important:\n1. User completes purchase externally\n2. Report token to Google Play within 24h`,
+          `✅ Billing Programs API completed\n\nProgram: ${billingProgram}\nURL: ${externalUrl}\nToken: ${hasReportingToken ? 'Present' : 'Missing'}\n\n⚠️ Important:\n1. User completes purchase externally\n2. Report token to Google Play within 24h`,
         );
 
         Alert.alert(
@@ -674,22 +673,20 @@ function AlternativeBillingScreen() {
         ) : null}
 
         {/* External Payments Token (Android 8.3.0+) */}
-        {externalPaymentsToken && Platform.OS === 'android' ? (
+        {hasExternalPaymentsToken && Platform.OS === 'android' ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
               External Payments Token (Japan)
             </Text>
             <View style={styles.purchaseCard}>
-              <Text style={styles.purchaseText}>
-                Token: {externalPaymentsToken}
-              </Text>
+              <Text style={styles.purchaseText}>Token: Present</Text>
               <Text style={styles.purchaseWarning}>
                 ⚠️ Report this token to Google Play within 24 hours{'\n'}
                 ℹ️ Process external payment through your system
               </Text>
               <TouchableOpacity
                 style={[styles.purchaseButton, {marginTop: 10}]}
-                onPress={() => setExternalPaymentsToken(null)}
+                onPress={() => setHasExternalPaymentsToken(false)}
               >
                 <Text style={styles.purchaseButtonText}>Clear Token</Text>
               </TouchableOpacity>

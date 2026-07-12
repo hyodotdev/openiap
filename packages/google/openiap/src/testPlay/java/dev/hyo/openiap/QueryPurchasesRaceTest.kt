@@ -37,9 +37,12 @@ import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryProductDetailsResult
 import com.android.billingclient.api.QueryPurchasesParams
 import dev.hyo.openiap.helpers.ProductManager
+import dev.hyo.openiap.helpers.ActiveStoreConnection
+import dev.hyo.openiap.helpers.ActiveStoreOperationRegistry
 import dev.hyo.openiap.helpers.SubscriptionBasePlanOffer
 import dev.hyo.openiap.helpers.queryAlreadyOwnedPurchases
 import dev.hyo.openiap.helpers.queryPurchases
+import dev.hyo.openiap.helpers.restorePurchases
 import dev.hyo.openiap.helpers.resolveBasePlanIdForOfferToken
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
@@ -48,6 +51,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -60,7 +64,7 @@ class QueryPurchasesRaceTest {
     fun `queryPurchases tolerates duplicate concurrent callbacks`() = runTest {
         val client = DuplicateBillingClient()
 
-        queryPurchases(client, BillingClient.ProductType.INAPP)
+        queryPurchases(client, operations(client), BillingClient.ProductType.INAPP)
 
         assertTrue(
             "queryPurchases must ignore duplicate concurrent callbacks without double-resuming: " +
@@ -153,6 +157,19 @@ class QueryPurchasesRaceTest {
     }
 
     @Test
+    fun `resolveBasePlanIdForOfferToken only infers an unambiguous plan`() {
+        val monthly = SubscriptionBasePlanOffer("monthly-offer", "monthly")
+
+        assertEquals("monthly", resolveBasePlanIdForOfferToken(listOf(monthly), null))
+        assertNull(
+            resolveBasePlanIdForOfferToken(
+                listOf(monthly, SubscriptionBasePlanOffer("yearly-offer", "yearly")),
+                null,
+            )
+        )
+    }
+
+    @Test
     fun `queryAlreadyOwnedPurchases completes when query throws`() {
         val client = DuplicateBillingClient(throwsOnQueryPurchases = true)
         val completions = AtomicInteger(0)
@@ -176,13 +193,81 @@ class QueryPurchasesRaceTest {
         val client = DuplicateBillingClient()
         val productManager = ProductManager()
 
-        productManager.getOrQuery(client, listOf("product-id"), BillingClient.ProductType.INAPP)
+        productManager.getOrQuery(
+            client,
+            listOf("product-id"),
+            BillingClient.ProductType.INAPP,
+            operations(client),
+        )
 
         assertTrue(
             "getOrQuery must ignore duplicate concurrent callbacks without double-resuming: " +
                 client.callbackFailures.joinToString { it::class.java.simpleName },
             client.callbackFailures.isEmpty()
         )
+    }
+
+    @Test
+    fun `queryPurchases throws the typed Play error on non OK response`() = runTest {
+        val client = DuplicateBillingClient(
+            purchaseResponseCodes = listOf(
+                BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
+            ),
+        )
+
+        val error = try {
+            queryPurchases(client, operations(client), BillingClient.ProductType.INAPP)
+            null
+        } catch (thrown: OpenIapError) {
+            thrown
+        }
+
+        assertTrue(error is OpenIapError.ServiceUnavailable)
+        assertEquals("owned purchase query failed", error?.debugMessage)
+    }
+
+    @Test
+    fun `restorePurchases rejects partial success`() = runTest {
+        val client = DuplicateBillingClient(
+            purchaseResponseCodes = listOf(
+                BillingClient.BillingResponseCode.OK,
+                BillingClient.BillingResponseCode.SERVICE_DISCONNECTED,
+            ),
+        )
+
+        val error = try {
+            restorePurchases(client, operations(client))
+            null
+        } catch (thrown: OpenIapError) {
+            thrown
+        }
+
+        assertTrue(error is OpenIapError.ServiceDisconnected)
+    }
+
+    @Test
+    fun `ProductManager refreshes complete cache hits on every fetch`() = runTest {
+        val client = DuplicateBillingClient()
+        val productManager = ProductManager()
+        val operations = operations(client)
+
+        repeat(2) {
+            productManager.getOrQuery(
+                client,
+                listOf("product-id"),
+                BillingClient.ProductType.INAPP,
+                operations,
+            )
+        }
+
+        assertEquals(2, client.productDetailsQueryCount.get())
+    }
+
+    private fun operations(client: BillingClient): ActiveStoreOperationRegistry<BillingClient> {
+        val lock = Any()
+        return ActiveStoreOperationRegistry(lock) {
+            ActiveStoreConnection(client, 0L)
+        }
     }
 
     private fun billingPurchase(productId: String, token: String): Purchase = Purchase(
@@ -204,9 +289,13 @@ class QueryPurchasesRaceTest {
 
     private class DuplicateBillingClient(
         private val purchases: List<Purchase> = emptyList(),
-        private val throwsOnQueryPurchases: Boolean = false
+        private val throwsOnQueryPurchases: Boolean = false,
+        purchaseResponseCodes: List<Int> = emptyList(),
     ) : BillingClient() {
         val callbackFailures = Collections.synchronizedList(mutableListOf<Throwable>())
+        val productDetailsQueryCount = AtomicInteger(0)
+        private val purchaseResponseCodes =
+            java.util.concurrent.ConcurrentLinkedQueue(purchaseResponseCodes)
 
         override fun queryPurchasesAsync(
             params: QueryPurchasesParams,
@@ -216,7 +305,10 @@ class QueryPurchasesRaceTest {
                 throw IllegalStateException("query failed")
             }
             val result = BillingResult.newBuilder()
-                .setResponseCode(BillingResponseCode.OK)
+                .setResponseCode(
+                    purchaseResponseCodes.poll() ?: BillingResponseCode.OK
+                )
+                .setDebugMessage("owned purchase query failed")
                 .build()
             val purchaseList = purchases.ifEmpty {
                 CallbackBarrierList(callbackCount = 2)
@@ -230,6 +322,7 @@ class QueryPurchasesRaceTest {
             params: QueryProductDetailsParams,
             listener: ProductDetailsResponseListener
         ) {
+            productDetailsQueryCount.incrementAndGet()
             val billingResult = BillingResult.newBuilder()
                 .setResponseCode(BillingResponseCode.OK)
                 .build()

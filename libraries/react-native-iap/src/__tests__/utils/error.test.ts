@@ -210,18 +210,17 @@ describe('Error utilities', () => {
       });
     });
 
-    it('should handle object input', () => {
+    it('should preserve plain structured object input', () => {
       const errorObj = {
         code: ErrorCode.ItemUnavailable,
         message: 'Item not available',
+        responseCode: 4,
+        debugMessage: 'StoreKit product lookup failed',
       };
 
       const result = parseErrorStringToJsonObj(errorObj);
 
-      expect(result).toEqual({
-        code: ErrorCode.Unknown,
-        message: 'Unknown error occurred',
-      });
+      expect(result).toEqual(errorObj);
     });
 
     it('should parse error code format "CODE: message"', () => {

@@ -2,6 +2,7 @@ package dev.hyo.openiap
 
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -23,13 +24,26 @@ import org.robolectric.annotation.Config
 class SubscriptionHandlersBillingIssueTest {
 
     @Test
-    fun `Play subscriptionHandlers exposes subscriptionBillingIssue`() {
+    fun `Play subscriptionHandlers exposes every supported Android billing event`() {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val module = OpenIapModule(context)
 
         assertNotNull(
             "Play flavor must wire subscriptionBillingIssue handler",
             module.subscriptionHandlers.subscriptionBillingIssue
+        )
+        assertNotNull(
+            "Play flavor must wire userChoiceBillingAndroid handler",
+            module.subscriptionHandlers.userChoiceBillingAndroid,
+        )
+        assertNotNull(
+            "Play flavor must wire developerProvidedBillingAndroid handler",
+            module.subscriptionHandlers.developerProvidedBillingAndroid,
+        )
+        assertNotNull("Play flavor must wire cross-platform getStorefront", module.queryHandlers.getStorefront)
+        assertNull(
+            "Play flavor must not wire the iOS-only getStorefrontIOS handler",
+            module.queryHandlers.getStorefrontIOS,
         )
     }
 }

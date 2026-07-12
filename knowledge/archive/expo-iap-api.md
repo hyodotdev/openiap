@@ -1,7 +1,8 @@
-# expo-iap API Reference
+# expo-iap API Reference (Archived)
 
-> Reference documentation for expo-iap (Expo In-App Purchase module)
-> Adapt all patterns to match OpenIAP internal conventions.
+> **ARCHIVED**: This snapshot documents a legacy API shape and is retained only
+> for migration history. Use the generated types and <https://openiap.dev/docs/apis>
+> for the current API.
 
 ## Overview
 

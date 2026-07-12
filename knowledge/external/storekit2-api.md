@@ -2,30 +2,40 @@
 
 This document provides external API reference for Apple's StoreKit 2 framework.
 
-## iOS 18+ / 26+ Features
+## Recent StoreKit Features
 
-| Feature | iOS Version | Description |
-|---------|-------------|-------------|
-| Win-back offers | iOS 18.0 | Re-engage churned subscribers |
-| `eligibleWinBackOfferIDs` | iOS 18.0 | Query win-back offer eligibility before purchase |
-| Consumable transaction history | iOS 18.0 | Opt-in via `SK2ConsumableTransactionHistory` Info.plist key |
-| StoreKit `Message` API | iOS 18.0 | Listener for billing issues, win-back, price increase, generic |
-| UI context for purchases | iOS 18.2 | Required for proper payment sheet display |
-| External purchase notice | iOS 17.4 | `ExternalPurchase.presentNoticeSheet()` |
-| `appTransactionID` | iOS 18.4 | Globally unique app transaction identifier (back-deployed to iOS 15) |
-| `originalPlatform` | iOS 18.4 | Original purchase platform (back-deployed to iOS 15) |
-| `Transaction.offerPeriod` | iOS 18.4 | Offer period information on Transaction |
-| `Transaction.advancedCommerceInfo` | iOS 18.4 | Advanced Commerce API data on Transaction |
-| `Transaction.appTransactionID` | iOS 18.4 | Per-Apple-Account identifier on Transaction |
-| Expanded offer codes | iOS 18.4 | Offer codes for consumables/non-consumables |
-| JWS promotional offers | WWDC 2025 | New `promotionalOffer` purchase option with JWS format |
-| `introductoryOfferEligibility` | WWDC 2025 | Set eligibility via purchase option |
-| `SubscriptionStatus` by Transaction ID | WWDC 2025 | `status(for: transactionID:)` |
-| Monthly subscriptions with a 12-month commitment | iOS 26.4 / 26.5 SDK | Monthly billing option for annual auto-renewable subscriptions |
-| Group purchases and volume purchasing | WWDC 2026 | Multi-seat auto-renewable subscriptions through StoreKit 2 and Apple Business / School Manager |
-| Retention Messaging | WWDC 2026 | Cancellation-flow messaging and offers, including real-time server decisioning |
-| Retention offer type | WWDC 2026 | Signed transaction / renewal info can report offer type `5` for retention offers |
-| Offer codes for all IAP types | 2026 | Offer codes expand beyond auto-renewable subscriptions; IAP promo-code creation ends March 26, 2026 |
+| Feature                                                        | iOS Version                        | Description                                                                                         |
+| -------------------------------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Win-back offers                                                | iOS 18.0                           | Re-engage churned subscribers                                                                       |
+| `Product.SubscriptionInfo.RenewalInfo.eligibleWinBackOfferIDs` | iOS 18.0                           | Query win-back offer eligibility before purchase                                                    |
+| Consumable transaction history                                 | iOS 18.0                           | Opt-in via `SKIncludeConsumableInAppPurchaseHistory` Info.plist key                                 |
+| StoreKit `Message.billingIssue`                                | iOS / Mac Catalyst 16.4, visionOS 1.0 | Listener for subscription billing issues (`Message` is unavailable on macOS, tvOS, and watchOS)   |
+| UI context for purchases                                       | iOS 18.2                           | Required for proper payment sheet display                                                           |
+| External purchase notice                                       | iOS 17.4                           | `ExternalPurchase.presentNoticeSheet()`                                                             |
+| `appTransactionID`                                             | iOS 18.4                           | Globally unique app transaction identifier (back-deployed to iOS 15)                                |
+| `originalPlatform`                                             | iOS 18.4                           | Original purchase platform (back-deployed to iOS 15)                                                |
+| `Transaction.offerPeriod`                                      | iOS 18.4                           | Offer period information on Transaction                                                             |
+| `Transaction.advancedCommerceInfo`                             | iOS 18.4                           | Advanced Commerce API data on Transaction                                                           |
+| `Transaction.appTransactionID`                                 | iOS 18.4                           | Per-Apple-Account identifier on Transaction                                                         |
+| Expanded offer codes                                           | iOS 18.4                           | Offer codes for consumables/non-consumables                                                         |
+| JWS promotional offers                                         | WWDC 2025                          | New `promotionalOffer` purchase option with JWS format                                              |
+| `introductoryOfferEligibility`                                 | WWDC 2025                          | Set eligibility via purchase option                                                                 |
+| `SubscriptionStatus` by Transaction ID                         | WWDC 2025                          | `status(for: transactionID:)`                                                                       |
+| Monthly subscriptions with a 12-month commitment               | iOS 26.4+ runtime / Xcode 26.5 SDK | Monthly billing option for annual auto-renewable subscriptions                                      |
+| Group purchases and volume purchasing                          | WWDC 2026                          | Multi-seat auto-renewable subscriptions through StoreKit 2 and Apple Business / School Manager      |
+| Retention Messaging                                            | WWDC 2026                          | Cancellation-flow messaging and offers, including real-time server decisioning                      |
+| Retention offer type                                           | WWDC 2026                          | Signed transaction / renewal info can report offer type `5` for retention offers                    |
+| Offer codes for all IAP types                                  | 2026                               | Offer codes expand beyond auto-renewable subscriptions; IAP promo-code creation ends March 26, 2026 |
+
+### StoreKit Message presentation
+
+Iterating `Message.messages` transfers presentation control to the app. A
+listener that only inspects `Message.Reason.billingIssue` must not silently
+discard other reasons such as price-increase consent or win-back offers. Display
+each message with `message.display(in:)` unless the app intentionally implements
+and documents a custom delay or suppression policy. OpenIAP preserves StoreKit's
+default presentation while additionally emitting its cross-platform billing
+issue event.
 
 ### WWDC 2025 Updates
 
@@ -36,11 +46,33 @@ This document provides external API reference for Apple's StoreKit 2 framework.
 
 ### WWDC 2026 Updates
 
-- **Monthly subscriptions with a 12-month commitment**: iOS 26.5 SDK adds a monthly billing plan for one-year auto-renewable subscriptions. Customers can subscribe on iOS, iPadOS, macOS, tvOS, and visionOS 26.4+.
+- **Monthly subscriptions with a 12-month commitment**: The Xcode 26.5 SDK adds a monthly billing plan for one-year auto-renewable subscriptions. Customers can subscribe on iOS, iPadOS, macOS, tvOS, and visionOS 26.4+.
 - **Group purchases and volume purchasing**: Auto-renewable subscriptions using StoreKit 2 can be sold to groups and organizations. In-app group purchases pass a requested seat count into the StoreKit purchase flow; Apple Business Manager and Apple School Manager handle volume purchasing.
 - **Volume pricing**: App Store Connect can configure up to five seat-count price bands for larger subscription purchases.
 - **Retention Messaging**: App Store Connect can show cancellation-flow retention messages and offers. Real-time Retention Messaging adds a server-to-server decision point and supports a switch-plan view for monthly subscriptions with a 12-month commitment.
 - **Offer-code expansion**: Offer codes now support consumables, non-consumables, non-renewing subscriptions, and broader auto-renewable subscription scenarios. Starting March 26, 2026, App Store Connect no longer creates new promo codes for In-App Purchases.
+
+### Verified Offer-Code Redemption (WWDC 2026)
+
+The new UIKit/AppKit redemption API accepts `RedeemOption` values and returns
+the redeemed transaction as a `VerificationResult<Transaction>`:
+
+```swift
+let result = try await AppStore.presentOfferCodeRedeemSheet(
+    from: viewController,
+    options: []
+)
+```
+
+SwiftUI exposes the same result through
+`offerCodeRedemption(options:isPresented:onCompletion:)`. These APIs require the
+Xcode 27 beta SDK and are currently beta. Xcode 26.x SDKs expose only the
+legacy redemption sheet API.
+
+> **OpenIAP gap**: `presentCodeRedemptionSheetIOS` still wraps the legacy
+> `SKPaymentQueue.presentCodeRedemptionSheet()` API and returns only a Boolean.
+> Redeem options and the verified transaction result need a new end-to-end
+> schema and wrapper contract.
 
 ## appAccountToken
 
@@ -81,9 +113,9 @@ let result = try await product.purchase(options: [
 
 ```swift
 let transaction: Transaction
-if let token = transaction.appAccountToken {
+if transaction.appAccountToken != nil {
     // Token will only be present if a valid UUID was provided during purchase
-    print("App Account Token: \(token)")
+    print("App Account Token available")
 }
 ```
 
@@ -234,7 +266,8 @@ let result = try await product.purchase(options: [
 
 ### Checking Eligibility
 
-Discover eligible win-back offers before purchase via `Product.SubscriptionInfo.eligibleWinBackOfferIDs` (iOS 18+):
+Discover eligible win-back offers before purchase via
+`Product.SubscriptionInfo.RenewalInfo.eligibleWinBackOfferIDs` (iOS 18+):
 
 ```swift
 let status = try await product.subscription?.status.first
@@ -242,10 +275,14 @@ guard let renewalInfo = try status?.renewalInfo.payloadValue else { return }
 
 // iOS 18+: offer IDs the current Apple Account is eligible for
 let eligibleIDs = renewalInfo.eligibleWinBackOfferIDs
-let eligibleOffers = (product.subscription?.promotionalOffers ?? []).filter {
-    $0.type == .winBack && eligibleIDs.contains($0.id ?? "")
+let eligibleOffers = (product.subscription?.winBackOffers ?? []).filter {
+    eligibleIDs.contains($0.id ?? "")
 }
 ```
+
+> **OpenIAP gap**: callers can apply a known win-back offer identifier, but the
+> public product/renewal types do not yet expose `winBackOffers` or
+> `eligibleWinBackOfferIDs` for discovery.
 
 ### RenewalInfo
 
@@ -306,10 +343,10 @@ let offerPeriod = transaction.offerPeriod                    // Offer.Period?
 let advancedCommerce = transaction.advancedCommerceInfo      // AdvancedCommerceInfo?
 ```
 
-| Property | Type | Notes |
-|----------|------|-------|
-| `appTransactionID` | String | Mirrors AppTransaction's identifier |
-| `offerPeriod` | Offer.Period? | Phase of the promotional/intro offer |
+| Property               | Type                  | Notes                                   |
+| ---------------------- | --------------------- | --------------------------------------- |
+| `appTransactionID`     | String                | Mirrors AppTransaction's identifier     |
+| `offerPeriod`          | Offer.Period?         | Phase of the promotional/intro offer    |
 | `advancedCommerceInfo` | AdvancedCommerceInfo? | Present for Advanced Commerce SKUs only |
 
 ## Advanced Commerce API (iOS 18.4+)
@@ -326,7 +363,7 @@ if let advancedInfo = product.advancedCommerceInfo {
 ## Monthly Subscriptions With 12-Month Commitment (iOS 26.4+)
 
 This billing plan lets customers pay monthly while committing to an annual
-auto-renewable subscription. Apps need to compile with the iOS 26.5 SDK to
+auto-renewable subscription. Apps need to compile with the Xcode 26.5 SDK to
 merchandise the plan, and customers can purchase on Apple platforms running
 26.4 or later.
 
@@ -337,7 +374,7 @@ let result = try await product.purchase(options: [
 ```
 
 > **OpenIAP Note**: The schema represents this with
-> `SubscriptionBillingPlanTypeIOS` and `RequestSubscriptionIOSProps.billingPlanType`.
+> `SubscriptionBillingPlanTypeIOS` and `RequestSubscriptionIosProps.billingPlanType`.
 
 ## Group Purchases and Volume Purchasing (WWDC 2026)
 
@@ -360,12 +397,12 @@ view at cancellation time.
 Signed transaction and renewal information can include a retention offer as
 offer type `5`.
 
-## StoreKit Message API (iOS 18+)
+## StoreKit Message API (iOS 16.0+; billing issue on iOS 16.4+; win-back on iOS 18+)
 
 Listen for App Store–generated messages (billing issues, win-back offers, price increases, generic).
 
 ```swift
-// Somewhere near app launch
+// Somewhere near app launch. This all-cases sample targets iOS 18+.
 Task {
     for await message in Message.messages {
         switch message.reason {
@@ -374,7 +411,7 @@ Task {
             break
         case .winBackOffer:
             break
-        case .priceIncrease:
+        case .priceIncreaseConsent:
             break
         case .generic:
             break
@@ -385,14 +422,16 @@ Task {
 }
 ```
 
-| Reason | Trigger |
-|--------|---------|
-| `.billingIssue` | User has an unresolved billing problem on a subscription |
-| `.priceIncrease` | Price change that requires user consent |
-| `.winBackOffer` | User is eligible for a win-back offer |
-| `.generic` | All other system-initiated messages |
+| Reason                  | Availability | Trigger                                                  |
+| ----------------------- | ------------ | -------------------------------------------------------- |
+| `.billingIssue`         | iOS 16.4+    | User has an unresolved billing problem on a subscription |
+| `.priceIncreaseConsent` | iOS 16.0+    | Price change that requires user consent                  |
+| `.winBackOffer`         | iOS 18.0+    | User is eligible for a win-back offer                    |
+| `.generic`              | iOS 16.0+    | All other system-initiated messages                      |
 
-> **OpenIAP Note**: To be surfaced by the cross-platform event layer — see `event.graphql` additions for message events.
+> **OpenIAP Note**: OpenIAP displays every StoreKit message and additionally
+> surfaces `.billingIssue` through `subscriptionBillingIssue`; other reasons
+> are not separate OpenIAP events.
 
 ## SubscriptionStatus by Transaction ID (WWDC 2025)
 
@@ -406,15 +445,19 @@ let status = try await Product.SubscriptionInfo.Status.status(for: transactionID
 By default, `Transaction.all` omits finished consumables. Opt in by adding this key to **Info.plist**:
 
 ```xml
-<key>SK2ConsumableTransactionHistory</key>
+<key>SKIncludeConsumableInAppPurchaseHistory</key>
 <true/>
 ```
 
-With the key set, finished consumable transactions are included in `Transaction.all` and `Transaction.currentEntitlements`.
+With the key set, finished consumable transactions are included in
+`Transaction.all`, `Transaction.latest(for:)`, and `Product.latestTransaction`.
 
 ## External Purchase Support (iOS 17.4+)
 
-`ExternalPurchase.presentNoticeSheet()` / `ExternalPurchase.open(url:)` ship on iOS 17.4+. The follow-on custom-link APIs (`ExternalPurchaseCustomLink.isEligible`, `showNotice(type:)`, `token(for:)`) are iOS 18.1+.
+`ExternalPurchase.presentNoticeSheet()` / `ExternalPurchaseLink.open(url:)`
+ship on iOS 17.4+. The follow-on custom-link APIs
+(`ExternalPurchaseCustomLink.isEligible`, `showNotice(type:)`,
+`token(for:)`) are iOS 18.1+.
 
 ### Present External Purchase Notice
 
@@ -423,10 +466,11 @@ With the key set, finished consumable transactions are included in `Transaction.
 if await ExternalPurchase.canPresent {
     let result = try await ExternalPurchase.presentNoticeSheet()
     switch result {
-    case .continue:
-        // User wants to continue to external purchase
-    case .dismissed:
-        // User dismissed the notice
+    case .continuedWithExternalPurchaseToken(let token):
+        // Send the token to your backend reporting flow
+        preserveForBackend(token)
+    case .cancelled:
+        break
     }
 }
 ```
@@ -434,7 +478,10 @@ if await ExternalPurchase.canPresent {
 ### Present External Purchase Link
 
 ```swift
-let result = try await ExternalPurchase.open(url: externalURL)
+try await ExternalPurchaseLink.open(url: externalURL)
 ```
 
-> **OpenIAP Note**: `presentExternalPurchaseNoticeSheetIOS` and `presentExternalPurchaseLinkIOS` are available in the iOS package.
+> **OpenIAP Note**: `presentExternalPurchaseNoticeSheetIOS` is available on
+> iOS 17.4+ and macOS 14.4+. The current
+> `presentExternalPurchaseLinkIOS` implementation uses `UIApplication` and is
+> not supported on macOS.

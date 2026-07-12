@@ -4,6 +4,22 @@ import os
 #endif
 
 enum FlutterIapLog {
+    private static let sensitiveKeyFragments: Set<String> = [
+        "token",
+        "apikey",
+        "secret",
+        "jws",
+        "receipt",
+        "userid",
+        "password",
+        "bearer",
+    ]
+    private static let sensitiveAuthKeys: Set<String> = [
+        "auth",
+        "authorization",
+        "authheader",
+    ]
+
     enum Level: String {
         case debug
         case info
@@ -77,7 +93,8 @@ enum FlutterIapLog {
     }
 
     private static func stringify(_ value: Any?) -> String {
-        guard let sanitized = FlutterIapHelper.sanitizeValue(value) else {
+        guard let bridgeSafeValue = FlutterIapHelper.sanitizeValue(value),
+              let sanitized = sanitizeForLogging(bridgeSafeValue) else {
             return "null"
         }
 
@@ -94,5 +111,37 @@ enum FlutterIapLog {
         }
 
         return String(describing: sanitized)
+    }
+
+    private static func sanitizeForLogging(_ value: Any?) -> Any? {
+        guard let value else { return nil }
+
+        if let string = value as? String {
+            let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard trimmed.first == "{" || trimmed.first == "[",
+                  let data = trimmed.data(using: .utf8),
+                  let json = try? JSONSerialization.jsonObject(with: data) else {
+                return string
+            }
+            return sanitizeForLogging(json) ?? string
+        }
+
+        if let dictionary = value as? [String: Any] {
+            return dictionary.reduce(into: [String: Any]()) { redacted, entry in
+                let key = entry.key.lowercased().filter { $0.isLetter || $0.isNumber }
+                if sensitiveKeyFragments.contains(where: { key.contains($0) }) ||
+                    sensitiveAuthKeys.contains(key) {
+                    redacted[entry.key] = "hidden"
+                } else {
+                    redacted[entry.key] = sanitizeForLogging(entry.value)
+                }
+            }
+        }
+
+        if let array = value as? [Any] {
+            return array.compactMap { sanitizeForLogging($0) }
+        }
+
+        return value
     }
 }

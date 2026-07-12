@@ -419,8 +419,8 @@ export class GDScriptPlugin extends CodegenPlugin {
         const gdType = this.mapType(field.type);
         const fieldName = this.getGdscriptFieldName(field.name, irObject.name);
         const defaultValue = this.getDefaultValue(field.type);
-        if (field.type.nullable && this.isNullableScalar(field.type)) {
-          // Nullable scalars are emitted as untyped Variant so they can
+        if (field.type.nullable && this.usesNullableVariant(field.type)) {
+          // Nullable value types are emitted as untyped Variant so they can
           // actually hold `null`. Typed GDScript properties cannot hold
           // null, so declaring e.g. `var foo: String = ""` collapses the
           // null-vs-empty distinction. Using `Variant` preserves the
@@ -569,12 +569,16 @@ export class GDScriptPlugin extends CodegenPlugin {
       this.emit(`\t\telse:`);
       this.emit(`\t\t\tdict["${graphqlName}"] = ${fieldName}`);
     } else if (type.kind === 'enum') {
-      this.emit(`\t\tif ${enumConstName}.has(${fieldName}):`);
-      this.emit(`\t\t\tdict["${graphqlName}"] = ${enumConstName}[${fieldName}]`);
-      this.emit(`\t\telse:`);
-      this.emit(`\t\t\tdict["${graphqlName}"] = ${fieldName}`);
-    } else if (type.nullable && this.isNullableScalar(type)) {
-      // Nullable scalars are declared as Variant/null (see field
+      const indent = type.nullable ? '\t\t\t' : '\t\t';
+      if (type.nullable) {
+        this.emit(`\t\tif ${fieldName} != null:`);
+      }
+      this.emit(`${indent}if ${enumConstName}.has(${fieldName}):`);
+      this.emit(`${indent}\tdict["${graphqlName}"] = ${enumConstName}[${fieldName}]`);
+      this.emit(`${indent}else:`);
+      this.emit(`${indent}\tdict["${graphqlName}"] = ${fieldName}`);
+    } else if (type.nullable && this.usesNullableVariant(type)) {
+      // Nullable value types are declared as Variant/null (see field
       // declarations above). Emit the key only when the value is
       // actually set — including legitimate `0`, `false`, and `""` —
       // so the absent-vs-null distinction survives the round-trip. A
@@ -589,16 +593,19 @@ export class GDScriptPlugin extends CodegenPlugin {
   }
 
   /**
-   * Scalars eligible for the Variant/null nullable representation —
-   * object/input/enum fields are already nullable via their own
-   * mechanisms (default null reference, no sentinel collision).
+   * Value types eligible for the Variant/null nullable representation.
+   * Typed GDScript scalars and enums cannot represent null without collapsing
+   * it into a default value such as 0, false, or the first enum member.
    */
-  private isNullableScalar(type: IRType): boolean {
+  private usesNullableVariant(type: IRType): boolean {
     if (type.kind === 'list') return false;
     if (this.objectNames.has(type.name!) || this.inputNames.has(type.name!)) {
       return false;
     }
-    if (type.kind === 'union' || type.kind === 'enum' || this.enumNames.has(type.name!)) {
+    if (type.kind === 'enum' || this.enumNames.has(type.name!)) {
+      return true;
+    }
+    if (type.kind === 'union') {
       return false;
     }
     const gdType = this.mapScalar(type.name!);
@@ -617,6 +624,11 @@ export class GDScriptPlugin extends CodegenPlugin {
   // ============================================================================
 
   generateInput(irInput: IRInput): void {
+    if (irInput.name === 'RequestPurchaseProps') {
+      this.generateRequestPurchasePropsInput(irInput);
+      return;
+    }
+
     this.generateDocComment(irInput.description);
     this.emit(`class ${irInput.name}:`);
 
@@ -635,7 +647,7 @@ export class GDScriptPlugin extends CodegenPlugin {
         const defaultValue = this.getDefaultValue(field.type);
         if (schemaDefaultValue !== null) {
           this.emit(`\tvar ${fieldName}: ${gdType} = ${schemaDefaultValue}`);
-        } else if (field.type.nullable && this.isNullableScalar(field.type)) {
+        } else if (field.type.nullable && this.usesNullableVariant(field.type)) {
           this.emit(`\tvar ${fieldName}: Variant = null`);
         } else if (defaultValue !== null) {
           this.emit(`\tvar ${fieldName}: ${gdType} = ${defaultValue}`);
@@ -665,6 +677,84 @@ export class GDScriptPlugin extends CodegenPlugin {
       this.emit('\t\treturn dict');
     }
 
+    this.emit('');
+  }
+
+  /**
+   * RequestPurchaseProps is a tagged union even though GraphQL input objects
+   * cannot express one-of semantics. Keep the legacy public field names, but
+   * reject ambiguous/mismatched dictionaries before they cross a native bridge.
+   */
+  private generateRequestPurchasePropsInput(irInput: IRInput): void {
+    this.generateDocComment(irInput.description);
+    this.emit('class RequestPurchaseProps:');
+    this.emit('\t## Per-platform purchase request props');
+    this.emit('\tvar request: RequestPurchasePropsByPlatforms');
+    this.emit('\t## Per-platform subscription request props');
+    this.emit('\tvar request_subscription: RequestSubscriptionPropsByPlatforms');
+    this.emit('\t## Explicit purchase type hint (defaults to in-app)');
+    this.emit('\tvar type: ProductQueryType = ProductQueryType.IN_APP');
+    this.emit('\t## @deprecated Use enableBillingProgramAndroid in InitConnectionConfig instead.');
+    this.emit('\tvar use_alternative_billing: Variant = null');
+    this.emit('');
+    this.emit('\tstatic func in_app(platforms: RequestPurchasePropsByPlatforms, use_alternative_billing_value: Variant = null) -> RequestPurchaseProps:');
+    this.emit('\t\tvar obj = RequestPurchaseProps.new()');
+    this.emit('\t\tobj.request = platforms');
+    this.emit('\t\tobj.type = ProductQueryType.IN_APP');
+    this.emit('\t\tobj.use_alternative_billing = use_alternative_billing_value');
+    this.emit('\t\treturn obj');
+    this.emit('');
+    this.emit('\tstatic func subs(platforms: RequestSubscriptionPropsByPlatforms, use_alternative_billing_value: Variant = null) -> RequestPurchaseProps:');
+    this.emit('\t\tvar obj = RequestPurchaseProps.new()');
+    this.emit('\t\tobj.request_subscription = platforms');
+    this.emit('\t\tobj.type = ProductQueryType.SUBS');
+    this.emit('\t\tobj.use_alternative_billing = use_alternative_billing_value');
+    this.emit('\t\treturn obj');
+    this.emit('');
+    this.emit('\tstatic func from_dict(data: Dictionary) -> RequestPurchaseProps:');
+    this.emit('\t\tvar has_purchase = data.has("requestPurchase") and data["requestPurchase"] != null');
+    this.emit('\t\tvar has_subscription = data.has("requestSubscription") and data["requestSubscription"] != null');
+    this.emit('\t\tif has_purchase == has_subscription:');
+    this.emit('\t\t\tpush_error("RequestPurchaseProps requires exactly one of requestPurchase or requestSubscription")');
+    this.emit('\t\t\treturn null');
+    this.emit('\t\tvar obj = RequestPurchaseProps.new()');
+    this.emit('\t\tif has_purchase:');
+    this.emit('\t\t\tvar purchase_value = data["requestPurchase"]');
+    this.emit('\t\t\tobj.request = RequestPurchasePropsByPlatforms.from_dict(purchase_value) if purchase_value is Dictionary else purchase_value');
+    this.emit('\t\telse:');
+    this.emit('\t\t\tvar subscription_value = data["requestSubscription"]');
+    this.emit('\t\t\tobj.request_subscription = RequestSubscriptionPropsByPlatforms.from_dict(subscription_value) if subscription_value is Dictionary else subscription_value');
+    this.emit('\t\tvar expected_type = ProductQueryType.IN_APP if has_purchase else ProductQueryType.SUBS');
+    this.emit('\t\tobj.type = expected_type');
+    this.emit('\t\tif data.has("type") and data["type"] != null:');
+    this.emit('\t\t\tvar enum_value = data["type"]');
+    this.emit('\t\t\tobj.type = PRODUCT_QUERY_TYPE_FROM_STRING.get(enum_value, enum_value) if enum_value is String else enum_value');
+    this.emit('\t\tif obj.type != expected_type:');
+    this.emit('\t\t\tpush_error("RequestPurchaseProps.type does not match its request branch")');
+    this.emit('\t\t\treturn null');
+    this.emit('\t\tif data.has("useAlternativeBilling") and data["useAlternativeBilling"] != null:');
+    this.emit('\t\t\tobj.use_alternative_billing = data["useAlternativeBilling"]');
+    this.emit('\t\treturn obj');
+    this.emit('');
+    this.emit('\tfunc to_dict() -> Dictionary:');
+    this.emit('\t\tvar has_purchase = request != null');
+    this.emit('\t\tvar has_subscription = request_subscription != null');
+    this.emit('\t\tif has_purchase == has_subscription:');
+    this.emit('\t\t\tpush_error("RequestPurchaseProps requires exactly one purchase branch")');
+    this.emit('\t\t\treturn {}');
+    this.emit('\t\tvar expected_type = ProductQueryType.IN_APP if has_purchase else ProductQueryType.SUBS');
+    this.emit('\t\tif type != expected_type:');
+    this.emit('\t\t\tpush_error("RequestPurchaseProps.type does not match its request branch")');
+    this.emit('\t\t\treturn {}');
+    this.emit('\t\tvar dict = {}');
+    this.emit('\t\tif has_purchase:');
+    this.emit('\t\t\tdict["requestPurchase"] = request.to_dict() if request.has_method("to_dict") else request');
+    this.emit('\t\telse:');
+    this.emit('\t\t\tdict["requestSubscription"] = request_subscription.to_dict() if request_subscription.has_method("to_dict") else request_subscription');
+    this.emit('\t\tdict["type"] = PRODUCT_QUERY_TYPE_VALUES.get(type, type)');
+    this.emit('\t\tif use_alternative_billing != null:');
+    this.emit('\t\t\tdict["useAlternativeBilling"] = use_alternative_billing');
+    this.emit('\t\treturn dict');
     this.emit('');
   }
 
@@ -759,7 +849,11 @@ export class GDScriptPlugin extends CodegenPlugin {
             if (arg.description) {
               this.emit(`\t\t\t## ${arg.description.split('\n')[0]}`);
             }
-            this.emit(`\t\t\tvar ${argSnakeName}: ${argType}`);
+            if (arg.type.nullable) {
+              this.emit(`\t\t\tvar ${argSnakeName}: Variant = null`);
+            } else {
+              this.emit(`\t\t\tvar ${argSnakeName}: ${argType}`);
+            }
           }
           this.emit('');
           this.emit(`\t\t\tstatic func from_dict(data: Dictionary) -> Args:`);
@@ -788,9 +882,16 @@ export class GDScriptPlugin extends CodegenPlugin {
             const argSnakeName = this.escapeKeyword(toSnakeCase(arg.name));
             if (arg.type.kind === 'enum') {
               const enumConstName = toConstantCase(arg.type.name!) + '_VALUES';
-              this.emit(`\t\t\t\tif ${enumConstName}.has(${argSnakeName}):`);
-              this.emit(`\t\t\t\t\tdict["${arg.name}"] = ${enumConstName}[${argSnakeName}]`);
-              this.emit(`\t\t\t\telse:`);
+              const indent = arg.type.nullable ? '\t\t\t\t\t' : '\t\t\t\t';
+              if (arg.type.nullable) {
+                this.emit(`\t\t\t\tif ${argSnakeName} != null:`);
+              }
+              this.emit(`${indent}if ${enumConstName}.has(${argSnakeName}):`);
+              this.emit(`${indent}\tdict["${arg.name}"] = ${enumConstName}[${argSnakeName}]`);
+              this.emit(`${indent}else:`);
+              this.emit(`${indent}\tdict["${arg.name}"] = ${argSnakeName}`);
+            } else if (arg.type.nullable) {
+              this.emit(`\t\t\t\tif ${argSnakeName} != null:`);
               this.emit(`\t\t\t\t\tdict["${arg.name}"] = ${argSnakeName}`);
             } else {
               this.emit(`\t\t\t\tdict["${arg.name}"] = ${argSnakeName}`);
@@ -828,9 +929,10 @@ export class GDScriptPlugin extends CodegenPlugin {
       // Build parameters
       const params: string[] = [];
       for (const arg of field.args) {
-        const argType = this.mapType(arg.type);
+        const argType = arg.type.nullable ? 'Variant' : this.mapType(arg.type);
         const argSnakeName = toSnakeCase(arg.name);
-        params.push(`${argSnakeName}: ${argType}`);
+        const defaultValue = arg.type.nullable ? ' = null' : '';
+        params.push(`${argSnakeName}: ${argType}${defaultValue}`);
       }
 
       const paramStr = params.join(', ');
@@ -858,6 +960,19 @@ export class GDScriptPlugin extends CodegenPlugin {
             this.emit(`\t\t\targs["${arg.name}"] = ${argSnakeName}.to_dict()`);
             this.emit(`\t\telse:`);
             this.emit(`\t\t\targs["${arg.name}"] = ${argSnakeName}`);
+          } else if (arg.type.kind === 'enum') {
+            const enumConstName = toConstantCase(arg.type.name!) + '_VALUES';
+            const indent = arg.type.nullable ? '\t\t' : '\t';
+            if (arg.type.nullable) {
+              this.emit(`\tif ${argSnakeName} != null:`);
+            }
+            this.emit(`${indent}if ${enumConstName}.has(${argSnakeName}):`);
+            this.emit(`${indent}\targs["${arg.name}"] = ${enumConstName}[${argSnakeName}]`);
+            this.emit(`${indent}else:`);
+            this.emit(`${indent}\targs["${arg.name}"] = ${argSnakeName}`);
+          } else if (arg.type.nullable) {
+            this.emit(`\tif ${argSnakeName} != null:`);
+            this.emit(`\t\targs["${arg.name}"] = ${argSnakeName}`);
           } else {
             this.emit(`\targs["${arg.name}"] = ${argSnakeName}`);
           }

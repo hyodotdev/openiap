@@ -88,6 +88,15 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
         return if (type == ProductQueryType.Subs) ProductQueryType.Subs else ProductQueryType.InApp
     }
 
+    private fun serializeOpenIapError(error: OpenIapError): Map<String, Any?> =
+        error.toJSON().toMutableMap().apply {
+            when (error) {
+                is OpenIapError.ProductNotFound -> this["productId"] = error.productId
+                is OpenIapError.SkuNotFound -> this["productId"] = error.sku
+                else -> Unit
+            }
+        }
+
     private fun fetchResultToJsonArray(
         result: FetchProductsResult,
         deduplicate: Boolean = false
@@ -181,7 +190,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 RequestPurchaseProps.fromJson(root)
             }
             ProductQueryType.InApp -> {
-                // offerToken for one-time purchase discounts (Android 7.0+)
+                // offerToken for one-time purchase discounts (Android 8.0+)
                 offerToken?.let { androidPayload[KEY_OFFER_TOKEN] = it }
                 root[KEY_REQUEST_PURCHASE] = mapOf(KEY_ANDROID to androidPayload)
                 RequestPurchaseProps.fromJson(root)
@@ -425,6 +434,8 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                             val result = iap.fetchProducts(ProductRequest(skuArr, queryType))
                             val arr = fetchResultToJsonArray(result, queryType == ProductQueryType.All)
                             safe.success(arr.toString())
+                        } catch (e: OpenIapError) {
+                            safe.error(e.code, e.message, serializeOpenIapError(e))
                         } catch (e: Exception) {
                             safe.error(OpenIapError.QueryProduct.CODE, OpenIapError.QueryProduct.MESSAGE, e.message)
                         }
@@ -506,7 +517,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                     params[KEY_ORIGINAL_EXTERNAL_TRANSACTION_ID] as? String
                 val replacementModeAndroid =
                     ((params["replacementMode"] ?: params["replacementModeAndroid"]) as? Number)?.toInt()
-                // offerToken for one-time purchase discounts (Android 7.0+)
+                // offerToken for one-time purchase discounts (Android 8.0+)
                 val offerToken = params["offerToken"] as? String
                 val useAlternativeBilling = params["useAlternativeBilling"] as? Boolean
 
@@ -621,7 +632,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                     // Success signaled by purchase-updated event
                     safe.success(null)
                 } catch (e: OpenIapError) {
-                    safe.error(e.code, e.message, e.debugMessage)
+                    safe.error(e.code, e.message, serializeOpenIapError(e))
                 } catch (e: Exception) {
                     safe.error(OpenIapError.PurchaseFailed.CODE, OpenIapError.PurchaseFailed.MESSAGE, e.message)
                 }
@@ -1100,7 +1111,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                         iap.requestPurchase(requestProps)
                         safe.success(null)
                     } catch (e: OpenIapError) {
-                        safe.error(e.code, e.message, e.debugMessage)
+                        safe.error(e.code, e.message, serializeOpenIapError(e))
                     } catch (e: Exception) {
                         safe.error(OpenIapError.PurchaseFailed.CODE, OpenIapError.PurchaseFailed.MESSAGE, e.message)
                     }
@@ -1421,7 +1432,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
         iap.addPurchaseErrorListener(OpenIapPurchaseErrorListener { e ->
             scope.launch {
                 try {
-                    val payload = JSONObject(e.toJSON())
+                    val payload = JSONObject(serializeOpenIapError(e))
                     channel?.invokeMethod("purchase-error", payload.toString())
                 } catch (ex: Exception) {
                     OpenIapLog.e("Failed to send purchase-error", ex)

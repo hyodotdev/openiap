@@ -1,6 +1,7 @@
 package dev.hyo.openiap
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -62,5 +63,61 @@ class AmazonSubscriptionGroupMappingTest {
         assertEquals("dev.hyo.martie.premium.monthly", purchase.productId)
         assertEquals("dev.hyo.martie.premium.monthly", purchase.currentPlanId)
         assertEquals(listOf("dev.hyo.martie.premium.monthly"), purchase.ids)
+    }
+
+    @Test
+    fun `restore keeps authoritative receipt sku even after an immediate request alias`() {
+        val historicalRequestedSku = "local.catalog.alias"
+        val receiptSku = "amazon.authoritative.subscription"
+
+        val immediatePurchase = buildAmazonPurchase(
+            packageName = "dev.hyo.martie",
+            receiptId = "receipt-shared",
+            receiptSku = receiptSku,
+            isSubscription = true,
+            purchaseDateMillis = 1_700_000_000_000.0,
+            isCanceled = false,
+            isDeferred = false,
+            productIdOverride = historicalRequestedSku,
+        )
+        val restoredPurchase = buildAmazonPurchase(
+            packageName = "dev.hyo.martie",
+            receiptId = "receipt-shared",
+            receiptSku = receiptSku,
+            isSubscription = true,
+            purchaseDateMillis = 1_700_000_000_000.0,
+            isCanceled = false,
+            isDeferred = false,
+            productIdOverride = null,
+        )
+
+        assertEquals(historicalRequestedSku, immediatePurchase.productId)
+        assertEquals(receiptSku, restoredPurchase.productId)
+    }
+
+    @Test
+    fun `deferred Amazon subscription change stays active and exposes pending update`() {
+        val purchase = buildAmazonPurchase(
+            packageName = "dev.hyo.martie",
+            receiptId = "receipt-current-monthly",
+            receiptSku = "premium.monthly",
+            isSubscription = true,
+            purchaseDateMillis = 1_700_000_000_000.0,
+            isCanceled = false,
+            isDeferred = true,
+            deferredSku = "premium.yearly",
+        )
+
+        assertEquals(PurchaseState.Purchased, purchase.purchaseState)
+        assertEquals(true, purchase.isAutoRenewing)
+        assertFalse(purchase.isSuspendedAndroid ?: true)
+        assertEquals(
+            listOf("premium.yearly"),
+            purchase.pendingPurchaseUpdateAndroid?.products,
+        )
+        assertEquals(
+            "receipt-current-monthly",
+            purchase.pendingPurchaseUpdateAndroid?.purchaseToken,
+        )
     }
 }

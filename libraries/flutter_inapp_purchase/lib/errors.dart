@@ -9,6 +9,22 @@ import 'types.dart' as openiap_types;
 typedef ErrorCode = openiap_types.ErrorCode;
 typedef IapPlatform = openiap_types.IapPlatform;
 
+openiap_types.SubResponseCodeAndroid? parseSubResponseCodeAndroid(
+  dynamic value,
+) {
+  if (value is! String) return null;
+  try {
+    return openiap_types.SubResponseCodeAndroid.fromJson(value);
+  } on ArgumentError {
+    return null;
+  }
+}
+
+List<String>? _parseProductIds(dynamic value) {
+  if (value is! List<dynamic>) return null;
+  return value.map((dynamic id) => id.toString()).toList();
+}
+
 /// Get current platform
 IapPlatform getCurrentPlatform() {
   if (defaultTargetPlatform == TargetPlatform.iOS ||
@@ -187,6 +203,10 @@ class PurchaseError implements Exception {
   final String? debugMessage;
   final ErrorCode? code;
   final String? productId;
+  final List<String>? productIds;
+  final String? productType;
+  final bool? isEmptyProductList;
+  final openiap_types.SubResponseCodeAndroid? subResponseCodeAndroid;
   final IapPlatform? platform;
 
   PurchaseError({
@@ -196,6 +216,10 @@ class PurchaseError implements Exception {
     this.debugMessage,
     this.code,
     this.productId,
+    this.productIds,
+    this.productType,
+    this.isEmptyProductList,
+    this.subResponseCodeAndroid,
     this.platform,
   }) : name = name ?? '[flutter_inapp_purchase]: PurchaseError';
 
@@ -218,10 +242,16 @@ class PurchaseError implements Exception {
 
     return PurchaseError(
       message: errorData['message']?.toString() ?? 'Unknown error occurred',
-      responseCode: errorData['responseCode'] as int?,
+      responseCode: (errorData['responseCode'] as num?)?.toInt(),
       debugMessage: errorData['debugMessage']?.toString(),
       code: errorCode,
       productId: errorData['productId']?.toString(),
+      productIds: _parseProductIds(errorData['productIds']),
+      productType: errorData['productType']?.toString(),
+      isEmptyProductList: errorData['isEmptyProductList'] as bool?,
+      subResponseCodeAndroid: parseSubResponseCodeAndroid(
+        errorData['subResponseCodeAndroid'] ?? errorData['subResponseCode'],
+      ),
       platform: platform,
     );
   }
@@ -242,6 +272,11 @@ class PurchaseResult {
   final String? debugMessage;
   final String? code;
   final String? message;
+  final String? productId;
+  final List<String>? productIds;
+  final String? productType;
+  final bool? isEmptyProductList;
+  final openiap_types.SubResponseCodeAndroid? subResponseCodeAndroid;
   final String? purchaseTokenAndroid;
 
   PurchaseResult({
@@ -249,21 +284,41 @@ class PurchaseResult {
     this.debugMessage,
     this.code,
     this.message,
+    this.productId,
+    this.productIds,
+    this.productType,
+    this.isEmptyProductList,
+    this.subResponseCodeAndroid,
     this.purchaseTokenAndroid,
   });
 
-  PurchaseResult.fromJSON(Map<String, dynamic> json)
-      : responseCode = json['responseCode'] as int?,
-        debugMessage = json['debugMessage'] as String?,
-        code = json['code'] as String?,
-        message = json['message'] as String?,
-        purchaseTokenAndroid = json['purchaseTokenAndroid'] as String?;
+  factory PurchaseResult.fromJSON(Map<String, dynamic> json) {
+    return PurchaseResult(
+      responseCode: (json['responseCode'] as num?)?.toInt(),
+      debugMessage: json['debugMessage']?.toString(),
+      code: json['code']?.toString(),
+      message: json['message']?.toString(),
+      productId: json['productId']?.toString(),
+      productIds: _parseProductIds(json['productIds']),
+      productType: json['productType']?.toString(),
+      isEmptyProductList: json['isEmptyProductList'] as bool?,
+      subResponseCodeAndroid: parseSubResponseCodeAndroid(
+        json['subResponseCodeAndroid'] ?? json['subResponseCode'],
+      ),
+      purchaseTokenAndroid: json['purchaseTokenAndroid']?.toString(),
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'responseCode': responseCode ?? 0,
         'debugMessage': debugMessage ?? '',
         'code': code ?? '',
         'message': message ?? '',
+        'productId': productId,
+        'productIds': productIds,
+        'productType': productType,
+        'isEmptyProductList': isEmptyProductList,
+        'subResponseCodeAndroid': subResponseCodeAndroid?.toJson(),
         'purchaseTokenAndroid': purchaseTokenAndroid ?? '',
       };
 

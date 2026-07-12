@@ -103,9 +103,10 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
             '  Purchase state Android (legacy value): $androidStateValue');
         debugPrint('  Transaction state iOS: $iosTransactionState');
         debugPrint('  Is acknowledged Android: $acknowledgedAndroid');
-        debugPrint('  Transaction ID: ${transactionId ?? 'N/A'}');
-        final token = purchase.purchaseToken;
-        debugPrint('  Purchase token: ${token ?? 'null'}');
+        debugPrint(
+            '  Has transaction ID: ${transactionId?.isNotEmpty ?? false}');
+        debugPrint(
+            '  Has purchase credential: ${purchase.purchaseToken?.isNotEmpty ?? false}');
         if (purchase is PurchaseAndroid) {
           debugPrint('  Auto renewing: ${purchase.autoRenewingAndroid}');
         }
@@ -119,7 +120,7 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
         final transactionKey = transactionId ?? purchase.purchaseToken ?? '';
         if (transactionKey.isNotEmpty &&
             _processedTransactionIds.contains(transactionKey)) {
-          debugPrint('  ⚠️ Transaction already processed: $transactionKey');
+          debugPrint('  ⚠️ Transaction already processed');
           return;
         }
 
@@ -562,8 +563,7 @@ Store: ${iapkitResult.store.value}
         // Create ActiveSubscription from Purchase
         summaries.add(ActiveSubscription(
           productId: purchase.productId,
-          transactionId:
-              purchase.transactionIdFor ?? purchase.purchaseToken ?? '',
+          transactionId: purchase.transactionIdFor ?? purchase.id,
           purchaseToken: purchase.purchaseToken,
           transactionDate: purchase.transactionDate is String
               ? double.tryParse(purchase.transactionDate as String) ?? 0.0
@@ -585,7 +585,7 @@ Store: ${iapkitResult.store.value}
       debugPrint('Active subscription summaries: ${summaries.length}');
       for (final summary in summaries) {
         debugPrint(
-          '  • ${summary.productId} (tx: ${summary.transactionId}, autoRenew: ${summary.autoRenewingAndroid})',
+          '  • ${summary.productId} (has transaction ID: ${summary.transactionId.isNotEmpty}, autoRenew: ${summary.autoRenewingAndroid})',
         );
 
         // Log renewalInfoIOS details
@@ -692,7 +692,7 @@ Store: ${iapkitResult.store.value}
       final SubscriptionOfferAndroid? selectedOffer =
           androidOffers.isNotEmpty ? androidOffers.first : null;
       if (selectedOffer != null) {
-        debugPrint('Using offer token: ${selectedOffer.offerToken}');
+        debugPrint('Using configured subscription offer');
       }
 
       // Request subscription using the new API
@@ -754,8 +754,8 @@ Store: ${iapkitResult.store.value}
     }
   }
 
-  // Test with fake/invalid token (should fail on native side)
-  Future<void> _testWrongProrationUsage(ProductCommon item) async {
+  // Test with an invalid token (should fail on the native side)
+  Future<void> _testInvalidTokenProration(ProductCommon item) async {
     if (_isProcessing) return;
 
     setState(() {
@@ -764,17 +764,12 @@ Store: ${iapkitResult.store.value}
     });
 
     try {
-      debugPrint(
-          'Testing proration mode with FAKE purchaseToken (should fail on native side)');
-
-      // Use a fake/invalid token to test native validation
-      final fakeToken =
-          'fake_token_for_testing_${DateTime.now().millisecondsSinceEpoch}';
-      debugPrint('Using fake token: $fakeToken');
+      debugPrint('Testing proration mode with an invalid purchase token');
 
       final requestProps = RequestPurchaseProps.subs((
         apple: null,
         google: RequestSubscriptionAndroidProps(
+          purchaseToken: 'invalid_purchase_token_for_testing',
           skus: [item.id],
         ),
         useAlternativeBilling: null,
@@ -783,14 +778,14 @@ Store: ${iapkitResult.store.value}
       await _iap.requestPurchase(requestProps);
 
       // If we get here, the purchase was attempted
-      debugPrint('Purchase request sent with fake token');
+      debugPrint('Purchase request sent with an invalid token');
       // Result will come through purchaseUpdatedListener
     } catch (error) {
-      debugPrint('Error with fake token: $error');
+      debugPrint('Error with invalid token: $error');
       if (!mounted) return;
       setState(() {
         _isProcessing = false;
-        _purchaseResult = '❌ Error with fake token:\n$error';
+        _purchaseResult = '❌ Error with invalid token:\n$error';
       });
     }
   }
@@ -807,16 +802,10 @@ Store: ${iapkitResult.store.value}
     try {
       debugPrint('Testing proration mode with EMPTY string purchaseToken');
 
-      // Use current subscription token if available, otherwise use a test token
-      final testToken = _currentActiveSubscription?.purchaseToken ??
-          'test_empty_token_${DateTime.now().millisecondsSinceEpoch}';
-      debugPrint(
-          'Using test token: ${testToken.isEmpty ? 'empty' : testToken}');
-
-      // Test with empty string - but pass validation by using a non-empty token
       final requestProps = RequestPurchaseProps.subs((
         apple: null,
         google: RequestSubscriptionAndroidProps(
+          purchaseToken: '',
           skus: [item.id],
         ),
         useAlternativeBilling: null,
@@ -824,7 +813,7 @@ Store: ${iapkitResult.store.value}
 
       await _iap.requestPurchase(requestProps);
 
-      debugPrint('Purchase request sent with test token');
+      debugPrint('Purchase request sent with an empty token');
       // Result will come through purchaseUpdatedListener
     } catch (error) {
       debugPrint('Error with test token: $error');
@@ -855,11 +844,9 @@ Store: ${iapkitResult.store.value}
       });
 
       for (final subscription in _activeSubscriptionInfo.values) {
-        final t = subscription.purchaseToken;
-        final masked = t == null
-            ? 'null'
-            : '${t.substring(0, t.length > 10 ? 10 : t.length)}...';
-        debugPrint('Restored: ${subscription.productId}, Token: $masked');
+        debugPrint(
+            'Restored: ${subscription.productId}, has purchase credential: '
+            '${subscription.purchaseToken?.isNotEmpty ?? false}');
       }
     } catch (error) {
       debugPrint('Failed to restore purchases: $error');
@@ -1030,10 +1017,10 @@ Store: ${iapkitResult.store.value}
                 fontFamily: 'monospace',
               ),
             ),
-            if (subscription.purchaseToken != null) ...[
+            if (subscription.purchaseToken?.isNotEmpty == true) ...[
               const SizedBox(height: 4),
               Text(
-                'Token: ${subscription.purchaseToken}',
+                'Purchase credential: Present',
                 style: TextStyle(
                   fontSize: 11,
                   color: Colors.grey.shade600,
@@ -1381,7 +1368,7 @@ Store: ${iapkitResult.store.value}
                       child: OutlinedButton(
                         onPressed: _isProcessing || isCurrentSubscription
                             ? null
-                            : () => _testWrongProrationUsage(subscription),
+                            : () => _testInvalidTokenProration(subscription),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.red.shade600,
                           side: BorderSide(color: Colors.red.shade300),
@@ -1446,12 +1433,12 @@ Store: ${iapkitResult.store.value}
         ),
         actions: [
           if (_currentActiveSubscription != null &&
-              _currentActiveSubscription!.purchaseToken != null)
+              _currentActiveSubscription!.purchaseToken?.isNotEmpty == true)
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Chip(
                 label: Text(
-                  'Token: ${_currentActiveSubscription!.purchaseToken}',
+                  'Purchase credential: Present',
                   style: const TextStyle(fontSize: 10),
                 ),
                 backgroundColor: Colors.green,

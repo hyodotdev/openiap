@@ -1,4 +1,4 @@
-# react-native-iap API Reference (Legacy)
+# react-native-iap API Reference (Archived)
 
 > **WARNING**: This file contains outdated API names from older versions.
 > For the current API spec, refer to the official [OpenIAP documentation](https://openiap.dev/docs/apis).

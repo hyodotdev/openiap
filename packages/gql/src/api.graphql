@@ -27,7 +27,9 @@ extend type Query {
   # Future
   hasActiveSubscriptions(subscriptionIds: [String!]): Boolean!
   """
-  Return the user's storefront country code.
+  Return the store-authoritative country code: ISO 3166-1 alpha-3 on Apple
+  platforms and alpha-2 on Android. The operation fails when the store cannot
+  provide a value; implementations must not synthesize a locale fallback.
   See: https://openiap.dev/docs/apis/get-storefront
   """
   # Future

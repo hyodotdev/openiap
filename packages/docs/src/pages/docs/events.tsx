@@ -149,8 +149,9 @@ public enum IapEvent
                 </Link>
               </td>
               <td>
-                Fires when an active subscription enters a billing issue state
-                (iOS 18+ / Play Billing 8.1+; not emitted on Horizon).
+                Fires when a subscription enters a billing issue state
+                (iOS/iPadOS/Mac Catalyst 16.4+, visionOS 1.0+, or Play Billing
+                8.1+; not emitted on Horizon).
               </td>
             </tr>
           </tbody>

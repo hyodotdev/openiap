@@ -39,6 +39,7 @@ import {useIAP} from '../../hooks/useIAP';
 describe('hooks/useIAP (renderer)', () => {
   afterEach(() => {
     jest.clearAllMocks();
+    delete (global as any).RN_IAP_DEV_MODE;
   });
 
   let capturedPurchaseListener: any;
@@ -142,6 +143,36 @@ describe('hooks/useIAP (renderer)', () => {
     });
 
     expect(mockRequestPurchase).toHaveBeenCalledWith({sku: 'product1'});
+  });
+
+  it('does not log product offer tokens', async () => {
+    (global as any).RN_IAP_DEV_MODE = true;
+    const debug = jest.spyOn(console, 'debug').mockImplementation();
+    mockFetchProducts.mockResolvedValueOnce([
+      {id: 'product1', discountOffers: [{offerTokenAndroid: 'secret-token'}]},
+    ] as any);
+
+    let api: any;
+    const Harness = () => {
+      api = useIAP();
+      return null;
+    };
+    await act(async () => {
+      TestRenderer.create(React.createElement(Harness));
+    });
+    await act(async () => {
+      await api.fetchProducts({skus: ['product1']});
+    });
+
+    expect(debug).toHaveBeenCalledWith(
+      '[RN-IAP Debug]',
+      '[useIAP] fetchProducts count:',
+      1,
+    );
+    expect(debug.mock.calls.flat(Infinity).join(' ')).not.toContain(
+      'secret-token',
+    );
+    debug.mockRestore();
   });
 
   describe('onError callback', () => {

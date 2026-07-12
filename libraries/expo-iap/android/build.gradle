@@ -103,6 +103,8 @@ kotlin {
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7"
+    testImplementation "junit:junit:4.13.2"
+    testImplementation "org.json:json:20180813"
 
     // Use OpenIAP Google module only; avoid direct BillingClient dependency
     if (findProject(":openiap-google") != null) {

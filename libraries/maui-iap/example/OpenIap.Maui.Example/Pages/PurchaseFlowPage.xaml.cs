@@ -394,7 +394,7 @@ public partial class PurchaseFlowPage : ContentPage
                 var mutate = (MutationResolver)OpenIapClient.Instance;
                 if (_verification == VerificationMethod.Local)
                 {
-                    var result = await mutate.VerifyPurchaseAsync(new VerifyPurchaseProps
+                    await mutate.VerifyPurchaseAsync(new VerifyPurchaseProps
                     {
                         Apple = new VerifyPurchaseAppleOptions { Sku = common.ProductId },
                         Google = new VerifyPurchaseGoogleOptions
@@ -405,7 +405,7 @@ public partial class PurchaseFlowPage : ContentPage
                             AccessToken = string.Empty,
                         },
                     });
-                    Console.WriteLine($"[PurchaseFlow] local verify: {result}");
+                    Console.WriteLine("[PurchaseFlow] local verification completed");
                 }
                 else if (_verification == VerificationMethod.Iapkit)
                 {

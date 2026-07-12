@@ -617,12 +617,7 @@ function PurchaseFlowContainer() {
     // Step 2a: Purchase Success Handler
     // ────────────────────────────────────────────────────────────────────────
     onPurchaseSuccess: async (purchase: Purchase) => {
-      const {purchaseToken: tokenToMask, ...rest} = purchase;
-      const masked = {
-        ...rest,
-        ...(tokenToMask ? {purchaseToken: 'hidden'} : {}),
-      };
-      console.log('Purchase successful:', masked);
+      console.log('Purchase successful:', purchase.productId);
       console.log('[PurchaseFlow] purchaseState:', purchase.purchaseState);
       const productId = purchase.productId ?? '';
       if (!isPurchaseFlowProduct(productId)) {
@@ -677,7 +672,7 @@ function PurchaseFlowContainer() {
             //   2. Your backend authenticates with Google Play Developer API
             //   3. Your backend returns the verification result to the app
             // This example uses a placeholder for demonstration purposes only.
-            const result = await verifyPurchase({
+            await verifyPurchase({
               apple: {sku: productId},
               google: {
                 sku: productId,
@@ -689,7 +684,7 @@ function PurchaseFlowContainer() {
               },
               // horizon: { sku: productId, userId: '...', accessToken: '...' }
             });
-            console.log('[PurchaseFlow] Local verification result:', result);
+            console.log('[PurchaseFlow] Local verification completed');
           }
           // ── Option B: IAPKit Server Verification ──────────────────────────
           else if (currentVerificationMethod === 'iapkit') {
@@ -732,22 +727,7 @@ function PurchaseFlowContainer() {
               provider: 'iapkit',
               iapkit: iapkitPayload,
             };
-            const iapkitLogPayload = {
-              ...iapkitPayload,
-              apiKey: '***hidden***',
-            };
-
-            console.log(
-              '[PurchaseFlow] Sending IAPKit verification request:',
-              JSON.stringify(
-                {
-                  provider: verifyRequest.provider,
-                  iapkit: iapkitLogPayload,
-                },
-                null,
-                2,
-              ),
-            );
+            console.log('[PurchaseFlow] Sending IAPKit verification request');
 
             const result = await verifyPurchaseWithProvider(verifyRequest);
             console.log('[PurchaseFlow] IAPKit verification result:', result);

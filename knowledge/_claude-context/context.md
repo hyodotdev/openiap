@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-07-11T02:27:42.608Z
+> Last updated: 2026-07-12T14:34:53.736Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -119,7 +119,7 @@ input RequestPurchaseAndroidProps {
 | Field Location | Suffix Required? | Example |
 |----------------|------------------|---------|
 | Inside Android-only input type | NO | `offerToken` in `RequestPurchaseAndroidProps` |
-| Inside iOS-only input type | NO | `appAccountToken` in `RequestPurchaseIOSProps` |
+| Inside iOS-only input type | NO | `appAccountToken` in `RequestPurchaseIosProps` |
 | Cross-platform type | YES for platform-specific | `nameAndroid` in `ProductAndroid` |
 | Cross-platform type reference | YES | `developerBillingOption: DeveloperBillingOptionParamsAndroid` |
 | Internal implementation | NO (not API) | `val offerToken` in Kotlin data class |
@@ -340,17 +340,23 @@ Sources/
 
 ### packages/google
 
-**Purpose:** Android Google Play Billing implementation.
+**Purpose:** Android billing implementations for Google Play, Meta Horizon, and
+Amazon Appstore. Vega OS is a separate JavaScript/Kepler runtime adapter, not an
+Android Gradle flavor.
 
 Directory structure:
 
 ```
-openiap/src/main/
-├── java/dev/hyo/openiap/
-│   ├── OpenIapModule.kt
-│   ├── Models.kt
-│   ├── Types.kt         # AUTO-GENERATED - DO NOT EDIT
-│   └── utils/           # Internal helpers
+openiap/src/
+├── main/java/dev/hyo/openiap/       # Shared contracts and store facade
+│   ├── OpenIapProtocol.kt
+│   ├── Types.kt                     # AUTO-GENERATED - DO NOT EDIT
+│   ├── helpers/
+│   ├── listener/
+│   └── store/
+├── play/java/dev/hyo/openiap/       # Google Play Billing implementation
+├── horizon/java/dev/hyo/openiap/    # Meta Horizon implementation
+└── amazon/java/dev/hyo/openiap/     # Amazon Appstore implementation
 ```
 
 ### packages/docs
@@ -383,13 +389,16 @@ openiap/src/main/
 
 ```swift
 // OpenIapModule.swift
-public final class OpenIapModule: OpenIapProtocol {
+public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     public static let shared = OpenIapModule()
 
-    private init() {}
+    private override init() {
+        super.init()
+    }
 
-    // All public methods here
-    public func fetchProducts(_ productIds: [String]) async throws -> [ProductIOS]
+    public func fetchProducts(
+        _ params: ProductRequest
+    ) async throws -> FetchProductsResult
 }
 ```
 
@@ -397,17 +406,14 @@ public final class OpenIapModule: OpenIapProtocol {
 
 ```kotlin
 // OpenIapModule.kt
-class OpenIapModule private constructor(
+class OpenIapModule(
     private val context: Context
-) {
-    companion object {
-        @Volatile
-        private var instance: OpenIapModule? = null
-
-        fun getInstance(context: Context): OpenIapModule {
-            return instance ?: synchronized(this) {
-                instance ?: OpenIapModule(context).also { instance = it }
-            }
+) : OpenIapProtocol {
+    override val fetchProducts: QueryFetchProductsHandler = { params ->
+        when (params.type ?: ProductQueryType.InApp) {
+            ProductQueryType.InApp -> FetchProductsResultProducts(emptyList())
+            ProductQueryType.Subs -> FetchProductsResultSubscriptions(emptyList())
+            ProductQueryType.All -> FetchProductsResultAll(emptyList())
         }
     }
 }
@@ -418,17 +424,13 @@ class OpenIapModule private constructor(
 ### Swift
 
 ```swift
-public enum OpenIapError: Error {
-    case notInitialized
-    case productNotFound(String)
-    case purchaseFailed(String)
-    case verificationFailed
-}
-
-// Usage
-public func fetchProducts(_ ids: [String]) async throws -> [ProductIOS] {
-    guard isInitialized else {
-        throw OpenIapError.notInitialized
+public func fetchProducts(
+    _ params: ProductRequest
+) async throws -> FetchProductsResult {
+    guard !params.skus.isEmpty else {
+        let error = makePurchaseError(code: .emptySkuList)
+        emitPurchaseError(error)
+        throw error
     }
     // ...
 }
@@ -437,11 +439,11 @@ public func fetchProducts(_ ids: [String]) async throws -> [ProductIOS] {
 ### Kotlin
 
 ```kotlin
-sealed class OpenIapError : Exception() {
-    object NotInitialized : OpenIapError()
-    data class ProductNotFound(val productId: String) : OpenIapError()
-    data class PurchaseFailed(val message: String) : OpenIapError()
-}
+if (!billingClient.isReady) throw OpenIapError.NotPrepared
+if (params.skus.isEmpty()) throw OpenIapError.EmptySkuList
+
+// Preserve the native diagnostic for wrapper SDKs.
+throw OpenIapError.PurchaseFailed(debugMessage = billingResult.debugMessage)
 ```
 
 ## Async Pattern
@@ -450,20 +452,26 @@ sealed class OpenIapError : Exception() {
 
 ```swift
 // CORRECT - Use async/await
-public func fetchProducts(_ ids: [String]) async throws -> [ProductIOS]
+public func fetchProducts(_ params: ProductRequest) async throws -> FetchProductsResult
 
 // INCORRECT - Don't use completion handlers
-public func fetchProducts(_ ids: [String], completion: @escaping (Result<[ProductIOS], Error>) -> Void)
+public func fetchProducts(
+    _ params: ProductRequest,
+    completion: @escaping (Result<FetchProductsResult, Error>) -> Void
+)
 ```
 
 ### Kotlin (Coroutines)
 
 ```kotlin
 // CORRECT - Use suspend functions
-suspend fun fetchProducts(productIds: List<String>): List<ProductAndroid>
+suspend fun fetchProducts(params: ProductRequest): FetchProductsResult
 
 // INCORRECT - Don't use callbacks
-fun fetchProducts(productIds: List<String>, callback: (List<ProductAndroid>) -> Unit)
+fun fetchProducts(
+    params: ProductRequest,
+    callback: (Result<FetchProductsResult>) -> Unit
+)
 ```
 
 ## GraphQL Promise/Future Convention
@@ -748,14 +756,19 @@ await transaction.finish();
 /**
  * Fetches products from the App Store.
  *
- * @param productIds - Array of product identifiers to fetch
- * @returns Array of products matching the given IDs
+ * @param request - Product identifiers and product type to fetch
+ * @returns Products matching the requested query type
  * @throws {ProductNotFoundError} If no products match the given IDs
  *
  * @example
- * const products = await fetchProducts(['com.app.premium', 'com.app.pro']);
+ * const products = await fetchProducts({
+ *   skus: ['com.app.premium', 'com.app.pro'],
+ *   type: 'in-app',
+ * });
  */
-async function fetchProducts(productIds: string[]): Promise<Product[]> {
+async function fetchProducts(
+    request: ProductRequest
+): Promise<FetchProductsResult> {
     // ...
 }
 ```
@@ -1013,34 +1026,37 @@ Before writing or editing anything, **ALWAYS** review:
 ```text
 openiap/
 ├── src/
-│   ├── main/           # Shared code (both flavors)
+│   ├── main/           # Store-agnostic code shared by every flavor
 │   ├── play/           # Play Store specific code
-│   └── horizon/        # Meta Horizon specific code
+│   ├── horizon/        # Meta Horizon specific code
+│   └── amazon/         # Amazon Appstore / Fire OS specific code
 ├── Example/            # Sample application
 └── scripts/            # Automation
 ```
 
 ### Build Flavors
 
-The Google package supports **two build flavors**:
+The Google package supports **three build flavors**:
 
-| Flavor           | Store             | API                         | Description              |
-| ---------------- | ----------------- | --------------------------- | ------------------------ |
-| `play` (default) | Google Play Store | Google Play Billing Library | Standard Android billing |
-| `horizon`        | Meta Quest Store  | Meta Horizon API            | VR/Quest billing         |
+| Flavor           | Store             | API                                  | Description              |
+| ---------------- | ----------------- | ------------------------------------ | ------------------------ |
+| `play` (default) | Google Play Store | Google Play Billing Library          | Standard Android billing |
+| `horizon`        | Meta Quest Store  | Meta Horizon Billing Compatibility   | VR/Quest billing         |
+| `amazon`         | Amazon Appstore   | Amazon Appstore SDK                  | Fire OS billing          |
 
 **Flavor-specific source directories:**
 
-- `src/main/` - Shared code for both flavors
+- `src/main/` - Store-agnostic code shared by every flavor
 - `src/play/` - Play Store specific implementations
 - `src/horizon/` - Meta Horizon specific implementations
+- `src/amazon/` - Amazon Appstore specific implementations
 
 ### Critical Rules
 
 1. **DO NOT edit generated files**: `openiap/src/main/java/dev/hyo/openiap/Types.kt` is auto-generated
 2. Put reusable Kotlin helpers in `openiap/src/main/java/dev/hyo/openiap/utils/`
 3. Run `./scripts/generate-types.sh` to regenerate types
-4. **Test BOTH flavors** when making changes to shared code
+4. **Test ALL THREE flavors** when making changes to shared code
 5. **Never persist local receipt-to-SKU aliases as entitlement identity**:
    store-specific adapters may cache data for performance or correlate an
    in-flight request by request ID, but they must not permanently rewrite
@@ -1060,18 +1076,29 @@ The Google package supports **two build flavors**:
 ./gradlew :openiap:compileHorizonDebugKotlin
 ./gradlew :openiap:assembleHorizonDebug
 
-# Run tests (both flavors)
+# Amazon / Fire OS flavor
+./gradlew :openiap:compileAmazonDebugKotlin
+./gradlew :openiap:assembleAmazonDebug
+
+# Run tests (all flavors)
 ./gradlew :openiap:test
 ```
 
 ### Version Compatibility
 
-| Flavor  | Billing Library               | Version                    |
-| ------- | ----------------------------- | -------------------------- |
-| Play    | Google Play Billing           | 9.1.0                      |
-| Horizon | horizon-billing-compatibility | 2.0.0 (GPB 7.0 compatible) |
+| Flavor  | Billing Library               | Version                     |
+| ------- | ----------------------------- | --------------------------- |
+| Play    | Google Play Billing           | 9.1.0                       |
+| Horizon | horizon-billing-compatibility | 2.0.0 (GPB 7.0 compatible)  |
+| Amazon  | Amazon Appstore SDK           | 3.0.9                       |
 
-**CRITICAL**: Horizon SDK implements **Billing 7.0 API**, not 8.x/9.x. When writing shared code in `src/main/`:
+**CRITICAL**: `src/main/` is also compiled by the Amazon flavor, whose SDK is
+not Google Billing-compatible. Keep native store SDK types and calls out of
+`src/main/`; put them in the matching flavor source set.
+
+Horizon implements the **Billing 7.0 API**, not 8.x/9.x. Code intentionally
+shared only between the Play and Horizon implementations must stay within the
+following compatibility boundary:
 
 **Safe APIs (exist in both 7.0 and 9.x):**
 
@@ -1104,14 +1131,29 @@ Meta Horizon has different APIs from Google Play:
 - `VerifyPurchaseHorizonOptions` - Horizon verification parameters
 - `VerifyPurchaseResultHorizon` - Horizon verification result
 
+### Amazon-Specific APIs
+
+Amazon Appstore SDK is not Google Billing-compatible. The `amazon` source set
+maps OpenIAP product queries, purchases, restore calls, and fulfillment to
+`PurchasingService` / `PurchasingListener`.
+
+- Call `PurchasingService.enablePendingPurchases()` before starting a purchase
+  so pending Amazon Kids approvals can be delivered.
+- Finish fulfilled transactions with
+  `PurchasingService.notifyFulfillment(receiptId, FULFILLED)`.
+- Appstore SDK 3.0.9 adds `EXISTING_PURCHASE` and `NOT_ELIGIBLE` fulfillment
+  results and opt-in add-on subscriptions for selected partners. Do not expose
+  those as generally available OpenIAP features without an end-to-end contract.
+
 ### Updating openiap-gql Version
 
 1. Edit `openiap-versions.json` and update the `spec` field
 2. Run `./scripts/generate-types.sh` to download and regenerate Types.kt
-3. Compile BOTH flavors to verify:
+3. Compile ALL THREE flavors to verify:
    ```bash
    ./gradlew :openiap:compilePlayDebugKotlin
    ./gradlew :openiap:compileHorizonDebugKotlin
+   ./gradlew :openiap:compileAmazonDebugKotlin
    ```
 
 ---
@@ -1950,6 +1992,14 @@ Version ownership is split:
 - Deploy script (`npm run deploy`) uses the current `spec` version by default,
   and updates `spec` only when an explicit version is passed
 
+When a maintainer explicitly declares a stable native/spec release train and
+selects its native train version, use that version as the requested spec target.
+Manually set only the root `spec` field and `packages/gql/package.json`, then run
+`./scripts/sync-versions.sh` to refresh derived copies; the `apple` and `google`
+fields remain release-workflow-owned. This is not standing lockstep versioning:
+without that explicit train instruction, do not infer or auto-align `spec` from
+native package versions.
+
 Release workflows write stable values on `main` and prerelease values on
 `next`. Manual edits are not a substitute for selecting the correct workflow
 branch.
@@ -2093,9 +2143,13 @@ the target file (and anchor when given) exists.
 ### R6 — Native version constraints are honest
 
 `enableBillingProgramAndroid: 'external-payments'` is gated to Play Billing
-8.3.0+ (Japan only); the 8.2.0+ programs are `EXTERNAL_CONTENT_LINK` /
-`EXTERNAL_OFFER`. A doc page that mixes these up misleads readers about
-what works on which SDK.
+8.3.0+ (Japan only). `EXTERNAL_CONTENT_LINK` / `EXTERNAL_OFFER` were introduced
+in 8.2.0, but their production integration must require 8.2.1+ because Google
+fixed the availability and reporting-details APIs in that release. External
+Offer examples must generate fresh reporting details for each redirect session
+immediately before `launchExternalLink`; they must not teach the deprecated external-offer or
+alternative-only dialog/token flow. A page that mixes these up misleads readers
+about what works on which SDK.
 
 When you write `<X> 8.2.0+`, you should be able to point to the matching
 release-notes line. Don't paraphrase — quote the version requirement
@@ -2493,7 +2547,7 @@ cd ../flutter_inapp_purchase && flutter analyze
 
 **Prereqs**
 
-- Physical iOS device running **iOS 18.0 or later** (the `Message.Reason.billingIssue` API is iOS 18+ / Mac Catalyst 18+; the iOS Simulator does not deliver StoreKit Messages).
+- Physical iOS/iPadOS device running **16.4 or later** (`Message.Reason.billingIssue` is available on iOS/iPadOS and Mac Catalyst 16.4+, and visionOS 1.0+; the iOS Simulator does not deliver StoreKit Messages).
 - A sandbox Apple ID enrolled in App Store Connect → Users and Access → Sandbox Testers.
 - An auto-renewable subscription product configured on App Store Connect, and the Example project's `subscriptionIds` list pointing at it (`dev.hyo.martie.premium` by default).
 
@@ -2523,12 +2577,14 @@ cd ../flutter_inapp_purchase && flutter analyze
   ```
 
 - Banner visible on `SubscriptionFlowScreen`.
-- `Transaction.currentEntitlements` shows the affected subscription in `.inBillingRetryPeriod` or `.inGracePeriod`.
+- `Product.SubscriptionInfo.status(for:)` shows the affected subscription in
+  `.inBillingRetryPeriod` or `.inGracePeriod`. A retrying subscription without
+  grace-period access is not expected in `Transaction.currentEntitlements`.
 
 **If nothing fires**
 
-- iOS < 18 — silent no-op by design (confirm with `#available` trace in logs).
-- tvOS / watchOS / native macOS (non-Catalyst) / visionOS build — silent no-op by design (StoreKit.Message API is iOS / Mac Catalyst only).
+- iOS < 16.4 — silent no-op by design (confirm with `#available` trace in logs).
+- tvOS / watchOS / native macOS (non-Catalyst) build — silent no-op by design (the listener supports iOS/iPadOS, Mac Catalyst, and visionOS).
 - App not foregrounded when the message is posted — StoreKit delivers on next `Message.messages` await; bring the app to foreground.
 
 ---
@@ -2567,8 +2623,14 @@ cd ../flutter_inapp_purchase && flutter analyze
 
 **Horizon flavor (do NOT attempt)**
 
-- The Horizon flavor's `addSubscriptionBillingIssueListener` is a documented no-op. Verified by
-  `SubscriptionBillingIssueHorizonNoOpTest` (Robolectric, runs on CI). There is no sandbox path on Horizon because the Billing Compatibility SDK 2.0.0 targets Play Billing 7.0 which does not expose `Purchase.isSuspended`.
+- The Horizon flavor's `addSubscriptionBillingIssueListener` registration is a
+  documented no-op, while the generated `subscriptionBillingIssue` resolver
+  fails immediately with `FeatureNotSupported` instead of waiting forever.
+  `SubscriptionBillingIssueHorizonNoOpTest` verifies listener registration,
+  and `SubscriptionHandlersBillingIssueHorizonTest` verifies the fail-fast
+  resolver with Robolectric in CI. There is no sandbox path on Horizon because
+  the Billing Compatibility SDK 2.0.0 targets Play Billing 7.0, which does not
+  expose `Purchase.isSuspended`.
 
 ---
 
@@ -2590,11 +2652,11 @@ Use `libraries-versions.jsonc` to point example apps at the local monorepo sourc
 
 | Layer | Mechanism | Status |
 |-------|-----------|--------|
-| Horizon no-op guarantee | Robolectric unit test (`SubscriptionBillingIssueHorizonNoOpTest`) | Runs on CI |
+| Horizon listener no-op / resolver fail-fast guarantee | Robolectric tests (`SubscriptionBillingIssueHorizonNoOpTest`, `SubscriptionHandlersBillingIssueHorizonTest`) | Runs on CI |
 | Play-flavor compile of listener surface | `compilePlayDebugKotlin` | Runs on CI |
 | Apple Swift test fakes implement protocol | `swift test` | Runs on CI |
 | Downstream types synced | Gen check by each library's typecheck task | Runs on CI |
-| Live sandbox behavior (iOS 18 message + Play suspended) | Manual, this document | Release QA |
+| Live sandbox behavior (iOS 16.4+ message + Play suspended) | Manual, this document | Release QA |
 
 
 ---
@@ -2605,378 +2667,90 @@ Use this documentation for API details, but **ALWAYS adapt patterns to match Int
 
 ---
 
-<!-- Source: external/expo-iap-api.md -->
+<!-- Source: external/amazon-iap-api.md -->
 
-# expo-iap API Reference
+# Amazon Appstore SDK IAP Reference
 
-> Reference documentation for expo-iap (Expo In-App Purchase module)
-> Adapt all patterns to match OpenIAP internal conventions.
+> Reference for the Fire OS `amazon` flavor in `packages/google`.
+> Source: [Amazon Appstore SDK release notes](https://developer.amazon.com/docs/appstore-sdk/release-notes.html)
 
-## Overview
+## Version Compatibility
 
-expo-iap is the Expo-compatible version of react-native-iap, providing in-app purchase functionality for both iOS and Android in Expo projects.
+| Component | Version | Notes |
+| --- | --- | --- |
+| Amazon Appstore SDK | **3.0.9** | Current official release (May 20, 2026) |
+| OpenIAP Android flavor | `amazon` | Uses the native Appstore SDK, not Google Billing Compatibility |
 
-## Installation
+Appstore SDK 3.0.9 adds `EXISTING_PURCHASE` and `NOT_ELIGIBLE`
+fulfillment results and add-on subscription support. Add-on subscriptions are
+available only to selected partners and require activation in Amazon Developer
+Console.
 
-```bash
-npx expo install expo-iap
-```
+## OpenIAP Mapping
 
-## Connection Management
+| OpenIAP API | Amazon Appstore SDK |
+| --- | --- |
+| `initConnection()` | Register `PurchasingListener`, then request user data |
+| `fetchProducts()` | `PurchasingService.getProductData()` |
+| `requestPurchase()` | `PurchasingService.purchase()` |
+| `getAvailablePurchases()` / restore | `PurchasingService.getPurchaseUpdates()` |
+| `finishTransaction()` | `PurchasingService.notifyFulfillment(..., FULFILLED)` |
 
-### initConnection
+The Amazon flavor is isolated under
+`packages/google/openiap/src/amazon/`. Google Play Billing APIs such as Billing
+Programs, Billing Choice, suspended subscriptions, and in-app messages are not
+available on this flavor.
 
-Initialize connection to the app store.
+## Pending Purchases
 
-```typescript
-import { initConnection } from 'expo-iap';
+Amazon Kids can leave consumable or entitlement purchases waiting for parent
+approval. Call `PurchasingService.enablePendingPurchases()` before initiating a
+purchase; otherwise the app doesn't receive `PurchaseResponse.RequestStatus.PENDING`.
+Do not grant an entitlement for a pending response. Poll purchase updates or use
+Amazon Real-Time Notifications to learn when the parent approves it.
 
-await initConnection();
-```
+Pending purchases do not apply to subscriptions.
 
-### endConnection
+Reference: [Implement Pending Purchases](https://developer.amazon.com/docs/in-app-purchasing/implement-pending-purchases.html)
 
-Close connection to the app store.
+## Fulfillment
 
-```typescript
-import { endConnection } from 'expo-iap';
+Always report the result after deciding whether the customer can access the
+content:
 
-await endConnection();
-```
+| Result | Use |
+| --- | --- |
+| `FULFILLED` | The purchase was granted successfully |
+| `EXISTING_PURCHASE` | The customer already has the relevant account/subscription |
+| `NOT_ELIGIBLE` | The customer can't use the purchased service |
+| `UNAVAILABLE` | The content couldn't be delivered |
 
-## Product Operations
+Amazon immediately cancels and refunds the purchase when fulfillment is
+reported as `EXISTING_PURCHASE`, `NOT_ELIGIBLE`, or `UNAVAILABLE`; callers must
+not use these results as informational statuses.
 
-### fetchProducts
+OpenIAP currently maps successful `finishTransaction()` calls to `FULFILLED`.
+The other 3.0.9 results need a deliberate cross-platform API contract before
+they can be selected by callers.
 
-Fetch product information from the store.
+Reference: [Implement Appstore SDK IAP](https://developer.amazon.com/docs/in-app-purchasing/iap-implement-iap.html)
 
-```typescript
-import { fetchProducts } from 'expo-iap';
+## Add-On Subscriptions
 
-const products = await fetchProducts(['com.app.product1', 'com.app.sub_monthly']);
-```
+Add-on subscriptions use the existing `getProductData`, `purchase`, purchase
+updates, and fulfillment calls, but require Appstore SDK 3.0.9+, partner
+activation, compatible base-subscription configuration, and server verification
+of the RVS `baseReceipts` relationship. Treat them as unavailable unless Amazon
+has enabled the feature for the app. In-app add-on purchases are currently
+supported only on Fire TV; Fire tablets and Amazon's retail website do not offer
+this purchase flow.
 
-**Returns:** `Promise<Product[]>`
+An add-on purchase requires an active base subscription. Amazon reports
+`PurchaseResponse.RequestStatus.INACTIVE_BASE_SUBSCRIPTION` when that condition
+is not met; OpenIAP surfaces it as `item-unavailable` and does not grant the
+add-on.
 
-### Product Type
-
-```typescript
-interface Product {
-  productId: string;
-  title: string;
-  description: string;
-  price: string;
-  currency: string;
-  localizedPrice: string;
-  type: ProductType; // 'iap' | 'sub'
-
-  // iOS only
-  subscriptionPeriodNumberIOS?: string;
-  subscriptionPeriodUnitIOS?: string;
-  introductoryPrice?: string;
-  introductoryPricePaymentModeIOS?: string;
-  introductoryPriceNumberOfPeriodsIOS?: string;
-  introductoryPriceSubscriptionPeriodIOS?: string;
-
-  // Android only
-  subscriptionOfferDetailsAndroid?: SubscriptionOffer[];
-  oneTimePurchaseOfferDetailsAndroid?: OneTimePurchaseOffer;
-}
-```
-
-## Purchase Operations
-
-### requestPurchase
-
-Initiate a purchase.
-
-```typescript
-import { requestPurchase } from 'expo-iap';
-
-// For consumables/non-consumables
-await requestPurchase({ sku: 'com.app.product1' });
-
-// For subscriptions (Android)
-await requestPurchase({
-  sku: 'com.app.sub_monthly',
-  subscriptionOffers: [{ sku: 'com.app.sub_monthly', offerToken: 'token' }]
-});
-```
-
-### finishTransaction
-
-Complete a transaction after processing.
-
-```typescript
-import { finishTransaction } from 'expo-iap';
-
-await finishTransaction({ purchase, isConsumable: true });
-```
-
-### getAvailablePurchases
-
-Get user's existing purchases (restore purchases).
-
-```typescript
-import { getAvailablePurchases } from 'expo-iap';
-
-const purchases = await getAvailablePurchases();
-```
-
-## Purchase Type
-
-```typescript
-interface Purchase {
-  productId: string;
-  transactionId?: string;
-  transactionDate: number;
-  transactionReceipt: string;
-  purchaseToken?: string; // Android
-
-  // iOS only
-  originalTransactionDateIOS?: number;
-  originalTransactionIdentifierIOS?: string;
-
-  // Android only
-  purchaseStateAndroid?: number;
-  isAcknowledgedAndroid?: boolean;
-  packageNameAndroid?: string;
-  obfuscatedAccountIdAndroid?: string;
-  obfuscatedProfileIdAndroid?: string;
-}
-```
-
-## iOS-Specific Functions
-
-### clearTransactionIOS
-
-Clear finished transactions from the queue.
-
-```typescript
-import { clearTransactionIOS } from 'expo-iap';
-
-await clearTransactionIOS();
-```
-
-### getReceiptDataIOS
-
-Get the receipt data for validation.
-
-```typescript
-import { getReceiptDataIOS } from 'expo-iap';
-
-const receipt = await getReceiptDataIOS();
-```
-
-### syncIOS
-
-Sync transactions with the App Store.
-
-```typescript
-import { syncIOS } from 'expo-iap';
-
-await syncIOS();
-```
-
-### presentCodeRedemptionSheetIOS
-
-Show the offer code redemption sheet.
-
-```typescript
-import { presentCodeRedemptionSheetIOS } from 'expo-iap';
-
-await presentCodeRedemptionSheetIOS();
-```
-
-### showManageSubscriptionsIOS
-
-Open subscription management in App Store.
-
-```typescript
-import { showManageSubscriptionsIOS } from 'expo-iap';
-
-await showManageSubscriptionsIOS();
-```
-
-### isEligibleForIntroOfferIOS
-
-Check intro offer eligibility.
-
-```typescript
-import { isEligibleForIntroOfferIOS } from 'expo-iap';
-
-const eligible = await isEligibleForIntroOfferIOS('com.app.sub_monthly');
-```
-
-### beginRefundRequestIOS
-
-Start a refund request.
-
-```typescript
-import { beginRefundRequestIOS } from 'expo-iap';
-
-const result = await beginRefundRequestIOS('transaction_id');
-```
-
-## Android-Specific Functions
-
-### acknowledgePurchaseAndroid
-
-Acknowledge a purchase (required within 3 days).
-
-```typescript
-import { acknowledgePurchaseAndroid } from 'expo-iap';
-
-await acknowledgePurchaseAndroid({ token: purchase.purchaseToken });
-```
-
-### consumePurchaseAndroid
-
-Consume a consumable purchase.
-
-```typescript
-import { consumePurchaseAndroid } from 'expo-iap';
-
-await consumePurchaseAndroid({ token: purchase.purchaseToken });
-```
-
-### getPackageNameAndroid
-
-Get the app's package name.
-
-```typescript
-import { getPackageNameAndroid } from 'expo-iap';
-
-const packageName = await getPackageNameAndroid();
-```
-
-## Cross-Platform Functions
-
-### getActiveSubscriptions
-
-Get active subscriptions.
-
-```typescript
-import { getActiveSubscriptions } from 'expo-iap';
-
-const subscriptions = await getActiveSubscriptions(['com.app.sub_monthly']);
-```
-
-### hasActiveSubscriptions
-
-Check if user has active subscriptions.
-
-```typescript
-import { hasActiveSubscriptions } from 'expo-iap';
-
-const hasActive = await hasActiveSubscriptions(['com.app.sub_monthly']);
-```
-
-### deepLinkToSubscriptions
-
-Open subscription management on both platforms.
-
-```typescript
-import { deepLinkToSubscriptions } from 'expo-iap';
-
-await deepLinkToSubscriptions({ sku: 'com.app.sub_monthly' });
-```
-
-### getStorefront
-
-Get storefront information.
-
-```typescript
-import { getStorefront } from 'expo-iap';
-
-const storefront = await getStorefront();
-// { countryCode: 'US', ... }
-```
-
-## Event Listeners
-
-### purchaseUpdatedListener
-
-Listen for purchase updates.
-
-```typescript
-import { purchaseUpdatedListener } from 'expo-iap';
-
-const subscription = purchaseUpdatedListener((purchase) => {
-  console.log('Purchase updated:', purchase);
-  // Process and finish transaction
-});
-
-// Cleanup
-subscription.remove();
-```
-
-### purchaseErrorListener
-
-Listen for purchase errors.
-
-```typescript
-import { purchaseErrorListener } from 'expo-iap';
-
-const subscription = purchaseErrorListener((error) => {
-  console.error('Purchase error:', error);
-});
-
-// Cleanup
-subscription.remove();
-```
-
-## Error Codes
-
-| Code | Description |
-|------|-------------|
-| `E_UNKNOWN` | Unknown error |
-| `E_USER_CANCELLED` | User cancelled |
-| `E_ITEM_UNAVAILABLE` | Item not available |
-| `E_NETWORK_ERROR` | Network error |
-| `E_SERVICE_ERROR` | Store service error |
-| `E_ALREADY_OWNED` | Item already owned |
-| `E_NOT_PREPARED` | Not initialized |
-| `E_NOT_ENDED` | Connection not ended |
-| `E_DEVELOPER_ERROR` | Developer error |
-
-## Usage Pattern
-
-```typescript
-import {
-  initConnection,
-  endConnection,
-  fetchProducts,
-  requestPurchase,
-  finishTransaction,
-  purchaseUpdatedListener,
-  purchaseErrorListener,
-} from 'expo-iap';
-
-// Setup
-await initConnection();
-
-const purchaseListener = purchaseUpdatedListener(async (purchase) => {
-  // Verify purchase server-side
-  // Then finish transaction
-  await finishTransaction({ purchase, isConsumable: false });
-});
-
-const errorListener = purchaseErrorListener((error) => {
-  console.error(error);
-});
-
-// Fetch products
-const products = await fetchProducts(['com.app.premium']);
-
-// Make purchase
-await requestPurchase({ sku: 'com.app.premium' });
-
-// Cleanup
-purchaseListener.remove();
-errorListener.remove();
-await endConnection();
-```
+Reference: [Set Up Add-On Subscriptions](https://developer.amazon.com/docs/in-app-purchasing/set-up-add-on-subscriptions.html)
 
 
 ---
@@ -2994,15 +2768,15 @@ Google Play Billing Library enables in-app purchases and subscriptions on Androi
 
 ## Version History
 
-| Version | Release Date | Key Features |
-|---------|--------------|--------------|
-| 8.0 | 2025-06-30 | Auto-reconnect, product-level status codes, one-time products with multiple offers, sub-response codes |
-| 8.1 | 2025-11-06 | Suspended subscriptions (`isSuspended`), `includeSuspended` parameter, pre-order details, product-level subscription replacement, `KEEP_EXISTING` mode |
-| 8.2 | 2025-12-09 | Billing Programs API (external content links, external offers), deprecates old External Offers API |
-| 8.2.1 | 2025-12-15 | Bug fix for `isBillingProgramAvailableAsync()` and `createBillingProgramReportingDetailsAsync()` |
-| 8.3 | 2025-12-23 | External Payments program (Japan only), developer billing options |
-| 9.0 | 2026-05-19 | Removes older deprecated APIs, reclassifies blocked Play Store activity errors, adds richer sub-response handling, target SDK 35 |
-| 9.1 | 2026-06-18 | Billing Choice APIs: `getBillingChoiceInfoAsync()`, `showBillingProgramInformationDialog()`, choice-screen details |
+| Version | Release Date | Key Features                                                                                                                                           |
+| ------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 8.0     | 2025-06-30   | Auto-reconnect, product-level status codes, one-time products with multiple offers, sub-response codes                                                 |
+| 8.1     | 2025-11-06   | Suspended subscriptions (`isSuspended`), `includeSuspended` parameter, pre-order details, product-level subscription replacement, `KEEP_EXISTING` mode |
+| 8.2     | 2025-12-09   | Billing Programs API (external content links, external offers), deprecates old External Offers API                                                     |
+| 8.2.1   | 2025-12-15   | Bug fix for `isBillingProgramAvailableAsync()` and `createBillingProgramReportingDetailsAsync()`                                                       |
+| 8.3     | 2025-12-23   | External Payments program (Japan only), developer billing options                                                                                      |
+| 9.0     | 2026-05-19   | Removes older deprecated APIs, reclassifies blocked Play Store activity errors, adds richer sub-response handling, target SDK 35                       |
+| 9.1     | 2026-06-18   | Billing Choice APIs: `getBillingChoiceInfoAsync()`, `showBillingProgramInformationDialog()`, choice-screen details                                     |
 
 **Current Version**: 9.1.0 (as of July 2026)
 
@@ -3010,6 +2784,28 @@ Google Play Billing Library enables in-app purchases and subscriptions on Androi
 > Billing Choice APIs are implemented only in the Play flavor; Horizon and
 > Amazon variants keep unsupported/default behavior for APIs that do not exist
 > in their store SDKs.
+
+### External Offer integration rule (8.2.1+)
+
+Although the Billing Programs APIs were introduced in 8.2.0, Google requires
+8.2.1 or later for External Offer integrations because 8.2.1 fixes the
+availability and reporting-details APIs. The in-app sequence is:
+
+1. Enable only `BillingProgram.EXTERNAL_OFFER` while building the client.
+2. Check `isBillingProgramAvailableAsync`.
+3. Call `createBillingProgramReportingDetailsAsync` immediately before each
+   redirect session. Do not cache or reuse its external transaction token for a
+   later redirect. Google permits the same token to report multiple purchases
+   made during that one external-offer session.
+4. Call `launchExternalLink` and proceed only when it succeeds.
+5. If payment completes, report the transaction and token from the backend.
+
+Do not also enable the deprecated `enableExternalOffer` or
+`enableAlternativeBillingOnly` modes. Those legacy flows use different APIs
+and must remain available only through explicit legacy configuration.
+
+Official references: [External Offer in-app integration](https://developer.android.com/google/play/billing/external/integration),
+[Play Billing release notes](https://developer.android.com/google/play/billing/release-notes).
 
 ## Core Classes
 
@@ -3076,22 +2872,30 @@ val params = QueryProductDetailsParams.newBuilder()
     .setProductList(productList)
     .build()
 
-billingClient.queryProductDetailsAsync(params) { billingResult, productDetailsList ->
-    // Handle product details
+billingClient.queryProductDetailsAsync(params) { billingResult, queryResult ->
+    if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+        queryResult.productDetailsList.forEach { productDetails ->
+            // Handle fetched product details
+        }
+        queryResult.unfetchedProductList.forEach { unfetchedProduct ->
+            // Inspect unfetchedProduct.statusCode for per-product failures
+        }
+    }
 }
 ```
 
 ### ProductDetails Properties
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `productId` | String | Unique product identifier |
-| `productType` | String | "subs" or "inapp" |
-| `title` | String | Localized product title |
-| `name` | String | Product name |
-| `description` | String | Localized description |
-| `oneTimePurchaseOfferDetails` | Object | For INAPP products |
-| `subscriptionOfferDetails` | List | For subscription products |
+| Property                          | Type   | Description                                           |
+| --------------------------------- | ------ | ----------------------------------------------------- |
+| `productId`                       | String | Unique product identifier                             |
+| `productType`                     | String | "subs" or "inapp"                                     |
+| `title`                           | String | Localized product title                               |
+| `name`                            | String | Product name                                          |
+| `description`                     | String | Localized description                                 |
+| `oneTimePurchaseOfferDetailsList` | List   | All INAPP purchase options and discount offers (8.0+) |
+| `oneTimePurchaseOfferDetails`     | Object | Legacy single-offer compatibility accessor            |
+| `subscriptionOfferDetails`        | List   | For subscription products                             |
 
 ### Subscription Offer Details
 
@@ -3219,30 +3023,31 @@ billingClient.queryPurchasesAsync(
 
 ## Purchase Properties
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `orderId` | String | Unique order identifier |
-| `purchaseToken` | String | Token for verification |
-| `purchaseState` | Int | PENDING, PURCHASED, UNSPECIFIED |
-| `purchaseTime` | Long | Timestamp in milliseconds |
-| `products` | List<String> | Product IDs in purchase |
-| `isAcknowledged` | Boolean | Whether acknowledged |
-| `isAutoRenewing` | Boolean | Auto-renewal status |
-| `quantity` | Int | Quantity purchased |
+| Property         | Type         | Description                     |
+| ---------------- | ------------ | ------------------------------- |
+| `orderId`        | String       | Unique order identifier         |
+| `purchaseToken`  | String       | Token for verification          |
+| `purchaseState`  | Int          | PENDING, PURCHASED, UNSPECIFIED |
+| `purchaseTime`   | Long         | Timestamp in milliseconds       |
+| `products`       | List<String> | Product IDs in purchase         |
+| `isAcknowledged` | Boolean      | Whether acknowledged            |
+| `isAutoRenewing` | Boolean      | Auto-renewal status             |
+| `quantity`       | Int          | Quantity purchased              |
 
 ## Response Codes
 
-| Code | Constant | Description |
-|------|----------|-------------|
-| 0 | OK | Success |
-| 1 | USER_CANCELED | User cancelled |
-| 2 | SERVICE_UNAVAILABLE | Network error |
-| 3 | BILLING_UNAVAILABLE | Billing not available |
-| 4 | ITEM_UNAVAILABLE | Item not available |
-| 5 | DEVELOPER_ERROR | Invalid arguments |
-| 6 | ERROR | Fatal error |
-| 7 | ITEM_ALREADY_OWNED | Already owned |
-| 8 | ITEM_NOT_OWNED | Not owned |
+| Code | Constant            | Description                              |
+| ---- | ------------------- | ---------------------------------------- |
+| 0    | OK                  | Success                                  |
+| 1    | USER_CANCELED       | User cancelled                           |
+| 2    | SERVICE_UNAVAILABLE | Billing service is currently unavailable |
+| 3    | BILLING_UNAVAILABLE | Billing not available                    |
+| 4    | ITEM_UNAVAILABLE    | Item not available                       |
+| 5    | DEVELOPER_ERROR     | Invalid arguments                        |
+| 6    | ERROR               | Fatal error                              |
+| 7    | ITEM_ALREADY_OWNED  | Already owned                            |
+| 8    | ITEM_NOT_OWNED      | Not owned                                |
+| 12   | NETWORK_ERROR       | Network connection problem               |
 
 ## Feature Support
 
@@ -3266,28 +3071,38 @@ if (result.responseCode == BillingClient.BillingResponseCode.OK) {
 In Billing Library 8.0+, `queryProductDetailsAsync()` returns products that couldn't be fetched with a status code explaining why.
 
 ```kotlin
-billingClient.queryProductDetailsAsync(params) { billingResult, productDetailsList ->
-    productDetailsList.forEach { productDetails ->
-        when (productDetails.productStatus) {
-            ProductDetails.ProductStatus.OK -> {
-                // Product fetched successfully
-            }
-            ProductDetails.ProductStatus.NOT_FOUND -> {
+billingClient.queryProductDetailsAsync(params) { billingResult, queryResult ->
+    if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
+        return@queryProductDetailsAsync
+    }
+
+    queryResult.productDetailsList.forEach { productDetails ->
+        // Product fetched successfully
+    }
+
+    queryResult.unfetchedProductList.forEach { unfetchedProduct ->
+        when (unfetchedProduct.statusCode) {
+            UnfetchedProduct.StatusCode.PRODUCT_NOT_FOUND -> {
                 // SKU doesn't exist in Play Console
             }
-            ProductDetails.ProductStatus.NO_OFFERS_AVAILABLE -> {
+            UnfetchedProduct.StatusCode.NO_ELIGIBLE_OFFER -> {
                 // User not eligible for any offers
+            }
+            UnfetchedProduct.StatusCode.INVALID_PRODUCT_ID_FORMAT,
+            UnfetchedProduct.StatusCode.UNKNOWN -> {
+                // Invalid request or an unspecified per-product failure
             }
         }
     }
 }
 ```
 
-| Status | Description |
-|--------|-------------|
-| `OK` | Product fetched successfully |
-| `NOT_FOUND` | SKU doesn't exist in Play Console |
-| `NO_OFFERS_AVAILABLE` | User not eligible for any offers |
+| Status                      | Description                       |
+| --------------------------- | --------------------------------- |
+| `PRODUCT_NOT_FOUND`         | SKU doesn't exist in Play Console |
+| `NO_ELIGIBLE_OFFER`         | User not eligible for any offers  |
+| `INVALID_PRODUCT_ID_FORMAT` | Product ID format is invalid      |
+| `UNKNOWN`                   | Unspecified per-product failure   |
 
 ## Suspended Subscriptions (8.1+)
 
@@ -3327,27 +3142,33 @@ billingClient.queryPurchasesAsync(params) { billingResult, purchases ->
 `BillingResult` includes a sub-response code for more granular error information:
 
 ```kotlin
-val result = billingClient.launchBillingFlow(activity, params)
-when (result.onPurchasesUpdatedSubResponseCode) {
+override fun onPurchasesUpdated(result: BillingResult, purchases: List<Purchase>?) {
+  when (result.onPurchasesUpdatedSubResponseCode) {
     BillingClient.OnPurchasesUpdatedSubResponseCode.PAYMENT_DECLINED_DUE_TO_INSUFFICIENT_FUNDS -> {
         // User's payment method has insufficient funds
     }
     BillingClient.OnPurchasesUpdatedSubResponseCode.USER_INELIGIBLE -> {
         // User doesn't meet offer eligibility requirements
     }
+  }
 }
 ```
 
-| Sub-Response Code | Description |
-|-------------------|-------------|
-| `PAYMENT_DECLINED_DUE_TO_INSUFFICIENT_FUNDS` | User's payment method has insufficient funds |
-| `USER_INELIGIBLE` | User doesn't meet subscription offer eligibility |
-| `NO_APPLICABLE_SUB_RESPONSE_CODE` | No specific sub-code applies |
+| Sub-Response Code                            | Description                                      |
+| -------------------------------------------- | ------------------------------------------------ |
+| `PAYMENT_DECLINED_DUE_TO_INSUFFICIENT_FUNDS` | User's payment method has insufficient funds     |
+| `USER_INELIGIBLE`                            | User doesn't meet subscription offer eligibility |
+| `NO_APPLICABLE_SUB_RESPONSE_CODE`            | No specific sub-code applies                     |
 
 PBL 9 makes sub-response-code handling part of the migration checklist. It also
 changes blocked Play Store app cases from generic `ERROR` to
 `BILLING_UNAVAILABLE`, with a debug message explaining that Play Store is
 blocked.
+
+> **OpenIAP Note**: Purchase failures delivered by
+> `purchaseErrorListener` preserve this value as
+> `PurchaseError.subResponseCodeAndroid` when Play supplies it. Available in
+> OpenIAP Spec 2.3.0 / openiap-google 2.3.1 (requires Play Billing 8.0+).
 
 ## Subscription Product Replacement (8.1+)
 
@@ -3368,14 +3189,38 @@ val productDetailsParams = BillingFlowParams.ProductDetailsParams.newBuilder()
 
 ### Replacement Modes
 
-| Mode | Description |
-|------|-------------|
-| `WITH_TIME_PRORATION` | Immediate, expiration time prorated |
-| `CHARGE_PRORATED_PRICE` | Immediate, same billing cycle |
-| `CHARGE_FULL_PRICE` | Immediate, full price charged |
-| `WITHOUT_PRORATION` | Takes effect on old plan expiration |
-| `DEFERRED` | Deferred, no charge |
-| `KEEP_EXISTING` | Keep existing payment schedule (8.1+) |
+| Mode                    | Description                           |
+| ----------------------- | ------------------------------------- |
+| `WITH_TIME_PRORATION`   | Immediate, expiration time prorated   |
+| `CHARGE_PRORATED_PRICE` | Immediate, same billing cycle         |
+| `CHARGE_FULL_PRICE`     | Immediate, full price charged         |
+| `WITHOUT_PRORATION`     | Takes effect on old plan expiration   |
+| `DEFERRED`              | Deferred, no charge                   |
+| `KEEP_EXISTING`         | Keep existing payment schedule (8.1+) |
+
+## User Choice Billing Details (9.1+ fields)
+
+`UserChoiceBillingListener` receives `UserChoiceDetails` when the user selects
+developer billing from Google's user-choice screen. Read product identifiers
+from `UserChoiceDetails.Product.getId()`; `Product.toString()` is diagnostic
+text and is not the product ID contract.
+
+```kotlin
+val listener = UserChoiceBillingListener { details ->
+    val externalTransactionToken = details.externalTransactionToken
+    val originalExternalTransactionId = details.originalExternalTransactionId
+    val products = details.products.map { product ->
+        Triple(product.id, product.type, product.offerToken)
+    }
+}
+```
+
+OpenIAP keeps the compatibility `products` ID list and also exposes
+`productDetailsAndroid` with each product's ID, type, and optional offer token.
+For a developer-billed subscription replacement, forward
+`originalExternalTransactionId` together with the external transaction token
+to the backend reporting flow. These two fields are available in OpenIAP Spec
+2.3.0 / openiap-google 2.3.1 (requires Play Billing 9.1+).
 
 ## External Payments Program (8.3+)
 
@@ -3435,12 +3280,12 @@ billingClient.launchBillingFlow(activity, params)
 
 ### Key Types (8.3+)
 
-| Type | Purpose |
-|------|---------|
-| `DeveloperBillingOptionParams` | Configures developer billing on `BillingFlowParams` |
-| `DeveloperProvidedBillingListener` | Callback when user picks developer-provided billing |
-| `DeveloperProvidedBillingDetails` | Nullable token/link/original-ID fields plus selected products |
-| `BillingClient.BillingProgram.EXTERNAL_PAYMENTS` | External Payments program constant |
+| Type                                             | Purpose                                                       |
+| ------------------------------------------------ | ------------------------------------------------------------- |
+| `DeveloperBillingOptionParams`                   | Configures developer billing on `BillingFlowParams`           |
+| `DeveloperProvidedBillingListener`               | Callback when user picks developer-provided billing           |
+| `DeveloperProvidedBillingDetails`                | Nullable token/link/original-ID fields plus selected products |
+| `BillingClient.BillingProgram.EXTERNAL_PAYMENTS` | External Payments program constant                            |
 
 > **OpenIAP Note**: Exposed through `enableBillingProgramAndroid`,
 > `developerBillingOption`, and the developer-provided billing listener.
@@ -3455,27 +3300,27 @@ or the app renders a billing choice screen.
 
 ### Integration Scenarios
 
-| Scenario | Choice renderer | Developer payment | BillingClient setup | Required flow |
-|----------|-----------------|-------------------|---------------------|---------------|
-| 1A | Google | In app | `EnableBillingProgramParams` with `DeveloperProvidedBillingListener` | Pass a minimal `DeveloperBillingOptionParams`; Play returns the token through the listener |
-| 1B | Developer | In app | `EnableBillingProgramParams` without the listener | Fetch choice info, create an `IN_APP` token, show the information dialog, then render the choice UI |
-| 2A | Google | External link | `EnableBillingProgramParams` with `DeveloperProvidedBillingListener` | Create an `EXTERNAL_LINK` token and pass it with the URI through `DeveloperBillingOptionParams` |
-| 2B | Developer | External link | `EnableBillingProgramParams` without the listener | Fetch choice info, create an `EXTERNAL_LINK` token, render the choice UI, then pass the token to `launchExternalLink` |
+| Scenario | Choice renderer | Developer payment | BillingClient setup                                                  | Required flow                                                                                                         |
+| -------- | --------------- | ----------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| 1A       | Google          | In app            | `EnableBillingProgramParams` with `DeveloperProvidedBillingListener` | Pass a minimal `DeveloperBillingOptionParams`; Play returns the token through the listener                            |
+| 1B       | Developer       | In app            | `EnableBillingProgramParams` without the listener                    | Fetch choice info, create an `IN_APP` token, show the information dialog, then render the choice UI                   |
+| 2A       | Google          | External link     | `EnableBillingProgramParams` with `DeveloperProvidedBillingListener` | Create an `EXTERNAL_LINK` token and pass it with the URI through `DeveloperBillingOptionParams`                       |
+| 2B       | Developer       | External link     | `EnableBillingProgramParams` without the listener                    | Fetch choice info, create an `EXTERNAL_LINK` token, render the choice UI, then pass the token to `launchExternalLink` |
 
 The setup must match `choiceScreenType` from Play Console. Registering the
 listener in a developer-rendered integration is not equivalent to omitting it.
 
-| API / Type | Purpose |
-|------------|---------|
-| `BillingClient.getBillingChoiceInfoAsync()` | Fetches billing choices available to the current user |
-| `BillingChoiceInfo` | Contains choice-screen data, including image URLs and loyalty details |
-| `GetBillingChoiceInfoParams` | Configures the billing-choice info request |
-| `BillingClient.showBillingProgramInformationDialog()` | Shows an information dialog for a billing program |
-| `BillingProgramInformationDialogParams` | Configures the information dialog |
-| `LaunchExternalLinkParams.setExternalTransactionToken()` | Supplies the pre-generated token for a developer-rendered external-link flow |
-| `BillingProgramAvailabilityDetails.BillingChoiceAvailabilityDetails` | Returns choice-screen type and external-link availability |
-| `DeveloperBillingOptionParams` | Selects in-app or external-link developer billing during purchase |
-| `BillingProgramReportingDetailsParams.DeveloperBillingType` | Distinguishes `IN_APP` and `EXTERNAL_LINK` reporting |
+| API / Type                                                           | Purpose                                                                      |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `BillingClient.getBillingChoiceInfoAsync()`                          | Fetches billing choices available to the current user                        |
+| `BillingChoiceInfo`                                                  | Contains choice-screen data, including image URLs and loyalty details        |
+| `GetBillingChoiceInfoParams`                                         | Configures the billing-choice info request                                   |
+| `BillingClient.showBillingProgramInformationDialog()`                | Shows an information dialog for a billing program                            |
+| `BillingProgramInformationDialogParams`                              | Configures the information dialog                                            |
+| `LaunchExternalLinkParams.setExternalTransactionToken()`             | Supplies the pre-generated token for a developer-rendered external-link flow |
+| `BillingProgramAvailabilityDetails.BillingChoiceAvailabilityDetails` | Returns choice-screen type and external-link availability                    |
+| `DeveloperBillingOptionParams`                                       | Selects in-app or external-link developer billing during purchase            |
+| `BillingProgramReportingDetailsParams.DeveloperBillingType`          | Distinguishes `IN_APP` and `EXTERNAL_LINK` reporting                         |
 
 ### Developer Billing Purchase Options
 
@@ -3525,10 +3370,10 @@ Supported image layouts are `RECTANGULAR_FOUR_BY_ONE`,
 
 For `BILLING_CHOICE`, `BillingProgramAvailabilityDetails` can include:
 
-| Field | Meaning |
-|-------|---------|
-| `choiceScreenType` | `UNSPECIFIED`, `DEVELOPER_RENDERED`, or `GOOGLE_RENDERED` |
-| `isExternalLinkAvailable` | Whether the user is eligible for an external-link option |
+| Field                     | Meaning                                                   |
+| ------------------------- | --------------------------------------------------------- |
+| `choiceScreenType`        | `UNSPECIFIED`, `DEVELOPER_RENDERED`, or `GOOGLE_RENDERED` |
+| `isExternalLinkAvailable` | Whether the user is eligible for an external-link option  |
 
 ### Information Dialog
 
@@ -3593,7 +3438,7 @@ val updateParams = BillingFlowParams.SubscriptionUpdateParams.newBuilder()
 5. **Check product status codes** (8.0+) to understand why products weren't fetched
 6. **Check isSuspended** (8.1+) before granting entitlements
 7. **Distinguish in-app and external-link Billing Choice** when configuring and reporting developer billing
-8. **Cache product details** to avoid repeated queries
+8. **Query fresh ProductDetails before purchase**; stale objects can make `launchBillingFlow()` fail
 
 
 ---
@@ -3885,466 +3730,46 @@ The plugin:
 
 ---
 
-<!-- Source: external/react-native-iap-api.md -->
-
-# react-native-iap API Reference (Legacy)
-
-> **WARNING**: This file contains outdated API names from older versions.
-> For the current API spec, refer to the official [OpenIAP documentation](https://openiap.dev/docs/apis).
->
-> Key renames from legacy to current:
->
-> - `getProducts` → `fetchProducts`
-> - `getSubscriptions` → `fetchProducts({ type: 'subs' })`
-> - `getPurchaseHistory` → `getAvailablePurchases`
-> - `requestSubscription` → `requestPurchase({ type: 'subs' })`
-> - `completePurchase` → `finishTransaction`
-
-## Overview
-
-react-native-iap is a React Native library for in-app purchases on iOS and Android. expo-iap is built on top of this library.
-
-## Installation
-
-```bash
-npm install react-native-iap
-# or
-yarn add react-native-iap
-```
-
-## Hook-Based API (Recommended)
-
-### useIAP Hook
-
-```typescript
-import { useIAP } from 'react-native-iap';
-
-function PurchaseScreen() {
-  const {
-    connected,
-    products,
-    subscriptions,
-    purchaseHistory,
-    availablePurchases,
-    currentPurchase,
-    currentPurchaseError,
-    initConnectionError,
-    finishTransaction,
-    fetchProducts,
-    getSubscriptions,
-    getAvailablePurchases,
-    getPurchaseHistory,
-    requestPurchase,
-    requestSubscription,
-  } = useIAP();
-
-  useEffect(() => {
-    if (currentPurchase) {
-      // Process purchase
-      finishTransaction({ purchase: currentPurchase });
-    }
-  }, [currentPurchase]);
-
-  return (/* ... */);
-}
-```
-
-### withIAPContext HOC
-
-Wrap your app with IAP context provider.
-
-```typescript
-import { withIAPContext } from 'react-native-iap';
-
-function App() {
-  return <PurchaseScreen />;
-}
-
-export default withIAPContext(App);
-```
-
-## Imperative API
-
-### Connection Management
-
-```typescript
-import {
-  initConnection,
-  endConnection,
-  fetchProducts,
-  getSubscriptions,
-} from 'react-native-iap';
-
-// Initialize
-const connected = await initConnection();
-
-// Fetch products
-const products = await fetchProducts({ skus: ['com.app.product1'] });
-const subs = await getSubscriptions({ skus: ['com.app.sub_monthly'] });
-
-// Cleanup
-await endConnection();
-```
-
-### Product Types
-
-```typescript
-interface Product {
-  productId: string;
-  price: string;
-  currency: string;
-  localizedPrice: string;
-  title: string;
-  description: string;
-  type: 'inapp' | 'subs';
-
-  // iOS
-  introductoryPrice?: string;
-  introductoryPriceAsAmountIOS?: string;
-  introductoryPricePaymentModeIOS?: string;
-  introductoryPriceNumberOfPeriodsIOS?: string;
-  introductoryPriceSubscriptionPeriodIOS?: string;
-  subscriptionPeriodNumberIOS?: string;
-  subscriptionPeriodUnitIOS?: string;
-  discounts?: Discount[];
-
-  // Android
-  subscriptionOfferDetails?: SubscriptionOffer[];
-  oneTimePurchaseOfferDetails?: OneTimePurchaseOffer;
-}
-
-interface SubscriptionOffer {
-  basePlanId: string;
-  offerId?: string;
-  offerToken: string;
-  offerTags: string[];
-  pricingPhases: PricingPhase[];
-}
-
-interface PricingPhase {
-  formattedPrice: string;
-  priceCurrencyCode: string;
-  priceAmountMicros: string;
-  billingPeriod: string;
-  billingCycleCount: number;
-  recurrenceMode: number;
-}
-```
-
-### Purchase Operations
-
-```typescript
-import {
-  requestPurchase,
-  requestSubscription,
-  finishTransaction,
-  getAvailablePurchases,
-  getPurchaseHistory,
-} from 'react-native-iap';
-
-// Purchase consumable/non-consumable
-await requestPurchase({ sku: 'com.app.product1' });
-
-// Purchase subscription (Android with offer token)
-await requestSubscription({
-  sku: 'com.app.sub_monthly',
-  subscriptionOffers: [{ sku: 'com.app.sub_monthly', offerToken: 'token' }],
-});
-
-// Finish transaction
-await finishTransaction({ purchase, isConsumable: true });
-
-// Get available purchases (restore)
-const available = await getAvailablePurchases();
-
-// Get purchase history
-const history = await getPurchaseHistory();
-```
-
-### Purchase Type
-
-```typescript
-interface Purchase {
-  productId: string;
-  transactionId?: string;
-  transactionDate: number;
-  transactionReceipt: string;
-  purchaseToken?: string;
-  quantityIOS?: number;
-  originalTransactionDateIOS?: number;
-  originalTransactionIdentifierIOS?: string;
-  verificationResultIOS?: string;
-  appAccountToken?: string;
-
-  // Android
-  purchaseStateAndroid?: PurchaseStateAndroid;
-  isAcknowledgedAndroid?: boolean;
-  packageNameAndroid?: string;
-  developerPayloadAndroid?: string;
-  obfuscatedAccountIdAndroid?: string;
-  obfuscatedProfileIdAndroid?: string;
-  autoRenewingAndroid?: boolean;
-}
-```
-
-## Event Listeners
-
-```typescript
-import {
-  purchaseUpdatedListener,
-  purchaseErrorListener,
-} from 'react-native-iap';
-
-// Purchase updates
-const purchaseUpdateSubscription = purchaseUpdatedListener(
-  async (purchase: Purchase) => {
-    const receipt = purchase.transactionReceipt;
-    if (receipt) {
-      // Verify with server
-      await finishTransaction({ purchase });
-    }
-  }
-);
-
-// Purchase errors
-const purchaseErrorSubscription = purchaseErrorListener(
-  (error: PurchaseError) => {
-    console.warn('purchaseErrorListener', error);
-  }
-);
-
-// Cleanup
-purchaseUpdateSubscription.remove();
-purchaseErrorSubscription.remove();
-```
-
-## iOS-Specific Functions
-
-```typescript
-import {
-  clearTransactionIOS,
-  clearProductsIOS,
-  getReceiptIOS,
-  getPendingPurchasesIOS,
-  getPromotedProductIOS,
-  buyPromotedProductIOS,
-  presentCodeRedemptionSheetIOS,
-  validateReceiptIos,
-} from 'react-native-iap';
-
-// Clear finished transactions
-await clearTransactionIOS();
-
-// Clear cached products
-await clearProductsIOS();
-
-// Get receipt for validation
-const receipt = await getReceiptIOS();
-
-// Get pending purchases
-const pending = await getPendingPurchasesIOS();
-
-// Handle promoted products
-const promotedProduct = await getPromotedProductIOS();
-if (promotedProduct) {
-  await buyPromotedProductIOS();
-}
-
-// Show offer code redemption
-await presentCodeRedemptionSheetIOS();
-```
-
-## Android-Specific Functions
-
-```typescript
-import {
-  acknowledgePurchaseAndroid,
-  consumePurchaseAndroid,
-  flushFailedPurchasesCachedAsPendingAndroid,
-  getPackageNameAndroid,
-  isFeatureSupported,
-  getBillingConfigAndroid,
-} from 'react-native-iap';
-
-// Acknowledge purchase (non-consumables, subscriptions)
-await acknowledgePurchaseAndroid({ token: purchase.purchaseToken });
-
-// Consume purchase (consumables)
-await consumePurchaseAndroid({ token: purchase.purchaseToken });
-
-// Clear failed pending purchases
-await flushFailedPurchasesCachedAsPendingAndroid();
-
-// Get package name
-const packageName = getPackageNameAndroid();
-
-// Check feature support
-const supported = await isFeatureSupported('subscriptions');
-
-// Get billing config
-const config = await getBillingConfigAndroid();
-```
-
-## Subscription Status (iOS)
-
-```typescript
-import {
-  getSubscriptionStatusIOS,
-  getSubscriptionStatusesIOS,
-} from 'react-native-iap';
-
-// Get status for single product
-const status = await getSubscriptionStatusIOS('com.app.sub_monthly');
-
-// Get status for multiple products
-const statuses = await getSubscriptionStatusesIOS();
-```
-
-## Error Handling
-
-```typescript
-import { IapIosSk2, ErrorCode } from 'react-native-iap';
-
-try {
-  await requestPurchase({ sku: 'com.app.product1' });
-} catch (err) {
-  if (err.code === ErrorCode.E_USER_CANCELLED) {
-    // User cancelled
-  } else if (err.code === ErrorCode.E_ITEM_UNAVAILABLE) {
-    // Item not available
-  } else if (err.code === ErrorCode.E_ALREADY_OWNED) {
-    // Already owned
-  } else {
-    // Other error
-  }
-}
-```
-
-### Error Codes
-
-| Code | Description |
-|------|-------------|
-| `E_UNKNOWN` | Unknown error |
-| `E_USER_CANCELLED` | User cancelled |
-| `E_ITEM_UNAVAILABLE` | Item not available |
-| `E_NETWORK_ERROR` | Network error |
-| `E_SERVICE_ERROR` | Store service error |
-| `E_ALREADY_OWNED` | Item already owned |
-| `E_REMOTE_ERROR` | Remote error |
-| `E_NOT_PREPARED` | Not initialized |
-| `E_NOT_ENDED` | Not ended |
-| `E_DEVELOPER_ERROR` | Developer error |
-| `E_BILLING_RESPONSE_JSON_PARSE_ERROR` | JSON parse error |
-| `E_DEFERRED_PAYMENT` | Deferred payment |
-
-## Complete Usage Example
-
-```typescript
-import React, { useEffect } from 'react';
-import {
-  withIAPContext,
-  useIAP,
-  requestPurchase,
-  finishTransaction,
-  purchaseUpdatedListener,
-  purchaseErrorListener,
-  ProductPurchase,
-} from 'react-native-iap';
-
-const productIds = ['com.app.product1'];
-const subscriptionIds = ['com.app.sub_monthly'];
-
-function Store() {
-  const {
-    connected,
-    products,
-    subscriptions,
-    fetchProducts,
-    getSubscriptions,
-  } = useIAP();
-
-  useEffect(() => {
-    if (connected) {
-      fetchProducts({ skus: productIds });
-      getSubscriptions({ skus: subscriptionIds });
-    }
-  }, [connected]);
-
-  useEffect(() => {
-    const purchaseSub = purchaseUpdatedListener(
-      async (purchase: ProductPurchase) => {
-        await finishTransaction({ purchase, isConsumable: false });
-      }
-    );
-
-    const errorSub = purchaseErrorListener((error) => {
-      console.error('Purchase error:', error);
-    });
-
-    return () => {
-      purchaseSub.remove();
-      errorSub.remove();
-    };
-  }, []);
-
-  const handlePurchase = async (sku: string) => {
-    try {
-      await requestPurchase({ sku });
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  return (/* Render products and subscriptions */);
-}
-
-export default withIAPContext(Store);
-```
-
-## Platform Differences
-
-| Feature | iOS | Android |
-|---------|-----|---------|
-| Subscription offers | Introductory price, Discounts | Offer tokens, Pricing phases |
-| Acknowledge | Automatic | Required within 3 days |
-| Consume | finishTransaction | consumePurchaseAndroid |
-| Receipt | getReceiptIOS | transactionReceipt in Purchase |
-| Promoted products | Supported | Not supported |
-| Offer codes | Supported | Promo codes via Play Store |
-
-
----
-
 <!-- Source: external/storekit2-api.md -->
 
 # StoreKit 2 API Reference
 
 This document provides external API reference for Apple's StoreKit 2 framework.
 
-## iOS 18+ / 26+ Features
+## Recent StoreKit Features
 
-| Feature | iOS Version | Description |
-|---------|-------------|-------------|
-| Win-back offers | iOS 18.0 | Re-engage churned subscribers |
-| `eligibleWinBackOfferIDs` | iOS 18.0 | Query win-back offer eligibility before purchase |
-| Consumable transaction history | iOS 18.0 | Opt-in via `SK2ConsumableTransactionHistory` Info.plist key |
-| StoreKit `Message` API | iOS 18.0 | Listener for billing issues, win-back, price increase, generic |
-| UI context for purchases | iOS 18.2 | Required for proper payment sheet display |
-| External purchase notice | iOS 17.4 | `ExternalPurchase.presentNoticeSheet()` |
-| `appTransactionID` | iOS 18.4 | Globally unique app transaction identifier (back-deployed to iOS 15) |
-| `originalPlatform` | iOS 18.4 | Original purchase platform (back-deployed to iOS 15) |
-| `Transaction.offerPeriod` | iOS 18.4 | Offer period information on Transaction |
-| `Transaction.advancedCommerceInfo` | iOS 18.4 | Advanced Commerce API data on Transaction |
-| `Transaction.appTransactionID` | iOS 18.4 | Per-Apple-Account identifier on Transaction |
-| Expanded offer codes | iOS 18.4 | Offer codes for consumables/non-consumables |
-| JWS promotional offers | WWDC 2025 | New `promotionalOffer` purchase option with JWS format |
-| `introductoryOfferEligibility` | WWDC 2025 | Set eligibility via purchase option |
-| `SubscriptionStatus` by Transaction ID | WWDC 2025 | `status(for: transactionID:)` |
-| Monthly subscriptions with a 12-month commitment | iOS 26.4 / 26.5 SDK | Monthly billing option for annual auto-renewable subscriptions |
-| Group purchases and volume purchasing | WWDC 2026 | Multi-seat auto-renewable subscriptions through StoreKit 2 and Apple Business / School Manager |
-| Retention Messaging | WWDC 2026 | Cancellation-flow messaging and offers, including real-time server decisioning |
-| Retention offer type | WWDC 2026 | Signed transaction / renewal info can report offer type `5` for retention offers |
-| Offer codes for all IAP types | 2026 | Offer codes expand beyond auto-renewable subscriptions; IAP promo-code creation ends March 26, 2026 |
+| Feature                                                        | iOS Version                        | Description                                                                                         |
+| -------------------------------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Win-back offers                                                | iOS 18.0                           | Re-engage churned subscribers                                                                       |
+| `Product.SubscriptionInfo.RenewalInfo.eligibleWinBackOfferIDs` | iOS 18.0                           | Query win-back offer eligibility before purchase                                                    |
+| Consumable transaction history                                 | iOS 18.0                           | Opt-in via `SKIncludeConsumableInAppPurchaseHistory` Info.plist key                                 |
+| StoreKit `Message.billingIssue`                                | iOS / Mac Catalyst 16.4, visionOS 1.0 | Listener for subscription billing issues (`Message` is unavailable on macOS, tvOS, and watchOS)   |
+| UI context for purchases                                       | iOS 18.2                           | Required for proper payment sheet display                                                           |
+| External purchase notice                                       | iOS 17.4                           | `ExternalPurchase.presentNoticeSheet()`                                                             |
+| `appTransactionID`                                             | iOS 18.4                           | Globally unique app transaction identifier (back-deployed to iOS 15)                                |
+| `originalPlatform`                                             | iOS 18.4                           | Original purchase platform (back-deployed to iOS 15)                                                |
+| `Transaction.offerPeriod`                                      | iOS 18.4                           | Offer period information on Transaction                                                             |
+| `Transaction.advancedCommerceInfo`                             | iOS 18.4                           | Advanced Commerce API data on Transaction                                                           |
+| `Transaction.appTransactionID`                                 | iOS 18.4                           | Per-Apple-Account identifier on Transaction                                                         |
+| Expanded offer codes                                           | iOS 18.4                           | Offer codes for consumables/non-consumables                                                         |
+| JWS promotional offers                                         | WWDC 2025                          | New `promotionalOffer` purchase option with JWS format                                              |
+| `introductoryOfferEligibility`                                 | WWDC 2025                          | Set eligibility via purchase option                                                                 |
+| `SubscriptionStatus` by Transaction ID                         | WWDC 2025                          | `status(for: transactionID:)`                                                                       |
+| Monthly subscriptions with a 12-month commitment               | iOS 26.4+ runtime / Xcode 26.5 SDK | Monthly billing option for annual auto-renewable subscriptions                                      |
+| Group purchases and volume purchasing                          | WWDC 2026                          | Multi-seat auto-renewable subscriptions through StoreKit 2 and Apple Business / School Manager      |
+| Retention Messaging                                            | WWDC 2026                          | Cancellation-flow messaging and offers, including real-time server decisioning                      |
+| Retention offer type                                           | WWDC 2026                          | Signed transaction / renewal info can report offer type `5` for retention offers                    |
+| Offer codes for all IAP types                                  | 2026                               | Offer codes expand beyond auto-renewable subscriptions; IAP promo-code creation ends March 26, 2026 |
+
+### StoreKit Message presentation
+
+Iterating `Message.messages` transfers presentation control to the app. A
+listener that only inspects `Message.Reason.billingIssue` must not silently
+discard other reasons such as price-increase consent or win-back offers. Display
+each message with `message.display(in:)` unless the app intentionally implements
+and documents a custom delay or suppression policy. OpenIAP preserves StoreKit's
+default presentation while additionally emitting its cross-platform billing
+issue event.
 
 ### WWDC 2025 Updates
 
@@ -4355,11 +3780,33 @@ This document provides external API reference for Apple's StoreKit 2 framework.
 
 ### WWDC 2026 Updates
 
-- **Monthly subscriptions with a 12-month commitment**: iOS 26.5 SDK adds a monthly billing plan for one-year auto-renewable subscriptions. Customers can subscribe on iOS, iPadOS, macOS, tvOS, and visionOS 26.4+.
+- **Monthly subscriptions with a 12-month commitment**: The Xcode 26.5 SDK adds a monthly billing plan for one-year auto-renewable subscriptions. Customers can subscribe on iOS, iPadOS, macOS, tvOS, and visionOS 26.4+.
 - **Group purchases and volume purchasing**: Auto-renewable subscriptions using StoreKit 2 can be sold to groups and organizations. In-app group purchases pass a requested seat count into the StoreKit purchase flow; Apple Business Manager and Apple School Manager handle volume purchasing.
 - **Volume pricing**: App Store Connect can configure up to five seat-count price bands for larger subscription purchases.
 - **Retention Messaging**: App Store Connect can show cancellation-flow retention messages and offers. Real-time Retention Messaging adds a server-to-server decision point and supports a switch-plan view for monthly subscriptions with a 12-month commitment.
 - **Offer-code expansion**: Offer codes now support consumables, non-consumables, non-renewing subscriptions, and broader auto-renewable subscription scenarios. Starting March 26, 2026, App Store Connect no longer creates new promo codes for In-App Purchases.
+
+### Verified Offer-Code Redemption (WWDC 2026)
+
+The new UIKit/AppKit redemption API accepts `RedeemOption` values and returns
+the redeemed transaction as a `VerificationResult<Transaction>`:
+
+```swift
+let result = try await AppStore.presentOfferCodeRedeemSheet(
+    from: viewController,
+    options: []
+)
+```
+
+SwiftUI exposes the same result through
+`offerCodeRedemption(options:isPresented:onCompletion:)`. These APIs require the
+Xcode 27 beta SDK and are currently beta. Xcode 26.x SDKs expose only the
+legacy redemption sheet API.
+
+> **OpenIAP gap**: `presentCodeRedemptionSheetIOS` still wraps the legacy
+> `SKPaymentQueue.presentCodeRedemptionSheet()` API and returns only a Boolean.
+> Redeem options and the verified transaction result need a new end-to-end
+> schema and wrapper contract.
 
 ## appAccountToken
 
@@ -4400,9 +3847,9 @@ let result = try await product.purchase(options: [
 
 ```swift
 let transaction: Transaction
-if let token = transaction.appAccountToken {
+if transaction.appAccountToken != nil {
     // Token will only be present if a valid UUID was provided during purchase
-    print("App Account Token: \(token)")
+    print("App Account Token available")
 }
 ```
 
@@ -4553,7 +4000,8 @@ let result = try await product.purchase(options: [
 
 ### Checking Eligibility
 
-Discover eligible win-back offers before purchase via `Product.SubscriptionInfo.eligibleWinBackOfferIDs` (iOS 18+):
+Discover eligible win-back offers before purchase via
+`Product.SubscriptionInfo.RenewalInfo.eligibleWinBackOfferIDs` (iOS 18+):
 
 ```swift
 let status = try await product.subscription?.status.first
@@ -4561,10 +4009,14 @@ guard let renewalInfo = try status?.renewalInfo.payloadValue else { return }
 
 // iOS 18+: offer IDs the current Apple Account is eligible for
 let eligibleIDs = renewalInfo.eligibleWinBackOfferIDs
-let eligibleOffers = (product.subscription?.promotionalOffers ?? []).filter {
-    $0.type == .winBack && eligibleIDs.contains($0.id ?? "")
+let eligibleOffers = (product.subscription?.winBackOffers ?? []).filter {
+    eligibleIDs.contains($0.id ?? "")
 }
 ```
+
+> **OpenIAP gap**: callers can apply a known win-back offer identifier, but the
+> public product/renewal types do not yet expose `winBackOffers` or
+> `eligibleWinBackOfferIDs` for discovery.
 
 ### RenewalInfo
 
@@ -4625,10 +4077,10 @@ let offerPeriod = transaction.offerPeriod                    // Offer.Period?
 let advancedCommerce = transaction.advancedCommerceInfo      // AdvancedCommerceInfo?
 ```
 
-| Property | Type | Notes |
-|----------|------|-------|
-| `appTransactionID` | String | Mirrors AppTransaction's identifier |
-| `offerPeriod` | Offer.Period? | Phase of the promotional/intro offer |
+| Property               | Type                  | Notes                                   |
+| ---------------------- | --------------------- | --------------------------------------- |
+| `appTransactionID`     | String                | Mirrors AppTransaction's identifier     |
+| `offerPeriod`          | Offer.Period?         | Phase of the promotional/intro offer    |
 | `advancedCommerceInfo` | AdvancedCommerceInfo? | Present for Advanced Commerce SKUs only |
 
 ## Advanced Commerce API (iOS 18.4+)
@@ -4645,7 +4097,7 @@ if let advancedInfo = product.advancedCommerceInfo {
 ## Monthly Subscriptions With 12-Month Commitment (iOS 26.4+)
 
 This billing plan lets customers pay monthly while committing to an annual
-auto-renewable subscription. Apps need to compile with the iOS 26.5 SDK to
+auto-renewable subscription. Apps need to compile with the Xcode 26.5 SDK to
 merchandise the plan, and customers can purchase on Apple platforms running
 26.4 or later.
 
@@ -4656,7 +4108,7 @@ let result = try await product.purchase(options: [
 ```
 
 > **OpenIAP Note**: The schema represents this with
-> `SubscriptionBillingPlanTypeIOS` and `RequestSubscriptionIOSProps.billingPlanType`.
+> `SubscriptionBillingPlanTypeIOS` and `RequestSubscriptionIosProps.billingPlanType`.
 
 ## Group Purchases and Volume Purchasing (WWDC 2026)
 
@@ -4679,12 +4131,12 @@ view at cancellation time.
 Signed transaction and renewal information can include a retention offer as
 offer type `5`.
 
-## StoreKit Message API (iOS 18+)
+## StoreKit Message API (iOS 16.0+; billing issue on iOS 16.4+; win-back on iOS 18+)
 
 Listen for App Store–generated messages (billing issues, win-back offers, price increases, generic).
 
 ```swift
-// Somewhere near app launch
+// Somewhere near app launch. This all-cases sample targets iOS 18+.
 Task {
     for await message in Message.messages {
         switch message.reason {
@@ -4693,7 +4145,7 @@ Task {
             break
         case .winBackOffer:
             break
-        case .priceIncrease:
+        case .priceIncreaseConsent:
             break
         case .generic:
             break
@@ -4704,14 +4156,16 @@ Task {
 }
 ```
 
-| Reason | Trigger |
-|--------|---------|
-| `.billingIssue` | User has an unresolved billing problem on a subscription |
-| `.priceIncrease` | Price change that requires user consent |
-| `.winBackOffer` | User is eligible for a win-back offer |
-| `.generic` | All other system-initiated messages |
+| Reason                  | Availability | Trigger                                                  |
+| ----------------------- | ------------ | -------------------------------------------------------- |
+| `.billingIssue`         | iOS 16.4+    | User has an unresolved billing problem on a subscription |
+| `.priceIncreaseConsent` | iOS 16.0+    | Price change that requires user consent                  |
+| `.winBackOffer`         | iOS 18.0+    | User is eligible for a win-back offer                    |
+| `.generic`              | iOS 16.0+    | All other system-initiated messages                      |
 
-> **OpenIAP Note**: To be surfaced by the cross-platform event layer — see `event.graphql` additions for message events.
+> **OpenIAP Note**: OpenIAP displays every StoreKit message and additionally
+> surfaces `.billingIssue` through `subscriptionBillingIssue`; other reasons
+> are not separate OpenIAP events.
 
 ## SubscriptionStatus by Transaction ID (WWDC 2025)
 
@@ -4725,15 +4179,19 @@ let status = try await Product.SubscriptionInfo.Status.status(for: transactionID
 By default, `Transaction.all` omits finished consumables. Opt in by adding this key to **Info.plist**:
 
 ```xml
-<key>SK2ConsumableTransactionHistory</key>
+<key>SKIncludeConsumableInAppPurchaseHistory</key>
 <true/>
 ```
 
-With the key set, finished consumable transactions are included in `Transaction.all` and `Transaction.currentEntitlements`.
+With the key set, finished consumable transactions are included in
+`Transaction.all`, `Transaction.latest(for:)`, and `Product.latestTransaction`.
 
 ## External Purchase Support (iOS 17.4+)
 
-`ExternalPurchase.presentNoticeSheet()` / `ExternalPurchase.open(url:)` ship on iOS 17.4+. The follow-on custom-link APIs (`ExternalPurchaseCustomLink.isEligible`, `showNotice(type:)`, `token(for:)`) are iOS 18.1+.
+`ExternalPurchase.presentNoticeSheet()` / `ExternalPurchaseLink.open(url:)`
+ship on iOS 17.4+. The follow-on custom-link APIs
+(`ExternalPurchaseCustomLink.isEligible`, `showNotice(type:)`,
+`token(for:)`) are iOS 18.1+.
 
 ### Present External Purchase Notice
 
@@ -4742,10 +4200,11 @@ With the key set, finished consumable transactions are included in `Transaction.
 if await ExternalPurchase.canPresent {
     let result = try await ExternalPurchase.presentNoticeSheet()
     switch result {
-    case .continue:
-        // User wants to continue to external purchase
-    case .dismissed:
-        // User dismissed the notice
+    case .continuedWithExternalPurchaseToken(let token):
+        // Send the token to your backend reporting flow
+        preserveForBackend(token)
+    case .cancelled:
+        break
     }
 }
 ```
@@ -4753,10 +4212,13 @@ if await ExternalPurchase.canPresent {
 ### Present External Purchase Link
 
 ```swift
-let result = try await ExternalPurchase.open(url: externalURL)
+try await ExternalPurchaseLink.open(url: externalURL)
 ```
 
-> **OpenIAP Note**: `presentExternalPurchaseNoticeSheetIOS` and `presentExternalPurchaseLinkIOS` are available in the iOS package.
+> **OpenIAP Note**: `presentExternalPurchaseNoticeSheetIOS` is available on
+> iOS 17.4+ and macOS 14.4+. The current
+> `presentExternalPurchaseLinkIOS` implementation uses `UIApplication` and is
+> not supported on macOS.
 
 
 ---
@@ -4857,10 +4319,12 @@ openiap/
 │   │       ├── Models/      # Official types
 │   │       ├── Helpers/     # Internal helpers
 │   │       └── OpenIapModule.swift
-│   ├── google/       # Android Play Billing (Kotlin)
-│   │   └── openiap/src/main/
-│   │       ├── java/dev/hyo/openiap/
-│   │       └── Types.kt     # AUTO-GENERATED
+│   ├── google/       # Android store implementations (Kotlin)
+│   │   └── openiap/src/
+│   │       ├── main/java/dev/hyo/openiap/     # Shared code + generated Types.kt
+│   │       ├── play/java/dev/hyo/openiap/     # Google Play Billing
+│   │       ├── horizon/java/dev/hyo/openiap/  # Meta Horizon Billing
+│   │       └── amazon/java/dev/hyo/openiap/   # Amazon Appstore
 │   ├── gql/          # GraphQL schema & type generation
 │   └── docs/         # Documentation site
 ├── knowledge/        # Shared knowledge base

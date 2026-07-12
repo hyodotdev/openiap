@@ -120,7 +120,7 @@ export default function AndroidOneTimeOfferDetails({
               style={[styles.offerValue, styles.offerToken]}
               numberOfLines={2}
             >
-              {offer.offerToken}
+              Present
             </Text>
           </View>
         ),

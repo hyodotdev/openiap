@@ -31,7 +31,7 @@ var _processed_transactions: Dictionary = {}  # transactionId -> bool (to preven
 
 
 func _ready() -> void:
-	_init_godotiap()
+	await _init_godotiap()
 
 
 func _init_godotiap() -> void:
@@ -42,7 +42,7 @@ func _init_godotiap() -> void:
 
 	# Initialize connection
 	_set_loading(true)
-	store_connected = GodotIapPlugin.init_connection()
+	store_connected = await GodotIapPlugin.init_connection()
 	connection_changed.emit(store_connected)
 
 	if store_connected:
@@ -62,15 +62,15 @@ func _set_loading(loading: bool) -> void:
 func _fetch_products_delayed() -> void:
 	await get_tree().create_timer(0.5).timeout
 	# Clear any pending purchases first
-	_clear_pending_purchases()
+	await _clear_pending_purchases()
 	print("[IAPManager] Fetching products...")
-	_fetch_products()
+	await _fetch_products()
 
 
 ## Clear pending purchases that weren't finished (e.g., app crashed after purchase)
 func _clear_pending_purchases() -> void:
 	print("[IAPManager] Checking for pending purchases...")
-	var pending_purchases = GodotIapPlugin._get_available_purchases_raw()
+	var pending_purchases = await GodotIapPlugin._get_available_purchases_raw()
 
 	if pending_purchases.size() == 0:
 		print("[IAPManager] No pending purchases found")
@@ -95,7 +95,7 @@ func _clear_pending_purchases() -> void:
 
 		print("[IAPManager] Finishing pending purchase: %s (consumable: %s)" % [product_id, is_consumable])
 
-		var result = GodotIapPlugin.finish_transaction_dict(purchase_dict, is_consumable)
+		var result = await GodotIapPlugin.finish_transaction_dict(purchase_dict, is_consumable)
 		print("[IAPManager] finish_transaction_dict result: success=%s" % result.success)
 
 	print("[IAPManager] Pending purchases cleared")
@@ -170,7 +170,7 @@ func _fetch_products() -> void:
 
 func _on_products_fetched(result: Dictionary) -> void:
 	# Called asynchronously on iOS when products are fetched
-	print("[IAPManager] Products fetched (async): ", result)
+	print("[IAPManager] Products fetched (async): %d" % result.get("products", []).size())
 	_set_loading(false)
 
 	if result.has("products"):
@@ -217,7 +217,7 @@ func _on_purchase_updated(purchase: Dictionary) -> void:
 		var consumable = (product_id == PRODUCT_10_BULBS or product_id == PRODUCT_30_BULBS)
 
 		# Use the raw purchase dictionary directly to preserve transactionId
-		GodotIapPlugin.finish_transaction_dict(purchase, consumable)
+		await GodotIapPlugin.finish_transaction_dict(purchase, consumable)
 
 		purchase_completed.emit(product_id)
 
@@ -272,28 +272,34 @@ func _purchase(product_id: String, offer_token: String = "") -> void:
 
 	# Create typed RequestPurchaseProps
 	var props = Types.RequestPurchaseProps.new()
-	props.request = Types.RequestPurchasePropsByPlatforms.new()
-
-	# Set Google (Android) props
-	props.request.google = Types.RequestPurchaseAndroidProps.new()
 	var google_skus: Array[String] = [product_id]
-	props.request.google.skus = google_skus
 
-	# For subscriptions on Android, offer_token is required
 	if is_subscription:
+		props.request_subscription = Types.RequestSubscriptionPropsByPlatforms.new()
+		props.request_subscription.google = Types.RequestSubscriptionAndroidProps.new()
+		props.request_subscription.google.skus = google_skus
+		props.request_subscription.apple = Types.RequestSubscriptionIosProps.new()
+		props.request_subscription.apple.sku = product_id
+
+		# For subscriptions on Android, an offer token is normally required.
 		if offer_token.is_empty():
 			# Get default offer token from product if not provided
 			offer_token = _get_default_offer_token(product_id)
 
 		if not offer_token.is_empty():
-			props.request.google.offer_token = offer_token
-			print("[IAPManager] Using offer token: %s" % offer_token)
+			var subscription_offer = Types.AndroidSubscriptionOfferInput.new()
+			subscription_offer.sku = product_id
+			subscription_offer.offer_token = offer_token
+			props.request_subscription.google.subscription_offers.append(subscription_offer)
+			print("[IAPManager] Using configured subscription offer")
 		else:
 			push_warning("[IAPManager] No offer token available for subscription")
-
-	# Set Apple (iOS) props
-	props.request.apple = Types.RequestPurchaseIosProps.new()
-	props.request.apple.sku = product_id
+	else:
+		props.request = Types.RequestPurchasePropsByPlatforms.new()
+		props.request.google = Types.RequestPurchaseAndroidProps.new()
+		props.request.google.skus = google_skus
+		props.request.apple = Types.RequestPurchaseIosProps.new()
+		props.request.apple.sku = product_id
 
 	# Set correct product type
 	props.type = Types.ProductQueryType.SUBS if is_subscription else Types.ProductQueryType.IN_APP
@@ -401,7 +407,7 @@ func purchase_subscription_with_offer(product_id: String, offer_token: String) -
 	_purchase(product_id, offer_token)
 
 
-## Purchase a one-time product with a discount offer (Android 7.0+)
+## Purchase a one-time product with a discount offer (Android 8.0+)
 ## Example: Purchase with a promotional discount
 func purchase_with_discount(product_id: String) -> void:
 	if not products.has(product_id):
@@ -411,7 +417,7 @@ func purchase_with_discount(product_id: String) -> void:
 
 	var product = products[product_id]
 
-	# Check for discount offers (one-time product offers, Android 7.0+)
+	# Check for discount offers (one-time product offers, Android 8.0+)
 	if "discount_offers" in product and product.discount_offers.size() > 0:
 		var discount_offer = product.discount_offers[0]
 		print("[IAPManager] Found discount offer: %s%% off" % discount_offer.percentage_discount_android)
@@ -439,7 +445,7 @@ func purchase_with_discount(product_id: String) -> void:
 func restore_purchases() -> void:
 	## Restore previous purchases
 	print("[IAPManager] Restoring purchases...")
-	var result: Types.VoidResult = GodotIapPlugin.restore_purchases()
+	var result: Types.VoidResult = await GodotIapPlugin.restore_purchases()
 
 	if result.success:
 		purchases_restored.emit()
@@ -448,7 +454,7 @@ func restore_purchases() -> void:
 func is_premium_purchased() -> bool:
 	## Check if premium was purchased (for non-consumables)
 	## Returns typed purchase objects (Types.PurchaseAndroid or Types.PurchaseIOS)
-	var purchases = GodotIapPlugin.get_available_purchases()
+	var purchases = await GodotIapPlugin.get_available_purchases()
 	for purchase in purchases:
 		# Access typed property directly
 		if purchase.product_id == PRODUCT_PREMIUM:

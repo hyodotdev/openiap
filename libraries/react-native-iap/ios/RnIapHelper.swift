@@ -12,7 +12,12 @@ class OpenIapException: NSError, @unchecked Sendable {
         self.init(domain: OpenIapException.domain, code: -1, userInfo: [NSLocalizedDescriptionKey: json])
     }
 
-    static func make(code: ErrorCode, message: String? = nil, productId: String? = nil) -> OpenIapException {
+    static func make(
+        code: ErrorCode,
+        message: String? = nil,
+        productId: String? = nil,
+        debugMessage: String? = nil
+    ) -> OpenIapException {
         let errorMessage = message ?? code.rawValue
         var dict: [String: Any] = [
             "code": code.rawValue,
@@ -20,6 +25,9 @@ class OpenIapException: NSError, @unchecked Sendable {
         ]
         if let productId = productId {
             dict["productId"] = productId
+        }
+        if let debugMessage = debugMessage {
+            dict["debugMessage"] = debugMessage
         }
 
         if let data = try? JSONSerialization.data(withJSONObject: dict),
@@ -30,7 +38,12 @@ class OpenIapException: NSError, @unchecked Sendable {
     }
 
     static func from(_ error: PurchaseError) -> OpenIapException {
-        return make(code: error.code, message: error.message, productId: error.productId)
+        return make(
+            code: error.code,
+            message: error.message,
+            productId: error.productId,
+            debugMessage: error.debugMessage
+        )
     }
 }
 
@@ -74,6 +87,32 @@ enum RnIapHelper {
         return .second(value)
     }
 
+    static func wrapStringArray(_ value: [String]?) -> Variant_NullType__String_? {
+        guard let value = value else { return nil }
+        return .second(value)
+    }
+
+    static func wrapAdvancedCommerceInfo(
+        _ value: AdvancedCommerceInfoIOS?
+    ) -> Variant_NullType_AdvancedCommerceInfoIOS? {
+        guard let value = value else { return nil }
+        return .second(value)
+    }
+
+    static func wrapTransactionCommitmentInfo(
+        _ value: TransactionCommitmentInfoIOS?
+    ) -> Variant_NullType_TransactionCommitmentInfoIOS? {
+        guard let value = value else { return nil }
+        return .second(value)
+    }
+
+    static func wrapRenewalCommitmentInfo(
+        _ value: RenewalCommitmentInfoIOS?
+    ) -> Variant_NullType_RenewalCommitmentInfoIOS? {
+        guard let value = value else { return nil }
+        return .second(value)
+    }
+
     // MARK: - Parsing helpers
 
     static func parseProductQueryType(_ rawValue: String?) -> ProductQueryType {
@@ -111,6 +150,88 @@ enum RnIapHelper {
     }
 
     // MARK: - Conversion helpers
+
+    static func convertAdvancedCommerceInfo(_ value: Any?) -> AdvancedCommerceInfoIOS? {
+        guard let dictionary = value as? [String: Any] else { return nil }
+        let items = (dictionary["items"] as? [[String: Any]] ?? []).map(convertAdvancedCommerceItem)
+        return AdvancedCommerceInfoIOS(
+            description: wrapString(dictionary["description"] as? String),
+            displayName: wrapString(dictionary["displayName"] as? String),
+            estimatedTax: wrapString(dictionary["estimatedTax"] as? String),
+            items: items,
+            requestReferenceId: wrapString(dictionary["requestReferenceId"] as? String),
+            taxCode: wrapString(dictionary["taxCode"] as? String),
+            taxExclusivePrice: wrapString(dictionary["taxExclusivePrice"] as? String),
+            taxRate: wrapString(dictionary["taxRate"] as? String)
+        )
+    }
+
+    static func convertAdvancedCommerceItem(_ dictionary: [String: Any]) -> AdvancedCommerceItemIOS {
+        let details: Variant_NullType_AdvancedCommerceItemDetailsIOS?
+        if let detailsDictionary = dictionary["details"] as? [String: Any] {
+            details = .second(
+                AdvancedCommerceItemDetailsIOS(
+                    jsonRepresentation: wrapString(detailsDictionary["jsonRepresentation"] as? String)
+                )
+            )
+        } else {
+            details = nil
+        }
+
+        let refunds: Variant_NullType__AdvancedCommerceRefundIOS_?
+        if let refundDictionaries = dictionary["refunds"] as? [[String: Any]] {
+            refunds = .second(
+                refundDictionaries.map {
+                    AdvancedCommerceRefundIOS(
+                        jsonRepresentation: wrapString($0["jsonRepresentation"] as? String)
+                    )
+                }
+            )
+        } else {
+            refunds = nil
+        }
+
+        return AdvancedCommerceItemIOS(
+            details: details,
+            refunds: refunds,
+            revocationDate: wrapDouble(doubleValue(dictionary["revocationDate"]))
+        )
+    }
+
+    static func convertTransactionCommitmentInfo(_ value: Any?) -> TransactionCommitmentInfoIOS? {
+        guard let dictionary = value as? [String: Any],
+              let billingPeriodNumber = doubleValue(dictionary["billingPeriodNumber"]),
+              let commitmentExpiresDate = doubleValue(dictionary["commitmentExpiresDate"]),
+              let commitmentPrice = doubleValue(dictionary["commitmentPrice"]),
+              let totalBillingPeriods = doubleValue(dictionary["totalBillingPeriods"]) else {
+            return nil
+        }
+        return TransactionCommitmentInfoIOS(
+            billingPeriodNumber: billingPeriodNumber,
+            commitmentExpiresDate: commitmentExpiresDate,
+            commitmentPrice: commitmentPrice,
+            totalBillingPeriods: totalBillingPeriods
+        )
+    }
+
+    static func convertRenewalCommitmentInfo(_ value: Any?) -> RenewalCommitmentInfoIOS? {
+        guard let dictionary = value as? [String: Any],
+              let productId = dictionary["commitmentAutoRenewProductId"] as? String,
+              let status = boolValue(dictionary["commitmentAutoRenewStatus"]),
+              let planString = dictionary["commitmentRenewalBillingPlanType"] as? String,
+              let plan = SubscriptionBillingPlanTypeIOS(fromString: planString),
+              let renewalDate = doubleValue(dictionary["commitmentRenewalDate"]),
+              let renewalPrice = doubleValue(dictionary["commitmentRenewalPrice"]) else {
+            return nil
+        }
+        return RenewalCommitmentInfoIOS(
+            commitmentAutoRenewProductId: productId,
+            commitmentAutoRenewStatus: status,
+            commitmentRenewalBillingPlanType: plan,
+            commitmentRenewalDate: renewalDate,
+            commitmentRenewalPrice: renewalPrice
+        )
+    }
 
     static func convertProductDictionary(_ dictionary: [String: Any]) -> NitroProduct {
         let platform: IapPlatform
@@ -274,11 +395,21 @@ enum RnIapHelper {
             productId: dictionary["productId"] as? String ?? "",
             transactionDate: doubleValue(dictionary["transactionDate"]) ?? 0,
             purchaseToken: wrapString(dictionary["purchaseToken"] as? String),
+            currentPlanId: wrapString(dictionary["currentPlanId"] as? String),
+            ids: wrapStringArray(dictionary["ids"] as? [String]),
             platform: platform,
             store: store,
             quantity: doubleValue(dictionary["quantity"]) ?? 0,
             purchaseState: purchaseState,
             isAutoRenewing: boolValue(dictionary["isAutoRenewing"]) ?? false,
+            advancedCommerceInfoIOS: wrapAdvancedCommerceInfo(
+                convertAdvancedCommerceInfo(dictionary["advancedCommerceInfoIOS"])
+            ),
+            billingPlanTypeIOS: (dictionary["billingPlanTypeIOS"] as? String)
+                .flatMap(SubscriptionBillingPlanTypeIOS.init(fromString:)),
+            commitmentInfoIOS: wrapTransactionCommitmentInfo(
+                convertTransactionCommitmentInfo(dictionary["commitmentInfoIOS"])
+            ),
             quantityIOS: wrapDouble(doubleValue(dictionary["quantityIOS"])),
             originalTransactionDateIOS: wrapDouble(doubleValue(dictionary["originalTransactionDateIOS"])),
             originalTransactionIdentifierIOS: wrapString(dictionary["originalTransactionIdentifierIOS"] as? String),
@@ -311,7 +442,8 @@ enum RnIapHelper {
             obfuscatedAccountIdAndroid: nil,
             obfuscatedProfileIdAndroid: nil,
             developerPayloadAndroid: nil,
-            isSuspendedAndroid: nil
+            isSuspendedAndroid: nil,
+            pendingPurchaseUpdateAndroid: nil
         )
     }
 
@@ -337,7 +469,7 @@ enum RnIapHelper {
             renewalInfoIOS: renewalInfoIOS,
             autoRenewingAndroid: nil,
             basePlanIdAndroid: nil,
-            currentPlanId: nil,
+            currentPlanId: wrapString(dictionary["currentPlanId"] as? String),
             purchaseTokenAndroid: nil
         )
     }
@@ -346,34 +478,20 @@ enum RnIapHelper {
         return NitroRenewalInfoIOS(
             willAutoRenew: boolValue(dictionary["willAutoRenew"]) ?? false,
             autoRenewPreference: wrapString(dictionary["autoRenewPreference"] as? String),
+            commitmentInfo: wrapRenewalCommitmentInfo(
+                convertRenewalCommitmentInfo(dictionary["commitmentInfo"])
+            ),
             pendingUpgradeProductId: wrapString(dictionary["pendingUpgradeProductId"] as? String),
             renewalDate: wrapDouble(doubleValue(dictionary["renewalDate"])),
             expirationReason: wrapString(dictionary["expirationReason"] as? String),
             isInBillingRetry: wrapBool(boolValue(dictionary["isInBillingRetry"])),
             gracePeriodExpirationDate: wrapDouble(doubleValue(dictionary["gracePeriodExpirationDate"])),
             priceIncreaseStatus: wrapString(dictionary["priceIncreaseStatus"] as? String),
+            renewalBillingPlanType: (dictionary["renewalBillingPlanType"] as? String)
+                .flatMap(SubscriptionBillingPlanTypeIOS.init(fromString:)),
             renewalOfferType: wrapString(dictionary["offerType"] as? String),
             renewalOfferId: wrapString(dictionary["offerIdentifier"] as? String),
             jsonRepresentation: wrapString(dictionary["jsonRepresentation"] as? String)
-        )
-    }
-
-    static func convertRenewalInfo(_ dictionary: [String: Any]) -> NitroSubscriptionRenewalInfo? {
-        // OpenIapSerialization.encode(RenewalInfoIOS) emits `willAutoRenew` (see
-        // packages/apple/Sources/Models/Types.swift); guarding on the non-existent
-        // `autoRenewStatus` key dropped the whole renewalInfo, so
-        // subscriptionStatusIOS never exposed autoRenewPreference to JS.
-        guard let autoRenewStatus = boolValue(dictionary["willAutoRenew"]) else {
-            return nil
-        }
-
-        return NitroSubscriptionRenewalInfo(
-            autoRenewStatus: autoRenewStatus,
-            autoRenewPreference: wrapString(dictionary["autoRenewPreference"] as? String),
-            expirationReason: wrapDouble(doubleValue(dictionary["expirationReason"])),
-            gracePeriodExpirationDate: wrapDouble(doubleValue(dictionary["gracePeriodExpirationDate"])),
-            currentProductID: wrapString(dictionary["currentProductID"] as? String),
-            platform: dictionary["platform"] as? String ?? "ios"
         )
     }
 
@@ -424,14 +542,20 @@ enum RnIapHelper {
     static func makePurchaseErrorResult(
         code: ErrorCode,
         message: String,
-        _ productId: String? = nil
+        _ productId: String? = nil,
+        debugMessage: String? = nil
     ) -> NitroPurchaseResult {
         return NitroPurchaseResult(
             responseCode: -1,
-            debugMessage: nil,
+            debugMessage: debugMessage,
             code: code.rawValue,
             message: message,
-            purchaseToken: nil
+            purchaseToken: nil,
+            productId: productId,
+            productIds: nil,
+            productType: nil,
+            isEmptyProductList: nil,
+            subResponseCodeAndroid: nil
         )
     }
 

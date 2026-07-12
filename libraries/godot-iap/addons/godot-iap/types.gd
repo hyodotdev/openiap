@@ -41,7 +41,7 @@ enum BillingChoiceScreenTypeAndroid {
 	GOOGLE_RENDERED = 2,
 }
 
-## Billing program types for Google Play Billing Programs (Android) Available in Google Play Billing Library 8.2.0+, EXTERNAL_PAYMENTS added in 8.3.0, BILLING_CHOICE added in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+## Billing program types for Google Play Billing Programs (Android) Available in Google Play Billing Library 8.2.0 (External Offer and External Content Link integrations require 8.2.1+), EXTERNAL_PAYMENTS added in 8.3.0, BILLING_CHOICE added in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 enum BillingProgramAndroid {
 	## Unspecified billing program. Do not use.
 	UNSPECIFIED = 0,
@@ -83,7 +83,7 @@ enum DiscountOfferType {
 	INTRODUCTORY = 0,
 	## Promotional offer for existing or returning subscribers
 	PROMOTIONAL = 1,
-	## One-time product discount (Android only, Google Play Billing 7.0+)
+	## One-time product discount (Android only, Google Play Billing 8.0+)
 	ONE_TIME = 2,
 }
 
@@ -129,7 +129,7 @@ enum ErrorCode {
 	DUPLICATE_PURCHASE = 38,
 }
 
-## Launch mode for external link flow (Android) Determines how the external URL is launched Available in Google Play Billing Library 8.2.0+
+## Launch mode for external link flow (Android) Determines how the external URL is launched Introduced in Google Play Billing Library 8.2.0. External Offer and External Content Link integrations require 8.2.1+ and fresh details immediately before every redirect session.
 enum ExternalLinkLaunchModeAndroid {
 	## Unspecified launch mode. Do not use.
 	UNSPECIFIED = 0,
@@ -178,7 +178,7 @@ enum IapEvent {
 	USER_CHOICE_BILLING_ANDROID = 3,
 	## Fired for External Payments (8.3.0+) and Google-rendered Billing Choice developer billing selections on Android. Billing Choice is available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 	DEVELOPER_PROVIDED_BILLING_ANDROID = 4,
-	## Fired when an active subscription enters a billing-issue state that requires user attention. Cross-platform unification of StoreKit 2 Message.billingIssue (iOS 18+) and Play Billing 8.1+ isSuspended. NOT emitted on the Horizon flavor, whose Billing Compatibility SDK implements only the Play Billing 7.0 API surface.
+	## Fired when a subscription enters a billing-issue state that requires user attention. A StoreKit billing-retry subscription may no longer be a current entitlement. Cross-platform unification of StoreKit 2 Message.billingIssue (iOS 16.4+, Mac Catalyst 16.4+, visionOS 1.0+) and Play Billing 8.1+ isSuspended. NOT emitted by Amazon Appstore or the Horizon flavor, whose Billing Compatibility SDK implements only Play Billing 7.0.
 	SUBSCRIPTION_BILLING_ISSUE = 5,
 }
 
@@ -762,7 +762,7 @@ class BillingProgramAvailabilityResultAndroid:
 	## The billing program that was checked
 	var billing_program: BillingProgramAndroid
 	## Billing Choice screen renderer. Populated only for available BILLING_CHOICE results.
-	var choice_screen_type: BillingChoiceScreenTypeAndroid
+	var choice_screen_type: Variant = null
 	## Whether external-link payment is available for Billing Choice.
 	var is_external_link_available: Variant = null
 
@@ -793,10 +793,11 @@ class BillingProgramAvailabilityResultAndroid:
 			dict["billingProgram"] = BILLING_PROGRAM_ANDROID_VALUES[billing_program]
 		else:
 			dict["billingProgram"] = billing_program
-		if BILLING_CHOICE_SCREEN_TYPE_ANDROID_VALUES.has(choice_screen_type):
-			dict["choiceScreenType"] = BILLING_CHOICE_SCREEN_TYPE_ANDROID_VALUES[choice_screen_type]
-		else:
-			dict["choiceScreenType"] = choice_screen_type
+		if choice_screen_type != null:
+			if BILLING_CHOICE_SCREEN_TYPE_ANDROID_VALUES.has(choice_screen_type):
+				dict["choiceScreenType"] = BILLING_CHOICE_SCREEN_TYPE_ANDROID_VALUES[choice_screen_type]
+			else:
+				dict["choiceScreenType"] = choice_screen_type
 		if is_external_link_available != null:
 			dict["isExternalLinkAvailable"] = is_external_link_available
 		return dict
@@ -836,7 +837,7 @@ class BillingResultAndroid:
 	## Debug message from the billing library
 	var debug_message: Variant = null
 	## Sub-response code for more granular error information (8.0+).
-	var sub_response_code: SubResponseCodeAndroid
+	var sub_response_code: Variant = null
 
 	static func from_dict(data: Dictionary) -> BillingResultAndroid:
 		var obj = BillingResultAndroid.new()
@@ -857,10 +858,11 @@ class BillingResultAndroid:
 		dict["responseCode"] = response_code
 		if debug_message != null:
 			dict["debugMessage"] = debug_message
-		if SUB_RESPONSE_CODE_ANDROID_VALUES.has(sub_response_code):
-			dict["subResponseCode"] = SUB_RESPONSE_CODE_ANDROID_VALUES[sub_response_code]
-		else:
-			dict["subResponseCode"] = sub_response_code
+		if sub_response_code != null:
+			if SUB_RESPONSE_CODE_ANDROID_VALUES.has(sub_response_code):
+				dict["subResponseCode"] = SUB_RESPONSE_CODE_ANDROID_VALUES[sub_response_code]
+			else:
+				dict["subResponseCode"] = sub_response_code
 		return dict
 
 ## Details provided when user selects developer billing option (Android) Received via DeveloperProvidedBillingListener callback Available in Google Play Billing Library 8.3.0+
@@ -947,7 +949,7 @@ class DeveloperProvidedBillingProductAndroid:
 			dict["offerToken"] = offer_token
 		return dict
 
-## Discount amount details for one-time purchase offers (Android) Available in Google Play Billing Library 7.0+
+## Discount amount details for one-time purchase offers (Android) Available in Google Play Billing Library 8.0+
 class DiscountAmountAndroid:
 	## Discount amount in micro-units (1,000,000 = 1 unit of currency)
 	var discount_amount_micros: String = ""
@@ -968,7 +970,7 @@ class DiscountAmountAndroid:
 		dict["formattedDiscountAmount"] = formatted_discount_amount
 		return dict
 
-## Discount display information for one-time purchase offers (Android) Available in Google Play Billing Library 7.0+
+## Discount display information for one-time purchase offers (Android) Available in Google Play Billing Library 8.0+
 class DiscountDisplayInfoAndroid:
 	## Percentage discount (e.g., 33 for 33% off)
 	var percentage_discount: Variant = null
@@ -1047,7 +1049,7 @@ class DiscountIOS:
 			dict["localizedPrice"] = localized_price
 		return dict
 
-## Standardized one-time product discount offer. Provides a unified interface for one-time purchase discounts across platforms.  Currently supported on Android (Google Play Billing 7.0+). iOS does not support one-time purchase discounts in the same way.  @see https://openiap.dev/docs/features/discount
+## Standardized one-time product discount offer. Provides a unified interface for one-time purchase discounts across platforms.  Currently supported on Android (Google Play Billing 8.0+). iOS does not support one-time purchase discounts in the same way.  @see https://openiap.dev/docs/features/discount
 class DiscountOffer:
 	## Unique identifier for the offer.
 	var id: Variant = null
@@ -1423,7 +1425,7 @@ class InstallmentPlanDetailsAndroid:
 		dict["subsequentCommitmentPaymentsCount"] = subsequent_commitment_payments_count
 		return dict
 
-## Limited quantity information for one-time purchase offers (Android) Available in Google Play Billing Library 7.0+
+## Limited quantity information for one-time purchase offers (Android) Available in Google Play Billing Library 8.0+
 class LimitedQuantityInfoAndroid:
 	## Maximum quantity a user can purchase
 	var maximum_quantity: int = 0
@@ -1568,7 +1570,7 @@ class ProductAndroid:
 	var platform: IapPlatform
 	var name_android: String = ""
 	## Product-level status code indicating fetch result (Android 8.0+)
-	var product_status_android: ProductStatusAndroid
+	var product_status_android: Variant = null
 	## Standardized discount offers for one-time products.
 	var discount_offers: Array[DiscountOffer] = []
 	## Standardized subscription offers.
@@ -1676,10 +1678,11 @@ class ProductAndroid:
 		else:
 			dict["platform"] = platform
 		dict["nameAndroid"] = name_android
-		if PRODUCT_STATUS_ANDROID_VALUES.has(product_status_android):
-			dict["productStatusAndroid"] = PRODUCT_STATUS_ANDROID_VALUES[product_status_android]
-		else:
-			dict["productStatusAndroid"] = product_status_android
+		if product_status_android != null:
+			if PRODUCT_STATUS_ANDROID_VALUES.has(product_status_android):
+				dict["productStatusAndroid"] = PRODUCT_STATUS_ANDROID_VALUES[product_status_android]
+			else:
+				dict["productStatusAndroid"] = product_status_android
 		if discount_offers != null:
 			var arr = []
 			for item in discount_offers:
@@ -1722,7 +1725,7 @@ class ProductAndroid:
 			dict["subscriptionOfferDetailsAndroid"] = null
 		return dict
 
-## One-time purchase offer details (Android). Available in Google Play Billing Library 7.0+ @deprecated Use the standardized DiscountOffer type instead for cross-platform compatibility. @see https://openiap.dev/docs/types#discount-offer
+## One-time purchase offer details (Android). Available in Google Play Billing Library 8.0+ @deprecated Use the standardized DiscountOffer type instead for cross-platform compatibility. @see https://openiap.dev/docs/types#discount-offer
 class ProductAndroidOneTimePurchaseOfferDetail:
 	## Offer ID
 	var offer_id: Variant = null
@@ -1989,7 +1992,7 @@ class ProductSubscriptionAndroid:
 	var platform: IapPlatform
 	var name_android: String = ""
 	## Product-level status code indicating fetch result (Android 8.0+)
-	var product_status_android: ProductStatusAndroid
+	var product_status_android: Variant = null
 	## Standardized discount offers for one-time products.
 	var discount_offers: Array[DiscountOffer] = []
 	## Standardized subscription offers.
@@ -2097,10 +2100,11 @@ class ProductSubscriptionAndroid:
 		else:
 			dict["platform"] = platform
 		dict["nameAndroid"] = name_android
-		if PRODUCT_STATUS_ANDROID_VALUES.has(product_status_android):
-			dict["productStatusAndroid"] = PRODUCT_STATUS_ANDROID_VALUES[product_status_android]
-		else:
-			dict["productStatusAndroid"] = product_status_android
+		if product_status_android != null:
+			if PRODUCT_STATUS_ANDROID_VALUES.has(product_status_android):
+				dict["productStatusAndroid"] = PRODUCT_STATUS_ANDROID_VALUES[product_status_android]
+			else:
+				dict["productStatusAndroid"] = product_status_android
 		if discount_offers != null:
 			var arr = []
 			for item in discount_offers:
@@ -2226,9 +2230,9 @@ class ProductSubscriptionIOS:
 	var introductory_price_as_amount_ios: Variant = null
 	var introductory_price_payment_mode_ios: PaymentModeIOS
 	var introductory_price_number_of_periods_ios: Variant = null
-	var introductory_price_subscription_period_ios: SubscriptionPeriodIOS
+	var introductory_price_subscription_period_ios: Variant = null
 	var subscription_period_number_ios: Variant = null
-	var subscription_period_unit_ios: SubscriptionPeriodIOS
+	var subscription_period_unit_ios: Variant = null
 
 	static func from_dict(data: Dictionary) -> ProductSubscriptionIOS:
 		var obj = ProductSubscriptionIOS.new()
@@ -2408,16 +2412,18 @@ class ProductSubscriptionIOS:
 			dict["introductoryPricePaymentModeIOS"] = introductory_price_payment_mode_ios
 		if introductory_price_number_of_periods_ios != null:
 			dict["introductoryPriceNumberOfPeriodsIOS"] = introductory_price_number_of_periods_ios
-		if SUBSCRIPTION_PERIOD_IOS_VALUES.has(introductory_price_subscription_period_ios):
-			dict["introductoryPriceSubscriptionPeriodIOS"] = SUBSCRIPTION_PERIOD_IOS_VALUES[introductory_price_subscription_period_ios]
-		else:
-			dict["introductoryPriceSubscriptionPeriodIOS"] = introductory_price_subscription_period_ios
+		if introductory_price_subscription_period_ios != null:
+			if SUBSCRIPTION_PERIOD_IOS_VALUES.has(introductory_price_subscription_period_ios):
+				dict["introductoryPriceSubscriptionPeriodIOS"] = SUBSCRIPTION_PERIOD_IOS_VALUES[introductory_price_subscription_period_ios]
+			else:
+				dict["introductoryPriceSubscriptionPeriodIOS"] = introductory_price_subscription_period_ios
 		if subscription_period_number_ios != null:
 			dict["subscriptionPeriodNumberIOS"] = subscription_period_number_ios
-		if SUBSCRIPTION_PERIOD_IOS_VALUES.has(subscription_period_unit_ios):
-			dict["subscriptionPeriodUnitIOS"] = SUBSCRIPTION_PERIOD_IOS_VALUES[subscription_period_unit_ios]
-		else:
-			dict["subscriptionPeriodUnitIOS"] = subscription_period_unit_ios
+		if subscription_period_unit_ios != null:
+			if SUBSCRIPTION_PERIOD_IOS_VALUES.has(subscription_period_unit_ios):
+				dict["subscriptionPeriodUnitIOS"] = SUBSCRIPTION_PERIOD_IOS_VALUES[subscription_period_unit_ios]
+			else:
+				dict["subscriptionPeriodUnitIOS"] = subscription_period_unit_ios
 		return dict
 
 class PurchaseAndroid:
@@ -2572,6 +2578,7 @@ class PurchaseError:
 	var product_id: Variant = null
 	var debug_message: Variant = null
 	var response_code: Variant = null
+	var sub_response_code_android: Variant = null
 	var product_ids: Array[String] = []
 	var product_type: Variant = null
 	var is_empty_product_list: Variant = null
@@ -2592,6 +2599,12 @@ class PurchaseError:
 			obj.debug_message = data["debugMessage"]
 		if data.has("responseCode") and data["responseCode"] != null:
 			obj.response_code = data["responseCode"]
+		if data.has("subResponseCodeAndroid") and data["subResponseCodeAndroid"] != null:
+			var enum_str = data["subResponseCodeAndroid"]
+			if enum_str is String and SUB_RESPONSE_CODE_ANDROID_FROM_STRING.has(enum_str):
+				obj.sub_response_code_android = SUB_RESPONSE_CODE_ANDROID_FROM_STRING[enum_str]
+			else:
+				obj.sub_response_code_android = enum_str
 		if data.has("productIds") and data["productIds"] != null:
 			if data["productIds"] is Array:
 				var arr: Array[String] = []
@@ -2618,6 +2631,11 @@ class PurchaseError:
 			dict["debugMessage"] = debug_message
 		if response_code != null:
 			dict["responseCode"] = response_code
+		if sub_response_code_android != null:
+			if SUB_RESPONSE_CODE_ANDROID_VALUES.has(sub_response_code_android):
+				dict["subResponseCodeAndroid"] = SUB_RESPONSE_CODE_ANDROID_VALUES[sub_response_code_android]
+			else:
+				dict["subResponseCodeAndroid"] = sub_response_code_android
 		dict["productIds"] = product_ids
 		if product_type != null:
 			dict["productType"] = product_type
@@ -2663,7 +2681,7 @@ class PurchaseIOS:
 	var country_code_ios: Variant = null
 	var renewal_info_ios: RenewalInfoIOS
 	## iOS 26.4+ billing plan selected for this transaction.
-	var billing_plan_type_ios: SubscriptionBillingPlanTypeIOS
+	var billing_plan_type_ios: Variant = null
 	## iOS 26.4+ progress information for monthly subscriptions with a 12-month commitment.
 	var commitment_info_ios: TransactionCommitmentInfoIOS
 	## Advanced Commerce API metadata (iOS 18.4+).
@@ -2853,10 +2871,11 @@ class PurchaseIOS:
 			dict["renewalInfoIOS"] = renewal_info_ios.to_dict()
 		else:
 			dict["renewalInfoIOS"] = renewal_info_ios
-		if SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_VALUES.has(billing_plan_type_ios):
-			dict["billingPlanTypeIOS"] = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_VALUES[billing_plan_type_ios]
-		else:
-			dict["billingPlanTypeIOS"] = billing_plan_type_ios
+		if billing_plan_type_ios != null:
+			if SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_VALUES.has(billing_plan_type_ios):
+				dict["billingPlanTypeIOS"] = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_VALUES[billing_plan_type_ios]
+			else:
+				dict["billingPlanTypeIOS"] = billing_plan_type_ios
 		if commitment_info_ios != null and commitment_info_ios.has_method("to_dict"):
 			dict["commitmentInfoIOS"] = commitment_info_ios.to_dict()
 		else:
@@ -2967,7 +2986,7 @@ class RenewalInfoIOS:
 	## Type of offer applied to next renewal
 	var renewal_offer_type: Variant = null
 	## iOS 26.4+ billing plan that will renew after the current period.
-	var renewal_billing_plan_type: SubscriptionBillingPlanTypeIOS
+	var renewal_billing_plan_type: Variant = null
 	## iOS 26.4+ renewal commitment metadata for monthly subscriptions with a
 	var commitment_info: RenewalCommitmentInfoIOS
 
@@ -3031,17 +3050,18 @@ class RenewalInfoIOS:
 			dict["renewalOfferId"] = renewal_offer_id
 		if renewal_offer_type != null:
 			dict["renewalOfferType"] = renewal_offer_type
-		if SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_VALUES.has(renewal_billing_plan_type):
-			dict["renewalBillingPlanType"] = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_VALUES[renewal_billing_plan_type]
-		else:
-			dict["renewalBillingPlanType"] = renewal_billing_plan_type
+		if renewal_billing_plan_type != null:
+			if SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_VALUES.has(renewal_billing_plan_type):
+				dict["renewalBillingPlanType"] = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_VALUES[renewal_billing_plan_type]
+			else:
+				dict["renewalBillingPlanType"] = renewal_billing_plan_type
 		if commitment_info != null and commitment_info.has_method("to_dict"):
 			dict["commitmentInfo"] = commitment_info.to_dict()
 		else:
 			dict["commitmentInfo"] = commitment_info
 		return dict
 
-## Rental details for one-time purchase products that can be rented (Android) Available in Google Play Billing Library 7.0+
+## Rental details for one-time purchase products that can be rented (Android) Available in Google Play Billing Library 8.0+
 class RentalDetailsAndroid:
 	## Rental period in ISO 8601 format (e.g., P7D for 7 days)
 	var rental_period: String = ""
@@ -3220,7 +3240,7 @@ class SubscriptionOffer:
 	## Number of periods the offer applies
 	var period_count: Variant = null
 	## Payment mode during the offer period
-	var payment_mode: PaymentMode
+	var payment_mode: Variant = null
 	## [iOS] Key identifier for signature validation.
 	var key_identifier_ios: Variant = null
 	## [iOS] Cryptographic nonce (UUID) for signature validation.
@@ -3325,10 +3345,11 @@ class SubscriptionOffer:
 			dict["period"] = period
 		if period_count != null:
 			dict["periodCount"] = period_count
-		if PAYMENT_MODE_VALUES.has(payment_mode):
-			dict["paymentMode"] = PAYMENT_MODE_VALUES[payment_mode]
-		else:
-			dict["paymentMode"] = payment_mode
+		if payment_mode != null:
+			if PAYMENT_MODE_VALUES.has(payment_mode):
+				dict["paymentMode"] = PAYMENT_MODE_VALUES[payment_mode]
+			else:
+				dict["paymentMode"] = payment_mode
 		if key_identifier_ios != null:
 			dict["keyIdentifierIOS"] = key_identifier_ios
 		if nonce_ios != null:
@@ -3591,13 +3612,19 @@ class TransactionCommitmentInfoIOS:
 class UserChoiceBillingDetails:
 	## Token that must be reported to Google Play within 24 hours
 	var external_transaction_token: String = ""
+	## External transaction ID of the originating subscription when the user is
+	var original_external_transaction_id: Variant = null
 	## List of product IDs selected by the user
 	var products: Array[String] = []
+	## Structured product details selected in the user-choice flow, including the
+	var product_details_android: Array[DeveloperProvidedBillingProductAndroid] = []
 
 	static func from_dict(data: Dictionary) -> UserChoiceBillingDetails:
 		var obj = UserChoiceBillingDetails.new()
 		if data.has("externalTransactionToken") and data["externalTransactionToken"] != null:
 			obj.external_transaction_token = data["externalTransactionToken"]
+		if data.has("originalExternalTransactionId") and data["originalExternalTransactionId"] != null:
+			obj.original_external_transaction_id = data["originalExternalTransactionId"]
 		if data.has("products") and data["products"] != null:
 			if data["products"] is Array:
 				var arr: Array[String] = []
@@ -3605,15 +3632,36 @@ class UserChoiceBillingDetails:
 					if item is String:
 						arr.append(str(item))
 				obj.products = arr
+		if data.has("productDetailsAndroid") and data["productDetailsAndroid"] != null:
+			if data["productDetailsAndroid"] is Array:
+				var arr: Array[DeveloperProvidedBillingProductAndroid] = []
+				for item in data["productDetailsAndroid"]:
+					if item is Dictionary:
+						arr.append(DeveloperProvidedBillingProductAndroid.from_dict(item))
+					elif item is DeveloperProvidedBillingProductAndroid:
+						arr.append(item)
+				obj.product_details_android = arr
 		return obj
 
 	func to_dict() -> Dictionary:
 		var dict = {}
 		dict["externalTransactionToken"] = external_transaction_token
+		if original_external_transaction_id != null:
+			dict["originalExternalTransactionId"] = original_external_transaction_id
 		dict["products"] = products
+		if product_details_android != null:
+			var arr = []
+			for item in product_details_android:
+				if item != null and item.has_method("to_dict"):
+					arr.append(item.to_dict())
+				else:
+					arr.append(item)
+			dict["productDetailsAndroid"] = arr
+		else:
+			dict["productDetailsAndroid"] = null
 		return dict
 
-## Valid time window for when an offer is available (Android) Available in Google Play Billing Library 7.0+
+## Valid time window for when an offer is available (Android) Available in Google Play Billing Library 8.0+
 class ValidTimeWindowAndroid:
 	## Start time in milliseconds since epoch
 	var start_time_millis: String = ""
@@ -3876,13 +3924,13 @@ class WebhookEvent:
 	## Product the event pertains to. May be null for account-level events.
 	var product_id: Variant = null
 	## Normalized subscription state at the time of event, when the event refers to
-	var subscription_state: SubscriptionState
+	var subscription_state: Variant = null
 	## When the current subscription period ends. Epoch milliseconds.
 	var expires_at: Variant = null
 	## When auto-renewal will charge again. Epoch milliseconds.
 	var renews_at: Variant = null
 	## Reason for cancellation, when applicable.
-	var cancellation_reason: WebhookCancellationReason
+	var cancellation_reason: Variant = null
 	## Localized currency code (ISO 4217) at event time, when available.
 	var currency: Variant = null
 	## Price in micros (1/1,000,000 of the currency unit) at event time, when available.
@@ -3978,18 +4026,20 @@ class WebhookEvent:
 			dict["purchaseToken"] = purchase_token
 		if product_id != null:
 			dict["productId"] = product_id
-		if SUBSCRIPTION_STATE_VALUES.has(subscription_state):
-			dict["subscriptionState"] = SUBSCRIPTION_STATE_VALUES[subscription_state]
-		else:
-			dict["subscriptionState"] = subscription_state
+		if subscription_state != null:
+			if SUBSCRIPTION_STATE_VALUES.has(subscription_state):
+				dict["subscriptionState"] = SUBSCRIPTION_STATE_VALUES[subscription_state]
+			else:
+				dict["subscriptionState"] = subscription_state
 		if expires_at != null:
 			dict["expiresAt"] = expires_at
 		if renews_at != null:
 			dict["renewsAt"] = renews_at
-		if WEBHOOK_CANCELLATION_REASON_VALUES.has(cancellation_reason):
-			dict["cancellationReason"] = WEBHOOK_CANCELLATION_REASON_VALUES[cancellation_reason]
-		else:
-			dict["cancellationReason"] = cancellation_reason
+		if cancellation_reason != null:
+			if WEBHOOK_CANCELLATION_REASON_VALUES.has(cancellation_reason):
+				dict["cancellationReason"] = WEBHOOK_CANCELLATION_REASON_VALUES[cancellation_reason]
+			else:
+				dict["cancellationReason"] = cancellation_reason
 		if currency != null:
 			dict["currency"] = currency
 		if price_amount_micros != null:
@@ -4083,7 +4133,7 @@ class DeveloperBillingOptionParamsAndroid:
 	## The URI where the external payment will be processed.
 	var link_uri: Variant = null
 	## The launch mode for the external payment link.
-	var launch_mode: DeveloperBillingLaunchModeAndroid
+	var launch_mode: Variant = null
 	## A pre-generated external transaction token for a Billing Choice external-link
 	var external_transaction_token: Variant = null
 
@@ -4241,9 +4291,9 @@ class InAppMessageParamsAndroid:
 ## Connection initialization configuration
 class InitConnectionConfig:
 	## Alternative billing mode for Android
-	var alternative_billing_mode_android: AlternativeBillingModeAndroid
+	var alternative_billing_mode_android: Variant = null
 	## Enable a specific billing program for Android (7.0+)
-	var enable_billing_program_android: BillingProgramAndroid
+	var enable_billing_program_android: Variant = null
 	## Billing Choice renderer configured in Play Console. Available in OpenIAP
 	var billing_choice_screen_type_android: BillingChoiceScreenTypeAndroid = BillingChoiceScreenTypeAndroid.GOOGLE_RENDERED
 
@@ -4413,9 +4463,9 @@ class PurchaseInput:
 	var transaction_date: float = 0.0
 	var purchase_token: Variant = null
 	## Store where purchase was made
-	var store: IapStore
+	var store: Variant = null
 	## @deprecated Use store instead
-	var platform: IapPlatform
+	var platform: Variant = null
 	var quantity: int = 0
 	var purchase_state: PurchaseState
 	var is_auto_renewing: bool = false
@@ -4547,7 +4597,7 @@ class RequestPurchaseAndroidProps:
 	var obfuscated_profile_id: Variant = null
 	## Personalized offer flag.
 	var is_offer_personalized: Variant = null
-	## Offer token for one-time purchase discounts (7.0+).
+	## Offer token for one-time purchase discounts (8.0+).
 	var offer_token: Variant = null
 	## Developer billing option parameters for external payments and Billing Choice.
 	var developer_billing_option: DeveloperBillingOptionParamsAndroid
@@ -4657,45 +4707,61 @@ class RequestPurchaseProps:
 	## @deprecated Use enableBillingProgramAndroid in InitConnectionConfig instead.
 	var use_alternative_billing: Variant = null
 
-	static func from_dict(data: Dictionary) -> RequestPurchaseProps:
+	static func in_app(platforms: RequestPurchasePropsByPlatforms, use_alternative_billing_value: Variant = null) -> RequestPurchaseProps:
 		var obj = RequestPurchaseProps.new()
-		if data.has("requestPurchase") and data["requestPurchase"] != null:
-			if data["requestPurchase"] is Dictionary:
-				obj.request = RequestPurchasePropsByPlatforms.from_dict(data["requestPurchase"])
-			else:
-				obj.request = data["requestPurchase"]
-		if data.has("requestSubscription") and data["requestSubscription"] != null:
-			if data["requestSubscription"] is Dictionary:
-				obj.request_subscription = RequestSubscriptionPropsByPlatforms.from_dict(data["requestSubscription"])
-			else:
-				obj.request_subscription = data["requestSubscription"]
+		obj.request = platforms
+		obj.type = ProductQueryType.IN_APP
+		obj.use_alternative_billing = use_alternative_billing_value
+		return obj
+
+	static func subs(platforms: RequestSubscriptionPropsByPlatforms, use_alternative_billing_value: Variant = null) -> RequestPurchaseProps:
+		var obj = RequestPurchaseProps.new()
+		obj.request_subscription = platforms
+		obj.type = ProductQueryType.SUBS
+		obj.use_alternative_billing = use_alternative_billing_value
+		return obj
+
+	static func from_dict(data: Dictionary) -> RequestPurchaseProps:
+		var has_purchase = data.has("requestPurchase") and data["requestPurchase"] != null
+		var has_subscription = data.has("requestSubscription") and data["requestSubscription"] != null
+		if has_purchase == has_subscription:
+			push_error("RequestPurchaseProps requires exactly one of requestPurchase or requestSubscription")
+			return null
+		var obj = RequestPurchaseProps.new()
+		if has_purchase:
+			var purchase_value = data["requestPurchase"]
+			obj.request = RequestPurchasePropsByPlatforms.from_dict(purchase_value) if purchase_value is Dictionary else purchase_value
+		else:
+			var subscription_value = data["requestSubscription"]
+			obj.request_subscription = RequestSubscriptionPropsByPlatforms.from_dict(subscription_value) if subscription_value is Dictionary else subscription_value
+		var expected_type = ProductQueryType.IN_APP if has_purchase else ProductQueryType.SUBS
+		obj.type = expected_type
 		if data.has("type") and data["type"] != null:
-			var enum_str = data["type"]
-			if enum_str is String and PRODUCT_QUERY_TYPE_FROM_STRING.has(enum_str):
-				obj.type = PRODUCT_QUERY_TYPE_FROM_STRING[enum_str]
-			else:
-				obj.type = enum_str
+			var enum_value = data["type"]
+			obj.type = PRODUCT_QUERY_TYPE_FROM_STRING.get(enum_value, enum_value) if enum_value is String else enum_value
+		if obj.type != expected_type:
+			push_error("RequestPurchaseProps.type does not match its request branch")
+			return null
 		if data.has("useAlternativeBilling") and data["useAlternativeBilling"] != null:
 			obj.use_alternative_billing = data["useAlternativeBilling"]
 		return obj
 
 	func to_dict() -> Dictionary:
+		var has_purchase = request != null
+		var has_subscription = request_subscription != null
+		if has_purchase == has_subscription:
+			push_error("RequestPurchaseProps requires exactly one purchase branch")
+			return {}
+		var expected_type = ProductQueryType.IN_APP if has_purchase else ProductQueryType.SUBS
+		if type != expected_type:
+			push_error("RequestPurchaseProps.type does not match its request branch")
+			return {}
 		var dict = {}
-		if request != null:
-			if request.has_method("to_dict"):
-				dict["requestPurchase"] = request.to_dict()
-			else:
-				dict["requestPurchase"] = request
-		if request_subscription != null:
-			if request_subscription.has_method("to_dict"):
-				dict["requestSubscription"] = request_subscription.to_dict()
-			else:
-				dict["requestSubscription"] = request_subscription
-		if type != null:
-			if PRODUCT_QUERY_TYPE_VALUES.has(type):
-				dict["type"] = PRODUCT_QUERY_TYPE_VALUES[type]
-			else:
-				dict["type"] = type
+		if has_purchase:
+			dict["requestPurchase"] = request.to_dict() if request.has_method("to_dict") else request
+		else:
+			dict["requestSubscription"] = request_subscription.to_dict() if request_subscription.has_method("to_dict") else request_subscription
+		dict["type"] = PRODUCT_QUERY_TYPE_VALUES.get(type, type)
 		if use_alternative_billing != null:
 			dict["useAlternativeBilling"] = use_alternative_billing
 		return dict
@@ -4871,7 +4937,7 @@ class RequestSubscriptionIosProps:
 	## JWS promotional offer (iOS 15+, WWDC 2025).
 	var promotional_offer_jws: PromotionalOfferJWSInputIOS
 	## Billing plan to use when purchasing an annual subscription that offers
-	var billing_plan_type: SubscriptionBillingPlanTypeIOS
+	var billing_plan_type: Variant = null
 	## Compact JWS string for overriding introductory offer eligibility
 	var compact_jws: Variant = null
 	## Advanced commerce data token (iOS 15+).
@@ -5984,7 +6050,7 @@ class Query:
 		const name = "getAvailablePurchases"
 		const snake_name = "get_available_purchases"
 		class Args:
-			var options: PurchaseOptions
+			var options: Variant = null
 
 			static func from_dict(data: Dictionary) -> Args:
 				var obj = Args.new()
@@ -5994,7 +6060,8 @@ class Query:
 
 			func to_dict() -> Dictionary:
 				var dict = {}
-				dict["options"] = options
+				if options != null:
+					dict["options"] = options
 				return dict
 		const return_type = "Purchase"
 		const is_array = true
@@ -6004,7 +6071,7 @@ class Query:
 		const name = "getActiveSubscriptions"
 		const snake_name = "get_active_subscriptions"
 		class Args:
-			var subscription_ids: Array[String]
+			var subscription_ids: Variant = null
 
 			static func from_dict(data: Dictionary) -> Args:
 				var obj = Args.new()
@@ -6019,7 +6086,8 @@ class Query:
 
 			func to_dict() -> Dictionary:
 				var dict = {}
-				dict["subscriptionIds"] = subscription_ids
+				if subscription_ids != null:
+					dict["subscriptionIds"] = subscription_ids
 				return dict
 		const return_type = "ActiveSubscription"
 		const is_array = true
@@ -6029,7 +6097,7 @@ class Query:
 		const name = "hasActiveSubscriptions"
 		const snake_name = "has_active_subscriptions"
 		class Args:
-			var subscription_ids: Array[String]
+			var subscription_ids: Variant = null
 
 			static func from_dict(data: Dictionary) -> Args:
 				var obj = Args.new()
@@ -6044,12 +6112,13 @@ class Query:
 
 			func to_dict() -> Dictionary:
 				var dict = {}
-				dict["subscriptionIds"] = subscription_ids
+				if subscription_ids != null:
+					dict["subscriptionIds"] = subscription_ids
 				return dict
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Return the user's storefront country code.
+	## Return the store-authoritative country code: ISO 3166-1 alpha-3 on Apple
 	class getStorefrontField:
 		const name = "getStorefront"
 		const snake_name = "get_storefront"
@@ -6058,7 +6127,7 @@ class Query:
 		const return_type = "String"
 		const is_array = false
 
-	## Deprecated. Get the current App Store storefront country code — use cross-platform getStorefront instead.
+	## Deprecated. Get the current App Store storefront ISO 3166-1 alpha-3 country
 	class getStorefrontIOSField:
 		const name = "getStorefrontIOS"
 		const snake_name = "get_storefront_ios"
@@ -6337,7 +6406,7 @@ class Mutation:
 		const name = "initConnection"
 		const snake_name = "init_connection"
 		class Args:
-			var config: InitConnectionConfig
+			var config: Variant = null
 
 			static func from_dict(data: Dictionary) -> Args:
 				var obj = Args.new()
@@ -6347,7 +6416,8 @@ class Mutation:
 
 			func to_dict() -> Dictionary:
 				var dict = {}
-				dict["config"] = config
+				if config != null:
+					dict["config"] = config
 				return dict
 		const return_type = "Boolean"
 		const is_array = false
@@ -6387,7 +6457,7 @@ class Mutation:
 		const snake_name = "finish_transaction"
 		class Args:
 			var purchase: PurchaseInput
-			var is_consumable: bool
+			var is_consumable: Variant = null
 
 			static func from_dict(data: Dictionary) -> Args:
 				var obj = Args.new()
@@ -6400,7 +6470,8 @@ class Mutation:
 			func to_dict() -> Dictionary:
 				var dict = {}
 				dict["purchase"] = purchase
-				dict["isConsumable"] = is_consumable
+				if is_consumable != null:
+					dict["isConsumable"] = is_consumable
 				return dict
 		const return_type = "VoidResult"
 		const is_array = false
@@ -6419,7 +6490,7 @@ class Mutation:
 		const name = "deepLinkToSubscriptions"
 		const snake_name = "deep_link_to_subscriptions"
 		class Args:
-			var options: DeepLinkOptions
+			var options: Variant = null
 
 			static func from_dict(data: Dictionary) -> Args:
 				var obj = Args.new()
@@ -6429,7 +6500,8 @@ class Mutation:
 
 			func to_dict() -> Dictionary:
 				var dict = {}
-				dict["options"] = options
+				if options != null:
+					dict["options"] = options
 				return dict
 		const return_type = "VoidResult"
 		const is_array = false
@@ -6710,13 +6782,13 @@ class Mutation:
 		const return_type = "BillingProgramAvailabilityResultAndroid"
 		const is_array = false
 
-	## Create the reporting payload Google requires after a Developer-Provided Billing transaction (Play Billing 8.3.0+).
+	## Create the reporting details and external transaction token required by a billing program.
 	class createBillingProgramReportingDetailsAndroidField:
 		const name = "createBillingProgramReportingDetailsAndroid"
 		const snake_name = "create_billing_program_reporting_details_android"
 		class Args:
 			var program: BillingProgramAndroid
-			var developer_billing_type: DeveloperBillingTypeAndroid
+			var developer_billing_type: Variant = null
 
 			static func from_dict(data: Dictionary) -> Args:
 				var obj = Args.new()
@@ -6740,15 +6812,16 @@ class Mutation:
 					dict["program"] = BILLING_PROGRAM_ANDROID_VALUES[program]
 				else:
 					dict["program"] = program
-				if DEVELOPER_BILLING_TYPE_ANDROID_VALUES.has(developer_billing_type):
-					dict["developerBillingType"] = DEVELOPER_BILLING_TYPE_ANDROID_VALUES[developer_billing_type]
-				else:
-					dict["developerBillingType"] = developer_billing_type
+				if developer_billing_type != null:
+					if DEVELOPER_BILLING_TYPE_ANDROID_VALUES.has(developer_billing_type):
+						dict["developerBillingType"] = DEVELOPER_BILLING_TYPE_ANDROID_VALUES[developer_billing_type]
+					else:
+						dict["developerBillingType"] = developer_billing_type
 				return dict
 		const return_type = "BillingProgramReportingDetailsAndroid"
 		const is_array = false
 
-	## Launch an external content/offer link from inside the Billing Programs flow (Play Billing 8.2.0+),
+	## Launch an external content/offer link from inside the Billing Programs flow (introduced in
 	class launchExternalLinkAndroidField:
 		const name = "launchExternalLinkAndroid"
 		const snake_name = "launch_external_link_android"
@@ -6793,7 +6866,7 @@ class Mutation:
 		const name = "showInAppMessagesAndroid"
 		const snake_name = "show_in_app_messages_android"
 		class Args:
-			var params: InAppMessageParamsAndroid
+			var params: Variant = null
 
 			static func from_dict(data: Dictionary) -> Args:
 				var obj = Args.new()
@@ -6803,7 +6876,8 @@ class Mutation:
 
 			func to_dict() -> Dictionary:
 				var dict = {}
-				dict["params"] = params
+				if params != null:
+					dict["params"] = params
 				return dict
 		const return_type = "InAppMessageResultAndroid"
 		const is_array = false
@@ -6827,7 +6901,7 @@ static func fetch_products_args(params: ProductRequest) -> Dictionary:
 	return args
 
 ## List active purchases for the current user.
-static func get_available_purchases_args(options: PurchaseOptions) -> Dictionary:
+static func get_available_purchases_args(options: Variant = null) -> Dictionary:
 	var args = {}
 	if options != null:
 		if options.has_method("to_dict"):
@@ -6837,22 +6911,24 @@ static func get_available_purchases_args(options: PurchaseOptions) -> Dictionary
 	return args
 
 ## Get details of all currently active subscriptions (filters by subscriptionIds when provided).
-static func get_active_subscriptions_args(subscription_ids: Array[String]) -> Dictionary:
+static func get_active_subscriptions_args(subscription_ids: Variant = null) -> Dictionary:
 	var args = {}
-	args["subscriptionIds"] = subscription_ids
+	if subscription_ids != null:
+		args["subscriptionIds"] = subscription_ids
 	return args
 
 ## Check whether the user has any active subscription.
-static func has_active_subscriptions_args(subscription_ids: Array[String]) -> Dictionary:
+static func has_active_subscriptions_args(subscription_ids: Variant = null) -> Dictionary:
 	var args = {}
-	args["subscriptionIds"] = subscription_ids
+	if subscription_ids != null:
+		args["subscriptionIds"] = subscription_ids
 	return args
 
-## Return the user's storefront country code.
+## Return the store-authoritative country code: ISO 3166-1 alpha-3 on Apple
 static func get_storefront_args() -> Dictionary:
 	return {}
 
-## Deprecated. Get the current App Store storefront country code — use cross-platform getStorefront instead.
+## Deprecated. Get the current App Store storefront ISO 3166-1 alpha-3 country
 static func get_storefront_ios_args() -> Dictionary:
 	return {}
 
@@ -6871,7 +6947,10 @@ static func is_eligible_for_external_purchase_custom_link_ios_args() -> Dictiona
 ## Fetch a token for Apple's External Purchase Server reporting API (iOS 18.1+).
 static func get_external_purchase_custom_link_token_ios_args(token_type: ExternalPurchaseCustomLinkTokenTypeIOS) -> Dictionary:
 	var args = {}
-	args["tokenType"] = token_type
+	if EXTERNAL_PURCHASE_CUSTOM_LINK_TOKEN_TYPE_IOS_VALUES.has(token_type):
+		args["tokenType"] = EXTERNAL_PURCHASE_CUSTOM_LINK_TOKEN_TYPE_IOS_VALUES[token_type]
+	else:
+		args["tokenType"] = token_type
 	return args
 
 ## List unfinished StoreKit transactions in the queue.
@@ -6949,7 +7028,7 @@ static func get_billing_choice_info_android_args(params: GetBillingChoiceInfoPar
 # Mutation API helpers
 
 ## Initialize the store connection. Call before any IAP API.
-static func init_connection_args(config: InitConnectionConfig) -> Dictionary:
+static func init_connection_args(config: Variant = null) -> Dictionary:
 	var args = {}
 	if config != null:
 		if config.has_method("to_dict"):
@@ -6973,14 +7052,15 @@ static func request_purchase_args(params: RequestPurchaseProps) -> Dictionary:
 	return args
 
 ## Complete a transaction after server-side verification. Required on Android within 3 days.
-static func finish_transaction_args(purchase: PurchaseInput, is_consumable: bool) -> Dictionary:
+static func finish_transaction_args(purchase: PurchaseInput, is_consumable: Variant = null) -> Dictionary:
 	var args = {}
 	if purchase != null:
 		if purchase.has_method("to_dict"):
 			args["purchase"] = purchase.to_dict()
 		else:
 			args["purchase"] = purchase
-	args["isConsumable"] = is_consumable
+	if is_consumable != null:
+		args["isConsumable"] = is_consumable
 	return args
 
 ## Restore non-consumable and active subscription purchases.
@@ -6988,7 +7068,7 @@ static func restore_purchases_args() -> Dictionary:
 	return {}
 
 ## Open the platform's subscription management UI.
-static func deep_link_to_subscriptions_args(options: DeepLinkOptions) -> Dictionary:
+static func deep_link_to_subscriptions_args(options: Variant = null) -> Dictionary:
 	var args = {}
 	if options != null:
 		if options.has_method("to_dict"):
@@ -7066,7 +7146,10 @@ static func present_external_purchase_link_ios_args(url: String) -> Dictionary:
 ## Present the disclosure sheet required before linking out via ExternalPurchaseCustomLink (iOS 18.1+).
 static func show_external_purchase_custom_link_notice_ios_args(notice_type: ExternalPurchaseCustomLinkNoticeTypeIOS) -> Dictionary:
 	var args = {}
-	args["noticeType"] = notice_type
+	if EXTERNAL_PURCHASE_CUSTOM_LINK_NOTICE_TYPE_IOS_VALUES.has(notice_type):
+		args["noticeType"] = EXTERNAL_PURCHASE_CUSTOM_LINK_NOTICE_TYPE_IOS_VALUES[notice_type]
+	else:
+		args["noticeType"] = notice_type
 	return args
 
 ## Acknowledge a non-consumable purchase. Required within 3 days or Google auto-refunds.
@@ -7096,17 +7179,27 @@ static func create_alternative_billing_token_android_args() -> Dictionary:
 ## Check whether a billing program (e.g., External Payments) is available for the current user.
 static func is_billing_program_available_android_args(program: BillingProgramAndroid) -> Dictionary:
 	var args = {}
-	args["program"] = program
+	if BILLING_PROGRAM_ANDROID_VALUES.has(program):
+		args["program"] = BILLING_PROGRAM_ANDROID_VALUES[program]
+	else:
+		args["program"] = program
 	return args
 
-## Create the reporting payload Google requires after a Developer-Provided Billing transaction (Play Billing 8.3.0+).
-static func create_billing_program_reporting_details_android_args(program: BillingProgramAndroid, developer_billing_type: DeveloperBillingTypeAndroid) -> Dictionary:
+## Create the reporting details and external transaction token required by a billing program.
+static func create_billing_program_reporting_details_android_args(program: BillingProgramAndroid, developer_billing_type: Variant = null) -> Dictionary:
 	var args = {}
-	args["program"] = program
-	args["developerBillingType"] = developer_billing_type
+	if BILLING_PROGRAM_ANDROID_VALUES.has(program):
+		args["program"] = BILLING_PROGRAM_ANDROID_VALUES[program]
+	else:
+		args["program"] = program
+	if developer_billing_type != null:
+		if DEVELOPER_BILLING_TYPE_ANDROID_VALUES.has(developer_billing_type):
+			args["developerBillingType"] = DEVELOPER_BILLING_TYPE_ANDROID_VALUES[developer_billing_type]
+		else:
+			args["developerBillingType"] = developer_billing_type
 	return args
 
-## Launch an external content/offer link from inside the Billing Programs flow (Play Billing 8.2.0+),
+## Launch an external content/offer link from inside the Billing Programs flow (introduced in
 static func launch_external_link_android_args(params: LaunchExternalLinkParamsAndroid) -> Dictionary:
 	var args = {}
 	if params != null:
@@ -7127,7 +7220,7 @@ static func show_billing_program_information_dialog_android_args(params: Billing
 	return args
 
 ## Overlay Play billing in-app messages, such as payment issues or subscription price-change confirmations.
-static func show_in_app_messages_android_args(params: InAppMessageParamsAndroid) -> Dictionary:
+static func show_in_app_messages_android_args(params: Variant = null) -> Dictionary:
 	var args = {}
 	if params != null:
 		if params.has_method("to_dict"):

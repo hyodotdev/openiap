@@ -23,7 +23,7 @@ function GetStorefrontIOS() {
       <p>Deprecated. Use getStorefront() (cross-platform) instead.</p>
       <p>
         Wraps <code>Storefront.current</code> — deprecated in OpenIAP. Returns
-        the App Store storefront country code. iOS 13+. See the{' '}
+        the App Store storefront country code. iOS 15+, macOS 14+. See the{' '}
         <a
           href="https://developer.apple.com/documentation/storekit/storefront"
           target="_blank"
@@ -60,8 +60,8 @@ suspend fun getStorefrontIOS(): String`}</CodeBlock>
 Future<String> getStorefrontIOS();`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`@Deprecated("Use getStorefront()")
-Task<String> GetStorefrontIOSAsync()`}</CodeBlock>
+            <CodeBlock language="csharp">{`[Obsolete("Use GetStorefrontAsync() instead")]
+Task<string> GetStorefrontIOSAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func get_storefront_ios() -> Variant`}</CodeBlock>
@@ -73,8 +73,9 @@ Task<String> GetStorefrontIOSAsync()`}</CodeBlock>
         Returns
       </AnchorLink>
       <p>
-        <code>Promise&lt;string&gt;</code> — ISO country code of the App Store
-        storefront.
+        <code>Promise&lt;string&gt;</code> — ISO 3166-1 alpha-3 country code of
+        the App Store storefront (for example <code>"USA"</code> or{' '}
+        <code>"JPN"</code>).
       </p>
 
       <h2>Example</h2>
@@ -96,12 +97,12 @@ import { getStorefrontIOS } from 'expo-iap';
 
 if (Platform.OS === 'ios') {
   const code = await getStorefrontIOS();
-  console.log(code); // "US", "JP", etc.
+  console.log(code); // "USA", "JPN", etc.
 }`}</CodeBlock>
           ),
           dart: (
             <CodeBlock language="dart">{`// Deprecated — prefer FlutterInappPurchase.instance.getStorefront().
-if (Platform.isIOS) {
+if (Platform.isIOS || Platform.isMacOS) {
   final code = await FlutterInappPurchase.instance.getStorefrontIOS();
 }`}</CodeBlock>
           ),

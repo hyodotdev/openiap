@@ -12,7 +12,7 @@ function LatestTransactionIOS() {
     <div className="doc-page">
       <SEO
         title="latestTransactionIOS"
-        description="Get the most recent transaction for a product (iOS 15+)."
+        description="Get the most recent transaction for a product (iOS 15+, macOS 14+)."
         path="/docs/apis/ios/latest-transaction-ios"
         keywords="latestTransactionIOS, latest transaction"
       />
@@ -20,7 +20,7 @@ function LatestTransactionIOS() {
         <span className="platform-badge platform-badge--ios">iOS</span>{' '}
         latestTransactionIOS
       </h1>
-      <p>Get the most recent transaction for a product (iOS 15+).</p>
+      <p>Get the most recent transaction for a product (iOS 15+, macOS 14+).</p>
       <p>
         Wraps <code>Transaction.latest(for:)</code> — returns the most recent
         verified transaction (success or refund). See the{' '}
@@ -38,7 +38,7 @@ function LatestTransactionIOS() {
       <LanguageTabs>
         {{
           swift: (
-            <CodeBlock language="swift">{`func latestTransactionIOS(sku: String) async throws -> Purchase?`}</CodeBlock>
+            <CodeBlock language="swift">{`func latestTransactionIOS(sku: String) async throws -> PurchaseIOS?`}</CodeBlock>
           ),
           kotlin: (
             <CodeBlock language="kotlin">{`suspend fun latestTransactionIOS(sku: String): PurchaseIOS?`}</CodeBlock>
@@ -50,7 +50,7 @@ function LatestTransactionIOS() {
             <CodeBlock language="dart">{`Future<PurchaseIOS?> latestTransactionIOS(String sku);`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task<PurchaseIOS?> LatestTransactionIOSAsync(String Sku)`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<PurchaseIOS?> LatestTransactionIOSAsync(string sku);`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func latest_transaction_ios(sku: String) -> Variant`}</CodeBlock>
@@ -101,7 +101,7 @@ if (Platform.OS === 'ios') {
 }`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`if (Platform.isIOS) {
+            <CodeBlock language="dart">{`if (Platform.isIOS || Platform.isMacOS) {
   final tx = await FlutterInappPurchase.instance
       .latestTransactionIOS('com.app.premium');
 }`}</CodeBlock>

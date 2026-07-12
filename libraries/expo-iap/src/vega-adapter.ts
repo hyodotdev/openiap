@@ -6,6 +6,7 @@ import type {
   ProductSubscription,
   Purchase,
   PurchaseOptions,
+  SubResponseCodeAndroid,
   VerifyPurchaseWithProviderProps,
   VerifyPurchaseWithProviderResult,
 } from './types';
@@ -33,9 +34,13 @@ type VegaListener = (payload: any) => void;
 interface VegaPurchaseErrorPayload {
   code: ErrorCode;
   debugMessage?: string;
+  isEmptyProductList?: boolean;
   message: string;
   productId?: string;
+  productIds?: string[];
+  productType?: string;
   responseCode?: number;
+  subResponseCodeAndroid?: SubResponseCodeAndroid;
 }
 
 interface RecoverPurchasesOptions {
@@ -167,8 +172,12 @@ function createVegaError(
   const error = new Error(message) as Error & {
     code?: ErrorCode;
     debugMessage?: string;
+    isEmptyProductList?: boolean;
     productId?: string;
+    productIds?: string[];
+    productType?: string;
     responseCode?: number;
+    subResponseCodeAndroid?: SubResponseCodeAndroid;
   };
   error.code = code;
   error.debugMessage = message;
@@ -188,15 +197,23 @@ function toPurchaseErrorPayload(
     const errorWithFields = error as Error & {
       code?: ErrorCode;
       debugMessage?: string;
+      isEmptyProductList?: boolean;
       productId?: string;
+      productIds?: string[];
+      productType?: string;
       responseCode?: number;
+      subResponseCodeAndroid?: SubResponseCodeAndroid;
     };
     return {
       code: errorWithFields.code ?? ErrorCode.PurchaseError,
       debugMessage: errorWithFields.debugMessage,
+      isEmptyProductList: errorWithFields.isEmptyProductList,
       message: error.message || fallbackMessage,
       productId: errorWithFields.productId ?? productId,
+      productIds: errorWithFields.productIds,
+      productType: errorWithFields.productType,
       responseCode: errorWithFields.responseCode,
+      subResponseCodeAndroid: errorWithFields.subResponseCodeAndroid,
     };
   }
 
@@ -671,8 +688,34 @@ export function createExpoIapVegaModule(
   };
 
   const getStorefront = async (): Promise<string> => {
-    await getUserData();
-    return cachedUserData?.marketplace ?? cachedUserData?.countryCode ?? '';
+    try {
+      const userData = await getUserData();
+      const storefront = userData?.marketplace ?? userData?.countryCode;
+      if (typeof storefront !== 'string' || storefront.trim().length === 0) {
+        throw createVegaError(
+          ErrorCode.ServiceError,
+          'Amazon Vega storefront lookup returned no country code.',
+        );
+      }
+      return storefront;
+    } catch (error) {
+      const errorCode =
+        error instanceof Error
+          ? (error as Error & {code?: unknown}).code
+          : undefined;
+      if (
+        typeof errorCode === 'string' &&
+        Object.values(ErrorCode).includes(errorCode as ErrorCode)
+      ) {
+        throw error;
+      }
+      throw createVegaError(
+        ErrorCode.ServiceError,
+        `Failed to get Amazon Vega storefront: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   };
 
   const getPurchaseUpdateReceipts = async (): Promise<VegaReceipt[]> => {
