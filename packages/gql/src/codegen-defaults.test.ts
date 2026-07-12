@@ -117,4 +117,33 @@ describe("codegen defaults", () => {
       "public Renderer? Renderer { get; init; } = global::OpenIap.Renderer.GoogleRendered;",
     );
   });
+
+  it("preserves null for GDScript enum inputs without defaults", () => {
+    const rendererEnum: IREnum = {
+      name: "Renderer",
+      isErrorCode: false,
+      values: [
+        {
+          name: "UNSPECIFIED",
+          rawValue: "unspecified",
+          legacyAliases: [],
+        },
+      ],
+    };
+    const output = new GDScriptPlugin({ outputPath: "types.gd" }).generate(
+      schema(
+        [
+          field("renderer", {
+            kind: "enum",
+            name: "Renderer",
+            nullable: true,
+          }),
+        ],
+        [rendererEnum],
+      ),
+    );
+
+    expect(output).toContain("var renderer: Variant = null");
+    expect(output).toContain("if renderer != null:");
+  });
 });

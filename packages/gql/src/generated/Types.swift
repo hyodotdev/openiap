@@ -47,7 +47,8 @@ public enum BillingChoiceScreenTypeAndroid: String, Codable, CaseIterable {
 }
 
 /// Billing program types for Google Play Billing Programs (Android)
-/// Available in Google Play Billing Library 8.2.0+, EXTERNAL_PAYMENTS added in 8.3.0,
+/// Available in Google Play Billing Library 8.2.0 (External Offer and External Content Link
+/// integrations require 8.2.1+), EXTERNAL_PAYMENTS added in 8.3.0,
 /// BILLING_CHOICE added in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
 /// (requires Play Billing 9.1.0+).
 public enum BillingProgramAndroid: String, Codable, CaseIterable {
@@ -108,7 +109,7 @@ public enum DiscountOfferType: String, Codable, CaseIterable {
     case introductory = "introductory"
     /// Promotional offer for existing or returning subscribers
     case promotional = "promotional"
-    /// One-time product discount (Android only, Google Play Billing 7.0+)
+    /// One-time product discount (Android only, Google Play Billing 8.0+)
     case oneTime = "one-time"
 }
 
@@ -244,7 +245,8 @@ public enum ErrorCode: String, Codable, CaseIterable {
 
 /// Launch mode for external link flow (Android)
 /// Determines how the external URL is launched
-/// Available in Google Play Billing Library 8.2.0+
+/// Introduced in Google Play Billing Library 8.2.0. External Offer and External Content Link
+/// integrations require 8.2.1+ and fresh details immediately before every redirect session.
 public enum ExternalLinkLaunchModeAndroid: String, Codable, CaseIterable {
     /// Unspecified launch mode. Do not use.
     case unspecified = "unspecified"
@@ -304,10 +306,12 @@ public enum IapEvent: String, Codable, CaseIterable {
     /// developer billing selections on Android. Billing Choice is available in
     /// OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
     case developerProvidedBillingAndroid = "developer-provided-billing-android"
-    /// Fired when an active subscription enters a billing-issue state that requires user attention.
-    /// Cross-platform unification of StoreKit 2 Message.billingIssue (iOS 18+) and
-    /// Play Billing 8.1+ isSuspended. NOT emitted on the Horizon flavor, whose Billing
-    /// Compatibility SDK implements only the Play Billing 7.0 API surface.
+    /// Fired when a subscription enters a billing-issue state that requires user attention.
+    /// A StoreKit billing-retry subscription may no longer be a current entitlement.
+    /// Cross-platform unification of StoreKit 2 Message.billingIssue (iOS 16.4+,
+    /// Mac Catalyst 16.4+, visionOS 1.0+) and
+    /// Play Billing 8.1+ isSuspended. NOT emitted by Amazon Appstore or the Horizon
+    /// flavor, whose Billing Compatibility SDK implements only Play Billing 7.0.
     case subscriptionBillingIssue = "subscription-billing-issue"
 }
 
@@ -761,7 +765,8 @@ public struct BillingProgramReportingDetailsAndroid: Codable {
     /// The billing program that the reporting details are associated with
     public var billingProgram: BillingProgramAndroid
     /// External transaction token used to report transactions made outside of Google Play Billing.
-    /// This token must be used when reporting the external transaction to Google.
+    /// Do not cache it for a later redirect session. For External Offer, the same token may report
+    /// multiple purchases made during the session that generated it.
     public var externalTransactionToken: String
 }
 
@@ -805,7 +810,7 @@ public struct DeveloperProvidedBillingProductAndroid: Codable {
 }
 
 /// Discount amount details for one-time purchase offers (Android)
-/// Available in Google Play Billing Library 7.0+
+/// Available in Google Play Billing Library 8.0+
 public struct DiscountAmountAndroid: Codable {
     /// Discount amount in micro-units (1,000,000 = 1 unit of currency)
     public var discountAmountMicros: String
@@ -814,7 +819,7 @@ public struct DiscountAmountAndroid: Codable {
 }
 
 /// Discount display information for one-time purchase offers (Android)
-/// Available in Google Play Billing Library 7.0+
+/// Available in Google Play Billing Library 8.0+
 public struct DiscountDisplayInfoAndroid: Codable {
     /// Absolute discount amount details
     /// Only returned for fixed amount discounts
@@ -841,7 +846,7 @@ public struct DiscountIOS: Codable {
 /// Standardized one-time product discount offer.
 /// Provides a unified interface for one-time purchase discounts across platforms.
 /// 
-/// Currently supported on Android (Google Play Billing 7.0+).
+/// Currently supported on Android (Google Play Billing 8.0+).
 /// iOS does not support one-time purchase discounts in the same way.
 /// 
 /// @see https://openiap.dev/docs/features/discount
@@ -881,7 +886,7 @@ public struct DiscountOffer: Codable {
     public var price: Double
     /// [Android] Purchase option ID for this offer.
     /// Used to identify which purchase option the user selected.
-    /// Available in Google Play Billing Library 7.0+
+    /// Available in Google Play Billing Library 8.0+
     public var purchaseOptionIdAndroid: String? = nil
     /// [Android] Rental details if this is a rental offer.
     public var rentalDetailsAndroid: RentalDetailsAndroid? = nil
@@ -1000,7 +1005,7 @@ public struct InstallmentPlanDetailsAndroid: Codable {
 }
 
 /// Limited quantity information for one-time purchase offers (Android)
-/// Available in Google Play Billing Library 7.0+
+/// Available in Google Play Billing Library 8.0+
 public struct LimitedQuantityInfoAndroid: Codable {
     /// Maximum quantity a user can purchase
     public var maximumQuantity: Int
@@ -1059,7 +1064,7 @@ public struct ProductAndroid: Codable, ProductCommon {
     public var id: String
     public var nameAndroid: String
     /// One-time purchase offer details including discounts (Android)
-    /// Returns all eligible offers. Available in Google Play Billing Library 7.0+
+    /// Returns all eligible offers. Available in Google Play Billing Library 8.0+
     /// @deprecated Use discountOffers instead for cross-platform compatibility.
     public var oneTimePurchaseOfferDetailsAndroid: [ProductAndroidOneTimePurchaseOfferDetail]? = nil
     public var platform: IapPlatform = .android
@@ -1081,7 +1086,7 @@ public struct ProductAndroid: Codable, ProductCommon {
 }
 
 /// One-time purchase offer details (Android).
-/// Available in Google Play Billing Library 7.0+
+/// Available in Google Play Billing Library 8.0+
 /// @deprecated Use the standardized DiscountOffer type instead for cross-platform compatibility.
 /// @see https://openiap.dev/docs/types#discount-offer
 public struct ProductAndroidOneTimePurchaseOfferDetail: Codable {
@@ -1107,7 +1112,7 @@ public struct ProductAndroidOneTimePurchaseOfferDetail: Codable {
     public var priceCurrencyCode: String
     /// Purchase option ID for this offer (Android)
     /// Used to identify which purchase option the user selected.
-    /// Available in Google Play Billing Library 7.0+
+    /// Available in Google Play Billing Library 8.0+
     public var purchaseOptionId: String? = nil
     /// Rental details for rental offers
     public var rentalDetailsAndroid: RentalDetailsAndroid? = nil
@@ -1155,7 +1160,7 @@ public struct ProductSubscriptionAndroid: Codable, ProductCommon {
     public var id: String
     public var nameAndroid: String
     /// One-time purchase offer details including discounts (Android)
-    /// Returns all eligible offers. Available in Google Play Billing Library 7.0+
+    /// Returns all eligible offers. Available in Google Play Billing Library 8.0+
     /// @deprecated Use discountOffers instead for cross-platform compatibility.
     public var oneTimePurchaseOfferDetailsAndroid: [ProductAndroidOneTimePurchaseOfferDetail]? = nil
     public var platform: IapPlatform = .android
@@ -1273,6 +1278,7 @@ public struct PurchaseError: Codable {
     public var productIds: [String]? = nil
     public var productType: String? = nil
     public var responseCode: Int? = nil
+    public var subResponseCodeAndroid: SubResponseCodeAndroid? = nil
 }
 
 public struct PurchaseIOS: Codable, PurchaseCommon {
@@ -1355,7 +1361,7 @@ public struct RenewalInfoIOS: Codable {
     /// When set, subscription is in grace period (billing issue but still has access)
     public var gracePeriodExpirationDate: Double? = nil
     /// True if subscription failed to renew due to billing issue and is retrying
-    /// Note: Not directly available in RenewalInfo, available in Status
+    /// StoreKit exposes this directly as RenewalInfo.isInBillingRetry.
     public var isInBillingRetry: Bool? = nil
     public var jsonRepresentation: String? = nil
     /// Product ID that will be used on next renewal (when user upgrades/downgrades)
@@ -1378,7 +1384,7 @@ public struct RenewalInfoIOS: Codable {
 }
 
 /// Rental details for one-time purchase products that can be rented (Android)
-/// Available in Google Play Billing Library 7.0+
+/// Available in Google Play Billing Library 8.0+
 public struct RentalDetailsAndroid: Codable {
     /// Rental expiration period in ISO 8601 format
     /// Time after rental period ends when user can still extend
@@ -1527,12 +1533,22 @@ public struct TransactionCommitmentInfoIOS: Codable {
 public struct UserChoiceBillingDetails: Codable {
     /// Token that must be reported to Google Play within 24 hours
     public var externalTransactionToken: String
+    /// External transaction ID of the originating subscription when the user is
+    /// upgrading or downgrading a developer-billed subscription. Available in
+    /// the next OpenIAP spec / openiap-google release after Spec 2.1.0 /
+    /// openiap-google 2.3.0 (requires Play Billing 9.1+).
+    public var originalExternalTransactionId: String? = nil
+    /// Structured product details selected in the user-choice flow, including the
+    /// product type and offer token. Available in the next OpenIAP spec /
+    /// openiap-google release after Spec 2.1.0 / openiap-google 2.3.0
+    /// (requires Play Billing 9.1+).
+    public var productDetailsAndroid: [DeveloperProvidedBillingProductAndroid]
     /// List of product IDs selected by the user
     public var products: [String]
 }
 
 /// Valid time window for when an offer is available (Android)
-/// Available in Google Play Billing Library 7.0+
+/// Available in Google Play Billing Library 8.0+
 public struct ValidTimeWindowAndroid: Codable {
     /// End time in milliseconds since epoch
     public var endTimeMillis: String
@@ -1823,8 +1839,8 @@ public struct InitConnectionConfig: Codable {
     /// Enable a specific billing program for Android (7.0+)
     /// When set, enables the specified billing program for external transactions.
     /// - USER_CHOICE_BILLING: User can select between Google Play or alternative (7.0+)
-    /// - EXTERNAL_CONTENT_LINK: Link to external content (8.2.0+)
-    /// - EXTERNAL_OFFER: External offers for digital content (8.2.0+)
+    /// - EXTERNAL_CONTENT_LINK: Link to external content (introduced in 8.2.0; use 8.2.1+)
+    /// - EXTERNAL_OFFER: External offers for digital content (introduced in 8.2.0; use 8.2.1+)
     /// - EXTERNAL_PAYMENTS: Developer provided billing, Japan only (8.3.0+)
     /// - BILLING_CHOICE: Google-rendered or developer-rendered billing choice
     ///   (OpenIAP Spec 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+)
@@ -1957,7 +1973,7 @@ public struct RequestPurchaseAndroidProps: Codable {
     public var obfuscatedAccountId: String?
     /// Obfuscated profile ID
     public var obfuscatedProfileId: String?
-    /// Offer token for one-time purchase discounts (7.0+).
+    /// Offer token for one-time purchase discounts (8.0+).
     /// Pass the offerToken from oneTimePurchaseOfferDetailsAndroid or discountOffers
     /// to apply a discount offer to the purchase.
     public var offerToken: String?
@@ -2047,7 +2063,12 @@ public struct RequestPurchaseProps: Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let decodedType = try container.decodeIfPresent(ProductQueryType.self, forKey: .type)
         self.useAlternativeBilling = try container.decodeIfPresent(Bool.self, forKey: .useAlternativeBilling)
-        if let purchase = try container.decodeIfPresent(RequestPurchasePropsByPlatforms.self, forKey: .requestPurchase) {
+        let purchase = try container.decodeIfPresent(RequestPurchasePropsByPlatforms.self, forKey: .requestPurchase)
+        let subscription = try container.decodeIfPresent(RequestSubscriptionPropsByPlatforms.self, forKey: .requestSubscription)
+        guard (purchase == nil) != (subscription == nil) else {
+            throw DecodingError.dataCorruptedError(forKey: .requestPurchase, in: container, debugDescription: "RequestPurchaseProps requires exactly one of requestPurchase or requestSubscription.")
+        }
+        if let purchase {
             let finalType = decodedType ?? .inApp
             guard finalType == .inApp else {
                 throw DecodingError.dataCorruptedError(forKey: .type, in: container, debugDescription: "type must be IN_APP when requestPurchase is provided")
@@ -2056,7 +2077,7 @@ public struct RequestPurchaseProps: Codable {
             self.type = finalType
             return
         }
-        if let subscription = try container.decodeIfPresent(RequestSubscriptionPropsByPlatforms.self, forKey: .requestSubscription) {
+        if let subscription {
             let finalType = decodedType ?? .subs
             guard finalType == .subs else {
                 throw DecodingError.dataCorruptedError(forKey: .type, in: container, debugDescription: "type must be SUBS when requestSubscription is provided")
@@ -2065,7 +2086,7 @@ public struct RequestPurchaseProps: Codable {
             self.type = finalType
             return
         }
-        throw DecodingError.dataCorruptedError(forKey: .requestPurchase, in: container, debugDescription: "RequestPurchaseProps requires requestPurchase or requestSubscription.")
+        throw DecodingError.dataCorruptedError(forKey: .requestPurchase, in: container, debugDescription: "RequestPurchaseProps branch validation failed.")
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -2143,6 +2164,9 @@ public struct RequestSubscriptionAndroidProps: Codable {
     public var subscriptionOffers: [AndroidSubscriptionOfferInput]?
     /// Product-level replacement parameters (8.1.0+)
     /// Use this instead of replacementMode for item-level replacement
+    /// This singular form requires skus to contain exactly one target product.
+    /// Multi-item subscription changes need a per-target replacement mapping and
+    /// are rejected rather than applying one oldProductId to multiple products.
     public var subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid?
 
     public init(
@@ -2808,7 +2832,11 @@ public protocol MutationResolver {
     /// Throws OpenIapError.NotPrepared if billing client not ready.
     /// See: https://openiap.dev/docs/apis/android/create-alternative-billing-token-android
     func createAlternativeBillingTokenAndroid() async throws -> String?
-    /// Create the reporting payload Google requires after a Developer-Provided Billing transaction (Play Billing 8.3.0+).
+    /// Create the reporting details and external transaction token required by a billing program.
+    /// Introduced in Play Billing 8.2.0. External Offer and External Content Link integrations
+    /// must use 8.2.1+ and create fresh details immediately before every redirect session;
+    /// do not cache the token for a later redirect. The same token may report multiple purchases
+    /// made during one External Offer session.
     /// Replaces the deprecated createExternalOfferReportingDetailsAsync API.
     /// Returns external transaction token needed for reporting external transactions.
     /// developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted,
@@ -2832,12 +2860,14 @@ public protocol MutationResolver {
     func initConnection(_ config: InitConnectionConfig?) async throws -> Bool
     /// Check whether a billing program (e.g., External Payments) is available for the current user.
     /// Replaces the deprecated isExternalOfferAvailableAsync API.
-    /// Available in Google Play Billing Library 8.2.0+.
+    /// Introduced in Google Play Billing Library 8.2.0. External Offer and External
+    /// Content Link integrations must use 8.2.1+ because 8.2.1 fixes this API.
     /// Returns availability result with isAvailable flag.
     /// Throws OpenIapError.NotPrepared if billing client not ready.
     /// See: https://openiap.dev/docs/apis/android/is-billing-program-available-android
     func isBillingProgramAvailableAndroid(_ program: BillingProgramAndroid) async throws -> BillingProgramAvailabilityResultAndroid
-    /// Launch an external content/offer link from inside the Billing Programs flow (Play Billing 8.2.0+),
+    /// Launch an external content/offer link from inside the Billing Programs flow (introduced in
+    /// Play Billing 8.2.0; External Offer and External Content Link require 8.2.1+),
     /// including developer-rendered Billing Choice external-link flows.
     /// Billing Choice availability: OpenIAP Spec 2.1.0 / openiap-google 2.3.0
     /// (requires Play Billing 9.1.0+).
@@ -2933,7 +2963,7 @@ public protocol QueryResolver {
     /// See: https://openiap.dev/docs/apis/get-active-subscriptions
     func getActiveSubscriptions(_ subscriptionIds: [String]?) async throws -> [ActiveSubscription]
     /// List every StoreKit transaction (finished + unfinished) for the current user.
-    /// Requires the SK2ConsumableTransactionHistory Info.plist key in the host app
+    /// Requires the SKIncludeConsumableInAppPurchaseHistory Info.plist key in the host app
     /// for finished consumables to be included (iOS 18+).
     /// Unlike getAvailablePurchases, always returns the iOS-specific PurchaseIOS shape.
     /// See: https://openiap.dev/docs/apis/ios/get-all-transactions-ios
@@ -2963,10 +2993,13 @@ public protocol QueryResolver {
     /// Get base64-encoded receipt data (legacy validation).
     /// See: https://openiap.dev/docs/apis/ios/get-receipt-data-ios
     func getReceiptDataIOS() async throws -> String?
-    /// Return the user's storefront country code.
+    /// Return the store-authoritative country code: ISO 3166-1 alpha-3 on Apple
+    /// platforms and alpha-2 on Android. The operation fails when the store cannot
+    /// provide a value; implementations must not synthesize a locale fallback.
     /// See: https://openiap.dev/docs/apis/get-storefront
     func getStorefront() async throws -> String
-    /// Deprecated. Get the current App Store storefront country code — use cross-platform getStorefront instead.
+    /// Deprecated. Get the current App Store storefront ISO 3166-1 alpha-3 country
+    /// code — use cross-platform getStorefront instead.
     /// See: https://openiap.dev/docs/apis/ios/get-storefront-ios
     func getStorefrontIOS() async throws -> String
     /// Return the JWS string for a transaction (StoreKit 2).
@@ -3014,14 +3047,17 @@ public protocol SubscriptionResolver {
     /// for diagnostics; default listeners receive one event per transaction ID
     /// during a single connection session.
     func purchaseUpdated(_ options: PurchaseUpdatedListenerOptions?) async throws -> Purchase
-    /// Fires when an active subscription enters a billing-issue state that needs user action
+    /// Fires when a subscription enters a billing-issue state that needs user action
     /// (payment method failed, card expired, etc.). Cross-platform unification:
     /// 
-    /// - iOS 18+: delivered via StoreKit 2 `Message.Reason.billingIssue`.
+    /// - iOS 16.4+ / Mac Catalyst 16.4+ / visionOS 1.0+: delivered via StoreKit 2
+    ///   `Message.Reason.billingIssue`.
     /// - Android (Play flavor, Billing 8.1+): emitted when `isSuspended == true` is first detected
     ///   on a previously healthy subscription. Requires Google Play Billing Library 8.1.0 or newer.
     /// - Android (Horizon flavor): NOT emitted. The Horizon Billing Compatibility SDK implements
     ///   the Play Billing 7.0 API surface which does not expose a suspended-subscription signal.
+    /// - Android (Amazon flavor): NOT emitted. Amazon Appstore IAP does not expose an
+    ///   equivalent subscription billing-issue signal.
     /// 
     /// Listeners should not assume the event will fire on every store. Direct users to the
     /// platform subscription management UI (`deepLinkToSubscriptions`) to resolve the issue.

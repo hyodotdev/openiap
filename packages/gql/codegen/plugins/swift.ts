@@ -424,7 +424,12 @@ export class SwiftPlugin extends CodegenPlugin {
     this.emit('        let container = try decoder.container(keyedBy: CodingKeys.self)');
     this.emit('        let decodedType = try container.decodeIfPresent(ProductQueryType.self, forKey: .type)');
     this.emit('        self.useAlternativeBilling = try container.decodeIfPresent(Bool.self, forKey: .useAlternativeBilling)');
-    this.emit('        if let purchase = try container.decodeIfPresent(RequestPurchasePropsByPlatforms.self, forKey: .requestPurchase) {');
+    this.emit('        let purchase = try container.decodeIfPresent(RequestPurchasePropsByPlatforms.self, forKey: .requestPurchase)');
+    this.emit('        let subscription = try container.decodeIfPresent(RequestSubscriptionPropsByPlatforms.self, forKey: .requestSubscription)');
+    this.emit('        guard (purchase == nil) != (subscription == nil) else {');
+    this.emit('            throw DecodingError.dataCorruptedError(forKey: .requestPurchase, in: container, debugDescription: "RequestPurchaseProps requires exactly one of requestPurchase or requestSubscription.")');
+    this.emit('        }');
+    this.emit('        if let purchase {');
     this.emit('            let finalType = decodedType ?? .inApp');
     this.emit('            guard finalType == .inApp else {');
     this.emit('                throw DecodingError.dataCorruptedError(forKey: .type, in: container, debugDescription: "type must be IN_APP when requestPurchase is provided")');
@@ -433,7 +438,7 @@ export class SwiftPlugin extends CodegenPlugin {
     this.emit('            self.type = finalType');
     this.emit('            return');
     this.emit('        }');
-    this.emit('        if let subscription = try container.decodeIfPresent(RequestSubscriptionPropsByPlatforms.self, forKey: .requestSubscription) {');
+    this.emit('        if let subscription {');
     this.emit('            let finalType = decodedType ?? .subs');
     this.emit('            guard finalType == .subs else {');
     this.emit('                throw DecodingError.dataCorruptedError(forKey: .type, in: container, debugDescription: "type must be SUBS when requestSubscription is provided")');
@@ -442,7 +447,7 @@ export class SwiftPlugin extends CodegenPlugin {
     this.emit('            self.type = finalType');
     this.emit('            return');
     this.emit('        }');
-    this.emit('        throw DecodingError.dataCorruptedError(forKey: .requestPurchase, in: container, debugDescription: "RequestPurchaseProps requires requestPurchase or requestSubscription.")');
+    this.emit('        throw DecodingError.dataCorruptedError(forKey: .requestPurchase, in: container, debugDescription: "RequestPurchaseProps branch validation failed.")');
     this.emit('    }');
     this.emit('');
     this.emit('    public func encode(to encoder: Encoder) throws {');

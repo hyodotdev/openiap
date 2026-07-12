@@ -12,6 +12,35 @@ function classSource(className: string, nextClassName: string): string {
 }
 
 describe('generated GDScript list decoding', () => {
+  it('preserves null for optional enum fields', () => {
+    const purchaseError = classSource('PurchaseError', 'PurchaseIOS');
+
+    expect(purchaseError).toContain('var sub_response_code_android: Variant = null');
+    expect(purchaseError).toContain('if sub_response_code_android != null:');
+    expect(purchaseError).not.toContain('\n\tvar sub_response_code_android: SubResponseCodeAndroid\n');
+  });
+
+  it('preserves null for optional enum operation arguments', () => {
+    const mutation = classSource('Mutation', 'Subscription');
+    const operationStart = mutation.indexOf('class createBillingProgramReportingDetailsAndroidField:');
+    const operationEnd = mutation.indexOf('class launchExternalLinkAndroidField:', operationStart);
+    const operation = mutation.slice(operationStart, operationEnd);
+
+    expect(operation).toContain('var developer_billing_type: Variant = null');
+    expect(operation).toContain('if developer_billing_type != null:');
+    expect(operation).not.toContain('\n\t\t\tvar developer_billing_type: DeveloperBillingTypeAndroid\n');
+    expect(generated).toContain(
+      'static func create_billing_program_reporting_details_android_args(program: BillingProgramAndroid, developer_billing_type: Variant = null)',
+    );
+    expect(generated).toContain('if developer_billing_type != null:');
+    expect(generated).toContain(
+      'args["program"] = BILLING_PROGRAM_ANDROID_VALUES[program]',
+    );
+    expect(generated).toContain(
+      'args["developerBillingType"] = DEVELOPER_BILLING_TYPE_ANDROID_VALUES[developer_billing_type]',
+    );
+  });
+
   it('builds typed scalar arrays from JSON arrays', () => {
     const source = classSource('ProductRequest', 'PromotionalOfferJWSInputIOS');
 
