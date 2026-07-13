@@ -114,7 +114,9 @@ else
   IAPKIT_REVERSE_BLOCKED=1
   echo 'BLOCKED: could not create tcp:3100 reverse mapping without rebinding' >&2
 fi
-[ "$IAPKIT_REVERSE_BLOCKED" = "0" ]
+if [ "$IAPKIT_REVERSE_BLOCKED" != "0" ]; then
+  exit 1
+fi
 ```
 
 If `--no-rebind` fails, stop this row as `BLOCKED` or select a different free
@@ -166,7 +168,13 @@ server and log streams. Remove the reverse rule only when this run created it:
 
 ```bash
 if [ "${IAPKIT_REVERSE_CREATED:-0}" = "1" ]; then
-  adb -s "$ANDROID_SERIAL" reverse --remove tcp:3100
+  current_reverse_rules="$(adb -s "$ANDROID_SERIAL" reverse --list 2>/dev/null)"
+  if printf '%s\n' "$current_reverse_rules" | \
+    grep -Eq '(^|[[:space:]])tcp:3100[[:space:]]+tcp:3100($|[[:space:]])'; then
+    adb -s "$ANDROID_SERIAL" reverse --remove tcp:3100
+  else
+    echo 'SKIP: tcp:3100 reverse mapping changed before cleanup' >&2
+  fi
 fi
 ```
 
