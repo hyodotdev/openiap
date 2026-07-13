@@ -37,6 +37,7 @@ LOG_FILE="$(mktemp /tmp/openiap-kit-smoke.XXXXXX.log)"
 
 # Run the binary in the background with placeholder env.
 CONVEX_URL="https://placeholder-build-1.convex.cloud" \
+VITE_KIT_CONVEX_URL="https://placeholder-build-1.convex.cloud" \
 STATIC_ROOT="$DIST" \
 PORT="$PORT" \
 "$BINARY" > "$LOG_FILE" 2>&1 &
@@ -50,22 +51,30 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Poll until the server is listening or we give up. `kill -0` bails out
-# fast when the child crashed during boot (bind conflict, missing env,
-# import failure) instead of burning the full ~5s timeout before curl
-# surfaces the same conclusion.
+# Wait for this child to report that it owns the listener before probing HTTP.
+# A health-first poll can accidentally hit an older process on the same port and
+# report success even though the binary under test exited with EADDRINUSE.
+ready=0
 for _ in $(seq 1 20); do
-  if curl -sS -f -o /dev/null "http://localhost:${PORT}/health"; then
-    break
-  fi
   if ! kill -0 "$PID" 2>/dev/null; then
-    echo "smoke: server process exited before /health responded" >&2
+    echo "smoke: server process exited before owning port $PORT" >&2
     echo "---- server log ----" >&2
     cat "$LOG_FILE" >&2 || true
     exit 1
   fi
+  if grep -Fq "IAPKit server listening on :${PORT}" "$LOG_FILE"; then
+    ready=1
+    break
+  fi
   sleep 0.25
 done
+
+if [[ "$ready" -ne 1 ]]; then
+  echo "smoke: server did not confirm ownership of port $PORT" >&2
+  echo "---- server log ----" >&2
+  cat "$LOG_FILE" >&2 || true
+  exit 1
+fi
 
 fail=0
 probe() {
@@ -81,6 +90,24 @@ probe() {
   fi
 }
 
+probe_json_post() {
+  local path="$1"
+  local expected="$2"
+  local code
+  code="$(curl -sS -o /dev/null -w "%{http_code}" \
+    -X POST \
+    -H "Authorization: Bearer openiap-kit_smoke-test-key" \
+    -H "Content-Type: application/json" \
+    --data '{}' \
+    "http://localhost:${PORT}${path}")"
+  if [[ "$code" != "$expected" ]]; then
+    echo "smoke: POST $path expected $expected, got $code" >&2
+    fail=1
+  else
+    echo "smoke: POST $path → $code ✓"
+  fi
+}
+
 # Core surface: liveness probe must return 200 and the SPA fallback
 # must serve index.html for an unknown path.
 probe "/health" "200"
@@ -90,6 +117,10 @@ probe "/api/v1" "200"
 probe "/intu/project/intu/apikeys" "200"
 probe "/assets/missing-build-asset.js" "404"
 probe "/missing-static-doc.json" "404"
+# Exercise the compiled receipt route without reaching Convex or a store. The
+# well-formed Bearer header passes auth-shape middleware, then the empty JSON
+# object is rejected by the request schema with 400.
+probe_json_post "/v1/purchase/verify" "400"
 
 if [[ "$fail" -ne 0 ]]; then
   echo "---- server log ----" >&2

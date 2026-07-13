@@ -448,10 +448,12 @@ class VerificationTest {
     fun testRequestVerifyPurchaseWithIapkitPropsToJson() {
         val props = RequestVerifyPurchaseWithIapkitProps(
             apiKey = "key123",
+            baseUrl = "http://192.168.0.4:3100",
             apple = RequestVerifyPurchaseWithIapkitAppleProps(jws = "jws-value")
         )
         val json = props.toJson()
         assertEquals("key123", json["apiKey"])
+        assertEquals("http://192.168.0.4:3100", json["baseUrl"])
         assertNotNull(json["apple"])
     }
 

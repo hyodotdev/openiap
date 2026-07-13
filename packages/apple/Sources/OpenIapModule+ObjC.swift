@@ -498,6 +498,30 @@ import StoreKit
         jws: String?,
         completion: @escaping ([String: Any]?, Error?) -> Void
     ) {
+        verifyPurchaseWithProviderObjC(
+            provider: provider,
+            apiKey: apiKey,
+            baseUrl: nil,
+            jws: jws,
+            completion: completion
+        )
+    }
+
+    /// Verify purchase with external provider using a custom IAPKit server.
+    /// - Parameters:
+    ///   - provider: The provider name (currently only "iapkit" is supported)
+    ///   - apiKey: Optional API key for the provider
+    ///   - baseUrl: Optional IAPKit server base URL; defaults to the hosted service
+    ///   - jws: JWS token from StoreKit 2 purchase (for Apple verification)
+    ///   - completion: Callback with verification result dictionary or error
+    @objc(verifyPurchaseWithProviderObjCWithProvider:apiKey:baseUrl:jws:completion:)
+    func verifyPurchaseWithProviderObjC(
+        provider: String,
+        apiKey: String?,
+        baseUrl: String?,
+        jws: String?,
+        completion: @escaping ([String: Any]?, Error?) -> Void
+    ) {
         Task {
             do {
                 guard let providerEnum = PurchaseVerificationProvider(rawValue: provider) else {
@@ -512,6 +536,7 @@ import StoreKit
                 let iapkitProps = RequestVerifyPurchaseWithIapkitProps(
                     apiKey: apiKey,
                     apple: appleProps,
+                    baseUrl: baseUrl,
                     google: nil
                 )
 

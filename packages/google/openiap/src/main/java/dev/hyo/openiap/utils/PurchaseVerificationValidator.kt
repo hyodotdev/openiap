@@ -16,11 +16,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.net.HttpURLConnection
+import java.net.URI
+import java.net.URISyntaxException
 import java.net.URL
 import java.net.URLEncoder
 import java.util.Locale
 
 private const val DEFAULT_IAPKIT_ENDPOINT = "https://kit.openiap.dev/v1/purchase/verify"
+private const val IAPKIT_VERIFY_PATH = "/v1/purchase/verify"
 private val gson = Gson()
 
 private fun openConnection(url: String): HttpURLConnection {
@@ -173,7 +176,38 @@ suspend fun verifyPurchaseWithIapkit(
     fun malformedIapkitResponse(): OpenIapError.PurchaseVerificationFailed =
         OpenIapError.PurchaseVerificationFailed("IAPKit returned malformed response")
 
-    val endpoint = DEFAULT_IAPKIT_ENDPOINT
+    fun resolveIapkitEndpoint(): String {
+        val requestedBaseUrl = props.baseUrl?.trim()
+        if (requestedBaseUrl.isNullOrEmpty()) {
+            return DEFAULT_IAPKIT_ENDPOINT
+        }
+
+        val normalizedBaseUrl = requestedBaseUrl.trimEnd('/')
+        val origin = try {
+            URI(normalizedBaseUrl)
+        } catch (_: URISyntaxException) {
+            throw OpenIapError.DeveloperError(
+                "IAPKit baseUrl must be a valid HTTP(S) origin"
+            )
+        }
+        val scheme = origin.scheme?.lowercase(Locale.ROOT)
+        val hasValidPort = origin.port == -1 || origin.port in 1..65535
+        val isValidOrigin =
+            (scheme == "http" || scheme == "https") &&
+                !origin.host.isNullOrBlank() &&
+                origin.rawUserInfo == null &&
+                origin.rawQuery == null &&
+                origin.rawFragment == null &&
+                origin.path.isNullOrEmpty() &&
+                hasValidPort
+        if (!isValidOrigin) {
+            throw OpenIapError.DeveloperError(
+                "IAPKit baseUrl must be a valid HTTP(S) origin"
+            )
+        }
+
+        return "$normalizedBaseUrl$IAPKIT_VERIFY_PATH"
+    }
 
     val hasApple = props.apple != null
     val hasGoogle = props.google != null
@@ -265,6 +299,7 @@ suspend fun verifyPurchaseWithIapkit(
         else -> throw IllegalArgumentException("IAPKit verification on Android does not support ${store.rawValue}")
     }
 
+    val endpoint = resolveIapkitEndpoint()
     val connection = connectionFactory(endpoint).apply {
         requestMethod = "POST"
         doOutput = true

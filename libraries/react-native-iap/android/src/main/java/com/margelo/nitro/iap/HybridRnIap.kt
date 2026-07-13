@@ -1462,6 +1462,7 @@ class HybridRnIap : HybridRnIapSpec() {
                     // Use provided apiKey, or fallback to host app AndroidManifest meta-data.
                     val apiKey = iapkit.apiKey.unwrapString() ?: getIapkitApiKeyFromManifest()
                     apiKey?.let { iapkitMap["apiKey"] = it }
+                    iapkit.baseUrl.unwrapString()?.let { iapkitMap["baseUrl"] = it }
                     (iapkit.google as? Variant_NullType_NitroVerifyPurchaseWithIapkitGoogleProps.Second)?.value?.let { google ->
                         iapkitMap["google"] = mapOf("purchaseToken" to google.purchaseToken)
                     }

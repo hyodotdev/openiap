@@ -7,16 +7,18 @@ import type {
 
 export type IapkitVerificationPayload = NonNullable<
   VerifyPurchaseWithProviderProps['iapkit']
-> & {
-  baseUrl?: string | null;
-};
+>;
 
 type ExpoExtraWithIapkit = {
   iapkitApiKey?: string;
   iapkitBaseUrl?: string;
 };
 
-export type VerificationMethod = 'ignore' | 'local' | 'iapkit';
+export type VerificationMethod =
+  | 'ignore'
+  | 'local'
+  | 'iapkit-localhost'
+  | 'iapkit';
 
 function getConfiguredIapkitApiKey(): string | undefined {
   const extra = Constants.expoConfig?.extra as ExpoExtraWithIapkit | undefined;
@@ -28,8 +30,15 @@ function getConfiguredIapkitBaseUrl(): string | undefined {
   return extra?.iapkitBaseUrl ?? process.env.EXPO_PUBLIC_IAPKIT_BASE_URL;
 }
 
-export function getDefaultVerificationMethod(): VerificationMethod {
-  return getConfiguredIapkitApiKey()?.trim() ? 'iapkit' : 'ignore';
+export function getDefaultVerificationMethod(
+  apiKey: string | null | undefined = getConfiguredIapkitApiKey(),
+  baseUrl: string | null | undefined = getConfiguredIapkitBaseUrl(),
+): VerificationMethod {
+  if (!apiKey?.trim()) {
+    return 'ignore';
+  }
+
+  return baseUrl?.trim() ? 'iapkit-localhost' : 'iapkit';
 }
 
 function withIapkitEndpoint(
@@ -44,6 +53,24 @@ function withIapkitEndpoint(
     ...payload,
     baseUrl: trimmedBaseUrl,
   };
+}
+
+export function resolveIapkitVerificationBaseUrl(
+  method: 'iapkit-localhost' | 'iapkit',
+  configuredBaseUrl: string | null | undefined = getConfiguredIapkitBaseUrl(),
+): string | undefined {
+  if (method === 'iapkit') {
+    return undefined;
+  }
+
+  const baseUrl = configuredBaseUrl?.trim();
+  if (!baseUrl) {
+    throw new Error(
+      'EXPO_PUBLIC_IAPKIT_BASE_URL not configured for Local (IAPKit) verification',
+    );
+  }
+
+  return baseUrl;
 }
 
 export type TvRemoteEvent = {
@@ -75,16 +102,20 @@ export function showNativeAlert(title: string, message?: string): void {
 export function createIapkitVerificationPayload(
   purchase: Purchase,
   purchaseToken: string,
-  baseUrl: string | null | undefined = getConfiguredIapkitBaseUrl(),
+  baseUrl?: string | null,
 ): IapkitVerificationPayload {
   const apiKey = getConfiguredIapkitApiKey()?.trim();
+  if (!apiKey) {
+    throw new Error('EXPO_PUBLIC_IAPKIT_API_KEY not configured');
+  }
+
   const purchaseStore = (
     (purchase as Purchase & {store?: string | null}).store ?? ''
   ).toLowerCase();
   if (purchaseStore === 'amazon') {
     return withIapkitEndpoint(
       {
-        ...(apiKey ? {apiKey} : {}),
+        apiKey,
         amazon: {
           receiptId: purchaseToken,
           sandbox: __DEV__,
@@ -100,13 +131,13 @@ export function createIapkitVerificationPayload(
   return withIapkitEndpoint(
     isApplePurchase
       ? {
-          ...(apiKey ? {apiKey} : {}),
+          apiKey,
           apple: {
             jws: purchaseToken,
           },
         }
       : {
-          ...(apiKey ? {apiKey} : {}),
+          apiKey,
           google: {
             purchaseToken,
           },

@@ -114,6 +114,22 @@ function VerifyPurchaseWithProviderProps() {
             </tr>
             <tr>
               <td>
+                <code>baseUrl</code>
+              </td>
+              <td>
+                <code>string?</code>
+              </td>
+              <td>
+                Available in OpenIAP Spec 2.3.1 / openiap-apple 2.4.0 /
+                openiap-google 2.4.0. IAPKit server origin. Defaults to{' '}
+                <code>https://kit.openiap.dev</code>; set it to a reachable
+                HTTP(S) origin for self-hosted or local IAPKit verification. The{' '}
+                <code>apiKey</code> must be issued by the same IAPKit/Convex
+                deployment that this origin uses.
+              </td>
+            </tr>
+            <tr>
+              <td>
                 <code>apple</code>
               </td>
               <td>

@@ -1878,6 +1878,7 @@ describe('Public API (src/index.ts)', () => {
         provider: 'iapkit',
         iapkit: {
           apiKey: 'test-api-key',
+          baseUrl: 'http://127.0.0.1:4174',
           environment: 'sandbox',
           apple: {
             jws: 'test-jws-token',
@@ -1889,6 +1890,7 @@ describe('Public API (src/index.ts)', () => {
         provider: 'iapkit',
         iapkit: {
           apiKey: 'test-api-key',
+          baseUrl: 'http://127.0.0.1:4174',
           environment: 'sandbox',
           apple: {
             jws: 'test-jws-token',
@@ -2441,10 +2443,9 @@ describe('Public API (src/index.ts)', () => {
     describe('showBillingProgramInformationDialogAndroid', () => {
       it('should show Billing Choice information dialog with default program', async () => {
         (Platform as any).OS = 'android';
-        const result =
-          await IAP.showBillingProgramInformationDialogAndroid({
-            externalTransactionToken: 'choice-token-123',
-          });
+        const result = await IAP.showBillingProgramInformationDialogAndroid({
+          externalTransactionToken: 'choice-token-123',
+        });
 
         expect(
           mockIap.showBillingProgramInformationDialogAndroid,
@@ -2453,9 +2454,7 @@ describe('Public API (src/index.ts)', () => {
           externalTransactionToken: 'choice-token-123',
         });
         expect(result.responseCode).toBe(0);
-        expect(result.subResponseCode).toBe(
-          'no-applicable-sub-response-code',
-        );
+        expect(result.subResponseCode).toBe('no-applicable-sub-response-code');
       });
 
       it('should throw on non-Android', async () => {

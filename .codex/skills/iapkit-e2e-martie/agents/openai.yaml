@@ -1,0 +1,4 @@
+interface:
+  display_name: "IAPKit Martie E2E"
+  short_description: "Verify local IAPKit receipts with Martie"
+  default_prompt: "Use $iapkit-e2e-martie to run the Martie example purchase-to-Local (IAPKit) receipt E2E."

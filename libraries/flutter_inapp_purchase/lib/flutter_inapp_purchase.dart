@@ -2036,6 +2036,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                 args['iapkit'] = {
                   if (iapkit.apiKey != null) 'apiKey': iapkit.apiKey,
                   if (iapkit.apple != null) 'apple': {'jws': iapkit.apple!.jws},
+                  if (iapkit.baseUrl != null) 'baseUrl': iapkit.baseUrl,
                   if (iapkit.google != null)
                     'google': {'purchaseToken': iapkit.google!.purchaseToken},
                   if (iapkit.amazon != null)

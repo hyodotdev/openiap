@@ -1071,6 +1071,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             openIapModule.verifyPurchaseWithProviderObjCWithProvider(
                 provider = provider,
                 apiKey = apiKey,
+                baseUrl = iapkit.baseUrl,
                 jws = jws
             ) { result, error ->
                 if (error != null) {

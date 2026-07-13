@@ -29,6 +29,25 @@ This project is part of a **Yarn workspace** structure. All commands should be r
    yarn example:start
    ```
 
+### Purchase Verification
+
+Create the ignored environment file from the example before testing IAPKit:
+
+```sh
+cp example/.env.example example/.env
+```
+
+For hosted IAPKit, get a key from the [IAPKit dashboard](https://kit.openiap.dev). Set `IAPKIT_API_KEY` to a key issued by the IAPKit/Convex deployment that the selected server uses. For **Local (IAPKit)**, the key and local server must target the same Convex deployment. Also set `IAPKIT_BASE_URL` to the device-reachable HTTP(S) origin only; do not append `/v1/purchase/verify`. A physical iPhone must use the Mac's LAN address. An Android device connected over USB can use `http://127.0.0.1:3100`: inspect `adb -s "$ANDROID_SERIAL" reverse --list`, reuse an exact `tcp:3100` mapping when present, or create it with `adb -s "$ANDROID_SERIAL" reverse --no-rebind tcp:3100 tcp:3100`. Record whether this run created the rule and remove only that rule during cleanup; if `--no-rebind` fails, use another port instead of overwriting an existing mapping.
+
+The purchase and subscription screens list verification in this order:
+
+1. **Local (Device)** — direct Apple/Google verification on the device.
+2. **Local (IAPKit)** — IAPKit provider routed to `IAPKIT_BASE_URL`.
+3. **IAPKit** — hosted IAPKit; the local URL is deliberately omitted.
+4. **None (Skip)** — skip verification.
+
+With both values configured, the example defaults to **Local (IAPKit)**. With only the key, it defaults to hosted **IAPKit**; without a key, it defaults to **None (Skip)**.
+
 ### VSCode Integration
 
 If you're using **VSCode**, you can use the pre-configured **launch.json** configurations for easy development:

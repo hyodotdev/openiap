@@ -1,18 +1,32 @@
 import {useState, useCallback, useRef, useEffect} from 'react';
-import {Platform, ActionSheetIOS, Alert} from 'react-native';
+import {Platform, ActionSheetIOS} from 'react-native';
 
-export type VerificationMethod = 'ignore' | 'local' | 'iapkit';
+export type VerificationMethod =
+  | 'ignore'
+  | 'local'
+  | 'iapkit-localhost'
+  | 'iapkit';
 
 export function getDefaultVerificationMethod(
   iapkitApiKey?: string | null,
+  iapkitBaseUrl?: string | null,
 ): VerificationMethod {
-  return iapkitApiKey?.trim() ? 'iapkit' : 'ignore';
+  if (!iapkitApiKey?.trim()) {
+    return 'ignore';
+  }
+
+  return iapkitBaseUrl?.trim() ? 'iapkit-localhost' : 'iapkit';
 }
 
 interface UseVerificationMethodReturn {
   verificationMethod: VerificationMethod;
   verificationMethodRef: React.MutableRefObject<VerificationMethod>;
-  setVerificationMethod: React.Dispatch<React.SetStateAction<VerificationMethod>>;
+  setVerificationMethod: React.Dispatch<
+    React.SetStateAction<VerificationMethod>
+  >;
+  verificationMethodSelectorVisible: boolean;
+  hideVerificationMethodSelector: () => void;
+  selectVerificationMethod: (method: VerificationMethod) => void;
   showVerificationMethodSelector: () => void;
   getVerificationMethodLabel: () => string;
 }
@@ -25,6 +39,8 @@ export function useVerificationMethod(
 ): UseVerificationMethodReturn {
   const [verificationMethod, setVerificationMethod] =
     useState<VerificationMethod>(initialMethod);
+  const [verificationMethodSelectorVisible, setSelectorVisible] =
+    useState(false);
   const verificationMethodRef = useRef<VerificationMethod>(verificationMethod);
 
   // Keep ref in sync with state
@@ -32,12 +48,23 @@ export function useVerificationMethod(
     verificationMethodRef.current = verificationMethod;
   }, [verificationMethod]);
 
+  const hideVerificationMethodSelector = useCallback(() => {
+    setSelectorVisible(false);
+  }, []);
+
+  const selectVerificationMethod = useCallback((method: VerificationMethod) => {
+    setVerificationMethod(method);
+    setSelectorVisible(false);
+  }, []);
+
   const getVerificationMethodLabel = useCallback((): string => {
     switch (verificationMethod) {
       case 'ignore':
-        return 'None';
+        return 'None (Skip)';
       case 'local':
-        return 'Local';
+        return 'Local (Device)';
+      case 'iapkit-localhost':
+        return 'Local (IAPKit)';
       case 'iapkit':
         return 'IAPKit';
       default:
@@ -46,57 +73,45 @@ export function useVerificationMethod(
   }, [verificationMethod]);
 
   const showVerificationMethodSelector = useCallback(() => {
-    const options = [
-      'None (Skip)',
-      'Local (Device)',
-      'IAPKit (Server)',
-      'Cancel',
-    ];
-    const cancelButtonIndex = 3;
-
     if (Platform.OS === 'ios') {
+      const options = [
+        'Local (Device)',
+        'Local (IAPKit)',
+        'IAPKit',
+        'None (Skip)',
+        'Cancel',
+      ];
       ActionSheetIOS.showActionSheetWithOptions(
         {
           options,
-          cancelButtonIndex,
+          cancelButtonIndex: 4,
           title: 'Select Verification Method',
           message: 'Choose how to verify purchases after completion',
         },
         (buttonIndex) => {
           if (buttonIndex === 0) {
-            setVerificationMethod('ignore');
+            selectVerificationMethod('local');
           } else if (buttonIndex === 1) {
-            setVerificationMethod('local');
+            selectVerificationMethod('iapkit-localhost');
           } else if (buttonIndex === 2) {
-            setVerificationMethod('iapkit');
+            selectVerificationMethod('iapkit');
+          } else if (buttonIndex === 3) {
+            selectVerificationMethod('ignore');
           }
         },
       );
     } else {
-      // For Android, use simple Alert with buttons
-      Alert.alert(
-        'Select Verification Method',
-        'Choose how to verify purchases after completion',
-        [
-          {text: 'None (Skip)', onPress: () => setVerificationMethod('ignore')},
-          {
-            text: 'Local (Device)',
-            onPress: () => setVerificationMethod('local'),
-          },
-          {
-            text: 'IAPKit (Server)',
-            onPress: () => setVerificationMethod('iapkit'),
-          },
-          {text: 'Cancel', style: 'cancel'},
-        ],
-      );
+      setSelectorVisible(true);
     }
-  }, []);
+  }, [selectVerificationMethod]);
 
   return {
     verificationMethod,
     verificationMethodRef,
     setVerificationMethod,
+    verificationMethodSelectorVisible,
+    hideVerificationMethodSelector,
+    selectVerificationMethod,
     showVerificationMethodSelector,
     getVerificationMethodLabel,
   };

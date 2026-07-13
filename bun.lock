@@ -19,7 +19,7 @@
     },
     "packages/docs": {
       "name": "@hyodotdev/openiap-docs",
-      "version": "2.3.0",
+      "version": "2.3.1",
       "dependencies": {
         "@preact/signals-react": "^3.2.1",
         "@types/prismjs": "^1.26.5",
@@ -64,7 +64,7 @@
     },
     "packages/gql": {
       "name": "@hyodotdev/openiap-gql",
-      "version": "2.3.0",
+      "version": "2.3.1",
       "devDependencies": {
         "@graphql-codegen/add": "^6.0.0",
         "@graphql-codegen/cli": "^6.0.0",

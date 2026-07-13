@@ -25,6 +25,25 @@ import dev.hyo.openiap.ExternalLinkLaunchModeAndroid as OpenIapExternalLinkLaunc
 import dev.hyo.openiap.ExternalLinkTypeAndroid as OpenIapExternalLinkType
 import dev.hyo.openiap.LaunchExternalLinkParamsAndroid as OpenIapLaunchExternalLinkParams
 
+internal fun normalizeVerifyPurchaseWithProviderProps(
+    props: Map<String, Any?>,
+): Map<String, Any?> {
+    if (props["iapkit"] != null) return props
+
+    val legacyIapkit = linkedMapOf<String, Any?>()
+    listOf("amazon", "apiKey", "apple", "baseUrl", "google").forEach { key ->
+        if (props[key] != null) {
+            legacyIapkit[key] = props[key]
+        }
+    }
+    if (legacyIapkit.isEmpty()) return props
+
+    return linkedMapOf(
+        "provider" to (props["provider"] ?: PurchaseVerificationProvider.Iapkit.toJson()),
+        "iapkit" to legacyIapkit,
+    )
+}
+
 /**
  * GodotIap - Godot plugin for in-app purchases using OpenIAP
  *
@@ -1230,24 +1249,9 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                     }
                 }
 
-                fun normalizeProviderProps(props: Map<String, Any?>): Map<String, Any?> {
-                    if (props["iapkit"] != null) return props
-
-                    val legacyIapkit = linkedMapOf<String, Any?>()
-                    listOf("amazon", "apiKey", "apple", "google").forEach { key ->
-                        if (props[key] != null) {
-                            legacyIapkit[key] = props[key]
-                        }
-                    }
-                    if (legacyIapkit.isEmpty()) return props
-
-                    return linkedMapOf(
-                        "provider" to (props["provider"] ?: PurchaseVerificationProvider.Iapkit.toJson()),
-                        "iapkit" to legacyIapkit
-                    )
-                }
-
-                val propsMap = normalizeProviderProps(jsonBridge.objectToMap(JSONObject(propsJson)))
+                val propsMap = normalizeVerifyPurchaseWithProviderProps(
+                    jsonBridge.objectToMap(JSONObject(propsJson)),
+                )
                 val providerProps = VerifyPurchaseWithProviderProps.fromJson(propsMap)
                     ?: throw IllegalArgumentException("Invalid verifyPurchaseWithProvider options")
 

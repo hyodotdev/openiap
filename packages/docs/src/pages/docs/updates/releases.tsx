@@ -22,6 +22,17 @@ interface Note {
   element: React.ReactNode;
 }
 
+const localIapkitPlannedReleases = [
+  'openiap-apple 2.4.0',
+  'openiap-google 2.4.0',
+  'react-native-iap 15.5.0',
+  'expo-iap 4.5.0',
+  'flutter_inapp_purchase 9.5.0',
+  'godot-iap 2.5.0',
+  'kmp-iap 2.5.0',
+  'OpenIap.Maui 1.3.0',
+] as const;
+
 const purchaseSafetyReleases = [
   ['openiap-apple 2.3.0', '2.3.0'],
   ['openiap-google 2.3.1', 'google-2.3.1'],
@@ -37,6 +48,168 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // July 14, 2026 - Local and self-hosted IAPKit receipt verification
+    {
+      id: 'local-self-hosted-iapkit-verification-2026-07-14',
+      date: new Date('2026-07-14'),
+      element: (
+        <div
+          key="local-self-hosted-iapkit-verification-2026-07-14"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="local-self-hosted-iapkit-verification-2026-07-14"
+            level="h4"
+          >
+            July 14, 2026 - Local and self-hosted IAPKit receipt verification
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Prepares OpenIAP Spec 2.3.1 and coordinated native and framework
+            releases that let <code>verifyPurchaseWithProvider</code> target a
+            self-hosted or device-reachable local IAPKit origin. Existing
+            callers continue to use <code>https://kit.openiap.dev</code>, while
+            malformed non-origin values fail as developer errors. The
+            implementation and physical-device receipt vertical are covered by{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/225"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #225
+            </a>
+            .
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Shared spec and native packages
+          </h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>OpenIAP Spec 2.3.1</strong> - adds the optional{' '}
+              <Link to="/docs/types/verify-purchase-with-provider-props#request-verify-purchase-with-iapkit-props">
+                <code>RequestVerifyPurchaseWithIapkitProps.baseUrl</code>
+              </Link>{' '}
+              field. It accepts an HTTP(S) origin, keeps the hosted endpoint as
+              the default, and requires the API key to come from the same
+              IAPKit/Convex deployment.
+            </li>
+            <li>
+              <strong>openiap-apple 2.4.0</strong> - forwards the custom origin
+              through Swift and Objective-C verification paths, validates it
+              before networking, and preserves the existing Objective-C
+              selector.
+            </li>
+            <li>
+              <strong>openiap-google 2.4.0</strong> - routes IAPKit verification
+              through a validated custom origin for Google and Amazon receipt
+              payloads while leaving the hosted default unchanged.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>react-native-iap 15.5.0</strong> - forwards the custom
+              origin through Nitro on iOS and Android and validates hostname,
+              IPv4, IPv6, and port forms in Vega/Kepler runtimes.
+            </li>
+            <li>
+              <strong>expo-iap 4.5.0</strong> - adds typed custom-origin
+              forwarding and Vega validation while keeping local and hosted
+              verification modes distinct.
+            </li>
+            <li>
+              <strong>flutter_inapp_purchase 9.5.0</strong> - carries{' '}
+              <code>baseUrl</code> through Dart and the Android, iOS, and macOS
+              platform channels.
+            </li>
+            <li>
+              <strong>godot-iap 2.5.0</strong> - normalizes the custom origin in
+              legacy payloads and refreshes Android and Apple native artifacts
+              with fail-closed native-load checks.
+            </li>
+            <li>
+              <strong>kmp-iap 2.5.0</strong> - forwards the custom origin
+              through both Android and iOS bridges.
+            </li>
+            <li>
+              <strong>OpenIap.Maui 1.3.0</strong> - exposes the generated CLR
+              property and consumes the coordinated native packages.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Examples and local IAPKit validation
+          </h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              The Martie React Native and Expo examples present{' '}
+              <code>Local (Device)</code>, <code>Local (IAPKit)</code>,{' '}
+              <code>IAPKit</code>, and <code>None (Skip)</code> in that order.
+              Local IAPKit uses a device-reachable origin; hosted IAPKit omits
+              the override.
+            </li>
+            <li>
+              The compiled-server smoke test fails closed on port ownership and
+              exercises <code>POST /v1/purchase/verify</code>; the E2E guide
+              separates that smoke check from a live store-receipt proof.
+            </li>
+            <li>
+              A physical iPhone Expo sandbox purchase completed through the
+              compiled local IAPKit server and the Martie Dev Convex deployment,
+              including transaction finish. The Android selector and ordering
+              were verified on a physical device without another purchase.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Planned Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              {localIapkitPlannedReleases.map((release) => (
+                <li key={release}>{release}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // July 12, 2026 - Purchase safety and lifecycle hardening
     {
       id: 'purchase-safety-lifecycle-release-2026-07-12',

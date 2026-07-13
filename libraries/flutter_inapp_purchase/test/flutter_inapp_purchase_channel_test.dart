@@ -2448,6 +2448,57 @@ void main() {
       expect(result.iapkit!.store, types.IapStore.Apple);
     });
 
+    test('forwards custom IAPKit baseUrl to the native payload', () async {
+      final calls = <MethodCall>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        calls.add(call);
+        switch (call.method) {
+          case 'initConnection':
+            return true;
+          case 'verifyPurchaseWithProvider':
+            return {
+              'provider': 'iapkit',
+              'iapkit': {
+                'isValid': true,
+                'state': 'entitled',
+                'store': 'apple',
+              },
+            };
+        }
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'ios'),
+      );
+
+      await iap.initConnection();
+
+      await iap.verifyPurchaseWithProvider(
+        provider: types.PurchaseVerificationProvider.Iapkit,
+        iapkit: const types.RequestVerifyPurchaseWithIapkitProps(
+          apiKey: 'test-api-key',
+          apple: types.RequestVerifyPurchaseWithIapkitAppleProps(
+            jws: 'test-jws-token',
+          ),
+          baseUrl: 'http://127.0.0.1:4174',
+        ),
+      );
+
+      final verifyCall = calls.singleWhere(
+        (MethodCall call) => call.method == 'verifyPurchaseWithProvider',
+      );
+      final payload = Map<String, dynamic>.from(
+        verifyCall.arguments as Map<dynamic, dynamic>,
+      );
+      final iapkitPayload = Map<String, dynamic>.from(
+        payload['iapkit'] as Map<dynamic, dynamic>,
+      );
+
+      expect(iapkitPayload['baseUrl'], 'http://127.0.0.1:4174');
+    });
+
     test('sends correct payload for Android verification', () async {
       final calls = <MethodCall>[];
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger

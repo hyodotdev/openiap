@@ -2274,6 +2274,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase {
                         userId = amazon.userId
                     )
                 },
+                baseUrl = iapkitOptions.baseUrl,
                 google = googleOptions?.let { google ->
                     AndroidVerifyPurchaseWithIapkitGoogleProps(
                         purchaseToken = google.purchaseToken

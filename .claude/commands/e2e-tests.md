@@ -27,16 +27,17 @@ When `e2e-tests` is requested without a narrower scope, run every applicable
 row and report every unavailable row as `BLOCKED` or `UNSUPPORTED` with the
 exact missing command, tool, device, or store prerequisite.
 
-| Target                   | Android / Play      | FireOS / Amazon     | Horizon    | iOS                 | VegaOS    | Onside     |
-| ------------------------ | ------------------- | ------------------- | ---------- | ------------------- | --------- | ---------- |
-| `packages/google` native | build + tests       | build + tests       | build-only | n/a                 | n/a       | n/a        |
-| `packages/apple` native  | n/a                 | n/a                 | n/a        | build + tests       | n/a       | n/a        |
-| `react-native-iap`       | build + device flow | build + device flow | build-only | build + device flow | RN only   | n/a        |
-| `expo-iap`               | build + device flow | build + device flow | build-only | build + device flow | Expo only | build-only |
-| `flutter_inapp_purchase` | build + device flow | build + device flow | build-only | build + device flow | n/a       | n/a        |
-| `kmp-iap`                | build + device flow | build + device flow | build-only | build + device flow | n/a       | n/a        |
-| `maui-iap`               | build + device flow | build + device flow | build-only | build + device flow | n/a       | n/a        |
-| `godot-iap`              | build + device flow | n/a                 | n/a        | build + device flow | n/a       | n/a        |
+| Target                      | Android / Play      | FireOS / Amazon     | Horizon    | iOS                 | VegaOS    | Onside     |
+| --------------------------- | ------------------- | ------------------- | ---------- | ------------------- | --------- | ---------- |
+| `packages/kit` local IAPKit | Martie live receipt | n/a                 | n/a        | Martie live receipt | n/a       | n/a        |
+| `packages/google` native    | build + tests       | build + tests       | build-only | n/a                 | n/a       | n/a        |
+| `packages/apple` native     | n/a                 | n/a                 | n/a        | build + tests       | n/a       | n/a        |
+| `react-native-iap`          | build + device flow | build + device flow | build-only | build + device flow | RN only   | n/a        |
+| `expo-iap`                  | build + device flow | build + device flow | build-only | build + device flow | Expo only | build-only |
+| `flutter_inapp_purchase`    | build + device flow | build + device flow | build-only | build + device flow | n/a       | n/a        |
+| `kmp-iap`                   | build + device flow | build + device flow | build-only | build + device flow | n/a       | n/a        |
+| `maui-iap`                  | build + device flow | build + device flow | build-only | build + device flow | n/a       | n/a        |
+| `godot-iap`                 | build + device flow | n/a                 | n/a        | build + device flow | n/a       | n/a        |
 
 Notes:
 
@@ -48,6 +49,9 @@ Notes:
 - KMP and MAUI must still appear in the final report for FireOS/Horizon. Use
   the store-specific commands below; do not count the Play Android build as
   FireOS or Horizon coverage.
+- The local IAPKit row uses the React Native or Expo example whose application
+  id / bundle id is `dev.hyo.martie`. It is a live sandbox receipt vertical,
+  never a placeholder-receipt CI smoke.
 
 ## Rules
 
@@ -75,6 +79,107 @@ Notes:
 - For React Native Vega, remember there is no Expo config plugin. RN users need
   a Vega-only target/package manifest; normal iOS/Android manifests must not
   require Kepler packages.
+
+## Local (IAPKit) Receipt Vertical
+
+Run this row as part of every full E2E regression. When the request is narrowed
+to IAPKit, run this row plus the focused package/example checks that support it;
+do not rerun unrelated framework/store rows.
+
+Prerequisites:
+
+- A connected iPhone or Google Play-capable Android phone with a sandbox/tester
+  account and the `dev.hyo.martie` catalog.
+- A valid API key issued by the same real Martie Convex deployment that the
+  local server will use. Never use the placeholder smoke URL for a receipt.
+- A device-reachable local URL. For Android over USB, reuse an existing
+  `tcp:3100` reverse mapping or create one with the ownership-tracking snippet
+  below, then use `http://127.0.0.1:3100`. For a physical iPhone, use the Mac's
+  current LAN IP, for example `http://192.168.0.4:3100`; do not use iPhone
+  localhost.
+
+Before adding an Android reverse rule, record whether the exact mapping already
+exists. Keep `IAPKIT_REVERSE_CREATED` in the shell that will perform cleanup:
+
+```bash
+existing_reverse_rules="$(adb -s "$ANDROID_SERIAL" reverse --list)"
+IAPKIT_REVERSE_BLOCKED=0
+if printf '%s\n' "$existing_reverse_rules" | \
+  grep -Eq '(^|[[:space:]])tcp:3100[[:space:]]+tcp:3100($|[[:space:]])'; then
+  IAPKIT_REVERSE_CREATED=0
+elif adb -s "$ANDROID_SERIAL" reverse --no-rebind tcp:3100 tcp:3100; then
+  IAPKIT_REVERSE_CREATED=1
+else
+  IAPKIT_REVERSE_CREATED=0
+  IAPKIT_REVERSE_BLOCKED=1
+  echo 'BLOCKED: could not create tcp:3100 reverse mapping without rebinding' >&2
+fi
+if [ "$IAPKIT_REVERSE_BLOCKED" != "0" ]; then
+  exit 1
+fi
+```
+
+If `--no-rebind` fails, stop this row as `BLOCKED` or select a different free
+port. Do not overwrite the existing mapping.
+
+Build and start the compiled IAPKit server in a dedicated terminal:
+
+```bash
+cd packages/kit
+: "${CONVEX_URL:?Set the Martie Convex deployment URL}"
+VITE_KIT_CONVEX_URL="$CONVEX_URL" bun run build:all
+CONVEX_URL="$CONVEX_URL" \
+VITE_KIT_CONVEX_URL="$CONVEX_URL" \
+STATIC_ROOT="$PWD/dist" \
+PORT=3100 \
+KIT_DEBUG_VERIFY_LOGS=1 \
+./openiap-kit-server
+```
+
+Configure and rebuild one Martie example. React Native reads
+`IAPKIT_API_KEY` / `IAPKIT_BASE_URL`; Expo reads
+`EXPO_PUBLIC_IAPKIT_API_KEY` / `EXPO_PUBLIC_IAPKIT_BASE_URL`. The URL must be
+the device-reachable local origin above, without `/v1/purchase/verify`.
+
+On the example purchase screen, choose **Local (IAPKit)**, not **Local
+(Device)** or hosted **IAPKit**. Fetch the Martie catalog, buy a visible
+consumable or subscription, and approve the sandbox dialog only when
+authorized. Require all of the following before PASS:
+
+1. The example receives the purchase token/JWS and calls
+   `verifyPurchaseWithProvider({ provider: 'iapkit' })` with the local
+   `baseUrl`.
+2. The local server emits a matching structured `verify_request` line for
+   `POST /v1/purchase/verify`, including a correlation id, the expected store,
+   HTTP 200, and `isValid: true`.
+3. The app displays/logs `isValid: true` and the expected IAPKit state/store,
+   then successfully finishes or consumes the transaction.
+4. The purchases view backed by that same Martie Convex deployment shows the
+   same store/product purchase. Use the Dev Convex Data view for a Dev
+   deployment; do not look for Dev rows in the production-backed hosted UI.
+
+If the device, sandbox account, Martie catalog, API key, Convex deployment, or
+purchase approval is unavailable, report this row as `BLOCKED` with that exact
+prerequisite. A server health check, build, mocked receipt, or HTTP 400 route
+probe does not count as a live receipt PASS.
+
+Always after the row, including `PASS`, `FAIL`, or `BLOCKED`, stop the local
+server and log streams. Remove the reverse rule only when this run created it:
+
+```bash
+if [ "${IAPKIT_REVERSE_CREATED:-0}" = "1" ]; then
+  current_reverse_rules="$(adb -s "$ANDROID_SERIAL" reverse --list 2>/dev/null)"
+  if printf '%s\n' "$current_reverse_rules" | \
+    grep -Eq '(^|[[:space:]])tcp:3100[[:space:]]+tcp:3100($|[[:space:]])'; then
+    adb -s "$ANDROID_SERIAL" reverse --remove tcp:3100
+  else
+    echo 'SKIP: tcp:3100 reverse mapping changed before cleanup' >&2
+  fi
+fi
+```
+
+Leave reused and unrelated reverse rules, project credentials, and products
+unchanged.
 
 ## Preflight
 
@@ -761,6 +866,8 @@ packages/google Play  | local Gradle  | compile/test | PASS   | ...
 packages/google Fire  | local Gradle  | compile/test | PASS   | ...
 packages/google Horz  | local Gradle  | compile      | PASS   | build-only
 packages/apple iOS    | local SwiftPM | build/test   | PASS   | ...
+Local (IAPKit) Android | {serial}     | Martie purchase/verify/finish | PASS | corrId=...
+Local (IAPKit) iOS    | {UDID}       | Martie purchase/verify/finish | PASS | corrId=...
 RN Android            | {serial}      | build/install/purchase | PASS | ...
 RN FireOS             | {serial}      | build/install/purchase | PASS | ...
 RN Horizon            | local Gradle  | build        | PASS   | build-only
