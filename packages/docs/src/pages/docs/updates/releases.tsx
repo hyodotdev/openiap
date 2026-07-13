@@ -22,15 +22,15 @@ interface Note {
   element: React.ReactNode;
 }
 
-const localIapkitPlannedReleases = [
-  'openiap-apple 2.4.0',
-  'openiap-google 2.4.0',
-  'react-native-iap 15.5.0',
-  'expo-iap 4.5.0',
-  'flutter_inapp_purchase 9.5.0',
-  'godot-iap 2.5.0',
-  'kmp-iap 2.5.0',
-  'OpenIap.Maui 1.3.0',
+const localIapkitReleases = [
+  ['openiap-apple 2.4.0', '2.4.0'],
+  ['openiap-google 2.4.0', 'google-2.4.0'],
+  ['react-native-iap 15.5.0', 'react-native-iap-15.5.0'],
+  ['expo-iap 4.5.0', 'expo-iap-4.5.0'],
+  ['flutter_inapp_purchase 9.5.0', 'flutter-iap-9.5.0'],
+  ['godot-iap 2.5.0', 'godot-iap-2.5.0'],
+  ['kmp-iap 2.5.0', 'kmp-iap-2.5.0'],
+  ['OpenIap.Maui 1.3.0', 'maui-iap-1.3.0'],
 ] as const;
 
 const purchaseSafetyReleases = [
@@ -70,7 +70,7 @@ function Releases() {
               color: 'var(--text-secondary)',
             }}
           >
-            Prepares OpenIAP Spec 2.3.1 and coordinated native and framework
+            Publishes OpenIAP Spec 2.3.1 and coordinated native and framework
             releases that let <code>verifyPurchaseWithProvider</code> target a
             self-hosted or device-reachable local IAPKit origin. Existing
             callers continue to use <code>https://kit.openiap.dev</code>, while
@@ -193,7 +193,7 @@ function Releases() {
               borderTop: '1px solid var(--border-color)',
             }}
           >
-            <h5 style={{ margin: '0 0 0.5rem 0' }}>Planned Package Releases</h5>
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
             <ul
               style={{
                 margin: 0,
@@ -201,8 +201,16 @@ function Releases() {
                 fontSize: '0.9rem',
               }}
             >
-              {localIapkitPlannedReleases.map((release) => (
-                <li key={release}>{release}</li>
+              {localIapkitReleases.map(([label, tag]) => (
+                <li key={tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {label}
+                  </a>
+                </li>
               ))}
             </ul>
           </div>
