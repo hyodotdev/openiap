@@ -93,7 +93,8 @@ default. Use `$openiap-workflows` as the router for `.claude/commands/`:
 
 Use the more specific local skill when its domain matches: `$generate-doc` for
 OpenIAP docs and release notes, `$iapkit-e2e-petgu` for Petgu product-sync E2E,
-and `$opencollective-steward` for OpenCollective work.
+`$iapkit-e2e-martie` for Martie local-receipt E2E, and
+`$opencollective-steward` for OpenCollective work.
 
 ## Recheck Every Five Minutes
 
