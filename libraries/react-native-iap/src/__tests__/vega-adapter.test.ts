@@ -1267,6 +1267,8 @@ describe('Amazon Vega adapter', () => {
     'http://[::ffff:999.1.1.1]:3100',
     'http://[::1',
     'http://::1:3100',
+    'http://127.00.0.1:3100',
+    'http://[::ffff:192.168.001.1]:3100',
     'http://999.999.999.999:3100',
     'http://%:3100',
   ])('rejects non-origin IAPKit base URL %s', async (baseUrl) => {
