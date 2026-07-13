@@ -5476,6 +5476,7 @@ class RequestVerifyPurchaseWithIapkitProps {
     this.amazon,
     this.apiKey,
     this.apple,
+    this.baseUrl,
     this.google,
   });
 
@@ -5485,6 +5486,11 @@ class RequestVerifyPurchaseWithIapkitProps {
   final String? apiKey;
   /// Apple App Store verification parameters.
   final RequestVerifyPurchaseWithIapkitAppleProps? apple;
+  /// Available in OpenIAP Spec 2.3.1.
+  /// Base URL for the IAPKit server. Defaults to https://kit.openiap.dev.
+  /// Set this to a reachable HTTP(S) origin when self-hosting or testing a local IAPKit server.
+  /// The apiKey must be issued by the same IAPKit/Convex deployment as this server.
+  final String? baseUrl;
   /// Google Play Store verification parameters.
   final RequestVerifyPurchaseWithIapkitGoogleProps? google;
 
@@ -5493,6 +5499,7 @@ class RequestVerifyPurchaseWithIapkitProps {
       amazon: json['amazon'] != null ? RequestVerifyPurchaseWithIapkitAmazonProps.fromJson(json['amazon'] as Map<String, dynamic>) : null,
       apiKey: json['apiKey'] as String?,
       apple: json['apple'] != null ? RequestVerifyPurchaseWithIapkitAppleProps.fromJson(json['apple'] as Map<String, dynamic>) : null,
+      baseUrl: json['baseUrl'] as String?,
       google: json['google'] != null ? RequestVerifyPurchaseWithIapkitGoogleProps.fromJson(json['google'] as Map<String, dynamic>) : null,
     );
   }
@@ -5502,6 +5509,7 @@ class RequestVerifyPurchaseWithIapkitProps {
       'amazon': amazon?.toJson(),
       'apiKey': apiKey,
       'apple': apple?.toJson(),
+      'baseUrl': baseUrl,
       'google': google?.toJson(),
     };
   }

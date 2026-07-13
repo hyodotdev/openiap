@@ -2332,6 +2332,11 @@ public struct RequestVerifyPurchaseWithIapkitProps: Codable {
     public var apiKey: String?
     /// Apple App Store verification parameters.
     public var apple: RequestVerifyPurchaseWithIapkitAppleProps?
+    /// Available in OpenIAP Spec 2.3.1.
+    /// Base URL for the IAPKit server. Defaults to https://kit.openiap.dev.
+    /// Set this to a reachable HTTP(S) origin when self-hosting or testing a local IAPKit server.
+    /// The apiKey must be issued by the same IAPKit/Convex deployment as this server.
+    public var baseUrl: String?
     /// Google Play Store verification parameters.
     public var google: RequestVerifyPurchaseWithIapkitGoogleProps?
 
@@ -2339,11 +2344,13 @@ public struct RequestVerifyPurchaseWithIapkitProps: Codable {
         amazon: RequestVerifyPurchaseWithIapkitAmazonProps? = nil,
         apiKey: String? = nil,
         apple: RequestVerifyPurchaseWithIapkitAppleProps? = nil,
+        baseUrl: String? = nil,
         google: RequestVerifyPurchaseWithIapkitGoogleProps? = nil
     ) {
         self.amazon = amazon
         self.apiKey = apiKey
         self.apple = apple
+        self.baseUrl = baseUrl
         self.google = google
     }
 }

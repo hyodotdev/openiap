@@ -5139,6 +5139,8 @@ class RequestVerifyPurchaseWithIapkitGoogleProps:
 class RequestVerifyPurchaseWithIapkitProps:
 	## API key used for the Authorization header (Bearer {apiKey}).
 	var api_key: Variant = null
+	## Available in OpenIAP Spec 2.3.1.
+	var base_url: Variant = null
 	## Apple App Store verification parameters.
 	var apple: RequestVerifyPurchaseWithIapkitAppleProps
 	## Google Play Store verification parameters.
@@ -5150,6 +5152,8 @@ class RequestVerifyPurchaseWithIapkitProps:
 		var obj = RequestVerifyPurchaseWithIapkitProps.new()
 		if data.has("apiKey") and data["apiKey"] != null:
 			obj.api_key = data["apiKey"]
+		if data.has("baseUrl") and data["baseUrl"] != null:
+			obj.base_url = data["baseUrl"]
 		if data.has("apple") and data["apple"] != null:
 			if data["apple"] is Dictionary:
 				obj.apple = RequestVerifyPurchaseWithIapkitAppleProps.from_dict(data["apple"])
@@ -5171,6 +5175,8 @@ class RequestVerifyPurchaseWithIapkitProps:
 		var dict = {}
 		if api_key != null:
 			dict["apiKey"] = api_key
+		if base_url != null:
+			dict["baseUrl"] = base_url
 		if apple != null:
 			if apple.has_method("to_dict"):
 				dict["apple"] = apple.to_dict()

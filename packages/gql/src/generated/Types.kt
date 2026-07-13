@@ -5682,6 +5682,13 @@ public data class RequestVerifyPurchaseWithIapkitProps(
      */
     val apple: RequestVerifyPurchaseWithIapkitAppleProps? = null,
     /**
+     * Available in OpenIAP Spec 2.3.1.
+     * Base URL for the IAPKit server. Defaults to https://kit.openiap.dev.
+     * Set this to a reachable HTTP(S) origin when self-hosting or testing a local IAPKit server.
+     * The apiKey must be issued by the same IAPKit/Convex deployment as this server.
+     */
+    val baseUrl: String? = null,
+    /**
      * Google Play Store verification parameters.
      */
     val google: RequestVerifyPurchaseWithIapkitGoogleProps? = null
@@ -5692,6 +5699,7 @@ public data class RequestVerifyPurchaseWithIapkitProps(
                 amazon = (json["amazon"] as? Map<String, Any?>)?.let { RequestVerifyPurchaseWithIapkitAmazonProps.fromJson(it) },
                 apiKey = json["apiKey"] as? String,
                 apple = (json["apple"] as? Map<String, Any?>)?.let { RequestVerifyPurchaseWithIapkitAppleProps.fromJson(it) },
+                baseUrl = json["baseUrl"] as? String,
                 google = (json["google"] as? Map<String, Any?>)?.let { RequestVerifyPurchaseWithIapkitGoogleProps.fromJson(it) },
             )
         }
@@ -5701,6 +5709,7 @@ public data class RequestVerifyPurchaseWithIapkitProps(
         "amazon" to amazon?.toJson(),
         "apiKey" to apiKey,
         "apple" to apple?.toJson(),
+        "baseUrl" to baseUrl,
         "google" to google?.toJson(),
     )
 }
