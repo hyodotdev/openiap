@@ -1,9 +1,18 @@
 import {render, fireEvent, waitFor, act} from '@testing-library/react-native';
-import {Alert} from 'react-native';
+import {ActionSheetIOS, Alert, Platform} from 'react-native';
 import PurchaseFlow from '../../screens/PurchaseFlow';
 import * as RNIap from 'react-native-iap';
 import {PRODUCT_IDS} from '../../src/utils/constants';
 import {ErrorCode} from 'react-native-iap';
+
+jest.mock(
+  '@env',
+  () => ({
+    IAPKIT_API_KEY: 'test-api-key',
+    IAPKIT_BASE_URL: 'http://192.168.0.10:3100',
+  }),
+  {virtual: true},
+);
 
 describe('PurchaseFlow Screen', () => {
   const requestPurchaseMock = RNIap.requestPurchase as jest.Mock;
@@ -238,6 +247,7 @@ describe('PurchaseFlow Screen', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    Platform.OS = 'ios';
     mockIapState();
   });
 
@@ -267,6 +277,7 @@ describe('PurchaseFlow Screen', () => {
 
     expect(getByText('10 Bulbs')).toBeTruthy();
     expect(getByText('30 Bulbs')).toBeTruthy();
+    expect(getByText('Local (IAPKit)')).toBeTruthy();
   });
 
   it('initiates purchase when purchase button pressed', () => {
@@ -289,12 +300,141 @@ describe('PurchaseFlow Screen', () => {
     });
   });
 
+  it('routes Local (IAPKit) through the configured local server', async () => {
+    const {finishTransaction, verifyPurchase, verifyPurchaseWithProvider} =
+      mockIapState();
+
+    render(<PurchaseFlow />);
+
+    await act(async () => {
+      await onPurchaseSuccess?.({
+        id: 'transaction-1',
+        productId: 'dev.hyo.martie.10bulbs',
+        purchaseToken: 'apple-jws',
+        store: 'apple',
+        transactionDate: Date.now(),
+        purchaseState: 'purchased',
+      });
+    });
+
+    expect(verifyPurchase).not.toHaveBeenCalled();
+    expect(verifyPurchaseWithProvider).toHaveBeenCalledWith({
+      provider: 'iapkit',
+      iapkit: {
+        apiKey: 'test-api-key',
+        baseUrl: 'http://192.168.0.10:3100',
+        apple: {jws: 'apple-jws'},
+      },
+    });
+    expect(verifyPurchaseWithProvider.mock.invocationCallOrder[0]).toBeLessThan(
+      finishTransaction.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it('keeps Local (Device) on direct Apple/Google verification', async () => {
+    const selectorSpy = jest
+      .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
+      .mockImplementation((_options, callback) => callback(0));
+    const {finishTransaction, verifyPurchase, verifyPurchaseWithProvider} =
+      mockIapState();
+    const {getByText} = render(<PurchaseFlow />);
+
+    fireEvent.press(getByText('Local (IAPKit)'));
+    await waitFor(() => {
+      expect(getByText('Local (Device)')).toBeTruthy();
+    });
+
+    await act(async () => {
+      await onPurchaseSuccess?.({
+        id: 'transaction-device-1',
+        productId: 'dev.hyo.martie.10bulbs',
+        purchaseToken: 'device-apple-jws',
+        store: 'apple',
+        transactionDate: Date.now(),
+        purchaseState: 'purchased',
+      });
+    });
+
+    expect(verifyPurchase).toHaveBeenCalledWith({
+      apple: {sku: 'dev.hyo.martie.10bulbs'},
+      google: {
+        sku: 'dev.hyo.martie.10bulbs',
+        accessToken: 'YOUR_OAUTH_ACCESS_TOKEN',
+        packageName: 'dev.hyo.martie',
+        purchaseToken: 'device-apple-jws',
+        isSub: false,
+      },
+    });
+    expect(verifyPurchaseWithProvider).not.toHaveBeenCalled();
+    expect(verifyPurchase.mock.invocationCallOrder[0]).toBeLessThan(
+      finishTransaction.mock.invocationCallOrder[0]!,
+    );
+
+    selectorSpy.mockRestore();
+  });
+
+  it('omits the local base URL when hosted IAPKit is selected', async () => {
+    const selectorSpy = jest
+      .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
+      .mockImplementation((_options, callback) => callback(2));
+    const {verifyPurchaseWithProvider} = mockIapState();
+    const {getByText} = render(<PurchaseFlow />);
+
+    fireEvent.press(getByText('Local (IAPKit)'));
+    await waitFor(() => {
+      expect(getByText('IAPKit')).toBeTruthy();
+    });
+
+    await act(async () => {
+      await onPurchaseSuccess?.({
+        id: 'transaction-2',
+        productId: 'dev.hyo.martie.10bulbs',
+        purchaseToken: 'hosted-apple-jws',
+        store: 'apple',
+        transactionDate: Date.now(),
+        purchaseState: 'purchased',
+      });
+    });
+
+    expect(verifyPurchaseWithProvider).toHaveBeenCalledWith({
+      provider: 'iapkit',
+      iapkit: {
+        apiKey: 'test-api-key',
+        apple: {jws: 'hosted-apple-jws'},
+      },
+    });
+
+    selectorSpy.mockRestore();
+  });
+
+  it('renders Android verification choices together in the requested order', async () => {
+    Platform.OS = 'android';
+    const {getAllByTestId, getByText} = render(<PurchaseFlow />);
+
+    fireEvent.press(getByText('Local (IAPKit)'));
+
+    const options = getAllByTestId('verification-method-option');
+    expect(options.map((option) => option.props.accessibilityLabel)).toEqual([
+      'Local (Device)',
+      'Local (IAPKit)',
+      'IAPKit',
+      'None (Skip)',
+    ]);
+
+    fireEvent.press(options[3]!);
+    await waitFor(() => {
+      expect(getByText('None (Skip)')).toBeTruthy();
+    });
+  });
+
   it('updates state on purchase success callback', async () => {
     const {finishTransaction} = mockIapState();
 
     const {getByText, queryByText} = render(<PurchaseFlow />);
 
-    expect(queryByText(/Purchase completed and finished successfully/)).toBeNull();
+    expect(
+      queryByText(/Purchase completed and finished successfully/),
+    ).toBeNull();
 
     await act(async () => {
       await onPurchaseSuccess?.({

@@ -18,6 +18,25 @@ npm run ios
 npm run android
 ```
 
+## Purchase Verification
+
+Create the ignored environment file before testing IAPKit:
+
+```bash
+cp .env.example .env
+```
+
+For hosted IAPKit, get a key from the [IAPKit dashboard](https://kit.openiap.dev). Set `EXPO_PUBLIC_IAPKIT_API_KEY` to a key issued by the IAPKit/Convex deployment that the selected server uses. For **Local (IAPKit)**, the key and local server must target the same Convex deployment. Also set `EXPO_PUBLIC_IAPKIT_BASE_URL` to the device-reachable HTTP(S) origin only; do not append `/v1/purchase/verify`. A physical iPhone must use the Mac's LAN address. An Android device connected over USB can use `http://127.0.0.1:3100`: inspect `adb -s "$ANDROID_SERIAL" reverse --list`, reuse an exact `tcp:3100` mapping when present, or create it with `adb -s "$ANDROID_SERIAL" reverse --no-rebind tcp:3100 tcp:3100`. Record whether this run created the rule and remove only that rule during cleanup; if `--no-rebind` fails, use another port instead of overwriting an existing mapping.
+
+The purchase and subscription screens list verification in this order:
+
+1. **Local (Device)** — direct Apple/Google verification on the device.
+2. **Local (IAPKit)** — IAPKit provider routed to the configured local origin.
+3. **IAPKit** — hosted IAPKit; the local URL is deliberately omitted.
+4. **None (Skip)** — skip verification.
+
+With both values configured, the example defaults to **Local (IAPKit)**. With only the key, it defaults to hosted **IAPKit**; without a key, it defaults to **None (Skip)**.
+
 ## 📱 Example Structure
 
 This example provides two focused implementations, each demonstrating best practices for specific use cases:
@@ -77,7 +96,10 @@ const result = await requestPurchase({
 if (isAndroidPurchaseArray(result)) {
   // TypeScript knows this is ProductPurchaseAndroid[]
   const purchase = result[0];
-  console.log('Android token available:', Boolean(purchase.purchaseTokenAndroid));
+  console.log(
+    'Android token available:',
+    Boolean(purchase.purchaseTokenAndroid),
+  );
 } else if (isIosPurchase(result)) {
   // TypeScript knows this is ProductPurchaseIos
   console.log('iOS Transaction ID:', result.transactionId);

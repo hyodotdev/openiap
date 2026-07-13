@@ -35,9 +35,11 @@ import {
 import {
   createIapkitVerificationPayload,
   getPurchaseCleanupKey,
+  resolveIapkitVerificationBaseUrl,
   showNativeAlert,
 } from '../src/utils/vegaRuntime';
 import PurchaseSummaryRow from '../src/components/PurchaseSummaryRow';
+import VerificationMethodSelectorModal from '../src/components/VerificationMethodSelectorModal';
 import {IAPKIT_API_KEY, IAPKIT_BASE_URL} from '@env';
 
 type ExtendedPurchase = Purchase & {
@@ -830,10 +832,12 @@ function SubscriptionFlow({
           >
             <Text style={styles.verificationButtonText}>
               {verificationMethod === 'ignore'
-                ? '❌ None (Skip)'
+                ? 'None (Skip)'
                 : verificationMethod === 'local'
-                  ? '📱 Local (Device)'
-                  : '☁️ IAPKit (Server)'}
+                  ? 'Local (Device)'
+                  : verificationMethod === 'iapkit-localhost'
+                    ? 'Local (IAPKit)'
+                    : 'IAPKit'}
             </Text>
             <Text style={styles.verificationButtonHint}>Tap to change</Text>
           </TouchableOpacity>
@@ -1634,8 +1638,13 @@ function SubscriptionFlowContainer() {
   const {
     verificationMethod,
     verificationMethodRef,
+    verificationMethodSelectorVisible,
+    hideVerificationMethodSelector,
+    selectVerificationMethod,
     showVerificationMethodSelector,
-  } = useVerificationMethod(getDefaultVerificationMethod(IAPKIT_API_KEY));
+  } = useVerificationMethod(
+    getDefaultVerificationMethod(IAPKIT_API_KEY, IAPKIT_BASE_URL),
+  );
 
   const lastSuccessAtRef = useRef(0);
   const connectedRef = useRef(false);
@@ -1736,8 +1745,9 @@ function SubscriptionFlowContainer() {
       // ──────────────────────────────────────────────────────────────────────
       // Choose verification method:
       // - 'ignore': Skip verification (testing only - NOT for production)
-      // - 'local': Direct API verification with Apple/Google
-      // - 'iapkit': Server-side verification via IAPKit (recommended)
+      // - 'local': Direct Apple/Google verification on the device
+      // - 'iapkit-localhost': IAPKit provider through the local server
+      // - 'iapkit': IAPKit provider through the hosted service
       //
       // ⚠️ Server-side validation is recommended for production:
       // - iOS: App Store Server API + App Store Server Notifications V2
@@ -1754,58 +1764,52 @@ function SubscriptionFlowContainer() {
         setIsProcessing(true);
         try {
           if (currentVerificationMethod === 'local') {
-            console.log('[SubscriptionFlow] Verifying with local method...');
-            // New platform-specific verification API - provide all platform options
-            // The library internally handles which options to use based on platform
+            console.log('[SubscriptionFlow] Verifying with Local (Device)...');
+            // Production apps must obtain Google Play API credentials from
+            // their backend rather than bundling them in the client.
             await verifyPurchase({
               apple: {sku: productId},
               google: {
                 sku: productId,
-                // NOTE: accessToken must be obtained from your backend server
-                // that has authenticated with Google Play Developer API
                 accessToken: 'YOUR_OAUTH_ACCESS_TOKEN',
                 packageName: 'dev.hyo.martie',
                 purchaseToken: purchase.purchaseToken ?? '',
                 isSub: true,
               },
-              // horizon: { sku: productId, userId: '...', accessToken: '...' }
             });
-            console.log('[SubscriptionFlow] Local verification completed');
-          } else if (currentVerificationMethod === 'iapkit') {
-            console.log('[SubscriptionFlow] Verifying with IAPKit...');
-            // NOTE: Set your API key in .env file as IAPKIT_API_KEY
-            const apiKey = IAPKIT_API_KEY;
-
             console.log(
-              '[SubscriptionFlow] API Key loaded:',
-              apiKey ? '✓ Present' : '✗ Missing',
+              '[SubscriptionFlow] Local (Device) verification completed',
             );
+          } else {
+            const verificationLabel =
+              currentVerificationMethod === 'iapkit-localhost'
+                ? 'Local (IAPKit)'
+                : 'IAPKit';
             console.log(
-              '[SubscriptionFlow] purchase.purchaseToken:',
-              purchase.purchaseToken
-                ? `✓ Present (${purchase.purchaseToken.length} chars)`
-                : '✗ Missing or empty',
+              `[SubscriptionFlow] Verifying with ${verificationLabel}...`,
             );
 
+            const apiKey = IAPKIT_API_KEY?.trim();
             if (!apiKey) {
               throw new Error('IAPKIT_API_KEY not configured');
             }
 
             const jwsOrToken = purchase.purchaseToken ?? '';
             if (!jwsOrToken) {
-              console.log(
-                '[SubscriptionFlow] No purchaseToken/JWS available for verification',
-              );
               throw new Error(
                 'No purchase token available for IAPKit verification',
               );
             }
 
+            const baseUrl = resolveIapkitVerificationBaseUrl(
+              currentVerificationMethod,
+              IAPKIT_BASE_URL,
+            );
             const iapkitPayload = createIapkitVerificationPayload(
               purchase,
               jwsOrToken,
               apiKey,
-              IAPKIT_BASE_URL,
+              baseUrl,
             );
             const verifyRequest: VerifyPurchaseWithProviderProps = {
               provider: 'iapkit',
@@ -1813,7 +1817,7 @@ function SubscriptionFlowContainer() {
             };
             iapkitVerifyRequest = verifyRequest;
             console.log(
-              '[SubscriptionFlow] Sending IAPKit verification request',
+              `[SubscriptionFlow] Sending ${verificationLabel} verification request`,
             );
 
             const result = await verifyPurchaseWithProvider(verifyRequest);
@@ -1822,13 +1826,12 @@ function SubscriptionFlowContainer() {
               result,
             );
 
-            // Show verification result to user
             if (result.iapkit) {
               const statusEmoji = result.iapkit.isValid ? '✅' : '⚠️';
               const stateText = result.iapkit.state || 'unknown';
 
               showNativeAlert(
-                `${statusEmoji} IAPKit Verification`,
+                `${statusEmoji} ${verificationLabel} Verification`,
                 `Valid: ${result.iapkit.isValid}\nState: ${stateText}\nStore: ${
                   result.iapkit.store || 'unknown'
                 }`,
@@ -2394,25 +2397,33 @@ function SubscriptionFlowContainer() {
   }, []);
 
   return (
-    <SubscriptionFlow
-      connected={connected}
-      subscriptions={subscriptions}
-      activeSubscriptions={activeSubscriptions}
-      purchaseResult={purchaseResult}
-      isProcessing={isProcessing}
-      isCheckingStatus={isCheckingStatus}
-      lastPurchase={lastPurchase}
-      lastPurchasedPlan={lastPurchasedPlan}
-      verificationMethod={verificationMethod}
-      setIsProcessing={setIsProcessing}
-      setPurchaseResult={setPurchaseResult}
-      setLastPurchasedPlan={setLastPurchasedPlan}
-      onSubscribe={handleSubscription}
-      onRetryLoadSubscriptions={handleRetryLoadSubscriptions}
-      onRefreshStatus={handleRefreshStatus}
-      onManageSubscriptions={handleManageSubscriptions}
-      onChangeVerificationMethod={showVerificationMethodSelector}
-    />
+    <>
+      <SubscriptionFlow
+        connected={connected}
+        subscriptions={subscriptions}
+        activeSubscriptions={activeSubscriptions}
+        purchaseResult={purchaseResult}
+        isProcessing={isProcessing}
+        isCheckingStatus={isCheckingStatus}
+        lastPurchase={lastPurchase}
+        lastPurchasedPlan={lastPurchasedPlan}
+        verificationMethod={verificationMethod}
+        setIsProcessing={setIsProcessing}
+        setPurchaseResult={setPurchaseResult}
+        setLastPurchasedPlan={setLastPurchasedPlan}
+        onSubscribe={handleSubscription}
+        onRetryLoadSubscriptions={handleRetryLoadSubscriptions}
+        onRefreshStatus={handleRefreshStatus}
+        onManageSubscriptions={handleManageSubscriptions}
+        onChangeVerificationMethod={showVerificationMethodSelector}
+      />
+      <VerificationMethodSelectorModal
+        onDismiss={hideVerificationMethodSelector}
+        onSelect={selectVerificationMethod}
+        selectedMethod={verificationMethod}
+        visible={verificationMethodSelectorVisible}
+      />
+    </>
   );
 }
 

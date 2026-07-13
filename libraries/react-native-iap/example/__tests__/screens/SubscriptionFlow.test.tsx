@@ -1,5 +1,5 @@
 import {render, fireEvent, waitFor, act} from '@testing-library/react-native';
-import {Alert, Platform} from 'react-native';
+import {ActionSheetIOS, Alert, Platform} from 'react-native';
 import SubscriptionFlow from '../../screens/SubscriptionFlow';
 import * as RNIap from 'react-native-iap';
 import {SUBSCRIPTION_PRODUCT_IDS} from '../../src/utils/constants';
@@ -8,7 +8,7 @@ jest.mock(
   '@env',
   () => ({
     IAPKIT_API_KEY: 'test-api-key',
-    IAPKIT_BASE_URL: '',
+    IAPKIT_BASE_URL: 'http://192.168.0.10:3100',
   }),
   {virtual: true},
 );
@@ -125,6 +125,7 @@ describe('SubscriptionFlow Screen', () => {
 
     expect(getByText('Premium Subscription')).toBeTruthy();
     expect(getByText('$9.99/month')).toBeTruthy();
+    expect(getByText('Local (IAPKit)')).toBeTruthy();
   });
 
   it('initiates subscription purchase when button pressed', () => {
@@ -200,9 +201,51 @@ describe('SubscriptionFlow Screen', () => {
     );
   });
 
+  it('keeps Local (Device) subscription verification direct', async () => {
+    const selectorSpy = jest
+      .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
+      .mockImplementation((_options, callback) => callback(0));
+    const {finishTransaction, verifyPurchase, verifyPurchaseWithProvider} =
+      mockIapState();
+    const {getByText} = render(<SubscriptionFlow />);
+
+    fireEvent.press(getByText('Local (IAPKit)'));
+    await waitFor(() => {
+      expect(getByText('Local (Device)')).toBeTruthy();
+    });
+
+    await act(async () => {
+      await onPurchaseSuccess?.({
+        id: 'transaction-device-sub-1',
+        platform: 'ios',
+        productId: 'dev.hyo.martie.premium',
+        purchaseToken: 'device-sub-jws',
+        transactionDate: Date.now(),
+      });
+    });
+
+    expect(verifyPurchase).toHaveBeenCalledWith({
+      apple: {sku: 'dev.hyo.martie.premium'},
+      google: {
+        sku: 'dev.hyo.martie.premium',
+        accessToken: 'YOUR_OAUTH_ACCESS_TOKEN',
+        packageName: 'dev.hyo.martie',
+        purchaseToken: 'device-sub-jws',
+        isSub: true,
+      },
+    });
+    expect(verifyPurchaseWithProvider).not.toHaveBeenCalled();
+    expect(verifyPurchase.mock.invocationCallOrder[0]).toBeLessThan(
+      finishTransaction.mock.invocationCallOrder[0]!,
+    );
+
+    selectorSpy.mockRestore();
+  });
+
   it('re-verifies the Android IAPKit snapshot after finishing', async () => {
     Platform.OS = 'android';
-    const {finishTransaction, verifyPurchaseWithProvider} = mockIapState();
+    const {finishTransaction, verifyPurchase, verifyPurchaseWithProvider} =
+      mockIapState();
 
     render(<SubscriptionFlow />);
 
@@ -217,7 +260,16 @@ describe('SubscriptionFlow Screen', () => {
     });
 
     expect(finishTransaction).toHaveBeenCalledTimes(1);
+    expect(verifyPurchase).not.toHaveBeenCalled();
     expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(2);
+    expect(verifyPurchaseWithProvider.mock.calls[0]?.[0]).toEqual({
+      provider: 'iapkit',
+      iapkit: {
+        apiKey: 'test-api-key',
+        baseUrl: 'http://192.168.0.10:3100',
+        google: {purchaseToken: 'android-token'},
+      },
+    });
     expect(verifyPurchaseWithProvider.mock.calls[1]?.[0]).toEqual(
       verifyPurchaseWithProvider.mock.calls[0]?.[0],
     );

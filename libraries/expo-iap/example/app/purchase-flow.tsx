@@ -38,10 +38,10 @@ import {
   createIapkitVerificationPayload,
   getDefaultVerificationMethod,
   getPurchaseCleanupKey,
+  resolveIapkitVerificationBaseUrl,
   showNativeAlert,
+  type VerificationMethod,
 } from '../src/utils/vegaRuntime';
-
-type VerificationMethod = 'ignore' | 'local' | 'iapkit';
 
 const CONSUMABLE_PRODUCT_ID_SET = new Set(CONSUMABLE_PRODUCT_IDS);
 const NON_CONSUMABLE_PRODUCT_ID_SET = new Set(NON_CONSUMABLE_PRODUCT_IDS);
@@ -311,10 +311,12 @@ function PurchaseFlow({
           >
             <Text style={styles.verificationButtonText}>
               {verificationMethod === 'ignore'
-                ? '❌ None (Skip)'
+                ? 'None (Skip)'
                 : verificationMethod === 'local'
-                ? '📱 Local (Device)'
-                : '☁️ IAPKit (Server)'}
+                ? 'Local (Device)'
+                : verificationMethod === 'iapkit-localhost'
+                ? 'Local (IAPKit)'
+                : 'IAPKit'}
             </Text>
             <Text style={styles.verificationButtonHint}>Tap to change</Text>
           </TouchableOpacity>
@@ -746,7 +748,7 @@ function PurchaseFlow({
  * 1. initConnection     - Store connection (handled by useIAP)
  * 2. subscribeEvent     - Event subscription (onPurchaseSuccess/onPurchaseError)
  * 3. requestPurchase    - 3 options: Apple, Google, Google with offers
- * 4. verifyPurchase     - 3 methods: ignore, local, iapkit
+ * 4. verify purchase - local device | local IAPKit | hosted IAPKit | skip
  * 5. grant entitlement  - Update availablePurchases state
  * 6. finish transaction - Call finishTransaction to complete
  * ============================================================
@@ -828,10 +830,11 @@ function PurchaseFlowContainer() {
       }
 
       // ------------------------------------------------------------
-      // Step 4: verifyPurchase - 3 methods available
+      // Step 4: four verification selections
       //   - ignore: Skip verification (for testing)
-      //   - local: Verify with Apple/Google directly
-      //   - iapkit: Verify using IAPKit service
+      //   - local: Direct Apple/Google verification on the device
+      //   - iapkit-localhost: IAPKit provider through the local server
+      //   - iapkit: IAPKit provider through the hosted service
       // ------------------------------------------------------------
       const currentVerificationMethod = verificationMethodRef.current;
       console.log('[PurchaseFlow] About to verify purchase:', {
@@ -843,63 +846,60 @@ function PurchaseFlowContainer() {
       if (currentVerificationMethod !== 'ignore' && productId) {
         setIsProcessing(true);
         try {
-          // Option 1: Local verification (device-based)
           if (currentVerificationMethod === 'local') {
-            console.log('[PurchaseFlow] Verifying with local method...');
-            // All platform options can be provided - the library handles platform detection internally
+            console.log('[PurchaseFlow] Verifying with Local (Device)...');
             await verifyPurchase({
               apple: {sku: productId},
               google: {
                 sku: productId,
                 packageName: 'dev.hyo.martie',
-                purchaseToken: purchase.purchaseToken ?? '', // Required for production
-                accessToken: '', // Requires server-issued OAuth token
+                purchaseToken: purchase.purchaseToken ?? '',
+                accessToken: '', // Requires a server-issued OAuth token.
               },
-              // horizon: { sku: productId, userId: '', accessToken: '' }
             });
-            console.log('[PurchaseFlow] Local verification completed');
-            // Option 2: IAPKit verification (server-based)
-          } else if (currentVerificationMethod === 'iapkit') {
-            console.log('[PurchaseFlow] Verifying with IAPKit...');
+            console.log('[PurchaseFlow] Local (Device) verification completed');
+          } else {
+            const verificationLabel =
+              currentVerificationMethod === 'iapkit-localhost'
+                ? 'Local (IAPKit)'
+                : 'IAPKit';
             console.log(
-              '[PurchaseFlow] purchase.purchaseToken:',
-              purchase.purchaseToken &&
-                typeof purchase.purchaseToken === 'string'
-                ? `✓ Present (${purchase.purchaseToken.length} chars)`
-                : '✗ Missing or empty',
+              `[PurchaseFlow] Verifying with ${verificationLabel}...`,
             );
 
             const jwsOrToken = purchase.purchaseToken ?? '';
             if (!jwsOrToken) {
-              console.log(
-                '[PurchaseFlow] No purchaseToken/JWS available for verification',
-              );
               throw new Error(
                 'No purchase token available for IAPKit verification',
               );
             }
 
+            const baseUrl = resolveIapkitVerificationBaseUrl(
+              currentVerificationMethod,
+            );
             const iapkitPayload = createIapkitVerificationPayload(
               purchase,
               jwsOrToken,
+              baseUrl,
             );
             const verifyRequest: VerifyPurchaseWithProviderProps = {
               provider: 'iapkit',
               iapkit: iapkitPayload,
             };
-            console.log('[PurchaseFlow] Sending IAPKit verification request');
+            console.log(
+              `[PurchaseFlow] Sending ${verificationLabel} verification request`,
+            );
 
             const result = await verifyPurchaseWithProvider(verifyRequest);
             console.log('[PurchaseFlow] IAPKit verification result:', result);
 
-            // Show verification result to user
             if (result.iapkit) {
               const iapkitResult = result.iapkit;
               const statusEmoji = iapkitResult.isValid ? '✅' : '⚠️';
               const stateText = iapkitResult.state || 'unknown';
 
               showNativeAlert(
-                `${statusEmoji} IAPKit Verification`,
+                `${statusEmoji} ${verificationLabel} Verification`,
                 `Valid: ${iapkitResult.isValid}\nState: ${stateText}\nStore: ${
                   iapkitResult.store || 'unknown'
                 }`,
@@ -1118,12 +1118,13 @@ function PurchaseFlowContainer() {
 
   const handleChangeVerificationMethod = useCallback(() => {
     const options = [
-      'None (Skip)',
       'Local (Device)',
-      'IAPKit (Server)',
+      'Local (IAPKit)',
+      'IAPKit',
+      'None (Skip)',
       'Cancel',
     ];
-    const cancelButtonIndex = 3;
+    const cancelButtonIndex = 4;
 
     showActionSheetWithOptions(
       {
@@ -1134,11 +1135,13 @@ function PurchaseFlowContainer() {
       },
       (buttonIndex) => {
         if (buttonIndex === 0) {
-          setVerificationMethod('ignore');
-        } else if (buttonIndex === 1) {
           setVerificationMethod('local');
+        } else if (buttonIndex === 1) {
+          setVerificationMethod('iapkit-localhost');
         } else if (buttonIndex === 2) {
           setVerificationMethod('iapkit');
+        } else if (buttonIndex === 3) {
+          setVerificationMethod('ignore');
         }
       },
     );

@@ -13,6 +13,7 @@ jest.mock('expo-constants', () => ({
 import {
   createIapkitVerificationPayload,
   getDefaultVerificationMethod,
+  resolveIapkitVerificationBaseUrl,
 } from '../src/utils/vegaRuntime';
 import type {Purchase} from '../../src/types';
 
@@ -26,6 +27,7 @@ describe('Vega runtime example helpers', () => {
         store: 'amazon',
       } as Purchase,
       'receipt-1',
+      'http://localhost:3100',
     );
 
     expect(payload).toMatchObject({
@@ -47,6 +49,7 @@ describe('Vega runtime example helpers', () => {
         store: 'google',
       } as Purchase,
       'token-1',
+      'http://localhost:3100',
     );
 
     expect(payload).toMatchObject({
@@ -58,7 +61,44 @@ describe('Vega runtime example helpers', () => {
     });
   });
 
-  it('defaults to IAPKit verification when an API key is configured', () => {
-    expect(getDefaultVerificationMethod()).toBe('iapkit');
+  it('defaults to local IAPKit when a key and local URL are configured', () => {
+    expect(getDefaultVerificationMethod()).toBe('iapkit-localhost');
+  });
+
+  it('defaults to hosted IAPKit when only an API key is configured', () => {
+    expect(getDefaultVerificationMethod('test-api-key', '')).toBe('iapkit');
+  });
+
+  it('does not enable verification without an API key', () => {
+    expect(getDefaultVerificationMethod('', 'http://localhost:3100')).toBe(
+      'ignore',
+    );
+  });
+
+  it('omits the configured local URL for hosted IAPKit', () => {
+    const baseUrl = resolveIapkitVerificationBaseUrl(
+      'iapkit',
+      'http://localhost:3100',
+    );
+    const payload = createIapkitVerificationPayload(
+      {
+        id: 'token-1',
+        productId: 'dev.hyo.martie.10bulbs',
+        purchaseToken: 'token-1',
+        store: 'google',
+      } as Purchase,
+      'token-1',
+      baseUrl,
+    );
+
+    expect(payload).not.toHaveProperty('baseUrl');
+  });
+
+  it('requires an explicit base URL for local IAPKit', () => {
+    expect(() =>
+      resolveIapkitVerificationBaseUrl('iapkit-localhost', '  '),
+    ).toThrow(
+      'EXPO_PUBLIC_IAPKIT_BASE_URL not configured for Local (IAPKit) verification',
+    );
   });
 });

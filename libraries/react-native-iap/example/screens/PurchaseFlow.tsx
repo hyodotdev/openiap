@@ -33,6 +33,7 @@ import {
 import {
   createIapkitVerificationPayload,
   getPurchaseCleanupKey,
+  resolveIapkitVerificationBaseUrl,
   showNativeAlert,
 } from '../src/utils/vegaRuntime';
 import type {
@@ -42,6 +43,7 @@ import type {
   VerifyPurchaseWithProviderProps,
 } from 'react-native-iap';
 import PurchaseSummaryRow from '../src/components/PurchaseSummaryRow';
+import VerificationMethodSelectorModal from '../src/components/VerificationMethodSelectorModal';
 
 const CONSUMABLE_PRODUCT_ID_SET = new Set(CONSUMABLE_PRODUCT_IDS);
 const NON_CONSUMABLE_PRODUCT_ID_SET = new Set(NON_CONSUMABLE_PRODUCT_IDS);
@@ -211,10 +213,12 @@ function PurchaseFlow({
           >
             <Text style={styles.verificationButtonText}>
               {verificationMethod === 'ignore'
-                ? '❌ None (Skip)'
+                ? 'None (Skip)'
                 : verificationMethod === 'local'
-                  ? '📱 Local (Device)'
-                  : '☁️ IAPKit (Server)'}
+                  ? 'Local (Device)'
+                  : verificationMethod === 'iapkit-localhost'
+                    ? 'Local (IAPKit)'
+                    : 'IAPKit'}
             </Text>
             <Text style={styles.verificationButtonHint}>Tap to change</Text>
           </TouchableOpacity>
@@ -561,8 +565,9 @@ function PurchaseFlow({
  *    Option C: Cross-platform using `request` object (recommended)
  *
  * 4. VERIFY PURCHASE
- *    - Local verification: Direct API call to Apple/Google
- *    - IAPKit verification: Server-side verification via IAPKit service
+ *    - Local (Device): Direct Apple/Google verification on the device
+ *    - Local (IAPKit): Verify through a locally running IAPKit server
+ *    - IAPKit: Verify through kit.openiap.dev
  *    - Skip verification: For testing only (not recommended for production)
  *
  * 5. GRANT ENTITLEMENT
@@ -591,8 +596,13 @@ function PurchaseFlowContainer() {
   const {
     verificationMethod,
     verificationMethodRef,
+    verificationMethodSelectorVisible,
+    hideVerificationMethodSelector,
+    selectVerificationMethod,
     showVerificationMethodSelector,
-  } = useVerificationMethod(getDefaultVerificationMethod(IAPKIT_API_KEY));
+  } = useVerificationMethod(
+    getDefaultVerificationMethod(IAPKIT_API_KEY, IAPKIT_BASE_URL),
+  );
   const cleanupPurchaseKeysRef = useRef(new Set<string>());
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -647,8 +657,9 @@ function PurchaseFlowContainer() {
       // ──────────────────────────────────────────────────────────────────────
       // Choose verification method based on user selection:
       // - 'ignore': Skip verification (testing only)
-      // - 'local': Direct API verification with Apple/Google
-      // - 'iapkit': Server-side verification via IAPKit
+      // - 'local': Direct Apple/Google verification on the device
+      // - 'iapkit-localhost': IAPKit provider through the local server
+      // - 'iapkit': IAPKit provider through the hosted service
       const currentVerificationMethod = verificationMethodRef.current;
       console.log('[PurchaseFlow] About to verify purchase:', {
         verificationMethod: currentVerificationMethod,
@@ -659,86 +670,69 @@ function PurchaseFlowContainer() {
       if (currentVerificationMethod !== 'ignore' && productId) {
         setIsProcessing(true);
         try {
-          // ── Option A: Local Verification ──────────────────────────────────
           if (currentVerificationMethod === 'local') {
-            console.log('[PurchaseFlow] Verifying with local method...');
-            // Platform-specific verification API
-            // Provide all platform options - library handles platform detection
-            //
-            // ⚠️ SECURITY WARNING: The accessToken below is a PLACEHOLDER.
-            // NEVER ship OAuth tokens directly in your app bundle!
-            // In production, your mobile app should:
-            //   1. Send the purchaseToken to YOUR backend server
-            //   2. Your backend authenticates with Google Play Developer API
-            //   3. Your backend returns the verification result to the app
-            // This example uses a placeholder for demonstration purposes only.
+            console.log('[PurchaseFlow] Verifying with Local (Device)...');
+            // This token is intentionally a placeholder. Production apps must
+            // obtain Google Play API credentials from their backend.
             await verifyPurchase({
               apple: {sku: productId},
               google: {
                 sku: productId,
-                // PLACEHOLDER - Replace with token fetched from your backend
                 accessToken: 'YOUR_OAUTH_ACCESS_TOKEN',
                 packageName: 'dev.hyo.martie',
                 purchaseToken: purchase.purchaseToken ?? '',
                 isSub: false,
               },
-              // horizon: { sku: productId, userId: '...', accessToken: '...' }
             });
-            console.log('[PurchaseFlow] Local verification completed');
-          }
-          // ── Option B: IAPKit Server Verification ──────────────────────────
-          else if (currentVerificationMethod === 'iapkit') {
-            console.log('[PurchaseFlow] Verifying with IAPKit...');
-            // NOTE: Set your API key in .env file as IAPKIT_API_KEY
-            const apiKey = IAPKIT_API_KEY;
-
+            console.log('[PurchaseFlow] Local (Device) verification completed');
+          } else {
+            const verificationLabel =
+              currentVerificationMethod === 'iapkit-localhost'
+                ? 'Local (IAPKit)'
+                : 'IAPKit';
             console.log(
-              '[PurchaseFlow] API Key loaded:',
-              apiKey ? '✓ Present' : '✗ Missing',
-            );
-            console.log(
-              '[PurchaseFlow] purchase.purchaseToken:',
-              purchase.purchaseToken
-                ? `✓ Present (${purchase.purchaseToken.length} chars)`
-                : '✗ Missing or empty',
+              `[PurchaseFlow] Verifying with ${verificationLabel}...`,
             );
 
+            const apiKey = IAPKIT_API_KEY?.trim();
             if (!apiKey) {
               throw new Error('IAPKIT_API_KEY not configured');
             }
 
             const jwsOrToken = purchase.purchaseToken ?? '';
             if (!jwsOrToken) {
-              console.log(
-                '[PurchaseFlow] No purchaseToken/JWS available for verification',
-              );
               throw new Error(
                 'No purchase token available for IAPKit verification',
               );
             }
 
+            const baseUrl = resolveIapkitVerificationBaseUrl(
+              currentVerificationMethod,
+              IAPKIT_BASE_URL,
+            );
             const iapkitPayload = createIapkitVerificationPayload(
               purchase,
               jwsOrToken,
               apiKey,
-              IAPKIT_BASE_URL,
+              baseUrl,
             );
             const verifyRequest: VerifyPurchaseWithProviderProps = {
               provider: 'iapkit',
               iapkit: iapkitPayload,
             };
-            console.log('[PurchaseFlow] Sending IAPKit verification request');
+            console.log(
+              `[PurchaseFlow] Sending ${verificationLabel} verification request`,
+            );
 
             const result = await verifyPurchaseWithProvider(verifyRequest);
             console.log('[PurchaseFlow] IAPKit verification result:', result);
 
-            // Show verification result to user
             if (result.iapkit) {
               const statusEmoji = result.iapkit.isValid ? '✅' : '⚠️';
               const stateText = result.iapkit.state || 'unknown';
 
               showNativeAlert(
-                `${statusEmoji} IAPKit Verification`,
+                `${statusEmoji} ${verificationLabel} Verification`,
                 `Valid: ${result.iapkit.isValid}\nState: ${stateText}\nStore: ${
                   result.iapkit.store || 'unknown'
                 }`,
@@ -970,19 +964,27 @@ function PurchaseFlowContainer() {
   }, [fetchStorefront]);
 
   return (
-    <PurchaseFlow
-      connected={connected}
-      products={products}
-      purchaseResult={purchaseResult}
-      isProcessing={isProcessing}
-      lastPurchase={lastPurchase}
-      storefront={storefront}
-      isFetchingStorefront={fetchingStorefront}
-      verificationMethod={verificationMethod}
-      onPurchase={handlePurchase}
-      onRefreshStorefront={handleRefreshStorefront}
-      onChangeVerificationMethod={showVerificationMethodSelector}
-    />
+    <>
+      <PurchaseFlow
+        connected={connected}
+        products={products}
+        purchaseResult={purchaseResult}
+        isProcessing={isProcessing}
+        lastPurchase={lastPurchase}
+        storefront={storefront}
+        isFetchingStorefront={fetchingStorefront}
+        verificationMethod={verificationMethod}
+        onPurchase={handlePurchase}
+        onRefreshStorefront={handleRefreshStorefront}
+        onChangeVerificationMethod={showVerificationMethodSelector}
+      />
+      <VerificationMethodSelectorModal
+        onDismiss={hideVerificationMethodSelector}
+        onSelect={selectVerificationMethod}
+        selectedMethod={verificationMethod}
+        visible={verificationMethodSelectorVisible}
+      />
+    </>
   );
 }
 

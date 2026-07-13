@@ -3,9 +3,7 @@ import type {Purchase, VerifyPurchaseWithProviderProps} from 'react-native-iap';
 
 export type IapkitVerificationPayload = NonNullable<
   VerifyPurchaseWithProviderProps['iapkit']
-> & {
-  baseUrl?: string | null;
-};
+>;
 
 function withIapkitEndpoint(
   payload: IapkitVerificationPayload,
@@ -19,6 +17,24 @@ function withIapkitEndpoint(
     ...payload,
     baseUrl: trimmedBaseUrl,
   };
+}
+
+export function resolveIapkitVerificationBaseUrl(
+  method: 'iapkit-localhost' | 'iapkit',
+  configuredBaseUrl?: string | null,
+): string | undefined {
+  if (method === 'iapkit') {
+    return undefined;
+  }
+
+  const baseUrl = configuredBaseUrl?.trim();
+  if (!baseUrl) {
+    throw new Error(
+      'IAPKIT_BASE_URL not configured for Local (IAPKit) verification',
+    );
+  }
+
+  return baseUrl;
 }
 
 export function showNativeAlert(title: string, message?: string): void {
@@ -37,13 +53,18 @@ export function createIapkitVerificationPayload(
   apiKey: string,
   baseUrl?: string | null,
 ): IapkitVerificationPayload {
+  const trimmedApiKey = apiKey.trim();
+  if (!trimmedApiKey) {
+    throw new Error('IAPKIT_API_KEY not configured');
+  }
+
   const purchaseStore = (
     (purchase as Purchase & {store?: string | null}).store ?? ''
   ).toLowerCase();
   if (purchaseStore === 'amazon') {
     return withIapkitEndpoint(
       {
-        apiKey,
+        apiKey: trimmedApiKey,
         amazon: {
           receiptId: purchaseToken,
           sandbox: __DEV__,
@@ -59,13 +80,13 @@ export function createIapkitVerificationPayload(
   return withIapkitEndpoint(
     isApplePurchase
       ? {
-          apiKey,
+          apiKey: trimmedApiKey,
           apple: {
             jws: purchaseToken,
           },
         }
       : {
-          apiKey,
+          apiKey: trimmedApiKey,
           google: {
             purchaseToken,
           },

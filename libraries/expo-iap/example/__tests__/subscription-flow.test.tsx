@@ -2,11 +2,20 @@ import React from 'react';
 import {act, render, fireEvent, waitFor} from '@testing-library/react-native';
 import {Alert, Platform} from 'react-native';
 
+const mockShowActionSheetWithOptions = jest.fn();
+
+jest.mock('@expo/react-native-action-sheet', () => ({
+  useActionSheet: () => ({
+    showActionSheetWithOptions: mockShowActionSheetWithOptions,
+  }),
+}));
+
 // Mock expo-constants
 jest.mock('expo-constants', () => ({
   expoConfig: {
     extra: {
       iapkitApiKey: 'test-api-key',
+      iapkitBaseUrl: 'http://192.168.0.10:3100',
     },
   },
 }));
@@ -34,10 +43,11 @@ const mockVerifyPurchaseWithProvider = jest
   )
   .mockName('verifyPurchaseWithProvider');
 let mockOnPurchaseSuccess:
-  ((purchase: Record<string, unknown>) => Promise<void> | void) | undefined;
+  | ((purchase: Record<string, unknown>) => Promise<void> | void)
+  | undefined;
 
 const createMockSubscription = (overrides = {}) => ({
-  id: 'test.subscription.1',
+  id: 'dev.hyo.martie.premium',
   title: 'Test Subscription',
   description: 'Test Description',
   price: '$9.99',
@@ -57,7 +67,7 @@ const createMockSubscription = (overrides = {}) => ({
 });
 
 const createMockAndroidSubscription = () => ({
-  id: 'test.android.subscription',
+  id: 'dev.hyo.martie.premium',
   title: 'Android Subscription',
   description: 'Android Test Description',
   displayPrice: '$4.99',
@@ -98,6 +108,7 @@ async function renderConnectedSubscriptionFlow() {
 describe('SubscriptionFlow Component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockShowActionSheetWithOptions.mockReset();
     mockFetchProducts.mockResolvedValue([createMockSubscription()]);
     mockGetActiveSubscriptions.mockResolvedValue([]);
     mockFinishTransaction.mockResolvedValue(undefined);
@@ -130,6 +141,27 @@ describe('SubscriptionFlow Component', () => {
   it('should render without crashing', async () => {
     const {getByText} = await renderConnectedSubscriptionFlow();
     expect(getByText('Subscription Flow')).toBeDefined();
+    expect(getByText('Local (IAPKit)')).toBeDefined();
+  });
+
+  it('shows verification choices in the requested order', async () => {
+    const {getByText} = await renderConnectedSubscriptionFlow();
+
+    fireEvent.press(getByText('Local (IAPKit)'));
+
+    expect(mockShowActionSheetWithOptions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        options: [
+          'Local (Device)',
+          'Local (IAPKit)',
+          'IAPKit',
+          'None (Skip)',
+          'Cancel',
+        ],
+        cancelButtonIndex: 4,
+      }),
+      expect.any(Function),
+    );
   });
 
   it('should show connected status', async () => {
@@ -162,7 +194,7 @@ describe('SubscriptionFlow Component', () => {
 
   it('should display active subscriptions when available', async () => {
     const activeSubscription = {
-      productId: 'test.subscription.1',
+      productId: 'dev.hyo.martie.premium',
       isActive: true,
       expirationDateIOS: new Date(Date.now() + 86400000),
       environmentIOS: 'Production',
@@ -184,12 +216,12 @@ describe('SubscriptionFlow Component', () => {
     const {getByText} = await renderConnectedSubscriptionFlow();
     expect(getByText('Current Subscription Status')).toBeDefined();
     expect(getByText('✅ Active')).toBeDefined();
-    expect(getByText('test.subscription.1')).toBeDefined();
+    expect(getByText('dev.hyo.martie.premium')).toBeDefined();
   });
 
   it('should show expiration warning for soon-to-expire subscriptions', async () => {
     const expiringSubscription = {
-      productId: 'test.subscription.1',
+      productId: 'dev.hyo.martie.premium',
       isActive: true,
       expirationDateIOS: new Date(Date.now() + 86400000),
       willExpireSoon: true,
@@ -219,7 +251,7 @@ describe('SubscriptionFlow Component', () => {
     });
 
     const androidActiveSubscription = {
-      productId: 'test.android.subscription',
+      productId: 'dev.hyo.martie.premium',
       isActive: true,
       autoRenewingAndroid: false,
       willExpireSoon: true,
@@ -252,7 +284,7 @@ describe('SubscriptionFlow Component', () => {
       getActiveSubscriptions: mockGetActiveSubscriptions,
       activeSubscriptions: [
         {
-          productId: 'test.subscription.1',
+          productId: 'dev.hyo.martie.premium',
           isActive: true,
           expirationDateIOS: new Date(Date.now() + 86400000),
         },
@@ -387,7 +419,16 @@ describe('SubscriptionFlow Component', () => {
     });
 
     expect(mockFinishTransaction).toHaveBeenCalledTimes(1);
+    expect(mockVerifyPurchase).not.toHaveBeenCalled();
     expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(2);
+    expect(mockVerifyPurchaseWithProvider.mock.calls[0]?.[0]).toEqual({
+      provider: 'iapkit',
+      iapkit: {
+        apiKey: 'test-api-key',
+        baseUrl: 'http://192.168.0.10:3100',
+        google: {purchaseToken: 'android-token'},
+      },
+    });
     expect(mockVerifyPurchaseWithProvider.mock.calls[1]?.[0]).toEqual(
       mockVerifyPurchaseWithProvider.mock.calls[0]?.[0],
     );
@@ -396,6 +437,47 @@ describe('SubscriptionFlow Component', () => {
     ).toBeLessThan(mockFinishTransaction.mock.invocationCallOrder[0]!);
     expect(mockFinishTransaction.mock.invocationCallOrder[0]).toBeLessThan(
       mockVerifyPurchaseWithProvider.mock.invocationCallOrder[1]!,
+    );
+  });
+
+  it('keeps Local (Device) subscription verification direct', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      value: 'ios',
+      writable: true,
+    });
+    mockShowActionSheetWithOptions.mockImplementation(
+      (_options: unknown, callback: (index?: number) => void) => callback(0),
+    );
+    const {getByText} = await renderConnectedSubscriptionFlow();
+
+    fireEvent.press(getByText('Local (IAPKit)'));
+    await waitFor(() => {
+      expect(getByText('Local (Device)')).toBeDefined();
+    });
+
+    await act(async () => {
+      await mockOnPurchaseSuccess?.({
+        id: 'transaction-device-sub-1',
+        platform: 'ios',
+        productId: 'dev.hyo.martie.premium',
+        purchaseToken: 'device-sub-jws',
+        transactionDate: Date.now(),
+      });
+    });
+
+    expect(mockVerifyPurchase).toHaveBeenCalledWith({
+      apple: {sku: 'dev.hyo.martie.premium'},
+      google: {
+        sku: 'dev.hyo.martie.premium',
+        packageName: 'dev.hyo.martie',
+        purchaseToken: 'device-sub-jws',
+        accessToken: '',
+        isSub: true,
+      },
+    });
+    expect(mockVerifyPurchaseWithProvider).not.toHaveBeenCalled();
+    expect(mockVerifyPurchase.mock.invocationCallOrder[0]).toBeLessThan(
+      mockFinishTransaction.mock.invocationCallOrder[0]!,
     );
   });
 });

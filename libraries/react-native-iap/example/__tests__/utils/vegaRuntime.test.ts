@@ -1,5 +1,9 @@
 import type {Purchase} from 'react-native-iap';
-import {createIapkitVerificationPayload} from '../../src/utils/vegaRuntime';
+import {getDefaultVerificationMethod} from '../../src/hooks/useVerificationMethod';
+import {
+  createIapkitVerificationPayload,
+  resolveIapkitVerificationBaseUrl,
+} from '../../src/utils/vegaRuntime';
 
 describe('Vega runtime example helpers', () => {
   it('uses Amazon receipt verification when purchase store is Amazon', () => {
@@ -63,5 +67,42 @@ describe('Vega runtime example helpers', () => {
         jws: 'jws-1',
       },
     });
+  });
+
+  it('selects local IAPKit by default only when key and URL are configured', () => {
+    expect(
+      getDefaultVerificationMethod('test-api-key', 'http://192.168.0.10:3100'),
+    ).toBe('iapkit-localhost');
+    expect(getDefaultVerificationMethod('test-api-key', '')).toBe('iapkit');
+    expect(getDefaultVerificationMethod('', 'http://192.168.0.10:3100')).toBe(
+      'ignore',
+    );
+  });
+
+  it('keeps hosted IAPKit free of a configured local base URL', () => {
+    expect(
+      resolveIapkitVerificationBaseUrl('iapkit', 'http://192.168.0.10:3100'),
+    ).toBeUndefined();
+  });
+
+  it('requires an explicit base URL for local IAPKit', () => {
+    expect(() =>
+      resolveIapkitVerificationBaseUrl('iapkit-localhost', '  '),
+    ).toThrow('IAPKIT_BASE_URL not configured for Local (IAPKit) verification');
+  });
+
+  it('requires an API key for every IAPKit verification', () => {
+    expect(() =>
+      createIapkitVerificationPayload(
+        {
+          id: 'token-1',
+          productId: 'dev.hyo.martie.10bulbs',
+          purchaseToken: 'token-1',
+          store: 'google',
+        } as unknown as Purchase,
+        'token-1',
+        '  ',
+      ),
+    ).toThrow('IAPKIT_API_KEY not configured');
   });
 });
