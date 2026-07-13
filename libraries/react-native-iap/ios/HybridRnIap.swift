@@ -452,6 +452,9 @@ class HybridRnIap: HybridRnIapSpec {
                     } else if let plistApiKey = Bundle.main.object(forInfoDictionaryKey: "IAPKitAPIKey") as? String {
                         iapkitDict["apiKey"] = plistApiKey
                     }
+                    if case .second(let baseUrl) = iapkit.baseUrl {
+                        iapkitDict["baseUrl"] = baseUrl
+                    }
                     if case .second(let apple) = iapkit.apple {
                         iapkitDict["apple"] = ["jws": apple.jws]
                     }

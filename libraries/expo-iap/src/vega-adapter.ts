@@ -188,6 +188,121 @@ function createVegaError(
   return error;
 }
 
+function isValidIpv4Address(address: string): boolean {
+  const octets = address.split('.');
+  return (
+    octets.length === 4 &&
+    octets.every((octet) => /^\d{1,3}$/.test(octet) && Number(octet) <= 255)
+  );
+}
+
+function isValidIpv6Address(address: string): boolean {
+  let ipv6Part = address;
+  let ipv4GroupCount = 0;
+
+  if (address.includes('.')) {
+    const lastColon = address.lastIndexOf(':');
+    if (lastColon < 0 || !isValidIpv4Address(address.slice(lastColon + 1))) {
+      return false;
+    }
+    const ipv6Prefix = address.slice(0, lastColon);
+    ipv6Part = ipv6Prefix.endsWith(':') ? `${ipv6Prefix}:` : ipv6Prefix;
+    ipv4GroupCount = 2;
+  }
+
+  if (
+    !ipv6Part.includes(':') ||
+    !/^[0-9a-f:]+$/i.test(ipv6Part) ||
+    ipv6Part.includes(':::')
+  ) {
+    return false;
+  }
+
+  const compressionIndex = ipv6Part.indexOf('::');
+  const hasCompression = compressionIndex >= 0;
+  if (
+    (hasCompression && ipv6Part.indexOf('::', compressionIndex + 2) >= 0) ||
+    (!hasCompression && (ipv6Part.startsWith(':') || ipv6Part.endsWith(':')))
+  ) {
+    return false;
+  }
+
+  const sections = hasCompression ? ipv6Part.split('::') : [ipv6Part];
+  const groups: string[] = [];
+  for (const section of sections) {
+    if (section.length > 0) groups.push(...section.split(':'));
+  }
+  if (!groups.every((group) => /^[0-9a-f]{1,4}$/i.test(group))) {
+    return false;
+  }
+
+  const groupCount = groups.length + ipv4GroupCount;
+  return hasCompression ? groupCount < 8 : groupCount === 8;
+}
+
+function isValidHostname(hostname: string): boolean {
+  if (/^[0-9.]+$/.test(hostname)) {
+    return isValidIpv4Address(hostname);
+  }
+
+  const normalizedHostname = hostname.endsWith('.')
+    ? hostname.slice(0, -1)
+    : hostname;
+  if (normalizedHostname.length === 0 || normalizedHostname.length > 253) {
+    return false;
+  }
+
+  return normalizedHostname
+    .split('.')
+    .every(
+      (label) =>
+        label.length <= 63 && /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i.test(label),
+    );
+}
+
+function getIapkitVerifyUrl(baseUrl?: string | null): string {
+  const requestedBaseUrl =
+    typeof baseUrl === 'string' && baseUrl.trim().length > 0
+      ? baseUrl.trim()
+      : IAPKIT_DEFAULT_BASE_URL;
+  const normalizedBaseUrl = requestedBaseUrl.replace(/\/+$/, '');
+  // Kepler's URL polyfill throws for standard getters such as protocol,
+  // host, and pathname. Parse the small origin-only contract directly.
+  const originMatch = /^(https?):\/\/([^/?#@\s\\]+)$/i.exec(normalizedBaseUrl);
+  if (!originMatch) {
+    throw createVegaError(
+      ErrorCode.DeveloperError,
+      'IAPKit baseUrl must be a valid HTTP(S) origin',
+    );
+  }
+
+  const authority = originMatch[2]!;
+  const isBracketedIpv6 = authority.startsWith('[');
+  const authorityMatch = isBracketedIpv6
+    ? /^\[([^\]]+)\](?::([0-9]+))?$/.exec(authority)
+    : /^([^:]+)(?::([0-9]+))?$/.exec(authority);
+  const host = authorityMatch?.[1];
+  const requestedPort = authorityMatch?.[2];
+  const portNumber = requestedPort ? Number(requestedPort) : null;
+  const hasValidHost =
+    typeof host === 'string' &&
+    (isBracketedIpv6 ? isValidIpv6Address(host) : isValidHostname(host));
+  const hasValidPort =
+    portNumber === null ||
+    (Number.isInteger(portNumber) && portNumber >= 1 && portNumber <= 65535);
+  if (!authorityMatch || !hasValidHost || !hasValidPort) {
+    throw createVegaError(
+      ErrorCode.DeveloperError,
+      'IAPKit baseUrl must be a valid HTTP(S) origin',
+    );
+  }
+
+  const scheme = originMatch[1]!.toLowerCase();
+  const serializedHost = isBracketedIpv6 ? `[${host!}]` : host!;
+  const port = requestedPort ? `:${requestedPort}` : '';
+  return `${scheme}://${serializedHost}${port}${IAPKIT_VERIFY_PATH}`;
+}
+
 function toPurchaseErrorPayload(
   error: unknown,
   fallbackMessage: string,
@@ -936,27 +1051,6 @@ export function createExpoIapVegaModule(
   const verifyWithIapkit = async (
     options: VerifyPurchaseWithProviderProps,
   ): Promise<VerifyPurchaseWithProviderResult> => {
-    type IapkitEndpointOptions = NonNullable<
-      VerifyPurchaseWithProviderProps['iapkit']
-    > & {
-      baseUrl?: string | null;
-    };
-
-    function iapkitVerifyUrl(
-      iapkit: VerifyPurchaseWithProviderProps['iapkit'],
-    ): string {
-      const endpointOptions = iapkit as
-        | IapkitEndpointOptions
-        | null
-        | undefined;
-      const baseUrl =
-        typeof endpointOptions?.baseUrl === 'string' &&
-        endpointOptions.baseUrl.trim().length > 0
-          ? endpointOptions.baseUrl.trim()
-          : IAPKIT_DEFAULT_BASE_URL;
-      return `${baseUrl.replace(/\/+$/, '')}${IAPKIT_VERIFY_PATH}`;
-    }
-
     function normalizeIapkitState(state: unknown): IapkitPurchaseState {
       const normalized =
         typeof state === 'string'
@@ -1111,6 +1205,7 @@ export function createExpoIapVegaModule(
 
     const apiKey =
       typeof iapkit?.apiKey === 'string' ? iapkit.apiKey.trim() : '';
+    const verificationUrl = getIapkitVerifyUrl(iapkit?.baseUrl);
     let response: Response;
     try {
       const controller = new AbortController();
@@ -1118,7 +1213,7 @@ export function createExpoIapVegaModule(
         () => controller.abort(),
         IAPKIT_VERIFY_TIMEOUT_MS,
       );
-      response = await fetch(iapkitVerifyUrl(iapkit), {
+      response = await fetch(verificationUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

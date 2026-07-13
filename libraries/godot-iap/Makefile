@@ -21,6 +21,7 @@ EXAMPLE_DIR := $(PROJECT_ROOT)/Example
 ADDON_DIR := $(PROJECT_ROOT)/addons/godot-iap
 BIN_DIR := $(ADDON_DIR)/bin
 IOS_EXPORT_DIR := $(EXAMPLE_DIR)/ios
+APPLE_FRAMEWORK_INSTALLER := $(PROJECT_ROOT)/scripts/install_apple_framework.sh
 
 # Godot executable
 GODOT ?= /Applications/Godot.app/Contents/MacOS/Godot
@@ -106,9 +107,12 @@ ios-build:
 	@echo "$(GREEN)Building iOS frameworks...$(NC)"
 	@cd $(IOS_GDEXT_DIR) && xcodebuild -scheme GodotIap -sdk iphoneos -destination 'generic/platform=iOS' -configuration Release -derivedDataPath .build-xcode build
 	@echo "$(GREEN)Copying frameworks to addon...$(NC)"
-	@rm -rf $(BIN_DIR)/ios/*.framework
-	@cp -R $(IOS_GDEXT_DIR)/.build-xcode/Build/Products/Release-iphoneos/PackageFrameworks/GodotIap.framework $(BIN_DIR)/ios/
-	@cp -R $(IOS_GDEXT_DIR)/.build-xcode/Build/Products/Release-iphoneos/PackageFrameworks/SwiftGodotRuntime.framework $(BIN_DIR)/ios/
+	@$(APPLE_FRAMEWORK_INSTALLER) \
+		$(IOS_GDEXT_DIR)/.build-xcode/Build/Products/Release-iphoneos/PackageFrameworks/SwiftGodotRuntime.framework \
+		$(BIN_DIR)/ios/SwiftGodotRuntime.framework ios
+	@$(APPLE_FRAMEWORK_INSTALLER) \
+		$(IOS_GDEXT_DIR)/.build-xcode/Build/Products/Release-iphoneos/PackageFrameworks/GodotIap.framework \
+		$(BIN_DIR)/ios/GodotIap.framework ios
 	@echo "$(GREEN)✓ Frameworks copied$(NC)"
 
 # Build macOS plugin (automated with xcodebuild)
@@ -120,28 +124,12 @@ macos-build:
 	@echo "$(GREEN)Building macOS frameworks...$(NC)"
 	@cd "$(IOS_GDEXT_DIR)" && xcodebuild -scheme GodotIap -sdk macosx -destination 'platform=macOS' ARCHS="$(MACOS_ARCHS)" PRODUCT_BUNDLE_IDENTIFIER="dev.hyo.godot-iap.GodotIap" -configuration Release -derivedDataPath .build-xcode-macos build
 	@echo "$(GREEN)Copying frameworks to addon...$(NC)"
-	@rm -rf "$(BIN_DIR)/macos/"*.framework
-	@cp -R "$(IOS_GDEXT_DIR)/.build-xcode-macos/Build/Products/Release/PackageFrameworks/GodotIap.framework" "$(BIN_DIR)/macos/"
-	@cp -R "$(IOS_GDEXT_DIR)/.build-xcode-macos/Build/Products/Release/PackageFrameworks/SwiftGodotRuntime.framework" "$(BIN_DIR)/macos/"
-	@echo "$(GREEN)Fixing macOS framework rpaths...$(NC)"
-	@if [ -f "$(BIN_DIR)/macos/GodotIap.framework/Versions/A/GodotIap" ]; then \
-		GODOT_IAP_BINARY="$(BIN_DIR)/macos/GodotIap.framework/Versions/A/GodotIap"; \
-		GODOT_IAP_RPATH="@loader_path/../../../"; \
-	elif [ -f "$(BIN_DIR)/macos/GodotIap.framework/GodotIap" ]; then \
-		GODOT_IAP_BINARY="$(BIN_DIR)/macos/GodotIap.framework/GodotIap"; \
-		GODOT_IAP_RPATH="@loader_path/../"; \
-	else \
-		echo "$(RED)GodotIap macOS framework binary not found.$(NC)"; \
-		exit 1; \
-	fi; \
-	install_name_tool -delete_rpath @loader_path/../../../ "$$GODOT_IAP_BINARY" 2>/dev/null || true; \
-	install_name_tool -delete_rpath @loader_path/../ "$$GODOT_IAP_BINARY" 2>/dev/null || true; \
-	install_name_tool -add_rpath "$$GODOT_IAP_RPATH" "$$GODOT_IAP_BINARY"
-	@echo "$(GREEN)Signing macOS frameworks...$(NC)"
-	@codesign --force --deep --sign - --timestamp=none "$(BIN_DIR)/macos/SwiftGodotRuntime.framework"
-	@codesign --force --deep --sign - --timestamp=none "$(BIN_DIR)/macos/GodotIap.framework"
-	@codesign --verify --deep --strict --verbose=2 "$(BIN_DIR)/macos/SwiftGodotRuntime.framework"
-	@codesign --verify --deep --strict --verbose=2 "$(BIN_DIR)/macos/GodotIap.framework"
+	@$(APPLE_FRAMEWORK_INSTALLER) \
+		$(IOS_GDEXT_DIR)/.build-xcode-macos/Build/Products/Release/PackageFrameworks/SwiftGodotRuntime.framework \
+		$(BIN_DIR)/macos/SwiftGodotRuntime.framework macos
+	@$(APPLE_FRAMEWORK_INSTALLER) \
+		$(IOS_GDEXT_DIR)/.build-xcode-macos/Build/Products/Release/PackageFrameworks/GodotIap.framework \
+		$(BIN_DIR)/macos/GodotIap.framework macos
 	@echo "$(GREEN)Updating macOS GDExtension metadata...$(NC)"
 	@MACOS_X86_LIBRARY=""; \
 	MACOS_X86_DEPENDENCY=""; \
@@ -191,9 +179,10 @@ all: android ios macos
 	@echo ""
 	@echo "$(GREEN)All builds complete!$(NC)"
 
-# Run GDScript unit tests (types only - no native plugin required)
+# Run GDScript unit tests and verify the tracked macOS native framework pair
 test:
 	@echo "$(GREEN)Running GDScript unit tests...$(NC)"
+	@cd $(EXAMPLE_DIR) && $(GODOT) --headless --script tests/test_native_extension.gd
 	@cd $(EXAMPLE_DIR) && $(GODOT) --headless --script tests/test_types_only.gd
 	@cd $(EXAMPLE_DIR) && $(GODOT) --headless --script tests/test_godot_iap.gd
 	@echo "$(GREEN)✓ Tests complete$(NC)"

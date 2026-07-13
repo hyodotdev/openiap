@@ -990,6 +990,9 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                     if let apiKey = iapkit["apiKey"] as? String {
                         iapkitDict["apiKey"] = apiKey
                     }
+                    if let baseUrl = iapkit["baseUrl"] as? String {
+                        iapkitDict["baseUrl"] = baseUrl
+                    }
                     if let jws = (iapkit["apple"] as? [String: Any])?["jws"] as? String {
                         iapkitDict["apple"] = ["jws": jws]
                     }

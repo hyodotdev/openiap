@@ -1117,9 +1117,23 @@ describe('Amazon Vega Expo adapter', () => {
     }
   });
 
-  it('supports custom IAPKit base URLs for Vega verification', async () => {
+  it.each([
+    ['http://localhost:3100/', 'http://localhost:3100/v1/purchase/verify'],
+    ['http://192.168.0.4:3100', 'http://192.168.0.4:3100/v1/purchase/verify'],
+    ['http://[::1]:3100', 'http://[::1]:3100/v1/purchase/verify'],
+    [
+      'https://[2001:db8::1]:65535///',
+      'https://[2001:db8::1]:65535/v1/purchase/verify',
+    ],
+  ])('supports custom IAPKit base URL %s', async (baseUrl, expectedUrl) => {
     const service = createService();
     const originalFetch = globalThis.fetch;
+    const originalUrl = globalThis.URL;
+    class KeplerUrl {
+      get protocol(): never {
+        throw new Error('URL.protocol is not implemented on Kepler');
+      }
+    }
     const fetchMock = jest.fn(
       async (_input: RequestInfo | URL, _init?: RequestInit) =>
         Response.json({
@@ -1129,6 +1143,7 @@ describe('Amazon Vega Expo adapter', () => {
         }),
     ) as unknown as jest.MockedFunction<typeof fetch>;
     globalThis.fetch = fetchMock;
+    globalThis.URL = KeplerUrl as unknown as typeof URL;
 
     try {
       const module = createExpoIapVegaModule(service);
@@ -1137,20 +1152,65 @@ describe('Amazon Vega Expo adapter', () => {
         provider: 'iapkit',
         iapkit: {
           apiKey: 'kit-key',
-          baseUrl: 'http://localhost:3100/',
+          baseUrl,
           amazon: {
             userId: 'amazon-user',
             receiptId: 'receipt-vega-1',
           },
         },
-      } as Parameters<typeof module.verifyPurchaseWithProvider>[0] & {
-        iapkit: {baseUrl: string};
       });
 
-      expect(fetchMock).toHaveBeenCalledWith(
-        'http://localhost:3100/v1/purchase/verify',
-        expect.any(Object),
-      );
+      expect(fetchMock).toHaveBeenCalledWith(expectedUrl, expect.any(Object));
+    } finally {
+      globalThis.fetch = originalFetch;
+      globalThis.URL = originalUrl;
+    }
+  });
+
+  it.each([
+    'ftp://localhost:3100',
+    'http://user:pass@localhost:3100',
+    'http://localhost:3100/path',
+    'http://localhost:3100?debug=1',
+    'http://localhost:3100\\path',
+    'http://localhost:0',
+    'http://localhost:99999',
+    'http://[]:3100',
+    'http://[garbage]:3100',
+    'http://[:::]:3100',
+    'http://[deadbeef]:3100',
+    'http://[1::2::3]:3100',
+    'http://[1:2:3:4:5:6:7:8:9]:3100',
+    'http://[::ffff:999.1.1.1]:3100',
+    'http://[::1',
+    'http://::1:3100',
+    'http://999.999.999.999:3100',
+    'http://%:3100',
+  ])('rejects non-origin IAPKit base URL %s', async (baseUrl) => {
+    const service = createService();
+    const originalFetch = globalThis.fetch;
+    const fetchMock = jest.fn() as unknown as jest.MockedFunction<typeof fetch>;
+    globalThis.fetch = fetchMock;
+
+    try {
+      const module = createExpoIapVegaModule(service);
+
+      await expect(
+        module.verifyPurchaseWithProvider({
+          provider: 'iapkit',
+          iapkit: {
+            baseUrl,
+            amazon: {
+              userId: 'amazon-user',
+              receiptId: 'receipt-vega-1',
+            },
+          },
+        }),
+      ).rejects.toMatchObject({
+        code: ErrorCode.DeveloperError,
+        message: 'IAPKit baseUrl must be a valid HTTP(S) origin',
+      });
+      expect(fetchMock).not.toHaveBeenCalled();
     } finally {
       globalThis.fetch = originalFetch;
     }
