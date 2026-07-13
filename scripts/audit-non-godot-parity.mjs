@@ -3478,6 +3478,8 @@ function checkFrameworkDependencyHygiene() {
       'ARTIFACT_URL="https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google/$VERSION/openiap-google-$VERSION.pom"',
       'HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" "$ARTIFACT_URL" || true)',
       'HTTP_STATUS="${HTTP_STATUS:-000}"',
+      "Unable to verify openiap-google-horizon $VERSION on Maven Central",
+      "Unable to verify openiap-google-amazon $VERSION on Maven Central",
       "Unable to verify openiap-google $VERSION on Maven Central",
       'if gh release view "google-$VERSION" >/dev/null 2>&1; then',
       'gh release edit "google-$VERSION"',
