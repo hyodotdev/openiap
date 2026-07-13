@@ -460,8 +460,9 @@ export interface NitroVerifyPurchaseWithIapkitProps {
   amazon?: NitroVerifyPurchaseWithIapkitAmazonProps | null;
   apple?: NitroVerifyPurchaseWithIapkitAppleProps | null;
   /**
-   * Available in OpenIAP Spec 2.3.1. HTTP(S) origin for a self-hosted or local
-   * IAPKit server. The apiKey must come from the same IAPKit/Convex deployment.
+   * Available in OpenIAP Spec 2.3.1 / openiap-apple 2.4.0 / openiap-google 2.4.0.
+   * HTTP(S) origin for a self-hosted or local IAPKit server. The apiKey must
+   * come from the same IAPKit/Convex deployment.
    */
   baseUrl?: string | null;
   google?: NitroVerifyPurchaseWithIapkitGoogleProps | null;
