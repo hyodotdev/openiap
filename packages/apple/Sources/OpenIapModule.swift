@@ -20,6 +20,41 @@ import AppKit
 public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     public static let shared = OpenIapModule()
 
+    static func iapkitVerificationURL(baseUrl: String?) throws -> URL {
+        let defaultBaseUrl = "https://kit.openiap.dev"
+        let trimmedBaseUrl = baseUrl?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        var normalizedBaseUrl = trimmedBaseUrl.isEmpty ? defaultBaseUrl : trimmedBaseUrl
+
+        while normalizedBaseUrl.hasSuffix("/") {
+            normalizedBaseUrl.removeLast()
+        }
+
+        guard let components = URLComponents(string: normalizedBaseUrl) else {
+            throw PurchaseError.make(
+                code: .developerError,
+                message: "IAPKit baseUrl must be a valid HTTP(S) origin"
+            )
+        }
+        let hasValidPort = components.port.map { (1...65_535).contains($0) } ?? true
+        guard let scheme = components.scheme?.lowercased(),
+              scheme == "http" || scheme == "https",
+              components.host?.isEmpty == false,
+              components.user == nil,
+              components.password == nil,
+              components.path.isEmpty,
+              components.query == nil,
+              components.fragment == nil,
+              hasValidPort,
+              let url = URL(string: "\(normalizedBaseUrl)/v1/purchase/verify") else {
+            throw PurchaseError.make(
+                code: .developerError,
+                message: "IAPKit baseUrl must be a valid HTTP(S) origin"
+            )
+        }
+
+        return url
+    }
+
     /// Objective-C accessor for [OpenIapModule.shared]. Exists so the .NET MAUI
     /// binding (`OpenIap.Maui.Bindings.iOS`) can surface the singleton via
     /// `[OpenIapModule sharedInstance]`; Swift's static stored properties
@@ -823,7 +858,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         }
 
         func verifyPurchaseWithIapkit(props: RequestVerifyPurchaseWithIapkitProps) async throws -> RequestVerifyPurchaseWithIapkitResult {
-            let url = URL(string: "https://kit.openiap.dev/v1/purchase/verify")!
+            let url = try Self.iapkitVerificationURL(baseUrl: props.baseUrl)
 
             let payload = try buildIapkitPayload(props: props)
             let store = payload.store

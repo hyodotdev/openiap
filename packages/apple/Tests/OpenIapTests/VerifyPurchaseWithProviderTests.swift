@@ -4,6 +4,62 @@ import XCTest
 @available(iOS 15.0, macOS 14.0, *)
 final class VerifyPurchaseWithProviderTests: XCTestCase {
 
+    func testIapkitVerificationURLUsesHostedDefaultForNilOrBlankBaseUrl() throws {
+        let expectedUrl = "https://kit.openiap.dev/v1/purchase/verify"
+
+        XCTAssertEqual(expectedUrl, try OpenIapModule.iapkitVerificationURL(baseUrl: nil).absoluteString)
+        XCTAssertEqual(expectedUrl, try OpenIapModule.iapkitVerificationURL(baseUrl: " \n\t ").absoluteString)
+    }
+
+    func testIapkitVerificationURLTrimsOverrideAndTrailingSlashes() throws {
+        let url = try OpenIapModule.iapkitVerificationURL(
+            baseUrl: "  http://127.0.0.1:4174///\n"
+        )
+
+        XCTAssertEqual("http://127.0.0.1:4174/v1/purchase/verify", url.absoluteString)
+    }
+
+    func testIapkitVerificationURLRejectsMalformedOverride() {
+        let invalidBaseUrls = [
+            "localhost:4174",
+            "https://user:password@kit.openiap.dev",
+            "https://kit.openiap.dev/prefix",
+            "https://kit.openiap.dev?environment=local",
+            "https://kit.openiap.dev#fragment",
+            "http://127.0.0.1:0",
+            "http://127.0.0.1:65536",
+            "http://127.0.0.1:not-a-port",
+        ]
+
+        for invalidBaseUrl in invalidBaseUrls {
+            XCTAssertThrowsError(
+                try OpenIapModule.iapkitVerificationURL(baseUrl: invalidBaseUrl),
+                "Expected \(invalidBaseUrl) to be rejected"
+            ) { error in
+                guard let purchaseError = error as? PurchaseError else {
+                    return XCTFail("Expected PurchaseError, received \(type(of: error))")
+                }
+                XCTAssertEqual(.developerError, purchaseError.code)
+                XCTAssertEqual(
+                    "IAPKit baseUrl must be a valid HTTP(S) origin",
+                    purchaseError.message
+                )
+            }
+        }
+    }
+
+    func testObjCBridgeKeepsLegacySelectorAndExposesCustomBaseUrlSelector() {
+        let legacySelector = NSSelectorFromString(
+            "verifyPurchaseWithProviderObjCWithProvider:apiKey:jws:completion:"
+        )
+        let customBaseUrlSelector = NSSelectorFromString(
+            "verifyPurchaseWithProviderObjCWithProvider:apiKey:baseUrl:jws:completion:"
+        )
+
+        XCTAssertTrue(OpenIapModule.shared.responds(to: legacySelector))
+        XCTAssertTrue(OpenIapModule.shared.responds(to: customBaseUrlSelector))
+    }
+
     @MainActor
     func testStoreReturnsIapkitResult() async throws {
         let iapkitResult = RequestVerifyPurchaseWithIapkitResult(

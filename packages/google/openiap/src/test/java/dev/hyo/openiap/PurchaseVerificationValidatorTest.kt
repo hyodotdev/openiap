@@ -182,8 +182,91 @@ class PurchaseVerificationValidatorTest {
             amazon = null
         )
 
-        verifyPurchaseWithIapkit(props, "TEST") { _ ->
+        var requestedEndpoint: String? = null
+        verifyPurchaseWithIapkit(props, "TEST") { endpoint ->
+            requestedEndpoint = endpoint
             FakeHttpURLConnection(200, """{"store":"google","isValid":true,"state":"ENTITLED"}""")
+        }
+
+        assertEquals("https://kit.openiap.dev/v1/purchase/verify", requestedEndpoint)
+    }
+
+    @Test
+    fun `verifyPurchaseWithIapkit uses default endpoint for blank base url`() = runTest {
+        val props = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = null,
+            apple = null,
+            google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                purchaseToken = "token-abc"
+            ),
+            amazon = null,
+            baseUrl = "  \n  "
+        )
+
+        var requestedEndpoint: String? = null
+        verifyPurchaseWithIapkit(props, "TEST") { endpoint ->
+            requestedEndpoint = endpoint
+            FakeHttpURLConnection(200, """{"store":"google","isValid":true,"state":"ENTITLED"}""")
+        }
+
+        assertEquals("https://kit.openiap.dev/v1/purchase/verify", requestedEndpoint)
+    }
+
+    @Test
+    fun `verifyPurchaseWithIapkit normalizes custom base url`() = runTest {
+        val props = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = null,
+            apple = null,
+            google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                purchaseToken = "token-abc"
+            ),
+            amazon = null,
+            baseUrl = "  http://10.0.2.2:4174///  "
+        )
+
+        var requestedEndpoint: String? = null
+        verifyPurchaseWithIapkit(props, "TEST") { endpoint ->
+            requestedEndpoint = endpoint
+            FakeHttpURLConnection(200, """{"store":"google","isValid":true,"state":"ENTITLED"}""")
+        }
+
+        assertEquals("http://10.0.2.2:4174/v1/purchase/verify", requestedEndpoint)
+    }
+
+    @Test
+    fun `verifyPurchaseWithIapkit rejects malformed base url`() = runTest {
+        val baseProps = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = null,
+            apple = null,
+            google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                purchaseToken = "token-abc"
+            ),
+            amazon = null
+        )
+        val invalidBaseUrls = listOf(
+            "kit.openiap.dev/not-an-origin",
+            "ftp://kit.openiap.dev",
+            "https://user:password@kit.openiap.dev",
+            "https://kit.openiap.dev/prefix",
+            "https://kit.openiap.dev?environment=local",
+            "https://kit.openiap.dev#fragment",
+            "http://127.0.0.1:0",
+            "http://127.0.0.1:65536",
+            "http://127.0.0.1:not-a-port"
+        )
+
+        for (invalidBaseUrl in invalidBaseUrls) {
+            try {
+                verifyPurchaseWithIapkit(
+                    baseProps.copy(baseUrl = invalidBaseUrl),
+                    "TEST"
+                ) { _ ->
+                    throw AssertionError("Connection should not be created for a malformed base URL")
+                }
+                throw AssertionError("Expected DeveloperError for malformed base URL: $invalidBaseUrl")
+            } catch (error: OpenIapError.DeveloperError) {
+                assertTrue(error.debugMessage?.contains("valid HTTP(S) origin") == true)
+            }
         }
     }
 
