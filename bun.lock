@@ -12,14 +12,14 @@
     },
     "packages/apple": {
       "name": "@hyodotdev/openiap-ios",
-      "version": "2.2.4",
+      "version": "2.3.0",
       "dependencies": {
         "@hyodotdev/openiap-gql": "workspace:*",
       },
     },
     "packages/docs": {
       "name": "@hyodotdev/openiap-docs",
-      "version": "2.0.3",
+      "version": "2.3.0",
       "dependencies": {
         "@preact/signals-react": "^3.2.1",
         "@types/prismjs": "^1.26.5",
@@ -57,14 +57,14 @@
     },
     "packages/google": {
       "name": "@hyodotdev/openiap-android",
-      "version": "2.3.0-rc.1",
+      "version": "2.3.1",
       "dependencies": {
         "@hyodotdev/openiap-gql": "workspace:*",
       },
     },
     "packages/gql": {
       "name": "@hyodotdev/openiap-gql",
-      "version": "2.0.3",
+      "version": "2.3.0",
       "devDependencies": {
         "@graphql-codegen/add": "^6.0.0",
         "@graphql-codegen/cli": "^6.0.0",

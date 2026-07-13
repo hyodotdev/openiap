@@ -30,36 +30,30 @@ This monorepo contains all OpenIAP packages:
 
 Framework SDK implementations built on top of OpenIAP. These libraries are managed in this monorepo — see [discussion #86](https://github.com/hyodotdev/openiap/discussions/86) for the rationale and migration context.
 
-| Library                                                    | Platform             | Package                                                                                                      | Downloads                                                |
-| ---------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------- |
-| [expo-iap](libraries/expo-iap)                             | Expo                 | [![expo stable][expo-stable-badge]][expo-npm]<br>[![expo next][expo-next-badge]][expo-npm]                   | [![npm downloads][expo-downloads-badge]][expo-npm]       |
-| [react-native-iap](libraries/react-native-iap)             | React Native         | [![rn stable][rn-stable-badge]][rn-npm]<br>[![rn next][rn-next-badge]][rn-npm]                               | [![npm downloads][rn-downloads-badge]][rn-npm]           |
-| [flutter_inapp_purchase](libraries/flutter_inapp_purchase) | Flutter              | [![flutter stable][flutter-stable-badge]][flutter-pub]<br>[![flutter next][flutter-next-badge]][flutter-pub] | [![pub.dev likes][flutter-likes-badge]][flutter-pub]     |
-| [kmp-iap](libraries/kmp-iap)                               | Kotlin Multiplatform | [![kmp stable][kmp-stable-badge]][kmp-maven]<br>[![kmp next][kmp-next-badge]][kmp-maven]                     | —                                                        |
-| [maui-iap](libraries/maui-iap)                             | .NET MAUI            | [![maui stable][maui-stable-badge]][maui-nuget]<br>[![maui next][maui-next-badge]][maui-nuget]               | [![NuGet downloads][maui-downloads-badge]][maui-nuget]   |
-| [godot-iap](libraries/godot-iap)                           | Godot 4.x            | [![godot stable][godot-stable-badge]][godot-releases]<br>[![godot next][godot-next-badge]][godot-releases]   | [![Godot Asset Library][godot-asset-badge]][godot-asset] |
+| Library                                                    | Platform             | Package                                                                                                        | Downloads                                                    |
+| ---------------------------------------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| [expo-iap](libraries/expo-iap)                             | Expo                 | [![expo stable][expo-stable-badge]][expo-npm]                                                                  | [![npm downloads][expo-downloads-badge]][expo-npm]           |
+| [react-native-iap](libraries/react-native-iap)             | React Native         | [![rn stable][rn-stable-badge]][rn-npm]                                                                        | [![npm downloads][rn-downloads-badge]][rn-npm]               |
+| [flutter_inapp_purchase](libraries/flutter_inapp_purchase) | Flutter              | [![flutter stable][flutter-stable-badge]][flutter-pub]                                                         | [![pub.dev downloads][flutter-downloads-badge]][flutter-pub] |
+| [kmp-iap](libraries/kmp-iap)                               | Kotlin Multiplatform | [![kmp stable][kmp-stable-badge]][kmp-maven]                                                                   | —                                                            |
+| [maui-iap](libraries/maui-iap)                             | .NET MAUI            | [![maui stable][maui-stable-badge]][maui-nuget]                                                                | [![NuGet downloads][maui-downloads-badge]][maui-nuget]       |
+| [godot-iap](libraries/godot-iap)                           | Godot 4.x            | [![godot stable][godot-stable-badge]][godot-releases] [![Godot Asset Library][godot-asset-badge]][godot-asset] | —                                                            |
 
 [expo-stable-badge]: https://img.shields.io/npm/v/expo-iap/latest?label=stable&logo=npm&color=CB3837
-[expo-next-badge]: https://img.shields.io/npm/v/expo-iap/next?label=next&logo=npm&color=CB3837
 [expo-downloads-badge]: https://img.shields.io/npm/dm/expo-iap?label=npm&color=CB3837
 [expo-npm]: https://www.npmjs.com/package/expo-iap
 [rn-stable-badge]: https://img.shields.io/npm/v/react-native-iap/latest?label=stable&logo=npm&color=CB3837
-[rn-next-badge]: https://img.shields.io/npm/v/react-native-iap/next?label=next&logo=npm&color=CB3837
 [rn-downloads-badge]: https://img.shields.io/npm/dm/react-native-iap?label=npm&color=CB3837
 [rn-npm]: https://www.npmjs.com/package/react-native-iap
 [flutter-stable-badge]: https://img.shields.io/pub/v/flutter_inapp_purchase?label=stable&logo=dart&color=0175C2
-[flutter-next-badge]: https://img.shields.io/pub/v/flutter_inapp_purchase?include_prereleases&label=next&logo=dart&color=0175C2
-[flutter-likes-badge]: https://img.shields.io/pub/likes/flutter_inapp_purchase?label=likes&color=0175C2
+[flutter-downloads-badge]: https://img.shields.io/pub/dm/flutter_inapp_purchase?label=downloads&logo=dart&color=0175C2
 [flutter-pub]: https://pub.dev/packages/flutter_inapp_purchase
 [kmp-stable-badge]: https://img.shields.io/badge/dynamic/xml?label=stable&query=/metadata/versioning/versions/version%5Bnot(contains(.,%22-%22))%5D%5Blast()%5D&url=https%3A%2F%2Frepo1.maven.org%2Fmaven2%2Fio%2Fgithub%2Fhyochan%2Fkmp-iap%2Fmaven-metadata.xml&prefix=v&logo=kotlin&color=7F52FF
-[kmp-next-badge]: https://img.shields.io/badge/dynamic/xml?label=next&query=/metadata/versioning/latest&url=https%3A%2F%2Frepo1.maven.org%2Fmaven2%2Fio%2Fgithub%2Fhyochan%2Fkmp-iap%2Fmaven-metadata.xml&prefix=v&logo=kotlin&color=7F52FF
 [kmp-maven]: https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap
 [maui-stable-badge]: https://img.shields.io/nuget/v/OpenIap.Maui?label=stable&logo=nuget&color=004880
-[maui-next-badge]: https://img.shields.io/nuget/vpre/OpenIap.Maui?label=next&logo=nuget&color=004880
 [maui-downloads-badge]: https://img.shields.io/nuget/dt/OpenIap.Maui?label=downloads&logo=nuget&color=004880
 [maui-nuget]: https://www.nuget.org/packages/OpenIap.Maui
 [godot-stable-badge]: https://img.shields.io/github/v/release/hyodotdev/openiap?filter=godot-iap-*&display_name=tag&label=stable&logo=godot-engine&color=478CBF
-[godot-next-badge]: https://img.shields.io/github/v/release/hyodotdev/openiap?include_prereleases&filter=godot-iap-*&display_name=tag&label=next&logo=godot-engine&color=478CBF
 [godot-releases]: https://github.com/hyodotdev/openiap/releases?q=godot-iap&expanded=true
 [godot-asset-badge]: https://img.shields.io/badge/asset_library-godot--iap-478CBF?logo=godotengine
 [godot-asset]: https://godotengine.org/asset-library/asset/4627
