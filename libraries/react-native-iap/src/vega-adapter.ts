@@ -216,6 +216,11 @@ function isValidHostname(hostname: string): boolean {
   if (normalizedHostname.length === 0 || normalizedHostname.length > 253) {
     return false;
   }
+  const hostnameLabels = normalizedHostname.split('.');
+  const lastLabel = hostnameLabels[hostnameLabels.length - 1]!;
+  if (/^(?:[0-9]+|0x[0-9a-f]+)$/i.test(lastLabel)) {
+    return false;
+  }
 
   return normalizedHostname
     .split('.')
