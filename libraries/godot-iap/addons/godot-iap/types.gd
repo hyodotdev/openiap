@@ -5139,7 +5139,7 @@ class RequestVerifyPurchaseWithIapkitGoogleProps:
 class RequestVerifyPurchaseWithIapkitProps:
 	## API key used for the Authorization header (Bearer {apiKey}).
 	var api_key: Variant = null
-	## Available in OpenIAP Spec 2.3.1.
+	## Available in OpenIAP Spec 2.3.1 / openiap-apple 2.4.0 / openiap-google 2.4.0.
 	var base_url: Variant = null
 	## Apple App Store verification parameters.
 	var apple: RequestVerifyPurchaseWithIapkitAppleProps

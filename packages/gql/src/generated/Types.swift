@@ -2332,7 +2332,7 @@ public struct RequestVerifyPurchaseWithIapkitProps: Codable {
     public var apiKey: String?
     /// Apple App Store verification parameters.
     public var apple: RequestVerifyPurchaseWithIapkitAppleProps?
-    /// Available in OpenIAP Spec 2.3.1.
+    /// Available in OpenIAP Spec 2.3.1 / openiap-apple 2.4.0 / openiap-google 2.4.0.
     /// Base URL for the IAPKit server. Defaults to https://kit.openiap.dev.
     /// Set this to a reachable HTTP(S) origin when self-hosting or testing a local IAPKit server.
     /// The apiKey must be issued by the same IAPKit/Convex deployment as this server.
