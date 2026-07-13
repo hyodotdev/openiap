@@ -76,6 +76,9 @@ jobs:
   release:
     needs: [validate-android]
     runs-on: ubuntu-latest
+    env:
+      # Central Portal can take 10-30 minutes to finish publishing.
+      ORG_GRADLE_PROJECT_SONATYPE_CLOSE_TIMEOUT_SECONDS: '3600'
 
     steps:
     - name: Checkout
@@ -275,7 +278,8 @@ jobs:
       env:
         VERSION: ${{ steps.version.outputs.version }}
       run: |
-        HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google-horizon/$VERSION/" || true)
+        ARTIFACT_URL="https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google-horizon/$VERSION/openiap-google-horizon-$VERSION.pom"
+        HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" "$ARTIFACT_URL" || true)
         HTTP_STATUS="${HTTP_STATUS:-000}"
         case "$HTTP_STATUS" in
           200)
@@ -316,13 +320,23 @@ jobs:
       env:
         VERSION: ${{ steps.version.outputs.version }}
       run: |
-        if curl -fsI "https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google-amazon/$VERSION/" >/dev/null; then
-          echo "exists=true" >> $GITHUB_OUTPUT
-          echo "⚠️ openiap-google-amazon $VERSION already exists on Maven Central"
-        else
-          echo "exists=false" >> $GITHUB_OUTPUT
-          echo "✓ openiap-google-amazon $VERSION does not exist, will publish"
-        fi
+        ARTIFACT_URL="https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google-amazon/$VERSION/openiap-google-amazon-$VERSION.pom"
+        HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" "$ARTIFACT_URL" || true)
+        HTTP_STATUS="${HTTP_STATUS:-000}"
+        case "$HTTP_STATUS" in
+          200)
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "⚠️ openiap-google-amazon $VERSION already exists on Maven Central"
+            ;;
+          404)
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "✓ openiap-google-amazon $VERSION does not exist, will publish"
+            ;;
+          *)
+            echo "❌ Unable to verify openiap-google-amazon $VERSION on Maven Central (HTTP $HTTP_STATUS)"
+            exit 1
+            ;;
+        esac
 
     - name: Publish Fire OS flavor to Maven Central
       if: steps.check_amazon.outputs.exists == 'false'
@@ -348,7 +362,8 @@ jobs:
       env:
         VERSION: ${{ steps.version.outputs.version }}
       run: |
-        HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google/$VERSION/" || true)
+        ARTIFACT_URL="https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google/$VERSION/openiap-google-$VERSION.pom"
+        HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" "$ARTIFACT_URL" || true)
         HTTP_STATUS="${HTTP_STATUS:-000}"
         case "$HTTP_STATUS" in
           200)
