@@ -334,6 +334,10 @@ echo ""
 echo "📦 Syncing MAUI Android dependency versions..."
 sync_maui_android_versions
 
+echo ""
+echo "📦 Syncing Godot Android dependency versions..."
+./libraries/godot-iap/scripts/sync-versions.sh
+
 # Sync generated types from packages/gql to libraries
 echo ""
 echo "📦 Syncing generated types..."

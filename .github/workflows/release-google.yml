@@ -197,6 +197,7 @@ jobs:
         git add openiap-versions.json packages/*/openiap-versions.json
         git add packages/docs/src/generated/version-metadata.json
         git add packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json
+        git add libraries/godot-iap/addons/godot-iap/android/GodotIap.gdap
 
         if git diff --staged --quiet; then
           echo "No version changes to commit"
@@ -216,7 +217,7 @@ jobs:
               # 2.1.3 → 2.1.2).
               for conflict_file in $(git diff --name-only --diff-filter=U); do
                 case "$conflict_file" in
-                  openiap-versions.json|packages/*/openiap-versions.json|packages/gql/package.json|packages/docs/package.json|packages/google/package.json|packages/apple/package.json)
+                  openiap-versions.json|packages/*/openiap-versions.json|packages/gql/package.json|packages/docs/package.json|packages/google/package.json|packages/apple/package.json|libraries/godot-iap/addons/godot-iap/android/GodotIap.gdap)
                     ;;
                   packages/docs/src/generated/version-metadata.json)
                     ;;
@@ -234,6 +235,7 @@ jobs:
               git add openiap-versions.json packages/*/openiap-versions.json
               git add packages/docs/src/generated/version-metadata.json
               git add packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json
+              git add libraries/godot-iap/addons/godot-iap/android/GodotIap.gdap
 
               GIT_EDITOR=true git rebase --continue || { echo "❌ Rebase continue failed"; exit 1; }
             fi
