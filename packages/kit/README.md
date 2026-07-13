@@ -220,9 +220,12 @@ checkouts. Don't bypass with `--no-verify` — fix the underlying issue.
 
 `smoke:server` compiles the Bun binary via `build:all` and runs
 [`scripts/smoke-server.sh`](scripts/smoke-server.sh), which boots the
-server on port 3100, polls `/health` until ready, and probes `/`,
-`/v1`, `/api/v1`, `/health` — catches startup regressions (missing env,
-bind conflicts, missing `dist/index.html`). Same script runs in CI.
+server on port 3100, confirms that the spawned process owns the listener, and
+probes `/`, `/v1`, `/api/v1`, `/health`, static 404 behavior, and a malformed
+`POST /v1/purchase/verify` request that must return 400 without contacting a
+store. This catches startup regressions (missing env, bind conflicts, missing
+`dist/index.html`) without mistaking an older process for the binary under
+test. The same script runs in CI.
 
 To run ad-hoc:
 

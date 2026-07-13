@@ -161,9 +161,11 @@ checkouts. If you really need to bypass, fix the underlying issue
 rather than passing `--no-verify`.
 
 `smoke:server` (`scripts/smoke-server.sh`) compiles the Bun binary,
-boots it on port 3100, and probes `/health`, `/`, `/v1`, `/api/v1` — catches
-startup regressions (missing env, bind conflicts, missing
-`dist/index.html`).
+boots it on port 3100, confirms that the spawned process owns the listener, and
+probes `/health`, the SPA/API entry points, static 404 behavior, and a malformed
+`POST /v1/purchase/verify` request that must return 400 without contacting a
+store. This catches startup regressions (missing env, bind conflicts, missing
+`dist/index.html`) without accepting responses from an older process.
 
 ## Long-running operations
 
