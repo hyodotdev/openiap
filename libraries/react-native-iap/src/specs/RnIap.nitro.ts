@@ -17,6 +17,13 @@ import type {HybridObject} from 'react-native-nitro-modules';
 // ║    - Interface types from types.ts can be imported and used directly     ║
 // ║    - Union types with 2+ values can be imported from types.ts            ║
 // ║    - Single-value unions must be redefined locally with extra values     ║
+// ║                                                                          ║
+// ║ 3. WRITE `null` FIRST IN NULLABLE UNIONS OF BOOLEANS AND ENUM ARRAYS     ║
+// ║    - Use `null | boolean`, not `boolean | null` (same for enum arrays)   ║
+// ║    - Since nitrogen 0.36 variant operands keep source order when their   ║
+// ║      "looseness" ties (boolean/enum-array tie with null), so null-last   ║
+// ║      would rename generated types (Variant_NullType_Bool →               ║
+// ║      Variant_Bool_NullType) and break hand-written Swift/Kotlin          ║
 // ╚══════════════════════════════════════════════════════════════════════════╝
 
 // NOTE: This Nitro spec re-exports types from the generated schema (src/types.ts)
@@ -278,8 +285,8 @@ export interface NitroPurchaseRequest {
  * iOS-specific options for getting available purchases
  */
 export interface NitroAvailablePurchasesIosOptions extends PurchaseOptions {
-  alsoPublishToEventListener?: boolean | null;
-  onlyIncludeActiveItems?: boolean | null;
+  alsoPublishToEventListener?: null | boolean;
+  onlyIncludeActiveItems?: null | boolean;
 }
 
 type NitroAvailablePurchasesAndroidType = 'inapp' | 'subs';
@@ -292,7 +299,7 @@ export interface NitroAvailablePurchasesAndroidOptions {
    * Users should be directed to the subscription center to resolve payment issues.
    * Default: false (only active subscriptions are returned)
    */
-  includeSuspended?: boolean | null;
+  includeSuspended?: null | boolean;
 }
 
 export interface NitroAvailablePurchasesOptions {
@@ -358,7 +365,7 @@ export interface NitroBillingProgramInformationDialogParamsAndroid {
 }
 
 export interface NitroInAppMessageParamsAndroid {
-  categories?: InAppMessageCategoryAndroid[] | null;
+  categories?: null | InAppMessageCategoryAndroid[];
 }
 
 // ╔══════════════════════════════════════════════════════════════════════════╗
@@ -450,7 +457,7 @@ export interface NitroVerifyPurchaseWithIapkitAmazonProps {
   /** Amazon Appstore receipt id returned by PurchaseResponse.getReceipt().getReceiptId(). */
   receiptId: string;
   /** Use Amazon RVS Cloud Sandbox for App Tester receipts. */
-  sandbox?: boolean | null;
+  sandbox?: null | boolean;
   /** Amazon Appstore user id returned by PurchaseResponse.getUserData().getUserId(). */
   userId?: string | null;
 }
@@ -501,7 +508,7 @@ export interface NitroBillingProgramAvailabilityResultAndroid {
   /** Whether the billing program is available for the user */
   isAvailable: boolean;
   /** Whether external-link payment is available for Billing Choice. */
-  isExternalLinkAvailable?: boolean | null;
+  isExternalLinkAvailable?: null | boolean;
 }
 
 /**
@@ -610,7 +617,7 @@ export interface NitroPurchase {
   currencySymbolIOS?: string | null;
   environmentIOS?: string | null;
   expirationDateIOS?: number | null;
-  isUpgradedIOS?: boolean | null;
+  isUpgradedIOS?: null | boolean;
   offerIOS?: string | null;
   ownershipTypeIOS?: string | null;
   reasonIOS?: string | null;
@@ -626,14 +633,14 @@ export interface NitroPurchase {
   purchaseTokenAndroid?: string | null;
   dataAndroid?: string | null;
   signatureAndroid?: string | null;
-  autoRenewingAndroid?: boolean | null;
+  autoRenewingAndroid?: null | boolean;
   purchaseStateAndroid?: number | null;
-  isAcknowledgedAndroid?: boolean | null;
+  isAcknowledgedAndroid?: null | boolean;
   packageNameAndroid?: string | null;
   obfuscatedAccountIdAndroid?: string | null;
   obfuscatedProfileIdAndroid?: string | null;
   developerPayloadAndroid?: string | null;
-  isSuspendedAndroid?: boolean | null;
+  isSuspendedAndroid?: null | boolean;
   pendingPurchaseUpdateAndroid?: PendingPurchaseUpdateAndroid | null;
 }
 
@@ -670,7 +677,7 @@ export interface NitroRenewalInfoIOS {
   pendingUpgradeProductId?: string | null;
   renewalDate?: number | null;
   expirationReason?: string | null;
-  isInBillingRetry?: boolean | null;
+  isInBillingRetry?: null | boolean;
   gracePeriodExpirationDate?: number | null;
   priceIncreaseStatus?: string | null;
   renewalBillingPlanType?: SubscriptionBillingPlanTypeIOS | null;
@@ -692,7 +699,7 @@ export interface NitroProduct {
   platform: IapPlatform;
   // iOS specific fields
   typeIOS?: string | null;
-  isFamilyShareableIOS?: boolean | null;
+  isFamilyShareableIOS?: null | boolean;
   jsonRepresentationIOS?: string | null;
   pricingTermsIOS?: string | null;
   subscriptionInfoIOS?: string | null;

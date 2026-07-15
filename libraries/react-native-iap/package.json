@@ -105,12 +105,12 @@
     "husky": "^8.0.3",
     "jest": "^30.1.1",
     "lint-staged": "^15.2.0",
-    "nitrogen": "^0.35.10",
+    "nitrogen": "^0.36.1",
     "prettier": "^3.3.3",
     "react": "19.1.0",
     "react-native": "0.81.1",
     "react-native-builder-bob": "^0.38.4",
-    "react-native-nitro-modules": "^0.35.10",
+    "react-native-nitro-modules": "^0.36.1",
     "react-test-renderer": "^19.1.1",
     "typescript": "^5.9.2"
   },
@@ -119,7 +119,7 @@
     "@amazon-devices/package-manager-lib": "~1.0.1767254401",
     "react": "*",
     "react-native": "*",
-    "react-native-nitro-modules": "^0.35.10"
+    "react-native-nitro-modules": "^0.36.1"
   },
   "peerDependenciesMeta": {
     "@amazon-devices/keplerscript-appstore-iap-lib": {
@@ -176,6 +176,6 @@
   },
   "packageManager": "yarn@3.6.1",
   "resolutions": {
-    "nitrogen@^0.35.10": "patch:nitrogen@npm%3A0.35.10#./.yarn/patches/nitrogen-npm-0.35.10-ac6318648e.patch"
+    "nitrogen@^0.36.1": "patch:nitrogen@npm%3A0.36.1#./.yarn/patches/nitrogen-npm-0.36.1-abe3b64156.patch"
   }
 }
