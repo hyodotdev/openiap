@@ -45,6 +45,7 @@ void main() {
       expect(source, contains('sensitiveKeyFragments'));
       expect(source, contains('"token"'));
       expect(source, contains('"receipt"'));
+      expect(source, contains('"clientpayload"'));
       expect(source, contains('JSONSerialization.jsonObject(with: data)'));
       expect(source, contains('redacted[entry.key] = "hidden"'));
     }

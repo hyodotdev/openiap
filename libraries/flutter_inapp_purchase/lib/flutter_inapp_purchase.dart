@@ -2039,6 +2039,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                   if (iapkit.baseUrl != null) 'baseUrl': iapkit.baseUrl,
                   if (iapkit.google != null)
                     'google': {'purchaseToken': iapkit.google!.purchaseToken},
+                  if (iapkit.includeClientPayload != null)
+                    'includeClientPayload': iapkit.includeClientPayload,
                   if (iapkit.amazon != null)
                     'amazon': {
                       'receiptId': iapkit.amazon!.receiptId,
@@ -2103,8 +2105,75 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                   );
                 }
 
+                final productIdValue = itemMap['productId'];
+                if (productIdValue != null && productIdValue is! String) {
+                  throw PurchaseError(
+                    code: gentype.ErrorCode.PurchaseVerificationFailed,
+                    message:
+                        'Malformed IAPKit verification result: productId must be a string',
+                  );
+                }
+
+                gentype.IapkitProductClientPayload? clientPayload;
+                final clientPayloadValue = itemMap['clientPayload'];
+                if (clientPayloadValue != null) {
+                  if (clientPayloadValue is! Map) {
+                    throw PurchaseError(
+                      code: gentype.ErrorCode.PurchaseVerificationFailed,
+                      message:
+                          'Malformed IAPKit verification result: clientPayload must be an object',
+                    );
+                  }
+                  final payloadMap = clientPayloadValue.map<String, dynamic>(
+                    (key, value) => MapEntry(key.toString(), value),
+                  );
+                  final format = payloadMap['format'];
+                  final body = payloadMap['body'];
+                  final versionValue = payloadMap['version'];
+                  final updatedAtValue = payloadMap['updatedAt'];
+                  final version = versionValue is num
+                      ? versionValue.toDouble()
+                      : double.nan;
+                  final updatedAt = updatedAtValue is num
+                      ? updatedAtValue.toDouble()
+                      : double.nan;
+                  if (format is! String ||
+                      (format != 'toml' &&
+                          format != 'json' &&
+                          format != 'text') ||
+                      body is! String ||
+                      !version.isFinite ||
+                      version <= 0 ||
+                      version.truncateToDouble() != version ||
+                      !updatedAt.isFinite ||
+                      updatedAt < 0) {
+                    throw PurchaseError(
+                      code: gentype.ErrorCode.PurchaseVerificationFailed,
+                      message:
+                          'Malformed IAPKit verification result: invalid clientPayload',
+                    );
+                  }
+                  try {
+                    clientPayload = gentype.IapkitProductClientPayload(
+                      body: body,
+                      format:
+                          gentype.IapkitClientPayloadFormat.fromJson(format),
+                      updatedAt: updatedAt,
+                      version: version,
+                    );
+                  } on ArgumentError {
+                    throw PurchaseError(
+                      code: gentype.ErrorCode.PurchaseVerificationFailed,
+                      message:
+                          'Malformed IAPKit verification result: invalid clientPayload format',
+                    );
+                  }
+                }
+
                 return gentype.RequestVerifyPurchaseWithIapkitResult(
+                  clientPayload: clientPayload,
                   isValid: isValid,
+                  productId: productIdValue as String?,
                   state: gentype.IapkitPurchaseState.fromJson(
                     state.toString(),
                   ),

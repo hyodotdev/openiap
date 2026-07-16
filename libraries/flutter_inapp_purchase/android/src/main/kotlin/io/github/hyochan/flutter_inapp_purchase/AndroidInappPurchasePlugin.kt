@@ -1319,6 +1319,9 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                                 val iapkitMap = mutableMapOf<String, Any?>()
                                 (iapkit["apiKey"] as? String)?.let { iapkitMap["apiKey"] = it }
                                 (iapkit["baseUrl"] as? String)?.let { iapkitMap["baseUrl"] = it }
+                                (iapkit["includeClientPayload"] as? Boolean)?.let {
+                                    iapkitMap["includeClientPayload"] = it
+                                }
                                 ((iapkit["google"] as? Map<*, *>)?.get("purchaseToken") as? String)?.let { purchaseToken ->
                                     iapkitMap["google"] = mapOf("purchaseToken" to purchaseToken)
                                 }
@@ -1355,6 +1358,18 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                                     put("isValid", item.isValid)
                                     put("state", item.state.toJson())
                                     put("store", item.store.toJson())
+                                    item.productId?.let { put("productId", it) }
+                                    item.clientPayload?.let { clientPayload ->
+                                        put(
+                                            "clientPayload",
+                                            JSONObject().apply {
+                                                put("format", clientPayload.format.toJson())
+                                                put("body", clientPayload.body)
+                                                put("version", clientPayload.version)
+                                                put("updatedAt", clientPayload.updatedAt)
+                                            }
+                                        )
+                                    }
                                 }
                             }
                             val payload = JSONObject().apply {

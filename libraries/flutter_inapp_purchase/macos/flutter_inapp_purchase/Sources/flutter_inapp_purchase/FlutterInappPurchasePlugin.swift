@@ -926,6 +926,9 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                     if let baseUrl = iapkit["baseUrl"] as? String {
                         iapkitDict["baseUrl"] = baseUrl
                     }
+                    if let includeClientPayload = iapkit["includeClientPayload"] as? Bool {
+                        iapkitDict["includeClientPayload"] = includeClientPayload
+                    }
                     if let jws = (iapkit["apple"] as? [String: Any])?["jws"] as? String {
                         iapkitDict["apple"] = ["jws": jws]
                     }
@@ -967,11 +970,23 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                     "provider": res.provider.rawValue
                 ]
                 if let iapkitItem = res.iapkit {
-                    payload["iapkit"] = [
+                    var iapkitResult: [String: Any] = [
                         "isValid": iapkitItem.isValid,
                         "state": iapkitItem.state.rawValue,
                         "store": iapkitItem.store.rawValue
                     ]
+                    if let productId = iapkitItem.productId {
+                        iapkitResult["productId"] = productId
+                    }
+                    if let clientPayload = iapkitItem.clientPayload {
+                        iapkitResult["clientPayload"] = [
+                            "format": clientPayload.format.rawValue,
+                            "body": clientPayload.body,
+                            "version": clientPayload.version,
+                            "updatedAt": clientPayload.updatedAt
+                        ]
+                    }
+                    payload["iapkit"] = iapkitResult
                 }
                 FlutterIapLog.result("verifyPurchaseWithProvider", value: payload)
                 result(payload)
