@@ -64,6 +64,13 @@ const verifyStoreSchema = v.union([
   v.literal("amazon"),
 ]);
 
+const clientPayloadSchema = v.object({
+  format: v.union([v.literal("toml"), v.literal("json"), v.literal("text")]),
+  body: v.string(),
+  version: v.number(),
+  updatedAt: v.number(),
+});
+
 const baseReceiptResponseSchema = v.object({
   store: verifyStoreSchema,
   isValid: v.boolean(),
@@ -73,6 +80,14 @@ const baseReceiptResponseSchema = v.object({
       v.string(),
       v.description(
         "Product id verified by the upstream store. For Meta Horizon this is the SKU IAPKit checked.",
+      ),
+    ),
+  ),
+  clientPayload: v.optional(
+    v.pipe(
+      clientPayloadSchema,
+      v.description(
+        "Project-managed client metadata. Returned only when explicitly requested and available for a verified Apple or Google product.",
       ),
     ),
   ),

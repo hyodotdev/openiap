@@ -31,6 +31,11 @@ export const DOCS_NAV: DocsNavEntry[] = [
     summary: "Managing projects, issuing keys, scoping access.",
   },
   {
+    slug: "products",
+    title: "Products & client payloads",
+    summary: "Store catalog sync and public app-readable product rules.",
+  },
+  {
     slug: "verification",
     title: "Store setup",
     summary: "Per-store configuration for managed receipt validation.",

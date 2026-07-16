@@ -1,5 +1,5 @@
 import { query } from "../_generated/server";
-import { v } from "convex/values";
+import { ConvexError, v, type Infer } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
 
 import {
@@ -21,6 +21,29 @@ const offerShape = v.object({
   priceAmountMicros: v.optional(v.number()),
   currency: v.optional(v.string()),
 });
+
+const platformValidator = v.union(v.literal("IOS"), v.literal("Android"));
+const clientPayloadShape = v.object({
+  format: v.union(v.literal("toml"), v.literal("json"), v.literal("text")),
+  body: v.string(),
+  version: v.number(),
+  updatedAt: v.number(),
+});
+const clientPayloadSummaryShape = v.object({
+  platform: platformValidator,
+  productId: v.string(),
+  format: v.union(v.literal("toml"), v.literal("json"), v.literal("text")),
+  version: v.number(),
+  updatedAt: v.number(),
+});
+const clientPayloadEditorStateShape = v.object({
+  expectedVersion: v.number(),
+  clientPayload: v.optional(clientPayloadShape),
+});
+
+export const DEFAULT_CLIENT_PAYLOAD_PAGE_SIZE = 25;
+export const MAX_CLIENT_PAYLOAD_PAGE_SIZE = 50;
+const MAX_CLIENT_PAYLOAD_CURSOR_LENGTH = 4096;
 
 const productShape = v.object({
   productId: v.string(),
@@ -58,10 +81,28 @@ const productShape = v.object({
     ),
   ),
   offers: v.optional(v.array(offerShape)),
+  clientPayload: v.optional(clientPayloadShape),
   updatedAt: v.number(),
 });
 
-function shape(product: Doc<"products">) {
+type ProductClientPayloadView = Infer<typeof clientPayloadShape>;
+type ProductView = Infer<typeof productShape>;
+
+function shapeClientPayload(
+  payload: Doc<"productClientPayloads">,
+): ProductClientPayloadView {
+  return {
+    format: payload.format,
+    body: payload.body,
+    version: payload.version,
+    updatedAt: payload.updatedAt,
+  };
+}
+
+function shape(
+  product: Doc<"products">,
+  payload?: Doc<"productClientPayloads">,
+): ProductView {
   return {
     productId: product.productId,
     platform: product.platform,
@@ -83,15 +124,180 @@ function shape(product: Doc<"products">) {
     subscriptionGroupName: product.subscriptionGroupName ?? undefined,
     billingPeriod: product.billingPeriod,
     offers: product.offers,
+    ...(payload ? { clientPayload: shapeClientPayload(payload) } : {}),
     updatedAt: product.updatedAt,
   };
+}
+
+export const getProductClientPayload = query({
+  args: {
+    apiKey: v.optional(v.string()),
+    projectId: v.optional(v.id("projects")),
+    platform: platformValidator,
+    productId: v.string(),
+  },
+  returns: v.union(clientPayloadShape, v.null()),
+  handler: async (ctx, args) => {
+    const resolved = args.projectId
+      ? await resolveProjectByIdForCurrentUserFromDb(ctx, args.projectId)
+      : args.apiKey
+        ? await resolveProjectByApiKeyFromDb(ctx, args.apiKey)
+        : null;
+    const project = resolved?.project ?? null;
+    if (!project) return null;
+
+    // Payload rows intentionally outlive catalog resets so a later store pull
+    // can reattach them. API-key reads must not expose absent/Removed catalog
+    // entries. Authenticated dashboard reads may load a Removed row so an
+    // operator can edit or explicitly delete its retained payload.
+    const product = await ctx.db
+      .query("products")
+      .withIndex("by_project_and_platform_and_product", (q) =>
+        q
+          .eq("projectId", project._id)
+          .eq("platform", args.platform)
+          .eq("productId", args.productId),
+      )
+      .unique();
+    if (!product || (args.apiKey && product.state === "Removed")) return null;
+
+    const payload = await ctx.db
+      .query("productClientPayloads")
+      .withIndex("by_project_and_platform_and_product", (q) =>
+        q
+          .eq("projectId", project._id)
+          .eq("platform", args.platform)
+          .eq("productId", args.productId),
+      )
+      .unique();
+
+    return payload ? shapeClientPayload(payload) : null;
+  },
+});
+
+/**
+ * Authenticated editor read that exposes the durable OCC revision without
+ * exposing tombstone metadata or bodies to API-key clients. A deleted payload
+ * returns no `clientPayload`, but its monotonic `expectedVersion` lets the next
+ * editor save create revision N+1 instead of resetting to 1.
+ */
+export const getProductClientPayloadEditorState = query({
+  args: {
+    projectId: v.id("projects"),
+    platform: platformValidator,
+    productId: v.string(),
+  },
+  returns: v.union(clientPayloadEditorStateShape, v.null()),
+  handler: async (ctx, args) => {
+    const resolved = await resolveProjectByIdForCurrentUserFromDb(
+      ctx,
+      args.projectId,
+    );
+    if (!resolved) return null;
+
+    const [payload, summary] = await Promise.all([
+      ctx.db
+        .query("productClientPayloads")
+        .withIndex("by_project_and_platform_and_product", (q) =>
+          q
+            .eq("projectId", resolved.project._id)
+            .eq("platform", args.platform)
+            .eq("productId", args.productId),
+        )
+        .unique(),
+      ctx.db
+        .query("productClientPayloadSummaries")
+        .withIndex("by_project_and_platform_and_product", (q) =>
+          q
+            .eq("projectId", resolved.project._id)
+            .eq("platform", args.platform)
+            .eq("productId", args.productId),
+        )
+        .unique(),
+    ]);
+    const expectedVersion = Math.max(
+      payload?.version ?? 0,
+      summary?.version ?? 0,
+    );
+    return {
+      expectedVersion,
+      ...(payload && summary?.deleted !== true
+        ? { clientPayload: shapeClientPayload(payload) }
+        : {}),
+    };
+  },
+});
+
+/**
+ * Body-free metadata for the authenticated dashboard. Payload summaries live
+ * in their own table so this query never reads the potentially 16 KiB body
+ * documents merely to render an Add/Edit badge in the product table.
+ */
+export const listProductClientPayloadSummaries = query({
+  args: { projectId: v.id("projects") },
+  returns: v.array(clientPayloadSummaryShape),
+  handler: async (ctx, args) => {
+    const resolved = await resolveProjectByIdForCurrentUserFromDb(
+      ctx,
+      args.projectId,
+    );
+    if (!resolved) return [];
+
+    const summaries = await ctx.db
+      .query("productClientPayloadSummaries")
+      .withIndex("by_project", (q) => q.eq("projectId", resolved.project._id))
+      .collect();
+    return summaries
+      .filter((summary) => summary.deleted !== true)
+      .map((summary) => ({
+        platform: summary.platform,
+        productId: summary.productId,
+        format: summary.format,
+        version: summary.version,
+        updatedAt: summary.updatedAt,
+      }));
+  },
+});
+
+function assertClientPayloadPageArgs(args: {
+  platform?: "IOS" | "Android";
+  limit?: number;
+  cursor?: string;
+}): void {
+  if (!args.platform) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: "platform is required when includeClientPayload=true",
+    });
+  }
+  if (
+    args.limit !== undefined &&
+    (!Number.isSafeInteger(args.limit) ||
+      args.limit < 1 ||
+      args.limit > MAX_CLIENT_PAYLOAD_PAGE_SIZE)
+  ) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: `limit must be an integer between 1 and ${MAX_CLIENT_PAYLOAD_PAGE_SIZE}`,
+    });
+  }
+  if (
+    args.cursor !== undefined &&
+    (!args.cursor.trim() ||
+      args.cursor.length > MAX_CLIENT_PAYLOAD_CURSOR_LENGTH)
+  ) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: `cursor must be a non-empty string of at most ${MAX_CLIENT_PAYLOAD_CURSOR_LENGTH} characters`,
+    });
+  }
 }
 
 export const listProducts = query({
   args: {
     apiKey: v.optional(v.string()),
     projectId: v.optional(v.id("projects")),
-    platform: v.optional(v.union(v.literal("IOS"), v.literal("Android"))),
+    platform: v.optional(platformValidator),
   },
   returns: v.array(productShape),
   handler: async (ctx, args) => {
@@ -103,22 +309,77 @@ export const listProducts = query({
     const project = resolved?.project ?? null;
     if (!project) return [];
 
-    if (args.platform) {
-      const rows = await ctx.db
-        .query("products")
-        .withIndex("by_project_and_platform", (q) =>
-          q.eq("projectId", project._id).eq("platform", args.platform!),
-        )
-        .collect();
-      return rows.map(shape);
-    }
+    const rows = args.platform
+      ? await ctx.db
+          .query("products")
+          .withIndex("by_project_and_platform", (q) =>
+            q.eq("projectId", project._id).eq("platform", args.platform!),
+          )
+          .collect()
+      : await ctx.db
+          .query("products")
+          .withIndex("by_project_and_platform_and_product", (q) =>
+            q.eq("projectId", project._id),
+          )
+          .collect();
 
-    const rows = await ctx.db
+    return rows.map((row) => shape(row));
+  },
+});
+
+/**
+ * App-facing payload-inclusive catalog read. Kept separate from listProducts
+ * so the long-standing default query remains an array with no payload reads.
+ */
+export const listProductsWithClientPayloads = query({
+  args: {
+    apiKey: v.string(),
+    platform: platformValidator,
+    limit: v.optional(v.number()),
+    cursor: v.optional(v.string()),
+  },
+  returns: v.object({
+    products: v.array(productShape),
+    hasMore: v.boolean(),
+    nextCursor: v.optional(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    assertClientPayloadPageArgs(args);
+    const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
+    if (!resolved) return { products: [], hasMore: false };
+
+    const page = await ctx.db
       .query("products")
-      .withIndex("by_project_and_platform_and_product", (q) =>
-        q.eq("projectId", project._id),
+      .withIndex("by_project_and_platform", (q) =>
+        q.eq("projectId", resolved.project._id).eq("platform", args.platform),
       )
-      .collect();
-    return rows.map(shape);
+      .paginate({
+        numItems: args.limit ?? DEFAULT_CLIENT_PAYLOAD_PAGE_SIZE,
+        cursor: args.cursor ?? null,
+      });
+
+    // The product page is bounded before any body lookup. Exact indexed reads
+    // keep off-page payload bodies out of this query's memory budget.
+    const products = await Promise.all(
+      page.page.map(async (row) => {
+        if (row.state === "Removed") return shape(row);
+        const payload = await ctx.db
+          .query("productClientPayloads")
+          .withIndex("by_project_and_platform_and_product", (q) =>
+            q
+              .eq("projectId", resolved.project._id)
+              .eq("platform", row.platform)
+              .eq("productId", row.productId),
+          )
+          .unique();
+        return shape(row, payload ?? undefined);
+      }),
+    );
+
+    return {
+      products,
+      hasMore: !page.isDone,
+      ...(!page.isDone ? { nextCursor: page.continueCursor } : {}),
+    };
   },
 });

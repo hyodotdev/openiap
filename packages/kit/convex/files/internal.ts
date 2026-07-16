@@ -7,6 +7,9 @@ import type { Doc, Id } from "../_generated/dataModel";
 import { v } from "convex/values";
 import { ConvexError } from "convex/values";
 import { internal } from "../_generated/api";
+import { deleteFileAndStorageIfUnreferenced } from "./storage";
+
+export const UPLOAD_RESERVATION_PRUNE_BATCH_SIZE = 200;
 
 function describeErrorForLog(error: unknown): string {
   return error instanceof Error ? error.name : typeof error;
@@ -404,17 +407,65 @@ export const cleanupOldFiles = internalMutation({
       }
 
       try {
-        await ctx.storage.delete(file.storageId);
-        await ctx.db.delete(file._id);
+        await deleteFileAndStorageIfUnreferenced(ctx, file);
         deletedCount++;
       } catch (error) {
         console.error("Failed to delete file", {
           fileId: file._id,
           error: describeErrorForLog(error),
         });
+        // The helper deletes the file row before checking/reclaiming its final
+        // storage reference. Let the mutation fail so Convex rolls that row
+        // deletion back atomically; swallowing the error would commit a new
+        // orphan blob with no row for a later cleanup retry to discover.
+        throw error;
       }
     }
 
     return { deletedCount };
+  },
+});
+
+// Expired upload reservations carry no storageId: the storage service assigns
+// it only after the client POSTs to the signed URL. A client that completes the
+// POST immediately presents the reservation to `saveFile`, which consumes it
+// while saving or safely reclaiming the blob. This bounded sweep removes only
+// unused/expired capabilities so the temporary table cannot grow forever.
+export const pruneUploadReservations = internalMutation({
+  args: {
+    batchSize: v.optional(v.number()),
+  },
+  returns: v.object({ deletedCount: v.number() }),
+  handler: async (ctx, args) => {
+    const batchSize = Math.min(
+      Math.max(
+        Math.trunc(args.batchSize ?? UPLOAD_RESERVATION_PRUNE_BATCH_SIZE),
+        1,
+      ),
+      UPLOAD_RESERVATION_PRUNE_BATCH_SIZE,
+    );
+    const expired = await ctx.db
+      .query("fileUploadReservations")
+      .withIndex("by_cleanup_expires_at", (q) =>
+        q.lte("cleanupExpiresAt", Date.now()),
+      )
+      .take(batchSize);
+
+    for (const reservation of expired) {
+      await ctx.db.delete(reservation._id);
+    }
+
+    // A full page means more expired rows may already be queued. Chain another
+    // bounded transaction immediately instead of waiting an hour while an
+    // authenticated-abuse backlog grows faster than the cron can drain it.
+    if (expired.length === batchSize) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.files.internal.pruneUploadReservations,
+        { batchSize },
+      );
+    }
+
+    return { deletedCount: expired.length };
   },
 });

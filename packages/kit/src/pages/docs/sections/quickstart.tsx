@@ -199,6 +199,26 @@ export default function QuickstartPage() {
           verification shows up with the store, state, and verification latency.
         </p>
       </Callout>
+
+      <h2 className="mt-10 text-2xl font-semibold">
+        Optional: return app-readable product rules
+      </h2>
+      <p>
+        In the project&apos;s <strong>Products</strong> tab, attach a public
+        TOML, JSON, or text <code>clientPayload</code> to a synced Apple or
+        Google product. Then add <code>includeClientPayload: true</code> to that
+        store&apos;s verification request. A valid response includes the payload
+        as a top-level sibling of <code>productId</code>; existing requests stay
+        unchanged.
+      </p>
+      <p>
+        Payloads are retrieved when your app calls IAPKit—they are not APNs or
+        FCM notifications—and must never contain secrets. See{" "}
+        <Link to="/docs/products" className="text-primary underline">
+          Products & client payloads
+        </Link>{" "}
+        for editor, catalog-fetch, caching, and validation details.
+      </p>
     </DocsPage>
   );
 }

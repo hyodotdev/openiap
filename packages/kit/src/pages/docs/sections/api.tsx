@@ -14,8 +14,12 @@ export default function ApiReferencePage() {
       <p>
         IAPKit exposes one core purchase-verification endpoint for your app:{" "}
         <code> POST /v1/purchase/verify</code>. Webhooks, subscription state,
-        and product-catalog operations live on separate project-scoped surfaces.
-        The full OpenAPI spec is also served at{" "}
+        and{" "}
+        <Link to="/docs/products" className="text-primary underline">
+          product-catalog operations
+        </Link>{" "}
+        live on separate project-scoped surfaces. The full OpenAPI spec is also
+        served at{" "}
         <a
           href="/v1"
           className="text-primary underline"
@@ -123,13 +127,50 @@ export default function ApiReferencePage() {
       </CodeBlock>
 
       <p>
-        Your app can unlock local premium state, or your backend can grant its
-        own entitlement, when <code>isValid === true</code>. <code>state</code>{" "}
-        carries the harmonized store state observed by this verification call,
-        and <code>productId</code> is the product id verified by the upstream
-        store. For Meta Horizon, <code>productId</code> is the SKU IAPKit
+        Grant or fulfill only when <code>isValid === true</code>, the harmonized
+        <code>state</code> permits that operation, and the store-verified
+        <code>productId</code> is present and matches the product your app
+        expected. For Meta Horizon, <code>productId</code> is the SKU IAPKit
         checked.
       </p>
+      <p>
+        Apple and Google requests that explicitly send{" "}
+        <code>includeClientPayload: true</code> may also receive a top-level{" "}
+        <code>clientPayload</code>. IAPKit adds it only when the receipt is
+        valid, the store returns a verified product ID, and that exact
+        platform/product has a payload. Default requests, invalid responses,
+        missing payloads, Horizon, and Amazon omit the field.
+      </p>
+      <CodeBlock title="Optional Apple payload request" language="json">
+        {`{
+  "store": "apple",
+  "jws": "eyJhbGciOi...",
+  "includeClientPayload": true
+}`}
+      </CodeBlock>
+      <CodeBlock title="Opt-in enriched response" language="json">
+        {`{
+  "store": "apple",
+  "isValid": true,
+  "state": "ENTITLED",
+  "productId": "premium_monthly",
+  "clientPayload": {
+    "format": "toml",
+    "body": "[access]\\nmax_items = 10",
+    "version": 3,
+    "updatedAt": 1784160000000
+  }
+}`}
+      </CodeBlock>
+      <Callout kind="warning" title="Payloads are not secrets or entitlements">
+        <p>
+          Client payloads are public app-readable data. Never place credentials
+          or server-only rules in them, and never grant access from payload
+          contents alone. Check <code>isValid</code>, the purchase{" "}
+          <code>state</code>, and the store-verified <code>productId</code>, and
+          require that ID to match the product your app expected.
+        </p>
+      </Callout>
       <Callout kind="note" title="Purchase rows are verification snapshots">
         <p>
           Calling <code>finishTransaction</code> updates the app and store; it
@@ -282,7 +323,7 @@ export default function ApiReferencePage() {
             <tr>
               <td className="px-3 py-2 font-mono text-xs">200</td>
               <td className="px-3 py-2">
-                <code>{`{ store, isValid, state, productId? }`}</code>
+                <code>{`{ store, isValid, state, productId?, clientPayload? }`}</code>
               </td>
               <td className="px-3 py-2">Verification completed.</td>
             </tr>
@@ -359,6 +400,12 @@ export default function ApiReferencePage() {
 
       <h2 className="mt-10 text-2xl font-semibold">See also</h2>
       <ul className="my-3 list-disc space-y-1 pl-6">
+        <li>
+          <Link to="/docs/products" className="text-primary underline">
+            Products & client payloads
+          </Link>{" "}
+          — catalog sync, public payload editing, and retrieval contracts.
+        </li>
         <li>
           <Link to="/docs/operations" className="text-primary underline">
             Operations

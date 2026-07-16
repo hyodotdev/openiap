@@ -3,6 +3,7 @@ import { Route, Navigate } from "react-router-dom";
 import IntroductionPage from "./sections/introduction";
 import QuickstartPage from "./sections/quickstart";
 import ProjectsPage from "./sections/projects";
+import ProductsPage from "./sections/products";
 import VerificationApplePage from "./sections/verification-apple";
 import VerificationGooglePage from "./sections/verification-google";
 import VerificationHorizonPage from "./sections/verification-horizon";
@@ -36,6 +37,7 @@ export const docsChildRoutes = (
     <Route index element={<IntroductionPage />} />
     <Route path="quickstart" element={<QuickstartPage />} />
     <Route path="projects" element={<ProjectsPage />} />
+    <Route path="products" element={<ProductsPage />} />
     <Route path="verification">
       <Route index element={<Navigate to="apple" replace />} />
       <Route path="apple" element={<VerificationApplePage />} />

@@ -2,14 +2,21 @@ import { internalMutation, internalQuery } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 import { v } from "convex/values";
-import { deletePurchaseStatsForProject } from "../purchases/stats";
+import { deleteProjectWithData } from "../projects/helpers";
+import {
+  deleteFileAndStorageIfUnreferenced,
+  deleteStorageIfUnreferenced,
+} from "../files/storage";
 
 // Per-phase page size for the account-deletion drain. Each
 // `drainAccountDeletionBatch` call reads/writes at most a bounded multiple
 // of this many rows, keeping the mutation well under Convex's
 // per-transaction limits regardless of per-user volume (purchases,
 // sessions, refresh tokens, etc.).
-const ACCOUNT_DELETION_PAGE = 100;
+// Auth tokens, Stripe payloads, and organization/file metadata can all be
+// large. Ten maximum-sized documents leave headroom under Convex's 16 MiB
+// transaction read limit while keeping every account-deletion phase bounded.
+const ACCOUNT_DELETION_PAGE = 10;
 
 // Internal query to get user by ID (read-only, so modeled as a query).
 export const getUserById = internalQuery({
@@ -118,9 +125,30 @@ export const drainAccountDeletionBatch = internalMutation({
           pendingDeletion: true,
           updatedAt: Date.now(),
         });
-      } else if (!remaining.some((m) => m.role === "owner")) {
+      } else {
+        // `remaining` is deliberately bounded. An owner may sit beyond that
+        // page, so use a role-keyed exact lookup before promoting anyone;
+        // otherwise reducing the deletion page size could create two owners.
+        const existingOwner = await ctx.db
+          .query("organizationMembers")
+          .withIndex("by_organization_and_role", (q) =>
+            q
+              .eq("organizationId", membership.organizationId)
+              .eq("role", "owner"),
+          )
+          .first();
+        if (existingOwner) return { done: false };
+
         const sorted = [...remaining].sort((a, b) => a.joinedAt - b.joinedAt);
-        const replacement = sorted.find((m) => m.role === "admin") ?? sorted[0];
+        const existingAdmin = await ctx.db
+          .query("organizationMembers")
+          .withIndex("by_organization_and_role", (q) =>
+            q
+              .eq("organizationId", membership.organizationId)
+              .eq("role", "admin"),
+          )
+          .first();
+        const replacement = existingAdmin ?? sorted[0];
         if (replacement) {
           await ctx.db.patch(replacement._id, {
             role: "owner",
@@ -171,7 +199,11 @@ export const drainPendingDeletionOrganizations = internalMutation({
     if (!madeProgress) {
       // Stripe customer teardown is no longer needed after the free
       // transition; legacy stripeCustomerId values are left as-is.
+      const avatarFileId = org.avatarFileId;
       await ctx.db.delete(org._id);
+      if (avatarFileId) {
+        await deleteStorageIfUnreferenced(ctx, avatarFileId);
+      }
       return { progressed: true, deletedOrganizationId: org._id };
     }
     return { progressed: true, deletedOrganizationId: null };
@@ -188,49 +220,22 @@ async function drainOrganizationPage(
   ctx: MutationCtx,
   organizationId: Id<"organizations">,
 ): Promise<boolean> {
-  // Walk projects one at a time — within a project drain purchases,
-  // apiKeys, files in order.
+  // Walk projects one at a time. Marking the row pending lets the same
+  // bounded, recoverable cascade used by direct project deletion own every
+  // project-scoped table; keeping a second table list here caused new domains
+  // (webhooks/subscriptions/products/jobs) to be orphaned on account deletion.
   const project = await ctx.db
     .query("projects")
     .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
     .first();
   if (project) {
-    const purchases = await ctx.db
-      .query("purchases")
-      .withIndex("by_project", (q) => q.eq("projectId", project._id))
-      .take(ACCOUNT_DELETION_PAGE);
-    for (const purchase of purchases) {
-      await ctx.db.delete(purchase._id);
+    if (!project.pendingDeletion) {
+      await ctx.db.patch(project._id, {
+        pendingDeletion: true,
+        updatedAt: Date.now(),
+      });
     }
-    if (purchases.length >= ACCOUNT_DELETION_PAGE) {
-      return true;
-    }
-
-    const apiKeys = await ctx.db
-      .query("apiKeys")
-      .withIndex("by_project", (q) => q.eq("projectId", project._id))
-      .take(ACCOUNT_DELETION_PAGE);
-    for (const apiKey of apiKeys) {
-      await ctx.db.delete(apiKey._id);
-    }
-    if (apiKeys.length >= ACCOUNT_DELETION_PAGE) {
-      return true;
-    }
-
-    const files = await ctx.db
-      .query("files")
-      .withIndex("by_project", (q) => q.eq("projectId", project._id))
-      .take(ACCOUNT_DELETION_PAGE);
-    for (const file of files) {
-      await ctx.storage.delete(file.storageId);
-      await ctx.db.delete(file._id);
-    }
-    if (files.length >= ACCOUNT_DELETION_PAGE) {
-      return true;
-    }
-
-    await deletePurchaseStatsForProject(ctx, project._id);
-    await ctx.db.delete(project._id);
+    await deleteProjectWithData(ctx, project._id);
     return true;
   }
 
@@ -251,8 +256,7 @@ async function drainOrganizationPage(
     .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
     .take(ACCOUNT_DELETION_PAGE);
   for (const file of orgFiles) {
-    await ctx.storage.delete(file.storageId);
-    await ctx.db.delete(file._id);
+    await deleteFileAndStorageIfUnreferenced(ctx, file);
   }
   if (orgFiles.length > 0) {
     return true;

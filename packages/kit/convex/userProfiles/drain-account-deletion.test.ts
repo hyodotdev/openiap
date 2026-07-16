@@ -1,4 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import {
+  drainAccountDeletionBatch as productionDrainAccountDeletionBatch,
+  drainPendingDeletionOrganizations as productionDrainPendingDeletionOrganizations,
+} from "./internal";
 
 /**
  * In-memory stand-in for the slice of `ctx.db` that the
@@ -85,6 +89,11 @@ class MemQuery {
 class MemDb {
   tables = new Map<string, Map<string, Row>>();
   private counter = 0;
+  missingStorageIds = new Set<string>();
+  system = {
+    get: async (_table: string, id: string) =>
+      this.missingStorageIds.has(id) ? null : { _id: id },
+  };
 
   private table(name: string) {
     let t = this.tables.get(name);
@@ -161,158 +170,19 @@ function makeCtx() {
   return { db, storage, scheduler };
 }
 
-/**
- * Reimplementation of the drain phases from `convex/userProfiles/internal.ts`.
- * Keeping a test-local port means we can unit-test the per-phase
- * ordering and the "nothing left → delete user row" termination without
- * spinning up convex-test. Kept deliberately in-sync with the real
- * implementation — any change in the production drain should be mirrored
- * here (or migrated to a convex-test integration harness).
- */
-const ACCOUNT_DELETION_PAGE = 100;
-
 async function drainAccountDeletionBatch(
   ctx: ReturnType<typeof makeCtx>,
   userId: string,
 ): Promise<{ done: boolean }> {
-  const session = await ctx.db
-    .query("authSessions")
-    .withIndex("userId", (q) => q.eq("userId", userId))
-    .first();
-  if (session) {
-    const tokens = await ctx.db
-      .query("authRefreshTokens")
-      .withIndex("sessionId", (q) => q.eq("sessionId", session._id))
-      .take(ACCOUNT_DELETION_PAGE);
-    for (const t of tokens) await ctx.db.delete(t._id);
-    if (tokens.length < ACCOUNT_DELETION_PAGE) {
-      await ctx.db.delete(session._id);
-    }
-    return { done: false };
-  }
-
-  const account = await ctx.db
-    .query("authAccounts")
-    .withIndex("userIdAndProvider", (q) => q.eq("userId", userId))
-    .first();
-  if (account) {
-    const codes = await ctx.db
-      .query("authVerificationCodes")
-      .withIndex("accountId", (q) => q.eq("accountId", account._id))
-      .take(ACCOUNT_DELETION_PAGE);
-    for (const c of codes) await ctx.db.delete(c._id);
-    if (codes.length < ACCOUNT_DELETION_PAGE) {
-      await ctx.db.delete(account._id);
-    }
-    return { done: false };
-  }
-
-  const profile = await ctx.db
-    .query("userProfiles")
-    .withIndex("by_user", (q) => q.eq("userId", userId))
-    .unique();
-  if (profile) {
-    await ctx.db.delete(profile._id);
-    return { done: false };
-  }
-
-  const membership = await ctx.db
-    .query("organizationMembers")
-    .withIndex("by_user", (q) => q.eq("userId", userId))
-    .first();
-  if (membership) {
-    await ctx.db.delete(membership._id);
-    const remaining = await ctx.db
-      .query("organizationMembers")
-      .withIndex("by_organization", (q) =>
-        q.eq("organizationId", membership.organizationId),
-      )
-      .take(ACCOUNT_DELETION_PAGE);
-    if (remaining.length === 0) {
-      await ctx.db.patch(membership.organizationId as string, {
-        pendingDeletion: true,
-      });
-    } else if (!remaining.some((m) => m.role === "owner")) {
-      const sorted = [...remaining].sort(
-        (a, b) => ((a.joinedAt as number) ?? 0) - ((b.joinedAt as number) ?? 0),
-      );
-      const replacement = sorted.find((m) => m.role === "admin") ?? sorted[0];
-      if (replacement) {
-        await ctx.db.patch(replacement._id, { role: "owner" });
-      }
-    }
-    return { done: false };
-  }
-
-  // Orphan-org cleanup is intentionally NOT inside drainAccountDeletionBatch
-  // anymore — see drainPendingDeletionOrganizations below + the cron entry
-  // in convex/crons.ts.
-
-  const user = await ctx.db.get(userId);
-  if (user) {
-    await ctx.db.delete(userId);
-    return { done: false };
-  }
-
-  return { done: true };
+  return await productionDrainAccountDeletionBatch._handler(ctx, {
+    userId: userId as never,
+  });
 }
 
 async function drainPendingDeletionOrganizations(
   ctx: ReturnType<typeof makeCtx>,
 ): Promise<{ progressed: boolean; deletedOrganizationId: string | null }> {
-  const org = await ctx.db
-    .query("organizations")
-    .withIndex("by_pending_deletion", (q) => q.eq("pendingDeletion", true))
-    .first();
-  if (!org) {
-    return { progressed: false, deletedOrganizationId: null };
-  }
-  const progress = await drainOrganizationPage(ctx, org._id);
-  if (!progress) {
-    await ctx.db.delete(org._id);
-    return { progressed: true, deletedOrganizationId: org._id };
-  }
-  return { progressed: true, deletedOrganizationId: null };
-}
-
-async function drainOrganizationPage(
-  ctx: ReturnType<typeof makeCtx>,
-  organizationId: string,
-): Promise<boolean> {
-  const project = await ctx.db
-    .query("projects")
-    .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-    .first();
-  if (project) {
-    const purchases = await ctx.db
-      .query("purchases")
-      .withIndex("by_project", (q) => q.eq("projectId", project._id))
-      .take(ACCOUNT_DELETION_PAGE);
-    for (const p of purchases) await ctx.db.delete(p._id);
-    if (purchases.length >= ACCOUNT_DELETION_PAGE) return true;
-
-    const apiKeys = await ctx.db
-      .query("apiKeys")
-      .withIndex("by_project", (q) => q.eq("projectId", project._id))
-      .take(ACCOUNT_DELETION_PAGE);
-    for (const k of apiKeys) await ctx.db.delete(k._id);
-    if (apiKeys.length >= ACCOUNT_DELETION_PAGE) return true;
-
-    const files = await ctx.db
-      .query("files")
-      .withIndex("by_project", (q) => q.eq("projectId", project._id))
-      .take(ACCOUNT_DELETION_PAGE);
-    for (const f of files) {
-      await ctx.storage.delete(f.storageId as string);
-      await ctx.db.delete(f._id);
-    }
-    if (files.length >= ACCOUNT_DELETION_PAGE) return true;
-
-    await ctx.db.delete(project._id);
-    return true;
-  }
-
-  return false;
+  return await productionDrainPendingDeletionOrganizations._handler(ctx, {});
 }
 
 const USER_ID = "users_1";
@@ -370,7 +240,7 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
 
   it("caps refresh-token deletion at the page size (safely pages over huge sessions)", async () => {
     const session = await ctx.db.insert("authSessions", { userId: USER_ID });
-    // 250 tokens > ACCOUNT_DELETION_PAGE (100) → must require multiple
+    // 250 tokens > ACCOUNT_DELETION_PAGE (10) → must require multiple
     // drain calls to clear them all before the session itself is deleted.
     for (let i = 0; i < 250; i++) {
       await ctx.db.insert("authRefreshTokens", { sessionId: session });
@@ -397,6 +267,7 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
   it("flags orphaned orgs in the membership phase and the separate cron drains them", async () => {
     const orgId = await ctx.db.insert("organizations", {
       name: "acme",
+      avatarFileId: "org_avatar_storage",
     });
     await ctx.db.insert("organizationMembers", {
       userId: USER_ID,
@@ -417,6 +288,41 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
       organizationId: orgId,
       storageId: "storage_1",
     });
+    // Payload rows are not tied to product-row lifetime, but they must not
+    // outlive the owning project/account. More than one page exercises the
+    // bounded account-deletion cascade.
+    for (let i = 0; i < 125; i++) {
+      await ctx.db.insert("productClientPayloads", {
+        projectId,
+        platform: "IOS",
+        productId: `premium_${i}`,
+        format: "text",
+        body: "rule",
+        version: 1,
+      });
+      await ctx.db.insert("productClientPayloadSummaries", {
+        projectId,
+        platform: "IOS",
+        productId: `premium_${i}`,
+        format: "text",
+        version: 1,
+      });
+    }
+    // Representative rows from every domain that the old account-local
+    // cascade missed. The test now invokes the production handler, so these
+    // assertions verify account deletion actually delegates to the shared
+    // project cascade instead of merely keeping a duplicate test port green.
+    const webhookEventId = await ctx.db.insert("webhookEvents", { projectId });
+    await ctx.db.insert("webhookIdempotencyKeys", {
+      eventId: webhookEventId,
+    });
+    await ctx.db.insert("subscriptions", { projectId });
+    await ctx.db.insert("subscriptionStats", { projectId });
+    await ctx.db.insert("revenueMetricsDaily", { projectId });
+    await ctx.db.insert("revenueMetricsRunStatus", { projectId });
+    await ctx.db.insert("products", { projectId });
+    await ctx.db.insert("productSyncJobs", { projectId });
+    await ctx.db.insert("purchaseStats", { projectId });
 
     // User-deletion path completes immediately, leaving the org flagged
     // `pendingDeletion: true` for the global cron to clean up later.
@@ -440,9 +346,21 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
     expect(ctx.db.countRows("purchases")).toBe(0);
     expect(ctx.db.countRows("apiKeys")).toBe(0);
     expect(ctx.db.countRows("files")).toBe(0);
+    expect(ctx.db.countRows("productClientPayloads")).toBe(0);
+    expect(ctx.db.countRows("productClientPayloadSummaries")).toBe(0);
+    expect(ctx.db.countRows("webhookEvents")).toBe(0);
+    expect(ctx.db.countRows("webhookIdempotencyKeys")).toBe(0);
+    expect(ctx.db.countRows("subscriptions")).toBe(0);
+    expect(ctx.db.countRows("subscriptionStats")).toBe(0);
+    expect(ctx.db.countRows("revenueMetricsDaily")).toBe(0);
+    expect(ctx.db.countRows("revenueMetricsRunStatus")).toBe(0);
+    expect(ctx.db.countRows("products")).toBe(0);
+    expect(ctx.db.countRows("productSyncJobs")).toBe(0);
+    expect(ctx.db.countRows("purchaseStats")).toBe(0);
     expect(ctx.db.countRows("projects")).toBe(0);
     expect(ctx.db.countRows("organizations")).toBe(0);
     expect(ctx.storage.deleted).toContain("storage_1");
+    expect(ctx.storage.deleted).toContain("org_avatar_storage");
   });
 
   it("promotes a new owner when a remaining admin exists instead of deleting the org", async () => {
@@ -466,5 +384,74 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
     expect(ctx.db.countRows("organizations")).toBe(1);
     const patched = await ctx.db.get(teammateMembership);
     expect(patched?.role).toBe("owner");
+  });
+
+  it("does not promote from the bounded page when an owner exists later", async () => {
+    const orgId = await ctx.db.insert("organizations", { name: "large team" });
+    await ctx.db.insert("organizationMembers", {
+      userId: USER_ID,
+      organizationId: orgId,
+      role: "owner",
+      joinedAt: 0,
+    });
+    for (let index = 1; index <= 10; index++) {
+      await ctx.db.insert("organizationMembers", {
+        userId: `users_member_${index}`,
+        organizationId: orgId,
+        role: index === 1 ? "admin" : "member",
+        joinedAt: index,
+      });
+    }
+    const laterOwnerId = await ctx.db.insert("organizationMembers", {
+      userId: "users_existing_owner",
+      organizationId: orgId,
+      role: "owner",
+      joinedAt: 11,
+    });
+
+    await runDrainToCompletion(ctx);
+
+    const members = await ctx.db
+      .query("organizationMembers")
+      .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
+      .collect();
+    expect(members.filter((member) => member.role === "owner")).toEqual([
+      expect.objectContaining({ _id: laterOwnerId }),
+    ]);
+  });
+
+  it("completes an orphan-org drain when its avatar blob is already absent", async () => {
+    await ctx.db.insert("organizations", {
+      name: "avatar already removed",
+      pendingDeletion: true,
+      avatarFileId: "missing_avatar_storage",
+    });
+    ctx.db.missingStorageIds.add("missing_avatar_storage");
+
+    await expect(drainPendingDeletionOrganizations(ctx)).resolves.toMatchObject(
+      { progressed: true },
+    );
+    expect(ctx.db.countRows("organizations")).toBe(0);
+    expect(ctx.storage.deleted).not.toContain("missing_avatar_storage");
+  });
+
+  it("preserves an orphaned organization's avatar blob while another file row still references it", async () => {
+    await ctx.db.insert("organizations", {
+      name: "avatar shared by legacy file",
+      pendingDeletion: true,
+      avatarFileId: "shared_avatar_storage",
+    });
+    await ctx.db.insert("files", {
+      organizationId: "organizations_other",
+      uploadedBy: "users_other",
+      storageId: "shared_avatar_storage",
+    });
+
+    await expect(drainPendingDeletionOrganizations(ctx)).resolves.toMatchObject(
+      { progressed: true },
+    );
+    expect(ctx.db.countRows("organizations")).toBe(0);
+    expect(ctx.db.countRows("files")).toBe(1);
+    expect(ctx.storage.deleted).not.toContain("shared_avatar_storage");
   });
 });

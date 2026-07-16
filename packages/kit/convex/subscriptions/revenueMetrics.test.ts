@@ -462,6 +462,18 @@ class MemDb {
   tables = new Map<string, Map<string, Row>>();
   private counter = 0;
 
+  constructor() {
+    this.table("organizations").set("organizations_test", {
+      _id: "organizations_test",
+      _creationTime: Date.now(),
+    });
+    this.table("projects").set("p_test", {
+      _id: "p_test",
+      _creationTime: Date.now(),
+      organizationId: "organizations_test",
+    });
+  }
+
   private table(name: string): Map<string, Row> {
     let t = this.tables.get(name);
     if (!t) {
@@ -694,6 +706,18 @@ describe("runRecompute — round-trip integration", () => {
   beforeEach(() => {
     db = new MemDb();
     ctx = makeCtx(db);
+  });
+
+  it("does not recreate rollups after project deletion starts", async () => {
+    await db.patch(PROJECT_ID, { pendingDeletion: true });
+    await seedEvent(db, {
+      type: "SubscriptionStarted",
+      priceAmountMicros: 9_990_000,
+    });
+
+    await runRecompute(ctx, PROJECT_ID, NOW);
+    expect(await rollupRows(db)).toEqual([]);
+    expect(await db.query("revenueMetricsRunStatus").collect()).toEqual([]);
   });
 
   it("empty project → no rollup rows written", async () => {

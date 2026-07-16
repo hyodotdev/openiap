@@ -1,5 +1,5 @@
 import { signal } from "@preact/signals-react";
-import type { SubscriptionPlanId } from "@/convex";
+import type { Id, SubscriptionPlanId } from "@/convex";
 
 // Auth Modal State
 const SELECTED_PLAN_STORAGE_KEY = "openiap-kit:selected-plan";
@@ -61,5 +61,43 @@ export const clearPersistedPlanSelection = () => {
   authModalSignal.value = {
     isOpen: authModalSignal.value.isOpen,
     selectedTier: null,
+  };
+};
+
+export type ProductClientPayloadEditorTarget = {
+  projectId: Id<"projects">;
+  platform: "IOS" | "Android";
+  productId: string;
+  title: string;
+};
+
+type ProductClientPayloadEditorState = {
+  isOpen: boolean;
+  instanceId: number;
+  target: ProductClientPayloadEditorTarget | null;
+};
+
+export const productClientPayloadEditorSignal =
+  signal<ProductClientPayloadEditorState>({
+    isOpen: false,
+    instanceId: 0,
+    target: null,
+  });
+
+export const openProductClientPayloadEditor = (
+  target: ProductClientPayloadEditorTarget,
+) => {
+  productClientPayloadEditorSignal.value = {
+    isOpen: true,
+    instanceId: productClientPayloadEditorSignal.value.instanceId + 1,
+    target,
+  };
+};
+
+export const closeProductClientPayloadEditor = () => {
+  productClientPayloadEditorSignal.value = {
+    isOpen: false,
+    instanceId: productClientPayloadEditorSignal.value.instanceId,
+    target: null,
   };
 };

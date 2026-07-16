@@ -225,6 +225,12 @@ const verifyPurchaseRouteDescription = describeRoute({
     'store and returns `isValid: false`, `state: "INAUTHENTIC"` on ' +
     "mismatch. Successful responses include `productId` when the store " +
     "response exposes one; for Horizon this is the checked `sku`.\n\n" +
+    "Set `includeClientPayload: true` on Apple or Google requests to " +
+    "attach the matching public product payload when the receipt is valid " +
+    "and the product is present in IAPKit's live catalog. The field is " +
+    "omitted by default, for invalid receipts, missing/Removed products, " +
+    "and Horizon or Amazon requests. Client payloads are public app data, " +
+    "not secrets or server-authoritative entitlement rules.\n\n" +
     "Rate limit: per API key, 600 req/min sustained with a 600-request " +
     "burst — sized to let legitimate global apps verify at app-launch " +
     "scale without tripping. In addition, per-(API key, payload) " +
@@ -335,15 +341,38 @@ const verifyPurchaseRouteDescription = describeRoute({
 });
 
 type VerifyPurchaseJson =
-  | { store: "apple"; jws: string; expectedProductId?: string }
-  | { store: "google"; purchaseToken: string; expectedProductId?: string }
-  | { store: "horizon"; userId: string; sku: string }
+  | {
+      store: "apple";
+      jws: string;
+      expectedProductId?: string;
+      includeClientPayload?: boolean;
+    }
+  | {
+      store: "google";
+      purchaseToken: string;
+      expectedProductId?: string;
+      includeClientPayload?: boolean;
+    }
+  | {
+      store: "horizon";
+      userId: string;
+      sku: string;
+      includeClientPayload?: boolean;
+    }
   | {
       store: "amazon";
       userId: string;
       receiptId: string;
       sandbox?: boolean;
+      includeClientPayload?: boolean;
     };
+
+type ProductClientPayload = {
+  format: "toml" | "json" | "text";
+  body: string;
+  version: number;
+  updatedAt: number;
+};
 
 // Tell Hono's Context what `c.req.valid("json")` returns for this
 // route so we don't need a `"json" as never` cast + `as VerifyPurchaseJson`.
@@ -365,13 +394,48 @@ const verifyPurchaseHandler = async (
   const setOutcome = (outcome: V1AppVariables["verifyOutcome"]) => {
     c.set("verifyOutcome", outcome);
   };
-  const sendReceiptResponse = (
+  const sendReceiptResponse = async (
     store: VerifyPurchaseJson["store"],
     receipt: { isValid: boolean; state: string; productId?: string },
   ) => {
     const outcome = { isValid: receipt.isValid, state: receipt.state };
     setOutcome(outcome);
-    return c.json({ store, ...receipt });
+
+    let clientPayload: ProductClientPayload | null = null;
+    if (
+      json.includeClientPayload === true &&
+      receipt.isValid &&
+      receipt.productId &&
+      (store === "apple" || store === "google")
+    ) {
+      try {
+        clientPayload = await client.query(
+          api.products.query.getProductClientPayload,
+          {
+            apiKey,
+            platform: store === "apple" ? "IOS" : "Android",
+            // Use only the product id returned by store verification. The
+            // caller-provided expectedProductId is a check, not an authority
+            // for selecting project metadata.
+            productId: receipt.productId,
+          },
+        );
+      } catch (error) {
+        // Metadata is optional enrichment. Receipt verification remains the
+        // security boundary and must succeed even if this read is temporarily
+        // unavailable. Log only the error type; payload bodies are never logged.
+        console.error(
+          "[purchase/verify] CLIENT_PAYLOAD_LOOKUP_FAILED: %s",
+          error instanceof Error ? error.name : typeof error,
+        );
+      }
+    }
+
+    return c.json({
+      store,
+      ...receipt,
+      ...(clientPayload ? { clientPayload } : {}),
+    });
   };
 
   try {
@@ -387,7 +451,7 @@ const verifyPurchaseHandler = async (
           },
         );
 
-        return sendReceiptResponse("apple", apple);
+        return await sendReceiptResponse("apple", apple);
       }
       case "google": {
         const google = await client.action(
@@ -400,7 +464,7 @@ const verifyPurchaseHandler = async (
           },
         );
 
-        return sendReceiptResponse("google", google);
+        return await sendReceiptResponse("google", google);
       }
       case "horizon": {
         // Meta Horizon (Quest): the client doesn't hold a
@@ -418,7 +482,7 @@ const verifyPurchaseHandler = async (
           },
         );
 
-        return sendReceiptResponse("horizon", horizon);
+        return await sendReceiptResponse("horizon", horizon);
       }
       case "amazon": {
         const amazon = await client.action(
@@ -432,7 +496,7 @@ const verifyPurchaseHandler = async (
           },
         );
 
-        return sendReceiptResponse("amazon", amazon);
+        return await sendReceiptResponse("amazon", amazon);
       }
     }
   } catch (error) {

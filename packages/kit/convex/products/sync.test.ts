@@ -1,9 +1,70 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  deletePlatformCatalog,
+  deleteRemovedProductRow,
   isSafePriceAmountMicros,
   shouldPreserveKitRemovedDuringPull,
+  upsertFromStore,
 } from "./sync";
+
+type Row = Record<string, unknown> & { _id: string };
+
+class IndexBuilder {
+  predicates: Array<(row: Row) => boolean> = [];
+
+  eq(field: string, value: unknown) {
+    this.predicates.push((row) => row[field] === value);
+    return this;
+  }
+}
+
+class TestQuery {
+  constructor(private readonly rows: Row[]) {}
+
+  withIndex(_name: string, build: (q: IndexBuilder) => IndexBuilder) {
+    const builder = build(new IndexBuilder());
+    return new TestQuery(
+      this.rows.filter((row) => builder.predicates.every((test) => test(row))),
+    );
+  }
+
+  async unique() {
+    if (this.rows.length > 1) throw new Error("Expected unique row");
+    return this.rows[0] ?? null;
+  }
+
+  async take(limit: number) {
+    return this.rows.slice(0, limit);
+  }
+}
+
+class TestDb {
+  constructor(readonly tables: Record<string, Row[]>) {}
+
+  async get(id: string) {
+    return (
+      Object.values(this.tables)
+        .flat()
+        .find((row) => row._id === id) ?? null
+    );
+  }
+
+  query(table: string) {
+    return new TestQuery(this.tables[table] ?? []);
+  }
+
+  async delete(id: string) {
+    for (const rows of Object.values(this.tables)) {
+      const index = rows.findIndex((row) => row._id === id);
+      if (index >= 0) {
+        rows.splice(index, 1);
+        return;
+      }
+    }
+    throw new Error(`Unknown row: ${id}`);
+  }
+}
 
 describe("isSafePriceAmountMicros", () => {
   it("accepts missing and non-negative safe integer prices", () => {
@@ -43,4 +104,143 @@ describe("shouldPreserveKitRemovedDuringPull", () => {
       }),
     ).toBe(false);
   });
+});
+
+describe("catalog deletion client-payload retention", () => {
+  it("keeps client metadata after a pushed Removed row is hard-deleted", async () => {
+    const db = new TestDb({
+      organizations: [{ _id: "organization_a" }],
+      projects: [{ _id: "project_a", organizationId: "organization_a" }],
+      products: [
+        {
+          _id: "product_ios",
+          projectId: "project_a",
+          platform: "IOS",
+          productId: "premium",
+          state: "Removed",
+          origin: "kit",
+        },
+      ],
+      productClientPayloads: [
+        {
+          _id: "payload_ios",
+          projectId: "project_a",
+          platform: "IOS",
+          productId: "premium",
+        },
+      ],
+      productClientPayloadSummaries: [
+        {
+          _id: "summary_ios",
+          projectId: "project_a",
+          platform: "IOS",
+          productId: "premium",
+        },
+      ],
+    });
+
+    await expect(
+      deleteRemovedProductRow._handler(
+        { db },
+        { projectId: "project_a", platform: "IOS", productId: "premium" },
+      ),
+    ).resolves.toBe(true);
+    expect(db.tables.products).toEqual([]);
+    expect(db.tables.productClientPayloads).toHaveLength(1);
+    expect(db.tables.productClientPayloadSummaries).toHaveLength(1);
+  });
+
+  it("purges only platform catalog rows and never payload rows", async () => {
+    const db = new TestDb({
+      organizations: [{ _id: "organization_a" }],
+      projects: [{ _id: "project_a", organizationId: "organization_a" }],
+      products: [
+        {
+          _id: "product_ios",
+          projectId: "project_a",
+          platform: "IOS",
+        },
+        {
+          _id: "product_android",
+          projectId: "project_a",
+          platform: "Android",
+        },
+      ],
+      productClientPayloads: [
+        {
+          _id: "payload_ios",
+          projectId: "project_a",
+          platform: "IOS",
+        },
+        {
+          _id: "payload_android",
+          projectId: "project_a",
+          platform: "Android",
+        },
+      ],
+      productClientPayloadSummaries: [
+        {
+          _id: "summary_ios",
+          projectId: "project_a",
+          platform: "IOS",
+        },
+        {
+          _id: "summary_android",
+          projectId: "project_a",
+          platform: "Android",
+        },
+      ],
+    });
+
+    await expect(
+      deletePlatformCatalog._handler(
+        { db },
+        { projectId: "project_a", platform: "IOS", limit: 100 },
+      ),
+    ).resolves.toEqual({ deleted: 1, hasMore: false });
+    expect(db.tables.products).toEqual([
+      expect.objectContaining({ _id: "product_android" }),
+    ]);
+    expect(db.tables.productClientPayloads).toHaveLength(2);
+    expect(db.tables.productClientPayloadSummaries).toHaveLength(2);
+  });
+});
+
+describe("pending-deletion sync write guards", () => {
+  for (const pendingOwner of ["project", "organization"] as const) {
+    it(`rejects a store-pull upsert while the ${pendingOwner} drains`, async () => {
+      const db = new TestDb({
+        organizations: [
+          {
+            _id: "organization_a",
+            pendingDeletion: pendingOwner === "organization",
+          },
+        ],
+        projects: [
+          {
+            _id: "project_a",
+            organizationId: "organization_a",
+            pendingDeletion: pendingOwner === "project",
+          },
+        ],
+        products: [],
+      });
+
+      await expect(
+        upsertFromStore._handler(
+          { db },
+          {
+            projectId: "project_a" as never,
+            productId: "premium",
+            platform: "IOS",
+            type: "Subscription",
+            title: "Premium",
+            storeRef: "store_ref",
+            state: "Active",
+          },
+        ),
+      ).rejects.toThrow("Project not found");
+      expect(db.tables.products).toEqual([]);
+    });
+  }
 });

@@ -78,6 +78,8 @@ export const listOrganizationProjects = query({
     if (!userId) {
       return [];
     }
+    const organization = await ctx.db.get(args.organizationId);
+    if (!organization || organization.pendingDeletion) return [];
 
     // Check if user has access to this organization
     const membership = await ctx.db
@@ -114,9 +116,11 @@ export const listOrganizationProjects = query({
         .map((apiKey) => apiKey.projectId),
     );
 
-    return projects.map((project) =>
-      projectForList(project, projectIdsWithAnyKey, projectIdsWithActiveKey),
-    );
+    return projects
+      .filter((project) => !project.pendingDeletion)
+      .map((project) =>
+        projectForList(project, projectIdsWithAnyKey, projectIdsWithActiveKey),
+      );
   },
 });
 
@@ -130,6 +134,8 @@ export const getProject = query({
     if (!userId) {
       return null;
     }
+    const organization = await ctx.db.get(args.organizationId);
+    if (!organization || organization.pendingDeletion) return null;
 
     // Check if user has access to this organization
     const membership = await ctx.db
@@ -153,7 +159,9 @@ export const getProject = query({
       )
       .first();
 
-    return project ? projectForDashboard(project) : null;
+    return project && !project.pendingDeletion
+      ? projectForDashboard(project)
+      : null;
   },
 });
 
@@ -169,9 +177,11 @@ export const getProjectById = query({
     }
 
     const project = await ctx.db.get(args.projectId);
-    if (!project) {
+    if (!project || project.pendingDeletion) {
       return null;
     }
+    const organization = await ctx.db.get(project.organizationId);
+    if (!organization || organization.pendingDeletion) return null;
 
     // Check if user has access to the project's organization
     const membership = await ctx.db
@@ -262,6 +272,8 @@ export const hasProjects = query({
     }
 
     const organizationId = profile.currentOrganizationId;
+    const organization = await ctx.db.get(organizationId);
+    if (!organization || organization.pendingDeletion) return false;
 
     // Check if user has access to this organization
     const membership = await ctx.db
@@ -281,6 +293,7 @@ export const hasProjects = query({
       .withIndex("by_organization", (q) =>
         q.eq("organizationId", organizationId),
       )
+      .filter((q) => q.neq(q.field("pendingDeletion"), true))
       .first();
 
     return project !== null;

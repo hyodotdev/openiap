@@ -52,6 +52,19 @@ export async function savePurchaseInternal({
   requestIp,
   verificationDurationMs,
 }: SavePurchaseArgs) {
+  // Verification runs as an action and can outlive the request that resolved
+  // its API key. Recheck deletion state in this final write transaction so an
+  // in-flight verification cannot recreate a purchase after the bounded
+  // project/account cascade has already drained the purchases table.
+  const project = await ctx.db.get(projectId);
+  if (!project || project.pendingDeletion) {
+    throw new ConvexError("Project not found");
+  }
+  const organization = await ctx.db.get(project.organizationId);
+  if (!organization || organization.pendingDeletion) {
+    throw new ConvexError("Organization not found for project");
+  }
+
   const now = Date.now();
   const productId = extractProductIdFromRemoteResponse(store, remoteResponse);
   const orderId = extractOrderIdFromRemoteResponse(store, remoteResponse);
@@ -183,16 +196,6 @@ export async function savePurchaseInternal({
       await maybeEmitFirstReceiptEvent(ctx, projectId, store, result);
       return existingByOrder._id;
     }
-  }
-
-  const project = await ctx.db.get(projectId);
-  if (!project) {
-    throw new ConvexError("Project not found");
-  }
-
-  const organization = await ctx.db.get(project.organizationId);
-  if (!organization) {
-    throw new ConvexError("Organization not found for project");
   }
 
   await recordVerificationUsageForOrganization(ctx, organization);

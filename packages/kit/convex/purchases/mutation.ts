@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { createError, ErrorCode } from "../utils/errors";
 import { HarmonizedPurchaseState } from "./purchaseState";
 import { applyPurchaseStatsDelta, deltaForUpdate } from "./stats";
+import { getProjectById } from "../projects/helpers";
 
 // Mark purchase as inauthentic
 export const markReceiptInvalid = mutation({
@@ -14,6 +15,10 @@ export const markReceiptInvalid = mutation({
     const purchase = await ctx.db.get(args.purchaseId);
 
     if (!purchase) {
+      throw createError(ErrorCode.RECEIPT_NOT_FOUND);
+    }
+    const project = await getProjectById(ctx, purchase.projectId);
+    if (!project) {
       throw createError(ErrorCode.RECEIPT_NOT_FOUND);
     }
 

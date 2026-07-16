@@ -2,6 +2,7 @@ import type { Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import type { Infer } from "convex/values";
 import type { purchaseStoreValidator } from "../schema";
+import { getWritableProject } from "../projects/writable";
 
 type PurchaseStore = Infer<typeof purchaseStoreValidator>;
 
@@ -77,6 +78,13 @@ export async function applyPurchaseStatsDelta(
   projectId: Id<"projects">,
   delta: PurchaseStatsDelta,
 ): Promise<ApplyPurchaseStatsDeltaResult> {
+  // Keep the guard at this lowest shared write layer: migrations, cleanup,
+  // receipt verification, and public mutations all converge here. Returning a
+  // no-op lets maintenance batches skip projects being deleted without
+  // aborting unrelated work in the same batch.
+  const project = await getWritableProject(ctx, projectId);
+  if (!project) return { wasFirstValidTransition: false };
+
   if (
     !delta.total &&
     !delta.apple &&
@@ -99,10 +107,9 @@ export async function applyPurchaseStatsDelta(
   const wasFirstValidTransition = previousValid === 0 && nextValid > 0;
 
   if (!row) {
-    const project = await ctx.db.get(projectId);
     await ctx.db.insert("purchaseStats", {
       projectId,
-      organizationId: project?.organizationId,
+      organizationId: project.organizationId,
       total: Math.max(delta.total ?? 0, 0),
       apple: Math.max(delta.apple ?? 0, 0),
       google: Math.max(delta.google ?? 0, 0),
@@ -119,10 +126,7 @@ export async function applyPurchaseStatsDelta(
   const needsOrgIdBackfill = row.organizationId === undefined;
   const backfillPatch: { organizationId?: Id<"organizations"> } = {};
   if (needsOrgIdBackfill) {
-    const project = await ctx.db.get(projectId);
-    if (project) {
-      backfillPatch.organizationId = project.organizationId;
-    }
+    backfillPatch.organizationId = project.organizationId;
   }
 
   await ctx.db.patch(row._id, {
@@ -240,6 +244,9 @@ export async function recomputePurchaseStatsForProject(
   ctx: MutationCtx,
   projectId: Id<"projects">,
 ): Promise<PurchaseStats> {
+  const project = await getWritableProject(ctx, projectId);
+  if (!project) return { ...ZERO_STATS };
+
   const totals: PurchaseStats = { ...ZERO_STATS };
   const distinctGoogleOrders = new Set<string>();
 
@@ -266,8 +273,7 @@ export async function recomputePurchaseStatsForProject(
     .first();
 
   const now = Date.now();
-  const project = await ctx.db.get(projectId);
-  const organizationId = project?.organizationId;
+  const organizationId = project.organizationId;
 
   if (existing) {
     await ctx.db.patch(existing._id, {

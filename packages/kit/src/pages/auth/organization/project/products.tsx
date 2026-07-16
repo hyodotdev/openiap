@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   Info,
   ExternalLink,
+  FileCode2,
 } from "lucide-react";
 
 import type { Doc } from "@/convex";
@@ -22,6 +23,8 @@ import { Modal } from "@/components/Modal";
 import { Tooltip } from "@/components/Tooltip";
 import { Badge, PlatformBadge } from "../../../../components/Badge";
 import { usdPriceToMicros } from "./productPrice";
+import type { ProductClientPayloadSummary } from "./clientPayload";
+import { openProductClientPayloadEditor } from "@/lib/signals";
 
 type DashboardProject = Omit<
   Doc<"projects">,
@@ -35,6 +38,10 @@ export default function ProjectProducts() {
   const products = useQuery(api.products.query.listProducts, {
     projectId: project._id,
   });
+  const clientPayloadSummaries = useQuery(
+    api.products.query.listProductClientPayloadSummaries,
+    { projectId: project._id },
+  );
   const upsert = useMutation(api.products.mutation.upsertProduct);
   const enqueueSync = useMutation(api.products.jobs.enqueueProductSync);
   const cancelSync = useMutation(api.products.jobs.cancelProductSync);
@@ -56,7 +63,6 @@ export default function ProjectProducts() {
   // hit the action and surface a credential error every page load.
   const [ascGroupNames, setAscGroupNames] = useState<string[] | null>(null);
   const [ascGroupLoadFailed, setAscGroupLoadFailed] = useState(false);
-
   // Sync state now lives in `productSyncJobs` and is read reactively
   // via `getActiveSyncJob` per platform — the worker writes progress
   // back to the row, so the dashboard re-renders without polling.
@@ -109,11 +115,23 @@ export default function ProjectProducts() {
 
   const grouped = useMemo(() => {
     if (!products) return { ios: [], android: [] };
+    const summariesByKey = new Map(
+      (clientPayloadSummaries ?? []).map((summary) => [
+        `${summary.platform}\u0000${summary.productId}`,
+        summary,
+      ]),
+    );
+    const rows = products.map((product) => ({
+      ...product,
+      clientPayload: summariesByKey.get(
+        `${product.platform}\u0000${product.productId}`,
+      ),
+    }));
     return {
-      ios: products.filter((p) => p.platform === "IOS"),
-      android: products.filter((p) => p.platform === "Android"),
+      ios: rows.filter((p) => p.platform === "IOS"),
+      android: rows.filter((p) => p.platform === "Android"),
     };
-  }, [products]);
+  }, [clientPayloadSummaries, products]);
 
   // Toast on the running → terminal transition only.
   //
@@ -194,7 +212,7 @@ export default function ProjectProducts() {
     }
   }, [iosJob, androidJob]);
 
-  if (products === undefined) {
+  if (products === undefined || clientPayloadSummaries === undefined) {
     return <PageLoading />;
   }
 
@@ -538,6 +556,14 @@ export default function ProjectProducts() {
         onDismiss={(jobId) => {
           void dismissJob({ projectId: project._id, jobId });
         }}
+        onEditClientPayload={(row) =>
+          openProductClientPayloadEditor({
+            projectId: project._id,
+            platform: "IOS",
+            productId: row.productId,
+            title: row.title,
+          })
+        }
       />
       <ProductGroup
         platform="Android"
@@ -562,12 +588,21 @@ export default function ProjectProducts() {
         onDismiss={(jobId) => {
           void dismissJob({ projectId: project._id, jobId });
         }}
+        onEditClientPayload={(row) =>
+          openProductClientPayloadEditor({
+            projectId: project._id,
+            platform: "Android",
+            productId: row.productId,
+            title: row.title,
+          })
+        }
       />
     </div>
   );
 }
 
 type ProductRow = {
+  clientPayload?: ProductClientPayloadSummary;
   productId: string;
   type: string;
   title: string;
@@ -896,7 +931,8 @@ function ResetCatalogButton({
             Deletes kit&apos;s local rows for this platform.{" "}
             <strong>Does not modify App Store Connect / Play Console.</strong>{" "}
             Use this when kit&apos;s cache has drifted from the store and you
-            want a clean re-pull. Run Sync after to re-import.
+            want a clean re-pull. Run Sync after to re-import. Client payloads
+            are stored separately and retained.
           </p>
         </>
       }
@@ -976,6 +1012,10 @@ function PurgeConfirmDialog({
             </p>
           </div>
         </div>
+        <div className="rounded-md border border-blue-500/30 bg-blue-500/10 p-3 text-xs text-blue-700 dark:text-blue-200">
+          Client payloads are stored separately and are retained. They appear
+          again when Sync re-pulls the matching platform and product ID.
+        </div>
         <div className="flex justify-end gap-2">
           <button
             onClick={onClose}
@@ -1005,6 +1045,7 @@ function ProductGroup({
   onPurge,
   onCancel,
   onDismiss,
+  onEditClientPayload,
 }: {
   platform: "IOS" | "Android";
   rows: Array<ProductRow>;
@@ -1015,6 +1056,7 @@ function ProductGroup({
   onPurge: () => void;
   onCancel: (jobId: SyncJob["_id"]) => void;
   onDismiss: (jobId: SyncJob["_id"]) => void;
+  onEditClientPayload: (row: ProductRow) => void;
 }) {
   const storeLabel = platform === "IOS" ? "App Store Connect" : "Play Console";
   const isActive = job?.status === "queued" || job?.status === "running";
@@ -1129,142 +1171,176 @@ function ProductGroup({
           </button>
         </div>
       ) : null}
-      <table className="w-full text-sm">
-        <thead className="bg-muted/30 text-xs uppercase text-muted-foreground">
-          <tr>
-            <th className="px-4 py-2 text-left">Product ID</th>
-            <th className="px-4 py-2 text-left">Title</th>
-            <th className="px-4 py-2 text-left">Type</th>
-            <th className="px-4 py-2 text-left">State</th>
-            <th className="px-4 py-2 text-left">Store ref</th>
-            <th className="px-4 py-2 text-left">Price</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 && (
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[760px] text-sm">
+          <thead className="bg-muted/30 text-xs uppercase text-muted-foreground">
             <tr>
-              <td
-                colSpan={6}
-                className="px-4 py-8 text-center text-muted-foreground"
-              >
-                Nothing yet. Add a product above or hit Sync to pull an existing
-                catalog.
-              </td>
+              <th scope="col" className="px-4 py-2 text-left">
+                Product ID
+              </th>
+              <th scope="col" className="px-4 py-2 text-left">
+                Title
+              </th>
+              <th scope="col" className="px-4 py-2 text-left">
+                Type
+              </th>
+              <th scope="col" className="px-4 py-2 text-left">
+                State
+              </th>
+              <th scope="col" className="px-4 py-2 text-left">
+                Store ref
+              </th>
+              <th scope="col" className="px-4 py-2 text-left">
+                Price
+              </th>
+              <th scope="col" className="px-4 py-2 text-left">
+                Client payload
+              </th>
             </tr>
-          )}
-          {groupRowsByHierarchy(rows).map((entry) =>
-            entry.kind === "groupHeader" ? (
-              <tr
-                key={`group:${entry.id}`}
-                className="border-t-2 border-l-4 border-blue-500/60 border-t-blue-500/30 bg-blue-500/10"
-              >
+          </thead>
+          <tbody>
+            {rows.length === 0 && (
+              <tr>
                 <td
-                  colSpan={6}
-                  className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider"
+                  colSpan={7}
+                  className="px-4 py-8 text-center text-muted-foreground"
                 >
-                  <span className="inline-flex items-center gap-2">
-                    <span className="text-blue-700 dark:text-blue-300">
-                      Subscription Group
-                    </span>
-                    <span className="text-blue-700/40 dark:text-blue-300/40">
-                      ·
-                    </span>
-                    <span className="font-mono normal-case tracking-normal text-foreground">
-                      {entry.name}
-                    </span>
-                  </span>
+                  Nothing yet. Add a product above or hit Sync to pull an
+                  existing catalog.
                 </td>
               </tr>
-            ) : entry.kind === "subscriptionsHeader" ? (
-              <tr
-                key={`subs:${entry.id}`}
-                className="border-t-2 border-l-4 border-blue-500/60 border-t-blue-500/30 bg-blue-500/10"
-              >
-                <td
-                  colSpan={6}
-                  className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider"
+            )}
+            {groupRowsByHierarchy(rows).map((entry) =>
+              entry.kind === "groupHeader" ? (
+                <tr
+                  key={`group:${entry.id}`}
+                  className="border-t-2 border-l-4 border-blue-500/60 border-t-blue-500/30 bg-blue-500/10"
                 >
-                  <span className="text-blue-700 dark:text-blue-300">
-                    Subscriptions
-                  </span>
-                </td>
-              </tr>
-            ) : entry.kind === "otherHeader" ? (
-              <tr
-                key={`other:${entry.id}`}
-                className="border-t-2 border-l-4 border-amber-500/50 border-t-amber-500/30 bg-amber-500/10"
-              >
-                <td
-                  colSpan={6}
-                  className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider"
-                >
-                  <span className="text-amber-700 dark:text-amber-300">
-                    Other products
-                  </span>
-                </td>
-              </tr>
-            ) : (
-              <tr
-                key={entry.row.productId}
-                className="border-t border-border/50"
-              >
-                <td className="px-4 py-2 font-mono text-xs">
-                  {entry.row.productId}
-                </td>
-                <td className="px-4 py-2">
-                  <div>{entry.row.title}</div>
-                  {entry.row.offers && entry.row.offers.length > 0 && (
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      {entry.row.offers.map((offer) => (
-                        <span
-                          key={offer.id}
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                            offer.kind === "BasePlan"
-                              ? "bg-muted text-muted-foreground"
-                              : offer.kind === "FreeTrial"
-                                ? "bg-emerald-500/15 text-emerald-400"
-                                : "bg-amber-500/15 text-amber-400"
-                          }`}
-                          title={offer.kind}
-                        >
-                          {offerLabel(offer)}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </td>
-                <td className="px-4 py-2">
-                  <Badge variant="default" size="xs">
-                    {entry.row.type}
-                  </Badge>
-                </td>
-                <td className="px-4 py-2">
-                  <Badge
-                    variant={entry.row.state === "Active" ? "new" : "default"}
-                    size="xs"
+                  <td
+                    colSpan={7}
+                    className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider"
                   >
-                    {entry.row.state}
-                  </Badge>
-                </td>
-                <td className="px-4 py-2 text-muted-foreground font-mono text-xs">
-                  {entry.row.storeRef ?? "—"}
-                </td>
-                <td className="px-4 py-2 text-muted-foreground">
-                  {entry.row.priceAmountMicros
-                    ? formatPriceWithPeriod(
-                        entry.row.priceAmountMicros,
-                        entry.row.currency,
-                        entry.row.type === "Subscription"
-                          ? entry.row.billingPeriod
-                          : undefined,
-                      )
-                    : "—"}
-                </td>
-              </tr>
-            ),
-          )}
-        </tbody>
-      </table>
+                    <span className="inline-flex items-center gap-2">
+                      <span className="text-blue-700 dark:text-blue-300">
+                        Subscription Group
+                      </span>
+                      <span className="text-blue-700/40 dark:text-blue-300/40">
+                        ·
+                      </span>
+                      <span className="font-mono normal-case tracking-normal text-foreground">
+                        {entry.name}
+                      </span>
+                    </span>
+                  </td>
+                </tr>
+              ) : entry.kind === "subscriptionsHeader" ? (
+                <tr
+                  key={`subs:${entry.id}`}
+                  className="border-t-2 border-l-4 border-blue-500/60 border-t-blue-500/30 bg-blue-500/10"
+                >
+                  <td
+                    colSpan={7}
+                    className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider"
+                  >
+                    <span className="text-blue-700 dark:text-blue-300">
+                      Subscriptions
+                    </span>
+                  </td>
+                </tr>
+              ) : entry.kind === "otherHeader" ? (
+                <tr
+                  key={`other:${entry.id}`}
+                  className="border-t-2 border-l-4 border-amber-500/50 border-t-amber-500/30 bg-amber-500/10"
+                >
+                  <td
+                    colSpan={7}
+                    className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider"
+                  >
+                    <span className="text-amber-700 dark:text-amber-300">
+                      Other products
+                    </span>
+                  </td>
+                </tr>
+              ) : (
+                <tr
+                  key={entry.row.productId}
+                  className="border-t border-border/50"
+                >
+                  <td className="px-4 py-2 font-mono text-xs">
+                    {entry.row.productId}
+                  </td>
+                  <td className="px-4 py-2">
+                    <div>{entry.row.title}</div>
+                    {entry.row.offers && entry.row.offers.length > 0 && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {entry.row.offers.map((offer) => (
+                          <span
+                            key={offer.id}
+                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                              offer.kind === "BasePlan"
+                                ? "bg-muted text-muted-foreground"
+                                : offer.kind === "FreeTrial"
+                                  ? "bg-emerald-500/15 text-emerald-400"
+                                  : "bg-amber-500/15 text-amber-400"
+                            }`}
+                            title={offer.kind}
+                          >
+                            {offerLabel(offer)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-4 py-2">
+                    <Badge variant="default" size="xs">
+                      {entry.row.type}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-2">
+                    <Badge
+                      variant={entry.row.state === "Active" ? "new" : "default"}
+                      size="xs"
+                    >
+                      {entry.row.state}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-2 text-muted-foreground font-mono text-xs">
+                    {entry.row.storeRef ?? "—"}
+                  </td>
+                  <td className="px-4 py-2 text-muted-foreground">
+                    {entry.row.priceAmountMicros
+                      ? formatPriceWithPeriod(
+                          entry.row.priceAmountMicros,
+                          entry.row.currency,
+                          entry.row.type === "Subscription"
+                            ? entry.row.billingPeriod
+                            : undefined,
+                        )
+                      : "—"}
+                  </td>
+                  <td className="px-4 py-2">
+                    <button
+                      type="button"
+                      onClick={() => onEditClientPayload(entry.row)}
+                      aria-label={`${
+                        entry.row.clientPayload ? "Edit" : "Add"
+                      } client payload for ${entry.row.productId} on ${
+                        platform === "IOS" ? "iOS" : "Android"
+                      }`}
+                      className="inline-flex items-center gap-1.5 rounded border border-border px-2 py-1 text-xs text-muted-foreground hover:border-primary/40 hover:bg-muted/50 hover:text-foreground"
+                    >
+                      <FileCode2 className="h-3.5 w-3.5" />
+                      {entry.row.clientPayload
+                        ? `${entry.row.clientPayload.format.toUpperCase()} v${entry.row.clientPayload.version}`
+                        : "Add payload"}
+                    </button>
+                  </td>
+                </tr>
+              ),
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

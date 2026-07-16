@@ -1,14 +1,36 @@
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
+import { internal } from "../_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { getApiKeyByKey } from "../apiKeys/helpers";
-import { deletePurchaseStatsForProject } from "../purchases/stats";
+import { deleteFileAndStorageIfUnreferenced } from "../files/storage";
+export {
+  getWritableOrganization as getOrganizationById,
+  getWritableProject as getProjectById,
+} from "./writable";
 
 export type ApiKeyProjectResolution = {
   project: Doc<"projects">;
   keyId?: Id<"apiKeys">;
   organizationId: Id<"organizations">;
 };
+
+// A project-scoped row can be close to Convex's 1 MiB document limit (raw
+// signed webhook payloads, file metadata, product sync results, or app-owned
+// payload bodies). Keep each transaction comfortably below the 16 MiB read
+// limit even when every row in the page is maximally large.
+const PROJECT_DELETION_PAGE = 10;
+
+async function scheduleProjectDeletionContinuation(
+  ctx: MutationCtx,
+  projectId: Id<"projects">,
+): Promise<void> {
+  await ctx.scheduler.runAfter(
+    0,
+    internal.projects.internal.continueProjectDeletion,
+    { projectId },
+  );
+}
 
 export async function resolveProjectByApiKeyFromDb(
   ctx: QueryCtx | MutationCtx,
@@ -18,7 +40,9 @@ export async function resolveProjectByApiKeyFromDb(
   if (keyRow !== null) {
     if (keyRow.isActive === false) return null;
     const project = await ctx.db.get(keyRow.projectId);
-    if (!project) return null;
+    if (!project || project.pendingDeletion) return null;
+    const organization = await ctx.db.get(project.organizationId);
+    if (!organization || organization.pendingDeletion) return null;
     return {
       project,
       keyId: keyRow._id,
@@ -31,7 +55,9 @@ export async function resolveProjectByApiKeyFromDb(
     .withIndex("by_api_key", (q) => q.eq("apiKey", apiKey))
     .first();
 
-  if (!legacyProject) return null;
+  if (!legacyProject || legacyProject.pendingDeletion) return null;
+  const organization = await ctx.db.get(legacyProject.organizationId);
+  if (!organization || organization.pendingDeletion) return null;
   return {
     project: legacyProject,
     organizationId: legacyProject.organizationId,
@@ -50,7 +76,9 @@ export async function resolveProjectByIdForCurrentUserFromDb(
   if (!userId) return null;
 
   const project = await ctx.db.get(projectId);
-  if (!project) return null;
+  if (!project || project.pendingDeletion) return null;
+  const organization = await ctx.db.get(project.organizationId);
+  if (!organization || organization.pendingDeletion) return null;
 
   const membership = await ctx.db
     .query("organizationMembers")
@@ -69,37 +97,192 @@ export async function resolveProjectByIdForCurrentUserFromDb(
 export async function deleteProjectWithData(
   ctx: MutationCtx,
   projectId: Id<"projects">,
-) {
+): Promise<boolean> {
+  const project = await ctx.db.get(projectId);
+  if (!project) return true;
+
+  // Drain exactly one non-empty table page per transaction. Several project
+  // documents (payload bodies, raw webhook JWS, product/job results) can be
+  // large, so even sub-100-row pages from many tables must not accumulate in
+  // one mutation. Every page schedules the next step; the cron is recovery.
+  const productClientPayloads = await ctx.db
+    .query("productClientPayloads")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .take(PROJECT_DELETION_PAGE);
+  for (const payload of productClientPayloads) {
+    await ctx.db.delete(payload._id);
+  }
+  if (productClientPayloads.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
+  }
+
+  const productClientPayloadSummaries = await ctx.db
+    .query("productClientPayloadSummaries")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .take(PROJECT_DELETION_PAGE);
+  for (const summary of productClientPayloadSummaries) {
+    await ctx.db.delete(summary._id);
+  }
+  if (productClientPayloadSummaries.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
+  }
+
   const apiKeys = await ctx.db
     .query("apiKeys")
     .withIndex("by_project", (q) => q.eq("projectId", projectId))
-    .collect();
+    .take(PROJECT_DELETION_PAGE);
   for (const apiKey of apiKeys) {
     await ctx.db.delete(apiKey._id);
+  }
+  if (apiKeys.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
   }
 
   const purchases = await ctx.db
     .query("purchases")
     .withIndex("by_project", (q) => q.eq("projectId", projectId))
-    .collect();
+    .take(PROJECT_DELETION_PAGE);
   for (const purchase of purchases) {
     await ctx.db.delete(purchase._id);
+  }
+  if (purchases.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
   }
 
   const files = await ctx.db
     .query("files")
     .withIndex("by_project", (q) => q.eq("projectId", projectId))
-    .collect();
+    .take(PROJECT_DELETION_PAGE);
   for (const file of files) {
-    await ctx.storage.delete(file.storageId);
-    await ctx.db.delete(file._id);
+    await deleteFileAndStorageIfUnreferenced(ctx, file);
+  }
+  if (files.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
   }
 
-  await deletePurchaseStatsForProject(ctx, projectId);
+  const webhookIdempotencyKeys = await ctx.db
+    .query("webhookIdempotencyKeys")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .take(PROJECT_DELETION_PAGE);
+  for (const key of webhookIdempotencyKeys) {
+    await ctx.db.delete(key._id);
+  }
+  if (webhookIdempotencyKeys.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
+  }
+
+  const webhookEvent = await ctx.db
+    .query("webhookEvents")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .first();
+  if (webhookEvent) {
+    // Widen-phase rows may predate webhookIdempotencyKeys.projectId. Their
+    // eventId still links them to this project, so remove that legacy row
+    // before deleting the event that makes the ownership discoverable.
+    const legacyKeys = await ctx.db
+      .query("webhookIdempotencyKeys")
+      .withIndex("by_event", (q) => q.eq("eventId", webhookEvent._id))
+      .take(PROJECT_DELETION_PAGE);
+    for (const key of legacyKeys) await ctx.db.delete(key._id);
+    // A corrupt/legacy deployment can contain more than the natural-key
+    // invariant's single row. Keep the event until every linked key is gone.
+    if (legacyKeys.length < PROJECT_DELETION_PAGE) {
+      await ctx.db.delete(webhookEvent._id);
+    }
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
+  }
+
+  const subscriptions = await ctx.db
+    .query("subscriptions")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .take(PROJECT_DELETION_PAGE);
+  for (const subscription of subscriptions) {
+    await ctx.db.delete(subscription._id);
+  }
+  if (subscriptions.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
+  }
+
+  const subscriptionStats = await ctx.db
+    .query("subscriptionStats")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .take(PROJECT_DELETION_PAGE);
+  for (const stats of subscriptionStats) {
+    await ctx.db.delete(stats._id);
+  }
+  if (subscriptionStats.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
+  }
+
+  const revenueMetricsDaily = await ctx.db
+    .query("revenueMetricsDaily")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .take(PROJECT_DELETION_PAGE);
+  for (const metrics of revenueMetricsDaily) {
+    await ctx.db.delete(metrics._id);
+  }
+  if (revenueMetricsDaily.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
+  }
+
+  const revenueMetricsRunStatus = await ctx.db
+    .query("revenueMetricsRunStatus")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .take(PROJECT_DELETION_PAGE);
+  for (const status of revenueMetricsRunStatus) {
+    await ctx.db.delete(status._id);
+  }
+  if (revenueMetricsRunStatus.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
+  }
+
+  const products = await ctx.db
+    .query("products")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .take(PROJECT_DELETION_PAGE);
+  for (const product of products) {
+    await ctx.db.delete(product._id);
+  }
+  if (products.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
+  }
+
+  const productSyncJobs = await ctx.db
+    .query("productSyncJobs")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .take(PROJECT_DELETION_PAGE);
+  for (const job of productSyncJobs) {
+    await ctx.db.delete(job._id);
+  }
+  if (productSyncJobs.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
+  }
+
+  const purchaseStats = await ctx.db
+    .query("purchaseStats")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .take(PROJECT_DELETION_PAGE);
+  for (const stats of purchaseStats) {
+    await ctx.db.delete(stats._id);
+  }
+  if (purchaseStats.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
+  }
 
   await ctx.db.delete(projectId);
-}
-
-export function getProjectById(ctx: QueryCtx, id: Id<"projects">) {
-  return ctx.db.get(id);
+  return true;
 }

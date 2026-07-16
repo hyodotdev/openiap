@@ -36,6 +36,26 @@ crons.interval(
   internal.userProfiles.internal.drainPendingDeletionOrganizations,
 );
 
+// Recovery sweep for direct project deletions. The initiating mutation and
+// each bounded payload page schedule their own immediate continuation; this
+// five-minute sweep resumes any project left pending by a cancelled/failed
+// scheduled function.
+crons.interval(
+  "drain pending-deletion projects",
+  { minutes: 5 },
+  internal.projects.internal.drainPendingProjectDeletion,
+);
+
+// Upload reservations are one-time bearer capabilities used to close the
+// signed-upload/account-deletion race. Successful and rejected save attempts
+// consume them immediately; this sweep bounds abandoned reservations.
+crons.interval(
+  "prune expired file upload reservations",
+  { hours: 1 },
+  internal.files.internal.pruneUploadReservations,
+  {},
+);
+
 // Prune webhook events older than the 30-day retention window so the
 // `webhookEventsSince` backfill query stays bounded. Runs hourly with
 // a small per-tick batch size — webhook traffic is low-volume per

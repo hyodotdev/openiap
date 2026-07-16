@@ -2,7 +2,7 @@
 
 > Receipt-validation SaaS managed by OpenIAP. Hosted at https://kit.openiap.dev.
 > One Bearer-authed endpoint for Apple / Google / Horizon / Amazon;
-> harmonized response shape with `{ store, isValid, state }` so your backend has a single code path for
+> harmonized response shape with `{ store, isValid, state, productId? }` so your backend has a single code path for
 > entitlement + refund detection.
 
 IAPKit is a single-package Bun + Hono server bundled with a Convex backend
@@ -15,6 +15,8 @@ Base URL: https://kit.openiap.dev
 Auth: `Authorization: Bearer openiap-kit_<project-key>`
 
 - [POST /v1/purchase/verify](https://kit.openiap.dev/docs/api) — verify an in-app purchase; body is a tagged union on `store`
+- [GET /v1/products/{apiKey}?platform=IOS&includeClientPayload=true&limit=25](https://kit.openiap.dev/docs/products) — list public product payloads in bounded cursor pages (platform required, limit 1-50, follow `nextCursor` while `hasMore`)
+- [GET /v1/products/{apiKey}/{productId}/client-payload?platform=IOS](https://kit.openiap.dev/docs/products) — fetch `{ clientPayload }`; returns 404 when the product is missing/Removed or no payload exists
 - [POST /v1/webhooks/{apiKey}](https://openiap.dev/docs/webhooks#setup) — lifecycle webhook receiver. Paste this URL into App Store Connect (Production + Sandbox) AND Google Cloud Pub/Sub push subscription. Auto-detects ASN v2 vs Pub/Sub by payload shape. **POST-only**; opening in a browser returns 404 — that's expected.
 - [GET /v1/webhooks/stream/{apiKey}](https://openiap.dev/docs/webhooks#consume-stream) — long-lived SSE stream of normalized `WebhookEvent`s. Connect with `EventSource` (or the per-SDK helper); reconnects honor `Last-Event-ID`. Opening in a browser shows a blank page (text/event-stream that never closes) — use the SDK helpers or `curl -N`.
 - [GET /v1/openapi](https://kit.openiap.dev/v1/openapi) — machine-readable OpenAPI spec
@@ -27,8 +29,8 @@ is an alias of `/v1/purchase/verify`. Pick `/v1/purchase/verify` for new code.
 
 ## Request shapes (discriminated on `store`)
 
-- Apple — `{ store: "apple", jws }` where `jws` is a StoreKit 2 JWS (≤ 16 KB)
-- Google — `{ store: "google", purchaseToken }` (≤ 2 KB)
+- Apple — `{ store: "apple", jws, expectedProductId?, includeClientPayload? }` where `jws` is a StoreKit 2 JWS (≤ 16 KB)
+- Google — `{ store: "google", purchaseToken, expectedProductId?, includeClientPayload? }` (token ≤ 2 KB)
 - Horizon — `{ store: "horizon", userId, sku }` (≤ 256 chars each). IAPKit
   holds the App ID + App Secret server-side and composes the
   `OC|APP_ID|APP_SECRET` access token per-request.
@@ -41,9 +43,44 @@ is an alias of `/v1/purchase/verify`. Pick `/v1/purchase/verify` for new code.
 { "store": "amazon", "isValid": true, "state": "ENTITLED" }
 ```
 
+For Apple/Google only, `includeClientPayload: true` may add a top-level
+`clientPayload` when verification is valid, the store supplies a verified
+productId, and that exact platform/product has a payload:
+
+```json
+{
+  "store": "apple",
+  "isValid": true,
+  "state": "ENTITLED",
+  "productId": "premium_monthly",
+  "clientPayload": {
+    "format": "toml",
+    "body": "[access]\nmax_items = 10",
+    "version": 3,
+    "updatedAt": 1784160000000
+  }
+}
+```
+
+Default requests, invalid receipts, missing payloads, Horizon, and Amazon omit
+`clientPayload`. Entitlement decisions must use `isValid`, `state`, and the
+store-verified `productId`. Require that ID to match the product the app
+expected; never substitute a client-supplied ID when the verified value is
+missing, and never use payload contents alone.
+
 Harmonized `state` values (truthy `isValid`): `ENTITLED`,
 `PENDING_ACKNOWLEDGMENT`, `READY_TO_CONSUME`. Falsey `isValid`: `PENDING`,
 `CONSUMED`, `CANCELED`, `EXPIRED`, `INAUTHENTIC`, `UNKNOWN`.
+
+## Product client payloads
+
+- Shape: `{ format: "toml" | "json" | "text", body, version, updatedAt }`
+- Body is required, nonblank, and ≤ 16 KiB measured as UTF-8 bytes.
+- JSON must parse to a non-null, non-array object; TOML syntax is validated.
+- Payloads are public app data. Never store secrets, credentials, or private server rules.
+- Store Sync never pushes or overwrites them. Resetting the local catalog retains them.
+- They are returned by app requests, not sent through APNs/FCM, and do not display an OS notification.
+- The separate 64 KB product-management cap applies to the whole HTTP request before parsing; it is not per-product payload storage.
 
 ## Status codes
 
@@ -66,6 +103,7 @@ Harmonized `state` values (truthy `isValid`): `ENTITLED`,
 
 - [/docs](https://kit.openiap.dev/docs) — full in-dashboard documentation
 - [/docs/quickstart](https://kit.openiap.dev/docs/quickstart) — signup → project → API key → first verify
+- [/docs/products](https://kit.openiap.dev/docs/products) — catalog sync, client payload editing, retrieval, caching, and limits
 - [/docs/verification/apple](https://kit.openiap.dev/docs/verification/apple) — bundle ID, Issuer ID, Key ID, .p8
 - [/docs/verification/google](https://kit.openiap.dev/docs/verification/google) — package name, service account JSON
 - [/docs/verification/horizon](https://kit.openiap.dev/docs/verification/horizon) — App ID + App Secret (write-only)

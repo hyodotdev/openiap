@@ -36,4 +36,38 @@ describe("verifyPurchaseSuccessResponseSchema", () => {
 
     expect(result.success).toBe(false);
   });
+
+  test("accepts the complete optional client payload", () => {
+    const result = parse({
+      store: "google",
+      isValid: true,
+      state: "ENTITLED",
+      productId: "premium.monthly",
+      clientPayload: {
+        format: "toml",
+        body: 'tier = "premium"',
+        version: 2,
+        updatedAt: 123,
+      },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  test("rejects malformed client payload responses", () => {
+    for (const clientPayload of [
+      { format: "yaml", body: "tier: premium", version: 1, updatedAt: 1 },
+      { format: "text", body: "premium", updatedAt: 1 },
+      { format: "json", body: {}, version: 1, updatedAt: 1 },
+    ]) {
+      expect(
+        parse({
+          store: "apple",
+          isValid: true,
+          state: "ENTITLED",
+          clientPayload,
+        }).success,
+      ).toBe(false);
+    }
+  });
 });

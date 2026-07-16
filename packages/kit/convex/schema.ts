@@ -120,6 +120,9 @@ const schema = defineSchema({
     updatedAt: v.number(),
   })
     .index("by_slug", ["slug"])
+    // Storage cleanup must distinguish a true orphan from the legacy direct
+    // avatar reference without scanning every organization.
+    .index("by_avatar_file_id", ["avatarFileId"])
     .index("by_stripe_customer", ["stripeCustomerId"])
     .index("by_stripe_subscription", ["stripeSubscriptionId"])
     .index("by_pending_deletion", ["pendingDeletion"]),
@@ -135,6 +138,7 @@ const schema = defineSchema({
     updatedAt: v.number(),
   })
     .index("by_organization", ["organizationId"])
+    .index("by_organization_and_role", ["organizationId", "role"])
     .index("by_user", ["userId"])
     .index("by_org_and_user", ["organizationId", "userId"]),
 
@@ -259,12 +263,18 @@ const schema = defineSchema({
       }),
     ),
 
+    // Set before the bounded project-deletion drain starts. Pending projects
+    // disappear from dashboard/API reads immediately while scheduled
+    // mutations remove large client-payload documents in safe pages.
+    pendingDeletion: v.optional(v.boolean()),
+
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_organization", ["organizationId"])
     .index("by_api_key", ["apiKey"])
     .index("by_org_and_slug", ["organizationId", "slug"])
+    .index("by_pending_deletion", ["pendingDeletion"])
     // Horizon polling reconciler iterates only the projects that
     // opted into Meta Horizon billing — without this index the cron
     // would full-scan every project on each tick.
@@ -346,6 +356,33 @@ const schema = defineSchema({
     .index("by_org_and_purpose", ["organizationId", "purpose"])
     .index("by_storage_id", ["storageId"])
     .index("by_created_at", ["createdAt"]),
+
+  // Short-lived bearer capabilities issued with storage upload URLs. These
+  // rows intentionally outlive their target project/organization (and may
+  // briefly reference a deleted user): a late `saveFile` call needs the
+  // reservation to prove it may reclaim the otherwise-unowned blob after an
+  // account-deletion race has already removed auth and membership rows.
+  // `files.internal.pruneUploadReservations` bounds their lifetime.
+  fileUploadReservations: defineTable({
+    organizationId: v.id("organizations"),
+    projectId: v.optional(v.id("projects")),
+    createdBy: v.id("users"),
+    // `expiresAt` ends save authorization. A longer cleanup-only grace closes
+    // the slow-upload race; after `cleanupExpiresAt` the bearer capability is
+    // invalid for every operation and the cron removes it.
+    expiresAt: v.number(),
+    cleanupExpiresAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_cleanup_expires_at", ["cleanupExpiresAt"])
+    // Enforces bounded outstanding capabilities per issuer and target. The
+    // cleanup expiry is last so issuance can select only still-active rows.
+    .index("by_creator_target_and_cleanup_expiry", [
+      "createdBy",
+      "organizationId",
+      "projectId",
+      "cleanupExpiresAt",
+    ]),
 
   // Purchases table - unified receipt storage
   purchases: defineTable({
@@ -596,6 +633,8 @@ const schema = defineSchema({
     eventId: v.optional(v.id("webhookEvents")),
     firstSeenAt: v.number(),
   })
+    .index("by_project", ["projectId"])
+    .index("by_event", ["eventId"])
     .index("by_source_and_id", ["source", "sourceNotificationId"])
     .index("by_project_and_source_and_id", [
       "projectId",
@@ -668,6 +707,7 @@ const schema = defineSchema({
     updatedAt: v.number(),
     lastEventId: v.optional(v.id("webhookEvents")),
   })
+    .index("by_project", ["projectId"])
     .index("by_project_and_token", ["projectId", "purchaseToken"])
     .index("by_project_and_user", ["projectId", "userId"])
     .index("by_project_and_state", ["projectId", "state"])
@@ -762,6 +802,7 @@ const schema = defineSchema({
     revenueMicros: v.number(),
     updatedAt: v.number(),
   })
+    .index("by_project", ["projectId"])
     // Primary range-scan index for the dashboard read path. Layout
     // `[projectId, day, currency]` lets `getRevenueMetrics` do
     // `eq(projectId).gte(day).lte(day)` for a project's full
@@ -926,6 +967,7 @@ const schema = defineSchema({
     origin: v.optional(v.union(v.literal("kit"), v.literal("store"))),
     updatedAt: v.number(),
   })
+    .index("by_project", ["projectId"])
     // Lookup row by (projectId, platform, productId). Apps commonly
     // ship the SAME productId on both iOS and Android (e.g.
     // `dev.hyo.martie.premium` exists in both stores), so the
@@ -939,6 +981,54 @@ const schema = defineSchema({
       "productId",
     ])
     .index("by_project_and_platform", ["projectId", "platform"]),
+
+  // Client-readable metadata that belongs to a catalog product but must not
+  // be pushed to App Store Connect / Play Console. Keeping it separate from
+  // `products` is intentional: store pull/purge operations replace catalog
+  // rows, while this app-owned payload survives those operations until the
+  // project itself is deleted or an operator removes it explicitly.
+  productClientPayloads: defineTable({
+    projectId: v.id("projects"),
+    platform: v.union(v.literal("IOS"), v.literal("Android")),
+    productId: v.string(),
+    format: v.union(v.literal("toml"), v.literal("json"), v.literal("text")),
+    body: v.string(),
+    version: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_project_and_platform", ["projectId", "platform"])
+    .index("by_project_and_platform_and_product", [
+      "projectId",
+      "platform",
+      "productId",
+    ]),
+
+  // Body-free mirror used by the authenticated dashboard and as the durable
+  // per-product client-payload revision clock. Deleted payloads retain this
+  // row as a tombstone so remove/recreate cannot reset version to 1 and allow
+  // a stale optimistic-concurrency write through (ABA).
+  // Convex queries
+  // materialize complete documents, so listing `productClientPayloads` merely
+  // to render format/version badges would also load every 16 KiB body. Writes
+  // update this row in the same transaction as the payload document.
+  productClientPayloadSummaries: defineTable({
+    projectId: v.id("projects"),
+    platform: v.union(v.literal("IOS"), v.literal("Android")),
+    productId: v.string(),
+    format: v.union(v.literal("toml"), v.literal("json"), v.literal("text")),
+    version: v.number(),
+    deleted: v.optional(v.boolean()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_project_and_platform_and_product", [
+      "projectId",
+      "platform",
+      "productId",
+    ]),
 
   // Async job rows for the product-sync workers
   // (`runProductSyncIOS` / `runProductSyncAndroid`). Replaces the
@@ -1011,6 +1101,7 @@ const schema = defineSchema({
     completedAt: v.optional(v.number()),
     createdAt: v.number(),
   })
+    .index("by_project", ["projectId"])
     // Active job lookup per (project, platform, status). Backs the
     // dashboard's `getActiveSyncJob` subscription and the
     // double-enqueue guard inside `enqueueProductSync`.

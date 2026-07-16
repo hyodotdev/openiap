@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError } from "convex/values";
 import { generateApiKey } from "../utils/helpers";
+import { getProjectById } from "../projects/helpers";
 
 // Create a new API key for a project
 export const create = mutation({
@@ -18,7 +19,7 @@ export const create = mutation({
     }
 
     // Get project to verify access
-    const project = await ctx.db.get(args.projectId);
+    const project = await getProjectById(ctx, args.projectId);
     if (!project) {
       throw new ConvexError("Project not found");
     }
@@ -85,7 +86,7 @@ export const update = mutation({
     }
 
     // Get project to verify access
-    const project = await ctx.db.get(apiKey.projectId);
+    const project = await getProjectById(ctx, apiKey.projectId);
     if (!project) {
       throw new ConvexError("Project not found");
     }
@@ -143,7 +144,7 @@ export const remove = mutation({
     }
 
     // Get project to verify access
-    const project = await ctx.db.get(apiKey.projectId);
+    const project = await getProjectById(ctx, apiKey.projectId);
     if (!project) {
       throw new ConvexError("Project not found");
     }
@@ -184,7 +185,7 @@ export const revoke = mutation({
     }
 
     // Get project to verify access
-    const project = await ctx.db.get(apiKey.projectId);
+    const project = await getProjectById(ctx, apiKey.projectId);
     if (!project) {
       throw new ConvexError("Project not found");
     }
@@ -228,7 +229,7 @@ export const regenerate = mutation({
     }
 
     // Get project to verify access
-    const project = await ctx.db.get(oldApiKey.projectId);
+    const project = await getProjectById(ctx, oldApiKey.projectId);
     if (!project) {
       throw new ConvexError("Project not found");
     }

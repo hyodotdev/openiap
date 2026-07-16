@@ -132,14 +132,36 @@ describe("stats helpers — round-trip integration", () => {
   let db: MemDb;
   let ctx: ReturnType<typeof makeCtx>;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     db = new MemDb();
+    await db.insert("projects", { organizationId: "organizations_2" });
+    await db.insert("organizations", {});
     ctx = makeCtx(db);
   });
 
   it("readPurchaseStats returns zeros when no row exists yet", async () => {
     const stats = await readPurchaseStats(ctx, PROJECT_ID as never);
     expect(stats).toEqual({
+      total: 0,
+      apple: 0,
+      google: 0,
+      googleOrders: 0,
+      valid: 0,
+      invalid: 0,
+    });
+  });
+
+  it("does not recreate stats after project deletion starts", async () => {
+    await db.patch(PROJECT_ID, { pendingDeletion: true });
+
+    await expect(
+      applyPurchaseStatsDelta(
+        ctx,
+        PROJECT_ID as never,
+        deltaForInsert("apple", true),
+      ),
+    ).resolves.toEqual({ wasFirstValidTransition: false });
+    expect(await readPurchaseStats(ctx, PROJECT_ID as never)).toEqual({
       total: 0,
       apple: 0,
       google: 0,

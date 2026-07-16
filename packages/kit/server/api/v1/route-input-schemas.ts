@@ -73,6 +73,15 @@ const expectedProductIdSchema = v.optional(
   ),
 );
 
+const includeClientPayloadSchema = v.optional(
+  v.pipe(
+    v.boolean(),
+    v.description(
+      "Include project-managed client metadata for a valid Apple or Google product when available.",
+    ),
+  ),
+);
+
 export const verifyPurchaseInputSchema = v.variant("store", [
   v.pipe(
     v.object({
@@ -95,6 +104,7 @@ export const verifyPurchaseInputSchema = v.variant("store", [
         v.description("The JWS token returned with the purchase response."),
       ),
       expectedProductId: expectedProductIdSchema,
+      includeClientPayload: includeClientPayloadSchema,
     }),
     v.title("Apple App Store"),
   ),
@@ -121,6 +131,7 @@ export const verifyPurchaseInputSchema = v.variant("store", [
         ),
       ),
       expectedProductId: expectedProductIdSchema,
+      includeClientPayload: includeClientPayloadSchema,
     }),
     v.title("Google Play Store"),
   ),
@@ -159,6 +170,7 @@ export const verifyPurchaseInputSchema = v.variant("store", [
           "Add-on SKU as configured in the Meta Developer Dashboard.",
         ),
       ),
+      includeClientPayload: includeClientPayloadSchema,
     }),
     v.title("Meta Horizon (Quest)"),
   ),
@@ -211,6 +223,7 @@ export const verifyPurchaseInputSchema = v.variant("store", [
           ),
         ),
       ),
+      includeClientPayload: includeClientPayloadSchema,
     }),
     v.title("Amazon Appstore"),
   ),
