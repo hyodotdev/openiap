@@ -19,7 +19,7 @@ diff --git a/src/syntax/types/ArrayType.ts b/src/syntax/types/ArrayType.ts
 index 135076c24d8e1c1569cce64349203c22b5fce9b3..7077f6f3fb2fd6101dfc440cb28a42470308f500 100644
 --- a/src/syntax/types/ArrayType.ts
 +++ b/src/syntax/types/ArrayType.ts
-@@ -18,5 +18,9 @@ export class ArrayType implements Type {
+@@ -18,7 +18,11 @@ export class ArrayType implements Type {
      return 'array'
    }
    get isEquatable(): boolean {
@@ -30,3 +30,5 @@ index 135076c24d8e1c1569cce64349203c22b5fce9b3..7077f6f3fb2fd6101dfc440cb28a4247
 +    // non-equatable until the affected Swift toolchains are no longer supported.
 +    return false
    }
+ 
+   getCode(language: Language, options?: GetCodeOptions): string {

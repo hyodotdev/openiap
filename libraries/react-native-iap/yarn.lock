@@ -11234,33 +11234,33 @@ __metadata:
   languageName: node
   linkType: hard
 
-"nitrogen@npm:0.35.10":
-  version: 0.35.10
-  resolution: "nitrogen@npm:0.35.10"
+"nitrogen@npm:0.36.1":
+  version: 0.36.1
+  resolution: "nitrogen@npm:0.36.1"
   dependencies:
     chalk: ^5.3.0
-    react-native-nitro-modules: ^0.35.10
+    react-native-nitro-modules: ^0.36.1
     ts-morph: ^28.0.0
     yargs: ^18.0.0
     zod: ^4.4.3
   bin:
     nitrogen: lib/index.js
-  checksum: 5082980782a3242708581eb51ace0c321ff67e6036fdffb53b246154171373fc844f981a772acf6c52d08ea2f8fc330390492e7013c2bda0f9c448cc76c5f1b5
+  checksum: d59f1004bfc4a31d26a2011307f5bdd1cc1f5f1ee2dbdbb07e3d7a1f184f48e032b723b6064ff84c182432491855ef894cc7c1298735b80a975f18ca28d6392a
   languageName: node
   linkType: hard
 
-"nitrogen@patch:nitrogen@npm%3A0.35.10#./.yarn/patches/nitrogen-npm-0.35.10-ac6318648e.patch::locator=react-native-iap%40workspace%3A.":
-  version: 0.35.10
-  resolution: "nitrogen@patch:nitrogen@npm%3A0.35.10#./.yarn/patches/nitrogen-npm-0.35.10-ac6318648e.patch::version=0.35.10&hash=1be88b&locator=react-native-iap%40workspace%3A."
+"nitrogen@patch:nitrogen@npm%3A0.36.1#./.yarn/patches/nitrogen-npm-0.36.1-abe3b64156.patch::locator=react-native-iap%40workspace%3A.":
+  version: 0.36.1
+  resolution: "nitrogen@patch:nitrogen@npm%3A0.36.1#./.yarn/patches/nitrogen-npm-0.36.1-abe3b64156.patch::version=0.36.1&hash=e67457&locator=react-native-iap%40workspace%3A."
   dependencies:
     chalk: ^5.3.0
-    react-native-nitro-modules: ^0.35.10
+    react-native-nitro-modules: ^0.36.1
     ts-morph: ^28.0.0
     yargs: ^18.0.0
     zod: ^4.4.3
   bin:
     nitrogen: lib/index.js
-  checksum: bb0f4c202c701092f7587bc72ec3ab5a64f3d974e3b7f60737c3f58f7362116cae21d86a2d2c025ec9696c86764946fd7a7d04d98c28c59dcf12944e1cf27779
+  checksum: 1e0453ff5a9bd17c781d6f9b3d1789ba77c694ce426081c10fae9c29f7d4fbd71b9ff6f2b643277613bc646e5cb8ecac894e0a21585e0cc1aa970949fc26c861
   languageName: node
   linkType: hard
 
@@ -12315,12 +12315,12 @@ __metadata:
     husky: ^8.0.3
     jest: ^30.1.1
     lint-staged: ^15.2.0
-    nitrogen: ^0.35.10
+    nitrogen: ^0.36.1
     prettier: ^3.3.3
     react: 19.1.0
     react-native: 0.81.1
     react-native-builder-bob: ^0.38.4
-    react-native-nitro-modules: ^0.35.10
+    react-native-nitro-modules: ^0.36.1
     react-test-renderer: ^19.1.1
     typescript: ^5.9.2
   peerDependencies:
@@ -12328,7 +12328,7 @@ __metadata:
     "@amazon-devices/package-manager-lib": ~1.0.1767254401
     react: "*"
     react-native: "*"
-    react-native-nitro-modules: ^0.35.10
+    react-native-nitro-modules: ^0.36.1
   peerDependenciesMeta:
     "@amazon-devices/keplerscript-appstore-iap-lib":
       optional: true
@@ -12357,13 +12357,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-native-nitro-modules@npm:^0.35.10":
-  version: 0.35.10
-  resolution: "react-native-nitro-modules@npm:0.35.10"
+"react-native-nitro-modules@npm:^0.36.1":
+  version: 0.36.1
+  resolution: "react-native-nitro-modules@npm:0.36.1"
   peerDependencies:
     react: "*"
     react-native: "*"
-  checksum: 9a657b0503fa549d3d35e275f14872950c5f798367e8a983e5386760460d2bdbac4bd107ea78e67aec08eb03a8244e60f684faf7d252703bd4b1931bfac1890f
+  checksum: f22f81591a1f9bfe53f12616cc4f7abf124eade3f5282e7c79c0d13b8351322bdbe8bae472262945341ade03f5e3e9a9fde27d902363c7d7a3d927bcff96224a
   languageName: node
   linkType: hard
 
@@ -12855,7 +12855,7 @@ __metadata:
     react-native: 0.81.1
     react-native-dotenv: ^3.4.11
     react-native-monorepo-config: ^0.1.9
-    react-native-nitro-modules: ^0.35.10
+    react-native-nitro-modules: ^0.36.1
     react-native-safe-area-context: ^5.6.1
     react-native-screens: ^4.15.4
     react-test-renderer: 19.1.0
