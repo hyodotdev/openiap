@@ -497,7 +497,9 @@ struct PurchaseFlowScreen: View {
                     apple: RequestVerifyPurchaseWithIapkitAppleProps(
                         jws: jws
                     ),
-                    google: nil
+                    google: nil,
+                    // Client payload is public configuration, never entitlement authority or secrets.
+                    includeClientPayload: true
                 ),
                 provider: .iapkit
             )
@@ -506,44 +508,72 @@ struct PurchaseFlowScreen: View {
                 let result = try await iapStore.verifyPurchaseWithProvider(props)
                 let isValid = result?.isValid ?? false
                 let state = result?.state.rawValue ?? "unknown"
+                let storeProductId = result?.productId ?? "not returned"
+                let hasAllowedState = result.map {
+                    $0.state == .entitled ||
+                        $0.state == .pendingAcknowledgment ||
+                        $0.state == .readyToConsume
+                } ?? false
+                let isVerifiedPurchase = isValid &&
+                    result?.productId == purchase.productId &&
+                    hasAllowedState
+                let payloadSummary: String
+                if let payload = result?.clientPayload {
+                    let preview = payload.body.count > 200
+                        ? "\(String(payload.body.prefix(199)))…"
+                        : payload.body
+                    payloadSummary = """
+                    Client payload: \(payload.format.rawValue), v\(Int(payload.version))
+                    Preview: \(preview)
+                    """
+                } else {
+                    payloadSummary = "Client payload: not returned"
+                }
 
                 print("📱 [PurchaseFlow] IAPKit verification result:")
-                print("  - Product: \(purchase.productId)")
+                print("  - Requested product: \(purchase.productId)")
+                print("  - Store product: \(storeProductId)")
                 print("  - isValid: \(isValid)")
                 print("  - state: \(state)")
+                if let payload = result?.clientPayload {
+                    print("  - Client payload: \(payload.format.rawValue), v\(Int(payload.version))")
+                } else {
+                    print("  - Client payload: not returned")
+                }
 
                 await MainActor.run {
                     isVerifying = false
                     purchaseResultMessage = """
-                    \(isValid ? "✅" : "❌") IAPKit verification \(isValid ? "passed" : "failed")
-                    Product: \(purchase.productId)
+                    \(isVerifiedPurchase ? "✅" : "❌") IAPKit verification \(isVerifiedPurchase ? "passed" : "failed")
+                    Requested product: \(purchase.productId)
+                    Store product: \(storeProductId)
                     isValid: \(isValid), state: \(state)
+                    \(payloadSummary)
                     Date: \(dateString)
                     """
                 }
 
-                if isValid {
+                if isVerifiedPurchase {
                     await finishPurchase(purchase)
                 }
-                // If isValid == false, don't finish - allow retry
+                // A valid flag alone is insufficient: keep the transaction
+                // pending unless the store-verified product id and state match.
             } catch {
                 // Verification error (network, server, etc.) ≠ invalid purchase
-                // Use fail-open approach: don't penalize customer for verification failures
+                // Keep the transaction pending so verification can be retried.
                 print("⚠️ [PurchaseFlow] IAPKit verification error: \(error.localizedDescription)")
-                print("⚠️ [PurchaseFlow] Using fail-open approach - finishing transaction anyway")
+                print("⚠️ [PurchaseFlow] Transaction left unfinished for verification retry")
 
                 await MainActor.run {
                     isVerifying = false
                     purchaseResultMessage = """
-                    ⚠️ IAPKit verification error (fail-open)
+                    ⚠️ IAPKit verification error
                     Product: \(purchase.productId)
                     Error: \(error.localizedDescription)
                     Date: \(dateString)
-                    Note: Transaction finished - customer not penalized
+                    Note: Transaction not finished; retry verification later
                     """
                 }
-                // Finish transaction despite verification error
-                await finishPurchase(purchase)
             }
         }
     }

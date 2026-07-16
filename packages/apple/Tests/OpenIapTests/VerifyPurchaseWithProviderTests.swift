@@ -48,22 +48,94 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
         }
     }
 
-    func testObjCBridgeKeepsLegacySelectorAndExposesCustomBaseUrlSelector() {
+    func testObjCBridgeKeepsLegacySelectorsAndExposesClientPayloadSelector() {
         let legacySelector = NSSelectorFromString(
             "verifyPurchaseWithProviderObjCWithProvider:apiKey:jws:completion:"
         )
         let customBaseUrlSelector = NSSelectorFromString(
             "verifyPurchaseWithProviderObjCWithProvider:apiKey:baseUrl:jws:completion:"
         )
+        let clientPayloadSelector = NSSelectorFromString(
+            "verifyPurchaseWithProviderObjCWithProvider:apiKey:baseUrl:jws:includeClientPayload:completion:"
+        )
 
         XCTAssertTrue(OpenIapModule.shared.responds(to: legacySelector))
         XCTAssertTrue(OpenIapModule.shared.responds(to: customBaseUrlSelector))
+        XCTAssertTrue(OpenIapModule.shared.responds(to: clientPayloadSelector))
+    }
+
+    func testIapkitClientPayloadParsesAndRejectsMalformedValues() throws {
+        let payload = try XCTUnwrap(
+            OpenIapModule.iapkitClientPayload(from: [
+                "format": "toml",
+                "body": "tier = \"gold\"",
+                "version": 2,
+                "updatedAt": 1_720_000_000_000,
+            ])
+        )
+
+        XCTAssertEqual(.toml, payload.format)
+        XCTAssertEqual("tier = \"gold\"", payload.body)
+        XCTAssertEqual(2, payload.version)
+        XCTAssertNil(try OpenIapModule.iapkitClientPayload(from: nil))
+        XCTAssertNil(try OpenIapModule.iapkitClientPayload(from: NSNull()))
+        XCTAssertThrowsError(
+            try OpenIapModule.iapkitClientPayload(from: [
+                "format": "TOML",
+                "body": "invalid format",
+                "version": 1,
+                "updatedAt": 1,
+            ])
+        )
+        XCTAssertThrowsError(
+            try OpenIapModule.iapkitClientPayload(from: [
+                "format": "toml",
+                "body": "missing version",
+                "updatedAt": 1,
+            ])
+        )
+        for invalidVersion: Any in [true, 0, 1.5] {
+            XCTAssertThrowsError(
+                try OpenIapModule.iapkitClientPayload(from: [
+                    "format": "toml",
+                    "body": "invalid version",
+                    "version": invalidVersion,
+                    "updatedAt": 1,
+                ])
+            )
+        }
+        XCTAssertThrowsError(
+            try OpenIapModule.iapkitClientPayload(from: [
+                "format": "toml",
+                "body": "invalid timestamp",
+                "version": 1,
+                "updatedAt": -1,
+            ])
+        )
+    }
+
+    func testIapkitBooleanRejectsNumericJsonValues() throws {
+        XCTAssertTrue(try OpenIapModule.iapkitBoolean(from: true))
+        XCTAssertFalse(try OpenIapModule.iapkitBoolean(from: false))
+
+        for invalidValue: Any? in [nil, NSNull(), 0, 1, "true"] {
+            XCTAssertThrowsError(
+                try OpenIapModule.iapkitBoolean(from: invalidValue)
+            )
+        }
     }
 
     @MainActor
     func testStoreReturnsIapkitResult() async throws {
         let iapkitResult = RequestVerifyPurchaseWithIapkitResult(
+            clientPayload: IapkitProductClientPayload(
+                body: "tier = \"gold\"",
+                format: .toml,
+                updatedAt: 1_720_000_000_000,
+                version: 2
+            ),
             isValid: true,
+            productId: "premium.monthly",
             state: .entitled,
             store: .apple
         )
@@ -98,6 +170,8 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
         XCTAssertNotNil(result)
         XCTAssertEqual(IapStore.apple, result?.store)
         XCTAssertEqual(true, result?.isValid)
+        XCTAssertEqual("premium.monthly", result?.productId)
+        XCTAssertEqual("tier = \"gold\"", result?.clientPayload?.body)
         XCTAssertEqual(.entitled, result?.state)
     }
 
