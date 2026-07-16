@@ -2,6 +2,9 @@ import type {Purchase} from 'react-native-iap';
 import {getDefaultVerificationMethod} from '../../src/hooks/useVerificationMethod';
 import {
   createIapkitVerificationPayload,
+  getDirectVerificationError,
+  getIapkitVerificationError,
+  rememberCompletedPurchaseKey,
   resolveIapkitVerificationBaseUrl,
 } from '../../src/utils/vegaRuntime';
 
@@ -104,5 +107,80 @@ describe('Vega runtime example helpers', () => {
         '  ',
       ),
     ).toThrow('IAPKIT_API_KEY not configured');
+  });
+
+  it('accepts a valid store result for the expected product', () => {
+    expect(
+      getIapkitVerificationError(
+        {
+          provider: 'iapkit',
+          iapkit: {
+            isValid: true,
+            productId: 'dev.hyo.martie.10bulbs',
+            state: 'ready-to-consume',
+            store: 'google',
+          },
+        },
+        'dev.hyo.martie.10bulbs',
+      ),
+    ).toBeNull();
+  });
+
+  it('rejects an invalid IAPKit state before transaction cleanup', () => {
+    expect(
+      getIapkitVerificationError(
+        {
+          provider: 'iapkit',
+          iapkit: {
+            isValid: false,
+            productId: 'dev.hyo.martie.10bulbs',
+            state: 'consumed',
+            store: 'google',
+          },
+        },
+        'dev.hyo.martie.10bulbs',
+      ),
+    ).toContain('state: consumed');
+  });
+
+  it('rejects a valid receipt for a different product', () => {
+    expect(
+      getIapkitVerificationError(
+        {
+          provider: 'iapkit',
+          iapkit: {
+            isValid: true,
+            productId: 'dev.hyo.martie.30bulbs',
+            state: 'ready-to-consume',
+            store: 'google',
+          },
+        },
+        'dev.hyo.martie.10bulbs',
+      ),
+    ).toContain(
+      'IAPKit verified dev.hyo.martie.30bulbs, expected dev.hyo.martie.10bulbs',
+    );
+  });
+
+  it('keeps the completed purchase cache bounded and refreshes recency', () => {
+    const completedKeys = new Set(['oldest', 'middle']);
+
+    rememberCompletedPurchaseKey(completedKeys, 'oldest', 2);
+    rememberCompletedPurchaseKey(completedKeys, 'newest', 2);
+
+    expect([...completedKeys]).toEqual(['oldest', 'newest']);
+  });
+
+  it('rejects explicit invalid results from direct store verification', () => {
+    expect(
+      getDirectVerificationError({
+        isValid: false,
+        jwsRepresentation: '',
+        receiptData: '',
+      }),
+    ).toContain('invalid receipt');
+    expect(getDirectVerificationError({success: false})).toContain(
+      'rejected the entitlement',
+    );
   });
 });

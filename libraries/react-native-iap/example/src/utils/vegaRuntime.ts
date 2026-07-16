@@ -1,5 +1,10 @@
 import {Alert, Platform} from 'react-native';
-import type {Purchase, VerifyPurchaseWithProviderProps} from 'react-native-iap';
+import type {
+  Purchase,
+  VerifyPurchaseResult,
+  VerifyPurchaseWithProviderProps,
+  VerifyPurchaseWithProviderResult,
+} from 'react-native-iap';
 
 export type IapkitVerificationPayload = NonNullable<
   VerifyPurchaseWithProviderProps['iapkit']
@@ -44,6 +49,66 @@ export function showNativeAlert(title: string, message?: string): void {
   );
   if (!shouldSuppressAlerts) {
     Alert.alert(title, message);
+  }
+}
+
+export function getIapkitVerificationError(
+  result: VerifyPurchaseWithProviderResult,
+  expectedProductId: string,
+): string | null {
+  const verified = result.iapkit;
+  if (!verified) {
+    const providerErrors = result.errors
+      ?.map((error) =>
+        error.code ? `[${error.code}] ${error.message}` : error.message,
+      )
+      .filter(Boolean);
+    return providerErrors?.length
+      ? providerErrors.join('\n')
+      : 'IAPKit did not return a verification result';
+  }
+
+  if (!verified.isValid) {
+    return `IAPKit rejected the purchase (state: ${verified.state}, store: ${verified.store})`;
+  }
+
+  const requiresProductId =
+    verified.store === 'apple' || verified.store === 'google';
+  if (requiresProductId && !verified.productId) {
+    return `IAPKit did not return a product ID for ${verified.store}`;
+  }
+
+  if (verified.productId && verified.productId !== expectedProductId) {
+    return `IAPKit verified ${verified.productId}, expected ${expectedProductId}`;
+  }
+
+  return null;
+}
+
+export function getDirectVerificationError(
+  result: VerifyPurchaseResult,
+): string | null {
+  if ('isValid' in result && result.isValid === false) {
+    return 'Store verification returned an invalid receipt';
+  }
+  if ('success' in result && result.success === false) {
+    return 'Store verification rejected the entitlement';
+  }
+  return null;
+}
+
+export function rememberCompletedPurchaseKey(
+  completedKeys: Set<string>,
+  key: string,
+  maxSize = 100,
+): void {
+  completedKeys.delete(key);
+  completedKeys.add(key);
+
+  while (completedKeys.size > maxSize) {
+    const oldestKey = completedKeys.values().next().value;
+    if (typeof oldestKey !== 'string') break;
+    completedKeys.delete(oldestKey);
   }
 }
 

@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useRef, useState} from 'react';
+import {useCallback, useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {
   View,
   Text,
@@ -32,7 +32,10 @@ import {
 } from '../src/hooks/useVerificationMethod';
 import {
   createIapkitVerificationPayload,
+  getDirectVerificationError,
+  getIapkitVerificationError,
   getPurchaseCleanupKey,
+  rememberCompletedPurchaseKey,
   resolveIapkitVerificationBaseUrl,
   showNativeAlert,
 } from '../src/utils/vegaRuntime';
@@ -47,6 +50,14 @@ import VerificationMethodSelectorModal from '../src/components/VerificationMetho
 
 const CONSUMABLE_PRODUCT_ID_SET = new Set(CONSUMABLE_PRODUCT_IDS);
 const NON_CONSUMABLE_PRODUCT_ID_SET = new Set(NON_CONSUMABLE_PRODUCT_IDS);
+
+type InFlightPurchaseTask = {
+  result: Promise<'abandoned' | 'failed' | 'finished'>;
+  complete: (result: 'abandoned' | 'failed' | 'finished') => void;
+};
+
+const inFlightPurchaseTasks = new Map<string, InFlightPurchaseTask>();
+const completedPurchaseKeys = new Set<string>();
 
 function isPurchaseFlowProduct(productId: string): boolean {
   return (
@@ -603,7 +614,15 @@ function PurchaseFlowContainer() {
   } = useVerificationMethod(
     getDefaultVerificationMethod(IAPKIT_API_KEY, IAPKIT_BASE_URL),
   );
-  const cleanupPurchaseKeysRef = useRef(new Set<string>());
+  const purchaseSuccessHandlerRef = useRef<
+    (purchase: Purchase) => Promise<void>
+  >(async () => {});
+  const mountedRef = useRef(true);
+
+  const dispatchPurchaseSuccess = useCallback(
+    (purchase: Purchase) => purchaseSuccessHandlerRef.current(purchase),
+    [],
+  );
 
   // ──────────────────────────────────────────────────────────────────────────
   // Step 1: INIT CONNECTION
@@ -613,6 +632,244 @@ function PurchaseFlowContainer() {
   // - Calls initConnection() on mount
   // - Sets up purchase event listeners
   // - Cleans up on unmount
+  const handlePurchaseSuccess = async (purchase: Purchase): Promise<void> => {
+    if (!mountedRef.current) return;
+
+    console.log('Purchase successful:', purchase.productId);
+    console.log('[PurchaseFlow] purchaseState:', purchase.purchaseState);
+    const productId = purchase.productId ?? '';
+    if (!isPurchaseFlowProduct(productId)) {
+      console.log('[PurchaseFlow] ignoring non-purchase-flow product:', {
+        productId,
+      });
+      return;
+    }
+
+    const purchaseCleanupKey = getPurchaseCleanupKey(purchase);
+    if (completedPurchaseKeys.has(purchaseCleanupKey)) {
+      console.log('[PurchaseFlow] ignoring duplicate purchase callback:', {
+        productId,
+      });
+      return;
+    }
+    const inFlightTask = inFlightPurchaseTasks.get(purchaseCleanupKey);
+    if (inFlightTask) {
+      console.log('[PurchaseFlow] ignoring duplicate purchase task:', {
+        productId,
+      });
+      void inFlightTask.result.then((result) => {
+        if (result === 'finished') {
+          rememberCompletedPurchaseKey(
+            completedPurchaseKeys,
+            purchaseCleanupKey,
+          );
+        } else if (result === 'abandoned' && mountedRef.current) {
+          void dispatchPurchaseSuccess(purchase);
+        }
+      });
+      return;
+    }
+
+    let taskReleased = false;
+    let completeTask!: (result: 'abandoned' | 'failed' | 'finished') => void;
+    const taskResult = new Promise<'abandoned' | 'failed' | 'finished'>(
+      (resolve) => {
+        completeTask = resolve;
+      },
+    );
+    const task: InFlightPurchaseTask = {
+      result: taskResult,
+      complete: completeTask,
+    };
+    const releasePurchaseTask = (
+      result: 'abandoned' | 'failed' | 'finished' = 'failed',
+    ) => {
+      if (taskReleased) return;
+      taskReleased = true;
+      if (inFlightPurchaseTasks.get(purchaseCleanupKey) === task) {
+        inFlightPurchaseTasks.delete(purchaseCleanupKey);
+      }
+      task.complete(result);
+    };
+    inFlightPurchaseTasks.set(purchaseCleanupKey, task);
+
+    setLastPurchase(purchase);
+    setIsProcessing(false);
+
+    setPurchaseResult(
+      `Purchase received (state: ${purchase.purchaseState}). Finishing transaction...`,
+    );
+
+    const isConsumablePurchase = CONSUMABLE_PRODUCT_ID_SET.has(productId);
+    if (!isConsumablePurchase) {
+      console.log(
+        '[PurchaseFlow] Non-consumable purchase recorded:',
+        productId,
+      );
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Step 4: VERIFY PURCHASE
+    // ──────────────────────────────────────────────────────────────────────
+    // Choose verification method based on user selection:
+    // - 'ignore': Skip verification (testing only)
+    // - 'local': Direct Apple/Google verification on the device
+    // - 'iapkit-localhost': IAPKit provider through the local server
+    // - 'iapkit': IAPKit provider through the hosted service
+    const currentVerificationMethod = verificationMethodRef.current;
+    console.log('[PurchaseFlow] About to verify purchase:', {
+      verificationMethod: currentVerificationMethod,
+      productId,
+      willVerify: currentVerificationMethod !== 'ignore' && !!productId,
+    });
+
+    if (currentVerificationMethod !== 'ignore' && productId) {
+      setIsProcessing(true);
+      try {
+        if (currentVerificationMethod === 'local') {
+          console.log('[PurchaseFlow] Verifying with Local (Device)...');
+          // This token is intentionally a placeholder. Production apps must
+          // obtain Google Play API credentials from their backend.
+          const result = await verifyPurchase({
+            apple: {sku: productId},
+            google: {
+              sku: productId,
+              accessToken: 'YOUR_OAUTH_ACCESS_TOKEN',
+              packageName: 'dev.hyo.martie',
+              purchaseToken: purchase.purchaseToken ?? '',
+              isSub: false,
+            },
+          });
+          const verificationError = getDirectVerificationError(result);
+          if (verificationError) {
+            throw new Error(verificationError);
+          }
+          console.log('[PurchaseFlow] Local (Device) verification completed');
+        } else {
+          const verificationLabel =
+            currentVerificationMethod === 'iapkit-localhost'
+              ? 'Local (IAPKit)'
+              : 'IAPKit';
+          console.log(`[PurchaseFlow] Verifying with ${verificationLabel}...`);
+
+          const apiKey = IAPKIT_API_KEY?.trim();
+          if (!apiKey) {
+            throw new Error('IAPKIT_API_KEY not configured');
+          }
+
+          const jwsOrToken = purchase.purchaseToken ?? '';
+          if (!jwsOrToken) {
+            throw new Error(
+              'No purchase token available for IAPKit verification',
+            );
+          }
+
+          const baseUrl = resolveIapkitVerificationBaseUrl(
+            currentVerificationMethod,
+            IAPKIT_BASE_URL,
+          );
+          const iapkitPayload = createIapkitVerificationPayload(
+            purchase,
+            jwsOrToken,
+            apiKey,
+            baseUrl,
+          );
+          const verifyRequest: VerifyPurchaseWithProviderProps = {
+            provider: 'iapkit',
+            iapkit: iapkitPayload,
+          };
+          console.log(
+            `[PurchaseFlow] Sending ${verificationLabel} verification request`,
+          );
+
+          const result = await verifyPurchaseWithProvider(verifyRequest);
+          console.log('[PurchaseFlow] IAPKit verification result:', result);
+
+          const verificationError = getIapkitVerificationError(
+            result,
+            productId,
+          );
+          if (verificationError) {
+            throw new Error(verificationError);
+          }
+
+          if (result.iapkit && mountedRef.current) {
+            const stateText = result.iapkit.state || 'unknown';
+
+            showNativeAlert(
+              `✅ ${verificationLabel} Verification`,
+              `Valid: true\nState: ${stateText}\nStore: ${
+                result.iapkit.store || 'unknown'
+              }`,
+            );
+          }
+        }
+      } catch (error) {
+        console.log('[PurchaseFlow] Verification failed:', error);
+        const message = getErrorMessage(error);
+        if (mountedRef.current) {
+          setPurchaseResult(`Purchase verification failed: ${message}`);
+          showNativeAlert(
+            'Verification Failed',
+            `Purchase verification failed: ${message}`,
+          );
+        }
+        releasePurchaseTask(mountedRef.current ? 'failed' : 'abandoned');
+        return;
+      } finally {
+        if (mountedRef.current) {
+          setIsProcessing(false);
+        }
+      }
+    }
+
+    if (!mountedRef.current) {
+      releasePurchaseTask('abandoned');
+      return;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Step 5: GRANT ENTITLEMENT
+    // ──────────────────────────────────────────────────────────────────────
+    // Production integration point:
+    // - Save purchase record to database
+    // - Unlock premium features for user
+    // - Update user's subscription status
+    // Example: await yourBackend.grantEntitlement(purchase);
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Step 6: FINISH TRANSACTION
+    // ──────────────────────────────────────────────────────────────────────
+    // CRITICAL: Always finish transactions!
+    // - Consumables: Set isConsumable: true to allow re-purchase
+    // - Non-consumables: Set isConsumable: false
+    // - Failing to finish will cause issues on next app launch
+    try {
+      await finishTransaction({
+        purchase,
+        isConsumable: isConsumablePurchase,
+      });
+      rememberCompletedPurchaseKey(completedPurchaseKeys, purchaseCleanupKey);
+      releasePurchaseTask('finished');
+      if (mountedRef.current) {
+        setPurchaseResult(
+          `Purchase completed and finished successfully (state: ${purchase.purchaseState}).`,
+        );
+        showNativeAlert('Success', 'Purchase completed successfully!');
+      }
+    } catch (error) {
+      console.log('[PurchaseFlow] finishTransaction failed:', error);
+      const message = getErrorMessage(error);
+      releasePurchaseTask(mountedRef.current ? 'failed' : 'abandoned');
+      if (mountedRef.current) {
+        setPurchaseResult(
+          `Purchase completed, but finishTransaction failed: ${message}`,
+        );
+        showNativeAlert('Finish Transaction Failed', message);
+      }
+    }
+  };
+
   const {
     connected,
     products,
@@ -626,172 +883,7 @@ function PurchaseFlowContainer() {
     // ────────────────────────────────────────────────────────────────────────
     // Step 2a: Purchase Success Handler
     // ────────────────────────────────────────────────────────────────────────
-    onPurchaseSuccess: async (purchase: Purchase) => {
-      console.log('Purchase successful:', purchase.productId);
-      console.log('[PurchaseFlow] purchaseState:', purchase.purchaseState);
-      const productId = purchase.productId ?? '';
-      if (!isPurchaseFlowProduct(productId)) {
-        console.log('[PurchaseFlow] ignoring non-purchase-flow product:', {
-          productId,
-        });
-        return;
-      }
-
-      setLastPurchase(purchase);
-      setIsProcessing(false);
-
-      setPurchaseResult(
-        `Purchase received (state: ${purchase.purchaseState}). Finishing transaction...`,
-      );
-
-      const isConsumablePurchase = CONSUMABLE_PRODUCT_ID_SET.has(productId);
-      if (!isConsumablePurchase) {
-        console.log(
-          '[PurchaseFlow] Non-consumable purchase recorded:',
-          productId,
-        );
-      }
-
-      // ──────────────────────────────────────────────────────────────────────
-      // Step 4: VERIFY PURCHASE
-      // ──────────────────────────────────────────────────────────────────────
-      // Choose verification method based on user selection:
-      // - 'ignore': Skip verification (testing only)
-      // - 'local': Direct Apple/Google verification on the device
-      // - 'iapkit-localhost': IAPKit provider through the local server
-      // - 'iapkit': IAPKit provider through the hosted service
-      const currentVerificationMethod = verificationMethodRef.current;
-      console.log('[PurchaseFlow] About to verify purchase:', {
-        verificationMethod: currentVerificationMethod,
-        productId,
-        willVerify: currentVerificationMethod !== 'ignore' && !!productId,
-      });
-
-      if (currentVerificationMethod !== 'ignore' && productId) {
-        setIsProcessing(true);
-        try {
-          if (currentVerificationMethod === 'local') {
-            console.log('[PurchaseFlow] Verifying with Local (Device)...');
-            // This token is intentionally a placeholder. Production apps must
-            // obtain Google Play API credentials from their backend.
-            await verifyPurchase({
-              apple: {sku: productId},
-              google: {
-                sku: productId,
-                accessToken: 'YOUR_OAUTH_ACCESS_TOKEN',
-                packageName: 'dev.hyo.martie',
-                purchaseToken: purchase.purchaseToken ?? '',
-                isSub: false,
-              },
-            });
-            console.log('[PurchaseFlow] Local (Device) verification completed');
-          } else {
-            const verificationLabel =
-              currentVerificationMethod === 'iapkit-localhost'
-                ? 'Local (IAPKit)'
-                : 'IAPKit';
-            console.log(
-              `[PurchaseFlow] Verifying with ${verificationLabel}...`,
-            );
-
-            const apiKey = IAPKIT_API_KEY?.trim();
-            if (!apiKey) {
-              throw new Error('IAPKIT_API_KEY not configured');
-            }
-
-            const jwsOrToken = purchase.purchaseToken ?? '';
-            if (!jwsOrToken) {
-              throw new Error(
-                'No purchase token available for IAPKit verification',
-              );
-            }
-
-            const baseUrl = resolveIapkitVerificationBaseUrl(
-              currentVerificationMethod,
-              IAPKIT_BASE_URL,
-            );
-            const iapkitPayload = createIapkitVerificationPayload(
-              purchase,
-              jwsOrToken,
-              apiKey,
-              baseUrl,
-            );
-            const verifyRequest: VerifyPurchaseWithProviderProps = {
-              provider: 'iapkit',
-              iapkit: iapkitPayload,
-            };
-            console.log(
-              `[PurchaseFlow] Sending ${verificationLabel} verification request`,
-            );
-
-            const result = await verifyPurchaseWithProvider(verifyRequest);
-            console.log('[PurchaseFlow] IAPKit verification result:', result);
-
-            if (result.iapkit) {
-              const statusEmoji = result.iapkit.isValid ? '✅' : '⚠️';
-              const stateText = result.iapkit.state || 'unknown';
-
-              showNativeAlert(
-                `${statusEmoji} ${verificationLabel} Verification`,
-                `Valid: ${result.iapkit.isValid}\nState: ${stateText}\nStore: ${
-                  result.iapkit.store || 'unknown'
-                }`,
-              );
-            } else if (result.errors && result.errors.length > 0) {
-              const errorMessages = result.errors
-                .map((e) => `${e.code ? `[${e.code}] ` : ''}${e.message}`)
-                .join('\n');
-              showNativeAlert('⚠️ IAPKit Verification Error', errorMessages);
-            }
-          }
-        } catch (error) {
-          console.log('[PurchaseFlow] Verification failed:', error);
-          showNativeAlert(
-            'Verification Failed',
-            `Purchase verification failed: ${getErrorMessage(error)}`,
-          );
-        } finally {
-          setIsProcessing(false);
-        }
-      }
-
-      // ──────────────────────────────────────────────────────────────────────
-      // Step 5: GRANT ENTITLEMENT
-      // ──────────────────────────────────────────────────────────────────────
-      // Production integration point:
-      // - Save purchase record to database
-      // - Unlock premium features for user
-      // - Update user's subscription status
-      // Example: await yourBackend.grantEntitlement(purchase);
-
-      // ──────────────────────────────────────────────────────────────────────
-      // Step 6: FINISH TRANSACTION
-      // ──────────────────────────────────────────────────────────────────────
-      // CRITICAL: Always finish transactions!
-      // - Consumables: Set isConsumable: true to allow re-purchase
-      // - Non-consumables: Set isConsumable: false
-      // - Failing to finish will cause issues on next app launch
-      const finishCleanupKey = getPurchaseCleanupKey(purchase);
-      cleanupPurchaseKeysRef.current.add(finishCleanupKey);
-      try {
-        await finishTransaction({
-          purchase,
-          isConsumable: isConsumablePurchase,
-        });
-        setPurchaseResult(
-          `Purchase completed and finished successfully (state: ${purchase.purchaseState}).`,
-        );
-        showNativeAlert('Success', 'Purchase completed successfully!');
-      } catch (error) {
-        console.log('[PurchaseFlow] finishTransaction failed:', error);
-        const message = getErrorMessage(error);
-        setPurchaseResult(
-          `Purchase completed, but finishTransaction failed: ${message}`,
-        );
-        cleanupPurchaseKeysRef.current.delete(finishCleanupKey);
-        showNativeAlert('Finish Transaction Failed', message);
-      }
-    },
+    onPurchaseSuccess: dispatchPurchaseSuccess,
 
     // ────────────────────────────────────────────────────────────────────────
     // Step 2b: Purchase Error Handler
@@ -815,6 +907,18 @@ function PurchaseFlowContainer() {
         `Purchase failed: ${error.message} (code: ${error.code})`,
       );
     },
+  });
+
+  useLayoutEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      purchaseSuccessHandlerRef.current = async () => {};
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    purchaseSuccessHandlerRef.current = handlePurchaseSuccess;
   });
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -865,7 +969,6 @@ function PurchaseFlowContainer() {
       void fetchStorefront();
     } else if (!connected) {
       didFetchRef.current = false;
-      cleanupPurchaseKeysRef.current.clear();
       console.log('[PurchaseFlow] Not fetching products - not connected');
       setStorefront(null);
     }
@@ -885,29 +988,16 @@ function PurchaseFlowContainer() {
       }
 
       const cleanupKey = getPurchaseCleanupKey(purchase);
-      if (cleanupPurchaseKeysRef.current.has(cleanupKey)) continue;
-      cleanupPurchaseKeysRef.current.add(cleanupKey);
+      if (completedPurchaseKeys.has(cleanupKey)) continue;
 
-      const isConsumablePurchase = CONSUMABLE_PRODUCT_ID_SET.has(productId);
-      finishTransaction({
-        purchase,
-        isConsumable: isConsumablePurchase,
-      })
-        .then(() => {
-          console.log('[PurchaseFlow] cleaned up available purchase:', {
-            productId,
-            isConsumable: isConsumablePurchase,
-          });
-        })
-        .catch((error) => {
-          cleanupPurchaseKeysRef.current.delete(cleanupKey);
-          console.log(
-            '[PurchaseFlow] available purchase cleanup failed:',
-            error,
-          );
-        });
+      void dispatchPurchaseSuccess(purchase).catch((error) => {
+        console.log(
+          '[PurchaseFlow] restored purchase handler failed unexpectedly:',
+          error,
+        );
+      });
     }
-  }, [availablePurchases, connected, finishTransaction]);
+  }, [availablePurchases, connected, dispatchPurchaseSuccess]);
 
   // ──────────────────────────────────────────────────────────────────────────
   // Step 3: REQUEST PURCHASE
