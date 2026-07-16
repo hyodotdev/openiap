@@ -316,7 +316,12 @@ async function onPurchaseUpdated(purchase: Purchase) {
     },
   });
 
-  if (result.iapkit?.isValid) {
+  const verified = result.iapkit;
+  if (
+    verified?.isValid === true &&
+    verified.productId != null &&
+    verified.productId === purchase.productId
+  ) {
     await finishTransaction({ purchase, isConsumable: true });
     await getAvailablePurchases();
   }

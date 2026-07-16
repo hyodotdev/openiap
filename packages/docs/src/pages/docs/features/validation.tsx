@@ -49,6 +49,10 @@ function Validation() {
             <strong>Error ≠ Invalid</strong>: Network errors don't mean the
             purchase is invalid
           </li>
+          <li>
+            <strong>Optional product data</strong>: Valid Apple and Google
+            verification can opt into a public IAPKit client payload
+          </li>
         </ul>
       </TLDRBox>
 
@@ -264,6 +268,11 @@ if result is VerifyPurchaseResultIOS and result.is_valid:
             no App Store private key rotation, no webhook plumbing required to
             get started.
           </li>
+          <li>
+            <strong>Public per-product rules</strong> — attach a small TOML,
+            JSON, or text payload to each iOS or Android product and retrieve it
+            during valid Apple or Google verification, or when the app opens.
+          </li>
         </ul>
 
         <h4>When to roll your own instead</h4>
@@ -314,6 +323,12 @@ if result is VerifyPurchaseResultIOS and result.is_valid:
         </p>
 
         <h4>Example</h4>
+        <p>
+          Fail closed when granting access: require IAPKit's store-verified{' '}
+          <code>productId</code> and compare it with the product requested by
+          the app. The local purchase ID is an expected value, not a fallback
+          when verification omits the ID.
+        </p>
         <LanguageTabs>
           {{
             typescript: (
@@ -323,30 +338,37 @@ const result = await verifyPurchaseWithProvider({
   provider: 'iapkit',
   iapkit: {
     apiKey: 'openiap-kit_<your-key>',
-    // Choose exactly one store payload.
-    // apple: { jws: purchase.purchaseToken },
-    // google: { purchaseToken: purchase.purchaseToken },
-    amazon: {
-      receiptId: purchase.purchaseToken,
-      sandbox: __DEV__,
-    },
+    includeClientPayload: true,
+    google: { purchaseToken: purchase.purchaseToken ?? '' },
   },
 });
 
-if (result.iapkit?.isValid && result.iapkit?.state === 'entitled') {
-  await grantEntitlement(purchase.productId);
+const verified = result.iapkit;
+const verifiedProductId = verified?.productId;
+if (
+  verified?.isValid === true &&
+  (verified.state === 'entitled' ||
+    verified.state === 'pending-acknowledgment') &&
+  verifiedProductId != null &&
+  verifiedProductId === purchase.productId
+) {
+  await grantEntitlement(verifiedProductId);
+  const publicRules = verified.clientPayload?.body;
+  if (publicRules) applyPublicRules(publicRules);
   await finishTransaction({ purchase, isConsumable: false });
 }`}</CodeBlock>
             ),
             swift: (
-              <CodeBlock language="swift">{`let result = try await store.verifyPurchaseWithProvider(
+              <CodeBlock language="swift">{`import OpenIAP
+
+let result = try await OpenIapModule.shared.verifyPurchaseWithProvider(
     VerifyPurchaseWithProviderProps(
         iapkit: RequestVerifyPurchaseWithIapkitProps(
             apiKey: "openiap-kit_<your-key>",
             apple: RequestVerifyPurchaseWithIapkitAppleProps(
                 jws: purchase.purchaseToken ?? ""
             ),
-            google: nil
+            includeClientPayload: true
         ),
         provider: .iapkit
     )
@@ -358,8 +380,9 @@ if (result.iapkit?.isValid && result.iapkit?.state === 'entitled') {
         iapkit = RequestVerifyPurchaseWithIapkitProps(
             apiKey = "openiap-kit_<your-key>",
             google = RequestVerifyPurchaseWithIapkitGoogleProps(
-                purchaseToken = purchase.purchaseToken
-            )
+                purchaseToken = purchase.purchaseToken.orEmpty()
+            ),
+            includeClientPayload = true
         ),
         provider = PurchaseVerificationProvider.Iapkit
     )
@@ -371,19 +394,23 @@ if (result.iapkit?.isValid && result.iapkit?.state === 'entitled') {
         iapkit = RequestVerifyPurchaseWithIapkitProps(
             apiKey = "openiap-kit_<your-key>",
             google = RequestVerifyPurchaseWithIapkitGoogleProps(
-                purchaseToken = purchase.purchaseToken
-            )
+                purchaseToken = purchase.purchaseToken.orEmpty()
+            ),
+            includeClientPayload = true
         ),
         provider = PurchaseVerificationProvider.Iapkit
     )
 )`}</CodeBlock>
             ),
             dart: (
-              <CodeBlock language="dart">{`final result = await iap.verifyPurchaseWithProvider(
+              <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+
+final result = await FlutterInappPurchase.instance.verifyPurchaseWithProvider(
   provider: PurchaseVerificationProvider.Iapkit,
   iapkit: RequestVerifyPurchaseWithIapkitProps(
     apiKey: 'openiap-kit_<your-key>',
     apple: RequestVerifyPurchaseWithIapkitAppleProps(jws: purchase.purchaseToken ?? ''),
+    includeClientPayload: true,
   ),
 );`}</CodeBlock>
             ),
@@ -398,36 +425,106 @@ var result = await ((MutationResolver)OpenIapClient.Instance)
         Iapkit = new RequestVerifyPurchaseWithIapkitProps
         {
             ApiKey = "openiap-kit_<your-key>",
+            IncludeClientPayload = true,
             Google = new RequestVerifyPurchaseWithIapkitGoogleProps
             {
-                PurchaseToken = purchase.PurchaseToken!,
+                PurchaseToken = purchase.PurchaseToken ?? string.Empty,
             },
         },
     });
 
-if (result.Iapkit?.IsValid == true)
+var verified = result.Iapkit;
+var verifiedProductId = verified?.ProductId;
+if (verified is { IsValid: true } &&
+    (verified.State == IapkitPurchaseState.Entitled ||
+     verified.State == IapkitPurchaseState.PendingAcknowledgment) &&
+    verifiedProductId is not null &&
+    verifiedProductId == purchase.ProductId)
 {
-    await GrantEntitlementAsync(purchase.ProductId);
+    await GrantEntitlementAsync(verifiedProductId);
 }`}</CodeBlock>
             ),
             gdscript: (
-              <CodeBlock language="gdscript">{`var iapkit_props = RequestVerifyPurchaseWithIapkitProps.new()
+              <CodeBlock language="gdscript">{`const Types = preload("res://addons/godot-iap/types.gd")
+
+var iapkit_props = Types.RequestVerifyPurchaseWithIapkitProps.new()
 iapkit_props.api_key = "openiap-kit_<your-key>"
-iapkit_props.google = RequestVerifyPurchaseWithIapkitGoogleProps.new()
+iapkit_props.include_client_payload = true
+iapkit_props.google = Types.RequestVerifyPurchaseWithIapkitGoogleProps.new()
 iapkit_props.google.purchase_token = purchase.purchase_token
 
-var props = VerifyPurchaseWithProviderProps.new()
-props.provider = PurchaseVerificationProvider.IAPKIT
+var props = Types.VerifyPurchaseWithProviderProps.new()
+props.provider = Types.PurchaseVerificationProvider.IAPKIT
 props.iapkit = iapkit_props
 
 var result = await iap.verify_purchase_with_provider(props)
 
-if result.iapkit.is_valid and result.iapkit.state == IapkitPurchaseState.ENTITLED:
-    await grant_entitlement(purchase.product_id)
+var verified_product_id = result.iapkit.product_id if result.iapkit != null else null
+if (
+    result.iapkit != null
+    and result.iapkit.is_valid
+    and result.iapkit.state in [
+        Types.IapkitPurchaseState.ENTITLED,
+        Types.IapkitPurchaseState.PENDING_ACKNOWLEDGMENT,
+    ]
+    and verified_product_id != null
+    and verified_product_id == purchase.product_id
+):
+    await grant_entitlement(verified_product_id)
     await iap.finish_transaction(purchase, false)`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
+
+        <h4>Optional product client payload</h4>
+        <p>
+          Set <code>iapkit.includeClientPayload</code> to <code>true</code> to
+          request the product's public IAPKit payload. The default is{' '}
+          <code>false</code>. IAPKit returns <code>clientPayload</code> only
+          when Apple or Google verifies the receipt as valid, the store supplies
+          the product ID, and the matching IAPKit product is currently present,
+          not removed, and has a payload. Invalid receipts, absent or removed
+          products, missing payloads, Horizon, and Amazon responses omit the
+          field. A retained payload becomes eligible again after store sync
+          re-pulls its matching product.
+        </p>
+        <CodeBlock language="json">{`{
+  "store": "google",
+  "isValid": true,
+  "state": "entitled",
+  "productId": "premium_monthly",
+  "clientPayload": {
+    "format": "toml",
+    "body": "[access]\\nmax_items = 10",
+    "version": 3,
+    "updatedAt": 1784160000000
+  }
+}`}</CodeBlock>
+        <div className="alert-card alert-card--warning">
+          <p>
+            <strong>Public, non-authoritative data:</strong> The payload is
+            client-visible and limited to 16 KiB of UTF-8. Never store secrets
+            or server-only authorization rules in it, and never use its content
+            instead of <code>isValid</code>, <code>state</code>, or the
+            store-verified <code>productId</code> for entitlement decisions.
+          </p>
+          <p>
+            A project key compiled into an app can be extracted. It keeps its
+            existing project-scoped endpoint permissions and consumes that
+            project's quota; create separate keys for each build or environment
+            and rotate or revoke a key when a build is retired or compromised.
+          </p>
+        </div>
+        <p>
+          This is request/response retrieval, not an APNs or FCM push. To fetch
+          rules when the app opens without verifying a new purchase, use the
+          React Native or Expo <code>kitApi</code> product methods, or MAUI's{' '}
+          <code>KitApiClient</code>, as described in{' '}
+          <Link to="/docs/kit-backend#product-client-payloads">
+            Product client payloads
+          </Link>
+          .
+        </p>
 
         <h4>IAPKit Purchase States</h4>
         <table className="doc-table">
@@ -505,7 +602,12 @@ if result.iapkit.is_valid and result.iapkit.state == IapkitPurchaseState.ENTITLE
             misconfigured API keys.
           </p>
           <p>
-            <strong>Don't penalize customers for verification failures.</strong>
+            <strong>
+              Don't revoke previously verified access because of a transient
+              failure.
+            </strong>{' '}
+            At the same time, never grant or finish a new purchase that has not
+            been verified.
           </p>
         </div>
 
@@ -516,23 +618,40 @@ if result.iapkit.is_valid and result.iapkit.state == IapkitPurchaseState.ENTITLE
     iapkit: { apiKey: 'your-key', apple: { jws: purchase.purchaseToken } },
   });
 
-  if (result.iapkit?.isValid) {
-    // Verification succeeded - grant access
+  const verified = result.iapkit;
+  const verifiedProductId = verified?.productId;
+  if (
+    verified?.isValid === true &&
+    (verified.state === 'entitled' ||
+      verified.state === 'pending-acknowledgment') &&
+    verifiedProductId != null &&
+    verifiedProductId === purchase.productId
+  ) {
+    // Non-consumable/subscription: grant before acknowledging the purchase.
+    await grantEntitlement(verifiedProductId);
     await finishTransaction({ purchase, isConsumable: false });
-    grantAccess();
+  } else if (
+    verified?.isValid === true &&
+    verified.state === 'ready-to-consume' &&
+    verifiedProductId != null &&
+    verifiedProductId === purchase.productId
+  ) {
+    // Consumable: persist delivery before consuming so it cannot be lost.
+    await deliverConsumable(verifiedProductId);
+    await finishTransaction({ purchase, isConsumable: true });
   } else {
-    // Verification returned invalid - actually invalid purchase
-    // Don't call finishTransaction - allow retry
-    denyAccess();
+    // IAPKit completed the check but did not verify this entitlement.
+    // Do not grant or finish this purchase.
+    recordRejectedVerification(purchase, verified);
   }
 } catch (error) {
-  // Verification itself failed (network, server error, etc.)
-  // This doesn't mean the purchase is invalid
+  // A network/server error is not proof that the purchase is invalid.
   console.error('Verification failed:', error);
 
-  // Fail-open approach: grant access anyway
-  await finishTransaction({ purchase, isConsumable: false });
-  grantAccess();
+  // Keep only access established by an earlier successful verification.
+  // Do not grant this purchase or finish it; retry verification later.
+  preservePreviouslyVerifiedEntitlements();
+  scheduleVerificationRetry(purchase);
 }`}</CodeBlock>
       </section>
 

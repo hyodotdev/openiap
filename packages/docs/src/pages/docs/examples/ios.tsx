@@ -284,7 +284,12 @@ async function onPurchaseUpdated(purchase: Purchase) {
     iapkit: { apple: { jws } },
   });
 
-  if (result.iapkit?.isValid) {
+  const verified = result.iapkit;
+  if (
+    verified?.isValid === true &&
+    verified.productId != null &&
+    verified.productId === purchase.productId
+  ) {
     await finishTransaction({ purchase, isConsumable: true });
     await getAvailablePurchases();
   }

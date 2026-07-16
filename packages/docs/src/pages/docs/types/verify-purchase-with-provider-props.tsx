@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
 import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
@@ -10,7 +11,7 @@ function VerifyPurchaseWithProviderProps() {
     <div className="doc-page">
       <SEO
         title="VerifyPurchaseWithProviderProps"
-        description="VerifyPurchaseWithProviderProps type definition and field reference."
+        description="VerifyPurchaseWithProviderProps field reference, including IAPKit client payload opt-in behavior."
         path="/docs/types/verify-purchase-with-provider-props"
         keywords="VerifyPurchaseWithProviderProps, OpenIAP types, Verify Purchase With Provider Props"
       />
@@ -90,7 +91,11 @@ function VerifyPurchaseWithProviderProps() {
         <AnchorLink id="request-verify-purchase-with-iapkit-props" level="h3">
           RequestVerifyPurchaseWithIapkitProps
         </AnchorLink>
-        <p>Parameters for IAPKit verification.</p>
+        <p>
+          Parameters for IAPKit verification. Product client payload enrichment
+          is opt-in, so existing integrations keep the same response shape and
+          bandwidth by default.
+        </p>
         <table className="doc-table">
           <thead>
             <tr>
@@ -130,6 +135,22 @@ function VerifyPurchaseWithProviderProps() {
             </tr>
             <tr>
               <td>
+                <code>includeClientPayload</code>
+              </td>
+              <td>
+                <code>boolean?</code>
+              </td>
+              <td>
+                Defaults to <code>false</code>. When <code>true</code>, a valid
+                Apple or Google verification may include the public product{' '}
+                <code>clientPayload</code> stored in IAPKit. Invalid receipts,
+                products without an active catalog row, removed products,
+                products without a payload, and Horizon or Amazon responses omit
+                it.
+              </td>
+            </tr>
+            <tr>
+              <td>
                 <code>apple</code>
               </td>
               <td>
@@ -160,6 +181,30 @@ function VerifyPurchaseWithProviderProps() {
             </tr>
           </tbody>
         </table>
+
+        <div className="alert-card alert-card--warning">
+          <p>
+            <strong>Client-visible data only:</strong> Product client payloads
+            can be retrieved by apps and must never contain credentials, signing
+            keys, or server-authoritative rules. The body is limited to 16 KiB
+            measured as UTF-8 bytes. A project key embedded in an app is
+            extractable and retains the key's existing project-scoped endpoint
+            permissions and quota usage; use separate keys per build or
+            environment and rotate or revoke them when needed.
+          </p>
+        </div>
+
+        <p>
+          See the{' '}
+          <Link to="/docs/types/verify-purchase-with-provider-result#iapkit-product-client-payload">
+            <code>IapkitProductClientPayload</code> result shape
+          </Link>{' '}
+          and the{' '}
+          <Link to="/docs/kit-backend#product-client-payloads">
+            IAPKit product client payload guide
+          </Link>
+          .
+        </p>
 
         <AnchorLink
           id="request-verify-purchase-with-iapkit-apple-props"
