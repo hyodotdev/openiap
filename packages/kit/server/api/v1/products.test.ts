@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Hono } from "hono";
+import { ConvexError } from "convex/values";
 
 const mocks = vi.hoisted(() => ({
   query: vi.fn(),
@@ -11,6 +12,8 @@ vi.mock("@/convex", () => ({
     products: {
       query: {
         listProducts: "listProducts",
+        listProductsWithClientPayloads: "listProductsWithClientPayloads",
+        getProductClientPayload: "getProductClientPayload",
       },
       mutation: {
         upsertProduct: "upsertProduct",
@@ -537,6 +540,227 @@ describe("productsRoutes", () => {
       state: undefined,
       storeRef: undefined,
     });
+  });
+
+  it("strictly parses and forwards the bounded client-payload list opt-in", async () => {
+    const app = buildApp();
+    mocks.query.mockResolvedValueOnce({
+      products: [{ productId: "premium" }],
+      hasMore: true,
+      nextCursor: "opaque/next=2",
+    });
+
+    const response = await app.request(
+      "/products/key?platform=IOS&includeClientPayload=true&limit=10&cursor=opaque%2Fstart%3D1",
+    );
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      products: [{ productId: "premium" }],
+      hasMore: true,
+      nextCursor: "opaque/next=2",
+    });
+    expect(mocks.query).toHaveBeenLastCalledWith(
+      "listProductsWithClientPayloads",
+      {
+        apiKey: "key",
+        platform: "IOS",
+        limit: 10,
+        cursor: "opaque/start=1",
+      },
+    );
+
+    mocks.query.mockResolvedValue([]);
+    const explicitFalse = await app.request(
+      "/products/key?platform=IOS&includeClientPayload=false",
+    );
+    expect(explicitFalse.status).toBe(200);
+    await expect(explicitFalse.json()).resolves.toEqual({ products: [] });
+    expect(mocks.query).toHaveBeenLastCalledWith("listProducts", {
+      apiKey: "key",
+      platform: "IOS",
+    });
+
+    mocks.query.mockClear();
+    const invalid = await app.request(
+      "/products/key?includeClientPayload=TRUE",
+    );
+    expect(invalid.status).toBe(400);
+    await expect(invalid.json()).resolves.toEqual({
+      errors: [
+        {
+          code: "INVALID_INPUT",
+          message: "includeClientPayload must be true|false",
+        },
+      ],
+    });
+    expect(mocks.query).not.toHaveBeenCalled();
+  });
+
+  it("requires a platform and validates payload-page inputs before Convex", async () => {
+    const app = buildApp();
+    const cases = [
+      [
+        "/products/key?includeClientPayload=true",
+        "platform is required when includeClientPayload=true",
+      ],
+      [
+        "/products/key?platform=IOS&includeClientPayload=true&limit=0",
+        "limit must be an integer between 1 and 50",
+      ],
+      [
+        "/products/key?platform=IOS&includeClientPayload=true&limit=51",
+        "limit must be an integer between 1 and 50",
+      ],
+      [
+        "/products/key?platform=IOS&includeClientPayload=true&limit=1.5",
+        "limit must be an integer between 1 and 50",
+      ],
+      [
+        "/products/key?platform=IOS&includeClientPayload=true&cursor=%20",
+        "cursor must be a non-empty string of at most 4096 characters",
+      ],
+    ] as const;
+
+    for (const [url, message] of cases) {
+      const response = await app.request(url);
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toEqual({
+        errors: [{ code: "INVALID_INPUT", message }],
+      });
+    }
+    expect(mocks.query).not.toHaveBeenCalled();
+  });
+
+  it("keeps ignoring payload-page params on the legacy default path", async () => {
+    const app = buildApp();
+    mocks.query.mockResolvedValue([]);
+
+    for (const cursor of ["legacy-value", "%20", "x".repeat(4097)]) {
+      const response = await app.request(
+        `/products/key?platform=IOS&limit=not-a-number&cursor=${cursor}`,
+      );
+
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual({ products: [] });
+      expect(mocks.query).toHaveBeenLastCalledWith("listProducts", {
+        apiKey: "key",
+        platform: "IOS",
+      });
+    }
+  });
+
+  it("uses the 25-item payload page default", async () => {
+    const app = buildApp();
+    mocks.query.mockResolvedValueOnce({ products: [], hasMore: false });
+
+    const response = await app.request(
+      "/products/key?platform=Android&includeClientPayload=true",
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.query).toHaveBeenCalledWith("listProductsWithClientPayloads", {
+      apiKey: "key",
+      platform: "Android",
+      limit: 25,
+    });
+  });
+
+  it("returns a restartable 400 when catalog churn invalidates a cursor", async () => {
+    const app = buildApp();
+    mocks.query.mockRejectedValueOnce(
+      new ConvexError({
+        isConvexSystemError: true,
+        paginationError: "InvalidCursor",
+      }),
+    );
+
+    const response = await app.request(
+      "/products/key?platform=IOS&includeClientPayload=true&cursor=stale",
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      errors: [
+        {
+          code: "INVALID_CURSOR",
+          message:
+            "cursor is no longer valid; restart from the first page without cursor",
+        },
+      ],
+    });
+  });
+
+  it("keeps the default product list read opted out", async () => {
+    const app = buildApp();
+    mocks.query.mockResolvedValueOnce([]);
+
+    const response = await app.request("/products/key");
+
+    expect(response.status).toBe(200);
+    expect(mocks.query).toHaveBeenCalledWith("listProducts", {
+      apiKey: "key",
+      platform: undefined,
+    });
+  });
+
+  it("serves the read-only product client-payload endpoint", async () => {
+    const app = buildApp();
+    const clientPayload = {
+      format: "toml",
+      body: 'rule = "premium"',
+      version: 3,
+      updatedAt: 123,
+    };
+    mocks.query.mockResolvedValueOnce(clientPayload);
+
+    const response = await app.request(
+      "/products/key/premium.monthly/client-payload?platform=Android",
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ clientPayload });
+    expect(mocks.query).toHaveBeenCalledWith("getProductClientPayload", {
+      apiKey: "key",
+      productId: "premium.monthly",
+      platform: "Android",
+    });
+    expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 for a missing client payload", async () => {
+    const app = buildApp();
+    mocks.query.mockResolvedValueOnce(null);
+
+    const response = await app.request(
+      "/products/key/premium.monthly/client-payload?platform=IOS",
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      errors: [
+        {
+          code: "NOT_FOUND",
+          message: "Product client payload not found",
+        },
+      ],
+    });
+  });
+
+  it("validates direct client-payload lookup inputs before Convex", async () => {
+    const app = buildApp();
+    const cases = [
+      app.request("/products/key/premium/client-payload"),
+      app.request("/products/key/premium/client-payload?platform=Web"),
+      app.request(
+        `/products/key/${"p".repeat(257)}/client-payload?platform=IOS`,
+      ),
+    ];
+
+    for (const responsePromise of cases) {
+      const response = await responsePromise;
+      expect(response.status).toBe(400);
+    }
+    expect(mocks.query).not.toHaveBeenCalled();
   });
 
   it("does not return raw internal product mutation errors", async () => {

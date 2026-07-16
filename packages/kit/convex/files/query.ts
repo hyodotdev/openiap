@@ -1,7 +1,29 @@
-import { query } from "../_generated/server";
+import { query, type QueryCtx } from "../_generated/server";
+import type { Id } from "../_generated/dataModel";
 import { v } from "convex/values";
 import { ConvexError } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import {
+  getWritableOrganization,
+  getWritableProject,
+} from "../projects/writable";
+
+async function getPendingProjectIdsForOrganization(
+  ctx: QueryCtx,
+  organizationId: Id<"organizations">,
+): Promise<Set<Id<"projects">>> {
+  const pendingProjectIds = new Set<Id<"projects">>();
+  for await (const project of ctx.db
+    .query("projects")
+    .withIndex("by_organization", (q) =>
+      q.eq("organizationId", organizationId),
+    )) {
+    if (project.pendingDeletion === true) {
+      pendingProjectIds.add(project._id);
+    }
+  }
+  return pendingProjectIds;
+}
 
 // List files - returns only metadata, NEVER storageId or URLs
 export const list = query({
@@ -22,6 +44,12 @@ export const list = query({
       throw new ConvexError("Not authenticated");
     }
 
+    const organization = await getWritableOrganization(
+      ctx,
+      args.organizationId,
+    );
+    if (!organization) return [];
+
     // Verify user has access to organization
     const membership = await ctx.db
       .query("organizationMembers")
@@ -32,6 +60,13 @@ export const list = query({
 
     if (!membership) {
       throw new ConvexError("Not a member of this organization");
+    }
+
+    if (args.projectId) {
+      const project = await getWritableProject(ctx, args.projectId);
+      if (!project || project.organizationId !== args.organizationId) {
+        return [];
+      }
     }
 
     // Build query
@@ -47,6 +82,16 @@ export const list = query({
     let filteredFiles = files;
     if (args.projectId) {
       filteredFiles = files.filter((f) => f.projectId === args.projectId);
+    } else {
+      const pendingProjectIds = await getPendingProjectIdsForOrganization(
+        ctx,
+        args.organizationId,
+      );
+      filteredFiles = files.filter(
+        (file) =>
+          file.projectId === undefined ||
+          !pendingProjectIds.has(file.projectId),
+      );
     }
 
     // Filter by purpose if specified
@@ -106,6 +151,18 @@ export const get = query({
     const file = await ctx.db.get(args.fileId);
     if (!file) {
       return null;
+    }
+
+    const organization = await getWritableOrganization(
+      ctx,
+      file.organizationId,
+    );
+    if (!organization) return null;
+    if (file.projectId) {
+      const project = await getWritableProject(ctx, file.projectId);
+      if (!project || project.organizationId !== file.organizationId) {
+        return null;
+      }
     }
 
     // Verify user has access to organization
@@ -168,6 +225,12 @@ export const count = query({
       throw new ConvexError("Not authenticated");
     }
 
+    const organization = await getWritableOrganization(
+      ctx,
+      args.organizationId,
+    );
+    if (!organization) return 0;
+
     // Verify user has access to organization
     const membership = await ctx.db
       .query("organizationMembers")
@@ -187,11 +250,20 @@ export const count = query({
       )
       .collect();
 
+    const pendingProjectIds = await getPendingProjectIdsForOrganization(
+      ctx,
+      args.organizationId,
+    );
+    const visibleFiles = files.filter(
+      (file) =>
+        file.projectId === undefined || !pendingProjectIds.has(file.projectId),
+    );
+
     if (args.purpose) {
-      return files.filter((f) => f.purpose === args.purpose).length;
+      return visibleFiles.filter((f) => f.purpose === args.purpose).length;
     }
 
-    return files.length;
+    return visibleFiles.length;
   },
 });
 
@@ -207,7 +279,7 @@ export const getAppStoreFileByProject = query({
     }
 
     // Get project to verify access
-    const project = await ctx.db.get(args.projectId);
+    const project = await getWritableProject(ctx, args.projectId);
     if (!project) {
       return null;
     }
@@ -261,7 +333,7 @@ export const getAscApiKeyFileByProject = query({
     if (!userId) {
       return null;
     }
-    const project = await ctx.db.get(args.projectId);
+    const project = await getWritableProject(ctx, args.projectId);
     if (!project) {
       return null;
     }
@@ -305,7 +377,7 @@ export const getGooglePlayFileByProject = query({
     }
 
     // Get project to verify access
-    const project = await ctx.db.get(args.projectId);
+    const project = await getWritableProject(ctx, args.projectId);
     if (!project) {
       return null;
     }

@@ -183,10 +183,10 @@ export default function QuickstartPage() {
       </CodeBlock>
 
       <p>
-        <code>isValid</code> is the short-circuit answer your app can unlock
-        content on; <code>state</code> is the harmonized lifecycle position if
-        you need more granularity, and <code>productId</code> is the product id
-        verified by the store. See the{" "}
+        Never unlock or deliver from <code>isValid</code> alone. Also require an
+        exact match with the store-verified <code>productId</code>, then use the
+        platform and your app-owned product type to select the allowed{" "}
+        <code>state</code> and finish path. See the{" "}
         <Link to="/docs/api" className="text-primary underline">
           API reference
         </Link>{" "}
@@ -199,6 +199,27 @@ export default function QuickstartPage() {
           verification shows up with the store, state, and verification latency.
         </p>
       </Callout>
+
+      <h2 className="mt-10 text-2xl font-semibold">
+        Optional: return app-readable product rules
+      </h2>
+      <p>
+        In the project&apos;s <strong>Products</strong> tab, attach a public
+        TOML, JSON, or text <code>clientPayload</code> to a synced Apple or
+        Google product. Then add <code>includeClientPayload: true</code> to that
+        store&apos;s verification request. A valid response may include the
+        payload as a top-level sibling of <code>productId</code> when the
+        matching visible product has one. Payload omission does not invalidate
+        verification, and existing requests stay unchanged.
+      </p>
+      <p>
+        Payloads are retrieved when your app calls IAPKit—they are not APNs or
+        FCM notifications—and must never contain secrets. See{" "}
+        <Link to="/docs/products" className="text-primary underline">
+          Products & client payloads
+        </Link>{" "}
+        for editor, catalog-fetch, caching, and validation details.
+      </p>
     </DocsPage>
   );
 }

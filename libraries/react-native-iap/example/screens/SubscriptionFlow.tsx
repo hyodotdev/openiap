@@ -1,4 +1,11 @@
-import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   View,
   Text,
@@ -34,13 +41,25 @@ import {
 } from '../src/hooks/useVerificationMethod';
 import {
   createIapkitVerificationPayload,
+  getDirectVerificationError,
+  getIapkitVerificationError,
   getPurchaseCleanupKey,
+  rememberCompletedPurchaseKey,
   resolveIapkitVerificationBaseUrl,
   showNativeAlert,
 } from '../src/utils/vegaRuntime';
 import PurchaseSummaryRow from '../src/components/PurchaseSummaryRow';
 import VerificationMethodSelectorModal from '../src/components/VerificationMethodSelectorModal';
 import {IAPKIT_API_KEY, IAPKIT_BASE_URL} from '@env';
+
+type InFlightSubscriptionTask = {
+  result: Promise<'abandoned' | 'failed' | 'finished'>;
+  complete: (result: 'abandoned' | 'failed' | 'finished') => void;
+  owner: object;
+};
+
+const inFlightSubscriptionTasks = new Map<string, InFlightSubscriptionTask>();
+const completedSubscriptionKeys = new Set<string>();
 
 type ExtendedPurchase = Purchase & {
   purchaseTokenAndroid?: string;
@@ -1650,8 +1669,19 @@ function SubscriptionFlowContainer() {
   const connectedRef = useRef(false);
   const fetchedProductsOnceRef = useRef(false);
   const statusAutoCheckedRef = useRef(false);
-  const cleanupPurchaseKeysRef = useRef(new Set<string>());
+  const purchaseSuccessHandlerRef = useRef<
+    (purchase: Purchase) => Promise<void>
+  >(async () => {});
+  const finishRetryTimersRef = useRef(
+    new Map<ReturnType<typeof setTimeout>, () => void>(),
+  );
+  const taskOwnerRef = useRef({});
   const mountedRef = useRef(true);
+
+  const dispatchPurchaseSuccess = useCallback(
+    (purchase: Purchase) => purchaseSuccessHandlerRef.current(purchase),
+    [],
+  );
 
   // ──────────────────────────────────────────────────────────────────────────
   // STEP 1: INIT CONNECTION + SUBSCRIBE TO EVENTS
@@ -1661,6 +1691,387 @@ function SubscriptionFlowContainer() {
   // - Sets up purchase event listeners (onPurchaseSuccess, onPurchaseError)
   // - Provides activeSubscriptions state for easy status checking
   // - Cleans up on unmount
+  const handlePurchaseSuccess = async (purchase: Purchase): Promise<void> => {
+    if (!mountedRef.current) return;
+
+    console.log('Purchase successful:', purchase.productId);
+    const productId = purchase.productId ?? '';
+    if (!isSubscriptionFlowProduct(productId)) {
+      console.log('[SubscriptionFlow] ignoring non-subscription product:', {
+        productId,
+      });
+      return;
+    }
+
+    const purchaseCleanupKey = getPurchaseCleanupKey(purchase);
+    if (completedSubscriptionKeys.has(purchaseCleanupKey)) {
+      console.log('[SubscriptionFlow] ignoring duplicate purchase callback:', {
+        productId,
+      });
+      return;
+    }
+    const inFlightTask = inFlightSubscriptionTasks.get(purchaseCleanupKey);
+    if (inFlightTask) {
+      const shouldRefreshAfterRemount =
+        inFlightTask.owner !== taskOwnerRef.current;
+      console.log('[SubscriptionFlow] ignoring duplicate purchase task:', {
+        productId,
+      });
+      void inFlightTask.result.then((result) => {
+        if (result === 'finished') {
+          rememberCompletedPurchaseKey(
+            completedSubscriptionKeys,
+            purchaseCleanupKey,
+          );
+          if (shouldRefreshAfterRemount && mountedRef.current) {
+            void getActiveSubscriptions(SUBSCRIPTION_PRODUCT_IDS).catch(
+              (error) => {
+                console.log(
+                  'Failed to refresh subscriptions after remount:',
+                  getErrorMessage(error),
+                );
+              },
+            );
+          }
+        } else if (result === 'abandoned' && mountedRef.current) {
+          void dispatchPurchaseSuccess(purchase);
+        }
+      });
+      return;
+    }
+
+    let taskReleased = false;
+    let completeTask!: (result: 'abandoned' | 'failed' | 'finished') => void;
+    const taskResult = new Promise<'abandoned' | 'failed' | 'finished'>(
+      (resolve) => {
+        completeTask = resolve;
+      },
+    );
+    const task: InFlightSubscriptionTask = {
+      result: taskResult,
+      complete: completeTask,
+      owner: taskOwnerRef.current,
+    };
+    const releasePurchaseTask = (
+      result: 'abandoned' | 'failed' | 'finished' = 'failed',
+    ) => {
+      if (taskReleased) return;
+      taskReleased = true;
+      if (inFlightSubscriptionTasks.get(purchaseCleanupKey) === task) {
+        inFlightSubscriptionTasks.delete(purchaseCleanupKey);
+      }
+      task.complete(result);
+    };
+    inFlightSubscriptionTasks.set(purchaseCleanupKey, task);
+
+    // Try to detect which plan was purchased
+    if (Platform.OS === 'ios') {
+      // iOS uses separate products
+      if (purchase.productId === 'dev.hyo.martie.premium_year') {
+        setLastPurchasedPlan('premium-year');
+        console.log('Detected yearly plan from purchase (iOS)');
+      } else if (purchase.productId === 'dev.hyo.martie.premium') {
+        setLastPurchasedPlan('premium');
+        console.log('Detected monthly plan from purchase (iOS)');
+      }
+    } else if (purchase.productId === 'dev.hyo.martie.premium') {
+      // Android: Check if we have offerToken or other data to identify the plan
+      const purchaseData = purchase as ExtendedPurchase;
+
+      console.log('Purchase data for plan detection:', {
+        productId: purchase.productId,
+        hasOfferToken: Boolean(purchaseData.offerToken),
+      });
+
+      // Map offerToken to basePlanId using fetched subscription data (cross-platform)
+      if (purchaseData.offerToken) {
+        const premiumSub = subscriptions.find(
+          (s) => s.id === 'dev.hyo.martie.premium',
+        ) as ProductSubscriptionAndroid;
+        const matchingOffer = premiumSub?.subscriptionOffers?.find(
+          (offer) => offer.offerTokenAndroid === purchaseData.offerToken,
+        );
+        if (matchingOffer?.basePlanIdAndroid) {
+          setLastPurchasedPlan(matchingOffer.basePlanIdAndroid);
+          console.log(
+            'Detected plan from offerToken (Android):',
+            matchingOffer.basePlanIdAndroid,
+          );
+        } else {
+          // Fallback if we can't find the matching offer
+          console.log('Could not map selected offer to base plan');
+        }
+      }
+    }
+
+    lastSuccessAtRef.current = Date.now();
+    setLastPurchase(purchase);
+    setIsProcessing(false);
+
+    setPurchaseResult(
+      `Subscription received; finishing transaction...\n` +
+        `Product: ${purchase.productId}\n` +
+        `Transaction ID: ${purchase.id}\n` +
+        `Date: ${formatPurchaseDate(purchase.transactionDate)}`,
+    );
+
+    // ──────────────────────────────────────────────────────────────────────
+    // STEP 3: VERIFY PURCHASE
+    // ──────────────────────────────────────────────────────────────────────
+    // Choose verification method:
+    // - 'ignore': Skip verification (testing only - NOT for production)
+    // - 'local': Direct Apple/Google verification on the device
+    // - 'iapkit-localhost': IAPKit provider through the local server
+    // - 'iapkit': IAPKit provider through the hosted service
+    //
+    // ⚠️ Server-side validation is recommended for production:
+    // - iOS: App Store Server API + App Store Server Notifications V2
+    // - Android: Google Play Developer API + RTDN
+    const currentVerificationMethod = verificationMethodRef.current;
+    let iapkitVerifyRequest: VerifyPurchaseWithProviderProps | null = null;
+    console.log('[SubscriptionFlow] About to verify purchase:', {
+      verificationMethod: currentVerificationMethod,
+      productId,
+      willVerify: currentVerificationMethod !== 'ignore' && !!productId,
+    });
+
+    if (currentVerificationMethod !== 'ignore' && productId) {
+      setIsProcessing(true);
+      try {
+        if (currentVerificationMethod === 'local') {
+          console.log('[SubscriptionFlow] Verifying with Local (Device)...');
+          // Production apps must obtain Google Play API credentials from
+          // their backend rather than bundling them in the client.
+          const result = await verifyPurchase({
+            apple: {sku: productId},
+            google: {
+              sku: productId,
+              accessToken: 'YOUR_OAUTH_ACCESS_TOKEN',
+              packageName: 'dev.hyo.martie',
+              purchaseToken: purchase.purchaseToken ?? '',
+              isSub: true,
+            },
+          });
+          const verificationError = getDirectVerificationError(result);
+          if (verificationError) {
+            throw new Error(verificationError);
+          }
+          console.log(
+            '[SubscriptionFlow] Local (Device) verification completed',
+          );
+        } else {
+          const verificationLabel =
+            currentVerificationMethod === 'iapkit-localhost'
+              ? 'Local (IAPKit)'
+              : 'IAPKit';
+          console.log(
+            `[SubscriptionFlow] Verifying with ${verificationLabel}...`,
+          );
+
+          const apiKey = IAPKIT_API_KEY?.trim();
+          if (!apiKey) {
+            throw new Error('IAPKIT_API_KEY not configured');
+          }
+
+          const jwsOrToken = purchase.purchaseToken ?? '';
+          if (!jwsOrToken) {
+            throw new Error(
+              'No purchase token available for IAPKit verification',
+            );
+          }
+
+          const baseUrl = resolveIapkitVerificationBaseUrl(
+            currentVerificationMethod,
+            IAPKIT_BASE_URL,
+          );
+          const iapkitPayload = createIapkitVerificationPayload(
+            purchase,
+            jwsOrToken,
+            apiKey,
+            baseUrl,
+          );
+          const verifyRequest: VerifyPurchaseWithProviderProps = {
+            provider: 'iapkit',
+            iapkit: iapkitPayload,
+          };
+          iapkitVerifyRequest = verifyRequest;
+          console.log(
+            `[SubscriptionFlow] Sending ${verificationLabel} verification request`,
+          );
+
+          const result = await verifyPurchaseWithProvider(verifyRequest);
+          console.log('[SubscriptionFlow] IAPKit verification result:', result);
+
+          const verificationError = getIapkitVerificationError(
+            result,
+            productId,
+          );
+          if (verificationError) {
+            throw new Error(verificationError);
+          }
+
+          if (result.iapkit && mountedRef.current) {
+            const stateText = result.iapkit.state || 'unknown';
+
+            showNativeAlert(
+              `✅ ${verificationLabel} Verification`,
+              `Valid: true\nState: ${stateText}\nStore: ${
+                result.iapkit.store || 'unknown'
+              }`,
+            );
+          }
+        }
+      } catch (error) {
+        const message = getErrorMessage(error);
+        console.log('[SubscriptionFlow] Verification failed:', message);
+        if (mountedRef.current) {
+          setPurchaseResult(`Subscription verification failed: ${message}`);
+          showNativeAlert(
+            'Verification Failed',
+            `Purchase verification failed: ${message}`,
+          );
+        }
+        releasePurchaseTask(mountedRef.current ? 'failed' : 'abandoned');
+        return;
+      } finally {
+        if (mountedRef.current) {
+          setIsProcessing(false);
+        }
+      }
+    }
+
+    if (!mountedRef.current) {
+      releasePurchaseTask('abandoned');
+      return;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // STEP 4: GRANT ENTITLEMENT
+    // ──────────────────────────────────────────────────────────────────────
+    // Production integration point:
+    // - Save subscription record to database
+    // - Unlock premium features for user
+    // - Update user's subscription status
+    // - Handle subscription tiers/levels
+    // Example: await yourBackend.grantSubscriptionEntitlement(purchase);
+
+    // ──────────────────────────────────────────────────────────────────────
+    // STEP 5: FINISH TRANSACTION
+    // ──────────────────────────────────────────────────────────────────────
+    // CRITICAL: Always finish/acknowledge transactions!
+    // - iOS: finishTransaction removes from StoreKit queue
+    // - Android: Acknowledges purchase (required within 3 days)
+    // - Subscriptions are NOT consumable (isConsumable: false)
+    const isConsumable = false;
+
+    const finishAndRefreshSubscription = async (
+      finishLogLabel: string,
+    ): Promise<void> => {
+      try {
+        await finishTransaction({
+          purchase,
+          isConsumable,
+        });
+      } catch (error) {
+        const message = getErrorMessage(error);
+        if (mountedRef.current) {
+          setPurchaseResult(
+            `Subscription activated, but finishTransaction failed: ${message}`,
+          );
+        }
+        console.log(`[SubscriptionFlow] ${finishLogLabel} failed:`, message);
+        releasePurchaseTask(mountedRef.current ? 'failed' : 'abandoned');
+        return;
+      }
+
+      rememberCompletedPurchaseKey(
+        completedSubscriptionKeys,
+        purchaseCleanupKey,
+      );
+      releasePurchaseTask('finished');
+
+      if (!mountedRef.current) return;
+
+      if (Platform.OS === 'android' && iapkitVerifyRequest) {
+        try {
+          const refreshedResult =
+            await verifyPurchaseWithProvider(iapkitVerifyRequest);
+          console.log(
+            '[SubscriptionFlow] IAPKit state after finishTransaction:',
+            refreshedResult,
+          );
+        } catch (error) {
+          console.log(
+            '[SubscriptionFlow] IAPKit post-finish verification failed:',
+            getErrorMessage(error),
+          );
+        }
+      }
+
+      if (!mountedRef.current) return;
+
+      try {
+        await getActiveSubscriptions(SUBSCRIPTION_PRODUCT_IDS);
+      } catch (error) {
+        console.log('Failed to refresh subscriptions:', getErrorMessage(error));
+      }
+
+      if (mountedRef.current) {
+        setPurchaseResult(
+          `Subscription activated and finished successfully.\n` +
+            `Product: ${purchase.productId}\n` +
+            `Transaction ID: ${purchase.id}\n` +
+            `Date: ${formatPurchaseDate(purchase.transactionDate)}`,
+        );
+        showNativeAlert('Success', 'Purchase completed successfully!');
+      }
+    };
+
+    if (!connectedRef.current) {
+      console.log(
+        '[SubscriptionFlow] Skipping finishTransaction - not connected yet',
+      );
+      setPurchaseResult(
+        'Subscription received, waiting for store connection to finish transaction.',
+      );
+      const started = Date.now();
+      const scheduleTryFinish = () => {
+        const timer = setTimeout(() => {
+          finishRetryTimersRef.current.delete(timer);
+          void tryFinish();
+        }, 500);
+        finishRetryTimersRef.current.set(timer, () => {
+          releasePurchaseTask('abandoned');
+        });
+      };
+      const tryFinish = async () => {
+        if (!mountedRef.current) {
+          releasePurchaseTask('abandoned');
+          return;
+        }
+
+        if (connectedRef.current) {
+          await finishAndRefreshSubscription('Delayed finishTransaction');
+          return;
+        }
+
+        if (Date.now() - started < 30000) {
+          scheduleTryFinish();
+        } else {
+          if (mountedRef.current) {
+            setPurchaseResult(
+              'Connection timeout: finishTransaction could not run because the store connection was not restored. Reconnect and refresh subscription status.',
+            );
+          }
+          releasePurchaseTask();
+        }
+      };
+      scheduleTryFinish();
+    } else {
+      await finishAndRefreshSubscription('finishTransaction');
+    }
+  };
+
   const {
     connected,
     subscriptions,
@@ -1679,338 +2090,7 @@ function SubscriptionFlowContainer() {
     // Called when purchaseUpdatedListener receives a successful purchase.
     // iOS: Check transactionState (purchased/pending/failed/deferred)
     // Android: Check purchaseState (0=pending, 1=purchased, 2=failed)
-    onPurchaseSuccess: async (purchase: Purchase) => {
-      console.log('Purchase successful:', purchase.productId);
-      const productId = purchase.productId ?? '';
-      if (!isSubscriptionFlowProduct(productId)) {
-        console.log('[SubscriptionFlow] ignoring non-subscription product:', {
-          productId,
-        });
-        return;
-      }
-
-      // Try to detect which plan was purchased
-      if (Platform.OS === 'ios') {
-        // iOS uses separate products
-        if (purchase.productId === 'dev.hyo.martie.premium_year') {
-          setLastPurchasedPlan('premium-year');
-          console.log('Detected yearly plan from purchase (iOS)');
-        } else if (purchase.productId === 'dev.hyo.martie.premium') {
-          setLastPurchasedPlan('premium');
-          console.log('Detected monthly plan from purchase (iOS)');
-        }
-      } else if (purchase.productId === 'dev.hyo.martie.premium') {
-        // Android: Check if we have offerToken or other data to identify the plan
-        const purchaseData = purchase as ExtendedPurchase;
-
-        console.log('Purchase data for plan detection:', {
-          productId: purchase.productId,
-          hasOfferToken: Boolean(purchaseData.offerToken),
-        });
-
-        // Map offerToken to basePlanId using fetched subscription data (cross-platform)
-        if (purchaseData.offerToken) {
-          const premiumSub = subscriptions.find(
-            (s) => s.id === 'dev.hyo.martie.premium',
-          ) as ProductSubscriptionAndroid;
-          const matchingOffer = premiumSub?.subscriptionOffers?.find(
-            (offer) => offer.offerTokenAndroid === purchaseData.offerToken,
-          );
-          if (matchingOffer?.basePlanIdAndroid) {
-            setLastPurchasedPlan(matchingOffer.basePlanIdAndroid);
-            console.log(
-              'Detected plan from offerToken (Android):',
-              matchingOffer.basePlanIdAndroid,
-            );
-          } else {
-            // Fallback if we can't find the matching offer
-            console.log('Could not map selected offer to base plan');
-          }
-        }
-      }
-
-      lastSuccessAtRef.current = Date.now();
-      setLastPurchase(purchase);
-      setIsProcessing(false);
-
-      setPurchaseResult(
-        `Subscription received; finishing transaction...\n` +
-          `Product: ${purchase.productId}\n` +
-          `Transaction ID: ${purchase.id}\n` +
-          `Date: ${formatPurchaseDate(purchase.transactionDate)}`,
-      );
-
-      // ──────────────────────────────────────────────────────────────────────
-      // STEP 3: VERIFY PURCHASE
-      // ──────────────────────────────────────────────────────────────────────
-      // Choose verification method:
-      // - 'ignore': Skip verification (testing only - NOT for production)
-      // - 'local': Direct Apple/Google verification on the device
-      // - 'iapkit-localhost': IAPKit provider through the local server
-      // - 'iapkit': IAPKit provider through the hosted service
-      //
-      // ⚠️ Server-side validation is recommended for production:
-      // - iOS: App Store Server API + App Store Server Notifications V2
-      // - Android: Google Play Developer API + RTDN
-      const currentVerificationMethod = verificationMethodRef.current;
-      let iapkitVerifyRequest: VerifyPurchaseWithProviderProps | null = null;
-      console.log('[SubscriptionFlow] About to verify purchase:', {
-        verificationMethod: currentVerificationMethod,
-        productId,
-        willVerify: currentVerificationMethod !== 'ignore' && !!productId,
-      });
-
-      if (currentVerificationMethod !== 'ignore' && productId) {
-        setIsProcessing(true);
-        try {
-          if (currentVerificationMethod === 'local') {
-            console.log('[SubscriptionFlow] Verifying with Local (Device)...');
-            // Production apps must obtain Google Play API credentials from
-            // their backend rather than bundling them in the client.
-            await verifyPurchase({
-              apple: {sku: productId},
-              google: {
-                sku: productId,
-                accessToken: 'YOUR_OAUTH_ACCESS_TOKEN',
-                packageName: 'dev.hyo.martie',
-                purchaseToken: purchase.purchaseToken ?? '',
-                isSub: true,
-              },
-            });
-            console.log(
-              '[SubscriptionFlow] Local (Device) verification completed',
-            );
-          } else {
-            const verificationLabel =
-              currentVerificationMethod === 'iapkit-localhost'
-                ? 'Local (IAPKit)'
-                : 'IAPKit';
-            console.log(
-              `[SubscriptionFlow] Verifying with ${verificationLabel}...`,
-            );
-
-            const apiKey = IAPKIT_API_KEY?.trim();
-            if (!apiKey) {
-              throw new Error('IAPKIT_API_KEY not configured');
-            }
-
-            const jwsOrToken = purchase.purchaseToken ?? '';
-            if (!jwsOrToken) {
-              throw new Error(
-                'No purchase token available for IAPKit verification',
-              );
-            }
-
-            const baseUrl = resolveIapkitVerificationBaseUrl(
-              currentVerificationMethod,
-              IAPKIT_BASE_URL,
-            );
-            const iapkitPayload = createIapkitVerificationPayload(
-              purchase,
-              jwsOrToken,
-              apiKey,
-              baseUrl,
-            );
-            const verifyRequest: VerifyPurchaseWithProviderProps = {
-              provider: 'iapkit',
-              iapkit: iapkitPayload,
-            };
-            iapkitVerifyRequest = verifyRequest;
-            console.log(
-              `[SubscriptionFlow] Sending ${verificationLabel} verification request`,
-            );
-
-            const result = await verifyPurchaseWithProvider(verifyRequest);
-            console.log(
-              '[SubscriptionFlow] IAPKit verification result:',
-              result,
-            );
-
-            if (result.iapkit) {
-              const statusEmoji = result.iapkit.isValid ? '✅' : '⚠️';
-              const stateText = result.iapkit.state || 'unknown';
-
-              showNativeAlert(
-                `${statusEmoji} ${verificationLabel} Verification`,
-                `Valid: ${result.iapkit.isValid}\nState: ${stateText}\nStore: ${
-                  result.iapkit.store || 'unknown'
-                }`,
-              );
-            } else if (result.errors && result.errors.length > 0) {
-              const errorMessages = result.errors
-                .map((e) => `${e.code ? `[${e.code}] ` : ''}${e.message}`)
-                .join('\n');
-              showNativeAlert('⚠️ IAPKit Verification Error', errorMessages);
-            }
-          }
-        } catch (error) {
-          console.log(
-            '[SubscriptionFlow] Verification failed:',
-            getErrorMessage(error),
-          );
-          showNativeAlert(
-            'Verification Failed',
-            `Purchase verification failed: ${getErrorMessage(error)}`,
-          );
-        } finally {
-          setIsProcessing(false);
-        }
-      }
-
-      // ──────────────────────────────────────────────────────────────────────
-      // STEP 4: GRANT ENTITLEMENT
-      // ──────────────────────────────────────────────────────────────────────
-      // Production integration point:
-      // - Save subscription record to database
-      // - Unlock premium features for user
-      // - Update user's subscription status
-      // - Handle subscription tiers/levels
-      // Example: await yourBackend.grantSubscriptionEntitlement(purchase);
-
-      // ──────────────────────────────────────────────────────────────────────
-      // STEP 5: FINISH TRANSACTION
-      // ──────────────────────────────────────────────────────────────────────
-      // CRITICAL: Always finish/acknowledge transactions!
-      // - iOS: finishTransaction removes from StoreKit queue
-      // - Android: Acknowledges purchase (required within 3 days)
-      // - Subscriptions are NOT consumable (isConsumable: false)
-      const isConsumable = false;
-      let didFinishTransaction = false;
-      const finishCleanupKey = getPurchaseCleanupKey(purchase);
-      cleanupPurchaseKeysRef.current.add(finishCleanupKey);
-
-      if (!connectedRef.current) {
-        console.log(
-          '[SubscriptionFlow] Skipping finishTransaction - not connected yet',
-        );
-        setPurchaseResult(
-          'Subscription received, waiting for store connection to finish transaction.',
-        );
-        const started = Date.now();
-        const tryFinish = async () => {
-          if (connectedRef.current) {
-            try {
-              await finishTransaction({
-                purchase,
-                isConsumable,
-              });
-              if (Platform.OS === 'android' && iapkitVerifyRequest) {
-                try {
-                  const refreshedResult =
-                    await verifyPurchaseWithProvider(iapkitVerifyRequest);
-                  console.log(
-                    '[SubscriptionFlow] IAPKit state after delayed finishTransaction:',
-                    refreshedResult,
-                  );
-                } catch (error) {
-                  console.log(
-                    '[SubscriptionFlow] IAPKit post-finish verification failed:',
-                    getErrorMessage(error),
-                  );
-                }
-              }
-              if (mountedRef.current) {
-                setPurchaseResult(
-                  `Subscription activated and finished successfully.\n` +
-                    `Product: ${purchase.productId}\n` +
-                    `Transaction ID: ${purchase.id}\n` +
-                    `Date: ${formatPurchaseDate(purchase.transactionDate)}`,
-                );
-              }
-            } catch (err) {
-              const message = getErrorMessage(err);
-              if (mountedRef.current) {
-                setPurchaseResult(
-                  `Subscription activated, but finishTransaction failed: ${message}`,
-                );
-              }
-              console.log(
-                '[SubscriptionFlow] Delayed finishTransaction failed:',
-                err,
-              );
-              cleanupPurchaseKeysRef.current.delete(finishCleanupKey);
-            }
-            return;
-          }
-
-          if (!mountedRef.current) {
-            cleanupPurchaseKeysRef.current.delete(finishCleanupKey);
-            return;
-          }
-
-          if (Date.now() - started < 30000) {
-            setTimeout(() => {
-              void tryFinish();
-            }, 500);
-          } else {
-            if (mountedRef.current) {
-              setPurchaseResult(
-                'Connection timeout: finishTransaction could not run because the store connection was not restored. Reconnect and refresh subscription status.',
-              );
-            }
-            cleanupPurchaseKeysRef.current.delete(finishCleanupKey);
-          }
-        };
-        setTimeout(() => {
-          void tryFinish();
-        }, 500);
-      } else {
-        try {
-          await finishTransaction({
-            purchase,
-            isConsumable,
-          });
-          didFinishTransaction = true;
-          if (mountedRef.current) {
-            setPurchaseResult(
-              `Subscription activated and finished successfully.\n` +
-                `Product: ${purchase.productId}\n` +
-                `Transaction ID: ${purchase.id}\n` +
-                `Date: ${formatPurchaseDate(purchase.transactionDate)}`,
-            );
-          }
-        } catch (err) {
-          const message = getErrorMessage(err);
-          if (mountedRef.current) {
-            setPurchaseResult(
-              `Subscription activated, but finishTransaction failed: ${message}`,
-            );
-          }
-          cleanupPurchaseKeysRef.current.delete(finishCleanupKey);
-          console.log('[SubscriptionFlow] finishTransaction failed:', message);
-        }
-      }
-
-      // ──────────────────────────────────────────────────────────────────────
-      // STEP 6: REFRESH SUBSCRIPTION STATUS
-      // ──────────────────────────────────────────────────────────────────────
-      // After successful purchase, refresh active subscriptions to update UI.
-      // This ensures the user sees their new subscription immediately.
-      try {
-        await getActiveSubscriptions(SUBSCRIPTION_PRODUCT_IDS);
-      } catch (e) {
-        console.log('Failed to refresh subscriptions:', getErrorMessage(e));
-      }
-
-      if (didFinishTransaction) {
-        if (Platform.OS === 'android' && iapkitVerifyRequest) {
-          try {
-            const refreshedResult =
-              await verifyPurchaseWithProvider(iapkitVerifyRequest);
-            console.log(
-              '[SubscriptionFlow] IAPKit state after finishTransaction:',
-              refreshedResult,
-            );
-          } catch (error) {
-            console.log(
-              '[SubscriptionFlow] IAPKit post-finish verification failed:',
-              getErrorMessage(error),
-            );
-          }
-        }
-        showNativeAlert('Success', 'Purchase completed successfully!');
-      }
-    },
+    onPurchaseSuccess: dispatchPurchaseSuccess,
 
     // ────────────────────────────────────────────────────────────────────────
     // Purchase Error Handler
@@ -2035,17 +2115,31 @@ function SubscriptionFlowContainer() {
     },
   });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      purchaseSuccessHandlerRef.current = async () => {};
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    purchaseSuccessHandlerRef.current = handlePurchaseSuccess;
+  });
+
+  useEffect(() => {
+    const finishRetryTimers = finishRetryTimersRef.current;
+    return () => {
+      for (const [timer, releaseTask] of finishRetryTimers) {
+        clearTimeout(timer);
+        releaseTask();
+      }
+      finishRetryTimers.clear();
     };
   }, []);
 
   useEffect(() => {
     connectedRef.current = connected;
-    if (!connected) {
-      cleanupPurchaseKeysRef.current.clear();
-    }
   }, [connected]);
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -2093,27 +2187,16 @@ function SubscriptionFlowContainer() {
       }
 
       const cleanupKey = getPurchaseCleanupKey(purchase);
-      if (cleanupPurchaseKeysRef.current.has(cleanupKey)) continue;
-      cleanupPurchaseKeysRef.current.add(cleanupKey);
+      if (completedSubscriptionKeys.has(cleanupKey)) continue;
 
-      finishTransaction({
-        purchase,
-        isConsumable: false,
-      })
-        .then(() => {
-          console.log('[SubscriptionFlow] cleaned up available purchase:', {
-            productId,
-          });
-        })
-        .catch((error) => {
-          cleanupPurchaseKeysRef.current.delete(cleanupKey);
-          console.log(
-            '[SubscriptionFlow] available purchase cleanup failed:',
-            getErrorMessage(error),
-          );
-        });
+      void dispatchPurchaseSuccess(purchase).catch((error) => {
+        console.log(
+          '[SubscriptionFlow] restored purchase handler failed unexpectedly:',
+          getErrorMessage(error),
+        );
+      });
     }
-  }, [availablePurchases, connected, finishTransaction]);
+  }, [availablePurchases, connected, dispatchPurchaseSuccess]);
 
   // 🔍 LOG: Check discount and promotional offer data
   useEffect(() => {
@@ -2159,14 +2242,18 @@ function SubscriptionFlowContainer() {
         // Cross-platform subscription offers
         if ('subscriptionOffers' in sub && sub.subscriptionOffers) {
           console.log(
-            `      • subscriptionOffers: ${sub.subscriptionOffers.length || 0} offer(s)`,
+            `      • subscriptionOffers: ${
+              sub.subscriptionOffers.length || 0
+            } offer(s)`,
           );
         }
 
         // Cross-platform discount offers
         if ('discountOffers' in sub && sub.discountOffers) {
           console.log(
-            `      • discountOffers: ${sub.discountOffers.length || 0} offer(s)`,
+            `      • discountOffers: ${
+              sub.discountOffers.length || 0
+            } offer(s)`,
           );
         }
       });

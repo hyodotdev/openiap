@@ -27,6 +27,8 @@ const LEGACY_ANCHOR_REDIRECTS: Record<string, string> = {
     '/docs/types/verify-purchase-with-provider-props',
   'verify-purchase-with-provider-result':
     '/docs/types/verify-purchase-with-provider-result',
+  'iapkit-product-client-payload':
+    '/docs/types/verify-purchase-with-provider-result#iapkit-product-client-payload',
   'alternative-billing': '/docs/types/alternative-billing-types',
   'billing-programs': '/docs/types/billing-programs',
   'external-purchase-link': '/docs/types/external-purchase-link',
@@ -167,6 +169,12 @@ const VALIDATION_TYPES: TypeRow[] = [
     to: '/docs/types/verify-purchase-with-provider-result',
     name: 'VerifyPurchaseWithProviderResult',
     description: 'Provider-based verification response.',
+  },
+  {
+    to: '/docs/types/verify-purchase-with-provider-result#iapkit-product-client-payload',
+    name: 'IapkitProductClientPayload',
+    description:
+      'Public TOML, JSON, or text data attached to an IAPKit product.',
   },
 ];
 

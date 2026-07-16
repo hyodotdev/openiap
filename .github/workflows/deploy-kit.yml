@@ -1,8 +1,8 @@
 name: Kit — Verify + Deploy
 
-# Verify on any push/PR that touches packages/kit/**; deploy only on
-# push to main. The paths filter keeps this workflow off the critical
-# path for unrelated package changes (apple/google/gql/docs/libraries).
+# Verify on any push/PR or manual ref; deploy only from the main branch. The
+# paths filter keeps this workflow off the critical path for unrelated package
+# changes. Production deploys publish additive Convex functions before Fly.
 
 on:
   push:
@@ -83,20 +83,50 @@ jobs:
             VITE_KIT_CONVEX_URL=https://placeholder-build-1.convex.cloud
 
   deploy:
-    name: Deploy openiap-kit to Fly.io
+    name: Deploy Convex + openiap-kit
     needs: verify
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     concurrency:
       group: deploy-kit-${{ github.ref }}
       cancel-in-progress: false
-    # Lift KIT_CONVEX_DEPLOY_KEY to the job env so step-level `if:` can
-    # gate on it. GitHub Actions disallows the `secrets` context in
-    # step `if:` expressions; reading it via env is the supported pattern.
     env:
       KIT_CONVEX_DEPLOY_KEY: ${{ secrets.KIT_CONVEX_DEPLOY_KEY }}
     steps:
       - uses: actions/checkout@v7
+
+      - name: Validate required deployment secrets
+        env:
+          FLY_API_TOKEN: ${{ secrets.KIT_FLY_API_TOKEN }}
+          VITE_KIT_CONVEX_URL: ${{ secrets.VITE_KIT_CONVEX_URL }}
+        run: |
+          if [ -z "$KIT_CONVEX_DEPLOY_KEY" ]; then
+            echo "::error::KIT_CONVEX_DEPLOY_KEY secret not set."
+            exit 1
+          fi
+          if [ -z "$FLY_API_TOKEN" ]; then
+            echo "::error::KIT_FLY_API_TOKEN secret not set."
+            exit 1
+          fi
+          if [ -z "$VITE_KIT_CONVEX_URL" ]; then
+            echo "::error::VITE_KIT_CONVEX_URL secret not set (production Convex URL)."
+            exit 1
+          fi
+
+      - name: Setup Bun (for Convex deploy)
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+
+      - name: Deploy Convex functions
+        working-directory: packages/kit
+        env:
+          CONVEX_DEPLOY_KEY: ${{ env.KIT_CONVEX_DEPLOY_KEY }}
+        run: |
+          # Install only Kit's workspace dependencies. Convex goes first because
+          # its additive API remains compatible with the currently running Fly app.
+          (cd "$GITHUB_WORKSPACE" && bun install --frozen-lockfile --filter @hyodotdev/openiap-kit)
+          bunx convex deploy --yes
 
       - name: Setup flyctl
         # Pinned to the `1.6` release rather than `@master` so the action
@@ -116,14 +146,6 @@ jobs:
           VITE_KIT_SENTRY_DSN: ${{ secrets.VITE_KIT_SENTRY_DSN }}
           VITE_KIT_MIXPANEL_TOKEN: ${{ secrets.VITE_KIT_MIXPANEL_TOKEN }}
         run: |
-          if [ -z "$FLY_API_TOKEN" ]; then
-            echo "::error::KIT_FLY_API_TOKEN secret not set. Add it in repo settings."
-            exit 1
-          fi
-          if [ -z "$VITE_KIT_CONVEX_URL" ]; then
-            echo "::error::VITE_KIT_CONVEX_URL secret not set (production Convex URL)."
-            exit 1
-          fi
           # VITE_KIT_SENTRY_DSN / VITE_KIT_MIXPANEL_TOKEN are optional —
           # if unset, the SPA skips the corresponding analytics init at
           # runtime rather than failing the build.
@@ -146,20 +168,3 @@ jobs:
             --config packages/kit/fly.toml \
             --dockerfile packages/kit/Dockerfile \
             "${BUILD_FLAGS[@]}"
-
-      - name: Setup Bun (for convex deploy)
-        if: ${{ env.KIT_CONVEX_DEPLOY_KEY != '' }}
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.13
-
-      - name: Deploy Convex functions
-        if: ${{ env.KIT_CONVEX_DEPLOY_KEY != '' }}
-        working-directory: packages/kit
-        env:
-          CONVEX_DEPLOY_KEY: ${{ env.KIT_CONVEX_DEPLOY_KEY }}
-        run: |
-          # Convex deploy needs node_modules; install from monorepo root
-          # with --filter so we only pull kit's deps (skip apple/google/docs).
-          (cd "$GITHUB_WORKSPACE" && bun install --frozen-lockfile --filter @hyodotdev/openiap-kit)
-          bunx convex deploy --yes

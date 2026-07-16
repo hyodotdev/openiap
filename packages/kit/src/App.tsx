@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { ConfigProvider, theme } from "antd";
 import { useThemeMode } from "./hooks/useThemeMode";
 import { useMixpanelIdentify } from "./hooks/useMixpanelIdentify";
+import { ProductClientPayloadDialogRoot } from "./pages/auth/organization/project/ProductClientPayloadDialog";
 
 export default function App() {
   const { isDarkMode } = useThemeMode();
@@ -24,6 +25,7 @@ export default function App() {
     >
       <ScrollToTop />
       <AuthTransition />
+      <ProductClientPayloadDialogRoot />
     </ConfigProvider>
   );
 }

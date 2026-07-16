@@ -1,12 +1,33 @@
 import { paginationOptsValidator, type PaginationResult } from "convex/server";
-import { query } from "../_generated/server";
+import { query, type QueryCtx } from "../_generated/server";
 import { v, ConvexError } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import type { Doc } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import { harmonizedPurchaseStateValidator } from "./purchaseState";
 import { purchaseStoreValidator } from "../schema";
 import { readPurchaseStats } from "./stats";
 import { extractProductIdFromRemoteResponse } from "./shared";
+import {
+  getWritableOrganization,
+  getWritableProject,
+} from "../projects/writable";
+
+async function getPendingProjectIdsForOrganization(
+  ctx: QueryCtx,
+  organizationId: Id<"organizations">,
+): Promise<Set<Id<"projects">>> {
+  const pendingProjectIds = new Set<Id<"projects">>();
+  for await (const project of ctx.db
+    .query("projects")
+    .withIndex("by_organization", (q) =>
+      q.eq("organizationId", organizationId),
+    )) {
+    if (project.pendingDeletion === true) {
+      pendingProjectIds.add(project._id);
+    }
+  }
+  return pendingProjectIds;
+}
 
 // Get purchases by project
 export const getReceiptsByProject = query({
@@ -32,7 +53,7 @@ export const getReceiptsByProject = query({
       throw new ConvexError("Not authenticated");
     }
 
-    const project = await ctx.db.get(args.projectId);
+    const project = await getWritableProject(ctx, args.projectId);
     if (!project) {
       throw new ConvexError("Project not found");
     }
@@ -182,10 +203,8 @@ export const getPurchaseById = query({
       return null;
     }
 
-    const project = await ctx.db.get(purchase.projectId);
-    if (!project) {
-      throw new ConvexError("Project not found");
-    }
+    const project = await getWritableProject(ctx, purchase.projectId);
+    if (!project) return null;
 
     const membership = await ctx.db
       .query("organizationMembers")
@@ -221,6 +240,19 @@ export const getOrganizationReceiptStats = query({
       throw new ConvexError("Not authenticated");
     }
 
+    const totals = {
+      total: 0,
+      googleOrders: 0,
+      valid: 0,
+      invalid: 0,
+    };
+
+    const organization = await getWritableOrganization(
+      ctx,
+      args.organizationId,
+    );
+    if (!organization) return totals;
+
     const membership = await ctx.db
       .query("organizationMembers")
       .withIndex("by_org_and_user", (q) =>
@@ -232,12 +264,10 @@ export const getOrganizationReceiptStats = query({
       throw new ConvexError("Not a member of this organization");
     }
 
-    const totals = {
-      total: 0,
-      googleOrders: 0,
-      valid: 0,
-      invalid: 0,
-    };
+    const pendingProjectIds = await getPendingProjectIdsForOrganization(
+      ctx,
+      args.organizationId,
+    );
 
     // Fast path: query purchaseStats directly by organizationId. Reads
     // only small counter docs instead of full project records, which can
@@ -249,6 +279,7 @@ export const getOrganizationReceiptStats = query({
         q.eq("organizationId", args.organizationId),
       )) {
       hasOrgIndexedStats = true;
+      if (pendingProjectIds.has(stats.projectId)) continue;
       totals.total += stats.total;
       totals.googleOrders += stats.googleOrders ?? 0;
       totals.valid += stats.valid;
@@ -264,6 +295,7 @@ export const getOrganizationReceiptStats = query({
         .withIndex("by_organization", (q) =>
           q.eq("organizationId", args.organizationId),
         )) {
+        if (project.pendingDeletion) continue;
         const stats = await readPurchaseStats(ctx, project._id);
         totals.total += stats.total;
         totals.googleOrders += stats.googleOrders;

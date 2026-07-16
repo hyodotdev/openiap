@@ -42,6 +42,9 @@ func _run_all_tests() -> void:
 	# RequestPurchaseProps tests
 	_test_request_purchase_props()
 
+	# IAPKit product client payload tests
+	_test_iapkit_product_client_payload()
+
 	# VoidResult tests
 	_test_void_result()
 
@@ -256,6 +259,53 @@ func _test_request_purchase_props() -> void:
 		"requestSubscription": {"google": {"skus": ["subscription_yearly"]}}
 	})
 	_assert_equal(parsed.type, Types.ProductQueryType.SUBS, "Subscription branch should infer SUBS type")
+
+
+# ============================================
+# IAPKit Product Client Payload Tests
+# ============================================
+
+func _test_iapkit_product_client_payload() -> void:
+	print("Testing IapkitProductClientPayload...")
+
+	var payload = Types.IapkitProductClientPayload.new()
+	payload.format = Types.IapkitClientPayloadFormat.TOML
+	payload.body = 'tier = "gold"'
+	payload.version = 2.0
+	payload.updated_at = 1720000000000.0
+
+	var payload_dict = payload.to_dict()
+	_assert_equal(payload_dict["format"], "toml", "Client payload should serialize format")
+	_assert_equal(payload_dict["body"], 'tier = "gold"', "Client payload should serialize body")
+	_assert_equal(payload_dict["version"], 2.0, "Client payload should serialize version")
+	_assert_equal(payload_dict["updatedAt"], 1720000000000.0, "Client payload should serialize updatedAt")
+
+	var parsed_payload = Types.IapkitProductClientPayload.from_dict(payload_dict)
+	_assert_equal(parsed_payload.format, Types.IapkitClientPayloadFormat.TOML, "Client payload should parse format")
+	_assert_equal(parsed_payload.body, 'tier = "gold"', "Client payload should parse body")
+	_assert_equal(parsed_payload.version, 2.0, "Client payload should parse version")
+	_assert_equal(parsed_payload.updated_at, 1720000000000.0, "Client payload should parse updatedAt")
+
+	var result = Types.RequestVerifyPurchaseWithIapkitResult.from_dict({
+		"store": "apple",
+		"isValid": true,
+		"state": "entitled",
+		"productId": "premium.monthly",
+		"clientPayload": payload_dict
+	})
+	_assert_equal(result.product_id, "premium.monthly", "IAPKit result should parse productId")
+	_assert_equal(
+		result.client_payload is Types.IapkitProductClientPayload,
+		true,
+		"IAPKit result should parse the nested client payload"
+	)
+
+	var round_trip = Types.RequestVerifyPurchaseWithIapkitResult.from_dict(result.to_dict())
+	_assert_equal(round_trip.product_id, "premium.monthly", "IAPKit result should round-trip productId")
+	_assert_equal(round_trip.client_payload.format, Types.IapkitClientPayloadFormat.TOML, "Nested payload should round-trip format")
+	_assert_equal(round_trip.client_payload.body, 'tier = "gold"', "Nested payload should round-trip body")
+	_assert_equal(round_trip.client_payload.version, 2.0, "Nested payload should round-trip version")
+	_assert_equal(round_trip.client_payload.updated_at, 1720000000000.0, "Nested payload should round-trip updatedAt")
 
 
 # ============================================

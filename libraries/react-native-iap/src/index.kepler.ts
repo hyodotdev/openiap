@@ -32,6 +32,19 @@ export * from './vega';
 export {useIAP, type UseIapOptions} from './hooks/useIAP';
 export {connectWebhookStream, parseWebhookEventData} from './webhook-client';
 export {kitApi, KitApiError} from './kit-api';
+export type {
+  EntitlementsResponse,
+  KitApiOptions,
+  KitClientPayloadResponse,
+  KitProduct,
+  KitProductClientPayload,
+  KitProductOffer,
+  KitProductPlatform,
+  KitProductsOptions,
+  KitProductsResponse,
+  KitSubscription,
+  StatusResponse,
+} from './kit-api';
 
 export type ProductTypeInput = 'inapp' | 'in-app' | 'subs';
 

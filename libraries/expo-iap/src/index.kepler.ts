@@ -16,6 +16,19 @@ export * from './types';
 export * from './vega';
 export * from './useIAP';
 export {kitApi, KitApiError} from './kit-api';
+export type {
+  EntitlementsResponse,
+  KitApiOptions,
+  KitClientPayloadResponse,
+  KitProduct,
+  KitProductClientPayload,
+  KitProductOffer,
+  KitProductPlatform,
+  KitProductsOptions,
+  KitProductsResponse,
+  KitSubscription,
+  StatusResponse,
+} from './kit-api';
 export {connectWebhookStream, parseWebhookEventData} from './webhook-client';
 
 export enum OpenIapEvent {

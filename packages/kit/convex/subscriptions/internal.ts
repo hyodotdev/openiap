@@ -9,6 +9,7 @@ import {
   type SubscriptionEventInput,
 } from "./stateMachine";
 import { applyStatsTransition, statsContributionFor } from "./stats";
+import { assertProjectWritable } from "../projects/writable";
 
 const subscriptionStateValidator = v.union(
   v.literal("Active"),
@@ -123,6 +124,7 @@ export const applySubscriptionEvent = internalMutation({
     subscriptionId: v.optional(v.id("subscriptions")),
   }),
   handler: async (ctx, args) => {
+    await assertProjectWritable(ctx, args.projectId);
     const existing = await findSubscriptionByToken(
       ctx,
       args.projectId,
@@ -360,6 +362,7 @@ export async function recordVerifiedSubscriptionHandler(
   ctx: MutationCtx,
   args: RecordVerifiedSubscriptionArgs,
 ): Promise<Id<"subscriptions"> | null> {
+  await assertProjectWritable(ctx, args.projectId);
   const snapshot = buildVerifiedSubscriptionSnapshot({
     platform: args.platform,
     productId: args.productId,
@@ -558,6 +561,7 @@ export async function bindSubscriptionToUserHandler(
   ctx: MutationCtx,
   args: BindSubscriptionToUserArgs,
 ): Promise<Id<"subscriptions"> | null> {
+  await assertProjectWritable(ctx, args.projectId);
   const sub = await findSubscriptionByToken(
     ctx,
     args.projectId,

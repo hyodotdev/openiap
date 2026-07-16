@@ -27,6 +27,40 @@ const iosBundlePattern = /^[A-Za-z][A-Za-z0-9-]*(\.[A-Za-z0-9-]+)+$/;
 const appStoreIssuerPattern =
   /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i;
 const appStoreKeyPattern = /^[A-Z0-9]{10}$/;
+const FILE_SAVE_TARGET_PENDING_MESSAGE =
+  "The file was not saved because this project or organization is pending deletion.";
+const FILE_SAVE_AUTHORIZATION_LOST_MESSAGE =
+  "The file was not saved because your access changed during the upload. Please sign in and try again.";
+const FILE_SAVE_RESERVATION_EXPIRED_MESSAGE =
+  "The upload took too long to finish. Please select the file and try again.";
+const FILE_SAVE_ALREADY_REGISTERED_MESSAGE =
+  "This upload was already saved. Refresh the page before trying again.";
+const FILE_SAVE_NOT_FOUND_MESSAGE =
+  "The uploaded file could not be found. Please select the file and try again.";
+const FILE_SAVE_FAILED_MESSAGE =
+  "The uploaded file could not be saved. Please try again.";
+
+function ensureFileSaveSucceeded(result: {
+  success: boolean;
+  code?: string;
+}): void {
+  if (result.success) return;
+
+  switch (result.code) {
+    case "TARGET_PENDING_DELETION":
+      throw new Error(FILE_SAVE_TARGET_PENDING_MESSAGE);
+    case "AUTHORIZATION_LOST":
+      throw new Error(FILE_SAVE_AUTHORIZATION_LOST_MESSAGE);
+    case "UPLOAD_RESERVATION_EXPIRED":
+      throw new Error(FILE_SAVE_RESERVATION_EXPIRED_MESSAGE);
+    case "UPLOAD_ALREADY_REGISTERED":
+      throw new Error(FILE_SAVE_ALREADY_REGISTERED_MESSAGE);
+    case "UPLOAD_NOT_FOUND":
+      throw new Error(FILE_SAVE_NOT_FOUND_MESSAGE);
+    default:
+      throw new Error(FILE_SAVE_FAILED_MESSAGE);
+  }
+}
 
 interface ProjectData {
   _id: Id<"projects">;
@@ -588,10 +622,13 @@ export default function ProjectSettings() {
     setUploadingIos(true);
     try {
       // Step 1: Generate upload URL
-      const postUrl = await generateUploadUrl();
+      const { uploadUrl, uploadReservationId } = await generateUploadUrl({
+        organizationId: project.organizationId,
+        projectId: project._id,
+      });
 
       // Step 2: Upload file to Convex storage
-      const result = await fetch(postUrl, {
+      const result = await fetch(uploadUrl, {
         method: "POST",
         headers: { "Content-Type": file.type || "application/octet-stream" },
         body: file,
@@ -604,9 +641,10 @@ export default function ProjectSettings() {
       const { storageId } = await result.json();
 
       // Step 3: Save file record to database
-      await saveFile({
+      const savedFile = await saveFile({
         organizationId: project.organizationId,
         projectId: project._id,
+        uploadReservationId,
         storageId,
         fileName: file.name,
         fileType: file.type || "application/octet-stream",
@@ -615,6 +653,7 @@ export default function ProjectSettings() {
         description: `Apple .p8 key for ${project.name}`,
         isInternal: true,
       });
+      ensureFileSaveSucceeded(savedFile);
 
       setIosFileUploaded(true);
       toast.success("iOS authentication file uploaded successfully");
@@ -637,17 +676,21 @@ export default function ProjectSettings() {
     }
     setUploadingIosAsc(true);
     try {
-      const postUrl = await generateUploadUrl();
-      const result = await fetch(postUrl, {
+      const { uploadUrl, uploadReservationId } = await generateUploadUrl({
+        organizationId: project.organizationId,
+        projectId: project._id,
+      });
+      const result = await fetch(uploadUrl, {
         method: "POST",
         headers: { "Content-Type": file.type || "application/octet-stream" },
         body: file,
       });
       if (!result.ok) throw new Error("Upload failed");
       const { storageId } = await result.json();
-      await saveFile({
+      const savedFile = await saveFile({
         organizationId: project.organizationId,
         projectId: project._id,
+        uploadReservationId,
         storageId,
         fileName: file.name,
         fileType: file.type || "application/octet-stream",
@@ -656,6 +699,7 @@ export default function ProjectSettings() {
         description: `App Store Connect API key for ${project.name}`,
         isInternal: true,
       });
+      ensureFileSaveSucceeded(savedFile);
       setIosAscFileUploaded(true);
       toast.success("App Store Connect API key uploaded successfully");
     } catch (error: any) {
@@ -693,10 +737,13 @@ export default function ProjectSettings() {
     setUploadingAndroid(true);
     try {
       // Step 1: Generate upload URL
-      const postUrl = await generateUploadUrl();
+      const { uploadUrl, uploadReservationId } = await generateUploadUrl({
+        organizationId: project.organizationId,
+        projectId: project._id,
+      });
 
       // Step 2: Upload file to Convex storage
-      const result = await fetch(postUrl, {
+      const result = await fetch(uploadUrl, {
         method: "POST",
         headers: { "Content-Type": file.type || "application/json" },
         body: file,
@@ -709,9 +756,10 @@ export default function ProjectSettings() {
       const { storageId } = await result.json();
 
       // Step 3: Save file record to database
-      await saveFile({
+      const savedFile = await saveFile({
         organizationId: project.organizationId,
         projectId: project._id,
+        uploadReservationId,
         storageId,
         fileName: file.name,
         fileType: file.type || "application/json",
@@ -720,6 +768,7 @@ export default function ProjectSettings() {
         description: `Android service account for ${project.name}`,
         isInternal: true,
       });
+      ensureFileSaveSucceeded(savedFile);
 
       setAndroidFileUploaded(true);
       toast.success("Android service account uploaded successfully");

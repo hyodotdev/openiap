@@ -65,7 +65,7 @@ const createService = (): jest.Mocked<VegaPurchasingService> =>
     notifyFulfillment: jest.fn(async () => ({
       responseCode: 1,
     })),
-  } as unknown as jest.Mocked<VegaPurchasingService>);
+  }) as unknown as jest.Mocked<VegaPurchasingService>;
 
 describe('Amazon Vega Expo adapter', () => {
   it('initializes without fetching Amazon user data', async () => {
@@ -1111,6 +1111,54 @@ describe('Amazon Vega Expo adapter', () => {
         userId: 'amazon-user',
         receiptId: 'receipt-vega-1',
         sandbox: true,
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('does not request or expose Apple/Google-only client payloads on Vega', async () => {
+    const service = createService();
+    const originalFetch = globalThis.fetch;
+    const fetchMock = jest.fn(async () =>
+      Response.json({
+        isValid: true,
+        state: 'ENTITLED',
+        store: 'amazon',
+        productId: 'premium.monthly',
+        clientPayload: {
+          format: 'toml',
+          body: 'tier = "gold"',
+          version: 2,
+          updatedAt: 1720000000000,
+        },
+      }),
+    ) as unknown as jest.MockedFunction<typeof fetch>;
+    globalThis.fetch = fetchMock;
+
+    try {
+      const module = createExpoIapVegaModule(service);
+      const result = await module.verifyPurchaseWithProvider({
+        provider: 'iapkit',
+        iapkit: {
+          includeClientPayload: true,
+          amazon: {
+            userId: 'amazon-user',
+            receiptId: 'receipt-vega-1',
+          },
+        },
+      });
+
+      expect(result.iapkit).toEqual({
+        isValid: true,
+        productId: 'premium.monthly',
+        state: 'entitled',
+        store: 'amazon',
+      });
+      expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
+        store: 'amazon',
+        userId: 'amazon-user',
+        receiptId: 'receipt-vega-1',
       });
     } finally {
       globalThis.fetch = originalFetch;

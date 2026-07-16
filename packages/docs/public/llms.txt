@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Full Reference: https://openiap.dev/llms-full.txt
-> Generated: 2026-07-11T14:26:24.433Z
+> Generated: 2026-07-16T12:14:12.730Z
 
 ## Installation
 
@@ -19,14 +19,14 @@ npm install react-native-iap
 ### Native
 ```swift
 // Swift Package Manager
-.package(url: "https://github.com/hyodotdev/openiap.git", from: "2.2.5")
+.package(url: "https://github.com/hyodotdev/openiap.git", from: "2.4.0")
 ```
 
 ```kotlin
 // Gradle
-implementation("io.github.hyochan.openiap:openiap-google:2.3.0")
-implementation("io.github.hyochan.openiap:openiap-google-horizon:2.3.0")
-implementation("io.github.hyochan.openiap:openiap-google-amazon:2.3.0")
+implementation("io.github.hyochan.openiap:openiap-google:2.4.0")
+implementation("io.github.hyochan.openiap:openiap-google-horizon:2.4.0")
+implementation("io.github.hyochan.openiap:openiap-google-amazon:2.4.0")
 ```
 
 ```bash
@@ -36,20 +36,20 @@ flutter pub add flutter_inapp_purchase
 
 ```gdscript
 # Godot
-# Install godot-iap 2.4.0 to addons/godot-iap and enable the plugin
+# Install godot-iap 2.5.0 to addons/godot-iap and enable the plugin
 ```
 
 ```kotlin
 // Kotlin Multiplatform
-implementation("io.github.hyochan:kmp-iap:2.4.0")
+implementation("io.github.hyochan:kmp-iap:2.5.0")
 ```
 
 ```xml
 <!-- .NET MAUI -->
-<PackageReference Include="OpenIap.Maui" Version="1.2.1" />
+<PackageReference Include="OpenIap.Maui" Version="1.3.0" />
 ```
 
-Current NuGet package version: 1.2.1
+Current NuGet package version: 1.3.0
 
 ## Framework Libraries
 

@@ -813,7 +813,9 @@ async Task<bool> VerifyOnServerAsync(Purchase purchase)
           protected paid resources, have that backend authenticate the user and
           query IAPKit before serving them; direct app-to-IAPKit calls are fine
           for in-app or local feature unlocks, but they cannot authorize backend
-          resources by themselves.
+          resources by themselves. In either case, require the returned
+          store-verified <code>productId</code> to be present and match the
+          product your app expected; <code>isValid</code> alone is not enough.
         </p>
 
         <div className="alert-card alert-card--info">
@@ -874,8 +876,14 @@ const verifyWithIapkit = async (purchase: Purchase) => {
     },
   });
 
-  if (result.iapkit?.isValid) {
-    console.log('IAPKit verified:', result.iapkit.state);
+  const verified = result.iapkit;
+  const verifiedProductId = verified?.productId;
+  if (
+    verified?.isValid === true &&
+    verifiedProductId != null &&
+    verifiedProductId === purchase.productId
+  ) {
+    console.log('IAPKit verified:', verified.state);
     return true;
   }
 
@@ -896,7 +904,14 @@ function PurchaseScreen() {
           ...(await iapkitPayloadFor(purchase)),
         },
       });
-      if (!result.iapkit?.isValid) console.error('IAPKit verification failed');
+      const verified = result.iapkit;
+      if (
+        verified?.isValid !== true ||
+        verified.productId == null ||
+        verified.productId !== purchase.productId
+      ) {
+        console.error('IAPKit verification failed');
+      }
     },
   });
 
@@ -918,8 +933,11 @@ func verifyWithIapkit(_ purchase: PurchaseIOS) async -> Bool {
             )
         )
 
-        if result.iapkit?.isValid == true {
-            print("IAPKit verified: \\(result.iapkit?.state.rawValue ?? "")")
+        if let verified = result.iapkit,
+           verified.isValid,
+           let verifiedProductId = verified.productId,
+           verifiedProductId == purchase.productId {
+            print("IAPKit verified: \\(verified.state.rawValue)")
             return true
         }
 
@@ -950,8 +968,12 @@ suspend fun verifyWithIapkit(purchase: PurchaseAndroid): Boolean {
             )
         )
 
-        if (result.iapkit?.isValid == true) {
-            println("IAPKit verified: \${result.iapkit?.state}")
+        val verified = result.iapkit
+        val verifiedProductId = verified?.productId
+        if (verified?.isValid == true &&
+            verifiedProductId != null &&
+            verifiedProductId == purchase.productId) {
+            println("IAPKit verified: \${verified.state}")
             true
         } else {
             println("IAPKit verification failed")
@@ -982,8 +1004,12 @@ suspend fun verifyWithIapkit(purchase: PurchaseAndroid): Boolean {
             )
         )
 
-        if (result.iapkit?.isValid == true) {
-            println("IAPKit verified: \${result.iapkit?.state}")
+        val verified = result.iapkit
+        val verifiedProductId = verified?.productId
+        if (verified?.isValid == true &&
+            verifiedProductId != null &&
+            verifiedProductId == purchase.productId) {
+            println("IAPKit verified: \${verified.state}")
             true
         } else {
             println("IAPKit verification failed")
@@ -1021,8 +1047,12 @@ Future<bool> verifyWithIapkit(Purchase purchase) async {
       ),
     );
 
-    if (result.iapkit?.isValid == true) {
-      print('IAPKit verified: \${result.iapkit?.state}');
+    final verified = result.iapkit;
+    final verifiedProductId = verified?.productId;
+    if (verified?.isValid == true &&
+        verifiedProductId != null &&
+        verifiedProductId == purchase.productId) {
+      print('IAPKit verified: \${verified.state}');
       return true;
     }
 
@@ -1054,7 +1084,11 @@ async Task<bool> VerifyWithIapkitAsync(Purchase purchase)
             },
         });
 
-    return result.Iapkit?.IsValid == true;
+    var verified = result.Iapkit;
+    var verifiedProductId = verified?.ProductId;
+    return verified?.IsValid == true &&
+        verifiedProductId is not null &&
+        verifiedProductId == purchase.ProductId;
 }`}</CodeBlock>
             ),
             gdscript: (
@@ -1073,8 +1107,15 @@ async Task<bool> VerifyWithIapkitAsync(Purchase purchase)
 
     var result = await iap.verify_purchase_with_provider(props)
 
-    if result.iapkit and result.iapkit.is_valid:
-        print("IAPKit verified: %s" % result.iapkit.state)
+    var verified = result.iapkit
+    var verified_product_id = verified.product_id if verified != null else null
+    if (
+        verified != null
+        and verified.is_valid
+        and verified_product_id != null
+        and verified_product_id == purchase.product_id
+    ):
+        print("IAPKit verified: %s" % verified.state)
         return true
 
     print("IAPKit verification failed")

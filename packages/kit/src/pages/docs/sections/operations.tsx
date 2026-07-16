@@ -131,6 +131,9 @@ X-RateLimit-Remaining: 599`}
       <ul className="my-3 list-disc space-y-1 pl-6">
         <li>receipt verification body ≤ 32 KB before JSON parsing</li>
         <li>product management body ≤ 64 KB before JSON parsing</li>
+        <li>
+          <code>clientPayload.body</code> ≤ 16 KiB measured as UTF-8 bytes
+        </li>
         <li>subscription user-binding body ≤ 32 KB before JSON parsing</li>
         <li>webhook push body ≤ 256 KB before JSON parsing</li>
         <li>
@@ -158,6 +161,12 @@ X-RateLimit-Remaining: 599`}
         Oversized fields return <code>400 INVALID_INPUT</code>; oversized
         request bodies return <code>413 PAYLOAD_TOO_LARGE</code>. Invalid inputs
         stop before upstream store calls or Convex mutations.
+      </p>
+      <p>
+        The 64 KB product-management limit applies to the entire HTTP request,
+        including JSON field names and every supplied value. It is not a
+        per-product custom metadata allowance. A client payload body has its own
+        16 KiB UTF-8 limit.
       </p>
     </DocsPage>
   );

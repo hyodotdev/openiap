@@ -88,4 +88,87 @@ describe("kitApi", () => {
     const result = await api.bindUser("tok", "user");
     expect(result).toEqual({ ok: true, bound: true });
   });
+
+  it("lists products without opting into payload bodies by default", async () => {
+    const fetchImpl = fakeFetch(() => ({
+      status: 200,
+      body: { products: [] },
+    }));
+    const api = kitApi({
+      apiKey: "key",
+      baseUrl: "http://localhost",
+      fetchImpl: fetchImpl as never,
+    });
+
+    await api.products();
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "http://localhost/v1/products/key",
+      expect.anything(),
+    );
+  });
+
+  it("opts into a bounded product-payload page with an opaque cursor", async () => {
+    const fetchImpl = fakeFetch(() => ({
+      status: 200,
+      body: { products: [] },
+    }));
+    const api = kitApi({
+      apiKey: "key",
+      baseUrl: "http://localhost",
+      fetchImpl: fetchImpl as never,
+    });
+
+    await api.products({
+      platform: "IOS",
+      includeClientPayload: true,
+      limit: 10,
+      cursor: "next/page=2",
+    });
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "http://localhost/v1/products/key?platform=IOS&includeClientPayload=true&limit=10&cursor=next%2Fpage%3D2",
+      expect.anything(),
+    );
+  });
+
+  it("requires a platform before fetching payload-inclusive products", () => {
+    const fetchImpl = vi.fn();
+    const api = kitApi({
+      apiKey: "key",
+      baseUrl: "http://localhost",
+      fetchImpl: fetchImpl as never,
+    });
+
+    expect(() => api.products({ includeClientPayload: true })).toThrow(
+      "kitApi.products requires platform when includeClientPayload is true",
+    );
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("reads one client payload with encoded identifiers", async () => {
+    const payload = {
+      format: "toml",
+      body: 'tier = "gold"',
+      version: 2,
+      updatedAt: 123,
+    };
+    const fetchImpl = fakeFetch(() => ({
+      status: 200,
+      body: { clientPayload: payload },
+    }));
+    const api = kitApi({
+      apiKey: "key with space",
+      baseUrl: "http://localhost",
+      fetchImpl: fetchImpl as never,
+    });
+
+    await expect(api.clientPayload("premium/year", "Android")).resolves.toEqual(
+      { clientPayload: payload },
+    );
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "http://localhost/v1/products/key%20with%20space/premium%2Fyear/client-payload?platform=Android",
+      expect.anything(),
+    );
+  });
 });

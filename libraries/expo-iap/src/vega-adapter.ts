@@ -6,6 +6,7 @@ import type {
   ProductSubscription,
   Purchase,
   PurchaseOptions,
+  RequestVerifyPurchaseWithIapkitResult,
   SubResponseCodeAndroid,
   VerifyPurchaseWithProviderProps,
   VerifyPurchaseWithProviderResult,
@@ -193,8 +194,7 @@ function isValidIpv4Address(address: string): boolean {
   return (
     octets.length === 4 &&
     octets.every(
-      (octet) =>
-        /^(?:0|[1-9]\d{0,2})$/.test(octet) && Number(octet) <= 255,
+      (octet) => /^(?:0|[1-9]\d{0,2})$/.test(octet) && Number(octet) <= 255,
     )
   );
 }
@@ -1092,7 +1092,7 @@ export function createExpoIapVegaModule(
         try {
           const parsed = JSON.parse(value);
           return parsed && typeof parsed === 'object'
-            ? extractIapkitErrorMessage(parsed, depth + 1) ?? value
+            ? (extractIapkitErrorMessage(parsed, depth + 1) ?? value)
             : value;
         } catch {
           return value;
@@ -1149,10 +1149,7 @@ export function createExpoIapVegaModule(
     function readIapkitResult(
       json: Record<string, unknown>,
       status: number,
-    ): {
-      isValid: boolean;
-      state: IapkitPurchaseState;
-    } {
+    ): RequestVerifyPurchaseWithIapkitResult {
       if (
         typeof json.isValid !== 'boolean' ||
         typeof json.state !== 'string' ||
@@ -1164,9 +1161,19 @@ export function createExpoIapVegaModule(
         );
       }
 
+      const productId = json.productId;
+      if (productId != null && typeof productId !== 'string') {
+        throw createVegaError(
+          ErrorCode.ReceiptFailed,
+          `IAPKit returned malformed response (HTTP ${status}).`,
+        );
+      }
+
       return {
         isValid: json.isValid,
+        ...(productId == null ? {} : {productId}),
         state: normalizeIapkitState(json.state),
+        store: 'amazon',
       };
     }
 
@@ -1287,11 +1294,7 @@ export function createExpoIapVegaModule(
     const result = readIapkitResult(json, response.status);
     return {
       provider: 'iapkit',
-      iapkit: {
-        isValid: result.isValid,
-        state: result.state,
-        store: 'amazon',
-      },
+      iapkit: result,
     };
   };
 
@@ -1440,11 +1443,11 @@ export function createExpoIapVegaModule(
           renewalInfoIOS: null,
           autoRenewingAndroid:
             purchase.platform === 'android'
-              ? (
+              ? ((
                   purchase as Purchase & {
                     autoRenewingAndroid?: boolean | null;
                   }
-                ).autoRenewingAndroid ?? null
+                ).autoRenewingAndroid ?? null)
               : null,
           basePlanIdAndroid: purchase.productId,
           currentPlanId: purchase.productId,
@@ -1454,9 +1457,8 @@ export function createExpoIapVegaModule(
     async hasActiveSubscriptions(
       subscriptionIds?: string[] | null,
     ): Promise<boolean> {
-      const subscriptions = await vegaModule.getActiveSubscriptions(
-        subscriptionIds,
-      );
+      const subscriptions =
+        await vegaModule.getActiveSubscriptions(subscriptionIds);
       return subscriptions.length > 0;
     },
     async acknowledgePurchaseAndroid(purchaseToken): Promise<void> {

@@ -11,6 +11,7 @@ import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 
 import { monthlyMicrosForSub } from "./monthlyMicros";
+import { getWritableProject } from "../projects/writable";
 
 // Counted state buckets. Other states (Expired / Revoked / Refunded /
 // Paused / Unknown) don't contribute to the live counters — those are
@@ -336,6 +337,10 @@ async function runRecomputePageInline(
     runStartedAt: number;
   },
 ): Promise<void> {
+  // Every scheduled page is a fresh transaction and can run after project or
+  // account deletion starts. Stop before reading/rewriting aggregate rows.
+  if (!(await getWritableProject(ctx, args.projectId))) return;
+
   // Build periodByPlatformProduct from the per-platform product
   // index, keyed by `${platform}:${productId}`. The same SKU can
   // exist on both stores with different billing periods, so a

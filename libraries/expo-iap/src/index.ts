@@ -1439,7 +1439,22 @@ export const verifyPurchaseWithProvider: MutationField<
     }
   }
 
-  return ExpoIapModule.verifyPurchaseWithProvider(resolvedOptions);
+  const result = await ExpoIapModule.verifyPurchaseWithProvider(
+    resolvedOptions,
+  );
+  if (result.iapkit == null) {
+    return result;
+  }
+
+  const {clientPayload, productId, ...iapkit} = result.iapkit;
+  return {
+    ...result,
+    iapkit: {
+      ...iapkit,
+      ...(clientPayload == null ? {} : {clientPayload}),
+      ...(productId == null ? {} : {productId}),
+    },
+  };
 };
 
 export * from './useIAP';
@@ -1460,6 +1475,13 @@ export type {
 export {kitApi, KitApiError} from './kit-api';
 export type {
   KitApiOptions,
+  KitClientPayloadResponse,
+  KitProduct,
+  KitProductClientPayload,
+  KitProductOffer,
+  KitProductPlatform,
+  KitProductsOptions,
+  KitProductsResponse,
   KitSubscription,
   EntitlementsResponse,
   StatusResponse,

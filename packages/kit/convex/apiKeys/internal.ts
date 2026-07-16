@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { ConvexError } from "convex/values";
 
 import { getApiKeyByKey } from "./helpers";
+import { getProjectById } from "../projects/helpers";
 
 // Internal query to validate an API key and get the associated project
 export const validateApiKey = internalQuery({
@@ -19,7 +20,11 @@ export const validateApiKey = internalQuery({
       }
 
       const project = await ctx.db.get(apiKeyRecord.projectId);
-      if (!project) {
+      if (!project || project.pendingDeletion) {
+        return { isValid: false, reason: "Associated project not found" };
+      }
+      const organization = await ctx.db.get(project.organizationId);
+      if (!organization || organization.pendingDeletion) {
         return { isValid: false, reason: "Associated project not found" };
       }
 
@@ -35,7 +40,13 @@ export const validateApiKey = internalQuery({
       .query("projects")
       .withIndex("by_api_key", (q) => q.eq("apiKey", args.apiKey))
       .first();
-    if (!legacyProject) return { isValid: false };
+    if (!legacyProject || legacyProject.pendingDeletion) {
+      return { isValid: false };
+    }
+    const organization = await ctx.db.get(legacyProject.organizationId);
+    if (!organization || organization.pendingDeletion) {
+      return { isValid: false };
+    }
 
     return {
       isValid: true,
@@ -77,7 +88,7 @@ export const migrateProjectApiKey = internalMutation({
     createdBy: v.id("users"),
   },
   handler: async (ctx, args) => {
-    const project = await ctx.db.get(args.projectId);
+    const project = await getProjectById(ctx, args.projectId);
     if (!project) {
       throw new ConvexError("Project not found");
     }

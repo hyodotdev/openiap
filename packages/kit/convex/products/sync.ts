@@ -1,6 +1,7 @@
 import { internalMutation, internalQuery } from "../_generated/server";
 import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
+import { assertProjectWritable } from "../projects/writable";
 
 const platformValidator = v.union(v.literal("IOS"), v.literal("Android"));
 const typeValidator = v.union(
@@ -121,6 +122,7 @@ export const upsertFromStore = internalMutation({
   },
   returns: v.id("products"),
   handler: async (ctx, args) => {
+    await assertProjectWritable(ctx, args.projectId);
     assertSafePriceAmountMicros(args.priceAmountMicros, "priceAmountMicros");
     args.offers?.forEach((offer, index) => {
       assertSafePriceAmountMicros(
@@ -236,6 +238,7 @@ export const markStoreRef = internalMutation({
   },
   returns: v.union(v.id("products"), v.null()),
   handler: async (ctx, args) => {
+    await assertProjectWritable(ctx, args.projectId);
     const existing = await ctx.db
       .query("products")
       .withIndex("by_project_and_platform_and_product", (q) =>
@@ -266,6 +269,7 @@ export const markPushed = internalMutation({
   },
   returns: v.union(v.id("products"), v.null()),
   handler: async (ctx, args) => {
+    await assertProjectWritable(ctx, args.projectId);
     const existing = await ctx.db
       .query("products")
       .withIndex("by_project_and_platform_and_product", (q) =>
@@ -542,6 +546,7 @@ export const deleteRemovedProductRow = internalMutation({
   },
   returns: v.boolean(),
   handler: async (ctx, args) => {
+    await assertProjectWritable(ctx, args.projectId);
     const existing = await ctx.db
       .query("products")
       .withIndex("by_project_and_platform_and_product", (q) =>
@@ -558,6 +563,10 @@ export const deleteRemovedProductRow = internalMutation({
     ) {
       return false;
     }
+    // Client payload bodies and body-free dashboard summaries intentionally
+    // live outside `products` and are retained. If a later pull recreates this
+    // catalog row, the app-owned metadata becomes available again without an
+    // operator re-entering it.
     await ctx.db.delete(existing._id);
     return true;
   },
@@ -567,7 +576,8 @@ export const deleteRemovedProductRow = internalMutation({
 // the project's kit-side product rows for one platform and returns
 // `{ deleted, hasMore }` so the worker can loop until empty without
 // blowing past Convex's per-mutation document budget. Does NOT touch
-// App Store Connect / Play Console — upstream deletion is handled by
+// either client-payload table, App Store Connect, or Play Console — upstream
+// deletion is handled by
 // marking individual rows Removed and running push/both sync so the
 // platform-specific delete constraints can be reported per product.
 export const deletePlatformCatalog = internalMutation({
@@ -578,6 +588,7 @@ export const deletePlatformCatalog = internalMutation({
   },
   returns: v.object({ deleted: v.number(), hasMore: v.boolean() }),
   handler: async (ctx, args) => {
+    await assertProjectWritable(ctx, args.projectId);
     // Guard against `limit <= 0` — Convex would happily run
     // `.take(1)` (limit + 1 = 1) and the worker loop reads
     // `hasMore` to keep iterating, which combined with `deleted = 0`

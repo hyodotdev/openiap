@@ -1,6 +1,7 @@
 import { internalMutation, internalQuery } from "../_generated/server";
 import { v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
+import { assertProjectWritable } from "../projects/writable";
 
 // Retention window for `webhookEvents` and `webhookIdempotencyKeys`.
 // The same value is referenced by `crons.ts` (which schedules the
@@ -127,6 +128,8 @@ export const recordWebhookEvent = internalMutation({
     deduped: v.boolean(),
   }),
   handler: async (ctx, args) => {
+    await assertProjectWritable(ctx, args.projectId);
+
     // Dedup check first. Apple ASN may retry the same notificationUUID
     // on transient 5xx, and Google Pub/Sub guarantees at-least-once
     // delivery — both are normal, both must result in HTTP 200 here.

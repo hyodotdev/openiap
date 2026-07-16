@@ -17,6 +17,7 @@ import {
   resolveProjectByIdForCurrentUserFromDb,
 } from "../projects/helpers";
 import { ErrorCode, createError } from "../utils/errors";
+import { getWritableProject } from "../projects/writable";
 
 // Per-job hard ceiling. Convex actions cap at ~10min; we allow 9min
 // for the worker and rely on the reaper to mark anything still
@@ -423,7 +424,9 @@ export const dismissCompletedJob = mutation({
 export const getJobForWorker = internalQuery({
   args: { jobId: v.id("productSyncJobs") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.jobId);
+    const job = await ctx.db.get(args.jobId);
+    if (!job) return null;
+    return (await getWritableProject(ctx, job.projectId)) ? job : null;
   },
 });
 
@@ -431,7 +434,9 @@ export const isCancelRequested = internalQuery({
   args: { jobId: v.id("productSyncJobs") },
   handler: async (ctx, args) => {
     const job = await ctx.db.get(args.jobId);
-    return job?.cancelRequested === true;
+    if (!job) return true;
+    if (!(await getWritableProject(ctx, job.projectId))) return true;
+    return job.cancelRequested === true;
   },
 });
 
@@ -440,6 +445,7 @@ export const markJobRunning = internalMutation({
   handler: async (ctx, args) => {
     const job = await ctx.db.get(args.jobId);
     if (!job) return;
+    if (!(await getWritableProject(ctx, job.projectId))) return;
     if (job.status !== "queued") return;
     const now = Date.now();
     await ctx.db.patch(args.jobId, {
@@ -460,6 +466,8 @@ export const updateJobProgress = internalMutation({
     failuresCount: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const job = await ctx.db.get(args.jobId);
+    if (!job || !(await getWritableProject(ctx, job.projectId))) return;
     await ctx.db.patch(args.jobId, {
       progress: {
         phase: args.phase,
@@ -489,6 +497,8 @@ export const markJobSucceeded = internalMutation({
     ),
   },
   handler: async (ctx, args) => {
+    const job = await ctx.db.get(args.jobId);
+    if (!job || !(await getWritableProject(ctx, job.projectId))) return;
     const { items: failures, truncated } = truncateFailures(args.failures);
     await ctx.db.patch(args.jobId, {
       status: "succeeded",
@@ -510,17 +520,14 @@ export const markJobSucceeded = internalMutation({
     // slot. Guard against a stale lock pointing at a different job
     // (e.g. a manual db.patch races with a finished worker) so we
     // never overwrite a fresh lock with `undefined`.
-    const job = await ctx.db.get(args.jobId);
-    if (job) {
-      const project = await ctx.db.get(job.projectId);
-      if (project && project.activeSyncJobIds?.[job.platform] === args.jobId) {
-        await ctx.db.patch(project._id, {
-          activeSyncJobIds: {
-            ...project.activeSyncJobIds,
-            [job.platform]: undefined,
-          },
-        });
-      }
+    const project = await getWritableProject(ctx, job.projectId);
+    if (project?.activeSyncJobIds?.[job.platform] === args.jobId) {
+      await ctx.db.patch(project._id, {
+        activeSyncJobIds: {
+          ...project.activeSyncJobIds,
+          [job.platform]: undefined,
+        },
+      });
     }
   },
 });
@@ -536,6 +543,8 @@ export const markJobFailed = internalMutation({
     ),
   },
   handler: async (ctx, args) => {
+    const job = await ctx.db.get(args.jobId);
+    if (!job || !(await getWritableProject(ctx, job.projectId))) return;
     const rawFailures = args.failures ?? [];
     const { items: failures, truncated } = truncateFailures(rawFailures);
     await ctx.db.patch(args.jobId, {
@@ -560,17 +569,14 @@ export const markJobFailed = internalMutation({
     });
     // Mirror `markJobSucceeded` — clear the lock on terminal
     // failure so the next enqueue isn't blocked by a stuck slot.
-    const job = await ctx.db.get(args.jobId);
-    if (job) {
-      const project = await ctx.db.get(job.projectId);
-      if (project && project.activeSyncJobIds?.[job.platform] === args.jobId) {
-        await ctx.db.patch(project._id, {
-          activeSyncJobIds: {
-            ...project.activeSyncJobIds,
-            [job.platform]: undefined,
-          },
-        });
-      }
+    const project = await getWritableProject(ctx, job.projectId);
+    if (project?.activeSyncJobIds?.[job.platform] === args.jobId) {
+      await ctx.db.patch(project._id, {
+        activeSyncJobIds: {
+          ...project.activeSyncJobIds,
+          [job.platform]: undefined,
+        },
+      });
     }
   },
 });

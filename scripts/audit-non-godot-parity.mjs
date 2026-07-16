@@ -3370,6 +3370,9 @@ function checkFrameworkDependencyHygiene() {
       "if ! vercel --prod; then",
       'git commit -m "chore(spec): bump version to $VERSION"',
       "release-branch-policy.mjs guard docs current false",
+      "git fetch --no-tags origin main",
+      "LOCAL_HEAD=$(git rev-parse HEAD)",
+      "REMOTE_HEAD=$(git rev-parse origin/main)",
       "git pull --rebase origin main",
       "git push origin HEAD:main",
       "packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json",
@@ -3385,17 +3388,111 @@ function checkFrameworkDependencyHygiene() {
     "packages/docs/deploy.sh",
     [
       "set -euo pipefail",
-      'VERCEL_CLI_VERSION="54.0.0"',
-      'npm install -g "vercel@$VERCEL_CLI_VERSION"',
-      "if ! bun run typecheck; then",
-      "if ! bun run build; then",
+      "REPO_ROOT=",
+      'cd "$REPO_ROOT"',
+      'exec ./scripts/deploy.sh "$@"',
     ],
-    "docs deploy script must be deterministic and preserve failure messages",
+    "docs deploy script must delegate to the canonical root deployment script",
   );
   expectNotIncludes(
     "packages/docs/deploy.sh",
-    ["npm install -g vercel", "if [ $? -ne 0 ]; then"],
-    "docs deploy script must not install floating CLIs or bypass custom failure messages",
+    ["npm install", "vercel --prod", "bun run typecheck", "bun run build"],
+    "docs deploy wrapper must not duplicate root deployment behavior",
+  );
+  expectIncludes(
+    ".github/workflows/deploy-kit.yml",
+    [
+      "if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')",
+      "- name: Validate required deployment secrets",
+      "- name: Deploy Convex functions",
+      "- name: Deploy",
+    ],
+    "Kit deploy must be main-only and validate both deployment surfaces",
+  );
+  expectNotIncludes(
+    ".github/workflows/deploy-kit.yml",
+    ["if: ${{ env.KIT_CONVEX_DEPLOY_KEY != '' }}"],
+    "Kit production deploy must not silently skip Convex",
+  );
+  const kitDeployWorkflow = read(".github/workflows/deploy-kit.yml");
+  const validateDeploySecrets = kitDeployWorkflow.indexOf(
+    "- name: Validate required deployment secrets",
+  );
+  const deployConvex = kitDeployWorkflow.indexOf(
+    "- name: Deploy Convex functions",
+  );
+  const deployFly = kitDeployWorkflow.indexOf("- name: Deploy\n");
+  if (
+    validateDeploySecrets === -1 ||
+    deployConvex === -1 ||
+    deployFly === -1 ||
+    !(validateDeploySecrets < deployConvex && deployConvex < deployFly)
+  ) {
+    fail(
+      "Kit production deploy must validate secrets, then deploy Convex before Fly",
+    );
+  }
+  expectIncludes(
+    "packages/kit/public/llms.txt",
+    [
+      "Purchase verification and MCP auth:",
+      "Product, subscription, and webhook helper routes carry",
+      "default 600 per key",
+      "an exact store-verified `productId` match",
+    ],
+    "Kit compact assistant contract must match authentication and safety SSOT",
+  );
+  expectNotIncludes(
+    "packages/kit/public/llms.txt",
+    ["default 60 per key", "IAPKit is a single-package"],
+    "Kit compact assistant contract must not retain stale limits or topology",
+  );
+  expectIncludes(
+    "packages/kit/public/llms-full.txt",
+    [
+      "github.com/hyodotdev/openiap/tree/main/packages/kit",
+      ".github/workflows/deploy-kit.yml",
+      "Apple/Amazon: consumable ready for durable fulfillment",
+      "deploys additive Convex functions",
+    ],
+    "Kit full assistant contract must follow monorepo deployment and state SSOT",
+  );
+  expectNotIncludes(
+    "packages/kit/public/llms-full.txt",
+    [
+      "github.com/hyodotdev/openiap-kit",
+      ".github/workflows/deploy.yml",
+      "Every API request must carry a Bearer token",
+      "Single-package repo",
+      "the live server wins",
+    ],
+    "Kit full assistant contract must not retain stale repository or auth claims",
+  );
+  expectIncludes(
+    "packages/kit/src/pages/docs/sections/quickstart.tsx",
+    [
+      "Never unlock or deliver from <code>isValid</code> alone",
+      "Payload omission does not invalidate",
+    ],
+    "Kit quickstart must preserve fail-closed verification guidance",
+  );
+  expectNotIncludes(
+    "packages/kit/src/pages/docs/sections/quickstart.tsx",
+    ["is the short-circuit answer", "A valid response includes the payload"],
+    "Kit quickstart must not overstate isValid or optional payload enrichment",
+  );
+  expectIncludes(
+    "packages/kit/src/pages/docs/sections/ai-assistants.tsx",
+    [
+      "versioned summaries maintained with the canonical API",
+      "canonical implementation and docs take",
+    ],
+    "Kit assistant docs must identify canonical sources",
+  );
+  expectNotIncludes(
+    "packages/kit/src/pages/docs/sections/ai-assistants.tsx",
+    ["never hand-edited", "regenerated alongside"],
+    "Kit assistant docs must not claim nonexistent generation automation",
   );
   expectIncludes(
     ".github/workflows/release.yml",

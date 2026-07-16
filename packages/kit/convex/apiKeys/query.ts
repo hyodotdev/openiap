@@ -3,6 +3,7 @@ import type { Doc } from "../_generated/dataModel";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError } from "convex/values";
+import { getWritableProject } from "../projects/writable";
 
 type SafeApiKey = Omit<Doc<"apiKeys">, "key"> & {
   keyPreview: string;
@@ -35,7 +36,7 @@ export const listProjectApiKeys = query({
     }
 
     // Get project to verify access
-    const project = await ctx.db.get(args.projectId);
+    const project = await getWritableProject(ctx, args.projectId);
     if (!project) {
       throw new ConvexError("Project not found");
     }
@@ -76,7 +77,7 @@ export const getActiveCount = query({
     }
 
     // Get project to verify access
-    const project = await ctx.db.get(args.projectId);
+    const project = await getWritableProject(ctx, args.projectId);
     if (!project) {
       throw new ConvexError("Project not found");
     }
@@ -126,7 +127,7 @@ export const getById = query({
     }
 
     // Get project to verify access
-    const project = await ctx.db.get(apiKey.projectId);
+    const project = await getWritableProject(ctx, apiKey.projectId);
     if (!project) {
       throw new ConvexError("Project not found");
     }

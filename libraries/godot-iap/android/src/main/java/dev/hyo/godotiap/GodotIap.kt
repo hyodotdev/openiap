@@ -31,7 +31,7 @@ internal fun normalizeVerifyPurchaseWithProviderProps(
     if (props["iapkit"] != null) return props
 
     val legacyIapkit = linkedMapOf<String, Any?>()
-    listOf("amazon", "apiKey", "apple", "baseUrl", "google").forEach { key ->
+    listOf("amazon", "apiKey", "apple", "baseUrl", "google", "includeClientPayload").forEach { key ->
         if (props[key] != null) {
             legacyIapkit[key] = props[key]
         }

@@ -357,6 +357,13 @@ input RequestVerifyPurchaseWithIapkitProps {
   """
   baseUrl: String
   """
+  Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+  Include the product's public IAPKit client payload in a valid Apple or
+  Google verification response. Defaults to false so existing response
+  shapes and bandwidth remain unchanged.
+  """
+  includeClientPayload: Boolean
+  """
   Apple App Store verification parameters.
   """
   apple: RequestVerifyPurchaseWithIapkitAppleProps
@@ -412,16 +419,50 @@ enum IapkitPurchaseState {
   INAUTHENTIC
 }
 
+"""
+Serialization format of a public IAPKit product client payload.
+"""
+enum IapkitClientPayloadFormat {
+  Toml
+  Json
+  Text
+}
+
+"""
+Public app-facing data attached to one store product in IAPKit.
+Never place credentials, signing keys, or server-authoritative rules here.
+"""
+type IapkitProductClientPayload {
+  format: IapkitClientPayloadFormat!
+  body: String!
+  version: Float!
+  updatedAt: Float!
+}
+
 type RequestVerifyPurchaseWithIapkitResult {
   store: IapStore!
   """
-  Whether the purchase is valid (not falsified).
+  True when the purchase is valid and actionable.
+  Only entitled, pending-acknowledgment, or ready-to-consume return true.
+  Callers must still match productId and use the platform plus app-owned product
+  type to choose the fulfillment path.
   """
   isValid: Boolean!
   """
   The current state of the purchase.
   """
   state: IapkitPurchaseState!
+  """
+  Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+  Store-verified product identifier when the provider returns one.
+  """
+  productId: String
+  """
+  Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+  Public product payload when includeClientPayload was requested, the
+  Apple or Google receipt is valid, and a payload exists for that product.
+  """
+  clientPayload: IapkitProductClientPayload
 }
 
 input VerifyPurchaseWithProviderProps {

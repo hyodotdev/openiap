@@ -26,4 +26,25 @@ void main() {
       ),
     );
   });
+
+  test('native plugins forward and return IAPKit client payloads', () {
+    final ios = File(
+      'ios/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift',
+    ).readAsStringSync();
+    final macos = File(
+      'macos/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift',
+    ).readAsStringSync();
+    final android = File(
+      'android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt',
+    ).readAsStringSync();
+
+    for (final apple in [ios, macos]) {
+      expect(apple, contains('iapkit["includeClientPayload"] as? Bool'));
+      expect(apple, contains('iapkitResult["clientPayload"]'));
+      expect(apple, contains('iapkitItem.productId'));
+    }
+    expect(android, contains('iapkit["includeClientPayload"] as? Boolean'));
+    expect(android, contains('item.clientPayload?.let'));
+    expect(android, contains('item.productId?.let'));
+  });
 }

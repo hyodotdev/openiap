@@ -38,6 +38,7 @@ import type { MutationCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
+import { getWritableProject } from "../projects/writable";
 
 // Trailing recompute window in days. Bumping this past ~7 days means
 // every cron tick walks more events for diminishing accuracy gains
@@ -395,6 +396,7 @@ export async function runRecompute(
   projectId: Id<"projects">,
   now: number,
 ): Promise<void> {
+  if (!(await getWritableProject(ctx, projectId))) return;
   const todayStart = startOfUtcDay(now);
   const windowStart = todayStart - (TRAILING_DAYS - 1) * DAY_MS;
   // Inclusive end-of-window — covers events received up to "now"
@@ -652,6 +654,7 @@ export async function runRecomputePage(
   ctx: MutationCtx,
   args: RecomputeRevenueMetricsPageArgs,
 ): Promise<void> {
+  if (!(await getWritableProject(ctx, args.projectId))) return;
   const buckets = new Map<BucketKey, RollupBucket>();
   for (const row of args.buckets) {
     const key = bucketKey(row.day, row.productId, row.currency, row.platform);
@@ -705,6 +708,7 @@ export const commitRevenueMetricsDay = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    if (!(await getWritableProject(ctx, args.projectId))) return null;
     const existing = await ctx.db
       .query("revenueMetricsDaily")
       .withIndex("by_project_and_day_and_currency", (q) =>
@@ -786,6 +790,7 @@ export const commitRevenueMetricsDayInsertChunk = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    if (!(await getWritableProject(ctx, args.projectId))) return null;
     await Promise.all(
       args.buckets.map((bucket) => insertBucket(ctx, args, bucket)),
     );

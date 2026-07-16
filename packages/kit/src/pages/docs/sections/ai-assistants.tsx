@@ -22,8 +22,7 @@ export default function AiAssistantsPage() {
           llmstxt.org
         </a>{" "}
         convention. Both are plain text, served from the same origin as the
-        docs, and regenerated alongside every material change to the API
-        surface.
+        docs, and maintained alongside material changes to the API surface.
       </p>
 
       <div className="my-4 overflow-hidden rounded-lg border border-border">
@@ -139,18 +138,17 @@ curl -s https://kit.openiap.dev/llms-full.txt | \\
 
       <h2 className="mt-10 text-2xl font-semibold">Freshness</h2>
       <p>
-        Both files are regenerated from the canonical sources inside the repo —
-        API routes, Convex schema, docs content — whenever those sources change
-        in a release. They are never hand-edited. A stale fact in{" "}
-        <code>llms.txt</code> therefore points at a stale fact in the codebase;
-        please{" "}
+        Both files are versioned summaries maintained with the canonical API
+        routes, Convex schema, and docs in the OpenIAP monorepo. If a summary
+        conflicts with those sources, the canonical implementation and docs take
+        precedence; please{" "}
         <a
           href="mailto:hyo@hyo.dev"
           className="text-primary underline"
           target="_blank"
           rel="noopener noreferrer"
         >
-          report it
+          report any drift
         </a>{" "}
         and we'll land a fix.
       </p>

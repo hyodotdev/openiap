@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it } from "vitest";
  * "preferred path first, legacy fallback second" contract.
  */
 
-type Project = { _id: string; apiKey?: string };
+type Project = { _id: string; apiKey?: string; pendingDeletion?: boolean };
 type ApiKey = {
   _id: string;
   key: string;
@@ -25,11 +25,14 @@ async function getProjectByApiKey(
   const primary = tables.apiKeys.find((k) => k.key === apiKey) ?? null;
   if (primary !== null) {
     if (primary.isActive === false) return null;
-    return tables.projects.find((p) => p._id === primary.projectId) ?? null;
+    const project =
+      tables.projects.find((p) => p._id === primary.projectId) ?? null;
+    return project?.pendingDeletion ? null : project;
   }
 
   // Legacy fallback
-  return tables.projects.find((p) => p.apiKey === apiKey) ?? null;
+  const project = tables.projects.find((p) => p.apiKey === apiKey) ?? null;
+  return project?.pendingDeletion ? null : project;
 }
 
 describe("getProjectByApiKey — preferred path / legacy fallback", () => {
@@ -78,6 +81,22 @@ describe("getProjectByApiKey — preferred path / legacy fallback", () => {
   it("returns null when neither table has the key", async () => {
     const project = await getProjectByApiKey(tables, "openiap-kit_unknown");
     expect(project).toBeNull();
+  });
+
+  it("rejects both current and legacy keys while project deletion drains", async () => {
+    tables.projects.find(
+      (project) => project._id === "proj_a",
+    )!.pendingDeletion = true;
+    tables.projects.find(
+      (project) => project._id === "proj_legacy",
+    )!.pendingDeletion = true;
+
+    await expect(
+      getProjectByApiKey(tables, "openiap-kit_active"),
+    ).resolves.toBeNull();
+    await expect(
+      getProjectByApiKey(tables, "openiap-kit_legacy"),
+    ).resolves.toBeNull();
   });
 
   it("prefers the apiKeys row even if the projects row also carries the key", async () => {

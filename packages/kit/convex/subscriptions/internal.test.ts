@@ -45,6 +45,18 @@ class MemDb {
   tables = new Map<string, Map<string, Row>>();
   private counter = 0;
 
+  constructor() {
+    this.table("organizations").set("organizations_seed_1", {
+      _id: "organizations_seed_1",
+      _creationTime: Date.now(),
+    });
+    this.table("projects").set("projects_seed_1", {
+      _id: "projects_seed_1",
+      _creationTime: Date.now(),
+      organizationId: "organizations_seed_1",
+    });
+  }
+
   private table(name: string): Map<string, Row> {
     let table = this.tables.get(name);
     if (!table) {
@@ -346,6 +358,23 @@ describe("recordVerifiedSubscriptionHandler", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it("rejects a receipt-verification write once project deletion starts", async () => {
+    const db = new MemDb();
+    await db.patch(PROJECT_ID, { pendingDeletion: true });
+
+    await expect(
+      recordVerifiedSubscriptionHandler(makeCtx(db), {
+        projectId: PROJECT_ID as never,
+        platform: "Android",
+        purchaseToken: TOKEN,
+        productId: "premium_monthly",
+        purchaseState: HarmonizedPurchaseState.ENTITLED,
+      }),
+    ).rejects.toThrow("Project not found");
+    expect(db.rows("subscriptions")).toEqual([]);
+    expect(db.rows("subscriptionStats")).toEqual([]);
   });
 
   it("creates a bindable subscription row from Google receipt verification", async () => {

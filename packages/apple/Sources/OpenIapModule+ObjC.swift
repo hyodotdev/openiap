@@ -522,6 +522,28 @@ import StoreKit
         jws: String?,
         completion: @escaping ([String: Any]?, Error?) -> Void
     ) {
+        verifyPurchaseWithProviderObjC(
+            provider: provider,
+            apiKey: apiKey,
+            baseUrl: baseUrl,
+            jws: jws,
+            includeClientPayload: false,
+            completion: completion
+        )
+    }
+
+    /// Verify purchase with external provider and optionally return the
+    /// product's public IAPKit client payload. This is an additive selector;
+    /// the published selectors above continue to omit payload bodies.
+    @objc(verifyPurchaseWithProviderObjCWithProvider:apiKey:baseUrl:jws:includeClientPayload:completion:)
+    func verifyPurchaseWithProviderObjC(
+        provider: String,
+        apiKey: String?,
+        baseUrl: String?,
+        jws: String?,
+        includeClientPayload: Bool,
+        completion: @escaping ([String: Any]?, Error?) -> Void
+    ) {
         Task {
             do {
                 guard let providerEnum = PurchaseVerificationProvider(rawValue: provider) else {
@@ -537,7 +559,8 @@ import StoreKit
                     apiKey: apiKey,
                     apple: appleProps,
                     baseUrl: baseUrl,
-                    google: nil
+                    google: nil,
+                    includeClientPayload: includeClientPayload ? true : nil
                 )
 
                 let props = VerifyPurchaseWithProviderProps(

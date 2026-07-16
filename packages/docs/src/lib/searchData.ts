@@ -131,7 +131,8 @@ export const apiData: ApiItem[] = [
     id: 'verify-purchase-with-provider',
     title: 'verifyPurchaseWithProvider',
     category: 'Validation',
-    description: 'Verify purchases using IAPKit or other providers',
+    description:
+      'Verify purchases with IAPKit and optionally retrieve a public product client payload',
     parameters: 'VerifyPurchaseWithProviderProps!',
     returns: 'VerifyPurchaseWithProviderResult!',
     path: '/docs/features/validation#verify-purchase-with-provider',

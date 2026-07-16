@@ -21,6 +21,7 @@ describe('native log redaction', () => {
       'secret',
       'jws',
       'receipt',
+      'clientpayload',
       'dataandroid',
       'signatureandroid',
       'userid',

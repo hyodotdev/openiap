@@ -10,6 +10,7 @@ enum FlutterIapLog {
         "secret",
         "jws",
         "receipt",
+        "clientpayload",
         "userid",
         "password",
         "bearer",

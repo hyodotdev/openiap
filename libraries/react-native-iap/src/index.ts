@@ -165,6 +165,13 @@ export type {
 export {kitApi, KitApiError} from './kit-api';
 export type {
   KitApiOptions,
+  KitClientPayloadResponse,
+  KitProduct,
+  KitProductClientPayload,
+  KitProductOffer,
+  KitProductPlatform,
+  KitProductsOptions,
+  KitProductsResponse,
   KitSubscription,
   EntitlementsResponse,
   StatusResponse,
@@ -2337,7 +2344,13 @@ export const verifyPurchaseWithProvider: MutationField<
       provider: result.provider,
       iapkit: result.iapkit
         ? {
+            ...(result.iapkit.clientPayload == null
+              ? {}
+              : {clientPayload: result.iapkit.clientPayload}),
             isValid: result.iapkit.isValid,
+            ...(result.iapkit.productId == null
+              ? {}
+              : {productId: result.iapkit.productId}),
             state: result.iapkit.state,
             store: result.iapkit.store,
           }

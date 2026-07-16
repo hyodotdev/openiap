@@ -36,11 +36,16 @@ export function Modal({
 }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) {
-        onClose();
+        onCloseRef.current();
       }
     };
 
@@ -50,7 +55,7 @@ export function Modal({
         e.target instanceof Node &&
         !modalRef.current.contains(e.target)
       ) {
-        onClose();
+        onCloseRef.current();
       }
     };
 
@@ -90,7 +95,7 @@ export function Modal({
           e.preventDefault();
           last.focus();
         }
-      } else if (active === last) {
+      } else if (active === last || !modalRef.current.contains(active)) {
         e.preventDefault();
         first.focus();
       }
@@ -115,7 +120,7 @@ export function Modal({
       window.clearTimeout(focusTimer);
       previouslyFocusedRef.current?.focus?.();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 

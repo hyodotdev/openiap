@@ -455,6 +455,9 @@ class HybridRnIap: HybridRnIapSpec {
                     if case .second(let baseUrl) = iapkit.baseUrl {
                         iapkitDict["baseUrl"] = baseUrl
                     }
+                    if case .second(let includeClientPayload) = iapkit.includeClientPayload {
+                        iapkitDict["includeClientPayload"] = includeClientPayload
+                    }
                     if case .second(let apple) = iapkit.apple {
                         iapkitDict["apple"] = ["jws": apple.jws]
                     }
@@ -483,8 +486,21 @@ class HybridRnIap: HybridRnIapSpec {
                 // Convert result to Nitro types
                 var nitroIapkitResult: NitroVerifyPurchaseWithIapkitResult? = nil
                 if let item = result.iapkit {
+                    let clientPayload = item.clientPayload.flatMap { payload -> NitroIapkitProductClientPayload? in
+                        guard let format = IapkitClientPayloadFormat(fromString: payload.format.rawValue) else {
+                            return nil
+                        }
+                        return NitroIapkitProductClientPayload(
+                            body: payload.body,
+                            format: format,
+                            updatedAt: payload.updatedAt,
+                            version: payload.version
+                        )
+                    }
                     nitroIapkitResult = NitroVerifyPurchaseWithIapkitResult(
+                        clientPayload: clientPayload.map { .second($0) },
                         isValid: item.isValid,
+                        productId: RnIapHelper.wrapString(item.productId),
                         state: IapkitPurchaseState(fromString: item.state.rawValue) ?? .unknown,
                         store: IapStore(fromString: item.store.rawValue) ?? .unknown
                     )

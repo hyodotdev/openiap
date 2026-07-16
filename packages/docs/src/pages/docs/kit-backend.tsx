@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../components/AnchorLink';
 import CodeBlock from '../../components/CodeBlock';
 import LanguageTabs from '../../components/LanguageTabs';
@@ -13,9 +14,9 @@ function KitBackend() {
     <div className="doc-page">
       <SEO
         title="Purchase Verification with IAPKit"
-        description="Purchase verification with IAPKit at kit.openiap.dev handles Apple StoreKit 2, Google Play, Amazon Appstore, and Meta Horizon verification, lifecycle webhooks, subscription state, revenue metrics, and store product sync — without the host app needing to operate its own server."
+        description="Purchase verification with IAPKit at kit.openiap.dev handles Apple StoreKit 2, Google Play, Amazon Appstore, and Meta Horizon verification, public per-product client payloads, lifecycle webhooks, subscription state, revenue metrics, and store product sync."
         path="/docs/kit-backend"
-        keywords="IAPKit, kit.openiap.dev, OpenIAP kit, hosted backend, purchase verification, receipt validation, Amazon Fire OS, Vega OS, subscription state, App Store Connect, Play Console, MCP server"
+        keywords="IAPKit, kit.openiap.dev, OpenIAP kit, hosted backend, purchase verification, receipt validation, product client payload, TOML metadata, Amazon Fire OS, Vega OS, subscription state, App Store Connect, Play Console, MCP server"
       />
       <h1>Purchase Verification</h1>
       <p>
@@ -95,6 +96,13 @@ function KitBackend() {
           </li>
           <li>
             <code>
+              GET
+              /v1/products/&#123;apiKey&#125;/&#123;productId&#125;/client-payload?platform=
+            </code>{' '}
+            — read one public TOML, JSON, or text product payload.
+          </li>
+          <li>
+            <code>
               POST /v1/products/&#123;apiKey&#125;/sync/&#123;ios|android&#125;
             </code>{' '}
             — push-sync with App Store Connect / Play Console.
@@ -154,7 +162,8 @@ function KitBackend() {
           <li>
             <strong>Products</strong> — kit-side catalog with one-click sync to
             App Store Connect (via the project's uploaded <code>.p8</code> key)
-            or Play Console (via the service-account JSON).
+            or Play Console (via the service-account JSON), plus a public client
+            payload editor for app-readable TOML, JSON, or text rules.
           </li>
           <li>
             <strong>Webhooks</strong> — copyable lifecycle webhook URL, the SSE
@@ -192,6 +201,12 @@ function KitBackend() {
           available. Set <code>sandbox: true</code> when validating Amazon App
           Tester sandbox receipts.
         </p>
+        <p>
+          Grant access only when IAPKit returns a store-verified{' '}
+          <code>productId</code> and it matches the product requested by the
+          app. Treat the local purchase ID only as the expected value for this
+          comparison; never substitute it when the verified ID is missing.
+        </p>
         <LanguageTabs>
           {{
             typescript: (
@@ -208,6 +223,8 @@ const result = await verifyPurchaseWithProvider({
   iapkit: {
     // Optional when configured via Expo config / Info.plist / AndroidManifest.
     apiKey: process.env.EXPO_PUBLIC_IAPKIT_API_KEY,
+    // Product payload enrichment applies only to Apple and Google.
+    ...(!isAmazonRuntime && { includeClientPayload: true }),
     ...(Platform.OS === 'ios'
       ? { apple: { jws: token } }
       : isAmazonRuntime
@@ -221,12 +238,27 @@ const result = await verifyPurchaseWithProvider({
   },
 });
 
-if (result.iapkit?.isValid === true) {
-  await grantEntitlement(purchase.productId);
+const verified = result.iapkit;
+const verifiedProductId = verified?.productId;
+const hasAllowedState =
+  verified?.state === 'entitled' ||
+  (Platform.OS === 'android' &&
+    !isAmazonRuntime &&
+    verified?.state === 'pending-acknowledgment');
+if (
+  verified?.isValid === true &&
+  hasAllowedState &&
+  verifiedProductId != null &&
+  verifiedProductId === purchase.productId
+) {
+  await grantEntitlement(verifiedProductId);
+  if (verified.clientPayload) {
+    applyPublicRules(verified.clientPayload);
+  }
 }`}</CodeBlock>
             ),
             swift: (
-              <CodeBlock language="swift">{`import OpenIap
+              <CodeBlock language="swift">{`import OpenIAP
 
 let result = try await OpenIapModule.shared.verifyPurchaseWithProvider(
     VerifyPurchaseWithProviderProps(
@@ -234,14 +266,19 @@ let result = try await OpenIapModule.shared.verifyPurchaseWithProvider(
             apiKey: iapkitApiKey,
             apple: RequestVerifyPurchaseWithIapkitAppleProps(
                 jws: purchase.purchaseToken ?? ""
-            )
+            ),
+            includeClientPayload: true
         ),
         provider: .iapkit
     )
 )
 
-if result.iapkit?.isValid == true {
-    unlockEntitlement(productId: purchase.productId)
+if let verified = result.iapkit,
+   verified.isValid,
+   verified.state == .entitled,
+   let verifiedProductId = verified.productId,
+   verifiedProductId == purchase.productId {
+    unlockEntitlement(productId: verifiedProductId)
 }`}</CodeBlock>
             ),
             kotlin: (
@@ -255,14 +292,24 @@ val result = module.verifyPurchaseWithProvider(
             google = RequestVerifyPurchaseWithIapkitGoogleProps(
                 purchaseToken = purchase.purchaseToken.orEmpty(),
             ),
+            includeClientPayload = true,
             // Fire OS: use amazon = RequestVerifyPurchaseWithIapkitAmazonProps(...)
             // with userId, receiptId, and sandbox for Amazon App Tester.
         ),
     ),
 )
 
-if (result.iapkit?.isValid == true) {
-    unlockEntitlement(purchase.productId)
+val verified = result.iapkit
+val verifiedProductId = verified?.productId
+val hasAllowedState =
+    verified?.state == IapkitPurchaseState.Entitled ||
+        verified?.state == IapkitPurchaseState.PendingAcknowledgment
+if (verified != null &&
+    verified.isValid &&
+    hasAllowedState &&
+    verifiedProductId != null &&
+    verifiedProductId == purchase.productId) {
+    unlockEntitlement(verifiedProductId)
 }`}</CodeBlock>
             ),
             dart: (
@@ -283,20 +330,33 @@ final result = await FlutterInappPurchase.instance.verifyPurchaseWithProvider(
             purchaseToken: purchase.purchaseToken ?? '',
           )
         : null,
+    includeClientPayload: true,
     // Fire OS builds can pass amazon with userId, receiptId, and sandbox.
   ),
 );
 
-if (result.iapkit?.isValid == true) {
-  unlockEntitlement(purchase.productId);
+final verified = result.iapkit;
+final verifiedProductId = verified?.productId;
+final hasAllowedState =
+    verified?.state == IapkitPurchaseState.Entitled ||
+    (Platform.isAndroid &&
+        verified?.state == IapkitPurchaseState.PendingAcknowledgment);
+if (verified != null &&
+    verified.isValid &&
+    hasAllowedState &&
+    verifiedProductId != null &&
+    verifiedProductId == purchase.productId) {
+  unlockEntitlement(verifiedProductId);
 }`}</CodeBlock>
             ),
             csharp: (
               <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
+using Microsoft.Maui.Devices;
 
 var token = purchase.PurchaseToken ?? string.Empty;
-var mutate = (MutationResolver)Iap.Instance;
+var isIos = DeviceInfo.Platform == DevicePlatform.iOS;
+var mutate = (MutationResolver)OpenIapClient.Instance;
 var result = await mutate.VerifyPurchaseWithProviderAsync(
     new VerifyPurchaseWithProviderProps
     {
@@ -304,15 +364,28 @@ var result = await mutate.VerifyPurchaseWithProviderAsync(
         Iapkit = new RequestVerifyPurchaseWithIapkitProps
         {
             ApiKey = iapkitApiKey,
-            Apple = new RequestVerifyPurchaseWithIapkitAppleProps { Jws = token },
-            Google = new RequestVerifyPurchaseWithIapkitGoogleProps { PurchaseToken = token },
+            IncludeClientPayload = true,
+            Apple = isIos
+                ? new RequestVerifyPurchaseWithIapkitAppleProps { Jws = token }
+                : null,
+            Google = isIos
+                ? null
+                : new RequestVerifyPurchaseWithIapkitGoogleProps { PurchaseToken = token },
             // Amazon Fire OS uses Amazon = new RequestVerifyPurchaseWithIapkitAmazonProps { ... }.
         },
     });
 
-if (result.Iapkit?.IsValid == true)
+var verified = result.Iapkit;
+var verifiedProductId = verified?.ProductId;
+var hasAllowedState =
+    verified?.State == IapkitPurchaseState.Entitled ||
+    (!isIos && verified?.State == IapkitPurchaseState.PendingAcknowledgment);
+if (verified is { IsValid: true } &&
+    hasAllowedState &&
+    verifiedProductId is not null &&
+    verifiedProductId == purchase.ProductId)
 {
-    UnlockEntitlement(purchase.ProductId);
+    UnlockEntitlement(verifiedProductId);
 }`}</CodeBlock>
             ),
             kmp: (
@@ -326,20 +399,33 @@ val result = kmpIAP.verifyPurchaseWithProvider(
             apiKey = iapkitApiKey,
             apple = if (isIos) RequestVerifyPurchaseWithIapkitAppleProps(jws = token) else null,
             google = if (!isIos) RequestVerifyPurchaseWithIapkitGoogleProps(purchaseToken = token) else null,
+            includeClientPayload = true,
             // Amazon Fire OS builds use amazon with userId, receiptId, and sandbox.
         ),
     ),
 )
 
-if (result.iapkit?.isValid == true) {
-    unlockEntitlement(purchase.productId)
+val verified = result.iapkit
+val verifiedProductId = verified?.productId
+val hasAllowedState =
+    verified?.state == IapkitPurchaseState.Entitled ||
+        (!isIos && verified?.state == IapkitPurchaseState.PendingAcknowledgment)
+if (verified != null &&
+    verified.isValid &&
+    hasAllowedState &&
+    verifiedProductId != null &&
+    verifiedProductId == purchase.productId) {
+    unlockEntitlement(verifiedProductId)
 }`}</CodeBlock>
             ),
             gdscript: (
-              <CodeBlock language="gdscript">{`var result = await iap.verify_purchase_with_provider({
+              <CodeBlock language="gdscript">{`const Types = preload("res://addons/godot-iap/types.gd")
+
+var result = await iap.verify_purchase_with_provider({
 	"provider": "iapkit",
 	"iapkit": {
 		"apiKey": iapkit_api_key,
+		"includeClientPayload": true,
 		"google": {
 			"purchaseToken": purchase.get("purchaseToken", ""),
 		},
@@ -348,11 +434,42 @@ if (result.iapkit?.isValid == true) {
 	},
 })
 
-if result.iapkit != null and result.iapkit.is_valid:
-	unlock_entitlement(purchase.get("productId", ""))`}</CodeBlock>
+var verified_product_id = result.iapkit.product_id if result.iapkit != null else null
+if (
+	result.iapkit != null
+	and result.iapkit.is_valid
+	and result.iapkit.state in [
+		Types.IapkitPurchaseState.ENTITLED,
+		Types.IapkitPurchaseState.PENDING_ACKNOWLEDGMENT,
+	]
+	and verified_product_id != null
+	and verified_product_id == purchase.get("productId", "")
+):
+	unlock_entitlement(verified_product_id)`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
+        <p>
+          These checks cover non-consumables and subscriptions. Choose the
+          finish path from the app-owned product type and platform, not the
+          state alone: Apple and Amazon consumables use{' '}
+          <code>ready-to-consume</code>, while an unconsumed Google product may
+          be <code>entitled</code> or <code>pending-acknowledgment</code>.
+          Persist consumable delivery before finishing it; see the{' '}
+          <Link to="/docs/features/validation#verify-purchase-with-provider">
+            state-aware verification flow
+          </Link>
+          .
+        </p>
+        <p>
+          <code>includeClientPayload</code> is optional and defaults to{' '}
+          <code>false</code>. When requested, IAPKit adds{' '}
+          <code>clientPayload</code> only to a valid Apple or Google response
+          whose store-verified <code>productId</code> has a matching payload.
+          Invalid receipts, absent or removed products, missing payloads,
+          Horizon, and Amazon responses omit it. Verification success never
+          depends on optional payload retrieval.
+        </p>
       </section>
 
       <section>
@@ -400,6 +517,240 @@ if (status.Active)
             ),
           }}
         </LanguageTabs>
+      </section>
+
+      <section>
+        <AnchorLink id="product-client-payloads" level="h2">
+          Product client payloads
+        </AnchorLink>
+        <p>
+          The same <code>includeClientPayload</code> opt-in name appears on two
+          independent request surfaces:
+        </p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Surface</th>
+              <th>Scope</th>
+              <th>Payload location</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>verifyPurchaseWithProvider</code>
+              </td>
+              <td>One valid Apple or Google purchase</td>
+              <td>
+                <code>result.iapkit.clientPayload</code>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>kitApi.products</code> / <code>GET /v1/products</code>
+              </td>
+              <td>One paginated platform catalog page</td>
+              <td>
+                <code>clientPayload</code> on each matching product
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          Both default to <code>false</code>; enabling one does not enable the
+          other. The direct single-product payload endpoint takes a platform
+          instead of this flag.
+        </p>
+        <p>
+          Each IAPKit catalog product may carry one optional public{' '}
+          <code>clientPayload</code> keyed by project, platform, and product ID.
+          The shape is the same whether it comes from an opted-in verification,
+          a catalog read, or the direct payload endpoint:
+        </p>
+        <CodeBlock language="json">{`{
+  "format": "toml",
+  "body": "[access]\\nmax_items = 10",
+  "version": 3,
+  "updatedAt": 1784160000000
+}`}</CodeBlock>
+        <div className="alert-card alert-card--warning">
+          <p>
+            <strong>Client payloads are public app data.</strong> Anyone able to
+            call the project's client endpoints may receive them. Never store
+            API secrets, credentials, signing keys, or server-authoritative
+            entitlement rules in a client payload.
+          </p>
+          <p>
+            A project key embedded in an app is extractable. It retains that
+            key's existing project-scoped endpoint permissions and consumes the
+            project's quota. Use separate keys for each build or environment,
+            then rotate or revoke them when a build is retired or compromised.
+          </p>
+        </div>
+
+        <AnchorLink id="fetch-client-payload-on-app-open" level="h3">
+          Fetch on app open
+        </AnchorLink>
+        <p>
+          React Native IAP and Expo IAP export the canonical <code>kitApi</code>{' '}
+          helper, and MAUI exposes the equivalent <code>KitApiClient</code>. Use
+          the product-list method to refresh a platform catalog, or the direct
+          payload method when the product ID is already known. Both surfaces
+          return a response envelope.
+        </p>
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`import { Platform } from 'react-native';
+import { kitApi } from 'expo-iap';
+// React Native IAP apps can import kitApi from 'react-native-iap'.
+
+const platform = Platform.OS === 'ios' ? 'IOS' : 'Android';
+const api = kitApi({ apiKey: '<project-api-key>' });
+
+let page = await api.products({
+  platform,
+  includeClientPayload: true,
+  limit: 50,
+});
+const products = [...page.products];
+while (page.hasMore && page.nextCursor) {
+  page = await api.products({
+    platform,
+    includeClientPayload: true,
+    limit: 50,
+    cursor: page.nextCursor,
+  });
+  products.push(...page.products);
+}
+
+const catalogPayload = products.find(
+  (product) => product.productId === 'premium_monthly',
+)?.clientPayload;
+
+// Or fetch one known product without downloading the catalog.
+const { clientPayload } = await api.clientPayload(
+  'premium_monthly',
+  platform,
+);`}</CodeBlock>
+            ),
+            csharp: (
+              <CodeBlock language="csharp">{`using System.Linq;
+using OpenIap.Maui;
+
+var api = OpenIapClient.KitApi(new KitApiOptions
+{
+    ApiKey = "<project-api-key>",
+});
+
+var page = await api.ProductsAsync(new KitProductsOptions
+{
+    Platform = KitProductPlatform.IOS,
+    IncludeClientPayload = true,
+    Limit = 50,
+});
+var products = page.Products.ToList();
+while (page.HasMore == true && page.NextCursor is { Length: > 0 } cursor)
+{
+    page = await api.ProductsAsync(new KitProductsOptions
+    {
+        Platform = KitProductPlatform.IOS,
+        IncludeClientPayload = true,
+        Limit = 50,
+        Cursor = cursor,
+    });
+    products.AddRange(page.Products);
+}
+
+var catalogPayload = products
+    .FirstOrDefault(product => product.ProductId == "premium_monthly")
+    ?.ClientPayload;
+
+var payloadResponse = await api.ClientPayloadAsync(
+    "premium_monthly",
+    KitProductPlatform.IOS);
+var clientPayload = payloadResponse.ClientPayload;`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
+        <p>
+          These product helper methods are currently exposed by React Native,
+          Expo, and MAUI. Use the HTTP endpoints from other environments rather
+          than assuming a framework helper exists.
+        </p>
+        <ul>
+          <li>
+            <code>
+              GET
+              /v1/products/&#123;apiKey&#125;?platform=IOS&amp;includeClientPayload=true
+            </code>{' '}
+            requires <code>platform</code>, accepts <code>limit</code> (default{' '}
+            <code>25</code>, maximum <code>50</code>) and an opaque{' '}
+            <code>cursor</code>, and returns{' '}
+            <code>&#123; products, hasMore, nextCursor? &#125;</code>. Continue
+            until <code>hasMore</code> is <code>false</code>. Without the
+            explicit payload flag, the response remains exactly{' '}
+            <code>&#123; products &#125;</code>; payload bodies are omitted and{' '}
+            <code>limit</code> / <code>cursor</code> are ignored for backwards
+            compatibility. Their strict validation applies only when{' '}
+            <code>includeClientPayload=true</code>. Catalog changes can
+            invalidate an opaque cursor; if the server returns{' '}
+            <code>400 INVALID_CURSOR</code>, discard that cursor and restart
+            from the first page.
+          </li>
+          <li>
+            <code>
+              GET
+              /v1/products/&#123;apiKey&#125;/&#123;productId&#125;/client-payload?platform=IOS
+            </code>{' '}
+            returns <code>&#123; clientPayload &#125;</code>, or HTTP 404 when
+            no payload exists, the matching product is absent, or its state is{' '}
+            <code>Removed</code>.
+          </li>
+        </ul>
+
+        <AnchorLink id="client-payload-behavior" level="h3">
+          Storage, limits, and delivery
+        </AnchorLink>
+        <ul>
+          <li>
+            Bodies may use <code>'toml'</code>, <code>'json'</code>, or{' '}
+            <code>'text'</code> and are limited to 16 KiB measured as UTF-8
+            bytes. JSON must be an object, and TOML syntax is validated.
+          </li>
+          <li>
+            The 64 KiB product-management request limit covers the whole HTTP
+            request before parsing. It is separate from the 16 KiB payload body
+            limit and was never a per-product metadata field.
+          </li>
+          <li>
+            Store sync never sends a client payload to Apple or Google and never
+            overwrites it. Resetting, purging, or hard-deleting the local
+            catalog product retains the separate payload row, but direct reads
+            return 404 and verification omits it while the matching product is
+            absent or <code>Removed</code>. It becomes visible again after sync
+            re-pulls the same platform and product ID.
+          </li>
+          <li>
+            IAPKit does not send payloads through APNs or FCM. Apps retrieve
+            them with an explicit verification or product request.
+          </li>
+        </ul>
+        <p>
+          See the{' '}
+          <Link to="/docs/types/verify-purchase-with-provider-result#iapkit-product-client-payload">
+            <code>IapkitProductClientPayload</code> type reference
+          </Link>{' '}
+          and the hosted{' '}
+          <a
+            href={`${IAPKIT_URL}/docs/products`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            IAPKit product guide
+          </a>
+          .
+        </p>
       </section>
 
       <section>

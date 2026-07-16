@@ -50,6 +50,17 @@ const COMPATIBLE_DATA_CLASS_SHAPES: Record<string, CompatibleDataClassShape> = {
     primaryFields: ['externalTransactionToken', 'products'],
     extraFields: ['productDetailsAndroid', 'originalExternalTransactionId'],
   },
+  RequestVerifyPurchaseWithIapkitResult: {
+    primaryFields: ['isValid', 'state', 'store'],
+    extraFields: ['clientPayload', 'productId'],
+  },
+};
+
+const COMPATIBLE_INPUT_DATA_CLASS_SHAPES: Record<string, CompatibleDataClassShape> = {
+  RequestVerifyPurchaseWithIapkitProps: {
+    primaryFields: ['amazon', 'apiKey', 'apple', 'baseUrl', 'google'],
+    extraFields: ['includeClientPayload'],
+  },
 };
 
 export class KotlinPlugin extends CodegenPlugin {
@@ -452,6 +463,12 @@ export class KotlinPlugin extends CodegenPlugin {
       return;
     }
 
+    const compatibleShape = COMPATIBLE_INPUT_DATA_CLASS_SHAPES[irInput.name];
+    if (compatibleShape) {
+      this.generateCompatibleInputDataClass(irInput, compatibleShape);
+      return;
+    }
+
     // Sort fields alphabetically for Kotlin
     const sortedFields = [...irInput.fields].sort((a, b) => a.name.localeCompare(b.name));
 
@@ -536,6 +553,100 @@ export class KotlinPlugin extends CodegenPlugin {
       this.emit(`        "${field.name}" to ${expression},`);
     }
 
+    this.emit('    )');
+    this.emit('}');
+    this.emit('');
+  }
+
+  /** Preserve published input data-class JVM descriptors for additive fields. */
+  private generateCompatibleInputDataClass(
+    irInput: IRInput,
+    shape: CompatibleDataClassShape
+  ): void {
+    const field = (name: string): IRField => {
+      const value = irInput.fields.find((candidate) => candidate.name === name);
+      if (!value) throw new Error(`${irInput.name} is missing ${name}`);
+      return value;
+    };
+    const primaryFields = shape.primaryFields.map(field);
+    const extraFields = shape.extraFields.map(field);
+    if (primaryFields.length + extraFields.length !== irInput.fields.length) {
+      throw new Error(`${irInput.name} compatibility shape is incomplete`);
+    }
+    if (extraFields.some((value) => !value.type.nullable)) {
+      throw new Error(`${irInput.name} compatibility fields must be nullable`);
+    }
+
+    const defaultValue = (value: IRField): string => {
+      const schemaDefault = this.buildDefaultValueExpression(value);
+      if (schemaDefault) return ` = ${schemaDefault}`;
+      return value.type.nullable ? ' = null' : '';
+    };
+
+    this.generateDocComment(irInput.description);
+    this.emit(`public data class ${irInput.name}(`);
+    primaryFields.forEach((value, index) => {
+      this.generateDocComment(value.description, '    ');
+      const suffix = index === primaryFields.length - 1 ? '' : ',';
+      this.emit(
+        `    val ${value.name}: ${this.getPropertyType(value.type)}${defaultValue(value)}${suffix}`
+      );
+    });
+    this.emit(') {');
+    this.emit('');
+
+    for (const value of extraFields) {
+      this.generateDocComment(value.description, '    ');
+      this.emit(`    var ${value.name}: ${this.getPropertyType(value.type)} = null`);
+      this.emit('        private set');
+      this.emit('');
+    }
+
+    this.emit('    constructor(');
+    for (const value of primaryFields) {
+      this.emit(
+        `        ${value.name}: ${this.getPropertyType(value.type)}${defaultValue(value)},`
+      );
+    }
+    extraFields.forEach((value, index) => {
+      const extraDefault = index === 0 ? '' : ' = null';
+      this.emit(
+        `        ${value.name}: ${this.getPropertyType(value.type)}${extraDefault},`
+      );
+    });
+    this.emit('    ) : this(');
+    for (const value of primaryFields) {
+      this.emit(`        ${value.name} = ${value.name},`);
+    }
+    this.emit('    ) {');
+    for (const value of extraFields) {
+      this.emit(`        this.${value.name} = ${value.name}`);
+    }
+    this.emit('    }');
+    this.emit('');
+
+    this.emit('    companion object {');
+    this.emit(`        fun fromJson(json: Map<String, Any?>): ${irInput.name} {`);
+    this.emit(`            return ${irInput.name}(`);
+    for (const value of [...primaryFields, ...extraFields]) {
+      const expression = this.buildFromJsonExpression(
+        value.type,
+        `json["${value.name}"]`,
+        false,
+        false,
+        this.buildDefaultValueExpression(value)
+      );
+      this.emit(`                ${value.name} = ${expression},`);
+    }
+    this.emit('            )');
+    this.emit('        }');
+    this.emit('    }');
+    this.emit('');
+    this.emit('    fun toJson(): Map<String, Any?> = mapOf(');
+    for (const value of irInput.fields) {
+      const expression = this.buildToJsonExpression(value.type, value.name);
+      this.emit(`        "${value.name}" to ${expression},`);
+    }
     this.emit('    )');
     this.emit('}');
     this.emit('');

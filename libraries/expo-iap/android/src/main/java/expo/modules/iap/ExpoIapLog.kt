@@ -13,6 +13,7 @@ internal object ExpoIapLog {
         "secret",
         "jws",
         "receipt",
+        "clientpayload",
         "dataandroid",
         "signatureandroid",
         "userid",

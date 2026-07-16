@@ -505,7 +505,9 @@ export function useIAP(options?: UseIapOptions): UseIap {
           onlyIncludeActiveItemsIOS: options?.onlyIncludeActiveItemsIOS ?? true,
           includeSuspendedAndroid: options?.includeSuspendedAndroid ?? false,
         });
-        setAvailablePurchases(result);
+        if (isMountedRef.current) {
+          setAvailablePurchases(result);
+        }
       } catch (error) {
         RnIapConsole.error('Error fetching available purchases:', error);
         invokeOnError(error);
@@ -518,7 +520,9 @@ export function useIAP(options?: UseIapOptions): UseIap {
     async (subscriptionIds?: string[]): Promise<ActiveSubscription[]> => {
       try {
         const result = await getActiveSubscriptions(subscriptionIds);
-        setActiveSubscriptions(result);
+        if (isMountedRef.current) {
+          setActiveSubscriptions(result);
+        }
         return result;
       } catch (error) {
         RnIapConsole.error('Error getting active subscriptions:', error);

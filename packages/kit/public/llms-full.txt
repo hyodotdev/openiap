@@ -1,14 +1,14 @@
 # IAPKit — full reference
 
 > Receipt-validation SaaS managed by OpenIAP. https://kit.openiap.dev
-> Source of truth for every fact here: the repo at
-> github.com/hyodotdev/openiap-kit (private) and the in-dashboard docs at
-> https://kit.openiap.dev/docs. If something below conflicts with live
-> behavior, the live server wins — this file is regenerated from the repo.
+> Canonical implementation and documentation source:
+> github.com/hyodotdev/openiap/tree/main/packages/kit. This file summarizes the
+> deployed contract for assistants and must stay aligned with that source.
 
 ## Architecture
 
-Single-package repo deployed as one Fly.io machine:
+IAPKit is the `packages/kit` workspace in the OpenIAP monorepo and is deployed
+as one Fly.io app:
 
 - `src/` — React 19 SPA (dashboard, auth, usage, projects, API keys, docs)
 - `server/` — Hono + Bun server for `/api/v1/*` + `/v1/*` + SPA fallback
@@ -22,7 +22,7 @@ at `src/convex.ts`) and the Hono server (via `./convex` direct path).
 
 ## Authentication
 
-Every API request must carry a Bearer token:
+Purchase verification requires a Bearer token:
 
 ```http
 Authorization: Bearer openiap-kit_<your-project-key>
@@ -30,8 +30,9 @@ Authorization: Bearer openiap-kit_<your-project-key>
 
 Each project has its own API key. Keys are stored in Convex
 (`convex/apiKeys`), looked up by SHA-256 hash, and can be rotated from the
-dashboard. Dashboard users sign in via GitHub / Google OAuth or email-OTP
-(Resend).
+dashboard. Product, subscription, and webhook helper routes carry that key in
+their `{apiKey}` path segment. Dashboard users sign in via GitHub / Google OAuth
+or email-OTP (Resend).
 
 The MCP endpoint at `/mcp` uses the same IAPKit project key. MCP clients may
 send it as `Authorization: Bearer <project-key>`. A self-hosted MCP server can
@@ -46,19 +47,22 @@ Mounted at both `/v1/*` (canonical) and `/api/v1/*` (alias).
 
 Verify an in-app purchase. The body is a tagged union discriminated on
 `store`. Response always has shape
-`{ store: "apple" | "google" | "horizon" | "amazon", isValid: boolean, state: <enum> }`.
+`{ store: "apple" | "google" | "horizon" | "amazon", isValid: boolean, state: <enum>, productId?: string }`.
 
 Request (Apple):
+
 ```json
 { "store": "apple", "jws": "eyJhbGciOi..." }
 ```
 
 Request (Google):
+
 ```json
 { "store": "google", "purchaseToken": "ljhjpg..." }
 ```
 
 Request (Meta Horizon / Quest):
+
 ```json
 { "store": "horizon", "userId": "1234567890", "sku": "coin_pack_100" }
 ```
@@ -69,6 +73,7 @@ stores it as a write-only credential and the server composes the
 `POST https://graph.oculus.com/{APP_ID}/verify_entitlement`.
 
 Request (Amazon Appstore):
+
 ```json
 {
   "store": "amazon",
@@ -77,6 +82,77 @@ Request (Amazon Appstore):
   "sandbox": true
 }
 ```
+
+For Apple and Google, `includeClientPayload: true` opts into a top-level
+`clientPayload`. IAPKit includes it only when verification is valid, the store
+returns a verified productId, and the exact platform/product has a payload:
+
+```json
+{ "store": "apple", "jws": "eyJhbGciOi...", "includeClientPayload": true }
+```
+
+```json
+{
+  "store": "apple",
+  "isValid": true,
+  "state": "ENTITLED",
+  "productId": "premium_monthly",
+  "clientPayload": {
+    "format": "toml",
+    "body": "[access]\nmax_items = 10",
+    "version": 3,
+    "updatedAt": 1784160000000
+  }
+}
+```
+
+The field is omitted for default requests, invalid receipts, missing payloads,
+Meta Horizon, and Amazon. Entitlement decisions must use `isValid`, `state`,
+and the store-verified `productId`. Require that ID to match the product the app
+expected; never substitute a client-supplied ID when the verified value is
+missing, and never use payload contents alone.
+
+### GET /v1/products/{apiKey}
+
+Lists the project catalog. `platform=IOS|Android` filters by platform.
+`includeClientPayload=true` explicitly joins each product's optional public
+payload. Payload-inclusive reads require `platform` and are cursor-paginated:
+`limit` defaults to 25 (range 1-50), and callers pass the opaque `nextCursor`
+back as `cursor` while `hasMore` is true. IAPKit reads payload bodies only for
+the selected page. Without the opt-in flag the existing `{ products }`
+response is unchanged and performs no payload lookup.
+For backwards compatibility, `limit` and `cursor` are ignored unless
+`includeClientPayload=true`.
+
+```http
+GET /v1/products/openiap-kit_xxx?platform=IOS&includeClientPayload=true&limit=25
+```
+
+Payload-inclusive response: `{ products, hasMore, nextCursor? }`. The final
+page sets `hasMore: false` and omits `nextCursor`. Catalog changes can
+invalidate an opaque cursor; `400 INVALID_CURSOR` means restart from the first
+page without `cursor`.
+
+### GET /v1/products/{apiKey}/{productId}/client-payload
+
+Fetches one payload. `platform=IOS|Android` is required because apps commonly
+use the same productId on both stores. Returns `{ clientPayload: { ... } }` or
+404 when that exact product is absent, Removed, or has no payload.
+
+```http
+GET /v1/products/openiap-kit_xxx/premium_monthly/client-payload?platform=IOS
+```
+
+### Product client payload contract
+
+- Shape: `{ format: "toml" | "json" | "text", body: string, version: number, updatedAt: number }`.
+- Body is nonblank and at most 16 KiB measured as UTF-8 bytes.
+- JSON must parse to a non-null, non-array object. TOML syntax is validated.
+- Values are public app-readable data; never store secrets, credentials, or private server rules.
+- Payload storage is separate from the store catalog. Pull/Push Sync does not send or overwrite it, and local catalog Reset retains it. Retained payloads are not app-readable until a matching product is present again.
+- Apps receive payloads when they call IAPKit. This does not send APNs/FCM or display an OS notification.
+- The 64 KB product-management request cap applies to the entire HTTP request before parsing, not to each product's payload storage.
+- Project keys embedded in an app can be extracted and call existing project-scoped endpoints. Use a separate key per app build/environment, avoid committing or logging it, and rotate exposed keys.
 
 ### Aliases
 
@@ -109,31 +185,32 @@ sandbox guidance, webhook simulation, and project inspection. Full setup guide:
 
 ## Harmonized purchase states
 
-| State                     | `isValid` | Meaning                                              |
-| ------------------------- | :-------: | ---------------------------------------------------- |
-| `ENTITLED`                | true      | Paid, not refunded, entitlement active               |
-| `PENDING_ACKNOWLEDGMENT`  | true      | Android: paid but awaiting acknowledgement           |
-| `READY_TO_CONSUME`        | true      | iOS: consumable ready to be fulfilled                |
-| `PENDING`                 | false     | In progress or awaiting confirmation                 |
-| `CONSUMED`                | false     | Google Play: consumable already fulfilled            |
-| `CANCELED`                | false     | Refunded, revoked, or canceled                       |
-| `EXPIRED`                 | false     | Subscription past its expiry date                    |
-| `INAUTHENTIC`             | false     | Receipt not recognized by the store                  |
-| `UNKNOWN`                 | false     | State could not be determined                        |
+| State                    | `isValid` | Meaning                                                |
+| ------------------------ | :-------: | ------------------------------------------------------ |
+| `ENTITLED`               |   true    | Paid, not refunded, entitlement active                 |
+| `PENDING_ACKNOWLEDGMENT` |   true    | Google Play: awaiting acknowledgement or consumption   |
+| `READY_TO_CONSUME`       |   true    | Apple/Amazon: consumable ready for durable fulfillment |
+| `PENDING`                |   false   | In progress or awaiting confirmation                   |
+| `CONSUMED`               |   false   | Google Play: consumable already fulfilled              |
+| `CANCELED`               |   false   | Refunded, revoked, or canceled                         |
+| `EXPIRED`                |   false   | Subscription past its expiry date                      |
+| `INAUTHENTIC`            |   false   | Receipt not recognized by the store                    |
+| `UNKNOWN`                |   false   | State could not be determined                          |
 
 ## Status codes
 
-| Code | Body                                  | When                                              |
-| ---- | ------------------------------------- | ------------------------------------------------- |
-| 200  | `{ store, isValid, state }`           | Verification ran                                  |
-| 400  | `INVALID_INPUT`                       | Malformed body, unknown store, oversized field    |
-| 413  | `PAYLOAD_TOO_LARGE`                   | Request body exceeds the 32 KB edge cap           |
-| 401  | `MISSING_API_KEY`                     | No `Authorization` header                         |
-| 403  | `INVALID_API_KEY`                     | Wrong scheme, malformed, or unknown key           |
-| 429  | `RATE_LIMITED`                        | Per-key bucket empty; honor `Retry-After`         |
-| 500  | `UNKNOWN_ERROR`                       | Server-side failure; include `X-Correlation-Id`   |
+| Code | Body                                                    | When                                            |
+| ---- | ------------------------------------------------------- | ----------------------------------------------- |
+| 200  | `{ store, isValid, state, productId?, clientPayload? }` | Verification ran                                |
+| 400  | `INVALID_INPUT`                                         | Malformed body, unknown store, oversized field  |
+| 413  | `PAYLOAD_TOO_LARGE`                                     | Request body exceeds the 32 KB edge cap         |
+| 401  | `MISSING_API_KEY`                                       | No `Authorization` header                       |
+| 403  | `INVALID_API_KEY`                                       | Wrong scheme, malformed, or unknown key         |
+| 429  | `RATE_LIMITED`                                          | Per-key bucket empty; honor `Retry-After`       |
+| 500  | `UNKNOWN_ERROR`                                         | Server-side failure; include `X-Correlation-Id` |
 
 Error body shape:
+
 ```json
 {
   "errors": [
@@ -177,10 +254,15 @@ eviction (`RATE_LIMIT_MAX_STORE`).
 - `purchaseToken` ≤ 2 KB (Google)
 - `userId` ≤ 256 chars (Horizon)
 - `sku` ≤ 256 chars (Horizon)
+- `clientPayload.body` ≤ 16 KiB measured as UTF-8 bytes
 
 Oversized fields return `400 INVALID_INPUT`; oversized request bodies return
 `413 PAYLOAD_TOO_LARGE`. Neither path calls the upstream store, so a
 misbehaving client can't burn Apple / Google / Horizon / Amazon quota.
+
+The product-management body cap is 64 KB for the whole HTTP request before
+JSON parsing. It is distinct from the 16 KiB client-payload field limit and is
+not a per-product metadata allowance.
 
 ## Structured logs
 
@@ -249,20 +331,21 @@ Domains under `convex/` follow a CQRS layout — each has `query.ts`,
 
 ## Deployment
 
-- Image: `Dockerfile` produces a single-stage binary image; multi-stage
-  build compiles the SPA (`vite build`), compiles the server
-  (`bun build --compile`), and copies both into the final image.
+- Image: `packages/kit/Dockerfile` uses a multi-stage build to compile the SPA
+  (`vite build`) and server (`bun build --compile`), then copies only the static
+  assets and binary into the runtime image.
 - Host: Fly.io app `openiap-kit` (one machine, sufficient for current
   load).
-- CI: `.github/workflows/ci.yml` runs typecheck + build + server smoke on
-  every PR. `.github/workflows/deploy.yml` runs `flyctl deploy` on merge
-  to `main`.
+- CI: `.github/workflows/deploy-kit.yml` verifies Kit changes on pull requests.
+  On `main`, it validates required secrets, deploys additive Convex functions,
+  and then deploys Fly.
 
 ## Related docs
 
 - [/docs](https://kit.openiap.dev/docs) — in-dashboard documentation index
 - [/docs/quickstart](https://kit.openiap.dev/docs/quickstart)
 - [/docs/projects](https://kit.openiap.dev/docs/projects) — project + key hierarchy
+- [/docs/products](https://kit.openiap.dev/docs/products) — product sync and client payload contract
 - [/docs/verification/apple](https://kit.openiap.dev/docs/verification/apple)
 - [/docs/verification/google](https://kit.openiap.dev/docs/verification/google)
 - [/docs/verification/horizon](https://kit.openiap.dev/docs/verification/horizon)

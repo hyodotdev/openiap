@@ -100,6 +100,8 @@ export type IapkitPurchaseState =
   | 'unknown'
   | 'inauthentic';
 
+export type IapkitClientPayloadFormat = 'toml' | 'json' | 'text';
+
 // Store identifier for purchase origin
 // Defined locally for Nitro codegen (not in GQL schema)
 export type IapStore = 'unknown' | 'apple' | 'google' | 'horizon' | 'amazon';
@@ -473,6 +475,11 @@ export interface NitroVerifyPurchaseWithIapkitProps {
    */
   baseUrl?: string | null;
   google?: NitroVerifyPurchaseWithIapkitGoogleProps | null;
+  /**
+   * Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+   * Include the product's public IAPKit client payload when available.
+   */
+  includeClientPayload?: boolean | null;
 }
 
 export interface NitroVerifyPurchaseWithProviderProps {
@@ -481,9 +488,20 @@ export interface NitroVerifyPurchaseWithProviderProps {
 }
 
 export interface NitroVerifyPurchaseWithIapkitResult {
+  /** Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1. */
+  clientPayload?: NitroIapkitProductClientPayload | null;
   isValid: boolean;
+  /** Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1. */
+  productId?: string | null;
   state: IapkitPurchaseState;
   store: IapStore;
+}
+
+export interface NitroIapkitProductClientPayload {
+  body: string;
+  format: IapkitClientPayloadFormat;
+  updatedAt: number;
+  version: number;
 }
 
 export interface NitroVerifyPurchaseWithProviderError {

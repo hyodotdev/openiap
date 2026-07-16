@@ -14,6 +14,15 @@ class ExpoIapLogTest {
                     "dataAndroid" to "known-raw-purchase",
                     "signatureAndroid" to "known-signature",
                     "metadata" to """{"purchaseToken":"known-json-token"}""",
+                    "iapkit" to
+                        mapOf(
+                            "clientPayload" to
+                                mapOf(
+                                    "format" to "toml",
+                                    "body" to "known-client-payload-body",
+                                    "version" to 1,
+                                ),
+                        ),
                 ),
             )
 
@@ -22,6 +31,7 @@ class ExpoIapLogTest {
             "known-raw-purchase",
             "known-signature",
             "known-json-token",
+            "known-client-payload-body",
         ).forEach { assertFalse(output.contains(it)) }
         assertTrue(output.contains("hidden"))
     }

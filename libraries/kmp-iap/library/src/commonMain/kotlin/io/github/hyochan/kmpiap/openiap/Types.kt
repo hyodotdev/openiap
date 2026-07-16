@@ -654,6 +654,32 @@ public enum class IapEvent(val rawValue: String) {
 }
 
 /**
+ * Serialization format of a public IAPKit product client payload.
+ */
+public enum class IapkitClientPayloadFormat(val rawValue: String) {
+    Toml("toml"),
+    Json("json"),
+    Text("text");
+
+    companion object {
+        fun fromJson(value: String): IapkitClientPayloadFormat = when (value) {
+            "toml" -> IapkitClientPayloadFormat.Toml
+            "TOML" -> IapkitClientPayloadFormat.Toml
+            "Toml" -> IapkitClientPayloadFormat.Toml
+            "json" -> IapkitClientPayloadFormat.Json
+            "JSON" -> IapkitClientPayloadFormat.Json
+            "Json" -> IapkitClientPayloadFormat.Json
+            "text" -> IapkitClientPayloadFormat.Text
+            "TEXT" -> IapkitClientPayloadFormat.Text
+            "Text" -> IapkitClientPayloadFormat.Text
+            else -> throw IllegalArgumentException("Unknown IapkitClientPayloadFormat value: $value")
+        }
+    }
+
+    fun toJson(): String = rawValue
+}
+
+/**
  * Unified purchase states from IAPKit verification response.
  */
 public enum class IapkitPurchaseState(val rawValue: String) {
@@ -2617,6 +2643,37 @@ public data class FetchProductsResultProducts(val value: List<Product>?) : Fetch
 public data class FetchProductsResultSubscriptions(val value: List<ProductSubscription>?) : FetchProductsResult
 
 /**
+ * Public app-facing data attached to one store product in IAPKit.
+ * Never place credentials, signing keys, or server-authoritative rules here.
+ */
+public data class IapkitProductClientPayload(
+    val body: String,
+    val format: IapkitClientPayloadFormat,
+    val updatedAt: Double,
+    val version: Double
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): IapkitProductClientPayload {
+            return IapkitProductClientPayload(
+                body = json["body"] as? String ?: "",
+                format = (json["format"] as? String)?.let { IapkitClientPayloadFormat.fromJson(it) } ?: IapkitClientPayloadFormat.Toml,
+                updatedAt = (json["updatedAt"] as? Number)?.toDouble() ?: 0.0,
+                version = (json["version"] as? Number)?.toDouble() ?: 0.0,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "IapkitProductClientPayload",
+        "body" to body,
+        "format" to format.toJson(),
+        "updatedAt" to updatedAt,
+        "version" to version,
+    )
+}
+
+/**
  * Result from showing Play billing in-app messages (Android)
  * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
  * (upstream API available since Play Billing 4.1.0).
@@ -3861,7 +3918,10 @@ public data class RequestPurchaseResultPurchases(val value: List<Purchase>?) : R
 
 public data class RequestVerifyPurchaseWithIapkitResult(
     /**
-     * Whether the purchase is valid (not falsified).
+     * True when the purchase is valid and actionable.
+     * Only entitled, pending-acknowledgment, or ready-to-consume return true.
+     * Callers must still match productId and use the platform plus app-owned product
+     * type to choose the fulfillment path.
      */
     val isValid: Boolean,
     /**
@@ -3871,21 +3931,55 @@ public data class RequestVerifyPurchaseWithIapkitResult(
     val store: IapStore
 ) {
 
+    /**
+     * Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+     * Public product payload when includeClientPayload was requested, the
+     * Apple or Google receipt is valid, and a payload exists for that product.
+     */
+    var clientPayload: IapkitProductClientPayload? = null
+        private set
+
+    /**
+     * Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+     * Store-verified product identifier when the provider returns one.
+     */
+    var productId: String? = null
+        private set
+
+    constructor(
+        isValid: Boolean,
+        state: IapkitPurchaseState,
+        store: IapStore,
+        clientPayload: IapkitProductClientPayload?,
+        productId: String? = null,
+    ) : this(
+        isValid = isValid,
+        state = state,
+        store = store,
+    ) {
+        this.clientPayload = clientPayload
+        this.productId = productId
+    }
+
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitResult {
             return RequestVerifyPurchaseWithIapkitResult(
                 isValid = json["isValid"] as? Boolean ?: false,
                 state = runCatching { (json["state"] as? String)?.let { IapkitPurchaseState.fromJson(it) } }.getOrNull() ?: IapkitPurchaseState.Unknown,
                 store = runCatching { (json["store"] as? String)?.let { IapStore.fromJson(it) } }.getOrNull() ?: IapStore.Unknown,
+                clientPayload = (json["clientPayload"] as? Map<String, Any?>)?.let { IapkitProductClientPayload.fromJson(it) },
+                productId = json["productId"] as? String,
             )
         }
     }
 
     fun toJson(): Map<String, Any?> = mapOf(
         "__typename" to "RequestVerifyPurchaseWithIapkitResult",
+        "store" to store.toJson(),
         "isValid" to isValid,
         "state" to state.toJson(),
-        "store" to store.toJson(),
+        "productId" to productId,
+        "clientPayload" to clientPayload?.toJson(),
     )
 }
 
@@ -5695,6 +5789,33 @@ public data class RequestVerifyPurchaseWithIapkitProps(
      */
     val google: RequestVerifyPurchaseWithIapkitGoogleProps? = null
 ) {
+
+    /**
+     * Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+     * Include the product's public IAPKit client payload in a valid Apple or
+     * Google verification response. Defaults to false so existing response
+     * shapes and bandwidth remain unchanged.
+     */
+    var includeClientPayload: Boolean? = null
+        private set
+
+    constructor(
+        amazon: RequestVerifyPurchaseWithIapkitAmazonProps? = null,
+        apiKey: String? = null,
+        apple: RequestVerifyPurchaseWithIapkitAppleProps? = null,
+        baseUrl: String? = null,
+        google: RequestVerifyPurchaseWithIapkitGoogleProps? = null,
+        includeClientPayload: Boolean?,
+    ) : this(
+        amazon = amazon,
+        apiKey = apiKey,
+        apple = apple,
+        baseUrl = baseUrl,
+        google = google,
+    ) {
+        this.includeClientPayload = includeClientPayload
+    }
+
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitProps {
             return RequestVerifyPurchaseWithIapkitProps(
@@ -5703,16 +5824,18 @@ public data class RequestVerifyPurchaseWithIapkitProps(
                 apple = (json["apple"] as? Map<String, Any?>)?.let { RequestVerifyPurchaseWithIapkitAppleProps.fromJson(it) },
                 baseUrl = json["baseUrl"] as? String,
                 google = (json["google"] as? Map<String, Any?>)?.let { RequestVerifyPurchaseWithIapkitGoogleProps.fromJson(it) },
+                includeClientPayload = json["includeClientPayload"] as? Boolean,
             )
         }
     }
 
     fun toJson(): Map<String, Any?> = mapOf(
-        "amazon" to amazon?.toJson(),
         "apiKey" to apiKey,
-        "apple" to apple?.toJson(),
         "baseUrl" to baseUrl,
+        "includeClientPayload" to includeClientPayload,
+        "apple" to apple?.toJson(),
         "google" to google?.toJson(),
+        "amazon" to amazon?.toJson(),
     )
 }
 

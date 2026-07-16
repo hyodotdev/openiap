@@ -57,6 +57,10 @@ const TYPE_LINKS: Record<string, string> = {
   InAppMessageParamsAndroid: '/docs/types/billing-programs',
   InAppMessageResponseCodeAndroid: '/docs/types/billing-programs',
   InAppMessageResultAndroid: '/docs/types/billing-programs',
+  IapkitClientPayloadFormat:
+    '/docs/types/verify-purchase-with-provider-result#iapkit-product-client-payload',
+  IapkitProductClientPayload:
+    '/docs/types/verify-purchase-with-provider-result#iapkit-product-client-payload',
   LaunchExternalLinkParamsAndroid: '/docs/types/billing-programs',
   Product: '/docs/types/product',
   ProductAndroid: '/docs/types/product',
@@ -79,6 +83,10 @@ const TYPE_LINKS: Record<string, string> = {
   RequestPurchaseProps: '/docs/types/request-purchase-props',
   RequestPurchasePropsByPlatforms: '/docs/types/request-purchase-props',
   RequestPurchaseResult: '/docs/types/request-purchase-props',
+  RequestVerifyPurchaseWithIapkitProps:
+    '/docs/types/verify-purchase-with-provider-props#request-verify-purchase-with-iapkit-props',
+  RequestVerifyPurchaseWithIapkitResult:
+    '/docs/types/verify-purchase-with-provider-result#request-verify-purchase-with-iapkit-result',
   RequestSubscriptionPropsByPlatforms: '/docs/types/request-purchase-props',
   Storefront: '/docs/types/storefront',
   SubscriptionOffer: '/docs/types/subscription-offer',

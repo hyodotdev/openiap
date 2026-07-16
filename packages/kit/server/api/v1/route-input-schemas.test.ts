@@ -34,6 +34,35 @@ describe("verifyPurchaseInputSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  test("accepts a boolean client-payload opt-in", () => {
+    expect(
+      parse({
+        store: "google",
+        purchaseToken: VALID_GOOGLE_TOKEN,
+        includeClientPayload: true,
+      }).success,
+    ).toBe(true);
+    expect(
+      parse({
+        store: "apple",
+        jws: VALID_APPLE_JWS,
+        includeClientPayload: false,
+      }).success,
+    ).toBe(true);
+  });
+
+  test("rejects string or numeric client-payload flags", () => {
+    for (const includeClientPayload of ["true", 1]) {
+      expect(
+        parse({
+          store: "google",
+          purchaseToken: VALID_GOOGLE_TOKEN,
+          includeClientPayload,
+        }).success,
+      ).toBe(false);
+    }
+  });
+
   test("rejects an empty Apple jws", () => {
     const result = parse({ store: "apple", jws: "" });
     expect(result.success).toBe(false);

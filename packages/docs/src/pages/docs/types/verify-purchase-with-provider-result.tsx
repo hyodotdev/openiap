@@ -12,7 +12,7 @@ function VerifyPurchaseWithProviderResult() {
     <div className="doc-page">
       <SEO
         title="VerifyPurchaseWithProviderResult"
-        description="VerifyPurchaseWithProviderResult type definition and field reference."
+        description="VerifyPurchaseWithProviderResult field reference, including store-verified product IDs and IAPKit client payloads."
         path="/docs/types/verify-purchase-with-provider-result"
         keywords="VerifyPurchaseWithProviderResult, OpenIAP types, Verify Purchase With Provider Result"
       />
@@ -114,7 +114,10 @@ function VerifyPurchaseWithProviderResult() {
         <AnchorLink id="request-verify-purchase-with-iapkit-result" level="h3">
           RequestVerifyPurchaseWithIapkitResult
         </AnchorLink>
-        <p>Individual verification result from IAPKit.</p>
+        <p>
+          Individual verification result from IAPKit. The verified product ID is
+          independent of optional public product payload enrichment.
+        </p>
         <table className="doc-table">
           <thead>
             <tr>
@@ -129,11 +132,12 @@ function VerifyPurchaseWithProviderResult() {
                 <code>store</code>
               </td>
               <td>
-                <code>IapkitStore</code>
+                <code>IapStore</code>
               </td>
               <td>
-                The store that processed the purchase (<code>'apple'</code> or{' '}
-                <code>'google'</code>).
+                The store that processed the purchase: <code>'apple'</code>,{' '}
+                <code>'google'</code>, <code>'horizon'</code>, or{' '}
+                <code>'amazon'</code>.
               </td>
             </tr>
             <tr>
@@ -143,7 +147,13 @@ function VerifyPurchaseWithProviderResult() {
               <td>
                 <code>boolean</code>
               </td>
-              <td>Whether the purchase is valid (not falsified).</td>
+              <td>
+                True only for <code>entitled</code>,{' '}
+                <code>pending-acknowledgment</code>, or{' '}
+                <code>ready-to-consume</code>. Still require an exact{' '}
+                <code>productId</code> match and a platform/product-type-aware
+                fulfillment path.
+              </td>
             </tr>
             <tr>
               <td>
@@ -154,8 +164,116 @@ function VerifyPurchaseWithProviderResult() {
               </td>
               <td>The current state of the purchase.</td>
             </tr>
+            <tr>
+              <td>
+                <code>productId</code>
+              </td>
+              <td>
+                <code>string?</code>
+              </td>
+              <td>
+                Product identifier verified by the upstream store, when the
+                provider returns one. Use this value instead of trusting a
+                client-supplied expected product ID.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>clientPayload</code>
+              </td>
+              <td>
+                <code>IapkitProductClientPayload?</code>
+              </td>
+              <td>
+                Public app-facing product data. Present only for an opted-in,
+                valid Apple or Google verification when that product has a
+                currently visible catalog row and a payload in IAPKit.
+              </td>
+            </tr>
           </tbody>
         </table>
+
+        <AnchorLink id="iapkit-product-client-payload" level="h3">
+          IapkitProductClientPayload
+        </AnchorLink>
+        <p>
+          Public app-facing data attached to one IAPKit product. It is stored
+          separately from App Store Connect and Play Console metadata and is
+          never sent to either store.
+        </p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>format</code>
+              </td>
+              <td>
+                <code>IapkitClientPayloadFormat</code>
+              </td>
+              <td>
+                Serialization hint: <code>'toml'</code>, <code>'json'</code>, or{' '}
+                <code>'text'</code>.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>body</code>
+              </td>
+              <td>
+                <code>string</code>
+              </td>
+              <td>
+                Payload content, limited to 16 KiB measured as UTF-8 bytes.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>version</code>
+              </td>
+              <td>
+                <code>number</code>
+              </td>
+              <td>
+                Server-managed revision that increments when the payload is
+                updated. Apps can use it to replace stale cached content.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>updatedAt</code>
+              </td>
+              <td>
+                <code>number</code>
+              </td>
+              <td>Last update time as Unix epoch milliseconds.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div className="alert-card alert-card--warning">
+          <p>
+            <strong>Public data:</strong> Anyone able to call the project's
+            client endpoints may receive this payload. Never put secrets,
+            credentials, signing keys, or private authorization rules in it.
+            Entitlement decisions must continue to use <code>isValid</code>,{' '}
+            <code>state</code>, and the store-verified <code>productId</code>.
+          </p>
+        </div>
+
+        <p>
+          The field is omitted by default and for invalid receipts, absent or
+          removed catalog products, missing payloads, Horizon verification, and
+          Amazon verification. IAPKit does not deliver it through APNs or FCM;
+          the app receives it only when it requests the value during
+          verification or through a product endpoint.
+        </p>
 
         <AnchorLink id="iapkit-purchase-state" level="h3">
           IapkitPurchaseState
@@ -182,7 +300,9 @@ function VerifyPurchaseWithProviderResult() {
               <td>
                 <code>'pending-acknowledgment'</code>
               </td>
-              <td>Purchase needs acknowledgment (Android only).</td>
+              <td>
+                Google Play purchase still needs acknowledgment or consumption.
+              </td>
             </tr>
             <tr>
               <td>
@@ -194,7 +314,7 @@ function VerifyPurchaseWithProviderResult() {
               <td>
                 <code>'canceled'</code>
               </td>
-              <td>Purchase was canceled by the user.</td>
+              <td>Purchase was canceled, refunded, or revoked.</td>
             </tr>
             <tr>
               <td>
@@ -206,7 +326,9 @@ function VerifyPurchaseWithProviderResult() {
               <td>
                 <code>'ready-to-consume'</code>
               </td>
-              <td>Consumable purchase is ready to be consumed.</td>
+              <td>
+                Consumable is ready for durable fulfillment, then consumption.
+              </td>
             </tr>
             <tr>
               <td>
@@ -233,7 +355,7 @@ function VerifyPurchaseWithProviderResult() {
         </table>
 
         <AnchorLink id="iapkit-store" level="h3">
-          IapkitStore
+          IapStore
         </AnchorLink>
         <p>Enumeration of stores supported by IAPKit.</p>
         <table className="doc-table">
@@ -255,6 +377,18 @@ function VerifyPurchaseWithProviderResult() {
                 <code>'google'</code>
               </td>
               <td>Google Play Store.</td>
+            </tr>
+            <tr>
+              <td>
+                <code>'horizon'</code>
+              </td>
+              <td>Meta Horizon Store.</td>
+            </tr>
+            <tr>
+              <td>
+                <code>'amazon'</code>
+              </td>
+              <td>Amazon Appstore for Fire OS and Vega OS.</td>
             </tr>
           </tbody>
         </table>
@@ -292,163 +426,245 @@ function VerifyPurchaseWithProviderResult() {
         <AnchorLink id="verify-purchase-with-provider-example" level="h3">
           Usage Example
         </AnchorLink>
+        <p>
+          Grant access only when the store-verified <code>productId</code> is
+          present and matches the product requested by the app. Use the local
+          purchase ID only as the expected value; do not fall back to it when
+          verification omits the ID.
+        </p>
         <LanguageTabs>
           {{
             typescript: (
-              <CodeBlock language="typescript">{`import { verifyPurchaseWithProvider } from 'openiap';
-import type {
-  VerifyPurchaseWithProviderProps,
-  VerifyPurchaseWithProviderResult,
-} from 'openiap';
+              <CodeBlock language="typescript">{`import { verifyPurchaseWithProvider } from 'expo-iap';
+// Same API in react-native-iap.
 
-// iOS verification
-const iosResult = await verifyPurchaseWithProvider({
+const result = await verifyPurchaseWithProvider({
   provider: 'iapkit',
   iapkit: {
     apiKey: 'openiap-kit_<your-key>',
-    apple: {
-      jws: purchase.purchaseToken, // JWS from StoreKit 2
-    },
-  },
-});
-
-// Android verification
-const androidResult = await verifyPurchaseWithProvider({
-  provider: 'iapkit',
-  iapkit: {
-    apiKey: 'openiap-kit_<your-key>',
+    includeClientPayload: true,
     google: {
-      purchaseToken: purchase.purchaseToken,
+      purchaseToken: purchase.purchaseToken ?? '',
     },
   },
 });
 
-// Check result
-if (result.iapkit?.isValid && result.iapkit.state === 'entitled') {
-  // Grant entitlement to user
-  console.log(\`Valid purchase from \${result.iapkit.store}\`);
+const verified = result.iapkit;
+const verifiedProductId = verified?.productId;
+if (
+  verified?.isValid === true &&
+  (verified.state === 'entitled' ||
+    verified.state === 'pending-acknowledgment') &&
+  verifiedProductId != null &&
+  verifiedProductId === purchase.productId
+) {
+  await grantEntitlement(verifiedProductId);
+
+  if (verified.clientPayload) {
+    // Parse according to format and apply in memory; do not log the body.
+    applyPublicRules(verified.clientPayload);
+  }
 }`}</CodeBlock>
             ),
             swift: (
               <CodeBlock language="swift">{`import OpenIAP
 
-// Create verification props for iOS
-let props = VerifyPurchaseWithProviderProps(
-    iapkit: RequestVerifyPurchaseWithIapkitProps(
-        apiKey: "openiap-kit_<your-key>",
-        apple: RequestVerifyPurchaseWithIapkitAppleProps(
-            jws: purchase.jwsRepresentationIOS ?? ""
+let result = try await OpenIapModule.shared.verifyPurchaseWithProvider(
+    VerifyPurchaseWithProviderProps(
+        iapkit: RequestVerifyPurchaseWithIapkitProps(
+            apiKey: "openiap-kit_<your-key>",
+            apple: RequestVerifyPurchaseWithIapkitAppleProps(
+                jws: purchase.purchaseToken ?? ""
+            ),
+            includeClientPayload: true
         ),
-        google: nil
-    ),
-    provider: .iapkit
+        provider: .iapkit
+    )
 )
 
-// Verify purchase
-let result = try await store.verifyPurchaseWithProvider(props)
-
-// Check result
-if let iapkit = result, iapkit.isValid && iapkit.state == .entitled {
-    // Grant entitlement to user
-    print("Valid purchase from \\(iapkit.store)")
+if let verified = result.iapkit,
+   verified.isValid,
+   verified.state == .entitled,
+   let verifiedProductId = verified.productId,
+   verifiedProductId == purchase.productId {
+    unlockEntitlement(productId: verifiedProductId)
+    if let payload = verified.clientPayload {
+        // Parse according to format and apply in memory; do not log the body.
+        applyPublicRules(payload)
+    }
 }`}</CodeBlock>
             ),
             kotlin: (
               <CodeBlock language="kotlin">{`import dev.hyo.openiap.*
 
-// Create verification props for Android
-val props = VerifyPurchaseWithProviderProps(
-    iapkit = RequestVerifyPurchaseWithIapkitProps(
-        apiKey = "openiap-kit_<your-key>",
-        apple = null,
-        google = RequestVerifyPurchaseWithIapkitGoogleProps(
-            purchaseToken = purchase.purchaseToken
-        )
+val result = module.verifyPurchaseWithProvider(
+    VerifyPurchaseWithProviderProps(
+        iapkit = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = "openiap-kit_<your-key>",
+            google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                purchaseToken = purchase.purchaseToken.orEmpty(),
+            ),
+            includeClientPayload = true,
+        ),
+        provider = PurchaseVerificationProvider.Iapkit,
     ),
-    provider = PurchaseVerificationProvider.Iapkit
 )
 
-// Verify purchase
-val result = module.verifyPurchaseWithProvider(props)
-
-// Check result
 result.iapkit?.let { iapkit ->
-    if (iapkit.isValid && iapkit.state == IapkitPurchaseState.Entitled) {
-        // Grant entitlement to user
-        println("Valid purchase from \${iapkit.store}")
+    val verifiedProductId = iapkit.productId
+    if (iapkit.isValid &&
+        (iapkit.state == IapkitPurchaseState.Entitled ||
+            iapkit.state == IapkitPurchaseState.PendingAcknowledgment) &&
+        verifiedProductId != null &&
+        verifiedProductId == purchase.productId) {
+        unlockEntitlement(verifiedProductId)
+        iapkit.clientPayload?.let { payload ->
+            // Parse according to format and apply in memory; do not log the body.
+            applyPublicRules(payload)
+        }
+    }
+}`}</CodeBlock>
+            ),
+            kmp: (
+              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.*
+
+val result = kmpIAP.verifyPurchaseWithProvider(
+    VerifyPurchaseWithProviderProps(
+        iapkit = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = "openiap-kit_<your-key>",
+            apple = RequestVerifyPurchaseWithIapkitAppleProps(
+                jws = purchase.purchaseToken.orEmpty(),
+            ),
+            includeClientPayload = true,
+        ),
+        provider = PurchaseVerificationProvider.Iapkit,
+    ),
+)
+
+result.iapkit?.let { iapkit ->
+    val verifiedProductId = iapkit.productId
+    if (iapkit.isValid &&
+        iapkit.state == IapkitPurchaseState.Entitled &&
+        verifiedProductId != null &&
+        verifiedProductId == purchase.productId) {
+        unlockEntitlement(verifiedProductId)
+        iapkit.clientPayload?.let { payload ->
+            // Parse according to format and apply in memory; do not log the body.
+            applyPublicRules(payload)
+        }
     }
 }`}</CodeBlock>
             ),
             dart: (
               <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
-// Verify an iOS purchase
-final result = await iap.verifyPurchaseWithProvider(
+final result = await FlutterInappPurchase.instance.verifyPurchaseWithProvider(
   provider: PurchaseVerificationProvider.Iapkit,
   iapkit: RequestVerifyPurchaseWithIapkitProps(
     apiKey: 'openiap-kit_<your-key>',
-    apple: RequestVerifyPurchaseWithIapkitAppleProps(
-      jws: purchase.jwsRepresentationIOS ?? '',
+    google: RequestVerifyPurchaseWithIapkitGoogleProps(
+      purchaseToken: purchase.purchaseToken ?? '',
     ),
+    includeClientPayload: true,
   ),
 );
 
-// Check result
 final iapkit = result.iapkit;
-if (iapkit != null && iapkit.isValid && iapkit.state == IapkitPurchaseState.Entitled) {
-  // Grant entitlement to user
-  print('Valid purchase from \${iapkit.store}');
+final verifiedProductId = iapkit?.productId;
+if (iapkit != null &&
+    iapkit.isValid &&
+    (iapkit.state == IapkitPurchaseState.Entitled ||
+        iapkit.state == IapkitPurchaseState.PendingAcknowledgment) &&
+    verifiedProductId != null &&
+    verifiedProductId == purchase.productId) {
+  unlockEntitlement(verifiedProductId);
+  final payload = iapkit.clientPayload;
+  // Parse according to format and apply in memory; do not log the body.
+  if (payload != null) applyPublicRules(payload);
 }`}</CodeBlock>
             ),
             csharp: (
               <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// Create verification props for Android
-var props = new VerifyPurchaseWithProviderProps
+var result = await ((MutationResolver)OpenIapClient.Instance)
+    .VerifyPurchaseWithProviderAsync(new VerifyPurchaseWithProviderProps
 {
     Provider = PurchaseVerificationProvider.Iapkit,
     Iapkit = new RequestVerifyPurchaseWithIapkitProps
     {
         ApiKey = "openiap-kit_<your-key>",
+        IncludeClientPayload = true,
         Google = new RequestVerifyPurchaseWithIapkitGoogleProps
         {
             PurchaseToken = purchase.PurchaseToken ?? "",
         },
     },
-};
+});
 
-// Verify purchase
-var result = await ((MutationResolver)OpenIapClient.Instance).VerifyPurchaseWithProviderAsync(props);
-
-// Check result
 var iapkit = result.Iapkit;
-if (iapkit is { IsValid: true, State: IapkitPurchaseState.Entitled })
+var verifiedProductId = iapkit?.ProductId;
+if (iapkit is { IsValid: true } &&
+    (iapkit.State == IapkitPurchaseState.Entitled ||
+     iapkit.State == IapkitPurchaseState.PendingAcknowledgment) &&
+    verifiedProductId is not null &&
+    verifiedProductId == purchase.ProductId)
 {
-    // Grant entitlement to user
-    Console.WriteLine($"Valid purchase from {iapkit.Store}");
+    UnlockEntitlement(verifiedProductId);
+    if (iapkit.ClientPayload is { } payload)
+    {
+        // Parse according to format and apply in memory; do not log the body.
+        ApplyPublicRules(payload);
+    }
 }`}</CodeBlock>
             ),
             gdscript: (
-              <CodeBlock language="gdscript">{`# Create verification props for iOS
-var props = VerifyPurchaseWithProviderProps.new()
-props.provider = PurchaseVerificationProvider.IAPKIT
-props.iapkit = RequestVerifyPurchaseWithIapkitProps.new()
-props.iapkit.api_key = "openiap-kit_<your-key>"
-props.iapkit.apple = RequestVerifyPurchaseWithIapkitAppleProps.new()
-props.iapkit.apple.jws = purchase.jws_representation_ios
+              <CodeBlock language="gdscript">{`# Create verification props for Google Play.
+const Types = preload("res://addons/godot-iap/types.gd")
 
-# Verify purchase
+var props = Types.VerifyPurchaseWithProviderProps.new()
+props.provider = Types.PurchaseVerificationProvider.IAPKIT
+props.iapkit = Types.RequestVerifyPurchaseWithIapkitProps.new()
+props.iapkit.api_key = "openiap-kit_<your-key>"
+props.iapkit.include_client_payload = true
+props.iapkit.google = Types.RequestVerifyPurchaseWithIapkitGoogleProps.new()
+props.iapkit.google.purchase_token = purchase.purchase_token
+
 var result = await iap.verify_purchase_with_provider(props)
 
-# Check result
 var iapkit = result.iapkit
-if iapkit != null and iapkit.is_valid and iapkit.state == IapkitPurchaseState.ENTITLED:
-    # Grant entitlement to user
-    print("Valid purchase from %s" % iapkit.store)`}</CodeBlock>
+var verified_product_id = iapkit.product_id if iapkit != null else null
+if (
+    iapkit != null
+    and iapkit.is_valid
+    and iapkit.state in [
+        Types.IapkitPurchaseState.ENTITLED,
+        Types.IapkitPurchaseState.PENDING_ACKNOWLEDGMENT,
+    ]
+    and verified_product_id != null
+    and verified_product_id == purchase.product_id
+):
+    unlock_entitlement(verified_product_id)
+    if iapkit.client_payload != null:
+        # Parse according to format and apply in memory; do not log the body.
+        apply_public_rules(iapkit.client_payload)`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
+        <p>
+          These examples cover non-consumables and subscriptions: Apple examples
+          require <code>entitled</code>, while Google examples also allow{' '}
+          <code>pending-acknowledgment</code>. Choose the finish path from the
+          app-owned product type and platform, not the state alone. Apple and
+          Amazon consumables use <code>ready-to-consume</code>, while an
+          unconsumed Google product may be <code>entitled</code> or{' '}
+          <code>pending-acknowledgment</code>. Persist consumable delivery
+          before finishing it; see the{' '}
+          <Link to="/docs/features/validation#verify-purchase-with-provider">
+            state-aware flow
+          </Link>
+          .
+        </p>
       </section>
     </div>
   );

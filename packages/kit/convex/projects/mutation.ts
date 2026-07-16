@@ -1,7 +1,11 @@
 import { mutation } from "../_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { deleteProjectWithData } from "./helpers";
+import {
+  deleteProjectWithData,
+  getOrganizationById,
+  getProjectById,
+} from "./helpers";
 import { generateApiKey } from "../utils/helpers";
 import { createError, ErrorCode } from "../utils/errors";
 import {
@@ -210,6 +214,11 @@ export const createProject = mutation({
       throw createError(ErrorCode.NOT_ORGANIZATION_MEMBER);
     }
 
+    const organization = await getOrganizationById(ctx, args.organizationId);
+    if (!organization) {
+      throw createError(ErrorCode.NOT_ORGANIZATION_MEMBER);
+    }
+
     // Generate slug if not provided, or validate user-provided slug
     let slug = args.slug || generateSlug(args.name);
 
@@ -310,7 +319,7 @@ export const updateProject = mutation({
       throw createError(ErrorCode.NOT_AUTHENTICATED);
     }
 
-    const project = await ctx.db.get(args.projectId);
+    const project = await getProjectById(ctx, args.projectId);
     if (!project) {
       throw createError(ErrorCode.PROJECT_NOT_FOUND);
     }
@@ -441,6 +450,9 @@ export const deleteProject = mutation({
       throw createError(ErrorCode.NOT_AUTHENTICATED);
     }
 
+    // A repeated request must be able to resume an already-pending cascade,
+    // so deletion intentionally reads the raw row instead of the writable
+    // helper used by ordinary project mutations.
     const project = await ctx.db.get(args.projectId);
     if (!project) {
       throw createError(ErrorCode.PROJECT_NOT_FOUND);
@@ -461,6 +473,16 @@ export const deleteProject = mutation({
       throw createError(ErrorCode.INSUFFICIENT_PERMISSIONS);
     }
 
+    // Hide the project from new dashboard/API work before starting the
+    // scheduled bounded cascade. A repeated request resumes the drain so a
+    // failed scheduled continuation never leaves deletion permanently stuck.
+    if (!project.pendingDeletion) {
+      await ctx.db.patch(project._id, {
+        pendingDeletion: true,
+        updatedAt: Date.now(),
+      });
+    }
+
     // Delete the project along with all related data
     await deleteProjectWithData(ctx, args.projectId);
   },
@@ -476,7 +498,7 @@ export const regenerateApiKey = mutation({
       throw createError(ErrorCode.NOT_AUTHENTICATED);
     }
 
-    const project = await ctx.db.get(args.projectId);
+    const project = await getProjectById(ctx, args.projectId);
     if (!project) {
       throw createError(ErrorCode.PROJECT_NOT_FOUND);
     }

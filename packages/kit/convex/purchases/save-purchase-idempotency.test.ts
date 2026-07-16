@@ -250,6 +250,24 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
     expect(db.purchaseCount()).toBe(1);
   });
 
+  it("rejects writes while the project or organization deletion is pending", async () => {
+    const project = await db.get(PROJECT_ID);
+    expect(project).not.toBeNull();
+    await db.patch(PROJECT_ID, { pendingDeletion: true });
+
+    await expect(
+      savePurchaseInternal({ ctx, ...buildArgs({ remoteId: TOKEN }) }),
+    ).rejects.toThrow("Project not found");
+    expect(db.purchaseCount()).toBe(0);
+
+    await db.patch(PROJECT_ID, { pendingDeletion: false });
+    await db.patch(ORG_ID, { pendingDeletion: true });
+    await expect(
+      savePurchaseInternal({ ctx, ...buildArgs({ remoteId: TOKEN }) }),
+    ).rejects.toThrow("Organization not found for project");
+    expect(db.purchaseCount()).toBe(0);
+  });
+
   it("re-validation with the same remoteId does NOT re-increment stats.total", async () => {
     await savePurchaseInternal({ ctx, ...buildArgs({ remoteId: TOKEN }) });
 

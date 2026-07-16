@@ -1020,6 +1020,60 @@ public static class IapEventExtensions
     public static IapEvent FromJson(string value) => IapEventJsonConverter.FromRawString(value);
 }
 
+/// <summary>Serialization format of a public IAPKit product client payload.</summary>
+[JsonConverter(typeof(IapkitClientPayloadFormatJsonConverter))]
+public enum IapkitClientPayloadFormat
+{
+    Toml,
+    Json,
+    Text
+}
+
+public sealed class IapkitClientPayloadFormatJsonConverter : JsonConverter<IapkitClientPayloadFormat>
+{
+    private static readonly Dictionary<string, IapkitClientPayloadFormat> _fromString = new()
+    {
+        ["toml"] = IapkitClientPayloadFormat.Toml,
+        ["TOML"] = IapkitClientPayloadFormat.Toml,
+        ["Toml"] = IapkitClientPayloadFormat.Toml,
+        ["json"] = IapkitClientPayloadFormat.Json,
+        ["JSON"] = IapkitClientPayloadFormat.Json,
+        ["Json"] = IapkitClientPayloadFormat.Json,
+        ["text"] = IapkitClientPayloadFormat.Text,
+        ["TEXT"] = IapkitClientPayloadFormat.Text,
+        ["Text"] = IapkitClientPayloadFormat.Text,
+    };
+
+    private static readonly Dictionary<IapkitClientPayloadFormat, string> _toString = new()
+    {
+        [IapkitClientPayloadFormat.Toml] = "toml",
+        [IapkitClientPayloadFormat.Json] = "json",
+        [IapkitClientPayloadFormat.Text] = "text",
+    };
+
+    public override IapkitClientPayloadFormat Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        var raw = reader.GetString();
+        if (raw is not null && _fromString.TryGetValue(raw, out var value)) return value;
+        throw new JsonException($"Unknown IapkitClientPayloadFormat value: {raw}");
+    }
+
+    public override void Write(Utf8JsonWriter writer, IapkitClientPayloadFormat value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(_toString[value]);
+    }
+
+    internal static string ToRawString(IapkitClientPayloadFormat value) => _toString[value];
+    internal static IapkitClientPayloadFormat FromRawString(string value) =>
+        _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown IapkitClientPayloadFormat value: {value}");
+}
+
+public static class IapkitClientPayloadFormatExtensions
+{
+    public static string ToJson(this IapkitClientPayloadFormat value) => IapkitClientPayloadFormatJsonConverter.ToRawString(value);
+    public static IapkitClientPayloadFormat FromJson(string value) => IapkitClientPayloadFormatJsonConverter.FromRawString(value);
+}
+
 /// <summary>Unified purchase states from IAPKit verification response.</summary>
 [JsonConverter(typeof(IapkitPurchaseStateJsonConverter))]
 public enum IapkitPurchaseState
@@ -3093,6 +3147,20 @@ public sealed record FetchProductsResultProducts(IReadOnlyList<Product>? Value) 
 
 public sealed record FetchProductsResultSubscriptions(IReadOnlyList<ProductSubscription>? Value) : FetchProductsResult;
 
+/// <summary>Public app-facing data attached to one store product in IAPKit.</summary>
+/// <summary>Never place credentials, signing keys, or server-authoritative rules here.</summary>
+public sealed record IapkitProductClientPayload
+{
+    [JsonPropertyName("body")]
+    public required string Body { get; init; }
+    [JsonPropertyName("format")]
+    public required IapkitClientPayloadFormat Format { get; init; }
+    [JsonPropertyName("updatedAt")]
+    public required double UpdatedAt { get; init; }
+    [JsonPropertyName("version")]
+    public required double Version { get; init; }
+}
+
 /// <summary>Result from showing Play billing in-app messages (Android)</summary>
 /// <summary>Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0</summary>
 /// <summary>(upstream API available since Play Billing 4.1.0).</summary>
@@ -3740,9 +3808,21 @@ public sealed record RequestPurchaseResultPurchases(IReadOnlyList<Purchase>? Val
 
 public sealed record RequestVerifyPurchaseWithIapkitResult
 {
-    /// <summary>Whether the purchase is valid (not falsified).</summary>
+    /// <summary>Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.</summary>
+    /// <summary>Public product payload when includeClientPayload was requested, the</summary>
+    /// <summary>Apple or Google receipt is valid, and a payload exists for that product.</summary>
+    [JsonPropertyName("clientPayload")]
+    public IapkitProductClientPayload? ClientPayload { get; init; }
+    /// <summary>True when the purchase is valid and actionable.</summary>
+    /// <summary>Only entitled, pending-acknowledgment, or ready-to-consume return true.</summary>
+    /// <summary>Callers must still match productId and use the platform plus app-owned product</summary>
+    /// <summary>type to choose the fulfillment path.</summary>
     [JsonPropertyName("isValid")]
     public required bool IsValid { get; init; }
+    /// <summary>Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.</summary>
+    /// <summary>Store-verified product identifier when the provider returns one.</summary>
+    [JsonPropertyName("productId")]
+    public string? ProductId { get; init; }
     /// <summary>The current state of the purchase.</summary>
     [JsonPropertyName("state")]
     public required IapkitPurchaseState State { get; init; }
@@ -4587,6 +4667,12 @@ public sealed record RequestVerifyPurchaseWithIapkitProps
     /// <summary>The apiKey must be issued by the same IAPKit/Convex deployment as this server.</summary>
     [JsonPropertyName("baseUrl")]
     public string? BaseUrl { get; init; }
+    /// <summary>Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.</summary>
+    /// <summary>Include the product&apos;s public IAPKit client payload in a valid Apple or</summary>
+    /// <summary>Google verification response. Defaults to false so existing response</summary>
+    /// <summary>shapes and bandwidth remain unchanged.</summary>
+    [JsonPropertyName("includeClientPayload")]
+    public bool? IncludeClientPayload { get; init; }
     /// <summary>Apple App Store verification parameters.</summary>
     [JsonPropertyName("apple")]
     public RequestVerifyPurchaseWithIapkitAppleProps? Apple { get; init; }

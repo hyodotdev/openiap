@@ -312,6 +312,92 @@ class PurchaseVerificationValidatorTest {
         val bodyMap = Gson().fromJson(requireNotNull(connection.writtenBody), Map::class.java) as Map<*, *>
         assertEquals("google", bodyMap["store"])
         assertEquals("token-123", bodyMap["purchaseToken"])
+        assertEquals(null, bodyMap["includeClientPayload"])
+    }
+
+    @Test
+    fun `verifyPurchaseWithIapkit opts into and parses client payload`() = runTest {
+        val props = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = "secret",
+            apple = null,
+            google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                purchaseToken = "token-123"
+            ),
+            amazon = null,
+            includeClientPayload = true
+        )
+        val response = """
+            {
+              "store": "google",
+              "isValid": true,
+              "state": "ENTITLED",
+              "productId": "premium.monthly",
+              "clientPayload": {
+                "format": "toml",
+                "body": "tier = \"gold\"",
+                "version": 2,
+                "updatedAt": 1720000000000
+              }
+            }
+        """.trimIndent()
+        val connection = FakeHttpURLConnection(200, response)
+
+        val result = verifyPurchaseWithIapkit(props, "TEST") { _ -> connection }
+
+        val bodyMap = Gson().fromJson(requireNotNull(connection.writtenBody), Map::class.java) as Map<*, *>
+        assertEquals(true, bodyMap["includeClientPayload"])
+        assertEquals("premium.monthly", result.productId)
+        assertEquals(IapkitClientPayloadFormat.Toml, result.clientPayload?.format)
+        assertEquals("tier = \"gold\"", result.clientPayload?.body)
+        assertEquals(2.0, result.clientPayload?.version)
+    }
+
+    @Test
+    fun `verifyPurchaseWithIapkit rejects malformed client payload`() = runTest {
+        val props = RequestVerifyPurchaseWithIapkitProps(
+            google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                purchaseToken = "token-123"
+            ),
+            includeClientPayload = true
+        )
+
+        try {
+            verifyPurchaseWithIapkit(props, "TEST") { _ ->
+                FakeHttpURLConnection(
+                    200,
+                    """{"store":"google","isValid":true,"state":"ENTITLED","clientPayload":{"format":"toml","body":"missing timestamps"}}"""
+                )
+            }
+            throw AssertionError("Expected PurchaseVerificationFailed for malformed client payload")
+        } catch (error: OpenIapError.PurchaseVerificationFailed) {
+            assertTrue(error.message.contains("malformed"))
+        }
+    }
+
+    @Test
+    fun `verifyPurchaseWithIapkit rejects invalid payload numbers and productId`() = runTest {
+        val props = RequestVerifyPurchaseWithIapkitProps(
+            google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                purchaseToken = "token-123"
+            ),
+            includeClientPayload = true
+        )
+        val invalidResponses = listOf(
+            """{"store":"google","isValid":true,"state":"ENTITLED","productId":42}""",
+            """{"store":"google","isValid":true,"state":"ENTITLED","clientPayload":{"format":"TOML","body":"x=1","version":1,"updatedAt":1}}""",
+            """{"store":"google","isValid":true,"state":"ENTITLED","clientPayload":{"format":"toml","body":"x=1","version":0,"updatedAt":1}}""",
+            """{"store":"google","isValid":true,"state":"ENTITLED","clientPayload":{"format":"toml","body":"x=1","version":1.5,"updatedAt":1}}""",
+            """{"store":"google","isValid":true,"state":"ENTITLED","clientPayload":{"format":"toml","body":"x=1","version":1,"updatedAt":-1}}"""
+        )
+
+        for (response in invalidResponses) {
+            try {
+                verifyPurchaseWithIapkit(props, "TEST") { _ -> FakeHttpURLConnection(200, response) }
+                throw AssertionError("Expected malformed IAPKit response to fail: $response")
+            } catch (error: OpenIapError.PurchaseVerificationFailed) {
+                assertTrue(error.message.contains("malformed"))
+            }
+        }
     }
 
     @Test

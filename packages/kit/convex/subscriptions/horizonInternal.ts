@@ -8,6 +8,10 @@ import {
   type CurrentSubscription,
 } from "./stateMachine";
 import { applyStatsTransition, statsContributionFor } from "./stats";
+import {
+  assertProjectWritable,
+  getWritableProject,
+} from "../projects/writable";
 
 // Convex-runtime helpers used by the Horizon polling reconciler in
 // `horizon.ts`. Kept separate so the action's "use node" boundary
@@ -31,12 +35,17 @@ export const listHorizonProjects = internalQuery({
       .query("projects")
       .withIndex("by_horizon_enabled", (q) => q.eq("horizonEnabled", true))
       .collect();
-    return enabled.map((project) => ({
-      _id: project._id,
-      horizonEnabled: project.horizonEnabled,
-      horizonAppId: project.horizonAppId,
-      horizonAppSecret: project.horizonAppSecret,
-    }));
+    const writable = await Promise.all(
+      enabled.map((project) => getWritableProject(ctx, project._id)),
+    );
+    return writable
+      .filter((project): project is NonNullable<typeof project> => !!project)
+      .map((project) => ({
+        _id: project._id,
+        horizonEnabled: project.horizonEnabled,
+        horizonAppId: project.horizonAppId,
+        horizonAppSecret: project.horizonAppSecret,
+      }));
   },
 });
 
@@ -169,6 +178,7 @@ export const recordHorizonStatus = internalMutation({
   },
   returns: v.union(v.null(), v.id("subscriptions")),
   handler: async (ctx, args) => {
+    await assertProjectWritable(ctx, args.projectId);
     const existing: Doc<"subscriptions"> | null = await ctx.db
       .query("subscriptions")
       .withIndex("by_project_and_token", (q) =>

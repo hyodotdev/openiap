@@ -1,4 +1,5 @@
 import Foundation
+import CoreFoundation
 import StoreKit
 
 private struct IndexedProductEntry: @unchecked Sendable {
@@ -53,6 +54,47 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         }
 
         return url
+    }
+
+    static func iapkitClientPayload(from rawValue: Any?) throws -> IapkitProductClientPayload? {
+        guard let rawValue, !(rawValue is NSNull) else { return nil }
+        guard let payload = rawValue as? [String: Any],
+              let formatString = payload["format"] as? String,
+              let format = IapkitClientPayloadFormat(rawValue: formatString),
+              let body = payload["body"] as? String,
+              let version = payload["version"] as? NSNumber,
+              let updatedAt = payload["updatedAt"] as? NSNumber,
+              CFGetTypeID(version) != CFBooleanGetTypeID(),
+              CFGetTypeID(updatedAt) != CFBooleanGetTypeID(),
+              version.doubleValue.isFinite,
+              version.doubleValue > 0,
+              version.doubleValue.rounded(.towardZero) == version.doubleValue,
+              updatedAt.doubleValue.isFinite,
+              updatedAt.doubleValue >= 0 else {
+            throw PurchaseError.make(
+                code: .receiptFailed,
+                message: "IAPKit returned malformed client payload"
+            )
+        }
+
+        return IapkitProductClientPayload(
+            body: body,
+            format: format,
+            updatedAt: updatedAt.doubleValue,
+            version: version.doubleValue
+        )
+    }
+
+    static func iapkitBoolean(from rawValue: Any?) throws -> Bool {
+        guard let value = rawValue as? NSNumber,
+              CFGetTypeID(value) == CFBooleanGetTypeID() else {
+            throw PurchaseError.make(
+                code: .receiptFailed,
+                message: "IAPKit returned malformed response"
+            )
+        }
+
+        return value.boolValue
     }
 
     /// Objective-C accessor for [OpenIapModule.shared]. Exists so the .NET MAUI
@@ -772,16 +814,19 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         struct IapkitApplePayload: Codable {
             let store: IapStore
             let jws: String
+            let includeClientPayload: Bool?
         }
         struct IapkitAmazonPayload: Codable {
             let store: IapStore
             let receiptId: String
             let sandbox: Bool?
             let userId: String?
+            let includeClientPayload: Bool?
         }
         struct IapkitGooglePayload: Codable {
             let store: IapStore
             let purchaseToken: String
+            let includeClientPayload: Bool?
         }
 
         func extractIapkitErrorMessage(from json: [String: Any]) -> String? {
@@ -826,7 +871,11 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                 guard jws.isEmpty == false else {
                     throw makePurchaseError(code: .developerError, message: "JWS is required")
                 }
-                let payload = IapkitApplePayload(store: .apple, jws: jws)
+                let payload = IapkitApplePayload(
+                    store: .apple,
+                    jws: jws,
+                    includeClientPayload: props.includeClientPayload
+                )
                 return (.apple, try encoder.encode(payload))
             }
 
@@ -835,7 +884,11 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                 guard purchaseToken.isEmpty == false else {
                     throw makePurchaseError(code: .developerError, message: "Google purchase token is required")
                 }
-                let payload = IapkitGooglePayload(store: .google, purchaseToken: purchaseToken)
+                let payload = IapkitGooglePayload(
+                    store: .google,
+                    purchaseToken: purchaseToken,
+                    includeClientPayload: props.includeClientPayload
+                )
                 return (.google, try encoder.encode(payload))
             }
 
@@ -849,7 +902,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                     store: .amazon,
                     receiptId: receiptId,
                     sandbox: amazon.sandbox,
-                    userId: userId?.isEmpty == true ? nil : userId
+                    userId: userId?.isEmpty == true ? nil : userId,
+                    includeClientPayload: props.includeClientPayload
                 )
                 return (.amazon, try encoder.encode(payload))
             }
@@ -917,8 +971,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                 throw makePurchaseError(code: .receiptFailed, message: errorMessage)
             }
 
-            guard let isValid = json["isValid"] as? Bool,
-                  let stateString = json["state"] as? String,
+            let isValid = try Self.iapkitBoolean(from: json["isValid"])
+            guard let stateString = json["state"] as? String,
                   let storeString = json["store"] as? String,
                   let parsedStore = IapStore(rawValue: storeString),
                   parsedStore == store else {
@@ -927,8 +981,31 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             }
             let normalizedState = stateString.lowercased().replacingOccurrences(of: "_", with: "-")
             let parsedState = IapkitPurchaseState(rawValue: normalizedState) ?? .unknown
+            let productId: String?
+            if let rawProductId = json["productId"], !(rawProductId is NSNull) {
+                guard let value = rawProductId as? String else {
+                    OpenIapLog.warn("IAPKit verification response contains a non-string productId")
+                    throw makePurchaseError(code: .receiptFailed, message: "IAPKit returned malformed response")
+                }
+                productId = value
+            } else {
+                productId = nil
+            }
+            let clientPayload: IapkitProductClientPayload?
+            do {
+                clientPayload = try Self.iapkitClientPayload(from: json["clientPayload"])
+            } catch {
+                OpenIapLog.warn("IAPKit verification response contains a malformed clientPayload")
+                throw error
+            }
             OpenIapLog.info("IAPKit verification result: store=\(parsedStore.rawValue), isValid=\(isValid), state=\(parsedState.rawValue)")
-            return RequestVerifyPurchaseWithIapkitResult(isValid: isValid, state: parsedState, store: parsedStore)
+            return RequestVerifyPurchaseWithIapkitResult(
+                clientPayload: clientPayload,
+                isValid: isValid,
+                productId: productId,
+                state: parsedState,
+                store: parsedStore
+            )
         }
         try await ensureConnection()
         guard props.provider == .iapkit else {

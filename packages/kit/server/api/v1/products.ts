@@ -1,4 +1,5 @@
 import { Hono, type Context, type Next } from "hono";
+import { ConvexError } from "convex/values";
 
 import { api } from "@/convex";
 import type { Id } from "@/convex";
@@ -19,6 +20,9 @@ const products = new Hono();
 const MAX_PRODUCT_ID_LENGTH = 256;
 const MAX_SYNC_JOB_ID_LENGTH = 256;
 const MAX_PRODUCT_BODY_BYTES = 64 * 1024;
+const DEFAULT_CLIENT_PAYLOAD_PAGE_SIZE = 25;
+const MAX_CLIENT_PAYLOAD_PAGE_SIZE = 50;
+const MAX_CLIENT_PAYLOAD_CURSOR_LENGTH = 4096;
 
 type ProductPlatform = "IOS" | "Android";
 type ProductType = "Subscription" | "NonConsumable" | "Consumable";
@@ -53,6 +57,13 @@ products.use("/:apiKey/*", pathApiKeyGuard);
 products.get("/:apiKey", async (c) => {
   const apiKey = c.req.param("apiKey");
   const platformParam = c.req.query("platform");
+  const includeClientPayloadParam = c.req.query("includeClientPayload");
+  const limitParam = c.req.query("limit");
+  const cursor = c.req.query("cursor");
+  const includeClientPayload = parseOptionalBoolean(includeClientPayloadParam);
+  if (includeClientPayload === null) {
+    return invalidInput(c, "includeClientPayload must be true|false");
+  }
   let platform: ProductPlatform | undefined;
   if (platformParam !== undefined) {
     if (!isProductPlatform(platformParam)) {
@@ -60,13 +71,69 @@ products.get("/:apiKey", async (c) => {
     }
     platform = platformParam;
   }
+  if (includeClientPayload === true && !platform) {
+    return invalidInput(
+      c,
+      "platform is required when includeClientPayload=true",
+    );
+  }
+  const limit =
+    includeClientPayload === true
+      ? parseClientPayloadPageLimit(limitParam)
+      : undefined;
+  if (limit === null) {
+    return invalidInput(
+      c,
+      `limit must be an integer between 1 and ${MAX_CLIENT_PAYLOAD_PAGE_SIZE}`,
+    );
+  }
+  if (
+    includeClientPayload === true &&
+    cursor !== undefined &&
+    (!cursor.trim() || cursor.length > MAX_CLIENT_PAYLOAD_CURSOR_LENGTH)
+  ) {
+    return invalidInput(
+      c,
+      `cursor must be a non-empty string of at most ${MAX_CLIENT_PAYLOAD_CURSOR_LENGTH} characters`,
+    );
+  }
   try {
+    if (includeClientPayload === true) {
+      const page = await client.query(
+        api.products.query.listProductsWithClientPayloads,
+        {
+          apiKey,
+          platform: platform!,
+          limit: limit!,
+          ...(cursor !== undefined ? { cursor } : {}),
+        },
+      );
+      return c.json(page);
+    }
     const list = await client.query(api.products.query.listProducts, {
       apiKey,
       platform,
     });
     return c.json({ products: list });
   } catch (error) {
+    if (
+      includeClientPayload === true &&
+      cursor !== undefined &&
+      isInvalidPaginationCursor(error)
+    ) {
+      return c.json(
+        {
+          errors: [
+            {
+              code: "INVALID_CURSOR",
+              message:
+                "cursor is no longer valid; restart from the first page without cursor",
+            },
+          ],
+        },
+        400,
+      );
+    }
     return productRouteError(
       c,
       error,
@@ -372,6 +439,52 @@ products.post("/:apiKey/sync/jobs/:jobId/cancel", async (c) => {
   }
 });
 
+// Read-only client payload endpoint. Writes intentionally remain dashboard
+// mutations authenticated by project membership; an API key can only read the
+// metadata destined for that project's app clients.
+products.get("/:apiKey/:productId/client-payload", async (c) => {
+  const apiKey = c.req.param("apiKey");
+  const productId = c.req.param("productId");
+  const platformParam = c.req.query("platform");
+  if (!isProductPlatform(platformParam)) {
+    return invalidInput(c, "platform query param required (IOS | Android)");
+  }
+  if (!isNonBlankString(productId)) {
+    return invalidInput(c, "productId must not be empty");
+  }
+  if (!isValidProductIdLength(productId)) {
+    return invalidInput(c, "productId must be ≤ 256 chars");
+  }
+
+  try {
+    const clientPayload = await client.query(
+      api.products.query.getProductClientPayload,
+      { apiKey, productId, platform: platformParam },
+    );
+    if (!clientPayload) {
+      return c.json(
+        {
+          errors: [
+            {
+              code: "NOT_FOUND",
+              message: "Product client payload not found",
+            },
+          ],
+        },
+        404,
+      );
+    }
+    return c.json({ clientPayload });
+  } catch (error) {
+    return productRouteError(
+      c,
+      error,
+      "PRODUCT_CLIENT_PAYLOAD_LOOKUP_FAILED",
+      "Product client payload lookup failed",
+    );
+  }
+});
+
 products.delete("/:apiKey/:productId", async (c) => {
   const apiKey = c.req.param("apiKey");
   const productId = c.req.param("productId");
@@ -434,6 +547,15 @@ function isSyncDirection(direction: string): direction is SyncDirection {
   return SYNC_DIRECTIONS.has(direction);
 }
 
+function parseOptionalBoolean(
+  value: string | undefined,
+): boolean | undefined | null {
+  if (value === undefined) return undefined;
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return null;
+}
+
 function areOptionalStrings(...values: unknown[]): boolean {
   return values.every(
     (value) => value === undefined || typeof value === "string",
@@ -446,6 +568,32 @@ function isNonBlankString(value: unknown): value is string {
 
 function isJsonObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function parseClientPayloadPageLimit(value: string | undefined): number | null {
+  if (value === undefined) return DEFAULT_CLIENT_PAYLOAD_PAGE_SIZE;
+  if (!/^[1-9]\d*$/.test(value)) return null;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed <= MAX_CLIENT_PAYLOAD_PAGE_SIZE
+    ? parsed
+    : null;
+}
+
+function isInvalidPaginationCursor(error: unknown): boolean {
+  if (error instanceof ConvexError) {
+    const data = error.data;
+    if (
+      typeof data === "object" &&
+      data !== null &&
+      "isConvexSystemError" in data &&
+      data.isConvexSystemError === true &&
+      "paginationError" in data &&
+      data.paginationError === "InvalidCursor"
+    ) {
+      return true;
+    }
+  }
+  return error instanceof Error && error.message.includes("InvalidCursor");
 }
 
 function invalidInput(c: Context, message: string) {

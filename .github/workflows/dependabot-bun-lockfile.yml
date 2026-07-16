@@ -59,5 +59,6 @@ jobs:
           PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
           # GITHUB_TOKEN pushes don't trigger pull_request events, so
-          # dispatch deploy-kit.yml manually on the updated branch tip.
+          # dispatch deploy-kit.yml on the updated branch tip. Non-main manual
+          # dispatches are verify-only; the deploy job is guarded to main.
           gh workflow run deploy-kit.yml --ref "$PR_HEAD_REF"

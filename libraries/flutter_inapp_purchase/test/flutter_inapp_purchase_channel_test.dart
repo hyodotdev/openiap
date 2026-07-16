@@ -2398,8 +2398,15 @@ void main() {
               'provider': 'iapkit',
               'iapkit': {
                 'isValid': true,
+                'productId': 'premium.monthly',
                 'state': 'entitled',
                 'store': 'apple',
+                'clientPayload': {
+                  'format': 'toml',
+                  'body': 'tier = "gold"',
+                  'version': 2,
+                  'updatedAt': 1720000000000,
+                },
               },
             };
         }
@@ -2416,6 +2423,7 @@ void main() {
         provider: types.PurchaseVerificationProvider.Iapkit,
         iapkit: const types.RequestVerifyPurchaseWithIapkitProps(
           apiKey: 'test-api-key',
+          includeClientPayload: true,
           apple: types.RequestVerifyPurchaseWithIapkitAppleProps(
             jws: 'test-jws-token',
           ),
@@ -2435,6 +2443,7 @@ void main() {
         payload['iapkit'] as Map<dynamic, dynamic>,
       );
       expect(iapkitPayload['apiKey'], 'test-api-key');
+      expect(iapkitPayload['includeClientPayload'], true);
       expect(iapkitPayload['apple'], isNotNull);
       final applePayload = Map<String, dynamic>.from(
         iapkitPayload['apple'] as Map<dynamic, dynamic>,
@@ -2444,6 +2453,10 @@ void main() {
       expect(result.provider, types.PurchaseVerificationProvider.Iapkit);
       expect(result.iapkit, isNotNull);
       expect(result.iapkit!.isValid, true);
+      expect(result.iapkit!.productId, 'premium.monthly');
+      expect(result.iapkit!.clientPayload!.format,
+          types.IapkitClientPayloadFormat.Toml);
+      expect(result.iapkit!.clientPayload!.body, 'tier = "gold"');
       expect(result.iapkit!.state, types.IapkitPurchaseState.Entitled);
       expect(result.iapkit!.store, types.IapStore.Apple);
     });
@@ -2837,6 +2850,50 @@ void main() {
             types.ErrorCode.PurchaseVerificationFailed,
           ),
         ),
+      );
+    });
+
+    test('rejects malformed IAPKit client payload', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        switch (call.method) {
+          case 'initConnection':
+            return true;
+          case 'verifyPurchaseWithProvider':
+            return {
+              'provider': 'iapkit',
+              'iapkit': {
+                'isValid': true,
+                'state': 'entitled',
+                'store': 'apple',
+                'clientPayload': {
+                  'format': 'toml',
+                  'body': 'tier = "gold"',
+                  'version': 1.5,
+                  'updatedAt': 1,
+                },
+              },
+            };
+        }
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'ios'),
+      );
+      await iap.initConnection();
+
+      await expectLater(
+        iap.verifyPurchaseWithProvider(
+          provider: types.PurchaseVerificationProvider.Iapkit,
+          iapkit: const types.RequestVerifyPurchaseWithIapkitProps(
+            includeClientPayload: true,
+            apple: types.RequestVerifyPurchaseWithIapkitAppleProps(
+              jws: 'test-jws-token',
+            ),
+          ),
+        ),
+        throwsA(isA<PurchaseError>()),
       );
     });
   });
