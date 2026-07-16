@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Id } from "../_generated/dataModel";
 
 const projectMocks = vi.hoisted(() => ({
   byApiKey: vi.fn(),
@@ -14,11 +15,20 @@ import {
   assertProductClientPayloadVersion,
   MAX_PRODUCT_CLIENT_PAYLOAD_BYTES,
   nextStateForKitProductUpsert,
-  removeProduct,
-  removeProductClientPayload,
-  upsertProductClientPayload,
+  removeProduct as registeredRemoveProduct,
+  removeProductClientPayload as registeredRemoveProductClientPayload,
+  upsertProductClientPayload as registeredUpsertProductClientPayload,
   validateProductClientPayloadBody,
 } from "./mutation";
+import { testableFunction } from "../test.setup";
+
+const removeProduct = testableFunction(registeredRemoveProduct);
+const removeProductClientPayload = testableFunction(
+  registeredRemoveProductClientPayload,
+);
+const upsertProductClientPayload = testableFunction(
+  registeredUpsertProductClientPayload,
+);
 
 type Row = Record<string, unknown> & { _id: string };
 
@@ -109,7 +119,7 @@ function convexErrorData(error: unknown): Record<string, unknown> {
   return (error as { data?: Record<string, unknown> }).data ?? {};
 }
 
-const PROJECT_ID = "projects_a";
+const PROJECT_ID = "projects_a" as Id<"projects">;
 
 function makeCtx(db = new TestDb()) {
   return { db };
@@ -118,7 +128,7 @@ function makeCtx(db = new TestDb()) {
 async function runUpsert(
   ctx: ReturnType<typeof makeCtx>,
   overrides: Partial<{
-    projectId: string;
+    projectId: Id<"projects">;
     platform: "IOS" | "Android";
     productId: string;
     format: "toml" | "json" | "text";
@@ -246,7 +256,7 @@ describe("product client payload mutations", () => {
     const ctx = makeCtx();
 
     await expect(
-      runUpsert(ctx, { projectId: "projects_other" }),
+      runUpsert(ctx, { projectId: "projects_other" as Id<"projects"> }),
     ).rejects.toSatisfy(
       (error: unknown) =>
         convexErrorData(error).code === "PROJECT_ACCESS_DENIED",

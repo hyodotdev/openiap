@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Id } from "../_generated/dataModel";
 
 const projectMocks = vi.hoisted(() => ({
   byApiKey: vi.fn(),
@@ -11,13 +12,29 @@ vi.mock("../projects/helpers", () => ({
 }));
 
 import {
-  getProductClientPayload,
-  getProductClientPayloadEditorState,
-  listProductClientPayloadSummaries,
-  listProducts,
-  listProductsWithClientPayloads,
+  getProductClientPayload as registeredGetProductClientPayload,
+  getProductClientPayloadEditorState as registeredGetProductClientPayloadEditorState,
+  listProductClientPayloadSummaries as registeredListProductClientPayloadSummaries,
+  listProducts as registeredListProducts,
+  listProductsWithClientPayloads as registeredListProductsWithClientPayloads,
 } from "./query";
-import { deletePlatformCatalog } from "./sync";
+import { deletePlatformCatalog as registeredDeletePlatformCatalog } from "./sync";
+import { testableFunction } from "../test.setup";
+
+const deletePlatformCatalog = testableFunction(registeredDeletePlatformCatalog);
+const getProductClientPayload = testableFunction(
+  registeredGetProductClientPayload,
+);
+const getProductClientPayloadEditorState = testableFunction(
+  registeredGetProductClientPayloadEditorState,
+);
+const listProductClientPayloadSummaries = testableFunction(
+  registeredListProductClientPayloadSummaries,
+);
+const listProducts = testableFunction(registeredListProducts);
+const listProductsWithClientPayloads = testableFunction(
+  registeredListProductsWithClientPayloads,
+);
 
 type Row = Record<string, unknown> & { _id: string };
 
@@ -94,7 +111,7 @@ class TestDb {
   }
 }
 
-const PROJECT_ID = "projects_a";
+const PROJECT_ID = "projects_a" as Id<"projects">;
 
 function product(
   id: string,

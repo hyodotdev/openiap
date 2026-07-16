@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { recordWebhookEvent } from "./internal";
+import { recordWebhookEvent as registeredRecordWebhookEvent } from "./internal";
+import { testableFunction } from "../test.setup";
+
+const recordWebhookEvent = testableFunction(registeredRecordWebhookEvent);
 
 describe("recordWebhookEvent pending-deletion guard", () => {
   for (const pendingOwner of ["project", "organization"] as const) {

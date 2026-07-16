@@ -3411,8 +3411,30 @@ function checkFrameworkDependencyHygiene() {
   );
   expectNotIncludes(
     ".github/workflows/deploy-kit.yml",
-    ["if: ${{ env.KIT_CONVEX_DEPLOY_KEY != '' }}"],
-    "Kit production deploy must not silently skip Convex",
+    [
+      "if: ${{ env.KIT_CONVEX_DEPLOY_KEY != '' }}",
+      "--typecheck=disable",
+      "--typecheck disable",
+    ],
+    "Kit production deploy must neither skip Convex nor disable its typecheck",
+  );
+  expectIncludes(
+    "packages/kit/package.json",
+    [
+      '"lint": "run-s lint:tsc lint:convex lint:eslint"',
+      '"lint:convex": "convex typecheck"',
+    ],
+    "Kit lint must reproduce the Convex deploy typecheck before merge",
+  );
+  expectIncludes(
+    "packages/kit/convex/tsconfig.json",
+    ['"include": ["./**/*"]', '"exclude": ["./_generated"]'],
+    "Convex typecheck must cover production and test TypeScript",
+  );
+  expectNotIncludes(
+    "packages/kit/convex/tsconfig.json",
+    ["*.test.ts", "*.spec.ts"],
+    "Convex typecheck must not hide test TypeScript",
   );
   const kitDeployWorkflow = read(".github/workflows/deploy-kit.yml");
   const validateDeploySecrets = kitDeployWorkflow.indexOf(

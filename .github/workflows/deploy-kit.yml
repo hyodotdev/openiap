@@ -39,7 +39,7 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: bun install --frozen-lockfile
 
-      - name: Lint (tsc + eslint)
+      - name: Lint (app + Convex typecheck + eslint)
         run: bun run lint
 
       - name: Format check

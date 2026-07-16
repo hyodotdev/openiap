@@ -8,23 +8,45 @@ vi.mock("@convex-dev/auth/server", async (importOriginal) => ({
 }));
 
 import {
-  count as countFiles,
-  get as getFile,
-  getAppStoreFileByProject,
-  getAscApiKeyFileByProject,
-  getGooglePlayFileByProject,
-  list as listFiles,
+  count as registeredCountFiles,
+  get as registeredGetFile,
+  getAppStoreFileByProject as registeredGetAppStoreFileByProject,
+  getAscApiKeyFileByProject as registeredGetAscApiKeyFileByProject,
+  getGooglePlayFileByProject as registeredGetGooglePlayFileByProject,
+  list as registeredListFiles,
 } from "../files/query";
 import {
-  getActiveCount,
-  getById as getApiKeyById,
-  listProjectApiKeys,
+  getActiveCount as registeredGetActiveCount,
+  getById as registeredGetApiKeyById,
+  listProjectApiKeys as registeredListProjectApiKeys,
 } from "../apiKeys/query";
 import {
-  getOrganizationReceiptStats,
-  getPurchaseById,
-  getReceiptsByProject,
+  getOrganizationReceiptStats as registeredGetOrganizationReceiptStats,
+  getPurchaseById as registeredGetPurchaseById,
+  getReceiptsByProject as registeredGetReceiptsByProject,
 } from "../purchases/query";
+import { testableFunction } from "../test.setup";
+
+const countFiles = testableFunction(registeredCountFiles);
+const getActiveCount = testableFunction(registeredGetActiveCount);
+const getApiKeyById = testableFunction(registeredGetApiKeyById);
+const getAppStoreFileByProject = testableFunction(
+  registeredGetAppStoreFileByProject,
+);
+const getAscApiKeyFileByProject = testableFunction(
+  registeredGetAscApiKeyFileByProject,
+);
+const getFile = testableFunction(registeredGetFile);
+const getGooglePlayFileByProject = testableFunction(
+  registeredGetGooglePlayFileByProject,
+);
+const getOrganizationReceiptStats = testableFunction(
+  registeredGetOrganizationReceiptStats,
+);
+const getPurchaseById = testableFunction(registeredGetPurchaseById);
+const getReceiptsByProject = testableFunction(registeredGetReceiptsByProject);
+const listFiles = testableFunction(registeredListFiles);
+const listProjectApiKeys = testableFunction(registeredListProjectApiKeys);
 
 type Row = Record<string, unknown> & { _id: string };
 
