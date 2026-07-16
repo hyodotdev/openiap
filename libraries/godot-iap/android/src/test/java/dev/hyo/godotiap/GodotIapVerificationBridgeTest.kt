@@ -11,6 +11,7 @@ class GodotIapVerificationBridgeTest {
             "provider" to "iapkit",
             "apiKey" to "test-api-key",
             "baseUrl" to "http://10.0.2.2:4174",
+            "includeClientPayload" to true,
             "google" to mapOf("purchaseToken" to "purchase-token"),
         )
 
@@ -20,6 +21,7 @@ class GodotIapVerificationBridgeTest {
         assertEquals("iapkit", normalized["provider"])
         assertEquals("test-api-key", iapkit["apiKey"])
         assertEquals("http://10.0.2.2:4174", iapkit["baseUrl"])
+        assertEquals(true, iapkit["includeClientPayload"])
         assertEquals(
             mapOf("purchaseToken" to "purchase-token"),
             iapkit["google"],
