@@ -11,12 +11,22 @@ const fullReference = fs.readFileSync(
   path.join(projectRoot, "packages/docs/public/llms-full.txt"),
   "utf-8",
 );
+const kitQuickReference = fs.readFileSync(
+  path.join(projectRoot, "packages/kit/public/llms.txt"),
+  "utf-8",
+);
 const compiledContext = fs.readFileSync(
   path.join(projectRoot, "knowledge/_claude-context/context.md"),
   "utf-8",
 );
 
 describe("generated LLM references", () => {
+  test("includes the canonical IAPKit client payload reference", () => {
+    expect(kitQuickReference).toContain("includeClientPayload=true");
+    expect(kitQuickReference).toContain("includeClientPayload: true");
+    expect(fullReference).toContain(kitQuickReference.trim());
+  });
+
   test("uses the current product request and error-code shapes", () => {
     expect(quickReference).toContain(
       "skus: ['com.app.premium', 'com.app.pro']",
