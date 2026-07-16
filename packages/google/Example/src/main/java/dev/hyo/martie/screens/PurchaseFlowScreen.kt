@@ -21,6 +21,7 @@ import dev.hyo.martie.IapConstants
 import dev.hyo.martie.models.AppColors
 import dev.hyo.martie.screens.uis.*
 import dev.hyo.openiap.IapContext
+import dev.hyo.openiap.IapkitPurchaseState
 import dev.hyo.openiap.store.OpenIapStore
 import dev.hyo.openiap.store.PurchaseResultStatus
 import kotlinx.coroutines.CoroutineScope
@@ -46,6 +47,7 @@ import dev.hyo.openiap.RequestSubscriptionPropsByPlatforms
 import dev.hyo.openiap.utils.toPurchaseInput
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitGoogleProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps
+import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitResult
 import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
 import dev.hyo.martie.util.findActivity
 import dev.hyo.martie.BuildConfig
@@ -551,7 +553,10 @@ fun PurchaseFlowScreen(
     }
     
     // Verification helper functions
-    suspend fun verifyWithIapkit(purchase: PurchaseAndroid, apiKey: String): Boolean {
+    suspend fun verifyWithIapkit(
+        purchase: PurchaseAndroid,
+        apiKey: String
+    ): RequestVerifyPurchaseWithIapkitResult {
         val token = purchase.purchaseToken
             ?: throw IllegalStateException("Purchase token is required for IAPKit verification")
 
@@ -563,10 +568,11 @@ fun PurchaseFlowScreen(
             apple = null,
             google = RequestVerifyPurchaseWithIapkitGoogleProps(
                 purchaseToken = token
-            )
+            ),
+            // Client payload is public configuration, never entitlement authority or secrets.
+            includeClientPayload = true
         )
-        val result = verifyPurchaseWithIapkit(props, "PurchaseFlowScreen")
-        return result.isValid
+        return verifyPurchaseWithIapkit(props, "PurchaseFlowScreen")
     }
 
     // Local verification: For Android, we just check if the purchase state is authentic
@@ -631,28 +637,58 @@ fun PurchaseFlowScreen(
                     println("PurchaseFlow: Starting IAPKit verification for ${purchase.productId}")
                     try {
                         val result = verifyWithIapkit(purchase, apiKey)
-                        println("PurchaseFlow: IAPKit verification result: $result")
-                        verificationResultMessage = if (result) "✅ IAPKit verification passed" else "❌ IAPKit verification failed"
-                        if (!result) {
+                        val storeProductId = result.productId ?: "not returned"
+                        val hasAllowedState =
+                            result.state == IapkitPurchaseState.Entitled ||
+                                result.state == IapkitPurchaseState.PendingAcknowledgment
+                        val isVerifiedPurchase =
+                            result.isValid &&
+                                result.productId != null &&
+                                result.productId == purchase.productId &&
+                                hasAllowedState
+                        val payloadSummary = result.clientPayload?.let { payload ->
+                            val preview = if (payload.body.length > 200) {
+                                "${payload.body.take(199)}…"
+                            } else {
+                                payload.body
+                            }
+                            "Client payload: ${payload.format.rawValue}, v${payload.version.toInt()}\n" +
+                                "Preview: $preview"
+                        } ?: "Client payload: not returned"
+
+                        println("PurchaseFlow: IAPKit verification result:")
+                        println("  - isValid: ${result.isValid}")
+                        println("  - storeProductId: $storeProductId")
+                        println(
+                            "  - clientPayload: " +
+                                (result.clientPayload?.let {
+                                    "${it.format.rawValue}, v${it.version.toInt()}"
+                                } ?: "not returned")
+                        )
+                        verificationResultMessage = """
+                            ${if (isVerifiedPurchase) "✅ IAPKit verification passed" else "❌ IAPKit verification failed"}
+                            Store product: $storeProductId
+                            $payloadSummary
+                        """.trimIndent()
+                        if (!isVerifiedPurchase) {
                             // Post error with auto-refund notice
                             iapStore.postStatusMessage(
-                                message = "Verification failed. Purchase not acknowledged - will be auto-refunded within 3 days.",
+                                message = "Verification, product identity, or state check failed. Purchase not acknowledged - will be auto-refunded within 3 days.",
                                 status = PurchaseResultStatus.Error,
                                 productId = purchase.productId
                             )
                         }
-                        result
+                        isVerifiedPurchase
                     } catch (e: Exception) {
                         println("PurchaseFlow: IAPKit verification error: ${e.message}")
                         verificationResultMessage = "❌ IAPKit verification error: ${e.message}"
                         iapStore.postStatusMessage(
-                            message = "Verification error: ${e.message}. Finishing transaction anyway for testing.",
+                            message = "Verification error: ${e.message}. Transaction left unfinished for retry.",
                             status = PurchaseResultStatus.Error,
                             productId = purchase.productId
                         )
-                        // For testing: return true to continue with finishTransaction
-                        println("PurchaseFlow: [TEST MODE] Continuing with finishTransaction despite verification error")
-                        true
+                        println("PurchaseFlow: Transaction left unfinished for verification retry")
+                        false
                     } finally {
                         isVerifying = false
                     }

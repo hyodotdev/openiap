@@ -4,7 +4,9 @@ import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
 import com.google.gson.reflect.TypeToken
 import dev.hyo.openiap.IapStore
+import dev.hyo.openiap.IapkitClientPayloadFormat
 import dev.hyo.openiap.IapkitPurchaseState
+import dev.hyo.openiap.IapkitProductClientPayload
 import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapLog
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps
@@ -297,6 +299,10 @@ suspend fun verifyPurchaseWithIapkit(
         IapStore.Amazon -> buildAmazonPayload()
         IapStore.Google -> buildGooglePayload()
         else -> throw IllegalArgumentException("IAPKit verification on Android does not support ${store.rawValue}")
+    }.toMutableMap().apply {
+        if (props.includeClientPayload == true) {
+            put("includeClientPayload", true)
+        }
     }
 
     val endpoint = resolveIapkitEndpoint()
@@ -346,8 +352,45 @@ suspend fun verifyPurchaseWithIapkit(
                 IapkitPurchaseState.fromJson(normalizedState)
             }.getOrDefault(IapkitPurchaseState.Unknown)
 
+            val clientPayload = when (val rawClientPayload = parsed["clientPayload"]) {
+                null -> null
+                is Map<*, *> -> {
+                    val formatValue = rawClientPayload["format"] as? String
+                        ?: throw malformedIapkitResponse()
+                    if (formatValue !in setOf("toml", "json", "text")) {
+                        throw malformedIapkitResponse()
+                    }
+                    val format = IapkitClientPayloadFormat.fromJson(formatValue)
+                    val payloadBody = rawClientPayload["body"] as? String
+                        ?: throw malformedIapkitResponse()
+                    val version = (rawClientPayload["version"] as? Number)?.toDouble()
+                        ?: throw malformedIapkitResponse()
+                    val updatedAt = (rawClientPayload["updatedAt"] as? Number)?.toDouble()
+                        ?: throw malformedIapkitResponse()
+                    if (!version.isFinite() || version <= 0.0 || version % 1.0 != 0.0 ||
+                        !updatedAt.isFinite() || updatedAt < 0.0
+                    ) {
+                        throw malformedIapkitResponse()
+                    }
+                    IapkitProductClientPayload(
+                        body = payloadBody,
+                        format = format,
+                        updatedAt = updatedAt,
+                        version = version
+                    )
+                }
+                else -> throw malformedIapkitResponse()
+            }
+            val productId = when (val rawProductId = parsed["productId"]) {
+                null -> null
+                is String -> rawProductId
+                else -> throw malformedIapkitResponse()
+            }
+
             return RequestVerifyPurchaseWithIapkitResult(
+                clientPayload = clientPayload,
                 isValid = isValid,
+                productId = productId,
                 state = parsedState,
                 store = responseStore
             )
