@@ -1867,7 +1867,14 @@ describe('Public API (src/index.ts)', () => {
       const mockResult = {
         provider: 'iapkit',
         iapkit: {
+          clientPayload: {
+            format: 'toml',
+            body: 'tier = "gold"',
+            version: 2,
+            updatedAt: 1720000000000,
+          },
           isValid: true,
+          productId: 'premium.monthly',
           state: 'entitled',
           store: 'apple',
         },
@@ -1879,6 +1886,7 @@ describe('Public API (src/index.ts)', () => {
         iapkit: {
           apiKey: 'test-api-key',
           baseUrl: 'http://127.0.0.1:4174',
+          includeClientPayload: true,
           environment: 'sandbox',
           apple: {
             jws: 'test-jws-token',
@@ -1891,6 +1899,7 @@ describe('Public API (src/index.ts)', () => {
         iapkit: {
           apiKey: 'test-api-key',
           baseUrl: 'http://127.0.0.1:4174',
+          includeClientPayload: true,
           environment: 'sandbox',
           apple: {
             jws: 'test-jws-token',
@@ -1899,6 +1908,8 @@ describe('Public API (src/index.ts)', () => {
       });
       expect(result.provider).toBe('iapkit');
       expect(result.iapkit?.isValid).toBe(true);
+      expect(result.iapkit?.productId).toBe('premium.monthly');
+      expect(result.iapkit?.clientPayload?.body).toBe('tier = "gold"');
       expect(result.iapkit?.state).toBe('entitled');
       expect(result.iapkit?.store).toBe('apple');
     });

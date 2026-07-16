@@ -1200,6 +1200,54 @@ describe('Amazon Vega adapter', () => {
     }
   });
 
+  it('does not request or expose Apple/Google-only client payloads on Vega', async () => {
+    const service = createService();
+    const originalFetch = globalThis.fetch;
+    const fetchMock = jest.fn(async () =>
+      Response.json({
+        isValid: true,
+        state: 'ENTITLED',
+        store: 'amazon',
+        productId: 'premium.monthly',
+        clientPayload: {
+          format: 'toml',
+          body: 'tier = "gold"',
+          version: 2,
+          updatedAt: 1720000000000,
+        },
+      }),
+    ) as unknown as jest.MockedFunction<typeof fetch>;
+    globalThis.fetch = fetchMock;
+
+    try {
+      const module = createVegaIapModule(service);
+      const result = await module.verifyPurchaseWithProvider({
+        provider: 'iapkit',
+        iapkit: {
+          includeClientPayload: true,
+          amazon: {
+            userId: 'amazon-user',
+            receiptId: 'receipt-vega-1',
+          },
+        },
+      });
+
+      expect(result.iapkit).toEqual({
+        isValid: true,
+        productId: 'premium.monthly',
+        state: 'entitled',
+        store: 'amazon',
+      });
+      expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
+        store: 'amazon',
+        userId: 'amazon-user',
+        receiptId: 'receipt-vega-1',
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   it.each([
     ['http://localhost:3100/', 'http://localhost:3100/v1/purchase/verify'],
     ['http://192.168.0.4:3100', 'http://192.168.0.4:3100/v1/purchase/verify'],

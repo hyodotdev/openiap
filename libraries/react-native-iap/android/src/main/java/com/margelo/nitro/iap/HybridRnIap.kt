@@ -1463,6 +1463,9 @@ class HybridRnIap : HybridRnIapSpec() {
                     val apiKey = iapkit.apiKey.unwrapString() ?: getIapkitApiKeyFromManifest()
                     apiKey?.let { iapkitMap["apiKey"] = it }
                     iapkit.baseUrl.unwrapString()?.let { iapkitMap["baseUrl"] = it }
+                    iapkit.includeClientPayload.unwrapBool()?.let {
+                        iapkitMap["includeClientPayload"] = it
+                    }
                     (iapkit.google as? Variant_NullType_NitroVerifyPurchaseWithIapkitGoogleProps.Second)?.value?.let { google ->
                         iapkitMap["google"] = mapOf("purchaseToken" to google.purchaseToken)
                     }
@@ -1488,8 +1491,24 @@ class HybridRnIap : HybridRnIapSpec() {
 
                 // Convert result to Nitro types
                 val nitroIapkitResult = result.iapkit?.let { item ->
+                    val clientPayload = item.clientPayload?.let { payload ->
+                        NitroIapkitProductClientPayload(
+                            body = payload.body,
+                            format = when (payload.format.rawValue) {
+                                "toml" -> IapkitClientPayloadFormat.TOML
+                                "json" -> IapkitClientPayloadFormat.JSON
+                                else -> IapkitClientPayloadFormat.TEXT
+                            },
+                            updatedAt = payload.updatedAt,
+                            version = payload.version
+                        )
+                    }
                     NitroVerifyPurchaseWithIapkitResult(
+                        clientPayload = clientPayload?.let {
+                            Variant_NullType_NitroIapkitProductClientPayload.Second(it)
+                        },
                         isValid = item.isValid,
+                        productId = item.productId?.let { Variant_NullType_String.Second(it) },
                         state = mapIapkitPurchaseState(item.state.name),
                         store = mapIapkitStore(item.store.name)
                     )

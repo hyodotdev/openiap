@@ -40,6 +40,71 @@ export type StatusResponse = {
   subscription: KitSubscription | null;
 };
 
+export type KitProductPlatform = "IOS" | "Android";
+
+export type KitProductClientPayload = {
+  format: "toml" | "json" | "text";
+  body: string;
+  version: number;
+  updatedAt: number;
+};
+
+export type KitProductOffer = {
+  id: string;
+  kind:
+    | "FreeTrial"
+    | "IntroPayUpFront"
+    | "IntroPayAsYouGo"
+    | "PromotionalOffer"
+    | "BasePlan";
+  duration?: string;
+  numberOfPeriods?: number;
+  priceAmountMicros?: number;
+  currency?: string;
+};
+
+export type KitProduct = {
+  productId: string;
+  platform: KitProductPlatform;
+  type: "Subscription" | "NonConsumable" | "Consumable";
+  title: string;
+  description?: string;
+  priceAmountMicros?: number;
+  currency?: string;
+  state: "Draft" | "Ready" | "Active" | "Removed";
+  storeRef?: string;
+  subscriptionGroupId?: string;
+  subscriptionGroupName?: string;
+  billingPeriod?: "P1W" | "P1M" | "P2M" | "P3M" | "P6M" | "P1Y";
+  offers?: KitProductOffer[];
+  updatedAt: number;
+  clientPayload?: KitProductClientPayload;
+};
+
+export type KitProductsOptions = {
+  platform?: KitProductPlatform;
+  /** Include public client payload bodies in a bounded platform page. */
+  includeClientPayload?: boolean;
+  /** Page size for payload-inclusive reads (default 25, maximum 50).
+   * Ignored by the legacy non-payload catalog path. */
+  limit?: number;
+  /** Opaque cursor returned as `nextCursor` by the previous payload page.
+   * Ignored by the legacy non-payload catalog path. */
+  cursor?: string;
+};
+
+export type KitProductsResponse = {
+  products: KitProduct[];
+  /** Present on payload-inclusive catalog pages. */
+  hasMore?: boolean;
+  /** Present when a payload-inclusive catalog page has another page. */
+  nextCursor?: string;
+};
+
+export type KitClientPayloadResponse = {
+  clientPayload: KitProductClientPayload;
+};
+
 const DEFAULT_BASE_URL = "https://kit.openiap.dev";
 
 // Merge caller-supplied headers with kit defaults (`accept`,
@@ -208,6 +273,48 @@ export function kitApi(options: KitApiOptions) {
     entitlements: (userId: string) =>
       call<EntitlementsResponse>(
         `/v1/subscriptions/entitlements/${encodeURIComponent(options.apiKey)}?userId=${encodeURIComponent(userId)}`,
+      ),
+
+    /** GET /v1/products — read the store-synced catalog. Client payloads
+     * are excluded unless explicitly requested because they may add up to
+     * 16 KiB per product. */
+    products: (productOptions: KitProductsOptions = {}) => {
+      if (
+        productOptions.includeClientPayload === true &&
+        !productOptions.platform
+      ) {
+        throw new Error(
+          "kitApi.products requires platform when includeClientPayload is true",
+        );
+      }
+      const query = new URLSearchParams();
+      if (productOptions.platform) {
+        query.set("platform", productOptions.platform);
+      }
+      if (productOptions.includeClientPayload !== undefined) {
+        query.set(
+          "includeClientPayload",
+          String(productOptions.includeClientPayload),
+        );
+      }
+      if (productOptions.limit !== undefined) {
+        query.set("limit", String(productOptions.limit));
+      }
+      if (productOptions.cursor !== undefined) {
+        query.set("cursor", productOptions.cursor);
+      }
+      const encodedQuery = query.toString();
+      const suffix = encodedQuery ? `?${encodedQuery}` : "";
+      return call<KitProductsResponse>(
+        `/v1/products/${encodeURIComponent(options.apiKey)}${suffix}`,
+      );
+    },
+
+    /** GET one public client payload by its store-specific natural key.
+     * Payloads are app-facing data; never store secrets in them. */
+    clientPayload: (productId: string, platform: KitProductPlatform) =>
+      call<KitClientPayloadResponse>(
+        `/v1/products/${encodeURIComponent(options.apiKey)}/${encodeURIComponent(productId)}/client-payload?platform=${encodeURIComponent(platform)}`,
       ),
 
     /** POST /v1/subscriptions/bind-user — call after a successful

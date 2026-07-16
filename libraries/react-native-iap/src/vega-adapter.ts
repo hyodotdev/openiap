@@ -4,6 +4,7 @@ import type {
   NitroProduct,
   NitroPurchase,
   NitroPurchaseResult,
+  NitroVerifyPurchaseWithIapkitResult,
   NitroVerifyPurchaseWithProviderProps,
   NitroVerifyPurchaseWithProviderResult,
   RnIap,
@@ -155,8 +156,7 @@ function isValidIpv4Address(address: string): boolean {
   return (
     octets.length === 4 &&
     octets.every(
-      (octet) =>
-        /^(?:0|[1-9]\d{0,2})$/.test(octet) && Number(octet) <= 255,
+      (octet) => /^(?:0|[1-9]\d{0,2})$/.test(octet) && Number(octet) <= 255,
     )
   );
 }
@@ -1236,10 +1236,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
     function readIapkitResult(
       json: Record<string, unknown>,
       status: number,
-    ): {
-      isValid: boolean;
-      state: IapkitPurchaseState;
-    } {
+    ): NitroVerifyPurchaseWithIapkitResult {
       if (
         typeof json.isValid !== 'boolean' ||
         typeof json.state !== 'string' ||
@@ -1251,9 +1248,19 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
         );
       }
 
+      const productId = json.productId;
+      if (productId != null && typeof productId !== 'string') {
+        throw createVegaError(
+          ErrorCode.ReceiptFailed,
+          `IAPKit returned malformed response (HTTP ${status}).`,
+        );
+      }
+
       return {
         isValid: json.isValid,
+        ...(productId == null ? {} : {productId}),
         state: normalizeIapkitState(json.state),
+        store: 'amazon',
       };
     }
 
@@ -1374,11 +1381,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
     const result = readIapkitResult(json, response.status);
     return {
       provider: 'iapkit',
-      iapkit: {
-        isValid: result.isValid,
-        state: result.state,
-        store: 'amazon',
-      },
+      iapkit: result,
     };
   };
 
