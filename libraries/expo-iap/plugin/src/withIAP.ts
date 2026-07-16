@@ -106,8 +106,11 @@ export const normalizeGeneratedGroovyAppBuildGradle = (
       /^(\s*)compileSdk\s+rootProject\.ext\.compileSdkVersion\s*$/gm,
       '$1compileSdk = rootProject.ext.compileSdkVersion',
     ],
-    [/^(\s*)namespace\s+(['"][^'"]+['"])\s*$/gm, '$1namespace = $2'],
-    [/^(\s*)applicationId\s+(['"][^'"]+['"])\s*$/gm, '$1applicationId = $2'],
+    // Note: `namespace` and `applicationId` are intentionally left in
+    // method-call form. AGP accepts both, but @expo/config-plugins parses them
+    // with regexes that only match the no-`=` form (getApplicationIdAsync and
+    // setPackageInBuildGradle), so converting them breaks `expo run:android`
+    // app-id resolution. See hyodotdev/openiap#228.
     [
       /^(\s*)minSdkVersion\s+rootProject\.ext\.minSdkVersion\s*$/gm,
       '$1minSdk = rootProject.ext.minSdkVersion',
