@@ -77,7 +77,7 @@ const includeClientPayloadSchema = v.optional(
   v.pipe(
     v.boolean(),
     v.description(
-      "Include project-managed client metadata for a valid Apple or Google product when available.",
+      "Include project-managed client metadata for a valid Apple or Google product when available. Horizon and Amazon accept this option for cross-platform request compatibility but ignore it.",
     ),
   ),
 );
