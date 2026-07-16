@@ -1777,7 +1777,18 @@ describe('Public API (index.ts)', () => {
       (Platform as any).OS = 'ios';
       const mockResult = {
         provider: 'iapkit',
-        iapkit: {isValid: true, state: 'entitled', store: 'apple'},
+        iapkit: {
+          isValid: true,
+          state: 'entitled',
+          store: 'apple',
+          productId: 'premium.monthly',
+          clientPayload: {
+            format: 'toml',
+            body: 'tier = "gold"',
+            version: 2,
+            updatedAt: 1720000000000,
+          },
+        },
       };
       (ExpoIapModule.verifyPurchaseWithProvider as jest.Mock) = jest
         .fn()
@@ -1787,6 +1798,7 @@ describe('Public API (index.ts)', () => {
         provider: 'iapkit' as const,
         iapkit: {
           apiKey: 'test-api-key',
+          includeClientPayload: true,
           apple: {jws: 'jws-token'},
           google: {purchaseToken: 'purchase-token'},
         },
@@ -1799,6 +1811,8 @@ describe('Public API (index.ts)', () => {
       );
       expect(result).toEqual(mockResult);
       expect(result.iapkit?.isValid).toBe(true);
+      expect(result.iapkit?.productId).toBe('premium.monthly');
+      expect(result.iapkit?.clientPayload?.body).toBe('tier = "gold"');
       expect(result.iapkit?.state).toBe('entitled');
     });
 
@@ -1806,7 +1820,13 @@ describe('Public API (index.ts)', () => {
       (Platform as any).OS = 'android';
       const mockResult = {
         provider: 'iapkit',
-        iapkit: {isValid: true, state: 'ready-to-consume', store: 'google'},
+        iapkit: {
+          clientPayload: null,
+          isValid: true,
+          productId: null,
+          state: 'ready-to-consume',
+          store: 'google',
+        },
       };
       (ExpoIapModule.verifyPurchaseWithProvider as jest.Mock) = jest
         .fn()
@@ -1826,6 +1846,11 @@ describe('Public API (index.ts)', () => {
       expect(ExpoIapModule.verifyPurchaseWithProvider).toHaveBeenCalledWith(
         request,
       );
+      expect(result.iapkit).toEqual({
+        isValid: true,
+        state: 'ready-to-consume',
+        store: 'google',
+      });
       expect(result.iapkit?.store).toBe('google');
     });
 

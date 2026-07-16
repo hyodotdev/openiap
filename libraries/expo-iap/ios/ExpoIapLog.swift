@@ -10,6 +10,7 @@ enum ExpoIapLog {
         "secret",
         "jws",
         "receipt",
+        "clientpayload",
         "dataandroid",
         "signatureandroid",
         "userid",
