@@ -499,6 +499,13 @@ await ((QueryResolver)iap).FetchProductsAsync(new ProductRequest
     fullContent += "\n\n---\n\n";
   }
 
+  const kitQuickReference = fs.readFileSync(
+    path.join(CONFIG.projectRoot, "packages/kit/public/llms.txt"),
+    "utf-8",
+  );
+  fullContent += kitQuickReference.trimEnd();
+  fullContent += "\n\n---\n\n";
+
   // Add links section
   fullContent += `## Links & Resources
 

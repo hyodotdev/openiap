@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-07-16T12:14:12.730Z
+> Generated: 2026-07-16T23:03:55.942Z
 
 ## Table of Contents
 1. Installation
@@ -31,22 +31,22 @@ cd ios && pod install
 ### Swift (iOS/macOS)
 ```swift
 // Swift Package Manager
-.package(url: "https://github.com/hyodotdev/openiap.git", from: "2.4.0")
+.package(url: "https://github.com/hyodotdev/openiap.git", from: "2.4.1")
 
 // CocoaPods
-pod 'openiap', '~> 2.4.0'
+pod 'openiap', '~> 2.4.1'
 ```
 
 ### Kotlin (Android)
 ```kotlin
 // Gradle (build.gradle.kts)
-implementation("io.github.hyochan.openiap:openiap-google:2.4.0")
+implementation("io.github.hyochan.openiap:openiap-google:2.4.1")
 
 // For Meta Horizon OS
-implementation("io.github.hyochan.openiap:openiap-google-horizon:2.4.0")
+implementation("io.github.hyochan.openiap:openiap-google-horizon:2.4.1")
 
 // For Fire OS (Amazon Appstore)
-implementation("io.github.hyochan.openiap:openiap-google-amazon:2.4.0")
+implementation("io.github.hyochan.openiap:openiap-google-amazon:2.4.1")
 ```
 
 ### Flutter
@@ -55,13 +55,13 @@ flutter pub add flutter_inapp_purchase
 ```
 
 ### Godot
-Download `godot-iap-2.5.0.zip` from GitHub Releases, extract it to
+Download `godot-iap-2.5.1.zip` from GitHub Releases, extract it to
 `addons/godot-iap/`, then enable the plugin in Project Settings.
 
 ### Kotlin Multiplatform
 ```kotlin
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:2.5.0")
+    implementation("io.github.hyochan:kmp-iap:2.5.1")
 }
 ```
 
@@ -73,7 +73,7 @@ https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap
 dotnet add package OpenIap.Maui
 ```
 
-Current NuGet package version: 1.3.0
+Current NuGet package version: 1.3.1
 
 Requires .NET 9 or .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
 
@@ -1940,6 +1940,125 @@ Replay window:
 - Events MUST be retained for at least 30 days so `webhookEventsSince` can
   service reconnecting clients. Older events are pruned by a Convex cron job.
 
+
+---
+
+# IAPKit
+
+> Receipt-validation SaaS managed by OpenIAP. Hosted at https://kit.openiap.dev.
+> One Bearer-authed endpoint for Apple / Google / Horizon / Amazon;
+> harmonized response shape with `{ store, isValid, state, productId? }` so your backend has a single code path for
+> entitlement + refund detection.
+
+IAPKit lives in the OpenIAP monorepo as a Bun + Hono server, Convex backend,
+and React SPA deployed behind one origin.
+
+## API quick reference
+
+Base URL: https://kit.openiap.dev
+Purchase verification and MCP auth: `Authorization: Bearer openiap-kit_<project-key>`
+Product, subscription, and webhook helper routes carry the same project key in
+their `{apiKey}` path segment.
+
+- [POST /v1/purchase/verify](https://kit.openiap.dev/docs/api) — verify an in-app purchase; body is a tagged union on `store`
+- [GET /v1/products/{apiKey}?platform=IOS&includeClientPayload=true&limit=25](https://kit.openiap.dev/docs/products) — list public product payloads in bounded cursor pages (platform required, limit 1-50, follow `nextCursor` while `hasMore`)
+- [GET /v1/products/{apiKey}/{productId}/client-payload?platform=IOS](https://kit.openiap.dev/docs/products) — fetch `{ clientPayload }`; returns 404 when the product is missing/Removed or no payload exists
+- [POST /v1/webhooks/{apiKey}](https://openiap.dev/docs/webhooks#setup) — lifecycle webhook receiver. Paste this URL into App Store Connect (Production + Sandbox) AND Google Cloud Pub/Sub push subscription. Auto-detects ASN v2 vs Pub/Sub by payload shape. **POST-only**; opening in a browser returns 404 — that's expected.
+- [GET /v1/webhooks/stream/{apiKey}](https://openiap.dev/docs/webhooks#consume-stream) — long-lived SSE stream of normalized `WebhookEvent`s. Connect with `EventSource` (or the per-SDK helper); reconnects honor `Last-Event-ID`. Opening in a browser shows a blank page (text/event-stream that never closes) — use the SDK helpers or `curl -N`.
+- [GET /v1/openapi](https://kit.openiap.dev/v1/openapi) — machine-readable OpenAPI spec
+- [GET /v1](https://kit.openiap.dev/v1) — Redoc UI for the OpenAPI spec
+- [GET /health](https://kit.openiap.dev/health) — liveness probe (no Convex round-trip)
+- [POST /mcp](https://kit.openiap.dev/docs/ai-assistants/codex-plugin) — MCP Streamable HTTP endpoint for Codex and other MCP clients. Uses an IAPKit project API key, not an OpenAI or ChatGPT API key.
+
+Also mounted at `/api/v1/*` for backwards compatibility. `/v1/verify-purchase`
+is an alias of `/v1/purchase/verify`. Pick `/v1/purchase/verify` for new code.
+
+## Request shapes (discriminated on `store`)
+
+- Apple — `{ store: "apple", jws, expectedProductId?, includeClientPayload? }` where `jws` is a StoreKit 2 JWS (≤ 16 KB)
+- Google — `{ store: "google", purchaseToken, expectedProductId?, includeClientPayload? }` (token ≤ 2 KB)
+- Horizon — `{ store: "horizon", userId, sku }` (≤ 256 chars each). IAPKit
+  holds the App ID + App Secret server-side and composes the
+  `OC|APP_ID|APP_SECRET` access token per-request.
+- Amazon — `{ store: "amazon", userId, receiptId, sandbox? }` where
+  `userId` and `receiptId` come from Amazon Appstore RVS.
+
+## Success response
+
+```json
+{ "store": "amazon", "isValid": true, "state": "ENTITLED" }
+```
+
+For Apple/Google only, `includeClientPayload: true` may add a top-level
+`clientPayload` when verification is valid, the store supplies a verified
+productId, and that exact platform/product has a payload:
+
+```json
+{
+  "store": "apple",
+  "isValid": true,
+  "state": "ENTITLED",
+  "productId": "premium_monthly",
+  "clientPayload": {
+    "format": "toml",
+    "body": "[access]\nmax_items = 10",
+    "version": 3,
+    "updatedAt": 1784160000000
+  }
+}
+```
+
+Default requests, invalid receipts, missing payloads, Horizon, and Amazon omit
+`clientPayload`. Entitlement decisions must use `isValid`, `state`, and the
+store-verified `productId`. Require that ID to match the product the app
+expected; never substitute a client-supplied ID when the verified value is
+missing, and never use payload contents alone.
+
+Harmonized `state` values (truthy `isValid`): `ENTITLED`,
+`PENDING_ACKNOWLEDGMENT`, `READY_TO_CONSUME`. Falsey `isValid`: `PENDING`,
+`CONSUMED`, `CANCELED`, `EXPIRED`, `INAUTHENTIC`, `UNKNOWN`.
+
+## Product client payloads
+
+- Shape: `{ format: "toml" | "json" | "text", body, version, updatedAt }`
+- Body is required, nonblank, and ≤ 16 KiB measured as UTF-8 bytes.
+- JSON must parse to a non-null, non-array object; TOML syntax is validated.
+- Payloads are public app data. Never store secrets, credentials, or private server rules.
+- Store Sync never pushes or overwrites them. Resetting the local catalog retains them.
+- They are returned by app requests, not sent through APNs/FCM, and do not display an OS notification.
+- The separate 64 KB product-management cap applies to the whole HTTP request before parsing; it is not per-product payload storage.
+
+## Status codes
+
+- `200` — verification ran; require `isValid`, an operation-appropriate `state`, and an exact store-verified `productId` match
+- `400 INVALID_INPUT` — malformed body / unknown store / oversized field
+- `413 PAYLOAD_TOO_LARGE` — request body exceeds the 32 KB edge cap
+- `401 MISSING_API_KEY` — no `Authorization` header
+- `403 INVALID_API_KEY` — wrong scheme, malformed, or unrecognized key
+- `429 RATE_LIMITED` — per-key bucket empty; honor `Retry-After` seconds
+- `500 UNKNOWN_ERROR` — quote the `X-Correlation-Id` header in a support ticket
+
+## Response headers (on 2xx / 4xx validation / 429)
+
+- `X-Correlation-Id` — UUIDv4, matches the stdout log line
+- `X-RateLimit-Limit` — bucket capacity (default 600 per key)
+- `X-RateLimit-Remaining` — tokens left in the bucket
+- `Retry-After` (429 only) — seconds to wait
+
+## Docs
+
+- [/docs](https://kit.openiap.dev/docs) — full in-dashboard documentation
+- [/docs/quickstart](https://kit.openiap.dev/docs/quickstart) — signup → project → API key → first verify
+- [/docs/products](https://kit.openiap.dev/docs/products) — catalog sync, client payload editing, retrieval, caching, and limits
+- [/docs/verification/apple](https://kit.openiap.dev/docs/verification/apple) — bundle ID, Issuer ID, Key ID, .p8
+- [/docs/verification/google](https://kit.openiap.dev/docs/verification/google) — package name, service account JSON
+- [/docs/verification/horizon](https://kit.openiap.dev/docs/verification/horizon) — App ID + App Secret (write-only)
+- [/docs/api](https://kit.openiap.dev/docs/api) — request shapes, responses, errors, headers, and Amazon RVS payloads
+- [/docs/operations](https://kit.openiap.dev/docs/operations) — rate limits, logs, `/health`, graceful shutdown
+- [openiap.dev/docs/webhooks](https://openiap.dev/docs/webhooks) — operator setup steps for the lifecycle webhook URL (Apple ASN v2 + Google RTDN) and SDK code for consuming the SSE stream
+- [/docs/ai-assistants](https://kit.openiap.dev/docs/ai-assistants) — how to point Codex / Claude / Cursor / etc. at this file
+- [/docs/ai-assistants/codex-plugin](https://kit.openiap.dev/docs/ai-assistants/codex-plugin) — Codex plugin setup and self-hosted IAPKit MCP server option
+- [/docs/release-notes](https://kit.openiap.dev/docs/release-notes) — changelog
 
 ---
 

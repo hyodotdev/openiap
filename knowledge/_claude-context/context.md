@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-07-12T14:34:53.736Z
+> Last updated: 2026-07-16T23:03:55.935Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -1887,7 +1887,8 @@ node --test scripts/release-branch-policy.test.mjs
 ### Deploying Documentation
 
 Production documentation is stable-only and must deploy from a clean `main`
-checkout. The script rejects prerelease spec versions and other branches.
+checkout that exactly matches `origin/main`. The script rejects prerelease spec
+versions, other branches, and stale or unpublished local snapshots.
 
 ```bash
 # From monorepo root

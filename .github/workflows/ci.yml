@@ -83,6 +83,8 @@ jobs:
               - '.github/workflows/ci.yml'
             agent:
               - 'scripts/agent/**'
+              - 'packages/kit/public/llms.txt'
+              - 'packages/docs/public/llms*.txt'
               - '.github/workflows/ci.yml'
             parity:
               - 'libraries/**'
