@@ -5,14 +5,15 @@
 > harmonized response shape with `{ store, isValid, state, productId? }` so your backend has a single code path for
 > entitlement + refund detection.
 
-IAPKit is a single-package Bun + Hono server bundled with a Convex backend
-and a React SPA, deployed as one Fly.io machine. The dashboard and the
-receipt-validation API live behind the same origin.
+IAPKit lives in the OpenIAP monorepo as a Bun + Hono server, Convex backend,
+and React SPA deployed behind one origin.
 
 ## API quick reference
 
 Base URL: https://kit.openiap.dev
-Auth: `Authorization: Bearer openiap-kit_<project-key>`
+Purchase verification and MCP auth: `Authorization: Bearer openiap-kit_<project-key>`
+Product, subscription, and webhook helper routes carry the same project key in
+their `{apiKey}` path segment.
 
 - [POST /v1/purchase/verify](https://kit.openiap.dev/docs/api) — verify an in-app purchase; body is a tagged union on `store`
 - [GET /v1/products/{apiKey}?platform=IOS&includeClientPayload=true&limit=25](https://kit.openiap.dev/docs/products) — list public product payloads in bounded cursor pages (platform required, limit 1-50, follow `nextCursor` while `hasMore`)
@@ -84,7 +85,7 @@ Harmonized `state` values (truthy `isValid`): `ENTITLED`,
 
 ## Status codes
 
-- `200` — verification ran; check `isValid`
+- `200` — verification ran; require `isValid`, an operation-appropriate `state`, and an exact store-verified `productId` match
 - `400 INVALID_INPUT` — malformed body / unknown store / oversized field
 - `413 PAYLOAD_TOO_LARGE` — request body exceeds the 32 KB edge cap
 - `401 MISSING_API_KEY` — no `Authorization` header
@@ -95,7 +96,7 @@ Harmonized `state` values (truthy `isValid`): `ENTITLED`,
 ## Response headers (on 2xx / 4xx validation / 429)
 
 - `X-Correlation-Id` — UUIDv4, matches the stdout log line
-- `X-RateLimit-Limit` — bucket capacity (default 60 per key)
+- `X-RateLimit-Limit` — bucket capacity (default 600 per key)
 - `X-RateLimit-Remaining` — tokens left in the bucket
 - `Retry-After` (429 only) — seconds to wait
 
@@ -107,8 +108,7 @@ Harmonized `state` values (truthy `isValid`): `ENTITLED`,
 - [/docs/verification/apple](https://kit.openiap.dev/docs/verification/apple) — bundle ID, Issuer ID, Key ID, .p8
 - [/docs/verification/google](https://kit.openiap.dev/docs/verification/google) — package name, service account JSON
 - [/docs/verification/horizon](https://kit.openiap.dev/docs/verification/horizon) — App ID + App Secret (write-only)
-- [/docs/api](https://kit.openiap.dev/docs/api) — includes Amazon RVS userId + receiptId verification payloads
-- [/docs/api](https://kit.openiap.dev/docs/api) — request shapes, responses, errors, headers
+- [/docs/api](https://kit.openiap.dev/docs/api) — request shapes, responses, errors, headers, and Amazon RVS payloads
 - [/docs/operations](https://kit.openiap.dev/docs/operations) — rate limits, logs, `/health`, graceful shutdown
 - [openiap.dev/docs/webhooks](https://openiap.dev/docs/webhooks) — operator setup steps for the lifecycle webhook URL (Apple ASN v2 + Google RTDN) and SDK code for consuming the SSE stream
 - [/docs/ai-assistants](https://kit.openiap.dev/docs/ai-assistants) — how to point Codex / Claude / Cursor / etc. at this file

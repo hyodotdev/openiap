@@ -235,14 +235,15 @@ export default function ApiReferencePage() {
                 PENDING_ACKNOWLEDGMENT
               </td>
               <td className="px-3 py-2">
-                Valid but still needs acknowledgement (Android).
+                Valid Google Play purchase still awaiting acknowledgment or
+                consumption.
               </td>
               <td className="px-3 py-2 text-center">true</td>
             </tr>
             <tr>
               <td className="px-3 py-2 font-mono text-xs">READY_TO_CONSUME</td>
               <td className="px-3 py-2">
-                Consumable marked ready to be fulfilled (iOS).
+                Apple or Amazon consumable ready for durable fulfillment.
               </td>
               <td className="px-3 py-2 text-center">true</td>
             </tr>

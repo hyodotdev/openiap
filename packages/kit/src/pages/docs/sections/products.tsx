@@ -70,7 +70,11 @@ export default function ProductsPage() {
                 Catalog or app-open read
               </td>
               <td className="px-3 py-2">
-                Query string: <code>includeClientPayload=true</code> with{` `}
+                SDK: <code>kitApi.products</code> with{` `}
+                <code>includeClientPayload: true</code> and{` `}
+                <code>platform</code>
+                <br />
+                HTTP query: <code>includeClientPayload=true</code> with{` `}
                 <code>platform</code>
               </td>
               <td className="px-3 py-2">

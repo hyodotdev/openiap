@@ -1822,6 +1822,7 @@ describe('Public API (index.ts)', () => {
         provider: 'iapkit',
         iapkit: {
           clientPayload: null,
+          futureProviderField: 'preserved',
           isValid: true,
           productId: null,
           state: 'ready-to-consume',
@@ -1847,6 +1848,7 @@ describe('Public API (index.ts)', () => {
         request,
       );
       expect(result.iapkit).toEqual({
+        futureProviderField: 'preserved',
         isValid: true,
         state: 'ready-to-consume',
         store: 'google',

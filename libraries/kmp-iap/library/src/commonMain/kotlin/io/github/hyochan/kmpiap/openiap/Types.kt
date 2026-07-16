@@ -3918,7 +3918,10 @@ public data class RequestPurchaseResultPurchases(val value: List<Purchase>?) : R
 
 public data class RequestVerifyPurchaseWithIapkitResult(
     /**
-     * Whether the purchase is valid (not falsified).
+     * True when the purchase is valid and actionable.
+     * Only entitled, pending-acknowledgment, or ready-to-consume return true.
+     * Callers must still match productId and use the platform plus app-owned product
+     * type to choose the fulfillment path.
      */
     val isValid: Boolean,
     /**

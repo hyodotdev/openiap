@@ -147,7 +147,13 @@ function VerifyPurchaseWithProviderResult() {
               <td>
                 <code>boolean</code>
               </td>
-              <td>Whether the purchase is valid (not falsified).</td>
+              <td>
+                True only for <code>entitled</code>,{' '}
+                <code>pending-acknowledgment</code>, or{' '}
+                <code>ready-to-consume</code>. Still require an exact{' '}
+                <code>productId</code> match and a platform/product-type-aware
+                fulfillment path.
+              </td>
             </tr>
             <tr>
               <td>
@@ -294,7 +300,9 @@ function VerifyPurchaseWithProviderResult() {
               <td>
                 <code>'pending-acknowledgment'</code>
               </td>
-              <td>Purchase needs acknowledgment (Android only).</td>
+              <td>
+                Google Play purchase still needs acknowledgment or consumption.
+              </td>
             </tr>
             <tr>
               <td>
@@ -306,7 +314,7 @@ function VerifyPurchaseWithProviderResult() {
               <td>
                 <code>'canceled'</code>
               </td>
-              <td>Purchase was canceled by the user.</td>
+              <td>Purchase was canceled, refunded, or revoked.</td>
             </tr>
             <tr>
               <td>
@@ -318,7 +326,9 @@ function VerifyPurchaseWithProviderResult() {
               <td>
                 <code>'ready-to-consume'</code>
               </td>
-              <td>Consumable purchase is ready to be consumed.</td>
+              <td>
+                Consumable is ready for durable fulfillment, then consumption.
+              </td>
             </tr>
             <tr>
               <td>
@@ -443,7 +453,8 @@ const verified = result.iapkit;
 const verifiedProductId = verified?.productId;
 if (
   verified?.isValid === true &&
-  verified.state === 'entitled' &&
+  (verified.state === 'entitled' ||
+    verified.state === 'pending-acknowledgment') &&
   verifiedProductId != null &&
   verifiedProductId === purchase.productId
 ) {
@@ -502,7 +513,8 @@ val result = module.verifyPurchaseWithProvider(
 result.iapkit?.let { iapkit ->
     val verifiedProductId = iapkit.productId
     if (iapkit.isValid &&
-        iapkit.state == IapkitPurchaseState.Entitled &&
+        (iapkit.state == IapkitPurchaseState.Entitled ||
+            iapkit.state == IapkitPurchaseState.PendingAcknowledgment) &&
         verifiedProductId != null &&
         verifiedProductId == purchase.productId) {
         unlockEntitlement(verifiedProductId)
@@ -561,7 +573,8 @@ final iapkit = result.iapkit;
 final verifiedProductId = iapkit?.productId;
 if (iapkit != null &&
     iapkit.isValid &&
-    iapkit.state == IapkitPurchaseState.Entitled &&
+    (iapkit.state == IapkitPurchaseState.Entitled ||
+        iapkit.state == IapkitPurchaseState.PendingAcknowledgment) &&
     verifiedProductId != null &&
     verifiedProductId == purchase.productId) {
   unlockEntitlement(verifiedProductId);
@@ -591,7 +604,9 @@ var result = await ((MutationResolver)OpenIapClient.Instance)
 
 var iapkit = result.Iapkit;
 var verifiedProductId = iapkit?.ProductId;
-if (iapkit is { IsValid: true, State: IapkitPurchaseState.Entitled } &&
+if (iapkit is { IsValid: true } &&
+    (iapkit.State == IapkitPurchaseState.Entitled ||
+     iapkit.State == IapkitPurchaseState.PendingAcknowledgment) &&
     verifiedProductId is not null &&
     verifiedProductId == purchase.ProductId)
 {
@@ -622,7 +637,10 @@ var verified_product_id = iapkit.product_id if iapkit != null else null
 if (
     iapkit != null
     and iapkit.is_valid
-    and iapkit.state == Types.IapkitPurchaseState.ENTITLED
+    and iapkit.state in [
+        Types.IapkitPurchaseState.ENTITLED,
+        Types.IapkitPurchaseState.PENDING_ACKNOWLEDGMENT,
+    ]
     and verified_product_id != null
     and verified_product_id == purchase.product_id
 ):
@@ -633,6 +651,20 @@ if (
             ),
           }}
         </LanguageTabs>
+        <p>
+          These examples cover non-consumables and subscriptions: Apple examples
+          require <code>entitled</code>, while Google examples also allow{' '}
+          <code>pending-acknowledgment</code>. Choose the finish path from the
+          app-owned product type and platform, not the state alone. Apple and
+          Amazon consumables use <code>ready-to-consume</code>, while an
+          unconsumed Google product may be <code>entitled</code> or{' '}
+          <code>pending-acknowledgment</code>. Persist consumable delivery
+          before finishing it; see the{' '}
+          <Link to="/docs/features/validation#verify-purchase-with-provider">
+            state-aware flow
+          </Link>
+          .
+        </p>
       </section>
     </div>
   );

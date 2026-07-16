@@ -283,15 +283,22 @@ bun run smoke:server
 SMOKE_PORT=3200 ./scripts/smoke-server.sh
 ```
 
-## Deployment (Fly.io)
+## Deployment (Convex + Fly.io)
 
-### Manual (first-time bootstrap)
+### Manual (first-time bootstrap or emergency fallback)
 
 ```bash
 flyctl auth login
-# Fill .env.production from .env.example first.
+# From the repository root, deploy the additive backend first.
+bun run deploy:kit
+# Then fill packages/kit/.env.production from .env.example and deploy Fly.
+cd packages/kit
 bun run deploy:prod
 ```
+
+Keep this order: the new Convex functions remain compatible with the currently
+running Fly app, while a new Fly app may depend on functions that are not yet
+deployed.
 
 `VITE_*` values have to be passed at **build time**, not just runtime
 secrets — Vite inlines them into the SPA bundle at `bun run build`
@@ -313,9 +320,12 @@ are set once with `flyctl secrets set`:
 ### Automated (CI on push to `main`)
 
 [`.github/workflows/deploy-kit.yml`](../../.github/workflows/deploy-kit.yml)
-runs verify + deploy on every push to `main` that touches
-`packages/kit/**`. Required repo secrets (all `KIT_`-prefixed to
+runs verify, deploys Convex, and then deploys Fly on every push to `main` that
+touches `packages/kit/**`. Required repo secrets (all `KIT_`-prefixed to
 namespace them away from other monorepo secrets):
+
+Manual workflow dispatches from non-`main` refs run verification only. Select
+`main` explicitly when a production redeploy is intended.
 
 > **Note**: `VITE_KIT_*` values are **not actually secret** — Vite
 > inlines them into the SPA bundle at build time, so anyone with
@@ -323,18 +333,18 @@ namespace them away from other monorepo secrets):
 > for build-time injection convenience only. Treat them as public
 > configuration. Real secrets (deploy auth) are flagged below.
 
-| Secret                    | Real secret? | Purpose                                                  |
-| ------------------------- | ------------ | -------------------------------------------------------- |
-| `KIT_FLY_API_TOKEN`       | ✅ yes       | `flyctl deploy` auth — keep private                      |
-| `KIT_CONVEX_DEPLOY_KEY`   | ✅ yes       | Convex function deploy (optional — step skips if absent) |
-| `VITE_KIT_CONVEX_URL`     | ⚠️ public    | Build arg for SPA — visible in deployed JS bundle        |
-| `VITE_KIT_SENTRY_DSN`     | ⚠️ public    | Build arg for SPA (optional — SPA skips init if absent)  |
-| `VITE_KIT_MIXPANEL_TOKEN` | ⚠️ public    | BuildKit secret for SPA (optional — analytics opt-in)    |
+| Secret                    | Real secret? | Purpose                                                 |
+| ------------------------- | ------------ | ------------------------------------------------------- |
+| `KIT_FLY_API_TOKEN`       | ✅ yes       | `flyctl deploy` auth — keep private                     |
+| `KIT_CONVEX_DEPLOY_KEY`   | ✅ yes       | Convex function deploy                                  |
+| `VITE_KIT_CONVEX_URL`     | ⚠️ public    | Build arg for SPA — visible in deployed JS bundle       |
+| `VITE_KIT_SENTRY_DSN`     | ⚠️ public    | Build arg for SPA (optional — SPA skips init if absent) |
+| `VITE_KIT_MIXPANEL_TOKEN` | ⚠️ public    | BuildKit secret for SPA (optional — analytics opt-in)   |
 
-If `KIT_CONVEX_DEPLOY_KEY` is **not** set, the Convex deploy step
-prints a skip message and exits 0 — you'll need to run
-`bun run deploy:kit` from the repo root manually after merging any change
-under `convex/`. Set the secret once to automate it:
+The workflow validates all required deployment values before changing either
+surface. A missing `KIT_CONVEX_DEPLOY_KEY`, `KIT_FLY_API_TOKEN`, or
+`VITE_KIT_CONVEX_URL` fails the deployment instead of publishing only half of
+the release. Set the Convex key with:
 
 ```bash
 # Value from Convex dashboard → Settings → Deploy Keys

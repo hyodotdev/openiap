@@ -2017,7 +2017,12 @@ export interface RequestVerifyPurchaseWithIapkitResult {
    * Apple or Google receipt is valid, and a payload exists for that product.
    */
   clientPayload?: (IapkitProductClientPayload | null);
-  /** Whether the purchase is valid (not falsified). */
+  /**
+   * True when the purchase is valid and actionable.
+   * Only entitled, pending-acknowledgment, or ready-to-consume return true.
+   * Callers must still match productId and use the platform plus app-owned product
+   * type to choose the fulfillment path.
+   */
   isValid: boolean;
   /**
    * Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.

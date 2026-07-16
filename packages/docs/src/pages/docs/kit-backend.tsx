@@ -240,9 +240,14 @@ const result = await verifyPurchaseWithProvider({
 
 const verified = result.iapkit;
 const verifiedProductId = verified?.productId;
+const hasAllowedState =
+  verified?.state === 'entitled' ||
+  (Platform.OS === 'android' &&
+    !isAmazonRuntime &&
+    verified?.state === 'pending-acknowledgment');
 if (
   verified?.isValid === true &&
-  verified.state === 'entitled' &&
+  hasAllowedState &&
   verifiedProductId != null &&
   verifiedProductId === purchase.productId
 ) {
@@ -296,9 +301,12 @@ val result = module.verifyPurchaseWithProvider(
 
 val verified = result.iapkit
 val verifiedProductId = verified?.productId
+val hasAllowedState =
+    verified?.state == IapkitPurchaseState.Entitled ||
+        verified?.state == IapkitPurchaseState.PendingAcknowledgment
 if (verified != null &&
     verified.isValid &&
-    verified.state == IapkitPurchaseState.Entitled &&
+    hasAllowedState &&
     verifiedProductId != null &&
     verifiedProductId == purchase.productId) {
     unlockEntitlement(verifiedProductId)
@@ -329,9 +337,13 @@ final result = await FlutterInappPurchase.instance.verifyPurchaseWithProvider(
 
 final verified = result.iapkit;
 final verifiedProductId = verified?.productId;
+final hasAllowedState =
+    verified?.state == IapkitPurchaseState.Entitled ||
+    (Platform.isAndroid &&
+        verified?.state == IapkitPurchaseState.PendingAcknowledgment);
 if (verified != null &&
     verified.isValid &&
-    verified.state == IapkitPurchaseState.Entitled &&
+    hasAllowedState &&
     verifiedProductId != null &&
     verifiedProductId == purchase.productId) {
   unlockEntitlement(verifiedProductId);
@@ -340,8 +352,10 @@ if (verified != null &&
             csharp: (
               <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
+using Microsoft.Maui.Devices;
 
 var token = purchase.PurchaseToken ?? string.Empty;
+var isIos = DeviceInfo.Platform == DevicePlatform.iOS;
 var mutate = (MutationResolver)OpenIapClient.Instance;
 var result = await mutate.VerifyPurchaseWithProviderAsync(
     new VerifyPurchaseWithProviderProps
@@ -351,15 +365,23 @@ var result = await mutate.VerifyPurchaseWithProviderAsync(
         {
             ApiKey = iapkitApiKey,
             IncludeClientPayload = true,
-            Apple = new RequestVerifyPurchaseWithIapkitAppleProps { Jws = token },
-            Google = new RequestVerifyPurchaseWithIapkitGoogleProps { PurchaseToken = token },
+            Apple = isIos
+                ? new RequestVerifyPurchaseWithIapkitAppleProps { Jws = token }
+                : null,
+            Google = isIos
+                ? null
+                : new RequestVerifyPurchaseWithIapkitGoogleProps { PurchaseToken = token },
             // Amazon Fire OS uses Amazon = new RequestVerifyPurchaseWithIapkitAmazonProps { ... }.
         },
     });
 
 var verified = result.Iapkit;
 var verifiedProductId = verified?.ProductId;
-if (verified is { IsValid: true, State: IapkitPurchaseState.Entitled } &&
+var hasAllowedState =
+    verified?.State == IapkitPurchaseState.Entitled ||
+    (!isIos && verified?.State == IapkitPurchaseState.PendingAcknowledgment);
+if (verified is { IsValid: true } &&
+    hasAllowedState &&
     verifiedProductId is not null &&
     verifiedProductId == purchase.ProductId)
 {
@@ -385,9 +407,12 @@ val result = kmpIAP.verifyPurchaseWithProvider(
 
 val verified = result.iapkit
 val verifiedProductId = verified?.productId
+val hasAllowedState =
+    verified?.state == IapkitPurchaseState.Entitled ||
+        (!isIos && verified?.state == IapkitPurchaseState.PendingAcknowledgment)
 if (verified != null &&
     verified.isValid &&
-    verified.state == IapkitPurchaseState.Entitled &&
+    hasAllowedState &&
     verifiedProductId != null &&
     verifiedProductId == purchase.productId) {
     unlockEntitlement(verifiedProductId)
@@ -413,7 +438,10 @@ var verified_product_id = result.iapkit.product_id if result.iapkit != null else
 if (
 	result.iapkit != null
 	and result.iapkit.is_valid
-	and result.iapkit.state == Types.IapkitPurchaseState.ENTITLED
+	and result.iapkit.state in [
+		Types.IapkitPurchaseState.ENTITLED,
+		Types.IapkitPurchaseState.PENDING_ACKNOWLEDGMENT,
+	]
 	and verified_product_id != null
 	and verified_product_id == purchase.get("productId", "")
 ):
@@ -421,6 +449,18 @@ if (
             ),
           }}
         </LanguageTabs>
+        <p>
+          These checks cover non-consumables and subscriptions. Choose the
+          finish path from the app-owned product type and platform, not the
+          state alone: Apple and Amazon consumables use{' '}
+          <code>ready-to-consume</code>, while an unconsumed Google product may
+          be <code>entitled</code> or <code>pending-acknowledgment</code>.
+          Persist consumable delivery before finishing it; see the{' '}
+          <Link to="/docs/features/validation#verify-purchase-with-provider">
+            state-aware verification flow
+          </Link>
+          .
+        </p>
         <p>
           <code>includeClientPayload</code> is optional and defaults to{' '}
           <code>false</code>. When requested, IAPKit adds{' '}
@@ -483,6 +523,44 @@ if (status.Active)
         <AnchorLink id="product-client-payloads" level="h2">
           Product client payloads
         </AnchorLink>
+        <p>
+          The same <code>includeClientPayload</code> opt-in name appears on two
+          independent request surfaces:
+        </p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Surface</th>
+              <th>Scope</th>
+              <th>Payload location</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>verifyPurchaseWithProvider</code>
+              </td>
+              <td>One valid Apple or Google purchase</td>
+              <td>
+                <code>result.iapkit.clientPayload</code>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>kitApi.products</code> / <code>GET /v1/products</code>
+              </td>
+              <td>One paginated platform catalog page</td>
+              <td>
+                <code>clientPayload</code> on each matching product
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          Both default to <code>false</code>; enabling one does not enable the
+          other. The direct single-product payload endpoint takes a platform
+          instead of this flag.
+        </p>
         <p>
           Each IAPKit catalog product may carry one optional public{' '}
           <code>clientPayload</code> keyed by project, platform, and product ID.

@@ -3126,7 +3126,7 @@ class RentalDetailsAndroid:
 
 class RequestVerifyPurchaseWithIapkitResult:
 	var store: IapStore
-	## Whether the purchase is valid (not falsified).
+	## True when the purchase is valid and actionable.
 	var is_valid: bool = false
 	## The current state of the purchase.
 	var state: IapkitPurchaseState

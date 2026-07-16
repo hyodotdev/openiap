@@ -159,9 +159,8 @@ export default function VerificationApplePage() {
       </p>
       <CodeBlock title="convex/purchases/shared.ts (excerpt)" language="ts">
         {`// Any non-undefined revocationDate → CANCELED, regardless of
-// revocationReason value. isValid follows from the state (only
-// ENTITLED / PENDING_ACKNOWLEDGMENT / READY_TO_CONSUME count as
-// valid).
+// revocationReason value. On Apple, only ENTITLED and
+// READY_TO_CONSUME count as valid.
 if (revocationDate !== undefined) {
   return HarmonizedPurchaseState.CANCELED;
 }`}

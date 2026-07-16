@@ -65,6 +65,21 @@ if [[ -n $(git status -s) ]]; then
     exit 1
 fi
 
+# Refuse stale, ahead-only, or otherwise unpublished main snapshots. Production
+# docs must match the exact commit currently recorded by origin/main.
+echo -e "${BLUE}🔄 Verifying origin/main...${NC}"
+if ! git fetch --no-tags origin main; then
+    echo -e "${RED}❌ Could not refresh origin/main${NC}"
+    exit 1
+fi
+LOCAL_HEAD=$(git rev-parse HEAD)
+REMOTE_HEAD=$(git rev-parse origin/main)
+if [ "$LOCAL_HEAD" != "$REMOTE_HEAD" ]; then
+    echo -e "${RED}❌ Local main must exactly match origin/main before deployment${NC}"
+    echo -e "${YELLOW}Run git pull --ff-only origin main, or push/reconcile local commits first.${NC}"
+    exit 1
+fi
+
 # Check if Vercel CLI is installed
 if ! command -v vercel &> /dev/null; then
     echo -e "${YELLOW}⚠️  Vercel CLI not found. Installing v${VERCEL_CLI_VERSION} globally...${NC}"

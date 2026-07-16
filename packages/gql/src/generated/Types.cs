@@ -3813,7 +3813,10 @@ public sealed record RequestVerifyPurchaseWithIapkitResult
     /// <summary>Apple or Google receipt is valid, and a payload exists for that product.</summary>
     [JsonPropertyName("clientPayload")]
     public IapkitProductClientPayload? ClientPayload { get; init; }
-    /// <summary>Whether the purchase is valid (not falsified).</summary>
+    /// <summary>True when the purchase is valid and actionable.</summary>
+    /// <summary>Only entitled, pending-acknowledgment, or ready-to-consume return true.</summary>
+    /// <summary>Callers must still match productId and use the platform plus app-owned product</summary>
+    /// <summary>type to choose the fulfillment path.</summary>
     [JsonPropertyName("isValid")]
     public required bool IsValid { get; init; }
     /// <summary>Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.</summary>

@@ -1442,21 +1442,18 @@ export const verifyPurchaseWithProvider: MutationField<
   const result = await ExpoIapModule.verifyPurchaseWithProvider(
     resolvedOptions,
   );
+  if (result.iapkit == null) {
+    return result;
+  }
+
+  const {clientPayload, productId, ...iapkit} = result.iapkit;
   return {
     ...result,
-    iapkit: result.iapkit
-      ? {
-          ...(result.iapkit.clientPayload == null
-            ? {}
-            : {clientPayload: result.iapkit.clientPayload}),
-          isValid: result.iapkit.isValid,
-          ...(result.iapkit.productId == null
-            ? {}
-            : {productId: result.iapkit.productId}),
-          state: result.iapkit.state,
-          store: result.iapkit.store,
-        }
-      : result.iapkit,
+    iapkit: {
+      ...iapkit,
+      ...(clientPayload == null ? {} : {clientPayload}),
+      ...(productId == null ? {} : {productId}),
+    },
   };
 };
 

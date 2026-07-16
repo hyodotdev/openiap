@@ -188,7 +188,8 @@ node --test scripts/release-branch-policy.test.mjs
 ### Deploying Documentation
 
 Production documentation is stable-only and must deploy from a clean `main`
-checkout. The script rejects prerelease spec versions and other branches.
+checkout that exactly matches `origin/main`. The script rejects prerelease spec
+versions, other branches, and stale or unpublished local snapshots.
 
 ```bash
 # From monorepo root

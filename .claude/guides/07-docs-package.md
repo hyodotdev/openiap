@@ -43,4 +43,14 @@ bun run typecheck  # Type check
 
 ## Deployment
 
-Automatic via Vercel on push to main.
+Production deployment is manual and stable-only. Run it from a clean,
+up-to-date `main` checkout at the repository root:
+
+```bash
+npm run deploy
+```
+
+Then create the matching Docs GitHub Release as documented in
+`.claude/commands/release.md`. Branch guards, version ownership, and the full
+deployment contract live in `knowledge/internal/06-git-deployment.md`; do not
+duplicate them here.

@@ -258,8 +258,8 @@ if result is VerifyPurchaseResultIOS and result.is_valid:
           <li>
             <strong>Entitlement state, not raw receipts</strong> — IAPKit
             collapses raw store data into a single <code>state</code> field (
-            <code>entitled</code>, <code>pending</code>, <code>canceled</code>,{' '}
-            <code>expired</code>, <code>refunded</code>,{' '}
+            <code>entitled</code>, <code>pending</code>, <code>canceled</code>{' '}
+            (including refunds and revocations), <code>expired</code>,{' '}
             <code>inauthentic</code>, etc.) so your client and server can act on
             a single value.
           </li>
@@ -526,65 +526,17 @@ if (
           .
         </p>
 
-        <h4>IAPKit Purchase States</h4>
-        <table className="doc-table">
-          <thead>
-            <tr>
-              <th>State</th>
-              <th>Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                <code>entitled</code>
-              </td>
-              <td>User is entitled to the product</td>
-            </tr>
-            <tr>
-              <td>
-                <code>pending-acknowledgment</code>
-              </td>
-              <td>Purchase needs acknowledgment (Android)</td>
-            </tr>
-            <tr>
-              <td>
-                <code>pending</code>
-              </td>
-              <td>Purchase is pending</td>
-            </tr>
-            <tr>
-              <td>
-                <code>canceled</code>
-              </td>
-              <td>Purchase was canceled</td>
-            </tr>
-            <tr>
-              <td>
-                <code>expired</code>
-              </td>
-              <td>Subscription has expired</td>
-            </tr>
-            <tr>
-              <td>
-                <code>ready-to-consume</code>
-              </td>
-              <td>Consumable ready for consumption</td>
-            </tr>
-            <tr>
-              <td>
-                <code>consumed</code>
-              </td>
-              <td>Consumable has been consumed</td>
-            </tr>
-            <tr>
-              <td>
-                <code>inauthentic</code>
-              </td>
-              <td>Purchase failed authenticity check</td>
-            </tr>
-          </tbody>
-        </table>
+        <h4>State contract</h4>
+        <p>
+          Only <code>entitled</code>, <code>pending-acknowledgment</code>, and{' '}
+          <code>ready-to-consume</code> make <code>isValid</code> true, but they
+          are not interchangeable across stores or product types. Use the
+          platform-aware flow below, and see the canonical{' '}
+          <Link to="/docs/types/verify-purchase-with-provider-result#iapkit-purchase-state">
+            IapkitPurchaseState reference
+          </Link>{' '}
+          for every state.
+        </p>
       </section>
 
       <section>
@@ -612,33 +564,55 @@ if (
         </div>
 
         <h4>Recommended Pattern</h4>
-        <CodeBlock language="typescript">{`try {
+        <p>
+          This example targets App Store and Google Play builds. Fire OS and
+          Vega OS builds must select the <code>amazon</code> verification
+          branch; their consumables use <code>ready-to-consume</code> like
+          Apple.
+        </p>
+        <CodeBlock language="typescript">{`import { Platform } from 'react-native';
+
+try {
+  // App Store / Google Play only; route Fire OS and Vega OS through Amazon.
+  const isApple = Platform.OS === 'ios';
+  // Resolve this from your app-owned catalog, never from the harmonized state.
+  const isConsumable = isConsumableProduct(purchase.productId);
+  const token = purchase.purchaseToken ?? '';
   const result = await verifyPurchaseWithProvider({
     provider: 'iapkit',
-    iapkit: { apiKey: 'your-key', apple: { jws: purchase.purchaseToken } },
+    iapkit: {
+      apiKey: 'your-key',
+      ...(isApple
+        ? { apple: { jws: token } }
+        : { google: { purchaseToken: token } }),
+    },
   });
 
   const verified = result.iapkit;
   const verifiedProductId = verified?.productId;
+  const productMatches =
+    verifiedProductId != null && verifiedProductId === purchase.productId;
+  const stateAllowsFulfillment = isConsumable
+    ? isApple
+      ? verified?.state === 'ready-to-consume'
+      : verified?.state === 'entitled' ||
+        verified?.state === 'pending-acknowledgment'
+    : verified?.state === 'entitled' ||
+      (!isApple && verified?.state === 'pending-acknowledgment');
+
   if (
     verified?.isValid === true &&
-    (verified.state === 'entitled' ||
-      verified.state === 'pending-acknowledgment') &&
-    verifiedProductId != null &&
-    verifiedProductId === purchase.productId
+    productMatches &&
+    stateAllowsFulfillment
   ) {
-    // Non-consumable/subscription: grant before acknowledging the purchase.
-    await grantEntitlement(verifiedProductId);
-    await finishTransaction({ purchase, isConsumable: false });
-  } else if (
-    verified?.isValid === true &&
-    verified.state === 'ready-to-consume' &&
-    verifiedProductId != null &&
-    verifiedProductId === purchase.productId
-  ) {
-    // Consumable: persist delivery before consuming so it cannot be lost.
-    await deliverConsumable(verifiedProductId);
-    await finishTransaction({ purchase, isConsumable: true });
+    if (isConsumable) {
+      // Persist idempotent delivery before consuming so it cannot be lost.
+      await deliverConsumable(verifiedProductId);
+      await finishTransaction({ purchase, isConsumable: true });
+    } else {
+      await grantEntitlement(verifiedProductId);
+      await finishTransaction({ purchase, isConsumable: false });
+    }
   } else {
     // IAPKit completed the check but did not verify this entitlement.
     // Do not grant or finish this purchase.
