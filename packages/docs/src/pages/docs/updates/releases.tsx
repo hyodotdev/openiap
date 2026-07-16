@@ -22,6 +22,16 @@ interface Note {
   element: React.ReactNode;
 }
 
+const productClientPayloadReleases = [
+  ['openiap-apple 2.4.1', '2.4.1'],
+  ['openiap-google 2.4.1', 'google-2.4.1'],
+  ['react-native-iap 15.5.2', 'react-native-iap-15.5.2'],
+  ['expo-iap 4.5.2', 'expo-iap-4.5.2'],
+  ['flutter_inapp_purchase 9.5.1', 'flutter-iap-9.5.1'],
+  ['godot-iap 2.5.1', 'godot-iap-2.5.1'],
+  ['kmp-iap 2.5.1', 'kmp-iap-2.5.1'],
+  ['OpenIap.Maui 1.3.1', 'maui-iap-1.3.1'],
+] as const;
 const frameworkBuildCompatibilityReleases = [
   ['react-native-iap 15.5.1', 'react-native-iap-15.5.1'],
   ['expo-iap 4.5.1', 'expo-iap-4.5.1'],
@@ -53,6 +63,203 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // July 16, 2026 - IAPKit product client payloads
+    {
+      id: 'iapkit-product-client-payloads-2026-07-16',
+      date: new Date('2026-07-16'),
+      element: (
+        <div
+          key="iapkit-product-client-payloads-2026-07-16"
+          style={noteCardStyle}
+        >
+          <AnchorLink id="iapkit-product-client-payloads-2026-07-16" level="h4">
+            July 16, 2026 - IAPKit product client payloads
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes OpenIAP Spec 2.4.0 and coordinated native and framework
+            patch releases for{' '}
+            <Link to="/docs/kit-backend#product-client-payloads">
+              IAPKit product client payloads
+            </Link>
+            . Apps can retrieve small public TOML, JSON, or text documents at
+            startup or alongside valid Apple and Google purchase verification.
+            The change is additive and backward-compatible: existing calls keep
+            their current behavior, and client payload fields are returned only
+            when explicitly requested.
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Shared spec and IAPKit</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>OpenIAP Spec 2.4.0</strong> - adds{' '}
+              <Link to="/docs/types/verify-purchase-with-provider-props#request-verify-purchase-with-iapkit-props">
+                <code>includeClientPayload</code>
+              </Link>
+              , the store-verified <code>productId</code>, and the optional{' '}
+              <Link to="/docs/types/verify-purchase-with-provider-result#iapkit-product-client-payload">
+                <code>IapkitProductClientPayload</code>
+              </Link>{' '}
+              result with format, body, version, and update timestamp. Kotlin
+              keeps the published constructor descriptors while exposing the new
+              fields additively.
+            </li>
+            <li>
+              <strong>IAPKit product management</strong> - adds a per-project,
+              platform, and product editor for public TOML, JSON, or plain-text
+              payloads. Bodies are limited to 16 KiB, TOML and JSON are
+              validated, and stale dashboard revisions are rejected instead of
+              overwriting a newer edit.
+            </li>
+            <li>
+              <strong>IAPKit retrieval</strong> - adds bounded, cursor-paginated
+              payload-inclusive catalog reads and a direct endpoint for one
+              known product. Store Sync and Reset never push, overwrite, or
+              delete this app-owned metadata; a retained payload becomes
+              readable again when the matching product returns to the local
+              catalog.
+            </li>
+            <li>
+              <strong>IAPKit purchase verification</strong> - optionally
+              enriches valid Apple and Google responses using only the product
+              ID returned by store verification. Missing payloads and lookup
+              failures leave receipt verification intact, while default,
+              invalid, Amazon, and Horizon responses omit the payload.
+            </li>
+            <li>
+              <strong>IAPKit lifecycle</strong> - project and account deletion
+              now hide pending records immediately, stop in-flight writes and
+              sync work, and drain project-owned catalog, payload, verification,
+              subscription, webhook, file, key, and metric data in bounded
+              batches.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Native packages</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>openiap-apple 2.4.1</strong> - forwards the opt-in through
+              Swift and a new additive Objective-C selector, strictly decodes
+              the verified product ID and optional payload, and preserves all
+              existing selectors. The example finishes only after validity,
+              allowed-state, and exact product-identity checks pass.
+            </li>
+            <li>
+              <strong>openiap-google 2.4.1</strong> - forwards the opt-in for
+              Play verification, validates the optional payload before exposing
+              it, and returns the store-verified product ID. The Android example
+              now leaves purchases unacknowledged when verification, state, or
+              product identity does not match.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>react-native-iap 15.5.2</strong> - wires the opt-in,
+              store-verified product ID, and optional payload through Nitro on
+              iOS and Android. Its <code>kitApi</code> helper also adds
+              paginated <code>products</code> and direct{' '}
+              <code>clientPayload</code> reads.
+            </li>
+            <li>
+              <strong>expo-iap 4.5.2</strong> - exposes the typed native result,
+              adds the same product-catalog and direct-payload{' '}
+              <code>kitApi</code> helpers, and redacts client payloads from
+              native diagnostics.
+            </li>
+            <li>
+              <strong>flutter_inapp_purchase 9.5.1</strong> - carries the opt-in
+              and enriched result through Android, iOS, and macOS platform
+              channels, fails closed on malformed payload responses, and redacts
+              payload bodies from native logs.
+            </li>
+            <li>
+              <strong>godot-iap 2.5.1</strong> - publishes the generated
+              GDScript payload types and accepts{' '}
+              <code>includeClientPayload</code> through canonical and legacy
+              Android verification payloads.
+            </li>
+            <li>
+              <strong>kmp-iap 2.5.1</strong> - forwards the opt-in and maps the
+              optional payload and store product ID through both Android and iOS
+              bridges while preserving existing Kotlin constructor
+              compatibility.
+            </li>
+            <li>
+              <strong>OpenIap.Maui 1.3.1</strong> - exposes the generated CLR
+              verification fields and adds <code>ProductsAsync</code> and{' '}
+              <code>ClientPayloadAsync</code> to <code>KitApiClient</code>,
+              including platform-required bounded cursor pages.
+            </li>
+          </ul>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Client payloads are public app-readable metadata, not entitlement
+            authority or secret storage. Apps must continue granting access from
+            receipt validity, an allowed purchase state, and an exact match
+            against the store-verified product ID.
+          </p>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              {productClientPayloadReleases.map(([label, tag]) => (
+                <li key={tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // July 16, 2026 - React Native and Expo build compatibility patches
     {
       id: 'framework-build-compatibility-patches-2026-07-16',
