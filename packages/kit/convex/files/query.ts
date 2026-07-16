@@ -15,8 +15,10 @@ async function getPendingProjectIdsForOrganization(
   const pendingProjectIds = new Set<Id<"projects">>();
   for await (const project of ctx.db
     .query("projects")
-    .withIndex("by_pending_deletion", (q) => q.eq("pendingDeletion", true))) {
-    if (project.organizationId === organizationId) {
+    .withIndex("by_organization", (q) =>
+      q.eq("organizationId", organizationId),
+    )) {
+    if (project.pendingDeletion === true) {
       pendingProjectIds.add(project._id);
     }
   }

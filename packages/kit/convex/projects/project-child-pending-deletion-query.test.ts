@@ -38,24 +38,26 @@ class IndexBuilder {
 }
 
 class TestQuery {
-  constructor(private readonly rows: Row[]) {}
+  constructor(
+    private readonly rows: Row[],
+    private readonly onIndexRead: (name: string) => void,
+  ) {}
 
-  withIndex(
-    _name: string,
-    build: (q: IndexBuilder) => IndexBuilder,
-  ): TestQuery {
+  withIndex(name: string, build: (q: IndexBuilder) => IndexBuilder): TestQuery {
+    this.onIndexRead(name);
     const builder = build(new IndexBuilder());
     return new TestQuery(
       this.rows.filter((row) =>
         builder.predicates.every((predicate) => predicate(row)),
       ),
+      this.onIndexRead,
     );
   }
 
   order(direction: "asc" | "desc"): TestQuery {
     return direction === "desc"
-      ? new TestQuery([...this.rows].reverse())
-      : new TestQuery([...this.rows]);
+      ? new TestQuery([...this.rows].reverse(), this.onIndexRead)
+      : new TestQuery([...this.rows], this.onIndexRead);
   }
 
   async first(): Promise<Row | null> {
@@ -89,6 +91,8 @@ class TestQuery {
 }
 
 class TestDb {
+  readonly indexReads: string[] = [];
+
   constructor(readonly tables: Record<string, Row[]>) {}
 
   async get(id: string): Promise<Row | null> {
@@ -100,7 +104,9 @@ class TestDb {
   }
 
   query(table: string): TestQuery {
-    return new TestQuery(this.tables[table] ?? []);
+    return new TestQuery(this.tables[table] ?? [], (index) => {
+      this.indexReads.push(`${table}:${index}`);
+    });
   }
 }
 
@@ -367,6 +373,11 @@ describe("pending-deletion project child query guards", () => {
       valid: 2,
       invalid: 1,
     });
+
+    expect(
+      ctx.db.indexReads.filter((read) => read === "projects:by_organization"),
+    ).toHaveLength(3);
+    expect(ctx.db.indexReads).not.toContain("projects:by_pending_deletion");
   });
 
   it("preserves authorized reads for an active project and organization", async () => {
