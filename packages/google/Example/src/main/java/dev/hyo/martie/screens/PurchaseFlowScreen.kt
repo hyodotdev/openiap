@@ -640,7 +640,8 @@ fun PurchaseFlowScreen(
                         val storeProductId = result.productId ?: "not returned"
                         val hasAllowedState =
                             result.state == IapkitPurchaseState.Entitled ||
-                                result.state == IapkitPurchaseState.PendingAcknowledgment
+                                result.state == IapkitPurchaseState.PendingAcknowledgment ||
+                                result.state == IapkitPurchaseState.ReadyToConsume
                         val isVerifiedPurchase =
                             result.isValid &&
                                 result.productId != null &&
