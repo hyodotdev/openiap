@@ -74,6 +74,99 @@ public sealed record StatusResponse
     public KitSubscription? Subscription { get; init; }
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum KitProductPlatform
+{
+    IOS,
+    Android,
+}
+
+public sealed record KitProductClientPayload
+{
+    [JsonPropertyName("format")]
+    public required string Format { get; init; }
+    [JsonPropertyName("body")]
+    public required string Body { get; init; }
+    [JsonPropertyName("version")]
+    public required double Version { get; init; }
+    [JsonPropertyName("updatedAt")]
+    public required double UpdatedAt { get; init; }
+}
+
+public sealed record KitProductOffer
+{
+    [JsonPropertyName("id")]
+    public required string Id { get; init; }
+    [JsonPropertyName("kind")]
+    public required string Kind { get; init; }
+    [JsonPropertyName("duration")]
+    public string? Duration { get; init; }
+    [JsonPropertyName("numberOfPeriods")]
+    public double? NumberOfPeriods { get; init; }
+    [JsonPropertyName("priceAmountMicros")]
+    public double? PriceAmountMicros { get; init; }
+    [JsonPropertyName("currency")]
+    public string? Currency { get; init; }
+}
+
+public sealed record KitProduct
+{
+    [JsonPropertyName("productId")]
+    public required string ProductId { get; init; }
+    [JsonPropertyName("platform")]
+    public required KitProductPlatform Platform { get; init; }
+    [JsonPropertyName("type")]
+    public required string Type { get; init; }
+    [JsonPropertyName("title")]
+    public required string Title { get; init; }
+    [JsonPropertyName("description")]
+    public string? Description { get; init; }
+    [JsonPropertyName("priceAmountMicros")]
+    public double? PriceAmountMicros { get; init; }
+    [JsonPropertyName("currency")]
+    public string? Currency { get; init; }
+    [JsonPropertyName("state")]
+    public required string State { get; init; }
+    [JsonPropertyName("storeRef")]
+    public string? StoreRef { get; init; }
+    [JsonPropertyName("subscriptionGroupId")]
+    public string? SubscriptionGroupId { get; init; }
+    [JsonPropertyName("subscriptionGroupName")]
+    public string? SubscriptionGroupName { get; init; }
+    [JsonPropertyName("billingPeriod")]
+    public string? BillingPeriod { get; init; }
+    [JsonPropertyName("offers")]
+    public IReadOnlyList<KitProductOffer>? Offers { get; init; }
+    [JsonPropertyName("updatedAt")]
+    public required double UpdatedAt { get; init; }
+    [JsonPropertyName("clientPayload")]
+    public KitProductClientPayload? ClientPayload { get; init; }
+}
+
+public sealed record KitProductsOptions
+{
+    public KitProductPlatform? Platform { get; init; }
+    public bool? IncludeClientPayload { get; init; }
+    public int? Limit { get; init; }
+    public string? Cursor { get; init; }
+}
+
+public sealed record KitProductsResponse
+{
+    [JsonPropertyName("products")]
+    public required IReadOnlyList<KitProduct> Products { get; init; }
+    [JsonPropertyName("hasMore")]
+    public bool? HasMore { get; init; }
+    [JsonPropertyName("nextCursor")]
+    public string? NextCursor { get; init; }
+}
+
+public sealed record KitClientPayloadResponse
+{
+    [JsonPropertyName("clientPayload")]
+    public required KitProductClientPayload ClientPayload { get; init; }
+}
+
 public sealed record BindUserResponse
 {
     [JsonPropertyName("ok")]
@@ -130,6 +223,55 @@ public sealed class KitApiClient
     public Task<EntitlementsResponse> EntitlementsAsync(string userId, CancellationToken cancellationToken = default)
         => CallAsync<EntitlementsResponse>(
             $"/v1/subscriptions/entitlements/{Uri.EscapeDataString(ApiKey)}?userId={Uri.EscapeDataString(userId)}",
+            null,
+            cancellationToken);
+
+    /// <summary>
+    /// GET /v1/products/{apiKey}. Client payload bodies are opt-in.
+    /// </summary>
+    public Task<KitProductsResponse> ProductsAsync(
+        KitProductsOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (options?.IncludeClientPayload == true && options.Platform is null)
+        {
+            throw new ArgumentException(
+                "ProductsAsync requires Platform when IncludeClientPayload is true.",
+                nameof(options));
+        }
+        var query = new List<string>();
+        if (options?.Platform is { } platform)
+        {
+            query.Add($"platform={Uri.EscapeDataString(platform.ToString())}");
+        }
+        if (options?.IncludeClientPayload is { } includeClientPayload)
+        {
+            query.Add($"includeClientPayload={includeClientPayload.ToString().ToLowerInvariant()}");
+        }
+        if (options?.Limit is { } limit)
+        {
+            query.Add($"limit={limit}");
+        }
+        if (options?.Cursor is { } cursor)
+        {
+            query.Add($"cursor={Uri.EscapeDataString(cursor)}");
+        }
+        var suffix = query.Count == 0 ? string.Empty : $"?{string.Join("&", query)}";
+        return CallAsync<KitProductsResponse>(
+            $"/v1/products/{Uri.EscapeDataString(ApiKey)}{suffix}",
+            null,
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// GET one public client payload by (platform, productId).
+    /// </summary>
+    public Task<KitClientPayloadResponse> ClientPayloadAsync(
+        string productId,
+        KitProductPlatform platform,
+        CancellationToken cancellationToken = default)
+        => CallAsync<KitClientPayloadResponse>(
+            $"/v1/products/{Uri.EscapeDataString(ApiKey)}/{Uri.EscapeDataString(productId)}/client-payload?platform={Uri.EscapeDataString(platform.ToString())}",
             null,
             cancellationToken);
 

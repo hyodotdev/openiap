@@ -5,13 +5,13 @@ macCatalyst from a single C# API.
 
 ## Status matrix
 
-| Layer                                      |          iOS          |        Android        |      macCatalyst      |
-| ------------------------------------------ | :-------------------: | :-------------------: | :-------------------: |
-| Generated types (`Types.cs`)               |          yes          |          yes          |          yes          |
+| Layer                                                |          iOS          |        Android        |      macCatalyst      |
+| ---------------------------------------------------- | :-------------------: | :-------------------: | :-------------------: |
+| Generated types (`Types.cs`)                         |          yes          |          yes          |          yes          |
 | `OpenIapClient.Instance` facade and listener streams |          yes          |          yes          |          yes          |
-| StoreKit 2 / Play Billing native bindings  |          yes          |          yes          |          yes          |
-| Example MAUI app                           |          yes          |          yes          |          yes          |
-| NuGet package shape                        | single public package | single public package | single public package |
+| StoreKit 2 / Play Billing native bindings            |          yes          |          yes          |          yes          |
+| Example MAUI app                                     |          yes          |          yes          |          yes          |
+| NuGet package shape                                  | single public package | single public package | single public package |
 
 ## Install
 
@@ -100,6 +100,25 @@ var kit = OpenIapClient.KitApi(new KitApiOptions
 
 var status = await kit.StatusAsync("user-123");
 var entitlements = await kit.EntitlementsAsync("user-123");
+string? cursor = null;
+do
+{
+    var page = await kit.ProductsAsync(new KitProductsOptions
+    {
+        Platform = KitProductPlatform.IOS, // required with IncludeClientPayload
+        IncludeClientPayload = true,
+        Limit = 25,                        // default 25, maximum 50
+        Cursor = cursor,
+    });
+    foreach (var product in page.Products)
+    {
+        // Consume product.ClientPayload when present.
+    }
+    cursor = page.HasMore == true ? page.NextCursor : null;
+} while (cursor is not null);
+var payload = await kit.ClientPayloadAsync(
+    "premium.monthly",
+    KitProductPlatform.IOS);
 await kit.BindUserAsync(purchaseToken: "token", userId: "user-123");
 
 using var listener = OpenIapClient.ConnectWebhookStream(new WebhookListenerOptions
@@ -117,6 +136,13 @@ using var listener = OpenIapClient.ConnectWebhookStream(new WebhookListenerOptio
 
 ParsedWebhookEventResult parsed = OpenIapClient.ParseWebhookEventData(rawSseData);
 ```
+
+Client payloads are public app-readable metadata. Keep secrets and server-only
+rules out of them; catalog responses omit payload bodies unless explicitly
+requested. Payload-inclusive catalog reads require a platform and return
+bounded cursor pages (`HasMore` / `NextCursor`). `Limit` and `Cursor` are
+ignored by the legacy non-payload catalog path. If catalog churn returns
+`INVALID_CURSOR`, restart without `Cursor`.
 
 ## Example app
 
