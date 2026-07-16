@@ -22,6 +22,11 @@ interface Note {
   element: React.ReactNode;
 }
 
+const frameworkBuildCompatibilityReleases = [
+  ['react-native-iap 15.5.1', 'react-native-iap-15.5.1'],
+  ['expo-iap 4.5.1', 'expo-iap-4.5.1'],
+] as const;
+
 const localIapkitReleases = [
   ['openiap-apple 2.4.0', '2.4.0'],
   ['openiap-google 2.4.0', 'google-2.4.0'],
@@ -48,6 +53,131 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // July 16, 2026 - React Native and Expo build compatibility patches
+    {
+      id: 'framework-build-compatibility-patches-2026-07-16',
+      date: new Date('2026-07-16'),
+      element: (
+        <div
+          key="framework-build-compatibility-patches-2026-07-16"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="framework-build-compatibility-patches-2026-07-16"
+            level="h4"
+          >
+            July 16, 2026 - react-native-iap 15.5.1 and expo-iap 4.5.1
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes focused build-compatibility patches for the React Native
+            and Expo libraries. The OpenIAP Spec and native package versions are
+            unchanged. The React Native update follows{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/230"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #230
+            </a>
+            ; the Expo Android regression was reported in{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/issues/228"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              issue #228
+            </a>{' '}
+            and fixed in{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/229"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #229
+            </a>
+            .
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>react-native-iap 15.5.1</strong> - updates{' '}
+              <code>react-native-nitro-modules</code> and Nitrogen to 0.36.1
+              while preserving the existing generated iOS and Android bridge
+              layout and the Xcode Swift/C++ codegen workaround. There are no
+              OpenIAP API changes. Projects that pin Nitro should update to{' '}
+              <code>^0.36.1</code>, reinstall native dependencies, and rebuild.
+            </li>
+            <li>
+              <strong>expo-iap 4.5.1</strong> - preserves Expo-compatible Groovy
+              method-call syntax for <code>applicationId</code> and{' '}
+              <code>namespace</code> while keeping the other Gradle 9
+              normalizations. This fixes <code>NO_APP_ID</code> failures from{' '}
+              <code>expo run:android</code> after prebuild on Expo SDK 54-57.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Expo upgrade note</h5>
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            If an existing generated <code>android/app/build.gradle</code>{' '}
+            already contains <code>applicationId =</code> or{' '}
+            <code>namespace =</code>, upgrading alone does not rewrite it. Back
+            up manual native changes, then run{' '}
+            <code>npx expo prebuild --platform android --clean</code>, or remove
+            only the two <code>=</code> tokens manually.
+          </p>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              {frameworkBuildCompatibilityReleases.map(([label, tag]) => (
+                <li key={tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // July 14, 2026 - Local and self-hosted IAPKit receipt verification
     {
       id: 'local-self-hosted-iapkit-verification-2026-07-14',
