@@ -617,6 +617,20 @@ export type IapPlatform = 'ios' | 'android';
 
 export type IapStore = 'unknown' | 'apple' | 'google' | 'horizon' | 'amazon';
 
+/** Serialization format of a public IAPKit product client payload. */
+export type IapkitClientPayloadFormat = 'toml' | 'json' | 'text';
+
+/**
+ * Public app-facing data attached to one store product in IAPKit.
+ * Never place credentials, signing keys, or server-authoritative rules here.
+ */
+export interface IapkitProductClientPayload {
+  body: string;
+  format: IapkitClientPayloadFormat;
+  updatedAt: number;
+  version: number;
+}
+
 /** Unified purchase states from IAPKit verification response. */
 export type IapkitPurchaseState = 'entitled' | 'pending-acknowledgment' | 'pending' | 'canceled' | 'expired' | 'ready-to-consume' | 'consumed' | 'unknown' | 'inauthentic';
 
@@ -1987,11 +2001,29 @@ export interface RequestVerifyPurchaseWithIapkitProps {
   baseUrl?: (string | null);
   /** Google Play Store verification parameters. */
   google?: (RequestVerifyPurchaseWithIapkitGoogleProps | null);
+  /**
+   * Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+   * Include the product's public IAPKit client payload in a valid Apple or
+   * Google verification response. Defaults to false so existing response
+   * shapes and bandwidth remain unchanged.
+   */
+  includeClientPayload?: (boolean | null);
 }
 
 export interface RequestVerifyPurchaseWithIapkitResult {
+  /**
+   * Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+   * Public product payload when includeClientPayload was requested, the
+   * Apple or Google receipt is valid, and a payload exists for that product.
+   */
+  clientPayload?: (IapkitProductClientPayload | null);
   /** Whether the purchase is valid (not falsified). */
   isValid: boolean;
+  /**
+   * Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+   * Store-verified product identifier when the provider returns one.
+   */
+  productId?: (string | null);
   /** The current state of the purchase. */
   state: IapkitPurchaseState;
   store: IapStore;

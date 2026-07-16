@@ -182,6 +182,13 @@ enum IapEvent {
 	SUBSCRIPTION_BILLING_ISSUE = 5,
 }
 
+## Serialization format of a public IAPKit product client payload.
+enum IapkitClientPayloadFormat {
+	TOML = 0,
+	JSON = 1,
+	TEXT = 2,
+}
+
 ## Unified purchase states from IAPKit verification response.
 enum IapkitPurchaseState {
 	## User is entitled to the product (purchase is complete and active).
@@ -1373,6 +1380,40 @@ class ExternalPurchaseNoticeResultIOS:
 			dict["error"] = error
 		if external_purchase_token != null:
 			dict["externalPurchaseToken"] = external_purchase_token
+		return dict
+
+## Public app-facing data attached to one store product in IAPKit. Never place credentials, signing keys, or server-authoritative rules here.
+class IapkitProductClientPayload:
+	var format: IapkitClientPayloadFormat
+	var body: String = ""
+	var version: float = 0.0
+	var updated_at: float = 0.0
+
+	static func from_dict(data: Dictionary) -> IapkitProductClientPayload:
+		var obj = IapkitProductClientPayload.new()
+		if data.has("format") and data["format"] != null:
+			var enum_str = data["format"]
+			if enum_str is String and IAPKIT_CLIENT_PAYLOAD_FORMAT_FROM_STRING.has(enum_str):
+				obj.format = IAPKIT_CLIENT_PAYLOAD_FORMAT_FROM_STRING[enum_str]
+			else:
+				obj.format = enum_str
+		if data.has("body") and data["body"] != null:
+			obj.body = data["body"]
+		if data.has("version") and data["version"] != null:
+			obj.version = data["version"]
+		if data.has("updatedAt") and data["updatedAt"] != null:
+			obj.updated_at = data["updatedAt"]
+		return obj
+
+	func to_dict() -> Dictionary:
+		var dict = {}
+		if IAPKIT_CLIENT_PAYLOAD_FORMAT_VALUES.has(format):
+			dict["format"] = IAPKIT_CLIENT_PAYLOAD_FORMAT_VALUES[format]
+		else:
+			dict["format"] = format
+		dict["body"] = body
+		dict["version"] = version
+		dict["updatedAt"] = updated_at
 		return dict
 
 ## Result from showing Play billing in-app messages (Android) Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (upstream API available since Play Billing 4.1.0).
@@ -3089,6 +3130,10 @@ class RequestVerifyPurchaseWithIapkitResult:
 	var is_valid: bool = false
 	## The current state of the purchase.
 	var state: IapkitPurchaseState
+	## Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+	var product_id: Variant = null
+	## Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+	var client_payload: IapkitProductClientPayload
 
 	static func from_dict(data: Dictionary) -> RequestVerifyPurchaseWithIapkitResult:
 		var obj = RequestVerifyPurchaseWithIapkitResult.new()
@@ -3106,6 +3151,13 @@ class RequestVerifyPurchaseWithIapkitResult:
 				obj.state = IAPKIT_PURCHASE_STATE_FROM_STRING.get(enum_str, IapkitPurchaseState.UNKNOWN)
 			else:
 				obj.state = enum_str
+		if data.has("productId") and data["productId"] != null:
+			obj.product_id = data["productId"]
+		if data.has("clientPayload") and data["clientPayload"] != null:
+			if data["clientPayload"] is Dictionary:
+				obj.client_payload = IapkitProductClientPayload.from_dict(data["clientPayload"])
+			else:
+				obj.client_payload = data["clientPayload"]
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -3119,6 +3171,12 @@ class RequestVerifyPurchaseWithIapkitResult:
 			dict["state"] = IAPKIT_PURCHASE_STATE_VALUES[state]
 		else:
 			dict["state"] = state
+		if product_id != null:
+			dict["productId"] = product_id
+		if client_payload != null and client_payload.has_method("to_dict"):
+			dict["clientPayload"] = client_payload.to_dict()
+		else:
+			dict["clientPayload"] = client_payload
 		return dict
 
 class SubscriptionCommitmentInfoIOS:
@@ -5141,6 +5199,8 @@ class RequestVerifyPurchaseWithIapkitProps:
 	var api_key: Variant = null
 	## Available in OpenIAP Spec 2.3.1 / openiap-apple 2.4.0 / openiap-google 2.4.0.
 	var base_url: Variant = null
+	## Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+	var include_client_payload: Variant = null
 	## Apple App Store verification parameters.
 	var apple: RequestVerifyPurchaseWithIapkitAppleProps
 	## Google Play Store verification parameters.
@@ -5154,6 +5214,8 @@ class RequestVerifyPurchaseWithIapkitProps:
 			obj.api_key = data["apiKey"]
 		if data.has("baseUrl") and data["baseUrl"] != null:
 			obj.base_url = data["baseUrl"]
+		if data.has("includeClientPayload") and data["includeClientPayload"] != null:
+			obj.include_client_payload = data["includeClientPayload"]
 		if data.has("apple") and data["apple"] != null:
 			if data["apple"] is Dictionary:
 				obj.apple = RequestVerifyPurchaseWithIapkitAppleProps.from_dict(data["apple"])
@@ -5177,6 +5239,8 @@ class RequestVerifyPurchaseWithIapkitProps:
 			dict["apiKey"] = api_key
 		if base_url != null:
 			dict["baseUrl"] = base_url
+		if include_client_payload != null:
+			dict["includeClientPayload"] = include_client_payload
 		if apple != null:
 			if apple.has_method("to_dict"):
 				dict["apple"] = apple.to_dict()
@@ -5534,6 +5598,12 @@ const IAP_EVENT_VALUES = {
 	IapEvent.SUBSCRIPTION_BILLING_ISSUE: "subscription-billing-issue"
 }
 
+const IAPKIT_CLIENT_PAYLOAD_FORMAT_VALUES = {
+	IapkitClientPayloadFormat.TOML: "toml",
+	IapkitClientPayloadFormat.JSON: "json",
+	IapkitClientPayloadFormat.TEXT: "text"
+}
+
 const IAPKIT_PURCHASE_STATE_VALUES = {
 	IapkitPurchaseState.ENTITLED: "entitled",
 	IapkitPurchaseState.PENDING_ACKNOWLEDGMENT: "pending-acknowledgment",
@@ -5837,6 +5907,12 @@ const IAP_EVENT_FROM_STRING = {
 	"user-choice-billing-android": IapEvent.USER_CHOICE_BILLING_ANDROID,
 	"developer-provided-billing-android": IapEvent.DEVELOPER_PROVIDED_BILLING_ANDROID,
 	"subscription-billing-issue": IapEvent.SUBSCRIPTION_BILLING_ISSUE
+}
+
+const IAPKIT_CLIENT_PAYLOAD_FORMAT_FROM_STRING = {
+	"toml": IapkitClientPayloadFormat.TOML,
+	"json": IapkitClientPayloadFormat.JSON,
+	"text": IapkitClientPayloadFormat.TEXT
 }
 
 const IAPKIT_PURCHASE_STATE_FROM_STRING = {

@@ -557,6 +557,31 @@ enum IapEvent {
   String toJson() => value;
 }
 
+/// Serialization format of a public IAPKit product client payload.
+enum IapkitClientPayloadFormat {
+  Toml('toml'),
+  Json('json'),
+  Text('text');
+
+  const IapkitClientPayloadFormat(this.value);
+  final String value;
+
+  factory IapkitClientPayloadFormat.fromJson(String value) {
+    final normalized = value.toLowerCase().replaceAll('_', '-');
+    switch (normalized) {
+      case 'toml':
+        return IapkitClientPayloadFormat.Toml;
+      case 'json':
+        return IapkitClientPayloadFormat.Json;
+      case 'text':
+        return IapkitClientPayloadFormat.Text;
+    }
+    throw ArgumentError('Unknown IapkitClientPayloadFormat value: $value');
+  }
+
+  String toJson() => value;
+}
+
 /// Unified purchase states from IAPKit verification response.
 enum IapkitPurchaseState {
   /// User is entitled to the product (purchase is complete and active).
@@ -2387,6 +2412,41 @@ class FetchProductsResultSubscriptions extends FetchProductsResult {
   final List<ProductSubscription>? value;
 }
 
+/// Public app-facing data attached to one store product in IAPKit.
+/// Never place credentials, signing keys, or server-authoritative rules here.
+class IapkitProductClientPayload {
+  const IapkitProductClientPayload({
+    required this.body,
+    required this.format,
+    required this.updatedAt,
+    required this.version,
+  });
+
+  final String body;
+  final IapkitClientPayloadFormat format;
+  final double updatedAt;
+  final double version;
+
+  factory IapkitProductClientPayload.fromJson(Map<String, dynamic> json) {
+    return IapkitProductClientPayload(
+      body: json['body'] as String,
+      format: IapkitClientPayloadFormat.fromJson(json['format'] as String),
+      updatedAt: (json['updatedAt'] as num).toDouble(),
+      version: (json['version'] as num).toDouble(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '__typename': 'IapkitProductClientPayload',
+      'body': body,
+      'format': format.toJson(),
+      'updatedAt': updatedAt,
+      'version': version,
+    };
+  }
+}
+
 /// Result from showing Play billing in-app messages (Android)
 /// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
 /// (upstream API available since Play Billing 4.1.0).
@@ -3737,20 +3797,31 @@ class RequestPurchaseResultPurchases extends RequestPurchaseResult {
 
 class RequestVerifyPurchaseWithIapkitResult {
   const RequestVerifyPurchaseWithIapkitResult({
+    this.clientPayload,
     required this.isValid,
+    this.productId,
     required this.state,
     required this.store,
   });
 
+  /// Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+  /// Public product payload when includeClientPayload was requested, the
+  /// Apple or Google receipt is valid, and a payload exists for that product.
+  final IapkitProductClientPayload? clientPayload;
   /// Whether the purchase is valid (not falsified).
   final bool isValid;
+  /// Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+  /// Store-verified product identifier when the provider returns one.
+  final String? productId;
   /// The current state of the purchase.
   final IapkitPurchaseState state;
   final IapStore store;
 
   factory RequestVerifyPurchaseWithIapkitResult.fromJson(Map<String, dynamic> json) {
     return RequestVerifyPurchaseWithIapkitResult(
+      clientPayload: json['clientPayload'] != null ? IapkitProductClientPayload.fromJson(json['clientPayload'] as Map<String, dynamic>) : null,
       isValid: json['isValid'] as bool,
+      productId: json['productId'] as String?,
       state: IapkitPurchaseState.fromJson(json['state'] as String),
       store: IapStore.fromJson(json['store'] as String),
     );
@@ -3759,7 +3830,9 @@ class RequestVerifyPurchaseWithIapkitResult {
   Map<String, dynamic> toJson() {
     return {
       '__typename': 'RequestVerifyPurchaseWithIapkitResult',
+      'clientPayload': clientPayload?.toJson(),
       'isValid': isValid,
+      'productId': productId,
       'state': state.toJson(),
       'store': store.toJson(),
     };
@@ -5478,6 +5551,7 @@ class RequestVerifyPurchaseWithIapkitProps {
     this.apple,
     this.baseUrl,
     this.google,
+    this.includeClientPayload,
   });
 
   /// Amazon Appstore verification parameters.
@@ -5493,6 +5567,11 @@ class RequestVerifyPurchaseWithIapkitProps {
   final String? baseUrl;
   /// Google Play Store verification parameters.
   final RequestVerifyPurchaseWithIapkitGoogleProps? google;
+  /// Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+  /// Include the product's public IAPKit client payload in a valid Apple or
+  /// Google verification response. Defaults to false so existing response
+  /// shapes and bandwidth remain unchanged.
+  final bool? includeClientPayload;
 
   factory RequestVerifyPurchaseWithIapkitProps.fromJson(Map<String, dynamic> json) {
     return RequestVerifyPurchaseWithIapkitProps(
@@ -5501,6 +5580,7 @@ class RequestVerifyPurchaseWithIapkitProps {
       apple: json['apple'] != null ? RequestVerifyPurchaseWithIapkitAppleProps.fromJson(json['apple'] as Map<String, dynamic>) : null,
       baseUrl: json['baseUrl'] as String?,
       google: json['google'] != null ? RequestVerifyPurchaseWithIapkitGoogleProps.fromJson(json['google'] as Map<String, dynamic>) : null,
+      includeClientPayload: json['includeClientPayload'] as bool?,
     );
   }
 
@@ -5511,6 +5591,7 @@ class RequestVerifyPurchaseWithIapkitProps {
       'apple': apple?.toJson(),
       'baseUrl': baseUrl,
       'google': google?.toJson(),
+      'includeClientPayload': includeClientPayload,
     };
   }
 }

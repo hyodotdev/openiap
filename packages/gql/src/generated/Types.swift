@@ -315,6 +315,13 @@ public enum IapEvent: String, Codable, CaseIterable {
     case subscriptionBillingIssue = "subscription-billing-issue"
 }
 
+/// Serialization format of a public IAPKit product client payload.
+public enum IapkitClientPayloadFormat: String, Codable, CaseIterable {
+    case toml = "toml"
+    case json = "json"
+    case text = "text"
+}
+
 /// Unified purchase states from IAPKit verification response.
 public enum IapkitPurchaseState: String, Codable, CaseIterable {
     /// User is entitled to the product (purchase is complete and active).
@@ -979,6 +986,15 @@ public enum FetchProductsResult {
     case subscriptions([ProductSubscription]?)
 }
 
+/// Public app-facing data attached to one store product in IAPKit.
+/// Never place credentials, signing keys, or server-authoritative rules here.
+public struct IapkitProductClientPayload: Codable {
+    public var body: String
+    public var format: IapkitClientPayloadFormat
+    public var updatedAt: Double
+    public var version: Double
+}
+
 /// Result from showing Play billing in-app messages (Android)
 /// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
 /// (upstream API available since Play Billing 4.1.0).
@@ -1399,8 +1415,15 @@ public enum RequestPurchaseResult {
 }
 
 public struct RequestVerifyPurchaseWithIapkitResult: Codable {
+    /// Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+    /// Public product payload when includeClientPayload was requested, the
+    /// Apple or Google receipt is valid, and a payload exists for that product.
+    public var clientPayload: IapkitProductClientPayload? = nil
     /// Whether the purchase is valid (not falsified).
     public var isValid: Bool
+    /// Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+    /// Store-verified product identifier when the provider returns one.
+    public var productId: String? = nil
     /// The current state of the purchase.
     public var state: IapkitPurchaseState
     public var store: IapStore
@@ -2339,19 +2362,26 @@ public struct RequestVerifyPurchaseWithIapkitProps: Codable {
     public var baseUrl: String?
     /// Google Play Store verification parameters.
     public var google: RequestVerifyPurchaseWithIapkitGoogleProps?
+    /// Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+    /// Include the product's public IAPKit client payload in a valid Apple or
+    /// Google verification response. Defaults to false so existing response
+    /// shapes and bandwidth remain unchanged.
+    public var includeClientPayload: Bool?
 
     public init(
         amazon: RequestVerifyPurchaseWithIapkitAmazonProps? = nil,
         apiKey: String? = nil,
         apple: RequestVerifyPurchaseWithIapkitAppleProps? = nil,
         baseUrl: String? = nil,
-        google: RequestVerifyPurchaseWithIapkitGoogleProps? = nil
+        google: RequestVerifyPurchaseWithIapkitGoogleProps? = nil,
+        includeClientPayload: Bool? = nil
     ) {
         self.amazon = amazon
         self.apiKey = apiKey
         self.apple = apple
         self.baseUrl = baseUrl
         self.google = google
+        self.includeClientPayload = includeClientPayload
     }
 }
 
