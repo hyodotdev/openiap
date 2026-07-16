@@ -68,6 +68,11 @@ jobs:
           dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0 --nologo
           dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0 --nologo
 
+      - name: Run contract tests (shared)
+        run: |
+          dotnet run --project tests/OpenIap.Maui.ContractTests/OpenIap.Maui.ContractTests.csproj --framework net9.0 -p:TargetFrameworks=net9.0 --no-launch-profile
+          dotnet run --project tests/OpenIap.Maui.ContractTests/OpenIap.Maui.ContractTests.csproj --framework net10.0 -p:TargetFrameworks=net10.0 --no-launch-profile
+
   android-binding:
     name: Android binding (net9.0-android + net10.0-android)
     runs-on: ubuntu-latest

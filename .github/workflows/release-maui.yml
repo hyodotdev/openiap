@@ -72,6 +72,11 @@ jobs:
           dotnet build libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0
           dotnet build libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0
 
+      - name: Run contract tests (shared)
+        run: |
+          dotnet run --project libraries/maui-iap/tests/OpenIap.Maui.ContractTests/OpenIap.Maui.ContractTests.csproj --framework net9.0 -p:TargetFrameworks=net9.0 --no-launch-profile
+          dotnet run --project libraries/maui-iap/tests/OpenIap.Maui.ContractTests/OpenIap.Maui.ContractTests.csproj --framework net10.0 -p:TargetFrameworks=net10.0 --no-launch-profile
+
   validate-multitarget:
     needs: [release-branch]
     name: Validate (net9.0/net10.0 platform TFMs)

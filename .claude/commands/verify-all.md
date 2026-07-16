@@ -124,7 +124,13 @@ bash scripts/sync-versions.sh
   dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj \
     -p:TargetFrameworks=net9.0 --nologo && \
   dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj \
-    -p:TargetFrameworks=net10.0 --nologo)
+    -p:TargetFrameworks=net10.0 --nologo && \
+  dotnet run \
+    --project tests/OpenIap.Maui.ContractTests/OpenIap.Maui.ContractTests.csproj \
+    --framework net9.0 -p:TargetFrameworks=net9.0 --no-launch-profile && \
+  dotnet run \
+    --project tests/OpenIap.Maui.ContractTests/OpenIap.Maui.ContractTests.csproj \
+    --framework net10.0 -p:TargetFrameworks=net10.0 --no-launch-profile)
 (cd packages/google && ./gradlew \
   :openiap:assemblePlayRelease \
   :openiap:assembleAmazonRelease \
