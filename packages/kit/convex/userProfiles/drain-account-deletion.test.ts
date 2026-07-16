@@ -1,8 +1,16 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
-  drainAccountDeletionBatch as productionDrainAccountDeletionBatch,
-  drainPendingDeletionOrganizations as productionDrainPendingDeletionOrganizations,
+  drainAccountDeletionBatch as registeredDrainAccountDeletionBatch,
+  drainPendingDeletionOrganizations as registeredDrainPendingDeletionOrganizations,
 } from "./internal";
+import { testableFunction } from "../test.setup";
+
+const productionDrainAccountDeletionBatch = testableFunction(
+  registeredDrainAccountDeletionBatch,
+);
+const productionDrainPendingDeletionOrganizations = testableFunction(
+  registeredDrainPendingDeletionOrganizations,
+);
 
 /**
  * In-memory stand-in for the slice of `ctx.db` that the

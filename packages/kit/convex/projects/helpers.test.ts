@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { Id } from "../_generated/dataModel";
 
 const apiKeyMocks = vi.hoisted(() => ({ getApiKeyByKey: vi.fn() }));
 
@@ -12,9 +13,17 @@ import {
   resolveProjectByApiKeyFromDb,
 } from "./helpers";
 import {
-  continueProjectDeletion,
-  drainPendingProjectDeletion,
+  continueProjectDeletion as registeredContinueProjectDeletion,
+  drainPendingProjectDeletion as registeredDrainPendingProjectDeletion,
 } from "./internal";
+import { testableFunction } from "../test.setup";
+
+const continueProjectDeletion = testableFunction(
+  registeredContinueProjectDeletion,
+);
+const drainPendingProjectDeletion = testableFunction(
+  registeredDrainPendingProjectDeletion,
+);
 
 type Row = Record<string, unknown> & { _id: string };
 
@@ -92,7 +101,7 @@ class TestDb {
   }
 }
 
-const PROJECT_ID = "projects_a";
+const PROJECT_ID = "projects_a" as Id<"projects">;
 
 describe("deleteProjectWithData", () => {
   it("drains every project-owned table in bounded scheduled pages", async () => {
@@ -141,7 +150,7 @@ describe("deleteProjectWithData", () => {
     let complete = false;
     let calls = 0;
     while (!complete && calls < 100) {
-      complete = await deleteProjectWithData(ctx as never, PROJECT_ID as never);
+      complete = await deleteProjectWithData(ctx as never, PROJECT_ID);
       calls += 1;
     }
 

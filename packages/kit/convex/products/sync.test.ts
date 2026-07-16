@@ -1,12 +1,20 @@
 import { describe, expect, it } from "vitest";
+import type { Id } from "../_generated/dataModel";
 
 import {
-  deletePlatformCatalog,
-  deleteRemovedProductRow,
+  deletePlatformCatalog as registeredDeletePlatformCatalog,
+  deleteRemovedProductRow as registeredDeleteRemovedProductRow,
   isSafePriceAmountMicros,
   shouldPreserveKitRemovedDuringPull,
-  upsertFromStore,
+  upsertFromStore as registeredUpsertFromStore,
 } from "./sync";
+import { testableFunction } from "../test.setup";
+
+const deletePlatformCatalog = testableFunction(registeredDeletePlatformCatalog);
+const deleteRemovedProductRow = testableFunction(
+  registeredDeleteRemovedProductRow,
+);
+const upsertFromStore = testableFunction(registeredUpsertFromStore);
 
 type Row = Record<string, unknown> & { _id: string };
 
@@ -142,7 +150,11 @@ describe("catalog deletion client-payload retention", () => {
     await expect(
       deleteRemovedProductRow._handler(
         { db },
-        { projectId: "project_a", platform: "IOS", productId: "premium" },
+        {
+          projectId: "project_a" as Id<"projects">,
+          platform: "IOS",
+          productId: "premium",
+        },
       ),
     ).resolves.toBe(true);
     expect(db.tables.products).toEqual([]);
@@ -195,7 +207,11 @@ describe("catalog deletion client-payload retention", () => {
     await expect(
       deletePlatformCatalog._handler(
         { db },
-        { projectId: "project_a", platform: "IOS", limit: 100 },
+        {
+          projectId: "project_a" as Id<"projects">,
+          platform: "IOS",
+          limit: 100,
+        },
       ),
     ).resolves.toEqual({ deleted: 1, hasMore: false });
     expect(db.tables.products).toEqual([

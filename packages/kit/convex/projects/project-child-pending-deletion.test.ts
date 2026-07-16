@@ -14,17 +14,26 @@ vi.mock("../purchases/stats", () => ({
   deltaForUpdate: vi.fn().mockReturnValue({}),
 }));
 
-import { create as createApiKey } from "../apiKeys/mutation";
+import { create as registeredCreateApiKey } from "../apiKeys/mutation";
 import {
-  pruneUploadReservations,
+  pruneUploadReservations as registeredPruneUploadReservations,
   UPLOAD_RESERVATION_PRUNE_BATCH_SIZE,
 } from "../files/internal";
 import {
-  generateUploadUrl,
+  generateUploadUrl as registeredGenerateUploadUrl,
   MAX_ACTIVE_FILE_UPLOAD_RESERVATIONS_PER_TARGET,
-  saveFile,
+  saveFile as registeredSaveFile,
 } from "../files/mutation";
-import { markReceiptInvalid } from "../purchases/mutation";
+import { markReceiptInvalid as registeredMarkReceiptInvalid } from "../purchases/mutation";
+import { testableFunction } from "../test.setup";
+
+const createApiKey = testableFunction(registeredCreateApiKey);
+const generateUploadUrl = testableFunction(registeredGenerateUploadUrl);
+const markReceiptInvalid = testableFunction(registeredMarkReceiptInvalid);
+const pruneUploadReservations = testableFunction(
+  registeredPruneUploadReservations,
+);
+const saveFile = testableFunction(registeredSaveFile);
 
 const UPLOAD_RESERVATION_ID = "fileUploadReservations_a";
 
@@ -81,7 +90,11 @@ class TestDb {
   insertCount = 0;
   patchCount = 0;
   system = {
-    get: vi.fn(async (_table: string, id: string) => ({ _id: id })),
+    get: vi.fn(
+      async (_table: string, id: string): Promise<{ _id: string } | null> => ({
+        _id: id,
+      }),
+    ),
   };
 
   constructor(readonly tables: Record<string, Row[]>) {}

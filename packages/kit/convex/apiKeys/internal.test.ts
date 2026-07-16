@@ -6,7 +6,10 @@ vi.mock("./helpers", () => ({
   getApiKeyByKey: apiKeyMocks.getApiKeyByKey,
 }));
 
-import { validateApiKey } from "./internal";
+import { validateApiKey as registeredValidateApiKey } from "./internal";
+import { testableFunction } from "../test.setup";
+
+const validateApiKey = testableFunction(registeredValidateApiKey);
 
 type Row = Record<string, unknown> & { _id: string };
 

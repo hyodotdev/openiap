@@ -6,11 +6,16 @@ import {
   PRODUCT_SYNC_JOB_DEADLINE_MS,
   PRODUCT_SYNC_REAPER_GRACE_MS,
   PRODUCT_SYNC_SUCCEEDED_RETENTION_MS,
-  getJobForWorker,
-  isCancelRequested,
-  markJobSucceeded,
+  getJobForWorker as registeredGetJobForWorker,
+  isCancelRequested as registeredIsCancelRequested,
+  markJobSucceeded as registeredMarkJobSucceeded,
   truncateFailures,
 } from "./jobs";
+import { testableFunction } from "../test.setup";
+
+const getJobForWorker = testableFunction(registeredGetJobForWorker);
+const isCancelRequested = testableFunction(registeredIsCancelRequested);
+const markJobSucceeded = testableFunction(registeredMarkJobSucceeded);
 
 describe("truncateFailures", () => {
   it("returns the original array unchanged when under the cap", () => {
