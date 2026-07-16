@@ -1072,7 +1072,8 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 provider = provider,
                 apiKey = apiKey,
                 baseUrl = iapkit.baseUrl,
-                jws = jws
+                jws = jws,
+                includeClientPayload = iapkit.includeClientPayload == true
             ) { result, error ->
                 if (error != null) {
                     val nsError = error
@@ -1115,8 +1116,44 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     if (store != IapStore.Apple) {
                         throw IllegalArgumentException("IAPKit result store mismatch: $storeString")
                     }
+                    val productId = when (val rawProductId = map["productId"]) {
+                        null, is NSNull -> null
+                        is String -> rawProductId
+                        else -> throw IllegalArgumentException("IAPKit result productId must be a string")
+                    }
+                    val clientPayload = when (val rawClientPayload = map["clientPayload"]) {
+                        null, is NSNull -> null
+                        is Map<*, *> -> {
+                            val payload = rawClientPayload.mapKeys { it.key.toString() }
+                            val format = payload["format"] as? String
+                                ?: throw IllegalArgumentException("IAPKit clientPayload missing format")
+                            if (format !in setOf("toml", "json", "text")) {
+                                throw IllegalArgumentException("IAPKit clientPayload contains invalid format")
+                            }
+                            val body = payload["body"] as? String
+                                ?: throw IllegalArgumentException("IAPKit clientPayload missing body")
+                            val version = (payload["version"] as? Number)?.toDouble()
+                                ?: throw IllegalArgumentException("IAPKit clientPayload missing version")
+                            val updatedAt = (payload["updatedAt"] as? Number)?.toDouble()
+                                ?: throw IllegalArgumentException("IAPKit clientPayload missing updatedAt")
+                            if (!version.isFinite() || version <= 0.0 || version % 1.0 != 0.0 ||
+                                !updatedAt.isFinite() || updatedAt < 0.0
+                            ) {
+                                throw IllegalArgumentException("IAPKit clientPayload contains invalid numeric fields")
+                            }
+                            IapkitProductClientPayload(
+                                body = body,
+                                format = IapkitClientPayloadFormat.fromJson(format),
+                                updatedAt = updatedAt,
+                                version = version
+                            )
+                        }
+                        else -> throw IllegalArgumentException("IAPKit clientPayload must be an object")
+                    }
                     val iapkitResult = RequestVerifyPurchaseWithIapkitResult(
+                        clientPayload = clientPayload,
                         isValid = isValid,
+                        productId = productId,
                         state = state,
                         store = store
                     )

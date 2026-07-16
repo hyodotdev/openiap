@@ -91,7 +91,9 @@ import io.github.hyochan.kmpiap.openiap.PurchaseIOS
 import io.github.hyochan.kmpiap.openiap.PurchaseVerificationProvider
 import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitResult
 import io.github.hyochan.kmpiap.openiap.IapStore
+import io.github.hyochan.kmpiap.openiap.IapkitClientPayloadFormat
 import io.github.hyochan.kmpiap.openiap.IapkitPurchaseState
+import io.github.hyochan.kmpiap.openiap.IapkitProductClientPayload
 import io.github.hyochan.kmpiap.openiap.BillingChoiceImageLayoutAndroid
 import io.github.hyochan.kmpiap.openiap.BillingChoiceInfoAndroid
 import io.github.hyochan.kmpiap.openiap.BillingChoiceScreenTypeAndroid
@@ -2279,13 +2281,23 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase {
                     AndroidVerifyPurchaseWithIapkitGoogleProps(
                         purchaseToken = google.purchaseToken
                     )
-                }
+                },
+                includeClientPayload = iapkitOptions.includeClientPayload
             )
 
             val androidResult = verifyPurchaseWithIapkitAndroid(openIapProps, "kmp-iap-android")
 
             val iapkitResult = RequestVerifyPurchaseWithIapkitResult(
+                clientPayload = androidResult.clientPayload?.let { payload ->
+                    IapkitProductClientPayload(
+                        body = payload.body,
+                        format = IapkitClientPayloadFormat.fromJson(payload.format.toJson()),
+                        updatedAt = payload.updatedAt,
+                        version = payload.version
+                    )
+                },
                 isValid = androidResult.isValid,
+                productId = androidResult.productId,
                 state = IapkitPurchaseState.fromJson(androidResult.state.toJson()),
                 store = IapStore.fromJson(androidResult.store.toJson())
             )

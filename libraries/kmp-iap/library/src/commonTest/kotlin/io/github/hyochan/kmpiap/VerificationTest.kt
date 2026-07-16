@@ -449,11 +449,13 @@ class VerificationTest {
         val props = RequestVerifyPurchaseWithIapkitProps(
             apiKey = "key123",
             baseUrl = "http://192.168.0.4:3100",
-            apple = RequestVerifyPurchaseWithIapkitAppleProps(jws = "jws-value")
+            apple = RequestVerifyPurchaseWithIapkitAppleProps(jws = "jws-value"),
+            includeClientPayload = true
         )
         val json = props.toJson()
         assertEquals("key123", json["apiKey"])
         assertEquals("http://192.168.0.4:3100", json["baseUrl"])
+        assertEquals(true, json["includeClientPayload"])
         assertNotNull(json["apple"])
     }
 
@@ -714,7 +716,14 @@ class VerificationTest {
     @Test
     fun testRequestVerifyPurchaseWithIapkitResultRoundTrip() {
         val original = RequestVerifyPurchaseWithIapkitResult(
+            clientPayload = IapkitProductClientPayload(
+                body = "tier = \"gold\"",
+                format = IapkitClientPayloadFormat.Toml,
+                updatedAt = 1720000000000.0,
+                version = 2.0
+            ),
             isValid = true,
+            productId = "premium.monthly",
             state = IapkitPurchaseState.Entitled,
             store = IapStore.Apple
         )
@@ -722,6 +731,9 @@ class VerificationTest {
         val restored = RequestVerifyPurchaseWithIapkitResult.fromJson(json)
 
         assertEquals(original.isValid, restored.isValid)
+        assertEquals(original.productId, restored.productId)
+        assertEquals(original.clientPayload?.body, restored.clientPayload?.body)
+        assertEquals(original.clientPayload?.format, restored.clientPayload?.format)
         assertEquals(original.state, restored.state)
         assertEquals(original.store, restored.store)
     }
