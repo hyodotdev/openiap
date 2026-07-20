@@ -1,12 +1,20 @@
-import { mutation } from "../_generated/server";
+import { internalMutation } from "../_generated/server";
 import { v } from "convex/values";
 import { createError, ErrorCode } from "../utils/errors";
 import { HarmonizedPurchaseState } from "./purchaseState";
 import { applyPurchaseStatsDelta, deltaForUpdate } from "./stats";
 import { getProjectById } from "../projects/helpers";
 
-// Mark purchase as inauthentic
-export const markReceiptInvalid = mutation({
+// Mark purchase as inauthentic.
+//
+// Internal-only on purpose: nothing in the dashboard or server calls this —
+// it is an operator/maintenance function (run it from the Convex dashboard).
+// As a public mutation it took only a `purchaseId` and performed no
+// identity/membership check, so anyone reaching the deployment could flip
+// another tenant's receipt to INAUTHENTIC and skew its purchase stats.
+// It stays in this file (rather than internal.ts) to keep the generated
+// module graph unchanged; see packages/kit/CONVENTION.md for the CQRS split.
+export const markReceiptInvalid = internalMutation({
   args: {
     purchaseId: v.id("purchases"),
     reason: v.optional(v.string()),
