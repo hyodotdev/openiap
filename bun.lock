@@ -12,14 +12,14 @@
     },
     "packages/apple": {
       "name": "@hyodotdev/openiap-ios",
-      "version": "2.3.0",
+      "version": "2.4.1",
       "dependencies": {
         "@hyodotdev/openiap-gql": "workspace:*",
       },
     },
     "packages/docs": {
       "name": "@hyodotdev/openiap-docs",
-      "version": "2.3.1",
+      "version": "2.4.0",
       "dependencies": {
         "@preact/signals-react": "^3.2.1",
         "@types/prismjs": "^1.26.5",
@@ -57,14 +57,14 @@
     },
     "packages/google": {
       "name": "@hyodotdev/openiap-android",
-      "version": "2.3.1",
+      "version": "2.4.1",
       "dependencies": {
         "@hyodotdev/openiap-gql": "workspace:*",
       },
     },
     "packages/gql": {
       "name": "@hyodotdev/openiap-gql",
-      "version": "2.3.1",
+      "version": "2.4.0",
       "devDependencies": {
         "@graphql-codegen/add": "^6.0.0",
         "@graphql-codegen/cli": "^6.0.0",
@@ -84,7 +84,7 @@
         "@auth/core": "^0.41.2",
         "@convex-dev/auth": "^0.0.94",
         "@convex-dev/migrations": "^0.3.4",
-        "@hono/standard-validator": "^0.2.2",
+        "@hono/standard-validator": "^0.3.0",
         "@hyodotdev/openiap-mcp-server": "workspace:*",
         "@icons-pack/react-simple-icons": "^13.7.0",
         "@preact/signals-react": "^3.2.1",
@@ -434,7 +434,7 @@
 
     "@hono/node-server": ["@hono/node-server@1.19.14", "", { "peerDependencies": { "hono": "^4" } }, "sha512-GwtvgtXxnWsucXvbQXkRgqksiH2Qed37H9xHZocE5sA3N8O8O8/8FA3uclQXxXVzc9XBZuEOMK7+r02FmSpHtw=="],
 
-    "@hono/standard-validator": ["@hono/standard-validator@0.2.2", "", { "peerDependencies": { "@standard-schema/spec": "^1.0.0", "hono": ">=3.9.0" } }, "sha512-mJ7W84Bt/rSvoIl63Ynew+UZOHAzzRAoAXb3JaWuxAkM/Lzg+ZHTCUiz77KOtn2e623WNN8LkD57Dk0szqUrIw=="],
+    "@hono/standard-validator": ["@hono/standard-validator@0.3.0", "", { "peerDependencies": { "@standard-schema/spec": "^1.0.0", "hono": ">=4.11.2" } }, "sha512-tHLKEjKXDcHImj0XTFWW4Hr0ev+1G5GxnBZrGdpg/7NLy9s9meFPTSCOkw++ZzZKom3FjrMw2e0nFQpPPvwUVQ=="],
 
     "@humanfs/core": ["@humanfs/core@0.19.2", "", { "dependencies": { "@humanfs/types": "^0.15.0" } }, "sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA=="],
 
@@ -2631,6 +2631,8 @@
     "graphql-config/cosmiconfig": ["cosmiconfig@8.3.6", "", { "dependencies": { "import-fresh": "^3.3.0", "js-yaml": "^4.1.0", "parse-json": "^5.2.0", "path-type": "^4.0.0" }, "peerDependencies": { "typescript": ">=4.9.5" }, "optionalPeers": ["typescript"] }, "sha512-kcZ6+W5QzcJ3P1Mt+83OUv/oHFqZHIx8DuxG6eZ5RGMERoLqp4BuGjhHLYGK+Kf5XVkQvqBSmAy/nGWN3qDgEA=="],
 
     "graphql-config/minimatch": ["minimatch@10.2.5", "", { "dependencies": { "brace-expansion": "^5.0.5" } }, "sha512-MULkVLfKGYDFYejP07QOurDLLQpcjk7Fw+7jXS2R2czRQzR56yHRveU5NDJEOviH+hETZKSkIk5c+T23GjFUMg=="],
+
+    "hono-openapi/@hono/standard-validator": ["@hono/standard-validator@0.2.2", "", { "peerDependencies": { "@standard-schema/spec": "^1.0.0", "hono": ">=3.9.0" } }, "sha512-mJ7W84Bt/rSvoIl63Ynew+UZOHAzzRAoAXb3JaWuxAkM/Lzg+ZHTCUiz77KOtn2e623WNN8LkD57Dk0szqUrIw=="],
 
     "htmlparser2/entities": ["entities@4.5.0", "", {}, "sha512-V0hjH4dGPh9Ao5p0MoRY6BVqtwCjhz6vI5LT8AJ55H+4g9/4vbHx1I54fS0XuclLhDHArPQCiMjDxjaL8fPxhw=="],
 
