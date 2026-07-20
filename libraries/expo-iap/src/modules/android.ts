@@ -1,8 +1,9 @@
 // External dependencies
-import {Linking} from 'react-native';
+import {Linking, Platform} from 'react-native';
 
 // Internal modules
 import ExpoIapModule from '../ExpoIapModule';
+import {isVegaOS} from '../vega';
 
 // Types
 import type {
@@ -31,6 +32,20 @@ type NativeAndroidModule = {
 };
 
 const nativeAndroidModule = ExpoIapModule as NativeAndroidModule;
+
+/**
+ * Enforce the documented Android-only contract. Vega OS is treated as an
+ * Android store runtime (matching `isAndroidStoreRuntime` in src/index.ts),
+ * so it passes through. Without this guard, calling a suffixed wrapper on
+ * another platform falls through to the native proxy and surfaces as an
+ * opaque `TypeError: ExpoIapModule.<name> is not a function` instead of the
+ * promised platform error.
+ */
+const requireAndroidPlatform = (methodName: string): void => {
+  if (Platform.OS !== 'android' && !isVegaOS()) {
+    throw new Error(`${methodName} is only available on Android and Vega OS`);
+  }
+};
 
 // Type guards
 export function isProductAndroid<T extends {platform?: string}>(
@@ -148,6 +163,7 @@ export const validateReceiptAndroid = async ({
 export const consumePurchaseAndroid: MutationField<
   'consumePurchaseAndroid'
 > = async (purchaseToken) => {
+  requireAndroidPlatform('consumePurchaseAndroid');
   const result = await ExpoIapModule.consumePurchaseAndroid(purchaseToken);
 
   if (typeof result === 'boolean') {
@@ -172,16 +188,18 @@ export const consumePurchaseAndroid: MutationField<
 };
 
 /**
- * Acknowledge a product (on Android.) No-op on iOS.
+ * Acknowledge a non-consumable purchase or subscription (Android only).
  * @param {Object} params - The parameters object
  * @param {string} params.token - The product's token (on Android)
  * @returns {Promise<VoidResult | void>}
+ * @throws Error if called on a non-Android platform
  *
  * @see {@link https://openiap.dev/docs/apis/android/acknowledge-purchase-android}
  */
 export const acknowledgePurchaseAndroid: MutationField<
   'acknowledgePurchaseAndroid'
 > = async (purchaseToken) => {
+  requireAndroidPlatform('acknowledgePurchaseAndroid');
   const result = await ExpoIapModule.acknowledgePurchaseAndroid(purchaseToken);
 
   if (typeof result === 'boolean') {
@@ -234,6 +252,7 @@ export const openRedeemOfferCodeAndroid = async (): Promise<void> => {
 export const checkAlternativeBillingAvailabilityAndroid: MutationField<
   'checkAlternativeBillingAvailabilityAndroid'
 > = async () => {
+  requireAndroidPlatform('checkAlternativeBillingAvailabilityAndroid');
   return ExpoIapModule.checkAlternativeBillingAvailabilityAndroid();
 };
 
@@ -266,6 +285,7 @@ export const checkAlternativeBillingAvailabilityAndroid: MutationField<
 export const showAlternativeBillingDialogAndroid: MutationField<
   'showAlternativeBillingDialogAndroid'
 > = async () => {
+  requireAndroidPlatform('showAlternativeBillingDialogAndroid');
   return ExpoIapModule.showAlternativeBillingDialogAndroid();
 };
 
@@ -298,6 +318,7 @@ export const showAlternativeBillingDialogAndroid: MutationField<
 export const createAlternativeBillingTokenAndroid: MutationField<
   'createAlternativeBillingTokenAndroid'
 > = async (sku?: string) => {
+  requireAndroidPlatform('createAlternativeBillingTokenAndroid');
   return ExpoIapModule.createAlternativeBillingTokenAndroid(sku);
 };
 
@@ -326,6 +347,7 @@ export const createAlternativeBillingTokenAndroid: MutationField<
 export const isBillingProgramAvailableAndroid: MutationField<
   'isBillingProgramAvailableAndroid'
 > = async (program) => {
+  requireAndroidPlatform('isBillingProgramAvailableAndroid');
   return ExpoIapModule.isBillingProgramAvailableAndroid(program);
 };
 
@@ -343,6 +365,7 @@ export const getBillingChoiceInfoAndroid: QueryField<
 > = async (
   params: GetBillingChoiceInfoParamsAndroid = {},
 ): Promise<BillingChoiceInfoAndroid> => {
+  requireAndroidPlatform('getBillingChoiceInfoAndroid');
   return ExpoIapModule.getBillingChoiceInfoAndroid({
     billingProgram: params.billingProgram ?? 'billing-choice',
     playBillingChoiceImageLayout:
@@ -375,6 +398,7 @@ export const getBillingChoiceInfoAndroid: QueryField<
 export const launchExternalLinkAndroid: MutationField<
   'launchExternalLinkAndroid'
 > = async (params) => {
+  requireAndroidPlatform('launchExternalLinkAndroid');
   return ExpoIapModule.launchExternalLinkAndroid(params);
 };
 
@@ -401,11 +425,13 @@ const createBillingProgramReportingDetailsAndroidField: MutationField<
   'createBillingProgramReportingDetailsAndroid'
 > = async (
   args: MutationCreateBillingProgramReportingDetailsAndroidArgs,
-): Promise<BillingProgramReportingDetailsAndroid> =>
-  ExpoIapModule.createBillingProgramReportingDetailsAndroid(
+): Promise<BillingProgramReportingDetailsAndroid> => {
+  requireAndroidPlatform('createBillingProgramReportingDetailsAndroid');
+  return ExpoIapModule.createBillingProgramReportingDetailsAndroid(
     args.program,
     args.developerBillingType ?? null,
   );
+};
 
 export function createBillingProgramReportingDetailsAndroid(
   args: MutationCreateBillingProgramReportingDetailsAndroidArgs,
@@ -442,6 +468,7 @@ export const showBillingProgramInformationDialogAndroid: MutationField<
 > = async (
   params: BillingProgramInformationDialogParamsAndroid,
 ): Promise<BillingResultAndroid> => {
+  requireAndroidPlatform('showBillingProgramInformationDialogAndroid');
   return ExpoIapModule.showBillingProgramInformationDialogAndroid({
     billingProgram: params.billingProgram ?? 'billing-choice',
     externalTransactionToken: params.externalTransactionToken,
@@ -462,5 +489,6 @@ export const showInAppMessagesAndroid: MutationField<
 > = async (
   params?: InAppMessageParamsAndroid | null,
 ): Promise<InAppMessageResultAndroid> => {
+  requireAndroidPlatform('showInAppMessagesAndroid');
   return ExpoIapModule.showInAppMessagesAndroid(params ?? null);
 };

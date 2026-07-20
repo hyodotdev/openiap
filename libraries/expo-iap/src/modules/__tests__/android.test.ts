@@ -9,6 +9,12 @@ jest.mock('react-native', () => ({
   Linking: {
     openURL: jest.fn(),
   },
+  Platform: {
+    OS: 'android',
+    select: jest.fn((spec: {android?: unknown; default?: unknown}) =>
+      spec.android !== undefined ? spec.android : spec.default,
+    ),
+  },
 }));
 
 /* eslint-disable import/first */
@@ -27,6 +33,7 @@ import {
   showBillingProgramInformationDialogAndroid,
   showInAppMessagesAndroid,
 } from '../android';
+import {syncIOS} from '../ios';
 /* eslint-enable import/first */
 
 describe('Android Module Functions', () => {
@@ -282,8 +289,9 @@ describe('Android Module Functions', () => {
           playBillingChoiceImageUrl: 'https://play.google.com/image.png',
           playBillingLoyaltyInfo: null,
         };
-        (ExpoIapModule.getBillingChoiceInfoAndroid as jest.Mock)
-          .mockResolvedValue(mockResult);
+        (
+          ExpoIapModule.getBillingChoiceInfoAndroid as jest.Mock
+        ).mockResolvedValue(mockResult);
 
         const result = await getBillingChoiceInfoAndroid({});
 
@@ -300,8 +308,9 @@ describe('Android Module Functions', () => {
           playBillingChoiceImageUrl: 'https://play.google.com/image.png',
           playBillingLoyaltyInfo: null,
         };
-        (ExpoIapModule.getBillingChoiceInfoAndroid as jest.Mock)
-          .mockResolvedValue(mockResult);
+        (
+          ExpoIapModule.getBillingChoiceInfoAndroid as jest.Mock
+        ).mockResolvedValue(mockResult);
 
         const result = await (getBillingChoiceInfoAndroid as any)();
 
@@ -528,8 +537,9 @@ describe('Android Module Functions', () => {
     describe('showInAppMessagesAndroid', () => {
       it('delegates optional message categories', async () => {
         const mockResult = {responseCode: 'no-action-needed'};
-        (ExpoIapModule.showInAppMessagesAndroid as jest.Mock)
-          .mockResolvedValue(mockResult);
+        (ExpoIapModule.showInAppMessagesAndroid as jest.Mock).mockResolvedValue(
+          mockResult,
+        );
 
         const result = await showInAppMessagesAndroid({
           categories: ['transactional'],
@@ -541,5 +551,11 @@ describe('Android Module Functions', () => {
         expect(result).toEqual(mockResult);
       });
     });
+  });
+});
+
+describe('Platform guards (Platform.OS = android)', () => {
+  it('rejects iOS-only wrappers with the documented platform error', async () => {
+    await expect(syncIOS()).rejects.toThrow('syncIOS is only available on iOS');
   });
 });

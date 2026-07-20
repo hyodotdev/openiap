@@ -37,6 +37,12 @@ jest.mock('react-native', () => ({
   Linking: {
     openURL: jest.fn(),
   },
+  Platform: {
+    OS: 'ios',
+    select: jest.fn((spec: {ios?: unknown; default?: unknown}) =>
+      spec.ios !== undefined ? spec.ios : spec.default,
+    ),
+  },
 }));
 
 /* eslint-disable import/first */
@@ -71,6 +77,7 @@ import {
   getExternalPurchaseCustomLinkTokenIOS,
   showExternalPurchaseCustomLinkNoticeIOS,
 } from '../ios';
+import {checkAlternativeBillingAvailabilityAndroid} from '../android';
 /* eslint-enable import/first */
 
 describe('iOS Module Functions', () => {
@@ -1015,5 +1022,13 @@ describe('iOS Module Functions', () => {
         ).rejects.toThrow('Notice display failed');
       });
     });
+  });
+});
+
+describe('Platform guards (Platform.OS = ios)', () => {
+  it('rejects Android-only wrappers with the documented platform error', async () => {
+    await expect(checkAlternativeBillingAvailabilityAndroid()).rejects.toThrow(
+      'checkAlternativeBillingAvailabilityAndroid is only available on Android',
+    );
   });
 });
