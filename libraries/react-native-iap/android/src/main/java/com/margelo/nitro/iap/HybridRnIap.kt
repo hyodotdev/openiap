@@ -402,43 +402,22 @@ class HybridRnIap : HybridRnIapSpec() {
             val skusList = skus.toList()
 
             val products: List<ProductCommon> = try {
-                when (queryType) {
-                    ProductQueryType.All -> {
-                        collectAllQueryProducts(
-                            skusList = skusList,
-                            fetchKind = { kind ->
-                                RnIapLog.payload(
-                                    "fetchProducts.native",
-                                    mapOf("skus" to skusList, "type" to kind.rawValue)
-                                )
-                                val fetched = openIap.fetchProducts(ProductRequest(skusList, kind)).productsOrEmpty()
-                                RnIapLog.result(
-                                    "fetchProducts.native",
-                                    fetched.map { mapOf("id" to it.id, "type" to it.type.rawValue) }
-                                )
-                                fetched
-                            },
-                            onFailure = { kind, error ->
-                                RnIapLog.failure("fetchProducts.native[${kind.rawValue}]", error)
-                            },
-                        )
-                    }
-                    else -> {
-                        RnIapLog.payload(
-                            "fetchProducts.native",
-                            mapOf("skus" to skusList, "type" to queryType.rawValue)
-                        )
-                        val fetched = openIap.fetchProducts(ProductRequest(skusList, queryType)).productsOrEmpty()
-                        RnIapLog.result(
-                            "fetchProducts.native",
-                            fetched.map { mapOf("id" to it.id, "type" to it.type.rawValue) }
-                        )
+                RnIapLog.payload(
+                    "fetchProducts.native",
+                    mapOf("skus" to skusList, "type" to queryType.rawValue)
+                )
+                // Pass the query type through unchanged: the native module resolves
+                // ProductQueryType.All itself, so each sku keeps its real product type
+                // instead of being shadowed by a per-type not-found placeholder.
+                val fetched = openIap.fetchProducts(ProductRequest(skusList, queryType)).productsOrEmpty()
+                RnIapLog.result(
+                    "fetchProducts.native",
+                    fetched.map { mapOf("id" to it.id, "type" to it.type.rawValue) }
+                )
 
-                        // Preserve input order for non-All queries
-                        val byId = fetched.associateBy { it.id }
-                        skusList.mapNotNull { byId[it] }
-                    }
-                }
+                // Preserve input order
+                val byId = fetched.associateBy { it.id }
+                skusList.mapNotNull { byId[it] }
             } catch (e: OpenIapError) {
                 throw OpenIapException(toErrorJson(e))
             }
