@@ -146,6 +146,10 @@ and fails when:
   examples and native Apple/Google examples
 - a GraphQL Query/Mutation/Subscription operation is added or removed without
   updating the operation parity registry
+- an Android-relevant registry operation is not wired in every
+  `packages/google` flavor handler bundle (play / horizon / amazon
+  `OpenIapModule.kt`) — the generated resolver interfaces stay green on their
+  own because new bundle fields default to `null`
 - generated types or shared TS runtime helpers drift from `packages/gql`
 - framework/package version metadata or Godot Android GDAP dependencies drift
   from the package/version SSOTs
