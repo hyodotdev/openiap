@@ -81,6 +81,12 @@
     <priority>0.6</priority>
   </url>
   <url>
+    <loc>https://kit.openiap.dev/docs/ai-assistants/claude-plugin</loc>
+    <lastmod>2026-07-19</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://kit.openiap.dev/docs/release-notes</loc>
     <lastmod>2026-04-22</lastmod>
     <changefreq>weekly</changefreq>

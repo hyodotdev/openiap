@@ -13,24 +13,24 @@ function MCPServer() {
     <div className="doc-page">
       <SEO
         title="MCP Server"
-        description="Connect Codex and other MCP clients to IAPKit through the OpenIAP MCP server."
+        description="Connect Codex, Claude Code, and other MCP clients to IAPKit through the OpenIAP MCP server."
         path="/docs/guides/mcp-server"
-        keywords="OpenIAP MCP, IAPKit MCP, Codex plugin, Model Context Protocol, AI assistants"
+        keywords="OpenIAP MCP, IAPKit MCP, Codex plugin, Claude Code plugin, Model Context Protocol, AI assistants"
       />
       <h1>MCP Server</h1>
       <p>
-        OpenIAP ships an IAPKit-backed MCP server so Codex and other MCP clients
-        can inspect in-app purchase configuration, generate setup snippets,
-        manage IAPKit catalog rows, run safe store sync previews, and review app
-        purchase code from the same thread.
+        OpenIAP ships an IAPKit-backed MCP server so Codex, Claude Code, and
+        other MCP clients can inspect in-app purchase configuration, generate
+        setup snippets, manage IAPKit catalog rows, run safe store sync
+        previews, and review app purchase code from the same thread.
       </p>
       <p>
         If you only use the OpenIAP SDKs directly in your app, you do not need
         IAPKit or this MCP server. IAPKit is the optional managed
         receipt-validation backend for OpenIAP projects: it stores your product
         catalog, validates App Store / Google Play purchases, tracks
-        subscriptions, and exposes project tools that Codex can call through
-        MCP. Create or open an IAPKit project at{' '}
+        subscriptions, and exposes project tools that AI coding agents can call
+        through MCP. Create or open an IAPKit project at{' '}
         <a
           href="https://kit.openiap.dev"
           target="_blank"
@@ -82,9 +82,10 @@ function MCPServer() {
           Example App walkthrough.
         </p>
         <p>
-          The IAPKit dashboard keeps a shorter Codex plugin page at{' '}
-          <code>/docs/ai-assistants/codex-plugin</code> for Kit-local endpoint
-          and API-key details. That page links back here instead of duplicating
+          The IAPKit dashboard keeps shorter plugin pages at{' '}
+          <code>/docs/ai-assistants/codex-plugin</code> and{' '}
+          <code>/docs/ai-assistants/claude-plugin</code> for Kit-local endpoint
+          and API-key details. Those pages link back here instead of duplicating
           the full MCP guide. On a local checkout, Vite may assign different
           ports to the OpenIAP docs site and the Kit dashboard, so use the page
           path rather than the port number when opening the guide.
@@ -110,8 +111,36 @@ Do not create products, start sync jobs, or modify files until I confirm.`}</Cod
       </section>
 
       <section>
+        <AnchorLink id="claude-code-plugin" level="h2">
+          Claude Code plugin
+        </AnchorLink>
+        <p>
+          The same plugin works in Claude Code. Add the OpenIAP marketplace,
+          install the plugin, set <code>IAPKIT_API_KEY</code> in the environment
+          that launches Claude Code, then start a new session.
+        </p>
+        <CodeBlock language="bash">{`claude plugin marketplace add hyodotdev/openiap
+claude plugin install openiap@openiap
+export IAPKIT_API_KEY="openiap-kit_your-project-key"`}</CodeBlock>
+        <p>
+          Inside an interactive session you can use{' '}
+          <code>/plugin marketplace add hyodotdev/openiap</code> and{' '}
+          <code>/plugin install openiap@openiap</code> instead. If you do not
+          want the plugin bundle, register the hosted MCP server directly:
+        </p>
+        <CodeBlock language="bash">{`claude mcp add --transport http openiap https://kit.openiap.dev/mcp \\
+  --header "Authorization: Bearer \${IAPKIT_API_KEY}"`}</CodeBlock>
+        <p>
+          Contributors working inside the OpenIAP monorepo get the same server
+          from the repo's project-scoped <code>.mcp.json</code> automatically —
+          approve it once and export <code>IAPKIT_API_KEY</code> before
+          launching Claude Code.
+        </p>
+      </section>
+
+      <section>
         <AnchorLink id="manual-config" level="h2">
-          Manual MCP config
+          Manual MCP config (Codex)
         </AnchorLink>
         <p>
           If you do not install the plugin bundle, configure the hosted MCP
@@ -299,14 +328,15 @@ Run typecheck and tests after editing, and summarize exactly what changed.`}</Co
           Tools exposed
         </AnchorLink>
         <p>
-          Codex sees the tools with the <code>iapkit_</code> prefix. The MCP
-          server currently exposes tools for setup snippets, status checks,
+          Your agent sees the tools with the <code>iapkit_</code> prefix. The
+          MCP server currently exposes tools for setup snippets, status checks,
           troubleshooting, product catalog reads and writes, subscription lists,
           sandbox purchase guidance, synthetic webhook delivery, entitlement
           inspection, revenue analytics, and App Store / Google Play product
           sync jobs. Receipt validation still runs in your app or backend
-          through the OpenIAP SDK and IAPKit API; MCP gives Codex the project
-          context and tool results it needs to wire and verify that flow.
+          through the OpenIAP SDK and IAPKit API; MCP gives your agent the
+          project context and tool results it needs to wire and verify that
+          flow.
         </p>
         <p>
           For the lower-level backend architecture and stdio example, see{' '}
@@ -321,7 +351,7 @@ Run typecheck and tests after editing, and summarize exactly what changed.`}</Co
         <p>
           Product management tools call live IAPKit endpoints. Store sync jobs
           can write to App Store Connect or Google Play when <code>dryRun</code>{' '}
-          is false. Ask Codex to inspect first, run store sync as{' '}
+          is false. Ask your agent to inspect first, run store sync as{' '}
           <code>dryRun: true</code>, and approve live writes only after
           reviewing the proposed product id, platform, type, price, and billing
           period.

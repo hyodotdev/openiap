@@ -26,7 +26,10 @@ openiap/
 │   ├── gql/           # GraphQL schema & type generation
 │   ├── google/        # Android library
 │   ├── apple/         # iOS/macOS library
-│   └── kit/           # Hosted receipt-validation SaaS (Fly.io app)
+│   ├── kit/           # Hosted receipt-validation SaaS (Fly.io app)
+│   └── mcp-server/    # IAPKit MCP server (hosted at kit.openiap.dev/mcp)
+├── plugins/
+│   └── openiap/       # Codex + Claude Code plugin (skills + MCP config)
 ├── libraries/         # Framework SDK implementations
 │   ├── react-native-iap/  # React Native (npm)
 │   ├── expo-iap/          # Expo (npm)
@@ -170,7 +173,8 @@ Codex-compatible local skills in `.codex/skills/`, including
 for repeated self-review of current work.
 
 Codex discovers `review-self` from this repository. Install the globally unique
-OpenIAP workflow skills into your local Codex home when needed:
+skills (`openiap-workflows` and `generate-doc`) into your local Codex home when
+needed:
 
 ```bash
 ./.codex/scripts/install-skills.sh
@@ -183,6 +187,35 @@ After installation, ask Codex normally (for example, "review PR 65" or
 Keep `$review-self` repo-local. Other repositories provide project-specific
 skills with the same name, so globally linking it would make the most recently
 installed project overwrite the others.
+
+## Claude Code Compatibility
+
+Claude Code gets the same workflow surface without any install step:
+
+- **Slash commands**: `.claude/commands/*.md` load automatically as
+  `/review-pr`, `/verify-all`, and so on.
+- **Skills**: `.claude/skills/<name>/SKILL.md` are Claude Code adapters for
+  the `.codex/skills/<name>/SKILL.md` bodies. The Codex file stays the
+  canonical procedure; the Claude adapter points at it and adds only
+  Claude-specific notes (browser tooling, wake-up mechanism, subagents).
+  When you change a skill under `.codex/skills/`, check whether the matching
+  `.claude/skills/` adapter needs the same update.
+- **MCP server**: the root `.mcp.json` registers the hosted IAPKit MCP
+  endpoint (`https://kit.openiap.dev/mcp`) as a project-scoped server.
+  Export `IAPKIT_API_KEY` before launching Claude Code to authenticate.
+
+For consumers outside this repo, `.claude-plugin/marketplace.json` publishes
+the `plugins/openiap` plugin as a Claude Code marketplace:
+
+```bash
+claude plugin marketplace add hyodotdev/openiap
+claude plugin install openiap@openiap
+```
+
+`plugins/openiap` is dual-manifest: `.codex-plugin/plugin.json` (Codex, MCP
+config at `.codex-plugin/mcp.json`) and `.claude-plugin/plugin.json` (Claude
+Code, inline MCP config). The `skills/` folder is shared by both agents, so
+keep its wording agent-neutral.
 
 ## Available Skills (Slash Commands / Codex Workflows)
 

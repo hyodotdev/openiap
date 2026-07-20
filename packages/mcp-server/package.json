@@ -1,7 +1,7 @@
 {
   "name": "@hyodotdev/openiap-mcp-server",
   "version": "0.1.0",
-  "description": "Model Context Protocol server for IAPKit — wires Codex and other MCP clients into IAPKit's product, subscription, revenue, and webhook surfaces.",
+  "description": "Model Context Protocol server for IAPKit — wires Codex, Claude Code, and other MCP clients into IAPKit's product, subscription, revenue, and webhook surfaces.",
   "type": "module",
   "private": true,
   "bin": {

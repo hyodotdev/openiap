@@ -12,6 +12,7 @@ import AnalyticsPage from "./sections/analytics";
 import OperationsPage from "./sections/operations";
 import AiAssistantsPage from "./sections/ai-assistants";
 import CodexPluginPage from "./sections/codex-plugin";
+import ClaudePluginPage from "./sections/claude-plugin";
 import ReleaseNotesPage from "./sections/release-notes";
 
 /**
@@ -49,6 +50,7 @@ export const docsChildRoutes = (
     <Route path="operations" element={<OperationsPage />} />
     <Route path="ai-assistants" element={<AiAssistantsPage />} />
     <Route path="ai-assistants/codex-plugin" element={<CodexPluginPage />} />
+    <Route path="ai-assistants/claude-plugin" element={<ClaudePluginPage />} />
     <Route path="release-notes" element={<ReleaseNotesPage />} />
     {/* Unknown sub-paths bounce back to the docs index so the user
         never ends up in the authed organization routes by accident. */}
