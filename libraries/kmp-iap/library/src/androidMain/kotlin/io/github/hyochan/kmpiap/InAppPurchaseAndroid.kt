@@ -120,6 +120,9 @@ import io.github.hyochan.kmpiap.openiap.SubscriptionReplacementModeAndroid
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitAmazonProps as AndroidVerifyPurchaseWithIapkitAmazonProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitGoogleProps as AndroidVerifyPurchaseWithIapkitGoogleProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps as AndroidVerifyPurchaseWithIapkitProps
+import dev.hyo.openiap.VerifyPurchaseGoogleOptions as AndroidVerifyPurchaseGoogleOptions
+import dev.hyo.openiap.VerifyPurchaseProps as AndroidVerifyPurchaseProps
+import dev.hyo.openiap.utils.verifyPurchaseWithGooglePlay as verifyPurchaseWithGooglePlayAndroid
 import dev.hyo.openiap.utils.verifyPurchaseWithIapkit as verifyPurchaseWithIapkitAndroid
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CompletableDeferred
@@ -1379,15 +1382,10 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase {
         RequestPurchaseResultPurchases(purchases)
     }
 
-    private val validateReceiptHandler: MutationValidateReceiptHandler = { _ ->
-        // Android doesn't support native receipt validation like iOS
-        // Use verifyPurchaseWithProvider for server-side verification
-        failWith(
-            PurchaseError(
-                code = ErrorCode.FeatureNotSupported,
-                message = "validateReceipt is not supported on Android. Use verifyPurchaseWithProvider for server-side verification."
-            )
-        )
+    private val validateReceiptHandler: MutationValidateReceiptHandler = { options ->
+        // Deprecated alias — matches openiap-google, where validateReceipt
+        // delegates to verifyPurchase.
+        verifyPurchase(options)
     }
 
     private val deepLinkToSubscriptionsHandler: MutationDeepLinkToSubscriptionsHandler = { options ->
@@ -2213,19 +2211,69 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase {
     override suspend fun validateReceipt(options: ValidationOptions): ValidationResult = validateReceiptHandler(options)
 
     /**
-     * Verify a purchase against your own backend.
+     * Verify a purchase with the Google Play Developer API.
      *
      * @see <a href="https://openiap.dev/docs/features/validation#verify-purchase">https://openiap.dev/docs/features/validation#verify-purchase</a>
      */
     override suspend fun verifyPurchase(options: VerifyPurchaseProps): VerifyPurchaseResult {
-        // Android doesn't support native receipt verification like iOS
-        // Use verifyPurchaseWithProvider for server-side verification via IAPKit
-        failWith(
+        // Mirrors the other OpenIAP wrappers (flutter/godot/maui): delegate to
+        // openiap-google's Play Developer API check. The accessToken ships in
+        // the request, so this is a debugging aid — production apps should
+        // verify server-side or use verifyPurchaseWithProvider (IAPKit).
+        val googleOptions = options.google ?: failWith(
             PurchaseError(
-                code = ErrorCode.FeatureNotSupported,
-                message = "verifyPurchase is not supported on Android. Use verifyPurchaseWithProvider for server-side verification via IAPKit."
+                code = ErrorCode.PurchaseVerificationFailed,
+                message = "verifyPurchase on Android requires google options " +
+                    "(packageName, purchaseToken, accessToken, sku)"
             )
         )
+
+        return try {
+            val androidResult = verifyPurchaseWithGooglePlayAndroid(
+                AndroidVerifyPurchaseProps(
+                    apple = null,
+                    google = AndroidVerifyPurchaseGoogleOptions(
+                        accessToken = googleOptions.accessToken,
+                        isSub = googleOptions.isSub,
+                        packageName = googleOptions.packageName,
+                        purchaseToken = googleOptions.purchaseToken,
+                        sku = googleOptions.sku
+                    ),
+                    horizon = null
+                ),
+                "kmp-iap-android"
+            )
+
+            VerifyPurchaseResultAndroid(
+                autoRenewing = androidResult.autoRenewing,
+                betaProduct = androidResult.betaProduct,
+                cancelDate = androidResult.cancelDate,
+                cancelReason = androidResult.cancelReason,
+                deferredDate = androidResult.deferredDate,
+                deferredSku = androidResult.deferredSku,
+                freeTrialEndDate = androidResult.freeTrialEndDate,
+                gracePeriodEndDate = androidResult.gracePeriodEndDate,
+                parentProductId = androidResult.parentProductId,
+                productId = androidResult.productId,
+                productType = androidResult.productType,
+                purchaseDate = androidResult.purchaseDate,
+                quantity = androidResult.quantity,
+                receiptId = androidResult.receiptId,
+                renewalDate = androidResult.renewalDate,
+                term = androidResult.term,
+                termSku = androidResult.termSku,
+                testTransaction = androidResult.testTransaction
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            failWith(
+                PurchaseError(
+                    code = ErrorCode.PurchaseVerificationFailed,
+                    message = e.message ?: "Purchase verification failed"
+                )
+            )
+        }
     }
 
     /**
