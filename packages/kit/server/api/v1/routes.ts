@@ -261,7 +261,7 @@ const verifyPurchaseRouteDescription = describeRoute({
     },
     400: {
       description:
-        "Verification failed — malformed body, unknown store, or input exceeds size cap (`INVALID_INPUT`).",
+        "Verification failed — malformed body, unknown store, or input exceeds size cap (`INVALID_INPUT`), or a well-formed API key that fails project lookup (`INVALID_API_KEY`).",
       headers: commonResponseHeaders,
       content: {
         "application/json": {
@@ -288,7 +288,7 @@ const verifyPurchaseRouteDescription = describeRoute({
       },
     },
     403: {
-      description: "Invalid bearer token",
+      description: "Malformed bearer token or wrong scheme (format check only)",
       content: {
         "application/json": {
           schema: resolver(apiErrorResponseSchema),
