@@ -31,6 +31,90 @@ describe("mapGooglePlayPurchaseState", () => {
     expect(state).toBe(HarmonizedPurchaseState.PENDING_ACKNOWLEDGMENT);
   });
 
+  it("maps unconsumed catalog-known consumables to ready-to-consume", () => {
+    const state = mapGooglePlayPurchaseState(
+      {
+        type: "InApp",
+        purchaseState: "PURCHASED",
+        acknowledgementState: "NOT_ACKNOWLEDGED",
+        consumptionState: "NOT_CONSUMED",
+      },
+      "Consumable",
+    );
+
+    expect(state).toBe(HarmonizedPurchaseState.READY_TO_CONSUME);
+  });
+
+  it("maps acknowledged-but-unconsumed catalog-known consumables to ready-to-consume", () => {
+    const state = mapGooglePlayPurchaseState(
+      {
+        type: "InApp",
+        purchaseState: "PURCHASED",
+        acknowledgementState: "ACKNOWLEDGED",
+        consumptionState: "NOT_CONSUMED",
+      },
+      "Consumable",
+    );
+
+    expect(state).toBe(HarmonizedPurchaseState.READY_TO_CONSUME);
+  });
+
+  it("still reports consumed for catalog-known consumables Google marks consumed", () => {
+    const state = mapGooglePlayPurchaseState(
+      {
+        type: "InApp",
+        purchaseState: "PURCHASED",
+        acknowledgementState: "ACKNOWLEDGED",
+        consumptionState: "CONSUMED",
+      },
+      "Consumable",
+    );
+
+    expect(state).toBe(HarmonizedPurchaseState.CONSUMED);
+  });
+
+  it("keeps pending acknowledgment for catalog-known non-consumables", () => {
+    const state = mapGooglePlayPurchaseState(
+      {
+        type: "InApp",
+        purchaseState: "PURCHASED",
+        acknowledgementState: "NOT_ACKNOWLEDGED",
+        consumptionState: "NOT_CONSUMED",
+      },
+      "NonConsumable",
+    );
+
+    expect(state).toBe(HarmonizedPurchaseState.PENDING_ACKNOWLEDGMENT);
+  });
+
+  it("keeps pending acknowledgment when the product is not in the catalog", () => {
+    const state = mapGooglePlayPurchaseState(
+      {
+        type: "InApp",
+        purchaseState: "PURCHASED",
+        acknowledgementState: "NOT_ACKNOWLEDGED",
+        consumptionState: "NOT_CONSUMED",
+      },
+      null,
+    );
+
+    expect(state).toBe(HarmonizedPurchaseState.PENDING_ACKNOWLEDGMENT);
+  });
+
+  it("ignores the catalog type for subscription receipts", () => {
+    const state = mapGooglePlayPurchaseState(
+      {
+        type: "Subscription",
+        subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+        acknowledgementState: "ACKNOWLEDGED",
+        expiryTime: Date.now() + 1000,
+      },
+      "Consumable",
+    );
+
+    expect(state).toBe(HarmonizedPurchaseState.ENTITLED);
+  });
+
   it("marks subscriptions as expired when past expiry date", () => {
     const state = mapGooglePlayPurchaseState({
       type: "Subscription",

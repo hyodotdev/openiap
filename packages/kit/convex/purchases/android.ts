@@ -110,9 +110,25 @@ export const verifyGooglePlayReceiptInternalV1 = action({
           purchaseToken: args.purchaseToken,
         });
 
+      // The Play API cannot mark an inapp purchase as consumable, so consult
+      // the project's synced catalog to map unconsumed consumables to
+      // READY_TO_CONSUME instead of a PENDING_ACKNOWLEDGMENT the standard
+      // verify-then-finish client flow can never clear.
+      const catalogProductType =
+        receiptData.type === "InApp"
+          ? await ctx.runQuery(internal.products.sync.getExistingProductType, {
+              projectId: project._id,
+              platform: "Android",
+              productId: receiptData.productId,
+            })
+          : null;
+
       // Persist the store-verified purchase state; `expectedProductId`
       // mismatch is caller-scoped and should not corrupt purchase logs.
-      const storeReceiptResponse = mapToGooglePlayReceiptResponse(receiptData);
+      const storeReceiptResponse = mapToGooglePlayReceiptResponse(
+        receiptData,
+        catalogProductType,
+      );
       const receiptResponse = applyExpectedProductId(
         storeReceiptResponse,
         args.expectedProductId,

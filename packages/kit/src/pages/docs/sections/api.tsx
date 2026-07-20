@@ -243,7 +243,8 @@ export default function ApiReferencePage() {
             <tr>
               <td className="px-3 py-2 font-mono text-xs">READY_TO_CONSUME</td>
               <td className="px-3 py-2">
-                Apple or Amazon consumable ready for durable fulfillment.
+                Apple, Amazon, or catalog-known Google consumable ready for
+                durable fulfillment.
               </td>
               <td className="px-3 py-2 text-center">true</td>
             </tr>
