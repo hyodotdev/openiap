@@ -415,9 +415,19 @@ class HybridRnIap : HybridRnIapSpec() {
                     fetched.map { mapOf("id" to it.id, "type" to it.type.rawValue) }
                 )
 
-                // Preserve input order
+                // Match the iOS bridge's result shape: preserve input order,
+                // drop duplicate skus, then append any fetched products that
+                // were not requested.
                 val byId = fetched.associateBy { it.id }
-                skusList.mapNotNull { byId[it] }
+                val seenIds = mutableSetOf<String>()
+                val orderedProducts = mutableListOf<ProductCommon>()
+                skusList.forEach { sku ->
+                    byId[sku]?.takeIf { seenIds.add(it.id) }?.let(orderedProducts::add)
+                }
+                fetched.forEach { product ->
+                    if (seenIds.add(product.id)) orderedProducts.add(product)
+                }
+                orderedProducts
             } catch (e: OpenIapError) {
                 throw OpenIapException(toErrorJson(e))
             }
