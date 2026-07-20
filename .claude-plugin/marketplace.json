@@ -1,0 +1,17 @@
+{
+  "name": "openiap",
+  "owner": {
+    "name": "OpenIAP",
+    "email": "hyo@hyo.dev"
+  },
+  "description": "OpenIAP plugins for AI coding agents.",
+  "plugins": [
+    {
+      "name": "openiap",
+      "source": "./plugins/openiap",
+      "description": "Inspect and implement in-app purchase flows with OpenIAP and IAPKit through the hosted MCP server (iapkit_* tools).",
+      "category": "developer-tools",
+      "homepage": "https://openiap.dev/docs/guides/mcp-server"
+    }
+  ]
+}

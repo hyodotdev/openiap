@@ -12,8 +12,9 @@ as one Fly.io app:
 
 - `src/` — React 19 SPA (dashboard, auth, usage, projects, API keys, docs)
 - `server/` — Hono + Bun server for `/api/v1/*` + `/v1/*` + SPA fallback
-- `packages/mcp-server/` — MCP server used by `/mcp`, the Codex plugin,
-  MCP-compatible assistant clients, and self-hosted IAPKit assistant workflows
+- `packages/mcp-server/` — MCP server used by `/mcp`, the Codex and Claude
+  Code plugins, MCP-compatible assistant clients, and self-hosted IAPKit
+  assistant workflows
 - `convex/` — Convex functions (auth, orgs, projects, receipts)
 - `public/` — static assets (served by Vite in dev, Hono in prod)
 
@@ -37,7 +38,7 @@ or email-OTP (Resend).
 The MCP endpoint at `/mcp` uses the same IAPKit project key. MCP clients may
 send it as `Authorization: Bearer <project-key>`. A self-hosted MCP server can
 instead set `IAPKIT_API_KEY` so the project key stays in that private process.
-This is not an OpenAI or ChatGPT API key.
+This is not an OpenAI, ChatGPT, Anthropic, or Claude API key.
 
 ## Endpoints
 
@@ -177,11 +178,12 @@ probe traffic doesn't dominate trace quota.
 
 ### POST /mcp
 
-MCP Streamable HTTP endpoint for Codex and other MCP clients. Exposes tools
-with the `iapkit_` prefix: setup snippets, revenue analytics, status checks,
-diagnostics, product catalog reads/writes, store-sync jobs, subscriber views,
-sandbox guidance, webhook simulation, and project inspection. Full setup guide:
-`/docs/ai-assistants/codex-plugin`.
+MCP Streamable HTTP endpoint for Codex, Claude Code, and other MCP clients.
+Exposes tools with the `iapkit_` prefix: setup snippets, revenue analytics,
+status checks, diagnostics, product catalog reads/writes, store-sync jobs,
+subscriber views, sandbox guidance, webhook simulation, and project
+inspection. Setup guides: `/docs/ai-assistants/codex-plugin` and
+`/docs/ai-assistants/claude-plugin`.
 
 ## Harmonized purchase states
 
@@ -203,9 +205,10 @@ sandbox guidance, webhook simulation, and project inspection. Full setup guide:
 | ---- | ------------------------------------------------------- | ----------------------------------------------- |
 | 200  | `{ store, isValid, state, productId?, clientPayload? }` | Verification ran                                |
 | 400  | `INVALID_INPUT`                                         | Malformed body, unknown store, oversized field  |
+| 400  | `INVALID_API_KEY`                                       | Well-formed key that fails project lookup       |
 | 413  | `PAYLOAD_TOO_LARGE`                                     | Request body exceeds the 32 KB edge cap         |
 | 401  | `MISSING_API_KEY`                                       | No `Authorization` header                       |
-| 403  | `INVALID_API_KEY`                                       | Wrong scheme, malformed, or unknown key         |
+| 403  | `INVALID_API_KEY`                                       | Wrong scheme or malformed key (format only)     |
 | 429  | `RATE_LIMITED`                                          | Per-key bucket empty; honor `Retry-After`       |
 | 500  | `UNKNOWN_ERROR`                                         | Server-side failure; include `X-Correlation-Id` |
 

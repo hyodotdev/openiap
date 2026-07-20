@@ -72,6 +72,13 @@ convex/<domain>/
 └── internal.ts   # Internal-only queries/mutations called from actions
 ```
 
+One sanctioned exception: an operator-only `internalMutation` may stay
+in `mutation.ts` when moving it to `internal.ts` would change its
+generated function path (see `purchases/mutation.ts` —
+`markReceiptInvalid` is invoked from the Convex dashboard, and the
+in-file comment records the rationale). Do not "fix" such functions by
+relocating them.
+
 `convex/utils/validation.ts` holds shared `v.*` schemas. Do not edit
 `convex/_generated/*`; regenerate via `bunx convex dev`.
 

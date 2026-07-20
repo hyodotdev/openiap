@@ -75,11 +75,17 @@ export const DOCS_NAV: DocsNavEntry[] = [
   {
     slug: "ai-assistants",
     title: "AI assistants",
-    summary: "llms.txt, MCP, and Codex plugin setup.",
+    summary: "llms.txt, MCP, and AI agent plugin setup.",
     children: [
       {
         slug: "ai-assistants/codex-plugin",
         title: "Codex plugin",
+        summary:
+          "Kit endpoint and key reference; full MCP guide lives in OpenIAP docs.",
+      },
+      {
+        slug: "ai-assistants/claude-plugin",
+        title: "Claude Code plugin",
         summary:
           "Kit endpoint and key reference; full MCP guide lives in OpenIAP docs.",
       },

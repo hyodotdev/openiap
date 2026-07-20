@@ -45,5 +45,6 @@
     "editor.insertSpaces": true
   },
   "java.configuration.updateBuildConfiguration": "automatic",
-  "gradle.nestedProjects": false
+  "gradle.nestedProjects": false,
+  "eslint.workingDirectories": [{ "mode": "auto" }]
 }

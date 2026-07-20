@@ -23,7 +23,7 @@ their `{apiKey}` path segment.
 - [GET /v1/openapi](https://kit.openiap.dev/v1/openapi) — machine-readable OpenAPI spec
 - [GET /v1](https://kit.openiap.dev/v1) — Redoc UI for the OpenAPI spec
 - [GET /health](https://kit.openiap.dev/health) — liveness probe (no Convex round-trip)
-- [POST /mcp](https://kit.openiap.dev/docs/ai-assistants/codex-plugin) — MCP Streamable HTTP endpoint for Codex and other MCP clients. Uses an IAPKit project API key, not an OpenAI or ChatGPT API key.
+- [POST /mcp](https://kit.openiap.dev/docs/ai-assistants/codex-plugin) — MCP Streamable HTTP endpoint for Codex, Claude Code, and other MCP clients. Uses an IAPKit project API key, not an OpenAI, ChatGPT, Anthropic, or Claude API key.
 
 Also mounted at `/api/v1/*` for backwards compatibility. `/v1/verify-purchase`
 is an alias of `/v1/purchase/verify`. Pick `/v1/purchase/verify` for new code.
@@ -87,9 +87,10 @@ Harmonized `state` values (truthy `isValid`): `ENTITLED`,
 
 - `200` — verification ran; require `isValid`, an operation-appropriate `state`, and an exact store-verified `productId` match
 - `400 INVALID_INPUT` — malformed body / unknown store / oversized field
+- `400 INVALID_API_KEY` — well-formed key that fails project lookup (unknown or rotated)
 - `413 PAYLOAD_TOO_LARGE` — request body exceeds the 32 KB edge cap
 - `401 MISSING_API_KEY` — no `Authorization` header
-- `403 INVALID_API_KEY` — wrong scheme, malformed, or unrecognized key
+- `403 INVALID_API_KEY` — wrong scheme or malformed key (format check only)
 - `429 RATE_LIMITED` — per-key bucket empty; honor `Retry-After` seconds
 - `500 UNKNOWN_ERROR` — quote the `X-Correlation-Id` header in a support ticket
 
@@ -113,4 +114,5 @@ Harmonized `state` values (truthy `isValid`): `ENTITLED`,
 - [openiap.dev/docs/webhooks](https://openiap.dev/docs/webhooks) — operator setup steps for the lifecycle webhook URL (Apple ASN v2 + Google RTDN) and SDK code for consuming the SSE stream
 - [/docs/ai-assistants](https://kit.openiap.dev/docs/ai-assistants) — how to point Codex / Claude / Cursor / etc. at this file
 - [/docs/ai-assistants/codex-plugin](https://kit.openiap.dev/docs/ai-assistants/codex-plugin) — Codex plugin setup and self-hosted IAPKit MCP server option
+- [/docs/ai-assistants/claude-plugin](https://kit.openiap.dev/docs/ai-assistants/claude-plugin) — Claude Code plugin setup (marketplace install or claude mcp add)
 - [/docs/release-notes](https://kit.openiap.dev/docs/release-notes) — changelog

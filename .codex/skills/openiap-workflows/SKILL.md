@@ -53,9 +53,9 @@ platform rows, connected-device rows, and explicit blocked/unsupported rows.
 ## Internal Workflow Change Guard
 
 Internal agent/workflow-only changes include `.claude/commands/`,
-`.codex/skills/`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and agent automation
-notes. Do not create a branch, push, or open a PR for those changes unless the
-user explicitly asks to publish, PR, or merge them.
+`.claude/skills/`, `.codex/skills/`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`,
+and agent automation notes. Do not create a branch, push, or open a PR for
+those changes unless the user explicitly asks to publish, PR, or merge them.
 
 If a user asks to update an internal workflow and does not explicitly ask for a
 PR, keep the change local and report the changed files. If a PR is already open

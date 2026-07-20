@@ -349,6 +349,9 @@ dependencies {
     add("horizonCompileOnly", "com.android.billingclient:billing:$playBillingVersion")
     add("amazonCompileOnly", "com.android.billingclient:billing:$playBillingVersion")
     add("androidUnitTestImplementation", "com.android.billingclient:billing:$playBillingVersion")
+    // openiap-google keeps gson implementation-scoped, so tests that replicate
+    // its reflective parse of Play Developer API responses need it explicitly.
+    add("androidUnitTestImplementation", "com.google.code.gson:gson:2.10.1")
 }
 
 // Only configure publishing when we have signing credentials

@@ -1,6 +1,6 @@
 ---
 name: openiap
-description: Use when the user wants Codex to inspect, implement, or troubleshoot app in-app purchase flows with OpenIAP, including SDK setup, product catalog checks, subscription analytics, IAPKit receipt validation, store sync jobs, and webhook simulation.
+description: Use when the user wants their AI coding agent (Codex, Claude Code, etc.) to inspect, implement, or troubleshoot app in-app purchase flows with OpenIAP, including SDK setup, product catalog checks, subscription analytics, IAPKit receipt validation, store sync jobs, and webhook simulation.
 ---
 
 # OpenIAP
@@ -11,9 +11,14 @@ and exposes `iapkit_*` tools for live project operations.
 
 ## Authentication
 
-The server expects an IAPKit project API key, not an OpenAI or ChatGPT API key.
-Users should set `IAPKIT_API_KEY` in the environment that launches Codex before
-using the plugin.
+The server expects an IAPKit project API key, not an OpenAI, ChatGPT,
+Anthropic, or Claude API key. Set `IAPKIT_API_KEY` in the environment that
+launches the agent before using the plugin:
+
+- **Codex**: export `IAPKIT_API_KEY` before starting Codex; the plugin's MCP
+  config reads it through `bearer_token_env_var`.
+- **Claude Code**: export `IAPKIT_API_KEY` before starting Claude Code; the
+  plugin's MCP config expands it into the `Authorization` header.
 
 ## Operating Rules
 

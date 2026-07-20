@@ -1509,8 +1509,12 @@ class HybridRnIap : HybridRnIapSpec() {
                         },
                         isValid = item.isValid,
                         productId = item.productId?.let { Variant_NullType_String.Second(it) },
-                        state = mapIapkitPurchaseState(item.state.name),
-                        store = mapIapkitStore(item.store.name)
+                        // Use rawValue ("pending-acknowledgment"), not the Kotlin
+                        // enum constant name ("PendingAcknowledgment") — the
+                        // mappers match separator-delimited spellings, so
+                        // multi-word states would otherwise degrade to UNKNOWN.
+                        state = mapIapkitPurchaseState(item.state.rawValue),
+                        store = mapIapkitStore(item.store.rawValue)
                     )
                 }
 
@@ -1525,7 +1529,7 @@ class HybridRnIap : HybridRnIapSpec() {
                 NitroVerifyPurchaseWithProviderResult(
                     iapkit = nitroIapkitResult?.let { Variant_NullType_NitroVerifyPurchaseWithIapkitResult.Second(it) },
                     errors = nitroErrors?.let { Variant_NullType_Array_NitroVerifyPurchaseWithProviderError_.Second(it) },
-                    provider = mapPurchaseVerificationProvider(result.provider.name)
+                    provider = mapPurchaseVerificationProvider(result.provider.rawValue)
                 )
             } catch (e: Exception) {
                 RnIapLog.failure("verifyPurchaseWithProvider", e)

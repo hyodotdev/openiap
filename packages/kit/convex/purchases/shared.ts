@@ -174,8 +174,9 @@ export function mapToAppStoreReceiptResponse(
 
 export function mapToGooglePlayReceiptResponse(
   receiptData: GooglePlayReceiptData,
+  catalogProductType?: CatalogProductType | null,
 ): ReceiptResponse {
-  const state = mapGooglePlayPurchaseState(receiptData);
+  const state = mapGooglePlayPurchaseState(receiptData, catalogProductType);
 
   return {
     isValid: isValidState(state),
@@ -254,6 +255,15 @@ function matchesConsumedToken(normalized: string): boolean {
   return isConsumedToken && !isNotConsumedToken;
 }
 
+// Project catalog product type, as stored in the `products` table. The Play
+// Developer API response alone cannot distinguish consumable from
+// non-consumable inapp purchases, so callers that know the project's synced
+// catalog can pass the type through to disambiguate.
+export type CatalogProductType =
+  | "Subscription"
+  | "NonConsumable"
+  | "Consumable";
+
 export function mapGooglePlayPurchaseState(
   receipt: Pick<
     GooglePlayReceiptData,
@@ -264,6 +274,7 @@ export function mapGooglePlayPurchaseState(
     | "consumptionState"
     | "expiryTime"
   >,
+  catalogProductType?: CatalogProductType | null,
 ): HarmonizedPurchaseState {
   if (receipt.type === "Subscription") {
     if (receipt.expiryTime && receipt.expiryTime < Date.now()) {
@@ -305,6 +316,14 @@ export function mapGooglePlayPurchaseState(
   if (purchaseState?.includes("PURCHASED")) {
     if (hasConsumptionFlag(receipt.consumptionState)) {
       return HarmonizedPurchaseState.CONSUMED;
+    }
+
+    // A consumable "finishes" by being consumed, not acknowledged, so an
+    // unconsumed catalog-known consumable is awaiting fulfillment — mirror
+    // the App Store consumable mapping instead of reporting a state the
+    // client flow (verify before finishTransaction) can never clear.
+    if (catalogProductType === "Consumable") {
+      return HarmonizedPurchaseState.READY_TO_CONSUME;
     }
 
     return isAcknowledged(receipt.acknowledgementState)

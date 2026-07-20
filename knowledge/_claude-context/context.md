@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-07-16T23:03:55.935Z
+> Last updated: 2026-07-20T00:25:18.244Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -274,7 +274,11 @@ openiap/
 │   ├── docs/          # Documentation (React/Vite/Vercel)
 │   ├── gql/           # GraphQL schema & type generation
 │   ├── google/        # Android library (Kotlin)
-│   └── apple/         # iOS/macOS library (Swift)
+│   ├── apple/         # iOS/macOS library (Swift)
+│   ├── kit/           # Hosted receipt-validation SaaS (Fly.io app)
+│   └── mcp-server/    # IAPKit MCP server (hosted at kit.openiap.dev/mcp)
+├── plugins/
+│   └── openiap/       # Codex + Claude Code plugin (skills + MCP config)
 ├── libraries/         # Framework SDK implementations
 │   ├── react-native-iap/  # React Native (npm, Yarn 3, Nitro Modules)
 │   ├── expo-iap/          # Expo (npm, Bun, Expo Modules)
@@ -926,6 +930,10 @@ and fails when:
   examples and native Apple/Google examples
 - a GraphQL Query/Mutation/Subscription operation is added or removed without
   updating the operation parity registry
+- an Android-relevant registry operation is not wired in every
+  `packages/google` flavor handler bundle (play / horizon / amazon
+  `OpenIapModule.kt`) — the generated resolver interfaces stay green on their
+  own because new bundle fields default to `null`
 - generated types or shared TS runtime helpers drift from `packages/gql`
 - framework/package version metadata or Godot Android GDAP dependencies drift
   from the package/version SSOTs

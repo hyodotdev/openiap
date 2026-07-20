@@ -11,7 +11,11 @@ openiap/
 │   ├── docs/          # Documentation (React/Vite/Vercel)
 │   ├── gql/           # GraphQL schema & type generation
 │   ├── google/        # Android library (Kotlin)
-│   └── apple/         # iOS/macOS library (Swift)
+│   ├── apple/         # iOS/macOS library (Swift)
+│   ├── kit/           # Hosted receipt-validation SaaS (Fly.io app)
+│   └── mcp-server/    # IAPKit MCP server (hosted at kit.openiap.dev/mcp)
+├── plugins/
+│   └── openiap/       # Codex + Claude Code plugin (skills + MCP config)
 ├── libraries/         # Framework SDK implementations
 │   ├── react-native-iap/  # React Native (npm, Yarn 3, Nitro Modules)
 │   ├── expo-iap/          # Expo (npm, Bun, Expo Modules)

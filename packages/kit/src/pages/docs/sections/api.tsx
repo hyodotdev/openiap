@@ -243,7 +243,8 @@ export default function ApiReferencePage() {
             <tr>
               <td className="px-3 py-2 font-mono text-xs">READY_TO_CONSUME</td>
               <td className="px-3 py-2">
-                Apple or Amazon consumable ready for durable fulfillment.
+                Apple, Amazon, or catalog-known Google consumable ready for
+                durable fulfillment.
               </td>
               <td className="px-3 py-2 text-center">true</td>
             </tr>
@@ -336,6 +337,13 @@ export default function ApiReferencePage() {
               </td>
             </tr>
             <tr>
+              <td className="px-3 py-2 font-mono text-xs">400</td>
+              <td className="px-3 py-2 font-mono text-xs">INVALID_API_KEY</td>
+              <td className="px-3 py-2">
+                Well-formed key that fails project lookup (unknown or rotated).
+              </td>
+            </tr>
+            <tr>
               <td className="px-3 py-2 font-mono text-xs">413</td>
               <td className="px-3 py-2 font-mono text-xs">PAYLOAD_TOO_LARGE</td>
               <td className="px-3 py-2">
@@ -351,7 +359,7 @@ export default function ApiReferencePage() {
               <td className="px-3 py-2 font-mono text-xs">403</td>
               <td className="px-3 py-2 font-mono text-xs">INVALID_API_KEY</td>
               <td className="px-3 py-2">
-                Wrong scheme, malformed key, or key not recognized.
+                Wrong scheme or malformed key (format check only).
               </td>
             </tr>
             <tr>

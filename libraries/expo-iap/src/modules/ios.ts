@@ -25,7 +25,19 @@ import {
   createPurchaseErrorFromNativeException,
   type PurchaseError,
 } from '../utils/errorMapping';
-import {Linking} from 'react-native';
+import {Linking, Platform} from 'react-native';
+
+/**
+ * Enforce the documented iOS-only contract. Without this, calling a
+ * suffixed wrapper on another platform falls through to the native proxy
+ * and surfaces as an opaque `TypeError: ExpoIapModule.<name> is not a
+ * function` instead of the promised platform error.
+ */
+const requireIosPlatform = (methodName: string): void => {
+  if (Platform.OS !== 'ios') {
+    throw new Error(`${methodName} is only available on iOS`);
+  }
+};
 
 export type TransactionEvent = {
   transaction?: Purchase;
@@ -60,6 +72,7 @@ export function isProductIOS<T extends {platform?: string}>(
  * @see {@link https://openiap.dev/docs/apis/ios/sync-ios}
  */
 export const syncIOS: MutationField<'syncIOS'> = async () => {
+  requireIosPlatform('syncIOS');
   return !!(await ExpoIapModule.syncIOS());
 };
 
@@ -77,6 +90,7 @@ export const syncIOS: MutationField<'syncIOS'> = async () => {
 export const isEligibleForIntroOfferIOS: QueryField<
   'isEligibleForIntroOfferIOS'
 > = async (groupId) => {
+  requireIosPlatform('isEligibleForIntroOfferIOS');
   if (!groupId) {
     throw new Error('isEligibleForIntroOfferIOS requires a groupId');
   }
@@ -97,6 +111,7 @@ export const isEligibleForIntroOfferIOS: QueryField<
 export const subscriptionStatusIOS: QueryField<
   'subscriptionStatusIOS'
 > = async (sku) => {
+  requireIosPlatform('subscriptionStatusIOS');
   if (!sku) {
     throw new Error('subscriptionStatusIOS requires a SKU');
   }
@@ -118,6 +133,7 @@ export const subscriptionStatusIOS: QueryField<
 export const currentEntitlementIOS: QueryField<
   'currentEntitlementIOS'
 > = async (sku) => {
+  requireIosPlatform('currentEntitlementIOS');
   if (!sku) {
     throw new Error('currentEntitlementIOS requires a SKU');
   }
@@ -139,6 +155,7 @@ export const currentEntitlementIOS: QueryField<
 export const latestTransactionIOS: QueryField<'latestTransactionIOS'> = async (
   sku,
 ) => {
+  requireIosPlatform('latestTransactionIOS');
   if (!sku) {
     throw new Error('latestTransactionIOS requires a SKU');
   }
@@ -160,6 +177,7 @@ export const latestTransactionIOS: QueryField<'latestTransactionIOS'> = async (
 export const beginRefundRequestIOS: MutationField<
   'beginRefundRequestIOS'
 > = async (sku) => {
+  requireIosPlatform('beginRefundRequestIOS');
   if (!sku) {
     throw new Error('beginRefundRequestIOS requires a SKU');
   }
@@ -181,6 +199,7 @@ export const beginRefundRequestIOS: MutationField<
 export const showManageSubscriptionsIOS: MutationField<
   'showManageSubscriptionsIOS'
 > = async () => {
+  requireIosPlatform('showManageSubscriptionsIOS');
   const purchases = await ExpoIapModule.showManageSubscriptionsIOS();
   return (purchases ?? []) as PurchaseIOS[];
 };
@@ -198,6 +217,7 @@ export const showManageSubscriptionsIOS: MutationField<
  * @see {@link https://openiap.dev/docs/apis/ios/get-receipt-data-ios}
  */
 export const getReceiptDataIOS: QueryField<'getReceiptDataIOS'> = async () => {
+  requireIosPlatform('getReceiptDataIOS');
   return ExpoIapModule.getReceiptDataIOS();
 };
 
@@ -212,12 +232,15 @@ export const getReceiptIOS = getReceiptDataIOS;
  *   alias so consumers who previously imported `getStorefrontIOS` do not break.
  *
  * @returns {Promise<string>} ISO 3166-1 alpha-3 country code (e.g. "USA")
+ * @throws Error if called on non-iOS platform — Android callers must use the
+ *   cross-platform `getStorefront` from the main index instead
  *
  * @platform iOS
  *
  * @see {@link https://openiap.dev/docs/apis/ios/get-storefront-ios}
  */
 export const getStorefrontIOS: QueryField<'getStorefrontIOS'> = async () => {
+  requireIosPlatform('getStorefrontIOS');
   if (typeof ExpoIapModule.getStorefront !== 'function') {
     throw createPurchaseError({
       code: ErrorCode.FeatureNotSupported,
@@ -259,6 +282,7 @@ export const getStorefrontIOS: QueryField<'getStorefrontIOS'> = async () => {
  * @platform iOS
  */
 export const requestReceiptRefreshIOS = async (): Promise<string> => {
+  requireIosPlatform('requestReceiptRefreshIOS');
   return ExpoIapModule.requestReceiptRefreshIOS();
 };
 
@@ -277,6 +301,7 @@ export const requestReceiptRefreshIOS = async (): Promise<string> => {
 export const isTransactionVerifiedIOS: QueryField<
   'isTransactionVerifiedIOS'
 > = async (sku) => {
+  requireIosPlatform('isTransactionVerifiedIOS');
   if (!sku) {
     throw new Error('isTransactionVerifiedIOS requires a SKU');
   }
@@ -298,6 +323,7 @@ export const isTransactionVerifiedIOS: QueryField<
 export const getTransactionJwsIOS: QueryField<'getTransactionJwsIOS'> = async (
   sku,
 ) => {
+  requireIosPlatform('getTransactionJwsIOS');
   if (!sku) {
     throw new Error('getTransactionJwsIOS requires a SKU');
   }
@@ -324,6 +350,7 @@ export const getTransactionJwsIOS: QueryField<'getTransactionJwsIOS'> = async (
  * @see {@link https://openiap.dev/docs/apis/ios/validate-receipt-ios}
  */
 const validateReceiptIOSImpl = async (props: VerifyPurchaseProps | string) => {
+  requireIosPlatform('validateReceiptIOS');
   const sku =
     typeof props === 'string'
       ? props
@@ -357,6 +384,7 @@ export const validateReceiptIOS =
 export const presentCodeRedemptionSheetIOS: MutationField<
   'presentCodeRedemptionSheetIOS'
 > = async () => {
+  requireIosPlatform('presentCodeRedemptionSheetIOS');
   return !!(await ExpoIapModule.presentCodeRedemptionSheetIOS());
 };
 
@@ -379,6 +407,7 @@ export const presentCodeRedemptionSheetIOS: MutationField<
 export const getAppTransactionIOS: QueryField<
   'getAppTransactionIOS'
 > = async () => {
+  requireIosPlatform('getAppTransactionIOS');
   return (await ExpoIapModule.getAppTransactionIOS()) ?? null;
 };
 
@@ -397,6 +426,7 @@ export const getAppTransactionIOS: QueryField<
 export const getPromotedProductIOS: QueryField<
   'getPromotedProductIOS'
 > = async () => {
+  requireIosPlatform('getPromotedProductIOS');
   const product = await ExpoIapModule.getPromotedProductIOS();
   return (product ?? null) as ProductIOS | null;
 };
@@ -418,6 +448,7 @@ export const getPromotedProductIOS: QueryField<
 export const requestPurchaseOnPromotedProductIOS: MutationField<
   'requestPurchaseOnPromotedProductIOS'
 > = async () => {
+  requireIosPlatform('requestPurchaseOnPromotedProductIOS');
   const result = await ExpoIapModule.requestPurchaseOnPromotedProductIOS();
   return result ?? true;
 };
@@ -433,6 +464,7 @@ export const requestPurchaseOnPromotedProductIOS: MutationField<
 export const getPendingTransactionsIOS: QueryField<
   'getPendingTransactionsIOS'
 > = async () => {
+  requireIosPlatform('getPendingTransactionsIOS');
   const transactions = await ExpoIapModule.getPendingTransactionsIOS();
   return (transactions ?? []) as PurchaseIOS[];
 };
@@ -445,6 +477,7 @@ export const getPendingTransactionsIOS: QueryField<
 export const getAllTransactionsIOS: QueryField<
   'getAllTransactionsIOS'
 > = async () => {
+  requireIosPlatform('getAllTransactionsIOS');
   const transactions = await ExpoIapModule.getAllTransactionsIOS();
   return (transactions ?? []) as PurchaseIOS[];
 };
@@ -460,6 +493,7 @@ export const getAllTransactionsIOS: QueryField<
 export const clearTransactionIOS: MutationField<
   'clearTransactionIOS'
 > = async () => {
+  requireIosPlatform('clearTransactionIOS');
   return !!(await ExpoIapModule.clearTransactionIOS());
 };
 
@@ -487,6 +521,7 @@ export const deepLinkToSubscriptionsIOS = (): Promise<void> =>
 export const canPresentExternalPurchaseNoticeIOS: QueryField<
   'canPresentExternalPurchaseNoticeIOS'
 > = async () => {
+  requireIosPlatform('canPresentExternalPurchaseNoticeIOS');
   return !!(await ExpoIapModule.canPresentExternalPurchaseNoticeIOS());
 };
 
@@ -503,6 +538,7 @@ export const canPresentExternalPurchaseNoticeIOS: QueryField<
 export const presentExternalPurchaseNoticeSheetIOS: MutationField<
   'presentExternalPurchaseNoticeSheetIOS'
 > = async () => {
+  requireIosPlatform('presentExternalPurchaseNoticeSheetIOS');
   const result = await ExpoIapModule.presentExternalPurchaseNoticeSheetIOS();
   return result as ExternalPurchaseNoticeResultIOS;
 };
@@ -519,6 +555,7 @@ export const presentExternalPurchaseNoticeSheetIOS: MutationField<
 export const presentExternalPurchaseLinkIOS: MutationField<
   'presentExternalPurchaseLinkIOS'
 > = async (url: string) => {
+  requireIosPlatform('presentExternalPurchaseLinkIOS');
   const result = await ExpoIapModule.presentExternalPurchaseLinkIOS(url);
   return result as ExternalPurchaseLinkResultIOS;
 };
@@ -536,6 +573,7 @@ export const presentExternalPurchaseLinkIOS: MutationField<
 export const isEligibleForExternalPurchaseCustomLinkIOS: QueryField<
   'isEligibleForExternalPurchaseCustomLinkIOS'
 > = async () => {
+  requireIosPlatform('isEligibleForExternalPurchaseCustomLinkIOS');
   return !!(await ExpoIapModule.isEligibleForExternalPurchaseCustomLinkIOS());
 };
 
@@ -553,6 +591,7 @@ export const isEligibleForExternalPurchaseCustomLinkIOS: QueryField<
 export const getExternalPurchaseCustomLinkTokenIOS: QueryField<
   'getExternalPurchaseCustomLinkTokenIOS'
 > = async (tokenType) => {
+  requireIosPlatform('getExternalPurchaseCustomLinkTokenIOS');
   if (!tokenType) {
     throw new Error(
       "getExternalPurchaseCustomLinkTokenIOS requires a tokenType ('acquisition' or 'services')",
@@ -579,6 +618,7 @@ export const getExternalPurchaseCustomLinkTokenIOS: QueryField<
 export const showExternalPurchaseCustomLinkNoticeIOS: MutationField<
   'showExternalPurchaseCustomLinkNoticeIOS'
 > = async (noticeType) => {
+  requireIosPlatform('showExternalPurchaseCustomLinkNoticeIOS');
   if (!noticeType) {
     throw new Error(
       "showExternalPurchaseCustomLinkNoticeIOS requires a noticeType ('browser')",

@@ -796,6 +796,148 @@ function checkOperationRegistry() {
   }
 }
 
+// packages/google dispatches through hand-written Mutation/Query/Subscription
+// handler bundles in each flavor's OpenIapModule.kt — NOT through the
+// generated resolver interfaces that checkGeneratedTypeSync() compares. A new
+// Android operation regenerates into Types.kt (keeping that check green) while
+// its nullable bundle field silently defaults to null, which is exactly the
+// "declared but not implemented" gap this audit exists to catch. So compare
+// every flavor's bundle argument names against the registry directly.
+const GOOGLE_FLAVOR_MODULES = [
+  "packages/google/openiap/src/play/java/dev/hyo/openiap/OpenIapModule.kt",
+  "packages/google/openiap/src/horizon/java/dev/hyo/openiap/OpenIapModule.kt",
+  "packages/google/openiap/src/amazon/java/dev/hyo/openiap/OpenIapModule.kt",
+];
+
+// Kotlin comments and string literals may contain brackets or commas (e.g.
+// `// (optional)` or `"a, b"`) that must not affect the structural
+// bracket-depth and argument-split scans below. Blank their contents out with
+// spaces, preserving indices, so only real code characters are scanned.
+function maskKotlinCommentsAndStrings(text) {
+  let masked = "";
+  let state = "code";
+  let index = 0;
+  while (index < text.length) {
+    const char = text[index];
+    const next = text[index + 1];
+    if (state === "code") {
+      if (char === "/" && next === "/") {
+        state = "line";
+        masked += "  ";
+        index += 2;
+        continue;
+      }
+      if (char === "/" && next === "*") {
+        state = "block";
+        masked += "  ";
+        index += 2;
+        continue;
+      }
+      if (char === '"') state = "string";
+      masked += char;
+      index += 1;
+      continue;
+    }
+    if (state === "line") {
+      if (char === "\n") state = "code";
+      masked += char === "\n" ? "\n" : " ";
+      index += 1;
+      continue;
+    }
+    if (state === "block") {
+      if (char === "*" && next === "/") {
+        state = "code";
+        masked += "  ";
+        index += 2;
+        continue;
+      }
+      masked += char === "\n" ? "\n" : " ";
+      index += 1;
+      continue;
+    }
+    if (char === "\\") {
+      masked += "  ";
+      index += 2;
+      continue;
+    }
+    if (char === '"') state = "code";
+    masked += char === '"' ? '"' : " ";
+    index += 1;
+  }
+  return masked;
+}
+
+function parseHandlerBundleArgumentNames(text, bundleType, relativePath) {
+  const source = maskKotlinCommentsAndStrings(text);
+  const marker = new RegExp(
+    `override val \\w+Handlers: ${bundleType} = ${bundleType}\\(`,
+  );
+  const match = marker.exec(source);
+  if (!match) {
+    fail(`${relativePath} is missing an override val ${bundleType} bundle`);
+    return [];
+  }
+
+  // Walk the balanced bracket span of the constructor call, then collect the
+  // top-level `name =` argument names inside it.
+  let index = match.index + match[0].length;
+  const start = index;
+  let depth = 1;
+  while (index < source.length && depth > 0) {
+    const char = source[index];
+    if (char === "(" || char === "{" || char === "[") depth += 1;
+    else if (char === ")" || char === "}" || char === "]") depth -= 1;
+    index += 1;
+  }
+  if (depth !== 0) {
+    fail(`${relativePath} has an unbalanced ${bundleType} bundle`);
+    return [];
+  }
+  const block = source.slice(start, index - 1);
+
+  const names = [];
+  const pushName = (segment) => {
+    const nameMatch = segment.match(/^\s*([A-Za-z][A-Za-z0-9_]*)\s*=/);
+    if (nameMatch) names.push(nameMatch[1]);
+  };
+  let level = 0;
+  let argStart = 0;
+  for (let cursor = 0; cursor < block.length; cursor += 1) {
+    const char = block[cursor];
+    if (char === "(" || char === "{" || char === "[") level += 1;
+    else if (char === ")" || char === "}" || char === "]") level -= 1;
+    else if (char === "," && level === 0) {
+      pushName(block.slice(argStart, cursor));
+      argStart = cursor + 1;
+    }
+  }
+  pushName(block.slice(argStart));
+  return names.sort();
+}
+
+function checkGoogleFlavorHandlerWiring() {
+  const androidRelevantOperations = Object.fromEntries(
+    Object.entries(operationParityRegistry).map(([kind, operations]) => [
+      kind,
+      operations.filter((operation) => !operation.endsWith("IOS")),
+    ]),
+  );
+  for (const relativePath of GOOGLE_FLAVOR_MODULES) {
+    expectFile(relativePath);
+    if (!exists(relativePath)) continue;
+    const text = read(relativePath);
+    for (const [kind, expectedOperations] of Object.entries(
+      androidRelevantOperations,
+    )) {
+      expectSameSet(
+        `${relativePath} ${kind}Handlers wiring`,
+        expectedOperations,
+        parseHandlerBundleArgumentNames(text, `${kind}Handlers`, relativePath),
+      );
+    }
+  }
+}
+
 function walk(dir, acc = []) {
   if (!fs.existsSync(dir)) return acc;
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -5964,6 +6106,7 @@ checkE2eExampleIds();
 checkGeneratedTypeSync();
 checkGqlRuntimeExports();
 checkOperationRegistry();
+checkGoogleFlavorHandlerWiring();
 checkFrameworkOperationBindings();
 checkExpoRouterExample("libraries/expo-iap/example", "src/utils/constants.ts");
 checkReactNativeClassic();

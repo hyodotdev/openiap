@@ -34,7 +34,7 @@ const unifiedPurchaseStates = [
   {
     name: "READY_TO_CONSUME",
     description:
-      "Consumable purchase is ready to be fulfilled. Note: This state is only applicable to App Store and does not reflect the actual consumable state of the item.",
+      "Consumable purchase is ready to be fulfilled. Reported for App Store and Amazon consumables, and for Google Play purchases the project catalog identifies as consumable. Reflects the state at verification time, not later consumption.",
   },
   {
     name: "CONSUMED",
