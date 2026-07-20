@@ -146,4 +146,38 @@ describe("codegen defaults", () => {
     expect(output).toContain("var renderer: Variant = null");
     expect(output).toContain("if renderer != null:");
   });
+
+  it("emits GraphQL enum-list defaults as GDScript array initializers", () => {
+    // Regression: list defaults used to fall through to `[]`, silently
+    // dropping schema defaults such as `categories: [InAppMessageCategoryAndroid!]
+    // = [TRANSACTIONAL]` while every other language plugin kept them.
+    const categoryEnum: IREnum = {
+      name: "Category",
+      isErrorCode: false,
+      values: [
+        {
+          name: "TRANSACTIONAL",
+          rawValue: "transactional",
+          legacyAliases: [],
+        },
+        {
+          name: "PROMOTIONAL",
+          rawValue: "promotional",
+          legacyAliases: [],
+        },
+      ],
+    };
+    const listType: IRType = {
+      kind: "list",
+      nullable: false,
+      elementType: { kind: "enum", name: "Category", nullable: false },
+    };
+    const output = new GDScriptPlugin({ outputPath: "types.gd" }).generate(
+      schema([field("categories", listType, ["TRANSACTIONAL"])], [categoryEnum]),
+    );
+
+    expect(output).toContain(
+      "var categories: Array[Category] = [Category.TRANSACTIONAL]",
+    );
+  });
 });

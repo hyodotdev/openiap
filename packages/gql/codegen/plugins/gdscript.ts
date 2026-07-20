@@ -128,20 +128,38 @@ export class GDScriptPlugin extends CodegenPlugin {
     if (field.defaultValue === undefined || field.defaultValue === null) {
       return null;
     }
+    return this.buildSchemaDefaultForType(field.type, field.defaultValue);
+  }
 
-    if (field.type.kind === 'enum' && typeof field.defaultValue === 'string') {
-      return `${field.type.name}.${this.enumValueCase(field.defaultValue)}`;
+  private buildSchemaDefaultForType(
+    type: IRType,
+    defaultValue: unknown,
+  ): string | null {
+    // Lists recurse per element (e.g. `[TRANSACTIONAL]` in the schema must
+    // become `[InAppMessageCategoryAndroid.TRANSACTIONAL]`, not `[]`) —
+    // mirrors buildDefaultValueForType in the Kotlin/Swift/Dart plugins.
+    if (type.kind === 'list') {
+      if (!Array.isArray(defaultValue)) return null;
+      const items = defaultValue.map((value) =>
+        this.buildSchemaDefaultForType(type.elementType!, value),
+      );
+      if (items.some((item) => item === null)) return null;
+      return `[${items.join(', ')}]`;
     }
 
-    if (field.type.kind === 'scalar') {
-      if (typeof field.defaultValue === 'string') {
-        return JSON.stringify(field.defaultValue);
+    if (type.kind === 'enum' && typeof defaultValue === 'string') {
+      return `${type.name}.${this.enumValueCase(defaultValue)}`;
+    }
+
+    if (type.kind === 'scalar') {
+      if (typeof defaultValue === 'string') {
+        return JSON.stringify(defaultValue);
       }
       if (
-        typeof field.defaultValue === 'number' ||
-        typeof field.defaultValue === 'boolean'
+        typeof defaultValue === 'number' ||
+        typeof defaultValue === 'boolean'
       ) {
-        return String(field.defaultValue);
+        return String(defaultValue);
       }
     }
 

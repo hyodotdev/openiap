@@ -4319,7 +4319,7 @@ class GetBillingChoiceInfoParamsAndroid:
 ## Parameters for showing Play billing in-app messages (Android) Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (upstream API available since Play Billing 4.1.0).
 class InAppMessageParamsAndroid:
 	## In-app message categories to show. Defaults to transactional messages.
-	var categories: Array[InAppMessageCategoryAndroid] = []
+	var categories: Array[InAppMessageCategoryAndroid] = [InAppMessageCategoryAndroid.TRANSACTIONAL]
 
 	static func from_dict(data: Dictionary) -> InAppMessageParamsAndroid:
 		var obj = InAppMessageParamsAndroid.new()
