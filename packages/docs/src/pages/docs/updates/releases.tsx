@@ -22,6 +22,13 @@ interface Note {
   element: React.ReactNode;
 }
 
+const crossSdkAuditReleases = [
+  ['react-native-iap 15.5.3', 'react-native-iap-15.5.3'],
+  ['expo-iap 4.6.0', 'expo-iap-4.6.0'],
+  ['godot-iap 2.5.2', 'godot-iap-2.5.2'],
+  ['kmp-iap 2.6.0', 'kmp-iap-2.6.0'],
+] as const;
+
 const productClientPayloadReleases = [
   ['openiap-apple 2.4.1', '2.4.1'],
   ['openiap-google 2.4.1', 'google-2.4.1'],
@@ -63,6 +70,165 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // July 20, 2026 - Cross-SDK audit fixes and IAPKit verified-state accuracy
+    {
+      id: 'cross-sdk-audit-fixes-2026-07-20',
+      date: new Date('2026-07-20'),
+      element: (
+        <div key="cross-sdk-audit-fixes-2026-07-20" style={noteCardStyle}>
+          <AnchorLink id="cross-sdk-audit-fixes-2026-07-20" level="h4">
+            July 20, 2026 - Cross-SDK audit fixes and IAPKit verified-state
+            accuracy
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes coordinated framework releases from a cross-SDK audit (
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/234"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              PR #234
+            </a>
+            ): enforced platform guards in Expo, Google Play purchase
+            verification in KMP, an accurate IAPKit verified-state pipeline end
+            to end, and a Godot in-app message default fix. The same train ships
+            Claude Code parity for the repository tooling (dual-manifest plugin,
+            marketplace, and hosted MCP docs) and IAPKit service-side fixes that
+            deploy with the dashboard rather than as a package.
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Expo</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>expo-iap 4.6.0</strong> - behavior change:
+              platform-suffixed APIs now throw their documented platform error
+              when called on the wrong OS. Previously iOS-only wrappers such as{' '}
+              <code>getStorefrontIOS</code> could silently succeed on Android,
+              and Android-only wrappers surfaced an opaque{' '}
+              <code>TypeError</code> instead of the promised error. Callers that
+              relied on silent no-ops should gate calls with{' '}
+              <code>Platform.OS</code>.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>React Native</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>react-native-iap 15.5.3</strong> - fixes the Android{' '}
+              <code>verifyPurchaseWithProvider</code> bridge degrading
+              multi-word IAPKit states such as{' '}
+              <code>pending-acknowledgment</code> and{' '}
+              <code>ready-to-consume</code> to <code>unknown</code>; Android now
+              maps enum raw values exactly like iOS.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>KMP</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>kmp-iap 2.6.0</strong> - implements Android{' '}
+              <code>verifyPurchase</code> through the Google Play Developer API,
+              matching the other OpenIAP wrappers, with{' '}
+              <code>validateReceipt</code> delegating to it. The result mapping
+              tolerates fields Google omits from real{' '}
+              <code>purchases.products</code> responses, so valid purchases no
+              longer fail with a parameter-null error.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Godot</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>godot-iap 2.5.2</strong> -{' '}
+              <code>InAppMessageParamsAndroid.categories</code> now defaults to
+              transactional messages as documented (the GDScript generator
+              previously dropped list-typed schema defaults, so{' '}
+              <code>show_in_app_messages</code> showed nothing by default).
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>IAPKit</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>Verified states</strong> - Google verification now
+              consults the project&apos;s synced product catalog, so an
+              unconsumed consumable records <code>READY_TO_CONSUME</code>{' '}
+              instead of a <code>PENDING_ACKNOWLEDGMENT</code> that the standard
+              verify-then-finish client flow could never clear. The purchases
+              view shows these rows as Ready to consume, matching App Store and
+              Amazon behavior.
+            </li>
+            <li>
+              <strong>Hardening</strong> - receipt invalidation is now an
+              internal-only mutation, and the invalid API key contract is
+              documented as 400 for malformed keys and 403 for unknown keys.
+              These service-side changes deploy with IAPKit itself and need no
+              SDK update.
+            </li>
+          </ul>
+
+          <div>
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              {crossSdkAuditReleases.map(([label, tag]) => (
+                <li key={tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // July 16, 2026 - IAPKit product client payloads
     {
       id: 'iapkit-product-client-payloads-2026-07-16',
