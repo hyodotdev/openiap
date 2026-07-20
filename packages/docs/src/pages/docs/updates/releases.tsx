@@ -22,6 +22,10 @@ interface Note {
   element: React.ReactNode;
 }
 
+const fetchProductsAllFixReleases = [
+  ['react-native-iap 15.5.4', 'react-native-iap-15.5.4'],
+] as const;
+
 const crossSdkAuditReleases = [
   ['react-native-iap 15.5.3', 'react-native-iap-15.5.3'],
   ['expo-iap 4.6.0', 'expo-iap-4.6.0'],
@@ -70,6 +74,106 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // July 20, 2026 - react-native-iap 15.5.4
+    {
+      id: 'react-native-iap-fetch-products-all-fix-2026-07-20',
+      date: new Date('2026-07-20'),
+      element: (
+        <div
+          key="react-native-iap-fetch-products-all-fix-2026-07-20"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="react-native-iap-fetch-products-all-fix-2026-07-20"
+            level="h4"
+          >
+            July 20, 2026 - react-native-iap 15.5.4
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes a focused Android patch for the React Native library. The
+            OpenIAP Spec and native package versions are unchanged. The
+            regression was reported in{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/issues/238"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              issue #238
+            </a>{' '}
+            and fixed in{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/239"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #239
+            </a>
+            .
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>React Native</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>react-native-iap 15.5.4</strong> - fixes Android{' '}
+              <code>fetchProducts(&#123; type: &apos;all&apos; &#125;)</code>{' '}
+              returning subscriptions as <code>in-app</code> with{' '}
+              <code>productStatusAndroid: &apos;not-found&apos;</code>. The
+              Android bridge previously expanded <code>all</code> into separate
+              in-app and subscription queries and merged them first-match-wins,
+              so the in-app query&apos;s not-found placeholder row shadowed the
+              real subscription. The bridge now delegates <code>all</code> to
+              the native query, so each sku keeps its real product type and
+              status, and the internal product-type cache no longer mislabels
+              subscription skus (which could break a subsequent{' '}
+              <code>requestPurchase</code>).
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              {fetchProductsAllFixReleases.map(([label, tag]) => (
+                <li key={tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // July 20, 2026 - Cross-SDK audit fixes and IAPKit verified-state accuracy
     {
       id: 'cross-sdk-audit-fixes-2026-07-20',
