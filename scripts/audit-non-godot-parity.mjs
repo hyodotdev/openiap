@@ -809,11 +809,70 @@ const GOOGLE_FLAVOR_MODULES = [
   "packages/google/openiap/src/amazon/java/dev/hyo/openiap/OpenIapModule.kt",
 ];
 
+// Kotlin comments and string literals may contain brackets or commas (e.g.
+// `// (optional)` or `"a, b"`) that must not affect the structural
+// bracket-depth and argument-split scans below. Blank their contents out with
+// spaces, preserving indices, so only real code characters are scanned.
+function maskKotlinCommentsAndStrings(text) {
+  let masked = "";
+  let state = "code";
+  let index = 0;
+  while (index < text.length) {
+    const char = text[index];
+    const next = text[index + 1];
+    if (state === "code") {
+      if (char === "/" && next === "/") {
+        state = "line";
+        masked += "  ";
+        index += 2;
+        continue;
+      }
+      if (char === "/" && next === "*") {
+        state = "block";
+        masked += "  ";
+        index += 2;
+        continue;
+      }
+      if (char === '"') state = "string";
+      masked += char;
+      index += 1;
+      continue;
+    }
+    if (state === "line") {
+      if (char === "\n") state = "code";
+      masked += char === "\n" ? "\n" : " ";
+      index += 1;
+      continue;
+    }
+    if (state === "block") {
+      if (char === "*" && next === "/") {
+        state = "code";
+        masked += "  ";
+        index += 2;
+        continue;
+      }
+      masked += char === "\n" ? "\n" : " ";
+      index += 1;
+      continue;
+    }
+    if (char === "\\") {
+      masked += "  ";
+      index += 2;
+      continue;
+    }
+    if (char === '"') state = "code";
+    masked += char === '"' ? '"' : " ";
+    index += 1;
+  }
+  return masked;
+}
+
 function parseHandlerBundleArgumentNames(text, bundleType, relativePath) {
+  const source = maskKotlinCommentsAndStrings(text);
   const marker = new RegExp(
     `override val \\w+Handlers: ${bundleType} = ${bundleType}\\(`,
   );
-  const match = marker.exec(text);
+  const match = marker.exec(source);
   if (!match) {
     fail(`${relativePath} is missing an override val ${bundleType} bundle`);
     return [];
@@ -824,8 +883,8 @@ function parseHandlerBundleArgumentNames(text, bundleType, relativePath) {
   let index = match.index + match[0].length;
   const start = index;
   let depth = 1;
-  while (index < text.length && depth > 0) {
-    const char = text[index];
+  while (index < source.length && depth > 0) {
+    const char = source[index];
     if (char === "(" || char === "{" || char === "[") depth += 1;
     else if (char === ")" || char === "}" || char === "]") depth -= 1;
     index += 1;
@@ -834,7 +893,7 @@ function parseHandlerBundleArgumentNames(text, bundleType, relativePath) {
     fail(`${relativePath} has an unbalanced ${bundleType} bundle`);
     return [];
   }
-  const block = text.slice(start, index - 1);
+  const block = source.slice(start, index - 1);
 
   const names = [];
   const pushName = (segment) => {
