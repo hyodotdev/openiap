@@ -2244,26 +2244,14 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase {
                 "kmp-iap-android"
             )
 
-            VerifyPurchaseResultAndroid(
-                autoRenewing = androidResult.autoRenewing,
-                betaProduct = androidResult.betaProduct,
-                cancelDate = androidResult.cancelDate,
-                cancelReason = androidResult.cancelReason,
-                deferredDate = androidResult.deferredDate,
-                deferredSku = androidResult.deferredSku,
-                freeTrialEndDate = androidResult.freeTrialEndDate,
-                gracePeriodEndDate = androidResult.gracePeriodEndDate,
-                parentProductId = androidResult.parentProductId,
-                productId = androidResult.productId,
-                productType = androidResult.productType,
-                purchaseDate = androidResult.purchaseDate,
-                quantity = androidResult.quantity,
-                receiptId = androidResult.receiptId,
-                renewalDate = androidResult.renewalDate,
-                term = androidResult.term,
-                termSku = androidResult.termSku,
-                testTransaction = androidResult.testTransaction
-            )
+            // openiap-google parses the Play Developer API response with
+            // reflective Gson, so fields declared non-null there (the
+            // Amazon-RVS-shaped ones Google never returns, e.g.
+            // parentProductId) can still be null at runtime. A direct
+            // constructor copy would trip Kotlin's parameter null checks, so
+            // round-trip through the JSON map boundary where the generated
+            // fromJson applies its schema defaults.
+            VerifyPurchaseResultAndroid.fromJson(androidResult.toJson())
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
