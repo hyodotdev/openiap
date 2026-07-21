@@ -220,14 +220,21 @@ export const acknowledgePurchaseAndroid: MutationField<
 };
 
 /**
- * Open the Google Play Store to redeem offer codes (Android only).
- * Note: Google Play does not provide a direct API to redeem codes within the app.
- * This function opens the Play Store where users can manually enter their codes.
+ * Open the Google Play offer/promo code redemption flow so the user can enter a code (Android only).
+ * Launches the Play Store redeem page (https://play.google.com/redeem); purchases
+ * completed there are delivered through the standard purchase listeners.
+ * Does not require the billing client to be initialized (no Play Billing version requirement).
+ * Android counterpart of presentCodeRedemptionSheetIOS.
  *
- * @returns {Promise<void>}
+ * @returns Promise resolving to true when the redemption flow was launched
+ *
+ * @see {@link https://openiap.dev/docs/apis/android/open-redeem-offer-code-android}
  */
-export const openRedeemOfferCodeAndroid = async (): Promise<void> => {
-  return Linking.openURL(`https://play.google.com/redeem?code=`);
+export const openRedeemOfferCodeAndroid: MutationField<
+  'openRedeemOfferCodeAndroid'
+> = async () => {
+  await Linking.openURL('https://play.google.com/redeem');
+  return true;
 };
 
 /**

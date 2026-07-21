@@ -873,6 +873,11 @@ class OpenIapModule(
                 ?: throw OpenIapError.MissingCurrentActivity
             launchExternalLink(activity, params)
         },
+        openRedeemOfferCodeAndroid = {
+            val activity = currentActivityRef?.get()
+                ?: throw OpenIapError.MissingCurrentActivity
+            openRedeemOfferCode(activity)
+        },
         requestPurchase = requestPurchase,
         restorePurchases = restorePurchases,
         showAlternativeBillingDialogAndroid = {
@@ -991,6 +996,12 @@ class OpenIapModule(
         activity: Activity,
         params: LaunchExternalLinkParamsAndroid
     ): Boolean = false
+
+    override suspend fun openRedeemOfferCode(activity: Activity): Boolean {
+        // No-op: offer-code redemption is a Google Play feature, not supported on Amazon Appstore
+        OpenIapLog.w("openRedeemOfferCode is not supported on Amazon (no-op)", TAG)
+        return false
+    }
 
     override suspend fun getBillingChoiceInfo(params: GetBillingChoiceInfoParamsAndroid): BillingChoiceInfoAndroid {
         throw OpenIapError.FeatureNotSupported("Amazon Appstore does not support Google Play Billing Choice")

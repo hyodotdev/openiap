@@ -6923,6 +6923,15 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
+	## Open the Google Play offer/promo code redemption flow so the user can enter a code.
+	class openRedeemOfferCodeAndroidField:
+		const name = "openRedeemOfferCodeAndroid"
+		const snake_name = "open_redeem_offer_code_android"
+		class Args:
+			pass
+		const return_type = "Boolean"
+		const is_array = false
+
 	## Show Google's mandatory information dialog before a developer-rendered,
 	class showBillingProgramInformationDialogAndroidField:
 		const name = "showBillingProgramInformationDialogAndroid"
@@ -7290,6 +7299,10 @@ static func launch_external_link_android_args(params: LaunchExternalLinkParamsAn
 		else:
 			args["params"] = params
 	return args
+
+## Open the Google Play offer/promo code redemption flow so the user can enter a code.
+static func open_redeem_offer_code_android_args() -> Dictionary:
+	return {}
 
 ## Show Google's mandatory information dialog before a developer-rendered,
 static func show_billing_program_information_dialog_android_args(params: BillingProgramInformationDialogParamsAndroid) -> Dictionary:

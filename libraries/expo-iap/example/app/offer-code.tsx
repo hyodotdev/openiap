@@ -89,12 +89,14 @@ export default function OfferCodeScreen() {
           );
         }
       } else {
-        // Open Play Store for Android
-        await openRedeemOfferCodeAndroid();
-        Alert.alert(
-          'Play Store Opened',
-          'Enter your code in the Play Store. After redemption, return to the app to see your purchase.',
-        );
+        // Open the Play Store redeem page for Android
+        const result = await openRedeemOfferCodeAndroid();
+        if (result) {
+          Alert.alert(
+            'Play Store Opened',
+            'Enter your code in the Play Store. After redemption, return to the app to see your purchase.',
+          );
+        }
       }
     } catch (error) {
       console.log('Error redeeming code:', error);

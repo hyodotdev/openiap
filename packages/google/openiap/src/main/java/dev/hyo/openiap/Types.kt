@@ -6139,6 +6139,17 @@ public interface MutationResolver {
      */
     suspend fun launchExternalLinkAndroid(params: LaunchExternalLinkParamsAndroid): Boolean
     /**
+     * Open the Google Play offer/promo code redemption flow so the user can enter a code.
+     * Launches the Play Store redeem page (https://play.google.com/redeem); purchases
+     * completed there are delivered through the standard purchase listeners.
+     * Does not require the billing client to be initialized (no Play Billing version requirement).
+     * OpenIAP availability: Spec 2.5.0 / openiap-google 2.5.0.
+     * Android counterpart of presentCodeRedemptionSheetIOS.
+     * Returns true when the redemption flow was launched.
+     * See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
+     */
+    suspend fun openRedeemOfferCodeAndroid(): Boolean
+    /**
      * Show the App Store offer code redemption sheet.
      * See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
      */
@@ -6436,6 +6447,7 @@ public typealias MutationFinishTransactionHandler = suspend (purchase: PurchaseI
 public typealias MutationInitConnectionHandler = suspend (config: InitConnectionConfig?) -> Boolean
 public typealias MutationIsBillingProgramAvailableAndroidHandler = suspend (program: BillingProgramAndroid) -> BillingProgramAvailabilityResultAndroid
 public typealias MutationLaunchExternalLinkAndroidHandler = suspend (params: LaunchExternalLinkParamsAndroid) -> Boolean
+public typealias MutationOpenRedeemOfferCodeAndroidHandler = suspend () -> Boolean
 public typealias MutationPresentCodeRedemptionSheetIOSHandler = suspend () -> Boolean
 public typealias MutationPresentExternalPurchaseLinkIOSHandler = suspend (url: String) -> ExternalPurchaseLinkResultIOS
 public typealias MutationPresentExternalPurchaseNoticeSheetIOSHandler = suspend () -> ExternalPurchaseNoticeResultIOS
@@ -6466,6 +6478,7 @@ public data class MutationHandlers(
     val initConnection: MutationInitConnectionHandler? = null,
     val isBillingProgramAvailableAndroid: MutationIsBillingProgramAvailableAndroidHandler? = null,
     val launchExternalLinkAndroid: MutationLaunchExternalLinkAndroidHandler? = null,
+    val openRedeemOfferCodeAndroid: MutationOpenRedeemOfferCodeAndroidHandler? = null,
     val presentCodeRedemptionSheetIOS: MutationPresentCodeRedemptionSheetIOSHandler? = null,
     val presentExternalPurchaseLinkIOS: MutationPresentExternalPurchaseLinkIOSHandler? = null,
     val presentExternalPurchaseNoticeSheetIOS: MutationPresentExternalPurchaseNoticeSheetIOSHandler? = null,

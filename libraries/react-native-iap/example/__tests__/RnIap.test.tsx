@@ -239,6 +239,15 @@ describe('RnIap Complete Test Suite', () => {
       );
     });
 
+    it('should export openRedeemOfferCodeAndroid', () => {
+      expect(RNIap.openRedeemOfferCodeAndroid).toBeDefined();
+      expect(typeof RNIap.openRedeemOfferCodeAndroid).toBe('function');
+    });
+
+    it('should open the redeem offer code page on Android', async () => {
+      await expect(RNIap.openRedeemOfferCodeAndroid()).resolves.toBe(true);
+    });
+
     it('should call Billing Programs Android APIs', async () => {
       await expect(
         RNIap.isBillingProgramAvailableAndroid('external-offer'),

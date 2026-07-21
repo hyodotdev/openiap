@@ -96,6 +96,7 @@ import APIsLaunchExternalLinkAndroid from './apis/android/launch-external-link-a
 import APIsCreateBillingProgramReportingDetailsAndroid from './apis/android/create-billing-program-reporting-details-android';
 import APIsShowBillingProgramInformationDialogAndroid from './apis/android/show-billing-program-information-dialog-android';
 import APIsShowInAppMessagesAndroid from './apis/android/show-in-app-messages-android';
+import APIsOpenRedeemOfferCodeAndroid from './apis/android/open-redeem-offer-code-android';
 import Events from './events';
 import Webhooks from './webhooks';
 import KitBackend from './kit-backend';
@@ -704,6 +705,10 @@ function Docs() {
                     {
                       to: '/docs/apis/android/show-in-app-messages-android',
                       label: 'showInAppMessagesAndroid',
+                    },
+                    {
+                      to: '/docs/apis/android/open-redeem-offer-code-android',
+                      label: 'openRedeemOfferCodeAndroid',
                     },
                   ],
                 },
@@ -1318,6 +1323,10 @@ function Docs() {
           <Route
             path="apis/android/show-in-app-messages-android"
             element={<APIsShowInAppMessagesAndroid />}
+          />
+          <Route
+            path="apis/android/open-redeem-offer-code-android"
+            element={<APIsOpenRedeemOfferCodeAndroid />}
           />
           <Route
             path="apis/connection"

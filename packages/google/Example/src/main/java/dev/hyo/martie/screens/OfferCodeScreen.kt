@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import dev.hyo.martie.models.AppColors
 import dev.hyo.martie.screens.uis.*
+import dev.hyo.martie.util.findActivity
 import dev.hyo.openiap.IapContext
 import dev.hyo.openiap.store.OpenIapStore
 import kotlinx.coroutines.launch
@@ -28,10 +29,10 @@ fun OfferCodeScreen(
     storeParam: OpenIapStore? = null
 ) {
     val context = LocalContext.current
+    val activity = remember(context) { context.findActivity() }
     val iapStore = storeParam ?: (IapContext.LocalOpenIapStore.current
         ?: IapContext.rememberOpenIapStore())
-    val connectionStatus by iapStore.connectionStatus.collectAsState()
-    
+
     var offerCode by remember { mutableStateOf("") }
     var showResult by remember { mutableStateOf(false) }
     var resultMessage by remember { mutableStateOf("") }
@@ -144,18 +145,26 @@ fun OfferCodeScreen(
                     
                     Button(
                         onClick = {
-                            if (offerCode.isNotBlank()) {
-                                isRedeeming = true
-                                // Note: Google Play doesn't have a direct API for promo codes
-                                // They are usually redeemed through the Play Store app
-                                resultMessage = "Promo codes should be redeemed directly in the Google Play Store app. " +
-                                              "Go to Play Store → Menu → Payments & subscriptions → Redeem code"
+                            isRedeeming = true
+                            startupScope.launch {
+                                // openRedeemOfferCode opens the Google Play redeem page
+                                // (https://play.google.com/redeem). It does not require the
+                                // billing client; the user enters the code on the Play page.
+                                val launched = runCatching {
+                                    activity?.let { iapStore.openRedeemOfferCode(it) } ?: false
+                                }.getOrDefault(false)
+                                resultMessage = if (launched) {
+                                    "Opened the Google Play redeem page. Enter your code there — " +
+                                        "completed purchases are delivered through the standard purchase listeners."
+                                } else {
+                                    "Could not open the Google Play redeem page on this device."
+                                }
                                 showResult = true
                                 isRedeeming = false
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = offerCode.isNotBlank() && !isRedeeming && connectionStatus
+                        enabled = !isRedeeming
                     ) {
                         if (isRedeeming) {
                             CircularProgressIndicator(

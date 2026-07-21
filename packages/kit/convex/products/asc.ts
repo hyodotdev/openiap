@@ -1456,7 +1456,8 @@ async function performIosSync(
   // from "kit-only" to "Ready to Submit" in App Store Connect.
   // Submission itself (screenshot upload + inAppPurchaseSubmissions
   // POST) is a follow-up because it needs a screenshot file and a
-  // dashboard upload slot we haven't built yet — see TODO below.
+  // dashboard upload slot we haven't built yet — see the
+  // DEFERRED(review-submit) note below.
   if (direction === "push" || direction === "both") {
     await checkCancelled();
     await reportPhase("push-removals", {
@@ -1975,7 +1976,7 @@ async function performIosSync(
           }
           pushed += 1;
         }
-        // TODO(review-submit): once Settings has an upload slot for a
+        // DEFERRED(review-submit): once Settings has an upload slot for a
         // project-level App Review screenshot
         // (`apple_iap_review_screenshot` purpose), add a step here:
         //   1. POST /v1/inAppPurchaseAppStoreReviewScreenshots (reserve)

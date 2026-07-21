@@ -269,7 +269,7 @@ fun AllProductsScreen(
                         PurchaseResultCard(
                             message = message.toString(),
                             status = PurchaseResultStatus.Success,
-                            onDismiss = { /* TODO */ }
+                            onDismiss = { iapStore.clearStatusMessage() }
                         )
                     }
                 }

@@ -1751,6 +1751,15 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         throw UnsupportedOperationException("launchExternalLinkAndroid is only available on Android")
     }
 
+    /**
+     * Open the Google Play offer/promo code redemption flow.
+     *
+     * @see <a href="https://openiap.dev/docs/apis/android/open-redeem-offer-code-android">https://openiap.dev/docs/apis/android/open-redeem-offer-code-android</a>
+     */
+    override suspend fun openRedeemOfferCodeAndroid(): Boolean {
+        throw UnsupportedOperationException("openRedeemOfferCodeAndroid is only available on Android")
+    }
+
     override suspend fun developerProvidedBillingAndroid(): DeveloperProvidedBillingDetailsAndroid {
         throw UnsupportedOperationException("developerProvidedBillingAndroid is only available on Android")
     }

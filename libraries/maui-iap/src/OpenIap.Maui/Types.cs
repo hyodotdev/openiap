@@ -4875,6 +4875,16 @@ public interface MutationResolver
     /// <summary>See: https://openiap.dev/docs/apis/android/launch-external-link-android</summary>
     Task<bool> LaunchExternalLinkAndroidAsync(LaunchExternalLinkParamsAndroid @params);
 
+    /// <summary>Open the Google Play offer/promo code redemption flow so the user can enter a code.</summary>
+    /// <summary>Launches the Play Store redeem page (https://play.google.com/redeem); purchases</summary>
+    /// <summary>completed there are delivered through the standard purchase listeners.</summary>
+    /// <summary>Does not require the billing client to be initialized (no Play Billing version requirement).</summary>
+    /// <summary>OpenIAP availability: Spec 2.5.0 / openiap-google 2.5.0.</summary>
+    /// <summary>Android counterpart of presentCodeRedemptionSheetIOS.</summary>
+    /// <summary>Returns true when the redemption flow was launched.</summary>
+    /// <summary>See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android</summary>
+    Task<bool> OpenRedeemOfferCodeAndroidAsync();
+
     /// <summary>Show the App Store offer code redemption sheet.</summary>
     /// <summary>See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios</summary>
     Task<bool> PresentCodeRedemptionSheetIOSAsync();

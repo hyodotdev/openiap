@@ -196,13 +196,35 @@ fun OfferCodeScreen(navController: NavController) {
                     
                     Button(
                         onClick = {
-                            // TODO: Implement when openRedeemOfferCodeAndroid is available
-                            result = "Play Store redemption not yet implemented"
+                            scope.launch {
+                                isLoading = true
+                                try {
+                                    val launched = kmpIAP.openRedeemOfferCodeAndroid()
+                                    result = if (launched) {
+                                        "Play Store redemption opened"
+                                    } else {
+                                        "Failed to open Play Store redemption"
+                                    }
+                                } catch (e: Exception) {
+                                    result = "Failed to open Play Store redemption: ${e.message}"
+                                } finally {
+                                    isLoading = false
+                                }
+                            }
                         },
+                        enabled = isConnected && !isLoading,
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
                     ) {
-                        Text("Open Play Store Redemption")
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text("Open Play Store Redemption")
+                        }
                     }
                 }
             }

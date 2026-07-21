@@ -511,6 +511,11 @@ func reconcile_after_resume() -> void:
             </Link>
           </li>
           <li>
+            <Link to="/docs/apis/android/open-redeem-offer-code-android">
+              openRedeemOfferCodeAndroid API Reference
+            </Link>
+          </li>
+          <li>
             <Link to="/docs/events/purchase-updated-listener">
               Purchase Updated Listener
             </Link>

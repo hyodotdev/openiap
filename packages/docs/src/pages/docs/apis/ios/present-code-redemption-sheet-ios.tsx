@@ -20,7 +20,13 @@ function PresentCodeRedemptionSheetIOS() {
         <span className="platform-badge platform-badge--ios">iOS</span>{' '}
         presentCodeRedemptionSheetIOS
       </h1>
-      <p>Present the App Store promo code redemption sheet.</p>
+      <p>
+        Present the App Store promo code redemption sheet. iOS counterpart of{' '}
+        <Link to="/docs/apis/android/open-redeem-offer-code-android">
+          <code>openRedeemOfferCodeAndroid</code>
+        </Link>
+        .
+      </p>
       <p>
         Calls <code>SKPaymentQueue.default().presentCodeRedemptionSheet()</code>{' '}
         (the StoreKit 1 API — the StoreKit 2 equivalent{' '}

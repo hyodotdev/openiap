@@ -189,10 +189,20 @@ describe('Android Module Functions', () => {
   });
 
   describe('openRedeemOfferCodeAndroid', () => {
-    it('opens redeem URL', async () => {
-      await openRedeemOfferCodeAndroid();
+    it('opens the Play redeem page and resolves true', async () => {
+      const result = await openRedeemOfferCodeAndroid();
       expect(Linking.openURL).toHaveBeenCalledWith(
-        'https://play.google.com/redeem?code=',
+        'https://play.google.com/redeem',
+      );
+      expect(result).toBe(true);
+    });
+
+    it('propagates Linking.openURL failures', async () => {
+      (Linking.openURL as jest.Mock).mockRejectedValueOnce(
+        new Error('unable to open URL'),
+      );
+      await expect(openRedeemOfferCodeAndroid()).rejects.toThrow(
+        'unable to open URL',
       );
     });
   });

@@ -256,8 +256,9 @@ export const presentExternalPurchaseLinkIOS: MutationField<
 export const deepLinkToSubscriptions: MutationField<
   'deepLinkToSubscriptions'
 > = async () => unsupported('deepLinkToSubscriptions');
-export const openRedeemOfferCodeAndroid = async (): Promise<void> =>
-  unsupported('openRedeemOfferCodeAndroid');
+export const openRedeemOfferCodeAndroid: MutationField<
+  'openRedeemOfferCodeAndroid'
+> = async () => unsupported('openRedeemOfferCodeAndroid');
 
 export const promotedProductListenerIOS = (): EventSubscription => ({
   remove: () => {},

@@ -572,6 +572,16 @@ class OpenIapStore(private val module: OpenIapProtocol) {
         module.launchExternalLink(activity, params)
 
     /**
+     * Open the Google Play offer/promo code redemption page (https://play.google.com/redeem)
+     * so the user can enter a code. Purchases completed there are delivered through the
+     * standard purchase listeners. Does not require the billing client to be initialized.
+     *
+     * @see <a href="https://openiap.dev/docs/apis/android/open-redeem-offer-code-android">https://openiap.dev/docs/apis/android/open-redeem-offer-code-android</a>
+     */
+    suspend fun openRedeemOfferCode(activity: Activity): Boolean =
+        module.openRedeemOfferCode(activity)
+
+    /**
      * Fetch Billing Choice display assets for developer-rendered choice screens (Play Billing 9.1.0+).
      *
      * @see <a href="https://openiap.dev/docs/apis/android/get-billing-choice-info-android">https://openiap.dev/docs/apis/android/get-billing-choice-info-android</a>

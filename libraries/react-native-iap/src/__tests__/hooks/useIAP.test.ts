@@ -18,6 +18,7 @@ const mockIap: any = {
   removePromotedProductListenerIOS: jest.fn(),
   addSubscriptionBillingIssueListener: jest.fn(),
   removeSubscriptionBillingIssueListener: jest.fn(),
+  openRedeemOfferCodeAndroid: jest.fn(async () => true),
 };
 
 jest.mock('react-native-nitro-modules', () => ({
@@ -577,6 +578,135 @@ describe('hooks/useIAP (renderer)', () => {
       // Listeners are already active from init, so reconnect skips re-registration
       // (guarded by !subscriptionsRef.current.purchaseUpdate check)
       expect(api.connected).toBe(true);
+    });
+  });
+
+  describe('listener registration ordering (issue #166)', () => {
+    it('registers purchase listeners before initConnection is called', async () => {
+      const callOrder: string[] = [];
+      jest.spyOn(IAP, 'initConnection').mockImplementation(async () => {
+        callOrder.push('initConnection');
+        return true as any;
+      });
+      jest.spyOn(IAP, 'purchaseUpdatedListener').mockImplementation((() => {
+        callOrder.push('purchaseUpdatedListener');
+        return {remove: jest.fn()};
+      }) as any);
+      jest.spyOn(IAP, 'purchaseErrorListener').mockImplementation((() => {
+        callOrder.push('purchaseErrorListener');
+        return {remove: jest.fn()};
+      }) as any);
+
+      const Harness = () => {
+        useIAP();
+        return null;
+      };
+
+      await act(async () => {
+        TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+
+      expect(callOrder).toContain('initConnection');
+      expect(callOrder.indexOf('purchaseUpdatedListener')).toBeLessThan(
+        callOrder.indexOf('initConnection'),
+      );
+      expect(callOrder.indexOf('purchaseErrorListener')).toBeLessThan(
+        callOrder.indexOf('initConnection'),
+      );
+    });
+
+    it('has purchase listeners attached while initConnection is still pending', async () => {
+      let resolveInit: ((value: boolean) => void) | undefined;
+      jest.spyOn(IAP, 'initConnection').mockImplementation(
+        () =>
+          new Promise<boolean>((resolve) => {
+            resolveInit = resolve;
+          }) as any,
+      );
+
+      let api: any;
+      const Harness = () => {
+        api = useIAP();
+        return null;
+      };
+
+      await act(async () => {
+        TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+
+      // initConnection has not resolved yet, but listeners must already exist
+      // so events fired during init are not dropped.
+      expect(api.connected).toBe(false);
+      expect(IAP.purchaseUpdatedListener).toHaveBeenCalled();
+      expect(IAP.purchaseErrorListener).toHaveBeenCalled();
+
+      await act(async () => {
+        resolveInit?.(true);
+      });
+      await act(async () => {});
+      expect(api.connected).toBe(true);
+    });
+
+    it('cleans up listeners when initConnection returns false', async () => {
+      const purchaseUpdateRemove = jest.fn();
+      const purchaseErrorRemove = jest.fn();
+      jest
+        .spyOn(IAP, 'purchaseUpdatedListener')
+        .mockImplementation((() => ({remove: purchaseUpdateRemove})) as any);
+      jest
+        .spyOn(IAP, 'purchaseErrorListener')
+        .mockImplementation((() => ({remove: purchaseErrorRemove})) as any);
+      jest.spyOn(IAP, 'initConnection').mockResolvedValue(false as any);
+
+      let api: any;
+      const Harness = () => {
+        api = useIAP();
+        return null;
+      };
+
+      await act(async () => {
+        TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+
+      expect(api.connected).toBe(false);
+      expect(IAP.purchaseUpdatedListener).toHaveBeenCalled();
+      expect(purchaseUpdateRemove).toHaveBeenCalled();
+      expect(purchaseErrorRemove).toHaveBeenCalled();
+    });
+
+    it('cleans up listeners when initConnection rejects', async () => {
+      const purchaseUpdateRemove = jest.fn();
+      const purchaseErrorRemove = jest.fn();
+      jest
+        .spyOn(IAP, 'purchaseUpdatedListener')
+        .mockImplementation((() => ({remove: purchaseUpdateRemove})) as any);
+      jest
+        .spyOn(IAP, 'purchaseErrorListener')
+        .mockImplementation((() => ({remove: purchaseErrorRemove})) as any);
+      jest
+        .spyOn(IAP, 'initConnection')
+        .mockRejectedValue(new Error('init failed'));
+
+      const onError = jest.fn();
+      let api: any;
+      const Harness = () => {
+        api = useIAP({onError});
+        return null;
+      };
+
+      await act(async () => {
+        TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+
+      expect(api.connected).toBe(false);
+      expect(IAP.purchaseUpdatedListener).toHaveBeenCalled();
+      expect(purchaseUpdateRemove).toHaveBeenCalled();
+      expect(purchaseErrorRemove).toHaveBeenCalled();
+      expect(onError).toHaveBeenCalledWith(expect.any(Error));
     });
   });
 });

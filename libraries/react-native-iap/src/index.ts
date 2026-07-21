@@ -1,5 +1,5 @@
 // External dependencies
-import {Platform} from 'react-native';
+import {Linking, Platform} from 'react-native';
 // Side-effect import ensures Nitro installs its dispatcher before IAP is used (no-op in tests)
 import 'react-native-nitro-modules';
 import {NitroModules} from 'react-native-nitro-modules';
@@ -2109,6 +2109,39 @@ export const consumePurchaseAndroid: MutationField<
       responseCode: parsedError.responseCode,
       debugMessage: parsedError.debugMessage,
     });
+  }
+};
+
+/**
+ * Open the Google Play offer/promo code redemption page (Android only).
+ * Launches the Play Store redeem page (https://play.google.com/redeem) so the
+ * user can enter a code; purchases completed there are delivered through the
+ * standard purchase listeners. Does not require the billing client to be
+ * initialized. Android counterpart of `presentCodeRedemptionSheetIOS`.
+ *
+ * @returns Promise<boolean> - true when the redemption page was launched
+ * @platform Android
+ *
+ * @example
+ * ```typescript
+ * await openRedeemOfferCodeAndroid();
+ * // Purchases redeemed in the Play Store arrive via purchaseUpdatedListener
+ * ```
+ *
+ * @see {@link https://openiap.dev/docs/apis/android/open-redeem-offer-code-android}
+ */
+export const openRedeemOfferCodeAndroid: MutationField<
+  'openRedeemOfferCodeAndroid'
+> = async () => {
+  if (Platform.OS !== 'android') {
+    throw new Error('openRedeemOfferCodeAndroid is only supported on Android');
+  }
+  try {
+    await Linking.openURL('https://play.google.com/redeem');
+    return true;
+  } catch (error) {
+    RnIapConsole.error('Failed to open redeem offer code page:', error);
+    throw error;
   }
 };
 

@@ -106,6 +106,20 @@ extend type Mutation {
   # Future
   launchExternalLinkAndroid(params: LaunchExternalLinkParamsAndroid!): Boolean!
 
+  # Offer Code Redemption
+  """
+  Open the Google Play offer/promo code redemption flow so the user can enter a code.
+  Launches the Play Store redeem page (https://play.google.com/redeem); purchases
+  completed there are delivered through the standard purchase listeners.
+  Does not require the billing client to be initialized (no Play Billing version requirement).
+  OpenIAP availability: Spec 2.5.0 / openiap-google 2.5.0.
+  Android counterpart of presentCodeRedemptionSheetIOS.
+  Returns true when the redemption flow was launched.
+  See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
+  """
+  # Future
+  openRedeemOfferCodeAndroid: Boolean!
+
   """
   Show Google's mandatory information dialog before a developer-rendered,
   in-app Billing Choice screen.

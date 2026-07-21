@@ -174,6 +174,47 @@ internal sealed partial class OpenIapAndroid
         return InvokeBool(cb => _module.LaunchExternalLinkAndroid(json, cb));
     }
 
+    private const string PlayRedeemPageUrl = "https://play.google.com/redeem";
+
+    /// <summary>
+    /// Open the Google Play offer/promo code redemption flow so the user can
+    /// enter a code. Launches the Play Store redeem page
+    /// (https://play.google.com/redeem); purchases completed there are
+    /// delivered through the standard purchase listeners. Does not require
+    /// the billing client to be initialized. Returns true when the
+    /// redemption flow was launched.
+    /// See https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
+    /// </summary>
+    public Task<bool> OpenRedeemOfferCodeAndroidAsync()
+    {
+        // Deliberately self-contained (mirrors expo-iap's Linking.openURL):
+        // the redeem page is a plain ACTION_VIEW deep link, so it bypasses
+        // OpenIapMauiModule / packages/google — no billing client involved.
+        var intent = new global::Android.Content.Intent(
+            global::Android.Content.Intent.ActionView,
+            global::Android.Net.Uri.Parse(PlayRedeemPageUrl));
+        try
+        {
+            var activity = global::Microsoft.Maui.ApplicationModel.Platform.CurrentActivity;
+            if (activity is not null)
+            {
+                activity.StartActivity(intent);
+            }
+            else
+            {
+                intent.AddFlags(global::Android.Content.ActivityFlags.NewTask);
+                global::Android.App.Application.Context.StartActivity(intent);
+            }
+            return Task.FromResult(true);
+        }
+        catch (global::Android.Content.ActivityNotFoundException)
+        {
+            // Nothing on the device can handle the link (no Play Store /
+            // browser) — report "not launched" rather than throwing.
+            return Task.FromResult(false);
+        }
+    }
+
     // ---- iOS-only mutations (return defaults / throw not-supported) -----
 
     public Task<string?> BeginRefundRequestIOSAsync(string sku) => NotSupportedIOS<string?>("beginRefundRequestIOS");

@@ -1487,6 +1487,11 @@ class OpenIapModule(
                 ?: throw OpenIapError.MissingCurrentActivity
             launchExternalLink(activity, params)
         },
+        openRedeemOfferCodeAndroid = {
+            val activity = currentActivityRef?.get() ?: fallbackActivity
+                ?: throw OpenIapError.MissingCurrentActivity
+            openRedeemOfferCode(activity)
+        },
         requestPurchase = requestPurchase,
         restorePurchases = restorePurchases,
         showAlternativeBillingDialogAndroid = {
@@ -1660,8 +1665,15 @@ class OpenIapModule(
                             )
                         }
                     }.orEmpty()
+                    // Take the pending callback before notifying listeners so
+                    // resolution cannot race a listener that starts another
+                    // purchase. A failed take means the request was completed or
+                    // cleared elsewhere (polling/disconnect); the store still
+                    // reported real purchases, so listener delivery must not be
+                    // skipped — claimPurchaseDelivery below dedupes anything the
+                    // polling path already delivered.
                     val completedCallback = if (matched.isNotEmpty() && pendingRequest != null) {
-                        takePurchaseCallback(pendingRequest.callback, expectedClient) ?: return
+                        takePurchaseCallback(pendingRequest.callback, expectedClient)
                     } else {
                         null
                     }
@@ -1697,6 +1709,11 @@ class OpenIapModule(
 
                     if (completedCallback != null) {
                         completedCallback(Result.success(matched))
+                    } else if (matched.isNotEmpty() && pendingRequest != null) {
+                        OpenIapLog.w(
+                            "Purchase request completed elsewhere; delivered purchase update to listeners only",
+                            TAG,
+                        )
                     } else if (mapped.isNotEmpty() && pendingRequest != null) {
                         OpenIapLog.w(
                             "Ignoring unrelated purchase update while another purchase is pending",
@@ -1960,6 +1977,12 @@ class OpenIapModule(
     override suspend fun launchExternalLink(activity: Activity, params: LaunchExternalLinkParamsAndroid): Boolean {
         // No-op: Billing Programs is a Google Play 8.2.0+ feature, not supported on Meta Horizon
         OpenIapLog.w("launchExternalLink is not supported on Meta Horizon (no-op)", TAG)
+        return false
+    }
+
+    override suspend fun openRedeemOfferCode(activity: Activity): Boolean {
+        // No-op: offer-code redemption is a Google Play feature, not supported on Meta Horizon
+        OpenIapLog.w("openRedeemOfferCode is not supported on Meta Horizon (no-op)", TAG)
         return false
     }
 

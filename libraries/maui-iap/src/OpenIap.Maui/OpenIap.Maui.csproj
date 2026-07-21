@@ -110,6 +110,9 @@
 
   <ItemGroup>
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <!-- Unit-test access to shared internals (OpenIapErrorMapper, JsonOptions,
+         Subject) — see tests/OpenIap.Maui.Tests. -->
+    <InternalsVisibleTo Include="OpenIap.Maui.Tests" />
   </ItemGroup>
 
   <!-- Ship only OpenIAP-owned Android AARs alongside OpenIap.Maui.dll.

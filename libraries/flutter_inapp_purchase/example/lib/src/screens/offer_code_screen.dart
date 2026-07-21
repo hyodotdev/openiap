@@ -89,9 +89,54 @@ class _OfferCodeScreenState extends State<OfferCodeScreen> {
     }
   }
 
+  Future<void> _openRedeemOfferCode() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      setState(() {
+        _statusMessage = 'Play redeem flow is only available on Android';
+        _isSuccess = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _statusMessage = null;
+    });
+
+    try {
+      await _iap.openRedeemOfferCodeAndroid();
+      setState(() {
+        _statusMessage =
+            'Play redeem page opened. Complete the redemption in Google Play. '
+            'Purchases are delivered through the purchase listeners.';
+        _isSuccess = true;
+      });
+    } catch (e) {
+      setState(() {
+        _statusMessage = 'Failed to open Play redeem page: $e';
+        _isSuccess = false;
+      });
+      debugPrint('Error opening Play redeem page: $e');
+    } finally {
+      setState(() {
+        _loading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+    final bool isAndroid =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+    Future<void> Function()? onRedeemPressed;
+    if (isAndroid && !_loading) {
+      // openRedeemOfferCodeAndroid does not require the billing client.
+      onRedeemPressed = _openRedeemOfferCode;
+    } else if (isIOS && _connected && !_loading) {
+      onRedeemPressed = _presentCodeRedemptionSheet;
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
@@ -112,8 +157,8 @@ class _OfferCodeScreenState extends State<OfferCodeScreen> {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                // Platform Warning for Android
-                if (!isIOS) ...[
+                // Platform Warning for unsupported platforms
+                if (!isIOS && !isAndroid) ...[
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -127,7 +172,7 @@ class _OfferCodeScreenState extends State<OfferCodeScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Offer code redemption is only available on iOS devices',
+                            'Offer code redemption is only available on iOS and Android devices',
                             style: TextStyle(color: Colors.orange[700]),
                           ),
                         ),
@@ -220,7 +265,9 @@ class _OfferCodeScreenState extends State<OfferCodeScreen> {
                         Text(
                           isIOS
                               ? 'Tap the button below to open the iOS redemption sheet where you can enter your offer code.'
-                              : 'Offer code redemption is not available on Android. Please use an iOS device.',
+                              : isAndroid
+                                  ? 'Tap the button below to open the Google Play redeem page where you can enter your offer code.'
+                                  : 'Offer code redemption is only available on iOS and Android devices.',
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey[600],
@@ -230,13 +277,17 @@ class _OfferCodeScreenState extends State<OfferCodeScreen> {
 
                         // Redemption Button
                         ElevatedButton.icon(
-                          onPressed: (isIOS && _connected && !_loading)
-                              ? _presentCodeRedemptionSheet
-                              : null,
+                          onPressed: onRedeemPressed,
                           icon: const Icon(Icons.card_giftcard),
-                          label: const Text('Open Redemption Sheet'),
+                          label: Text(
+                            isAndroid
+                                ? 'Open Play Redeem Page'
+                                : 'Open Redemption Sheet',
+                          ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFF3B30),
+                            backgroundColor: isAndroid
+                                ? const Color(0xFF34A853)
+                                : const Color(0xFFFF3B30),
                             foregroundColor: Colors.white,
                             minimumSize: const Size(double.infinity, 48),
                           ),
@@ -306,12 +357,22 @@ class _OfferCodeScreenState extends State<OfferCodeScreen> {
                         ),
                         const SizedBox(height: 12),
                         const Text(
+                          'App Store (iOS):\n'
                           '1. Go to App Store Connect\n'
                           '2. Navigate to your app\n'
                           '3. Select "Subscriptions" or "In-App Purchases"\n'
                           '4. Choose "Offer Codes"\n'
                           '5. Create and configure your offer\n'
                           '6. Generate codes for distribution',
+                          style: TextStyle(fontSize: 14),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Google Play (Android):\n'
+                          '1. Go to Play Console\n'
+                          '2. Select Monetize > Promotions\n'
+                          '3. Create a promo code campaign\n'
+                          '4. Generate codes for distribution',
                           style: TextStyle(fontSize: 14),
                         ),
                       ],

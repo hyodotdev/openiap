@@ -2895,6 +2895,32 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
     }
   }
 
+  /// Open the Google Play offer/promo code redemption flow so the user can
+  /// enter a code.
+  ///
+  /// Launches the Play Store redeem page (https://play.google.com/redeem);
+  /// purchases completed there are delivered through the standard purchase
+  /// listeners. Android counterpart of `presentCodeRedemptionSheetIOS`.
+  ///
+  /// See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
+  Future<bool> openRedeemOfferCodeAndroid() async {
+    if (!_platform.isAndroid) {
+      throw PurchaseError(
+        code: gentype.ErrorCode.IapNotAvailable,
+        message: 'openRedeemOfferCodeAndroid only available on Android',
+      );
+    }
+    try {
+      final result = await _channel.invokeMethod<bool>(
+        'openRedeemOfferCodeAndroid',
+      );
+      return result ?? false;
+    } catch (error) {
+      debugPrint('openRedeemOfferCodeAndroid error: $error');
+      rethrow;
+    }
+  }
+
   /// Present the external purchase notice sheet (iOS 17.4+, macOS 14.4+).
   ///
   /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
@@ -3228,6 +3254,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         initConnection: initConnection,
         isBillingProgramAvailableAndroid: isBillingProgramAvailableAndroid,
         launchExternalLinkAndroid: _launchExternalLinkAndroidHandler,
+        openRedeemOfferCodeAndroid: openRedeemOfferCodeAndroid,
         presentCodeRedemptionSheetIOS: presentCodeRedemptionSheetIOS,
         requestPurchase: requestPurchase,
         requestPurchaseOnPromotedProductIOS:

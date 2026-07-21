@@ -30,6 +30,7 @@ import {
   launchExternalLinkAndroid,
   showBillingProgramInformationDialogAndroid,
   showInAppMessagesAndroid,
+  openRedeemOfferCodeAndroid,
   userChoiceBillingListenerAndroid,
   developerProvidedBillingListenerAndroid,
   subscriptionBillingIssueListener,
@@ -288,6 +289,8 @@ type UseIap = {
   showBillingProgramInformationDialogAndroid?: MutationField<'showBillingProgramInformationDialogAndroid'>;
   /** Show Play billing in-app messages. */
   showInAppMessagesAndroid?: MutationField<'showInAppMessagesAndroid'>;
+  /** Open the Play Store offer code redemption page; purchases arrive via the standard purchase listeners. */
+  openRedeemOfferCodeAndroid?: MutationField<'openRedeemOfferCodeAndroid'>;
 };
 
 export interface UseIapOptions {
@@ -735,6 +738,12 @@ export function useIAP(options?: UseIapOptions): UseIap {
   const initIapWithSubscriptions = useCallback(async (): Promise<void> => {
     const config = buildAndroidConfig();
 
+    // CRITICAL: Register listeners BEFORE initConnection to avoid race condition
+    // Events might fire immediately after initConnection (e.g. the Android
+    // already-owned recovery republish), so listeners must be ready first.
+    // Attaching is connection-independent: it only wires bridge callbacks.
+    registerListeners();
+
     try {
       const result = await initConnection(config);
 
@@ -743,11 +752,15 @@ export function useIAP(options?: UseIapOptions): UseIap {
       }
 
       if (!result) {
+        // Connection failed after listeners were attached; clean them up.
+        cleanupListeners();
         setConnected(false);
         RnIapConsole.warn('[useIAP] initConnection returned false');
         return;
       }
 
+      // Re-assert listeners in case a concurrent failure path cleaned them up
+      // while initConnection was in flight (no-op when already registered).
       registerListeners();
       setConnected(true);
     } catch (error) {
@@ -833,6 +846,7 @@ export function useIAP(options?: UseIapOptions): UseIap {
           launchExternalLinkAndroid,
           showBillingProgramInformationDialogAndroid,
           showInAppMessagesAndroid,
+          openRedeemOfferCodeAndroid,
         }
       : {}),
   };

@@ -771,6 +771,7 @@ function throwUnsupportedFeature(feature: string): never {
 type VegaRnIapModule = Partial<RnIap> & {
   acknowledgePurchaseAndroid(purchaseToken: string): Promise<boolean>;
   consumePurchaseAndroid(purchaseToken: string): Promise<boolean>;
+  openRedeemOfferCodeAndroid(): Promise<boolean>;
   restorePurchases(): Promise<void>;
 };
 
@@ -1679,6 +1680,9 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
     },
     async launchExternalLinkAndroid(): Promise<boolean> {
       return throwUnsupportedFeature('launchExternalLinkAndroid');
+    },
+    async openRedeemOfferCodeAndroid(): Promise<boolean> {
+      return throwUnsupportedFeature('openRedeemOfferCodeAndroid');
     },
     async canPresentExternalPurchaseNoticeIOS(): Promise<boolean> {
       return throwUnsupportedFeature('canPresentExternalPurchaseNoticeIOS');

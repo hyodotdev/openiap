@@ -2,7 +2,7 @@
 // Keep mocks static and simple for readability.
 // No dynamic imports; mock before importing the module under test.
 
-import {Platform} from 'react-native';
+import {Linking, Platform} from 'react-native';
 import {ErrorCode} from '../types';
 import type {DiscountOfferInputIOS} from '../types';
 
@@ -75,6 +75,7 @@ const mockIap: any = {
     purchaseToken: null,
   })),
   launchExternalLinkAndroid: jest.fn(async () => true),
+  openRedeemOfferCodeAndroid: jest.fn(async () => true),
 };
 
 jest.mock('react-native-nitro-modules', () => ({
@@ -1504,6 +1505,33 @@ describe('Public API (src/index.ts)', () => {
       expect(mockIap.finishTransaction).toHaveBeenCalledWith({
         android: {purchaseToken: 'tok', isConsumable: true},
       });
+    });
+
+    it('openRedeemOfferCodeAndroid opens the Play redeem page on Android', async () => {
+      (Platform as any).OS = 'android';
+      (Linking.openURL as jest.Mock).mockResolvedValueOnce(true);
+      await expect(IAP.openRedeemOfferCodeAndroid()).resolves.toBe(true);
+      expect(Linking.openURL).toHaveBeenCalledWith(
+        'https://play.google.com/redeem',
+      );
+    });
+
+    it('openRedeemOfferCodeAndroid throws on non-Android', async () => {
+      (Platform as any).OS = 'ios';
+      await expect(IAP.openRedeemOfferCodeAndroid()).rejects.toThrow(
+        'openRedeemOfferCodeAndroid is only supported on Android',
+      );
+      expect(Linking.openURL).not.toHaveBeenCalled();
+    });
+
+    it('openRedeemOfferCodeAndroid propagates Linking failures', async () => {
+      (Platform as any).OS = 'android';
+      (Linking.openURL as jest.Mock).mockRejectedValueOnce(
+        new Error('No activity found to handle intent'),
+      );
+      await expect(IAP.openRedeemOfferCodeAndroid()).rejects.toThrow(
+        'No activity found to handle intent',
+      );
     });
   });
 

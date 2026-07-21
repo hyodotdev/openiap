@@ -117,6 +117,7 @@ jest.mock('../src/index', () => {
         externalTransactionToken: 'external-transaction-token',
       }),
     ),
+    openRedeemOfferCodeAndroid: jest.fn(() => Promise.resolve(true)),
 
     // iOS specific
     clearTransactionIOS: jest.fn(() => Promise.resolve(true)),

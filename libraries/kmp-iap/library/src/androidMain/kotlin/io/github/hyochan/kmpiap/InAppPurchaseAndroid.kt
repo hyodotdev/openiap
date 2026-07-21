@@ -3595,6 +3595,37 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase {
         }
     }
 
+    /**
+     * Open the Google Play offer/promo code redemption flow (https://play.google.com/redeem).
+     * Purchases completed there are delivered through the standard purchase listeners.
+     * Does not require the billing client to be initialized.
+     *
+     * @see <a href="https://openiap.dev/docs/apis/android/open-redeem-offer-code-android">https://openiap.dev/docs/apis/android/open-redeem-offer-code-android</a>
+     */
+    override suspend fun openRedeemOfferCodeAndroid(): Boolean = withContext(Dispatchers.Main) {
+        val launchContext: Context = synchronized(purchaseLifecycleLock) { currentActivity ?: context }
+            ?: throw PurchaseException(
+                PurchaseError(
+                    code = ErrorCode.ActivityUnavailable,
+                    message = "Activity not available",
+                )
+            )
+        try {
+            launchContext.startActivity(
+                Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/redeem")).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            )
+            true
+        } catch (error: Exception) {
+            throw PurchaseException(PurchaseError(
+                code = ErrorCode.Unknown,
+                debugMessage = error.message,
+                message = error.message ?: "Failed to open the Play Store redeem page",
+            ))
+        }
+    }
+
     // ---------------------------------------------------------------------
     // Activity lifecycle
     // ---------------------------------------------------------------------

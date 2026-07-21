@@ -4,6 +4,8 @@ import android.app.Activity
 import android.app.Application
 import android.app.Application.ActivityLifecycleCallbacks
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -314,6 +316,24 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                     } catch (e: Exception) {
                         safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
                     }
+                }
+                return
+            }
+            "openRedeemOfferCodeAndroid" -> {
+                // Opens the Play redeem page; does not require the billing client.
+                try {
+                    val launchContext: Context? = activity ?: context
+                    if (launchContext == null) {
+                        safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, "Context not available")
+                        return
+                    }
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/redeem")).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    launchContext.startActivity(intent)
+                    safe.success(true)
+                } catch (e: Exception) {
+                    safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
                 }
                 return
             }

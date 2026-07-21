@@ -229,7 +229,8 @@ const configurePurchaseUpdatedListenerOptionsIOS = (
 };
 
 /**
- * TODO(next-major): Remove legacy 'inapp' alias once downstream apps migrate to 'in-app'.
+ * Accepts the legacy 'inapp' alias for backward compatibility. The alias is
+ * deprecated and scheduled for removal in the next major release — use 'in-app'.
  */
 export type ProductTypeInput = ProductQueryType | 'inapp';
 

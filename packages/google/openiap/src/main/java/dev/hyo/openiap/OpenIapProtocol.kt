@@ -134,4 +134,16 @@ interface OpenIapProtocol {
         activity: Activity,
         params: InAppMessageParamsAndroid? = null
     ): InAppMessageResultAndroid
+
+    // Offer Code Redemption (Google Play)
+    /**
+     * Open the Google Play offer/promo code redemption page so the user can enter a code.
+     * Launches the Play Store redeem page (https://play.google.com/redeem); purchases
+     * completed there are delivered through the standard purchase listeners.
+     * Does not require the billing client to be initialized.
+     *
+     * @param activity Current activity context
+     * @return true when the redemption flow was launched
+     */
+    suspend fun openRedeemOfferCode(activity: Activity): Boolean
 }
