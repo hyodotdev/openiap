@@ -360,7 +360,7 @@ jobs:
           CHANGELOG="- Initial release"
         else
           echo "Generating changelog from $PREV_TAG to $RELEASE_REF"
-          CHANGELOG=$(git log "$PREV_TAG..$RELEASE_REF" --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- packages/apple/)
+          CHANGELOG=$(git log "$PREV_TAG..$RELEASE_REF" --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- ":(top)packages/apple/")
 
           if [ -z "$CHANGELOG" ]; then
             CHANGELOG="- No direct code changes in packages/apple/."
