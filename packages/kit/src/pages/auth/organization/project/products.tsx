@@ -1175,8 +1175,8 @@ function ProductGroup({
                 <ProductSyncFailureList failures={job.result.failures} />
                 {job.result.manualActions?.length ? (
                   <ul className="mt-1 list-disc space-y-0.5 pl-4">
-                    {job.result.manualActions.map((action) => (
-                      <li key={`${action.productId}:${action.code}`}>
+                    {job.result.manualActions.map((action, index) => (
+                      <li key={`${action.productId}:${action.code}:${index}`}>
                         <span className="font-medium">{action.productId}</span>
                         {": "}
                         {action.message}
