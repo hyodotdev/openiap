@@ -198,10 +198,9 @@ function Releases() {
             </li>
             <li>
               <strong>Planned godot-iap 2.6.0</strong> - adds the GDScript API
-              and Android plugin bridge, delegates through the shared store
-              module to preserve Play, Amazon, and Horizon semantics, and can
-              launch the redemption flow before an IAP connection is
-              initialized.
+              and Android plugin bridge, delegates through the shared Play store
+              module, and can launch the redemption flow before an IAP
+              connection is initialized.
             </li>
             <li>
               <strong>Planned kmp-iap 2.7.0</strong> - adds the common resolver
