@@ -26,6 +26,39 @@ class PendingEventBufferTest {
     }
 
     @Test
+    fun `listeners added during flush receive only subsequent arrivals`() {
+        val buffer = PendingEventBuffer<Int>(capacity = 4, onOverflow = {})
+        val firstReceived = mutableListOf<Int>()
+        val secondReceived = mutableListOf<Int>()
+        val listeners = mutableListOf<(Int) -> Unit>()
+        val secondListener: (Int) -> Unit = { secondReceived.add(it) }
+        val firstListener: (Int) -> Unit = { event ->
+            firstReceived.add(event)
+            if (event == 1) {
+                listeners.add(secondListener)
+                assertTrue(buffer.enqueueIfNeeded(hasListeners = true, event = 3))
+            }
+        }
+        listeners.add(firstListener)
+
+        assertTrue(buffer.enqueueIfNeeded(hasListeners = false, event = 1))
+        assertTrue(buffer.enqueueIfNeeded(hasListeners = false, event = 2))
+        assertTrue(buffer.beginFlushIfNeeded())
+
+        drainPendingEvents(
+            takeDelivery = {
+                buffer.takeBatchOrFinish()?.let { events ->
+                    PendingEventDelivery(events, listeners.toList())
+                }
+            },
+            onDeliveryFailure = { throw it },
+        )
+
+        assertEquals(listOf(1, 2, 3), firstReceived)
+        assertEquals(listOf(3), secondReceived)
+    }
+
+    @Test
     fun `overflow drops the oldest event and reports each drop`() {
         var overflowCount = 0
         val buffer = PendingEventBuffer<Int>(capacity = 2) { overflowCount += 1 }

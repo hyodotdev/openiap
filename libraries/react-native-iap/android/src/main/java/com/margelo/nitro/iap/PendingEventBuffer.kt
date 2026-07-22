@@ -57,3 +57,30 @@ internal class PendingEventBuffer<T>(
         isFlushing = false
     }
 }
+
+internal data class PendingEventDelivery<T>(
+    val events: List<T>,
+    val listeners: List<(T) -> Unit>,
+)
+
+/**
+ * Drains FIFO batches against a fresh listener snapshot for each batch.
+ *
+ * Events already present when a flush begins go only to listeners registered
+ * for that batch. Listeners added while callbacks run are included in the next
+ * batch, so they receive events that arrived after their registration without
+ * receiving the earlier backlog.
+ */
+internal fun <T> drainPendingEvents(
+    takeDelivery: () -> PendingEventDelivery<T>?,
+    onDeliveryFailure: (Throwable) -> Unit,
+) {
+    while (true) {
+        val delivery = takeDelivery() ?: return
+        delivery.events.forEach { event ->
+            delivery.listeners.forEach { listener ->
+                runCatching { listener(event) }.onFailure(onDeliveryFailure)
+            }
+        }
+    }
+}

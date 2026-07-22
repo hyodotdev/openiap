@@ -119,7 +119,9 @@ class HybridRnIap : HybridRnIapSpec() {
     //   1. events fired during initConnection before JS listeners attach
     //      (e.g. the already-owned recovery republish), and
     //   2. events fired while all screens are unmounted, flushed on remount.
-    // Queued events are flushed FIFO to the first listener that registers.
+    // Queued events are flushed FIFO using a listener snapshot per batch. A
+    // listener added during a flush receives later arrivals, but not backlog
+    // that predates its registration.
     // Like expo (which clears its queue when the connection lifecycle ends),
     // endConnection clears these queues; they survive plain unmount/remount
     // because useIAP keeps the connection alive across screens.
@@ -929,7 +931,7 @@ class HybridRnIap : HybridRnIapSpec() {
             val shouldFlush = pendingPurchaseUpdates.beginFlushIfNeeded()
             token to shouldFlush
         }
-        if (shouldFlush) flushPendingPurchaseUpdates(listener)
+        if (shouldFlush) flushPendingPurchaseUpdates()
         return token
     }
 
@@ -938,31 +940,43 @@ class HybridRnIap : HybridRnIapSpec() {
             purchaseErrorListeners.add(listener)
             pendingPurchaseErrors.beginFlushIfNeeded()
         }
-        if (shouldFlush) flushPendingPurchaseErrors(listener)
+        if (shouldFlush) flushPendingPurchaseErrors()
     }
 
-    private fun flushPendingPurchaseUpdates(listener: (NitroPurchase) -> Unit) {
-        while (true) {
-            val backlog = synchronized(purchaseUpdatedListeners) {
-                pendingPurchaseUpdates.takeBatchOrFinish() ?: return
+    private fun flushPendingPurchaseUpdates() {
+        drainPendingEvents(
+            takeDelivery = {
+                synchronized(purchaseUpdatedListeners) {
+                    pendingPurchaseUpdates.takeBatchOrFinish()?.let { backlog ->
+                        PendingEventDelivery(
+                            events = backlog,
+                            listeners = purchaseUpdatedListeners.map { it.listener },
+                        )
+                    }
+                }
+            },
+            onDeliveryFailure = {
+                RnIapLog.failure("purchaseUpdatedListener.flush", it)
             }
-            backlog.forEach { purchase ->
-                runCatching { listener(purchase) }
-                    .onFailure { RnIapLog.failure("purchaseUpdatedListener.flush", it) }
-            }
-        }
+        )
     }
 
-    private fun flushPendingPurchaseErrors(listener: (NitroPurchaseResult) -> Unit) {
-        while (true) {
-            val backlog = synchronized(purchaseErrorListeners) {
-                pendingPurchaseErrors.takeBatchOrFinish() ?: return
+    private fun flushPendingPurchaseErrors() {
+        drainPendingEvents(
+            takeDelivery = {
+                synchronized(purchaseErrorListeners) {
+                    pendingPurchaseErrors.takeBatchOrFinish()?.let { backlog ->
+                        PendingEventDelivery(
+                            events = backlog,
+                            listeners = ArrayList(purchaseErrorListeners),
+                        )
+                    }
+                }
+            },
+            onDeliveryFailure = {
+                RnIapLog.failure("purchaseErrorListener.flush", it)
             }
-            backlog.forEach { error ->
-                runCatching { listener(error) }
-                    .onFailure { RnIapLog.failure("purchaseErrorListener.flush", it) }
-            }
-        }
+        )
     }
 
     override fun removePurchaseUpdatedListener(token: Double) {
