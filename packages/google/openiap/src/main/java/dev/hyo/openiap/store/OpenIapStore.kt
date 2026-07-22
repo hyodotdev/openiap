@@ -573,8 +573,9 @@ class OpenIapStore(private val module: OpenIapProtocol) {
 
     /**
      * Open the Google Play offer/promo code redemption page (https://play.google.com/redeem)
-     * so the user can enter a code. Purchases completed there are delivered through the
-     * standard purchase listeners. Does not require the billing client to be initialized.
+     * so the user can enter a code. A listener can receive the redeemed purchase while the
+     * app has an active billing connection; reconcile available purchases when the app
+     * resumes. Does not require the billing client to be initialized.
      *
      * @see <a href="https://openiap.dev/docs/apis/android/open-redeem-offer-code-android">https://openiap.dev/docs/apis/android/open-redeem-offer-code-android</a>
      */

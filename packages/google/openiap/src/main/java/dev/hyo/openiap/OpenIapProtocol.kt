@@ -138,8 +138,8 @@ interface OpenIapProtocol {
     // Offer Code Redemption (Google Play)
     /**
      * Open the Google Play offer/promo code redemption page so the user can enter a code.
-     * Launches the Play Store redeem page (https://play.google.com/redeem); purchases
-     * completed there are delivered through the standard purchase listeners.
+     * A listener can receive the redeemed purchase while the app has an active
+     * billing connection; reconcile available purchases when the app resumes.
      * Does not require the billing client to be initialized.
      *
      * @param activity Current activity context

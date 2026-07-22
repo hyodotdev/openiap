@@ -1757,7 +1757,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @see <a href="https://openiap.dev/docs/apis/android/open-redeem-offer-code-android">https://openiap.dev/docs/apis/android/open-redeem-offer-code-android</a>
      */
     override suspend fun openRedeemOfferCodeAndroid(): Boolean {
-        throw UnsupportedOperationException("openRedeemOfferCodeAndroid is only available on Android")
+        return false
     }
 
     override suspend fun developerProvidedBillingAndroid(): DeveloperProvidedBillingDetailsAndroid {

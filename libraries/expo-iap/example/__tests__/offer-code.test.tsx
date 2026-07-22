@@ -124,4 +124,44 @@ describe('OfferCode Component', () => {
       );
     });
   });
+
+  it('should report unsupported iOS redemption results with iOS wording', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      get: jest.fn(() => 'ios'),
+      configurable: true,
+    });
+    jest
+      .mocked(ExpoIap.presentCodeRedemptionSheetIOS)
+      .mockResolvedValueOnce(false);
+
+    const {getByText} = render(<OfferCode />);
+    fireEvent.press(getByText('🎁 Redeem Offer Code'));
+
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Not Supported',
+        'Offer code redemption is not available on this iOS device.',
+      );
+    });
+  });
+
+  it('should report unsupported Android store results', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      get: jest.fn(() => 'android'),
+      configurable: true,
+    });
+    jest
+      .mocked(ExpoIap.openRedeemOfferCodeAndroid)
+      .mockResolvedValueOnce(false);
+
+    const {getByText} = render(<OfferCode />);
+    fireEvent.press(getByText('🎁 Open Play Store'));
+
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Not Supported',
+        'This Android store does not provide an offer-code redemption flow.',
+      );
+    });
+  });
 });

@@ -1,6 +1,7 @@
 package io.github.hyochan.kmpiap
 
-import io.github.hyochan.kmpiap.openiap.ErrorCode
+import android.content.Context
+import android.content.ContextWrapper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -8,21 +9,29 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class OpenRedeemOfferCodeAndroidTest {
     @Test
-    fun `Play redeem flow fails with ActivityUnavailable when no activity or context is captured`() = runTest {
+    fun `Play redeem flow uses application context without billing initialization`() = runTest {
         Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
         try {
-            val error = assertFailsWith<PurchaseException> {
-                InAppPurchaseAndroid().openRedeemOfferCodeAndroid()
+            val appContext = object : ContextWrapper(null) {
+                override fun getApplicationContext(): Context = this
             }
+            var launchContext: Context? = null
+            val iap = InAppPurchaseAndroid(
+                applicationContextProvider = { appContext },
+                redeemFlowLauncher = { context ->
+                    launchContext = context
+                    true
+                },
+            )
 
-            assertEquals(ErrorCode.ActivityUnavailable, error.error.code)
+            assertTrue(iap.openRedeemOfferCodeAndroid())
+            assertTrue(launchContext === appContext)
         } finally {
             Dispatchers.resetMain()
         }

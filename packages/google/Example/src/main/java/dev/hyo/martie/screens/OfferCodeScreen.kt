@@ -12,8 +12,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import dev.hyo.martie.models.AppColors
 import dev.hyo.martie.screens.uis.*
@@ -33,7 +36,6 @@ fun OfferCodeScreen(
     val iapStore = storeParam ?: (IapContext.LocalOpenIapStore.current
         ?: IapContext.rememberOpenIapStore())
 
-    var offerCode by remember { mutableStateOf("") }
     var showResult by remember { mutableStateOf(false) }
     var resultMessage by remember { mutableStateOf("") }
     var isRedeeming by remember { mutableStateOf(false) }
@@ -43,6 +45,27 @@ fun OfferCodeScreen(
     DisposableEffect(Unit) {
         startupScope.launch { runCatching { iapStore.initConnection() } }
         onDispose { startupScope.launch { runCatching { iapStore.endConnection() } } }
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, iapStore) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                startupScope.launch {
+                    runCatching { iapStore.getAvailablePurchases(null) }
+                        .onSuccess { purchases ->
+                            if (purchases.isNotEmpty()) {
+                                resultMessage =
+                                    "Reconciled ${purchases.size} available purchase(s) after resume. " +
+                                        "Verify and grant each entitlement idempotently before finishing it."
+                                showResult = true
+                            }
+                        }
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     
     Scaffold(
@@ -98,7 +121,7 @@ fun OfferCodeScreen(
                             )
                             
                             Text(
-                                "Enter promo code to redeem",
+                                "Open Google Play to enter a promo code",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = AppColors.textSecondary
                             )
@@ -106,14 +129,14 @@ fun OfferCodeScreen(
                     }
                     
                     Text(
-                        "Enter your promo code to redeem special offers, discounts, or free subscriptions from Google Play Store.",
+                        "Open the Google Play redemption page to enter a code. Reconcile purchases when you return to the app.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = AppColors.textSecondary
                     )
                 }
             }
             
-            // Input Field
+            // Redemption action
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
@@ -123,26 +146,6 @@ fun OfferCodeScreen(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    OutlinedTextField(
-                        value = offerCode,
-                        onValueChange = { offerCode = it.uppercase() },
-                        label = { Text("Promo Code") },
-                        placeholder = { Text("Enter code") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        leadingIcon = {
-                            Icon(
-                                Icons.Default.CardGiftcard,
-                                contentDescription = null,
-                                tint = AppColors.warning
-                            )
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = AppColors.warning,
-                            unfocusedBorderColor = AppColors.textSecondary.copy(alpha = 0.3f)
-                        )
-                    )
-                    
                     Button(
                         onClick = {
                             isRedeeming = true
@@ -155,7 +158,7 @@ fun OfferCodeScreen(
                                 }.getOrDefault(false)
                                 resultMessage = if (launched) {
                                     "Opened the Google Play redeem page. Enter your code there — " +
-                                        "completed purchases are delivered through the standard purchase listeners."
+                                        "then return so the app can reconcile available purchases."
                                 } else {
                                     "Could not open the Google Play redeem page on this device."
                                 }

@@ -2898,9 +2898,10 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// Open the Google Play offer/promo code redemption flow so the user can
   /// enter a code.
   ///
-  /// Launches the Play Store redeem page (https://play.google.com/redeem);
-  /// purchases completed there are delivered through the standard purchase
-  /// listeners. Android counterpart of `presentCodeRedemptionSheetIOS`.
+  /// On Play builds, launches the Play Store redeem page. A listener can
+  /// receive the purchase while the app has an active billing connection;
+  /// reconcile available purchases when the app resumes. Unsupported store
+  /// flavors return false. Android counterpart of `presentCodeRedemptionSheetIOS`.
   ///
   /// See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
   Future<bool> openRedeemOfferCodeAndroid() async {

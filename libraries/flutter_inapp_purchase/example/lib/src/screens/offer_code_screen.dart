@@ -104,12 +104,13 @@ class _OfferCodeScreenState extends State<OfferCodeScreen> {
     });
 
     try {
-      await _iap.openRedeemOfferCodeAndroid();
+      final launched = await _iap.openRedeemOfferCodeAndroid();
       setState(() {
-        _statusMessage =
-            'Play redeem page opened. Complete the redemption in Google Play. '
-            'Purchases are delivered through the purchase listeners.';
-        _isSuccess = true;
+        _statusMessage = launched
+            ? 'Play redeem page opened. Complete the redemption in Google Play, '
+                'then reconcile purchases when the app resumes.'
+            : 'This Android store does not provide an offer-code redemption flow.';
+        _isSuccess = launched;
       });
     } catch (e) {
       setState(() {

@@ -44,8 +44,9 @@ function OpenRedeemOfferCodeAndroid() {
         for the code types Play supports.
       </p>
       <p>
-        The user leaves your app for the Play Store, and purchases completed
-        there are delivered through the standard purchase listeners. Register{' '}
+        The user leaves your app for the Play Store. If the app remains running
+        with an active billing connection, the redeemed purchase can arrive
+        through the standard purchase listeners. Register{' '}
         <Link to="/docs/events/purchase-updated-listener">
           <code>purchaseUpdatedListener</code>
         </Link>{' '}
@@ -91,8 +92,9 @@ suspend fun openRedeemOfferCode(activity: Activity): Boolean`}</CodeBlock>
       </AnchorLink>
       <p>
         <code>Promise&lt;boolean&gt;</code> — <code>true</code> when the
-        redemption flow was launched. The redeemed purchase itself arrives
-        through the purchase listeners, not through this return value.
+        redemption flow was launched. Store flavors without an equivalent flow
+        return <code>false</code>. The redeemed purchase itself is not returned;
+        use the listener and resume reconciliation paths described above.
       </p>
 
       <h2>Example</h2>
@@ -102,11 +104,12 @@ suspend fun openRedeemOfferCode(activity: Activity): Boolean`}</CodeBlock>
             <CodeBlock language="kotlin">{`openIapStore.openRedeemOfferCode(activity)`}</CodeBlock>
           ),
           kmp: (
-            <CodeBlock language="kotlin">{`// kmp-iap (Android only — throws UnsupportedOperationException on iOS)
+            <CodeBlock language="kotlin">{`// kmp-iap (Android only — returns false on iOS)
 kmpIapInstance.openRedeemOfferCodeAndroid()`}</CodeBlock>
           ),
           typescript: (
             <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
+import { Platform } from 'react-native';
 import { openRedeemOfferCodeAndroid } from 'expo-iap';
 
 if (Platform.OS === 'android') {

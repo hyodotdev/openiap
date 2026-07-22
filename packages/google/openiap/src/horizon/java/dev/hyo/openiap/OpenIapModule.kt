@@ -256,6 +256,8 @@ internal fun resolveHorizonProductType(
  * use "com.meta.horizon.platform.HORIZON_APP_ID"; legacy keys remain readable
  * for migration compatibility.
  */
+internal suspend fun unsupportedRedeemOfferCode(): Boolean = false
+
 class OpenIapModule(
     private val context: Context,
     private var alternativeBillingMode: AlternativeBillingMode = AlternativeBillingMode.NONE,
@@ -1487,11 +1489,9 @@ class OpenIapModule(
                 ?: throw OpenIapError.MissingCurrentActivity
             launchExternalLink(activity, params)
         },
-        openRedeemOfferCodeAndroid = {
-            val activity = currentActivityRef?.get() ?: fallbackActivity
-                ?: throw OpenIapError.MissingCurrentActivity
-            openRedeemOfferCode(activity)
-        },
+        // Meta Horizon has no Google Play redemption surface. Keep the generated
+        // handler callable without requiring an Activity for this explicit no-op.
+        openRedeemOfferCodeAndroid = { unsupportedRedeemOfferCode() },
         requestPurchase = requestPurchase,
         restorePurchases = restorePurchases,
         showAlternativeBillingDialogAndroid = {
@@ -1977,7 +1977,7 @@ class OpenIapModule(
     override suspend fun launchExternalLink(activity: Activity, params: LaunchExternalLinkParamsAndroid): Boolean {
         // No-op: Billing Programs is a Google Play 8.2.0+ feature, not supported on Meta Horizon
         OpenIapLog.w("launchExternalLink is not supported on Meta Horizon (no-op)", TAG)
-        return false
+        return unsupportedRedeemOfferCode()
     }
 
     override suspend fun openRedeemOfferCode(activity: Activity): Boolean {

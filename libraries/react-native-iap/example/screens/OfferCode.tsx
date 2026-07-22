@@ -71,7 +71,7 @@ export default function OfferCodeScreen() {
       return;
     }
 
-    if (!connected) {
+    if (isIOS && !connected) {
       Alert.alert('Not Connected', 'Please wait for store connection');
       return;
     }
@@ -93,6 +93,11 @@ export default function OfferCodeScreen() {
           Alert.alert(
             'Play Store Opened',
             'Enter your code in the Play Store. After redemption, return to the app to see your purchase.',
+          );
+        } else {
+          Alert.alert(
+            'Not Supported',
+            'This Android store does not provide an offer-code redemption flow.',
           );
         }
       }
@@ -120,11 +125,11 @@ export default function OfferCodeScreen() {
         <TouchableOpacity
           style={[
             styles.redeemButton,
-            (!connected || isRedeeming) && styles.disabledButton,
+            ((isIOS && !connected) || isRedeeming) && styles.disabledButton,
             !isIOS && styles.androidButton,
           ]}
           onPress={handleRedeemCode}
-          disabled={!connected || isRedeeming}
+          disabled={(isIOS && !connected) || isRedeeming}
         >
           {isRedeeming ? (
             <ActivityIndicator color="white" />
@@ -178,8 +183,8 @@ export default function OfferCodeScreen() {
             <Text style={styles.androidNoteTitle}>⚠️ Android Note</Text>
             <Text style={styles.androidNoteText}>
               openRedeemOfferCodeAndroid opens the Play Store redemption page.
-              Purchases completed there are delivered through the standard
-              purchase listeners when you return to the app.
+              Keep the listener active and reconcile available purchases when
+              you return to the app.
             </Text>
           </View>
         )}

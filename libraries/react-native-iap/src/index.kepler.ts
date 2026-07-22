@@ -296,7 +296,7 @@ export const consumePurchase = consumePurchaseAndroid;
 
 export const openRedeemOfferCodeAndroid: MutationField<
   'openRedeemOfferCodeAndroid'
-> = async () => unsupported('openRedeemOfferCodeAndroid');
+> = async () => false;
 
 export const checkAlternativeBillingAvailabilityAndroid: MutationField<
   'checkAlternativeBillingAvailabilityAndroid'

@@ -221,20 +221,24 @@ export const acknowledgePurchaseAndroid: MutationField<
 
 /**
  * Open the Google Play offer/promo code redemption flow so the user can enter a code (Android only).
- * Launches the Play Store redeem page (https://play.google.com/redeem); purchases
- * completed there are delivered through the standard purchase listeners.
+ * On Play builds, launches the Play Store redeem page. A listener can receive
+ * the purchase while the app has an active billing connection; reconcile
+ * available purchases when the app resumes. Unsupported store flavors return false.
  * Does not require the billing client to be initialized (no Play Billing version requirement).
  * Android counterpart of presentCodeRedemptionSheetIOS.
  *
- * @returns Promise resolving to true when the redemption flow was launched
+ * @returns Promise resolving to true when launched, or false when unsupported
  *
  * @see {@link https://openiap.dev/docs/apis/android/open-redeem-offer-code-android}
  */
 export const openRedeemOfferCodeAndroid: MutationField<
   'openRedeemOfferCodeAndroid'
 > = async () => {
-  await Linking.openURL('https://play.google.com/redeem');
-  return true;
+  requireAndroidPlatform('openRedeemOfferCodeAndroid');
+  if (isVegaOS()) {
+    return false;
+  }
+  return ExpoIapModule.openRedeemOfferCodeAndroid();
 };
 
 /**

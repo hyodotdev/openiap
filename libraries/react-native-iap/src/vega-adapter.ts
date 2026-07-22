@@ -1682,7 +1682,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
       return throwUnsupportedFeature('launchExternalLinkAndroid');
     },
     async openRedeemOfferCodeAndroid(): Promise<boolean> {
-      return throwUnsupportedFeature('openRedeemOfferCodeAndroid');
+      return false;
     },
     async canPresentExternalPurchaseNoticeIOS(): Promise<boolean> {
       return throwUnsupportedFeature('canPresentExternalPurchaseNoticeIOS');

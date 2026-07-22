@@ -1353,10 +1353,16 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// Present the manage-subscriptions sheet.
     /// See: https://openiap.dev/docs/apis/ios/show-manage-subscriptions-ios
     public func showManageSubscriptionsIOS() async throws -> [PurchaseIOS] {
+        #if os(macOS)
+        // deepLinkToSubscriptions can open a browser on macOS, but that call
+        // returns immediately and cannot observe changes made outside the app.
+        throw makePurchaseError(code: .featureNotSupported)
+        #else
         let previousTransactions = try await getAllTransactionsIOS()
         try await deepLinkToSubscriptions(nil)
         let currentTransactions = try await getAllTransactionsIOS()
         return Self.changedPurchasesIOS(currentTransactions, comparedTo: previousTransactions)
+        #endif
     }
 
     static func changedPurchasesIOS(

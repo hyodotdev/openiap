@@ -299,7 +299,10 @@ private fun com.android.billingclient.api.UserChoiceDetails.toOpenIapDetails(): 
     )
 }
 
-internal class InAppPurchaseAndroid : KmpInAppPurchase {
+internal class InAppPurchaseAndroid(
+    private val applicationContextProvider: () -> Context? = ::tryGetApplicationContext,
+    private val redeemFlowLauncher: ((Context) -> Boolean)? = null,
+) : KmpInAppPurchase {
 
     private data class ConnectionAttempt(
         val generation: Long,
@@ -3597,19 +3600,22 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase {
 
     /**
      * Open the Google Play offer/promo code redemption flow (https://play.google.com/redeem).
-     * Purchases completed there are delivered through the standard purchase listeners.
+     * A listener can receive the redeemed purchase while the app has an active billing
+     * connection; reconcile available purchases when the app resumes.
      * Does not require the billing client to be initialized.
      *
      * @see <a href="https://openiap.dev/docs/apis/android/open-redeem-offer-code-android">https://openiap.dev/docs/apis/android/open-redeem-offer-code-android</a>
      */
     override suspend fun openRedeemOfferCodeAndroid(): Boolean = withContext(Dispatchers.Main) {
         val launchContext: Context = synchronized(purchaseLifecycleLock) { currentActivity ?: context }
+            ?: applicationContextProvider()?.applicationContext
             ?: throw PurchaseException(
                 PurchaseError(
                     code = ErrorCode.ActivityUnavailable,
                     message = "Activity not available",
                 )
             )
+        redeemFlowLauncher?.let { return@withContext it(launchContext) }
         try {
             launchContext.startActivity(
                 Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/redeem")).apply {

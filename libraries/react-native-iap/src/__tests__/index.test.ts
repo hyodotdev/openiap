@@ -2,7 +2,7 @@
 // Keep mocks static and simple for readability.
 // No dynamic imports; mock before importing the module under test.
 
-import {Linking, Platform} from 'react-native';
+import {Platform} from 'react-native';
 import {ErrorCode} from '../types';
 import type {DiscountOfferInputIOS} from '../types';
 
@@ -435,6 +435,26 @@ describe('Public API (src/index.ts)', () => {
       nativeHandler({code: 'network-error', message: 'Network error'});
       expect(listener2).toHaveBeenCalledTimes(1);
       expect(listener1).not.toHaveBeenCalled();
+    });
+
+    it('detaches the native error listener after the last JS listener is removed', () => {
+      const sub1 = IAP.purchaseErrorListener(jest.fn());
+      const sub2 = IAP.purchaseErrorListener(jest.fn());
+      const nativeHandler = mockIap.addPurchaseErrorListener.mock.calls[0][0];
+
+      sub1.remove();
+      expect(mockIap.removePurchaseErrorListener).not.toHaveBeenCalled();
+
+      sub2.remove();
+      sub2.remove();
+      expect(mockIap.removePurchaseErrorListener).toHaveBeenCalledTimes(1);
+      expect(mockIap.removePurchaseErrorListener).toHaveBeenCalledWith(
+        nativeHandler,
+      );
+
+      const sub3 = IAP.purchaseErrorListener(jest.fn());
+      expect(mockIap.addPurchaseErrorListener).toHaveBeenCalledTimes(2);
+      sub3.remove();
     });
   });
 
@@ -1507,13 +1527,11 @@ describe('Public API (src/index.ts)', () => {
       });
     });
 
-    it('openRedeemOfferCodeAndroid opens the Play redeem page on Android', async () => {
+    it('openRedeemOfferCodeAndroid delegates to the native store handler', async () => {
       (Platform as any).OS = 'android';
-      (Linking.openURL as jest.Mock).mockResolvedValueOnce(true);
+      mockIap.openRedeemOfferCodeAndroid.mockResolvedValueOnce(true);
       await expect(IAP.openRedeemOfferCodeAndroid()).resolves.toBe(true);
-      expect(Linking.openURL).toHaveBeenCalledWith(
-        'https://play.google.com/redeem',
-      );
+      expect(mockIap.openRedeemOfferCodeAndroid).toHaveBeenCalledTimes(1);
     });
 
     it('openRedeemOfferCodeAndroid throws on non-Android', async () => {
@@ -1521,17 +1539,13 @@ describe('Public API (src/index.ts)', () => {
       await expect(IAP.openRedeemOfferCodeAndroid()).rejects.toThrow(
         'openRedeemOfferCodeAndroid is only supported on Android',
       );
-      expect(Linking.openURL).not.toHaveBeenCalled();
+      expect(mockIap.openRedeemOfferCodeAndroid).not.toHaveBeenCalled();
     });
 
-    it('openRedeemOfferCodeAndroid propagates Linking failures', async () => {
+    it('openRedeemOfferCodeAndroid preserves unsupported store results', async () => {
       (Platform as any).OS = 'android';
-      (Linking.openURL as jest.Mock).mockRejectedValueOnce(
-        new Error('No activity found to handle intent'),
-      );
-      await expect(IAP.openRedeemOfferCodeAndroid()).rejects.toThrow(
-        'No activity found to handle intent',
-      );
+      mockIap.openRedeemOfferCodeAndroid.mockResolvedValueOnce(false);
+      await expect(IAP.openRedeemOfferCodeAndroid()).resolves.toBe(false);
     });
   });
 

@@ -174,45 +174,22 @@ internal sealed partial class OpenIapAndroid
         return InvokeBool(cb => _module.LaunchExternalLinkAndroid(json, cb));
     }
 
-    private const string PlayRedeemPageUrl = "https://play.google.com/redeem";
-
     /// <summary>
     /// Open the Google Play offer/promo code redemption flow so the user can
     /// enter a code. Launches the Play Store redeem page
-    /// (https://play.google.com/redeem); purchases completed there are
-    /// delivered through the standard purchase listeners. Does not require
-    /// the billing client to be initialized. Returns true when the
-    /// redemption flow was launched.
+    /// (https://play.google.com/redeem). A listener can receive the redeemed
+    /// purchase while the app has an active billing connection; reconcile
+    /// available purchases when the app resumes. Does not require the billing
+    /// client to be initialized. Returns false on unsupported store flavors.
     /// See https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
     /// </summary>
     public Task<bool> OpenRedeemOfferCodeAndroidAsync()
     {
-        // Deliberately self-contained (mirrors expo-iap's Linking.openURL):
-        // the redeem page is a plain ACTION_VIEW deep link, so it bypasses
-        // OpenIapMauiModule / packages/google — no billing client involved.
-        var intent = new global::Android.Content.Intent(
-            global::Android.Content.Intent.ActionView,
-            global::Android.Net.Uri.Parse(PlayRedeemPageUrl));
-        try
-        {
-            var activity = global::Microsoft.Maui.ApplicationModel.Platform.CurrentActivity;
-            if (activity is not null)
-            {
-                activity.StartActivity(intent);
-            }
-            else
-            {
-                intent.AddFlags(global::Android.Content.ActivityFlags.NewTask);
-                global::Android.App.Application.Context.StartActivity(intent);
-            }
-            return Task.FromResult(true);
-        }
-        catch (global::Android.Content.ActivityNotFoundException)
-        {
-            // Nothing on the device can handle the link (no Play Store /
-            // browser) — report "not launched" rather than throwing.
-            return Task.FromResult(false);
-        }
+        RefreshCurrentActivity();
+        // Delegate through the shared native handler so Play launches the
+        // redemption page while Amazon and Horizon retain their explicit
+        // false/no-op behavior.
+        return InvokeBool(cb => _module.OpenRedeemOfferCodeAndroid(cb));
     }
 
     // ---- iOS-only mutations (return defaults / throw not-supported) -----

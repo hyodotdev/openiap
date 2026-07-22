@@ -31,7 +31,9 @@ function ShowManageSubscriptionsIOS() {
         <code>deepLinkToSubscriptions(nil)</code> path, which calls{' '}
         <code>AppStore.showManageSubscriptions(in:)</code> with the active{' '}
         <code>UIWindowScene</code>; if no scene is available the call throws
-        instead of falling back to a URL. iOS 15+. See the{' '}
+        instead of falling back to a URL. Because the macOS browser fallback
+        cannot wait for or observe changes made outside the app, this
+        change-detection API is not supported on macOS. iOS 15+. See the{' '}
         <a
           href="https://developer.apple.com/documentation/storekit/appstore/showmanagesubscriptions(in:)"
           target="_blank"

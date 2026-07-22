@@ -184,16 +184,6 @@ fun OfferCodeScreen(navController: NavController) {
                     
                     Spacer(modifier = Modifier.height(20.dp))
                     
-                    OutlinedTextField(
-                        value = "",
-                        onValueChange = { },
-                        label = { Text("Promo Code (Optional)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Leave empty to open general redemption") }
-                    )
-                    
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
                     Button(
                         onClick = {
                             scope.launch {
@@ -203,7 +193,7 @@ fun OfferCodeScreen(navController: NavController) {
                                     result = if (launched) {
                                         "Play Store redemption opened"
                                     } else {
-                                        "Failed to open Play Store redemption"
+                                        "Offer code redemption is unavailable for this Android store"
                                     }
                                 } catch (e: Exception) {
                                     result = "Failed to open Play Store redemption: ${e.message}"
@@ -212,7 +202,7 @@ fun OfferCodeScreen(navController: NavController) {
                                 }
                             }
                         },
-                        enabled = isConnected && !isLoading,
+                        enabled = !isLoading,
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
                     ) {

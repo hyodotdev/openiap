@@ -738,12 +738,6 @@ export function useIAP(options?: UseIapOptions): UseIap {
   const initIapWithSubscriptions = useCallback(async (): Promise<void> => {
     const config = buildAndroidConfig();
 
-    // CRITICAL: Register listeners BEFORE initConnection to avoid race condition
-    // Events might fire immediately after initConnection (e.g. the Android
-    // already-owned recovery republish), so listeners must be ready first.
-    // Attaching is connection-independent: it only wires bridge callbacks.
-    registerListeners();
-
     try {
       const result = await initConnection(config);
 
@@ -752,15 +746,15 @@ export function useIAP(options?: UseIapOptions): UseIap {
       }
 
       if (!result) {
-        // Connection failed after listeners were attached; clean them up.
         cleanupListeners();
         setConnected(false);
         RnIapConsole.warn('[useIAP] initConnection returned false');
         return;
       }
 
-      // Re-assert listeners in case a concurrent failure path cleaned them up
-      // while initConnection was in flight (no-op when already registered).
+      // Android retains events emitted during connection setup in bounded
+      // native queues; registration flushes that backlog after Nitro is ready.
+      // Other platforms preserve the existing post-init listener ordering.
       registerListeners();
       setConnected(true);
     } catch (error) {
