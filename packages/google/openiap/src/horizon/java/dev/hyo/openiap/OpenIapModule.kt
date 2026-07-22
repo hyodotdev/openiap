@@ -24,6 +24,7 @@ import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
 import dev.hyo.openiap.helpers.isSubscriptionReplacementTargetCountValid
 import dev.hyo.openiap.helpers.ActiveStoreConnection
+import dev.hyo.openiap.helpers.ActiveStoreListenerOwner
 import dev.hyo.openiap.helpers.ActiveStoreOperationRegistry
 import dev.hyo.openiap.helpers.isPurchaseForPendingRequest
 import dev.hyo.openiap.helpers.connectionClientToClose
@@ -283,10 +284,21 @@ class OpenIapModule(
     @Volatile
     private var billingClient: BillingClient? = null
     private val connectionLifecycleLock = Any()
+    private fun currentStoreConnection() =
+        ActiveStoreConnection(billingClient, connectionGeneration)
+
     private var connectionGeneration = 0L
     private val activeOperations = ActiveStoreOperationRegistry<BillingClient>(connectionLifecycleLock) {
-        ActiveStoreConnection(billingClient, connectionGeneration)
+        currentStoreConnection()
     }
+    private fun listenerOwner(client: BillingClient, generation: Long) =
+        ActiveStoreListenerOwner(
+            connectionLifecycleLock,
+            ::currentStoreConnection,
+            { client },
+            generation,
+        )
+
     private var connectionAttempt: ConnectionAttempt? = null
 
     private fun replaceBillingClientLocked(next: BillingClient?): BillingClient? =
@@ -516,7 +528,7 @@ class OpenIapModule(
                 buildBillingClient(
                     contextForInit,
                     PurchasesUpdatedListener { result, purchases ->
-                        onPurchasesUpdated(client, result, purchases)
+                        onPurchasesUpdated(client, attempt.generation, result, purchases)
                     },
                 )
             }
@@ -1583,15 +1595,20 @@ class OpenIapModule(
         purchaseErrorListeners.remove(listener)
     }
 
-    private fun onPurchasesUpdated(
+    internal fun onPurchasesUpdated(
         expectedClient: BillingClient,
+        sourceGeneration: Long,
         result: BillingResult,
         purchases: List<HorizonPurchase>?,
     ) {
-        val pendingRequest = synchronized(connectionLifecycleLock) {
-            if (billingClient !== expectedClient) return
-            pendingPurchase
-        }
+        val owner = listenerOwner(expectedClient, sourceGeneration)
+        var ownedPendingRequest: PendingPurchaseSnapshot? = null
+        val ownsCallback = owner.claim {
+            ownedPendingRequest = pendingPurchase
+            true
+        } == true
+        if (!ownsCallback) return
+        val pendingRequest = ownedPendingRequest
         try {
             OpenIapLog.i("=== HORIZON onPurchasesUpdated ===", TAG)
             OpenIapLog.i("Response code: ${result.responseCode}", TAG)
@@ -1684,27 +1701,35 @@ class OpenIapModule(
                         TAG,
                     )
 
-                    mapped.forEach { converted ->
-                        if (!claimPurchaseDelivery(converted)) {
+                    val delivered = owner.deliver {
+                        mapped.forEach { converted ->
+                            if (!claimPurchaseDelivery(converted)) {
+                                OpenIapLog.d(
+                                    "Skipping duplicate store callback already delivered by polling",
+                                    TAG,
+                                )
+                                return@forEach
+                            }
                             OpenIapLog.d(
-                                "Skipping duplicate store callback already delivered by polling",
+                                "Notifying ${purchaseUpdateListeners.size} listeners about " +
+                                    "purchase: productId=${converted.productId}",
                                 TAG,
                             )
-                            return@forEach
-                        }
-                        OpenIapLog.d(
-                            "Notifying ${purchaseUpdateListeners.size} listeners about " +
-                                "purchase: productId=${converted.productId}",
-                            TAG,
-                        )
-                        purchaseUpdateListeners.forEach { listener ->
-                            runCatching {
-                                listener.onPurchaseUpdated(converted)
-                                OpenIapLog.d("Listener notified successfully", TAG)
-                            }.onFailure { e ->
-                                OpenIapLog.e("Listener notification failed", e, TAG)
+                            purchaseUpdateListeners.forEach { listener ->
+                                runCatching {
+                                    listener.onPurchaseUpdated(converted)
+                                    OpenIapLog.d("Listener notified successfully", TAG)
+                                }.onFailure { e ->
+                                    OpenIapLog.e("Listener notification failed", e, TAG)
+                                }
                             }
                         }
+                    }
+                    if (!delivered) {
+                        OpenIapLog.w(
+                            "Ignoring purchase update from an inactive BillingClient connection",
+                            TAG,
+                        )
                     }
 
                     if (completedCallback != null) {

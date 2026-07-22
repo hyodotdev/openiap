@@ -2076,7 +2076,7 @@ class OpenIapModule(
                                             requireLaunched = true,
                                         )
                                         OpenIapLog.d("Recovered ${recovered.size} already-owned purchase(s)", TAG)
-                                        val delivered = deliverRecoveredPurchases(
+                                        val delivered = deliverPurchasesIfActive(
                                             recovered,
                                             recoveryOwner,
                                         )
@@ -2523,8 +2523,8 @@ class OpenIapModule(
         }
     }
 
-    /** Delivers recovered purchases only while their originating connection is active. */
-    private fun deliverRecoveredPurchases(
+    /** Delivers purchases only while their originating connection is active. */
+    private fun deliverPurchasesIfActive(
         purchases: List<Purchase>,
         owner: ActiveStoreListenerOwner<BillingClient>,
     ): Boolean = owner.deliver {
@@ -2625,11 +2625,12 @@ class OpenIapModule(
                     null
                 }
                 OpenIapLog.d("Mapped purchases count=${mapped.size}", TAG)
-                notifySuspendedSubscriptions(mapped, owner)
-                for (converted in mapped) {
-                    for (listener in purchaseUpdateListeners) {
-                        runCatching { listener.onPurchaseUpdated(converted) }
-                    }
+                val delivered = deliverPurchasesIfActive(mapped, owner)
+                if (!delivered) {
+                    OpenIapLog.w(
+                        "Ignoring purchase update from an inactive BillingClient connection",
+                        TAG,
+                    )
                 }
                 if (completedRequest != null) {
                     completedRequest.callback(Result.success(matched))
@@ -2703,7 +2704,7 @@ class OpenIapModule(
                                     requireLaunched = true,
                                 )
                                 OpenIapLog.d("Recovered ${recovered.size} already-owned purchase(s)", TAG)
-                                val delivered = deliverRecoveredPurchases(
+                                val delivered = deliverPurchasesIfActive(
                                     recovered,
                                     owner,
                                 )

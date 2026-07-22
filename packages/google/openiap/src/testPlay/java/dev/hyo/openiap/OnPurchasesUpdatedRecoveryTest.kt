@@ -41,6 +41,7 @@ import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import java.lang.reflect.Field
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -234,9 +235,9 @@ class OnPurchasesUpdatedRecoveryTest {
         module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
         module.addPurchaseErrorListener(OpenIapPurchaseErrorListener { errors += it })
 
-        // Simulate endConnection/disconnect clearing the pending request after
-        // onPurchasesUpdated snapshotted it but before it claims the callback.
-        // The first module log sits exactly between the snapshot and the claim.
+        // Simulate a polling/completion path clearing only the pending request
+        // after onPurchasesUpdated snapshotted it but before callback claim.
+        // The BillingClient remains active, so listener delivery must continue.
         val cleared = AtomicBoolean(false)
         OpenIapLog.enable(true)
         OpenIapLog.setHandler { _, message, _ ->
@@ -261,6 +262,48 @@ class OnPurchasesUpdatedRecoveryTest {
             results.isEmpty(),
         )
         assertTrue(errors.isEmpty())
+    }
+
+    @Test
+    fun `purchase update from a connection invalidated during dispatch is not delivered`() {
+        val client = RecordingBillingClient()
+        val module = module()
+        setBillingClient(module, client)
+        val results = mutableListOf<Result<List<Purchase>>>()
+        installPendingPurchase(
+            module = module,
+            client = client,
+            callback = { results += it },
+            skus = setOf("product-id"),
+            productType = BillingClient.ProductType.INAPP,
+            launchStartedAtMillis = 1.0,
+        )
+        val updates = mutableListOf<Purchase>()
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+
+        val invalidated = AtomicBoolean(false)
+        OpenIapLog.enable(true)
+        OpenIapLog.setHandler { _, message, _ ->
+            if (message.startsWith("onPurchasesUpdated:") &&
+                invalidated.compareAndSet(false, true)
+            ) {
+                runBlocking { module.endConnection() }
+            }
+        }
+
+        module.onPurchasesUpdated(
+            billingResult(BillingClient.BillingResponseCode.OK),
+            listOf(billingPurchase("product-id", "purchase-token", purchaseTime = 5)),
+        )
+
+        assertTrue("test hook must invalidate the active connection", invalidated.get())
+        assertTrue("stale client update must not reach listeners: $updates", updates.isEmpty())
+        assertEquals(1, results.size)
+        assertTrue(
+            "endConnection must fail the pending request: $results",
+            results.single().exceptionOrNull() is OpenIapError.ServiceDisconnected,
+        )
+        assertNull(pendingPurchaseField().get(module))
     }
 
     @Test
