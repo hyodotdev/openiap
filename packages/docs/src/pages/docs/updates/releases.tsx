@@ -22,6 +22,18 @@ interface Note {
   element: React.ReactNode;
 }
 
+const androidOfferCodePlannedReleases = [
+  'OpenIAP Spec 2.5.0 (docs-2.5.0)',
+  'openiap-apple 2.4.2',
+  'openiap-google 2.5.0',
+  'react-native-iap 15.6.0',
+  'expo-iap 4.7.0',
+  'flutter_inapp_purchase 9.6.0',
+  'godot-iap 2.6.0',
+  'kmp-iap 2.7.0',
+  'OpenIap.Maui 1.4.0',
+] as const;
+
 const fetchProductsAllFixReleases = [
   ['react-native-iap 15.5.4', 'react-native-iap-15.5.4'],
 ] as const;
@@ -74,6 +86,209 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // July 22, 2026 - Android offer-code redemption across SDKs
+    {
+      id: 'android-offer-code-redemption-2026-07-22',
+      date: new Date('2026-07-22'),
+      element: (
+        <div
+          key="android-offer-code-redemption-2026-07-22"
+          style={noteCardStyle}
+        >
+          <AnchorLink id="android-offer-code-redemption-2026-07-22" level="h4">
+            July 22, 2026 - Android offer-code redemption across SDKs
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Prepares the stable release train for{' '}
+            <Link to="/docs/apis/android/open-redeem-offer-code-android">
+              <code>openRedeemOfferCodeAndroid</code>
+            </Link>{' '}
+            from{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/243"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #243
+            </a>
+            . The additive API opens Google Play&apos;s offer or promo-code
+            redemption surface without requiring an initialized billing client,
+            preserves explicit unsupported-store results, and will carry the
+            same contract through every maintained framework SDK.
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Shared spec and native packages
+          </h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>OpenIAP Spec 2.5.0</strong> - adds the Android-only{' '}
+              <code>openRedeemOfferCodeAndroid</code> mutation returning{' '}
+              <code>true</code> when the redemption surface launches and{' '}
+              <code>false</code> when the active store flavor has no equivalent
+              flow. Generated Swift, Kotlin, TypeScript, Dart, GDScript, and C#
+              resolver contracts stay synchronized with the schema.
+            </li>
+            <li>
+              <strong>openiap-google 2.5.0</strong> - launches{' '}
+              <code>https://play.google.com/redeem</code> for Google Play builds
+              while Amazon and Horizon return <code>false</code> instead of
+              throwing or opening an unrelated external-link flow. The Play
+              purchase callback also recovers an in-flight{' '}
+              <code>ITEM_ALREADY_OWNED</code> result by querying owned purchases
+              and completing the request with the matching entitlement.
+            </li>
+            <li>
+              <strong>openiap-apple 2.4.2</strong> - adds practical macOS
+              fallbacks alongside the synchronized Android-only resolver:
+              subscription management opens the App Store account page, and a
+              verified refund request opens Apple&apos;s Report a Problem page
+              and returns no in-app status because the result is completed
+              outside the app. <code>showManageSubscriptionsIOS</code> remains
+              unsupported on macOS because a browser flow cannot report which
+              purchases changed.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>react-native-iap 15.6.0</strong> - exports the new API
+              directly and from <code>useIAP</code>. Android now retains
+              purchase updates and errors in bounded FIFO queues while no JS
+              listener is attached, flushes them after listener registration,
+              and includes listeners added during a flush only for later
+              arrivals. Removing the final JS error listener also detaches the
+              native listener so events are buffered across screen gaps instead
+              of being consumed by an orphaned callback.
+            </li>
+            <li>
+              <strong>expo-iap 4.7.0</strong> - replaces the JavaScript URL stub
+              with the native OpenIAP handler, exposes the mutation from{' '}
+              <code>useIAP</code>, returns the launch result to the app, and
+              reports <code>false</code> on unsupported Vega or Kepler store
+              paths.
+            </li>
+            <li>
+              <strong>flutter_inapp_purchase 9.6.0</strong> - adds the typed
+              Android platform-channel method and mutation-handler wiring. Its
+              example now supports both the iOS redemption sheet and the Google
+              Play redemption page with distinct platform and unsupported-store
+              states.
+            </li>
+            <li>
+              <strong>godot-iap 2.6.0</strong> - adds the GDScript API and
+              Android plugin bridge, delegates through the shared store module
+              to preserve Play, Amazon, and Horizon semantics, and can launch
+              the redemption flow before an IAP connection is initialized.
+            </li>
+            <li>
+              <strong>kmp-iap 2.7.0</strong> - adds the common resolver and an
+              Android implementation that uses the current activity or
+              application context without requiring a billing connection.
+              Amazon, Horizon, and iOS implementations return <code>false</code>{' '}
+              for the Android-only capability.
+            </li>
+            <li>
+              <strong>OpenIap.Maui 1.4.0</strong> - adds{' '}
+              <code>OpenRedeemOfferCodeAndroidAsync</code> to the generated CLR
+              resolver, binds it to the store-aware Android handler, and keeps
+              the iOS implementation as an explicit <code>false</code> result.
+              The example now calls the SDK API instead of opening a hard-coded
+              browser URL.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Integration and upgrade notes
+          </h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              The method opens an external store surface; it does not redeem a
+              code or return a purchase directly. Apps should keep their normal
+              purchase listeners active when possible and always reconcile with{' '}
+              <code>getAvailablePurchases</code> when the app resumes.
+            </li>
+            <li>
+              A <code>false</code> result is a supported capability result for
+              Amazon, Horizon, Vega, Kepler, and wrapper implementations with an
+              explicit zero-value stub. Apps should platform-gate the call,
+              because React Native, Expo, and Flutter reject calls from the
+              wrong OS, and show an unsupported-store message when an Android
+              store returns <code>false</code>.
+            </li>
+            <li>
+              The redemption deep link has no Play Billing Library version
+              requirement and does not need <code>initConnection</code> first;
+              connection state only affects whether a redeemed purchase can be
+              delivered immediately through listeners.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Documentation and deployment scope
+          </h5>
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            The documentation adds the Android API reference, updates the
+            cross-SDK offer-code guide and examples, and clarifies the macOS
+            subscription-management and refund fallbacks. IAPKit has no runtime
+            release in this train: its touched files contain test stabilization
+            and internal comment cleanup only.
+          </p>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Planned Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              {androidOfferCodePlannedReleases.map((release) => (
+                <li key={release}>{release}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // July 20, 2026 - react-native-iap 15.5.4
     {
       id: 'react-native-iap-fetch-products-all-fix-2026-07-20',

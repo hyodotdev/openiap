@@ -29,7 +29,7 @@ function OpenRedeemOfferCodeAndroid() {
         .
       </p>
       <p>
-        Available in OpenIAP Spec 2.4.0 / <code>openiap-google</code> 2.4.1.
+        Planned for OpenIAP Spec 2.5.0 / <code>openiap-google</code> 2.5.0.
         Launches the Play Store redeem page (
         <code>https://play.google.com/redeem</code>) as a deep link, so it does
         not require the billing client to be initialized and has no Play Billing
