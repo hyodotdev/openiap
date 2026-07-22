@@ -12,14 +12,6 @@
       "ExpoIapAppDelegateSubscriber"
     ]
   },
-  "tvos": {
-    "modules": [
-      "ExpoIapModule"
-    ],
-    "appDelegateSubscribers": [
-      "ExpoIapAppDelegateSubscriber"
-    ]
-  },
   "android": {
     "modules": [
       "expo.modules.iap.ExpoIapModule"
