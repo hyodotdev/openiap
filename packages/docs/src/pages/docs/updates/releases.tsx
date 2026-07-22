@@ -187,7 +187,23 @@ function Releases() {
               URL stub with the native OpenIAP handler, exposes the mutation
               from <code>useIAP</code>, returns the launch result to the app,
               and reports <code>false</code> on unsupported Vega or Kepler store
-              paths.
+              paths. It also declares <code>tvos</code> in Expo module platform
+              metadata, so TV-mode prebuilds autolink the existing Apple native
+              module and app-delegate subscriber instead of silently omitting
+              <code>ExpoIap</code> (
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/244"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                PR #244
+              </a>
+              ). Apple TV apps still require the{' '}
+              <Link to="/docs/setup/expo#tvos">
+                documented tvOS 16.0+ setup
+              </Link>
+              .
             </li>
             <li>
               <strong>Planned flutter_inapp_purchase 9.6.0</strong> - adds the
