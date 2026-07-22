@@ -854,12 +854,15 @@ export interface Mutation {
   launchExternalLinkAndroid: Promise<boolean>;
   /**
    * Open the Google Play offer/promo code redemption flow so the user can enter a code.
-   * Launches the Play Store redeem page (https://play.google.com/redeem); purchases
-   * completed there are delivered through the standard purchase listeners.
+   * On Google Play builds, launches the Play Store redeem page
+   * (https://play.google.com/redeem). A purchase listener can receive the redeemed
+   * purchase while the app is running with an active billing connection; always
+   * reconcile with getAvailablePurchases when the app resumes.
    * Does not require the billing client to be initialized (no Play Billing version requirement).
    * OpenIAP availability: Spec 2.5.0 / openiap-google 2.5.0.
    * Android counterpart of presentCodeRedemptionSheetIOS.
-   * Returns true when the redemption flow was launched.
+   * Returns true when the redemption flow was launched, or false when the current
+   * store flavor does not provide an equivalent redemption flow.
    * See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
    */
   openRedeemOfferCodeAndroid: Promise<boolean>;
