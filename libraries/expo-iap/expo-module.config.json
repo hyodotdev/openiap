@@ -1,9 +1,18 @@
 {
   "platforms": [
     "ios",
+    "tvos",
     "android"
   ],
   "ios": {
+    "modules": [
+      "ExpoIapModule"
+    ],
+    "appDelegateSubscribers": [
+      "ExpoIapAppDelegateSubscriber"
+    ]
+  },
+  "tvos": {
     "modules": [
       "ExpoIapModule"
     ],
