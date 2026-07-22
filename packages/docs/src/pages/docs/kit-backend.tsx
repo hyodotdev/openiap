@@ -779,6 +779,20 @@ var clientPayload = payloadResponse.ClientPayload;`}</CodeBlock>
           </li>
         </ul>
         <p>
+          For Apple projects, an uploaded project-level App Review screenshot
+          opts eligible draft products into the current version-based review
+          workflow. Push Sync creates product-version metadata, uploads the
+          private PNG/JPEG through Apple&apos;s reserved asset operations, and
+          submits the version through a review submission. If no screenshot is
+          configured, the product stops at Ready to Submit as before. Apple
+          requirements that need a new app version—including the first
+          consumable, non-consumable, auto-renewable subscription, or
+          non-renewing subscription—are returned as <code>manualActions</code>,
+          not transient sync failures. Removing the project file only stops
+          future reuse; it does not remove screenshots already uploaded to App
+          Store Connect.
+        </p>
+        <p>
           Sync is asynchronous —{' '}
           <code>
             POST /v1/products/&#123;apiKey&#125;/sync/&#123;ios|android&#125;
@@ -811,8 +825,9 @@ var clientPayload = payloadResponse.ClientPayload;`}</CodeBlock>
               POST
               /v1/products/&#123;apiKey&#125;/sync/jobs/&#123;jobId&#125;/cancel
             </code>{' '}
-            — request a cancel; the worker checks at phase boundaries (PULL.iaps
-            → PULL.subscriptions → PUSH.drafts) and stops within seconds.
+            — request a cancel; the worker checks at phase, product-chunk,
+            request, upload-operation, and asset-poll boundaries, then performs
+            bounded cleanup for any IAPKit-owned review draft.
           </li>
         </ul>
         <p>
