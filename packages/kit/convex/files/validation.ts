@@ -89,7 +89,10 @@ export function validateFile(
   }
 
   // Check MIME type (more lenient since browsers can be inconsistent)
-  if (validation.mimeTypes.length > 0) {
+  if (
+    validation.mimeTypes.length > 0 &&
+    (fileType !== "" || purpose === "apple_iap_review_screenshot")
+  ) {
     // Credentials are frequently labelled as generic bytes by browsers.
     // Review screenshots are different: ASC only accepts PNG/JPEG and we
     // must not persist a spoofed content type for a later binary upload.

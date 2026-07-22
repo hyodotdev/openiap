@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   validateAppleReviewScreenshotContent,
@@ -120,5 +120,20 @@ describe("Apple App Review screenshot validation", () => {
         "image/png",
       ),
     ).toThrow(/transparency metadata/);
+  });
+});
+
+describe("existing file validation", () => {
+  it("keeps an empty MIME type optional for non-screenshot uploads", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    try {
+      expect(() =>
+        validateFileUpload("config.json", "", 1024, "config"),
+      ).not.toThrow();
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
   });
 });
