@@ -38,9 +38,10 @@ class OpenRedeemOfferCodeAndroidTest {
     }
 
     @Test
-    fun `non-Play stores report the redeem flow as not launched without waiting`() = runTest {
+    fun `unsupported store implementations report the redeem flow as not launched without waiting`() = runTest {
         for ((storeName, store) in listOf(
             "amazon" to Store.AMAZON,
+            // Horizon uses the Play Billing Compatibility SDK, matching the production factory metadata.
             "horizon" to Store.PLAY_STORE,
         )) {
             val implementation = AmazonInAppPurchaseAndroid(
