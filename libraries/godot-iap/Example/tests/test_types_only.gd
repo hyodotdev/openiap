@@ -657,7 +657,7 @@ func _test_enum_value_maps_bijective() -> void:
 			continue
 		var from_name = key.trim_suffix("_VALUES") + "_FROM_STRING"
 		if not constant_map.has(from_name):
-			_assert_true(false, "%s should have a matching %s map" % [key, from_name])
+			_assert_equal(false, true, "%s should have a matching %s map" % [key, from_name])
 			continue
 		var from_map: Dictionary = constant_map[from_name]
 		pair_count += 1
@@ -665,8 +665,8 @@ func _test_enum_value_maps_bijective() -> void:
 		for enum_value in values:
 			if from_map.get(values[enum_value], null) != enum_value:
 				consistent = false
-		_assert_true(consistent, "%s and %s should be a bijection" % [key, from_name])
-	_assert_true(pair_count >= 30, "Expected at least 30 enum value maps (got %d)" % pair_count)
+		_assert_equal(consistent, true, "%s and %s should be a bijection" % [key, from_name])
+	_assert_equal(pair_count >= 30, true, "Expected at least 30 enum value maps (got %d)" % pair_count)
 
 
 # ============================================
