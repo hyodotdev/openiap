@@ -454,6 +454,7 @@ export const isCancelRequested = internalQuery({
 
 export const markJobRunning = internalMutation({
   args: { jobId: v.id("productSyncJobs") },
+  returns: v.union(v.number(), v.null()),
   handler: async (ctx, args) => {
     const job = await ctx.db.get(args.jobId);
     if (!job) return null;
