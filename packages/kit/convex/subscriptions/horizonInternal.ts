@@ -227,9 +227,10 @@ export const recordHorizonStatus = internalMutation({
     // when one is already on file.
     const existingEvent = await ctx.db
       .query("webhookEvents")
-      .withIndex("by_project_and_notification_id", (q) =>
+      .withIndex("by_project_and_source_and_notification_id", (q) =>
         q
           .eq("projectId", args.projectId)
+          .eq("source", "MetaHorizonReconciler")
           .eq("sourceNotificationId", sourceNotificationId),
       )
       .unique();

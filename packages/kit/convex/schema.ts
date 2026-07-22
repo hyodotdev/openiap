@@ -610,6 +610,16 @@ const schema = defineSchema({
     .index("by_project_and_notification_id", [
       "projectId",
       "sourceNotificationId",
+    ])
+    // Source-aware lookup used for ingestion dedup. Keep this separate from
+    // `by_project_and_notification_id`: SSE reconnects only send the stable
+    // sourceNotificationId in Last-Event-ID and therefore cannot supply a
+    // source discriminator, while ingestion must preserve the full
+    // (projectId, source, sourceNotificationId) natural key.
+    .index("by_project_and_source_and_notification_id", [
+      "projectId",
+      "source",
+      "sourceNotificationId",
     ]),
 
   // Dedup table for webhook payloads. Insertion uses
