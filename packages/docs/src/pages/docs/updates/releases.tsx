@@ -23,15 +23,15 @@ interface Note {
 }
 
 const androidOfferCodePlannedReleases = [
-  'OpenIAP Spec 2.5.0 (docs-2.5.0)',
-  'openiap-apple 2.4.2',
-  'openiap-google 2.5.0',
-  'react-native-iap 15.6.0',
-  'expo-iap 4.7.0',
-  'flutter_inapp_purchase 9.6.0',
-  'godot-iap 2.6.0',
-  'kmp-iap 2.7.0',
-  'OpenIap.Maui 1.4.0',
+  'OpenIAP Spec 2.5.0 (docs-2.5.0, planned)',
+  'openiap-apple 2.4.2 (planned)',
+  'openiap-google 2.5.0 (planned)',
+  'react-native-iap 15.6.0 (planned)',
+  'expo-iap 4.7.0 (planned)',
+  'flutter_inapp_purchase 9.6.0 (planned)',
+  'godot-iap 2.6.0 (planned)',
+  'kmp-iap 2.7.0 (planned)',
+  'OpenIap.Maui 1.4.0 (planned)',
 ] as const;
 
 const fetchProductsAllFixReleases = [
@@ -135,15 +135,16 @@ function Releases() {
             }}
           >
             <li>
-              <strong>OpenIAP Spec 2.5.0</strong> - adds the Android-only{' '}
-              <code>openRedeemOfferCodeAndroid</code> mutation returning{' '}
-              <code>true</code> when the redemption surface launches and{' '}
-              <code>false</code> when the active store flavor has no equivalent
-              flow. Generated Swift, Kotlin, TypeScript, Dart, GDScript, and C#
-              resolver contracts stay synchronized with the schema.
+              <strong>Planned OpenIAP Spec 2.5.0</strong> - adds the
+              Android-only <code>openRedeemOfferCodeAndroid</code> mutation
+              returning <code>true</code> when the redemption surface launches
+              and <code>false</code> when the active store flavor has no
+              equivalent flow. Generated Swift, Kotlin, TypeScript, Dart,
+              GDScript, and C# resolver contracts stay synchronized with the
+              schema.
             </li>
             <li>
-              <strong>openiap-google 2.5.0</strong> - launches{' '}
+              <strong>Planned openiap-google 2.5.0</strong> - launches{' '}
               <code>https://play.google.com/redeem</code> for Google Play builds
               while Amazon and Horizon return <code>false</code> instead of
               throwing or opening an unrelated external-link flow. The Play
@@ -152,8 +153,8 @@ function Releases() {
               and completing the request with the matching entitlement.
             </li>
             <li>
-              <strong>openiap-apple 2.4.2</strong> - adds practical macOS
-              fallbacks alongside the synchronized Android-only resolver:
+              <strong>Planned openiap-apple 2.4.2</strong> - adds practical
+              macOS fallbacks alongside the synchronized Android-only resolver:
               subscription management opens the App Store account page, and a
               verified refund request opens Apple&apos;s Report a Problem page
               and returns no in-app status because the result is completed
@@ -172,8 +173,8 @@ function Releases() {
             }}
           >
             <li>
-              <strong>react-native-iap 15.6.0</strong> - exports the new API
-              directly and from <code>useIAP</code>. Android now retains
+              <strong>Planned react-native-iap 15.6.0</strong> - exports the new
+              API directly and from <code>useIAP</code>. Android now retains
               purchase updates and errors in bounded FIFO queues while no JS
               listener is attached, flushes them after listener registration,
               and includes listeners added during a flush only for later
@@ -182,34 +183,35 @@ function Releases() {
               of being consumed by an orphaned callback.
             </li>
             <li>
-              <strong>expo-iap 4.7.0</strong> - replaces the JavaScript URL stub
-              with the native OpenIAP handler, exposes the mutation from{' '}
-              <code>useIAP</code>, returns the launch result to the app, and
-              reports <code>false</code> on unsupported Vega or Kepler store
+              <strong>Planned expo-iap 4.7.0</strong> - replaces the JavaScript
+              URL stub with the native OpenIAP handler, exposes the mutation
+              from <code>useIAP</code>, returns the launch result to the app,
+              and reports <code>false</code> on unsupported Vega or Kepler store
               paths.
             </li>
             <li>
-              <strong>flutter_inapp_purchase 9.6.0</strong> - adds the typed
-              Android platform-channel method and mutation-handler wiring. Its
-              example now supports both the iOS redemption sheet and the Google
-              Play redemption page with distinct platform and unsupported-store
-              states.
+              <strong>Planned flutter_inapp_purchase 9.6.0</strong> - adds the
+              typed Android platform-channel method and mutation-handler wiring.
+              Its example now supports both the iOS redemption sheet and the
+              Google Play redemption page with distinct platform and
+              unsupported-store states.
             </li>
             <li>
-              <strong>godot-iap 2.6.0</strong> - adds the GDScript API and
-              Android plugin bridge, delegates through the shared store module
-              to preserve Play, Amazon, and Horizon semantics, and can launch
-              the redemption flow before an IAP connection is initialized.
+              <strong>Planned godot-iap 2.6.0</strong> - adds the GDScript API
+              and Android plugin bridge, delegates through the shared store
+              module to preserve Play, Amazon, and Horizon semantics, and can
+              launch the redemption flow before an IAP connection is
+              initialized.
             </li>
             <li>
-              <strong>kmp-iap 2.7.0</strong> - adds the common resolver and an
-              Android implementation that uses the current activity or
+              <strong>Planned kmp-iap 2.7.0</strong> - adds the common resolver
+              and an Android implementation that uses the current activity or
               application context without requiring a billing connection.
               Amazon, Horizon, and iOS implementations return <code>false</code>{' '}
               for the Android-only capability.
             </li>
             <li>
-              <strong>OpenIap.Maui 1.4.0</strong> - adds{' '}
+              <strong>Planned OpenIap.Maui 1.4.0</strong> - adds{' '}
               <code>OpenRedeemOfferCodeAndroidAsync</code> to the generated CLR
               resolver, binds it to the store-aware Android handler, and keeps
               the iOS implementation as an explicit <code>false</code> result.
@@ -273,6 +275,20 @@ function Releases() {
             }}
           >
             <h5 style={{ margin: '0 0 0.5rem 0' }}>Planned Package Releases</h5>
+            <p
+              style={{
+                margin: '0 0 0.75rem 0',
+                color: 'var(--text-secondary)',
+                fontSize: '0.9rem',
+              }}
+            >
+              These are post-merge release targets, not the versions currently
+              stored in this branch. Stable release workflows on{' '}
+              <code>main</code> will bump the package metadata from the
+              published Spec 2.4.0 and native 2.4.1 baselines. Until each
+              release exists, these entries remain unlinked and should not be
+              treated as installable versions.
+            </p>
             <ul
               style={{
                 margin: 0,
