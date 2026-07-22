@@ -50,6 +50,12 @@ const FILE_VALIDATIONS = {
     maxSize: 500 * 1024, // 500KB max for credentials (service accounts can be larger)
     description: "API credential or key",
   },
+  apple_iap_review_screenshot: {
+    extensions: [".png", ".jpg", ".jpeg"],
+    mimeTypes: ["image/png", "image/jpeg"],
+    maxSize: 10 * 1024 * 1024,
+    description: "Apple in-app purchase App Review screenshot",
+  },
   other: {
     extensions: [], // No restriction for "other" type
     mimeTypes: [],
@@ -68,10 +74,10 @@ export function validateFile(
   purpose: FilePurpose,
 ): void {
   const validation = FILE_VALIDATIONS[purpose];
+  const fileExtension = getFileExtension(fileName).toLowerCase();
 
   // Check file extension
   if (validation.extensions.length > 0) {
-    const fileExtension = getFileExtension(fileName).toLowerCase();
     const extensionsList = validation.extensions as readonly string[];
     if (!extensionsList.includes(fileExtension)) {
       throw new ConvexError(
@@ -83,15 +89,24 @@ export function validateFile(
   }
 
   // Check MIME type (more lenient since browsers can be inconsistent)
-  if (validation.mimeTypes.length > 0 && fileType) {
-    // Allow if MIME type matches OR if it's a generic binary/text type
+  if (validation.mimeTypes.length > 0) {
+    // Credentials are frequently labelled as generic bytes by browsers.
+    // Review screenshots are different: ASC only accepts PNG/JPEG and we
+    // must not persist a spoofed content type for a later binary upload.
     const mimeTypesList = validation.mimeTypes as readonly string[];
     const isValidMime =
-      mimeTypesList.includes(fileType) ||
-      fileType === "application/octet-stream" ||
-      fileType === "text/plain";
+      (fileType !== "" && mimeTypesList.includes(fileType)) ||
+      (purpose !== "apple_iap_review_screenshot" &&
+        (fileType === "application/octet-stream" || fileType === "text/plain"));
 
     if (!isValidMime) {
+      if (purpose === "apple_iap_review_screenshot") {
+        throw new ConvexError(
+          `Invalid MIME type for ${purpose}. ` +
+            `Expected one of: ${validation.mimeTypes.join(", ")}. ` +
+            `Got: ${fileType || "(empty)"}`,
+        );
+      }
       console.warn(
         `Unexpected MIME type for ${purpose}: ${fileType}. ` +
           `Expected one of: ${validation.mimeTypes.join(", ")}`,
@@ -99,6 +114,17 @@ export function validateFile(
       // Don't throw error for MIME type mismatch, just warn
       // Browsers are inconsistent with MIME types
     }
+  }
+
+  if (
+    purpose === "apple_iap_review_screenshot" &&
+    ((fileExtension === ".png" && fileType !== "image/png") ||
+      ((fileExtension === ".jpg" || fileExtension === ".jpeg") &&
+        fileType !== "image/jpeg"))
+  ) {
+    throw new ConvexError(
+      "App Review screenshot extension must match its PNG or JPEG MIME type",
+    );
   }
 
   // Check file size
@@ -283,5 +309,102 @@ export function validateFileUpload(
         validateJsonConfig(fileName, fileType, fileSize);
       }
       break;
+    case "apple_iap_review_screenshot":
+      // Extension, strict MIME, non-empty size, and the 10 MB cap are all
+      // enforced above. Binary magic is checked again immediately before ASC
+      // upload, after reading the private blob from Convex storage.
+      break;
   }
+}
+
+/**
+ * Validate the private blob immediately before it is uploaded to ASC.
+ *
+ * Browser-provided names and MIME types are metadata only. This lightweight
+ * signature/transparency check runs in both runtimes; the upload reservation
+ * receives its trusted marker only after `files/action.ts` also performs a
+ * full Sharp decode. PNG screenshots with alpha are rejected because App
+ * Store Connect rejects them after upload processing.
+ */
+export function validateAppleReviewScreenshotContent(
+  content: Uint8Array,
+  declaredMimeType: string,
+): void {
+  if (content.byteLength === 0) {
+    throw new ConvexError("App Review screenshot cannot be empty");
+  }
+  if (content.byteLength > 10 * 1024 * 1024) {
+    throw new ConvexError("App Review screenshot must be 10 MB or smaller");
+  }
+
+  const isPng =
+    content.byteLength >= 26 &&
+    content[0] === 0x89 &&
+    content[1] === 0x50 &&
+    content[2] === 0x4e &&
+    content[3] === 0x47 &&
+    content[4] === 0x0d &&
+    content[5] === 0x0a &&
+    content[6] === 0x1a &&
+    content[7] === 0x0a &&
+    String.fromCharCode(...content.subarray(12, 16)) === "IHDR";
+  const isJpeg =
+    content.byteLength >= 4 &&
+    content[0] === 0xff &&
+    content[1] === 0xd8 &&
+    content[content.byteLength - 2] === 0xff &&
+    content[content.byteLength - 1] === 0xd9;
+
+  if (!isPng && !isJpeg) {
+    throw new ConvexError(
+      "App Review screenshot content must be a valid PNG or JPEG",
+    );
+  }
+  if (isPng && declaredMimeType !== "image/png") {
+    throw new ConvexError(
+      "App Review screenshot MIME type does not match its PNG content",
+    );
+  }
+  if (isJpeg && declaredMimeType !== "image/jpeg") {
+    throw new ConvexError(
+      "App Review screenshot MIME type does not match its JPEG content",
+    );
+  }
+
+  // PNG IHDR byte 25 is the color type: 4 and 6 include alpha.
+  if (isPng && (content[25] === 4 || content[25] === 6)) {
+    throw new ConvexError(
+      "App Review PNG screenshots cannot contain an alpha channel",
+    );
+  }
+  if (isPng && pngContainsTransparencyChunk(content)) {
+    throw new ConvexError(
+      "App Review PNG screenshots cannot contain transparency metadata",
+    );
+  }
+}
+
+function pngContainsTransparencyChunk(content: Uint8Array): boolean {
+  const view = new DataView(
+    content.buffer,
+    content.byteOffset,
+    content.byteLength,
+  );
+  let offset = 8;
+  while (offset + 12 <= content.byteLength) {
+    const length = view.getUint32(offset, false);
+    const typeOffset = offset + 4;
+    if (
+      content[typeOffset] === 0x74 &&
+      content[typeOffset + 1] === 0x52 &&
+      content[typeOffset + 2] === 0x4e &&
+      content[typeOffset + 3] === 0x53
+    ) {
+      return true;
+    }
+    const nextOffset = offset + 12 + length;
+    if (nextOffset <= offset || nextOffset > content.byteLength) return false;
+    offset = nextOffset;
+  }
+  return false;
 }

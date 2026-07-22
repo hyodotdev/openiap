@@ -1,14 +1,395 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   ascCustomerPriceToMicros,
+  createAscReviewEligibilityLoader,
+  getAscReviewFinalizeDisposition,
+  mapAscReviewProductType,
   mapAscOfferDurationToIso,
   mapAscOfferKind,
   mapBillingPeriodToAsc,
   parseIntroOffers,
   pickActivePriceRow,
   pickPricePointIdMatching,
+  shouldMarkAscReviewSubmissionOutcomePushed,
 } from "./asc";
+import type { AscReviewVersionItem } from "./ascReview";
+
+type EligibilityClient = Parameters<
+  typeof createAscReviewEligibilityLoader
+>[0]["client"];
+
+function createEligibilityClient() {
+  return {
+    listInAppPurchases: vi
+      .fn<EligibilityClient["listInAppPurchases"]>()
+      .mockResolvedValue({ data: [] }),
+    listInAppPurchaseVersions: vi
+      .fn<EligibilityClient["listInAppPurchaseVersions"]>()
+      .mockResolvedValue({ data: [] }),
+    listSubscriptionGroups: vi
+      .fn<EligibilityClient["listSubscriptionGroups"]>()
+      .mockResolvedValue({ data: [] }),
+    listSubscriptionsInGroup: vi
+      .fn<EligibilityClient["listSubscriptionsInGroup"]>()
+      .mockResolvedValue({ data: [] }),
+    listSubscriptionGroupVersions: vi
+      .fn<EligibilityClient["listSubscriptionGroupVersions"]>()
+      .mockResolvedValue({ data: [] }),
+    listSubscriptionVersions: vi
+      .fn<EligibilityClient["listSubscriptionVersions"]>()
+      .mockResolvedValue({ data: [] }),
+  };
+}
+
+function reviewItem(
+  productType: AscReviewVersionItem["productType"],
+  overrides: Partial<AscReviewVersionItem> = {},
+): AscReviewVersionItem {
+  return {
+    productId: `local-${productType}`,
+    storeRef: `store-${productType}`,
+    kind: productType === "Subscription" ? "subscription" : "iap",
+    productType,
+    versionId: `version-${productType}`,
+    ...overrides,
+  };
+}
+
+describe("createAscReviewEligibilityLoader", () => {
+  it("checks only matching IAP histories for a Consumable candidate", async () => {
+    const client = createEligibilityClient();
+    client.listInAppPurchases.mockResolvedValue({
+      data: [
+        {
+          id: "consumable-history",
+          type: "inAppPurchases",
+          attributes: {
+            inAppPurchaseType: "CONSUMABLE",
+            state: "READY_TO_SUBMIT",
+          },
+        },
+        {
+          id: "unrelated-non-consumable",
+          type: "inAppPurchases",
+          attributes: {
+            inAppPurchaseType: "NON_CONSUMABLE",
+            state: "READY_TO_SUBMIT",
+          },
+        },
+      ],
+    });
+    client.listInAppPurchaseVersions.mockResolvedValue({
+      data: [
+        {
+          id: "consumable-approved-version",
+          attributes: { state: "APPROVED" },
+        },
+      ],
+    });
+    const loader = createAscReviewEligibilityLoader({
+      client,
+      appId: "app-1",
+      checkCancelled: vi.fn(async () => undefined),
+    });
+
+    await expect(loader.getActions(reviewItem("Consumable"))).resolves.toEqual(
+      [],
+    );
+    expect(client.listSubscriptionGroups).not.toHaveBeenCalled();
+    expect(client.listSubscriptionsInGroup).not.toHaveBeenCalled();
+    expect(client.listSubscriptionGroupVersions).not.toHaveBeenCalled();
+    expect(client.listSubscriptionVersions).not.toHaveBeenCalled();
+    expect(client.listInAppPurchaseVersions).toHaveBeenCalledTimes(1);
+    expect(client.listInAppPurchaseVersions).toHaveBeenCalledWith(
+      "consumable-history",
+    );
+    expect(client.listInAppPurchaseVersions).not.toHaveBeenCalledWith(
+      "unrelated-non-consumable",
+    );
+  });
+
+  it("uses an approved parent without loading any IAP version history", async () => {
+    const client = createEligibilityClient();
+    client.listInAppPurchases.mockResolvedValue({
+      data: [
+        {
+          id: "approved-consumable",
+          type: "inAppPurchases",
+          attributes: {
+            inAppPurchaseType: "CONSUMABLE",
+            state: "APPROVED",
+          },
+        },
+        {
+          id: "draft-consumable",
+          type: "inAppPurchases",
+          attributes: {
+            inAppPurchaseType: "CONSUMABLE",
+            state: "READY_TO_SUBMIT",
+          },
+        },
+      ],
+    });
+    const loader = createAscReviewEligibilityLoader({
+      client,
+      appId: "app-1",
+      checkCancelled: vi.fn(async () => undefined),
+    });
+
+    await expect(loader.getActions(reviewItem("Consumable"))).resolves.toEqual(
+      [],
+    );
+    expect(client.listInAppPurchaseVersions).not.toHaveBeenCalled();
+  });
+
+  it("stops scheduling later history candidates after a bounded concurrent match", async () => {
+    const client = createEligibilityClient();
+    client.listInAppPurchases.mockResolvedValue({
+      data: Array.from({ length: 6 }, (_, index) => ({
+        id: `consumable-${index + 1}`,
+        type: "inAppPurchases" as const,
+        attributes: {
+          inAppPurchaseType: "CONSUMABLE",
+          state: "READY_TO_SUBMIT",
+        },
+      })),
+    });
+    client.listInAppPurchaseVersions.mockImplementation(async (id) => ({
+      data:
+        id === "consumable-1"
+          ? [{ id: "approved-history", attributes: { state: "APPROVED" } }]
+          : [],
+    }));
+    const loader = createAscReviewEligibilityLoader({
+      client,
+      appId: "app-1",
+      checkCancelled: vi.fn(async () => undefined),
+    });
+
+    await expect(loader.getActions(reviewItem("Consumable"))).resolves.toEqual(
+      [],
+    );
+    expect(client.listInAppPurchaseVersions).toHaveBeenCalledTimes(3);
+    expect(
+      client.listInAppPurchaseVersions.mock.calls.map(([id]) => id),
+    ).toEqual(["consumable-1", "consumable-2", "consumable-3"]);
+  });
+
+  it("reuses type, group, subscription, and history caches across repeated checks", async () => {
+    const client = createEligibilityClient();
+    client.listSubscriptionGroups.mockResolvedValue({
+      data: [
+        {
+          id: "group-pro",
+          type: "subscriptionGroups",
+          attributes: { referenceName: "Pro" },
+        },
+      ],
+    });
+    client.listSubscriptionsInGroup.mockResolvedValue({
+      data: [
+        {
+          id: "approved-subscription",
+          type: "subscriptions",
+          attributes: { state: "APPROVED" },
+        },
+      ],
+    });
+    client.listSubscriptionGroupVersions.mockResolvedValue({
+      data: [
+        {
+          id: "approved-group-version",
+          type: "subscriptionGroupVersions",
+          attributes: { state: "APPROVED" },
+        },
+      ],
+    });
+    const loader = createAscReviewEligibilityLoader({
+      client,
+      appId: "app-1",
+      checkCancelled: vi.fn(async () => undefined),
+    });
+
+    await expect(
+      loader.getActions(
+        reviewItem("Subscription", {
+          productId: "local-sub-one",
+          subscriptionGroupId: "group-pro",
+        }),
+      ),
+    ).resolves.toEqual([]);
+    await expect(
+      loader.getActions(
+        reviewItem("Subscription", {
+          productId: "local-sub-two",
+          subscriptionGroupId: "group-pro",
+        }),
+      ),
+    ).resolves.toEqual([]);
+
+    expect(client.listSubscriptionGroups).toHaveBeenCalledTimes(1);
+    expect(client.listSubscriptionsInGroup).toHaveBeenCalledTimes(1);
+    expect(client.listSubscriptionsInGroup).toHaveBeenCalledWith("group-pro");
+    expect(client.listSubscriptionGroupVersions).toHaveBeenCalledTimes(1);
+    expect(client.listSubscriptionGroupVersions).toHaveBeenCalledWith(
+      "group-pro",
+    );
+    expect(client.listSubscriptionVersions).not.toHaveBeenCalled();
+  });
+
+  it("checks the target subscription group exactly without loading unrelated group versions", async () => {
+    const client = createEligibilityClient();
+    client.listSubscriptionGroups.mockResolvedValue({
+      data: [
+        {
+          id: "group-approved-elsewhere",
+          type: "subscriptionGroups",
+          attributes: { referenceName: "Elsewhere" },
+        },
+        {
+          id: "group-target",
+          type: "subscriptionGroups",
+          attributes: { referenceName: "Target" },
+        },
+      ],
+    });
+    client.listSubscriptionsInGroup.mockImplementation(async (groupId) => ({
+      data:
+        groupId === "group-approved-elsewhere"
+          ? [
+              {
+                id: "approved-subscription",
+                type: "subscriptions" as const,
+                attributes: { state: "APPROVED" },
+              },
+            ]
+          : [
+              {
+                id: "target-draft-subscription",
+                type: "subscriptions" as const,
+                attributes: { state: "READY_TO_SUBMIT" },
+              },
+            ],
+    }));
+    client.listSubscriptionGroupVersions.mockImplementation(
+      async (groupId) => ({
+        data:
+          groupId === "group-approved-elsewhere"
+            ? [
+                {
+                  id: "unrelated-approved-group-version",
+                  type: "subscriptionGroupVersions" as const,
+                  attributes: { state: "APPROVED" },
+                },
+              ]
+            : [],
+      }),
+    );
+    const loader = createAscReviewEligibilityLoader({
+      client,
+      appId: "app-1",
+      checkCancelled: vi.fn(async () => undefined),
+    });
+
+    await expect(
+      loader.getActions(
+        reviewItem("Subscription", {
+          subscriptionGroupId: "group-target",
+        }),
+      ),
+    ).resolves.toMatchObject([
+      {
+        code: "subscription_group_required",
+        productId: "local-Subscription",
+      },
+    ]);
+    expect(client.listSubscriptionGroupVersions).toHaveBeenCalledTimes(1);
+    expect(client.listSubscriptionGroupVersions).toHaveBeenCalledWith(
+      "group-target",
+    );
+    expect(client.listSubscriptionGroupVersions).not.toHaveBeenCalledWith(
+      "group-approved-elsewhere",
+    );
+  });
+});
+
+describe("getAscReviewFinalizeDisposition", () => {
+  it("never attaches a version that already belongs to another review submission", () => {
+    expect(
+      getAscReviewFinalizeDisposition({
+        alreadySubmitted: false,
+        attachedToSubmission: true,
+        screenshotConfigured: false,
+      }),
+    ).toBe("attached");
+  });
+
+  it("does not create a second submission even when a screenshot is configured", () => {
+    expect(
+      getAscReviewFinalizeDisposition({
+        alreadySubmitted: false,
+        attachedToSubmission: true,
+        screenshotConfigured: true,
+      }),
+    ).toBe("attached");
+  });
+});
+
+describe("shouldMarkAscReviewSubmissionOutcomePushed", () => {
+  it("keeps every manual and failed outcome retryable", () => {
+    const item = reviewItem("Consumable");
+    expect(
+      shouldMarkAscReviewSubmissionOutcomePushed({
+        item,
+        status: "manual",
+        action: {
+          productId: item.productId,
+          code: "app_version_required",
+          message: "Submit with an app version",
+        },
+      }),
+    ).toBe(false);
+    expect(
+      shouldMarkAscReviewSubmissionOutcomePushed({
+        item,
+        status: "manual",
+        action: {
+          productId: item.productId,
+          code: "review_submission_status_unknown",
+          message: "Inspect App Store Connect",
+        },
+      }),
+    ).toBe(false);
+    expect(
+      shouldMarkAscReviewSubmissionOutcomePushed({
+        item,
+        status: "failed",
+        reason: "ASC unavailable",
+      }),
+    ).toBe(false);
+  });
+
+  it("marks only a confirmed submitted outcome", () => {
+    expect(
+      shouldMarkAscReviewSubmissionOutcomePushed({
+        item: reviewItem("Consumable"),
+        status: "submitted",
+      }),
+    ).toBe(true);
+  });
+});
+
+describe("mapAscReviewProductType", () => {
+  it("preserves Apple's non-renewing subscription type for manual gates", () => {
+    expect(
+      mapAscReviewProductType("NON_RENEWING_SUBSCRIPTION", "NonConsumable"),
+    ).toBe("NonRenewingSubscription");
+    expect(mapAscReviewProductType("NON_CONSUMABLE", "Consumable")).toBe(
+      "NonConsumable",
+    );
+  });
+});
 
 describe("ascCustomerPriceToMicros", () => {
   it("converts ASC customerPrice strings to micros", () => {

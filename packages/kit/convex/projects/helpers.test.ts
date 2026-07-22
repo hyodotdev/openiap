@@ -126,6 +126,10 @@ describe("deleteProjectWithData", () => {
       files: rows("file").map((row, index) => ({
         ...row,
         storageId: `storage_${index}`,
+        purpose:
+          index === 0
+            ? "apple_iap_review_screenshot"
+            : "android_service_account",
       })),
       webhookIdempotencyKeys: [
         ...rows("webhook_key"),
@@ -163,6 +167,7 @@ describe("deleteProjectWithData", () => {
     }
     expect(db.tables.projects).toEqual([]);
     expect(storage.delete).toHaveBeenCalledTimes(11);
+    expect(storage.delete).toHaveBeenCalledWith("storage_0");
   });
 
   it("recovers a pending deletion and tolerates a duplicate continuation", async () => {

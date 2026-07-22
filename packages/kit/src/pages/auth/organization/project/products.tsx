@@ -25,6 +25,10 @@ import { Badge, PlatformBadge } from "../../../../components/Badge";
 import { usdPriceToMicros } from "./productPrice";
 import type { ProductClientPayloadSummary } from "./clientPayload";
 import { openProductClientPayloadEditor } from "@/lib/signals";
+import {
+  formatProductSyncSummary,
+  shouldShowProductSyncResult,
+} from "./product-sync-result";
 
 type DashboardProject = Omit<
   Doc<"projects">,
@@ -91,8 +95,8 @@ export default function ProjectProducts() {
     Android: null,
   });
   // Job ids the operator triggered FROM THIS MOUNT (Sync / Dry-run /
-  // Reset clicks). Result banner + completion toast both gate on
-  // this so a stale terminal job from a previous session — left
+  // Reset clicks). Completion toasts gate on this so a terminal job from a
+  // previous session — left
   // over after a code edit / HMR reload / page revisit — doesn't
   // re-surface as if a sync had just happened. Reset on remount so
   // the gate is automatic and never sticky.
@@ -171,14 +175,11 @@ export default function ProjectProducts() {
       const label = platform === "IOS" ? "App Store Connect" : "Play Console";
       const result = job.result;
       if (job.status === "succeeded" && result) {
-        const summary =
-          job.direction === "purge-local" && result.deleted !== undefined
-            ? `Deleted ${result.deleted} row${result.deleted === 1 ? "" : "s"}`
-            : `Pulled ${result.pulled}, pushed ${result.pushed}${
-                result.deleted !== undefined
-                  ? `, deleted ${result.deleted}`
-                  : ""
-              }`;
+        const summary = formatProductSyncSummary({
+          dryRun: job.dryRun,
+          direction: job.direction,
+          result,
+        });
         const plannedLines = result.plannedWrites?.length
           ? result.plannedWrites
               .map(
@@ -187,27 +188,41 @@ export default function ProjectProducts() {
               )
               .join("\n")
           : undefined;
+        const manualLines = result.manualActions?.length
+          ? result.manualActions
+              .map((action) => `${action.productId}: ${action.message}`)
+              .join("\n")
+          : undefined;
         if (result.failures.length) {
-          toast.error(`${label} sync — ${summary}`, {
+          toast.error(`${label}: ${summary}`, {
             description:
               (plannedLines ? `Planned writes:\n${plannedLines}\n\n` : "") +
+              (manualLines ? `Manual actions:\n${manualLines}\n\n` : "") +
               result.failures
                 .map((f) => `${f.productId}: ${f.reason}`)
                 .join("\n"),
             duration: 12_000,
           });
+        } else if (manualLines) {
+          toast.warning(`${label}: ${summary}`, {
+            description: manualLines,
+            duration: 12_000,
+          });
         } else if (plannedLines) {
-          toast.success(`${label} dry-run — ${summary} (no writes performed)`, {
+          toast.success(`${label}: ${summary}`, {
             description: plannedLines,
             duration: 12_000,
           });
         } else {
-          toast.success(`${label} sync — ${summary}`);
+          toast.success(`${label}: ${summary}`);
         }
       } else if (job.status === "failed") {
-        toast.error(`${label} sync failed: ${job.error ?? "Unknown error"}`, {
-          duration: 12_000,
-        });
+        toast.error(
+          `${label} ${job.dryRun ? "dry-run" : "sync"} failed: ${
+            job.error ?? "Unknown error"
+          }`,
+          { duration: 12_000 },
+        );
       }
     }
   }, [iosJob, androidJob]);
@@ -538,9 +553,6 @@ export default function ProjectProducts() {
         platform="IOS"
         rows={grouped.ios}
         job={iosJob ?? null}
-        triggeredInSession={
-          !!iosJob?._id && sessionTriggeredJobIdsRef.current.has(iosJob._id)
-        }
         onSync={() => {
           void onSync("IOS");
         }}
@@ -569,10 +581,6 @@ export default function ProjectProducts() {
         platform="Android"
         rows={grouped.android}
         job={androidJob ?? null}
-        triggeredInSession={
-          !!androidJob?._id &&
-          sessionTriggeredJobIdsRef.current.has(androidJob._id)
-        }
         onSync={() => {
           void onSync("Android");
         }}
@@ -1039,7 +1047,6 @@ function ProductGroup({
   platform,
   rows,
   job,
-  triggeredInSession,
   onSync,
   onDryRun,
   onPurge,
@@ -1050,7 +1057,6 @@ function ProductGroup({
   platform: "IOS" | "Android";
   rows: Array<ProductRow>;
   job: SyncJob | null;
-  triggeredInSession: boolean;
   onSync: () => void;
   onDryRun?: () => void;
   onPurge: () => void;
@@ -1060,13 +1066,11 @@ function ProductGroup({
 }) {
   const storeLabel = platform === "IOS" ? "App Store Connect" : "Play Console";
   const isActive = job?.status === "queued" || job?.status === "running";
-  const isTerminal = job?.status === "succeeded" || job?.status === "failed";
-  const dismissed = job?.progress.phase === "dismissed";
-  // Result banner only surfaces for jobs the operator triggered
-  // FROM THIS MOUNT — stale terminal jobs from prior sessions
-  // (HMR reload, page revisit) stay hidden so the operator can't
-  // mistake them for a sync that just ran.
-  const showResult = isTerminal && !dismissed && triggeredInSession;
+  // The latest terminal result remains visible across reloads until dismissed.
+  // This is especially important for ASC manualActions: an operator may leave
+  // while the background job runs and still needs the follow-up instructions
+  // on return. `triggeredInSession` intentionally gates only completion toasts.
+  const showResult = shouldShowProductSyncResult(job);
   const [purgeOpen, setPurgeOpen] = useState(false);
   return (
     <div className="border border-border rounded-lg bg-card overflow-hidden">
@@ -1135,7 +1139,7 @@ function ProductGroup({
           className={`px-4 py-2 border-b border-border flex items-start gap-2 text-xs ${
             job.status === "failed"
               ? "bg-rose-500/10 text-rose-700 dark:text-rose-200"
-              : job.result?.failures.length
+              : job.result?.failures.length || job.result?.manualActions?.length
                 ? "bg-amber-500/10 text-amber-700 dark:text-amber-200"
                 : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-200"
           }`}
@@ -1143,24 +1147,45 @@ function ProductGroup({
           <div className="flex-1">
             {job.status === "succeeded" && job.result ? (
               <div>
-                {job.result.deleted !== undefined
-                  ? job.direction === "purge-local"
-                    ? `Reset — deleted ${job.result.deleted} row${
-                        job.result.deleted === 1 ? "" : "s"
-                      }`
-                    : `Last sync — pulled ${job.result.pulled}, pushed ${
-                        job.result.pushed
-                      }, deleted ${job.result.deleted}`
-                  : `Last sync — pulled ${job.result.pulled}, pushed ${job.result.pushed}`}
+                {formatProductSyncSummary({
+                  dryRun: job.dryRun,
+                  direction: job.direction,
+                  result: job.result,
+                })}
                 {job.result.failures.length
                   ? `, ${job.result.failures.length} failure${
                       job.result.failures.length === 1 ? "" : "s"
                     }`
                   : ""}
                 {job.result.failuresTruncated ? " (truncated)" : ""}
+                {job.result.plannedWritesTruncated
+                  ? ", planned writes truncated"
+                  : ""}
+                {job.result.manualActions?.length
+                  ? `, ${job.result.manualActions.length} manual action${
+                      job.result.manualActions.length === 1 ? "" : "s"
+                    }`
+                  : ""}
+                {job.result.manualActionsTruncated
+                  ? " (manual actions truncated)"
+                  : ""}
+                {job.result.manualActions?.length ? (
+                  <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                    {job.result.manualActions.map((action) => (
+                      <li key={`${action.productId}:${action.code}`}>
+                        <span className="font-medium">{action.productId}</span>
+                        {": "}
+                        {action.message}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
               </div>
             ) : (
-              <div>Last sync failed — {job.error ?? "Unknown error"}</div>
+              <div>
+                {job.dryRun ? "Dry-run failed" : "Last sync failed"} —{" "}
+                {job.error ?? "Unknown error"}
+              </div>
             )}
           </div>
           <button

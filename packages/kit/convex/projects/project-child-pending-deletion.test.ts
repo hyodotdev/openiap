@@ -762,6 +762,61 @@ describe("pending-deletion project child write guards", () => {
     ]);
   });
 
+  it("reclaims a validated screenshot blob when its save is abandoned", async () => {
+    const ctx = makeCtx({});
+    ctx.db.tables.fileUploadReservations = [
+      {
+        _id: "fileUploadReservations_validated_expired",
+        organizationId: "organizations_a",
+        projectId: "projects_a",
+        createdBy: "users_a",
+        expiresAt: Date.now() - 1,
+        cleanupExpiresAt: Date.now() - 1,
+        validatedAppleReviewScreenshot: {
+          storageId: "storage_abandoned",
+          fileName: "review.png",
+          fileType: "image/png",
+          fileSize: 128,
+        },
+        createdAt: Date.now() - 60_000,
+      },
+    ];
+
+    await expect(
+      pruneUploadReservations._handler(ctx as never, { batchSize: 10 }),
+    ).resolves.toEqual({ deletedCount: 1 });
+    expect(ctx.storage.delete).toHaveBeenCalledWith("storage_abandoned");
+    expect(ctx.db.tables.fileUploadReservations).toEqual([]);
+  });
+
+  it("preserves a claimed screenshot blob that gained a live file reference", async () => {
+    const ctx = makeCtx({});
+    ctx.db.tables.files = [
+      {
+        _id: "files_review",
+        storageId: "storage_claimed",
+      },
+    ];
+    ctx.db.tables.fileUploadReservations = [
+      {
+        _id: "fileUploadReservations_pending_expired",
+        organizationId: "organizations_a",
+        projectId: "projects_a",
+        createdBy: "users_a",
+        expiresAt: Date.now() - 1,
+        cleanupExpiresAt: Date.now() - 1,
+        pendingAppleReviewScreenshotStorageId: "storage_claimed",
+        createdAt: Date.now() - 60_000,
+      },
+    ];
+
+    await expect(
+      pruneUploadReservations._handler(ctx as never, { batchSize: 10 }),
+    ).resolves.toEqual({ deletedCount: 1 });
+    expect(ctx.storage.delete).not.toHaveBeenCalled();
+    expect(ctx.db.tables.fileUploadReservations).toEqual([]);
+  });
+
   it("immediately chains another bounded prune when expired backlog exceeds one batch", async () => {
     const ctx = makeCtx({});
     ctx.db.tables.fileUploadReservations = Array.from(

@@ -1,4 +1,4 @@
-import { mutation } from "../_generated/server";
+import { internalMutation, mutation } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 import { v } from "convex/values";
@@ -10,17 +10,18 @@ import {
   deleteStorageIfUnreferenced,
   isStorageReferenced,
 } from "./storage";
+import { validateFileUpload } from "./validation";
 
 export const FILE_UPLOAD_RESERVATION_TTL_MS = 15 * 60 * 1000;
 // Convex upload URLs last one hour and an upload POST may run for two minutes.
 // Keep a small buffer beyond both limits so every successfully uploaded blob
 // can still be reclaimed by the terminal save call.
 export const FILE_UPLOAD_RESERVATION_CLEANUP_TTL_MS = 75 * 60 * 1000;
-// Three credential kinds can be uploaded from project settings. Keep room for
-// one retry of each while still bounding reservation-table growth per user and
+// Four project file kinds can be uploaded from settings. Keep room for one
+// retry of each while still bounding reservation-table growth per user and
 // target. The indexed range read makes concurrent issuance respect the cap via
 // Convex OCC.
-export const MAX_ACTIVE_FILE_UPLOAD_RESERVATIONS_PER_TARGET = 6;
+export const MAX_ACTIVE_FILE_UPLOAD_RESERVATIONS_PER_TARGET = 8;
 
 async function deleteUnclaimedUpload(
   ctx: MutationCtx,
@@ -49,6 +50,7 @@ export const saveFile = mutation({
       v.literal("apple_p8_key"),
       v.literal("apple_p8_asc_api_key"),
       v.literal("android_service_account"),
+      v.literal("apple_iap_review_screenshot"),
     ),
     description: v.optional(v.string()),
     metadata: v.optional(v.any()),
@@ -149,6 +151,18 @@ export const saveFile = mutation({
       };
     }
 
+    if (
+      args.purpose === "apple_iap_review_screenshot" &&
+      membership.role === "member"
+    ) {
+      await deleteUnclaimedUpload(ctx, args.storageId);
+      await ctx.db.delete(reservation._id);
+      return {
+        success: false as const,
+        code: "INSUFFICIENT_PERMISSIONS" as const,
+      };
+    }
+
     // Bind each upload to exactly one application reference. Organization
     // avatars also reference `_storage` directly, so the shared indexed check
     // must protect both active claims and cleanup paths. Its range reads give
@@ -175,6 +189,64 @@ export const saveFile = mutation({
       };
     }
 
+    if (args.purpose === "apple_iap_review_screenshot") {
+      try {
+        if (!args.projectId) {
+          throw new ConvexError(
+            "App Review screenshots must belong to a project",
+          );
+        }
+        validateFileUpload(
+          args.fileName,
+          args.fileType,
+          args.fileSize,
+          args.purpose,
+        );
+        // Trust the system storage record, not browser-supplied metadata. This
+        // catches a client that reserves a small file but uploads a larger one.
+        if (uploadedFile.size !== args.fileSize) {
+          throw new ConvexError(
+            "App Review screenshot size does not match the uploaded blob",
+          );
+        }
+        const validated = reservation.validatedAppleReviewScreenshot;
+        if (
+          !validated ||
+          validated.storageId !== args.storageId ||
+          validated.fileName !== args.fileName ||
+          validated.fileType !== args.fileType ||
+          validated.fileSize !== args.fileSize
+        ) {
+          throw new ConvexError(
+            "App Review screenshot binary was not validated by the server",
+          );
+        }
+      } catch (error) {
+        await deleteUnclaimedUpload(ctx, args.storageId);
+        await ctx.db.delete(reservation._id);
+        return {
+          success: false as const,
+          code: "INVALID_FILE" as const,
+          message: error instanceof Error ? error.message : String(error),
+        };
+      }
+    }
+
+    // The screenshot is a single project-level slot. Reading the indexed
+    // range before the insert makes concurrent uploads conflict under Convex
+    // OCC; after retry, the later successful save atomically replaces the
+    // earlier row and reclaims its private blob.
+    const screenshotsToReplace =
+      args.purpose === "apple_iap_review_screenshot" && args.projectId
+        ? await ctx.db
+            .query("files")
+            .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+            .filter((q) =>
+              q.eq(q.field("purpose"), "apple_iap_review_screenshot"),
+            )
+            .collect()
+        : [];
+
     const fileId = await ctx.db.insert("files", {
       organizationId: args.organizationId,
       projectId: args.projectId,
@@ -186,11 +258,21 @@ export const saveFile = mutation({
       purpose: args.purpose,
       description: args.description,
       metadata: args.metadata,
-      isInternal: args.isInternal ?? true,
+      // App Review screenshots are private project data regardless of what a
+      // public caller sends. Other purposes retain the existing opt-out for
+      // backwards compatibility.
+      isInternal:
+        args.purpose === "apple_iap_review_screenshot"
+          ? true
+          : (args.isInternal ?? true),
       accessCount: 0,
       createdAt: now,
       updatedAt: now,
     });
+
+    for (const priorScreenshot of screenshotsToReplace) {
+      await deleteFileAndStorageIfUnreferenced(ctx, priorScreenshot);
+    }
 
     // Consume the capability in the same transaction as the file insert so a
     // retry can never register or reclaim a second storage object with it.
@@ -206,6 +288,121 @@ export const saveFile = mutation({
       purpose: args.purpose,
       createdAt: now,
     };
+  },
+});
+
+export const markAppleReviewScreenshotValidated = internalMutation({
+  args: {
+    uploadReservationId: v.id("fileUploadReservations"),
+    userId: v.id("users"),
+    storageId: v.id("_storage"),
+    fileName: v.string(),
+    fileType: v.string(),
+    fileSize: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const reservation = await ctx.db.get(args.uploadReservationId);
+    const alreadyValidated = reservation?.validatedAppleReviewScreenshot;
+    if (
+      reservation &&
+      reservation.createdBy === args.userId &&
+      reservation.expiresAt > Date.now() &&
+      alreadyValidated?.storageId === args.storageId &&
+      alreadyValidated.fileName === args.fileName &&
+      alreadyValidated.fileType === args.fileType &&
+      alreadyValidated.fileSize === args.fileSize
+    ) {
+      return;
+    }
+    if (
+      !reservation ||
+      reservation.createdBy !== args.userId ||
+      reservation.expiresAt <= Date.now() ||
+      reservation.pendingAppleReviewScreenshotStorageId !== args.storageId
+    ) {
+      throw new ConvexError("Invalid upload reservation");
+    }
+    const uploadedFile = await ctx.db.system.get("_storage", args.storageId);
+    if (!uploadedFile || uploadedFile.size !== args.fileSize) {
+      throw new ConvexError("Uploaded screenshot size does not match storage");
+    }
+    await ctx.db.patch(reservation._id, {
+      pendingAppleReviewScreenshotStorageId: undefined,
+      validatedAppleReviewScreenshot: {
+        storageId: args.storageId,
+        fileName: args.fileName,
+        fileType: args.fileType,
+        fileSize: args.fileSize,
+      },
+    });
+  },
+});
+
+export const markAppleReviewScreenshotValidationPending = internalMutation({
+  args: {
+    uploadReservationId: v.id("fileUploadReservations"),
+    userId: v.id("users"),
+    storageId: v.id("_storage"),
+    fileSize: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const reservation = await ctx.db.get(args.uploadReservationId);
+    if (
+      !reservation ||
+      reservation.createdBy !== args.userId ||
+      reservation.expiresAt <= Date.now()
+    ) {
+      throw new ConvexError("Invalid upload reservation");
+    }
+    const existingStorageId =
+      reservation.pendingAppleReviewScreenshotStorageId ??
+      reservation.validatedAppleReviewScreenshot?.storageId;
+    if (existingStorageId && existingStorageId !== args.storageId) {
+      throw new ConvexError("Upload reservation is already bound to a file");
+    }
+    const uploadedFile = await ctx.db.system.get("_storage", args.storageId);
+    if (!uploadedFile || uploadedFile.size !== args.fileSize) {
+      throw new ConvexError("Uploaded screenshot size does not match storage");
+    }
+    await ctx.db.patch(reservation._id, {
+      pendingAppleReviewScreenshotStorageId: args.storageId,
+    });
+  },
+});
+
+export const rejectAppleReviewScreenshotValidation = internalMutation({
+  args: {
+    uploadReservationId: v.id("fileUploadReservations"),
+    organizationId: v.id("organizations"),
+    projectId: v.id("projects"),
+    storageId: v.id("_storage"),
+  },
+  handler: async (ctx, args) => {
+    const reservation = await ctx.db.get(args.uploadReservationId);
+    if (
+      !reservation ||
+      reservation.organizationId !== args.organizationId ||
+      reservation.projectId !== args.projectId
+    ) {
+      return;
+    }
+    if (
+      reservation.validatedAppleReviewScreenshot?.storageId === args.storageId
+    ) {
+      // Another validation of the same immutable blob already completed. A
+      // slower duplicate attempt must not erase the successful marker/blob.
+      return;
+    }
+    await deleteUnclaimedUpload(ctx, args.storageId);
+    const boundStorageId =
+      reservation.pendingAppleReviewScreenshotStorageId ??
+      reservation.validatedAppleReviewScreenshot?.storageId;
+    // A concurrent validation may already have bound this capability to a
+    // different blob. Reclaim this failed caller's unclaimed object without
+    // consuming the other in-flight operation's reservation.
+    if (!boundStorageId || boundStorageId === args.storageId) {
+      await ctx.db.delete(reservation._id);
+    }
   },
 });
 

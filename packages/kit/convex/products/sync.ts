@@ -266,6 +266,7 @@ export const markPushed = internalMutation({
     productId: v.string(),
     platform: platformValidator,
     storeRef: v.string(),
+    reviewScreenshotFileId: v.optional(v.id("files")),
   },
   returns: v.union(v.id("products"), v.null()),
   handler: async (ctx, args) => {
@@ -283,6 +284,11 @@ export const markPushed = internalMutation({
     await ctx.db.patch(existing._id, {
       storeRef: args.storeRef,
       state: "Ready",
+      ...(args.reviewScreenshotFileId
+        ? {
+            lastAppleReviewScreenshotFileId: args.reviewScreenshotFileId,
+          }
+        : {}),
       syncedAt: Date.now(),
       updatedAt: Date.now(),
     });
@@ -345,11 +351,19 @@ export const listExistingProductTypes = internalQuery({
 // retry only the failed steps. The push branch handles the
 // "skip create when storeRef already set" decision.
 export const listDraftIosProducts = internalQuery({
-  args: { projectId: v.id("projects") },
+  args: {
+    projectId: v.id("projects"),
+    // A kit-created row previously promoted to Ready because no review
+    // screenshot was configured must become eligible again once the operator
+    // adds the project screenshot.
+    includeReadyForReview: v.optional(v.boolean()),
+    reviewScreenshotFileId: v.optional(v.id("files")),
+  },
   returns: v.array(
     v.object({
       productId: v.string(),
       platform: platformValidator,
+      state: v.union(v.literal("Draft"), v.literal("Ready")),
       type: typeValidator,
       title: v.string(),
       description: v.optional(v.string()),
@@ -366,6 +380,7 @@ export const listDraftIosProducts = internalQuery({
         ),
       ),
       subscriptionGroupName: v.optional(v.string()),
+      subscriptionGroupId: v.optional(v.string()),
       reviewNote: v.optional(v.string()),
       storeRef: v.optional(v.string()),
     }),
@@ -380,7 +395,12 @@ export const listDraftIosProducts = internalQuery({
     return all
       .filter(
         (row) =>
-          row.state === "Draft" &&
+          (row.state === "Draft" ||
+            (args.includeReadyForReview === true &&
+              row.state === "Ready" &&
+              (args.reviewScreenshotFileId === undefined ||
+                row.lastAppleReviewScreenshotFileId !==
+                  args.reviewScreenshotFileId))) &&
           // Skip rows that were imported from the upstream store —
           // ASC's "PREPARE_FOR_SUBMISSION" / "MISSING_METADATA" /
           // similar states map to kit `Draft`, and re-pushing them on
@@ -394,9 +414,16 @@ export const listDraftIosProducts = internalQuery({
           // first insert.
           (row.origin === "kit" || row.storeRef === undefined),
       )
+      .sort((left, right) => {
+        // Resume legacy Ready rows first, then use productId for deterministic
+        // bounded batches across retries and workers.
+        if (left.state !== right.state) return left.state === "Ready" ? -1 : 1;
+        return left.productId.localeCompare(right.productId);
+      })
       .map((row) => ({
         productId: row.productId,
         platform: row.platform,
+        state: row.state as "Draft" | "Ready",
         type: row.type,
         title: row.title,
         description: row.description,
@@ -408,6 +435,7 @@ export const listDraftIosProducts = internalQuery({
         // `row.subscriptionGroupName ?? row.productId` and treats
         // `undefined` correctly; null would slip past the `??`.
         subscriptionGroupName: row.subscriptionGroupName ?? undefined,
+        subscriptionGroupId: row.subscriptionGroupId ?? undefined,
         reviewNote: row.reviewNote,
         storeRef: row.storeRef,
       }));

@@ -2,19 +2,28 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   PRODUCT_SYNC_FAILURES_CAP,
+  PRODUCT_SYNC_MANUAL_ACTIONS_CAP,
   PRODUCT_SYNC_FAILED_RETENTION_MS,
   PRODUCT_SYNC_JOB_DEADLINE_MS,
   PRODUCT_SYNC_REAPER_GRACE_MS,
   PRODUCT_SYNC_SUCCEEDED_RETENTION_MS,
   getJobForWorker as registeredGetJobForWorker,
   isCancelRequested as registeredIsCancelRequested,
+  markJobRunning as registeredMarkJobRunning,
   markJobSucceeded as registeredMarkJobSucceeded,
   truncateFailures,
+  truncateManualActions,
 } from "./jobs";
+import {
+  PRODUCT_SYNC_DEADLINE_SAFETY_MS,
+  isProductSyncDeadlineReached,
+  truncatePlannedWrites,
+} from "./syncResult";
 import { testableFunction } from "../test.setup";
 
 const getJobForWorker = testableFunction(registeredGetJobForWorker);
 const isCancelRequested = testableFunction(registeredIsCancelRequested);
+const markJobRunning = testableFunction(registeredMarkJobRunning);
 const markJobSucceeded = testableFunction(registeredMarkJobSucceeded);
 
 describe("truncateFailures", () => {
@@ -51,6 +60,55 @@ describe("truncateFailures", () => {
   });
 });
 
+describe("truncateManualActions", () => {
+  it("caps action count and individual upstream messages", () => {
+    const actions = Array.from(
+      { length: PRODUCT_SYNC_MANUAL_ACTIONS_CAP + 1 },
+      (_, index) => ({
+        productId: `product-${index}`,
+        code: "app_version_required",
+        message: "x".repeat(2_000),
+      }),
+    );
+
+    const { items, truncated } = truncateManualActions(actions);
+
+    expect(items).toHaveLength(PRODUCT_SYNC_MANUAL_ACTIONS_CAP);
+    expect(items[0]?.message.length).toBeLessThanOrEqual(1_000);
+    expect(items[0]?.message.endsWith("…")).toBe(true);
+    expect(truncated).toBe(true);
+  });
+
+  it("preserves an already bounded action array", () => {
+    const actions = [
+      {
+        productId: "coins",
+        code: "app_version_required",
+        message: "Submit with an app version",
+      },
+    ];
+
+    expect(truncateManualActions(actions)).toEqual({
+      items: actions,
+      truncated: false,
+    });
+  });
+});
+
+describe("truncatePlannedWrites", () => {
+  it("bounds count and verbose dry-run details", () => {
+    const writes = Array.from({ length: 400 }, (_, index) => ({
+      productId: `product-${index}`,
+      step: "create",
+      detail: "x".repeat(1_000),
+    }));
+    const { items, truncated } = truncatePlannedWrites(writes);
+    expect(items).toHaveLength(300);
+    expect(items[0]?.detail?.length).toBeLessThanOrEqual(512);
+    expect(truncated).toBe(true);
+  });
+});
+
 describe("retention constants", () => {
   // Sanity-check the bounds the reaper / pruner crons rely on.
   // Without these the worker timeout is meaningless and the pruner
@@ -65,6 +123,61 @@ describe("retention constants", () => {
     expect(PRODUCT_SYNC_FAILED_RETENTION_MS).toBeGreaterThan(
       PRODUCT_SYNC_SUCCEEDED_RETENTION_MS,
     );
+  });
+
+  it("reserves cleanup time before the action deadline", () => {
+    const deadline = 1_000_000;
+    expect(
+      isProductSyncDeadlineReached(
+        deadline - PRODUCT_SYNC_DEADLINE_SAFETY_MS - 1,
+        deadline,
+      ),
+    ).toBe(false);
+    expect(
+      isProductSyncDeadlineReached(
+        deadline - PRODUCT_SYNC_DEADLINE_SAFETY_MS,
+        deadline,
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("worker deadline persistence", () => {
+  it("returns the same deadline written to the job row", async () => {
+    const rows = new Map<string, Record<string, unknown>>([
+      [
+        "job_a",
+        {
+          _id: "job_a",
+          projectId: "project_a",
+          status: "queued",
+        },
+      ],
+      [
+        "project_a",
+        {
+          _id: "project_a",
+          organizationId: "organization_a",
+        },
+      ],
+      ["organization_a", { _id: "organization_a" }],
+    ]);
+    const patch = vi.fn(async (_id: string, value: Record<string, unknown>) =>
+      Object.assign(rows.get("job_a")!, value),
+    );
+    const ctx = {
+      db: {
+        get: vi.fn(async (id: string) => rows.get(id) ?? null),
+        patch,
+      },
+    };
+
+    const deadline = await markJobRunning._handler(ctx, {
+      jobId: "job_a" as never,
+    });
+
+    expect(deadline).toBe(rows.get("job_a")?.expectedDeadline);
+    expect(deadline).toBeGreaterThan(Date.now());
   });
 });
 

@@ -412,8 +412,8 @@ products.get("/:apiKey/sync/jobs/:jobId", async (c) => {
   }
 });
 
-// Operator-initiated cancel. The worker checks `cancelRequested`
-// at phase boundaries.
+// Operator-initiated cancel. Workers observe it at phase/chunk boundaries and
+// before remote requests, upload operations, and asset-delivery polls.
 products.post("/:apiKey/sync/jobs/:jobId/cancel", async (c) => {
   const apiKey = c.req.param("apiKey");
   const jobId = c.req.param("jobId");
