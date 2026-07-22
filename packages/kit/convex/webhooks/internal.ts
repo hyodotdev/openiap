@@ -1,6 +1,7 @@
 import { internalMutation, internalQuery } from "../_generated/server";
 import { v } from "convex/values";
-import type { Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
+import type { QueryCtx } from "../_generated/server";
 import { assertProjectWritable } from "../projects/writable";
 
 // Retention window for `webhookEvents` and `webhookIdempotencyKeys`.
@@ -16,6 +17,13 @@ type WebhookDedupSource = "apple" | "google";
 type StoredWebhookSource =
   | "AppleAppStoreServerNotificationsV2"
   | "GooglePlayRealTimeDeveloperNotifications";
+type WebhookEventReader = Pick<QueryCtx["db"], "query">;
+
+interface WebhookEventDedupKey {
+  projectId: Id<"projects">;
+  source: StoredWebhookSource;
+  sourceNotificationId: string;
+}
 
 function storedSourceForDedupSource(
   source: WebhookDedupSource,
@@ -23,6 +31,21 @@ function storedSourceForDedupSource(
   return source === "apple"
     ? "AppleAppStoreServerNotificationsV2"
     : "GooglePlayRealTimeDeveloperNotifications";
+}
+
+async function findWebhookEventByDedupKey(
+  db: WebhookEventReader,
+  key: WebhookEventDedupKey,
+): Promise<Doc<"webhookEvents"> | null> {
+  return await db
+    .query("webhookEvents")
+    .withIndex("by_project_and_source_and_notification_id", (q) =>
+      q
+        .eq("projectId", key.projectId)
+        .eq("source", key.source)
+        .eq("sourceNotificationId", key.sourceNotificationId),
+    )
+    .unique();
 }
 
 // Cheap pre-flight dedup probe used by webhooks/google.ts to avoid
@@ -47,15 +70,11 @@ export const lookupExistingEvent = internalQuery({
   },
   returns: v.union(v.null(), v.id("webhookEvents")),
   handler: async (ctx, args) => {
-    const existingEvent = await ctx.db
-      .query("webhookEvents")
-      .withIndex("by_project_and_source_and_notification_id", (q) =>
-        q
-          .eq("projectId", args.projectId)
-          .eq("source", storedSourceForDedupSource(args.source))
-          .eq("sourceNotificationId", args.sourceNotificationId),
-      )
-      .unique();
+    const existingEvent = await findWebhookEventByDedupKey(ctx.db, {
+      projectId: args.projectId,
+      source: storedSourceForDedupSource(args.source),
+      sourceNotificationId: args.sourceNotificationId,
+    });
     if (existingEvent) return existingEvent._id;
 
     const existingKey = await ctx.db
@@ -169,15 +188,11 @@ export const recordWebhookEvent = internalMutation({
         `Webhook source mismatch: ${args.source} cannot store ${args.event.sourceFull}`,
       );
     }
-    const existingEvent = await ctx.db
-      .query("webhookEvents")
-      .withIndex("by_project_and_source_and_notification_id", (q) =>
-        q
-          .eq("projectId", args.projectId)
-          .eq("source", storedSource)
-          .eq("sourceNotificationId", args.sourceNotificationId),
-      )
-      .unique();
+    const existingEvent = await findWebhookEventByDedupKey(ctx.db, {
+      projectId: args.projectId,
+      source: storedSource,
+      sourceNotificationId: args.sourceNotificationId,
+    });
     if (existingEvent) {
       return { eventId: existingEvent._id, deduped: true };
     }
