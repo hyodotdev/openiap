@@ -1331,6 +1331,15 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
     params: NitroLaunchExternalLinkParamsAndroid,
   ): Promise<boolean>;
 
+  /**
+   * Open the platform offer-code redemption flow (Android only).
+   * Does not require a billing-client connection.
+   *
+   * @returns Promise<boolean> - true when the flow was launched
+   * @platform Android
+   */
+  openRedeemOfferCodeAndroid(): Promise<boolean>;
+
   // ╔════════════════════════════════════════════════════════════════════════╗
   // ║                EXTERNAL PURCHASE LINKS (iOS 16.0+)                     ║
   // ╚════════════════════════════════════════════════════════════════════════╝

@@ -897,6 +897,7 @@ describe('Amazon Vega adapter', () => {
       }),
     );
     expect(module.addSubscriptionBillingIssueListener).not.toThrow();
+    await expect(module.openRedeemOfferCodeAndroid()).resolves.toBe(false);
     await expect(
       module.deepLinkToSubscriptionsAndroid({
         packageNameAndroid: 'dev.hyo.openiap',

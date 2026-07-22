@@ -81,6 +81,8 @@ const LEGACY_ANCHOR_REDIRECTS: Record<string, string> = {
     '/docs/apis/android/show-billing-program-information-dialog-android',
   'show-in-app-messages-android':
     '/docs/apis/android/show-in-app-messages-android',
+  'open-redeem-offer-code-android':
+    '/docs/apis/android/open-redeem-offer-code-android',
   // Validation/Refund/Debugging moved to Features
   'verify-purchase': '/docs/features/validation#verify-purchase',
   'verify-purchase-with-provider':
@@ -765,6 +767,17 @@ function APIsIndex() {
               <td>
                 Show Play billing in-app messages and return subscription status
                 updates when applicable.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <Link to="/docs/apis/android/open-redeem-offer-code-android">
+                  <code>openRedeemOfferCodeAndroid</code>
+                </Link>
+              </td>
+              <td>
+                Open the Google Play offer-code redemption page (no billing
+                client required).
               </td>
             </tr>
           </tbody>

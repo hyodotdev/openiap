@@ -80,6 +80,11 @@ describe('Core Functions Tests', () => {
       expect(typeof ExpoIap.acknowledgePurchaseAndroid).toBe('function');
     });
 
+    it('should export openRedeemOfferCodeAndroid', () => {
+      expect(ExpoIap.openRedeemOfferCodeAndroid).toBeDefined();
+      expect(typeof ExpoIap.openRedeemOfferCodeAndroid).toBe('function');
+    });
+
     it('should export Billing Programs Android functions', () => {
       expect(ExpoIap.isBillingProgramAvailableAndroid).toBeDefined();
       expect(typeof ExpoIap.isBillingProgramAvailableAndroid).toBe('function');

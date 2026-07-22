@@ -283,6 +283,7 @@ internal class AmazonInAppPurchaseAndroid(
         failUnsupported("Google Play billing in-app messages are unavailable on $storeName.")
 
     override suspend fun launchExternalLinkAndroid(params: LaunchExternalLinkParamsAndroid): Boolean = false
+    override suspend fun openRedeemOfferCodeAndroid(): Boolean = false
     override suspend fun checkAlternativeBillingAvailabilityAndroid(): Boolean = false
     override suspend fun showAlternativeBillingDialogAndroid(): Boolean = false
     override suspend fun createAlternativeBillingTokenAndroid(): String? = null

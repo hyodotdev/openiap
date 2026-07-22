@@ -290,7 +290,7 @@ fun SubscriptionFlowScreen(
         }
     }
 
-    // TODO: Replace with your backend call to Play Developer API
+    // In production, replace this with your backend call to the Play Developer API
     suspend fun fetchSubStatusFromServer(productId: String, purchaseToken: String): SubscriptionUiInfo? {
         // Expected mapping of your server response (VerifyPurchaseResultAndroid)
         // return SubscriptionUiInfo(

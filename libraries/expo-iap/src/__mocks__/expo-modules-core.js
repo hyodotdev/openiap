@@ -45,6 +45,7 @@ const mockNativeModule = {
   acknowledgePurchaseAndroid: jest.fn(),
   consumePurchaseAndroid: jest.fn(),
   consumeProductAndroid: jest.fn(),
+  openRedeemOfferCodeAndroid: jest.fn(),
   checkAlternativeBillingAvailabilityAndroid: jest.fn(),
   showAlternativeBillingDialogAndroid: jest.fn(),
   createAlternativeBillingTokenAndroid: jest.fn(),

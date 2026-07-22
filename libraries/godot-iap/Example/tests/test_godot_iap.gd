@@ -149,6 +149,19 @@ func _run_all_tests() -> void:
 	await test_ios_methods_mock()
 	await test_android_methods_mock()
 
+	# Documented zero-values when no native plugin is present
+	await test_no_plugin_ios_zero_values()
+	test_no_plugin_android_zero_values()
+	await test_no_plugin_cross_platform_zero_values()
+
+	# Pure utility helpers
+	test_store_and_stub_mode_helpers()
+	test_create_purchase_error()
+	test_set_purchase_updated_listener_options()
+	test_enum_raw_mapping_helpers()
+	test_product_from_dict_platform_guards()
+	test_connection_state_signal_handlers()
+
 
 # ============================================
 # Initialization Guard Tests
@@ -515,6 +528,10 @@ func test_android_methods_mock() -> void:
 	var alternative_token = GodotIapPlugin.create_alternative_billing_token_android()
 	_assert_true(alternative_token is String, "create_alternative_billing_token_android should return String")
 
+	# open_redeem_offer_code_android
+	var redeem_result = GodotIapPlugin.open_redeem_offer_code_android()
+	_assert_true(redeem_result is bool, "open_redeem_offer_code_android should return bool")
+
 	# get_package_name_android
 	var package_name = GodotIapPlugin.get_package_name_android()
 	_assert_true(package_name is String, "get_package_name_android should return String")
@@ -544,6 +561,225 @@ func test_android_methods_mock() -> void:
 	# show_in_app_messages_android
 	var message_result = GodotIapPlugin.show_in_app_messages_android()
 	_assert_true(message_result is Types.InAppMessageResultAndroid, "show_in_app_messages_android should return InAppMessageResultAndroid")
+
+
+# ============================================
+# No-Plugin Zero-Value Guards
+# ============================================
+# Every platform-gated API documents a zero-value it must return when the
+# native plugin is unavailable (editor/desktop). These tests pin the exact
+# values so refactors cannot silently change the no-plugin contract.
+
+func test_no_plugin_ios_zero_values() -> void:
+	_assert_equal(await GodotIapPlugin.sync_ios(), false, "sync_ios should return false without a native plugin")
+	_assert_equal(await GodotIapPlugin.clear_transaction_ios(), false, "clear_transaction_ios should return false without a native plugin")
+	_assert_equal(await GodotIapPlugin.present_code_redemption_sheet_ios(), false, "present_code_redemption_sheet_ios should return false without a native plugin")
+	_assert_equal(await GodotIapPlugin.request_purchase_on_promoted_product_ios(), false, "request_purchase_on_promoted_product_ios should return false without a native plugin")
+	_assert_equal(await GodotIapPlugin.begin_refund_request_ios("sku"), "", "begin_refund_request_ios should return an empty string without a native plugin")
+	_assert_equal(await GodotIapPlugin.get_receipt_data_ios(), "", "get_receipt_data_ios should return an empty string without a native plugin")
+	_assert_equal(await GodotIapPlugin.get_transaction_jws_ios("sku"), "", "get_transaction_jws_ios should return an empty string without a native plugin")
+	_assert_equal(await GodotIapPlugin.get_storefront_ios(), "", "get_storefront_ios should return an empty string without a native plugin")
+	_assert_equal(await GodotIapPlugin.is_transaction_verified_ios("sku"), false, "is_transaction_verified_ios should return false without a native plugin")
+	_assert_equal(await GodotIapPlugin.is_eligible_for_intro_offer_ios("group"), false, "is_eligible_for_intro_offer_ios should return false without a native plugin")
+	_assert_equal(await GodotIapPlugin.is_eligible_for_external_purchase_custom_link_ios(), false, "is_eligible_for_external_purchase_custom_link_ios should return false without a native plugin")
+	_assert_equal(await GodotIapPlugin.can_present_external_purchase_notice_ios(), false, "can_present_external_purchase_notice_ios should return false without a native plugin")
+	_assert_equal(await GodotIapPlugin.current_entitlement_ios("sku"), null, "current_entitlement_ios should return null without a native plugin")
+	_assert_equal(await GodotIapPlugin.latest_transaction_ios("sku"), null, "latest_transaction_ios should return null without a native plugin")
+	_assert_equal(await GodotIapPlugin.get_app_transaction_ios(), null, "get_app_transaction_ios should return null without a native plugin")
+	_assert_equal(await GodotIapPlugin.get_promoted_product_ios(), null, "get_promoted_product_ios should return null without a native plugin")
+	_assert_equal(await GodotIapPlugin.get_external_purchase_custom_link_token_ios("services"), null, "get_external_purchase_custom_link_token_ios should return null without a native plugin")
+	_assert_equal(await GodotIapPlugin.show_external_purchase_custom_link_notice_ios("browser"), null, "show_external_purchase_custom_link_notice_ios should return null without a native plugin")
+	_assert_equal(await GodotIapPlugin.validate_receipt_ios({}), null, "validate_receipt_ios should return null without a native plugin")
+	_assert_equal((await GodotIapPlugin.get_pending_transactions_ios()).size(), 0, "get_pending_transactions_ios should return an empty array without a native plugin")
+	_assert_equal((await GodotIapPlugin.get_all_transactions_ios()).size(), 0, "get_all_transactions_ios should return an empty array without a native plugin")
+	_assert_equal((await GodotIapPlugin.show_manage_subscriptions_ios()).size(), 0, "show_manage_subscriptions_ios should return an empty array without a native plugin")
+	_assert_equal((await GodotIapPlugin.subscription_status_ios("sku")).size(), 0, "subscription_status_ios should return an empty array without a native plugin")
+
+	var notice_result = await GodotIapPlugin.present_external_purchase_notice_sheet_ios()
+	_assert_true(notice_result is Types.ExternalPurchaseNoticeResultIOS, "present_external_purchase_notice_sheet_ios should return a typed default without a native plugin")
+	_assert_equal(notice_result.error, null, "The default notice result should carry no error")
+
+	var link_result = await GodotIapPlugin.present_external_purchase_link_ios("https://example.com")
+	_assert_true(link_result is Types.ExternalPurchaseLinkResultIOS, "present_external_purchase_link_ios should return a typed default without a native plugin")
+	_assert_equal(link_result.success, false, "The default link result should not report success")
+
+
+func test_no_plugin_android_zero_values() -> void:
+	_assert_equal(GodotIapPlugin.acknowledge_purchase_android("token"), false, "acknowledge_purchase_android should return false without a native plugin")
+	_assert_equal(GodotIapPlugin.consume_purchase_android("token"), false, "consume_purchase_android should return false without a native plugin")
+	_assert_equal(GodotIapPlugin.check_alternative_billing_availability_android(), false, "check_alternative_billing_availability_android should return false without a native plugin")
+	_assert_equal(GodotIapPlugin.show_alternative_billing_dialog_android(), false, "show_alternative_billing_dialog_android should return false without a native plugin")
+	_assert_equal(GodotIapPlugin.create_alternative_billing_token_android(), "", "create_alternative_billing_token_android should return an empty string without a native plugin")
+	_assert_equal(GodotIapPlugin.get_package_name_android(), "", "get_package_name_android should return an empty string without a native plugin")
+	_assert_equal(GodotIapPlugin.open_redeem_offer_code_android(), false, "open_redeem_offer_code_android should return false without a native plugin on desktop")
+
+	var availability = GodotIapPlugin.is_billing_program_available_android(Types.BillingProgramAndroid.BILLING_CHOICE)
+	_assert_true(availability is Types.BillingProgramAvailabilityResultAndroid, "is_billing_program_available_android should return a typed default without a native plugin")
+	_assert_equal(availability.is_available, false, "The default availability result should not report availability")
+	_assert_equal(availability.billing_program, Types.BillingProgramAndroid.BILLING_CHOICE, "The default availability result should echo the requested program")
+
+	var reporting = GodotIapPlugin.create_billing_program_reporting_details_android(Types.BillingProgramAndroid.EXTERNAL_OFFER)
+	_assert_true(reporting is Types.BillingProgramReportingDetailsAndroid, "create_billing_program_reporting_details_android should return a typed default without a native plugin")
+	_assert_equal(reporting.billing_program, Types.BillingProgramAndroid.EXTERNAL_OFFER, "The default reporting details should echo the requested program")
+	_assert_equal(reporting.external_transaction_token, "", "The default reporting details should carry no token")
+
+	var choice_params = Types.GetBillingChoiceInfoParamsAndroid.new()
+	choice_params.billing_program = Types.BillingProgramAndroid.BILLING_CHOICE
+	var choice_info = GodotIapPlugin.get_billing_choice_info_android(choice_params)
+	_assert_true(choice_info is Types.BillingChoiceInfoAndroid, "get_billing_choice_info_android should return a typed default without a native plugin")
+	_assert_equal(choice_info.play_billing_choice_image_url, "", "The default billing choice info should carry no image URL")
+
+	var link_params = Types.LaunchExternalLinkParamsAndroid.new()
+	link_params.billing_program = Types.BillingProgramAndroid.EXTERNAL_OFFER
+	_assert_equal(GodotIapPlugin.launch_external_link_android(link_params), false, "launch_external_link_android should return false without a native plugin")
+
+	var dialog_params = Types.BillingProgramInformationDialogParamsAndroid.new()
+	dialog_params.billing_program = Types.BillingProgramAndroid.BILLING_CHOICE
+	var dialog_result = GodotIapPlugin.show_billing_program_information_dialog_android(dialog_params)
+	_assert_true(dialog_result is Types.BillingResultAndroid, "show_billing_program_information_dialog_android should return a typed default without a native plugin")
+	_assert_equal(dialog_result.response_code, 0, "The default billing dialog result should use response code 0")
+
+	var message_result = GodotIapPlugin.show_in_app_messages_android()
+	_assert_true(message_result is Types.InAppMessageResultAndroid, "show_in_app_messages_android should return a typed default without a native plugin")
+	_assert_equal(message_result.response_code, Types.InAppMessageResponseCodeAndroid.NO_ACTION_NEEDED, "The default in-app message result should be NO_ACTION_NEEDED")
+
+
+func test_no_plugin_cross_platform_zero_values() -> void:
+	var errors: Array[Dictionary] = []
+	var capture_error = func(error: Dictionary) -> void:
+		errors.append(error)
+	GodotIapPlugin.purchase_error.connect(capture_error)
+
+	_assert_equal(await GodotIapPlugin.get_storefront(), "", "get_storefront should return an empty string without a native plugin")
+	_assert_equal(errors.size(), 1, "get_storefront should emit purchase_error without a native plugin")
+	_assert_equal(errors[0].get("code"), "feature-not-supported", "Desktop storefront lookups should map to feature-not-supported")
+	GodotIapPlugin.purchase_error.disconnect(capture_error)
+
+	_assert_equal(await GodotIapPlugin.verify_purchase({}), null, "verify_purchase should return null without a native plugin")
+	_assert_equal(await GodotIapPlugin.validate_receipt({}), null, "validate_receipt should return null without a native plugin")
+
+	var provider_result = await GodotIapPlugin.verify_purchase_with_provider({"provider": "iapkit"})
+	_assert_true(provider_result is Types.VerifyPurchaseWithProviderResult, "verify_purchase_with_provider should return a typed result without a native plugin")
+	_assert_equal(provider_result.errors.size(), 1, "The no-plugin provider result should carry one error")
+	_assert_equal(provider_result.errors[0].code, "feature-not-supported", "The no-plugin provider error should be feature-not-supported")
+
+	var raw_verify = GodotIapPlugin._verify_purchase_raw({})
+	_assert_equal(raw_verify.get("isValid"), false, "The raw verify envelope should report isValid false without a native plugin")
+
+	var deep_link_result = await GodotIapPlugin.deep_link_to_subscriptions()
+	_assert_true(deep_link_result is Types.VoidResult, "deep_link_to_subscriptions should return VoidResult without a native plugin")
+	_assert_equal(deep_link_result.success, false, "Deep links should not report success without a native plugin on desktop")
+
+
+# ============================================
+# Pure Utility Helpers
+# ============================================
+
+func test_store_and_stub_mode_helpers() -> void:
+	var original_platform = GodotIapPlugin._platform
+
+	_assert_true(GodotIapPlugin.is_stub_mode(), "is_stub_mode should be true without a native plugin")
+	_assert_true(GodotIapPlugin.get_platform() is String, "get_platform should return a String")
+
+	GodotIapPlugin._platform = "Android"
+	_assert_equal(GodotIapPlugin.get_store(), Types.IapStore.GOOGLE, "Android should map to the GOOGLE store")
+	GodotIapPlugin._platform = "iOS"
+	_assert_equal(GodotIapPlugin.get_store(), Types.IapStore.APPLE, "iOS should map to the APPLE store")
+	GodotIapPlugin._platform = "Linux"
+	_assert_equal(GodotIapPlugin.get_store(), Types.IapStore.UNKNOWN, "Desktop platforms should map to the UNKNOWN store")
+
+	GodotIapPlugin._platform = original_platform
+
+
+func test_create_purchase_error() -> void:
+	var error = GodotIapPlugin.create_purchase_error(Types.ErrorCode.USER_CANCELLED, "Cancelled", "sku.a")
+	_assert_true(error is Types.PurchaseError, "create_purchase_error should return a PurchaseError")
+	_assert_equal(error.code, Types.ErrorCode.USER_CANCELLED, "The error code should be preserved")
+	_assert_equal(error.message, "Cancelled", "The error message should be preserved")
+	_assert_equal(error.product_id, "sku.a", "The product id should be preserved")
+	_assert_equal(error.to_dict().get("code"), "user-cancelled", "The error code should serialize to its wire value")
+
+
+func test_set_purchase_updated_listener_options() -> void:
+	var options = Types.PurchaseUpdatedListenerOptions.new()
+	options.dedupe_transaction_ios = false
+	GodotIapPlugin.set_purchase_updated_listener_options(options)
+	_assert_equal(
+		GodotIapPlugin._purchase_updated_listener_options,
+		{"dedupeTransactionIOS": false},
+		"Typed listener options should be stored as their serialized dictionary"
+	)
+
+	GodotIapPlugin.set_purchase_updated_listener_options({"dedupeTransactionIOS": true})
+	_assert_equal(
+		GodotIapPlugin._purchase_updated_listener_options,
+		{"dedupeTransactionIOS": true},
+		"Dictionary listener options should be stored as-is"
+	)
+
+	GodotIapPlugin.set_purchase_updated_listener_options(null)
+	_assert_equal(GodotIapPlugin._purchase_updated_listener_options, {}, "Null listener options should reset to an empty dictionary")
+
+
+func test_enum_raw_mapping_helpers() -> void:
+	_assert_equal(
+		GodotIapPlugin._billing_program_to_raw(Types.BillingProgramAndroid.BILLING_CHOICE),
+		"billing-choice",
+		"Billing program enums should map to their wire strings"
+	)
+	_assert_equal(GodotIapPlugin._billing_program_to_raw(999), 999, "Unknown billing program ints should pass through")
+	_assert_equal(GodotIapPlugin._billing_program_to_raw("external-offer"), "external-offer", "Raw billing program strings should pass through")
+	_assert_equal(
+		GodotIapPlugin._developer_billing_type_to_raw(Types.DeveloperBillingTypeAndroid.IN_APP),
+		"in-app",
+		"Developer billing type enums should map to their wire strings"
+	)
+	_assert_equal(GodotIapPlugin._developer_billing_type_to_raw("external-link"), "external-link", "Raw developer billing type strings should pass through")
+
+
+func test_product_from_dict_platform_guards() -> void:
+	var original_platform = GodotIapPlugin._platform
+
+	GodotIapPlugin._platform = "Linux"
+	_assert_equal(
+		GodotIapPlugin._product_from_dict({"id": "sku", "type": "in-app"}),
+		null,
+		"Unknown platforms should map products to null"
+	)
+
+	GodotIapPlugin._platform = "Android"
+	var int_typed = GodotIapPlugin._product_from_dict({
+		"id": "premium",
+		"title": "Premium",
+		"description": "Premium subscription",
+		"type": Types.ProductType.SUBS,
+		"nameAndroid": "Premium",
+	})
+	_assert_true(int_typed is Types.ProductSubscriptionAndroid, "Integer SUBS types should also map to subscription products")
+
+	GodotIapPlugin._platform = original_platform
+
+
+func test_connection_state_signal_handlers() -> void:
+	var events: Array[String] = []
+	var on_connected = func() -> void:
+		events.append("connected")
+	var on_disconnected = func() -> void:
+		events.append("disconnected")
+	GodotIapPlugin.connected.connect(on_connected)
+	GodotIapPlugin.disconnected.connect(on_disconnected)
+
+	GodotIapPlugin._is_connected = false
+	GodotIapPlugin._on_connected()
+	_assert_true(GodotIapPlugin._is_connected, "_on_connected should mark the wrapper connected")
+	_assert_true(GodotIapPlugin.is_store_connected(), "is_store_connected should reflect the connected state")
+
+	GodotIapPlugin._on_disconnected()
+	_assert_false(GodotIapPlugin._is_connected, "_on_disconnected should mark the wrapper disconnected")
+	_assert_equal(events, ["connected", "disconnected"], "Connection handlers should emit their public signals")
+
+	GodotIapPlugin.connected.disconnect(on_connected)
+	GodotIapPlugin.disconnected.disconnect(on_disconnected)
 
 
 # ============================================

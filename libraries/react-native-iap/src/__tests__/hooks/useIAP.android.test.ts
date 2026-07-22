@@ -18,6 +18,7 @@ const mockIap: any = {
   removePromotedProductListenerIOS: jest.fn(),
   addSubscriptionBillingIssueListener: jest.fn(),
   removeSubscriptionBillingIssueListener: jest.fn(),
+  openRedeemOfferCodeAndroid: jest.fn(async () => true),
 };
 
 jest.mock('react-native-nitro-modules', () => ({
@@ -231,6 +232,21 @@ describe('hooks/useIAP Android', () => {
       IAP.showBillingProgramInformationDialogAndroid,
     );
     expect(api.showInAppMessagesAndroid).toBe(IAP.showInAppMessagesAndroid);
+  });
+
+  it('exposes openRedeemOfferCodeAndroid through the hook on Android', async () => {
+    let api: any;
+    const Harness = () => {
+      api = useIAP();
+      return null;
+    };
+
+    await act(async () => {
+      TestRenderer.create(React.createElement(Harness));
+    });
+    await act(async () => {});
+
+    expect(api.openRedeemOfferCodeAndroid).toBe(IAP.openRedeemOfferCodeAndroid);
   });
 
   it('reconnect uses Android billing config', async () => {

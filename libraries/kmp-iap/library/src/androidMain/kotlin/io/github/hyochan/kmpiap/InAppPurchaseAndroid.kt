@@ -299,7 +299,10 @@ private fun com.android.billingclient.api.UserChoiceDetails.toOpenIapDetails(): 
     )
 }
 
-internal class InAppPurchaseAndroid : KmpInAppPurchase {
+internal class InAppPurchaseAndroid(
+    private val applicationContextProvider: () -> Context? = ::tryGetApplicationContext,
+    private val redeemFlowLauncher: ((Context) -> Boolean)? = null,
+) : KmpInAppPurchase {
 
     private data class ConnectionAttempt(
         val generation: Long,
@@ -3591,6 +3594,40 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase {
                 code = ErrorCode.Unknown,
                 debugMessage = error.message,
                 message = error.message ?: "Failed to launch external link",
+            ))
+        }
+    }
+
+    /**
+     * Open the Google Play offer/promo code redemption flow (https://play.google.com/redeem).
+     * A listener can receive the redeemed purchase while the app has an active billing
+     * connection; reconcile available purchases when the app resumes.
+     * Does not require the billing client to be initialized.
+     *
+     * @see <a href="https://openiap.dev/docs/apis/android/open-redeem-offer-code-android">https://openiap.dev/docs/apis/android/open-redeem-offer-code-android</a>
+     */
+    override suspend fun openRedeemOfferCodeAndroid(): Boolean = withContext(Dispatchers.Main) {
+        val launchContext: Context = synchronized(purchaseLifecycleLock) { currentActivity ?: context }
+            ?: applicationContextProvider()?.applicationContext
+            ?: throw PurchaseException(
+                PurchaseError(
+                    code = ErrorCode.ActivityUnavailable,
+                    message = "Activity not available",
+                )
+            )
+        redeemFlowLauncher?.let { return@withContext it(launchContext) }
+        try {
+            launchContext.startActivity(
+                Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/redeem")).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            )
+            true
+        } catch (error: Exception) {
+            throw PurchaseException(PurchaseError(
+                code = ErrorCode.Unknown,
+                debugMessage = error.message,
+                message = error.message ?: "Failed to open the Play Store redeem page",
             ))
         }
     }

@@ -512,6 +512,14 @@ export const purchaseErrorListener = (
   return {
     remove: () => {
       purchaseErrorJsListeners.delete(listener);
+      if (purchaseErrorJsListeners.size === 0 && purchaseErrorNativeAttached) {
+        try {
+          IAP.instance.removePurchaseErrorListener(purchaseErrorNativeHandler);
+          purchaseErrorNativeAttached = false;
+        } catch (e) {
+          RnIapConsole.warn('[purchaseErrorListener] native remove failed:', e);
+        }
+      }
     },
   };
 };
@@ -2110,6 +2118,33 @@ export const consumePurchaseAndroid: MutationField<
       debugMessage: parsedError.debugMessage,
     });
   }
+};
+
+/**
+ * Open the Google Play offer/promo code redemption page (Android only).
+ * On Google Play builds, launches the Play Store redeem page so the user can
+ * enter a code. Returns false on store flavors without an equivalent flow.
+ * Does not require the billing client to be initialized. Reconcile purchases
+ * when the app resumes because listener delivery depends on connection state.
+ *
+ * @returns Promise<boolean> - true when the redemption page was launched
+ * @platform Android
+ *
+ * @example
+ * ```typescript
+ * await openRedeemOfferCodeAndroid();
+ * // Reconcile with getAvailablePurchases() when the app resumes.
+ * ```
+ *
+ * @see {@link https://openiap.dev/docs/apis/android/open-redeem-offer-code-android}
+ */
+export const openRedeemOfferCodeAndroid: MutationField<
+  'openRedeemOfferCodeAndroid'
+> = async () => {
+  if (Platform.OS !== 'android') {
+    throw new Error('openRedeemOfferCodeAndroid is only supported on Android');
+  }
+  return IAP.instance.openRedeemOfferCodeAndroid();
 };
 
 // ============================================================================

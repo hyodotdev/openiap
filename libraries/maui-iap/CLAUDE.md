@@ -38,7 +38,8 @@ libraries/maui-iap/
 ├── CONVENTION.md                   — C# / MAUI conventions
 ├── openiap-versions.json           — symlink for native spec/apple/google versions
 ├── tests/
-│   └── OpenIap.Maui.ContractTests/ — dependency-free net9/net10 contract runner
+│   ├── OpenIap.Maui.ContractTests/ — dependency-free net9/net10 contract runner
+│   └── OpenIap.Maui.Tests/         — xUnit suite for the shared surface (net9.0)
 └── src/
     └── OpenIap.Maui/
         ├── OpenIap.Maui.csproj     — multi-target (net9.0/net10.0 + ios/android/maccatalyst)
@@ -185,7 +186,7 @@ For maui-iap specifically:
 | 2. Public API exposed | `OpenIap.QueryResolver` / `OpenIap.MutationResolver` (in `Types.cs`) |
 | 3. Platform bridge    | `Platforms/Android/OpenIapAndroid.cs`, `Platforms/iOS/OpenIapIOS.cs` |
 | 4. Handlers wired     | Concrete platform classes implement the resolver interfaces          |
-| 5. Test coverage      | `tests/OpenIap.Maui.ContractTests` covers generated IAPKit payload contracts and `KitApiClient` requests/responses on net9/net10; platform purchase flows remain example/manual coverage |
+| 5. Test coverage      | `tests/OpenIap.Maui.Tests` (xUnit, net9.0) covers Types.cs serialization, the error mapper, webhook parsing, and the `KitApiClient` HTTP contract; `tests/OpenIap.Maui.ContractTests` keeps the dependency-free net9/net10 runner used by release-maui.yml; platform purchase flows remain example/manual coverage |
 
 ## Build & test
 
@@ -197,6 +198,10 @@ dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0
 # Dependency-free shared contract tests
 dotnet run --project tests/OpenIap.Maui.ContractTests/OpenIap.Maui.ContractTests.csproj --framework net9.0 -p:TargetFrameworks=net9.0 --no-launch-profile
 dotnet run --project tests/OpenIap.Maui.ContractTests/OpenIap.Maui.ContractTests.csproj --framework net10.0 -p:TargetFrameworks=net10.0 --no-launch-profile
+
+# xUnit suite for the shared surface (net9.0 only, no workloads; the PLURAL
+# TargetFrameworks override keeps the OpenIap.Maui restore off platform TFMs)
+dotnet test tests/OpenIap.Maui.Tests/OpenIap.Maui.Tests.csproj -p:TargetFrameworks=net9.0
 
 # Full multi-target build (requires MAUI workload)
 dotnet workload install maui
@@ -211,8 +216,9 @@ dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj
 3. Run the shared compile checks:
    `dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0`
    and `dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0`.
-4. Run `tests/OpenIap.Maui.ContractTests` for both net9.0 and net10.0 using
-   the commands in [Build & test](#build--test).
+4. Run `tests/OpenIap.Maui.ContractTests` for both net9.0 and net10.0 and
+   `dotnet test tests/OpenIap.Maui.Tests/OpenIap.Maui.Tests.csproj -p:TargetFrameworks=net9.0`
+   using the commands in [Build & test](#build--test).
 5. Verify `Types.cs` matches `packages/gql/src/generated/Types.cs`
    byte-for-byte (the sync should keep them in lockstep).
 

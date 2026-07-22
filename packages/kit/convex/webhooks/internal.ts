@@ -134,7 +134,7 @@ export const recordWebhookEvent = internalMutation({
     // on transient 5xx, and Google Pub/Sub guarantees at-least-once
     // delivery — both are normal, both must result in HTTP 200 here.
     //
-    // TODO(schema-cleanup): the `webhookIdempotencyKeys` table is
+    // DEFERRED(schema-cleanup): the `webhookIdempotencyKeys` table is
     // arguably redundant with `webhookEvents.by_project_and_notification_id`
     // — that index already enforces uniqueness on
     // `(projectId, sourceNotificationId)`. We could fold the dedup

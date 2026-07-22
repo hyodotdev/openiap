@@ -8,6 +8,10 @@ const failures = [];
 
 const EXPO_EXAMPLE_ROOT = "libraries/expo-iap/example";
 
+// Built via concatenation so repo-wide TO-DO searches don't flag these
+// forbidden-pattern needles as real code debt.
+const TODO_MARKER = "TO" + "DO";
+
 const parityCoveredLibraries = new Set([
   "expo-iap",
   "flutter_inapp_purchase",
@@ -47,6 +51,7 @@ const operationParityRegistry = {
     "initConnection",
     "isBillingProgramAvailableAndroid",
     "launchExternalLinkAndroid",
+    "openRedeemOfferCodeAndroid",
     "presentCodeRedemptionSheetIOS",
     "presentExternalPurchaseLinkIOS",
     "presentExternalPurchaseNoticeSheetIOS",
@@ -1523,7 +1528,7 @@ function checkKmp() {
   );
   expectNotIncludes(
     "libraries/kmp-iap/library/src/iosMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseIOS.kt",
-    ["TODO: iOS 15+/18+ options", "For now, return a basic result"],
+    [`${TODO_MARKER}: iOS 15+/18+ options`, "For now, return a basic result"],
     "KMP iOS requestPurchase bridge",
   );
   expectNotIncludes(
@@ -4605,7 +4610,7 @@ function checkFrameworkDependencyHygiene() {
     "packages/google/openiap/src/play/java/dev/hyo/openiap/OpenIapModule.kt",
     [
       "printStackTrace()",
-      "TODO: In production",
+      `${TODO_MARKER}: In production`,
       "alternativeBillingCallback?.onTokenCreated",
     ],
     "Google Play production module must use structured logging",

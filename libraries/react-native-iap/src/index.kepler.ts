@@ -294,6 +294,10 @@ export const consumePurchaseAndroid: MutationField<
 export const acknowledgePurchase = acknowledgePurchaseAndroid;
 export const consumePurchase = consumePurchaseAndroid;
 
+export const openRedeemOfferCodeAndroid: MutationField<
+  'openRedeemOfferCodeAndroid'
+> = async () => false;
+
 export const checkAlternativeBillingAvailabilityAndroid: MutationField<
   'checkAlternativeBillingAvailabilityAndroid'
 > = async () => unsupported('checkAlternativeBillingAvailabilityAndroid');

@@ -1446,6 +1446,24 @@ func launch_external_link_android(params) -> bool:
 			return bool(result.get("launched", result.get("success", false)))
 	return false
 
+## Open the Google Play offer/promo code redemption flow (Android).
+## Opens the Play Store redeem page. A listener can receive the redeemed purchase
+## while the app has an active billing connection; reconcile on app resume.
+## Does not require the billing client to be initialized.
+## @return bool - true if launched, false if unavailable
+##
+## See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
+func open_redeem_offer_code_android() -> bool:
+	if _native_plugin and _platform == "Android":
+		var result_json = _native_plugin.call("openRedeemOfferCodeAndroid")
+		var result = JSON.parse_string(result_json)
+		if result is Dictionary:
+			return bool(result.get("launched", result.get("success", false)))
+	elif _platform == "Android":
+		# No native plugin: open the Play Store redeem page directly
+		return OS.shell_open("https://play.google.com/redeem") == OK
+	return false
+
 ## Create billing program reporting details (Android 8.2.0+).
 ## @param billing_program: Types.BillingProgramAndroid - billing program enum value
 ## @param developer_billing_type: Types.DeveloperBillingTypeAndroid or null

@@ -174,6 +174,24 @@ internal sealed partial class OpenIapAndroid
         return InvokeBool(cb => _module.LaunchExternalLinkAndroid(json, cb));
     }
 
+    /// <summary>
+    /// Open the Google Play offer/promo code redemption flow so the user can
+    /// enter a code. Launches the Play Store redeem page
+    /// (https://play.google.com/redeem). A listener can receive the redeemed
+    /// purchase while the app has an active billing connection; reconcile
+    /// available purchases when the app resumes. Does not require the billing
+    /// client to be initialized. Returns false on unsupported store flavors.
+    /// See https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
+    /// </summary>
+    public Task<bool> OpenRedeemOfferCodeAndroidAsync()
+    {
+        RefreshCurrentActivity();
+        // Delegate through the shared native handler so Play launches the
+        // redemption page while Amazon and Horizon retain their explicit
+        // false/no-op behavior.
+        return InvokeBool(cb => _module.OpenRedeemOfferCodeAndroid(cb));
+    }
+
     // ---- iOS-only mutations (return defaults / throw not-supported) -----
 
     public Task<string?> BeginRefundRequestIOSAsync(string sku) => NotSupportedIOS<string?>("beginRefundRequestIOS");

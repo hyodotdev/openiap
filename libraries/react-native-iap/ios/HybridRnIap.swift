@@ -1506,6 +1506,12 @@ class HybridRnIap: HybridRnIapSpec {
         }
     }
 
+    func openRedeemOfferCodeAndroid() throws -> Promise<Bool> {
+        return Promise.async {
+            throw OpenIapException.make(code: .featureNotSupported, message: "Offer-code redemption is Android-only")
+        }
+    }
+
     // MARK: - External Purchase (iOS 16.0+)
 
     func canPresentExternalPurchaseNoticeIOS() throws -> Promise<Bool> {

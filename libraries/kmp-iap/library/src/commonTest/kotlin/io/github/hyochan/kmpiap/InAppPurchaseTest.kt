@@ -4,6 +4,7 @@ package io.github.hyochan.kmpiap
 
 import io.github.hyochan.kmpiap.dsl.AndroidOptionsBuilder
 import io.github.hyochan.kmpiap.openiap.*
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -1095,5 +1096,17 @@ class InAppPurchaseTest {
         val json = result.toJson()
         assertEquals("my_token", json["token"])
         assertNull(json["error"])
+    }
+
+    // =========================================================================
+    // openRedeemOfferCodeAndroid Handler Tests
+    // =========================================================================
+
+    @Test
+    fun testMutationHandlersExposeOpenRedeemOfferCodeAndroid() = runTest {
+        val handlers = MutationHandlers(openRedeemOfferCodeAndroid = { true })
+
+        assertEquals(true, handlers.openRedeemOfferCodeAndroid?.invoke())
+        assertNull(MutationHandlers().openRedeemOfferCodeAndroid)
     }
 }

@@ -226,6 +226,7 @@ interface PurchaseError {
 ### Android
 - acknowledgePurchaseAndroid() - Acknowledge purchase
 - consumePurchaseAndroid() - Consume for re-purchase
+- openRedeemOfferCodeAndroid() - Open Play offer-code redemption page
 
 ## Purchase Flow Summary
 

@@ -7,6 +7,8 @@ const mockGetActiveSubscriptions = jest.fn();
 const mockGetAvailablePurchases = jest.fn();
 const mockPresentCodeRedemptionSheetIOS =
   RNIap.presentCodeRedemptionSheetIOS as jest.Mock;
+const mockOpenRedeemOfferCodeAndroid =
+  RNIap.openRedeemOfferCodeAndroid as jest.Mock;
 
 // Override the useIAP hook for this test
 (RNIap.useIAP as jest.Mock).mockReturnValue({
@@ -87,6 +89,43 @@ describe('OfferCode Screen', () => {
     expect(getByText('🎁 Open Play Store')).toBeTruthy();
   });
 
+  it('handles Android offer code redemption button press', async () => {
+    Platform.OS = 'android';
+    mockOpenRedeemOfferCodeAndroid.mockResolvedValue(true);
+
+    const {getByText} = render(<OfferCode />);
+
+    const redeemButton = getByText('🎁 Open Play Store');
+    fireEvent.press(redeemButton);
+
+    await waitFor(() => {
+      expect(mockOpenRedeemOfferCodeAndroid).toHaveBeenCalled();
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Play Store Opened',
+        'Enter your code in the Play Store. After redemption, return to the app to see your purchase.',
+      );
+    });
+  });
+
+  it('shows error when Android redemption fails', async () => {
+    Platform.OS = 'android';
+    mockOpenRedeemOfferCodeAndroid.mockRejectedValue(
+      new Error('Play Store unavailable'),
+    );
+
+    const {getByText} = render(<OfferCode />);
+
+    const redeemButton = getByText('🎁 Open Play Store');
+    fireEvent.press(redeemButton);
+
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Error',
+        expect.stringContaining('Failed to redeem code'),
+      );
+    });
+  });
+
   it('shows Vega unsupported guidance without calling platform redemption APIs', () => {
     (Platform as any).OS = 'kepler';
     const {getByText} = render(<OfferCode />);
@@ -94,6 +133,7 @@ describe('OfferCode Screen', () => {
     fireEvent.press(getByText('Amazon Vega IAP'));
 
     expect(mockPresentCodeRedemptionSheetIOS).not.toHaveBeenCalled();
+    expect(mockOpenRedeemOfferCodeAndroid).not.toHaveBeenCalled();
     expect(
       getByText(/Offer code redemption is not supported on Amazon Vega/),
     ).toBeTruthy();

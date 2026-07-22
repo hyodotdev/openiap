@@ -57,7 +57,7 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+        // The example uses a fixed id; real apps must set their own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "dev.hyo.martie"
         minSdkVersion = openIapMinSdkVersion
         targetSdkVersion = openIapTargetSdkVersion
@@ -78,8 +78,8 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            // The example signs release builds with the debug keys so `flutter run --release`
+            // works out of the box; real apps must add their own release signing config.
             signingConfig = signingConfigs.debug
         }
     }

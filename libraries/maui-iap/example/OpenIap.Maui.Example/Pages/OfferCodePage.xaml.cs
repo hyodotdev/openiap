@@ -1,12 +1,12 @@
 using OpenIap;
 using OpenIap.Maui;
-using Microsoft.Maui.ApplicationModel;
 using OpenIap.Maui.Example.Utils;
 
 namespace OpenIap.Maui.Example.Pages;
 
 // Mirrors libraries/expo-iap/example/app/offer-code.tsx — iOS presents the
-// StoreKit sheet, Android opens the Play Store redeem page.
+// StoreKit sheet via PresentCodeRedemptionSheetIOSAsync, Android opens the
+// Play Store redeem page via OpenRedeemOfferCodeAndroidAsync.
 public partial class OfferCodePage : ContentPage
 {
     private bool _connected;
@@ -78,9 +78,12 @@ public partial class OfferCodePage : ContentPage
 #elif ANDROID
         try
         {
-            await Browser.OpenAsync("https://play.google.com/redeem?code=", BrowserLaunchMode.External);
+            var mutate = (MutationResolver)OpenIapClient.Instance;
+            var opened = await mutate.OpenRedeemOfferCodeAndroidAsync();
             ResultPanel.IsVisible = true;
-            ResultLabel.Text = "Play Store opened. Enter your code there, then return to this app to see your purchase.";
+            ResultLabel.Text = opened
+                ? "Play Store opened. Enter your code there, then return to this app to see your purchase."
+                : "The Play Store redemption page could not be opened.";
         }
         catch (Exception ex)
         {

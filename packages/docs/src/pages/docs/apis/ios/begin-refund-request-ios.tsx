@@ -21,12 +21,15 @@ function BeginRefundRequestIOS() {
         beginRefundRequestIOS
       </h1>
       <p>
-        Initiate a refund request for a product (iOS 15+). Presents the StoreKit
-        refund sheet.
+        Initiate a refund request for a product. On iOS 15+, presents the
+        StoreKit refund sheet. On macOS, opens Apple's Report a Problem site.
       </p>
       <p>
         Wraps <code>Transaction.beginRefundRequest(in:)</code> — presents the
-        refund-request sheet. iOS 15+. See the{' '}
+        refund-request sheet on iOS 15+. macOS has no equivalent window-scene
+        sheet, so the implementation opens{' '}
+        <code>https://reportaproblem.apple.com</code> in the default browser and
+        returns immediately. See the{' '}
         <a
           href="https://developer.apple.com/documentation/storekit/transaction/beginrefundrequest(in:)"
           target="_blank"
@@ -79,7 +82,9 @@ function BeginRefundRequestIOS() {
       </AnchorLink>
       <p>
         <code>Promise&lt;string | null&gt;</code> — Refund request status
-        string, or <code>null</code> if the user dismissed the sheet.
+        string, or <code>null</code> for an unknown StoreKit result. The macOS
+        browser fallback also returns <code>null</code> because the refund is
+        completed outside the app.
       </p>
 
       <h2>Example</h2>

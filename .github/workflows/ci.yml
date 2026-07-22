@@ -32,6 +32,32 @@ jobs:
       - name: Test release branch policy
         run: node --test scripts/release-branch-policy.test.mjs
 
+  # The test jobs below install with --frozen-lockfile but only run when
+  # their path filters match, so a workspace package.json change outside
+  # those paths can land with a stale bun.lock. Run the check on every CI
+  # run to catch lockfile drift regardless of which paths changed.
+  audit-lockfile:
+    name: Audit Lockfile Sync
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+
+      - name: Verify bun.lock matches workspace manifests
+        run: |
+          # Retry bun install up to 3 times to handle transient registry errors
+          for i in 1 2 3; do
+            bun install --frozen-lockfile && break
+            [ $i -eq 3 ] && exit 1
+            echo "Attempt $i failed. Retrying..."
+            sleep 5
+          done
+
   # Detect which packages have changes
   changes:
     name: Detect Changes

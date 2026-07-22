@@ -9,7 +9,11 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import {presentCodeRedemptionSheetIOS, useIAP} from 'react-native-iap';
+import {
+  openRedeemOfferCodeAndroid,
+  presentCodeRedemptionSheetIOS,
+  useIAP,
+} from 'react-native-iap';
 
 /**
  * Offer Code Redemption Example
@@ -67,7 +71,7 @@ export default function OfferCodeScreen() {
       return;
     }
 
-    if (!connected) {
+    if (isIOS && !connected) {
       Alert.alert('Not Connected', 'Please wait for store connection');
       return;
     }
@@ -83,18 +87,19 @@ export default function OfferCodeScreen() {
           'After successful redemption, the purchase will appear in your purchase history.',
         );
       } else {
-        // For Android, we need to guide users to the Play Store
-        Alert.alert(
-          'Android Offer Codes',
-          'On Android, offer codes must be redeemed through the Google Play Store.\n\n' +
-            'Steps:\n' +
-            '1. Open Google Play Store\n' +
-            '2. Tap profile icon → Payments & subscriptions\n' +
-            '3. Select "Redeem code"\n' +
-            '4. Enter your promo code\n' +
-            '5. Return to this app',
-          [{text: 'OK', style: 'default'}],
-        );
+        // Open the Play Store redeem page for Android
+        const result = await openRedeemOfferCodeAndroid();
+        if (result) {
+          Alert.alert(
+            'Play Store Opened',
+            'Enter your code in the Play Store. After redemption, return to the app to see your purchase.',
+          );
+        } else {
+          Alert.alert(
+            'Not Supported',
+            'This Android store does not provide an offer-code redemption flow.',
+          );
+        }
       }
     } catch (error) {
       console.log('Error redeeming code:', error);
@@ -120,11 +125,11 @@ export default function OfferCodeScreen() {
         <TouchableOpacity
           style={[
             styles.redeemButton,
-            (!connected || isRedeeming) && styles.disabledButton,
+            ((isIOS && !connected) || isRedeeming) && styles.disabledButton,
             !isIOS && styles.androidButton,
           ]}
           onPress={handleRedeemCode}
-          disabled={!connected || isRedeeming}
+          disabled={(isIOS && !connected) || isRedeeming}
         >
           {isRedeeming ? (
             <ActivityIndicator color="white" />
@@ -177,9 +182,9 @@ export default function OfferCodeScreen() {
           <View style={styles.androidNote}>
             <Text style={styles.androidNoteTitle}>⚠️ Android Note</Text>
             <Text style={styles.androidNoteText}>
-              React Native IAP does not have a direct API for opening the Play
-              Store redemption screen. Users need to manually navigate to the
-              Play Store to redeem their codes.
+              openRedeemOfferCodeAndroid opens the Play Store redemption page.
+              Keep the listener active and reconcile available purchases when
+              you return to the app.
             </Text>
           </View>
         )}
