@@ -87,6 +87,20 @@ internal suspend fun endRnConnectionWithCleanup(
 }
 
 /**
+ * Removes the singleton JS fan-out listener without relying on callback identity.
+ * Nitro creates a fresh Kotlin callback wrapper for each bridge invocation, so
+ * the wrapper received by remove is not equal to the one received by add.
+ */
+internal fun <T> removeSingletonBridgeListener(
+    registeredListeners: MutableList<T>,
+    @Suppress("UNUSED_PARAMETER") removalWrapper: T,
+) {
+    synchronized(registeredListeners) {
+        registeredListeners.clear()
+    }
+}
+
+/**
  * Bound for the pending purchase-event queues, matching expo-iap's
  * ExpoIapHelper.MAX_BUFFERED_EVENTS. Oldest entries are dropped on overflow.
  */
@@ -986,9 +1000,10 @@ class HybridRnIap : HybridRnIapSpec() {
     }
 
     override fun removePurchaseErrorListener(listener: (error: NitroPurchaseResult) -> Unit) {
-        synchronized(purchaseErrorListeners) {
-            purchaseErrorListeners.remove(listener)
-        }
+        // The JS layer registers one native fan-out callback and calls remove
+        // only after its final JS subscriber detaches. Clearing also matches
+        // iOS and removes stale registrations left by earlier remounts.
+        removeSingletonBridgeListener(purchaseErrorListeners, listener)
     }
     
     override fun addPromotedProductListenerIOS(listener: (product: NitroProduct) -> Unit) {

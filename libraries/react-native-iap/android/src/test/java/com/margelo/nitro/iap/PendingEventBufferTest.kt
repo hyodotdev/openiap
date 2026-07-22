@@ -59,6 +59,42 @@ class PendingEventBufferTest {
     }
 
     @Test
+    fun `error listener remount buffers gap event and delivers it once`() {
+        val buffer = PendingEventBuffer<String>(capacity = 4, onOverflow = {})
+        val registeredListeners = mutableListOf<(String) -> Unit>()
+        val firstReceived = mutableListOf<String>()
+        val firstBridgeWrapper: (String) -> Unit = { firstReceived.add(it) }
+        registeredListeners.add(firstBridgeWrapper)
+
+        // Nitro creates a new Kotlin callback wrapper for remove even though JS
+        // passes the same function. Removal must therefore not use identity.
+        val removalBridgeWrapper: (String) -> Unit = { firstBridgeWrapper(it) }
+        assertFalse(firstBridgeWrapper === removalBridgeWrapper)
+        removeSingletonBridgeListener(registeredListeners, removalBridgeWrapper)
+
+        assertTrue(buffer.enqueueIfNeeded(registeredListeners.isNotEmpty(), "gap"))
+
+        val remountedReceived = mutableListOf<String>()
+        registeredListeners.add { remountedReceived.add(it) }
+        assertTrue(buffer.beginFlushIfNeeded())
+        drainPendingEvents(
+            takeDelivery = {
+                buffer.takeBatchOrFinish()?.let { events ->
+                    PendingEventDelivery(events, registeredListeners.toList())
+                }
+            },
+            onDeliveryFailure = { throw it },
+        )
+
+        val liveEvent = "live"
+        assertFalse(buffer.enqueueIfNeeded(registeredListeners.isNotEmpty(), liveEvent))
+        registeredListeners.toList().forEach { it(liveEvent) }
+
+        assertTrue(firstReceived.isEmpty())
+        assertEquals(listOf("gap", "live"), remountedReceived)
+    }
+
+    @Test
     fun `overflow drops the oldest event and reports each drop`() {
         var overflowCount = 0
         val buffer = PendingEventBuffer<Int>(capacity = 2) { overflowCount += 1 }

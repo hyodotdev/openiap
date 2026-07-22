@@ -292,7 +292,23 @@ class ExpoIapModule : Module() {
                         promise.resolve(launched)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("openRedeemOfferCodeAndroid", e)
-                        promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        val errorMap =
+                            if (e is OpenIapError) {
+                                ExpoIapHelper.serializeOpenIapError(e)
+                            } else {
+                                mapOf(
+                                    "code" to OpenIapError.ServiceUnavailable.CODE,
+                                    "message" to (e.message ?: OpenIapError.ServiceUnavailable.MESSAGE),
+                                    "platform" to "android",
+                                )
+                            }
+                        val errorCode =
+                            errorMap["code"] as? String ?: OpenIapError.ServiceUnavailable.CODE
+                        promise.reject(
+                            errorCode,
+                            ExpoIapHelper.serializeErrorEnvelope(errorMap),
+                            e,
+                        )
                     }
                 }
             }

@@ -329,6 +329,8 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                         val redeem = iap.mutationHandlers.openRedeemOfferCodeAndroid
                             ?: throw OpenIapError.FeatureNotSupported()
                         safe.success(redeem())
+                    } catch (e: OpenIapError) {
+                        safe.error(e.code, e.message, serializeOpenIapError(e))
                     } catch (e: Exception) {
                         safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
                     }
