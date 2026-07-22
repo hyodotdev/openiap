@@ -15,6 +15,7 @@ export async function mapWithConcurrency<T, R>(
   const out: R[] = new Array(items.length);
   let cursor = 0;
   let stopped = false;
+  let hasError = false;
   let firstError: unknown;
   const workers = Array.from(
     { length: Math.max(1, Math.min(concurrency, items.length)) },
@@ -25,7 +26,10 @@ export async function mapWithConcurrency<T, R>(
         try {
           out[idx] = await fn(items[idx], idx);
         } catch (error) {
-          if (firstError === undefined) firstError = error;
+          if (!hasError) {
+            hasError = true;
+            firstError = error;
+          }
           // Do not start more work, but let every already-running worker reach
           // its own cleanup before this mapper rejects.
           stopped = true;
@@ -35,7 +39,7 @@ export async function mapWithConcurrency<T, R>(
     },
   );
   await Promise.all(workers);
-  if (firstError !== undefined) {
+  if (hasError) {
     throw firstError instanceof Error
       ? firstError
       : new Error("Concurrent worker failed with a non-Error rejection");

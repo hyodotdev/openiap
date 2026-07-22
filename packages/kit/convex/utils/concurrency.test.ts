@@ -24,4 +24,16 @@ describe("mapWithConcurrency", () => {
     await expect(running).rejects.toThrow("stop");
     expect(events).toEqual(["start:0", "start:1", "cleanup:1"]);
   });
+
+  it("rejects when a worker rejects with undefined", async () => {
+    const running = mapWithConcurrency([0], 1, () =>
+      // Deliberately exercise a malformed third-party rejection value.
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+      Promise.reject(undefined),
+    );
+
+    await expect(running).rejects.toThrow(
+      "Concurrent worker failed with a non-Error rejection",
+    );
+  });
 });
