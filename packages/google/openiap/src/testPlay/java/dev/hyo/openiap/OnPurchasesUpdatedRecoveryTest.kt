@@ -116,6 +116,45 @@ class OnPurchasesUpdatedRecoveryTest {
     }
 
     @Test
+    fun `listener ITEM_ALREADY_OWNED still delivers recovery when request clears during query`() {
+        val client = RecordingBillingClient(
+            ownedPurchases = listOf(billingPurchase("product-id", "owned-token"))
+        )
+        val module = module()
+        setBillingClient(module, client)
+        val results = mutableListOf<Result<List<Purchase>>>()
+        installPendingPurchase(
+            module = module,
+            client = client,
+            callback = { results += it },
+            skus = setOf("product-id"),
+            productType = BillingClient.ProductType.INAPP,
+            launchStartedAtMillis = 1.0,
+        )
+        val updates = mutableListOf<Purchase>()
+        val errors = mutableListOf<OpenIapError>()
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+        module.addPurchaseErrorListener(OpenIapPurchaseErrorListener { errors += it })
+        client.beforeQueryPurchasesResponse = {
+            pendingPurchaseField().set(module, null)
+        }
+
+        module.onPurchasesUpdated(
+            billingResult(BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED, "already owned"),
+            null,
+        )
+
+        assertEquals(1, client.queryPurchasesCalls.get())
+        assertEquals(
+            "recovered store purchase must still reach active listeners",
+            listOf("product-id"),
+            updates.map { it.productId },
+        )
+        assertTrue("cleared request must not be completed: $results", results.isEmpty())
+        assertTrue("successful listener recovery must not emit errors: $errors", errors.isEmpty())
+    }
+
+    @Test
     fun `listener ITEM_ALREADY_OWNED without pending request keeps existing behavior`() {
         val client = RecordingBillingClient(
             ownedPurchases = listOf(billingPurchase("product-id", "owned-token"))
@@ -330,12 +369,14 @@ class OnPurchasesUpdatedRecoveryTest {
         private val ownedPurchases: List<BillingPurchase> = emptyList(),
     ) : BillingClient() {
         val queryPurchasesCalls = AtomicInteger(0)
+        var beforeQueryPurchasesResponse: (() -> Unit)? = null
 
         override fun queryPurchasesAsync(
             params: QueryPurchasesParams,
             listener: PurchasesResponseListener
         ) {
             queryPurchasesCalls.incrementAndGet()
+            beforeQueryPurchasesResponse?.invoke()
             val result = BillingResult.newBuilder()
                 .setResponseCode(BillingResponseCode.OK)
                 .build()
