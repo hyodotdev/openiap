@@ -1977,7 +1977,7 @@ class OpenIapModule(
     override suspend fun launchExternalLink(activity: Activity, params: LaunchExternalLinkParamsAndroid): Boolean {
         // No-op: Billing Programs is a Google Play 8.2.0+ feature, not supported on Meta Horizon
         OpenIapLog.w("launchExternalLink is not supported on Meta Horizon (no-op)", TAG)
-        return unsupportedRedeemOfferCode()
+        return false
     }
 
     override suspend fun openRedeemOfferCode(activity: Activity): Boolean {

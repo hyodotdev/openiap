@@ -1,7 +1,5 @@
 package dev.hyo.godotiap
 
-import android.content.Intent
-import android.net.Uri
 import dev.hyo.openiap.*
 import dev.hyo.openiap.OpenIapModule
 import dev.hyo.openiap.store.OpenIapStore
@@ -922,14 +920,13 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         }
 
         return try {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/redeem")).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            activity.startActivity(intent)
-            GodotIapLog.result("openRedeemOfferCodeAndroid", true)
+            val redemptionStore =
+                if (isInitialized) store else OpenIapStore(OpenIapModule(activity))
+            val launched = runBlocking { redemptionStore.openRedeemOfferCode(activity) }
+            GodotIapLog.result("openRedeemOfferCodeAndroid", launched)
             JSONObject().apply {
                 put("success", true)
-                put("launched", true)
+                put("launched", launched)
             }.toString()
         } catch (e: Exception) {
             GodotIapLog.failure("openRedeemOfferCodeAndroid", e)
