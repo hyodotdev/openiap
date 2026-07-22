@@ -345,19 +345,11 @@ declare function isConsumableProduct(productId: string): boolean;
                     ),
                     kotlin: (
                       <CodeBlock language="kotlin">{`import android.app.Activity
-import android.content.Intent
-import android.net.Uri
 import dev.hyo.openiap.PurchaseState
 import dev.hyo.openiap.utils.toPurchaseInput
 
-fun openRedeemPage(activity: Activity, code: String? = null) {
-    val suffix = code?.let { "?code=" + Uri.encode(it) }.orEmpty()
-    val intent = Intent(
-        Intent.ACTION_VIEW,
-        Uri.parse("https://play.google.com/redeem" + suffix),
-    )
-    activity.startActivity(intent)
-}
+suspend fun openRedeemPage(activity: Activity): Boolean =
+    openIapStore.openRedeemOfferCode(activity)
 
 suspend fun reconcileAfterResume() {
     check(openIapStore.initConnection())
@@ -377,7 +369,9 @@ suspend fun reconcileAfterResume() {
                       <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.toPurchaseInput
 import io.github.hyochan.kmpiap.openiap.PurchaseState
 
-// Put the Activity/Intent implementation from the Kotlin tab in androidMain.
+suspend fun openRedeemPage(): Boolean =
+    kmpIAP.openRedeemOfferCodeAndroid()
+
 suspend fun reconcileAfterResume() {
     check(kmpIAP.initConnection())
     for (purchase in kmpIAP.getAvailablePurchases()) {
@@ -394,15 +388,9 @@ suspend fun reconcileAfterResume() {
                     ),
                     dart: (
                       <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-Future<void> openRedeemPage([String? code]) async {
-  final query = code == null ? '' : '?code=' + Uri.encodeComponent(code);
-  await launchUrl(
-    Uri.parse('https://play.google.com/redeem' + query),
-    mode: LaunchMode.externalApplication,
-  );
-}
+Future<bool> openRedeemPage() =>
+    FlutterInappPurchase.instance.openRedeemOfferCodeAndroid();
 
 Future<void> reconcileAfterResume() async {
   final iap = FlutterInappPurchase.instance;
@@ -422,13 +410,11 @@ Future<void> reconcileAfterResume() async {
 }`}</CodeBlock>
                     ),
                     csharp: (
-                      <CodeBlock language="csharp">{`using Microsoft.Maui.ApplicationModel;
-using OpenIap;
+                      <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-await Browser.OpenAsync(
-    "https://play.google.com/redeem",
-    BrowserLaunchMode.External);
+var mutations = (MutationResolver)OpenIapClient.Instance;
+await mutations.OpenRedeemOfferCodeAndroidAsync();
 
 async Task ReconcileAfterResumeAsync()
 {
@@ -450,9 +436,8 @@ async Task ReconcileAfterResumeAsync()
 }`}</CodeBlock>
                     ),
                     gdscript: (
-                      <CodeBlock language="gdscript">{`func open_redeem_page(code: String = "") -> void:
-    var suffix := "" if code.is_empty() else "?code=" + code.uri_encode()
-    OS.shell_open("https://play.google.com/redeem" + suffix)
+                      <CodeBlock language="gdscript">{`func open_redeem_page() -> bool:
+    return await GodotIapPlugin.open_redeem_offer_code_android()
 
 func reconcile_after_resume() -> void:
     if not await GodotIapPlugin.init_connection():
@@ -508,6 +493,11 @@ func reconcile_after_resume() -> void:
           <li>
             <Link to="/docs/apis/ios/present-code-redemption-sheet-ios">
               presentCodeRedemptionSheetIOS API Reference
+            </Link>
+          </li>
+          <li>
+            <Link to="/docs/apis/android/open-redeem-offer-code-android">
+              openRedeemOfferCodeAndroid API Reference
             </Link>
           </li>
           <li>

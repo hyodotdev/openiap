@@ -54,4 +54,12 @@ class ExpoIapHelperTest {
 
         assertFalse(payload.containsKey("productId"))
     }
+
+    @Test
+    fun `serializeOpenIapError preserves missing activity code`() {
+        val payload = ExpoIapHelper.serializeOpenIapError(OpenIapError.MissingCurrentActivity)
+
+        assertEquals(OpenIapError.MissingCurrentActivity.CODE, payload["code"])
+        assertEquals(OpenIapError.MissingCurrentActivity.message, payload["message"])
+    }
 }

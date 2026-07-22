@@ -131,6 +131,11 @@ describe("ProductClientPayloadDialogRoot", () => {
         productId: "premium_monthly",
       },
     );
+    await waitFor(() => {
+      expect(
+        screen.getByLabelText<HTMLTextAreaElement>("Payload body").value,
+      ).toBe("max_items = 10");
+    });
 
     fireEvent.change(screen.getByLabelText("Payload body"), {
       target: { value: "max_items = 12" },

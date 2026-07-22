@@ -62,6 +62,19 @@ func _run_all_tests() -> void:
 	_test_external_purchase_custom_link_notice_result_ios()
 	_test_external_purchase_custom_link_token_result_ios()
 
+	# Error code mapping
+	_test_purchase_error_code_mapping()
+	_test_error_code_maps_complete()
+	_test_enum_value_maps_bijective()
+
+	# Wire-format (JSON) round trips
+	_test_purchase_android_json_round_trip()
+	_test_purchase_ios_json_round_trip()
+	_test_active_subscription_round_trip()
+	_test_product_android_round_trip()
+	_test_product_ios_round_trip()
+	_test_purchase_input_round_trip()
+
 
 # ============================================
 # ProductRequest Tests
@@ -566,6 +579,281 @@ func _test_external_purchase_custom_link_token_result_ios() -> void:
 	}
 	var error_result = Types.ExternalPurchaseCustomLinkTokenResultIOS.from_dict(error_data)
 	_assert_equal(error_result.error, "Not eligible", "from_dict error should match")
+
+
+# ============================================
+# Error Code Mapping Tests
+# ============================================
+
+func _test_purchase_error_code_mapping() -> void:
+	print("Testing PurchaseError code mapping...")
+
+	var parsed = Types.PurchaseError.from_dict({
+		"code": "user-cancelled",
+		"message": "User cancelled",
+		"productId": "sku.a",
+	})
+	_assert_equal(parsed.code, Types.ErrorCode.USER_CANCELLED, "String codes should map to the ErrorCode enum")
+	_assert_equal(parsed.message, "User cancelled", "The error message should be preserved")
+	_assert_equal(parsed.product_id, "sku.a", "The product id should be preserved")
+
+	var dict = parsed.to_dict()
+	_assert_equal(dict["code"], "user-cancelled", "Enum codes should serialize back to their wire strings")
+
+	var unknown = Types.PurchaseError.from_dict({"code": "definitely-not-a-code", "message": "x"})
+	_assert_equal(unknown.code, Types.ErrorCode.UNKNOWN, "Unrecognized string codes should fall back to UNKNOWN")
+
+	var int_code = Types.PurchaseError.from_dict({"code": Types.ErrorCode.SERVICE_ERROR, "message": "x"})
+	_assert_equal(int_code.code, Types.ErrorCode.SERVICE_ERROR, "Integer codes should pass through unchanged")
+
+	var full = Types.PurchaseError.from_dict({
+		"code": "already-owned",
+		"message": "Owned",
+		"subResponseCodeAndroid": "user-ineligible",
+		"productIds": ["a", null, "b"],
+	})
+	_assert_equal(full.code, Types.ErrorCode.ALREADY_OWNED, "already-owned should map to ALREADY_OWNED")
+	_assert_equal(full.sub_response_code_android, Types.SubResponseCodeAndroid.USER_INELIGIBLE, "Sub-response strings should map to the enum")
+	_assert_equal(full.product_ids.size(), 2, "Malformed productIds entries should be skipped")
+
+	var round_trip = Types.PurchaseError.from_dict(full.to_dict())
+	_assert_equal(round_trip.code, Types.ErrorCode.ALREADY_OWNED, "Error codes should survive a round trip")
+	_assert_equal(round_trip.sub_response_code_android, Types.SubResponseCodeAndroid.USER_INELIGIBLE, "Sub-response codes should survive a round trip")
+
+
+func _test_error_code_maps_complete() -> void:
+	print("Testing ErrorCode map completeness...")
+
+	var enum_values = Types.ErrorCode.values()
+	_assert_equal(Types.ERROR_CODE_VALUES.size(), enum_values.size(), "Every ErrorCode should have a serialized value")
+
+	var missing := 0
+	for value in enum_values:
+		if not Types.ERROR_CODE_VALUES.has(value):
+			missing += 1
+	_assert_equal(missing, 0, "No ErrorCode should be missing from ERROR_CODE_VALUES")
+
+	# Canonical OpenIAP wire strings used across all SDKs (kebab-case).
+	_assert_equal(Types.ERROR_CODE_VALUES[Types.ErrorCode.USER_CANCELLED], "user-cancelled", "USER_CANCELLED wire value")
+	_assert_equal(Types.ERROR_CODE_VALUES[Types.ErrorCode.SERVICE_ERROR], "service-error", "SERVICE_ERROR wire value")
+	_assert_equal(Types.ERROR_CODE_VALUES[Types.ErrorCode.NOT_PREPARED], "not-prepared", "NOT_PREPARED wire value")
+	_assert_equal(Types.ERROR_CODE_VALUES[Types.ErrorCode.DEVELOPER_ERROR], "developer-error", "DEVELOPER_ERROR wire value")
+	_assert_equal(Types.ERROR_CODE_VALUES[Types.ErrorCode.FEATURE_NOT_SUPPORTED], "feature-not-supported", "FEATURE_NOT_SUPPORTED wire value")
+	_assert_equal(Types.ERROR_CODE_VALUES[Types.ErrorCode.PURCHASE_VERIFICATION_FAILED], "purchase-verification-failed", "PURCHASE_VERIFICATION_FAILED wire value")
+
+
+func _test_enum_value_maps_bijective() -> void:
+	print("Testing enum VALUES/FROM_STRING bijections...")
+
+	var types_script: Script = Types
+	var constant_map: Dictionary = types_script.get_script_constant_map()
+	var pair_count := 0
+	for constant_name in constant_map:
+		var key = str(constant_name)
+		if not key.ends_with("_VALUES"):
+			continue
+		var values = constant_map[constant_name]
+		if not (values is Dictionary):
+			continue
+		var from_name = key.trim_suffix("_VALUES") + "_FROM_STRING"
+		if not constant_map.has(from_name):
+			_assert_equal(false, true, "%s should have a matching %s map" % [key, from_name])
+			continue
+		var from_map: Dictionary = constant_map[from_name]
+		pair_count += 1
+		var consistent = from_map.size() == values.size()
+		for enum_value in values:
+			if from_map.get(values[enum_value], null) != enum_value:
+				consistent = false
+		_assert_equal(consistent, true, "%s and %s should be a bijection" % [key, from_name])
+	_assert_equal(pair_count >= 30, true, "Expected at least 30 enum value maps (got %d)" % pair_count)
+
+
+# ============================================
+# Wire-Format Round-Trip Tests
+# ============================================
+# Serialize through JSON.stringify/JSON.parse_string to mirror what actually
+# crosses the native plugin boundary (all JSON numbers come back as floats).
+
+func _test_purchase_android_json_round_trip() -> void:
+	print("Testing PurchaseAndroid JSON round trip...")
+
+	var purchase = Types.PurchaseAndroid.new()
+	purchase.id = "txn-1"
+	purchase.product_id = "sku.a"
+	var ids: Array[String] = ["sku.a"]
+	purchase.ids = ids
+	purchase.transaction_id = "txn-1"
+	purchase.transaction_date = 1720000000000.0
+	purchase.purchase_token = "token-1"
+	purchase.store = Types.IapStore.GOOGLE
+	purchase.platform = Types.IapPlatform.ANDROID
+	purchase.quantity = 2
+	purchase.purchase_state = Types.PurchaseState.PURCHASED
+	purchase.is_auto_renewing = true
+	purchase.is_acknowledged_android = true
+
+	var dict = purchase.to_dict()
+	_assert_equal(dict["store"], "google", "IapStore should serialize to its wire value")
+	_assert_equal(dict["platform"], "android", "IapPlatform should serialize to its wire value")
+	_assert_equal(dict["purchaseState"], "purchased", "PurchaseState should serialize to its wire value")
+
+	var wire = JSON.parse_string(JSON.stringify(dict))
+	var parsed = Types.PurchaseAndroid.from_dict(wire)
+	_assert_equal(parsed.product_id, "sku.a", "productId should survive the wire round trip")
+	_assert_equal(parsed.store, Types.IapStore.GOOGLE, "store should parse back to the enum")
+	_assert_equal(parsed.platform, Types.IapPlatform.ANDROID, "platform should parse back to the enum")
+	_assert_equal(parsed.purchase_state, Types.PurchaseState.PURCHASED, "purchaseState should parse back to the enum")
+	_assert_equal(parsed.quantity, 2, "quantity should survive JSON float conversion")
+	_assert_equal(parsed.is_acknowledged_android, true, "isAcknowledgedAndroid should survive the wire round trip")
+	_assert_equal(parsed.ids.size(), 1, "ids should survive the wire round trip")
+
+	var unknown_state = Types.PurchaseAndroid.from_dict({"productId": "p", "purchaseState": "mystery"})
+	_assert_equal(unknown_state.purchase_state, Types.PurchaseState.UNKNOWN, "Unknown purchaseState strings should fall back to UNKNOWN")
+	var unknown_store = Types.PurchaseAndroid.from_dict({"productId": "p", "store": "mystery"})
+	_assert_equal(unknown_store.store, Types.IapStore.UNKNOWN, "Unknown store strings should fall back to UNKNOWN")
+
+
+func _test_purchase_ios_json_round_trip() -> void:
+	print("Testing PurchaseIOS JSON round trip...")
+
+	var purchase = Types.PurchaseIOS.new()
+	purchase.id = "txn-ios-1"
+	purchase.product_id = "ios.sku"
+	purchase.transaction_id = "txn-ios-1"
+	purchase.transaction_date = 1720000000000.0
+	purchase.purchase_token = "jws-token"
+	purchase.store = Types.IapStore.APPLE
+	purchase.platform = Types.IapPlatform.IOS
+	purchase.quantity = 1
+	purchase.purchase_state = Types.PurchaseState.PURCHASED
+	purchase.original_transaction_identifier_ios = "orig-1"
+
+	var wire = JSON.parse_string(JSON.stringify(purchase.to_dict()))
+	_assert_equal(wire["store"], "apple", "IapStore should serialize to apple")
+	_assert_equal(wire["platform"], "ios", "IapPlatform should serialize to ios")
+
+	var parsed = Types.PurchaseIOS.from_dict(wire)
+	_assert_equal(parsed.product_id, "ios.sku", "productId should survive the wire round trip")
+	_assert_equal(parsed.store, Types.IapStore.APPLE, "store should parse back to the enum")
+	_assert_equal(parsed.original_transaction_identifier_ios, "orig-1", "iOS-only fields should survive the wire round trip")
+
+
+func _test_active_subscription_round_trip() -> void:
+	print("Testing ActiveSubscription round trip...")
+
+	var subscription = Types.ActiveSubscription.from_dict({
+		"productId": "sub.gold",
+		"isActive": true,
+		"expirationDateIOS": 1720000000000.0,
+		"autoRenewingAndroid": true,
+		"environmentIOS": "Production",
+		"daysUntilExpirationIOS": 12,
+		"transactionId": "txn-2",
+		"purchaseToken": "token-2",
+		"transactionDate": 1710000000000.0,
+		"basePlanIdAndroid": "annual",
+		"currentPlanId": "annual",
+	})
+	_assert_equal(subscription.product_id, "sub.gold", "productId should parse")
+	_assert_equal(subscription.is_active, true, "isActive should parse")
+	_assert_equal(subscription.auto_renewing_android, true, "autoRenewingAndroid should parse")
+	_assert_equal(subscription.base_plan_id_android, "annual", "basePlanIdAndroid should parse")
+
+	var wire = JSON.parse_string(JSON.stringify(subscription.to_dict()))
+	var round_trip = Types.ActiveSubscription.from_dict(wire)
+	_assert_equal(round_trip.product_id, "sub.gold", "productId should survive the wire round trip")
+	_assert_equal(round_trip.expiration_date_ios, 1720000000000.0, "expirationDateIOS should survive the wire round trip")
+	_assert_equal(round_trip.current_plan_id, "annual", "currentPlanId should survive the wire round trip")
+
+
+func _test_product_android_round_trip() -> void:
+	print("Testing ProductAndroid round trip...")
+
+	var product = Types.ProductAndroid.from_dict({
+		"id": "coins.100",
+		"title": "Coins",
+		"description": "100 coins",
+		"type": "in-app",
+		"displayPrice": "$0.99",
+		"currency": "USD",
+		"price": 0.99,
+		"platform": "android",
+		"nameAndroid": "Coins",
+		"discountOffers": [{
+			"id": "d1",
+			"displayPrice": "$0.49",
+			"price": 0.49,
+			"type": "one-time",
+		}],
+	})
+	_assert_equal(product.type, Types.ProductType.IN_APP, "type strings should map to the ProductType enum")
+	_assert_equal(product.platform, Types.IapPlatform.ANDROID, "platform strings should map to the IapPlatform enum")
+	_assert_equal(product.discount_offers.size(), 1, "discountOffers should parse into typed offers")
+	_assert_equal(product.discount_offers[0].type, Types.DiscountOfferType.ONE_TIME, "Offer type strings should map to the enum")
+
+	var dict = product.to_dict()
+	_assert_equal(dict["type"], "in-app", "type should serialize back to its wire value")
+	_assert_equal(dict["platform"], "android", "platform should serialize back to its wire value")
+
+	var wire = JSON.parse_string(JSON.stringify(dict))
+	var round_trip = Types.ProductAndroid.from_dict(wire)
+	_assert_equal(round_trip.id, "coins.100", "id should survive the wire round trip")
+	_assert_equal(round_trip.price, 0.99, "price should survive the wire round trip")
+	_assert_equal(round_trip.discount_offers.size(), 1, "Nested offers should survive the wire round trip")
+	_assert_equal(round_trip.discount_offers[0].id, "d1", "Nested offer fields should survive the wire round trip")
+
+
+func _test_product_ios_round_trip() -> void:
+	print("Testing ProductIOS round trip...")
+
+	var product = Types.ProductIOS.from_dict({
+		"id": "ios.premium",
+		"title": "Premium",
+		"description": "Premium product",
+		"type": "in-app",
+		"displayPrice": "$9.99",
+		"currency": "USD",
+		"platform": "ios",
+		"displayNameIOS": "Premium",
+		"isFamilyShareableIOS": true,
+		"jsonRepresentationIOS": "{}",
+		"typeIOS": "non-consumable",
+	})
+	_assert_equal(product.platform, Types.IapPlatform.IOS, "platform strings should map to the IapPlatform enum")
+	_assert_equal(product.type_ios, Types.ProductTypeIOS.NON_CONSUMABLE, "typeIOS strings should map to the enum")
+	_assert_equal(product.is_family_shareable_ios, true, "isFamilyShareableIOS should parse")
+
+	var wire = JSON.parse_string(JSON.stringify(product.to_dict()))
+	_assert_equal(wire["typeIOS"], "non-consumable", "typeIOS should serialize back to its wire value")
+
+	var round_trip = Types.ProductIOS.from_dict(wire)
+	_assert_equal(round_trip.display_name_ios, "Premium", "displayNameIOS should survive the wire round trip")
+	_assert_equal(round_trip.type_ios, Types.ProductTypeIOS.NON_CONSUMABLE, "typeIOS should survive the wire round trip")
+
+
+func _test_purchase_input_round_trip() -> void:
+	print("Testing PurchaseInput round trip...")
+
+	var input = Types.PurchaseInput.new()
+	input.id = "txn-3"
+	input.product_id = "sku.c"
+	input.purchase_token = "token-3"
+	input.store = Types.IapStore.GOOGLE
+	input.purchase_state = Types.PurchaseState.PENDING
+	input.quantity = 1
+	input.transaction_date = 1720000000000.0
+
+	var dict = input.to_dict()
+	_assert_equal(dict["store"], "google", "PurchaseInput store should serialize to its wire value")
+	_assert_equal(dict["purchaseState"], "pending", "PurchaseInput purchaseState should serialize to its wire value")
+
+	var wire = JSON.parse_string(JSON.stringify(dict))
+	var parsed = Types.PurchaseInput.from_dict(wire)
+	_assert_equal(parsed.product_id, "sku.c", "productId should survive the wire round trip")
+	_assert_equal(parsed.store, Types.IapStore.GOOGLE, "store should parse back to the enum")
+	_assert_equal(parsed.purchase_state, Types.PurchaseState.PENDING, "purchaseState should parse back to the enum")
+	_assert_equal(parsed.purchase_token, "token-3", "purchaseToken should survive the wire round trip")
 
 
 # ============================================

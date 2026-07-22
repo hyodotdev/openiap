@@ -73,6 +73,13 @@ jobs:
           dotnet run --project tests/OpenIap.Maui.ContractTests/OpenIap.Maui.ContractTests.csproj --framework net9.0 -p:TargetFrameworks=net9.0 --no-launch-profile
           dotnet run --project tests/OpenIap.Maui.ContractTests/OpenIap.Maui.ContractTests.csproj --framework net10.0 -p:TargetFrameworks=net10.0 --no-launch-profile
 
+      # xUnit suite for the shared surface (Types.cs serialization, error
+      # mapper, webhook parsing, KitApi HTTP contract). net9.0-only project;
+      # the PLURAL TargetFrameworks override keeps the referenced
+      # OpenIap.Maui restore off the workload TFMs — same gotcha as above.
+      - name: Run unit tests (shared)
+        run: dotnet test tests/OpenIap.Maui.Tests/OpenIap.Maui.Tests.csproj -p:TargetFrameworks=net9.0 --nologo
+
   android-binding:
     name: Android binding (net9.0-android + net10.0-android)
     runs-on: ubuntu-latest

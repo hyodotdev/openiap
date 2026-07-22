@@ -382,6 +382,13 @@ internal fun tryCaptureApplication(
     return disposer
 }
 
+internal fun tryGetApplicationContext(): Context? = runCatching {
+    val activityThreadClass = Class.forName("android.app.ActivityThread")
+    val activityThread = activityThreadClass.getMethod("currentActivityThread").invoke(null)
+    val application = activityThreadClass.getMethod("getApplication").invoke(activityThread) as? Application
+    application?.applicationContext
+}.getOrNull()
+
 internal suspend fun loadProductDetails(
     client: BillingClient,
     productType: String,

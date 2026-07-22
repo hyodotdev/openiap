@@ -1476,6 +1476,24 @@ class OpenIapModule(
     }
 
     /**
+     * Open the Google Play offer/promo code redemption page (https://play.google.com/redeem)
+     * so the user can enter a code. A listener can receive the redeemed purchase while the
+     * app has an active billing connection; reconcile available purchases when the app
+     * resumes. Does not require the billing client to be initialized.
+     *
+     * @param activity Current activity context
+     * @return true when the redemption flow was launched
+     */
+    override suspend fun openRedeemOfferCode(activity: Activity): Boolean {
+        OpenIapLog.d("Opening Google Play offer code redemption page", TAG)
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/redeem"))
+            .apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+        return runCatching { activity.startActivity(intent) }
+            .onFailure { OpenIapLog.w("Failed to open offer code redemption page: ${it.message}", TAG) }
+            .isSuccess
+    }
+
+    /**
      * Fetch Billing Choice display information for developer-rendered choice screens (9.1.0+).
      */
     override suspend fun getBillingChoiceInfo(params: GetBillingChoiceInfoParamsAndroid): BillingChoiceInfoAndroid = withContext(Dispatchers.IO) {
@@ -2049,24 +2067,27 @@ class OpenIapModule(
                                 } else {
                                     emptyMap()
                                 }
+                                val recoveryOwner = listenerOwner(client)
                                 queryAlreadyOwnedPurchases(client, desiredType, androidArgs.skus, basePlanIdsBySku) { recovered ->
                                     if (recovered.isNotEmpty()) {
                                         val pending = claimPurchaseCallback(
                                             client,
                                             callback,
                                             requireLaunched = true,
-                                        ) ?: return@queryAlreadyOwnedPurchases
-                                        OpenIapLog.d("Recovered ${recovered.size} already-owned purchase(s)", TAG)
-                                        notifySuspendedSubscriptions(
-                                            recovered,
-                                            listenerOwner(pending.client, pending.generation),
                                         )
-                                        for (purchase in recovered) {
-                                            for (listener in purchaseUpdateListeners) {
-                                                runCatching { listener.onPurchaseUpdated(purchase) }
-                                            }
+                                        OpenIapLog.d("Recovered ${recovered.size} already-owned purchase(s)", TAG)
+                                        val delivered = deliverPurchasesIfActive(
+                                            recovered,
+                                            recoveryOwner,
+                                        )
+                                        if (pending != null) {
+                                            pending.callback(Result.success(recovered))
+                                        } else {
+                                            OpenIapLog.w(
+                                                "Purchase request completed elsewhere; recovered purchases delivered to active listeners=$delivered",
+                                                TAG,
+                                            )
                                         }
-                                        pending.callback(Result.success(recovered))
                                     } else {
                                         OpenIapLog.w("ITEM_ALREADY_OWNED recovery found no matching owned purchases", TAG)
                                         finishWithError(err, requireLaunched = true)
@@ -2339,6 +2360,11 @@ class OpenIapModule(
                 ?: throw OpenIapError.MissingCurrentActivity
             launchExternalLink(activity, params)
         },
+        openRedeemOfferCodeAndroid = {
+            val activity = currentActivityRef?.get() ?: fallbackActivity
+                ?: throw OpenIapError.MissingCurrentActivity
+            openRedeemOfferCode(activity)
+        },
         requestPurchase = requestPurchase,
         restorePurchases = restorePurchases,
         showAlternativeBillingDialogAndroid = {
@@ -2497,6 +2523,19 @@ class OpenIapModule(
         }
     }
 
+    /** Delivers purchases only while their originating connection is active. */
+    private fun deliverPurchasesIfActive(
+        purchases: List<Purchase>,
+        owner: ActiveStoreListenerOwner<BillingClient>,
+    ): Boolean = owner.deliver {
+        notifySuspendedSubscriptions(purchases, owner)
+        for (purchase in purchases) {
+            for (listener in purchaseUpdateListeners) {
+                runCatching { listener.onPurchaseUpdated(purchase) }
+            }
+        }
+    }
+
     private fun onPurchasesUpdated(
         sourceClient: BillingClient,
         owner: ActiveStoreListenerOwner<BillingClient>,
@@ -2570,24 +2609,36 @@ class OpenIapModule(
                         )
                     }
                 }.orEmpty()
+                // Claim the pending callback before notifying listeners so the
+                // resolution below cannot race a listener that starts another
+                // purchase. A failed claim means the request was completed or
+                // cleared elsewhere (disconnect/endConnection); the store still
+                // reported real purchases, so listener delivery must not be
+                // skipped in that case.
                 val completedRequest = if (matched.isNotEmpty() && pendingRequest != null) {
                     claimPurchaseCallback(
                         sourceClient,
                         pendingRequest.callback,
                         requireLaunched = true,
-                    ) ?: return
+                    )
                 } else {
                     null
                 }
                 OpenIapLog.d("Mapped purchases count=${mapped.size}", TAG)
-                notifySuspendedSubscriptions(mapped, owner)
-                for (converted in mapped) {
-                    for (listener in purchaseUpdateListeners) {
-                        runCatching { listener.onPurchaseUpdated(converted) }
-                    }
+                val delivered = deliverPurchasesIfActive(mapped, owner)
+                if (!delivered) {
+                    OpenIapLog.w(
+                        "Ignoring purchase update from an inactive BillingClient connection",
+                        TAG,
+                    )
                 }
                 if (completedRequest != null) {
                     completedRequest.callback(Result.success(matched))
+                } else if (matched.isNotEmpty() && pendingRequest != null) {
+                    OpenIapLog.w(
+                        "Purchase request completed elsewhere; delivered purchase update to listeners only",
+                        TAG,
+                    )
                 } else if (mapped.isNotEmpty() && pendingRequest != null) {
                     OpenIapLog.w(
                         "Ignoring unrelated purchase update while another purchase is pending",
@@ -2621,6 +2672,72 @@ class OpenIapModule(
                             err,
                             requireLaunched = true,
                         )
+                    }
+                }
+                BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> {
+                    val error = OpenIapError.fromBillingResponseCode(
+                        billingResult.responseCode,
+                        billingResult.debugMessage,
+                        subResponseCode,
+                    )
+                    // Some devices surface ITEM_ALREADY_OWNED through this
+                    // listener instead of the synchronous launchBillingFlow
+                    // result. Mirror the synchronous recovery: query the owned
+                    // purchases for the in-flight request and treat a match as
+                    // success instead of failing the purchase.
+                    val desiredType = pendingRequest?.requestedProductType
+                    if (pendingRequest != null && desiredType != null) {
+                        OpenIapLog.d(
+                            "ITEM_ALREADY_OWNED received via listener; querying owned purchases for ${pendingRequest.requestedSkus}",
+                            TAG,
+                        )
+                        queryAlreadyOwnedPurchases(
+                            sourceClient,
+                            desiredType,
+                            pendingRequest.requestedSkus.toList(),
+                            pendingRequest.selectedBasePlanIdsBySku,
+                        ) { recovered ->
+                            if (recovered.isNotEmpty()) {
+                                val pending = claimPurchaseCallback(
+                                    sourceClient,
+                                    pendingRequest.callback,
+                                    requireLaunched = true,
+                                )
+                                OpenIapLog.d("Recovered ${recovered.size} already-owned purchase(s)", TAG)
+                                val delivered = deliverPurchasesIfActive(
+                                    recovered,
+                                    owner,
+                                )
+                                if (pending != null) {
+                                    pending.callback(Result.success(recovered))
+                                } else {
+                                    OpenIapLog.w(
+                                        "Purchase request completed elsewhere; recovered purchases delivered to active listeners=$delivered",
+                                        TAG,
+                                    )
+                                }
+                            } else {
+                                OpenIapLog.w("ITEM_ALREADY_OWNED recovery found no matching owned purchases", TAG)
+                                finishPurchaseCallback(
+                                    sourceClient,
+                                    pendingRequest.callback,
+                                    Result.success(emptyList()),
+                                    error,
+                                    requireLaunched = true,
+                                )
+                            }
+                        }
+                    } else {
+                        OpenIapLog.w("Purchase failed: code=${billingResult.responseCode} msg=${error.message}", TAG)
+                        if (pendingRequest != null) {
+                            finishPurchaseCallback(
+                                sourceClient,
+                                pendingRequest.callback,
+                                Result.success(emptyList()),
+                                error,
+                                requireLaunched = true,
+                            )
+                        }
                     }
                 }
                 else -> {

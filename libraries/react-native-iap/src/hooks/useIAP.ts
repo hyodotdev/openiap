@@ -30,6 +30,7 @@ import {
   launchExternalLinkAndroid,
   showBillingProgramInformationDialogAndroid,
   showInAppMessagesAndroid,
+  openRedeemOfferCodeAndroid,
   userChoiceBillingListenerAndroid,
   developerProvidedBillingListenerAndroid,
   subscriptionBillingIssueListener,
@@ -288,6 +289,8 @@ type UseIap = {
   showBillingProgramInformationDialogAndroid?: MutationField<'showBillingProgramInformationDialogAndroid'>;
   /** Show Play billing in-app messages. */
   showInAppMessagesAndroid?: MutationField<'showInAppMessagesAndroid'>;
+  /** Open the Play Store offer code redemption page; purchases arrive via the standard purchase listeners. */
+  openRedeemOfferCodeAndroid?: MutationField<'openRedeemOfferCodeAndroid'>;
 };
 
 export interface UseIapOptions {
@@ -743,11 +746,15 @@ export function useIAP(options?: UseIapOptions): UseIap {
       }
 
       if (!result) {
+        cleanupListeners();
         setConnected(false);
         RnIapConsole.warn('[useIAP] initConnection returned false');
         return;
       }
 
+      // Android retains events emitted during connection setup in bounded
+      // native queues; registration flushes that backlog after Nitro is ready.
+      // Other platforms preserve the existing post-init listener ordering.
       registerListeners();
       setConnected(true);
     } catch (error) {
@@ -833,6 +840,7 @@ export function useIAP(options?: UseIapOptions): UseIap {
           launchExternalLinkAndroid,
           showBillingProgramInformationDialogAndroid,
           showInAppMessagesAndroid,
+          openRedeemOfferCodeAndroid,
         }
       : {}),
   };

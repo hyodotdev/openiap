@@ -9,7 +9,7 @@ jest.spyOn(Alert, 'alert').mockImplementation(() => {});
 
 jest.mock('expo-iap', () => ({
   presentCodeRedemptionSheetIOS: jest.fn(() => Promise.resolve(true)),
-  openRedeemOfferCodeAndroid: jest.fn(() => Promise.resolve()),
+  openRedeemOfferCodeAndroid: jest.fn(() => Promise.resolve(true)),
   useIAP: jest.fn(() => ({
     connected: true,
   })),
@@ -99,6 +99,68 @@ describe('OfferCode Component', () => {
       expect(Alert.alert).toHaveBeenCalledWith(
         'Success',
         'Code redemption sheet presented. After successful redemption, the purchase will appear in your purchase history.',
+      );
+    });
+  });
+
+  it('should handle redeem button press on Android', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      get: jest.fn(() => 'android'),
+      configurable: true,
+    });
+
+    const {getByText} = render(<OfferCode />);
+    // The button text is "🎁 Open Play Store" on Android
+    const redeemButton = getByText('🎁 Open Play Store');
+
+    fireEvent.press(redeemButton);
+
+    // Wait for async operation and Alert
+    await waitFor(() => {
+      expect(ExpoIap.openRedeemOfferCodeAndroid).toHaveBeenCalled();
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Play Store Opened',
+        'Enter your code in the Play Store. After redemption, return to the app to see your purchase.',
+      );
+    });
+  });
+
+  it('should report unsupported iOS redemption results with iOS wording', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      get: jest.fn(() => 'ios'),
+      configurable: true,
+    });
+    jest
+      .mocked(ExpoIap.presentCodeRedemptionSheetIOS)
+      .mockResolvedValueOnce(false);
+
+    const {getByText} = render(<OfferCode />);
+    fireEvent.press(getByText('🎁 Redeem Offer Code'));
+
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Not Supported',
+        'Offer code redemption is not available on this iOS device.',
+      );
+    });
+  });
+
+  it('should report unsupported Android store results', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      get: jest.fn(() => 'android'),
+      configurable: true,
+    });
+    jest
+      .mocked(ExpoIap.openRedeemOfferCodeAndroid)
+      .mockResolvedValueOnce(false);
+
+    const {getByText} = render(<OfferCode />);
+    fireEvent.press(getByText('🎁 Open Play Store'));
+
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Not Supported',
+        'This Android store does not provide an offer-code redemption flow.',
       );
     });
   });

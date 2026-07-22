@@ -262,7 +262,7 @@ fun AvailablePurchasesScreen(
             
             // Check for unfinished transactions (purchases that need acknowledgment/consumption)
             val unfinishedPurchases = androidPurchases.filter { purchase ->
-                // TODO: In real implementation, check if purchase needs acknowledgment/consumption
+                // In a real app, check whether the purchase still needs acknowledgment/consumption
                 // This would typically check: purchase.purchaseState == PurchaseState.Purchased && !purchase.isAcknowledged
                 // For demo purposes, let's assume some consumable purchases might need finishing
                 (purchase.productId.contains("consumable", ignoreCase = true) ||

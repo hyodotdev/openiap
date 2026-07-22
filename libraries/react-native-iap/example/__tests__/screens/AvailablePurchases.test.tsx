@@ -61,10 +61,16 @@ describe('AvailablePurchases Screen', () => {
     mockRequestProducts.mockResolvedValue([]);
   });
 
-  it.skip('renders the screen title', async () => {
+  it('renders the screen header content', async () => {
+    // The "Available Purchases" title is owned by the navigator
+    // (navigation/index.tsx `options={{title: 'Available Purchases'}}`), so a
+    // bare screen render is identified by its own header content instead.
     const {getByText} = renderWithProviders(<AvailablePurchases />);
     await waitFor(() => {
-      expect(getByText(/Available Purchases/)).toBeTruthy();
+      expect(getByText('📋 Purchase History')).toBeTruthy();
+      expect(
+        getByText('Past purchases and subscription transactions'),
+      ).toBeTruthy();
     });
   });
 
@@ -126,12 +132,19 @@ describe('AvailablePurchases Screen', () => {
     }
   });
 
-  it.skip('handles error when fetching purchases fails', async () => {
+  it('handles error when fetching purchases fails', async () => {
+    const {getByText} = renderWithProviders(<AvailablePurchases />);
+
+    // The mount effect issues an initial getAvailablePurchases call whose
+    // rejection is only logged. Wait for it so the one-shot rejection below is
+    // consumed by the refresh button handler, which alerts on failure.
+    await waitFor(() => {
+      expect(mockGetAvailablePurchases).toHaveBeenCalled();
+    });
+
     mockGetAvailablePurchases.mockRejectedValueOnce(
       new Error('Failed to fetch purchases'),
     );
-
-    const {getByText} = renderWithProviders(<AvailablePurchases />);
 
     const refreshButton = getByText('🔄 Refresh Purchases');
     fireEvent.press(refreshButton);

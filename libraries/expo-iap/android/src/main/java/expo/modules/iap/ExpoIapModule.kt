@@ -280,6 +280,39 @@ class ExpoIapModule : Module() {
                 }
             }
 
+            AsyncFunction("openRedeemOfferCodeAndroid") { promise: Promise ->
+                ExpoIapLog.payload("openRedeemOfferCodeAndroid", null)
+                scope.launch {
+                    try {
+                        runCatching { currentActivity }.getOrNull()?.let(openIap::setActivity)
+                        val handler = openIap.mutationHandlers.openRedeemOfferCodeAndroid
+                            ?: throw OpenIapError.FeatureNotSupported()
+                        val launched = handler()
+                        ExpoIapLog.result("openRedeemOfferCodeAndroid", launched)
+                        promise.resolve(launched)
+                    } catch (e: Exception) {
+                        ExpoIapLog.failure("openRedeemOfferCodeAndroid", e)
+                        val errorMap =
+                            if (e is OpenIapError) {
+                                ExpoIapHelper.serializeOpenIapError(e)
+                            } else {
+                                mapOf(
+                                    "code" to OpenIapError.ServiceUnavailable.CODE,
+                                    "message" to (e.message ?: OpenIapError.ServiceUnavailable.MESSAGE),
+                                    "platform" to "android",
+                                )
+                            }
+                        val errorCode =
+                            errorMap["code"] as? String ?: OpenIapError.ServiceUnavailable.CODE
+                        promise.reject(
+                            errorCode,
+                            ExpoIapHelper.serializeErrorEnvelope(errorMap),
+                            e,
+                        )
+                    }
+                }
+            }
+
             // Get storefront country code (Android implementation)
             AsyncFunction("getStorefront") { promise: Promise ->
                 ExpoIapLog.payload("getStorefront", null)

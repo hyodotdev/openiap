@@ -92,8 +92,8 @@ fun AlternativeBillingScreen(navController: NavController) {
                 productId = details.products.firstOrNull()
             )
 
-            // TODO: Process payment with your payment system
-            // Then create token and report to backend
+            // Your app processes the payment with its own payment system here,
+            // then creates the token and reports it to your backend
         }
     }
 
@@ -118,8 +118,8 @@ fun AlternativeBillingScreen(navController: NavController) {
                 productId = null
             )
 
-            // TODO: Process payment with your payment system
-            // Then report externalTransactionToken to Google within 24 hours
+            // Your app processes the payment with its own payment system here,
+            // then reports externalTransactionToken to Google within 24 hours
         }
     }
 

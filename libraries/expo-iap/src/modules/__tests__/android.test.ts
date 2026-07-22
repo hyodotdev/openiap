@@ -19,7 +19,7 @@ jest.mock('react-native', () => ({
 
 /* eslint-disable import/first */
 import ExpoIapModule from '../../ExpoIapModule';
-import {Linking} from 'react-native';
+import {Linking, Platform} from 'react-native';
 import {
   isProductAndroid,
   deepLinkToSubscriptionsAndroid,
@@ -189,11 +189,34 @@ describe('Android Module Functions', () => {
   });
 
   describe('openRedeemOfferCodeAndroid', () => {
-    it('opens redeem URL', async () => {
-      await openRedeemOfferCodeAndroid();
-      expect(Linking.openURL).toHaveBeenCalledWith(
-        'https://play.google.com/redeem?code=',
-      );
+    it('delegates to the native store-flavor handler', async () => {
+      (
+        ExpoIapModule.openRedeemOfferCodeAndroid as jest.Mock
+      ).mockResolvedValueOnce(true);
+      const result = await openRedeemOfferCodeAndroid();
+      expect(ExpoIapModule.openRedeemOfferCodeAndroid).toHaveBeenCalledTimes(1);
+      expect(result).toBe(true);
+    });
+
+    it('preserves a false result for unsupported store flavors', async () => {
+      (
+        ExpoIapModule.openRedeemOfferCodeAndroid as jest.Mock
+      ).mockResolvedValueOnce(false);
+      await expect(openRedeemOfferCodeAndroid()).resolves.toBe(false);
+    });
+
+    it('rejects on non-Android platforms before opening a URL', async () => {
+      const originalOS = Platform.OS;
+      (Platform as {OS: string}).OS = 'ios';
+
+      try {
+        await expect(openRedeemOfferCodeAndroid()).rejects.toThrow(
+          'openRedeemOfferCodeAndroid is only available on Android and Vega OS',
+        );
+        expect(ExpoIapModule.openRedeemOfferCodeAndroid).not.toHaveBeenCalled();
+      } finally {
+        (Platform as {OS: string}).OS = originalOS;
+      }
     });
   });
 

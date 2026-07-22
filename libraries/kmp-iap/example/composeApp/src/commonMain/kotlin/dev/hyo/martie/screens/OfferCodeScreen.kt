@@ -184,25 +184,37 @@ fun OfferCodeScreen(navController: NavController) {
                     
                     Spacer(modifier = Modifier.height(20.dp))
                     
-                    OutlinedTextField(
-                        value = "",
-                        onValueChange = { },
-                        label = { Text("Promo Code (Optional)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Leave empty to open general redemption") }
-                    )
-                    
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
                     Button(
                         onClick = {
-                            // TODO: Implement when openRedeemOfferCodeAndroid is available
-                            result = "Play Store redemption not yet implemented"
+                            scope.launch {
+                                isLoading = true
+                                try {
+                                    val launched = kmpIAP.openRedeemOfferCodeAndroid()
+                                    result = if (launched) {
+                                        "Play Store redemption opened"
+                                    } else {
+                                        "Offer code redemption is unavailable for this Android store"
+                                    }
+                                } catch (e: Exception) {
+                                    result = "Failed to open Play Store redemption: ${e.message}"
+                                } finally {
+                                    isLoading = false
+                                }
+                            }
                         },
+                        enabled = !isLoading,
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
                     ) {
-                        Text("Open Play Store Redemption")
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text("Open Play Store Redemption")
+                        }
                     }
                 }
             }

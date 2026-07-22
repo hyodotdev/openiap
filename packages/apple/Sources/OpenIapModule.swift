@@ -1132,6 +1132,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
     /// Show the subscription management interface
     /// - Note: Available on iOS 15.0+, iPadOS 15.0+, Mac Catalyst 15.0+, macOS 14.0+, visionOS 1.0+. Not available on tvOS (subscriptions are managed in Settings > Accounts) or watchOS.
+    /// - Note: macOS has no native StoreKit manage-subscriptions sheet, so this opens https://apps.apple.com/account/subscriptions in the default browser.
     /// - SeeAlso: https://developer.apple.com/documentation/storekit/appstore/showmanagesubscriptions(in:)
     ///
     /// See: https://openiap.dev/docs/apis/deep-link-to-subscriptions
@@ -1149,9 +1150,18 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             }
             try await AppStore.showManageSubscriptions(in: scene)
             #elseif canImport(AppKit)
-            // macOS: Needs NSWindow for showManageSubscriptions
-            // For now, throw unsupported - will need proper window integration
-            throw makePurchaseError(code: .featureNotSupported, message: "macOS window integration required")
+            // macOS: AppStore.showManageSubscriptions requires a UIWindowScene, which
+            // does not exist on macOS. Fall back to opening the App Store
+            // subscriptions management page in the default browser.
+            guard let url = URL(string: "https://apps.apple.com/account/subscriptions") else {
+                throw makePurchaseError(code: .unknown, message: "Invalid subscriptions management URL")
+            }
+            let opened = await MainActor.run {
+                NSWorkspace.shared.open(url)
+            }
+            guard opened else {
+                throw makePurchaseError(code: .unknown, message: "Failed to open subscriptions management page")
+            }
             #endif
         #else
         throw makePurchaseError(code: .featureNotSupported)
@@ -1235,6 +1245,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
     /// Begin a refund request for a transaction
     /// - Note: Available on iOS 15.0+, iPadOS 15.0+, Mac Catalyst 15.0+, macOS 12.0+, visionOS 1.0+. Not available on tvOS or watchOS.
+    /// - Note: macOS has no native StoreKit refund sheet, so this opens https://reportaproblem.apple.com in the default browser and returns nil (the refund is resolved outside the app).
     /// - SeeAlso: https://developer.apple.com/documentation/storekit/transaction/3803220-beginrefundrequest
     ///
     /// See: https://openiap.dev/docs/apis/ios/begin-refund-request-ios
@@ -1271,9 +1282,25 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             return nil
         }
         #elseif canImport(AppKit)
-        // macOS: Needs NSViewController for beginRefundRequest
-        // For now, throw unsupported - will need proper window integration
-        throw makePurchaseError(code: .featureNotSupported, message: "macOS window integration required")
+        // macOS: Transaction.beginRefundRequest requires a UIWindowScene, which does
+        // not exist on macOS. Fall back to opening Apple's refund request page in the
+        // default browser for the verified transaction. The refund is resolved outside
+        // the app, so return nil (no definitive status), matching @unknown default.
+        OpenIapLog.debug("Opening refund request page for transaction \(transaction.id)")
+        guard let url = URL(string: "https://reportaproblem.apple.com/") else {
+            let error = makePurchaseError(code: .purchaseError, message: "Invalid refund request URL")
+            emitPurchaseError(error)
+            throw error
+        }
+        let opened = await MainActor.run {
+            NSWorkspace.shared.open(url)
+        }
+        guard opened else {
+            let error = makePurchaseError(code: .purchaseError, message: "Failed to open refund request page")
+            emitPurchaseError(error)
+            throw error
+        }
+        return nil
         #endif
         #else
         throw makePurchaseError(code: .featureNotSupported)
@@ -1326,10 +1353,16 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// Present the manage-subscriptions sheet.
     /// See: https://openiap.dev/docs/apis/ios/show-manage-subscriptions-ios
     public func showManageSubscriptionsIOS() async throws -> [PurchaseIOS] {
+        #if os(macOS)
+        // deepLinkToSubscriptions can open a browser on macOS, but that call
+        // returns immediately and cannot observe changes made outside the app.
+        throw makePurchaseError(code: .featureNotSupported)
+        #else
         let previousTransactions = try await getAllTransactionsIOS()
         try await deepLinkToSubscriptions(nil)
         let currentTransactions = try await getAllTransactionsIOS()
         return Self.changedPurchasesIOS(currentTransactions, comparedTo: previousTransactions)
+        #endif
     }
 
     static func changedPurchasesIOS(

@@ -470,6 +470,79 @@ void main() {
     });
   });
 
+  group('openRedeemOfferCodeAndroid', () {
+    test('invokes native channel and returns true', () async {
+      final calls = <MethodCall>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        calls.add(call);
+        if (call.method == 'openRedeemOfferCodeAndroid') {
+          return true;
+        }
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+
+      final result = await iap.openRedeemOfferCodeAndroid();
+      expect(result, isTrue);
+
+      final methodCall = calls.singleWhere(
+        (MethodCall call) => call.method == 'openRedeemOfferCodeAndroid',
+      );
+      expect(methodCall.arguments, isNull);
+    });
+
+    test('returns false when native side responds with null', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+
+      final result = await iap.openRedeemOfferCodeAndroid();
+      expect(result, isFalse);
+    });
+
+    test('rethrows errors from the native channel', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        throw PlatformException(code: 'E_UNKNOWN', message: 'boom');
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+
+      await expectLater(
+        iap.openRedeemOfferCodeAndroid(),
+        throwsA(isA<PlatformException>()),
+      );
+    });
+
+    test('throws PurchaseError with IapNotAvailable on iOS', () async {
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'ios'),
+      );
+
+      await expectLater(
+        iap.openRedeemOfferCodeAndroid(),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            types.ErrorCode.IapNotAvailable,
+          ),
+        ),
+      );
+    });
+  });
+
   group('deepLinkToSubscriptions', () {
     test('sends Android payload to native channel', () async {
       final calls = <MethodCall>[];

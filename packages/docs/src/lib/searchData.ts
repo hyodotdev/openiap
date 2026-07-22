@@ -508,6 +508,16 @@ export const apiData: ApiItem[] = [
     returns: 'InAppMessageResultAndroid!',
     path: '/docs/apis/android/show-in-app-messages-android',
   },
+  {
+    id: 'open-redeem-offer-code-android',
+    title: 'openRedeemOfferCodeAndroid',
+    category: 'Android Specific',
+    description:
+      'Open the Google Play offer-code redemption page (no billing client required)',
+    parameters: '',
+    returns: 'Boolean!',
+    path: '/docs/apis/android/open-redeem-offer-code-android',
+  },
 
   // Debugging & Logging (moved to Features)
   {

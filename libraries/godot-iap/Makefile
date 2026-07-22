@@ -184,6 +184,8 @@ test:
 	@echo "$(GREEN)Running GDScript unit tests...$(NC)"
 	@cd $(EXAMPLE_DIR) && $(GODOT) --headless --script tests/test_native_extension.gd
 	@cd $(EXAMPLE_DIR) && $(GODOT) --headless --script tests/test_types_only.gd
+	@cd $(EXAMPLE_DIR) && $(GODOT) --headless --script tests/test_api_surface.gd
+	@cd $(EXAMPLE_DIR) && $(GODOT) --headless --script tests/test_envelope_parsing.gd
 	@cd $(EXAMPLE_DIR) && $(GODOT) --headless --script tests/test_godot_iap.gd
 	@echo "$(GREEN)✓ Tests complete$(NC)"
 

@@ -86,6 +86,26 @@ internal suspend fun endRnConnectionWithCleanup(
     cleanup()
 }
 
+/**
+ * Removes the singleton JS fan-out listener without relying on callback identity.
+ * Nitro creates a fresh Kotlin callback wrapper for each bridge invocation, so
+ * the wrapper received by remove is not equal to the one received by add.
+ */
+internal fun <T> removeSingletonBridgeListener(
+    registeredListeners: MutableList<T>,
+    @Suppress("UNUSED_PARAMETER") removalWrapper: T,
+) {
+    synchronized(registeredListeners) {
+        registeredListeners.clear()
+    }
+}
+
+/**
+ * Bound for the pending purchase-event queues, matching expo-iap's
+ * ExpoIapHelper.MAX_BUFFERED_EVENTS. Oldest entries are dropped on overflow.
+ */
+private const val MAX_PENDING_EVENTS = 200
+
 class HybridRnIap : HybridRnIapSpec() {
     private data class PurchaseUpdatedListenerRegistration(
         val token: Double,
@@ -105,6 +125,26 @@ class HybridRnIap : HybridRnIapSpec() {
     private val purchaseUpdatedListeners = mutableListOf<PurchaseUpdatedListenerRegistration>()
     private var nextPurchaseUpdatedListenerToken = 1.0
     private val purchaseErrorListeners = mutableListOf<(NitroPurchaseResult) -> Unit>()
+
+    // Pending purchase events buffered while ZERO bridge listeners are attached
+    // (GitHub issue #166). Mirrors expo-iap's ExpoIapHelper.emitOrQueue bounded
+    // queue (MAX_BUFFERED_EVENTS = 200, drop-oldest on overflow); expo buffers
+    // purchase errors the same way, so both channels queue here. Covers:
+    //   1. events fired during initConnection before JS listeners attach
+    //      (e.g. the already-owned recovery republish), and
+    //   2. events fired while all screens are unmounted, flushed on remount.
+    // Queued events are flushed FIFO using a listener snapshot per batch. A
+    // listener added during a flush receives later arrivals, but not backlog
+    // that predates its registration.
+    // Like expo (which clears its queue when the connection lifecycle ends),
+    // endConnection clears these queues; they survive plain unmount/remount
+    // because useIAP keeps the connection alive across screens.
+    private val pendingPurchaseUpdates = PendingEventBuffer<NitroPurchase>(MAX_PENDING_EVENTS) {
+        RnIapLog.warn("pendingPurchaseUpdates overflow; dropping oldest")
+    }
+    private val pendingPurchaseErrors = PendingEventBuffer<NitroPurchaseResult>(MAX_PENDING_EVENTS) {
+        RnIapLog.warn("pendingPurchaseErrors overflow; dropping oldest")
+    }
     private val promotedProductListenersIOS = mutableListOf<(NitroProduct) -> Unit>()
     private val userChoiceBillingListenersAndroid = mutableListOf<(UserChoiceBillingDetails) -> Unit>()
     private val developerProvidedBillingListenersAndroid = mutableListOf<(DeveloperProvidedBillingDetailsAndroid) -> Unit>()
@@ -362,11 +402,18 @@ class HybridRnIap : HybridRnIapSpec() {
                     productTypeBySku.clear()
                     isInitialized = false
                     // Native listener sets persist; clear only bridge callbacks.
+                    // Pending event queues are cleared with them: like expo-iap
+                    // (whose buffer resets when the connection lifecycle ends),
+                    // buffered events do not survive an explicit endConnection.
                     synchronized(purchaseUpdatedListeners) {
                         purchaseUpdatedListeners.clear()
                         nextPurchaseUpdatedListenerToken = 1.0
+                        pendingPurchaseUpdates.clear()
                     }
-                    synchronized(purchaseErrorListeners) { purchaseErrorListeners.clear() }
+                    synchronized(purchaseErrorListeners) {
+                        purchaseErrorListeners.clear()
+                        pendingPurchaseErrors.clear()
+                    }
                     promotedProductListenersIOS.clear()
                     synchronized(userChoiceBillingListenersAndroid) { userChoiceBillingListenersAndroid.clear() }
                     synchronized(developerProvidedBillingListenersAndroid) { developerProvidedBillingListenersAndroid.clear() }
@@ -891,18 +938,59 @@ class HybridRnIap : HybridRnIapSpec() {
         listener: (purchase: NitroPurchase) -> Unit,
         options: PurchaseUpdatedListenerOptions?
     ): Double {
-        return synchronized(purchaseUpdatedListeners) {
+        val (token, shouldFlush) = synchronized(purchaseUpdatedListeners) {
             val token = nextPurchaseUpdatedListenerToken
             nextPurchaseUpdatedListenerToken += 1.0
             purchaseUpdatedListeners.add(PurchaseUpdatedListenerRegistration(token, listener))
-            token
+            val shouldFlush = pendingPurchaseUpdates.beginFlushIfNeeded()
+            token to shouldFlush
         }
+        if (shouldFlush) flushPendingPurchaseUpdates()
+        return token
     }
 
     override fun addPurchaseErrorListener(listener: (error: NitroPurchaseResult) -> Unit) {
-        synchronized(purchaseErrorListeners) {
+        val shouldFlush = synchronized(purchaseErrorListeners) {
             purchaseErrorListeners.add(listener)
+            pendingPurchaseErrors.beginFlushIfNeeded()
         }
+        if (shouldFlush) flushPendingPurchaseErrors()
+    }
+
+    private fun flushPendingPurchaseUpdates() {
+        drainPendingEvents(
+            takeDelivery = {
+                synchronized(purchaseUpdatedListeners) {
+                    pendingPurchaseUpdates.takeBatchOrFinish()?.let { backlog ->
+                        PendingEventDelivery(
+                            events = backlog,
+                            listeners = purchaseUpdatedListeners.map { it.listener },
+                        )
+                    }
+                }
+            },
+            onDeliveryFailure = {
+                RnIapLog.failure("purchaseUpdatedListener.flush", it)
+            }
+        )
+    }
+
+    private fun flushPendingPurchaseErrors() {
+        drainPendingEvents(
+            takeDelivery = {
+                synchronized(purchaseErrorListeners) {
+                    pendingPurchaseErrors.takeBatchOrFinish()?.let { backlog ->
+                        PendingEventDelivery(
+                            events = backlog,
+                            listeners = ArrayList(purchaseErrorListeners),
+                        )
+                    }
+                }
+            },
+            onDeliveryFailure = {
+                RnIapLog.failure("purchaseErrorListener.flush", it)
+            }
+        )
     }
 
     override fun removePurchaseUpdatedListener(token: Double) {
@@ -912,9 +1000,10 @@ class HybridRnIap : HybridRnIapSpec() {
     }
 
     override fun removePurchaseErrorListener(listener: (error: NitroPurchaseResult) -> Unit) {
-        synchronized(purchaseErrorListeners) {
-            purchaseErrorListeners.remove(listener)
-        }
+        // The JS layer registers one native fan-out callback and calls remove
+        // only after its final JS subscriber detaches. Clearing also matches
+        // iOS and removes stale registrations left by earlier remounts.
+        removeSingletonBridgeListener(purchaseErrorListeners, listener)
     }
     
     override fun addPromotedProductListenerIOS(listener: (product: NitroProduct) -> Unit) {
@@ -935,7 +1024,10 @@ class HybridRnIap : HybridRnIapSpec() {
     // Helper methods
     
     /**
-     * Send purchase update event to listeners
+     * Send purchase update event to listeners.
+     * With zero listeners attached the event is buffered (bounded, drop-oldest)
+     * instead of dropped, and flushed FIFO when a listener registers.
+     * Events delivered to at least one listener are never queued.
      */
     private fun sendPurchaseUpdate(purchase: NitroPurchase) {
         RnIapLog.result(
@@ -943,20 +1035,32 @@ class HybridRnIap : HybridRnIapSpec() {
             mapOf("productId" to purchase.productId, "platform" to purchase.platform)
         )
         val snapshot = synchronized(purchaseUpdatedListeners) {
-            purchaseUpdatedListeners.map { it.listener }
+            if (pendingPurchaseUpdates.enqueueIfNeeded(purchaseUpdatedListeners.isNotEmpty(), purchase)) {
+                emptyList()
+            } else {
+                purchaseUpdatedListeners.map { it.listener }
+            }
         }
         snapshot.forEach { it(purchase) }
     }
 
     /**
-     * Send purchase error event to listeners
+     * Send purchase error event to listeners.
+     * Mirrors sendPurchaseUpdate: buffered (bounded, drop-oldest) while zero
+     * listeners are attached, flushed FIFO when a listener registers.
      */
     private fun sendPurchaseError(error: NitroPurchaseResult) {
         RnIapLog.result(
             "sendPurchaseError",
             mapOf("code" to error.code, "message" to error.message)
         )
-        val snapshot = synchronized(purchaseErrorListeners) { ArrayList(purchaseErrorListeners) }
+        val snapshot = synchronized(purchaseErrorListeners) {
+            if (pendingPurchaseErrors.enqueueIfNeeded(purchaseErrorListeners.isNotEmpty(), error)) {
+                emptyList()
+            } else {
+                ArrayList(purchaseErrorListeners)
+            }
+        }
         snapshot.forEach { it(error) }
     }
     
@@ -1979,6 +2083,26 @@ class HybridRnIap : HybridRnIapSpec() {
                 RnIapLog.failure("launchExternalLinkAndroid", err)
                 val errorType = parseOpenIapError(err)
                 throw OpenIapException(toErrorJson(errorType, debugMessage = err.message))
+            }
+        }
+    }
+
+    override fun openRedeemOfferCodeAndroid(): Promise<Boolean> {
+        return Promise.async {
+            RnIapLog.payload("openRedeemOfferCodeAndroid", null)
+            try {
+                withContext(Dispatchers.Main) {
+                    runCatching { context.currentActivity }.getOrNull()?.let(openIap::setActivity)
+                }
+                val handler = openIap.mutationHandlers.openRedeemOfferCodeAndroid
+                    ?: throw OpenIapError.FeatureNotSupported()
+                val result = handler()
+                RnIapLog.result("openRedeemOfferCodeAndroid", result)
+                result
+            } catch (err: Throwable) {
+                RnIapLog.failure("openRedeemOfferCodeAndroid", err)
+                val errorType = parseOpenIapError(err)
+                throw OpenIapException(toErrorJson(errorType, debugMessage = err.message), err)
             }
         }
     }

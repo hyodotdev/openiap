@@ -317,6 +317,26 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 }
                 return
             }
+            "openRedeemOfferCodeAndroid" -> {
+                scope.launch {
+                    try {
+                        val iap = openIap
+                        if (iap == null) {
+                            safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
+                            return@launch
+                        }
+                        activity?.let(iap::setActivity)
+                        val redeem = iap.mutationHandlers.openRedeemOfferCodeAndroid
+                            ?: throw OpenIapError.FeatureNotSupported()
+                        safe.success(redeem())
+                    } catch (e: OpenIapError) {
+                        safe.error(e.code, e.message, serializeOpenIapError(e))
+                    } catch (e: Exception) {
+                        safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
+                    }
+                }
+                return
+            }
         }
 
         // Initialization / teardown

@@ -909,6 +909,35 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
     }
 
     @UsedByGodot
+    fun openRedeemOfferCodeAndroid(): String {
+        GodotIapLog.debug("openRedeemOfferCodeAndroid called")
+
+        val activity = activity ?: run {
+            return JSONObject().apply {
+                put("success", false)
+                put("error", "Activity not available")
+            }.toString()
+        }
+
+        return try {
+            val redemptionStore =
+                if (isInitialized) store else OpenIapStore(OpenIapModule(activity))
+            val launched = runBlocking { redemptionStore.openRedeemOfferCode(activity) }
+            GodotIapLog.result("openRedeemOfferCodeAndroid", launched)
+            JSONObject().apply {
+                put("success", true)
+                put("launched", launched)
+            }.toString()
+        } catch (e: Exception) {
+            GodotIapLog.failure("openRedeemOfferCodeAndroid", e)
+            JSONObject().apply {
+                put("success", false)
+                put("error", e.message)
+            }.toString()
+        }
+    }
+
+    @UsedByGodot
     fun createBillingProgramReportingDetailsAndroid(billingProgram: String): String {
         return createBillingProgramReportingDetailsAndroidInternal(billingProgram, null)
     }

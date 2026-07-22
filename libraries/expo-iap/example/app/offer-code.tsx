@@ -71,7 +71,7 @@ export default function OfferCodeScreen() {
       return;
     }
 
-    if (!connected) {
+    if (isIOS && !connected) {
       Alert.alert('Not Connected', 'Please wait for store connection');
       return;
     }
@@ -87,14 +87,26 @@ export default function OfferCodeScreen() {
             'Success',
             'Code redemption sheet presented. After successful redemption, the purchase will appear in your purchase history.',
           );
+        } else {
+          Alert.alert(
+            'Not Supported',
+            'Offer code redemption is not available on this iOS device.',
+          );
         }
       } else {
-        // Open Play Store for Android
-        await openRedeemOfferCodeAndroid();
-        Alert.alert(
-          'Play Store Opened',
-          'Enter your code in the Play Store. After redemption, return to the app to see your purchase.',
-        );
+        // Open the Play Store redeem page for Android
+        const result = await openRedeemOfferCodeAndroid();
+        if (result) {
+          Alert.alert(
+            'Play Store Opened',
+            'Enter your code in the Play Store. After redemption, return to the app to see your purchase.',
+          );
+        } else {
+          Alert.alert(
+            'Not Supported',
+            'This Android store does not provide an offer-code redemption flow.',
+          );
+        }
       }
     } catch (error) {
       console.log('Error redeeming code:', error);
@@ -122,10 +134,10 @@ export default function OfferCodeScreen() {
         <TouchableOpacity
           style={[
             styles.redeemButton,
-            (!connected || isRedeeming) && styles.disabledButton,
+            ((isIOS && !connected) || isRedeeming) && styles.disabledButton,
           ]}
           onPress={handleRedeemCode}
-          disabled={!connected || isRedeeming}
+          disabled={(isIOS && !connected) || isRedeeming}
         >
           {isRedeeming ? (
             <ActivityIndicator color="white" />

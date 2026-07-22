@@ -1319,23 +1319,12 @@ describe('SubscriptionFlow Screen', () => {
     });
   });
 
-  it.skip('excludes obfuscatedProfileId for subscription upgrades/downgrades (Android)', async () => {
+  it('excludes obfuscatedProfileId for subscription upgrades/downgrades (Android)', async () => {
     // Mock Platform to be Android
     Platform.OS = 'android';
-    // Mock getAvailablePurchases to return purchase with token
-    jest.fn(() => {
-      console.log('Test: getAvailablePurchases called');
-      return Promise.resolve([
-        {
-          productId: 'dev.hyo.martie.premium',
-          purchaseToken: 'mock-purchase-token-123',
-          purchaseTokenAndroid: 'mock-purchase-token-123',
-          purchaseState: 1,
-        },
-      ]);
-    });
 
-    // For upgrade/downgrade, purchaseToken should be included but obfuscatedProfileId should not
+    // For upgrade/downgrade the purchase token is read from the active
+    // subscription entry, and obfuscated ids must not be forwarded.
     mockIapState({
       activeSubscriptions: [
         {
@@ -1343,45 +1332,24 @@ describe('SubscriptionFlow Screen', () => {
           transactionId: 'trans-1',
           transactionDate: Date.now(),
           isActive: true,
+          purchaseToken: 'mock-purchase-token-123',
         } as any,
       ],
       subscriptions: [
         {
           ...sampleSubscription,
-          subscriptionOfferDetailsAndroid: [
+          subscriptionOffers: [
             {
-              basePlanId: 'premium',
-              offerToken: 'offer-token-monthly',
-              offerTags: [],
-              pricingPhases: {
-                pricingPhaseList: [
-                  {
-                    formattedPrice: '$9.99',
-                    priceAmountMicros: '9990000',
-                    priceCurrencyCode: 'USD',
-                    billingPeriod: 'P1M',
-                    billingCycleCount: 0,
-                    recurrenceMode: 1,
-                  },
-                ],
-              },
+              basePlanIdAndroid: 'premium',
+              offerTokenAndroid: 'offer-token-monthly',
+              displayPrice: '$9.99',
+              type: 'subs',
             },
             {
-              basePlanId: 'premium-year',
-              offerToken: 'offer-token-yearly',
-              offerTags: [],
-              pricingPhases: {
-                pricingPhaseList: [
-                  {
-                    formattedPrice: '$99.99',
-                    priceAmountMicros: '99990000',
-                    priceCurrencyCode: 'USD',
-                    billingPeriod: 'P1Y',
-                    billingCycleCount: 0,
-                    recurrenceMode: 1,
-                  },
-                ],
-              },
+              basePlanIdAndroid: 'premium-year',
+              offerTokenAndroid: 'offer-token-yearly',
+              displayPrice: '$99.99',
+              type: 'subs',
             },
           ],
         },
@@ -1420,14 +1388,22 @@ describe('SubscriptionFlow Screen', () => {
         expect(lastCall).toBeDefined();
         expect(lastCall[0]).toBeDefined();
 
-        const androidRequest = lastCall[0].request?.android;
+        // The plan-change flow issues the Android request under `google`.
+        const androidRequest = lastCall[0].request?.google;
         // Should have purchaseToken for upgrade
         expect(androidRequest?.purchaseToken).toBe('mock-purchase-token-123');
-        // Should NOT have obfuscatedProfileId for upgrade
+        // Should target the yearly plan offer
+        expect(androidRequest?.subscriptionOffers).toEqual([
+          {sku: 'dev.hyo.martie.premium', offerToken: 'offer-token-yearly'},
+        ]);
+        // Should NOT have obfuscated ids for upgrade
         expect(androidRequest?.obfuscatedProfileId).toBeUndefined();
+        expect(androidRequest?.obfuscatedAccountId).toBeUndefined();
       },
       {timeout: 3000},
     );
+
+    alertSpy.mockRestore();
   });
 
   it('includes obfuscatedProfileId for new subscriptions', () => {

@@ -260,6 +260,14 @@ class OpenIapMauiModule(context: Context) {
         wrapBool(module.launchExternalLink(activity, params))
     }
 
+    fun openRedeemOfferCodeAndroid(callback: ResultCallback) = run(callback) {
+        val handler = module.mutationHandlers.openRedeemOfferCodeAndroid
+            ?: throw OpenIapError.FeatureNotSupported(
+                "openRedeemOfferCodeAndroid is not wired for this store",
+            )
+        wrapBool(handler())
+    }
+
     // -----------------------------------------------------------------
     // Listeners
     // -----------------------------------------------------------------
