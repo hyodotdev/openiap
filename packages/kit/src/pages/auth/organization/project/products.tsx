@@ -29,6 +29,7 @@ import {
   formatProductSyncSummary,
   shouldShowProductSyncResult,
 } from "./product-sync-result";
+import { ProductSyncFailureList } from "./product-sync-failure-list";
 
 type DashboardProject = Omit<
   Doc<"projects">,
@@ -1147,28 +1148,31 @@ function ProductGroup({
           <div className="flex-1">
             {job.status === "succeeded" && job.result ? (
               <div>
-                {formatProductSyncSummary({
-                  dryRun: job.dryRun,
-                  direction: job.direction,
-                  result: job.result,
-                })}
-                {job.result.failures.length
-                  ? `, ${job.result.failures.length} failure${
-                      job.result.failures.length === 1 ? "" : "s"
-                    }`
-                  : ""}
-                {job.result.failuresTruncated ? " (truncated)" : ""}
-                {job.result.plannedWritesTruncated
-                  ? ", planned writes truncated"
-                  : ""}
-                {job.result.manualActions?.length
-                  ? `, ${job.result.manualActions.length} manual action${
-                      job.result.manualActions.length === 1 ? "" : "s"
-                    }`
-                  : ""}
-                {job.result.manualActionsTruncated
-                  ? " (manual actions truncated)"
-                  : ""}
+                <div>
+                  {formatProductSyncSummary({
+                    dryRun: job.dryRun,
+                    direction: job.direction,
+                    result: job.result,
+                  })}
+                  {job.result.failures.length
+                    ? `, ${job.result.failures.length} failure${
+                        job.result.failures.length === 1 ? "" : "s"
+                      }`
+                    : ""}
+                  {job.result.failuresTruncated ? " (truncated)" : ""}
+                  {job.result.plannedWritesTruncated
+                    ? ", planned writes truncated"
+                    : ""}
+                  {job.result.manualActions?.length
+                    ? `, ${job.result.manualActions.length} manual action${
+                        job.result.manualActions.length === 1 ? "" : "s"
+                      }`
+                    : ""}
+                  {job.result.manualActionsTruncated
+                    ? " (manual actions truncated)"
+                    : ""}
+                </div>
+                <ProductSyncFailureList failures={job.result.failures} />
                 {job.result.manualActions?.length ? (
                   <ul className="mt-1 list-disc space-y-0.5 pl-4">
                     {job.result.manualActions.map((action) => (
