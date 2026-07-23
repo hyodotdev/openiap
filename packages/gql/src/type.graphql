@@ -602,10 +602,11 @@ type SubscriptionPeriod {
 
 """
 Standardized one-time product discount offer.
-Provides a unified interface for one-time purchase discounts across platforms.
+Provides a platform-neutral OpenIAP shape for Google Play one-time product
+purchase options and offers.
 
-Currently supported on Android (Google Play Billing 8.0+).
-iOS does not support one-time purchase discounts in the same way.
+Currently populated only on Android (Google Play Billing 8.0+).
+iOS does not populate this type.
 
 @see https://openiap.dev/docs/features/discount
 """
@@ -672,7 +673,7 @@ type DiscountOffer {
   discountAmountMicrosAndroid: String
 
   """
-  [Android] Formatted discount amount string (e.g., "$5.00 OFF").
+  [Android] Formatted discount amount including its currency sign (e.g., "$5.00").
   """
   formattedDiscountAmountAndroid: String
 
@@ -715,8 +716,7 @@ Both platforms support subscription offers with different implementations:
 - iOS: Introductory offers, promotional offers with server-side signatures
 - Android: Offer tokens with pricing phases
 
-@see https://openiap.dev/docs/types/ios#discount-offer
-@see https://openiap.dev/docs/types/android#subscription-offer
+@see https://openiap.dev/docs/types/subscription-offer
 """
 type SubscriptionOffer {
   """

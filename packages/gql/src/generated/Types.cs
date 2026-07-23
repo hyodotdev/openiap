@@ -2944,7 +2944,7 @@ public sealed record DiscountDisplayInfoAndroid
 
 /// <summary>Discount information returned from the store.</summary>
 /// <summary>@deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.</summary>
-/// <summary>@see https://openiap.dev/docs/types#subscription-offer</summary>
+/// <summary>@see https://openiap.dev/docs/types/subscription-offer</summary>
 public sealed record DiscountIOS
 {
     [JsonPropertyName("identifier")]
@@ -2966,10 +2966,11 @@ public sealed record DiscountIOS
 }
 
 /// <summary>Standardized one-time product discount offer.</summary>
-/// <summary>Provides a unified interface for one-time purchase discounts across platforms.</summary>
+/// <summary>Provides a platform-neutral OpenIAP shape for Google Play one-time product</summary>
+/// <summary>purchase options and offers.</summary>
 /// <summary></summary>
-/// <summary>Currently supported on Android (Google Play Billing 8.0+).</summary>
-/// <summary>iOS does not support one-time purchase discounts in the same way.</summary>
+/// <summary>Currently populated only on Android (Google Play Billing 8.0+).</summary>
+/// <summary>iOS does not populate this type.</summary>
 /// <summary></summary>
 /// <summary>@see https://openiap.dev/docs/features/discount</summary>
 public sealed record DiscountOffer
@@ -2984,7 +2985,7 @@ public sealed record DiscountOffer
     /// <summary>Formatted display price string (e.g., &quot;$4.99&quot;)</summary>
     [JsonPropertyName("displayPrice")]
     public required string DisplayPrice { get; init; }
-    /// <summary>[Android] Formatted discount amount string (e.g., &quot;$5.00 OFF&quot;).</summary>
+    /// <summary>[Android] Formatted discount amount including its currency sign (e.g., &quot;$5.00&quot;).</summary>
     [JsonPropertyName("formattedDiscountAmountAndroid")]
     public string? FormattedDiscountAmountAndroid { get; init; }
     /// <summary>[Android] Original full price in micro-units before discount.</summary>
@@ -3038,7 +3039,7 @@ public sealed record DiscountOffer
 
 /// <summary>iOS DiscountOffer (output type).</summary>
 /// <summary>@deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.</summary>
-/// <summary>@see https://openiap.dev/docs/types#subscription-offer</summary>
+/// <summary>@see https://openiap.dev/docs/types/subscription-offer</summary>
 public sealed record DiscountOfferIOS
 {
     /// <summary>Discount identifier</summary>
@@ -3265,9 +3266,9 @@ public sealed record ProductAndroid : Product, ProductCommon
     public string? DebugDescription { get; init; }
     [JsonPropertyName("description")]
     public required string Description { get; init; }
-    /// <summary>Standardized discount offers for one-time products.</summary>
-    /// <summary>Cross-platform type with Android-specific fields using suffix.</summary>
-    /// <summary>@see https://openiap.dev/docs/types#discount-offer</summary>
+    /// <summary>Standardized Android one-time product purchase options and offers.</summary>
+    /// <summary>Native metadata uses Android-suffixed fields.</summary>
+    /// <summary>@see https://openiap.dev/docs/types/discount-offer</summary>
     [JsonPropertyName("discountOffers")]
     public IReadOnlyList<DiscountOffer>? DiscountOffers { get; init; }
     [JsonPropertyName("displayName")]
@@ -3280,7 +3281,7 @@ public sealed record ProductAndroid : Product, ProductCommon
     public required string NameAndroid { get; init; }
     /// <summary>One-time purchase offer details including discounts (Android)</summary>
     /// <summary>Returns all eligible offers. Available in Google Play Billing Library 8.0+</summary>
-    /// <summary>@deprecated Use discountOffers instead for cross-platform compatibility.</summary>
+    /// <summary>@deprecated Use the standardized discountOffers field instead.</summary>
     [JsonPropertyName("oneTimePurchaseOfferDetailsAndroid")]
     public IReadOnlyList<ProductAndroidOneTimePurchaseOfferDetail>? OneTimePurchaseOfferDetailsAndroid { get; init; }
     [JsonPropertyName("platform")]
@@ -3299,7 +3300,7 @@ public sealed record ProductAndroid : Product, ProductCommon
     public IReadOnlyList<ProductSubscriptionAndroidOfferDetails>? SubscriptionOfferDetailsAndroid { get; init; }
     /// <summary>Standardized subscription offers.</summary>
     /// <summary>Cross-platform type with Android-specific fields using suffix.</summary>
-    /// <summary>@see https://openiap.dev/docs/types#subscription-offer</summary>
+    /// <summary>@see https://openiap.dev/docs/types/subscription-offer</summary>
     [JsonPropertyName("subscriptionOffers")]
     public IReadOnlyList<SubscriptionOffer>? SubscriptionOffers { get; init; }
     [JsonPropertyName("title")]
@@ -3310,8 +3311,8 @@ public sealed record ProductAndroid : Product, ProductCommon
 
 /// <summary>One-time purchase offer details (Android).</summary>
 /// <summary>Available in Google Play Billing Library 8.0+</summary>
-/// <summary>@deprecated Use the standardized DiscountOffer type instead for cross-platform compatibility.</summary>
-/// <summary>@see https://openiap.dev/docs/types#discount-offer</summary>
+/// <summary>@deprecated Use the standardized DiscountOffer type for Android one-time offers.</summary>
+/// <summary>@see https://openiap.dev/docs/types/discount-offer</summary>
 public sealed record ProductAndroidOneTimePurchaseOfferDetail
 {
     /// <summary>Discount display information</summary>
@@ -3391,7 +3392,7 @@ public sealed record ProductIOS : Product, ProductCommon
     /// <summary>Standardized subscription offers.</summary>
     /// <summary>Cross-platform type with iOS-specific fields using suffix.</summary>
     /// <summary>Note: iOS does not support one-time product discounts.</summary>
-    /// <summary>@see https://openiap.dev/docs/types#subscription-offer</summary>
+    /// <summary>@see https://openiap.dev/docs/types/subscription-offer</summary>
     [JsonPropertyName("subscriptionOffers")]
     public IReadOnlyList<SubscriptionOffer>? SubscriptionOffers { get; init; }
     [JsonPropertyName("title")]
@@ -3410,9 +3411,8 @@ public sealed record ProductSubscriptionAndroid : ProductSubscription, ProductCo
     public string? DebugDescription { get; init; }
     [JsonPropertyName("description")]
     public required string Description { get; init; }
-    /// <summary>Standardized discount offers for one-time products.</summary>
-    /// <summary>Cross-platform type with Android-specific fields using suffix.</summary>
-    /// <summary>@see https://openiap.dev/docs/types#discount-offer</summary>
+    /// <summary>Nullable compatibility field. Google Play does not return one-time purchase</summary>
+    /// <summary>offer details for subscription products; use subscriptionOffers below.</summary>
     [JsonPropertyName("discountOffers")]
     public IReadOnlyList<DiscountOffer>? DiscountOffers { get; init; }
     [JsonPropertyName("displayName")]
@@ -3423,9 +3423,10 @@ public sealed record ProductSubscriptionAndroid : ProductSubscription, ProductCo
     public required string Id { get; init; }
     [JsonPropertyName("nameAndroid")]
     public required string NameAndroid { get; init; }
-    /// <summary>One-time purchase offer details including discounts (Android)</summary>
-    /// <summary>Returns all eligible offers. Available in Google Play Billing Library 8.0+</summary>
-    /// <summary>@deprecated Use discountOffers instead for cross-platform compatibility.</summary>
+    /// <summary>Legacy nullable compatibility field. Google Play does not populate one-time</summary>
+    /// <summary>purchase offer details for subscription products.</summary>
+    /// <summary>@deprecated One-time offers belong to ProductAndroid.discountOffers;</summary>
+    /// <summary>subscriptions use subscriptionOffers.</summary>
     [JsonPropertyName("oneTimePurchaseOfferDetailsAndroid")]
     public IReadOnlyList<ProductAndroidOneTimePurchaseOfferDetail>? OneTimePurchaseOfferDetailsAndroid { get; init; }
     [JsonPropertyName("platform")]
@@ -3444,7 +3445,7 @@ public sealed record ProductSubscriptionAndroid : ProductSubscription, ProductCo
     public required IReadOnlyList<ProductSubscriptionAndroidOfferDetails> SubscriptionOfferDetailsAndroid { get; init; }
     /// <summary>Standardized subscription offers.</summary>
     /// <summary>Cross-platform type with Android-specific fields using suffix.</summary>
-    /// <summary>@see https://openiap.dev/docs/types#subscription-offer</summary>
+    /// <summary>@see https://openiap.dev/docs/types/subscription-offer</summary>
     [JsonPropertyName("subscriptionOffers")]
     public required IReadOnlyList<SubscriptionOffer> SubscriptionOffers { get; init; }
     [JsonPropertyName("title")]
@@ -3455,7 +3456,7 @@ public sealed record ProductSubscriptionAndroid : ProductSubscription, ProductCo
 
 /// <summary>Subscription offer details (Android).</summary>
 /// <summary>@deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.</summary>
-/// <summary>@see https://openiap.dev/docs/types#subscription-offer</summary>
+/// <summary>@see https://openiap.dev/docs/types/subscription-offer</summary>
 public sealed record ProductSubscriptionAndroidOfferDetails
 {
     [JsonPropertyName("basePlanId")]
@@ -3524,7 +3525,7 @@ public sealed record ProductSubscriptionIOS : ProductSubscription, ProductCommon
     public SubscriptionInfoIOS? SubscriptionInfoIOS { get; init; }
     /// <summary>Standardized subscription offers.</summary>
     /// <summary>Cross-platform type with iOS-specific fields using suffix.</summary>
-    /// <summary>@see https://openiap.dev/docs/types#subscription-offer</summary>
+    /// <summary>@see https://openiap.dev/docs/types/subscription-offer</summary>
     [JsonPropertyName("subscriptionOffers")]
     public IReadOnlyList<SubscriptionOffer>? SubscriptionOffers { get; init; }
     [JsonPropertyName("subscriptionPeriodNumberIOS")]
@@ -3861,8 +3862,7 @@ public sealed record SubscriptionInfoIOS
 /// <summary>- iOS: Introductory offers, promotional offers with server-side signatures</summary>
 /// <summary>- Android: Offer tokens with pricing phases</summary>
 /// <summary></summary>
-/// <summary>@see https://openiap.dev/docs/types/ios#discount-offer</summary>
-/// <summary>@see https://openiap.dev/docs/types/android#subscription-offer</summary>
+/// <summary>@see https://openiap.dev/docs/types/subscription-offer</summary>
 public sealed record SubscriptionOffer
 {
     /// <summary>[Android] Base plan identifier.</summary>
@@ -3937,7 +3937,7 @@ public sealed record SubscriptionOffer
 
 /// <summary>iOS subscription offer details.</summary>
 /// <summary>@deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.</summary>
-/// <summary>@see https://openiap.dev/docs/types#subscription-offer</summary>
+/// <summary>@see https://openiap.dev/docs/types/subscription-offer</summary>
 public sealed record SubscriptionOfferIOS
 {
     [JsonPropertyName("displayPrice")]

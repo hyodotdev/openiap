@@ -2077,7 +2077,7 @@ public data class DiscountDisplayInfoAndroid(
 /**
  * Discount information returned from the store.
  * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
- * @see https://openiap.dev/docs/types#subscription-offer
+ * @see https://openiap.dev/docs/types/subscription-offer
  */
 public data class DiscountIOS(
     val identifier: String,
@@ -2120,10 +2120,11 @@ public data class DiscountIOS(
 
 /**
  * Standardized one-time product discount offer.
- * Provides a unified interface for one-time purchase discounts across platforms.
+ * Provides a platform-neutral OpenIAP shape for Google Play one-time product
+ * purchase options and offers.
  * 
- * Currently supported on Android (Google Play Billing 8.0+).
- * iOS does not support one-time purchase discounts in the same way.
+ * Currently populated only on Android (Google Play Billing 8.0+).
+ * iOS does not populate this type.
  * 
  * @see https://openiap.dev/docs/features/discount
  */
@@ -2142,7 +2143,7 @@ public data class DiscountOffer(
      */
     val displayPrice: String,
     /**
-     * [Android] Formatted discount amount string (e.g., "$5.00 OFF").
+     * [Android] Formatted discount amount including its currency sign (e.g., "$5.00").
      */
     val formattedDiscountAmountAndroid: String? = null,
     /**
@@ -2253,7 +2254,7 @@ public data class DiscountOffer(
 /**
  * iOS DiscountOffer (output type).
  * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
- * @see https://openiap.dev/docs/types#subscription-offer
+ * @see https://openiap.dev/docs/types/subscription-offer
  */
 public data class DiscountOfferIOS(
     /**
@@ -2770,9 +2771,9 @@ public data class ProductAndroid(
     override val debugDescription: String? = null,
     override val description: String,
     /**
-     * Standardized discount offers for one-time products.
-     * Cross-platform type with Android-specific fields using suffix.
-     * @see https://openiap.dev/docs/types#discount-offer
+     * Standardized Android one-time product purchase options and offers.
+     * Native metadata uses Android-suffixed fields.
+     * @see https://openiap.dev/docs/types/discount-offer
      */
     val discountOffers: List<DiscountOffer>? = null,
     override val displayName: String? = null,
@@ -2782,7 +2783,7 @@ public data class ProductAndroid(
     /**
      * One-time purchase offer details including discounts (Android)
      * Returns all eligible offers. Available in Google Play Billing Library 8.0+
-     * @deprecated Use discountOffers instead for cross-platform compatibility.
+     * @deprecated Use the standardized discountOffers field instead.
      */
     val oneTimePurchaseOfferDetailsAndroid: List<ProductAndroidOneTimePurchaseOfferDetail>? = null,
     override val platform: IapPlatform = IapPlatform.Android,
@@ -2802,7 +2803,7 @@ public data class ProductAndroid(
     /**
      * Standardized subscription offers.
      * Cross-platform type with Android-specific fields using suffix.
-     * @see https://openiap.dev/docs/types#subscription-offer
+     * @see https://openiap.dev/docs/types/subscription-offer
      */
     val subscriptionOffers: List<SubscriptionOffer>? = null,
     override val title: String,
@@ -2856,8 +2857,8 @@ public data class ProductAndroid(
 /**
  * One-time purchase offer details (Android).
  * Available in Google Play Billing Library 8.0+
- * @deprecated Use the standardized DiscountOffer type instead for cross-platform compatibility.
- * @see https://openiap.dev/docs/types#discount-offer
+ * @deprecated Use the standardized DiscountOffer type for Android one-time offers.
+ * @see https://openiap.dev/docs/types/discount-offer
  */
 public data class ProductAndroidOneTimePurchaseOfferDetail(
     /**
@@ -2973,7 +2974,7 @@ public data class ProductIOS(
      * Standardized subscription offers.
      * Cross-platform type with iOS-specific fields using suffix.
      * Note: iOS does not support one-time product discounts.
-     * @see https://openiap.dev/docs/types#subscription-offer
+     * @see https://openiap.dev/docs/types/subscription-offer
      */
     val subscriptionOffers: List<SubscriptionOffer>? = null,
     override val title: String,
@@ -3032,9 +3033,8 @@ public data class ProductSubscriptionAndroid(
     override val debugDescription: String? = null,
     override val description: String,
     /**
-     * Standardized discount offers for one-time products.
-     * Cross-platform type with Android-specific fields using suffix.
-     * @see https://openiap.dev/docs/types#discount-offer
+     * Nullable compatibility field. Google Play does not return one-time purchase
+     * offer details for subscription products; use subscriptionOffers below.
      */
     val discountOffers: List<DiscountOffer>? = null,
     override val displayName: String? = null,
@@ -3042,9 +3042,10 @@ public data class ProductSubscriptionAndroid(
     override val id: String,
     val nameAndroid: String,
     /**
-     * One-time purchase offer details including discounts (Android)
-     * Returns all eligible offers. Available in Google Play Billing Library 8.0+
-     * @deprecated Use discountOffers instead for cross-platform compatibility.
+     * Legacy nullable compatibility field. Google Play does not populate one-time
+     * purchase offer details for subscription products.
+     * @deprecated One-time offers belong to ProductAndroid.discountOffers;
+     * subscriptions use subscriptionOffers.
      */
     val oneTimePurchaseOfferDetailsAndroid: List<ProductAndroidOneTimePurchaseOfferDetail>? = null,
     override val platform: IapPlatform = IapPlatform.Android,
@@ -3064,7 +3065,7 @@ public data class ProductSubscriptionAndroid(
     /**
      * Standardized subscription offers.
      * Cross-platform type with Android-specific fields using suffix.
-     * @see https://openiap.dev/docs/types#subscription-offer
+     * @see https://openiap.dev/docs/types/subscription-offer
      */
     val subscriptionOffers: List<SubscriptionOffer>,
     override val title: String,
@@ -3118,7 +3119,7 @@ public data class ProductSubscriptionAndroid(
 /**
  * Subscription offer details (Android).
  * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
- * @see https://openiap.dev/docs/types#subscription-offer
+ * @see https://openiap.dev/docs/types/subscription-offer
  */
 public data class ProductSubscriptionAndroidOfferDetails(
     val basePlanId: String,
@@ -3195,7 +3196,7 @@ public data class ProductSubscriptionIOS(
     /**
      * Standardized subscription offers.
      * Cross-platform type with iOS-specific fields using suffix.
-     * @see https://openiap.dev/docs/types#subscription-offer
+     * @see https://openiap.dev/docs/types/subscription-offer
      */
     val subscriptionOffers: List<SubscriptionOffer>? = null,
     val subscriptionPeriodNumberIOS: String? = null,
@@ -3917,8 +3918,7 @@ public data class SubscriptionInfoIOS(
  * - iOS: Introductory offers, promotional offers with server-side signatures
  * - Android: Offer tokens with pricing phases
  * 
- * @see https://openiap.dev/docs/types/ios#discount-offer
- * @see https://openiap.dev/docs/types/android#subscription-offer
+ * @see https://openiap.dev/docs/types/subscription-offer
  */
 public data class SubscriptionOffer(
     /**
@@ -4063,7 +4063,7 @@ public data class SubscriptionOffer(
 /**
  * iOS subscription offer details.
  * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
- * @see https://openiap.dev/docs/types#subscription-offer
+ * @see https://openiap.dev/docs/types/subscription-offer
  */
 public data class SubscriptionOfferIOS(
     val displayPrice: String,

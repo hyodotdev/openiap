@@ -23,6 +23,9 @@
  *      package root used by Vercel.
  *   7. Lints fenced active-doc code examples for a small set of recurring,
  *      language-specific phantom API patterns (release history excluded).
+ *   8. Protects the canonical one-time and subscription offer pages (and their
+ *      search entries) from being remapped to the platform-specific legacy
+ *      pages or claiming enum members that are not in the generated schema.
  *
  * Exit code 0 = clean, 1 = at least one drift detected.
  *
@@ -58,12 +61,35 @@ const DOC_VERSION_METADATA_FILE = resolve(
   REPO_ROOT,
   'packages/docs/src/generated/version-metadata.json'
 );
+const DISCOUNT_OFFER_DOC_FILE = resolve(
+  REPO_ROOT,
+  'packages/docs/src/pages/docs/types/discount-offer.tsx'
+);
+const SUBSCRIPTION_OFFER_DOC_FILE = resolve(
+  REPO_ROOT,
+  'packages/docs/src/pages/docs/types/subscription-offer.tsx'
+);
+const SEARCH_DATA_FILE = resolve(
+  REPO_ROOT,
+  'packages/docs/src/lib/searchData.ts'
+);
 
 type Drift = {
   file: string;
   line: number;
   rule: string;
   message: string;
+};
+
+type SourceFile = {
+  file: string;
+  source: string;
+};
+
+export type CanonicalOfferDocsSources = {
+  discountOffer: SourceFile;
+  subscriptionOffer: SourceFile;
+  searchData: SourceFile;
 };
 
 type CodeExampleRule = {
@@ -129,6 +155,13 @@ const CODE_EXAMPLE_RULES: CodeExampleRule[] = [
       'RequestPurchaseProps has no top-level sku; populate one request branch or use in_app().',
   },
   {
+    language: 'kotlin',
+    pattern:
+      /\b(?:iapStore|kmpIAP)\.requestPurchase\s*\(\s*(?:activity|props)\s*=/,
+    message:
+      'Kotlin and KMP `requestPurchase` accept one positional `RequestPurchaseProps` argument; `activity` and `props` are not parameters.',
+  },
+  {
     pattern:
       /(?:console\.log|println|print|Console\.WriteLine|Log\.[a-z]+)\([^)]{0,200}\b(?:offerToken|offer_token|OfferToken)\b/,
     message: 'Offer tokens must not be written to application logs.',
@@ -162,6 +195,336 @@ export function auditActiveCodeExampleSource(
       });
     }
   }
+  return drifts;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function findSearchEntriesByTitle(
+  source: string,
+  title: string
+): { line: number; path: string | null; pathLine: number }[] {
+  const entries: { line: number; path: string | null; pathLine: number }[] = [];
+  const titleRe = new RegExp(
+    `\\btitle:\\s*(['"])${escapeRegExp(title)}\\1`,
+    'g'
+  );
+  let titleMatch: RegExpExecArray | null;
+
+  while ((titleMatch = titleRe.exec(source)) !== null) {
+    const objectStartMarker = source.lastIndexOf('\n  {', titleMatch.index);
+    const objectStart = objectStartMarker === -1 ? 0 : objectStartMarker + 1;
+    const objectEndMarker = source.indexOf('\n  },', titleMatch.index);
+    const objectEnd =
+      objectEndMarker === -1
+        ? source.length
+        : objectEndMarker + '\n  },'.length;
+    const objectSource = source.slice(objectStart, objectEnd);
+    const pathMatch = /\bpath:\s*(['"])([^'"]+)\1/.exec(objectSource);
+
+    entries.push({
+      line: lineNumberAt(source, titleMatch.index),
+      path: pathMatch?.[2] ?? null,
+      pathLine: pathMatch
+        ? lineNumberAt(source, objectStart + pathMatch.index)
+        : lineNumberAt(source, titleMatch.index),
+    });
+  }
+
+  return entries;
+}
+
+function findTypeScriptDiscountOfferType(
+  source: string
+): { line: number; members: string[] | null } | null {
+  const blockRe =
+    /<CodeBlock\b[^>]*\blanguage="typescript"[^>]*>\s*\{`([\s\S]*?)`\}\s*<\/CodeBlock>/g;
+  let blockMatch: RegExpExecArray | null;
+
+  while ((blockMatch = blockRe.exec(source)) !== null) {
+    const block = blockMatch[1];
+    const declaration =
+      /(?:export\s+)?type\s+DiscountOfferType\s*=\s*([\s\S]*?);/.exec(block);
+    if (!declaration) continue;
+
+    const rawMembers = declaration[1].split('|').map((member) => member.trim());
+    const members: string[] = [];
+    for (const rawMember of rawMembers) {
+      const literal = /^(['"])([^'"]+)\1$/.exec(rawMember);
+      if (!literal) {
+        return {
+          line: lineNumberAt(
+            source,
+            blockMatch.index + blockMatch[0].indexOf(block) + declaration.index
+          ),
+          members: null,
+        };
+      }
+      members.push(literal[2]);
+    }
+
+    return {
+      line: lineNumberAt(
+        source,
+        blockMatch.index + blockMatch[0].indexOf(block) + declaration.index
+      ),
+      members,
+    };
+  }
+
+  return null;
+}
+
+type NamedOfferTypeLanguage = 'swift' | 'kotlin' | 'dart';
+
+function findNamedDiscountOfferTypeMembers(
+  source: string,
+  language: NamedOfferTypeLanguage
+): { line: number; members: string[] } | null {
+  const blockRe = new RegExp(
+    `<CodeBlock\\b[^>]*\\blanguage="${language}"[^>]*>\\s*\\{\`([\\s\\S]*?)\`\\}\\s*</CodeBlock>`,
+    'g'
+  );
+  let blockMatch: RegExpExecArray | null;
+
+  while ((blockMatch = blockRe.exec(source)) !== null) {
+    const block = blockMatch[1];
+    const declaration =
+      language === 'swift'
+        ? /enum\s+DiscountOfferType[^{}]*\{([\s\S]*?)\}/.exec(block)
+        : language === 'kotlin'
+          ? /enum\s+class\s+DiscountOfferType(?:\([^)]*\))?\s*\{([\s\S]*?)\}/.exec(
+              block
+            )
+          : /enum\s+DiscountOfferType\s*\{([\s\S]*?)\}/.exec(block);
+    if (!declaration) continue;
+
+    const memberRe =
+      language === 'swift'
+        ? /\bcase\s+([A-Za-z]\w*)\s*=\s*"([^"]+)"/g
+        : language === 'kotlin'
+          ? /\b([A-Z]\w*)\s*\(\s*"([^"]+)"\s*\)/g
+          : /\b([A-Z]\w*)\s*\(\s*'([^']+)'\s*\)/g;
+    const members = Array.from(declaration[1].matchAll(memberRe), (match) =>
+      `${match[1]}=${match[2]}`
+    );
+
+    return {
+      line: lineNumberAt(
+        source,
+        blockMatch.index + blockMatch[0].indexOf(block) + declaration.index
+      ),
+      members,
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Guard the semantics of the two canonical offer pages independently from the
+ * generated-field audit. `DiscountOffer` is the Android one-time product
+ * abstraction backed by `OneTimePurchaseOfferDetails`; subscription discounts
+ * belong to `SubscriptionOffer`. Both types share `DiscountOfferType`, so stale
+ * hand-written `WinBack` claims are particularly easy to reintroduce.
+ *
+ * Sources are injected to keep this check deterministic and fault-testable.
+ */
+export function auditCanonicalOfferDocs(
+  sources: CanonicalOfferDocsSources
+): Drift[] {
+  const drifts: Drift[] = [];
+  const discount = sources.discountOffer;
+  const subscription = sources.subscriptionOffer;
+
+  if (!/\bOneTimePurchaseOfferDetails\b/.test(discount.source)) {
+    drifts.push({
+      file: discount.file,
+      line: 1,
+      rule: 'R12',
+      message:
+        'DiscountOffer must reference the Android `ProductDetails.OneTimePurchaseOfferDetails` native source.',
+    });
+  }
+
+  const oneTimeAndroidClaim =
+    /\bone-time\b[\s\S]{0,240}\b(?:Android|Google Play)\b/i.test(
+      discount.source
+    ) ||
+    /\b(?:Android|Google Play)\b[\s\S]{0,240}\bone-time\b/i.test(
+      discount.source
+    );
+  if (!oneTimeAndroidClaim) {
+    drifts.push({
+      file: discount.file,
+      line: 1,
+      rule: 'R12',
+      message:
+        'DiscountOffer must state that it represents one-time product offers on Android/Google Play.',
+    });
+  }
+
+  const typeScriptOfferType = findTypeScriptDiscountOfferType(discount.source);
+  const expectedOfferTypeMembers = ['introductory', 'promotional', 'one-time'];
+  const actualOfferTypeMembers = typeScriptOfferType?.members;
+  const hasExactOfferTypeMembers =
+    actualOfferTypeMembers !== null &&
+    actualOfferTypeMembers !== undefined &&
+    actualOfferTypeMembers.length === expectedOfferTypeMembers.length &&
+    expectedOfferTypeMembers.every((member) =>
+      actualOfferTypeMembers.includes(member)
+    );
+  if (!hasExactOfferTypeMembers) {
+    drifts.push({
+      file: discount.file,
+      line: typeScriptOfferType?.line ?? 1,
+      rule: 'R12',
+      message:
+        "The canonical DiscountOffer TypeScript snippet must declare DiscountOfferType with exactly the generated wire values 'introductory', 'promotional', and 'one-time'.",
+    });
+  }
+
+  for (const [language, expectedMembers] of [
+    [
+      'swift',
+      [
+        'introductory=introductory',
+        'promotional=promotional',
+        'oneTime=one-time',
+      ],
+    ],
+    [
+      'kotlin',
+      [
+        'Introductory=introductory',
+        'Promotional=promotional',
+        'OneTime=one-time',
+      ],
+    ],
+    [
+      'dart',
+      [
+        'Introductory=introductory',
+        'Promotional=promotional',
+        'OneTime=one-time',
+      ],
+    ],
+  ] as const) {
+    const declaration = findNamedDiscountOfferTypeMembers(
+      discount.source,
+      language
+    );
+    const actualMembers = declaration?.members;
+    const hasExactMembers =
+      actualMembers !== undefined &&
+      actualMembers.length === expectedMembers.length &&
+      expectedMembers.every((member) => actualMembers.includes(member));
+    if (hasExactMembers) continue;
+
+    drifts.push({
+      file: discount.file,
+      line: declaration?.line ?? 1,
+      rule: 'R12',
+      message: `The canonical DiscountOffer ${language} snippet must declare exactly the generated DiscountOfferType members and wire values.`,
+    });
+  }
+
+  const forbiddenDiscountClaims: {
+    pattern: RegExp;
+    message: string;
+  }[] = [
+    {
+      pattern: /\bProduct\.SubscriptionOffer\b/,
+      message:
+        'DiscountOffer must not map to StoreKit Product.SubscriptionOffer; use the canonical SubscriptionOffer page for subscription discounts.',
+    },
+    {
+      pattern: /\b(?:ProductDetails\.)?SubscriptionOfferDetails\b/,
+      message:
+        'DiscountOffer must not map to Play SubscriptionOfferDetails; it represents one-time product offers.',
+    },
+    {
+      pattern: /\bWinBack\b/i,
+      message:
+        'DiscountOffer must not claim WinBack support; WinBack is not a DiscountOfferType enum member.',
+    },
+  ];
+
+  for (const claim of forbiddenDiscountClaims) {
+    const match = claim.pattern.exec(discount.source);
+    if (!match) continue;
+    drifts.push({
+      file: discount.file,
+      line: lineNumberAt(discount.source, match.index),
+      rule: 'R12',
+      message: claim.message,
+    });
+  }
+
+  const subscriptionWinBack = /\bWinBack\b/i.exec(subscription.source);
+  if (subscriptionWinBack) {
+    drifts.push({
+      file: subscription.file,
+      line: lineNumberAt(subscription.source, subscriptionWinBack.index),
+      rule: 'R12',
+      message:
+        'SubscriptionOffer must not claim WinBack support; WinBack is not a DiscountOfferType enum member.',
+    });
+  }
+
+  for (const [pattern, nativeType] of [
+    [/\bProduct\.SubscriptionOffer\b/, 'Product.SubscriptionOffer'],
+    [
+      /\b(?:ProductDetails\.)?SubscriptionOfferDetails\b/,
+      'ProductDetails.SubscriptionOfferDetails',
+    ],
+  ] as const) {
+    if (pattern.test(subscription.source)) continue;
+    drifts.push({
+      file: subscription.file,
+      line: 1,
+      rule: 'R12',
+      message: `SubscriptionOffer must reference its native ${nativeType} source.`,
+    });
+  }
+
+  for (const [title, expectedPath] of [
+    ['DiscountOffer', '/docs/types/discount-offer'],
+    ['SubscriptionOffer', '/docs/types/subscription-offer'],
+  ] as const) {
+    const entries = findSearchEntriesByTitle(sources.searchData.source, title);
+    if (entries.length === 0) {
+      drifts.push({
+        file: sources.searchData.file,
+        line: 1,
+        rule: 'R12',
+        message: `Search data must include a canonical ${title} entry pointing to ${expectedPath}.`,
+      });
+      continue;
+    }
+
+    if (entries.length > 1) {
+      drifts.push({
+        file: sources.searchData.file,
+        line: entries[1].line,
+        rule: 'R12',
+        message: `Search data must contain exactly one canonical ${title} entry.`,
+      });
+    }
+
+    for (const entry of entries) {
+      if (entry.path === expectedPath) continue;
+      drifts.push({
+        file: sources.searchData.file,
+        line: entry.pathLine,
+        rule: 'R12',
+        message: `The canonical ${title} search entry must point to ${expectedPath}, not ${entry.path ?? 'a missing path'}.`,
+      });
+    }
+  }
+
   return drifts;
 }
 
@@ -914,6 +1277,22 @@ async function main() {
 
   drifts.push(...auditReleaseNotePackageLinks(RELEASE_NOTES_FILE));
   drifts.push(...auditVersionMetadata());
+  drifts.push(
+    ...auditCanonicalOfferDocs({
+      discountOffer: {
+        file: DISCOUNT_OFFER_DOC_FILE,
+        source: readFileSync(DISCOUNT_OFFER_DOC_FILE, 'utf8'),
+      },
+      subscriptionOffer: {
+        file: SUBSCRIPTION_OFFER_DOC_FILE,
+        source: readFileSync(SUBSCRIPTION_OFFER_DOC_FILE, 'utf8'),
+      },
+      searchData: {
+        file: SEARCH_DATA_FILE,
+        source: readFileSync(SEARCH_DATA_FILE, 'utf8'),
+      },
+    })
+  );
 
   // R5 (broken /docs links) is a hard failure; R3 (field name not in
   // generated types) is a warning because top-level scalar function

@@ -726,14 +726,15 @@ export const apiData: ApiItem[] = [
     title: 'iOS Types',
     category: 'Types',
     description:
-      'DiscountOffer, SubscriptionStatusIOS, PaymentMode, AppTransaction, SubscriptionBillingPlanTypeIOS',
+      'DiscountOfferIOS, SubscriptionStatusIOS, PaymentMode, AppTransaction, SubscriptionBillingPlanTypeIOS',
     path: '/docs/types#ios-types',
   },
   {
     id: 'types-android',
     title: 'Android Types',
     category: 'Types',
-    description: 'SubscriptionOffer, PricingPhase, PricingPhasesAndroid',
+    description:
+      'ProductSubscriptionAndroidOfferDetails, PricingPhase, PricingPhasesAndroid',
     path: '/docs/types#android-types',
   },
   {
@@ -744,14 +745,30 @@ export const apiData: ApiItem[] = [
       'AlternativeBillingModeAndroid, InitConnectionConfig, External Purchase Link',
     path: '/docs/types/alternative-billing-types',
   },
-
-  // iOS-Specific Types (from types/ios.tsx)
   {
     id: 'discount-offer',
     title: 'DiscountOffer',
+    category: 'Types',
+    description:
+      'Standardized Android one-time product purchase options and offers',
+    path: '/docs/types/discount-offer',
+  },
+  {
+    id: 'subscription-offer',
+    title: 'SubscriptionOffer',
+    category: 'Types',
+    description:
+      'Standardized iOS and Android subscription introductory and promotional offers',
+    path: '/docs/types/subscription-offer',
+  },
+
+  // iOS-Specific Types (from types/ios.tsx)
+  {
+    id: 'discount-offer-ios',
+    title: 'DiscountOfferIOS',
     category: 'Types (iOS)',
     description:
-      'iOS promotional offer for purchase: identifier, keyIdentifier, nonce, signature, timestamp',
+      'Deprecated iOS promotional offer: identifier, keyIdentifier, nonce, signature, timestamp',
     path: '/docs/types/ios/discount-offer-ios',
   },
   {
@@ -811,11 +828,11 @@ export const apiData: ApiItem[] = [
 
   // Android-Specific Types (from types/android.tsx)
   {
-    id: 'subscription-offer',
-    title: 'SubscriptionOffer',
+    id: 'subscription-offer-android',
+    title: 'ProductSubscriptionAndroidOfferDetails',
     category: 'Types (Android)',
     description:
-      'Android subscription offer: sku, offerToken for Play Billing purchases',
+      'Deprecated Android subscription offer details with Play Billing offer tokens',
     path: '/docs/types/android/subscription-offer-android',
   },
   {

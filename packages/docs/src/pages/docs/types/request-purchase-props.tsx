@@ -436,7 +436,8 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                         <code>withOffer</code>
                       </td>
                       <td>
-                        Promotional/discount offer to apply (see DiscountOffer)
+                        Signed iOS subscription promotional offer input (
+                        <code>DiscountOfferInputIOS</code>)
                       </td>
                     </tr>
                     <tr>

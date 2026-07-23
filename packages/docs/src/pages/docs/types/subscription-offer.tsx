@@ -125,8 +125,7 @@ function SubscriptionOffer() {
                 </Link>
               </td>
               <td>
-                <code>Introductory</code>, <code>Promotional</code>, or{' '}
-                <code>WinBack</code> (iOS 18+)
+                <code>introductory</code> or <code>promotional</code>
               </td>
             </tr>
             <tr>
@@ -344,20 +343,13 @@ interface SubscriptionPeriod {
   value: number;
 }
 
-enum SubscriptionPeriodUnit {
-  Day = 'Day',
-  Week = 'Week',
-  Month = 'Month',
-  Year = 'Year',
-  Unknown = 'Unknown',
-}
+type SubscriptionPeriodUnit = 'day' | 'week' | 'month' | 'year' | 'unknown';
 
-enum PaymentMode {
-  FreeTrial = 'FreeTrial',
-  PayAsYouGo = 'PayAsYouGo',
-  PayUpFront = 'PayUpFront',
-  Unknown = 'Unknown',
-}`}</CodeBlock>
+type PaymentMode =
+  | 'free-trial'
+  | 'pay-as-you-go'
+  | 'pay-up-front'
+  | 'unknown';`}</CodeBlock>
             ),
             swift: (
               <CodeBlock language="swift">{`struct SubscriptionOffer: Codable {
@@ -398,18 +390,18 @@ struct SubscriptionPeriod: Codable {
 }
 
 enum SubscriptionPeriodUnit: String, Codable {
-    case day = "Day"
-    case week = "Week"
-    case month = "Month"
-    case year = "Year"
-    case unknown = "Unknown"
+    case day = "day"
+    case week = "week"
+    case month = "month"
+    case year = "year"
+    case unknown = "unknown"
 }
 
 enum PaymentMode: String, Codable {
-    case freeTrial = "FreeTrial"
-    case payAsYouGo = "PayAsYouGo"
-    case payUpFront = "PayUpFront"
-    case unknown = "Unknown"
+    case freeTrial = "free-trial"
+    case payAsYouGo = "pay-as-you-go"
+    case payUpFront = "pay-up-front"
+    case unknown = "unknown"
 }`}</CodeBlock>
             ),
             kotlin: (
@@ -450,12 +442,19 @@ data class SubscriptionPeriod(
     val value: Int
 )
 
-enum class SubscriptionPeriodUnit {
-    Day, Week, Month, Year, Unknown
+enum class SubscriptionPeriodUnit(val rawValue: String) {
+    Day("day"),
+    Week("week"),
+    Month("month"),
+    Year("year"),
+    Unknown("unknown")
 }
 
-enum class PaymentMode {
-    FreeTrial, PayAsYouGo, PayUpFront, Unknown
+enum class PaymentMode(val rawValue: String) {
+    FreeTrial("free-trial"),
+    PayAsYouGo("pay-as-you-go"),
+    PayUpFront("pay-up-front"),
+    Unknown("unknown")
 }`}</CodeBlock>
             ),
             dart: (
@@ -525,9 +524,26 @@ class SubscriptionPeriod {
   SubscriptionPeriod({required this.unit, required this.value});
 }
 
-enum SubscriptionPeriodUnit { day, week, month, year, unknown }
+enum SubscriptionPeriodUnit {
+  Day('day'),
+  Week('week'),
+  Month('month'),
+  Year('year'),
+  Unknown('unknown');
 
-enum PaymentMode { freeTrial, payAsYouGo, payUpFront, unknown }`}</CodeBlock>
+  const SubscriptionPeriodUnit(this.value);
+  final String value;
+}
+
+enum PaymentMode {
+  FreeTrial('free-trial'),
+  PayAsYouGo('pay-as-you-go'),
+  PayUpFront('pay-up-front'),
+  Unknown('unknown');
+
+  const PaymentMode(this.value);
+  final String value;
+}`}</CodeBlock>
             ),
             csharp: (
               <CodeBlock language="csharp">{`using OpenIap;

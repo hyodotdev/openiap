@@ -61,7 +61,7 @@ type SubscriptionPeriodValueIOS {
 """
 iOS subscription offer details.
 @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
-@see https://openiap.dev/docs/types#subscription-offer
+@see https://openiap.dev/docs/types/subscription-offer
 """
 type SubscriptionOfferIOS
   @deprecated(reason: "Use SubscriptionOffer type instead") {
@@ -122,7 +122,7 @@ type ProductIOS implements ProductCommon {
   Standardized subscription offers.
   Cross-platform type with iOS-specific fields using suffix.
   Note: iOS does not support one-time product discounts.
-  @see https://openiap.dev/docs/types#subscription-offer
+  @see https://openiap.dev/docs/types/subscription-offer
   """
   subscriptionOffers: [SubscriptionOffer!]
 
@@ -164,7 +164,7 @@ type ProductSubscriptionIOS implements ProductCommon {
   """
   Standardized subscription offers.
   Cross-platform type with iOS-specific fields using suffix.
-  @see https://openiap.dev/docs/types#subscription-offer
+  @see https://openiap.dev/docs/types/subscription-offer
   """
   subscriptionOffers: [SubscriptionOffer!]
 
@@ -205,7 +205,7 @@ type ProductSubscriptionIOS implements ProductCommon {
 """
 Discount information returned from the store.
 @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
-@see https://openiap.dev/docs/types#subscription-offer
+@see https://openiap.dev/docs/types/subscription-offer
 """
 type DiscountIOS @deprecated(reason: "Use SubscriptionOffer type instead") {
   identifier: String!
@@ -536,7 +536,7 @@ type SubscriptionStatusIOS {
 """
 iOS DiscountOffer (output type).
 @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
-@see https://openiap.dev/docs/types#subscription-offer
+@see https://openiap.dev/docs/types/subscription-offer
 """
 type DiscountOfferIOS
   @deprecated(reason: "Use SubscriptionOffer type instead") {

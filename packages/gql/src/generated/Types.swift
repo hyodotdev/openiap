@@ -838,7 +838,7 @@ public struct DiscountDisplayInfoAndroid: Codable {
 
 /// Discount information returned from the store.
 /// @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
-/// @see https://openiap.dev/docs/types#subscription-offer
+/// @see https://openiap.dev/docs/types/subscription-offer
 public struct DiscountIOS: Codable {
     public var identifier: String
     public var localizedPrice: String? = nil
@@ -851,10 +851,11 @@ public struct DiscountIOS: Codable {
 }
 
 /// Standardized one-time product discount offer.
-/// Provides a unified interface for one-time purchase discounts across platforms.
+/// Provides a platform-neutral OpenIAP shape for Google Play one-time product
+/// purchase options and offers.
 /// 
-/// Currently supported on Android (Google Play Billing 8.0+).
-/// iOS does not support one-time purchase discounts in the same way.
+/// Currently populated only on Android (Google Play Billing 8.0+).
+/// iOS does not populate this type.
 /// 
 /// @see https://openiap.dev/docs/features/discount
 public struct DiscountOffer: Codable {
@@ -865,7 +866,7 @@ public struct DiscountOffer: Codable {
     public var discountAmountMicrosAndroid: String? = nil
     /// Formatted display price string (e.g., "$4.99")
     public var displayPrice: String
-    /// [Android] Formatted discount amount string (e.g., "$5.00 OFF").
+    /// [Android] Formatted discount amount including its currency sign (e.g., "$5.00").
     public var formattedDiscountAmountAndroid: String? = nil
     /// [Android] Original full price in micro-units before discount.
     /// Divide by 1,000,000 to get the actual price.
@@ -906,7 +907,7 @@ public struct DiscountOffer: Codable {
 
 /// iOS DiscountOffer (output type).
 /// @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
-/// @see https://openiap.dev/docs/types#subscription-offer
+/// @see https://openiap.dev/docs/types/subscription-offer
 public struct DiscountOfferIOS: Codable {
     /// Discount identifier
     public var identifier: String
@@ -1071,9 +1072,9 @@ public struct ProductAndroid: Codable, ProductCommon {
     public var currency: String
     public var debugDescription: String? = nil
     public var description: String
-    /// Standardized discount offers for one-time products.
-    /// Cross-platform type with Android-specific fields using suffix.
-    /// @see https://openiap.dev/docs/types#discount-offer
+    /// Standardized Android one-time product purchase options and offers.
+    /// Native metadata uses Android-suffixed fields.
+    /// @see https://openiap.dev/docs/types/discount-offer
     public var discountOffers: [DiscountOffer]? = nil
     public var displayName: String? = nil
     public var displayPrice: String
@@ -1081,7 +1082,7 @@ public struct ProductAndroid: Codable, ProductCommon {
     public var nameAndroid: String
     /// One-time purchase offer details including discounts (Android)
     /// Returns all eligible offers. Available in Google Play Billing Library 8.0+
-    /// @deprecated Use discountOffers instead for cross-platform compatibility.
+    /// @deprecated Use the standardized discountOffers field instead.
     public var oneTimePurchaseOfferDetailsAndroid: [ProductAndroidOneTimePurchaseOfferDetail]? = nil
     public var platform: IapPlatform = .android
     public var price: Double? = nil
@@ -1095,7 +1096,7 @@ public struct ProductAndroid: Codable, ProductCommon {
     public var subscriptionOfferDetailsAndroid: [ProductSubscriptionAndroidOfferDetails]? = nil
     /// Standardized subscription offers.
     /// Cross-platform type with Android-specific fields using suffix.
-    /// @see https://openiap.dev/docs/types#subscription-offer
+    /// @see https://openiap.dev/docs/types/subscription-offer
     public var subscriptionOffers: [SubscriptionOffer]? = nil
     public var title: String
     public var type: ProductType = .inApp
@@ -1103,8 +1104,8 @@ public struct ProductAndroid: Codable, ProductCommon {
 
 /// One-time purchase offer details (Android).
 /// Available in Google Play Billing Library 8.0+
-/// @deprecated Use the standardized DiscountOffer type instead for cross-platform compatibility.
-/// @see https://openiap.dev/docs/types#discount-offer
+/// @deprecated Use the standardized DiscountOffer type for Android one-time offers.
+/// @see https://openiap.dev/docs/types/discount-offer
 public struct ProductAndroidOneTimePurchaseOfferDetail: Codable {
     /// Discount display information
     /// Only available for discounted offers
@@ -1156,7 +1157,7 @@ public struct ProductIOS: Codable, ProductCommon {
     /// Standardized subscription offers.
     /// Cross-platform type with iOS-specific fields using suffix.
     /// Note: iOS does not support one-time product discounts.
-    /// @see https://openiap.dev/docs/types#subscription-offer
+    /// @see https://openiap.dev/docs/types/subscription-offer
     public var subscriptionOffers: [SubscriptionOffer]? = nil
     public var title: String
     public var type: ProductType = .inApp
@@ -1167,17 +1168,17 @@ public struct ProductSubscriptionAndroid: Codable, ProductCommon {
     public var currency: String
     public var debugDescription: String? = nil
     public var description: String
-    /// Standardized discount offers for one-time products.
-    /// Cross-platform type with Android-specific fields using suffix.
-    /// @see https://openiap.dev/docs/types#discount-offer
+    /// Nullable compatibility field. Google Play does not return one-time purchase
+    /// offer details for subscription products; use subscriptionOffers below.
     public var discountOffers: [DiscountOffer]? = nil
     public var displayName: String? = nil
     public var displayPrice: String
     public var id: String
     public var nameAndroid: String
-    /// One-time purchase offer details including discounts (Android)
-    /// Returns all eligible offers. Available in Google Play Billing Library 8.0+
-    /// @deprecated Use discountOffers instead for cross-platform compatibility.
+    /// Legacy nullable compatibility field. Google Play does not populate one-time
+    /// purchase offer details for subscription products.
+    /// @deprecated One-time offers belong to ProductAndroid.discountOffers;
+    /// subscriptions use subscriptionOffers.
     public var oneTimePurchaseOfferDetailsAndroid: [ProductAndroidOneTimePurchaseOfferDetail]? = nil
     public var platform: IapPlatform = .android
     public var price: Double? = nil
@@ -1191,7 +1192,7 @@ public struct ProductSubscriptionAndroid: Codable, ProductCommon {
     public var subscriptionOfferDetailsAndroid: [ProductSubscriptionAndroidOfferDetails]
     /// Standardized subscription offers.
     /// Cross-platform type with Android-specific fields using suffix.
-    /// @see https://openiap.dev/docs/types#subscription-offer
+    /// @see https://openiap.dev/docs/types/subscription-offer
     public var subscriptionOffers: [SubscriptionOffer]
     public var title: String
     public var type: ProductType = .subs
@@ -1199,7 +1200,7 @@ public struct ProductSubscriptionAndroid: Codable, ProductCommon {
 
 /// Subscription offer details (Android).
 /// @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
-/// @see https://openiap.dev/docs/types#subscription-offer
+/// @see https://openiap.dev/docs/types/subscription-offer
 public struct ProductSubscriptionAndroidOfferDetails: Codable {
     public var basePlanId: String
     /// Installment plan details for this subscription offer.
@@ -1240,7 +1241,7 @@ public struct ProductSubscriptionIOS: Codable, ProductCommon {
     public var subscriptionInfoIOS: SubscriptionInfoIOS? = nil
     /// Standardized subscription offers.
     /// Cross-platform type with iOS-specific fields using suffix.
-    /// @see https://openiap.dev/docs/types#subscription-offer
+    /// @see https://openiap.dev/docs/types/subscription-offer
     public var subscriptionOffers: [SubscriptionOffer]? = nil
     public var subscriptionPeriodNumberIOS: String? = nil
     public var subscriptionPeriodUnitIOS: SubscriptionPeriodIOS? = nil
@@ -1453,8 +1454,7 @@ public struct SubscriptionInfoIOS: Codable {
 /// - iOS: Introductory offers, promotional offers with server-side signatures
 /// - Android: Offer tokens with pricing phases
 /// 
-/// @see https://openiap.dev/docs/types/ios#discount-offer
-/// @see https://openiap.dev/docs/types/android#subscription-offer
+/// @see https://openiap.dev/docs/types/subscription-offer
 public struct SubscriptionOffer: Codable {
     /// [Android] Base plan identifier.
     /// Identifies which base plan this offer belongs to.
@@ -1509,7 +1509,7 @@ public struct SubscriptionOffer: Codable {
 
 /// iOS subscription offer details.
 /// @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
-/// @see https://openiap.dev/docs/types#subscription-offer
+/// @see https://openiap.dev/docs/types/subscription-offer
 public struct SubscriptionOfferIOS: Codable {
     public var displayPrice: String
     public var id: String

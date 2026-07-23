@@ -25,7 +25,7 @@ function ProductAndroidOneTimePurchaseOfferDetailPage() {
           <Link to="/docs/types/discount-offer">
             <code>DiscountOffer</code>
           </Link>{' '}
-          (cross-platform) instead.
+          (the standardized Android one-time offer shape) instead.
         </p>
         <p>
           One-time purchase offer details for Android products. Available with{' '}

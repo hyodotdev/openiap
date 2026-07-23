@@ -1982,7 +1982,7 @@ class DiscountDisplayInfoAndroid {
 
 /// Discount information returned from the store.
 /// @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
-/// @see https://openiap.dev/docs/types#subscription-offer
+/// @see https://openiap.dev/docs/types/subscription-offer
 class DiscountIOS {
   const DiscountIOS({
     required this.identifier,
@@ -2033,10 +2033,11 @@ class DiscountIOS {
 }
 
 /// Standardized one-time product discount offer.
-/// Provides a unified interface for one-time purchase discounts across platforms.
+/// Provides a platform-neutral OpenIAP shape for Google Play one-time product
+/// purchase options and offers.
 /// 
-/// Currently supported on Android (Google Play Billing 8.0+).
-/// iOS does not support one-time purchase discounts in the same way.
+/// Currently populated only on Android (Google Play Billing 8.0+).
+/// iOS does not populate this type.
 /// 
 /// @see https://openiap.dev/docs/features/discount
 class DiscountOffer {
@@ -2066,7 +2067,7 @@ class DiscountOffer {
   final String? discountAmountMicrosAndroid;
   /// Formatted display price string (e.g., "$4.99")
   final String displayPrice;
-  /// [Android] Formatted discount amount string (e.g., "$5.00 OFF").
+  /// [Android] Formatted discount amount including its currency sign (e.g., "$5.00").
   final String? formattedDiscountAmountAndroid;
   /// [Android] Original full price in micro-units before discount.
   /// Divide by 1,000,000 to get the actual price.
@@ -2150,7 +2151,7 @@ class DiscountOffer {
 
 /// iOS DiscountOffer (output type).
 /// @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
-/// @see https://openiap.dev/docs/types#subscription-offer
+/// @see https://openiap.dev/docs/types/subscription-offer
 class DiscountOfferIOS {
   const DiscountOfferIOS({
     required this.identifier,
@@ -2691,9 +2692,9 @@ class ProductAndroid extends Product implements ProductCommon {
   final String currency;
   final String? debugDescription;
   final String description;
-  /// Standardized discount offers for one-time products.
-  /// Cross-platform type with Android-specific fields using suffix.
-  /// @see https://openiap.dev/docs/types#discount-offer
+  /// Standardized Android one-time product purchase options and offers.
+  /// Native metadata uses Android-suffixed fields.
+  /// @see https://openiap.dev/docs/types/discount-offer
   final List<DiscountOffer>? discountOffers;
   final String? displayName;
   final String displayPrice;
@@ -2701,7 +2702,7 @@ class ProductAndroid extends Product implements ProductCommon {
   final String nameAndroid;
   /// One-time purchase offer details including discounts (Android)
   /// Returns all eligible offers. Available in Google Play Billing Library 8.0+
-  /// @deprecated Use discountOffers instead for cross-platform compatibility.
+  /// @deprecated Use the standardized discountOffers field instead.
   final List<ProductAndroidOneTimePurchaseOfferDetail>? oneTimePurchaseOfferDetailsAndroid;
   final IapPlatform platform;
   final double? price;
@@ -2715,7 +2716,7 @@ class ProductAndroid extends Product implements ProductCommon {
   final List<ProductSubscriptionAndroidOfferDetails>? subscriptionOfferDetailsAndroid;
   /// Standardized subscription offers.
   /// Cross-platform type with Android-specific fields using suffix.
-  /// @see https://openiap.dev/docs/types#subscription-offer
+  /// @see https://openiap.dev/docs/types/subscription-offer
   final List<SubscriptionOffer>? subscriptionOffers;
   final String title;
   final ProductType type;
@@ -2767,8 +2768,8 @@ class ProductAndroid extends Product implements ProductCommon {
 
 /// One-time purchase offer details (Android).
 /// Available in Google Play Billing Library 8.0+
-/// @deprecated Use the standardized DiscountOffer type instead for cross-platform compatibility.
-/// @see https://openiap.dev/docs/types#discount-offer
+/// @deprecated Use the standardized DiscountOffer type for Android one-time offers.
+/// @see https://openiap.dev/docs/types/discount-offer
 class ProductAndroidOneTimePurchaseOfferDetail {
   const ProductAndroidOneTimePurchaseOfferDetail({
     this.discountDisplayInfo,
@@ -2893,7 +2894,7 @@ class ProductIOS extends Product implements ProductCommon {
   /// Standardized subscription offers.
   /// Cross-platform type with iOS-specific fields using suffix.
   /// Note: iOS does not support one-time product discounts.
-  /// @see https://openiap.dev/docs/types#subscription-offer
+  /// @see https://openiap.dev/docs/types/subscription-offer
   final List<SubscriptionOffer>? subscriptionOffers;
   final String title;
   final ProductType type;
@@ -2969,17 +2970,17 @@ class ProductSubscriptionAndroid extends ProductSubscription implements ProductC
   final String currency;
   final String? debugDescription;
   final String description;
-  /// Standardized discount offers for one-time products.
-  /// Cross-platform type with Android-specific fields using suffix.
-  /// @see https://openiap.dev/docs/types#discount-offer
+  /// Nullable compatibility field. Google Play does not return one-time purchase
+  /// offer details for subscription products; use subscriptionOffers below.
   final List<DiscountOffer>? discountOffers;
   final String? displayName;
   final String displayPrice;
   final String id;
   final String nameAndroid;
-  /// One-time purchase offer details including discounts (Android)
-  /// Returns all eligible offers. Available in Google Play Billing Library 8.0+
-  /// @deprecated Use discountOffers instead for cross-platform compatibility.
+  /// Legacy nullable compatibility field. Google Play does not populate one-time
+  /// purchase offer details for subscription products.
+  /// @deprecated One-time offers belong to ProductAndroid.discountOffers;
+  /// subscriptions use subscriptionOffers.
   final List<ProductAndroidOneTimePurchaseOfferDetail>? oneTimePurchaseOfferDetailsAndroid;
   final IapPlatform platform;
   final double? price;
@@ -2993,7 +2994,7 @@ class ProductSubscriptionAndroid extends ProductSubscription implements ProductC
   final List<ProductSubscriptionAndroidOfferDetails> subscriptionOfferDetailsAndroid;
   /// Standardized subscription offers.
   /// Cross-platform type with Android-specific fields using suffix.
-  /// @see https://openiap.dev/docs/types#subscription-offer
+  /// @see https://openiap.dev/docs/types/subscription-offer
   final List<SubscriptionOffer> subscriptionOffers;
   final String title;
   final ProductType type;
@@ -3045,7 +3046,7 @@ class ProductSubscriptionAndroid extends ProductSubscription implements ProductC
 
 /// Subscription offer details (Android).
 /// @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
-/// @see https://openiap.dev/docs/types#subscription-offer
+/// @see https://openiap.dev/docs/types/subscription-offer
 class ProductSubscriptionAndroidOfferDetails {
   const ProductSubscriptionAndroidOfferDetails({
     required this.basePlanId,
@@ -3147,7 +3148,7 @@ class ProductSubscriptionIOS extends ProductSubscription implements ProductCommo
   final SubscriptionInfoIOS? subscriptionInfoIOS;
   /// Standardized subscription offers.
   /// Cross-platform type with iOS-specific fields using suffix.
-  /// @see https://openiap.dev/docs/types#subscription-offer
+  /// @see https://openiap.dev/docs/types/subscription-offer
   final List<SubscriptionOffer>? subscriptionOffers;
   final String? subscriptionPeriodNumberIOS;
   final SubscriptionPeriodIOS? subscriptionPeriodUnitIOS;
@@ -3915,8 +3916,7 @@ class SubscriptionInfoIOS {
 /// - iOS: Introductory offers, promotional offers with server-side signatures
 /// - Android: Offer tokens with pricing phases
 /// 
-/// @see https://openiap.dev/docs/types/ios#discount-offer
-/// @see https://openiap.dev/docs/types/android#subscription-offer
+/// @see https://openiap.dev/docs/types/subscription-offer
 class SubscriptionOffer {
   const SubscriptionOffer({
     this.basePlanIdAndroid,
@@ -4042,7 +4042,7 @@ class SubscriptionOffer {
 
 /// iOS subscription offer details.
 /// @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
-/// @see https://openiap.dev/docs/types#subscription-offer
+/// @see https://openiap.dev/docs/types/subscription-offer
 class SubscriptionOfferIOS {
   const SubscriptionOfferIOS({
     required this.displayPrice,

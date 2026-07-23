@@ -1005,7 +1005,7 @@ class DiscountDisplayInfoAndroid:
 			dict["discountAmount"] = discount_amount
 		return dict
 
-## Discount information returned from the store. @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. @see https://openiap.dev/docs/types#subscription-offer
+## Discount information returned from the store. @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. @see https://openiap.dev/docs/types/subscription-offer
 class DiscountIOS:
 	var identifier: String = ""
 	var type: String = ""
@@ -1056,7 +1056,7 @@ class DiscountIOS:
 			dict["localizedPrice"] = localized_price
 		return dict
 
-## Standardized one-time product discount offer. Provides a unified interface for one-time purchase discounts across platforms.  Currently supported on Android (Google Play Billing 8.0+). iOS does not support one-time purchase discounts in the same way.  @see https://openiap.dev/docs/features/discount
+## Standardized one-time product discount offer. Provides a platform-neutral OpenIAP shape for Google Play one-time product purchase options and offers.  Currently populated only on Android (Google Play Billing 8.0+). iOS does not populate this type.  @see https://openiap.dev/docs/features/discount
 class DiscountOffer:
 	## Unique identifier for the offer.
 	var id: Variant = null
@@ -1078,7 +1078,7 @@ class DiscountOffer:
 	var percentage_discount_android: Variant = null
 	## [Android] Fixed discount amount in micro-units.
 	var discount_amount_micros_android: Variant = null
-	## [Android] Formatted discount amount string (e.g., "$5.00 OFF").
+	## [Android] Formatted discount amount including its currency sign (e.g., "$5.00").
 	var formatted_discount_amount_android: Variant = null
 	## [Android] Valid time window for the offer.
 	var valid_time_window_android: ValidTimeWindowAndroid
@@ -1190,7 +1190,7 @@ class DiscountOffer:
 			dict["purchaseOptionIdAndroid"] = purchase_option_id_android
 		return dict
 
-## iOS DiscountOffer (output type). @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. @see https://openiap.dev/docs/types#subscription-offer
+## iOS DiscountOffer (output type). @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. @see https://openiap.dev/docs/types/subscription-offer
 class DiscountOfferIOS:
 	## Discount identifier
 	var identifier: String = ""
@@ -1612,7 +1612,7 @@ class ProductAndroid:
 	var name_android: String = ""
 	## Product-level status code indicating fetch result (Android 8.0+)
 	var product_status_android: Variant = null
-	## Standardized discount offers for one-time products.
+	## Standardized Android one-time product purchase options and offers.
 	var discount_offers: Array[DiscountOffer] = []
 	## Standardized subscription offers.
 	var subscription_offers: Array[SubscriptionOffer] = []
@@ -1766,7 +1766,7 @@ class ProductAndroid:
 			dict["subscriptionOfferDetailsAndroid"] = null
 		return dict
 
-## One-time purchase offer details (Android). Available in Google Play Billing Library 8.0+ @deprecated Use the standardized DiscountOffer type instead for cross-platform compatibility. @see https://openiap.dev/docs/types#discount-offer
+## One-time purchase offer details (Android). Available in Google Play Billing Library 8.0+ @deprecated Use the standardized DiscountOffer type for Android one-time offers. @see https://openiap.dev/docs/types/discount-offer
 class ProductAndroidOneTimePurchaseOfferDetail:
 	## Offer ID
 	var offer_id: Variant = null
@@ -2034,11 +2034,11 @@ class ProductSubscriptionAndroid:
 	var name_android: String = ""
 	## Product-level status code indicating fetch result (Android 8.0+)
 	var product_status_android: Variant = null
-	## Standardized discount offers for one-time products.
+	## Nullable compatibility field. Google Play does not return one-time purchase
 	var discount_offers: Array[DiscountOffer] = []
 	## Standardized subscription offers.
 	var subscription_offers: Array[SubscriptionOffer] = []
-	## One-time purchase offer details including discounts (Android)
+	## Legacy nullable compatibility field. Google Play does not populate one-time
 	var one_time_purchase_offer_details_android: Array[ProductAndroidOneTimePurchaseOfferDetail] = []
 	## @deprecated Use subscriptionOffers instead for cross-platform compatibility.
 	var subscription_offer_details_android: Array[ProductSubscriptionAndroidOfferDetails] = []
@@ -2188,7 +2188,7 @@ class ProductSubscriptionAndroid:
 			dict["subscriptionOfferDetailsAndroid"] = null
 		return dict
 
-## Subscription offer details (Android). @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. @see https://openiap.dev/docs/types#subscription-offer
+## Subscription offer details (Android). @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. @see https://openiap.dev/docs/types/subscription-offer
 class ProductSubscriptionAndroidOfferDetails:
 	var base_plan_id: String = ""
 	var offer_id: Variant = null
@@ -3281,7 +3281,7 @@ class SubscriptionInfoIOS:
 			dict["subscriptionPeriod"] = subscription_period
 		return dict
 
-## Standardized subscription discount/promotional offer. Provides a unified interface for subscription offers across iOS and Android.  Both platforms support subscription offers with different implementations: - iOS: Introductory offers, promotional offers with server-side signatures - Android: Offer tokens with pricing phases  @see https://openiap.dev/docs/types/ios#discount-offer @see https://openiap.dev/docs/types/android#subscription-offer
+## Standardized subscription discount/promotional offer. Provides a unified interface for subscription offers across iOS and Android.  Both platforms support subscription offers with different implementations: - iOS: Introductory offers, promotional offers with server-side signatures - Android: Offer tokens with pricing phases  @see https://openiap.dev/docs/types/subscription-offer
 class SubscriptionOffer:
 	## Unique identifier for the offer.
 	var id: String = ""
@@ -3435,7 +3435,7 @@ class SubscriptionOffer:
 			dict["installmentPlanDetailsAndroid"] = installment_plan_details_android
 		return dict
 
-## iOS subscription offer details. @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. @see https://openiap.dev/docs/types#subscription-offer
+## iOS subscription offer details. @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. @see https://openiap.dev/docs/types/subscription-offer
 class SubscriptionOfferIOS:
 	var display_price: String = ""
 	var id: String = ""

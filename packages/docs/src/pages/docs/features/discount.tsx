@@ -31,12 +31,15 @@ function Discount() {
         </p>
       </div>
 
-      <div className="alert-card alert-card--warning">
+      <div className="alert-card alert-card--info">
         <p>
-          <strong>Standardized Types:</strong> For cross-platform development,
-          use the new <Link to="/docs/types/discount-offer">DiscountOffer</Link>{' '}
-          type which provides a unified interface with platform-specific fields
-          via suffixes (e.g., <code>offerTokenAndroid</code>).
+          <strong>Standardized API:</strong> Read{' '}
+          <code>ProductAndroid.discountOffers</code>. Each{' '}
+          <Link to="/docs/types/discount-offer">DiscountOffer</Link> exposes
+          common price fields and Android-only details through the{' '}
+          <code>Android</code> suffix (for example,{' '}
+          <code>offerTokenAndroid</code>). The older{' '}
+          <code>oneTimePurchaseOfferDetailsAndroid</code> field is deprecated.
         </p>
       </div>
 
@@ -78,224 +81,168 @@ function Discount() {
           Data Structure
         </AnchorLink>
         <p>
-          The <code>oneTimePurchaseOfferDetailsAndroid</code> field is now an
-          array containing all available offers for a product:
+          The <code>discountOffers</code> field contains standardized{' '}
+          <code>DiscountOffer</code> values. The following excerpts use the
+          generated field names:
         </p>
 
         <LanguageTabs>
           {{
             typescript: (
-              <CodeBlock language="typescript">{`interface ProductAndroidOneTimePurchaseOfferDetail {
-  // Offer identification
-  offerId: string | null;
-  offerToken: string;
-  offerTags: string[];
-
-  // Pricing
-  formattedPrice: string;      // "$4.99"
-  priceCurrencyCode: string;   // "USD"
-  priceAmountMicros: string;   // "4990000"
-
-  // Discount information (only for discounted offers)
-  fullPriceMicros: string | null;           // Original price: "9990000"
-  discountDisplayInfo: DiscountDisplayInfoAndroid | null;
-
-  // Time and quantity limits
-  validTimeWindow: ValidTimeWindowAndroid | null;
-  limitedQuantityInfo: LimitedQuantityInfoAndroid | null;
-
-  // Special offer types
-  preorderDetailsAndroid: PreorderDetailsAndroid | null;
-  rentalDetailsAndroid: RentalDetailsAndroid | null;
+              <CodeBlock language="typescript">{`interface ProductAndroid {
+  discountOffers?: DiscountOffer[] | null;
 }
 
-interface DiscountDisplayInfoAndroid {
-  percentageDiscount: number | null;  // 50 for 50% off
-  discountAmount: DiscountAmountAndroid | null;
-}
-
-interface DiscountAmountAndroid {
-  discountAmountMicros: string;       // "5000000"
-  formattedDiscountAmount: string;    // "$5.00"
-}
-
-interface ValidTimeWindowAndroid {
-  startTimeMillis: string;
-  endTimeMillis: string;
-}
-
-interface LimitedQuantityInfoAndroid {
-  maximumQuantity: number;
-  remainingQuantity: number;
+interface DiscountOffer {
+  id?: string | null;
+  displayPrice: string;                    // "$4.99"
+  price: number;                           // 4.99
+  currency: string;                        // "USD"
+  type: DiscountOfferType;                 // "one-time"
+  offerTokenAndroid?: string | null;
+  offerTagsAndroid?: string[] | null;
+  fullPriceMicrosAndroid?: string | null;  // "9990000"
+  percentageDiscountAndroid?: number | null;
+  discountAmountMicrosAndroid?: string | null;
+  formattedDiscountAmountAndroid?: string | null;
+  validTimeWindowAndroid?: ValidTimeWindowAndroid | null;
+  limitedQuantityInfoAndroid?: LimitedQuantityInfoAndroid | null;
+  preorderDetailsAndroid?: PreorderDetailsAndroid | null;
+  rentalDetailsAndroid?: RentalDetailsAndroid | null;
+  purchaseOptionIdAndroid?: string | null;
 }`}</CodeBlock>
             ),
             swift: (
               <CodeBlock language="swift">{`// iOS does not support one-time purchase discounts in the same way.
-// For iOS promotional offers, see the Subscription feature documentation.`}</CodeBlock>
+// For iOS subscription offers, use SubscriptionOffer instead.`}</CodeBlock>
             ),
             kotlin: (
-              <CodeBlock language="kotlin">{`data class ProductAndroidOneTimePurchaseOfferDetail(
-    // Offer identification
-    val offerId: String?,
-    val offerToken: String,
-    val offerTags: List<String>,
-
-    // Pricing
-    val formattedPrice: String,      // "$4.99"
-    val priceCurrencyCode: String,   // "USD"
-    val priceAmountMicros: String,   // "4990000"
-
-    // Discount information (only for discounted offers)
-    val fullPriceMicros: String?,           // Original price: "9990000"
-    val discountDisplayInfo: DiscountDisplayInfoAndroid?,
-
-    // Time and quantity limits
-    val validTimeWindow: ValidTimeWindowAndroid?,
-    val limitedQuantityInfo: LimitedQuantityInfoAndroid?,
-
-    // Special offer types
-    val preorderDetailsAndroid: PreorderDetailsAndroid?,
-    val rentalDetailsAndroid: RentalDetailsAndroid?
+              <CodeBlock language="kotlin">{`data class ProductAndroid(
+    val discountOffers: List<DiscountOffer>? = null,
+    // ...
 )
 
-data class DiscountDisplayInfoAndroid(
-    val percentageDiscount: Int?,  // 50 for 50% off
-    val discountAmount: DiscountAmountAndroid?
-)
-
-data class DiscountAmountAndroid(
-    val discountAmountMicros: String,       // "5000000"
-    val formattedDiscountAmount: String     // "$5.00"
-)
-
-data class ValidTimeWindowAndroid(
-    val startTimeMillis: String,
-    val endTimeMillis: String
-)
-
-data class LimitedQuantityInfoAndroid(
-    val maximumQuantity: Int,
-    val remainingQuantity: Int
+data class DiscountOffer(
+    val id: String? = null,
+    val displayPrice: String,
+    val price: Double,
+    val currency: String,
+    val type: DiscountOfferType,
+    val offerTokenAndroid: String? = null,
+    val offerTagsAndroid: List<String>? = null,
+    val fullPriceMicrosAndroid: String? = null,
+    val percentageDiscountAndroid: Int? = null,
+    val discountAmountMicrosAndroid: String? = null,
+    val formattedDiscountAmountAndroid: String? = null,
+    val validTimeWindowAndroid: ValidTimeWindowAndroid? = null,
+    val limitedQuantityInfoAndroid: LimitedQuantityInfoAndroid? = null,
+    val preorderDetailsAndroid: PreorderDetailsAndroid? = null,
+    val rentalDetailsAndroid: RentalDetailsAndroid? = null,
+    val purchaseOptionIdAndroid: String? = null
 )`}</CodeBlock>
             ),
             kmp: (
-              <CodeBlock language="kotlin">{`data class ProductAndroidOneTimePurchaseOfferDetail(
-    // Offer identification
-    val offerId: String?,
-    val offerToken: String,
-    val offerTags: List<String>,
-
-    // Pricing
-    val formattedPrice: String,      // "$4.99"
-    val priceCurrencyCode: String,   // "USD"
-    val priceAmountMicros: String,   // "4990000"
-
-    // Discount information (only for discounted offers)
-    val fullPriceMicros: String?,           // Original price: "9990000"
-    val discountDisplayInfo: DiscountDisplayInfoAndroid?,
-
-    // Time and quantity limits
-    val validTimeWindow: ValidTimeWindowAndroid?,
-    val limitedQuantityInfo: LimitedQuantityInfoAndroid?,
-
-    // Special offer types
-    val preorderDetailsAndroid: PreorderDetailsAndroid?,
-    val rentalDetailsAndroid: RentalDetailsAndroid?
+              <CodeBlock language="kotlin">{`data class ProductAndroid(
+    val discountOffers: List<DiscountOffer>? = null,
+    // ...
 )
 
-data class DiscountDisplayInfoAndroid(
-    val percentageDiscount: Int?,  // 50 for 50% off
-    val discountAmount: DiscountAmountAndroid?
-)
-
-data class DiscountAmountAndroid(
-    val discountAmountMicros: String,       // "5000000"
-    val formattedDiscountAmount: String     // "$5.00"
-)
-
-data class ValidTimeWindowAndroid(
-    val startTimeMillis: String,
-    val endTimeMillis: String
-)
-
-data class LimitedQuantityInfoAndroid(
-    val maximumQuantity: Int,
-    val remainingQuantity: Int
+data class DiscountOffer(
+    val id: String? = null,
+    val displayPrice: String,
+    val price: Double,
+    val currency: String,
+    val type: DiscountOfferType,
+    val offerTokenAndroid: String? = null,
+    val offerTagsAndroid: List<String>? = null,
+    val fullPriceMicrosAndroid: String? = null,
+    val percentageDiscountAndroid: Int? = null,
+    val discountAmountMicrosAndroid: String? = null,
+    val formattedDiscountAmountAndroid: String? = null,
+    val validTimeWindowAndroid: ValidTimeWindowAndroid? = null,
+    val limitedQuantityInfoAndroid: LimitedQuantityInfoAndroid? = null,
+    val preorderDetailsAndroid: PreorderDetailsAndroid? = null,
+    val rentalDetailsAndroid: RentalDetailsAndroid? = null,
+    val purchaseOptionIdAndroid: String? = null
 )`}</CodeBlock>
             ),
             dart: (
-              <CodeBlock language="dart">{`class ProductAndroidOneTimePurchaseOfferDetail {
-  // Offer identification
-  final String? offerId;
-  final String offerToken;
-  final List<String> offerTags;
+              <CodeBlock language="dart">{`class ProductAndroid {
+  final List<DiscountOffer>? discountOffers;
+  // ...
+}
 
-  // Pricing
-  final String formattedPrice;      // "\$4.99"
-  final String priceCurrencyCode;   // "USD"
-  final String priceAmountMicros;   // "4990000"
-
-  // Discount information (only for discounted offers)
-  final String? fullPriceMicros;           // Original price: "9990000"
-  final DiscountDisplayInfoAndroid? discountDisplayInfo;
-
-  // Time and quantity limits
-  final ValidTimeWindowAndroid? validTimeWindow;
-  final LimitedQuantityInfoAndroid? limitedQuantityInfo;
+class DiscountOffer {
+  final String? id;
+  final String displayPrice;                    // "\$4.99"
+  final double price;                           // 4.99
+  final String currency;                        // "USD"
+  final DiscountOfferType type;
+  final String? offerTokenAndroid;
+  final List<String>? offerTagsAndroid;
+  final String? fullPriceMicrosAndroid;          // "9990000"
+  final int? percentageDiscountAndroid;
+  final String? discountAmountMicrosAndroid;
+  final String? formattedDiscountAmountAndroid;
+  final ValidTimeWindowAndroid? validTimeWindowAndroid;
+  final LimitedQuantityInfoAndroid? limitedQuantityInfoAndroid;
+  final PreorderDetailsAndroid? preorderDetailsAndroid;
+  final RentalDetailsAndroid? rentalDetailsAndroid;
+  final String? purchaseOptionIdAndroid;
 }`}</CodeBlock>
             ),
             csharp: (
               <CodeBlock language="csharp">{`using OpenIap;
 using System.Collections.Generic;
 
-public sealed record ProductAndroidOneTimePurchaseOfferDetail
+public sealed record ProductAndroid
 {
-    public string? OfferId { get; init; }
-    public required string OfferToken { get; init; }
-    public required IReadOnlyList<string> OfferTags { get; init; }
-    public required string FormattedPrice { get; init; }      // "$4.99"
-    public required string PriceCurrencyCode { get; init; }   // "USD"
-    public required string PriceAmountMicros { get; init; }   // "4990000"
-    public string? FullPriceMicros { get; init; }             // "9990000"
-    public DiscountDisplayInfoAndroid? DiscountDisplayInfo { get; init; }
-    public ValidTimeWindowAndroid? ValidTimeWindow { get; init; }
-    public LimitedQuantityInfoAndroid? LimitedQuantityInfo { get; init; }
+    public IReadOnlyList<DiscountOffer>? DiscountOffers { get; init; }
+    // ...
+}
+
+public sealed record DiscountOffer
+{
+    public string? Id { get; init; }
+    public required string DisplayPrice { get; init; }              // "$4.99"
+    public required double Price { get; init; }                     // 4.99
+    public required string Currency { get; init; }                  // "USD"
+    public required DiscountOfferType Type { get; init; }
+    public string? OfferTokenAndroid { get; init; }
+    public IReadOnlyList<string>? OfferTagsAndroid { get; init; }
+    public string? FullPriceMicrosAndroid { get; init; }            // "9990000"
+    public int? PercentageDiscountAndroid { get; init; }
+    public string? DiscountAmountMicrosAndroid { get; init; }
+    public string? FormattedDiscountAmountAndroid { get; init; }
+    public ValidTimeWindowAndroid? ValidTimeWindowAndroid { get; init; }
+    public LimitedQuantityInfoAndroid? LimitedQuantityInfoAndroid { get; init; }
     public PreorderDetailsAndroid? PreorderDetailsAndroid { get; init; }
     public RentalDetailsAndroid? RentalDetailsAndroid { get; init; }
-}
-
-public sealed record DiscountDisplayInfoAndroid
-{
-    public int? PercentageDiscount { get; init; }  // 50 for 50% off
-    public DiscountAmountAndroid? DiscountAmount { get; init; }
-}
-
-public sealed record DiscountAmountAndroid
-{
-    public required string DiscountAmountMicros { get; init; }       // "5000000"
-    public required string FormattedDiscountAmount { get; init; }    // "$5.00"
+    public string? PurchaseOptionIdAndroid { get; init; }
 }`}</CodeBlock>
             ),
             gdscript: (
-              <CodeBlock language="gdscript">{`class_name ProductAndroidOneTimePurchaseOfferDetail
+              <CodeBlock language="gdscript">{`class ProductAndroid:
+    var discount_offers: Array[DiscountOffer] = []
+    # ...
 
-# Offer identification
-var offer_id: String          # May be empty
-var offer_token: String       # Required for purchase
-var offer_tags: Array[String] # Tags for categorization
-
-# Pricing
-var formatted_price: String       # "$4.99"
-var price_currency_code: String   # "USD"
-var price_amount_micros: String   # "4990000"
-
-# Discount information (only for discounted offers)
-var full_price_micros: String     # Original price: "9990000"
-var discount_display_info: DiscountDisplayInfoAndroid
-
-# Time and quantity limits
-var valid_time_window: ValidTimeWindowAndroid
-var limited_quantity_info: LimitedQuantityInfoAndroid`}</CodeBlock>
+class DiscountOffer:
+    var id: Variant = null
+    var display_price: String = ""                  # "$4.99"
+    var price: float = 0.0                          # 4.99
+    var currency: String = ""                       # "USD"
+    var type: DiscountOfferType
+    var offer_token_android: Variant = null
+    var offer_tags_android: Array[String] = []
+    var full_price_micros_android: Variant = null   # "9990000"
+    var percentage_discount_android: Variant = null
+    var discount_amount_micros_android: Variant = null
+    var formatted_discount_amount_android: Variant = null
+    var valid_time_window_android: ValidTimeWindowAndroid
+    var limited_quantity_info_android: LimitedQuantityInfoAndroid
+    var preorder_details_android: PreorderDetailsAndroid
+    var rental_details_android: RentalDetailsAndroid
+    var purchase_option_id_android: Variant = null`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
@@ -307,8 +254,8 @@ var limited_quantity_info: LimitedQuantityInfoAndroid`}</CodeBlock>
         </AnchorLink>
         <p>
           Fetch products normally using <code>fetchProducts</code>. Discounted
-          offers will be included in the{' '}
-          <code>oneTimePurchaseOfferDetailsAndroid</code> array:
+          one-time offers will be included in the <code>discountOffers</code>{' '}
+          array:
         </p>
 
         <LanguageTabs>
@@ -321,22 +268,33 @@ const products = await fetchProducts({
 });
 
 products.forEach((product) => {
-  const offers = product.oneTimePurchaseOfferDetailsAndroid;
+  if (product.platform !== 'android') return;
+
+  const offers = product.discountOffers;
 
   if (offers && offers.length > 0) {
     const firstOffer = offers[0];
-    const hasDiscount = firstOffer.discountDisplayInfo != null;
+    const hasDiscount =
+      firstOffer.percentageDiscountAndroid != null ||
+      firstOffer.discountAmountMicrosAndroid != null;
 
     console.log('Product:', product.id);
-    console.log('Display Price:', product.displayPrice);
+    console.log('Display Price:', firstOffer.displayPrice);
 
     if (hasDiscount) {
-      const discount = firstOffer.discountDisplayInfo;
-      const fullPriceMicros = parseInt(firstOffer.fullPriceMicros || '0', 10);
+      const fullPriceMicros = parseInt(
+        firstOffer.fullPriceMicrosAndroid || '0',
+        10,
+      );
       const fullPrice = fullPriceMicros / 1_000_000;
 
       console.log('Original Price:', fullPrice);
-      console.log('Discount:', discount?.percentageDiscount + '% OFF');
+      console.log(
+        'Discount:',
+        firstOffer.percentageDiscountAndroid != null
+          ? \`\${firstOffer.percentageDiscountAndroid}% OFF\`
+          : firstOffer.formattedDiscountAmountAndroid,
+      );
     }
   }
 });`}</CodeBlock>
@@ -363,22 +321,28 @@ val products = (result as? FetchProductsResultProducts)
     .filterIsInstance<ProductAndroid>()
 
 products.forEach { product ->
-    val offers = product.oneTimePurchaseOfferDetailsAndroid
+    val offers = product.discountOffers
 
     if (!offers.isNullOrEmpty()) {
         val firstOffer = offers.first()
-        val hasDiscount = firstOffer.discountDisplayInfo != null
+        val hasDiscount =
+            firstOffer.percentageDiscountAndroid != null ||
+                firstOffer.discountAmountMicrosAndroid != null
 
         println("Product: \${product.id}")
-        println("Display Price: \${product.displayPrice}")
+        println("Display Price: \${firstOffer.displayPrice}")
 
         if (hasDiscount) {
-            val discount = firstOffer.discountDisplayInfo
-            val fullPriceMicros = firstOffer.fullPriceMicros?.toLongOrNull() ?: 0L
+            val fullPriceMicros =
+                firstOffer.fullPriceMicrosAndroid?.toLongOrNull() ?: 0L
             val fullPrice = fullPriceMicros.toDouble() / 1_000_000.0
 
             println("Original Price: $fullPrice")
-            println("Discount: \${discount?.percentageDiscount}% OFF")
+            println(
+                "Discount: " +
+                    (firstOffer.percentageDiscountAndroid?.let { "$it% OFF" }
+                        ?: firstOffer.formattedDiscountAmountAndroid)
+            )
         }
     }
 }`}</CodeBlock>
@@ -401,22 +365,28 @@ val products = (result as? FetchProductsResultProducts)
     .filterIsInstance<ProductAndroid>()
 
 products.forEach { product ->
-    val offers = product.oneTimePurchaseOfferDetailsAndroid
+    val offers = product.discountOffers
 
     if (!offers.isNullOrEmpty()) {
         val firstOffer = offers.first()
-        val hasDiscount = firstOffer.discountDisplayInfo != null
+        val hasDiscount =
+            firstOffer.percentageDiscountAndroid != null ||
+                firstOffer.discountAmountMicrosAndroid != null
 
         println("Product: \${product.id}")
-        println("Display Price: \${product.displayPrice}")
+        println("Display Price: \${firstOffer.displayPrice}")
 
         if (hasDiscount) {
-            val discount = firstOffer.discountDisplayInfo
-            val fullPriceMicros = firstOffer.fullPriceMicros?.toLongOrNull() ?: 0L
+            val fullPriceMicros =
+                firstOffer.fullPriceMicrosAndroid?.toLongOrNull() ?: 0L
             val fullPrice = fullPriceMicros.toDouble() / 1_000_000.0
 
             println("Original Price: $fullPrice")
-            println("Discount: \${discount?.percentageDiscount}% OFF")
+            println(
+                "Discount: " +
+                    (firstOffer.percentageDiscountAndroid?.let { "$it% OFF" }
+                        ?: firstOffer.formattedDiscountAmountAndroid)
+            )
         }
     }
 }`}</CodeBlock>
@@ -428,22 +398,27 @@ products.forEach { product ->
 
 for (final product in products) {
   if (product is! ProductAndroid) continue;
-  final offers = product.oneTimePurchaseOfferDetailsAndroid;
+  final offers = product.discountOffers;
 
   if (offers != null && offers.isNotEmpty) {
     final firstOffer = offers.first;
-    final hasDiscount = firstOffer.discountDisplayInfo != null;
+    final hasDiscount =
+        firstOffer.percentageDiscountAndroid != null ||
+        firstOffer.discountAmountMicrosAndroid != null;
 
     print('Product: \${product.id}');
-    print('Display Price: \${product.displayPrice}');
+    print('Display Price: \${firstOffer.displayPrice}');
 
     if (hasDiscount) {
-      final discount = firstOffer.discountDisplayInfo!;
-      final fullPriceMicros = int.tryParse(firstOffer.fullPriceMicros ?? '0') ?? 0;
+      final fullPriceMicros =
+          int.tryParse(firstOffer.fullPriceMicrosAndroid ?? '0') ?? 0;
       final fullPrice = fullPriceMicros / 1000000;
 
       print('Original Price: $fullPrice');
-      print('Discount: \${discount.percentageDiscount}% OFF');
+      final discountText = firstOffer.percentageDiscountAndroid != null
+          ? '\${firstOffer.percentageDiscountAndroid}% OFF'
+          : firstOffer.formattedDiscountAmountAndroid;
+      print('Discount: $discountText');
     }
   }
 }`}</CodeBlock>
@@ -466,25 +441,31 @@ var products = result is FetchProductsResultProducts productResult
 
 foreach (var product in products)
 {
-    var firstOffer = product.OneTimePurchaseOfferDetailsAndroid?.FirstOrDefault();
+    var firstOffer = product.DiscountOffers?.FirstOrDefault();
     if (firstOffer is null)
     {
         continue;
     }
 
     Console.WriteLine($"Product: {product.Id}");
-    Console.WriteLine($"Display Price: {product.DisplayPrice}");
+    Console.WriteLine($"Display Price: {firstOffer.DisplayPrice}");
 
-    var discount = firstOffer.DiscountDisplayInfo;
-    if (discount is not null)
+    var hasDiscount = firstOffer.PercentageDiscountAndroid is not null
+        || firstOffer.DiscountAmountMicrosAndroid is not null;
+    if (hasDiscount)
     {
-        var fullPriceMicros = long.TryParse(firstOffer.FullPriceMicros, out var micros)
+        var fullPriceMicros = long.TryParse(
+            firstOffer.FullPriceMicrosAndroid,
+            out var micros)
             ? micros
             : 0;
         var fullPrice = fullPriceMicros / 1_000_000.0;
+        var discountText = firstOffer.PercentageDiscountAndroid is { } percent
+            ? $"{percent}% OFF"
+            : firstOffer.FormattedDiscountAmountAndroid;
 
         Console.WriteLine($"Original Price: {fullPrice}");
-        Console.WriteLine($"Discount: {discount.PercentageDiscount}% OFF");
+        Console.WriteLine($"Discount: {discountText}");
     }
 }`}</CodeBlock>
             ),
@@ -495,22 +476,30 @@ request.type = ProductQueryType.IN_APP
 var products = await iap.fetch_products(request)
 
 for product in products:
-    var offers = product.one_time_purchase_offer_details_android
+    var offers = product.discount_offers
 
     if offers and offers.size() > 0:
         var first_offer = offers[0]
-        var has_discount = first_offer.discount_display_info != null
+        var has_discount = (
+            first_offer.percentage_discount_android != null
+            or first_offer.discount_amount_micros_android != null
+        )
 
         print("Product: %s" % product.id)
-        print("Display Price: %s" % product.display_price)
+        print("Display Price: %s" % first_offer.display_price)
 
         if has_discount:
-            var discount = first_offer.discount_display_info
-            var full_price_micros = int(first_offer.full_price_micros) if first_offer.full_price_micros else 0
+            var full_price_micros = (
+                int(first_offer.full_price_micros_android)
+                if first_offer.full_price_micros_android else 0
+            )
             var full_price = full_price_micros / 1000000.0
 
             print("Original Price: %.2f" % full_price)
-            print("Discount: %d%% OFF" % discount.percentage_discount)`}</CodeBlock>
+            if first_offer.percentage_discount_android != null:
+                print("Discount: %d%% OFF" % first_offer.percentage_discount_android)
+            else:
+                print("Discount: %s" % first_offer.formatted_discount_amount_android)`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
@@ -532,24 +521,28 @@ for product in products:
 import type { ProductAndroid } from 'expo-iap';
 
 function ProductCard({ product }: { product: ProductAndroid }) {
-  const offers = product.oneTimePurchaseOfferDetailsAndroid;
+  const offers = product.discountOffers;
   const firstOffer = offers?.[0];
-  const discount = firstOffer?.discountDisplayInfo;
-  const hasDiscount = discount != null;
+  const hasDiscount =
+    firstOffer?.percentageDiscountAndroid != null ||
+    firstOffer?.discountAmountMicrosAndroid != null;
 
   // Calculate original price for strikethrough
-  const fullPriceMicros = parseInt(firstOffer?.fullPriceMicros || '0', 10);
+  const fullPriceMicros = parseInt(
+    firstOffer?.fullPriceMicrosAndroid || '0',
+    10,
+  );
   const fullPrice = fullPriceMicros / 1_000_000;
-  const currency = firstOffer?.priceCurrencyCode || '';
+  const currency = firstOffer?.currency || '';
 
   // Build discount text
   const getDiscountText = () => {
-    if (!discount) return null;
-    if (discount.percentageDiscount) {
-      return \`\${discount.percentageDiscount}% OFF\`;
+    if (!hasDiscount) return null;
+    if (firstOffer?.percentageDiscountAndroid != null) {
+      return \`\${firstOffer.percentageDiscountAndroid}% OFF\`;
     }
-    if (discount.discountAmount) {
-      return \`\${discount.discountAmount.formattedDiscountAmount} OFF\`;
+    if (firstOffer?.formattedDiscountAmountAndroid) {
+      return \`\${firstOffer.formattedDiscountAmountAndroid} OFF\`;
     }
     return 'SALE';
   };
@@ -569,7 +562,7 @@ function ProductCard({ product }: { product: ProductAndroid }) {
 
         {/* Current (discounted) price */}
         <Text style={[styles.price, hasDiscount && styles.discountedPrice]}>
-          {product.displayPrice}
+          {firstOffer?.displayPrice ?? product.displayPrice}
         </Text>
 
         {/* Discount badge */}
@@ -641,9 +634,10 @@ fun ProductCard(
     product: ProductAndroid,
     onPurchase: () -> Unit
 ) {
-    val firstOffer = product.oneTimePurchaseOfferDetailsAndroid?.firstOrNull()
-    val discountInfo = firstOffer?.discountDisplayInfo
-    val hasDiscount = discountInfo != null
+    val firstOffer = product.discountOffers?.firstOrNull()
+    val hasDiscount =
+        firstOffer?.percentageDiscountAndroid != null ||
+            firstOffer?.discountAmountMicrosAndroid != null
 
     Card(
         modifier = Modifier
@@ -673,11 +667,12 @@ fun ProductCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 // Original price with strikethrough
-                if (hasDiscount && firstOffer?.fullPriceMicros != null) {
-                    val fullPriceMicros = firstOffer.fullPriceMicros?.toLongOrNull() ?: 0L
+                if (hasDiscount && firstOffer?.fullPriceMicrosAndroid != null) {
+                    val fullPriceMicros =
+                        firstOffer.fullPriceMicrosAndroid?.toLongOrNull() ?: 0L
                     val fullPrice = fullPriceMicros.toDouble() / 1_000_000.0
                     Text(
-                        text = "\${firstOffer.priceCurrencyCode} \${String.format("%.2f", fullPrice)}",
+                        text = "\${firstOffer.currency} \${String.format("%.2f", fullPrice)}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textDecoration = TextDecoration.LineThrough
@@ -686,7 +681,7 @@ fun ProductCard(
 
                 // Current (discounted) price
                 Text(
-                    text = product.displayPrice,
+                    text = firstOffer?.displayPrice ?: product.displayPrice,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = if (hasDiscount) Color(0xFF34C759) else MaterialTheme.colorScheme.primary
@@ -695,10 +690,10 @@ fun ProductCard(
                 // Discount badge
                 if (hasDiscount) {
                     val discountText = when {
-                        discountInfo?.percentageDiscount != null ->
-                            "\${discountInfo.percentageDiscount}% OFF"
-                        discountInfo?.discountAmount != null ->
-                            "\${discountInfo.discountAmount?.formattedDiscountAmount} OFF"
+                        firstOffer?.percentageDiscountAndroid != null ->
+                            "\${firstOffer.percentageDiscountAndroid}% OFF"
+                        firstOffer?.formattedDiscountAmountAndroid != null ->
+                            "\${firstOffer.formattedDiscountAmountAndroid} OFF"
                         else -> "SALE"
                     }
                     Surface(
@@ -734,9 +729,10 @@ fun ProductCard(
     product: ProductAndroid,
     onPurchase: () -> Unit
 ) {
-    val firstOffer = product.oneTimePurchaseOfferDetailsAndroid?.firstOrNull()
-    val discountInfo = firstOffer?.discountDisplayInfo
-    val hasDiscount = discountInfo != null
+    val firstOffer = product.discountOffers?.firstOrNull()
+    val hasDiscount =
+        firstOffer?.percentageDiscountAndroid != null ||
+            firstOffer?.discountAmountMicrosAndroid != null
 
     Card(
         modifier = Modifier
@@ -766,11 +762,12 @@ fun ProductCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 // Original price with strikethrough
-                if (hasDiscount && firstOffer?.fullPriceMicros != null) {
-                    val fullPriceMicros = firstOffer.fullPriceMicros?.toLongOrNull() ?: 0L
+                if (hasDiscount && firstOffer?.fullPriceMicrosAndroid != null) {
+                    val fullPriceMicros =
+                        firstOffer.fullPriceMicrosAndroid?.toLongOrNull() ?: 0L
                     val fullPrice = fullPriceMicros.toDouble() / 1_000_000.0
                     Text(
-                        text = "\${firstOffer.priceCurrencyCode} \${String.format("%.2f", fullPrice)}",
+                        text = "\${firstOffer.currency} \${String.format("%.2f", fullPrice)}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textDecoration = TextDecoration.LineThrough
@@ -779,7 +776,7 @@ fun ProductCard(
 
                 // Current (discounted) price
                 Text(
-                    text = product.displayPrice,
+                    text = firstOffer?.displayPrice ?: product.displayPrice,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = if (hasDiscount) Color(0xFF34C759) else MaterialTheme.colorScheme.primary
@@ -788,10 +785,10 @@ fun ProductCard(
                 // Discount badge
                 if (hasDiscount) {
                     val discountText = when {
-                        discountInfo?.percentageDiscount != null ->
-                            "\${discountInfo.percentageDiscount}% OFF"
-                        discountInfo?.discountAmount != null ->
-                            "\${discountInfo.discountAmount?.formattedDiscountAmount} OFF"
+                        firstOffer?.percentageDiscountAndroid != null ->
+                            "\${firstOffer.percentageDiscountAndroid}% OFF"
+                        firstOffer?.formattedDiscountAmountAndroid != null ->
+                            "\${firstOffer.formattedDiscountAmountAndroid} OFF"
                         else -> "SALE"
                     }
                     Surface(
@@ -837,18 +834,18 @@ public sealed record ProductCardViewModel
 
 ProductCardViewModel BuildProductCard(ProductAndroid product)
 {
-    var firstOffer = product.OneTimePurchaseOfferDetailsAndroid?.FirstOrDefault();
-    var discountInfo = firstOffer?.DiscountDisplayInfo;
-    var hasDiscount = discountInfo is not null;
+    var firstOffer = product.DiscountOffers?.FirstOrDefault();
+    var hasDiscount = firstOffer?.PercentageDiscountAndroid is not null
+        || firstOffer?.DiscountAmountMicrosAndroid is not null;
 
-    var originalPrice = firstOffer is { FullPriceMicros: { } fullPriceMicros }
+    var originalPrice = firstOffer is { FullPriceMicrosAndroid: { } fullPriceMicros }
         && long.TryParse(fullPriceMicros, out var micros)
-        ? $"{firstOffer.PriceCurrencyCode} {micros / 1_000_000.0:F2}"
+        ? $"{firstOffer.Currency} {micros / 1_000_000.0:F2}"
         : null;
 
-    var badge = discountInfo?.PercentageDiscount is { } percent
+    var badge = firstOffer?.PercentageDiscountAndroid is { } percent
         ? $"{percent}% OFF"
-        : discountInfo?.DiscountAmount?.FormattedDiscountAmount is { } amount
+        : firstOffer?.FormattedDiscountAmountAndroid is { } amount
             ? $"{amount} OFF"
             : hasDiscount ? "SALE" : null;
 
@@ -856,7 +853,7 @@ ProductCardViewModel BuildProductCard(ProductAndroid product)
     {
         Title = product.Title,
         Description = product.Description,
-        Price = product.DisplayPrice,
+        Price = firstOffer?.DisplayPrice ?? product.DisplayPrice,
         OriginalPrice = originalPrice,
         DiscountBadge = badge,
     };
@@ -871,8 +868,8 @@ async Task PurchaseAsync(ProductAndroid product)
             Google = new RequestPurchaseAndroidProps
             {
                 Skus = new[] { product.Id },
-                OfferToken = product.OneTimePurchaseOfferDetailsAndroid?
-                    .FirstOrDefault()?.OfferToken,
+                OfferToken = product.DiscountOffers?
+                    .FirstOrDefault()?.OfferTokenAndroid,
             },
         },
         Type = ProductQueryType.InApp,
@@ -894,25 +891,30 @@ var product: ProductAndroid
 func setup(p: ProductAndroid) -> void:
     product = p
 
-    var offers = product.one_time_purchase_offer_details_android
+    var offers = product.discount_offers
     var first_offer = offers[0] if offers and offers.size() > 0 else null
-    var discount = first_offer.discount_display_info if first_offer else null
-    var has_discount = discount != null
+    var has_discount = (
+        first_offer != null
+        and (
+            first_offer.percentage_discount_android != null
+            or first_offer.discount_amount_micros_android != null
+        )
+    )
 
     title_label.text = product.title
-    price_label.text = product.display_price
+    price_label.text = first_offer.display_price if first_offer else product.display_price
 
-    if has_discount and first_offer.full_price_micros:
-        var full_price_micros = int(first_offer.full_price_micros)
+    if has_discount and first_offer.full_price_micros_android:
+        var full_price_micros = int(first_offer.full_price_micros_android)
         var full_price = full_price_micros / 1000000.0
-        original_price_label.text = "%s %.2f" % [first_offer.price_currency_code, full_price]
+        original_price_label.text = "%s %.2f" % [first_offer.currency, full_price]
         original_price_label.visible = true
 
         # Set discount badge text
-        if discount.percentage_discount:
-            discount_badge.text = "%d%% OFF" % discount.percentage_discount
-        elif discount.discount_amount:
-            discount_badge.text = "%s OFF" % discount.discount_amount.formatted_discount_amount
+        if first_offer.percentage_discount_android != null:
+            discount_badge.text = "%d%% OFF" % first_offer.percentage_discount_android
+        elif first_offer.formatted_discount_amount_android:
+            discount_badge.text = "%s OFF" % first_offer.formatted_discount_amount_android
         else:
             discount_badge.text = "SALE"
         discount_badge.visible = true
@@ -924,9 +926,9 @@ func setup(p: ProductAndroid) -> void:
         discount_badge.visible = false
 
 func _on_buy_button_pressed() -> void:
-    var offers = product.one_time_purchase_offer_details_android
+    var offers = product.discount_offers
     if offers and offers.size() > 0:
-        emit_signal("purchase_requested", product, offers[0].offer_token)`}</CodeBlock>
+        emit_signal("purchase_requested", product, offers[0].offer_token_android)`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
@@ -944,8 +946,8 @@ func _on_buy_button_pressed() -> void:
         <LanguageTabs>
           {{
             typescript: (
-              <CodeBlock language="typescript">{`function checkOfferValidity(offer: ProductAndroidOneTimePurchaseOfferDetail) {
-  const timeWindow = offer.validTimeWindow;
+              <CodeBlock language="typescript">{`function checkOfferValidity(offer: DiscountOffer) {
+  const timeWindow = offer.validTimeWindowAndroid;
 
   if (!timeWindow) {
     return { isValid: true, message: 'Always available' };
@@ -987,8 +989,8 @@ func _on_buy_button_pressed() -> void:
     val message: String
 )
 
-fun checkOfferValidity(offer: ProductAndroidOneTimePurchaseOfferDetail): OfferValidity {
-    val timeWindow = offer.validTimeWindow
+fun checkOfferValidity(offer: DiscountOffer): OfferValidity {
+    val timeWindow = offer.validTimeWindowAndroid
         ?: return OfferValidity(true, "Always available")
 
     val now = System.currentTimeMillis()
@@ -1021,8 +1023,8 @@ fun checkOfferValidity(offer: ProductAndroidOneTimePurchaseOfferDetail): OfferVa
     val message: String
 )
 
-fun checkOfferValidity(offer: ProductAndroidOneTimePurchaseOfferDetail): OfferValidity {
-    val timeWindow = offer.validTimeWindow
+fun checkOfferValidity(offer: DiscountOffer): OfferValidity {
+    val timeWindow = offer.validTimeWindowAndroid
         ?: return OfferValidity(true, "Always available")
 
     val now = System.currentTimeMillis()
@@ -1055,9 +1057,9 @@ using System;
 
 public sealed record OfferValidity(bool IsValid, string Message);
 
-OfferValidity CheckOfferValidity(ProductAndroidOneTimePurchaseOfferDetail offer)
+OfferValidity CheckOfferValidity(DiscountOffer offer)
 {
-    var timeWindow = offer.ValidTimeWindow;
+    var timeWindow = offer.ValidTimeWindowAndroid;
     if (timeWindow is null)
     {
         return new OfferValidity(true, "Always available");
@@ -1092,8 +1094,8 @@ OfferValidity CheckOfferValidity(ProductAndroidOneTimePurchaseOfferDetail offer)
 }`}</CodeBlock>
             ),
             gdscript: (
-              <CodeBlock language="gdscript">{`func check_offer_validity(offer: ProductAndroidOneTimePurchaseOfferDetail) -> Dictionary:
-    var time_window = offer.valid_time_window
+              <CodeBlock language="gdscript">{`func check_offer_validity(offer: DiscountOffer) -> Dictionary:
+    var time_window = offer.valid_time_window_android
 
     if not time_window:
         return {"is_valid": true, "message": "Always available"}
@@ -1137,8 +1139,8 @@ OfferValidity CheckOfferValidity(ProductAndroidOneTimePurchaseOfferDetail offer)
         <LanguageTabs>
           {{
             typescript: (
-              <CodeBlock language="typescript">{`function checkQuantityAvailability(offer: ProductAndroidOneTimePurchaseOfferDetail) {
-  const quantityInfo = offer.limitedQuantityInfo;
+              <CodeBlock language="typescript">{`function checkQuantityAvailability(offer: DiscountOffer) {
+  const quantityInfo = offer.limitedQuantityInfoAndroid;
 
   if (!quantityInfo) {
     return { isAvailable: true, message: null };
@@ -1175,8 +1177,8 @@ OfferValidity CheckOfferValidity(ProductAndroidOneTimePurchaseOfferDetail offer)
     val message: String?
 )
 
-fun checkQuantityAvailability(offer: ProductAndroidOneTimePurchaseOfferDetail): QuantityAvailability {
-    val quantityInfo = offer.limitedQuantityInfo
+fun checkQuantityAvailability(offer: DiscountOffer): QuantityAvailability {
+    val quantityInfo = offer.limitedQuantityInfoAndroid
         ?: return QuantityAvailability(true, null)
 
     val (maximumQuantity, remainingQuantity) = quantityInfo
@@ -1198,8 +1200,8 @@ fun checkQuantityAvailability(offer: ProductAndroidOneTimePurchaseOfferDetail): 
     val message: String?
 )
 
-fun checkQuantityAvailability(offer: ProductAndroidOneTimePurchaseOfferDetail): QuantityAvailability {
-    val quantityInfo = offer.limitedQuantityInfo
+fun checkQuantityAvailability(offer: DiscountOffer): QuantityAvailability {
+    val quantityInfo = offer.limitedQuantityInfoAndroid
         ?: return QuantityAvailability(true, null)
 
     val (maximumQuantity, remainingQuantity) = quantityInfo
@@ -1220,9 +1222,9 @@ fun checkQuantityAvailability(offer: ProductAndroidOneTimePurchaseOfferDetail): 
 
 public sealed record QuantityAvailability(bool IsAvailable, string? Message);
 
-QuantityAvailability CheckQuantityAvailability(ProductAndroidOneTimePurchaseOfferDetail offer)
+QuantityAvailability CheckQuantityAvailability(DiscountOffer offer)
 {
-    var quantityInfo = offer.LimitedQuantityInfo;
+    var quantityInfo = offer.LimitedQuantityInfoAndroid;
     if (quantityInfo is null)
     {
         return new QuantityAvailability(true, null);
@@ -1247,8 +1249,8 @@ QuantityAvailability CheckQuantityAvailability(ProductAndroidOneTimePurchaseOffe
 }`}</CodeBlock>
             ),
             gdscript: (
-              <CodeBlock language="gdscript">{`func check_quantity_availability(offer: ProductAndroidOneTimePurchaseOfferDetail) -> Dictionary:
-    var quantity_info = offer.limited_quantity_info
+              <CodeBlock language="gdscript">{`func check_quantity_availability(offer: DiscountOffer) -> Dictionary:
+    var quantity_info = offer.limited_quantity_info_android
 
     if not quantity_info:
         return {"is_available": true, "message": null}
@@ -1273,8 +1275,8 @@ QuantityAvailability CheckQuantityAvailability(ProductAndroidOneTimePurchaseOffe
           Purchasing with Specific Offer
         </AnchorLink>
         <p>
-          When purchasing a discounted product, use the <code>offerToken</code>{' '}
-          from the specific offer you want to apply:
+          When purchasing a discounted product, pass the selected offer's{' '}
+          <code>offerTokenAndroid</code> to the Android purchase request:
         </p>
 
         <LanguageTabs>
@@ -1286,7 +1288,7 @@ async function purchaseWithOffer(
   product: ProductAndroid,
   offerIndex: number = 0
 ) {
-  const offers = product.oneTimePurchaseOfferDetailsAndroid;
+  const offers = product.discountOffers;
 
   if (!offers || offers.length === 0) {
     throw new Error('No offers available for this product');
@@ -1299,8 +1301,8 @@ async function purchaseWithOffer(
     request: {
       google: {
         skus: [product.id],
-        // Include offerTokenAndroid for discounted purchases (Android 8.0+)
-        offerToken: selectedOffer.offerToken,
+        // Pass the standardized offer's Android token.
+        offerToken: selectedOffer.offerTokenAndroid,
       },
     },
   });
@@ -1312,26 +1314,24 @@ async function purchaseWithOffer(
             ),
             kotlin: (
               <CodeBlock language="kotlin">{`suspend fun purchaseWithOffer(
-    activity: Activity,
     product: ProductAndroid,
     offerIndex: Int = 0
 ) {
-    val offers = product.oneTimePurchaseOfferDetailsAndroid
+    val offers = product.discountOffers
         ?: throw IllegalStateException("No offers available")
 
     val selectedOffer = offers.getOrNull(offerIndex)
         ?: throw IllegalStateException("Invalid offer index")
 
     iapStore.requestPurchase(
-        activity = activity,
-        props = RequestPurchaseProps(
+        RequestPurchaseProps(
             type = ProductQueryType.InApp,
             request = RequestPurchaseProps.Request.Purchase(
                 RequestPurchasePropsByPlatforms(
                     google = RequestPurchaseAndroidProps(
                         skus = listOf(product.id),
-                        // Include offerTokenAndroid for discounted purchases (Android 8.0+)
-                        offerToken = selectedOffer.offerToken
+                        // Pass the standardized offer's Android token.
+                        offerToken = selectedOffer.offerTokenAndroid
                     )
                 )
             )
@@ -1341,26 +1341,24 @@ async function purchaseWithOffer(
             ),
             kmp: (
               <CodeBlock language="kotlin">{`suspend fun purchaseWithOffer(
-    activity: Activity,
     product: ProductAndroid,
     offerIndex: Int = 0
 ) {
-    val offers = product.oneTimePurchaseOfferDetailsAndroid
+    val offers = product.discountOffers
         ?: throw IllegalStateException("No offers available")
 
     val selectedOffer = offers.getOrNull(offerIndex)
         ?: throw IllegalStateException("Invalid offer index")
 
     kmpIAP.requestPurchase(
-        activity = activity,
-        props = RequestPurchaseProps(
+        RequestPurchaseProps(
             type = ProductQueryType.InApp,
             request = RequestPurchaseProps.Request.Purchase(
                 RequestPurchasePropsByPlatforms(
                     google = RequestPurchaseAndroidProps(
                         skus = listOf(product.id),
-                        // Include offerTokenAndroid for discounted purchases (Android 8.0+)
-                        offerToken = selectedOffer.offerToken
+                        // Pass the standardized offer's Android token.
+                        offerToken = selectedOffer.offerTokenAndroid
                     )
                 )
             )
@@ -1376,7 +1374,7 @@ using System.Linq;
 
 async Task PurchaseWithOfferAsync(ProductAndroid product, int offerIndex = 0)
 {
-    var offers = product.OneTimePurchaseOfferDetailsAndroid
+    var offers = product.DiscountOffers
         ?? throw new InvalidOperationException("No offers available");
 
     var selectedOffer = offers.ElementAtOrDefault(offerIndex)
@@ -1390,8 +1388,8 @@ async Task PurchaseWithOfferAsync(ProductAndroid product, int offerIndex = 0)
             Google = new RequestPurchaseAndroidProps
             {
                 Skus = new[] { product.Id },
-                // Include OfferToken for discounted purchases (Android 8.0+).
-                OfferToken = selectedOffer.OfferToken,
+                // Pass the standardized offer's Android token.
+                OfferToken = selectedOffer.OfferTokenAndroid,
             },
         },
     });
@@ -1399,7 +1397,7 @@ async Task PurchaseWithOfferAsync(ProductAndroid product, int offerIndex = 0)
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`func purchase_with_offer(product: ProductAndroid, offer_index: int = 0) -> void:
-    var offers = product.one_time_purchase_offer_details_android
+    var offers = product.discount_offers
 
     if not offers or offers.size() == 0:
         push_error("No offers available for this product")
@@ -1416,7 +1414,7 @@ async Task PurchaseWithOfferAsync(ProductAndroid product, int offerIndex = 0)
     props.request = RequestPurchasePropsByPlatforms.new()
     props.request.google = RequestPurchaseAndroidProps.new()
     props.request.google.skus = [product.id]
-    props.request.google.offer_token = selected_offer.offer_token
+    props.request.google.offer_token = selected_offer.offer_token_android
 
     await iap.request_purchase(props)`}</CodeBlock>
             ),
@@ -1510,16 +1508,6 @@ async Task PurchaseWithOfferAsync(ProductAndroid product, int offerIndex = 0)
           Native References
         </AnchorLink>
         <ul>
-          <li>
-            Google ·{' '}
-            <a
-              href="https://developer.android.com/google/play/billing/subscriptions#discount-offer"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Discounted offers
-            </a>
-          </li>
           <li>
             Google ·{' '}
             <a

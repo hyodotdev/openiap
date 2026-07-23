@@ -145,7 +145,7 @@ const COMMON_TYPES: TypeRow[] = [
   {
     to: '/docs/types/discount-offer',
     name: 'DiscountOffer',
-    description: 'Cross-platform discount offer details.',
+    description: 'Standardized Android one-time product offer details.',
   },
   {
     to: '/docs/types/subscription-offer',
