@@ -22,16 +22,16 @@ interface Note {
   element: React.ReactNode;
 }
 
-const androidOfferCodePlannedReleases = [
-  'OpenIAP Spec 2.5.0 (docs-2.5.0, planned)',
-  'openiap-apple 2.4.2 (planned)',
-  'openiap-google 2.5.0 (planned)',
-  'react-native-iap 15.6.0 (planned)',
-  'expo-iap 4.7.0 (planned)',
-  'flutter_inapp_purchase 9.6.0 (planned)',
-  'godot-iap 2.6.0 (planned)',
-  'kmp-iap 2.7.0 (planned)',
-  'OpenIap.Maui 1.4.0 (planned)',
+const androidOfferCodeReleases = [
+  ['OpenIAP Spec 2.5.0', 'docs-2.5.0'],
+  ['openiap-apple 2.4.2', '2.4.2'],
+  ['openiap-google 2.5.0', 'google-2.5.0'],
+  ['react-native-iap 15.6.0', 'react-native-iap-15.6.0'],
+  ['expo-iap 4.7.0', 'expo-iap-4.7.0'],
+  ['flutter_inapp_purchase 9.6.0', 'flutter-iap-9.6.0'],
+  ['godot-iap 2.6.0', 'godot-iap-2.6.0'],
+  ['kmp-iap 2.7.0', 'kmp-iap-2.7.0'],
+  ['OpenIap.Maui 1.4.0', 'maui-iap-1.4.0'],
 ] as const;
 
 const fetchProductsAllFixReleases = [
@@ -86,17 +86,21 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
-    // July 22, 2026 - Android offer-code redemption across SDKs
+    // July 23, 2026 - IAPKit webhook deduplication and ASC review automation
     {
-      id: 'android-offer-code-redemption-2026-07-22',
-      date: new Date('2026-07-22'),
+      id: 'iapkit-webhook-dedup-asc-review-automation-2026-07-23',
+      date: new Date('2026-07-23'),
       element: (
         <div
-          key="android-offer-code-redemption-2026-07-22"
+          key="iapkit-webhook-dedup-asc-review-automation-2026-07-23"
           style={noteCardStyle}
         >
-          <AnchorLink id="android-offer-code-redemption-2026-07-22" level="h4">
-            July 22, 2026 - Android offer-code redemption across SDKs
+          <AnchorLink
+            id="iapkit-webhook-dedup-asc-review-automation-2026-07-23"
+            level="h4"
+          >
+            July 23, 2026 - IAPKit webhook deduplication and App Store Connect
+            review automation
           </AnchorLink>
 
           <p
@@ -105,7 +109,167 @@ function Releases() {
               color: 'var(--text-secondary)',
             }}
           >
-            Prepares the stable release train for{' '}
+            Deploys two hosted IAPKit service updates.{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/245"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #245
+            </a>{' '}
+            moves webhook deduplication onto source-aware event identity as
+            phase 1 of{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/issues/241"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              issue #241
+            </a>
+            {', while '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/246"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #246
+            </a>{' '}
+            adds version-based App Store Connect review submissions and
+            completes{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/issues/242"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              issue #242
+            </a>
+            {'. '}These are hosted-service changes and require no SDK package
+            upgrade.
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Webhook delivery reliability
+          </h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              Apple, Google RTDN and its preflight lookup, and Horizon now
+              prefer the source-aware <code>webhookEvents</code> identity formed
+              from project, store source, and notification ID. Notifications
+              from different projects or store sources no longer collide when an
+              upstream identifier happens to match.
+            </li>
+            <li>
+              This is intentionally only phase 1 of issue #241. Legacy{' '}
+              <code>webhookIdempotencyKeys</code> reads, writes, pruning, and
+              deletion cascades remain available for rollback and retained-row
+              compatibility. A later deployment must first stop legacy key
+              writes, wait at least the 30-day <code>WEBHOOK_RETENTION_MS</code>{' '}
+              window, and confirm that the table has zero rows before removing
+              the table, cron work, or cascades. The webhook-event retention
+              cron remains required.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            App Store Connect review submissions
+          </h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              Organization owners and admins can store one private,
+              project-level App Review screenshot for eligible IAPKit-managed
+              iOS products. IAPKit accepts JPEG or a flattened PNG without alpha
+              or transparency up to 10 MB and validates the extension, MIME
+              type, magic bytes, dimensions, transparency, and full image decode
+              before persistence.
+            </li>
+            <li>
+              Push Sync can prepare current IAP and subscription review
+              versions, create the <code>en-US</code> localization, execute
+              every upload operation reserved by App Store Connect, commit the
+              MD5 checksum, wait for asset delivery, and submit bounded eligible
+              batches for review. Checksum-committed uploads and Ready rows
+              resume against the exact stored screenshot identity.
+            </li>
+            <li>
+              Dry-run counts remain prospective and perform no store writes. The
+              first consumable, non-consumable, auto-renewable subscription, or
+              non-renewing subscription—and a subscription in a new subscription
+              group—stays Draft with a durable manual action because Apple
+              requires an app-version submission. An ambiguous review-submission
+              response also stays Draft for operator inspection; IAPKit never
+              adopts or submits an unidentified existing draft.
+            </li>
+            <li>
+              Manual actions and failures remain visible after reload, while
+              cancellation and deadline checkpoints stop further remote work and
+              clean up only IAPKit-owned drafts within a bounded safety window.
+              Removing the project screenshot stops future reuse but does not
+              delete copies already uploaded to App Store Connect.
+            </li>
+          </ul>
+
+          <p
+            style={{
+              margin: 0,
+              color: 'var(--text-secondary)',
+            }}
+          >
+            See the{' '}
+            <Link to="/docs/kit-backend#product-sync">
+              IAPKit product-sync documentation
+            </Link>{' '}
+            and the hosted{' '}
+            <a
+              href="https://kit.openiap.dev/docs/products"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              Products guide
+            </a>{' '}
+            for the operator workflow and screenshot-reuse policy.
+          </p>
+        </div>
+      ),
+    },
+
+    // July 23, 2026 - OpenIAP Spec 2.5.0 and Android offer-code redemption
+    {
+      id: 'android-offer-code-redemption-2026-07-23',
+      date: new Date('2026-07-23'),
+      element: (
+        <div
+          key="android-offer-code-redemption-2026-07-23"
+          style={noteCardStyle}
+        >
+          <AnchorLink id="android-offer-code-redemption-2026-07-23" level="h4">
+            July 23, 2026 - OpenIAP Spec 2.5.0 and Android offer-code redemption
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes OpenIAP Spec 2.5.0 and coordinated stable package releases
+            for{' '}
             <Link to="/docs/apis/android/open-redeem-offer-code-android">
               <code>openRedeemOfferCodeAndroid</code>
             </Link>{' '}
@@ -118,10 +282,10 @@ function Releases() {
             >
               PR #243
             </a>
-            . The additive API opens Google Play&apos;s offer or promo-code
-            redemption surface without requiring an initialized billing client,
-            preserves explicit unsupported-store results, and will carry the
-            same contract through every maintained framework SDK.
+            {'. '}The additive Android-only API opens Google Play&apos;s offer
+            or promo-code redemption surface without requiring an initialized
+            billing client, preserves explicit unsupported-store results, and
+            carries the same contract through every maintained framework SDK.
           </p>
 
           <h5 style={{ margin: '0 0 0.5rem 0' }}>
@@ -135,26 +299,29 @@ function Releases() {
             }}
           >
             <li>
-              <strong>Planned OpenIAP Spec 2.5.0</strong> - adds the
-              Android-only <code>openRedeemOfferCodeAndroid</code> mutation
-              returning <code>true</code> when the redemption surface launches
-              and <code>false</code> when the active store flavor has no
-              equivalent flow. Generated Swift, Kotlin, TypeScript, Dart,
-              GDScript, and C# resolver contracts stay synchronized with the
-              schema.
+              <strong>OpenIAP Spec 2.5.0</strong> - adds the Android-only{' '}
+              <code>openRedeemOfferCodeAndroid</code> mutation returning{' '}
+              <code>true</code> when the redemption surface launches and{' '}
+              <code>false</code> when the active store flavor has no equivalent
+              flow. Generated Swift, Kotlin, TypeScript, Dart, GDScript, and C#
+              resolver contracts stay synchronized with the schema.
             </li>
             <li>
-              <strong>Planned openiap-google 2.5.0</strong> - launches{' '}
+              <strong>openiap-google 2.5.0</strong> - launches{' '}
               <code>https://play.google.com/redeem</code> for Google Play builds
               while Amazon and Horizon return <code>false</code> instead of
               throwing or opening an unrelated external-link flow. The Play
               purchase callback also recovers an in-flight{' '}
               <code>ITEM_ALREADY_OWNED</code> result by querying owned purchases
-              and completing the request with the matching entitlement.
+              and completing the request with the matching entitlement. Play and
+              Horizon purchase callbacks are also bound to the originating
+              client generation, so updates from a disconnected or replaced
+              client are ignored without dropping recovery events from the
+              active connection.
             </li>
             <li>
-              <strong>Planned openiap-apple 2.4.2</strong> - adds practical
-              macOS fallbacks alongside the synchronized Android-only resolver:
+              <strong>openiap-apple 2.4.2</strong> - adds practical macOS
+              fallbacks alongside the synchronized Android-only resolver:
               subscription management opens the App Store account page, and a
               verified refund request opens Apple&apos;s Report a Problem page
               and returns no in-app status because the result is completed
@@ -173,8 +340,8 @@ function Releases() {
             }}
           >
             <li>
-              <strong>Planned react-native-iap 15.6.0</strong> - exports the new
-              API directly and from <code>useIAP</code>. Android now retains
+              <strong>react-native-iap 15.6.0</strong> - exports the new API
+              directly and from <code>useIAP</code>. Android now retains
               purchase updates and errors in bounded FIFO queues while no JS
               listener is attached, flushes them after listener registration,
               and includes listeners added during a flush only for later
@@ -183,14 +350,16 @@ function Releases() {
               of being consumed by an orphaned callback.
             </li>
             <li>
-              <strong>Planned expo-iap 4.7.0</strong> - replaces the JavaScript
-              URL stub with the native OpenIAP handler, exposes the mutation
-              from <code>useIAP</code>, returns the launch result to the app,
-              and reports <code>false</code> on unsupported Vega or Kepler store
-              paths. It also declares <code>tvos</code> in Expo module platform
-              metadata, so TV-mode prebuilds autolink the existing Apple native
-              module and app-delegate subscriber instead of silently omitting
-              <code>ExpoIap</code> (
+              <strong>expo-iap 4.7.0</strong> - replaces the JavaScript URL stub
+              with the native OpenIAP handler, exposes the mutation from{' '}
+              <code>useIAP</code>, returns the launch result to the app, and
+              reports <code>false</code> on unsupported Vega or Kepler store
+              paths. Native failures such as an unavailable Android activity
+              keep their typed OpenIAP error instead of being replaced by a
+              generic bridge error. It also declares <code>tvos</code> in Expo
+              module platform metadata, so TV-mode prebuilds autolink the
+              existing Apple native module and app-delegate subscriber instead
+              of silently omitting <code>ExpoIap</code> (
               <a
                 href="https://github.com/hyodotdev/openiap/pull/244"
                 target="_blank"
@@ -206,27 +375,31 @@ function Releases() {
               .
             </li>
             <li>
-              <strong>Planned flutter_inapp_purchase 9.6.0</strong> - adds the
-              typed Android platform-channel method and mutation-handler wiring.
-              Its example now supports both the iOS redemption sheet and the
-              Google Play redemption page with distinct platform and
-              unsupported-store states.
+              <strong>flutter_inapp_purchase 9.6.0</strong> - adds the typed
+              Android platform-channel method and mutation-handler wiring. Its
+              example now supports both the iOS redemption sheet and the Google
+              Play redemption page with distinct platform and unsupported-store
+              states. Typed OpenIAP failures are preserved across the platform
+              channel.
             </li>
             <li>
-              <strong>Planned godot-iap 2.6.0</strong> - adds the GDScript API
-              and Android plugin bridge, delegates through the shared Play store
-              module, and can launch the redemption flow before an IAP
-              connection is initialized.
+              <strong>godot-iap 2.6.0</strong> - adds the GDScript API and
+              Play-specific Android plugin bridge, delegates through the shared
+              Play store module, and can launch the redemption flow before an
+              IAP connection is initialized. The published plugin contains
+              Android and iOS artifacts only; version 2.6.0 does not include a
+              macOS runtime binary, and the new redemption bridge itself remains
+              Android-only.
             </li>
             <li>
-              <strong>Planned kmp-iap 2.7.0</strong> - adds the common resolver
-              and an Android implementation that uses the current activity or
+              <strong>kmp-iap 2.7.0</strong> - adds the common resolver and an
+              Android implementation that uses the current activity or
               application context without requiring a billing connection.
               Amazon, Horizon, and iOS implementations return <code>false</code>{' '}
               for the Android-only capability.
             </li>
             <li>
-              <strong>Planned OpenIap.Maui 1.4.0</strong> - adds{' '}
+              <strong>OpenIap.Maui 1.4.0</strong> - adds{' '}
               <code>OpenRedeemOfferCodeAndroidAsync</code> to the generated CLR
               resolver, binds it to the store-aware Android handler, and keeps
               the iOS implementation as an explicit <code>false</code> result.
@@ -276,11 +449,14 @@ function Releases() {
               color: 'var(--text-secondary)',
             }}
           >
-            The documentation adds the Android API reference, updates the
+            The documentation publishes the Android API reference, updates the
             cross-SDK offer-code guide and examples, and clarifies the macOS
-            subscription-management and refund fallbacks. IAPKit has no runtime
-            release in this train: its touched files contain test stabilization
-            and internal comment cleanup only.
+            subscription-management and refund fallbacks. The separate hosted
+            IAPKit deployments are documented in the{' '}
+            <Link to="/docs/updates/releases#iapkit-webhook-dedup-asc-review-automation-2026-07-23">
+              July 23 IAPKit entry
+            </Link>{' '}
+            and do not have installable package tags.
           </p>
 
           <div
@@ -289,21 +465,7 @@ function Releases() {
               borderTop: '1px solid var(--border-color)',
             }}
           >
-            <h5 style={{ margin: '0 0 0.5rem 0' }}>Planned Package Releases</h5>
-            <p
-              style={{
-                margin: '0 0 0.75rem 0',
-                color: 'var(--text-secondary)',
-                fontSize: '0.9rem',
-              }}
-            >
-              These are post-merge release targets, not the versions currently
-              stored in this branch. Stable release workflows on{' '}
-              <code>main</code> will bump the package metadata from the
-              published Spec 2.4.0 and native 2.4.1 baselines. Until each
-              release exists, these entries remain unlinked and should not be
-              treated as installable versions.
-            </p>
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
             <ul
               style={{
                 margin: 0,
@@ -311,8 +473,16 @@ function Releases() {
                 fontSize: '0.9rem',
               }}
             >
-              {androidOfferCodePlannedReleases.map((release) => (
-                <li key={release}>{release}</li>
+              {androidOfferCodeReleases.map(([label, tag]) => (
+                <li key={tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {label}
+                  </a>
+                </li>
               ))}
             </ul>
           </div>
