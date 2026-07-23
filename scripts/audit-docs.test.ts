@@ -385,4 +385,51 @@ ${discountOffer}`,
       )
     ).toEqual([]);
   });
+
+  test('ignores braces inside search strings and comments', () => {
+    const edgeCases = [
+      `export const apiData = [
+  {
+    title: 'DiscountOffer',
+    description: 'Placeholder {value',
+    path: '/docs/types/discount-offer',
+  },
+  {
+    title: 'SubscriptionOffer',
+    description: "Quoted } delimiter",
+    path: '/docs/types/subscription-offer',
+  },
+];`,
+      `export const apiData = [
+  {
+    title: 'DiscountOffer',
+    // Ignore an unmatched {
+    path: '/docs/types/discount-offer',
+  },
+  {
+    title: 'SubscriptionOffer',
+    // Ignore an unmatched }
+    path: '/docs/types/subscription-offer',
+  },
+];`,
+      `export const apiData = [
+  {
+    title: 'DiscountOffer',
+    /* Ignore an unmatched { */
+    path: '/docs/types/discount-offer',
+  },
+  {
+    title: 'SubscriptionOffer',
+    /* Ignore an unmatched } */
+    path: '/docs/types/subscription-offer',
+  },
+];`,
+    ];
+
+    for (const searchData of edgeCases) {
+      expect(
+        auditCanonicalOfferDocs(validOfferDocsSources({ searchData }))
+      ).toEqual([]);
+    }
+  });
 });

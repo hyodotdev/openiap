@@ -28,7 +28,10 @@ describe("generated compatibility", () => {
     const typescript = generated("types.ts");
     const duplicateBlocks = (
       typescript.match(/\/\*\*[\s\S]*?\*\//g) ?? []
-    ).filter((block) => (block.match(/@deprecated\b/g) ?? []).length > 1);
+    ).filter(
+      (block) =>
+        (block.match(/^\s*(?:\/\*\*|\*)\s*@deprecated\b/gm) ?? []).length > 1,
+    );
 
     expect(duplicateBlocks).toEqual([]);
     expect(typescript).toContain(

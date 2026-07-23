@@ -643,8 +643,55 @@ function extractBraceBlock(src: string, openBraceIdx: number): string | null {
   if (src[openBraceIdx] !== '{') return null;
   let depth = 1;
   let i = openBraceIdx + 1;
+  let quote: "'" | '"' | '`' | null = null;
+  let escaped = false;
+  let inLineComment = false;
+  let inBlockComment = false;
+
   while (i < src.length && depth > 0) {
     const ch = src[i];
+    const next = src[i + 1];
+
+    if (inLineComment) {
+      if (ch === '\n') inLineComment = false;
+      i += 1;
+      continue;
+    }
+    if (inBlockComment) {
+      if (ch === '*' && next === '/') {
+        inBlockComment = false;
+        i += 2;
+      } else {
+        i += 1;
+      }
+      continue;
+    }
+    if (quote !== null) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === '\\') {
+        escaped = true;
+      } else if (ch === quote) {
+        quote = null;
+      }
+      i += 1;
+      continue;
+    }
+    if (ch === '/' && next === '/') {
+      inLineComment = true;
+      i += 2;
+      continue;
+    }
+    if (ch === '/' && next === '*') {
+      inBlockComment = true;
+      i += 2;
+      continue;
+    }
+    if (ch === "'" || ch === '"' || ch === '`') {
+      quote = ch;
+      i += 1;
+      continue;
+    }
     if (ch === '{') depth += 1;
     else if (ch === '}') depth -= 1;
     i += 1;

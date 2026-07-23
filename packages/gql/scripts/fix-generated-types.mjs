@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { parse } from 'graphql';
+import { dedupeDeprecatedJSDocTags } from './generated-doc-comments.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -708,20 +709,6 @@ if (helperBlocks.length > 0) {
   content += helperBlocks.join('\n');
 }
 
-// graphql-codegen appends the directive reason after the schema description.
-// When the description already carries a richer @deprecated explanation for
-// the non-TypeScript generators, keep that first tag and drop later duplicates.
-content = content.replace(/\/\*\*[\s\S]*?\*\//g, (block) => {
-  let hasDeprecatedTag = false;
-  return block
-    .split('\n')
-    .filter((line) => {
-      if (!/@deprecated\b/.test(line)) return true;
-      if (hasDeprecatedTag) return false;
-      hasDeprecatedTag = true;
-      return true;
-    })
-    .join('\n');
-});
+content = dedupeDeprecatedJSDocTags(content);
 
 writeFileSync(targetPath, content);
