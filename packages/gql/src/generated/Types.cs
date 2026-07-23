@@ -2972,7 +2972,7 @@ public sealed record DiscountIOS
 /// <summary>Currently populated only on Android (Google Play Billing 8.0+).</summary>
 /// <summary>iOS does not populate this type.</summary>
 /// <summary></summary>
-/// <summary>@see https://openiap.dev/docs/features/discount</summary>
+/// <summary>@see https://openiap.dev/docs/types/discount-offer</summary>
 public sealed record DiscountOffer
 {
     /// <summary>Currency code (ISO 4217, e.g., &quot;USD&quot;)</summary>

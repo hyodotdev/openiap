@@ -202,6 +202,36 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function findEnclosingBraceBlock(
+  source: string,
+  index: number
+): { body: string; bodyStart: number } | null {
+  let openBraceIndex = source.lastIndexOf('{', index);
+  while (openBraceIndex !== -1) {
+    const body = extractBraceBlock(source, openBraceIndex);
+    if (body !== null) {
+      const closeBraceIndex = openBraceIndex + body.length + 1;
+      if (index <= closeBraceIndex) {
+        return { body, bodyStart: openBraceIndex + 1 };
+      }
+    }
+    openBraceIndex = source.lastIndexOf('{', openBraceIndex - 1);
+  }
+  return null;
+}
+
+function findTopLevelSearchPath(
+  objectBody: string
+): { path: string; index: number } | null {
+  const pathRe = /\bpath:\s*(['"])([^'"]+)\1/g;
+  let pathMatch: RegExpExecArray | null;
+  while ((pathMatch = pathRe.exec(objectBody)) !== null) {
+    if (findEnclosingBraceBlock(objectBody, pathMatch.index)) continue;
+    return { path: pathMatch[2], index: pathMatch.index };
+  }
+  return null;
+}
+
 function findSearchEntriesByTitle(
   source: string,
   title: string
@@ -214,21 +244,14 @@ function findSearchEntriesByTitle(
   let titleMatch: RegExpExecArray | null;
 
   while ((titleMatch = titleRe.exec(source)) !== null) {
-    const objectStartMarker = source.lastIndexOf('\n  {', titleMatch.index);
-    const objectStart = objectStartMarker === -1 ? 0 : objectStartMarker + 1;
-    const objectEndMarker = source.indexOf('\n  },', titleMatch.index);
-    const objectEnd =
-      objectEndMarker === -1
-        ? source.length
-        : objectEndMarker + '\n  },'.length;
-    const objectSource = source.slice(objectStart, objectEnd);
-    const pathMatch = /\bpath:\s*(['"])([^'"]+)\1/.exec(objectSource);
+    const object = findEnclosingBraceBlock(source, titleMatch.index);
+    const pathMatch = object ? findTopLevelSearchPath(object.body) : null;
 
     entries.push({
       line: lineNumberAt(source, titleMatch.index),
-      path: pathMatch?.[2] ?? null,
-      pathLine: pathMatch
-        ? lineNumberAt(source, objectStart + pathMatch.index)
+      path: pathMatch?.path ?? null,
+      pathLine: object && pathMatch
+        ? lineNumberAt(source, object.bodyStart + pathMatch.index)
         : lineNumberAt(source, titleMatch.index),
     });
   }

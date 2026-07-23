@@ -6,6 +6,36 @@ function generated(name: string): string {
 }
 
 describe("generated compatibility", () => {
+  it("keeps the canonical DiscountOffer type reference in the schema", () => {
+    const schema = readFileSync(
+      new URL("./type.graphql", import.meta.url),
+      "utf8",
+    );
+    const typeIndex = schema.indexOf("type DiscountOffer {");
+    const descriptionEnd = schema.lastIndexOf('"""', typeIndex);
+    const descriptionStart = schema.lastIndexOf('"""', descriptionEnd - 1);
+    const description = schema.slice(descriptionStart, descriptionEnd);
+
+    expect(description).toContain(
+      "@see https://openiap.dev/docs/types/discount-offer",
+    );
+    expect(description).not.toContain(
+      "@see https://openiap.dev/docs/features/discount",
+    );
+  });
+
+  it("emits one deprecation tag per TypeScript doc block", () => {
+    const typescript = generated("types.ts");
+    const duplicateBlocks = (
+      typescript.match(/\/\*\*[\s\S]*?\*\//g) ?? []
+    ).filter((block) => (block.match(/@deprecated\b/g) ?? []).length > 1);
+
+    expect(duplicateBlocks).toEqual([]);
+    expect(typescript).toContain(
+      "@deprecated One-time offers belong to ProductAndroid.discountOffers;",
+    );
+  });
+
   it("preserves the published MAUI 1.x string signatures", () => {
     const csharp = generated("Types.cs");
 

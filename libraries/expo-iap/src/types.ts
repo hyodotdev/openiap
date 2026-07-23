@@ -349,7 +349,7 @@ export interface DiscountIOS {
  * Currently populated only on Android (Google Play Billing 8.0+).
  * iOS does not populate this type.
  *
- * @see https://openiap.dev/docs/features/discount
+ * @see https://openiap.dev/docs/types/discount-offer
  */
 export interface DiscountOffer {
   /** Currency code (ISO 4217, e.g., "USD") */
@@ -896,7 +896,6 @@ export interface Mutation {
    * then call requestPurchase with that SKU instead. In StoreKit 2,
    * promoted products can be purchased directly via the standard purchase flow.
    * See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios
-   * @deprecated Use promotedProductListenerIOS + requestPurchase instead
    */
   requestPurchaseOnPromotedProductIOS: Promise<boolean>;
   /**
@@ -1107,7 +1106,6 @@ export interface ProductAndroid extends ProductCommon {
    * One-time purchase offer details including discounts (Android)
    * Returns all eligible offers. Available in Google Play Billing Library 8.0+
    * @deprecated Use the standardized discountOffers field instead.
-   * @deprecated Use discountOffers instead
    */
   oneTimePurchaseOfferDetailsAndroid?: (ProductAndroidOneTimePurchaseOfferDetail[] | null);
   platform: 'android';
@@ -1122,7 +1120,6 @@ export interface ProductAndroid extends ProductCommon {
   productStatusAndroid?: (ProductStatusAndroid | null);
   /**
    * @deprecated Use subscriptionOffers instead for cross-platform compatibility.
-   * @deprecated Use subscriptionOffers instead
    */
   subscriptionOfferDetailsAndroid?: (ProductSubscriptionAndroidOfferDetails[] | null);
   /**
@@ -1212,7 +1209,6 @@ export interface ProductIOS extends ProductCommon {
   pricingTermsIOS?: (SubscriptionPricingTermsIOS[] | null);
   /**
    * @deprecated Use subscriptionOffers instead for cross-platform compatibility.
-   * @deprecated Use subscriptionOffers instead
    */
   subscriptionInfoIOS?: (SubscriptionInfoIOS | null);
   /**
@@ -1264,7 +1260,6 @@ export interface ProductSubscriptionAndroid extends ProductCommon {
    * purchase offer details for subscription products.
    * @deprecated One-time offers belong to ProductAndroid.discountOffers;
    * subscriptions use subscriptionOffers.
-   * @deprecated Use subscriptionOffers instead
    */
   oneTimePurchaseOfferDetailsAndroid?: (ProductAndroidOneTimePurchaseOfferDetail[] | null);
   platform: 'android';
@@ -1279,7 +1274,6 @@ export interface ProductSubscriptionAndroid extends ProductCommon {
   productStatusAndroid?: (ProductStatusAndroid | null);
   /**
    * @deprecated Use subscriptionOffers instead for cross-platform compatibility.
-   * @deprecated Use subscriptionOffers instead
    */
   subscriptionOfferDetailsAndroid: ProductSubscriptionAndroidOfferDetails[];
   /**
@@ -1317,7 +1311,6 @@ export interface ProductSubscriptionIOS extends ProductCommon {
   description: string;
   /**
    * @deprecated Use subscriptionOffers instead for cross-platform compatibility.
-   * @deprecated Use subscriptionOffers instead
    */
   discountsIOS?: (DiscountIOS[] | null);
   displayName?: (string | null);
@@ -1342,7 +1335,6 @@ export interface ProductSubscriptionIOS extends ProductCommon {
   subscriptionGroupIdIOS?: (string | null);
   /**
    * @deprecated Use subscriptionOffers for offer metadata and subscriptionGroupIdIOS for the App Store subscription group identifier.
-   * @deprecated Use subscriptionOffers for offers and subscriptionGroupIdIOS for group ID
    */
   subscriptionInfoIOS?: (SubscriptionInfoIOS | null);
   /**

@@ -708,4 +708,20 @@ if (helperBlocks.length > 0) {
   content += helperBlocks.join('\n');
 }
 
+// graphql-codegen appends the directive reason after the schema description.
+// When the description already carries a richer @deprecated explanation for
+// the non-TypeScript generators, keep that first tag and drop later duplicates.
+content = content.replace(/\/\*\*[\s\S]*?\*\//g, (block) => {
+  let hasDeprecatedTag = false;
+  return block
+    .split('\n')
+    .filter((line) => {
+      if (!/@deprecated\b/.test(line)) return true;
+      if (hasDeprecatedTag) return false;
+      hasDeprecatedTag = true;
+      return true;
+    })
+    .join('\n');
+});
+
 writeFileSync(targetPath, content);

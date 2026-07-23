@@ -857,7 +857,7 @@ public struct DiscountIOS: Codable {
 /// Currently populated only on Android (Google Play Billing 8.0+).
 /// iOS does not populate this type.
 /// 
-/// @see https://openiap.dev/docs/features/discount
+/// @see https://openiap.dev/docs/types/discount-offer
 public struct DiscountOffer: Codable {
     /// Currency code (ISO 4217, e.g., "USD")
     public var currency: String

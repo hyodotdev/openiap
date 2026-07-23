@@ -1056,7 +1056,7 @@ class DiscountIOS:
 			dict["localizedPrice"] = localized_price
 		return dict
 
-## Standardized one-time product discount offer. Provides a platform-neutral OpenIAP shape for Google Play one-time product purchase options and offers.  Currently populated only on Android (Google Play Billing 8.0+). iOS does not populate this type.  @see https://openiap.dev/docs/features/discount
+## Standardized one-time product discount offer. Provides a platform-neutral OpenIAP shape for Google Play one-time product purchase options and offers.  Currently populated only on Android (Google Play Billing 8.0+). iOS does not populate this type.  @see https://openiap.dev/docs/types/discount-offer
 class DiscountOffer:
 	## Unique identifier for the offer.
 	var id: Variant = null

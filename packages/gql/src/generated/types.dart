@@ -2039,7 +2039,7 @@ class DiscountIOS {
 /// Currently populated only on Android (Google Play Billing 8.0+).
 /// iOS does not populate this type.
 /// 
-/// @see https://openiap.dev/docs/features/discount
+/// @see https://openiap.dev/docs/types/discount-offer
 class DiscountOffer {
   const DiscountOffer({
     required this.currency,

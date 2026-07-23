@@ -366,4 +366,23 @@ ${discountOffer}`,
       }),
     ]);
   });
+
+  test('finds canonical search paths across indentation and nested formatting', () => {
+    const reformattedSearchData = `export const apiData = [
+\t{
+\t\tmetadata: {
+\t\t\tpath: '/internal/discount-offer-metadata',
+\t\t},
+\t\ttitle: 'DiscountOffer',
+\t\tpath: '/docs/types/discount-offer',
+\t},
+    { metadata: { path: '/internal/subscription-offer-metadata' }, title: 'SubscriptionOffer', path: '/docs/types/subscription-offer' },
+];`;
+
+    expect(
+      auditCanonicalOfferDocs(
+        validOfferDocsSources({ searchData: reformattedSearchData })
+      )
+    ).toEqual([]);
+  });
 });
