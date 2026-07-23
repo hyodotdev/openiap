@@ -1,6 +1,7 @@
 import { internalMutation, internalQuery } from "../_generated/server";
 import { v } from "convex/values";
-import type { Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
+import type { QueryCtx } from "../_generated/server";
 import { assertProjectWritable } from "../projects/writable";
 
 // Retention window for `webhookEvents` and `webhookIdempotencyKeys`.
@@ -12,6 +13,41 @@ import { assertProjectWritable } from "../projects/writable";
 // reads naturally.
 export const WEBHOOK_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
+type WebhookDedupSource = "apple" | "google";
+type StoredWebhookSource =
+  | "AppleAppStoreServerNotificationsV2"
+  | "GooglePlayRealTimeDeveloperNotifications";
+type WebhookEventReader = Pick<QueryCtx["db"], "query">;
+
+interface WebhookEventDedupKey {
+  projectId: Id<"projects">;
+  source: StoredWebhookSource;
+  sourceNotificationId: string;
+}
+
+function storedSourceForDedupSource(
+  source: WebhookDedupSource,
+): StoredWebhookSource {
+  return source === "apple"
+    ? "AppleAppStoreServerNotificationsV2"
+    : "GooglePlayRealTimeDeveloperNotifications";
+}
+
+async function findWebhookEventByDedupKey(
+  db: WebhookEventReader,
+  key: WebhookEventDedupKey,
+): Promise<Doc<"webhookEvents"> | null> {
+  return await db
+    .query("webhookEvents")
+    .withIndex("by_project_and_source_and_notification_id", (q) =>
+      q
+        .eq("projectId", key.projectId)
+        .eq("source", key.source)
+        .eq("sourceNotificationId", key.sourceNotificationId),
+    )
+    .unique();
+}
+
 // Cheap pre-flight dedup probe used by webhooks/google.ts to avoid
 // burning Play Developer API quota on Pub/Sub retries. Returns the
 // existing eventId if the (projectId, source, sourceNotificationId)
@@ -21,10 +57,11 @@ export const WEBHOOK_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 // already-processed messageId can short-circuit before
 // `purchases.subscriptionsv2.get` ever fires.
 //
-// Note: this only checks the new project-keyed index. Legacy rows
-// (projectId == null) aren't checked here — they can still slip a
-// duplicate Play API call through, but the legacy fallback is rare
-// and `recordWebhookEvent` will still dedup the actual event row.
+// Phase 1 of issue #241 treats webhookEvents as the authoritative fast path
+// while retaining the project-keyed idempotency row as a rollback fallback.
+// Legacy rows (projectId == null) aren't checked here — they can still slip a
+// duplicate Play API call through, but `recordWebhookEvent` retains the legacy
+// fallback and will still dedup the actual event row.
 export const lookupExistingEvent = internalQuery({
   args: {
     projectId: v.id("projects"),
@@ -33,7 +70,14 @@ export const lookupExistingEvent = internalQuery({
   },
   returns: v.union(v.null(), v.id("webhookEvents")),
   handler: async (ctx, args) => {
-    const existing = await ctx.db
+    const existingEvent = await findWebhookEventByDedupKey(ctx.db, {
+      projectId: args.projectId,
+      source: storedSourceForDedupSource(args.source),
+      sourceNotificationId: args.sourceNotificationId,
+    });
+    if (existingEvent) return existingEvent._id;
+
+    const existingKey = await ctx.db
       .query("webhookIdempotencyKeys")
       .withIndex("by_project_and_source_and_id", (q) =>
         q
@@ -42,12 +86,12 @@ export const lookupExistingEvent = internalQuery({
           .eq("sourceNotificationId", args.sourceNotificationId),
       )
       .unique();
-    return existing?.eventId ?? null;
+    return existingKey?.eventId ?? null;
   },
 });
 
 // Insert a normalized webhook event with idempotency on
-// `(source, sourceNotificationId)`. Returns the existing event id
+// `(projectId, source, sourceNotificationId)`. Returns the existing event id
 // (and `deduped: true`) if Apple/Google retries the same notification.
 //
 // This is the only path that writes to `webhookEvents` /
@@ -134,15 +178,25 @@ export const recordWebhookEvent = internalMutation({
     // on transient 5xx, and Google Pub/Sub guarantees at-least-once
     // delivery — both are normal, both must result in HTTP 200 here.
     //
-    // DEFERRED(schema-cleanup): the `webhookIdempotencyKeys` table is
-    // arguably redundant with `webhookEvents.by_project_and_notification_id`
-    // — that index already enforces uniqueness on
-    // `(projectId, sourceNotificationId)`. We could fold the dedup
-    // check into a direct lookup against webhookEvents and drop
-    // this table entirely, halving the per-webhook write
-    // amplification. Deferred to a separate PR because removing
-    // the table requires a migration step + careful coordination
-    // with the existing prune cron.
+    // Issue #241 phase 1: read the source-aware webhookEvents index first,
+    // but keep the idempotency-key fallback and writes below. That makes the
+    // event table the exercised dedup path before phase 2 stops writing keys,
+    // while preserving rollback compatibility and the legacy-row drain.
+    const storedSource = storedSourceForDedupSource(args.source);
+    if (args.event.sourceFull !== storedSource) {
+      throw new Error(
+        `Webhook source mismatch: ${args.source} cannot store ${args.event.sourceFull}`,
+      );
+    }
+    const existingEvent = await findWebhookEventByDedupKey(ctx.db, {
+      projectId: args.projectId,
+      source: storedSource,
+      sourceNotificationId: args.sourceNotificationId,
+    });
+    if (existingEvent) {
+      return { eventId: existingEvent._id, deduped: true };
+    }
+
     // Scope dedup by projectId because Google Pub/Sub's messageId is
     // only guaranteed unique *within a topic* — different kit
     // projects can receive notifications with the same messageId
@@ -231,7 +285,7 @@ export const recordWebhookEvent = internalMutation({
     const eventId: Id<"webhookEvents"> = await ctx.db.insert("webhookEvents", {
       projectId: args.projectId,
       type: args.event.type,
-      source: args.event.sourceFull,
+      source: storedSource,
       platform: args.event.platform,
       environment: args.event.environment,
       purchaseToken: args.event.purchaseToken,

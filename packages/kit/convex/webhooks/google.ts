@@ -146,9 +146,10 @@ export const ingestGoogleRtdn = action({
       });
     }
 
-    // Pre-flight idempotency probe: if this messageId is already in
-    // `webhookIdempotencyKeys`, this is a Pub/Sub redelivery for an
-    // event we already processed. Short-circuit BEFORE
+    // Pre-flight idempotency probe: if this messageId already resolves through
+    // the source-aware webhookEvents index (or the phase-1 idempotency-key
+    // fallback), this is a Pub/Sub redelivery for an event we already
+    // processed. Short-circuit BEFORE
     // maybeFetchSubscriptionInfo so retries don't burn Play Developer
     // API quota on every redelivery — kit's webhook receiver becomes a
     // multiplier of Play API calls otherwise (one Pub/Sub retry per
