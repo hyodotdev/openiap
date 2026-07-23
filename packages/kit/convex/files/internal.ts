@@ -7,7 +7,10 @@ import type { Doc, Id } from "../_generated/dataModel";
 import { v } from "convex/values";
 import { ConvexError } from "convex/values";
 import { internal } from "../_generated/api";
-import { deleteFileAndStorageIfUnreferenced } from "./storage";
+import {
+  deleteFileAndStorageIfUnreferenced,
+  deleteStorageIfUnreferenced,
+} from "./storage";
 
 export const UPLOAD_RESERVATION_PRUNE_BATCH_SIZE = 200;
 
@@ -23,6 +26,17 @@ export const getFileRecord = internalQuery({
   handler: async (ctx, args) => {
     return await ctx.db.get(args.fileId);
   },
+});
+
+export const getUploadReservationForScreenshotValidation = internalQuery({
+  args: {
+    uploadReservationId: v.id("fileUploadReservations"),
+    storageId: v.id("_storage"),
+  },
+  handler: async (ctx, args) => ({
+    reservation: await ctx.db.get(args.uploadReservationId),
+    storage: await ctx.db.system.get("_storage", args.storageId),
+  }),
 });
 
 // Internal mutation to update file access tracking
@@ -214,6 +228,9 @@ export const readFileAsBase64 = internalAction({
     return {
       fileId: file._id,
       fileName: file.fileName,
+      fileType: file.fileType,
+      fileSize: file.fileSize,
+      purpose: file.purpose,
       content: base64,
       metadata: file.metadata,
     };
@@ -237,6 +254,7 @@ export const findFilesByPurpose = internalQuery({
       v.literal("apple_p8_key"),
       v.literal("apple_p8_asc_api_key"),
       v.literal("android_service_account"),
+      v.literal("apple_iap_review_screenshot"),
     ),
   },
   handler: async (ctx, args): Promise<FilePublicProjection[]> => {
@@ -262,6 +280,36 @@ export const findFilesByPurpose = internalQuery({
       createdAt: file.createdAt,
       updatedAt: file.updatedAt,
     }));
+  },
+});
+
+// Exact-project lookup for the private App Review screenshot. The temporary
+// storage URL is returned only from this internal query so the Node ASC worker
+// can stream/fetch the blob directly instead of expanding a 10 MB image into a
+// binary string plus base64 inside the smaller V8 isolate. It is never exposed
+// by a public query or action.
+export const getAppleReviewScreenshotByProjectInternal = internalQuery({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, args) => {
+    const file = await ctx.db
+      .query("files")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .order("desc")
+      .filter((q) => q.eq(q.field("purpose"), "apple_iap_review_screenshot"))
+      .first();
+    if (!file) return null;
+    const storageUrl = await ctx.storage.getUrl(file.storageId);
+    if (!storageUrl) {
+      throw new ConvexError("App Review screenshot content not found");
+    }
+    return {
+      fileId: file._id,
+      fileName: file.fileName,
+      fileType: file.fileType,
+      fileSize: file.fileSize,
+      createdAt: file.createdAt,
+      storageUrl,
+    };
   },
 });
 
@@ -397,11 +445,14 @@ export const cleanupOldFiles = internalMutation({
 
     let deletedCount = 0;
     for (const file of files) {
-      // Don't delete internal files or keys (both Apple .p8 kinds).
+      // Don't delete internal files, keys (both Apple .p8 kinds), or review
+      // screenshots. The purpose guard protects legacy/malformed screenshot
+      // rows even if isInternal was false.
       if (
         file.isInternal ||
         file.purpose === "apple_p8_key" ||
-        file.purpose === "apple_p8_asc_api_key"
+        file.purpose === "apple_p8_asc_api_key" ||
+        file.purpose === "apple_iap_review_screenshot"
       ) {
         continue;
       }
@@ -426,11 +477,10 @@ export const cleanupOldFiles = internalMutation({
   },
 });
 
-// Expired upload reservations carry no storageId: the storage service assigns
-// it only after the client POSTs to the signed URL. A client that completes the
-// POST immediately presents the reservation to `saveFile`, which consumes it
-// while saving or safely reclaiming the blob. This bounded sweep removes only
-// unused/expired capabilities so the temporary table cannot grow forever.
+// Most expired upload reservations carry no storageId because the storage
+// service assigns it only after the client POSTs to the signed URL. Screenshot
+// validation deliberately claims that id before its Node action downloads the
+// blob, so the bounded sweep must also reclaim a claimed-but-unsaved object.
 export const pruneUploadReservations = internalMutation({
   args: {
     batchSize: v.optional(v.number()),
@@ -452,6 +502,12 @@ export const pruneUploadReservations = internalMutation({
       .take(batchSize);
 
     for (const reservation of expired) {
+      const screenshotStorageId =
+        reservation.pendingAppleReviewScreenshotStorageId ??
+        reservation.validatedAppleReviewScreenshot?.storageId;
+      if (screenshotStorageId) {
+        await deleteStorageIfUnreferenced(ctx, screenshotStorageId);
+      }
       await ctx.db.delete(reservation._id);
     }
 

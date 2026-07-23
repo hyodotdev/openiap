@@ -27,10 +27,101 @@ const iosBundlePattern = /^[A-Za-z][A-Za-z0-9-]*(\.[A-Za-z0-9-]+)+$/;
 const appStoreIssuerPattern =
   /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i;
 const appStoreKeyPattern = /^[A-Z0-9]{10}$/;
+const APPLE_REVIEW_SCREENSHOT_MAX_BYTES = 10 * 1024 * 1024;
+const APPLE_REVIEW_SCREENSHOT_TYPES = new Set(["image/jpeg", "image/png"]);
+
+async function validateAppleReviewScreenshotFile(file: File): Promise<void> {
+  const fileName = file.name.toLowerCase();
+  const isPngName = fileName.endsWith(".png");
+  const isJpegName = fileName.endsWith(".jpg") || fileName.endsWith(".jpeg");
+  if (
+    (!isPngName && !isJpegName) ||
+    !APPLE_REVIEW_SCREENSHOT_TYPES.has(file.type) ||
+    (isPngName && file.type !== "image/png") ||
+    (isJpegName && file.type !== "image/jpeg")
+  ) {
+    throw new Error("Upload a PNG or JPEG whose extension matches its format.");
+  }
+  if (file.size > APPLE_REVIEW_SCREENSHOT_MAX_BYTES) {
+    throw new Error("App Review screenshots must be 10 MB or smaller.");
+  }
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const isPng =
+    bytes.byteLength >= 26 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47 &&
+    bytes[4] === 0x0d &&
+    bytes[5] === 0x0a &&
+    bytes[6] === 0x1a &&
+    bytes[7] === 0x0a &&
+    String.fromCharCode(...bytes.subarray(12, 16)) === "IHDR";
+  const isJpeg =
+    bytes.byteLength >= 4 &&
+    bytes[0] === 0xff &&
+    bytes[1] === 0xd8 &&
+    bytes[bytes.byteLength - 2] === 0xff &&
+    bytes[bytes.byteLength - 1] === 0xd9;
+  if ((!isPngName || !isPng) && (!isJpegName || !isJpeg)) {
+    throw new Error("The selected file is not a valid PNG or JPEG image.");
+  }
+  if (isPng && (bytes[25] === 4 || bytes[25] === 6)) {
+    throw new Error(
+      "App Review PNG screenshots must be flattened (no alpha channel).",
+    );
+  }
+  if (isPng && pngContainsTransparencyChunk(bytes)) {
+    throw new Error(
+      "App Review PNG screenshots must be flattened (no transparency metadata).",
+    );
+  }
+
+  // Decode in browsers that expose ImageBitmap so corrupt image structures
+  // fail before the private blob is stored. ASC remains authoritative for the
+  // app-specific supported screenshot dimensions during asset processing.
+  if (typeof createImageBitmap === "function") {
+    let bitmap: ImageBitmap;
+    try {
+      bitmap = await createImageBitmap(file);
+    } catch {
+      throw new Error("The selected PNG or JPEG image could not be decoded.");
+    }
+    const validDimensions = bitmap.width > 0 && bitmap.height > 0;
+    bitmap.close();
+    if (!validDimensions) {
+      throw new Error("The selected image has invalid dimensions.");
+    }
+  }
+}
+
+function pngContainsTransparencyChunk(bytes: Uint8Array): boolean {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let offset = 8;
+  while (offset + 12 <= bytes.byteLength) {
+    const length = view.getUint32(offset, false);
+    const typeOffset = offset + 4;
+    if (
+      bytes[typeOffset] === 0x74 &&
+      bytes[typeOffset + 1] === 0x52 &&
+      bytes[typeOffset + 2] === 0x4e &&
+      bytes[typeOffset + 3] === 0x53
+    ) {
+      return true;
+    }
+    const nextOffset = offset + 12 + length;
+    if (nextOffset <= offset || nextOffset > bytes.byteLength) return false;
+    offset = nextOffset;
+  }
+  return false;
+}
 const FILE_SAVE_TARGET_PENDING_MESSAGE =
   "The file was not saved because this project or organization is pending deletion.";
 const FILE_SAVE_AUTHORIZATION_LOST_MESSAGE =
   "The file was not saved because your access changed during the upload. Please sign in and try again.";
+const FILE_SAVE_INSUFFICIENT_PERMISSIONS_MESSAGE =
+  "Only an organization admin or owner can configure the App Review screenshot.";
 const FILE_SAVE_RESERVATION_EXPIRED_MESSAGE =
   "The upload took too long to finish. Please select the file and try again.";
 const FILE_SAVE_ALREADY_REGISTERED_MESSAGE =
@@ -43,6 +134,7 @@ const FILE_SAVE_FAILED_MESSAGE =
 function ensureFileSaveSucceeded(result: {
   success: boolean;
   code?: string;
+  message?: string;
 }): void {
   if (result.success) return;
 
@@ -51,12 +143,16 @@ function ensureFileSaveSucceeded(result: {
       throw new Error(FILE_SAVE_TARGET_PENDING_MESSAGE);
     case "AUTHORIZATION_LOST":
       throw new Error(FILE_SAVE_AUTHORIZATION_LOST_MESSAGE);
+    case "INSUFFICIENT_PERMISSIONS":
+      throw new Error(FILE_SAVE_INSUFFICIENT_PERMISSIONS_MESSAGE);
     case "UPLOAD_RESERVATION_EXPIRED":
       throw new Error(FILE_SAVE_RESERVATION_EXPIRED_MESSAGE);
     case "UPLOAD_ALREADY_REGISTERED":
       throw new Error(FILE_SAVE_ALREADY_REGISTERED_MESSAGE);
     case "UPLOAD_NOT_FOUND":
       throw new Error(FILE_SAVE_NOT_FOUND_MESSAGE);
+    case "INVALID_FILE":
+      throw new Error(result.message || FILE_SAVE_FAILED_MESSAGE);
     default:
       throw new Error(FILE_SAVE_FAILED_MESSAGE);
   }
@@ -101,6 +197,8 @@ export default function ProjectSettings() {
   const [androidFileUploaded, setAndroidFileUploaded] = useState(false);
   const [uploadingIos, setUploadingIos] = useState(false);
   const [uploadingIosAsc, setUploadingIosAsc] = useState(false);
+  const [uploadingIosReviewScreenshot, setUploadingIosReviewScreenshot] =
+    useState(false);
   const [uploadingAndroid, setUploadingAndroid] = useState(false);
   const [showIosGuide, setShowIosGuide] = useState(false);
   const [showAndroidGuide, setShowAndroidGuide] = useState(false);
@@ -166,6 +264,9 @@ export default function ProjectSettings() {
   const saveFile = useMutation(api.files.mutation.saveFile);
   const removeFile = useMutation(api.files.mutation.remove);
   const downloadFile = useAction(api.files.action.downloadFile);
+  const validateAppleReviewScreenshotUpload = useAction(
+    api.files.action.validateAppleReviewScreenshotUpload,
+  );
 
   // Download a previously-uploaded credential file. Useful when an
   // admin needs the original .p8 / service-account JSON back —
@@ -276,6 +377,11 @@ export default function ProjectSettings() {
       file.purpose === "apple_p8_asc_api_key" &&
       file.projectId === project?._id,
   );
+  const iosReviewScreenshot = files?.find(
+    (file) =>
+      file.purpose === "apple_iap_review_screenshot" &&
+      file.projectId === project?._id,
+  );
   const androidFile = files?.find(
     (file) =>
       file.purpose === "android_service_account" &&
@@ -284,6 +390,7 @@ export default function ProjectSettings() {
 
   const hasIosFile = !!iosFile;
   const hasIosAscFile = !!iosAscFile;
+  const hasIosReviewScreenshot = !!iosReviewScreenshot;
   const hasAndroidFile = !!androidFile;
 
   const iosBundleLocked = Boolean(originalIosBundleId);
@@ -298,7 +405,9 @@ export default function ProjectSettings() {
     (project?.iosAppAppleId !== undefined && project?.iosAppAppleId !== null) ||
     Boolean(project?.iosAppStoreIssuerId?.trim()) ||
     Boolean(project?.iosAppStoreKeyId?.trim()) ||
-    isIosP8Provided;
+    isIosP8Provided ||
+    hasIosAscFile ||
+    hasIosReviewScreenshot;
   const derivedAndroidSupport =
     Boolean(project?.androidPackageName?.trim()) ||
     hasAndroidFile ||
@@ -719,6 +828,77 @@ export default function ProjectSettings() {
     } catch (error: any) {
       console.error("iOS ASC file delete error:", error);
       toast.error(error.message || "Failed to delete App Store Connect key");
+    }
+  };
+
+  const handleIosReviewScreenshotUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      await validateAppleReviewScreenshotFile(file);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+      event.target.value = "";
+      return;
+    }
+
+    setUploadingIosReviewScreenshot(true);
+    try {
+      const { uploadUrl, uploadReservationId } = await generateUploadUrl({
+        organizationId: project.organizationId,
+        projectId: project._id,
+      });
+      const result = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      if (!result.ok) throw new Error("Upload failed");
+      const { storageId } = await result.json();
+      await validateAppleReviewScreenshotUpload({
+        organizationId: project.organizationId,
+        projectId: project._id,
+        uploadReservationId,
+        storageId,
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+      });
+      const savedFile = await saveFile({
+        organizationId: project.organizationId,
+        projectId: project._id,
+        uploadReservationId,
+        storageId,
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+        purpose: "apple_iap_review_screenshot",
+        description: `App Review screenshot for ${project.name}`,
+        isInternal: true,
+      });
+      ensureFileSaveSucceeded(savedFile);
+
+      toast.success("App Review screenshot uploaded successfully");
+    } catch (error: any) {
+      console.error("iOS App Review screenshot upload error:", error);
+      toast.error(error.message || "Failed to upload App Review screenshot");
+    } finally {
+      setUploadingIosReviewScreenshot(false);
+      event.target.value = "";
+    }
+  };
+
+  const handleIosReviewScreenshotDelete = async () => {
+    if (!iosReviewScreenshot?._id) return;
+    try {
+      await removeFile({ fileId: iosReviewScreenshot._id });
+      toast.success("Stored App Review screenshot removed from IAPKit");
+    } catch (error: any) {
+      console.error("iOS App Review screenshot delete error:", error);
+      toast.error(error.message || "Failed to delete App Review screenshot");
     }
   };
 
@@ -1544,6 +1724,97 @@ export default function ProjectSettings() {
                         </div>
                       </div>
                     )}
+                  </div>
+
+                  <div className="pt-4 border-t border-border/60">
+                    <label className="block text-sm font-medium mb-2">
+                      {"App Review screenshot"}
+                    </label>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      {
+                        "Upload one flattened PNG (no alpha) or JPEG (up to 10 MB) whose dimensions match a screenshot size your app supports. IAPKit reuses this project-level image for each eligible iOS in-app purchase and subscription during Push Sync; Apple validates the app-specific dimensions while processing the asset. Apple still requires first-of-type products to be submitted with an app version; those rows are reported as manual follow-up instead of a failed sync."
+                      }
+                    </p>
+
+                    {hasIosReviewScreenshot ? (
+                      <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <CheckCircle className="w-5 h-5 flex-shrink-0 text-green-600 dark:text-green-500" />
+                          <div className="min-w-0">
+                            <span className="text-sm text-green-700 dark:text-green-400">
+                              {"App Review screenshot configured"}
+                            </span>
+                            {iosReviewScreenshot && (
+                              <p className="text-sm text-green-600 dark:text-green-500 mt-1 truncate">
+                                {iosReviewScreenshot.fileName} •{" "}
+                                {(
+                                  iosReviewScreenshot.fileSize /
+                                  (1024 * 1024)
+                                ).toFixed(2)}{" "}
+                                MB
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {iosReviewScreenshot && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void handleFileDownload(
+                                  iosReviewScreenshot._id,
+                                  "App Review screenshot",
+                                )
+                              }
+                              className="p-2 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                              title={"Download screenshot"}
+                              aria-label={"Download App Review screenshot"}
+                            >
+                              <Download className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void handleIosReviewScreenshotDelete()
+                            }
+                            className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors"
+                            title={"Remove stored screenshot from IAPKit"}
+                            aria-label={"Remove stored App Review screenshot"}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,.png,.jpg,.jpeg"
+                      onChange={(event) =>
+                        void handleIosReviewScreenshotUpload(event)
+                      }
+                      className="sr-only"
+                      id="ios-review-screenshot-upload"
+                      disabled={uploadingIosReviewScreenshot}
+                    />
+                    <label
+                      htmlFor="ios-review-screenshot-upload"
+                      aria-disabled={uploadingIosReviewScreenshot}
+                      className={`mt-3 flex items-center justify-center gap-2 w-full p-4 border-2 border-dashed rounded-lg transition-colors cursor-pointer ${
+                        uploadingIosReviewScreenshot
+                          ? "border-muted bg-muted/20 cursor-not-allowed"
+                          : "border-border hover:border-primary hover:bg-primary/5"
+                      }`}
+                    >
+                      <Upload className="w-5 h-5" />
+                      <span className="text-sm font-medium">
+                        {uploadingIosReviewScreenshot
+                          ? "Uploading..."
+                          : hasIosReviewScreenshot
+                            ? "Replace stored screenshot"
+                            : "Click to upload PNG or JPEG"}
+                      </span>
+                    </label>
                   </div>
                 </div>
               </div>

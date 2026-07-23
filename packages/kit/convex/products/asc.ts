@@ -7,18 +7,57 @@ import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { getProjectByApiKey } from "../purchases/shared";
 import { mapWithConcurrency } from "../utils/concurrency";
+import { validateAppleReviewScreenshotContent } from "../files/validation";
 import { mintAscJwt } from "./jwt";
 import { coerceBillingPeriod } from "./sync";
+import {
+  isProductSyncDeadlineReached,
+  truncateManualActions,
+  truncatePlannedWrites,
+} from "./syncResult";
+import {
+  ascReviewLocalizationMatches,
+  ASC_REVIEW_SUBMISSION_ITEM_LIMIT,
+  ASC_REVIEW_SYNC_BATCH_LIMIT,
+  ensureAscReviewVersion,
+  getAscReviewEligibilityActions,
+  isAscApprovedReviewHistoryState,
+  inspectAscReviewVersion,
+  planAscReviewVersion,
+  partitionAscReviewSubmissionItems,
+  submitAscReviewVersions,
+  uploadAscReviewScreenshot,
+  upsertAscReviewLocalization,
+  type AscJsonRequest,
+  type AscReviewEligibilitySnapshot,
+  type AscManualReviewAction,
+  type AscReviewScreenshot,
+  type AscReviewSubmissionOutcome,
+  type AscReviewVersionItem,
+} from "./ascReview";
 
-// Cancel-check at phase boundaries. The worker reads
-// `cancelRequested` between PULL.iaps → PULL.subgroups → PUSH.drafts.
-// Granularity is per-phase, not per-product, but that's enough to
-// stop a runaway sync within seconds on most paths.
+// Shared cancellation/deadline signal. The worker checks at phase and chunk
+// boundaries, AscClient checks before every API request, and the review helper
+// checks between upload operations and asset-delivery polls.
 class ProductSyncCancelledError extends Error {
   constructor() {
     super("Sync cancelled by operator");
     this.name = "ProductSyncCancelledError";
   }
+}
+
+class ProductSyncDeadlineError extends Error {
+  constructor() {
+    super("Product sync reached its runtime deadline; retry to continue");
+    this.name = "ProductSyncDeadlineError";
+  }
+}
+
+function isProductSyncAbortError(error: unknown): boolean {
+  return (
+    error instanceof ProductSyncCancelledError ||
+    error instanceof ProductSyncDeadlineError
+  );
 }
 
 // Resolve App Store Connect API credentials (issuer ID + key ID + .p8
@@ -242,6 +281,7 @@ class AscClient {
     private readonly issuerId: string | undefined,
     private readonly keyId: string,
     private readonly privateKey: string,
+    private readonly beforeRequest: () => Promise<void> = async () => undefined,
   ) {}
 
   private async token(): Promise<string> {
@@ -262,7 +302,9 @@ class AscClient {
   private async call<T>(
     path: string,
     init: RequestInit & { body?: string } = {},
+    skipBoundaryCheck = false,
   ): Promise<T> {
+    if (!skipBoundaryCheck) await this.beforeRequest();
     // Per-request timeout. ASC's REST surface is generally responsive
     // (<1s for reads, 1-3s for writes), so 30s is a generous bound
     // that catches a hung upstream long before the surrounding
@@ -328,6 +370,23 @@ class AscClient {
     return parsed as T;
   }
 
+  // Version-based App Review helpers live in ascReview.ts so their binary
+  // upload and submission workflow can be tested with a mocked transport.
+  // Keep the authenticated JSON transport here as the single JWT boundary.
+  request<T>(path: string, init?: RequestInit & { body?: string }): Promise<T> {
+    return this.call<T>(path, init);
+  }
+
+  // Cleanup must still be able to cancel an IAPKit-owned remote draft after
+  // the normal request guard detects operator cancellation or the job safety
+  // deadline. Callers expose this transport only to bounded cleanup paths.
+  requestForCleanup<T>(
+    path: string,
+    init?: RequestInit & { body?: string },
+  ): Promise<T> {
+    return this.call<T>(path, init, true);
+  }
+
   // ASC list endpoints cap at 200 items per page. For accounts with
   // larger catalogs we have to follow `links.next` until absent or
   // pages > 200 (= 40k items, more than ASC actually allows per app
@@ -337,6 +396,20 @@ class AscClient {
   async listInAppPurchases(appId: string): Promise<AscIapListResponse> {
     return this.collectAllPages<AscIapResource["data"]>(
       `/v1/apps/${encodeURIComponent(appId)}/inAppPurchasesV2?limit=200`,
+    );
+  }
+
+  getInAppPurchase(id: string): Promise<AscIapResource> {
+    return this.call<AscIapResource>(
+      `/v2/inAppPurchases/${encodeURIComponent(id)}`,
+    );
+  }
+
+  listInAppPurchaseVersions(
+    id: string,
+  ): Promise<AscReviewVersionHistoryListResponse> {
+    return this.call<AscReviewVersionHistoryListResponse>(
+      `/v2/inAppPurchases/${encodeURIComponent(id)}/versions?limit=200`,
     );
   }
 
@@ -351,6 +424,22 @@ class AscClient {
   async listSubscriptionsInGroup(groupId: string): Promise<AscSubListResponse> {
     return this.collectAllPages<AscSubResource["data"]>(
       `/v1/subscriptionGroups/${encodeURIComponent(groupId)}/subscriptions?limit=200`,
+    );
+  }
+
+  async listSubscriptionGroupVersions(
+    groupId: string,
+  ): Promise<AscSubGroupVersionListResponse> {
+    return this.collectAllPages<AscSubGroupVersionListResponse["data"][number]>(
+      `/v1/subscriptionGroups/${encodeURIComponent(groupId)}/versions?limit=200`,
+    );
+  }
+
+  listSubscriptionVersions(
+    id: string,
+  ): Promise<AscReviewVersionHistoryListResponse> {
+    return this.call<AscReviewVersionHistoryListResponse>(
+      `/v1/subscriptions/${encodeURIComponent(id)}/versions?limit=200`,
     );
   }
 
@@ -401,6 +490,7 @@ class AscClient {
         `/v1/subscriptions/${encodeURIComponent(subId)}/introductoryOffers?filter[territory]=USA&include=subscriptionPricePoint&limit=10`,
       );
     } catch (error) {
+      if (isProductSyncAbortError(error)) throw error;
       return error instanceof Error ? error : new Error(String(error));
     }
   }
@@ -453,6 +543,7 @@ class AscClient {
       }
       return manual;
     } catch (error) {
+      if (isProductSyncAbortError(error)) throw error;
       return error instanceof Error ? error : new Error(String(error));
     }
   }
@@ -464,6 +555,7 @@ class AscClient {
         `/v1/subscriptions/${encodeURIComponent(subId)}/prices?filter[territory]=USA&include=subscriptionPricePoint`,
       );
     } catch (error) {
+      if (isProductSyncAbortError(error)) throw error;
       return error instanceof Error ? error : new Error(String(error));
     }
   }
@@ -599,133 +691,6 @@ class AscClient {
         },
       }),
     });
-  }
-
-  // Attach an English (US) localization so reviewers and the
-  // dashboard see something other than the bare productId. Apple
-  // requires at least one locale before the IAP can be submitted; we
-  // always create en-US so first-submission isn't blocked.
-  createIapLocalization(args: {
-    iapId: string;
-    name: string;
-    description: string;
-    locale?: string;
-  }) {
-    return this.call<{ data: { id: string } }>(
-      `/v1/inAppPurchaseLocalizations`,
-      {
-        method: "POST",
-        body: JSON.stringify({
-          data: {
-            type: "inAppPurchaseLocalizations",
-            attributes: {
-              name: args.name,
-              description: args.description,
-              locale: args.locale ?? "en-US",
-            },
-            relationships: {
-              inAppPurchaseV2: {
-                data: { type: "inAppPurchases", id: args.iapId },
-              },
-            },
-          },
-        }),
-      },
-    );
-  }
-  async upsertIapLocalization(args: {
-    iapId: string;
-    name: string;
-    description: string;
-    locale?: string;
-  }) {
-    const locale = args.locale ?? "en-US";
-    const existing = await this.call<AscLocalizationListResponse>(
-      `/v2/inAppPurchases/${encodeURIComponent(args.iapId)}/inAppPurchaseLocalizations?limit=200`,
-    );
-    const match = existing.data.find(
-      (item) => item.attributes.locale === locale,
-    );
-    if (!match) {
-      return await this.createIapLocalization(args);
-    }
-    return this.call<{ data: { id: string } }>(
-      `/v1/inAppPurchaseLocalizations/${encodeURIComponent(match.id)}`,
-      {
-        method: "PATCH",
-        body: JSON.stringify({
-          data: {
-            type: "inAppPurchaseLocalizations",
-            id: match.id,
-            attributes: {
-              name: args.name,
-              description: args.description,
-            },
-          },
-        }),
-      },
-    );
-  }
-  createSubLocalization(args: {
-    subId: string;
-    name: string;
-    description: string;
-    locale?: string;
-  }) {
-    return this.call<{ data: { id: string } }>(
-      `/v1/subscriptionLocalizations`,
-      {
-        method: "POST",
-        body: JSON.stringify({
-          data: {
-            type: "subscriptionLocalizations",
-            attributes: {
-              name: args.name,
-              description: args.description,
-              locale: args.locale ?? "en-US",
-            },
-            relationships: {
-              subscription: {
-                data: { type: "subscriptions", id: args.subId },
-              },
-            },
-          },
-        }),
-      },
-    );
-  }
-  async upsertSubLocalization(args: {
-    subId: string;
-    name: string;
-    description: string;
-    locale?: string;
-  }) {
-    const locale = args.locale ?? "en-US";
-    const existing = await this.call<AscLocalizationListResponse>(
-      `/v1/subscriptions/${encodeURIComponent(args.subId)}/subscriptionLocalizations?limit=200`,
-    );
-    const match = existing.data.find(
-      (item) => item.attributes.locale === locale,
-    );
-    if (!match) {
-      return await this.createSubLocalization(args);
-    }
-    return this.call<{ data: { id: string } }>(
-      `/v1/subscriptionLocalizations/${encodeURIComponent(match.id)}`,
-      {
-        method: "PATCH",
-        body: JSON.stringify({
-          data: {
-            type: "subscriptionLocalizations",
-            id: match.id,
-            attributes: {
-              name: args.name,
-              description: args.description,
-            },
-          },
-        }),
-      },
-    );
   }
 
   // Look up an existing subscription group by referenceName, or
@@ -899,15 +864,6 @@ type AscSubListResponse = {
   data: AscSubResource["data"][];
 };
 
-type AscLocalizationListResponse = {
-  data: Array<{
-    id: string;
-    attributes: {
-      locale?: string;
-    };
-  }>;
-};
-
 type AscSubGroupListResponse = {
   data: Array<{
     id: string;
@@ -915,6 +871,222 @@ type AscSubGroupListResponse = {
     attributes: { referenceName?: string };
   }>;
 };
+
+type AscSubGroupVersionListResponse = {
+  data: Array<{
+    id: string;
+    type: "subscriptionGroupVersions";
+    attributes?: { state?: string; version?: string };
+  }>;
+};
+
+type AscReviewVersionHistoryListResponse = {
+  data: Array<{
+    id: string;
+    attributes?: { state?: string; version?: string };
+  }>;
+};
+
+interface AscReviewEligibilityClient {
+  listInAppPurchases(appId: string): Promise<AscIapListResponse>;
+  listInAppPurchaseVersions(
+    id: string,
+  ): Promise<AscReviewVersionHistoryListResponse>;
+  listSubscriptionGroups(appId: string): Promise<AscSubGroupListResponse>;
+  listSubscriptionsInGroup(groupId: string): Promise<AscSubListResponse>;
+  listSubscriptionGroupVersions(
+    groupId: string,
+  ): Promise<AscSubGroupVersionListResponse>;
+  listSubscriptionVersions(
+    id: string,
+  ): Promise<AscReviewVersionHistoryListResponse>;
+}
+
+async function someWithConcurrency<T>(
+  values: readonly T[],
+  concurrency: number,
+  predicate: (value: T) => Promise<boolean>,
+): Promise<boolean> {
+  if (values.length === 0) return false;
+  let nextIndex = 0;
+  let found = false;
+  const workers = Array.from(
+    { length: Math.min(Math.max(1, concurrency), values.length) },
+    async () => {
+      while (!found) {
+        const index = nextIndex;
+        nextIndex += 1;
+        if (index >= values.length) return;
+        if (await predicate(values[index])) {
+          found = true;
+          return;
+        }
+      }
+    },
+  );
+  await Promise.all(workers);
+  return found;
+}
+
+interface AscReviewEligibilityLoader {
+  resolveSubscriptionGroupId(referenceName: string): Promise<string | null>;
+  getActions(item: AscReviewVersionItem): Promise<AscManualReviewAction[]>;
+}
+
+// Resolve only the history needed by the current bounded candidate batch.
+// The previous eager scan fetched every version of every IAP, subscription,
+// and group before preparing even one row. Large catalogs could exhaust the
+// worker deadline and repeat the same scan forever. These promise caches make
+// type/group checks lazy, exact, shared by concurrent rows, and reusable by
+// later dry-run batches while stopping new history requests as soon as an
+// approved predecessor is found.
+export function createAscReviewEligibilityLoader(args: {
+  client: AscReviewEligibilityClient;
+  appId: string;
+  checkCancelled: () => Promise<void>;
+}): AscReviewEligibilityLoader {
+  const { client, appId, checkCancelled } = args;
+  let iapsPromise: Promise<AscIapListResponse> | null = null;
+  let groupsPromise: Promise<AscSubGroupListResponse> | null = null;
+  const subscriptionLists = new Map<string, Promise<AscSubListResponse>>();
+  const subscriptionApprovals = new Map<string, Promise<boolean>>();
+  const groupApprovals = new Map<string, Promise<boolean>>();
+  const productTypeApprovals = new Map<
+    AscReviewVersionItem["productType"],
+    Promise<boolean>
+  >();
+
+  const listIaps = () => {
+    iapsPromise ??= client.listInAppPurchases(appId);
+    return iapsPromise;
+  };
+  const listGroups = () => {
+    groupsPromise ??= client.listSubscriptionGroups(appId);
+    return groupsPromise;
+  };
+  const listSubscriptions = (groupId: string) => {
+    let pending = subscriptionLists.get(groupId);
+    if (!pending) {
+      pending = client.listSubscriptionsInGroup(groupId);
+      subscriptionLists.set(groupId, pending);
+    }
+    return pending;
+  };
+  const hasApprovedSubscription = (subscription: AscSubResource["data"]) => {
+    let pending = subscriptionApprovals.get(subscription.id);
+    if (!pending) {
+      pending = (async () => {
+        await checkCancelled();
+        if (isAscApprovedReviewHistoryState(subscription.attributes.state)) {
+          return true;
+        }
+        const versions = await client.listSubscriptionVersions(subscription.id);
+        return versions.data.some((version) =>
+          isAscApprovedReviewHistoryState(version.attributes?.state),
+        );
+      })();
+      subscriptionApprovals.set(subscription.id, pending);
+    }
+    return pending;
+  };
+  const groupHasApprovedSubscription = async (groupId: string) => {
+    await checkCancelled();
+    const subscriptions = await listSubscriptions(groupId);
+    return someWithConcurrency(subscriptions.data, 3, hasApprovedSubscription);
+  };
+  const hasApprovedGroup = (groupId: string) => {
+    let pending = groupApprovals.get(groupId);
+    if (!pending) {
+      pending = (async () => {
+        await checkCancelled();
+        const groups = await listGroups();
+        if (!groups.data.some((group) => group.id === groupId)) return false;
+        const [hasApprovedSubscription, versions] = await Promise.all([
+          groupHasApprovedSubscription(groupId),
+          client.listSubscriptionGroupVersions(groupId),
+        ]);
+        return (
+          hasApprovedSubscription ||
+          versions.data.some((version) =>
+            isAscApprovedReviewHistoryState(version.attributes?.state),
+          )
+        );
+      })();
+      groupApprovals.set(groupId, pending);
+    }
+    return pending;
+  };
+  const hasApprovedProductType = (
+    productType: AscReviewVersionItem["productType"],
+  ) => {
+    let pending = productTypeApprovals.get(productType);
+    if (!pending) {
+      pending = (async () => {
+        await checkCancelled();
+        if (productType === "Subscription") {
+          const groups = await listGroups();
+          return someWithConcurrency(groups.data, 2, (group) =>
+            groupHasApprovedSubscription(group.id),
+          );
+        }
+        const iaps = await listIaps();
+        const candidates = iaps.data.filter((iap) => {
+          const mapped = mapAscReviewProductType(
+            iap.attributes.inAppPurchaseType,
+            mapAscIapType(iap.attributes.inAppPurchaseType),
+          );
+          return mapped === productType;
+        });
+        if (
+          candidates.some((iap) =>
+            isAscApprovedReviewHistoryState(iap.attributes.state),
+          )
+        ) {
+          return true;
+        }
+        return someWithConcurrency(candidates, 3, async (iap) => {
+          await checkCancelled();
+          const versions = await client.listInAppPurchaseVersions(iap.id);
+          return versions.data.some((version) =>
+            isAscApprovedReviewHistoryState(version.attributes?.state),
+          );
+        });
+      })();
+      productTypeApprovals.set(productType, pending);
+    }
+    return pending;
+  };
+
+  return {
+    async resolveSubscriptionGroupId(referenceName) {
+      await checkCancelled();
+      const groups = await listGroups();
+      return (
+        groups.data.find(
+          (group) => group.attributes.referenceName === referenceName,
+        )?.id ?? null
+      );
+    },
+    async getActions(item) {
+      const [typeApproved, groupApproved] = await Promise.all([
+        hasApprovedProductType(item.productType),
+        item.productType === "Subscription" && item.subscriptionGroupId
+          ? hasApprovedGroup(item.subscriptionGroupId)
+          : Promise.resolve(false),
+      ]);
+      const snapshot: AscReviewEligibilitySnapshot = {
+        approvedProductTypes: typeApproved
+          ? new Set([item.productType])
+          : new Set(),
+        approvedSubscriptionGroupIds:
+          groupApproved && item.subscriptionGroupId
+            ? new Set([item.subscriptionGroupId])
+            : new Set(),
+      };
+      return getAscReviewEligibilityActions({ item, snapshot });
+    },
+  };
+}
 
 // Reference catalog response: every USA price point Apple publishes
 // for a given IAP / sub. Used at push-time to translate a USD amount
@@ -1132,12 +1304,10 @@ function extractAscError(parsed: unknown): string {
 // directly by the dashboard / HTTP / SDK paths so the long fetch
 // can never hold a browser connection open.
 //
-// Convex actions cap at ~10 minutes; we set the job's expected
-// deadline at 9 minutes and rely on `reapStaleProductSyncJobs` to
-// flip anything still running 1 minute past that to failed. Within
-// the action body we also poll `isCancelRequested` at phase
-// boundaries (PULL.iaps → PULL.subgroups → PUSH.drafts) so an
-// operator-initiated cancel takes effect within one phase.
+// Convex actions cap at ~10 minutes. The job deadline is 9 minutes, remote
+// work stops 45 seconds before it for cleanup + terminal persistence, and the
+// reaper remains a crash fallback. Cancellation/deadline checks run at phase,
+// chunk, request, upload-operation, and asset-poll boundaries.
 export const runProductSyncIOS = internalAction({
   args: { jobId: v.id("productSyncJobs") },
   handler: async (ctx, args): Promise<void> => {
@@ -1146,10 +1316,17 @@ export const runProductSyncIOS = internalAction({
     });
     if (!job) return;
     if (job.status !== "queued") return;
-    await ctx.runMutation(internal.products.jobs.markJobRunning, {
-      jobId: args.jobId,
-    });
+    const workerDeadline = await ctx.runMutation(
+      internal.products.jobs.markJobRunning,
+      {
+        jobId: args.jobId,
+      },
+    );
+    if (workerDeadline === null) return;
     const checkCancelled = async () => {
+      if (isProductSyncDeadlineReached(Date.now(), workerDeadline)) {
+        throw new ProductSyncDeadlineError();
+      }
       const cancelled = await ctx.runQuery(
         internal.products.jobs.isCancelRequested,
         { jobId: args.jobId },
@@ -1190,13 +1367,30 @@ export const runProductSyncIOS = internalAction({
         checkCancelled,
         reportPhase,
       });
+      // Bound before crossing the action→mutation boundary; the mutation also
+      // applies the cap defensively before persisting the job document.
+      const boundedManualActions = truncateManualActions(
+        result.manualActions ?? [],
+      );
+      const boundedPlannedWrites = truncatePlannedWrites(
+        result.plannedWrites ?? [],
+      );
       await ctx.runMutation(internal.products.jobs.markJobSucceeded, {
         jobId: args.jobId,
         pulled: result.pulled,
         pushed: result.pushed,
         deleted: result.deleted,
         failures: result.failures,
-        plannedWrites: result.plannedWrites,
+        plannedWrites:
+          boundedPlannedWrites.items.length > 0
+            ? boundedPlannedWrites.items
+            : undefined,
+        plannedWritesTruncated: boundedPlannedWrites.truncated || undefined,
+        manualActions:
+          boundedManualActions.items.length > 0
+            ? boundedManualActions.items
+            : undefined,
+        manualActionsTruncated: boundedManualActions.truncated || undefined,
       });
     } catch (error) {
       const cancelled = error instanceof ProductSyncCancelledError;
@@ -1241,6 +1435,28 @@ interface SyncResult {
   deleted?: number;
   failures: Array<{ productId: string; reason: string }>;
   plannedWrites?: Array<{ productId: string; step: string; detail?: string }>;
+  manualActions?: AscManualReviewAction[];
+}
+
+export function getAscReviewFinalizeDisposition(args: {
+  alreadySubmitted: boolean;
+  attachedToSubmission: boolean;
+  screenshotConfigured: boolean;
+}): "already-submitted" | "attached" | "ready" | "submit" {
+  if (args.alreadySubmitted) return "already-submitted";
+  if (args.attachedToSubmission) return "attached";
+  if (!args.screenshotConfigured) return "ready";
+  return "submit";
+}
+
+// Only a confirmed submission is terminal for the local row. Manual outcomes
+// must remain Draft even after their metadata/screenshot was prepared: the
+// worker still has to persist the in-memory operator instruction, and a crash
+// before that terminal mutation must let the next run surface it again.
+export function shouldMarkAscReviewSubmissionOutcomePushed(
+  outcome: AscReviewSubmissionOutcome,
+): boolean {
+  return outcome.status === "submitted";
 }
 
 async function performIosSync(
@@ -1282,10 +1498,11 @@ async function performIosSync(
     project,
     { detailedErrors: true },
   );
-  const client = new AscClient(issuerId, keyId, keyContent);
+  const client = new AscClient(issuerId, keyId, keyContent, checkCancelled);
 
   const direction = args.direction ?? "both";
   const failures: Array<{ productId: string; reason: string }> = [];
+  const manualActions: AscManualReviewAction[] = [];
   let pulled = 0;
   let pushed = 0;
   const dryRun = args.dryRun ?? false;
@@ -1297,12 +1514,26 @@ async function performIosSync(
 
   const appIdStr = String(project.iosAppAppleId);
   let deleted = 0;
-
+  const ascReviewProductTypeByStoreRef = new Map<
+    string,
+    AscReviewVersionItem["productType"]
+  >();
+  // Capture the screenshot identity before a direction="both" pull. Product
+  // rows persist the last handled file id, so pull-side timestamp changes do
+  // not affect deterministic Ready-row resumption.
+  const prePullScreenshotMetadata =
+    direction === "push" || direction === "both"
+      ? await ctx.runQuery(
+          internal.files.internal.getAppleReviewScreenshotByProjectInternal,
+          { projectId: project._id },
+        )
+      : null;
   // ── PULL: ASC → kit catalog ────────────────────────────────────
   if (direction === "pull" || direction === "both") {
     await checkCancelled();
     await reportPhase("pull-iaps");
     const iaps = await client.listInAppPurchases(appIdStr).catch((error) => {
+      if (isProductSyncAbortError(error)) throw error;
       failures.push({
         productId: "(asc list iaps)",
         reason: error instanceof Error ? error.message : String(error),
@@ -1323,12 +1554,17 @@ async function performIosSync(
           if (!productId) return null;
           const type = mapAscIapType(item.attributes.inAppPurchaseType);
           const pricePoint = await client.iapCurrentPrice(item.id);
-          return { item, productId, type, pricePoint };
+          const reviewProductType = mapAscReviewProductType(
+            item.attributes.inAppPurchaseType,
+            type,
+          );
+          return { item, productId, type, pricePoint, reviewProductType };
         },
       );
       for (const result of iapResults) {
         if (!result) continue;
-        const { item, productId, type, pricePoint } = result;
+        const { item, productId, type, pricePoint, reviewProductType } = result;
+        ascReviewProductTypeByStoreRef.set(item.id, reviewProductType);
         if (pricePoint instanceof Error) {
           failures.push({
             productId: `${productId} (price lookup)`,
@@ -1342,17 +1578,19 @@ async function performIosSync(
         // upsertFromStore runs serially — Convex coalesces writes
         // anyway and parallel mutations on the same row would race
         // on the (projectId, platform, productId) lookup.
-        await ctx.runMutation(internal.products.sync.upsertFromStore, {
-          projectId: project._id,
-          productId,
-          platform: "IOS",
-          type,
-          title: item.attributes.name ?? productId,
-          priceAmountMicros,
-          currency,
-          storeRef: item.id,
-          state: mapAscState(item.attributes.state),
-        });
+        if (!dryRun) {
+          await ctx.runMutation(internal.products.sync.upsertFromStore, {
+            projectId: project._id,
+            productId,
+            platform: "IOS",
+            type,
+            title: item.attributes.name ?? productId,
+            priceAmountMicros,
+            currency,
+            storeRef: item.id,
+            state: mapAscState(item.attributes.state),
+          });
+        }
         pulled += 1;
       }
     }
@@ -1365,6 +1603,7 @@ async function performIosSync(
     const groups = await client
       .listSubscriptionGroups(appIdStr)
       .catch((error) => {
+        if (isProductSyncAbortError(error)) throw error;
         failures.push({
           productId: "(asc list groups)",
           reason: error instanceof Error ? error.message : String(error),
@@ -1376,6 +1615,7 @@ async function performIosSync(
         const subs = await client
           .listSubscriptionsInGroup(group.id)
           .catch((error) => {
+            if (isProductSyncAbortError(error)) throw error;
             failures.push({
               productId: `(asc list subs in group ${group.id})`,
               reason: error instanceof Error ? error.message : String(error),
@@ -1422,25 +1662,27 @@ async function performIosSync(
           const offers = parseIntroOffers(
             introOffers instanceof Error ? null : introOffers,
           );
-          await ctx.runMutation(internal.products.sync.upsertFromStore, {
-            projectId: project._id,
-            productId,
-            platform: "IOS",
-            type: "Subscription",
-            title: sub.attributes.name ?? productId,
-            priceAmountMicros,
-            currency,
-            storeRef: sub.id,
-            state: mapAscState(sub.attributes.state),
-            billingPeriod: coerceBillingPeriod(
-              mapAscOfferDurationToIso(
-                sub.attributes.subscriptionPeriod ?? undefined,
+          if (!dryRun) {
+            await ctx.runMutation(internal.products.sync.upsertFromStore, {
+              projectId: project._id,
+              productId,
+              platform: "IOS",
+              type: "Subscription",
+              title: sub.attributes.name ?? productId,
+              priceAmountMicros,
+              currency,
+              storeRef: sub.id,
+              state: mapAscState(sub.attributes.state),
+              billingPeriod: coerceBillingPeriod(
+                mapAscOfferDurationToIso(
+                  sub.attributes.subscriptionPeriod ?? undefined,
+                ),
               ),
-            ),
-            subscriptionGroupId: group.id,
-            subscriptionGroupName: group.attributes.referenceName,
-            offers: offers.length ? offers : undefined,
-          });
+              subscriptionGroupId: group.id,
+              subscriptionGroupName: group.attributes.referenceName,
+              offers: offers.length ? offers : undefined,
+            });
+          }
           pulled += 1;
         }
       }
@@ -1448,16 +1690,14 @@ async function performIosSync(
   }
 
   // ── PUSH: kit → ASC for Draft rows ─────────────────────────────
-  // Each draft becomes a multi-step flow: create → localize → set
-  // price. The first step alone leaves the IAP/sub in an unsubmittable
+  // Each draft becomes a multi-step flow: create → create/reuse review
+  // version → localize → set price → optional screenshot upload → review
+  // submission. The first step alone leaves the IAP/sub in an unsubmittable
   // state because Apple requires both an en-US localization and a
   // USA price schedule before the row can move past Draft. We do
   // the whole chain here so a single Sync click takes the catalog
-  // from "kit-only" to "Ready to Submit" in App Store Connect.
-  // Submission itself (screenshot upload + inAppPurchaseSubmissions
-  // POST) is a follow-up because it needs a screenshot file and a
-  // dashboard upload slot we haven't built yet — see the
-  // DEFERRED(review-submit) note below.
+  // from "kit-only" to App Review. When no project screenshot is configured,
+  // preserve the prior Ready-to-Submit behaviour without failing the sync.
   if (direction === "push" || direction === "both") {
     await checkCancelled();
     await reportPhase("push-removals", {
@@ -1504,6 +1744,7 @@ async function performIosSync(
         );
         if (didDelete) deleted += 1;
       } catch (error) {
+        if (isProductSyncAbortError(error)) throw error;
         if (error instanceof AscApiError && error.status === 404) {
           const didDelete = await ctx.runMutation(
             internal.products.sync.deleteRemovedProductRow,
@@ -1528,10 +1769,82 @@ async function performIosSync(
       current: pulled,
       failuresCount: failures.length,
     });
+    const reviewRequest: AscJsonRequest = <T>(
+      path: string,
+      init?: RequestInit & { body?: string },
+    ) => client.request<T>(path, init);
+    const reviewCleanupRequest: AscJsonRequest = <T>(
+      path: string,
+      init?: RequestInit & { body?: string },
+    ) => client.requestForCleanup<T>(path, init);
+    const screenshotMetadata = prePullScreenshotMetadata;
     const drafts = await ctx.runQuery(
       internal.products.sync.listDraftIosProducts,
-      { projectId: project._id },
+      {
+        projectId: project._id,
+        includeReadyForReview: screenshotMetadata !== null,
+        reviewScreenshotFileId: screenshotMetadata?.fileId,
+      },
     );
+    const reviewEligibility = screenshotMetadata
+      ? createAscReviewEligibilityLoader({
+          client,
+          appId: appIdStr,
+          checkCancelled,
+        })
+      : null;
+    let reviewScreenshot: AscReviewScreenshot | null = null;
+    let reviewScreenshotError: Error | null = null;
+    if (screenshotMetadata) {
+      try {
+        await checkCancelled();
+        const controller = new AbortController();
+        const timeout = setTimeout(
+          () => controller.abort(),
+          ASC_FETCH_TIMEOUT_MS,
+        );
+        let response: Response;
+        try {
+          response = await fetch(screenshotMetadata.storageUrl, {
+            signal: controller.signal,
+          });
+        } finally {
+          clearTimeout(timeout);
+        }
+        if (!response.ok) {
+          throw new Error(
+            `Stored App Review screenshot returned HTTP ${response.status}`,
+          );
+        }
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        if (bytes.byteLength !== screenshotMetadata.fileSize) {
+          throw new Error(
+            "Stored App Review screenshot size no longer matches its file record",
+          );
+        }
+        validateAppleReviewScreenshotContent(
+          bytes,
+          screenshotMetadata.fileType,
+        );
+        if (
+          screenshotMetadata.fileType !== "image/png" &&
+          screenshotMetadata.fileType !== "image/jpeg"
+        ) {
+          throw new Error(
+            "Stored App Review screenshot must be image/png or image/jpeg",
+          );
+        }
+        reviewScreenshot = {
+          fileName: screenshotMetadata.fileName,
+          fileType: screenshotMetadata.fileType,
+          bytes,
+        };
+      } catch (error) {
+        if (isProductSyncAbortError(error)) throw error;
+        reviewScreenshotError =
+          error instanceof Error ? error : new Error(String(error));
+      }
+    }
     // Cache subscriptionGroup find-or-create results across the
     // entire push pass so a project with multiple drafts in the
     // same group (Premium Monthly + Premium Yearly + Premium
@@ -1587,7 +1900,8 @@ async function performIosSync(
     const PUSH_CONCURRENCY = 4;
     const processOneDraft = async (
       row: (typeof drafts)[number],
-    ): Promise<void> => {
+    ): Promise<AscReviewVersionItem | null> => {
+      await checkCancelled();
       // Track failures pushed *for this row* via a row-local flag.
       // The previous `failuresAtStart = failures.length` snapshot
       // worked when this loop was sequential, but with
@@ -1611,6 +1925,314 @@ async function performIosSync(
         rowHadFailure = true;
         failures.push(failure);
       };
+      const loadEligibilityActions = async (
+        item: AscReviewVersionItem,
+      ): Promise<AscManualReviewAction[] | null> => {
+        if (!reviewEligibility) {
+          recordFailure({
+            productId: `${row.productId} (review eligibility)`,
+            reason: "ASC review eligibility could not be determined",
+          });
+          return null;
+        }
+        try {
+          return await reviewEligibility.getActions(item);
+        } catch (error) {
+          if (isProductSyncAbortError(error)) throw error;
+          recordFailure({
+            productId: `${row.productId} (review eligibility)`,
+            reason: error instanceof Error ? error.message : String(error),
+          });
+          return null;
+        }
+      };
+      const resolveReviewVersion = async (
+        kind: "iap" | "subscription",
+        storeRef: string,
+      ): Promise<{
+        versionId: string;
+        alreadySubmitted: boolean;
+        attachedToSubmission: boolean;
+      } | null> => {
+        if (!dryRun) {
+          return await ensureAscReviewVersion({
+            request: reviewRequest,
+            kind,
+            parentId: storeRef,
+            allowCreate: true,
+            reuseApproved: row.state === "Ready",
+            checkCancelled,
+          });
+        }
+        if (!row.storeRef) {
+          plannedWrites.push({
+            productId: row.productId,
+            step: `create ${kind === "iap" ? "in-app purchase" : "subscription"} review version`,
+            detail: "version-based App Store Connect 4.4.1 workflow",
+          });
+          return {
+            versionId: "(would-create)",
+            alreadySubmitted: false,
+            attachedToSubmission: false,
+          };
+        }
+        const current = await inspectAscReviewVersion({
+          request: reviewRequest,
+          kind,
+          parentId: storeRef,
+          checkCancelled,
+        });
+        const plan = planAscReviewVersion({
+          localState: row.state,
+          current,
+        });
+        plannedWrites.push({
+          productId: row.productId,
+          step:
+            plan.action === "create"
+              ? `create ${kind === "iap" ? "in-app purchase" : "subscription"} review version`
+              : "reuse current ASC review version",
+          detail:
+            plan.action === "create"
+              ? "The latest historical version is complete; a new editable version would be created."
+              : `version=${plan.reviewVersion.versionId}`,
+        });
+        return plan.reviewVersion;
+      };
+      const syncReviewLocalization = async (
+        kind: "iap" | "subscription",
+        reviewVersion: {
+          versionId: string;
+          alreadySubmitted: boolean;
+          attachedToSubmission: boolean;
+        },
+      ): Promise<void> => {
+        try {
+          if (
+            reviewVersion.alreadySubmitted ||
+            reviewVersion.attachedToSubmission
+          ) {
+            const matches = await ascReviewLocalizationMatches({
+              request: reviewRequest,
+              kind,
+              versionId: reviewVersion.versionId,
+              name: row.title,
+              description: row.description ?? row.title,
+              checkCancelled,
+            });
+            if (!matches) {
+              recordFailure({
+                productId: `${row.productId} (review version)`,
+                reason:
+                  "The current ASC review version is already attached or submitted and its en-US metadata differs from this Draft. Finish or cancel that review in App Store Connect, then run Push Sync again to create an editable version.",
+              });
+            }
+            return;
+          }
+          await upsertAscReviewLocalization({
+            request: reviewRequest,
+            kind,
+            versionId: reviewVersion.versionId,
+            name: row.title,
+            description: row.description ?? row.title,
+            checkCancelled,
+          });
+        } catch (error) {
+          // A 409 on an editable version is a benign replay from a partial
+          // prior sync. Reads/comparisons against attached versions are never
+          // treated as replay success.
+          if (
+            reviewVersion.alreadySubmitted ||
+            reviewVersion.attachedToSubmission ||
+            !isBenignAscRetryConflict(error)
+          ) {
+            recordFailure({
+              productId: `${row.productId} (localization)`,
+              reason: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+      };
+      const finalizeReview = async (
+        kind: "iap" | "subscription",
+        storeRef: string,
+        productType: AscReviewVersionItem["productType"],
+        reviewVersion: {
+          versionId: string;
+          alreadySubmitted: boolean;
+          attachedToSubmission: boolean;
+        } | null,
+        subscriptionGroupId?: string,
+      ): Promise<AscReviewVersionItem | null> => {
+        if (!dryRun) await checkCancelled();
+        if (rowHadFailure) return null;
+        if (!reviewVersion) {
+          recordFailure({
+            productId: `${row.productId} (review version)`,
+            reason: "ASC review version was not prepared",
+          });
+          return null;
+        }
+        const disposition = getAscReviewFinalizeDisposition({
+          alreadySubmitted: reviewVersion.alreadySubmitted,
+          attachedToSubmission: reviewVersion.attachedToSubmission,
+          screenshotConfigured: screenshotMetadata !== null,
+        });
+        if (dryRun) {
+          if (disposition === "already-submitted") {
+            plannedWrites.push({
+              productId: row.productId,
+              step: "no App Review write required",
+              detail:
+                "The current review version is already submitted or approved.",
+            });
+            pushed += 1;
+            return null;
+          }
+          if (disposition === "attached") {
+            const action: AscManualReviewAction = {
+              productId: row.productId,
+              code: "review_submission_conflict",
+              message:
+                "This product version is already attached to an existing App Store Connect review submission. Complete or discard that draft there; IAPKit will not attach it to a second submission.",
+            };
+            manualActions.push(action);
+            plannedWrites.push({
+              productId: row.productId,
+              step: "manual App Store review submission required",
+              detail: action.message,
+            });
+            return null;
+          }
+          if (disposition === "ready") {
+            plannedWrites.push({
+              productId: row.productId,
+              step: "skip automatic App Review submission",
+              detail:
+                "No optional project App Review screenshot is configured; product will stop at Ready.",
+            });
+            pushed += 1;
+            return null;
+          }
+          if (reviewScreenshotError || !reviewScreenshot) {
+            recordFailure({
+              productId: `${row.productId} (review screenshot)`,
+              reason:
+                reviewScreenshotError?.message ??
+                "Configured App Review screenshot could not be read",
+            });
+            return null;
+          }
+          plannedWrites.push({
+            productId: row.productId,
+            step: "upload App Review screenshot",
+            detail: `${screenshotMetadata!.fileName} (${kind})`,
+          });
+          const eligibilityActions = await loadEligibilityActions({
+            productId: row.productId,
+            storeRef,
+            kind,
+            productType,
+            versionId: reviewVersion.versionId,
+            ...(subscriptionGroupId ? { subscriptionGroupId } : {}),
+          });
+          if (!eligibilityActions) return null;
+          if (eligibilityActions.length > 0) {
+            manualActions.push(...eligibilityActions);
+            plannedWrites.push({
+              productId: row.productId,
+              step: "manual App Store review submission required",
+              detail: eligibilityActions
+                .map((action) => action.message)
+                .join(" "),
+            });
+          } else {
+            plannedWrites.push({
+              productId: row.productId,
+              step: "submit review version",
+              detail:
+                "Create a review submission item and submit the eligible version.",
+            });
+            pushed += 1;
+          }
+          return null;
+        }
+        if (disposition === "already-submitted") {
+          await ctx.runMutation(internal.products.sync.markPushed, {
+            projectId: project._id,
+            productId: row.productId,
+            platform: "IOS",
+            storeRef,
+            reviewScreenshotFileId: screenshotMetadata?.fileId,
+          });
+          pushed += 1;
+          return null;
+        }
+        if (disposition === "attached") {
+          manualActions.push({
+            productId: row.productId,
+            code: "review_submission_conflict",
+            message:
+              "This product version is already attached to an existing App " +
+              "Store Connect review submission. Complete or discard that " +
+              "draft there; IAPKit will not attach it to a second submission.",
+          });
+          return null;
+        }
+        if (disposition === "ready") {
+          await ctx.runMutation(internal.products.sync.markPushed, {
+            projectId: project._id,
+            productId: row.productId,
+            platform: "IOS",
+            storeRef,
+          });
+          pushed += 1;
+          return null;
+        }
+        const reviewItem: AscReviewVersionItem = {
+          productId: row.productId,
+          storeRef,
+          kind,
+          productType,
+          versionId: reviewVersion.versionId,
+          ...(subscriptionGroupId ? { subscriptionGroupId } : {}),
+        };
+        if (reviewScreenshotError || !reviewScreenshot) {
+          recordFailure({
+            productId: `${row.productId} (review screenshot)`,
+            reason:
+              reviewScreenshotError?.message ??
+              "Configured App Review screenshot could not be read",
+          });
+          return null;
+        }
+        try {
+          await uploadAscReviewScreenshot({
+            request: reviewRequest,
+            kind,
+            parentId: storeRef,
+            screenshot: reviewScreenshot,
+            checkCancelled,
+          });
+        } catch (error) {
+          if (isProductSyncAbortError(error)) throw error;
+          recordFailure({
+            productId: `${row.productId} (review screenshot)`,
+            reason: error instanceof Error ? error.message : String(error),
+          });
+          return null;
+        }
+        const eligibilityActions = await loadEligibilityActions(reviewItem);
+        if (!eligibilityActions) return null;
+        if (eligibilityActions.length > 0) {
+          manualActions.push(...eligibilityActions);
+          // Keep this row retryable. If another concurrent worker aborts the
+          // job, the in-memory manual action is lost; leaving the row Draft
+          // guarantees the next run surfaces the operator action again.
+          return null;
+        }
+        return reviewItem;
+      };
       try {
         if (row.type === "Subscription") {
           // Resolve the ASC subscriptionGroup from the operator-typed
@@ -1629,6 +2251,12 @@ async function performIosSync(
           // has a storeRef from a prior partially-successful sync —
           // re-creating would either duplicate or 409 against ASC.
           const groupName = row.subscriptionGroupName ?? row.productId;
+          let reviewGroupId = row.subscriptionGroupId;
+          if (!reviewGroupId && row.storeRef && reviewEligibility) {
+            reviewGroupId =
+              (await reviewEligibility.resolveSubscriptionGroupId(groupName)) ??
+              undefined;
+          }
           if (!row.subscriptionGroupName && !row.storeRef && dryRun) {
             // Surface the per-product-group warning in dry-run only
             // so operators see the recommendation while previewing
@@ -1671,6 +2299,7 @@ async function performIosSync(
                 (g) => g.attributes.referenceName === groupName,
               );
               groupId = existing?.id ?? "(would-create)";
+              reviewGroupId = existing?.id;
               plannedWrites.push({
                 productId: row.productId,
                 step: existing
@@ -1702,6 +2331,7 @@ async function performIosSync(
                 });
               }
               groupId = await cached;
+              reviewGroupId = groupId;
               const result = await client.createSubscription({
                 groupId,
                 productId: row.productId,
@@ -1722,40 +2352,53 @@ async function performIosSync(
               });
             }
           }
+          const reviewVersion = await resolveReviewVersion(
+            "subscription",
+            storeRef,
+          );
           // Localize so reviewers see the human-readable name +
           // description instead of just the productId. ASC requires
           // at least one locale before submission — failing here
           // doesn't unwind the create (Apple has no rollback) so we
           // record a failure and let the operator retry / fix in
           // ASC web.
-          if (dryRun) {
-            plannedWrites.push({
-              productId: row.productId,
-              step: row.storeRef
-                ? "patch en-US localization"
-                : "create en-US localization",
-              detail: row.description ?? row.title,
-            });
-          } else {
-            try {
-              await client.upsertSubLocalization({
-                subId: storeRef,
+          if (dryRun && reviewVersion) {
+            if (
+              reviewVersion.alreadySubmitted ||
+              reviewVersion.attachedToSubmission
+            ) {
+              const matches = await ascReviewLocalizationMatches({
+                request: reviewRequest,
+                kind: "subscription",
+                versionId: reviewVersion.versionId,
                 name: row.title,
                 description: row.description ?? row.title,
+                checkCancelled,
               });
-            } catch (error) {
-              // 409 Conflict means the en-US localization already
-              // exists from a prior partial sync. That's a benign
-              // retry — fall through to the price-setting step
-              // instead of marking the whole product failed.
-              if (!(error instanceof AscApiError && error.status === 409)) {
+              if (!matches) {
                 recordFailure({
-                  productId: `${row.productId} (localization)`,
+                  productId: `${row.productId} (review version)`,
                   reason:
-                    error instanceof Error ? error.message : String(error),
+                    "The current ASC review version is already attached or submitted and its en-US metadata differs from this Draft.",
+                });
+              } else {
+                plannedWrites.push({
+                  productId: row.productId,
+                  step: "keep locked en-US version localization",
+                  detail: "Current ASC metadata already matches.",
                 });
               }
+            } else {
+              plannedWrites.push({
+                productId: row.productId,
+                step: row.storeRef
+                  ? "patch en-US version localization"
+                  : "create en-US version localization",
+                detail: row.description ?? row.title,
+              });
             }
+          } else if (reviewVersion) {
+            await syncReviewLocalization("subscription", reviewVersion);
           }
           // Set the USA price by resolving the operator's USD amount
           // → Apple's nearest price-point id. We require currency =
@@ -1803,6 +2446,7 @@ async function performIosSync(
                   }
                 }
               } catch (error) {
+                if (isProductSyncAbortError(error)) throw error;
                 // Treat only duplicate/existing conflicts as benign
                 // retries. ASC also reports malformed price payloads
                 // as 409 ENTITY_ERROR, and those must stay visible.
@@ -1821,20 +2465,16 @@ async function performIosSync(
               reason: `Non-USD pricing (${row.currency}) not supported in push yet — set USD on the catalog row or configure other territories in ASC web.`,
             });
           }
-          // Only flip state to Ready when every follow-up step
-          // succeeded. Partial setups stay in Draft (with storeRef
-          // populated) so the next sync resumes the missing pieces.
-          if (!dryRun && !rowHadFailure) {
-            await ctx.runMutation(internal.products.sync.markPushed, {
-              projectId: project._id,
-              productId: row.productId,
-              platform: "IOS",
-              storeRef,
-            });
-          }
-          pushed += 1;
+          return await finalizeReview(
+            "subscription",
+            storeRef,
+            "Subscription",
+            reviewVersion,
+            reviewGroupId,
+          );
         } else {
           let storeRef: string;
+          let reviewProductType: AscReviewVersionItem["productType"] = row.type;
           if (row.storeRef) {
             storeRef = row.storeRef;
             if (dryRun) {
@@ -1854,6 +2494,19 @@ async function performIosSync(
                 reviewNote: row.reviewNote,
               });
             }
+            if (screenshotMetadata) {
+              const cached = ascReviewProductTypeByStoreRef.get(storeRef);
+              if (cached) {
+                reviewProductType = cached;
+              } else {
+                const current = await client.getInAppPurchase(storeRef);
+                reviewProductType = mapAscReviewProductType(
+                  current.data.attributes.inAppPurchaseType,
+                  row.type,
+                );
+                ascReviewProductTypeByStoreRef.set(storeRef, reviewProductType);
+              }
+            }
           } else if (dryRun) {
             storeRef = "(would-create)";
             plannedWrites.push({
@@ -1870,6 +2523,10 @@ async function performIosSync(
               reviewNote: row.reviewNote,
             });
             storeRef = result.data.id;
+            reviewProductType = mapAscReviewProductType(
+              result.data.attributes.inAppPurchaseType,
+              row.type,
+            );
             // Same partial-sync resilience as the Subscription
             // branch — persist the upstream id before the
             // localization / price steps that may fail.
@@ -1880,33 +2537,44 @@ async function performIosSync(
               storeRef,
             });
           }
-          if (dryRun) {
-            plannedWrites.push({
-              productId: row.productId,
-              step: row.storeRef
-                ? "patch en-US localization"
-                : "create en-US localization",
-              detail: row.description ?? row.title,
-            });
-          } else {
-            try {
-              await client.upsertIapLocalization({
-                iapId: storeRef,
+          const reviewVersion = await resolveReviewVersion("iap", storeRef);
+          if (dryRun && reviewVersion) {
+            if (
+              reviewVersion.alreadySubmitted ||
+              reviewVersion.attachedToSubmission
+            ) {
+              const matches = await ascReviewLocalizationMatches({
+                request: reviewRequest,
+                kind: "iap",
+                versionId: reviewVersion.versionId,
                 name: row.title,
                 description: row.description ?? row.title,
+                checkCancelled,
               });
-            } catch (error) {
-              // Same 409-is-benign rationale as the subscription
-              // localization path — see PR #124
-              // (https://github.com/hyodotdev/openiap/pull/124) review.
-              if (!(error instanceof AscApiError && error.status === 409)) {
+              if (!matches) {
                 recordFailure({
-                  productId: `${row.productId} (localization)`,
+                  productId: `${row.productId} (review version)`,
                   reason:
-                    error instanceof Error ? error.message : String(error),
+                    "The current ASC review version is already attached or submitted and its en-US metadata differs from this Draft.",
+                });
+              } else {
+                plannedWrites.push({
+                  productId: row.productId,
+                  step: "keep locked en-US version localization",
+                  detail: "Current ASC metadata already matches.",
                 });
               }
+            } else {
+              plannedWrites.push({
+                productId: row.productId,
+                step: row.storeRef
+                  ? "patch en-US version localization"
+                  : "create en-US version localization",
+                detail: row.description ?? row.title,
+              });
             }
+          } else if (reviewVersion) {
+            await syncReviewLocalization("iap", reviewVersion);
           }
           if (
             row.priceAmountMicros !== undefined &&
@@ -1946,6 +2614,7 @@ async function performIosSync(
                   }
                 }
               } catch (error) {
+                if (isProductSyncAbortError(error)) throw error;
                 // Treat only duplicate/existing conflicts as benign
                 // retries. ASC also reports malformed price payloads
                 // as 409 ENTITY_ERROR, and those must stay visible.
@@ -1964,35 +2633,120 @@ async function performIosSync(
               reason: `Non-USD pricing (${row.currency}) not supported in push yet — set USD on the catalog row or configure other territories in ASC web.`,
             });
           }
-          // Same gate as the Subscription branch — only flip Ready
-          // when no follow-up step recorded a failure for this row.
-          if (!dryRun && !rowHadFailure) {
-            await ctx.runMutation(internal.products.sync.markPushed, {
-              projectId: project._id,
-              productId: row.productId,
-              platform: "IOS",
-              storeRef,
-            });
-          }
-          pushed += 1;
+          return await finalizeReview(
+            "iap",
+            storeRef,
+            reviewProductType,
+            reviewVersion,
+          );
         }
-        // DEFERRED(review-submit): once Settings has an upload slot for a
-        // project-level App Review screenshot
-        // (`apple_iap_review_screenshot` purpose), add a step here:
-        //   1. POST /v1/inAppPurchaseAppStoreReviewScreenshots (reserve)
-        //   2. PUT to the returned upload URL (binary)
-        //   3. PATCH ...screenshots/{id} with sourceFileChecksum
-        //   4. POST /v1/inAppPurchaseSubmissions
-        // Until then, the row stops at "Ready to Submit" in ASC and
-        // the operator hits Submit manually (or via next app version).
       } catch (error) {
+        if (isProductSyncAbortError(error)) throw error;
         recordFailure({
           productId: row.productId,
           reason: error instanceof Error ? error.message : String(error),
         });
+        return null;
       }
     };
-    await mapWithConcurrency(drafts, PUSH_CONCURRENCY, processOneDraft);
+    let processedDrafts = 0;
+    let stoppedAfterSubmission = false;
+    for (
+      let offset = 0;
+      offset < drafts.length;
+      offset += ASC_REVIEW_SYNC_BATCH_LIMIT
+    ) {
+      await checkCancelled();
+      const chunk = drafts.slice(offset, offset + ASC_REVIEW_SYNC_BATCH_LIMIT);
+      const reviewItems = (
+        await mapWithConcurrency(chunk, PUSH_CONCURRENCY, processOneDraft)
+      ).filter((item): item is AscReviewVersionItem => item !== null);
+      processedDrafts += chunk.length;
+      await reportPhase("push-drafts", {
+        current: processedDrafts,
+        total: drafts.length,
+        failuresCount: failures.length,
+      });
+
+      // Dry-run never returns submission items; continue so its read-only plan
+      // covers the full candidate set. Batches containing only failures/manual
+      // gates also continue, preventing one bad prefix from starving later rows.
+      if (reviewItems.length === 0) continue;
+
+      await checkCancelled();
+      await reportPhase("submit-review", {
+        current: processedDrafts,
+        total: drafts.length,
+        failuresCount: failures.length,
+      });
+      try {
+        const { selected: submissionItems, deferred: preparedDeferred } =
+          partitionAscReviewSubmissionItems(reviewItems);
+        if (preparedDeferred.length > 0) {
+          failures.push({
+            productId: "(review submission capacity)",
+            reason:
+              `Apple limits one review submission to ${ASC_REVIEW_SUBMISSION_ITEM_LIMIT} items. ` +
+              `${preparedDeferred.length} prepared product(s) remain Draft.`,
+          });
+        }
+        const submission = await submitAscReviewVersions({
+          request: reviewRequest,
+          cleanupRequest: reviewCleanupRequest,
+          appId: appIdStr,
+          items: submissionItems,
+          checkCancelled,
+          isAbortError: isProductSyncAbortError,
+        });
+        for (const outcome of submission.outcomes) {
+          if (outcome.status === "failed") {
+            failures.push({
+              productId: `${outcome.item.productId} (review submission)`,
+              reason: outcome.reason,
+            });
+            continue;
+          }
+          if (outcome.status === "manual") {
+            manualActions.push(outcome.action);
+          }
+          if (!shouldMarkAscReviewSubmissionOutcomePushed(outcome)) continue;
+          await ctx.runMutation(internal.products.sync.markPushed, {
+            projectId: project._id,
+            productId: outcome.item.productId,
+            platform: "IOS",
+            storeRef: outcome.item.storeRef,
+            reviewScreenshotFileId: screenshotMetadata?.fileId,
+          });
+          pushed += 1;
+        }
+        if (submission.globalFailure) {
+          failures.push({
+            productId: "(review submission)",
+            reason: submission.globalFailure,
+          });
+        }
+      } catch (error) {
+        if (isProductSyncAbortError(error)) throw error;
+        failures.push({
+          productId: "(review submission)",
+          reason: error instanceof Error ? error.message : String(error),
+        });
+      }
+      // ASC permits one active review submission. Finish this deterministic
+      // prepare→submit unit and leave the remaining Draft rows for a later job
+      // rather than preparing resources that cannot be submitted this run.
+      stoppedAfterSubmission = true;
+      break;
+    }
+    if (stoppedAfterSubmission && processedDrafts < drafts.length) {
+      failures.push({
+        productId: "(review submission batch)",
+        reason:
+          `${drafts.length - processedDrafts} product(s) remain Draft after this bounded ` +
+          `batch of ${ASC_REVIEW_SYNC_BATCH_LIMIT}. Run Push Sync again after the current ` +
+          "App Store Connect review submission is no longer active.",
+      });
+    }
   }
 
   return {
@@ -2001,6 +2755,7 @@ async function performIosSync(
     ...(deleted > 0 ? { deleted } : {}),
     failures,
     plannedWrites: dryRun ? plannedWrites : undefined,
+    manualActions: manualActions.length > 0 ? manualActions : undefined,
   };
 }
 
@@ -2098,6 +2853,22 @@ function mapAscIapType(
   }
 }
 
+export function mapAscReviewProductType(
+  raw: string | undefined,
+  fallback: "Subscription" | "NonConsumable" | "Consumable",
+): AscReviewVersionItem["productType"] {
+  switch (raw) {
+    case "CONSUMABLE":
+      return "Consumable";
+    case "NON_CONSUMABLE":
+      return "NonConsumable";
+    case "NON_RENEWING_SUBSCRIPTION":
+      return "NonRenewingSubscription";
+    default:
+      return fallback;
+  }
+}
+
 // Apple represents introductory-offer durations as enum strings
 // rather than ISO-8601 like the subscriptionPeriod field. Translate
 // to ISO so kit's `offers[].duration` is uniform across stores
@@ -2192,8 +2963,10 @@ function mapAscState(
 ): "Draft" | "Ready" | "Active" | "Removed" {
   switch (raw) {
     case "WAITING_FOR_REVIEW":
+    case "IN_REVIEW":
     case "PENDING_DEVELOPER_RELEASE":
     case "READY_TO_SUBMIT":
+    case "READY_FOR_REVIEW":
       return "Ready";
     case "APPROVED":
     case "REPLACED":

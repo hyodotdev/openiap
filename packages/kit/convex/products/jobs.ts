@@ -18,11 +18,20 @@ import {
 } from "../projects/helpers";
 import { ErrorCode, createError } from "../utils/errors";
 import { getWritableProject } from "../projects/writable";
+import {
+  PRODUCT_SYNC_JOB_DEADLINE_MS,
+  PRODUCT_SYNC_MANUAL_ACTIONS_CAP,
+  truncateManualActions,
+  truncatePlannedWrites,
+} from "./syncResult";
 
-// Per-job hard ceiling. Convex actions cap at ~10min; we allow 9min
-// for the worker and rely on the reaper to mark anything still
-// running 1min past that as failed.
-export const PRODUCT_SYNC_JOB_DEADLINE_MS = 9 * 60 * 1_000;
+export {
+  PRODUCT_SYNC_JOB_DEADLINE_MS,
+  PRODUCT_SYNC_MANUAL_ACTIONS_CAP,
+  truncateManualActions,
+  truncatePlannedWrites,
+};
+
 export const PRODUCT_SYNC_REAPER_GRACE_MS = 60 * 1_000;
 export const PRODUCT_SYNC_SUCCEEDED_RETENTION_MS = 7 * 24 * 60 * 60 * 1_000;
 export const PRODUCT_SYNC_FAILED_RETENTION_MS = 30 * 24 * 60 * 60 * 1_000;
@@ -310,8 +319,8 @@ export const enqueueProductSync = mutation({
 // batches; never touches App Store Connect or Play Console. The
 // next regular sync re-pulls from the upstream store, so this is
 // the recovery hatch when kit's cache drifts (manual store edits,
-// failed partial pushes, stale prices). Cancel checks between
-// pages so an operator can stop a runaway wipe within seconds.
+// failed partial pushes, stale prices). Cancel checks run between
+// pages so the next bounded delete batch does not start.
 export const runProductSyncPurgeLocal = internalAction({
   args: { jobId: v.id("productSyncJobs") },
   handler: async (ctx, args): Promise<void> => {
@@ -375,9 +384,9 @@ export const runProductSyncPurgeLocal = internalAction({
   },
 });
 
-// Operator-initiated cancel. The worker checks `cancelRequested` at
-// phase boundaries — granularity is per-phase, not per-product, but
-// that's enough to stop a runaway sync within seconds on most paths.
+// Operator-initiated cancel. Workers check the flag at phase/chunk boundaries;
+// remote clients and review helpers also check before requests, multipart
+// upload operations, and asset-delivery polls.
 export const cancelProductSync = mutation({
   args: {
     apiKey: v.optional(v.string()),
@@ -436,24 +445,30 @@ export const isCancelRequested = internalQuery({
     const job = await ctx.db.get(args.jobId);
     if (!job) return true;
     if (!(await getWritableProject(ctx, job.projectId))) return true;
-    return job.cancelRequested === true;
+    return (
+      job.cancelRequested === true ||
+      (job.status !== "queued" && job.status !== "running")
+    );
   },
 });
 
 export const markJobRunning = internalMutation({
   args: { jobId: v.id("productSyncJobs") },
+  returns: v.union(v.number(), v.null()),
   handler: async (ctx, args) => {
     const job = await ctx.db.get(args.jobId);
-    if (!job) return;
-    if (!(await getWritableProject(ctx, job.projectId))) return;
-    if (job.status !== "queued") return;
+    if (!job) return null;
+    if (!(await getWritableProject(ctx, job.projectId))) return null;
+    if (job.status !== "queued") return null;
     const now = Date.now();
+    const expectedDeadline = now + PRODUCT_SYNC_JOB_DEADLINE_MS;
     await ctx.db.patch(args.jobId, {
       status: "running",
       startedAt: now,
-      expectedDeadline: now + PRODUCT_SYNC_JOB_DEADLINE_MS,
+      expectedDeadline,
       progress: { phase: "starting" },
     });
+    return expectedDeadline;
   },
 });
 
@@ -495,11 +510,28 @@ export const markJobSucceeded = internalMutation({
         }),
       ),
     ),
+    plannedWritesTruncated: v.optional(v.boolean()),
+    manualActions: v.optional(
+      v.array(
+        v.object({
+          productId: v.string(),
+          code: v.string(),
+          message: v.string(),
+        }),
+      ),
+    ),
+    manualActionsTruncated: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const job = await ctx.db.get(args.jobId);
     if (!job || !(await getWritableProject(ctx, job.projectId))) return;
     const { items: failures, truncated } = truncateFailures(args.failures);
+    const boundedManualActions = truncateManualActions(
+      args.manualActions ?? [],
+    );
+    const boundedPlannedWrites = truncatePlannedWrites(
+      args.plannedWrites ?? [],
+    );
     await ctx.db.patch(args.jobId, {
       status: "succeeded",
       completedAt: Date.now(),
@@ -513,7 +545,18 @@ export const markJobSucceeded = internalMutation({
         ...(args.deleted !== undefined ? { deleted: args.deleted } : {}),
         failures,
         ...(truncated ? { failuresTruncated: true } : {}),
-        ...(args.plannedWrites ? { plannedWrites: args.plannedWrites } : {}),
+        ...(boundedPlannedWrites.items.length > 0
+          ? { plannedWrites: boundedPlannedWrites.items }
+          : {}),
+        ...(args.plannedWritesTruncated || boundedPlannedWrites.truncated
+          ? { plannedWritesTruncated: true }
+          : {}),
+        ...(boundedManualActions.items.length > 0
+          ? { manualActions: boundedManualActions.items }
+          : {}),
+        ...(args.manualActionsTruncated || boundedManualActions.truncated
+          ? { manualActionsTruncated: true }
+          : {}),
       },
     });
     // Clear the project's lock so the next enqueue can claim the

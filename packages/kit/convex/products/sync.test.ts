@@ -5,6 +5,8 @@ import {
   deletePlatformCatalog as registeredDeletePlatformCatalog,
   deleteRemovedProductRow as registeredDeleteRemovedProductRow,
   isSafePriceAmountMicros,
+  listDraftIosProducts as registeredListDraftIosProducts,
+  markPushed as registeredMarkPushed,
   shouldPreserveKitRemovedDuringPull,
   upsertFromStore as registeredUpsertFromStore,
 } from "./sync";
@@ -15,6 +17,8 @@ const deleteRemovedProductRow = testableFunction(
   registeredDeleteRemovedProductRow,
 );
 const upsertFromStore = testableFunction(registeredUpsertFromStore);
+const listDraftIosProducts = testableFunction(registeredListDraftIosProducts);
+const markPushed = testableFunction(registeredMarkPushed);
 
 type Row = Record<string, unknown> & { _id: string };
 
@@ -45,6 +49,10 @@ class TestQuery {
   async take(limit: number) {
     return this.rows.slice(0, limit);
   }
+
+  async collect() {
+    return [...this.rows];
+  }
 }
 
 class TestDb {
@@ -71,6 +79,12 @@ class TestDb {
       }
     }
     throw new Error(`Unknown row: ${id}`);
+  }
+
+  async patch(id: string, value: Record<string, unknown>) {
+    const row = await this.get(id);
+    if (!row) throw new Error(`Unknown row: ${id}`);
+    Object.assign(row, value);
   }
 }
 
@@ -111,6 +125,178 @@ describe("shouldPreserveKitRemovedDuringPull", () => {
         origin: "kit",
       }),
     ).toBe(false);
+  });
+});
+
+describe("listDraftIosProducts review resumption", () => {
+  it("includes Ready rows that have not handled the configured screenshot", async () => {
+    const base = {
+      projectId: "project_a",
+      platform: "IOS",
+      type: "Consumable",
+      title: "Title",
+      origin: "kit",
+    };
+    const db = new TestDb({
+      products: [
+        {
+          _id: "ready_current",
+          ...base,
+          productId: "ready.current",
+          state: "Ready",
+          lastAppleReviewScreenshotFileId: "file_current",
+          updatedAt: 300,
+        },
+        {
+          _id: "draft_b",
+          ...base,
+          productId: "draft.b",
+          state: "Draft",
+          updatedAt: 300,
+        },
+        {
+          _id: "ready_legacy",
+          ...base,
+          productId: "ready.legacy",
+          state: "Ready",
+          storeRef: "iap-ready",
+          updatedAt: 100,
+        },
+        {
+          _id: "ready_old",
+          ...base,
+          productId: "ready.old",
+          state: "Ready",
+          storeRef: "iap-old",
+          lastAppleReviewScreenshotFileId: "file_old",
+          updatedAt: 400,
+        },
+        {
+          _id: "pulled",
+          ...base,
+          origin: "store",
+          productId: "pulled",
+          state: "Draft",
+          storeRef: "iap-pulled",
+          updatedAt: 100,
+        },
+      ],
+    });
+
+    await expect(
+      listDraftIosProducts._handler(
+        { db },
+        {
+          projectId: "project_a" as never,
+          includeReadyForReview: true,
+          reviewScreenshotFileId: "file_current" as never,
+        },
+      ),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        productId: "ready.legacy",
+        state: "Ready",
+      }),
+      expect.objectContaining({
+        productId: "ready.old",
+        state: "Ready",
+      }),
+      expect.objectContaining({ productId: "draft.b", state: "Draft" }),
+    ]);
+  });
+
+  it("uses the persistent file id instead of pull-updated timestamps", async () => {
+    const ready = {
+      _id: "ready_before_pull",
+      projectId: "project_a",
+      platform: "IOS",
+      productId: "ready.before.pull",
+      state: "Ready",
+      type: "Consumable",
+      title: "Ready",
+      origin: "kit",
+      storeRef: "iap-ready",
+      lastAppleReviewScreenshotFileId: "file_current",
+      updatedAt: 100,
+    };
+    const db = new TestDb({ products: [ready] });
+    await expect(
+      listDraftIosProducts._handler(
+        { db },
+        {
+          projectId: "project_a" as never,
+          includeReadyForReview: true,
+          reviewScreenshotFileId: "file_current" as never,
+        },
+      ),
+    ).resolves.toEqual([]);
+
+    // `upsertFromStore` in the pull phase refreshes this timestamp.
+    ready.updatedAt = 300;
+    await expect(
+      listDraftIosProducts._handler(
+        { db },
+        {
+          projectId: "project_a" as never,
+          includeReadyForReview: true,
+          reviewScreenshotFileId: "file_current" as never,
+        },
+      ),
+    ).resolves.toEqual([]);
+
+    await expect(
+      listDraftIosProducts._handler(
+        { db },
+        {
+          projectId: "project_a" as never,
+          includeReadyForReview: true,
+          reviewScreenshotFileId: "file_replacement" as never,
+        },
+      ),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        productId: "ready.before.pull",
+        state: "Ready",
+      }),
+    ]);
+  });
+
+  it("records the handled screenshot identity when a push completes", async () => {
+    const product = {
+      _id: "product_a",
+      projectId: "project_a",
+      platform: "IOS",
+      productId: "premium",
+      state: "Draft",
+      type: "Consumable",
+      title: "Premium",
+      updatedAt: 100,
+    };
+    const db = new TestDb({
+      organizations: [{ _id: "organization_a" }],
+      projects: [{ _id: "project_a", organizationId: "organization_a" }],
+      products: [product],
+    });
+
+    await expect(
+      markPushed._handler(
+        { db },
+        {
+          projectId: "project_a" as never,
+          productId: "premium",
+          platform: "IOS",
+          storeRef: "iap_1",
+          reviewScreenshotFileId: "file_current" as never,
+        },
+      ),
+    ).resolves.toBe("product_a");
+    expect(product).toEqual(
+      expect.objectContaining({
+        state: "Ready",
+        storeRef: "iap_1",
+        lastAppleReviewScreenshotFileId: "file_current",
+      }),
+    );
   });
 });
 

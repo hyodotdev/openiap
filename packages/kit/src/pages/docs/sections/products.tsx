@@ -27,6 +27,73 @@ export default function ProductsPage() {
           backend for secrets.
         </p>
       </Callout>
+      <Callout kind="note" title="Ambiguous network failures stay safe">
+        <p>
+          App Store Connect does not accept an idempotency key when IAPKit
+          creates a review submission. If the network closes after Apple may
+          have created a draft but before its ID reaches IAPKit, the affected
+          products stay Draft and the result asks you to inspect App Store
+          Connect. IAPKit never adopts or submits an unidentified existing
+          draft.
+        </p>
+      </Callout>
+
+      <h2 className="mt-10 text-2xl font-semibold">
+        Submit Apple products for App Review
+      </h2>
+      <p>
+        iOS Push Sync can prepare and submit eligible in-app purchases and
+        auto-renewable subscriptions through App Store Connect. In project
+        Settings, configure the <strong>App Store Connect API key</strong> and
+        upload one <strong>App Review screenshot</strong> (flattened PNG without
+        alpha, or JPEG, up to 10 MB). Use a screenshot size supported by the
+        app; Apple validates those app-specific dimensions during asset
+        processing. The screenshot is private project data: only an
+        authenticated organization admin or owner can download it, and IAPKit
+        never exposes a public storage URL.
+      </p>
+      <ol className="my-3 list-decimal space-y-2 pl-6">
+        <li>
+          Run <strong>Dry-run</strong> first. It lists the product-version,
+          screenshot-upload, and review-submission writes without changing App
+          Store Connect.
+        </li>
+        <li>
+          Run <strong>Sync with App Store Connect</strong>. IAPKit creates the
+          current version metadata, uploads every byte range Apple reserves,
+          waits for asset delivery, and then submits the eligible version for
+          review.
+        </li>
+        <li>
+          Check the result banner. Upstream errors stay in the failure list;
+          Apple requirements that need an operator appear separately as manual
+          actions.
+        </li>
+      </ol>
+      <p>
+        The upload slot is intentionally project-level: IAPKit reuses the same
+        screenshot for every eligible IAPKit-managed iOS product in that
+        project. Products imported from App Store Connect remain read-only to
+        this review workflow until you edit them into an IAPKit Draft. If
+        products need different review screenshots, submit those products
+        manually in App Store Connect instead of configuring this slot. Without
+        a stored screenshot, Push Sync keeps its previous behavior and stops at
+        Ready to Submit; adding the screenshot later makes those IAPKit-managed
+        Ready rows resumable. Removing the file in IAPKit only stops future
+        reuse; it does not remove copies already uploaded to App Store Connect.
+        Manage or delete those ASC copies separately in App Store Connect.
+      </p>
+      <Callout kind="warning" title="First product types need an app version">
+        <p>
+          Apple requires the first consumable, first non-consumable, first
+          auto-renewable subscription, and first non-renewing subscription to
+          travel with a new app version. A new subscription group must also be
+          reviewed with a subscription from that group. IAPKit does not treat
+          these constraints as sync failures and does not create an app
+          submission implicitly; it reports a manual action so an operator can
+          finish the combined submission in App Store Connect.
+        </p>
+      </Callout>
 
       <h2 className="mt-10 text-2xl font-semibold">
         Two ways to request client payloads

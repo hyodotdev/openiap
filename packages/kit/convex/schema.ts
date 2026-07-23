@@ -331,10 +331,13 @@ const schema = defineSchema({
     //     Key" / "Individual Key"). Used for ASC REST endpoints
     //     (catalog list / create / patch). Push-sync calls these.
     // Uploading the wrong kind for either purpose returns 401.
+    // `apple_iap_review_screenshot` is a single project-level PNG/JPEG
+    // forwarded privately to ASC during iOS push-sync.
     purpose: v.union(
       v.literal("apple_p8_key"),
       v.literal("apple_p8_asc_api_key"),
       v.literal("android_service_account"),
+      v.literal("apple_iap_review_screenshot"),
     ),
     description: v.optional(v.string()),
 
@@ -372,6 +375,20 @@ const schema = defineSchema({
     // invalid for every operation and the cron removes it.
     expiresAt: v.number(),
     cleanupExpiresAt: v.number(),
+    // Set only by the server-side binary validator after it fetches the
+    // immutable storage object and verifies PNG/JPEG signature/transparency.
+    validatedAppleReviewScreenshot: v.optional(
+      v.object({
+        storageId: v.id("_storage"),
+        fileName: v.string(),
+        fileType: v.string(),
+        fileSize: v.number(),
+      }),
+    ),
+    // Claimed before the Node action downloads the private blob. This closes
+    // the action-crash gap: the expiry pruner can still reclaim an uploaded
+    // object even if validation never reaches its terminal mutation.
+    pendingAppleReviewScreenshotStorageId: v.optional(v.id("_storage")),
     createdAt: v.number(),
   })
     .index("by_cleanup_expires_at", ["cleanupExpiresAt"])
@@ -956,6 +973,11 @@ const schema = defineSchema({
     // own validation message if they exceed it.
     reviewNote: v.optional(v.string()),
     storeRef: v.optional(v.string()),
+    // Tracks the exact project screenshot that was handled for this product's
+    // latest ASC review attempt. Ready rows are eligible again only when the
+    // operator replaces the project screenshot, which makes resumption stable
+    // across pull-sync timestamp updates and bounded multi-run batches.
+    lastAppleReviewScreenshotFileId: v.optional(v.id("files")),
     syncedAt: v.optional(v.number()),
     // Where this row was first inserted from. Set on insert and
     // never modified afterwards (so a kit-edited pull-imported row
@@ -1101,6 +1123,21 @@ const schema = defineSchema({
             }),
           ),
         ),
+        plannedWritesTruncated: v.optional(v.boolean()),
+        // Non-retryable ASC constraints that need an operator to finish in
+        // App Store Connect (for example, a first-of-type product that Apple
+        // requires to travel with a new app version). These are intentionally
+        // distinct from transient per-item failures.
+        manualActions: v.optional(
+          v.array(
+            v.object({
+              productId: v.string(),
+              code: v.string(),
+              message: v.string(),
+            }),
+          ),
+        ),
+        manualActionsTruncated: v.optional(v.boolean()),
       }),
     ),
     error: v.optional(v.string()),

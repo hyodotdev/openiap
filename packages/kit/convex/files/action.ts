@@ -3,7 +3,178 @@ import { action } from "../_generated/server";
 import { v, ConvexError } from "convex/values";
 import { internal } from "../_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import sharp from "sharp";
 import type { Id } from "../_generated/dataModel";
+import {
+  validateAppleReviewScreenshotContent,
+  validateFileUpload,
+} from "./validation";
+
+const SCREENSHOT_FETCH_TIMEOUT_MS = 30_000;
+const SCREENSHOT_MAX_INPUT_PIXELS = 25_000_000;
+
+/** Force a real image decode before a blob can receive the validation marker. */
+export async function decodeAppleReviewScreenshot(
+  bytes: Uint8Array,
+  declaredMimeType: string,
+): Promise<void> {
+  validateAppleReviewScreenshotContent(bytes, declaredMimeType);
+  let metadata: Awaited<ReturnType<ReturnType<typeof sharp>["metadata"]>>;
+  try {
+    const decoder = sharp(bytes, {
+      failOn: "error",
+      limitInputPixels: SCREENSHOT_MAX_INPUT_PIXELS,
+    });
+    metadata = await decoder.metadata();
+    // metadata() alone can succeed for a truncated payload. Decode every pixel
+    // so malformed chunks/scan data are rejected before the blob reaches ASC.
+    await decoder.clone().raw().toBuffer();
+  } catch {
+    throw new ConvexError(
+      "App Review screenshot is truncated, corrupt, or too large to decode",
+    );
+  }
+  const expectedFormat =
+    declaredMimeType === "image/png"
+      ? "png"
+      : declaredMimeType === "image/jpeg"
+        ? "jpeg"
+        : null;
+  if (
+    metadata.format !== expectedFormat ||
+    !metadata.width ||
+    !metadata.height
+  ) {
+    throw new ConvexError(
+      "App Review screenshot decoded format does not match its MIME type",
+    );
+  }
+  if (metadata.hasAlpha) {
+    throw new ConvexError(
+      "App Review PNG screenshots cannot contain an alpha channel",
+    );
+  }
+}
+
+export const validateAppleReviewScreenshotUpload = action({
+  args: {
+    organizationId: v.id("organizations"),
+    projectId: v.id("projects"),
+    uploadReservationId: v.id("fileUploadReservations"),
+    storageId: v.id("_storage"),
+    fileName: v.string(),
+    fileType: v.string(),
+    fileSize: v.number(),
+  },
+  returns: v.object({ valid: v.literal(true) }),
+  handler: async (ctx, args): Promise<{ valid: true }> => {
+    const userId = await getAuthUserId(ctx);
+    const { reservation, storage } = await ctx.runQuery(
+      internal.files.internal.getUploadReservationForScreenshotValidation,
+      {
+        uploadReservationId: args.uploadReservationId,
+        storageId: args.storageId,
+      },
+    );
+    if (
+      !reservation ||
+      reservation.organizationId !== args.organizationId ||
+      reservation.projectId !== args.projectId
+    ) {
+      throw new ConvexError("Invalid upload reservation");
+    }
+    // A signed-in user must never consume somebody else's leaked capability.
+    // A missing session is different: the target-bound one-time reservation
+    // still authorizes cleanup of the just-uploaded unclaimed blob.
+    if (userId && reservation.createdBy !== userId) {
+      throw new ConvexError("Invalid upload reservation");
+    }
+
+    try {
+      if (!userId) throw new ConvexError("Not authenticated");
+      if (reservation.expiresAt <= Date.now()) {
+        throw new ConvexError("Upload reservation expired");
+      }
+      const membership = await ctx.runQuery(
+        internal.organizations.internal.getMembership,
+        { userId, organizationId: args.organizationId },
+      );
+      if (!membership || membership.role === "member") {
+        throw new ConvexError("Insufficient permissions");
+      }
+      validateFileUpload(
+        args.fileName,
+        args.fileType,
+        args.fileSize,
+        "apple_iap_review_screenshot",
+      );
+      if (!storage || storage.size !== args.fileSize) {
+        throw new ConvexError(
+          "App Review screenshot size does not match the uploaded blob",
+        );
+      }
+      await ctx.runMutation(
+        internal.files.mutation.markAppleReviewScreenshotValidationPending,
+        {
+          uploadReservationId: args.uploadReservationId,
+          userId,
+          storageId: args.storageId,
+          fileSize: args.fileSize,
+        },
+      );
+      const storageUrl = await ctx.storage.getUrl(args.storageId);
+      if (!storageUrl) {
+        throw new ConvexError("App Review screenshot content not found");
+      }
+      const controller = new AbortController();
+      const timeout = setTimeout(
+        () => controller.abort(),
+        SCREENSHOT_FETCH_TIMEOUT_MS,
+      );
+      let response: Response;
+      try {
+        response = await fetch(storageUrl, { signal: controller.signal });
+      } finally {
+        clearTimeout(timeout);
+      }
+      if (!response.ok) {
+        throw new ConvexError(
+          `App Review screenshot download returned HTTP ${response.status}`,
+        );
+      }
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      if (bytes.byteLength !== args.fileSize) {
+        throw new ConvexError(
+          "App Review screenshot size changed while validating",
+        );
+      }
+      await decodeAppleReviewScreenshot(bytes, args.fileType);
+      await ctx.runMutation(
+        internal.files.mutation.markAppleReviewScreenshotValidated,
+        {
+          uploadReservationId: args.uploadReservationId,
+          userId,
+          storageId: args.storageId,
+          fileName: args.fileName,
+          fileType: args.fileType,
+          fileSize: args.fileSize,
+        },
+      );
+      return { valid: true };
+    } catch (error) {
+      await ctx.runMutation(
+        internal.files.mutation.rejectAppleReviewScreenshotValidation,
+        {
+          uploadReservationId: args.uploadReservationId,
+          organizationId: args.organizationId,
+          projectId: args.projectId,
+          storageId: args.storageId,
+        },
+      );
+      throw error;
+    }
+  },
+});
 
 // Public action to download an uploaded credential file (Apple .p8 or
 // Google service-account JSON). The dashboard's Settings page calls

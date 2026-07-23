@@ -1,5 +1,6 @@
 {
   "node": {
-    "nodeVersion": "22"
+    "nodeVersion": "22",
+    "externalPackages": ["sharp"]
   }
 }
