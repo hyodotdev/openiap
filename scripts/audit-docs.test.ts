@@ -116,7 +116,7 @@ props.sku = "premium"\`}</CodeBlock>`;
     const source = [
       '<CodeBlock language="kotlin">{`iapStore.requestPurchase(request)`}</CodeBlock>',
       '<CodeBlock language="kotlin">{`kmpIAP.requestPurchase(RequestPurchaseProps(...))`}</CodeBlock>',
-      '<CodeBlock language="kotlin">{`requestPurchase(props = validLocalProps)`}</CodeBlock>',
+      '<CodeBlock language="kotlin">{`requestPurchase(validLocalProps)`}</CodeBlock>',
     ].join('\n');
 
     expect(auditActiveCodeExampleSource('/tmp/active.tsx', source)).toEqual([]);
