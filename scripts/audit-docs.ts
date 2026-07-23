@@ -202,7 +202,7 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function findEnclosingBraceBlock(
+export function findEnclosingBraceBlock(
   source: string,
   index: number
 ): { body: string; bodyStart: number } | null {
@@ -215,6 +215,7 @@ function findEnclosingBraceBlock(
         return { body, bodyStart: openBraceIndex + 1 };
       }
     }
+    if (openBraceIndex === 0) break;
     openBraceIndex = source.lastIndexOf('{', openBraceIndex - 1);
   }
   return null;

@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import {
   auditActiveCodeExampleSource,
   auditCanonicalOfferDocs,
+  findEnclosingBraceBlock,
   type CanonicalOfferDocsSources,
 } from './audit-docs';
 
@@ -110,6 +111,12 @@ props.sku = "premium"\`}</CodeBlock>`;
     ].join('\n');
 
     expect(auditActiveCodeExampleSource('/tmp/active.tsx', source)).toEqual([]);
+  });
+});
+
+describe('brace-block lookup', () => {
+  test('stops after checking a non-enclosing brace at index zero', () => {
+    expect(findEnclosingBraceBlock('{} title', 3)).toBeNull();
   });
 });
 
