@@ -1,5 +1,13 @@
 # Changelog
 
+## 9.6.0 (2026-07-23)
+
+- chore(google): bump version to 2.5.0
+- chore(apple): bump version to 2.4.2
+- feat(iap): add Android offer code redemption across SDKs (#243)
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
+
+
 ## 9.5.1 (2026-07-16)
 
 - No direct Flutter package changes found between releases; this release picks up the latest OpenIAP native package updates.
