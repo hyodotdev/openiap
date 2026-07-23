@@ -35,6 +35,7 @@
 import { readFileSync, statSync } from 'node:fs';
 import { readdir } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
+import ts from 'typescript';
 
 const REPO_ROOT = resolve(import.meta.dir, '..');
 const DOC_ROOTS = [
@@ -156,8 +157,7 @@ const CODE_EXAMPLE_RULES: CodeExampleRule[] = [
   },
   {
     language: 'kotlin',
-    pattern:
-      /\b(?:iapStore|kmpIAP)\.requestPurchase\s*\(\s*(?:activity|props)\s*=/,
+    pattern: /\.\s*requestPurchase\s*\(\s*(?:activity|props)\s*=/,
     message:
       'Kotlin and KMP `requestPurchase` accept one positional `RequestPurchaseProps` argument; `activity` and `props` are not parameters.',
   },
@@ -181,11 +181,13 @@ export function auditActiveCodeExampleSource(
   while ((blockMatch = blockRe.exec(src)) !== null) {
     const language = blockMatch[1];
     const block = blockMatch[2];
+    const auditedBlock =
+      language === 'kotlin' ? stripCommentsPreservingLayout(block) : block;
     const blockOffset = blockMatch.index + blockMatch[0].indexOf(block);
 
     for (const rule of CODE_EXAMPLE_RULES) {
       if (rule.language && rule.language !== language) continue;
-      const violation = rule.pattern.exec(block);
+      const violation = rule.pattern.exec(auditedBlock);
       if (!violation) continue;
       drifts.push({
         file: filePath,
@@ -198,62 +200,91 @@ export function auditActiveCodeExampleSource(
   return drifts;
 }
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-export function findEnclosingBraceBlock(
-  source: string,
-  index: number
-): { body: string; bodyStart: number } | null {
-  let openBraceIndex = source.lastIndexOf('{', index);
-  while (openBraceIndex !== -1) {
-    const body = extractBraceBlock(source, openBraceIndex);
-    if (body !== null) {
-      const closeBraceIndex = openBraceIndex + body.length + 1;
-      if (index <= closeBraceIndex) {
-        return { body, bodyStart: openBraceIndex + 1 };
-      }
-    }
-    if (openBraceIndex === 0) break;
-    openBraceIndex = source.lastIndexOf('{', openBraceIndex - 1);
-  }
-  return null;
-}
-
-function findTopLevelSearchPath(
-  objectBody: string
-): { path: string; index: number } | null {
-  const pathRe = /\bpath:\s*(['"])([^'"]+)\1/g;
-  let pathMatch: RegExpExecArray | null;
-  while ((pathMatch = pathRe.exec(objectBody)) !== null) {
-    if (findEnclosingBraceBlock(objectBody, pathMatch.index)) continue;
-    return { path: pathMatch[2], index: pathMatch.index };
-  }
-  return null;
-}
-
 function findSearchEntriesByTitle(
   source: string,
   title: string
 ): { line: number; path: string | null; pathLine: number }[] {
   const entries: { line: number; path: string | null; pathLine: number }[] = [];
-  const titleRe = new RegExp(
-    `\\btitle:\\s*(['"])${escapeRegExp(title)}\\1`,
-    'g'
+  const sourceFile = ts.createSourceFile(
+    'searchData.ts',
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS
   );
-  let titleMatch: RegExpExecArray | null;
+  let apiData: ts.ArrayLiteralExpression | null = null;
 
-  while ((titleMatch = titleRe.exec(source)) !== null) {
-    const object = findEnclosingBraceBlock(source, titleMatch.index);
-    const pathMatch = object ? findTopLevelSearchPath(object.body) : null;
+  const unwrapExpression = (expression: ts.Expression): ts.Expression => {
+    let current = expression;
+    while (true) {
+      if (
+        ts.isParenthesizedExpression(current) ||
+        ts.isAsExpression(current) ||
+        ts.isTypeAssertionExpression(current) ||
+        ts.isSatisfiesExpression(current)
+      ) {
+        current = current.expression;
+        continue;
+      }
+      return current;
+    }
+  };
+  for (const statement of sourceFile.statements) {
+    if (!ts.isVariableStatement(statement)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      if (
+        !ts.isIdentifier(declaration.name) ||
+        declaration.name.text !== 'apiData' ||
+        !declaration.initializer
+      ) {
+        continue;
+      }
+      const initializer = unwrapExpression(declaration.initializer);
+      if (ts.isArrayLiteralExpression(initializer)) apiData = initializer;
+    }
+  }
 
+  if (!apiData) return entries;
+
+  const propertyName = (
+    property: ts.ObjectLiteralElementLike
+  ): string | null => {
+    if (!property.name) return null;
+    if (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)) {
+      return property.name.text;
+    }
+    return null;
+  };
+  const stringValue = (
+    property: ts.ObjectLiteralElementLike
+  ): string | null => {
+    if (!ts.isPropertyAssignment(property)) return null;
+    const initializer = unwrapExpression(property.initializer);
+    return ts.isStringLiteralLike(initializer) ? initializer.text : null;
+  };
+
+  for (const element of apiData.elements) {
+    const entry = unwrapExpression(element);
+    if (!ts.isObjectLiteralExpression(entry)) continue;
+    const titleProperty = entry.properties.find(
+      (property) => propertyName(property) === 'title'
+    );
+    if (!titleProperty || stringValue(titleProperty) !== title) continue;
+    const pathProperty = entry.properties.find(
+      (property) => propertyName(property) === 'path'
+    );
+    const line =
+      sourceFile.getLineAndCharacterOfPosition(
+        titleProperty.getStart(sourceFile)
+      ).line + 1;
     entries.push({
-      line: lineNumberAt(source, titleMatch.index),
-      path: pathMatch?.path ?? null,
-      pathLine: object && pathMatch
-        ? lineNumberAt(source, object.bodyStart + pathMatch.index)
-        : lineNumberAt(source, titleMatch.index),
+      line,
+      path: pathProperty ? stringValue(pathProperty) : null,
+      pathLine: pathProperty
+        ? sourceFile.getLineAndCharacterOfPosition(
+            pathProperty.getStart(sourceFile)
+          ).line + 1
+        : line,
     });
   }
 
@@ -269,30 +300,50 @@ function findTypeScriptDiscountOfferType(
 
   while ((blockMatch = blockRe.exec(source)) !== null) {
     const block = blockMatch[1];
-    const declaration =
-      /(?:export\s+)?type\s+DiscountOfferType\s*=\s*([\s\S]*?);/.exec(block);
+    const sourceFile = ts.createSourceFile(
+      'discount-offer-snippet.ts',
+      block,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TS
+    );
+    const declaration = sourceFile.statements.find(
+      (statement): statement is ts.TypeAliasDeclaration =>
+        ts.isTypeAliasDeclaration(statement) &&
+        statement.name.text === 'DiscountOfferType'
+    );
     if (!declaration) continue;
 
-    const rawMembers = declaration[1].split('|').map((member) => member.trim());
+    let offerType: ts.TypeNode = declaration.type;
+    while (ts.isParenthesizedTypeNode(offerType)) offerType = offerType.type;
+    const rawMembers = ts.isUnionTypeNode(offerType)
+      ? offerType.types
+      : [offerType];
     const members: string[] = [];
     for (const rawMember of rawMembers) {
-      const literal = /^(['"])([^'"]+)\1$/.exec(rawMember);
-      if (!literal) {
+      if (
+        !ts.isLiteralTypeNode(rawMember) ||
+        !ts.isStringLiteral(rawMember.literal)
+      ) {
         return {
           line: lineNumberAt(
             source,
-            blockMatch.index + blockMatch[0].indexOf(block) + declaration.index
+            blockMatch.index +
+              blockMatch[0].indexOf(block) +
+              declaration.getStart(sourceFile)
           ),
           members: null,
         };
       }
-      members.push(literal[2]);
+      members.push(rawMember.literal.text);
     }
 
     return {
       line: lineNumberAt(
         source,
-        blockMatch.index + blockMatch[0].indexOf(block) + declaration.index
+        blockMatch.index +
+          blockMatch[0].indexOf(block) +
+          declaration.getStart(sourceFile)
       ),
       members,
     };
@@ -303,10 +354,70 @@ function findTypeScriptDiscountOfferType(
 
 type NamedOfferTypeLanguage = 'swift' | 'kotlin' | 'dart';
 
+function stripCommentsPreservingLayout(source: string): string {
+  const output = source.split('');
+  let quote: "'" | '"' | null = null;
+  let escaped = false;
+  let inLineComment = false;
+  let inBlockComment = false;
+
+  for (let i = 0; i < source.length; i += 1) {
+    const ch = source[i];
+    const next = source[i + 1];
+
+    if (inLineComment) {
+      if (ch === '\n') {
+        inLineComment = false;
+      } else {
+        output[i] = ' ';
+      }
+      continue;
+    }
+    if (inBlockComment) {
+      if (ch !== '\n') output[i] = ' ';
+      if (ch === '*' && next === '/') {
+        output[i + 1] = ' ';
+        inBlockComment = false;
+        i += 1;
+      }
+      continue;
+    }
+    if (quote !== null) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === '\\') {
+        escaped = true;
+      } else if (ch === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (ch === "'" || ch === '"') {
+      quote = ch;
+      continue;
+    }
+    if (ch === '/' && next === '/') {
+      output[i] = ' ';
+      output[i + 1] = ' ';
+      inLineComment = true;
+      i += 1;
+      continue;
+    }
+    if (ch === '/' && next === '*') {
+      output[i] = ' ';
+      output[i + 1] = ' ';
+      inBlockComment = true;
+      i += 1;
+    }
+  }
+
+  return output.join('');
+}
+
 function findNamedDiscountOfferTypeMembers(
   source: string,
   language: NamedOfferTypeLanguage
-): { line: number; members: string[] } | null {
+): { line: number; members: string[] | null } | null {
   const blockRe = new RegExp(
     `<CodeBlock\\b[^>]*\\blanguage="${language}"[^>]*>\\s*\\{\`([\\s\\S]*?)\`\\}\\s*</CodeBlock>`,
     'g'
@@ -315,32 +426,38 @@ function findNamedDiscountOfferTypeMembers(
 
   while ((blockMatch = blockRe.exec(source)) !== null) {
     const block = blockMatch[1];
+    const code = stripCommentsPreservingLayout(block);
     const declaration =
       language === 'swift'
-        ? /enum\s+DiscountOfferType[^{}]*\{([\s\S]*?)\}/.exec(block)
+        ? /enum\s+DiscountOfferType[^{}]*\{([\s\S]*?)\}/.exec(code)
         : language === 'kotlin'
           ? /enum\s+class\s+DiscountOfferType(?:\([^)]*\))?\s*\{([\s\S]*?)\}/.exec(
-              block
+              code
             )
-          : /enum\s+DiscountOfferType\s*\{([\s\S]*?)\}/.exec(block);
+          : /enum\s+DiscountOfferType\s*\{([\s\S]*?)\}/.exec(code);
     if (!declaration) continue;
 
     const memberRe =
       language === 'swift'
-        ? /\bcase\s+([A-Za-z]\w*)\s*=\s*"([^"]+)"/g
+        ? /(?:\bcase|,)\s*([A-Za-z]\w*)\s*=\s*"([^"]+)"/g
         : language === 'kotlin'
           ? /\b([A-Z]\w*)\s*\(\s*"([^"]+)"\s*\)/g
-          : /\b([A-Z]\w*)\s*\(\s*'([^']+)'\s*\)/g;
-    const members = Array.from(declaration[1].matchAll(memberRe), (match) =>
-      `${match[1]}=${match[2]}`
+          : /\b([A-Z]\w*)\s*\(\s*(['"])([^'"]+)\2\s*\)/g;
+    const memberSection =
+      language === 'swift' ? declaration[1] : declaration[1].split(';', 1)[0];
+    const members = Array.from(
+      memberSection.matchAll(memberRe),
+      (match) => `${match[1]}=${match[language === 'dart' ? 3 : 2]}`
     );
+    const unmatchedMembers =
+      memberSection.replace(memberRe, '').replace(/[\s,;]/g, '').length > 0;
 
     return {
       line: lineNumberAt(
         source,
         blockMatch.index + blockMatch[0].indexOf(block) + declaration.index
       ),
-      members,
+      members: unmatchedMembers ? null : members,
     };
   }
 
@@ -442,6 +559,7 @@ export function auditCanonicalOfferDocs(
     );
     const actualMembers = declaration?.members;
     const hasExactMembers =
+      actualMembers !== null &&
       actualMembers !== undefined &&
       actualMembers.length === expectedMembers.length &&
       expectedMembers.every((member) => actualMembers.includes(member));
@@ -640,14 +758,19 @@ function buildTypeIndex(): Map<
   return index;
 }
 
-function extractBraceBlock(src: string, openBraceIdx: number): string | null {
+export function extractBraceBlock(
+  src: string,
+  openBraceIdx: number
+): string | null {
   if (src[openBraceIdx] !== '{') return null;
   let depth = 1;
   let i = openBraceIdx + 1;
-  let quote: "'" | '"' | '`' | null = null;
+  let quote: "'" | '"' | null = null;
   let escaped = false;
   let inLineComment = false;
   let inBlockComment = false;
+  let inTemplate = false;
+  const templateStack: { interpolationDepth: number | null }[] = [];
 
   while (i < src.length && depth > 0) {
     const ch = src[i];
@@ -678,6 +801,33 @@ function extractBraceBlock(src: string, openBraceIdx: number): string | null {
       i += 1;
       continue;
     }
+    if (inTemplate) {
+      if (escaped) {
+        escaped = false;
+        i += 1;
+        continue;
+      }
+      if (ch === '\\') {
+        escaped = true;
+        i += 1;
+        continue;
+      }
+      if (ch === '`') {
+        templateStack.pop();
+        inTemplate = false;
+        i += 1;
+        continue;
+      }
+      if (ch === '$' && next === '{') {
+        depth += 1;
+        templateStack[templateStack.length - 1].interpolationDepth = depth;
+        inTemplate = false;
+        i += 2;
+        continue;
+      }
+      i += 1;
+      continue;
+    }
     if (ch === '/' && next === '/') {
       inLineComment = true;
       i += 2;
@@ -688,13 +838,29 @@ function extractBraceBlock(src: string, openBraceIdx: number): string | null {
       i += 2;
       continue;
     }
-    if (ch === "'" || ch === '"' || ch === '`') {
+    if (ch === "'" || ch === '"') {
       quote = ch;
       i += 1;
       continue;
     }
+    if (ch === '`') {
+      templateStack.push({ interpolationDepth: null });
+      inTemplate = true;
+      i += 1;
+      continue;
+    }
     if (ch === '{') depth += 1;
-    else if (ch === '}') depth -= 1;
+    else if (ch === '}') {
+      const template = templateStack[templateStack.length - 1];
+      const closesInterpolation =
+        template?.interpolationDepth !== null &&
+        template?.interpolationDepth === depth;
+      depth -= 1;
+      if (closesInterpolation) {
+        template.interpolationDepth = null;
+        inTemplate = true;
+      }
+    }
     i += 1;
   }
   if (depth !== 0) return null;

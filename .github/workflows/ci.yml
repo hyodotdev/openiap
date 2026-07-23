@@ -99,6 +99,8 @@ jobs:
               - '.github/workflows/ci.yml'
             docs:
               - 'packages/docs/**'
+              - 'scripts/audit-docs.ts'
+              - 'scripts/audit-docs.test.ts'
               - '.github/workflows/ci.yml'
             web:
               - 'packages/docs/**'
@@ -329,6 +331,11 @@ jobs:
       - name: Type check
         working-directory: packages/docs
         run: bun run typecheck
+
+      - name: Audit docs consistency
+        run: |
+          bun test scripts/audit-docs.test.ts
+          bun run audit:docs
 
       - name: Lint
         working-directory: packages/docs

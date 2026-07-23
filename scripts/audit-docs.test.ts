@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import {
   auditActiveCodeExampleSource,
   auditCanonicalOfferDocs,
-  findEnclosingBraceBlock,
+  extractBraceBlock,
   type CanonicalOfferDocsSources,
 } from './audit-docs';
 
@@ -96,9 +96,17 @@ props.sku = "premium"\`}</CodeBlock>`;
     const source = [
       '<CodeBlock language="kotlin">{`iapStore.requestPurchase(activity = activity, props = request)`}</CodeBlock>',
       '<CodeBlock language="kotlin">{`kmpIAP.requestPurchase(props = request)`}</CodeBlock>',
+      '<CodeBlock language="kotlin">{`openIapStore.requestPurchase(activity = activity, props = request)`}</CodeBlock>',
+      '<CodeBlock language="kotlin">{`OpenIapStore().requestPurchase(props = request)`}</CodeBlock>',
+      '<CodeBlock language="kotlin">{`stores[0].requestPurchase(props = request)`}</CodeBlock>',
+      '<CodeBlock language="kotlin">{`store./* current instance */requestPurchase(props = request)`}</CodeBlock>',
     ].join('\n');
 
     expect(auditActiveCodeExampleSource('/tmp/active.tsx', source)).toEqual([
+      expect.objectContaining({ rule: 'R11' }),
+      expect.objectContaining({ rule: 'R11' }),
+      expect.objectContaining({ rule: 'R11' }),
+      expect.objectContaining({ rule: 'R11' }),
       expect.objectContaining({ rule: 'R11' }),
       expect.objectContaining({ rule: 'R11' }),
     ]);
@@ -108,15 +116,20 @@ props.sku = "premium"\`}</CodeBlock>`;
     const source = [
       '<CodeBlock language="kotlin">{`iapStore.requestPurchase(request)`}</CodeBlock>',
       '<CodeBlock language="kotlin">{`kmpIAP.requestPurchase(RequestPurchaseProps(...))`}</CodeBlock>',
+      '<CodeBlock language="kotlin">{`requestPurchase(props = validLocalProps)`}</CodeBlock>',
     ].join('\n');
 
     expect(auditActiveCodeExampleSource('/tmp/active.tsx', source)).toEqual([]);
   });
 });
 
-describe('brace-block lookup', () => {
-  test('stops after checking a non-enclosing brace at index zero', () => {
-    expect(findEnclosingBraceBlock('{} title', 3)).toBeNull();
+describe('brace-block parsing', () => {
+  test('handles nested template literals without closing the object early', () => {
+    const source = '{ description: `outer ${`}`}`, path: true }';
+
+    expect(extractBraceBlock(source, 0)).toBe(
+      ' description: `outer ${`}`}`, path: true '
+    );
   });
 });
 
@@ -280,6 +293,71 @@ ${discountOffer}`,
     }
   });
 
+  test('accepts a multiline TypeScript union with leading delimiters', () => {
+    const discountOffer = VALID_DISCOUNT_OFFER_TYPE_BLOCKS.replace(
+      /<CodeBlock language="typescript">\{`[\s\S]*?`}<\/CodeBlock>/,
+      `<CodeBlock language="typescript">{\`
+type DiscountOfferType =
+  | 'introductory'
+  | 'promotional'
+  | 'one-time';
+\`}</CodeBlock>`
+    );
+
+    expect(
+      auditCanonicalOfferDocs(
+        validOfferDocsSources({
+          discountOffer: `<p>DiscountOffer represents one-time products on Android via ProductDetails.OneTimePurchaseOfferDetails.</p>
+${discountOffer}`,
+        })
+      )
+    ).toEqual([]);
+  });
+
+  test('accepts a parenthesized TypeScript union', () => {
+    const discountOffer = VALID_DISCOUNT_OFFER_TYPE_BLOCKS.replace(
+      /<CodeBlock language="typescript">\{`[\s\S]*?`}<\/CodeBlock>/,
+      `<CodeBlock language="typescript">{\`
+type DiscountOfferType = (
+  | 'introductory'
+  | 'promotional'
+  | 'one-time'
+);
+\`}</CodeBlock>`
+    );
+
+    expect(
+      auditCanonicalOfferDocs(
+        validOfferDocsSources({
+          discountOffer: `<p>DiscountOffer represents one-time products on Android via ProductDetails.OneTimePurchaseOfferDetails.</p>
+${discountOffer}`,
+        })
+      )
+    ).toEqual([]);
+  });
+
+  test('ignores commented TypeScript declarations', () => {
+    const discountOffer = VALID_DISCOUNT_OFFER_TYPE_BLOCKS.replace(
+      /<CodeBlock language="typescript">\{`[\s\S]*?`}<\/CodeBlock>/,
+      `<CodeBlock language="typescript">{\`
+// type DiscountOfferType = 'introductory' | 'promotional' | 'one-time';
+\`}</CodeBlock>`
+    );
+    const drifts = auditCanonicalOfferDocs(
+      validOfferDocsSources({
+        discountOffer: `<p>DiscountOffer represents one-time products on Android via ProductDetails.OneTimePurchaseOfferDetails.</p>
+${discountOffer}`,
+      })
+    );
+
+    expect(drifts).toEqual([
+      expect.objectContaining({
+        rule: 'R12',
+        message: expect.stringContaining('TypeScript snippet'),
+      }),
+    ]);
+  });
+
   test('flags incorrect generated-language DiscountOfferType wire values', () => {
     for (const [language, brokenBlock] of [
       [
@@ -335,6 +413,97 @@ ${discountOffer}`,
     }
   });
 
+  test('flags unmatched extra generated-language enum members', () => {
+    for (const [language, brokenBlock] of [
+      [
+        'swift',
+        `<CodeBlock language="swift">{\`
+enum DiscountOfferType: String {
+  case introductory = "introductory"
+  case promotional = "promotional"
+  case oneTime = "one-time",
+       legacy = "legacy"
+}
+\`}</CodeBlock>`,
+      ],
+      [
+        'kotlin',
+        `<CodeBlock language="kotlin">{\`
+enum class DiscountOfferType(val rawValue: String) {
+  Introductory("introductory"),
+  Promotional("promotional"),
+  OneTime("one-time"),
+  Legacy
+}
+\`}</CodeBlock>`,
+      ],
+      [
+        'dart',
+        `<CodeBlock language="dart">{\`
+enum DiscountOfferType {
+  Introductory('introductory'),
+  Promotional('promotional'),
+  OneTime('one-time'),
+  Legacy("legacy");
+}
+\`}</CodeBlock>`,
+      ],
+    ] as const) {
+      const discountOffer = VALID_DISCOUNT_OFFER_TYPE_BLOCKS.replace(
+        new RegExp(
+          `<CodeBlock language="${language}">\\{\\\`[\\s\\S]*?\\\`\\}</CodeBlock>`
+        ),
+        brokenBlock
+      );
+      const drifts = auditCanonicalOfferDocs(
+        validOfferDocsSources({
+          discountOffer: `<p>DiscountOffer represents one-time products on Android via ProductDetails.OneTimePurchaseOfferDetails.</p>
+${discountOffer}`,
+        })
+      );
+
+      expect(drifts).toEqual([
+        expect.objectContaining({
+          rule: 'R12',
+          message: expect.stringContaining(`${language} snippet`),
+        }),
+      ]);
+    }
+  });
+
+  test('accepts valid Swift combined cases and Dart double quotes', () => {
+    const swiftCombined = `<CodeBlock language="swift">{\`
+enum DiscountOfferType: String {
+  case introductory = "introductory",
+       promotional = "promotional",
+       oneTime = "one-time"
+}
+\`}</CodeBlock>`;
+    const dartDoubleQuoted = `<CodeBlock language="dart">{\`
+enum DiscountOfferType {
+  Introductory("introductory"),
+  Promotional("promotional"),
+  OneTime("one-time");
+}
+\`}</CodeBlock>`;
+    const discountOffer = VALID_DISCOUNT_OFFER_TYPE_BLOCKS.replace(
+      /<CodeBlock language="swift">\{`[\s\S]*?`}<\/CodeBlock>/,
+      swiftCombined
+    ).replace(
+      /<CodeBlock language="dart">\{`[\s\S]*?`}<\/CodeBlock>/,
+      dartDoubleQuoted
+    );
+
+    expect(
+      auditCanonicalOfferDocs(
+        validOfferDocsSources({
+          discountOffer: `<p>DiscountOffer represents one-time products on Android via ProductDetails.OneTimePurchaseOfferDetails.</p>
+${discountOffer}`,
+        })
+      )
+    ).toEqual([]);
+  });
+
   test('flags legacy native search routes and missing canonical entries', () => {
     const legacySearchData = `export const apiData = [
   {
@@ -374,6 +543,49 @@ ${discountOffer}`,
     ]);
   });
 
+  test('ignores commented search entries and path-like description strings', () => {
+    const commentedEntries = `export const apiData = [];
+// { title: 'DiscountOffer', path: '/docs/types/discount-offer' }
+/* { title: 'SubscriptionOffer', path: '/docs/types/subscription-offer' } */`;
+    const commentedDrifts = auditCanonicalOfferDocs(
+      validOfferDocsSources({ searchData: commentedEntries })
+    );
+    expect(commentedDrifts).toEqual([
+      expect.objectContaining({
+        message: expect.stringContaining('canonical DiscountOffer entry'),
+      }),
+      expect.objectContaining({
+        message: expect.stringContaining('canonical SubscriptionOffer entry'),
+      }),
+    ]);
+
+    const misleadingDescriptions = `export const apiData = [
+  {
+    title: 'DiscountOffer',
+    description: "path: '/docs/types/discount-offer'",
+    path: '/wrong-discount-path',
+  },
+  {
+    title: 'SubscriptionOffer',
+    description: "path: '/docs/types/subscription-offer'",
+    path: '/wrong-subscription-path',
+  },
+];`;
+    const pathDrifts = auditCanonicalOfferDocs(
+      validOfferDocsSources({ searchData: misleadingDescriptions })
+    );
+    expect(pathDrifts).toEqual([
+      expect.objectContaining({
+        line: 5,
+        message: expect.stringContaining('/wrong-discount-path'),
+      }),
+      expect.objectContaining({
+        line: 10,
+        message: expect.stringContaining('/wrong-subscription-path'),
+      }),
+    ]);
+  });
+
   test('finds canonical search paths across indentation and nested formatting', () => {
     const reformattedSearchData = `export const apiData = [
 \t{
@@ -390,6 +602,75 @@ ${discountOffer}`,
       auditCanonicalOfferDocs(
         validOfferDocsSources({ searchData: reformattedSearchData })
       )
+    ).toEqual([]);
+  });
+
+  test('accepts parenthesized and typed apiData array initializers', () => {
+    const entries = `[
+  { title: 'DiscountOffer', path: '/docs/types/discount-offer' },
+  { title: 'SubscriptionOffer', path: '/docs/types/subscription-offer' },
+]`;
+    for (const searchData of [
+      `export const apiData = (${entries});`,
+      `export const apiData = ${entries} as const;`,
+      `export const apiData = ${entries} satisfies readonly SearchItem[];`,
+    ]) {
+      expect(
+        auditCanonicalOfferDocs(validOfferDocsSources({ searchData }))
+      ).toEqual([]);
+    }
+  });
+
+  test('accepts wrapped apiData elements and string properties', () => {
+    const searchData = `export const apiData = [
+  ({
+    title: ('DiscountOffer' as const),
+    path: '/docs/types/discount-offer' as const,
+  }),
+  ({
+    title: 'SubscriptionOffer' as const,
+    path: ('/docs/types/subscription-offer'),
+  } as const),
+];`;
+
+    expect(
+      auditCanonicalOfferDocs(validOfferDocsSources({ searchData }))
+    ).toEqual([]);
+  });
+
+  test('ignores nested apiData shadow declarations', () => {
+    const searchData = `export const apiData = [
+  { title: 'DiscountOffer', path: '/docs/types/discount-offer' },
+  { title: 'SubscriptionOffer', path: '/docs/types/subscription-offer' },
+];
+function shadow() {
+  const apiData = [];
+  return apiData;
+}`;
+
+    expect(
+      auditCanonicalOfferDocs(validOfferDocsSources({ searchData }))
+    ).toEqual([]);
+  });
+
+  test('parses search entries after nested template literals', () => {
+    const searchData = [
+      'export const apiData = [',
+      '  {',
+      "    title: 'DiscountOffer',",
+      '    description: `outer ${`}`}`,',
+      "    path: '/docs/types/discount-offer',",
+      '  },',
+      '  {',
+      "    title: 'SubscriptionOffer',",
+      '    description: `outer ${`}`}`,',
+      "    path: '/docs/types/subscription-offer',",
+      '  },',
+      '];',
+    ].join('\n');
+
+    expect(
+      auditCanonicalOfferDocs(validOfferDocsSources({ searchData }))
     ).toEqual([]);
   });
 
