@@ -172,14 +172,14 @@ function Releases() {
             }}
           >
             <li>
-              GraphQL schema inventory, custom input contracts, deprecation
-              reasons, supported languages, generated sources, and synchronized
-              platform targets now derive from canonical manifests instead of
-              parallel file lists.
+              GraphQL schema inventory and deprecation reasons now come from
+              canonical SDL directives, custom input shapes from shared
+              contracts, supported languages from the plugin registry, and
+              generated sources and synchronized targets from the sync manifest.
             </li>
             <li>
               Generation and CI fail closed on tracked or untracked drift, and
-              standalone refreshers consume the versioned{' '}
+              version-pinned framework refreshers consume the versioned{' '}
               <code>docs-2.5.1</code> source snapshot.
             </li>
             <li>
