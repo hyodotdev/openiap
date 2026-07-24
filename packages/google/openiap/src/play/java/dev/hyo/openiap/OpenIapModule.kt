@@ -187,7 +187,11 @@ internal fun commitPlayConnectionConfiguration(
  * @param alternativeBillingMode Alternative billing mode (default: NONE)
  * @param userChoiceBillingListener Listener for user choice billing selection (optional)
  */
-class OpenIapModule(
+class OpenIapModule
+    @Deprecated(
+        "Construct OpenIapModule(context), pass InitConnectionConfig(enableBillingProgramAndroid = ...) to initConnection, and register billing listeners with add/remove APIs. Scheduled for removal in OpenIAP 3.0."
+    )
+    constructor(
     private val context: Context,
     alternativeBillingMode: AlternativeBillingMode = AlternativeBillingMode.NONE,
     @Volatile
@@ -196,11 +200,22 @@ class OpenIapModule(
     private var developerProvidedBillingListener: dev.hyo.openiap.listener.DeveloperProvidedBillingListener? = null
 ) : OpenIapProtocol, PurchasesUpdatedListener {
 
+    @Suppress("DEPRECATION")
+    constructor(context: Context) : this(
+        context,
+        AlternativeBillingMode.NONE,
+        null,
+        null
+    )
+
     companion object {
         private const val TAG = "OpenIapModule"
     }
 
     // For backward compatibility
+    @Deprecated(
+        "Construct OpenIapModule(context), then pass InitConnectionConfig(enableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer) to initConnection when enabled. Scheduled for removal in OpenIAP 3.0."
+    )
     constructor(context: Context, enableAlternativeBilling: Boolean) : this(
         context,
         if (enableAlternativeBilling) AlternativeBillingMode.ALTERNATIVE_ONLY else AlternativeBillingMode.NONE,
@@ -1015,9 +1030,12 @@ class OpenIapModule(
     /**
      * Check if alternative billing is available for this user/device
      * Step 1 of alternative billing flow
-     * @deprecated Use isBillingProgramAvailable with BillingProgramAndroid.ExternalOffer instead
+     * @deprecated Use isBillingProgramAvailable with BillingProgramAndroid.ExternalOffer instead.
+     * Scheduled for removal in OpenIAP 3.0.
      */
-    @Deprecated("Use isBillingProgramAvailable with BillingProgramAndroid.ExternalOffer instead")
+    @Deprecated(
+        "Use isBillingProgramAvailable with BillingProgramAndroid.ExternalOffer instead. Scheduled for removal in OpenIAP 3.0."
+    )
     override suspend fun checkAlternativeBillingAvailability(): Boolean = withContext(Dispatchers.IO) {
         val client = billingClient ?: throw OpenIapError.NotPrepared
         if (!client.isReady) throw OpenIapError.NotPrepared
@@ -1056,9 +1074,9 @@ class OpenIapModule(
      * Show alternative billing information dialog to user
      * Step 2 of alternative billing flow
      * Must be called BEFORE processing payment
-     * @deprecated Use launchExternalLink instead
+     * @deprecated Use launchExternalLink instead. Scheduled for removal in OpenIAP 3.0.
      */
-    @Deprecated("Use launchExternalLink instead")
+    @Deprecated("Use launchExternalLink instead. Scheduled for removal in OpenIAP 3.0.")
     override suspend fun showAlternativeBillingInformationDialog(activity: Activity): Boolean = withContext(Dispatchers.IO) {
         val client = billingClient ?: throw OpenIapError.NotPrepared
         if (!client.isReady) throw OpenIapError.NotPrepared
@@ -1106,9 +1124,12 @@ class OpenIapModule(
      * Step 3 of alternative billing flow
      * Must be called AFTER successful payment in your payment system
      * Token must be reported to Google Play backend within 24 hours
-     * @deprecated Use createBillingProgramReportingDetails with BillingProgramAndroid.ExternalOffer instead
+     * @deprecated Use createBillingProgramReportingDetails with BillingProgramAndroid.ExternalOffer instead.
+     * Scheduled for removal in OpenIAP 3.0.
      */
-    @Deprecated("Use createBillingProgramReportingDetails with BillingProgramAndroid.ExternalOffer instead")
+    @Deprecated(
+        "Use createBillingProgramReportingDetails with BillingProgramAndroid.ExternalOffer instead. Scheduled for removal in OpenIAP 3.0."
+    )
     override suspend fun createAlternativeBillingReportingToken(): String? = withContext(Dispatchers.IO) {
         val client = billingClient ?: throw OpenIapError.NotPrepared
         if (!client.isReady) throw OpenIapError.NotPrepared
@@ -2279,7 +2300,7 @@ class OpenIapModule(
         }
     }
 
-    @Deprecated("Use verifyPurchase")
+    @Deprecated("Use verifyPurchase instead. Scheduled for removal in OpenIAP 3.0.")
     override val validateReceipt: MutationValidateReceiptHandler = { props ->
         verifyPurchase(props)
     }
@@ -3024,6 +3045,9 @@ class OpenIapModule(
      *
      * @param listener User choice billing listener
      */
+    @Deprecated(
+        "Use addUserChoiceBillingListener and removeUserChoiceBillingListener instead. Scheduled for removal in OpenIAP 3.0."
+    )
     override fun setUserChoiceBillingListener(listener: dev.hyo.openiap.listener.UserChoiceBillingListener?) {
         userChoiceBillingListener = listener
     }
@@ -3033,6 +3057,9 @@ class OpenIapModule(
      * (8.3.0+) and Google-rendered Billing Choice (9.1.0+).
      * @param listener Developer-provided billing listener or null to remove
      */
+    @Deprecated(
+        "Use addDeveloperProvidedBillingListener and removeDeveloperProvidedBillingListener instead. Scheduled for removal in OpenIAP 3.0."
+    )
     override fun setDeveloperProvidedBillingListener(listener: dev.hyo.openiap.listener.DeveloperProvidedBillingListener?) {
         developerProvidedBillingListener = listener
     }

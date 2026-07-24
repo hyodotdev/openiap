@@ -82,10 +82,126 @@ const purchaseSafetyReleases = [
   ['OpenIap.Maui 1.2.2', 'maui-iap-1.2.2'],
 ] as const;
 
+const plannedFlutterPurchasePayloadReleases = [
+  'flutter_inapp_purchase 9.6.1 (planned)',
+] as const;
+
 function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // July 24, 2026 - Planned Flutter Android purchase payload patch
+    {
+      id: 'flutter-purchase-payload-fix-planned-2026-07-24',
+      date: new Date('2026-07-24'),
+      element: (
+        <div
+          key="flutter-purchase-payload-fix-planned-2026-07-24"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="flutter-purchase-payload-fix-planned-2026-07-24"
+            level="h4"
+          >
+            July 24, 2026 - Flutter Android purchase payload patch (planned)
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Prepares a focused Flutter patch for{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/issues/248"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              issue #248
+            </a>{' '}
+            in{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/251"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #251
+            </a>
+            . This entry remains planned until the Flutter release workflow
+            publishes the package and GitHub tag. The OpenIAP specification and
+            native package versions are unchanged.
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Flutter purchase payloads</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              Reads Google Play&apos;s signed purchase JSON from the canonical{' '}
+              <code>PurchaseAndroid.dataAndroid</code> key. Flutter 9.6.0 and
+              earlier 9.x releases read only a nonexistent compatibility key,
+              leaving <code>dataAndroid</code> null for listener and available-
+              purchase results.
+            </li>
+            <li>
+              Preserves the complete normalized generated Android and iOS
+              purchase payload before applying compatibility conversions, so
+              newly added optional fields are not silently dropped by a local
+              allowlist.
+            </li>
+            <li>
+              Keeps <code>originalJsonAndroid</code> as a fallback input alias
+              only for the remainder of Flutter 9.x. It is not a public Purchase
+              field, canonical <code>dataAndroid</code> wins when both are
+              present, and the fallback is scheduled for removal in{' '}
+              <code>flutter_inapp_purchase 10.0.0</code>.
+            </li>
+          </ul>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Custom MethodChannel adapters, mocks, and fixtures should migrate to{' '}
+            <code>dataAndroid</code> now. See{' '}
+            <Link to="/docs/updates/deprecations#flutter-original-json-android">
+              Deprecations &amp; 3.0 Migration
+            </Link>{' '}
+            for the complete removal schedule.
+          </p>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Planned Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              {plannedFlutterPurchasePayloadReleases.map((release) => (
+                <li key={release}>{release}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // July 23, 2026 - IAPKit webhook deduplication and ASC review automation
     {
       id: 'iapkit-webhook-dedup-asc-review-automation-2026-07-23',

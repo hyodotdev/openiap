@@ -351,7 +351,11 @@ internal fun buildAmazonPurchase(
  */
 internal suspend fun unsupportedRedeemOfferCode(): Boolean = false
 
-class OpenIapModule(
+class OpenIapModule
+    @Deprecated(
+        "Use OpenIapModule(context) and register listeners with add/remove APIs; Amazon ignores alternative-billing constructor options. Scheduled for removal in OpenIAP 3.0."
+    )
+    constructor(
     private val context: Context,
     @Suppress("UNUSED_PARAMETER")
     private var alternativeBillingMode: AlternativeBillingMode = AlternativeBillingMode.NONE,
@@ -361,11 +365,22 @@ class OpenIapModule(
     private var developerProvidedBillingListener: DeveloperProvidedBillingListener? = null
 ) : OpenIapProtocol, PurchasingListener {
 
+    @Suppress("DEPRECATION")
+    constructor(context: Context) : this(
+        context,
+        AlternativeBillingMode.NONE,
+        null,
+        null
+    )
+
     private class AmazonPurchaseRequestFailure(
         val requestId: String,
         val purchaseError: OpenIapError,
     ) : Exception(purchaseError.message, purchaseError)
 
+    @Deprecated(
+        "Use OpenIapModule(context) instead; Amazon ignores alternative-billing constructor options. Scheduled for removal in OpenIAP 3.0."
+    )
     constructor(context: Context, enableAlternativeBilling: Boolean) : this(
         context,
         if (enableAlternativeBilling) AlternativeBillingMode.ALTERNATIVE_ONLY else AlternativeBillingMode.NONE,
@@ -779,7 +794,7 @@ class OpenIapModule(
         }
     }
 
-    @Deprecated("Use verifyPurchase")
+    @Deprecated("Use verifyPurchase instead. Scheduled for removal in OpenIAP 3.0.")
     override val validateReceipt: MutationValidateReceiptHandler = {
         verifyPurchase(it)
     }
@@ -961,21 +976,33 @@ class OpenIapModule(
 
     override fun removeSubscriptionBillingIssueListener(listener: OpenIapSubscriptionBillingIssueListener) = Unit
 
+    @Deprecated(
+        "Use addUserChoiceBillingListener and removeUserChoiceBillingListener instead. Scheduled for removal in OpenIAP 3.0."
+    )
     override fun setUserChoiceBillingListener(listener: UserChoiceBillingListener?) {
         userChoiceBillingListener = listener
     }
 
+    @Deprecated(
+        "Use addDeveloperProvidedBillingListener and removeDeveloperProvidedBillingListener instead. Scheduled for removal in OpenIAP 3.0."
+    )
     override fun setDeveloperProvidedBillingListener(listener: DeveloperProvidedBillingListener?) {
         developerProvidedBillingListener = listener
     }
 
-    @Deprecated("Amazon Appstore does not support Google Play alternative billing")
+    @Deprecated(
+        "Use isBillingProgramAvailable with BillingProgramAndroid.ExternalOffer instead; Amazon Appstore does not support Google Play alternative billing. Scheduled for removal in OpenIAP 3.0."
+    )
     override suspend fun checkAlternativeBillingAvailability(): Boolean = false
 
-    @Deprecated("Amazon Appstore does not support Google Play alternative billing")
+    @Deprecated(
+        "Use launchExternalLink instead; Amazon Appstore does not support Google Play alternative billing. Scheduled for removal in OpenIAP 3.0."
+    )
     override suspend fun showAlternativeBillingInformationDialog(activity: Activity): Boolean = false
 
-    @Deprecated("Amazon Appstore does not support Google Play alternative billing")
+    @Deprecated(
+        "Use createBillingProgramReportingDetails with BillingProgramAndroid.ExternalOffer instead; Amazon Appstore does not support Google Play alternative billing. Scheduled for removal in OpenIAP 3.0."
+    )
     override suspend fun createAlternativeBillingReportingToken(): String? = null
 
     override suspend fun isBillingProgramAvailable(

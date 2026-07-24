@@ -976,6 +976,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
     }
 
+    @available(*, deprecated, message: "Use getStorefront instead. Scheduled for removal in godot-iap 3.0.0.")
     @Callable
     public func getStorefrontIOS() -> String {
         GodotIapLog.payload("Getting storefront", payload: nil)
@@ -1184,7 +1185,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
     }
 
-    @available(*, deprecated, message: "Use promotedProductIOS signal with requestPurchase instead.")
+    @available(*, deprecated, message: "Use promotedProductIOS signal with requestPurchase instead. Scheduled for removal in godot-iap 3.0.0.")
     @Callable
     public func requestPurchaseOnPromotedProductIOS() -> String {
         GodotIapLog.payload("Requesting purchase on promoted product", payload: nil)
@@ -1557,7 +1558,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     // MARK: - StoreKit 2 Deprecated / Alias APIs
 
-    @available(*, deprecated, message: "Use verifyPurchase instead.")
+    @available(*, deprecated, message: "Use verifyPurchase instead. Scheduled for removal in godot-iap 3.0.0.")
     @Callable
     public func validateReceiptIOS(propsJson: String) -> String {
         GodotIapLog.payload("validateReceiptIOS", payload: propsJson)

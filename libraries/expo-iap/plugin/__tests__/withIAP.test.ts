@@ -1,4 +1,5 @@
 import type {ExpoConfig} from '@expo/config-types';
+import {WarningAggregator} from 'expo/config-plugins';
 import plugin, {
   computeAutolinkModules,
   ensureOnsidePodIOS,
@@ -10,6 +11,7 @@ import plugin, {
   resolveModuleSelection,
   resolveVegaProjectOptions,
   syncHorizonAppIdMetaData,
+  warnLegacyPluginOptions,
 } from '../src/withIAP';
 import {getAndroidLocalPathInput} from '../src/withLocalOpenIAP';
 import type {AutolinkState, ExpoIapPluginOptions} from '../src/withIAP';
@@ -43,6 +45,16 @@ const typedPluginOptions: ExpoIapPluginOptions = {
   },
 };
 
+const typedLegacyAmazonOptions: ExpoIapPluginOptions = {
+  module: 'auto',
+  android: {
+    amazon: {
+      fireOS: true,
+      vegaOS: false,
+    },
+  },
+};
+
 const explicitModeOptions: ExpoIapPluginCommonOptions = {
   module: 'onside',
 };
@@ -53,6 +65,7 @@ const invalidExplicitOptions: ExpoIapPluginCommonOptions = {
 void autoModeOptions;
 void groupedAmazonOptions;
 void typedPluginOptions;
+void typedLegacyAmazonOptions;
 void explicitModeOptions;
 void invalidExplicitOptions;
 
@@ -379,6 +392,111 @@ describe('android configuration', () => {
     ).toBe('canonical');
   });
 
+  it('keeps deprecated Horizon app id fields as ordered fallbacks', () => {
+    expect(
+      resolveHorizonAppId({
+        android: {horizonAppId: 'deprecated-android'},
+        horizonAppId: 'deprecated-top-level',
+      }),
+    ).toBe('deprecated-android');
+    expect(
+      resolveHorizonAppId({
+        horizonAppId: 'deprecated-top-level',
+      }),
+    ).toBe('deprecated-top-level');
+  });
+
+  it('warns for legacy Android plugin fields scheduled for 5.0 removal', () => {
+    const addWarningAndroid =
+      WarningAggregator.addWarningAndroid as jest.MockedFunction<
+        typeof WarningAggregator.addWarningAndroid
+      >;
+    jest.clearAllMocks();
+
+    const legacyOptions: ExpoIapPluginOptions = {
+      android: {
+        horizon: {appId: 'canonical'},
+        horizonAppId: 'deprecated-android',
+        amazon: {fireOS: false, vegaOS: false},
+      },
+      horizonAppId: 'deprecated-top-level',
+      modules: {amazon: {fireOS: true, vegaOS: true}},
+    };
+
+    warnLegacyPluginOptions(legacyOptions);
+
+    expect(addWarningAndroid).toHaveBeenCalledTimes(4);
+    expect(addWarningAndroid).toHaveBeenCalledWith(
+      'expo-iap',
+      expect.stringMatching(
+        /android\.amazon\.fireOS.*expo-iap 5\.0\.0.*modules\.amazon\.fireOS/,
+      ),
+    );
+    expect(addWarningAndroid).toHaveBeenCalledWith(
+      'expo-iap',
+      expect.stringMatching(
+        /boolean form of android\.amazon\.vegaOS.*expo-iap 5\.0\.0.*modules\.amazon\.vegaOS/,
+      ),
+    );
+    expect(addWarningAndroid).toHaveBeenCalledWith(
+      'expo-iap',
+      expect.stringMatching(
+        /android\.horizonAppId.*expo-iap 5\.0\.0.*android\.horizon\.appId/,
+      ),
+    );
+    expect(addWarningAndroid).toHaveBeenCalledWith(
+      'expo-iap',
+      expect.stringMatching(
+        /^horizonAppId.*expo-iap 5\.0\.0.*android\.horizon\.appId/,
+      ),
+    );
+  });
+
+  it('does not warn for canonical options or Vega project overrides', () => {
+    const addWarningAndroid =
+      WarningAggregator.addWarningAndroid as jest.MockedFunction<
+        typeof WarningAggregator.addWarningAndroid
+      >;
+    const addWarningIOS =
+      WarningAggregator.addWarningIOS as jest.MockedFunction<
+        typeof WarningAggregator.addWarningIOS
+      >;
+    jest.clearAllMocks();
+
+    warnLegacyPluginOptions({
+      android: {
+        horizon: {appId: 'canonical'},
+        amazon: {vegaOS: {packageId: 'dev.example.vega'}},
+      },
+      ios: {alternativeBilling: {enabled: true}},
+      modules: {amazon: {fireOS: true, vegaOS: true}},
+    });
+
+    expect(addWarningAndroid).not.toHaveBeenCalled();
+    expect(addWarningIOS).not.toHaveBeenCalled();
+  });
+
+  it('warns when the legacy iOS alternative-billing option is present', () => {
+    const addWarningIOS =
+      WarningAggregator.addWarningIOS as jest.MockedFunction<
+        typeof WarningAggregator.addWarningIOS
+      >;
+    jest.clearAllMocks();
+
+    warnLegacyPluginOptions({
+      ios: {alternativeBilling: {enabled: false}},
+      iosAlternativeBilling: {enabled: true},
+    });
+
+    expect(addWarningIOS).toHaveBeenCalledTimes(1);
+    expect(addWarningIOS).toHaveBeenCalledWith(
+      'expo-iap',
+      expect.stringMatching(
+        /iosAlternativeBilling.*expo-iap 5\.0\.0.*ios\.alternativeBilling/,
+      ),
+    );
+  });
+
   it('resolves Vega OS project options from android.amazon.vegaOS', () => {
     expect(
       resolveVegaProjectOptions({
@@ -554,7 +672,7 @@ describe('local OpenIAP configuration', () => {
 
 describe('ios module selection', () => {
   const createConfig = (ios?: ExpoConfig['ios']): ExpoConfig =>
-    ({name: 'test-app', slug: 'test-app', ios} as ExpoConfig);
+    ({name: 'test-app', slug: 'test-app', ios}) as ExpoConfig;
 
   it('defaults to Expo IAP only when no options provided', () => {
     const result = resolveModuleSelection(createConfig(), undefined);

@@ -266,7 +266,14 @@ class PurchaseError implements Exception {
   String toString() => '$name: $message';
 }
 
-/// Purchase result (legacy - kept for backward compatibility)
+/// Legacy error payload used by [FlutterInappPurchase.purchaseError].
+///
+/// Use [PurchaseError] from `purchaseErrorListener`. Scheduled for removal in
+/// flutter_inapp_purchase 10.0.0.
+@Deprecated(
+  'Use PurchaseError from purchaseErrorListener. '
+  'Scheduled for removal in flutter_inapp_purchase 10.0.0.',
+)
 class PurchaseResult {
   final int? responseCode;
   final String? debugMessage;
@@ -404,7 +411,14 @@ class ErrorCodeUtils {
   }
 }
 
-/// Connection result (legacy - kept for backward compatibility)
+/// Legacy connection event payload.
+///
+/// Use the result of `initConnection`. Scheduled for removal in
+/// flutter_inapp_purchase 10.0.0.
+@Deprecated(
+  'Use the result of initConnection. '
+  'Scheduled for removal in flutter_inapp_purchase 10.0.0.',
+)
 class ConnectionResult {
   final String? msg;
 

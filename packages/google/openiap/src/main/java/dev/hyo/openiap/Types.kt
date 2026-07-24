@@ -12,8 +12,9 @@ package dev.hyo.openiap
 /**
  * Alternative billing mode for Android
  * Controls which billing system is used
- * Use USER_CHOICE_BILLING for user choice billing, EXTERNAL_OFFER for alternative only.
- * @deprecated Use enableBillingProgramAndroid with BillingProgramAndroid instead.
+ * Use the user-choice-billing program for user choice billing and external-offer
+ * for external digital-content offers.
+ * @deprecated Use enableBillingProgramAndroid with BillingProgramAndroid instead. Scheduled for removal in OpenIAP 3.0.
  */
 public enum class AlternativeBillingModeAndroid(val rawValue: String) {
     /**
@@ -23,13 +24,13 @@ public enum class AlternativeBillingModeAndroid(val rawValue: String) {
     /**
      * User choice billing - user can select between Google Play or alternative
      * Requires Google Play Billing Library 7.0+
-     * @deprecated Use BillingProgramAndroid.USER_CHOICE_BILLING instead.
+     * @deprecated Use the user-choice-billing BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.
      */
     UserChoice("user-choice"),
     /**
      * Alternative billing only - no Google Play billing option
      * Requires Google Play Billing Library 6.2+
-     * @deprecated Use BillingProgramAndroid.EXTERNAL_OFFER instead.
+     * @deprecated Use the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.
      */
     AlternativeOnly("alternative-only");
 
@@ -314,15 +315,15 @@ public enum class ErrorCode(val rawValue: String) {
     NetworkError("network-error"),
     ServiceError("service-error"),
     /**
-     * @deprecated Use PurchaseVerificationFailed instead
+     * @deprecated Use PurchaseVerificationFailed instead. Scheduled for removal in OpenIAP 3.0.
      */
     ReceiptFailed("receipt-failed"),
     /**
-     * @deprecated Use PurchaseVerificationFinished instead
+     * @deprecated Use PurchaseVerificationFinished instead. Scheduled for removal in OpenIAP 3.0.
      */
     ReceiptFinished("receipt-finished"),
     /**
-     * @deprecated Use PurchaseVerificationFinishFailed instead
+     * @deprecated Use PurchaseVerificationFinishFailed instead. Scheduled for removal in OpenIAP 3.0.
      */
     ReceiptFinishedFailed("receipt-finished-failed"),
     PurchaseVerificationFailed("purchase-verification-failed"),
@@ -1665,7 +1666,7 @@ public interface PurchaseCommon {
     val ids: List<String>?
     val isAutoRenewing: Boolean
     /**
-     * @deprecated Use store instead
+     * @deprecated Use store instead. Scheduled for removal in OpenIAP 3.0.
      */
     val platform: IapPlatform
     val productId: String
@@ -1720,7 +1721,7 @@ public data class ActiveSubscription(
     /**
      * Whether the subscription will expire soon (within 7 days).
      * Consider using daysUntilExpirationIOS for more precise control.
-     * @deprecated iOS only - use daysUntilExpirationIOS instead.
+     * @deprecated iOS only - use daysUntilExpirationIOS instead. Scheduled for removal in OpenIAP 3.0.
      */
     val willExpireSoon: Boolean? = null
 ) {
@@ -2272,7 +2273,7 @@ public data class DiscountDisplayInfoAndroid(
 /**
  * Discount information returned from the store.
  * @see https://openiap.dev/docs/types/subscription-offer
- * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
+ * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
  */
 public data class DiscountIOS(
     val identifier: String,
@@ -2451,7 +2452,7 @@ public data class DiscountOffer(
 /**
  * iOS DiscountOffer (output type).
  * @see https://openiap.dev/docs/types/subscription-offer
- * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
+ * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
  */
 public data class DiscountOfferIOS(
     /**
@@ -2525,7 +2526,7 @@ public data class EntitlementIOS(
 /**
  * External offer availability result (Android)
  * Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
- * @deprecated Use BillingProgramAvailabilityResultAndroid with isBillingProgramAvailableAsync instead
+ * @deprecated Use BillingProgramAvailabilityResultAndroid from isBillingProgramAvailableAndroid instead. Scheduled for removal in OpenIAP 3.0.
  */
 public data class ExternalOfferAvailabilityResultAndroid(
     /**
@@ -2551,7 +2552,7 @@ public data class ExternalOfferAvailabilityResultAndroid(
 /**
  * External offer reporting details (Android)
  * Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
- * @deprecated Use BillingProgramReportingDetailsAndroid with createBillingProgramReportingDetailsAsync instead
+ * @deprecated Use BillingProgramReportingDetailsAndroid from createBillingProgramReportingDetailsAndroid instead. Scheduled for removal in OpenIAP 3.0.
  */
 public data class ExternalOfferReportingDetailsAndroid(
     /**
@@ -2980,7 +2981,7 @@ public data class ProductAndroid(
     /**
      * One-time purchase offer details including discounts (Android)
      * Returns all eligible offers. Available in Google Play Billing Library 8.0+
-     * @deprecated Use the standardized discountOffers field instead.
+     * @deprecated Use the standardized discountOffers field instead. Scheduled for removal in OpenIAP 3.0.
      */
     val oneTimePurchaseOfferDetailsAndroid: List<ProductAndroidOneTimePurchaseOfferDetail>? = null,
     override val platform: IapPlatform = IapPlatform.Android,
@@ -2994,7 +2995,7 @@ public data class ProductAndroid(
      */
     val productStatusAndroid: ProductStatusAndroid? = null,
     /**
-     * @deprecated Use subscriptionOffers instead for cross-platform compatibility.
+     * @deprecated Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
      */
     val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetails>? = null,
     /**
@@ -3055,7 +3056,7 @@ public data class ProductAndroid(
  * One-time purchase offer details (Android).
  * Available in Google Play Billing Library 8.0+
  * @see https://openiap.dev/docs/types/discount-offer
- * @deprecated Use the standardized DiscountOffer type for Android one-time offers.
+ * @deprecated Use the standardized DiscountOffer type for Android one-time offers. Scheduled for removal in OpenIAP 3.0.
  */
 public data class ProductAndroidOneTimePurchaseOfferDetail(
     /**
@@ -3164,7 +3165,7 @@ public data class ProductIOS(
      */
     val pricingTermsIOS: List<SubscriptionPricingTermsIOS>? = null,
     /**
-     * @deprecated Use subscriptionOffers instead for cross-platform compatibility.
+     * @deprecated Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
      */
     val subscriptionInfoIOS: SubscriptionInfoIOS? = null,
     /**
@@ -3241,7 +3242,7 @@ public data class ProductSubscriptionAndroid(
     /**
      * Legacy nullable compatibility field. Google Play does not populate one-time
      * purchase offer details for subscription products.
-     * @deprecated One-time offers belong to ProductAndroid.discountOffers; subscriptions use subscriptionOffers.
+     * @deprecated One-time offers belong to ProductAndroid.discountOffers; subscriptions use subscriptionOffers. Scheduled for removal in OpenIAP 3.0.
      */
     val oneTimePurchaseOfferDetailsAndroid: List<ProductAndroidOneTimePurchaseOfferDetail>? = null,
     override val platform: IapPlatform = IapPlatform.Android,
@@ -3255,7 +3256,7 @@ public data class ProductSubscriptionAndroid(
      */
     val productStatusAndroid: ProductStatusAndroid? = null,
     /**
-     * @deprecated Use subscriptionOffers instead for cross-platform compatibility.
+     * @deprecated Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
      */
     val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetails>,
     /**
@@ -3315,7 +3316,7 @@ public data class ProductSubscriptionAndroid(
 /**
  * Subscription offer details (Android).
  * @see https://openiap.dev/docs/types/subscription-offer
- * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
+ * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
  */
 public data class ProductSubscriptionAndroidOfferDetails(
     val basePlanId: String,
@@ -3360,7 +3361,7 @@ public data class ProductSubscriptionIOS(
     override val debugDescription: String? = null,
     override val description: String,
     /**
-     * @deprecated Use subscriptionOffers instead for cross-platform compatibility.
+     * @deprecated Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
      */
     val discountsIOS: List<DiscountIOS>? = null,
     override val displayName: String? = null,
@@ -3386,7 +3387,7 @@ public data class ProductSubscriptionIOS(
      */
     val subscriptionGroupIdIOS: String? = null,
     /**
-     * @deprecated Use subscriptionOffers for offer metadata and subscriptionGroupIdIOS for the App Store subscription group identifier.
+     * @deprecated Use subscriptionOffers for offer metadata and subscriptionGroupIdIOS for the App Store subscription group identifier. Scheduled for removal in OpenIAP 3.0.
      */
     val subscriptionInfoIOS: SubscriptionInfoIOS? = null,
     /**
@@ -3494,7 +3495,7 @@ public data class PurchaseAndroid(
      */
     val pendingPurchaseUpdateAndroid: PendingPurchaseUpdateAndroid? = null,
     /**
-     * @deprecated Use store instead
+     * @deprecated Use store instead. Scheduled for removal in OpenIAP 3.0.
      */
     override val platform: IapPlatform,
     override val productId: String,
@@ -3668,7 +3669,7 @@ public data class PurchaseIOS(
     val originalTransactionIdentifierIOS: String? = null,
     val ownershipTypeIOS: String? = null,
     /**
-     * @deprecated Use store instead
+     * @deprecated Use store instead. Scheduled for removal in OpenIAP 3.0.
      */
     override val platform: IapPlatform,
     override val productId: String,
@@ -4265,7 +4266,7 @@ public data class SubscriptionOffer(
 /**
  * iOS subscription offer details.
  * @see https://openiap.dev/docs/types/subscription-offer
- * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
+ * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
  */
 public data class SubscriptionOfferIOS(
     val displayPrice: String,
@@ -5092,7 +5093,7 @@ public data class InitConnectionConfig(
      * Alternative billing mode for Android
      * If not specified, defaults to NONE (standard Google Play billing)
      * Use USER_CHOICE_BILLING for user choice billing, EXTERNAL_OFFER for alternative only.
-     * @deprecated Use enableBillingProgramAndroid instead.
+     * @deprecated Use enableBillingProgramAndroid instead. Scheduled for removal in OpenIAP 3.0.
      */
     val alternativeBillingModeAndroid: AlternativeBillingModeAndroid? = null,
     /**
@@ -5435,7 +5436,7 @@ public data class RequestPurchaseProps(
     val type: ProductQueryType,
     /**
      * This flag only logs debug info and has no effect on the purchase flow.
-     * @deprecated Use enableBillingProgramAndroid in InitConnectionConfig instead.
+     * @deprecated Use enableBillingProgramAndroid in InitConnectionConfig instead. Scheduled for removal in OpenIAP 3.0.
      */
     val useAlternativeBilling: Boolean? = null
 ) {
@@ -5507,7 +5508,7 @@ public data class RequestPurchaseProps(
  */
 public data class RequestPurchasePropsByPlatforms(
     /**
-     * @deprecated Use google instead
+     * @deprecated Use google instead. Scheduled for removal in OpenIAP 3.0.
      */
     val android: RequestPurchaseAndroidProps? = null,
     /**
@@ -5519,7 +5520,7 @@ public data class RequestPurchasePropsByPlatforms(
      */
     val google: RequestPurchaseAndroidProps? = null,
     /**
-     * @deprecated Use apple instead
+     * @deprecated Use apple instead. Scheduled for removal in OpenIAP 3.0.
      */
     val ios: RequestPurchaseIosProps? = null
 ) {
@@ -5574,7 +5575,7 @@ public data class RequestSubscriptionAndroidProps(
     val purchaseToken: String? = null,
     /**
      * Replacement mode for subscription changes
-     * @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+).
+     * @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+). Scheduled for removal in OpenIAP 3.0.
      */
     val replacementMode: Int? = null,
     /**
@@ -5732,7 +5733,7 @@ public data class RequestSubscriptionIosProps(
  */
 public data class RequestSubscriptionPropsByPlatforms(
     /**
-     * @deprecated Use google instead
+     * @deprecated Use google instead. Scheduled for removal in OpenIAP 3.0.
      */
     val android: RequestSubscriptionAndroidProps? = null,
     /**
@@ -5744,7 +5745,7 @@ public data class RequestSubscriptionPropsByPlatforms(
      */
     val google: RequestSubscriptionAndroidProps? = null,
     /**
-     * @deprecated Use apple instead
+     * @deprecated Use apple instead. Scheduled for removal in OpenIAP 3.0.
      */
     val ios: RequestSubscriptionIosProps? = null
 ) {
@@ -6274,6 +6275,7 @@ public interface MutationResolver {
      * Returns true if available, false otherwise.
      * Throws OpenIapError.NotPrepared if billing client not ready.
      * See: https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android
+     * @deprecated Use isBillingProgramAvailableAndroid with the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.
      */
     suspend fun checkAlternativeBillingAvailabilityAndroid(): Boolean
     /**
@@ -6293,6 +6295,7 @@ public interface MutationResolver {
      * Returns token string, or null if creation failed.
      * Throws OpenIapError.NotPrepared if billing client not ready.
      * See: https://openiap.dev/docs/apis/android/create-alternative-billing-token-android
+     * @deprecated Use createBillingProgramReportingDetailsAndroid with the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.
      */
     suspend fun createAlternativeBillingTokenAndroid(): String?
     /**
@@ -6393,7 +6396,7 @@ public interface MutationResolver {
      * Buy the currently promoted product.
      * 
      * See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios
-     * @deprecated Use promotedProductListenerIOS to receive the productId, then call requestPurchase with that SKU instead. In StoreKit 2, promoted products can be purchased directly via the standard purchase flow.
+     * @deprecated Use the promoted-product listener or callback exposed by your SDK to receive the productId, then call requestPurchase with that SKU instead. In StoreKit 2, promoted products can be purchased directly via the standard purchase flow. Scheduled for removal in OpenIAP 3.0.
      */
     suspend fun requestPurchaseOnPromotedProductIOS(): Boolean
     /**
@@ -6407,6 +6410,7 @@ public interface MutationResolver {
      * Returns true if user accepted, false if user canceled.
      * Throws OpenIapError.NotPrepared if billing client not ready.
      * See: https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android
+     * @deprecated Use launchExternalLinkAndroid instead. Scheduled for removal in OpenIAP 3.0.
      */
     suspend fun showAlternativeBillingDialogAndroid(): Boolean
     /**
@@ -6447,7 +6451,7 @@ public interface MutationResolver {
     /**
      * Deprecated. Validate purchase receipts with the configured providers — use verifyPurchase instead.
      * See: https://openiap.dev/docs/features/validation#verify-purchase
-     * @deprecated Use verifyPurchase
+     * @deprecated Use verifyPurchase. Scheduled for removal in OpenIAP 3.0.
      */
     suspend fun validateReceipt(options: VerifyPurchaseProps): VerifyPurchaseResult
     /**
@@ -6552,7 +6556,7 @@ public interface QueryResolver {
      * Deprecated. Get the current App Store storefront ISO 3166-1 alpha-3 country
      * code — use cross-platform getStorefront instead.
      * See: https://openiap.dev/docs/apis/ios/get-storefront-ios
-     * @deprecated Use getStorefront
+     * @deprecated Use getStorefront. Scheduled for removal in OpenIAP 3.0.
      */
     suspend fun getStorefrontIOS(): String
     /**
@@ -6595,7 +6599,7 @@ public interface QueryResolver {
     /**
      * Deprecated. Legacy App Store receipt validation — use verifyPurchase instead.
      * See: https://openiap.dev/docs/apis/ios/validate-receipt-ios
-     * @deprecated Use verifyPurchase
+     * @deprecated Use verifyPurchase. Scheduled for removal in OpenIAP 3.0.
      */
     suspend fun validateReceiptIOS(options: VerifyPurchaseProps): VerifyPurchaseResultIOS
 }

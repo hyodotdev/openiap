@@ -7,7 +7,7 @@ extend type Query {
   See: https://openiap.dev/docs/apis/ios/get-storefront-ios
   """
   # Future
-  getStorefrontIOS: String! @deprecated(reason: "Use getStorefront")
+  getStorefrontIOS: String! @deprecated(reason: "Use getStorefront. Scheduled for removal in OpenIAP 3.0.")
   """
   Read the App Store-promoted product, if any (iOS 11+).
   See: https://openiap.dev/docs/apis/ios/get-promoted-product-ios
@@ -110,7 +110,7 @@ extend type Query {
   See: https://openiap.dev/docs/apis/ios/validate-receipt-ios
   """
   # Future
-  validateReceiptIOS(options: VerifyPurchaseProps!): VerifyPurchaseResultIOS! @deprecated(reason: "Use verifyPurchase")
+  validateReceiptIOS(options: VerifyPurchaseProps!): VerifyPurchaseResultIOS! @deprecated(reason: "Use verifyPurchase. Scheduled for removal in OpenIAP 3.0.")
 }
 
 extend type Mutation {
@@ -128,7 +128,7 @@ extend type Mutation {
   # Future
   requestPurchaseOnPromotedProductIOS: Boolean!
     @deprecated(
-      reason: "Use promotedProductListenerIOS to receive the productId, then call requestPurchase with that SKU instead. In StoreKit 2, promoted products can be purchased directly via the standard purchase flow."
+      reason: "Use the promoted-product listener or callback exposed by your SDK to receive the productId, then call requestPurchase with that SKU instead. In StoreKit 2, promoted products can be purchased directly via the standard purchase flow. Scheduled for removal in OpenIAP 3.0."
     )
   """
   Present the manage-subscriptions sheet and return changed purchases (iOS 15+).

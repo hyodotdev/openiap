@@ -373,7 +373,7 @@ public final class OpenIapStore: ObservableObject {
         }
     }
 
-    @available(*, deprecated, message: "Use promotedProductListenerIOS + requestPurchase instead")
+    @available(*, deprecated, message: "Use promotedProductListenerIOS + requestPurchase instead. Scheduled for removal in OpenIAP 3.0.")
     public func requestPurchaseOnPromotedProductIOS() async throws -> Bool {
         try await module.requestPurchaseOnPromotedProductIOS()
     }
@@ -430,7 +430,7 @@ public final class OpenIapStore: ObservableObject {
 
     // MARK: - Validation & Metadata
 
-    @available(*, deprecated, message: "Use verifyPurchase")
+    @available(*, deprecated, message: "Use verifyPurchase(sku:) instead. Scheduled for removal in OpenIAP 3.0.")
     public func validateReceipt(sku: String) async throws -> VerifyPurchaseResultIOS {
         try await verifyPurchase(sku: sku)
     }
@@ -472,6 +472,7 @@ public final class OpenIapStore: ObservableObject {
         try await module.getStorefront()
     }
 
+    @available(*, deprecated, message: "Use getStorefront instead. Scheduled for removal in OpenIAP 3.0.")
     public func getStorefrontIOS() async throws -> String {
         try await getStorefront()
     }
@@ -536,7 +537,7 @@ public final class OpenIapStore: ObservableObject {
         try await module.deepLinkToSubscriptions(options)
     }
 
-    @available(*, deprecated, message: "Use deepLinkToSubscriptions instead")
+    @available(*, deprecated, message: "Use deepLinkToSubscriptions instead. Scheduled for removal in OpenIAP 3.0.")
     public func deepLinkToSubscriptionsIOS() async throws {
         try await deepLinkToSubscriptions()
     }

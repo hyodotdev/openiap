@@ -133,11 +133,18 @@ function GetActiveSubscriptions() {
           state.
         </li>
         <li>
-          <code>willExpireSoon</code>{' '}
+          <code style={{ textDecoration: 'line-through' }}>willExpireSoon</code>{' '}
           <em>
             (optional, <code>boolean</code>)
           </em>{' '}
-          — Hint that renewal is imminent (cancelled or grace period).
+          — <strong>Deprecated.</strong> Use <code>daysUntilExpirationIOS</code>{' '}
+          for precise iOS expiration handling. The deprecated schema field is
+          scheduled for removal in OpenIAP 3.0; framework copies remain through
+          the package-specific majors in the{' '}
+          <Link to="/docs/updates/deprecations#removal-schedule">
+            deprecation schedule
+          </Link>
+          .
         </li>
         <li>
           <code>expirationDateIOS</code>{' '}

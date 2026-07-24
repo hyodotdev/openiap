@@ -36,6 +36,9 @@ extend type Mutation {
   """
   # Future
   checkAlternativeBillingAvailabilityAndroid: Boolean!
+    @deprecated(
+      reason: "Use isBillingProgramAvailableAndroid with the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0."
+    )
   """
   Display Google's alternative billing information dialog. Step 2 of the alternative billing flow.
   Must be called BEFORE processing payment in your payment system.
@@ -45,6 +48,9 @@ extend type Mutation {
   """
   # Future
   showAlternativeBillingDialogAndroid: Boolean!
+    @deprecated(
+      reason: "Use launchExternalLinkAndroid instead. Scheduled for removal in OpenIAP 3.0."
+    )
   """
   Create a reporting token for an alternative billing flow. Step 3 of the alternative billing flow.
   Must be called AFTER successful payment in your payment system.
@@ -55,6 +61,9 @@ extend type Mutation {
   """
   # Future
   createAlternativeBillingTokenAndroid: String
+    @deprecated(
+      reason: "Use createBillingProgramReportingDetailsAndroid with the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0."
+    )
 
   # Billing Programs API (Google Play Billing Library 8.2.0+)
   """

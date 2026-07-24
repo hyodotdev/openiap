@@ -1,5 +1,17 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { assertValidSchemaDeprecations, extractSchemaDeprecations } from '../schema-deprecations.mjs';
+import { SCHEMA_FILE_NAMES } from '../schema-files.mjs';
+import {
+  assertValidSchemaDeprecations,
+  extractSchemaDeprecations,
+  OPENIAP_3_REMOVAL_NOTICE,
+} from '../schema-deprecations.mjs';
+
+const repositorySchemaSources = () =>
+  SCHEMA_FILE_NAMES.map((fileName) => ({
+    sourceId: fileName,
+    sdl: readFileSync(new URL(`./${fileName}`, import.meta.url), 'utf8'),
+  }));
 
 describe('canonical schema deprecations', () => {
   it('extracts type, field, and operation-argument metadata once', () => {
@@ -9,13 +21,13 @@ describe('canonical schema deprecations', () => {
         sdl: `
 directive @openiapDeprecated(reason: String!) on OBJECT | INTERFACE | UNION | ENUM | INPUT_OBJECT
 
-type Legacy @openiapDeprecated(reason: "Use Modern instead.") {
-  old: String @deprecated(reason: "Use modern instead.")
+type Legacy @openiapDeprecated(reason: "Use Modern instead. Scheduled for removal in OpenIAP 3.0.") {
+  old: String @deprecated(reason: "Use modern instead. Scheduled for removal in OpenIAP 3.0.")
 }
 
 type Query {
   value(
-    legacy: String @deprecated(reason: "Use current instead.")
+    legacy: String @deprecated(reason: "Use current instead. Scheduled for removal in OpenIAP 3.0.")
   ): String
 }
 `,
@@ -23,13 +35,15 @@ type Query {
     ]);
 
     expect(deprecations.issues).toEqual([]);
-    expect(deprecations.typeReasons).toEqual(new Map([['Legacy', 'Use Modern instead.']]));
+    expect(deprecations.typeReasons).toEqual(
+      new Map([['Legacy', 'Use Modern instead. Scheduled for removal in OpenIAP 3.0.']]),
+    );
     expect(deprecations.operationArguments).toEqual([
       {
         rootName: 'Query',
         fieldName: 'value',
         argumentName: 'legacy',
-        reason: 'Use current instead.',
+        reason: 'Use current instead. Scheduled for removal in OpenIAP 3.0.',
       },
     ]);
     expect(deprecations.entries.map((entry) => entry.ownerPath)).toEqual(['Legacy', 'Legacy.old', 'Query.value.legacy']);
@@ -40,8 +54,8 @@ type Query {
       {
         sourceId: 'invalid.graphql',
         sdl: `
-type Legacy @deprecated(reason: "Wrong directive.") {
-  old: String @openiapDeprecated(reason: "Wrong directive.")
+type Legacy @deprecated(reason: "Wrong directive. Scheduled for removal in OpenIAP 3.0.") {
+  old: String @openiapDeprecated(reason: "Wrong directive. Scheduled for removal in OpenIAP 3.0.")
 }
 
 type Empty @openiapDeprecated(reason: "") {
@@ -59,17 +73,85 @@ type Empty @openiapDeprecated(reason: "") {
     expect(() => assertValidSchemaDeprecations(deprecations)).toThrow('Invalid GraphQL deprecation metadata');
   });
 
+  it('rejects canonical reasons without the OpenIAP 3.0 removal schedule', () => {
+    const deprecations = extractSchemaDeprecations([
+      {
+        sourceId: 'unscheduled.graphql',
+        sdl: `
+directive @openiapDeprecated(reason: String!) on OBJECT | INTERFACE | UNION | ENUM | INPUT_OBJECT
+
+type Legacy @openiapDeprecated(reason: "Use Modern instead.") {
+  old: String @deprecated(reason: "Use modern instead.")
+}
+`,
+      },
+    ]);
+
+    expect(deprecations.issues).toEqual([
+      expect.objectContaining({
+        file: 'unscheduled.graphql',
+        rule: 'deprecated-removal-schedule-missing',
+        message: expect.stringContaining(OPENIAP_3_REMOVAL_NOTICE),
+      }),
+      expect.objectContaining({
+        file: 'unscheduled.graphql',
+        rule: 'deprecated-removal-schedule-missing',
+        message: expect.stringContaining(OPENIAP_3_REMOVAL_NOTICE),
+      }),
+    ]);
+  });
+
+  it('schedules every repository deprecation and covers the legacy Android operations', () => {
+    const deprecations = extractSchemaDeprecations(repositorySchemaSources());
+
+    expect(deprecations.issues).toEqual([]);
+    expect(deprecations.entries).toHaveLength(39);
+    expect(deprecations.entries.every((entry) => entry.reason.endsWith(OPENIAP_3_REMOVAL_NOTICE))).toBe(true);
+    expect(
+      deprecations.entries
+        .filter((entry) =>
+          [
+            'Mutation.checkAlternativeBillingAvailabilityAndroid',
+            'Mutation.showAlternativeBillingDialogAndroid',
+            'Mutation.createAlternativeBillingTokenAndroid',
+          ].includes(entry.ownerPath),
+        )
+        .map(({ ownerPath, reason }) => ({ ownerPath, reason })),
+    ).toEqual([
+      {
+        ownerPath: 'Mutation.checkAlternativeBillingAvailabilityAndroid',
+        reason:
+          'Use isBillingProgramAvailableAndroid with the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.',
+      },
+      {
+        ownerPath: 'Mutation.showAlternativeBillingDialogAndroid',
+        reason: 'Use launchExternalLinkAndroid instead. Scheduled for removal in OpenIAP 3.0.',
+      },
+      {
+        ownerPath: 'Mutation.createAlternativeBillingTokenAndroid',
+        reason:
+          'Use createBillingProgramReportingDetailsAndroid with the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.',
+      },
+    ]);
+    expect(deprecations.typeReasons.get('ExternalOfferAvailabilityResultAndroid')).toBe(
+      'Use BillingProgramAvailabilityResultAndroid from isBillingProgramAvailableAndroid instead. Scheduled for removal in OpenIAP 3.0.',
+    );
+    expect(deprecations.typeReasons.get('ExternalOfferReportingDetailsAndroid')).toBe(
+      'Use BillingProgramReportingDetailsAndroid from createBillingProgramReportingDetailsAndroid instead. Scheduled for removal in OpenIAP 3.0.',
+    );
+  });
+
   it('rejects duplicate type ownership across definitions and extensions', () => {
     const deprecations = extractSchemaDeprecations([
       {
         sourceId: 'base.graphql',
-        sdl: `type Legacy @openiapDeprecated(reason: "Use Modern.") {
+        sdl: `type Legacy @openiapDeprecated(reason: "Use Modern. Scheduled for removal in OpenIAP 3.0.") {
   value: String
 }`,
       },
       {
         sourceId: 'extension.graphql',
-        sdl: `extend type Legacy @openiapDeprecated(reason: "Duplicate.") {
+        sdl: `extend type Legacy @openiapDeprecated(reason: "Duplicate. Scheduled for removal in OpenIAP 3.0.") {
   other: String
 }`,
       },
@@ -90,19 +172,19 @@ type Empty @openiapDeprecated(reason: "") {
       {
         sourceId: 'base.graphql',
         sdl: `type Legacy {
-  old: String @deprecated(reason: "Use current.")
+  old: String @deprecated(reason: "Use current. Scheduled for removal in OpenIAP 3.0.")
 }
 type Query {
-  value(legacy: String @deprecated(reason: "Use current.")): String
+  value(legacy: String @deprecated(reason: "Use current. Scheduled for removal in OpenIAP 3.0.")): String
 }`,
       },
       {
         sourceId: 'extension.graphql',
         sdl: `extend type Legacy {
-  old: String @deprecated(reason: "Duplicate field.")
+  old: String @deprecated(reason: "Duplicate field. Scheduled for removal in OpenIAP 3.0.")
 }
 extend type Query {
-  value(legacy: String @deprecated(reason: "Duplicate argument.")): String
+  value(legacy: String @deprecated(reason: "Duplicate argument. Scheduled for removal in OpenIAP 3.0.")): String
 }`,
       },
     ]);
@@ -124,7 +206,7 @@ extend type Query {
         rootName: 'Query',
         fieldName: 'value',
         argumentName: 'legacy',
-        reason: 'Use current.',
+        reason: 'Use current. Scheduled for removal in OpenIAP 3.0.',
       },
     ]);
   });

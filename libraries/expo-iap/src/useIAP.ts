@@ -115,7 +115,7 @@ type UseIap = {
   requestPurchase: (
     params: MutationRequestPurchaseArgs,
   ) => ReturnType<typeof requestPurchaseInternal>;
-  /** @deprecated Use verifyPurchase instead */
+  /** @deprecated Use verifyPurchase instead. Scheduled for removal in expo-iap 5.0.0. */
   validateReceipt: (
     props: VerifyPurchaseProps,
   ) => Promise<VerifyPurchaseResult>;
@@ -126,8 +126,9 @@ type UseIap = {
   restorePurchases: (options?: PurchaseOptions) => Promise<void>;
   getPromotedProductIOS: () => Promise<Product | null>;
   /**
-   * @deprecated Use promotedProductListenerIOS to receive the productId,
-   * then call requestPurchase with that SKU instead.
+   * @deprecated Use the `onPromotedProductIOS` hook callback to receive the
+   * product, then call `requestPurchase` with that SKU instead. Scheduled for
+   * removal in expo-iap 5.0.0.
    */
   requestPurchaseOnPromotedProductIOS: () => Promise<boolean>;
   getActiveSubscriptions: (subscriptionIds?: string[]) => Promise<void>;
@@ -138,8 +139,21 @@ type UseIap = {
    * Updates the `connected` state on success.
    */
   reconnect: () => Promise<boolean>;
+  /**
+   * @deprecated Use `isBillingProgramAvailableAndroid('external-offer')`
+   * instead. Scheduled for removal in expo-iap 5.0.0.
+   */
   checkAlternativeBillingAvailabilityAndroid: () => Promise<boolean>;
+  /**
+   * @deprecated Use `launchExternalLinkAndroid` instead. Scheduled for removal
+   * in expo-iap 5.0.0.
+   */
   showAlternativeBillingDialogAndroid: () => Promise<boolean>;
+  /**
+   * @deprecated Use
+   * `createBillingProgramReportingDetailsAndroid('external-offer')` instead.
+   * Scheduled for removal in expo-iap 5.0.0.
+   */
   createAlternativeBillingTokenAndroid: (
     sku?: string,
   ) => Promise<string | null>;
@@ -182,7 +196,8 @@ export interface UseIAPOptions {
   /**
    * Alternative billing mode for Android
    * If not specified, defaults to NONE (standard Google Play billing)
-   * @deprecated Use enableBillingProgramAndroid instead.
+   * @deprecated Use enableBillingProgramAndroid instead. This option will be
+   * removed in expo-iap 5.0.0.
    * - 'user-choice' → 'user-choice-billing'
    * - 'alternative-only' → 'external-offer'
    */
@@ -665,7 +680,8 @@ export function useIAP(options?: UseIAPOptions): UseIap {
   );
 
   /**
-   * Deprecated. Use verifyPurchase instead — same input/output shape.
+   * Deprecated. Use verifyPurchase instead — same input/output shape. This
+   * function will be removed in expo-iap 5.0.0.
    *
    * @see {@link https://openiap.dev/docs/apis/validate-receipt}
    */

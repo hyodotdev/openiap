@@ -487,7 +487,7 @@ describe('Public API (index.ts)', () => {
 
       expect(warnSpy).toHaveBeenCalledWith(
         '[Expo-IAP]',
-        "'inapp' product type is deprecated and will be removed in a future major version. Use 'in-app' instead.",
+        "'inapp' product type is deprecated and will be removed in expo-iap 5.0.0. Use 'in-app' instead.",
       );
       warnSpy.mockRestore();
     });

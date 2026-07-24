@@ -110,6 +110,11 @@ class RequestSubscriptionAndroidBuilder {
   String? obfuscatedProfileId;
   String? purchaseToken;
   String? originalExternalTransactionId;
+  @Deprecated(
+    'Use subscriptionProductReplacementParams instead for item-level '
+    'replacement (Play Billing 8.1+). '
+    'Scheduled for removal in flutter_inapp_purchase 10.0.0.',
+  )
   int? replacementMode;
   bool? isOfferPersonalized;
   SubscriptionProductReplacementParamsAndroid?
@@ -127,6 +132,7 @@ class RequestSubscriptionAndroidBuilder {
       obfuscatedProfileId: obfuscatedProfileId,
       purchaseToken: purchaseToken,
       originalExternalTransactionId: originalExternalTransactionId,
+      // ignore: deprecated_member_use_from_same_package
       replacementMode: replacementMode,
       isOfferPersonalized: isOfferPersonalized,
       subscriptionProductReplacementParams:
@@ -141,6 +147,10 @@ class RequestPurchaseBuilder {
   final RequestPurchaseIosBuilder ios = RequestPurchaseIosBuilder();
   final RequestPurchaseAndroidBuilder android = RequestPurchaseAndroidBuilder();
   ProductQueryType _type = ProductQueryType.InApp;
+  @Deprecated(
+    'Use enableBillingProgramAndroid in InitConnectionConfig instead. '
+    'Scheduled for removal in flutter_inapp_purchase 10.0.0.',
+  )
   bool? useAlternativeBilling = false;
 
   ProductQueryType get type => _type;
@@ -184,6 +194,7 @@ class RequestPurchaseBuilder {
       return RequestPurchaseProps.inApp((
         apple: iosProps,
         google: androidProps,
+        // ignore: deprecated_member_use_from_same_package
         useAlternativeBilling: useAlternativeBilling,
       ));
     }
@@ -221,6 +232,7 @@ class RequestPurchaseBuilder {
       return RequestPurchaseProps.subs((
         apple: iosSub,
         google: androidSub,
+        // ignore: deprecated_member_use_from_same_package
         useAlternativeBilling: useAlternativeBilling,
       ));
     }
@@ -274,6 +286,10 @@ class RequestSubscriptionBuilder {
   final RequestSubscriptionIosBuilder ios = RequestSubscriptionIosBuilder();
   final RequestSubscriptionAndroidBuilder android =
       RequestSubscriptionAndroidBuilder();
+  @Deprecated(
+    'Use enableBillingProgramAndroid in InitConnectionConfig instead. '
+    'Scheduled for removal in flutter_inapp_purchase 10.0.0.',
+  )
   bool? useAlternativeBilling = false;
 
   RequestSubscriptionBuilder withIOS(IosSubscriptionBuilder configure) {
@@ -293,6 +309,7 @@ class RequestSubscriptionBuilder {
     return RequestPurchaseProps.subs((
       apple: iosProps,
       google: androidProps,
+      // ignore: deprecated_member_use_from_same_package
       useAlternativeBilling: useAlternativeBilling,
     ));
   }

@@ -326,6 +326,42 @@ void main() {
       expect(purchase.transactionDate, 1700000000000);
     });
 
+    test('convertToPurchase merges original payload before item overrides', () {
+      final purchase = convertToPurchase(
+        <String, dynamic>{
+          'platform': 'android',
+          'store': 'google',
+          'productId': 'item-product',
+          'transactionId': 'item-transaction',
+          'purchaseState': 'purchased',
+          'purchaseToken': 'item-token',
+          'transactionDate': '1700000000000',
+          'quantity': '2',
+        },
+        platformIsAndroid: true,
+        platformIsIOS: false,
+        acknowledgedAndroidPurchaseTokens: <String, bool>{},
+        originalJson: <String, dynamic>{
+          'productId': 'original-product',
+          'transactionDate': 1600000000000,
+          'currentPlanId': 'original-plan',
+          'dataAndroid': '{"orderId":"original-order"}',
+          'developerPayloadAndroid': 'original-developer-payload',
+        },
+      ) as types.PurchaseAndroid;
+
+      expect(purchase.productId, 'item-product');
+      expect(purchase.transactionId, 'item-transaction');
+      expect(purchase.currentPlanId, 'original-plan');
+      expect(purchase.dataAndroid, '{"orderId":"original-order"}');
+      expect(
+        purchase.developerPayloadAndroid,
+        'original-developer-payload',
+      );
+      expect(purchase.transactionDate, 1700000000000);
+      expect(purchase.quantity, 2);
+    });
+
     test('convertToPurchase prefers canonical Android purchase state', () {
       final purchase = convertToPurchase(
         <String, dynamic>{
@@ -493,6 +529,7 @@ void main() {
           'quantityIOS': 3,
           'reasonIOS': 'purchase',
           'reasonStringRepresentationIOS': 'PURCHASE',
+          'transactionReasonIOS': 'renewal',
           'renewalInfoIOS': <String, dynamic>{
             'pendingUpgradeProductId': 'premium_yearly',
             'willAutoRenew': true,
@@ -524,6 +561,7 @@ void main() {
       expect(purchase.quantityIOS, 3);
       expect(purchase.reasonIOS, 'purchase');
       expect(purchase.reasonStringRepresentationIOS, 'PURCHASE');
+      expect(purchase.transactionReasonIOS, 'renewal');
       expect(
         purchase.renewalInfoIOS?.pendingUpgradeProductId,
         'premium_yearly',

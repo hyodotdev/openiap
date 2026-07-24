@@ -173,6 +173,22 @@ async function generateLlmsTxt(): Promise<{ quick: number; full: number }> {
   console.log(chalk.blue("\n🤖 Generating llms.txt files...\n"));
   const versions = readInstallationVersions();
   const generatedAt = new Date().toISOString();
+  const deprecationMigrationReference = `## Deprecations and major-version migration
+
+- Do not remove OpenIAP-owned deprecated APIs in a patch or minor release.
+- OpenIAP Spec, \`openiap-apple\`, and \`openiap-google\` remove their legacy
+  public surface in OpenIAP 3.0.
+- Framework packages version independently. Their removal targets are
+  \`react-native-iap\` 16.0.0, \`expo-iap\` 5.0.0,
+  \`flutter_inapp_purchase\` 10.0.0, \`godot-iap\` 3.0.0,
+  \`kmp-iap\` 3.0.0, and \`OpenIap.Maui\` 2.0.0.
+- Generated framework declarations repeat the canonical sentence
+  \`Scheduled for removal in OpenIAP 3.0.\` That sentence names the
+  spec/native train; the framework copy remains available until its own
+  package-specific removal major above.
+- Migrate now to the canonical replacement named in each deprecation notice.
+  See https://openiap.dev/docs/updates/deprecations.
+`;
 
   // Read all external API docs
   const externalFiles = await glob(
@@ -511,6 +527,8 @@ await ((QueryResolver)iap).FetchProductsAsync(new ProductRequest
   );
   fullContent += kitQuickReference.trimEnd();
   fullContent += "\n\n---\n\n";
+  fullContent += deprecationMigrationReference.trimEnd();
+  fullContent += "\n\n---\n\n";
 
   // Add links section
   fullContent += `## Links & Resources
@@ -599,6 +617,8 @@ Current NuGet package version: ${versions.maui}
   dependencies as NuGet package references, and MAUI example flows matching
   \`expo-iap\`.
 
+${deprecationMigrationReference}
+
 ## Core APIs
 
 ### Connection
@@ -606,8 +626,8 @@ Current NuGet package version: ${versions.maui}
 // Initialize (required before any operation)
 await initConnection();
 
-// With alternative billing (Android)
-await initConnection({ alternativeBillingModeAndroid: 'user-choice' });
+// With a billing program (Android)
+await initConnection({ enableBillingProgramAndroid: 'user-choice-billing' });
 
 // Cleanup on unmount
 await endConnection();

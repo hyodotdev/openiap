@@ -221,12 +221,12 @@ type LegacyOffer {
 Legacy offer.
 @deprecated Manual duplicate.
 """
-type LegacyOffer @openiapDeprecated(reason: "Use DiscountOffer instead.") {
+type LegacyOffer @openiapDeprecated(reason: "Use DiscountOffer instead. Scheduled for removal in OpenIAP 3.0.") {
   """
   Legacy identifier.
   @deprecated Manual duplicate.
   """
-  legacyId: String @deprecated(reason: "Use id instead.")
+  legacyId: String @deprecated(reason: "Use id instead. Scheduled for removal in OpenIAP 3.0.")
 }
 `);
 
@@ -279,12 +279,12 @@ type LegacyOffer @openiapDeprecated {
     expect(() =>
       lintSchemaSources({
         'base.graphql': `
-type LegacyOffer @openiapDeprecated(reason: "Use DiscountOffer instead.") {
+type LegacyOffer @openiapDeprecated(reason: "Use DiscountOffer instead. Scheduled for removal in OpenIAP 3.0.") {
   id: String
 }
 `,
         'extension.graphql': `
-extend type LegacyOffer @openiapDeprecated(reason: "Duplicate ownership.") {
+extend type LegacyOffer @openiapDeprecated(reason: "Duplicate ownership. Scheduled for removal in OpenIAP 3.0.") {
   legacyId: String
 }
 `,

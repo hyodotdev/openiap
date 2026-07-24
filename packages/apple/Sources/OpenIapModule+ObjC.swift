@@ -344,7 +344,7 @@ import StoreKit
         }
     }
 
-    @available(*, deprecated, message: "Use promotedProductListenerIOS + requestPurchase instead")
+    @available(*, deprecated, message: "Use promotedProductListenerIOS + requestPurchase instead. Scheduled for removal in OpenIAP 3.0.")
     @objc func requestPurchaseOnPromotedProductIOSWithCompletion(_ completion: @escaping (Bool, Error?) -> Void) {
         Task {
             do {
@@ -616,6 +616,7 @@ import StoreKit
         }
     }
 
+    @available(*, deprecated, message: "Use getStorefrontWithCompletion instead. Scheduled for removal in OpenIAP 3.0.")
     @objc func getStorefrontIOSWithCompletion(_ completion: @escaping (String?, Error?) -> Void) {
         Task {
             do {

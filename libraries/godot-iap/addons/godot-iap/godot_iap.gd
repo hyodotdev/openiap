@@ -1070,6 +1070,8 @@ func get_promoted_product_ios() -> Variant:
 	return null
 
 ## Request purchase on promoted product (iOS only).
+## @deprecated Use promoted_product_ios plus request_purchase instead. This
+## method will be removed in godot-iap 3.0.0.
 ## @return bool - true if the promoted product purchase request succeeded
 ##
 ## See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios
@@ -1202,6 +1204,7 @@ func _parse_request_id(pending_json) -> String:
 ## `products_fetched`; this wrapper awaits that emit and returns the country
 ## code, so callers can use it like a synchronous getter.
 ## @deprecated Prefer cross-platform get_storefront() which also works on iOS.
+## This method will be removed in godot-iap 3.0.0.
 ## @return String ISO 3166-1 alpha-3 country code, or empty string on failure
 ##
 ## See: https://openiap.dev/docs/apis/ios/get-storefront-ios
@@ -1225,6 +1228,7 @@ func get_storefront_ios() -> String:
 ## Kicks off the native async validation and awaits the next `products_fetched`
 ## emit matching this call's requestId. Returns null on error.
 ## @deprecated Use verify_purchase or verify_purchase_with_provider instead.
+## This method will be removed in godot-iap 3.0.0.
 ## @param props: Types.VerifyPurchaseProps with `apple: {sku: String}` set
 ## @return Variant Types.VerifyPurchaseResultIOS on success, null otherwise
 ##
@@ -1243,7 +1247,8 @@ func validate_receipt_ios(props) -> Variant:
 	return null
 
 ## Cross-platform wrapper for receipt validation.
-## @deprecated Use verify_purchase instead.
+## @deprecated Use verify_purchase instead. This method will be removed in
+## godot-iap 3.0.0.
 ## @param props: Types.VerifyPurchaseProps with platform-specific fields
 ## @return Variant Types.VerifyPurchaseResultIOS | Types.VerifyPurchaseResultAndroid | null
 ##
@@ -1360,6 +1365,9 @@ func _consume_purchase_android_raw(purchase_token: String) -> Dictionary:
 ## @return bool - true if alternative billing is available
 ##
 ## See: https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android
+## @deprecated Use is_billing_program_available_android with
+## Types.BillingProgramAndroid.EXTERNAL_OFFER instead. Scheduled for removal in
+## godot-iap 3.0.0.
 func check_alternative_billing_availability_android() -> bool:
 	if _native_plugin and _platform == "Android":
 		var result_json = _native_plugin.call("checkAlternativeBillingAvailabilityAndroid")
@@ -1372,6 +1380,8 @@ func check_alternative_billing_availability_android() -> bool:
 ## @return bool - true if the user accepted the dialog
 ##
 ## See: https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android
+## @deprecated Use launch_external_link_android instead. Scheduled for removal
+## in godot-iap 3.0.0.
 func show_alternative_billing_dialog_android() -> bool:
 	if _native_plugin and _platform == "Android":
 		var result_json = _native_plugin.call("showAlternativeBillingDialogAndroid")
@@ -1384,6 +1394,9 @@ func show_alternative_billing_dialog_android() -> bool:
 ## @return String - reporting token, or empty string on failure
 ##
 ## See: https://openiap.dev/docs/apis/android/create-alternative-billing-token-android
+## @deprecated Use create_billing_program_reporting_details_android with
+## Types.BillingProgramAndroid.EXTERNAL_OFFER instead. Scheduled for removal in
+## godot-iap 3.0.0.
 func create_alternative_billing_token_android() -> String:
 	if _native_plugin and _platform == "Android":
 		var result_json = _native_plugin.call("createAlternativeBillingTokenAndroid")

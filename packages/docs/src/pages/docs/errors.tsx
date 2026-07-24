@@ -399,7 +399,13 @@ public sealed record PurchaseError
         <h3>Deprecated Error Codes</h3>
         <div className="info-note">
           <strong>Note:</strong> The following error codes are deprecated and
-          will be removed in a future version. Use the new codes instead.
+          scheduled for removal from the schema and native packages in OpenIAP
+          3.0. Generated framework copies remain through their package-specific
+          removal majors. Use the replacement codes now and see the{' '}
+          <Link to="/docs/updates/deprecations#removal-schedule">
+            deprecation schedule
+          </Link>{' '}
+          for exact package boundaries.
         </div>
         <table className="error-table">
           <thead>

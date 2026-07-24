@@ -19,8 +19,9 @@ namespace OpenIap;
 
 /// <summary>Alternative billing mode for Android</summary>
 /// <summary>Controls which billing system is used</summary>
-/// <summary>Use USER_CHOICE_BILLING for user choice billing, EXTERNAL_OFFER for alternative only.</summary>
-/// <summary>@deprecated Use enableBillingProgramAndroid with BillingProgramAndroid instead.</summary>
+/// <summary>Use the user-choice-billing program for user choice billing and external-offer</summary>
+/// <summary>for external digital-content offers.</summary>
+/// <summary>@deprecated Use enableBillingProgramAndroid with BillingProgramAndroid instead. Scheduled for removal in OpenIAP 3.0.</summary>
 [JsonConverter(typeof(AlternativeBillingModeAndroidJsonConverter))]
 public enum AlternativeBillingModeAndroid
 {
@@ -28,11 +29,11 @@ public enum AlternativeBillingModeAndroid
     None,
     /// <summary>User choice billing - user can select between Google Play or alternative</summary>
     /// <summary>Requires Google Play Billing Library 7.0+</summary>
-    /// <summary>@deprecated Use BillingProgramAndroid.USER_CHOICE_BILLING instead.</summary>
+    /// <summary>@deprecated Use the user-choice-billing BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.</summary>
     UserChoice,
     /// <summary>Alternative billing only - no Google Play billing option</summary>
     /// <summary>Requires Google Play Billing Library 6.2+</summary>
-    /// <summary>@deprecated Use BillingProgramAndroid.EXTERNAL_OFFER instead.</summary>
+    /// <summary>@deprecated Use the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.</summary>
     AlternativeOnly
 }
 
@@ -453,11 +454,11 @@ public enum ErrorCode
     RemoteError,
     NetworkError,
     ServiceError,
-    /// <summary>@deprecated Use PurchaseVerificationFailed instead</summary>
+    /// <summary>@deprecated Use PurchaseVerificationFailed instead. Scheduled for removal in OpenIAP 3.0.</summary>
     ReceiptFailed,
-    /// <summary>@deprecated Use PurchaseVerificationFinished instead</summary>
+    /// <summary>@deprecated Use PurchaseVerificationFinished instead. Scheduled for removal in OpenIAP 3.0.</summary>
     ReceiptFinished,
-    /// <summary>@deprecated Use PurchaseVerificationFinishFailed instead</summary>
+    /// <summary>@deprecated Use PurchaseVerificationFinishFailed instead. Scheduled for removal in OpenIAP 3.0.</summary>
     ReceiptFinishedFailed,
     PurchaseVerificationFailed,
     PurchaseVerificationFinished,
@@ -2635,7 +2636,7 @@ public interface PurchaseCommon
     string Id { get; }
     IReadOnlyList<string>? Ids { get; }
     bool IsAutoRenewing { get; }
-    /// <summary>@deprecated Use store instead</summary>
+    /// <summary>@deprecated Use store instead. Scheduled for removal in OpenIAP 3.0.</summary>
     IapPlatform Platform { get; }
     string ProductId { get; }
     PurchaseState PurchaseState { get; }
@@ -2722,7 +2723,7 @@ public sealed record ActiveSubscription
     public required string TransactionId { get; init; }
     /// <summary>Whether the subscription will expire soon (within 7 days).</summary>
     /// <summary>Consider using daysUntilExpirationIOS for more precise control.</summary>
-    /// <summary>@deprecated iOS only - use daysUntilExpirationIOS instead.</summary>
+    /// <summary>@deprecated iOS only - use daysUntilExpirationIOS instead. Scheduled for removal in OpenIAP 3.0.</summary>
     [JsonPropertyName("willExpireSoon")]
     public bool? WillExpireSoon { get; init; }
 }
@@ -2948,7 +2949,7 @@ public sealed record DiscountDisplayInfoAndroid
 
 /// <summary>Discount information returned from the store.</summary>
 /// <summary>@see https://openiap.dev/docs/types/subscription-offer</summary>
-/// <summary>@deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.</summary>
+/// <summary>@deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.</summary>
 public sealed record DiscountIOS
 {
     [JsonPropertyName("identifier")]
@@ -3045,7 +3046,7 @@ public sealed record DiscountOffer
 
 /// <summary>iOS DiscountOffer (output type).</summary>
 /// <summary>@see https://openiap.dev/docs/types/subscription-offer</summary>
-/// <summary>@deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.</summary>
+/// <summary>@deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.</summary>
 public sealed record DiscountOfferIOS
 {
     /// <summary>Discount identifier</summary>
@@ -3077,7 +3078,7 @@ public sealed record EntitlementIOS
 
 /// <summary>External offer availability result (Android)</summary>
 /// <summary>Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0</summary>
-/// <summary>@deprecated Use BillingProgramAvailabilityResultAndroid with isBillingProgramAvailableAsync instead</summary>
+/// <summary>@deprecated Use BillingProgramAvailabilityResultAndroid from isBillingProgramAvailableAndroid instead. Scheduled for removal in OpenIAP 3.0.</summary>
 public sealed record ExternalOfferAvailabilityResultAndroid
 {
     /// <summary>Whether external offers are available for the user</summary>
@@ -3087,7 +3088,7 @@ public sealed record ExternalOfferAvailabilityResultAndroid
 
 /// <summary>External offer reporting details (Android)</summary>
 /// <summary>Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0</summary>
-/// <summary>@deprecated Use BillingProgramReportingDetailsAndroid with createBillingProgramReportingDetailsAsync instead</summary>
+/// <summary>@deprecated Use BillingProgramReportingDetailsAndroid from createBillingProgramReportingDetailsAndroid instead. Scheduled for removal in OpenIAP 3.0.</summary>
 public sealed record ExternalOfferReportingDetailsAndroid
 {
     /// <summary>External transaction token for reporting external offer transactions</summary>
@@ -3287,7 +3288,7 @@ public sealed record ProductAndroid : Product, ProductCommon
     public required string NameAndroid { get; init; }
     /// <summary>One-time purchase offer details including discounts (Android)</summary>
     /// <summary>Returns all eligible offers. Available in Google Play Billing Library 8.0+</summary>
-    /// <summary>@deprecated Use the standardized discountOffers field instead.</summary>
+    /// <summary>@deprecated Use the standardized discountOffers field instead. Scheduled for removal in OpenIAP 3.0.</summary>
     [JsonPropertyName("oneTimePurchaseOfferDetailsAndroid")]
     public IReadOnlyList<ProductAndroidOneTimePurchaseOfferDetail>? OneTimePurchaseOfferDetailsAndroid { get; init; }
     [JsonPropertyName("platform")]
@@ -3301,7 +3302,7 @@ public sealed record ProductAndroid : Product, ProductCommon
     /// <summary>Available in Google Play Billing Library 8.0.0+</summary>
     [JsonPropertyName("productStatusAndroid")]
     public ProductStatusAndroid? ProductStatusAndroid { get; init; }
-    /// <summary>@deprecated Use subscriptionOffers instead for cross-platform compatibility.</summary>
+    /// <summary>@deprecated Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.</summary>
     [JsonPropertyName("subscriptionOfferDetailsAndroid")]
     public IReadOnlyList<ProductSubscriptionAndroidOfferDetails>? SubscriptionOfferDetailsAndroid { get; init; }
     /// <summary>Standardized subscription offers.</summary>
@@ -3318,7 +3319,7 @@ public sealed record ProductAndroid : Product, ProductCommon
 /// <summary>One-time purchase offer details (Android).</summary>
 /// <summary>Available in Google Play Billing Library 8.0+</summary>
 /// <summary>@see https://openiap.dev/docs/types/discount-offer</summary>
-/// <summary>@deprecated Use the standardized DiscountOffer type for Android one-time offers.</summary>
+/// <summary>@deprecated Use the standardized DiscountOffer type for Android one-time offers. Scheduled for removal in OpenIAP 3.0.</summary>
 public sealed record ProductAndroidOneTimePurchaseOfferDetail
 {
     /// <summary>Discount display information</summary>
@@ -3392,7 +3393,7 @@ public sealed record ProductIOS : Product, ProductCommon
     /// <summary>monthly subscriptions with a 12-month commitment.</summary>
     [JsonPropertyName("pricingTermsIOS")]
     public IReadOnlyList<SubscriptionPricingTermsIOS>? PricingTermsIOS { get; init; }
-    /// <summary>@deprecated Use subscriptionOffers instead for cross-platform compatibility.</summary>
+    /// <summary>@deprecated Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.</summary>
     [JsonPropertyName("subscriptionInfoIOS")]
     public SubscriptionInfoIOS? SubscriptionInfoIOS { get; init; }
     /// <summary>Standardized subscription offers.</summary>
@@ -3431,7 +3432,7 @@ public sealed record ProductSubscriptionAndroid : ProductSubscription, ProductCo
     public required string NameAndroid { get; init; }
     /// <summary>Legacy nullable compatibility field. Google Play does not populate one-time</summary>
     /// <summary>purchase offer details for subscription products.</summary>
-    /// <summary>@deprecated One-time offers belong to ProductAndroid.discountOffers; subscriptions use subscriptionOffers.</summary>
+    /// <summary>@deprecated One-time offers belong to ProductAndroid.discountOffers; subscriptions use subscriptionOffers. Scheduled for removal in OpenIAP 3.0.</summary>
     [JsonPropertyName("oneTimePurchaseOfferDetailsAndroid")]
     public IReadOnlyList<ProductAndroidOneTimePurchaseOfferDetail>? OneTimePurchaseOfferDetailsAndroid { get; init; }
     [JsonPropertyName("platform")]
@@ -3445,7 +3446,7 @@ public sealed record ProductSubscriptionAndroid : ProductSubscription, ProductCo
     /// <summary>Available in Google Play Billing Library 8.0.0+</summary>
     [JsonPropertyName("productStatusAndroid")]
     public ProductStatusAndroid? ProductStatusAndroid { get; init; }
-    /// <summary>@deprecated Use subscriptionOffers instead for cross-platform compatibility.</summary>
+    /// <summary>@deprecated Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.</summary>
     [JsonPropertyName("subscriptionOfferDetailsAndroid")]
     public required IReadOnlyList<ProductSubscriptionAndroidOfferDetails> SubscriptionOfferDetailsAndroid { get; init; }
     /// <summary>Standardized subscription offers.</summary>
@@ -3461,7 +3462,7 @@ public sealed record ProductSubscriptionAndroid : ProductSubscription, ProductCo
 
 /// <summary>Subscription offer details (Android).</summary>
 /// <summary>@see https://openiap.dev/docs/types/subscription-offer</summary>
-/// <summary>@deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.</summary>
+/// <summary>@deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.</summary>
 public sealed record ProductSubscriptionAndroidOfferDetails
 {
     [JsonPropertyName("basePlanId")]
@@ -3489,7 +3490,7 @@ public sealed record ProductSubscriptionIOS : ProductSubscription, ProductCommon
     public string? DebugDescription { get; init; }
     [JsonPropertyName("description")]
     public required string Description { get; init; }
-    /// <summary>@deprecated Use subscriptionOffers instead for cross-platform compatibility.</summary>
+    /// <summary>@deprecated Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.</summary>
     [JsonPropertyName("discountsIOS")]
     public IReadOnlyList<DiscountIOS>? DiscountsIOS { get; init; }
     [JsonPropertyName("displayName")]
@@ -3525,7 +3526,7 @@ public sealed record ProductSubscriptionIOS : ProductSubscription, ProductCommon
     /// <summary>App Store subscription group identifier for intro-offer eligibility checks.</summary>
     [JsonPropertyName("subscriptionGroupIdIOS")]
     public string? SubscriptionGroupIdIOS { get; init; }
-    /// <summary>@deprecated Use subscriptionOffers for offer metadata and subscriptionGroupIdIOS for the App Store subscription group identifier.</summary>
+    /// <summary>@deprecated Use subscriptionOffers for offer metadata and subscriptionGroupIdIOS for the App Store subscription group identifier. Scheduled for removal in OpenIAP 3.0.</summary>
     [JsonPropertyName("subscriptionInfoIOS")]
     public SubscriptionInfoIOS? SubscriptionInfoIOS { get; init; }
     /// <summary>Standardized subscription offers.</summary>
@@ -3582,7 +3583,7 @@ public sealed record PurchaseAndroid : Purchase, PurchaseCommon
     /// <summary>Available in Google Play Billing Library 5.0+</summary>
     [JsonPropertyName("pendingPurchaseUpdateAndroid")]
     public PendingPurchaseUpdateAndroid? PendingPurchaseUpdateAndroid { get; init; }
-    /// <summary>@deprecated Use store instead</summary>
+    /// <summary>@deprecated Use store instead. Scheduled for removal in OpenIAP 3.0.</summary>
     [JsonPropertyName("platform")]
     public required IapPlatform Platform { get; init; }
     [JsonPropertyName("productId")]
@@ -3672,7 +3673,7 @@ public sealed record PurchaseIOS : Purchase, PurchaseCommon
     public string? OriginalTransactionIdentifierIOS { get; init; }
     [JsonPropertyName("ownershipTypeIOS")]
     public string? OwnershipTypeIOS { get; init; }
-    /// <summary>@deprecated Use store instead</summary>
+    /// <summary>@deprecated Use store instead. Scheduled for removal in OpenIAP 3.0.</summary>
     [JsonPropertyName("platform")]
     public required IapPlatform Platform { get; init; }
     [JsonPropertyName("productId")]
@@ -3944,7 +3945,7 @@ public sealed record SubscriptionOffer
 
 /// <summary>iOS subscription offer details.</summary>
 /// <summary>@see https://openiap.dev/docs/types/subscription-offer</summary>
-/// <summary>@deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.</summary>
+/// <summary>@deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.</summary>
 public sealed record SubscriptionOfferIOS
 {
     [JsonPropertyName("displayPrice")]
@@ -4314,7 +4315,7 @@ public sealed record InitConnectionConfig
     /// <summary>Alternative billing mode for Android</summary>
     /// <summary>If not specified, defaults to NONE (standard Google Play billing)</summary>
     /// <summary>Use USER_CHOICE_BILLING for user choice billing, EXTERNAL_OFFER for alternative only.</summary>
-    /// <summary>@deprecated Use enableBillingProgramAndroid instead.</summary>
+    /// <summary>@deprecated Use enableBillingProgramAndroid instead. Scheduled for removal in OpenIAP 3.0.</summary>
     [JsonPropertyName("alternativeBillingModeAndroid")]
     public AlternativeBillingModeAndroid? AlternativeBillingModeAndroid { get; init; }
     /// <summary>Enable a specific billing program for Android (7.0+)</summary>
@@ -4484,7 +4485,7 @@ public sealed record RequestPurchaseProps : IJsonOnDeserialized
     public required ProductQueryType Type { get; init; }
 
     /// <summary>This flag only logs debug info and has no effect on the purchase flow.</summary>
-    /// <summary>@deprecated Use enableBillingProgramAndroid in InitConnectionConfig instead.</summary>
+    /// <summary>@deprecated Use enableBillingProgramAndroid in InitConnectionConfig instead. Scheduled for removal in OpenIAP 3.0.</summary>
     [JsonPropertyName("useAlternativeBilling")]
     public bool? UseAlternativeBilling { get; init; }
 
@@ -4518,10 +4519,10 @@ public sealed record RequestPurchasePropsByPlatforms
     /// <summary>Google-specific purchase parameters</summary>
     [JsonPropertyName("google")]
     public RequestPurchaseAndroidProps? Google { get; init; }
-    /// <summary>@deprecated Use apple instead</summary>
+    /// <summary>@deprecated Use apple instead. Scheduled for removal in OpenIAP 3.0.</summary>
     [JsonPropertyName("ios")]
     public RequestPurchaseIosProps? IOS { get; init; }
-    /// <summary>@deprecated Use google instead</summary>
+    /// <summary>@deprecated Use google instead. Scheduled for removal in OpenIAP 3.0.</summary>
     [JsonPropertyName("android")]
     public RequestPurchaseAndroidProps? Android { get; init; }
 }
@@ -4550,7 +4551,7 @@ public sealed record RequestSubscriptionAndroidProps
     [JsonPropertyName("originalExternalTransactionId")]
     public string? OriginalExternalTransactionId { get; init; }
     /// <summary>Replacement mode for subscription changes</summary>
-    /// <summary>@deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+).</summary>
+    /// <summary>@deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+). Scheduled for removal in OpenIAP 3.0.</summary>
     [JsonPropertyName("replacementMode")]
     public int? ReplacementMode { get; init; }
     /// <summary>Subscription offers</summary>
@@ -4628,10 +4629,10 @@ public sealed record RequestSubscriptionPropsByPlatforms
     /// <summary>Google-specific subscription parameters</summary>
     [JsonPropertyName("google")]
     public RequestSubscriptionAndroidProps? Google { get; init; }
-    /// <summary>@deprecated Use apple instead</summary>
+    /// <summary>@deprecated Use apple instead. Scheduled for removal in OpenIAP 3.0.</summary>
     [JsonPropertyName("ios")]
     public RequestSubscriptionIosProps? IOS { get; init; }
-    /// <summary>@deprecated Use google instead</summary>
+    /// <summary>@deprecated Use google instead. Scheduled for removal in OpenIAP 3.0.</summary>
     [JsonPropertyName("android")]
     public RequestSubscriptionAndroidProps? Android { get; init; }
 }
@@ -4818,6 +4819,7 @@ public interface MutationResolver
     /// <summary>Returns true if available, false otherwise.</summary>
     /// <summary>Throws OpenIapError.NotPrepared if billing client not ready.</summary>
     /// <summary>See: https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android</summary>
+    /// <summary>@deprecated Use isBillingProgramAvailableAndroid with the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.</summary>
     Task<bool> CheckAlternativeBillingAvailabilityAndroidAsync();
 
     /// <summary>Clear pending transactions in the queue (sandbox helper).</summary>
@@ -4834,6 +4836,7 @@ public interface MutationResolver
     /// <summary>Returns token string, or null if creation failed.</summary>
     /// <summary>Throws OpenIapError.NotPrepared if billing client not ready.</summary>
     /// <summary>See: https://openiap.dev/docs/apis/android/create-alternative-billing-token-android</summary>
+    /// <summary>@deprecated Use createBillingProgramReportingDetailsAndroid with the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.</summary>
     Task<string?> CreateAlternativeBillingTokenAndroidAsync();
 
     /// <summary>Create the reporting details and external transaction token required by a billing program.</summary>
@@ -4921,7 +4924,7 @@ public interface MutationResolver
     /// <summary>Buy the currently promoted product.</summary>
     /// <summary></summary>
     /// <summary>See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios</summary>
-    /// <summary>@deprecated Use promotedProductListenerIOS to receive the productId, then call requestPurchase with that SKU instead. In StoreKit 2, promoted products can be purchased directly via the standard purchase flow.</summary>
+    /// <summary>@deprecated Use the promoted-product listener or callback exposed by your SDK to receive the productId, then call requestPurchase with that SKU instead. In StoreKit 2, promoted products can be purchased directly via the standard purchase flow. Scheduled for removal in OpenIAP 3.0.</summary>
     Task<bool> RequestPurchaseOnPromotedProductIOSAsync();
 
     /// <summary>Restore non-consumable and active subscription purchases.</summary>
@@ -4933,6 +4936,7 @@ public interface MutationResolver
     /// <summary>Returns true if user accepted, false if user canceled.</summary>
     /// <summary>Throws OpenIapError.NotPrepared if billing client not ready.</summary>
     /// <summary>See: https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android</summary>
+    /// <summary>@deprecated Use launchExternalLinkAndroid instead. Scheduled for removal in OpenIAP 3.0.</summary>
     Task<bool> ShowAlternativeBillingDialogAndroidAsync();
 
     /// <summary>Show Google&apos;s mandatory information dialog before a developer-rendered,</summary>
@@ -4967,7 +4971,7 @@ public interface MutationResolver
 
     /// <summary>Deprecated. Validate purchase receipts with the configured providers — use verifyPurchase instead.</summary>
     /// <summary>See: https://openiap.dev/docs/features/validation#verify-purchase</summary>
-    /// <summary>@deprecated Use verifyPurchase</summary>
+    /// <summary>@deprecated Use verifyPurchase. Scheduled for removal in OpenIAP 3.0.</summary>
     Task<VerifyPurchaseResult> ValidateReceiptAsync(VerifyPurchaseProps options);
 
     /// <summary>Verify a purchase against your own backend. Returns a platform-specific</summary>
@@ -5054,7 +5058,7 @@ public interface QueryResolver
     /// <summary>Deprecated. Get the current App Store storefront ISO 3166-1 alpha-3 country</summary>
     /// <summary>code — use cross-platform getStorefront instead.</summary>
     /// <summary>See: https://openiap.dev/docs/apis/ios/get-storefront-ios</summary>
-    /// <summary>@deprecated Use getStorefront</summary>
+    /// <summary>@deprecated Use getStorefront. Scheduled for removal in OpenIAP 3.0.</summary>
     Task<string> GetStorefrontIOSAsync();
 
     /// <summary>Return the JWS string for a transaction (StoreKit 2).</summary>
@@ -5089,7 +5093,7 @@ public interface QueryResolver
 
     /// <summary>Deprecated. Legacy App Store receipt validation — use verifyPurchase instead.</summary>
     /// <summary>See: https://openiap.dev/docs/apis/ios/validate-receipt-ios</summary>
-    /// <summary>@deprecated Use verifyPurchase</summary>
+    /// <summary>@deprecated Use verifyPurchase. Scheduled for removal in OpenIAP 3.0.</summary>
     Task<VerifyPurchaseResultIOS> ValidateReceiptIOSAsync(VerifyPurchaseProps options);
 }
 

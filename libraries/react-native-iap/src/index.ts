@@ -91,10 +91,16 @@ export * from './types';
 export * from './utils/error';
 export * from './vega';
 
+/**
+ * Product type accepted by public query and purchase helpers.
+ *
+ * Compatibility note: the `'inapp'` member is deprecated. Use `'in-app'`
+ * instead; the alias will be removed in react-native-iap 16.0.0.
+ */
 export type ProductTypeInput = 'inapp' | 'in-app' | 'subs';
 
 const LEGACY_INAPP_WARNING =
-  "[react-native-iap] `type: 'inapp'` is deprecated and will be removed in a future major version. Use 'in-app' instead.";
+  "[react-native-iap] `type: 'inapp'` is deprecated and will be removed in react-native-iap 16.0.0. Use 'in-app' instead.";
 
 type NitroPurchaseRequest = Parameters<RnIap['requestPurchase']>[0];
 type NitroAvailablePurchasesOptions = NonNullable<
@@ -879,8 +885,7 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
 
     if (normalizedType === 'all') {
       const converted = (await fetchAndConvert('all')) as (
-        | Product
-        | ProductSubscription
+        Product | ProductSubscription
       )[];
 
       RnIapConsole.debug(
@@ -1112,6 +1117,10 @@ export const getPromotedProductIOS: QueryField<
   }
 };
 
+/**
+ * @deprecated Use `getPromotedProductIOS` instead. This compatibility alias
+ * will be removed in react-native-iap 16.0.0.
+ */
 export const requestPromotedProductIOS = getPromotedProductIOS;
 
 /**
@@ -1126,6 +1135,8 @@ export const requestPromotedProductIOS = getPromotedProductIOS;
  * ```
  *
  * @see {@link https://openiap.dev/docs/apis/ios/get-storefront-ios}
+ * @deprecated Use `getStorefront` instead. Scheduled for removal in
+ * react-native-iap 16.0.0.
  */
 export const getStorefrontIOS: QueryField<'getStorefrontIOS'> = async () => {
   if (Platform.OS !== 'ios') {
@@ -1529,13 +1540,21 @@ export const getReceiptDataIOS: QueryField<'getReceiptDataIOS'> = async () => {
   }
 };
 
+/**
+ * Legacy alias for `getReceiptDataIOS`.
+ *
+ * @deprecated Use `getReceiptDataIOS` for the cumulative App Store receipt or
+ * `getTransactionJwsIOS(productId)` for one transaction. This alias will be
+ * removed in react-native-iap 16.0.0.
+ */
 export const getReceiptIOS = async (): Promise<string> => {
   if (Platform.OS !== 'ios') {
     throw new Error('getReceiptIOS is only available on iOS');
   }
 
   RnIapConsole.warn(
-    '[getReceiptIOS] ⚠️ iOS receipts contain ALL transactions, not just the latest one. ' +
+    '[getReceiptIOS] is deprecated and will be removed in react-native-iap 16.0.0. ' +
+      'Use getReceiptDataIOS() for the cumulative receipt. iOS receipts contain ALL transactions, not just the latest one. ' +
       'For individual purchase validation, use getTransactionJwsIOS(productId) instead. ' +
       'See: https://react-native-iap.hyo.dev/docs/guides/receipt-validation',
   );
@@ -1800,7 +1819,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
     }
 
     if (Platform.OS === 'ios') {
-      // Support both 'apple' (recommended) and 'ios' (deprecated) fields
+      // `ios` is deprecated and will be removed in react-native-iap 16.0.0.
       const iosRequest = perPlatformRequest.apple ?? perPlatformRequest.ios;
       if (!iosRequest?.sku) {
         throw new Error(
@@ -1808,7 +1827,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
         );
       }
     } else if (isAndroidStoreRuntime()) {
-      // Support both 'google' (recommended) and 'android' (deprecated) fields
+      // `android` is deprecated and will be removed in react-native-iap 16.0.0.
       const androidRequest =
         perPlatformRequest.google ?? perPlatformRequest.android;
       if (!androidRequest?.skus?.length) {
@@ -1822,7 +1841,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
 
     const unifiedRequest: NitroPurchaseRequest = {};
 
-    // Support both 'apple' (recommended) and 'ios' (deprecated) fields
+    // `ios` is deprecated and will be removed in react-native-iap 16.0.0.
     const iosRequestSource = perPlatformRequest.apple ?? perPlatformRequest.ios;
     if (Platform.OS === 'ios' && iosRequestSource) {
       const iosRequest = isSubs
@@ -1872,7 +1891,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
       unifiedRequest.ios = iosPayload;
     }
 
-    // Support both 'google' (recommended) and 'android' (deprecated) fields
+    // `android` is deprecated and will be removed in react-native-iap 16.0.0.
     const androidRequestSource =
       perPlatformRequest.google ?? perPlatformRequest.android;
     if (isAndroidStoreRuntime() && androidRequestSource) {
@@ -2153,7 +2172,7 @@ export const openRedeemOfferCodeAndroid: MutationField<
 
 /**
  * Validate receipt on both iOS and Android platforms
- * @deprecated Use `verifyPurchase` instead. This function will be removed in a future version.
+ * @deprecated Use `verifyPurchase` instead. This function will be removed in react-native-iap 16.0.0.
  * @param options - Platform-specific verification options
  * @param options.apple - Apple App Store verification options (iOS)
  * @param options.google - Google Play verification options (Android)
@@ -2315,9 +2334,8 @@ export const verifyPurchase: MutationField<'verifyPurchase'> = validateReceipt;
 /**
  * iOS-only receipt validation alias.
  *
- * @deprecated Use `verifyPurchase` (or `validateReceipt`) instead. Kept so
- * consumers who imported `validateReceiptIOS` — which is still declared on the
- * OpenIAP Query interface — keep working. Throws on non-iOS platforms.
+ * @deprecated Use `verifyPurchase` instead. This compatibility alias will be
+ * removed in react-native-iap 16.0.0. Throws on non-iOS platforms.
  *
  * @see {@link https://openiap.dev/docs/apis/ios/validate-receipt-ios}
  */
@@ -2465,7 +2483,9 @@ export const presentCodeRedemptionSheetIOS: MutationField<
 
 /**
  * Buy promoted product on iOS
- * @deprecated In StoreKit 2, promoted products can be purchased directly via the standard `requestPurchase()` flow.
+ * @deprecated In StoreKit 2, promoted products can be purchased directly via
+ * the standard `requestPurchase()` flow. This alias will be removed in
+ * react-native-iap 16.0.0.
  * Use `promotedProductListenerIOS` to receive the product ID when a user taps a promoted product,
  * then call `requestPurchase()` with the received SKU directly.
  *
@@ -2747,12 +2767,14 @@ export {
 
 // Deprecated exports for backward compatibility
 /**
- * @deprecated Use acknowledgePurchaseAndroid instead
+ * @deprecated Use acknowledgePurchaseAndroid instead. This alias will be
+ * removed in react-native-iap 16.0.0.
  */
 export const acknowledgePurchase = acknowledgePurchaseAndroid;
 
 /**
- * @deprecated Use consumePurchaseAndroid instead
+ * @deprecated Use consumePurchaseAndroid instead. This alias will be removed
+ * in react-native-iap 16.0.0.
  */
 export const consumePurchase = consumePurchaseAndroid;
 
@@ -2850,6 +2872,8 @@ const normalizeProductQueryType = (
  * ```
  *
  * @see {@link https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android}
+ * @deprecated Use `isBillingProgramAvailableAndroid('external-offer')`
+ * instead. Scheduled for removal in react-native-iap 16.0.0.
  */
 export const checkAlternativeBillingAvailabilityAndroid: MutationField<
   'checkAlternativeBillingAvailabilityAndroid'
@@ -2892,6 +2916,8 @@ export const checkAlternativeBillingAvailabilityAndroid: MutationField<
  * ```
  *
  * @see {@link https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android}
+ * @deprecated Use `launchExternalLinkAndroid` instead. Scheduled for removal in
+ * react-native-iap 16.0.0.
  */
 export const showAlternativeBillingDialogAndroid: MutationField<
   'showAlternativeBillingDialogAndroid'
@@ -2931,6 +2957,9 @@ export const showAlternativeBillingDialogAndroid: MutationField<
  * ```
  *
  * @see {@link https://openiap.dev/docs/apis/android/create-alternative-billing-token-android}
+ * @deprecated Use
+ * `createBillingProgramReportingDetailsAndroid('external-offer')` instead.
+ * Scheduled for removal in react-native-iap 16.0.0.
  */
 export const createAlternativeBillingTokenAndroid: MutationField<
   'createAlternativeBillingTokenAndroid'

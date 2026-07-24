@@ -157,14 +157,6 @@ function Product() {
                 , or <code>"horizon"</code>
               </td>
             </tr>
-            <tr>
-              <td>
-                <code style={{ textDecoration: 'line-through' }}>platform</code>
-              </td>
-              <td>
-                <strong>Deprecated.</strong> Use <code>store</code> instead.
-              </td>
-            </tr>
           </tbody>
         </table>
 

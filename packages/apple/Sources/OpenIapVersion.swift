@@ -15,7 +15,7 @@ public struct OpenIapVersion {
     }
 
     /// OpenIAP GraphQL version for reference
-    @available(*, deprecated, renamed: "specVersion")
+    @available(*, deprecated, renamed: "specVersion", message: "Use specVersion instead. Scheduled for removal in OpenIAP 3.0.")
     public static var gqlVersion: String {
         specVersion
     }
@@ -72,7 +72,7 @@ public enum OpenIapVersionInfo {
     }
 
     /// OpenIAP GraphQL version for reference
-    @available(*, deprecated, renamed: "specVersion")
+    @available(*, deprecated, renamed: "OpenIapVersion.specVersion", message: "Use OpenIapVersion.specVersion instead. Scheduled for removal in OpenIAP 3.0.")
     public static var gqlVersion: String {
         OpenIapVersion.specVersion
     }

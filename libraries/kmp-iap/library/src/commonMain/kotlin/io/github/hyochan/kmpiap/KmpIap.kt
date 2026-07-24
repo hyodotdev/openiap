@@ -93,6 +93,41 @@ typealias PurchaseRequestBuilder = io.github.hyochan.kmpiap.dsl.PurchaseRequestB
  * Designed to match Flutter InApp Purchase and expo-iap APIs.
  */
 interface KmpInAppPurchase : MutationResolver, QueryResolver, SubscriptionResolver {
+    @Deprecated(
+        message = "Use isBillingProgramAvailableAndroid with BillingProgramAndroid.ExternalOffer instead. Scheduled for removal in kmp-iap 3.0.0.",
+    )
+    override suspend fun checkAlternativeBillingAvailabilityAndroid(): Boolean
+
+    @Deprecated(
+        message = "Use launchExternalLinkAndroid instead. Scheduled for removal in kmp-iap 3.0.0.",
+    )
+    override suspend fun showAlternativeBillingDialogAndroid(): Boolean
+
+    @Deprecated(
+        message = "Use createBillingProgramReportingDetailsAndroid with BillingProgramAndroid.ExternalOffer instead. Scheduled for removal in kmp-iap 3.0.0.",
+    )
+    override suspend fun createAlternativeBillingTokenAndroid(): String?
+
+    @Deprecated(
+        message = "Use promotedProductListener and requestPurchase instead. Scheduled for removal in kmp-iap 3.0.0.",
+    )
+    override suspend fun requestPurchaseOnPromotedProductIOS(): Boolean
+
+    @Deprecated(
+        message = "Use verifyPurchase instead. This function will be removed in kmp-iap 3.0.0.",
+    )
+    override suspend fun validateReceipt(options: VerifyPurchaseProps): VerifyPurchaseResult
+
+    @Deprecated(
+        message = "Use getStorefront instead. This function will be removed in kmp-iap 3.0.0.",
+    )
+    override suspend fun getStorefrontIOS(): String
+
+    @Deprecated(
+        message = "Use verifyPurchase instead. This function will be removed in kmp-iap 3.0.0.",
+    )
+    override suspend fun validateReceiptIOS(options: VerifyPurchaseProps): VerifyPurchaseResultIOS
+
     /**
      * Returns the version of the KMP-IAP library.
      * Format: "KMP-IAP v{version} ({platform})"

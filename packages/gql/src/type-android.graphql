@@ -142,7 +142,7 @@ Available in Google Play Billing Library 8.0+
 """
 type ProductAndroidOneTimePurchaseOfferDetail
   @openiapDeprecated(
-    reason: "Use the standardized DiscountOffer type for Android one-time offers."
+    reason: "Use the standardized DiscountOffer type for Android one-time offers. Scheduled for removal in OpenIAP 3.0."
   ) {
   """
   Offer ID
@@ -221,7 +221,7 @@ Subscription offer details (Android).
 """
 type ProductSubscriptionAndroidOfferDetails
   @openiapDeprecated(
-    reason: "Use the standardized SubscriptionOffer type instead for cross-platform compatibility."
+    reason: "Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0."
   ) {
   basePlanId: String!
   offerId: String
@@ -281,10 +281,10 @@ type ProductAndroid implements ProductCommon {
   Returns all eligible offers. Available in Google Play Billing Library 8.0+
   """
   oneTimePurchaseOfferDetailsAndroid: [ProductAndroidOneTimePurchaseOfferDetail!]
-    @deprecated(reason: "Use the standardized discountOffers field instead.")
+    @deprecated(reason: "Use the standardized discountOffers field instead. Scheduled for removal in OpenIAP 3.0.")
   subscriptionOfferDetailsAndroid: [ProductSubscriptionAndroidOfferDetails!]
     @deprecated(
-      reason: "Use subscriptionOffers instead for cross-platform compatibility."
+      reason: "Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0."
     )
 }
 
@@ -333,11 +333,11 @@ type ProductSubscriptionAndroid implements ProductCommon {
   """
   oneTimePurchaseOfferDetailsAndroid: [ProductAndroidOneTimePurchaseOfferDetail!]
     @deprecated(
-      reason: "One-time offers belong to ProductAndroid.discountOffers; subscriptions use subscriptionOffers."
+      reason: "One-time offers belong to ProductAndroid.discountOffers; subscriptions use subscriptionOffers. Scheduled for removal in OpenIAP 3.0."
     )
   subscriptionOfferDetailsAndroid: [ProductSubscriptionAndroidOfferDetails!]!
     @deprecated(
-      reason: "Use subscriptionOffers instead for cross-platform compatibility."
+      reason: "Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0."
     )
 }
 
@@ -356,7 +356,7 @@ type PurchaseAndroid implements PurchaseCommon {
   Store where purchase was made
   """
   store: IapStore!
-  platform: IapPlatform! @deprecated(reason: "Use store instead")
+  platform: IapPlatform! @deprecated(reason: "Use store instead. Scheduled for removal in OpenIAP 3.0.")
   quantity: Int!
   purchaseState: PurchaseState!
   isAutoRenewing: Boolean!
@@ -474,7 +474,7 @@ input RequestSubscriptionAndroidProps {
   """
   replacementMode: Int
     @deprecated(
-      reason: "Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+)."
+      reason: "Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+). Scheduled for removal in OpenIAP 3.0."
     )
   """
   Subscription offers
@@ -654,11 +654,12 @@ type VerifyPurchaseResultAndroid {
 """
 Alternative billing mode for Android
 Controls which billing system is used
-Use USER_CHOICE_BILLING for user choice billing, EXTERNAL_OFFER for alternative only.
+Use the user-choice-billing program for user choice billing and external-offer
+for external digital-content offers.
 """
 enum AlternativeBillingModeAndroid
   @openiapDeprecated(
-    reason: "Use enableBillingProgramAndroid with BillingProgramAndroid instead."
+    reason: "Use enableBillingProgramAndroid with BillingProgramAndroid instead. Scheduled for removal in OpenIAP 3.0."
   ) {
   """
   Standard Google Play billing (default)
@@ -671,7 +672,7 @@ enum AlternativeBillingModeAndroid
   """
   USER_CHOICE
     @deprecated(
-      reason: "Use BillingProgramAndroid.USER_CHOICE_BILLING instead."
+      reason: "Use the user-choice-billing BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0."
     )
 
   """
@@ -679,7 +680,7 @@ enum AlternativeBillingModeAndroid
   Requires Google Play Billing Library 6.2+
   """
   ALTERNATIVE_ONLY
-    @deprecated(reason: "Use BillingProgramAndroid.EXTERNAL_OFFER instead.")
+    @deprecated(reason: "Use the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.")
 }
 
 # User Choice Billing
@@ -1147,7 +1148,7 @@ Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
 """
 type ExternalOfferReportingDetailsAndroid
   @openiapDeprecated(
-    reason: "Use BillingProgramReportingDetailsAndroid with createBillingProgramReportingDetailsAsync instead"
+    reason: "Use BillingProgramReportingDetailsAndroid from createBillingProgramReportingDetailsAndroid instead. Scheduled for removal in OpenIAP 3.0."
   ) {
   """
   External transaction token for reporting external offer transactions
@@ -1161,7 +1162,7 @@ Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
 """
 type ExternalOfferAvailabilityResultAndroid
   @openiapDeprecated(
-    reason: "Use BillingProgramAvailabilityResultAndroid with isBillingProgramAvailableAsync instead"
+    reason: "Use BillingProgramAvailabilityResultAndroid from isBillingProgramAvailableAndroid instead. Scheduled for removal in OpenIAP 3.0."
   ) {
   """
   Whether external offers are available for the user

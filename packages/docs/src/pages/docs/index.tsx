@@ -133,6 +133,7 @@ import KmpSetup from './setup/kmp';
 import MauiSetup from './setup/maui';
 import Example from './example';
 import Announcements from './updates/announcements';
+import Deprecations from './updates/deprecations';
 import Releases from './updates/releases';
 import Versions from './updates/versions';
 import AIAssistants from './guides/ai-assistants';
@@ -989,6 +990,15 @@ function Docs() {
             </li>
             <li>
               <NavLink
+                to="/docs/updates/deprecations"
+                className={({ isActive }) => (isActive ? 'active' : '')}
+                onClick={closeSidebar}
+              >
+                Deprecations &amp; Migration
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
                 to="/docs/updates/versions"
                 className={({ isActive }) => (isActive ? 'active' : '')}
                 onClick={closeSidebar}
@@ -1517,6 +1527,7 @@ function Docs() {
             element={<Navigate to="/docs/updates/releases" replace />}
           />
           <Route path="updates/releases" element={<Releases />} />
+          <Route path="updates/deprecations" element={<Deprecations />} />
           <Route path="updates/versions" element={<Versions />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

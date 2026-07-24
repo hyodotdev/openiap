@@ -27,7 +27,7 @@ interface OpenIapProtocol {
     val consumePurchaseAndroid: MutationConsumePurchaseAndroidHandler
     val restorePurchases: MutationRestorePurchasesHandler
     val deepLinkToSubscriptions: MutationDeepLinkToSubscriptionsHandler
-    @Deprecated("Use verifyPurchase")
+    @Deprecated("Use verifyPurchase instead. Scheduled for removal in OpenIAP 3.0.")
     val validateReceipt: MutationValidateReceiptHandler
     val verifyPurchase: MutationVerifyPurchaseHandler
     val verifyPurchaseWithProvider: MutationVerifyPurchaseWithProviderHandler
@@ -44,12 +44,19 @@ interface OpenIapProtocol {
     fun removePurchaseErrorListener(listener: OpenIapPurchaseErrorListener)
 
     // Alternative Billing (Google Play only)
-    @Deprecated("Use isBillingProgramAvailable with BillingProgramAndroid.ExternalOffer instead")
+    @Deprecated(
+        "Use isBillingProgramAvailable with BillingProgramAndroid.ExternalOffer instead. Scheduled for removal in OpenIAP 3.0."
+    )
     suspend fun checkAlternativeBillingAvailability(): Boolean
-    @Deprecated("Use launchExternalLink instead")
+    @Deprecated("Use launchExternalLink instead. Scheduled for removal in OpenIAP 3.0.")
     suspend fun showAlternativeBillingInformationDialog(activity: Activity): Boolean
-    @Deprecated("Use createBillingProgramReportingDetails with BillingProgramAndroid.ExternalOffer instead")
+    @Deprecated(
+        "Use createBillingProgramReportingDetails with BillingProgramAndroid.ExternalOffer instead. Scheduled for removal in OpenIAP 3.0."
+    )
     suspend fun createAlternativeBillingReportingToken(): String?
+    @Deprecated(
+        "Use addUserChoiceBillingListener and removeUserChoiceBillingListener instead. Scheduled for removal in OpenIAP 3.0."
+    )
     fun setUserChoiceBillingListener(listener: dev.hyo.openiap.listener.UserChoiceBillingListener?)
     fun addUserChoiceBillingListener(listener: OpenIapUserChoiceBillingListener)
     fun removeUserChoiceBillingListener(listener: OpenIapUserChoiceBillingListener)
@@ -61,6 +68,9 @@ interface OpenIapProtocol {
      *
      * @param listener Developer-provided billing listener or null to remove
      */
+    @Deprecated(
+        "Use addDeveloperProvidedBillingListener and removeDeveloperProvidedBillingListener instead. Scheduled for removal in OpenIAP 3.0."
+    )
     fun setDeveloperProvidedBillingListener(listener: DeveloperProvidedBillingListener?)
     /**
      * Add listener for developer-provided billing selection events.

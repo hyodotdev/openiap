@@ -11,13 +11,13 @@
 # Enums
 # ============================================================================
 
-## Alternative billing mode for Android Controls which billing system is used Use USER_CHOICE_BILLING for user choice billing, EXTERNAL_OFFER for alternative only. @deprecated Use enableBillingProgramAndroid with BillingProgramAndroid instead.
+## Alternative billing mode for Android Controls which billing system is used Use the user-choice-billing program for user choice billing and external-offer for external digital-content offers. @deprecated Use enableBillingProgramAndroid with BillingProgramAndroid instead. Scheduled for removal in OpenIAP 3.0.
 enum AlternativeBillingModeAndroid {
 	## Standard Google Play billing (default)
 	NONE = 0,
-	## User choice billing - user can select between Google Play or alternative Requires Google Play Billing Library 7.0+ @deprecated Use BillingProgramAndroid.USER_CHOICE_BILLING instead.
+	## User choice billing - user can select between Google Play or alternative Requires Google Play Billing Library 7.0+ @deprecated Use the user-choice-billing BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.
 	USER_CHOICE = 1,
-	## Alternative billing only - no Google Play billing option Requires Google Play Billing Library 6.2+ @deprecated Use BillingProgramAndroid.EXTERNAL_OFFER instead.
+	## Alternative billing only - no Google Play billing option Requires Google Play Billing Library 6.2+ @deprecated Use the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.
 	ALTERNATIVE_ONLY = 2,
 }
 
@@ -95,11 +95,11 @@ enum ErrorCode {
 	REMOTE_ERROR = 4,
 	NETWORK_ERROR = 5,
 	SERVICE_ERROR = 6,
-	## @deprecated Use PurchaseVerificationFailed instead
+	## @deprecated Use PurchaseVerificationFailed instead. Scheduled for removal in OpenIAP 3.0.
 	RECEIPT_FAILED = 7,
-	## @deprecated Use PurchaseVerificationFinished instead
+	## @deprecated Use PurchaseVerificationFinished instead. Scheduled for removal in OpenIAP 3.0.
 	RECEIPT_FINISHED = 8,
-	## @deprecated Use PurchaseVerificationFinishFailed instead
+	## @deprecated Use PurchaseVerificationFinishFailed instead. Scheduled for removal in OpenIAP 3.0.
 	RECEIPT_FINISHED_FAILED = 9,
 	PURCHASE_VERIFICATION_FAILED = 10,
 	PURCHASE_VERIFICATION_FINISHED = 11,
@@ -441,7 +441,7 @@ class ActiveSubscription:
 	var expiration_date_ios: Variant = null
 	var auto_renewing_android: Variant = null
 	var environment_ios: Variant = null
-	## Whether the subscription will expire soon (within 7 days). Consider using daysUntilExpirationIOS for more precise control. @deprecated iOS only - use daysUntilExpirationIOS instead.
+	## Whether the subscription will expire soon (within 7 days). Consider using daysUntilExpirationIOS for more precise control. @deprecated iOS only - use daysUntilExpirationIOS instead. Scheduled for removal in OpenIAP 3.0.
 	var will_expire_soon: Variant = null
 	var days_until_expiration_ios: Variant = null
 	var transaction_id: String = ""
@@ -1008,7 +1008,7 @@ class DiscountDisplayInfoAndroid:
 			dict["discountAmount"] = discount_amount
 		return dict
 
-## Discount information returned from the store. @see https://openiap.dev/docs/types/subscription-offer @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
+## Discount information returned from the store. @see https://openiap.dev/docs/types/subscription-offer @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
 class DiscountIOS:
 	var identifier: String = ""
 	var type: String = ""
@@ -1193,7 +1193,7 @@ class DiscountOffer:
 			dict["purchaseOptionIdAndroid"] = purchase_option_id_android
 		return dict
 
-## iOS DiscountOffer (output type). @see https://openiap.dev/docs/types/subscription-offer @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
+## iOS DiscountOffer (output type). @see https://openiap.dev/docs/types/subscription-offer @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
 class DiscountOfferIOS:
 	## Discount identifier
 	var identifier: String = ""
@@ -1251,7 +1251,7 @@ class EntitlementIOS:
 		dict["jsonRepresentation"] = json_representation
 		return dict
 
-## External offer availability result (Android) Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0 @deprecated Use BillingProgramAvailabilityResultAndroid with isBillingProgramAvailableAsync instead
+## External offer availability result (Android) Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0 @deprecated Use BillingProgramAvailabilityResultAndroid from isBillingProgramAvailableAndroid instead. Scheduled for removal in OpenIAP 3.0.
 class ExternalOfferAvailabilityResultAndroid:
 	## Whether external offers are available for the user
 	var is_available: bool = false
@@ -1267,7 +1267,7 @@ class ExternalOfferAvailabilityResultAndroid:
 		dict["isAvailable"] = is_available
 		return dict
 
-## External offer reporting details (Android) Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0 @deprecated Use BillingProgramReportingDetailsAndroid with createBillingProgramReportingDetailsAsync instead
+## External offer reporting details (Android) Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0 @deprecated Use BillingProgramReportingDetailsAndroid from createBillingProgramReportingDetailsAndroid instead. Scheduled for removal in OpenIAP 3.0.
 class ExternalOfferReportingDetailsAndroid:
 	## External transaction token for reporting external offer transactions
 	var external_transaction_token: String = ""
@@ -1619,9 +1619,9 @@ class ProductAndroid:
 	var discount_offers: Array[DiscountOffer] = []
 	## Standardized subscription offers. Cross-platform type with Android-specific fields using suffix. @see https://openiap.dev/docs/types/subscription-offer
 	var subscription_offers: Array[SubscriptionOffer] = []
-	## One-time purchase offer details including discounts (Android) Returns all eligible offers. Available in Google Play Billing Library 8.0+ @deprecated Use the standardized discountOffers field instead.
+	## One-time purchase offer details including discounts (Android) Returns all eligible offers. Available in Google Play Billing Library 8.0+ @deprecated Use the standardized discountOffers field instead. Scheduled for removal in OpenIAP 3.0.
 	var one_time_purchase_offer_details_android: Array[ProductAndroidOneTimePurchaseOfferDetail] = []
-	## @deprecated Use subscriptionOffers instead for cross-platform compatibility.
+	## @deprecated Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
 	var subscription_offer_details_android: Array[ProductSubscriptionAndroidOfferDetails] = []
 
 	static func from_dict(data: Dictionary) -> ProductAndroid:
@@ -1769,7 +1769,7 @@ class ProductAndroid:
 			dict["subscriptionOfferDetailsAndroid"] = null
 		return dict
 
-## One-time purchase offer details (Android). Available in Google Play Billing Library 8.0+ @see https://openiap.dev/docs/types/discount-offer @deprecated Use the standardized DiscountOffer type for Android one-time offers.
+## One-time purchase offer details (Android). Available in Google Play Billing Library 8.0+ @see https://openiap.dev/docs/types/discount-offer @deprecated Use the standardized DiscountOffer type for Android one-time offers. Scheduled for removal in OpenIAP 3.0.
 class ProductAndroidOneTimePurchaseOfferDetail:
 	## Offer ID
 	var offer_id: Variant = null
@@ -1899,7 +1899,7 @@ class ProductIOS:
 	var subscription_offers: Array[SubscriptionOffer] = []
 	## iOS 26.4+ subscription pricing terms, including billing plan metadata for monthly subscriptions with a 12-month commitment.
 	var pricing_terms_ios: Array[SubscriptionPricingTermsIOS] = []
-	## @deprecated Use subscriptionOffers instead for cross-platform compatibility.
+	## @deprecated Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
 	var subscription_info_ios: SubscriptionInfoIOS
 
 	static func from_dict(data: Dictionary) -> ProductIOS:
@@ -2041,9 +2041,9 @@ class ProductSubscriptionAndroid:
 	var discount_offers: Array[DiscountOffer] = []
 	## Standardized subscription offers. Cross-platform type with Android-specific fields using suffix. @see https://openiap.dev/docs/types/subscription-offer
 	var subscription_offers: Array[SubscriptionOffer] = []
-	## Legacy nullable compatibility field. Google Play does not populate one-time purchase offer details for subscription products. @deprecated One-time offers belong to ProductAndroid.discountOffers; subscriptions use subscriptionOffers.
+	## Legacy nullable compatibility field. Google Play does not populate one-time purchase offer details for subscription products. @deprecated One-time offers belong to ProductAndroid.discountOffers; subscriptions use subscriptionOffers. Scheduled for removal in OpenIAP 3.0.
 	var one_time_purchase_offer_details_android: Array[ProductAndroidOneTimePurchaseOfferDetail] = []
-	## @deprecated Use subscriptionOffers instead for cross-platform compatibility.
+	## @deprecated Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
 	var subscription_offer_details_android: Array[ProductSubscriptionAndroidOfferDetails] = []
 
 	static func from_dict(data: Dictionary) -> ProductSubscriptionAndroid:
@@ -2191,7 +2191,7 @@ class ProductSubscriptionAndroid:
 			dict["subscriptionOfferDetailsAndroid"] = null
 		return dict
 
-## Subscription offer details (Android). @see https://openiap.dev/docs/types/subscription-offer @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
+## Subscription offer details (Android). @see https://openiap.dev/docs/types/subscription-offer @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
 class ProductSubscriptionAndroidOfferDetails:
 	var base_plan_id: String = ""
 	var offer_id: Variant = null
@@ -2266,9 +2266,9 @@ class ProductSubscriptionIOS:
 	var pricing_terms_ios: Array[SubscriptionPricingTermsIOS] = []
 	## App Store subscription group identifier for intro-offer eligibility checks.
 	var subscription_group_id_ios: Variant = null
-	## @deprecated Use subscriptionOffers for offer metadata and subscriptionGroupIdIOS for the App Store subscription group identifier.
+	## @deprecated Use subscriptionOffers for offer metadata and subscriptionGroupIdIOS for the App Store subscription group identifier. Scheduled for removal in OpenIAP 3.0.
 	var subscription_info_ios: SubscriptionInfoIOS
-	## @deprecated Use subscriptionOffers instead for cross-platform compatibility.
+	## @deprecated Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
 	var discounts_ios: Array[DiscountIOS] = []
 	var introductory_price_ios: Variant = null
 	var introductory_price_as_amount_ios: Variant = null
@@ -2480,7 +2480,7 @@ class PurchaseAndroid:
 	var purchase_token: Variant = null
 	## Store where purchase was made
 	var store: IapStore
-	## @deprecated Use store instead
+	## @deprecated Use store instead. Scheduled for removal in OpenIAP 3.0.
 	var platform: IapPlatform
 	var quantity: int = 0
 	var purchase_state: PurchaseState
@@ -2697,7 +2697,7 @@ class PurchaseIOS:
 	var purchase_token: Variant = null
 	## Store where purchase was made
 	var store: IapStore
-	## @deprecated Use store instead
+	## @deprecated Use store instead. Scheduled for removal in OpenIAP 3.0.
 	var platform: IapPlatform
 	var quantity: int = 0
 	var purchase_state: PurchaseState
@@ -3440,7 +3440,7 @@ class SubscriptionOffer:
 			dict["installmentPlanDetailsAndroid"] = installment_plan_details_android
 		return dict
 
-## iOS subscription offer details. @see https://openiap.dev/docs/types/subscription-offer @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
+## iOS subscription offer details. @see https://openiap.dev/docs/types/subscription-offer @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
 class SubscriptionOfferIOS:
 	var display_price: String = ""
 	var id: String = ""
@@ -4353,7 +4353,7 @@ class InAppMessageParamsAndroid:
 
 ## Connection initialization configuration
 class InitConnectionConfig:
-	## Alternative billing mode for Android If not specified, defaults to NONE (standard Google Play billing) Use USER_CHOICE_BILLING for user choice billing, EXTERNAL_OFFER for alternative only. @deprecated Use enableBillingProgramAndroid instead.
+	## Alternative billing mode for Android If not specified, defaults to NONE (standard Google Play billing) Use USER_CHOICE_BILLING for user choice billing, EXTERNAL_OFFER for alternative only. @deprecated Use enableBillingProgramAndroid instead. Scheduled for removal in OpenIAP 3.0.
 	var alternative_billing_mode_android: Variant = null
 	## Enable a specific billing program for Android (7.0+) When set, enables the specified billing program for external transactions. - USER_CHOICE_BILLING: User can select between Google Play or alternative (7.0+) - EXTERNAL_CONTENT_LINK: Link to external content (introduced in 8.2.0; use 8.2.1+) - EXTERNAL_OFFER: External offers for digital content (introduced in 8.2.0; use 8.2.1+) - EXTERNAL_PAYMENTS: Developer provided billing, Japan only (8.3.0+) - BILLING_CHOICE: Google-rendered or developer-rendered billing choice   (OpenIAP Spec 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+)
 	var enable_billing_program_android: Variant = null
@@ -4527,7 +4527,7 @@ class PurchaseInput:
 	var purchase_token: Variant = null
 	## Store where purchase was made
 	var store: Variant = null
-	## @deprecated Use store instead
+	## @deprecated Use store instead. Scheduled for removal in OpenIAP 3.0.
 	var platform: Variant = null
 	var quantity: int = 0
 	var purchase_state: PurchaseState
@@ -4767,7 +4767,7 @@ class RequestPurchaseProps:
 	var request_subscription: RequestSubscriptionPropsByPlatforms
 	## Explicit purchase type hint (defaults to in-app)
 	var type: ProductQueryType = ProductQueryType.IN_APP
-	## This flag only logs debug info and has no effect on the purchase flow. @deprecated Use enableBillingProgramAndroid in InitConnectionConfig instead.
+	## This flag only logs debug info and has no effect on the purchase flow. @deprecated Use enableBillingProgramAndroid in InitConnectionConfig instead. Scheduled for removal in OpenIAP 3.0.
 	var use_alternative_billing: Variant = null
 
 	static func in_app(platforms: RequestPurchasePropsByPlatforms, use_alternative_billing_value: Variant = null) -> RequestPurchaseProps:
@@ -4835,9 +4835,9 @@ class RequestPurchasePropsByPlatforms:
 	var apple: RequestPurchaseIosProps
 	## Google-specific purchase parameters
 	var google: RequestPurchaseAndroidProps
-	## @deprecated Use apple instead
+	## @deprecated Use apple instead. Scheduled for removal in OpenIAP 3.0.
 	var ios: RequestPurchaseIosProps
-	## @deprecated Use google instead
+	## @deprecated Use google instead. Scheduled for removal in OpenIAP 3.0.
 	var android: RequestPurchaseAndroidProps
 
 	static func from_dict(data: Dictionary) -> RequestPurchasePropsByPlatforms:
@@ -4901,7 +4901,7 @@ class RequestSubscriptionAndroidProps:
 	var purchase_token: Variant = null
 	## Original external transaction ID for replacing a subscription that was purchased through developer billing. Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 	var original_external_transaction_id: Variant = null
-	## Replacement mode for subscription changes @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+).
+	## Replacement mode for subscription changes @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+). Scheduled for removal in OpenIAP 3.0.
 	var replacement_mode: Variant = null
 	## Subscription offers
 	var subscription_offers: Array[AndroidSubscriptionOfferInput] = []
@@ -5085,9 +5085,9 @@ class RequestSubscriptionPropsByPlatforms:
 	var apple: RequestSubscriptionIosProps
 	## Google-specific subscription parameters
 	var google: RequestSubscriptionAndroidProps
-	## @deprecated Use apple instead
+	## @deprecated Use apple instead. Scheduled for removal in OpenIAP 3.0.
 	var ios: RequestSubscriptionIosProps
-	## @deprecated Use google instead
+	## @deprecated Use google instead. Scheduled for removal in OpenIAP 3.0.
 	var android: RequestSubscriptionAndroidProps
 
 	static func from_dict(data: Dictionary) -> RequestSubscriptionPropsByPlatforms:
@@ -6214,7 +6214,7 @@ class Query:
 		const return_type = "String"
 		const is_array = false
 
-	## Deprecated. Get the current App Store storefront ISO 3166-1 alpha-3 country code — use cross-platform getStorefront instead. See: https://openiap.dev/docs/apis/ios/get-storefront-ios @deprecated Use getStorefront
+	## Deprecated. Get the current App Store storefront ISO 3166-1 alpha-3 country code — use cross-platform getStorefront instead. See: https://openiap.dev/docs/apis/ios/get-storefront-ios @deprecated Use getStorefront. Scheduled for removal in OpenIAP 3.0.
 	class getStorefrontIOSField:
 		const name = "getStorefrontIOS"
 		const snake_name = "get_storefront_ios"
@@ -6434,7 +6434,7 @@ class Query:
 		const return_type = "PurchaseIOS"
 		const is_array = true
 
-	## Deprecated. Legacy App Store receipt validation — use verifyPurchase instead. See: https://openiap.dev/docs/apis/ios/validate-receipt-ios @deprecated Use verifyPurchase
+	## Deprecated. Legacy App Store receipt validation — use verifyPurchase instead. See: https://openiap.dev/docs/apis/ios/validate-receipt-ios @deprecated Use verifyPurchase. Scheduled for removal in OpenIAP 3.0.
 	class validateReceiptIOSField:
 		const name = "validateReceiptIOS"
 		const snake_name = "validate_receipt_ios"
@@ -6593,7 +6593,7 @@ class Mutation:
 		const return_type = "VoidResult"
 		const is_array = false
 
-	## Deprecated. Validate purchase receipts with the configured providers — use verifyPurchase instead. See: https://openiap.dev/docs/features/validation#verify-purchase @deprecated Use verifyPurchase
+	## Deprecated. Validate purchase receipts with the configured providers — use verifyPurchase instead. See: https://openiap.dev/docs/features/validation#verify-purchase @deprecated Use verifyPurchase. Scheduled for removal in OpenIAP 3.0.
 	class validateReceiptField:
 		const name = "validateReceipt"
 		const snake_name = "validate_receipt"
@@ -6662,7 +6662,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Buy the currently promoted product.  See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios @deprecated Use promotedProductListenerIOS to receive the productId, then call requestPurchase with that SKU instead. In StoreKit 2, promoted products can be purchased directly via the standard purchase flow.
+	## Buy the currently promoted product.  See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios @deprecated Use the promoted-product listener or callback exposed by your SDK to receive the productId, then call requestPurchase with that SKU instead. In StoreKit 2, promoted products can be purchased directly via the standard purchase flow. Scheduled for removal in OpenIAP 3.0.
 	class requestPurchaseOnPromotedProductIOSField:
 		const name = "requestPurchaseOnPromotedProductIOS"
 		const snake_name = "request_purchase_on_promoted_product_ios"
@@ -6815,7 +6815,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Check whether alternative billing is available for the user. Step 1 of the alternative billing flow. Returns true if available, false otherwise. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android
+	## Check whether alternative billing is available for the user. Step 1 of the alternative billing flow. Returns true if available, false otherwise. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android @deprecated Use isBillingProgramAvailableAndroid with the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.
 	class checkAlternativeBillingAvailabilityAndroidField:
 		const name = "checkAlternativeBillingAvailabilityAndroid"
 		const snake_name = "check_alternative_billing_availability_android"
@@ -6824,7 +6824,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Display Google's alternative billing information dialog. Step 2 of the alternative billing flow. Must be called BEFORE processing payment in your payment system. Returns true if user accepted, false if user canceled. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android
+	## Display Google's alternative billing information dialog. Step 2 of the alternative billing flow. Must be called BEFORE processing payment in your payment system. Returns true if user accepted, false if user canceled. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android @deprecated Use launchExternalLinkAndroid instead. Scheduled for removal in OpenIAP 3.0.
 	class showAlternativeBillingDialogAndroidField:
 		const name = "showAlternativeBillingDialogAndroid"
 		const snake_name = "show_alternative_billing_dialog_android"
@@ -6833,7 +6833,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Create a reporting token for an alternative billing flow. Step 3 of the alternative billing flow. Must be called AFTER successful payment in your payment system. Token must be reported to Google Play backend within 24 hours. Returns token string, or null if creation failed. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/create-alternative-billing-token-android
+	## Create a reporting token for an alternative billing flow. Step 3 of the alternative billing flow. Must be called AFTER successful payment in your payment system. Token must be reported to Google Play backend within 24 hours. Returns token string, or null if creation failed. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/create-alternative-billing-token-android @deprecated Use createBillingProgramReportingDetailsAndroid with the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.
 	class createAlternativeBillingTokenAndroidField:
 		const name = "createAlternativeBillingTokenAndroid"
 		const snake_name = "create_alternative_billing_token_android"
@@ -7024,7 +7024,7 @@ static func has_active_subscriptions_args(subscription_ids: Variant = null) -> D
 static func get_storefront_args() -> Dictionary:
 	return {}
 
-## Deprecated. Get the current App Store storefront ISO 3166-1 alpha-3 country code — use cross-platform getStorefront instead. See: https://openiap.dev/docs/apis/ios/get-storefront-ios @deprecated Use getStorefront
+## Deprecated. Get the current App Store storefront ISO 3166-1 alpha-3 country code — use cross-platform getStorefront instead. See: https://openiap.dev/docs/apis/ios/get-storefront-ios @deprecated Use getStorefront. Scheduled for removal in OpenIAP 3.0.
 static func get_storefront_ios_args() -> Dictionary:
 	return {}
 
@@ -7101,7 +7101,7 @@ static func get_app_transaction_ios_args() -> Dictionary:
 static func get_all_transactions_ios_args() -> Dictionary:
 	return {}
 
-## Deprecated. Legacy App Store receipt validation — use verifyPurchase instead. See: https://openiap.dev/docs/apis/ios/validate-receipt-ios @deprecated Use verifyPurchase
+## Deprecated. Legacy App Store receipt validation — use verifyPurchase instead. See: https://openiap.dev/docs/apis/ios/validate-receipt-ios @deprecated Use verifyPurchase. Scheduled for removal in OpenIAP 3.0.
 static func validate_receipt_ios_args(options: VerifyPurchaseProps) -> Dictionary:
 	var args = {}
 	if options != null:
@@ -7173,7 +7173,7 @@ static func deep_link_to_subscriptions_args(options: Variant = null) -> Dictiona
 			args["options"] = options
 	return args
 
-## Deprecated. Validate purchase receipts with the configured providers — use verifyPurchase instead. See: https://openiap.dev/docs/features/validation#verify-purchase @deprecated Use verifyPurchase
+## Deprecated. Validate purchase receipts with the configured providers — use verifyPurchase instead. See: https://openiap.dev/docs/features/validation#verify-purchase @deprecated Use verifyPurchase. Scheduled for removal in OpenIAP 3.0.
 static func validate_receipt_args(options: VerifyPurchaseProps) -> Dictionary:
 	var args = {}
 	if options != null:
@@ -7207,7 +7207,7 @@ static func verify_purchase_with_provider_args(options: VerifyPurchaseWithProvid
 static func clear_transaction_ios_args() -> Dictionary:
 	return {}
 
-## Buy the currently promoted product.  See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios @deprecated Use promotedProductListenerIOS to receive the productId, then call requestPurchase with that SKU instead. In StoreKit 2, promoted products can be purchased directly via the standard purchase flow.
+## Buy the currently promoted product.  See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios @deprecated Use the promoted-product listener or callback exposed by your SDK to receive the productId, then call requestPurchase with that SKU instead. In StoreKit 2, promoted products can be purchased directly via the standard purchase flow. Scheduled for removal in OpenIAP 3.0.
 static func request_purchase_on_promoted_product_ios_args() -> Dictionary:
 	return {}
 
@@ -7260,15 +7260,15 @@ static func consume_purchase_android_args(purchase_token: String) -> Dictionary:
 	args["purchaseToken"] = purchase_token
 	return args
 
-## Check whether alternative billing is available for the user. Step 1 of the alternative billing flow. Returns true if available, false otherwise. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android
+## Check whether alternative billing is available for the user. Step 1 of the alternative billing flow. Returns true if available, false otherwise. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android @deprecated Use isBillingProgramAvailableAndroid with the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.
 static func check_alternative_billing_availability_android_args() -> Dictionary:
 	return {}
 
-## Display Google's alternative billing information dialog. Step 2 of the alternative billing flow. Must be called BEFORE processing payment in your payment system. Returns true if user accepted, false if user canceled. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android
+## Display Google's alternative billing information dialog. Step 2 of the alternative billing flow. Must be called BEFORE processing payment in your payment system. Returns true if user accepted, false if user canceled. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android @deprecated Use launchExternalLinkAndroid instead. Scheduled for removal in OpenIAP 3.0.
 static func show_alternative_billing_dialog_android_args() -> Dictionary:
 	return {}
 
-## Create a reporting token for an alternative billing flow. Step 3 of the alternative billing flow. Must be called AFTER successful payment in your payment system. Token must be reported to Google Play backend within 24 hours. Returns token string, or null if creation failed. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/create-alternative-billing-token-android
+## Create a reporting token for an alternative billing flow. Step 3 of the alternative billing flow. Must be called AFTER successful payment in your payment system. Token must be reported to Google Play backend within 24 hours. Returns token string, or null if creation failed. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/create-alternative-billing-token-android @deprecated Use createBillingProgramReportingDetailsAndroid with the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.
 static func create_alternative_billing_token_android_args() -> Dictionary:
 	return {}
 

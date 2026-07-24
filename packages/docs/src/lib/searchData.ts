@@ -1040,6 +1040,14 @@ export const apiData: ApiItem[] = [
     path: '/docs/errors',
   },
   {
+    id: 'deprecations-migration',
+    title: 'Deprecations & 3.0 Migration',
+    category: 'Documentation',
+    description:
+      'Deprecated API removal schedule and replacements for OpenIAP 3.0 and each framework library next major',
+    path: '/docs/updates/deprecations',
+  },
+  {
     id: 'store-setup',
     title: 'Store Setup',
     category: 'Setup Guide',

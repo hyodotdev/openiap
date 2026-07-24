@@ -806,6 +806,53 @@ export function resolveVegaProjectOptions(
     : undefined;
 }
 
+export function warnLegacyPluginOptions(
+  options?: ExpoIapPluginOptions | void,
+): void {
+  const legacyOptions = options as
+    | {
+        android?: {
+          amazon?: LegacyAndroidAmazonOptions;
+          horizonAppId?: string;
+        };
+        horizonAppId?: string;
+        iosAlternativeBilling?: IOSAlternativeBillingConfig;
+      }
+    | undefined;
+  const legacyAmazon = legacyOptions?.android?.amazon;
+
+  if (legacyAmazon?.fireOS !== undefined) {
+    WarningAggregator.addWarningAndroid(
+      'expo-iap',
+      'android.amazon.fireOS is deprecated and will be removed in expo-iap 5.0.0. Use modules.amazon.fireOS instead.',
+    );
+  }
+  if (typeof legacyAmazon?.vegaOS === 'boolean') {
+    WarningAggregator.addWarningAndroid(
+      'expo-iap',
+      'The boolean form of android.amazon.vegaOS is deprecated and will be removed in expo-iap 5.0.0. Use modules.amazon.vegaOS instead; the object form remains supported for Vega project overrides.',
+    );
+  }
+  if (legacyOptions?.android?.horizonAppId !== undefined) {
+    WarningAggregator.addWarningAndroid(
+      'expo-iap',
+      'android.horizonAppId is deprecated and will be removed in expo-iap 5.0.0. Use android.horizon.appId instead.',
+    );
+  }
+  if (legacyOptions?.horizonAppId !== undefined) {
+    WarningAggregator.addWarningAndroid(
+      'expo-iap',
+      'horizonAppId is deprecated and will be removed in expo-iap 5.0.0. Use android.horizon.appId instead.',
+    );
+  }
+  if (legacyOptions?.iosAlternativeBilling !== undefined) {
+    WarningAggregator.addWarningIOS(
+      'expo-iap',
+      'iosAlternativeBilling is deprecated and will be removed in expo-iap 5.0.0. Use ios.alternativeBilling instead.',
+    );
+  }
+}
+
 /**
  * Determines which modules to include based on configuration.
  * - ExpoIap: Always included (standard StoreKit 2 support)
@@ -850,6 +897,7 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
   config,
   options,
 ) => {
+  warnLegacyPluginOptions(options);
   const {isFireOsEnabled, isVegaEnabled, isHorizonEnabled, isOnsideEnabled} =
     resolveAmazonPlatformFlags(options);
 

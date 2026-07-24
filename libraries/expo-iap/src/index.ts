@@ -81,9 +81,7 @@ type ExpoIapEventPayloads = {
   [OpenIapEvent.PurchaseUpdated]: Purchase;
   [OpenIapEvent.PurchaseError]: PurchaseError;
   [OpenIapEvent.PromotedProductIOS]:
-    | Product
-    | string
-    | {id?: string; productId?: string};
+    Product | string | {id?: string; productId?: string};
   [OpenIapEvent.UserChoiceBillingAndroid]: UserChoiceBillingDetails;
   [OpenIapEvent.DeveloperProvidedBillingAndroid]: DeveloperProvidedBillingDetailsAndroid;
   [OpenIapEvent.SubscriptionBillingIssue]: Purchase;
@@ -230,14 +228,14 @@ const configurePurchaseUpdatedListenerOptionsIOS = (
 
 /**
  * Accepts the legacy 'inapp' alias for backward compatibility. The alias is
- * deprecated and scheduled for removal in the next major release — use 'in-app'.
+ * deprecated and scheduled for removal in expo-iap 5.0.0 — use 'in-app'.
  */
 export type ProductTypeInput = ProductQueryType | 'inapp';
 
 const normalizeProductType = (type?: ProductTypeInput) => {
   if (type === 'inapp') {
     ExpoIapConsole.warn(
-      "'inapp' product type is deprecated and will be removed in a future major version. Use 'in-app' instead.",
+      "'inapp' product type is deprecated and will be removed in expo-iap 5.0.0. Use 'in-app' instead.",
     );
   }
 
@@ -416,8 +414,7 @@ export const promotedProductListenerIOS = (
     let pendingProduct: Promise<Product | null> | undefined;
     try {
       pendingProduct = ExpoIapModule.getPromotedProductIOS() as
-        | Promise<Product | null>
-        | undefined;
+        Promise<Product | null> | undefined;
     } catch {
       return Promise.resolve();
     }
@@ -634,8 +631,8 @@ const invokeNativeWithPurchaseError = async <T>(
       typeof nativeError?.message === 'string'
         ? nativeError.message
         : typeof error === 'string'
-        ? error
-        : '';
+          ? error
+          : '';
     const hasCanonicalFields =
       nativeMessage.includes(OPENIAP_ERROR_ENVELOPE_PREFIX) ||
       nativeError?.code !== undefined ||
@@ -949,12 +946,11 @@ function normalizeRequestProps(
 ): RequestSubscriptionAndroidProps | null | undefined;
 function normalizeRequestProps(
   request:
-    | RequestPurchasePropsByPlatforms
-    | RequestSubscriptionPropsByPlatforms,
+    RequestPurchasePropsByPlatforms | RequestSubscriptionPropsByPlatforms,
   platform: 'ios' | 'android',
 ) {
-  // Support both new (apple/google) and legacy (ios/android) field names
-  // New fields take precedence over deprecated ones
+  // `ios`/`android` are deprecated and will be removed in expo-iap 5.0.0.
+  // Canonical `apple`/`google` fields take precedence until then.
   if (platform === 'ios') {
     return request.apple ?? request.ios;
   }
@@ -1314,7 +1310,8 @@ export const deepLinkToSubscriptions: MutationField<
  * - iOS: Send receipt data to Apple's verification endpoint from your server
  * - Android: Use Google Play Developer API with service account credentials
  *
- * @deprecated Use verifyPurchase instead
+ * @deprecated Use verifyPurchase instead. This function will be removed in
+ * expo-iap 5.0.0.
  *
  * @see {@link https://openiap.dev/docs/apis/validate-receipt}
  */
@@ -1440,9 +1437,8 @@ export const verifyPurchaseWithProvider: MutationField<
     }
   }
 
-  const result = await ExpoIapModule.verifyPurchaseWithProvider(
-    resolvedOptions,
-  );
+  const result =
+    await ExpoIapModule.verifyPurchaseWithProvider(resolvedOptions);
   if (result.iapkit == null) {
     return result;
   }

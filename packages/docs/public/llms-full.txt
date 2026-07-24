@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-07-23T19:01:12.617Z
+> Generated: 2026-07-24T09:03:34.061Z
 
 ## Table of Contents
 1. Installation
@@ -2061,6 +2061,24 @@ Harmonized `state` values (truthy `isValid`): `ENTITLED`,
 - [/docs/ai-assistants/codex-plugin](https://kit.openiap.dev/docs/ai-assistants/codex-plugin) — Codex plugin setup and self-hosted IAPKit MCP server option
 - [/docs/ai-assistants/claude-plugin](https://kit.openiap.dev/docs/ai-assistants/claude-plugin) — Claude Code plugin setup (marketplace install or claude mcp add)
 - [/docs/release-notes](https://kit.openiap.dev/docs/release-notes) — changelog
+
+---
+
+## Deprecations and major-version migration
+
+- Do not remove OpenIAP-owned deprecated APIs in a patch or minor release.
+- OpenIAP Spec, `openiap-apple`, and `openiap-google` remove their legacy
+  public surface in OpenIAP 3.0.
+- Framework packages version independently. Their removal targets are
+  `react-native-iap` 16.0.0, `expo-iap` 5.0.0,
+  `flutter_inapp_purchase` 10.0.0, `godot-iap` 3.0.0,
+  `kmp-iap` 3.0.0, and `OpenIap.Maui` 2.0.0.
+- Generated framework declarations repeat the canonical sentence
+  `Scheduled for removal in OpenIAP 3.0.` That sentence names the
+  spec/native train; the framework copy remains available until its own
+  package-specific removal major above.
+- Migrate now to the canonical replacement named in each deprecation notice.
+  See https://openiap.dev/docs/updates/deprecations.
 
 ---
 

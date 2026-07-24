@@ -42,7 +42,13 @@ function ValidateReceiptIOS() {
           <Link to="/docs/features/validation#verify-purchase">
             verifyPurchase
           </Link>{' '}
-          instead.
+          instead. The schema/native operation is scheduled for removal in
+          OpenIAP 3.0; framework copies remain only through each package major
+          listed in the{' '}
+          <Link to="/docs/updates/deprecations#removal-schedule">
+            deprecation schedule
+          </Link>
+          .
         </p>
       </div>
 
@@ -107,7 +113,7 @@ Task<VerifyPurchaseResultIOS> ValidateReceiptIOSAsync(VerifyPurchaseProps option
         .
       </p>
 
-      <h2>Example</h2>
+      <h2>Legacy example (migration reference only)</h2>
       <LanguageTabs>
         {{
           swift: (

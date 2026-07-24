@@ -997,7 +997,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
 
             // Legacy/compat purchases queries
             "getAvailableItemsByType" -> {
-                logDeprecated("getAvailableItemsByType", "Use getAvailableItems() instead")
+                logDeprecated("getAvailableItemsByType", "Use getAvailablePurchases() instead")
                 scope.launch {
                     // Ensure connection for legacy path
                     connectionMutex.withLock {
@@ -1033,7 +1033,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 }
             }
             "getPurchaseHistoryByType" -> {
-                logDeprecated("getPurchaseHistoryByType", "Use getAvailableItems() instead")
+                logDeprecated("getPurchaseHistoryByType", "Use getAvailablePurchases() instead")
                 scope.launch {
                     // Ensure connection for legacy path
                     connectionMutex.withLock {
@@ -1213,7 +1213,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
             }
             
 
-            // No-op legacy endpoint kept for compatibility until the next major cleanup.
+            // No-op legacy endpoint kept through flutter_inapp_purchase 9.x.
             "showInAppMessages" -> {
                 logDeprecated("showInAppMessages", "No-op legacy endpoint.")
                 safe.success(true)
@@ -1412,7 +1412,10 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
     }
 
     private fun logDeprecated(name: String, message: String) {
-        OpenIapLog.w(TAG, "[$name] is deprecated and will be removed in a future major version. $message")
+        OpenIapLog.w(
+            TAG,
+            "[$name] is deprecated and scheduled for removal in flutter_inapp_purchase 10.0.0. $message",
+        )
     }
 
     /**

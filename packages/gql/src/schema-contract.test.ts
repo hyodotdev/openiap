@@ -49,7 +49,9 @@ describe('OpenIAP schema contract', () => {
       expect(isObjectType(purchaseType), typeName).toBe(true);
       if (!isObjectType(purchaseType)) continue;
 
-      expect(purchaseType.getFields().platform.deprecationReason, `${typeName}.platform`).toBe('Use store instead');
+      expect(purchaseType.getFields().platform.deprecationReason, `${typeName}.platform`).toBe(
+        'Use store instead. Scheduled for removal in OpenIAP 3.0.',
+      );
     }
   });
 });

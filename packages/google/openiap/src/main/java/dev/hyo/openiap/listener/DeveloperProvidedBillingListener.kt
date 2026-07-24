@@ -6,6 +6,9 @@ import dev.hyo.openiap.DeveloperProvidedBillingProductAndroid
  * Developer-provided billing details when the user selects developer billing.
  * Available for External Payments (8.3.0+) and Billing Choice (9.1.0+).
  */
+@Deprecated(
+    "Use DeveloperProvidedBillingDetailsAndroid instead. Scheduled for removal in OpenIAP 3.0."
+)
 data class DeveloperProvidedBillingDetails(
     /**
      * External transaction token, when supplied by Google Play.
@@ -24,6 +27,9 @@ data class DeveloperProvidedBillingDetails(
  * Called when user selects the developer's billing option (instead of Google Play)
  * in the applicable purchase flow.
  */
+@Deprecated(
+    "Use OpenIapDeveloperProvidedBillingListener instead. Scheduled for removal in OpenIAP 3.0."
+)
 fun interface DeveloperProvidedBillingListener {
     /**
      * Called when user selects developer-provided billing

@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import SEO from '../../../components/SEO';
 import { useScrollToHash, getHashId } from '../../../hooks/useScrollToHash';
 import Pagination from '../../../components/Pagination';
@@ -54,6 +55,78 @@ function Announcements() {
   useScrollToHash();
 
   const announcements: Announcement[] = [
+    // 2026-07-24: Major-version deprecation schedule
+    {
+      id: '2026-07-24-major-version-deprecation-schedule',
+      date: new Date('2026-07-24'),
+      element: (
+        <div
+          key="2026-07-24-major-version-deprecation-schedule"
+          style={cardStyle}
+        >
+          <div style={headerStyle}>
+            <div
+              aria-hidden="true"
+              style={{ fontSize: '2.25rem', lineHeight: 1 }}
+            >
+              ⚠️
+            </div>
+            <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
+              Advance notice: deprecated APIs leave in the next majors
+            </h2>
+            <a
+              href="#2026-07-24-major-version-deprecation-schedule"
+              style={linkIconStyle}
+              title="Link to this announcement"
+            >
+              🔗
+            </a>
+          </div>
+          <p style={dateStyle}>July 24, 2026</p>
+          <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
+            OpenIAP is defining one predictable removal window for its
+            deprecated APIs and compatibility shims. Nothing is removed in a
+            patch or minor release: the OpenIAP specification,{' '}
+            <code>openiap-apple</code>, and <code>openiap-google</code> remove
+            their deprecated OpenIAP-owned surfaces in <code>3.0.0</code>.
+            Framework libraries remove the same generated surfaces and their own
+            shims only when each library reaches its independently versioned
+            next major.
+          </p>
+          <ul style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
+            <li>
+              <code>react-native-iap 16.0.0</code> and{' '}
+              <code>expo-iap 5.0.0</code>
+            </li>
+            <li>
+              <code>flutter_inapp_purchase 10.0.0</code>
+            </li>
+            <li>
+              <code>godot-iap 3.0.0</code> and <code>kmp-iap 3.0.0</code>
+            </li>
+            <li>
+              <code>OpenIap.Maui 2.0.0</code>
+            </li>
+          </ul>
+          <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
+            Flutter users should migrate custom Android payload fixtures and
+            adapters to the canonical <code>dataAndroid</code> key now. The
+            planned 9.6.1 patch retains <code>originalJsonAndroid</code> only as
+            a temporary input fallback for the remainder of Flutter 9.x; the
+            alias is not a public Purchase field and is removed in 10.0.0.
+          </p>
+          <p style={calloutStyle}>
+            See the complete{' '}
+            <Link to="/docs/updates/deprecations">
+              deprecation schedule and migration catalog
+            </Link>
+            . Each package reaches its major independently, so this notice does
+            not promise a shared release date.
+          </p>
+        </div>
+      ),
+    },
+
     // 2026-06-09: Amazon Fire OS / Vega OS
     {
       id: '2026-06-09-amazon-fireos-vega',

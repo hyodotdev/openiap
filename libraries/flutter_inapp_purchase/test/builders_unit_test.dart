@@ -110,6 +110,7 @@ void main() {
       expect(props.purchaseToken, 'old_token');
       expect(props.originalExternalTransactionId, 'original-external-id');
       expect(props.replacementMode, 1);
+      expect(props.toJson()['replacementMode'], 1);
       expect(props.subscriptionProductReplacementParams?.oldProductId,
           'old_product');
     });
@@ -227,6 +228,7 @@ void main() {
       final json = props.toJson();
 
       expect(json['requestPurchase'], isNotNull);
+      expect(json['useAlternativeBilling'], isTrue);
     });
 
     test('builds with empty ios returns null apple field', () {
@@ -299,6 +301,7 @@ void main() {
 
       final props = builder.build();
       expect(props, isA<RequestPurchaseProps>());
+      expect(props.toJson()['useAlternativeBilling'], isTrue);
     });
 
     test('builds with empty skus returns null fields', () {

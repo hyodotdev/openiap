@@ -195,7 +195,8 @@ type UseIap = {
    */
   requestPurchase: (params: RequestPurchaseProps) => Promise<void>;
   /**
-   * @deprecated Use `verifyPurchase` instead. This function will be removed in a future version.
+   * @deprecated Use `verifyPurchase` instead. This function will be removed in
+   * react-native-iap 16.0.0.
    *
    * @see {@link https://openiap.dev/docs/apis/validate-receipt}
    */
@@ -234,6 +235,9 @@ type UseIap = {
    * Buy the currently promoted product.
    *
    * @see {@link https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios}
+   * @deprecated Use the `onPromotedProductIOS` hook callback followed by
+   * `requestPurchase` instead. Scheduled for removal in react-native-iap
+   * 16.0.0.
    */
   requestPurchaseOnPromotedProductIOS: () => Promise<boolean>;
   /**
@@ -261,18 +265,25 @@ type UseIap = {
    * Check whether alternative billing is available for the user.
    *
    * @see {@link https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android}
+   * @deprecated Use `isBillingProgramAvailableAndroid('external-offer')`
+   * instead. Scheduled for removal in react-native-iap 16.0.0.
    */
   checkAlternativeBillingAvailabilityAndroid?: () => Promise<boolean>;
   /**
    * Display Google's alternative billing information dialog.
    *
    * @see {@link https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android}
+   * @deprecated Use `launchExternalLinkAndroid` instead. Scheduled for removal in
+   * react-native-iap 16.0.0.
    */
   showAlternativeBillingDialogAndroid?: () => Promise<boolean>;
   /**
    * Create a reporting token for an alternative billing flow.
    *
    * @see {@link https://openiap.dev/docs/apis/android/create-alternative-billing-token-android}
+   * @deprecated Use
+   * `createBillingProgramReportingDetailsAndroid('external-offer')` instead.
+   * Scheduled for removal in react-native-iap 16.0.0.
    */
   createAlternativeBillingTokenAndroid?: (
     sku?: string,
@@ -324,7 +335,8 @@ export interface UseIapOptions {
    */
   onSubscriptionBillingIssue?: (purchase: Purchase) => void;
   /**
-   * @deprecated Use enableBillingProgramAndroid instead.
+   * @deprecated Use enableBillingProgramAndroid instead. This option will be
+   * removed in react-native-iap 16.0.0.
    * - 'user-choice' → 'user-choice-billing'
    * - 'alternative-only' → 'external-offer'
    */

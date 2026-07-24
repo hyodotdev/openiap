@@ -60,24 +60,31 @@ class PurchaseRequestBuilder {
     private var iosOptions: (IosOptionsBuilder.() -> Unit)? = null
     private var androidOptions: (AndroidOptionsBuilder.() -> Unit)? = null
 
+    @Deprecated(
+        message = "Use apple(block) instead. Scheduled for removal in kmp-iap 3.0.0.",
+        replaceWith = ReplaceWith("apple(block)")
+    )
     fun ios(block: IosOptionsBuilder.() -> Unit) {
         iosOptions = block
     }
 
     /**
-     * Alias for ios() - use apple {} as an alternative to ios {}
+     * Configure App Store purchase options.
      */
     fun apple(block: IosOptionsBuilder.() -> Unit) {
         iosOptions = block
     }
 
+    @Deprecated(
+        message = "Use google(block) instead. Scheduled for removal in kmp-iap 3.0.0.",
+        replaceWith = ReplaceWith("google(block)")
+    )
     fun android(block: AndroidOptionsBuilder.() -> Unit) {
         androidOptions = block
     }
 
     /**
-     * Alias for android() - use google {} as an alternative to android {}
-     * Recommended over android {} as of openiap-google v1.3.15
+     * Configure Google Play, Amazon Appstore, or Meta Horizon purchase options.
      */
     fun google(block: AndroidOptionsBuilder.() -> Unit) {
         androidOptions = block
@@ -95,11 +102,11 @@ class PurchaseRequestBuilder {
         val request = when (queryType) {
             ProductQueryType.InApp -> {
                 val purchasePlatforms = RequestPurchasePropsByPlatforms(
-                    android = androidBuilt?.purchase,
-                    ios = iosBuilt?.purchase
+                    apple = iosBuilt?.purchase,
+                    google = androidBuilt?.purchase
                 )
 
-                if (purchasePlatforms.android == null && purchasePlatforms.ios == null) {
+                if (purchasePlatforms.apple == null && purchasePlatforms.google == null) {
                     throw IllegalArgumentException("At least one platform must declare purchase options")
                 }
 
@@ -107,11 +114,11 @@ class PurchaseRequestBuilder {
             }
             ProductQueryType.Subs -> {
                 val subscriptionPlatforms = RequestSubscriptionPropsByPlatforms(
-                    android = androidBuilt?.subscription,
-                    ios = iosBuilt?.subscription
+                    apple = iosBuilt?.subscription,
+                    google = androidBuilt?.subscription
                 )
 
-                if (subscriptionPlatforms.android == null && subscriptionPlatforms.ios == null) {
+                if (subscriptionPlatforms.apple == null && subscriptionPlatforms.google == null) {
                     throw IllegalArgumentException("At least one platform must declare subscription options")
                 }
 
@@ -204,6 +211,9 @@ class AndroidOptionsBuilder {
     var purchaseToken: String? = null
     /** Original external transaction ID for a developer-billed subscription replacement (9.1.0+). */
     var originalExternalTransactionId: String? = null
+    @Deprecated(
+        message = "Use subscriptionProductReplacementParams instead. Scheduled for removal in kmp-iap 3.0.0."
+    )
     var replacementMode: Int? = null
     var subscriptionOffers: List<AndroidSubscriptionOfferInput> = emptyList()
     var subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid? = null

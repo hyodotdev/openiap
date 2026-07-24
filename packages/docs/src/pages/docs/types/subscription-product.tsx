@@ -77,9 +77,7 @@ function SubscriptionProduct() {
           (<code>id</code>, <code>title</code>, <code>description</code>,{' '}
           <code>displayName</code>, <code>displayPrice</code>,{' '}
           <code>currency</code>, <code>price</code>,{' '}
-          <code>debugDescription</code>,{' '}
-          <code style={{ textDecoration: 'line-through' }}>platform</code> (
-          <strong>Deprecated.</strong>)), plus the subscription-only override
+          <code>debugDescription</code>), plus the subscription-only override
           and standardized subscription offer array below.
         </p>
 

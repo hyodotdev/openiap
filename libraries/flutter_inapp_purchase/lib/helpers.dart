@@ -240,6 +240,11 @@ gentype.Purchase convertToPurchase(
   // Native SDKs serialize the generated Purchase types directly. Preserve that
   // canonical payload as the base so newly generated optional fields are not
   // silently dropped by this legacy compatibility adapter.
+  //
+  // The fallback wire keys below are accepted through
+  // flutter_inapp_purchase 9.x only and are scheduled for removal in 10.0.0.
+  // New native bridges, fixtures, and custom MethodChannel producers must emit
+  // the canonical OpenIAP keys.
   final sourcePayload = normalizeDynamicMap(<String, dynamic>{
     if (originalJson != null) ...originalJson,
     ...itemJson,
@@ -277,6 +282,7 @@ gentype.Purchase convertToPurchase(
 
   if (platformIsAndroid) {
     final stateValue = _coerceAndroidPurchaseState(
+      // Legacy `purchaseStateAndroid` -> canonical `purchaseState`.
       sourcePayload['purchaseState'] ?? sourcePayload['purchaseStateAndroid'],
     );
     final purchaseState = _mapAndroidPurchaseState(stateValue).toJson();
@@ -305,6 +311,8 @@ gentype.Purchase convertToPurchase(
       'purchaseToken': sourcePayload['purchaseToken']?.toString(),
       'autoRenewingAndroid': sourcePayload['autoRenewingAndroid'] as bool?,
       'currentPlanId': sourcePayload['currentPlanId']?.toString(),
+      // `originalJsonAndroid` is a temporary input alias, never a public
+      // PurchaseAndroid field. Use `dataAndroid`; this fallback ends in 10.0.0.
       'dataAndroid': sourcePayload['dataAndroid']?.toString() ??
           sourcePayload['originalJsonAndroid']?.toString(),
       'developerPayloadAndroid':
@@ -320,6 +328,7 @@ gentype.Purchase convertToPurchase(
       // Pending/orderless Play purchases legitimately have no order ID.
       // Legacy native payloads only exposed it through `id`, so recover that
       // value only when it is distinguishable from a Google purchase token.
+      // The `id` transaction fallback ends in 10.0.0.
       'transactionId': androidTransactionId,
     };
 
@@ -334,6 +343,7 @@ gentype.Purchase convertToPurchase(
 
   if (platformIsIOS) {
     final stateIOS = _parsePurchaseStateIOS(
+      // Legacy `transactionStateIOS` -> canonical `purchaseState`.
       sourcePayload['purchaseState'] ?? sourcePayload['transactionStateIOS'],
     ).toJson();
 
@@ -354,6 +364,7 @@ gentype.Purchase convertToPurchase(
       'purchaseState': stateIOS,
       'quantity': quantity,
       'transactionDate': transactionDate,
+      // Legacy `transactionReceipt` -> canonical `purchaseToken`.
       'purchaseToken': sourcePayload['purchaseToken']?.toString() ??
           sourcePayload['transactionReceipt']?.toString(),
       'ids': _toStringList(sourcePayload['ids']),
@@ -372,6 +383,7 @@ gentype.Purchase convertToPurchase(
           sourcePayload['subscriptionGroupIdIOS']?.toString(),
       'transactionId': (sourceTransactionId?.isNotEmpty ?? false)
           ? sourceTransactionId
+          // The legacy `id` transaction fallback ends in 10.0.0.
           : purchaseId,
       'transactionReasonIOS': sourcePayload['transactionReasonIOS']?.toString(),
       'webOrderLineItemIdIOS':

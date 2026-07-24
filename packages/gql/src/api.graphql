@@ -82,7 +82,7 @@ extend type Mutation {
   See: https://openiap.dev/docs/features/validation#verify-purchase
   """
   # Future
-  validateReceipt(options: VerifyPurchaseProps!): VerifyPurchaseResult! @deprecated(reason: "Use verifyPurchase")
+  validateReceipt(options: VerifyPurchaseProps!): VerifyPurchaseResult! @deprecated(reason: "Use verifyPurchase. Scheduled for removal in OpenIAP 3.0.")
   """
   Verify a purchase against your own backend. Returns a platform-specific
   variant of VerifyPurchaseResult — VerifyPurchaseResultIOS exposes isValid

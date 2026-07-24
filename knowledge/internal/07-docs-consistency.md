@@ -267,6 +267,36 @@ Every R12 parser edge case needs a fault test. Required fixture transforms must
 fail when their search pattern no longer matches; a no-op replacement can make
 an invalid parser look green.
 
+### R13 — Deprecations state one removal boundary
+
+OpenIAP-owned schema, native, and framework compatibility APIs stay available
+through their current stable major. Do not remove them piecemeal in patch or
+minor releases.
+
+- Every canonical `@deprecated` or `@openiapDeprecated` reason in the GraphQL
+  schema ends with `Scheduled for removal in OpenIAP 3.0.` The schema
+  deprecation extractor enforces this sentence so generated language comments
+  cannot omit the deadline.
+- `openiap-apple` and `openiap-google` remove their OpenIAP-owned legacy surface
+  with OpenIAP 3.0.
+- Framework libraries version independently and remove their handwritten
+  compatibility APIs only when each package reaches its own next major:
+  `react-native-iap` 16.0.0, `expo-iap` 5.0.0,
+  `flutter_inapp_purchase` 10.0.0, `godot-iap` 3.0.0, `kmp-iap` 3.0.0,
+  and `OpenIap.Maui` 2.0.0.
+- Generated framework declarations retain the canonical schema sentence
+  `Scheduled for removal in OpenIAP 3.0.` That sentence names the spec/native
+  removal train; a generated copy shipped by a framework remains available
+  until that framework reaches its package-specific major above.
+- The public migration guide is `/docs/updates/deprecations`. Add a canonical
+  replacement and removal target there before introducing a new deprecated
+  public symbol.
+
+This policy covers OpenIAP-owned public aliases and compatibility wire keys. It
+does not schedule upstream StoreKit or Play Billing compatibility, historical
+URL redirects, error-code input normalization, unsupported-OS fallbacks, or
+staged IAPKit data migrations for removal.
+
 ## Pre-commit checklist
 
 Run before every `git push` on docs / SDK changes:
