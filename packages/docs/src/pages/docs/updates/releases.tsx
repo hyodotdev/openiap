@@ -150,15 +150,27 @@ function Releases() {
               <code>OpenIap.Maui 2.0.0</code>.
             </li>
             <li>
-              Canonical inputs win when both canonical and historical wire keys
-              are present. Compatibility warnings identify the final canonical
-              replacement and are emitted once rather than on every purchase.
+              Raw map/object compatibility inputs—including JavaScript objects,
+              plugin configuration, and custom MethodChannel payloads—treat an
+              own canonical key, including <code>null</code>, as authoritative.
+              Generated Swift and Kotlin request models cannot retain a separate
+              supplied-key bit, so typed facades prefer a non-null{' '}
+              <code>apple</code> / <code>google</code> member before the legacy
+              optional fallback. Runtime compatibility warnings identify the
+              final canonical replacement and are emitted once rather than on
+              every purchase.
             </li>
             <li>
               Generated Kotlin declarations now carry real{' '}
               <code>@Deprecated</code> annotations where Kotlin supports them;
               other generated languages and package-specific shims preserve
               their native warning mechanisms.
+            </li>
+            <li>
+              Expo custom callers should replace legacy{' '}
+              <code>Android deep-link sku / packageName</code> with{' '}
+              <code>skuAndroid</code> / <code>packageNameAndroid</code> before
+              expo-iap 5.0.0.
             </li>
           </ul>
 
@@ -268,6 +280,15 @@ function Releases() {
               <code>packageNameAndroid</code> payloads before enabling one-time
               compatibility warnings. Normal SDK calls stay silent; only a
               selected legacy custom-channel fallback warns.
+            </li>
+            <li>
+              Custom MethodChannel callers should also replace{' '}
+              <code>fetchProducts skuArr / productIds</code> with{' '}
+              <code>skus</code>, acknowledge/consume <code>token</code> with{' '}
+              <code>purchaseToken</code>, and finish-transaction{' '}
+              <code>transactionIdentifier</code> with <code>transactionId</code>
+              . The complete catalog also covers the legacy <code>inapp</code>{' '}
+              product type and other 9.x bridge aliases.
             </li>
           </ul>
 

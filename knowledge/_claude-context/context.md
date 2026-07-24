@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-07-24T12:20:10.956Z
+> Last updated: 2026-07-24T15:33:00.652Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -2377,9 +2377,22 @@ minor releases.
 - React Native and Expo custom request envelopes move from `ios` / `android` to
   `apple` / `google` at their respective removal majors. Expo Android custom
   callers also move `skuArr` to `skus` and `offerTokenArr` to
-  `subscriptionOffers` before 5.0.0. Flutter custom Android callers use the same
-  SKU migration and replace `offerTokenArr` with `offerToken` for one-time
-  products or `subscriptionOffers` for subscriptions before 10.0.0.
+  `subscriptionOffers`, and Android deep-link callers move `sku` /
+  `packageName` to `skuAndroid` / `packageNameAndroid` before 5.0.0. Flutter
+  custom Android callers replace `skuArr` / `productIds` with `skus`,
+  `offerTokenArr` with `offerToken` for one-time products or
+  `subscriptionOffers` for subscriptions, `token` with `purchaseToken`, and
+  finish-transaction `transactionIdentifier` with `transactionId` before
+  10.0.0.
+- Raw map/object compatibility adapters use own-key presence semantics, so an
+  own canonical key, including `null`, is authoritative in JavaScript objects,
+  plugin configuration, and custom MethodChannel payloads.
+- Generated typed platform requests use nullable value semantics. Swift and
+  Kotlin request models expose nullable `apple` / `google` and `ios` /
+  `android` members without a separate supplied-key bit. Typed facades therefore
+  prefer a non-null canonical member and otherwise retain the legacy optional
+  fallback until the listed major. Callers must omit the legacy member instead
+  of relying on canonical `null` to suppress it.
 
 This policy covers OpenIAP-owned public aliases and compatibility wire keys. It
 does not schedule upstream StoreKit, Play Billing, Amazon, or Horizon response

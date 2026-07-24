@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Full Reference: https://openiap.dev/llms-full.txt
-> Generated: 2026-07-24T10:45:15.099Z
+> Generated: 2026-07-24T15:40:36.134Z
 
 ## Installation
 
@@ -95,12 +95,22 @@ Current NuGet package version: 1.4.0
   deep-link keys before native fallbacks warn about historical forms.
 - React Native 16 and Expo 5 remove `request.ios/android`; emit
   `request.apple/google`. Expo custom Android callers must replace
-  `skuArr -> skus` and `offerTokenArr -> subscriptionOffers`.
-- Flutter custom Android callers likewise replace `skuArr -> skus`,
+  `skuArr -> skus`, `offerTokenArr -> subscriptionOffers`, and deep-link
+  `sku/packageName -> skuAndroid/packageNameAndroid`.
+- Flutter custom Android callers likewise replace `skuArr/productIds -> skus`,
   `offerTokenArr -> offerToken` for one-time products or
   `subscriptionOffers` for subscriptions, suffixed obfuscated-account/token
-  keys with their unsuffixed forms, and both legacy replacement-mode fields
-  with `subscriptionProductReplacementParams` before Flutter 10.
+  keys with their unsuffixed forms, acknowledge/consume `token` with
+  `purchaseToken`, finish-transaction `transactionIdentifier` with
+  `transactionId`, and both legacy replacement-mode fields with
+  `subscriptionProductReplacementParams` before Flutter 10.
+- Raw map/object compatibility inputs, including JavaScript objects, plugin
+  configuration, and custom MethodChannel payloads, treat an own canonical key,
+  including `null`, as authoritative. Generated Swift and Kotlin request
+  models do not retain a separate supplied-key bit, so typed facades prefer a
+  non-null `apple/google` member and otherwise keep the legacy
+  `ios/android` fallback until the listed major. Omit the legacy member
+  instead of relying on canonical `null` to suppress it.
 - Godot 3 removes flattened IAPKit verification keys. Keep `provider`
   top-level and nest `apiKey`, `baseUrl`, `includeClientPayload`,
   `apple`, `google`, and `amazon` under `iapkit`. Typed Godot calls

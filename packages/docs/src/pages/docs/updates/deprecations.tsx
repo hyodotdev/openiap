@@ -185,7 +185,7 @@ const flutterCustomWireMigrations = [
     'discountOffers or subscriptionOffers, plus subscriptionGroupIdIOS when applicable',
   ],
   ['subResponseCode', 'subResponseCodeAndroid'],
-  ['skuArr', 'skus'],
+  ['fetchProducts skuArr / productIds', 'skus'],
   [
     'offerTokenArr',
     'offerToken for one-time products or subscriptionOffers for subscriptions',
@@ -195,6 +195,7 @@ const flutterCustomWireMigrations = [
     'obfuscatedAccountId / obfuscatedProfileId',
   ],
   ['purchaseTokenAndroid / token', 'purchaseToken'],
+  ['finishTransaction transactionIdentifier', 'transactionId'],
   [
     'replacementModeAndroid / replacementMode',
     'subscriptionProductReplacementParams',
@@ -344,6 +345,10 @@ const packageCompatibilityMigrations = [
       ['consumePurchase', 'consumePurchaseAndroid'],
       ['getReceiptIOS', 'getReceiptDataIOS'],
       ['validateReceiptAndroid', 'verifyPurchase'],
+      [
+        'Android deep-link sku / packageName',
+        'skuAndroid / packageNameAndroid',
+      ],
       [
         'requestPurchaseOnPromotedProductIOS',
         'promotedProductListenerIOS, then requestPurchase',
@@ -567,6 +572,18 @@ function Deprecations() {
           Deprecated GraphQL resolver arguments and those constructor call sites
           therefore retain KDoc and this migration catalog; reading the
           deprecated property still warns.
+        </p>
+        <p>
+          Raw map/object compatibility inputs—including JavaScript objects,
+          plugin configuration, and custom MethodChannel payloads—treat an own
+          canonical key, including <code>null</code>, as authoritative.
+          Generated Swift and Kotlin request models expose nullable{' '}
+          <code>apple</code> / <code>google</code> and <code>ios</code> /{' '}
+          <code>android</code> members without a separate “key supplied” bit;
+          typed facades therefore prefer a non-null canonical member and
+          otherwise retain the legacy optional fallback until the listed major.
+          Omit the legacy member instead of relying on canonical{' '}
+          <code>null</code> to suppress it.
         </p>
       </section>
 
