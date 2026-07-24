@@ -20,6 +20,7 @@
  */
 
 import { CodegenPlugin, type CodegenPluginConfig } from './base-plugin.js';
+import { generatedFileHeader } from '../core/generated-header.js';
 import type {
   IRSchema,
   IREnum,
@@ -37,38 +38,94 @@ import {
   toCamelCasePreserveIOS,
   toConstantCase,
   capitalize,
-  PLATFORM_TYPE_DEFAULTS,
+  GRAPHQL_TO_CSHARP,
+  requireGraphQLScalarMapping,
 } from '../core/utils.js';
 
 const CSHARP_KEYWORDS = new Set([
-  'abstract', 'as', 'base', 'bool', 'break', 'byte', 'case', 'catch', 'char',
-  'checked', 'class', 'const', 'continue', 'decimal', 'default', 'delegate',
-  'do', 'double', 'else', 'enum', 'event', 'explicit', 'extern', 'false',
-  'finally', 'fixed', 'float', 'for', 'foreach', 'goto', 'if', 'implicit',
-  'in', 'int', 'interface', 'internal', 'is', 'lock', 'long', 'namespace',
-  'new', 'null', 'object', 'operator', 'out', 'override', 'params', 'private',
-  'protected', 'public', 'readonly', 'ref', 'return', 'sbyte', 'sealed',
-  'short', 'sizeof', 'stackalloc', 'static', 'string', 'struct', 'switch',
-  'this', 'throw', 'true', 'try', 'typeof', 'uint', 'ulong', 'unchecked',
-  'unsafe', 'ushort', 'using', 'virtual', 'void', 'volatile', 'while',
+  'abstract',
+  'as',
+  'base',
+  'bool',
+  'break',
+  'byte',
+  'case',
+  'catch',
+  'char',
+  'checked',
+  'class',
+  'const',
+  'continue',
+  'decimal',
+  'default',
+  'delegate',
+  'do',
+  'double',
+  'else',
+  'enum',
+  'event',
+  'explicit',
+  'extern',
+  'false',
+  'finally',
+  'fixed',
+  'float',
+  'for',
+  'foreach',
+  'goto',
+  'if',
+  'implicit',
+  'in',
+  'int',
+  'interface',
+  'internal',
+  'is',
+  'lock',
+  'long',
+  'namespace',
+  'new',
+  'null',
+  'object',
+  'operator',
+  'out',
+  'override',
+  'params',
+  'private',
+  'protected',
+  'public',
+  'readonly',
+  'ref',
+  'return',
+  'sbyte',
+  'sealed',
+  'short',
+  'sizeof',
+  'stackalloc',
+  'static',
+  'string',
+  'struct',
+  'switch',
+  'this',
+  'throw',
+  'true',
+  'try',
+  'typeof',
+  'uint',
+  'ulong',
+  'unchecked',
+  'unsafe',
+  'ushort',
+  'using',
+  'virtual',
+  'void',
+  'volatile',
+  'while',
 ]);
-
-const GRAPHQL_TO_CSHARP: Record<string, string> = {
-  ID: 'string',
-  String: 'string',
-  Boolean: 'bool',
-  Int: 'int',
-  Float: 'double',
-};
 
 const NAMESPACE = 'OpenIap';
 
 // Preserve the published MAUI 1.x CLR signatures until a coordinated 2.0.
-const MAUI_1_X_STRING_RESULT_OPERATIONS = new Set([
-  'deepLinkToSubscriptions',
-  'finishTransaction',
-  'restorePurchases',
-]);
+const MAUI_1_X_STRING_RESULT_OPERATIONS = new Set(['deepLinkToSubscriptions', 'finishTransaction', 'restorePurchases']);
 
 export class CSharpPlugin extends CodegenPlugin {
   readonly name = 'csharp';
@@ -76,7 +133,6 @@ export class CSharpPlugin extends CodegenPlugin {
   readonly keywords = CSHARP_KEYWORDS;
 
   private schema!: IRSchema;
-  private enumNames = new Set<string>();
   // For each nested-union name, the OUTER union it appears under. Used so the
   // nested union can inherit from its parent — that way C# pattern matching
   // works through the chain ProductOrSubscription → Product → ProductIOS.
@@ -91,7 +147,7 @@ export class CSharpPlugin extends CodegenPlugin {
   // ============================================================================
 
   mapScalar(name: string): string {
-    return GRAPHQL_TO_CSHARP[name] ?? 'string';
+    return requireGraphQLScalarMapping(GRAPHQL_TO_CSHARP, name, 'C#');
   }
 
   mapType(type: IRType): string {
@@ -131,8 +187,6 @@ export class CSharpPlugin extends CodegenPlugin {
   generate(schema: IRSchema): string {
     this.schema = schema;
     this.lines = [];
-
-    for (const e of schema.enums) this.enumNames.add(e.name);
 
     // Build a nested-union → outer-union map so nested members can declare
     // their inheritance and JsonPolymorphism nests correctly.
@@ -181,10 +235,7 @@ export class CSharpPlugin extends CodegenPlugin {
   }
 
   generateHeader(): void {
-    this.emit('// ============================================================================');
-    this.emit('// AUTO-GENERATED TYPES — DO NOT EDIT DIRECTLY');
-    this.emit('// Run `bun run generate` after updating any *.graphql schema file.');
-    this.emit('// ============================================================================');
+    for (const line of generatedFileHeader()) this.emit(line);
     this.emit('');
     this.emit('#nullable enable');
     this.emit('');
@@ -243,11 +294,7 @@ export class CSharpPlugin extends CodegenPlugin {
     this.emit('    {');
     for (const value of irEnum.values) {
       const caseName = this.enumValueCase(value.name);
-      const aliases = new Set<string>([
-        value.rawValue,
-        toConstantCase(value.name),
-        value.name,
-      ]);
+      const aliases = new Set<string>([value.rawValue, toConstantCase(value.name), value.name]);
       for (const alias of aliases) {
         this.emit(`        ["${alias}"] = ${irEnum.name}.${caseName},`);
       }
@@ -276,7 +323,9 @@ export class CSharpPlugin extends CodegenPlugin {
     this.emit('');
     this.emit(`    internal static string ToRawString(${irEnum.name} value) => _toString[value];`);
     this.emit(`    internal static ${irEnum.name} FromRawString(string value) =>`);
-    this.emit(`        _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown ${irEnum.name} value: {value}");`);
+    this.emit(
+      `        _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown ${irEnum.name} value: {value}");`,
+    );
     this.emit('}');
     this.emit('');
 
@@ -359,6 +408,7 @@ export class CSharpPlugin extends CodegenPlugin {
 
   generateObject(irObject: IRObject): void {
     if (irObject.name === 'VoidResult') {
+      this.emitDoc(irObject.description);
       this.emit('public readonly record struct VoidResult;');
       this.emit('');
       return;
@@ -383,7 +433,7 @@ export class CSharpPlugin extends CodegenPlugin {
     const inheritance = baseTypes.length > 0 ? ` : ${baseTypes.join(', ')}` : '';
     this.emit(`public sealed record ${irObject.name}${inheritance}`);
     this.emit('{');
-    this.emitProperties(sortedFields, irObject.name);
+    this.emitProperties(sortedFields);
     this.emit('}');
     this.emit('');
   }
@@ -403,8 +453,7 @@ export class CSharpPlugin extends CodegenPlugin {
     return baseTypes;
   }
 
-  private emitProperties(fields: IRField[], typeName: string): void {
-    const defaults = PLATFORM_TYPE_DEFAULTS[typeName];
+  private emitProperties(fields: IRField[]): void {
     fields.forEach((field) => {
       this.emitDoc(field.description, '    ');
       const propType = this.propertyType(field.type);
@@ -426,12 +475,6 @@ export class CSharpPlugin extends CodegenPlugin {
         } else {
           this.emit(`    public required ${propType} ${propName} { get; init; }`);
         }
-      } else if (defaults && field.name === 'platform') {
-        const defaultValue = `IapPlatform.${toPascalCasePreserveIOS(defaults.platform)}`;
-        this.emit(`    public ${propType} ${propName} { get; init; } = ${defaultValue};`);
-      } else if (defaults && field.name === 'type') {
-        const defaultValue = `ProductType.${toPascalCasePreserveIOS(defaults.type)}`;
-        this.emit(`    public ${propType} ${propName} { get; init; } = ${defaultValue};`);
       } else {
         this.emit(`    public required ${propType} ${propName} { get; init; }`);
       }
@@ -465,19 +508,12 @@ export class CSharpPlugin extends CodegenPlugin {
   }
 
   private csharpStringLiteral(value: string): string {
-    return `"${value
-      .replace(/\\/g, '\\\\')
-      .replace(/"/g, '\\"')
-      .replace(/\r/g, '\\r')
-      .replace(/\n/g, '\\n')
-      .replace(/\t/g, '\\t')}"`;
+    return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\r/g, '\\r').replace(/\n/g, '\\n').replace(/\t/g, '\\t')}"`;
   }
 
   private generateResultUnionObject(irObject: IRObject): void {
     this.emitDoc(irObject.description);
-    const entries = [...irObject.resultUnionEntries!].sort((a, b) =>
-      a.fieldName.localeCompare(b.fieldName)
-    );
+    const entries = [...irObject.resultUnionEntries!].sort((a, b) => a.fieldName.localeCompare(b.fieldName));
 
     // Sealed wrapper hierarchy mirroring Kotlin. The actual GraphQL JSON for
     // these result unions has no `__typename` / `__variant` discriminator —
@@ -488,6 +524,7 @@ export class CSharpPlugin extends CodegenPlugin {
     this.emit('');
 
     for (const entry of entries) {
+      this.emitDoc(entry.description);
       const className = `${irObject.name}${capitalize(entry.fieldName)}`;
       const propType = this.propertyType(entry.type);
       this.emit(`public sealed record ${className}(${propType} Value) : ${irObject.name};`);
@@ -511,7 +548,7 @@ export class CSharpPlugin extends CodegenPlugin {
     this.emitDoc(irInput.description);
     this.emit(`public sealed record ${irInput.name}`);
     this.emit('{');
-    this.emitProperties(irInput.fields, irInput.name);
+    this.emitProperties(irInput.fields);
     this.emit('}');
     this.emit('');
   }
@@ -531,25 +568,31 @@ export class CSharpPlugin extends CodegenPlugin {
         this.generateRequestPurchaseProps(irInput);
         break;
       case 'DiscountOfferInputIOS':
-      default:
         this.generateStandardInput(irInput);
         break;
+      default:
+        throw new Error(`${irInput.name} is marked as a custom input without a C# generator strategy.`);
     }
   }
 
   private generateRequestPurchaseProps(irInput: IRInput): void {
+    const [requestPurchase, requestSubscription, type, useAlternativeBilling] = this.requireCustomInputFields(irInput);
     this.emitDoc(irInput.description);
     this.emit('public sealed record RequestPurchaseProps : IJsonOnDeserialized');
     this.emit('{');
+    this.emitDoc(requestPurchase.description, '    ');
     this.emit('    [JsonPropertyName("requestPurchase")]');
     this.emit('    public RequestPurchasePropsByPlatforms? RequestPurchase { get; init; }');
     this.emit('');
+    this.emitDoc(requestSubscription.description, '    ');
     this.emit('    [JsonPropertyName("requestSubscription")]');
     this.emit('    public RequestSubscriptionPropsByPlatforms? RequestSubscription { get; init; }');
     this.emit('');
+    this.emitDoc(type.description, '    ');
     this.emit('    [JsonPropertyName("type")]');
     this.emit('    public required ProductQueryType Type { get; init; }');
     this.emit('');
+    this.emitDoc(useAlternativeBilling.description, '    ');
     this.emit('    [JsonPropertyName("useAlternativeBilling")]');
     this.emit('    public bool? UseAlternativeBilling { get; init; }');
     this.emit('');
@@ -558,7 +601,9 @@ export class CSharpPlugin extends CodegenPlugin {
     this.emit('        var hasPurchase = RequestPurchase is not null;');
     this.emit('        var hasSubscription = RequestSubscription is not null;');
     this.emit('        if (hasPurchase == hasSubscription)');
-    this.emit('            throw new InvalidOperationException("RequestPurchaseProps requires exactly one of requestPurchase or requestSubscription");');
+    this.emit(
+      '            throw new InvalidOperationException("RequestPurchaseProps requires exactly one of requestPurchase or requestSubscription");',
+    );
     this.emit('        if (hasPurchase && Type != ProductQueryType.InApp)');
     this.emit('            throw new InvalidOperationException("type must be IN_APP when requestPurchase is provided");');
     this.emit('        if (hasSubscription && Type != ProductQueryType.Subs)');
@@ -580,12 +625,10 @@ export class CSharpPlugin extends CodegenPlugin {
     this.emit(`public interface ${interfaceName}`);
     this.emit('{');
 
-    const sortedFields = irOperation.fields
-      .filter((f) => f.name !== '_placeholder')
-      .sort((a, b) => a.name.localeCompare(b.name));
+    const sortedFields = irOperation.fields.filter((f) => f.name !== '_placeholder').sort((a, b) => a.name.localeCompare(b.name));
 
     sortedFields.forEach((field, index) => {
-      this.emitDoc(field.description, '    ');
+      this.emitDoc(this.operationFieldDescription(field), '    ');
       const returnType = this.getOperationReturnType(field);
       const args = field.args.map((arg) => {
         const argType = this.propertyType(arg.type);
@@ -638,10 +681,5 @@ export class CSharpPlugin extends CodegenPlugin {
 // XML emission site (attribute or content) without auditing the call shape.
 
 function escapeXml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 }

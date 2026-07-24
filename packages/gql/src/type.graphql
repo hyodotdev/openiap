@@ -183,10 +183,12 @@ input RequestPurchaseProps {
   """
   type: ProductQueryType = InApp
   """
-  @deprecated Use enableBillingProgramAndroid in InitConnectionConfig instead.
   This flag only logs debug info and has no effect on the purchase flow.
   """
   useAlternativeBilling: Boolean
+    @deprecated(
+      reason: "Use enableBillingProgramAndroid in InitConnectionConfig instead."
+    )
 }
 
 # Minimal purchase information required to finish transactions
@@ -203,10 +205,7 @@ input PurchaseInput {
   Store where purchase was made
   """
   store: IapStore
-  """
-  @deprecated Use store instead
-  """
-  platform: IapPlatform
+  platform: IapPlatform @deprecated(reason: "Use store instead")
   quantity: Int!
   purchaseState: PurchaseState!
   isAutoRenewing: Boolean!
@@ -242,14 +241,8 @@ input RequestPurchasePropsByPlatforms {
   Google-specific purchase parameters
   """
   google: RequestPurchaseAndroidProps
-  """
-  @deprecated Use apple instead
-  """
-  ios: RequestPurchaseIosProps
-  """
-  @deprecated Use google instead
-  """
-  android: RequestPurchaseAndroidProps
+  ios: RequestPurchaseIosProps @deprecated(reason: "Use apple instead")
+  android: RequestPurchaseAndroidProps @deprecated(reason: "Use google instead")
 }
 
 """
@@ -270,14 +263,9 @@ input RequestSubscriptionPropsByPlatforms {
   Google-specific subscription parameters
   """
   google: RequestSubscriptionAndroidProps
-  """
-  @deprecated Use apple instead
-  """
-  ios: RequestSubscriptionIosProps
-  """
-  @deprecated Use google instead
-  """
+  ios: RequestSubscriptionIosProps @deprecated(reason: "Use apple instead")
   android: RequestSubscriptionAndroidProps
+    @deprecated(reason: "Use google instead")
 }
 
 # Receipt validation inputs and results
@@ -495,11 +483,11 @@ type ActiveSubscription {
   autoRenewingAndroid: Boolean
   environmentIOS: String
   """
-  @deprecated iOS only - use daysUntilExpirationIOS instead.
   Whether the subscription will expire soon (within 7 days).
   Consider using daysUntilExpirationIOS for more precise control.
   """
   willExpireSoon: Boolean
+    @deprecated(reason: "iOS only - use daysUntilExpirationIOS instead.")
   daysUntilExpirationIOS: Float
   transactionId: String!
   purchaseToken: String
@@ -634,7 +622,9 @@ type DiscountOffer {
   currency: String!
 
   """
-  Type of discount offer
+  Offer category. DiscountOffer currently represents Android one-time product
+  offers and is populated as OneTime. Introductory and Promotional are used by
+  SubscriptionOffer.
   """
   type: DiscountOfferType!
 
@@ -842,10 +832,10 @@ input InitConnectionConfig {
   """
   Alternative billing mode for Android
   If not specified, defaults to NONE (standard Google Play billing)
-  @deprecated Use enableBillingProgramAndroid instead.
   Use USER_CHOICE_BILLING for user choice billing, EXTERNAL_OFFER for alternative only.
   """
   alternativeBillingModeAndroid: AlternativeBillingModeAndroid
+    @deprecated(reason: "Use enableBillingProgramAndroid instead.")
   """
   Enable a specific billing program for Android (7.0+)
   When set, enables the specified billing program for external transactions.

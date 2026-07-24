@@ -1,8 +1,8 @@
 # ============================================================================
 # AUTO-GENERATED TYPES — DO NOT EDIT DIRECTLY
-# Generated from OpenIAP GraphQL schema (https://openiap.dev)
-# Run `bun run generate` to regenerate this file.
+# Refresh this file with the generated-types workflow documented for your checkout.
 # ============================================================================
+# Generated from OpenIAP GraphQL schema (https://openiap.dev)
 # Usage: const Types = preload("types.gd")
 #        var store: Types.IapStore = Types.IapStore.APPLE
 # ============================================================================
@@ -11,13 +11,13 @@
 # Enums
 # ============================================================================
 
-## Alternative billing mode for Android Controls which billing system is used @deprecated Use enableBillingProgramAndroid with BillingProgramAndroid instead. Use USER_CHOICE_BILLING for user choice billing, EXTERNAL_OFFER for alternative only.
+## Alternative billing mode for Android Controls which billing system is used Use USER_CHOICE_BILLING for user choice billing, EXTERNAL_OFFER for alternative only. @deprecated Use enableBillingProgramAndroid with BillingProgramAndroid instead.
 enum AlternativeBillingModeAndroid {
 	## Standard Google Play billing (default)
 	NONE = 0,
-	## User choice billing - user can select between Google Play or alternative Requires Google Play Billing Library 7.0+ @deprecated Use BillingProgramAndroid.USER_CHOICE_BILLING instead
+	## User choice billing - user can select between Google Play or alternative Requires Google Play Billing Library 7.0+ @deprecated Use BillingProgramAndroid.USER_CHOICE_BILLING instead.
 	USER_CHOICE = 1,
-	## Alternative billing only - no Google Play billing option Requires Google Play Billing Library 6.2+ @deprecated Use BillingProgramAndroid.EXTERNAL_OFFER instead
+	## Alternative billing only - no Google Play billing option Requires Google Play Billing Library 6.2+ @deprecated Use BillingProgramAndroid.EXTERNAL_OFFER instead.
 	ALTERNATIVE_ONLY = 2,
 }
 
@@ -95,8 +95,11 @@ enum ErrorCode {
 	REMOTE_ERROR = 4,
 	NETWORK_ERROR = 5,
 	SERVICE_ERROR = 6,
+	## @deprecated Use PurchaseVerificationFailed instead
 	RECEIPT_FAILED = 7,
+	## @deprecated Use PurchaseVerificationFinished instead
 	RECEIPT_FINISHED = 8,
+	## @deprecated Use PurchaseVerificationFinishFailed instead
 	RECEIPT_FINISHED_FAILED = 9,
 	PURCHASE_VERIFICATION_FAILED = 10,
 	PURCHASE_VERIFICATION_FINISHED = 11,
@@ -438,7 +441,7 @@ class ActiveSubscription:
 	var expiration_date_ios: Variant = null
 	var auto_renewing_android: Variant = null
 	var environment_ios: Variant = null
-	## @deprecated iOS only - use daysUntilExpirationIOS instead.
+	## Whether the subscription will expire soon (within 7 days). Consider using daysUntilExpirationIOS for more precise control. @deprecated iOS only - use daysUntilExpirationIOS instead.
 	var will_expire_soon: Variant = null
 	var days_until_expiration_ios: Variant = null
 	var transaction_id: String = ""
@@ -448,9 +451,9 @@ class ActiveSubscription:
 	var base_plan_id_android: Variant = null
 	## Required for subscription upgrade/downgrade on Android
 	var purchase_token_android: Variant = null
-	## The current plan identifier. This is:
+	## The current plan identifier. This is: - On Android: the basePlanId (e.g., "premium", "premium-year") - On iOS: the productId (e.g., "com.example.premium_monthly", "com.example.premium_yearly") This provides a unified way to identify which specific plan/tier the user is subscribed to.
 	var current_plan_id: Variant = null
-	## Renewal information from StoreKit 2 (iOS only). Contains details about subscription renewal status,
+	## Renewal information from StoreKit 2 (iOS only). Contains details about subscription renewal status, pending upgrades/downgrades, and auto-renewal preferences.
 	var renewal_info_ios: RenewalInfoIOS
 
 	static func from_dict(data: Dictionary) -> ActiveSubscription:
@@ -768,9 +771,9 @@ class BillingProgramAvailabilityResultAndroid:
 	var is_available: bool = false
 	## The billing program that was checked
 	var billing_program: BillingProgramAndroid
-	## Billing Choice screen renderer. Populated only for available BILLING_CHOICE results.
+	## Billing Choice screen renderer. Populated only for available BILLING_CHOICE results. Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0.
 	var choice_screen_type: Variant = null
-	## Whether external-link payment is available for Billing Choice.
+	## Whether external-link payment is available for Billing Choice. Populated only for available BILLING_CHOICE results. Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0.
 	var is_external_link_available: Variant = null
 
 	static func from_dict(data: Dictionary) -> BillingProgramAvailabilityResultAndroid:
@@ -813,7 +816,7 @@ class BillingProgramAvailabilityResultAndroid:
 class BillingProgramReportingDetailsAndroid:
 	## The billing program that the reporting details are associated with
 	var billing_program: BillingProgramAndroid
-	## External transaction token used to report transactions made outside of Google Play Billing.
+	## External transaction token used to report transactions made outside of Google Play Billing. Do not cache it for a later redirect session. For External Offer, the same token may report multiple purchases made during the session that generated it.
 	var external_transaction_token: String = ""
 
 	static func from_dict(data: Dictionary) -> BillingProgramReportingDetailsAndroid:
@@ -843,7 +846,7 @@ class BillingResultAndroid:
 	var response_code: int = 0
 	## Debug message from the billing library
 	var debug_message: Variant = null
-	## Sub-response code for more granular error information (8.0+).
+	## Sub-response code for more granular error information (8.0+). Provides additional context when responseCode indicates an error.
 	var sub_response_code: Variant = null
 
 	static func from_dict(data: Dictionary) -> BillingResultAndroid:
@@ -874,11 +877,11 @@ class BillingResultAndroid:
 
 ## Details provided when user selects developer billing option (Android) Received via DeveloperProvidedBillingListener callback Available in Google Play Billing Library 8.3.0+
 class DeveloperProvidedBillingDetailsAndroid:
-	## External transaction token used to report transactions made through developer billing.
+	## External transaction token used to report transactions made through developer billing. Nullable for flows such as external payments where no token is returned.
 	var external_transaction_token: Variant = null
-	## URI to launch for an external-link Billing Choice flow, when provided by
+	## URI to launch for an external-link Billing Choice flow, when provided by Google Play.
 	var link_uri: Variant = null
-	## Original external transaction ID when replacing a subscription that was
+	## Original external transaction ID when replacing a subscription that was purchased through developer billing.
 	var original_external_transaction_id: Variant = null
 	## Products selected for the developer billing flow.
 	var products: Array[DeveloperProvidedBillingProductAndroid] = []
@@ -979,9 +982,9 @@ class DiscountAmountAndroid:
 
 ## Discount display information for one-time purchase offers (Android) Available in Google Play Billing Library 8.0+
 class DiscountDisplayInfoAndroid:
-	## Percentage discount (e.g., 33 for 33% off)
+	## Percentage discount (e.g., 33 for 33% off) Only returned for percentage-based discounts
 	var percentage_discount: Variant = null
-	## Absolute discount amount details
+	## Absolute discount amount details Only returned for fixed amount discounts
 	var discount_amount: DiscountAmountAndroid
 
 	static func from_dict(data: Dictionary) -> DiscountDisplayInfoAndroid:
@@ -1005,7 +1008,7 @@ class DiscountDisplayInfoAndroid:
 			dict["discountAmount"] = discount_amount
 		return dict
 
-## Discount information returned from the store. @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. @see https://openiap.dev/docs/types/subscription-offer
+## Discount information returned from the store. @see https://openiap.dev/docs/types/subscription-offer @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
 class DiscountIOS:
 	var identifier: String = ""
 	var type: String = ""
@@ -1058,7 +1061,7 @@ class DiscountIOS:
 
 ## Standardized one-time product discount offer. Provides a platform-neutral OpenIAP shape for Google Play one-time product purchase options and offers.  Currently populated only on Android (Google Play Billing 8.0+). iOS does not populate this type.  @see https://openiap.dev/docs/types/discount-offer
 class DiscountOffer:
-	## Unique identifier for the offer.
+	## Unique identifier for the offer. - iOS: Not applicable (one-time discounts not supported) - Android: offerId from ProductAndroidOneTimePurchaseOfferDetail
 	var id: Variant = null
 	## Formatted display price string (e.g., "$4.99")
 	var display_price: String = ""
@@ -1066,29 +1069,29 @@ class DiscountOffer:
 	var price: float = 0.0
 	## Currency code (ISO 4217, e.g., "USD")
 	var currency: String = ""
-	## Type of discount offer
+	## Offer category. DiscountOffer currently represents Android one-time product offers and is populated as OneTime. Introductory and Promotional are used by SubscriptionOffer.
 	var type: DiscountOfferType
-	## [Android] Offer token required for purchase.
+	## [Android] Offer token required for purchase. Must be passed to requestPurchase() when purchasing with this offer.
 	var offer_token_android: Variant = null
 	## [Android] List of tags associated with this offer.
 	var offer_tags_android: Array[String] = []
-	## [Android] Original full price in micro-units before discount.
+	## [Android] Original full price in micro-units before discount. Divide by 1,000,000 to get the actual price. Use for displaying strikethrough original price.
 	var full_price_micros_android: Variant = null
-	## [Android] Percentage discount (e.g., 33 for 33% off).
+	## [Android] Percentage discount (e.g., 33 for 33% off). Only present for percentage-based discounts.
 	var percentage_discount_android: Variant = null
-	## [Android] Fixed discount amount in micro-units.
+	## [Android] Fixed discount amount in micro-units. Only present for fixed amount discounts.
 	var discount_amount_micros_android: Variant = null
 	## [Android] Formatted discount amount including its currency sign (e.g., "$5.00").
 	var formatted_discount_amount_android: Variant = null
-	## [Android] Valid time window for the offer.
+	## [Android] Valid time window for the offer. Contains startTimeMillis and endTimeMillis.
 	var valid_time_window_android: ValidTimeWindowAndroid
-	## [Android] Limited quantity information.
+	## [Android] Limited quantity information. Contains maximumQuantity and remainingQuantity.
 	var limited_quantity_info_android: LimitedQuantityInfoAndroid
-	## [Android] Pre-order details if this is a pre-order offer.
+	## [Android] Pre-order details if this is a pre-order offer. Available in Google Play Billing Library 8.1.0+
 	var preorder_details_android: PreorderDetailsAndroid
 	## [Android] Rental details if this is a rental offer.
 	var rental_details_android: RentalDetailsAndroid
-	## [Android] Purchase option ID for this offer.
+	## [Android] Purchase option ID for this offer. Used to identify which purchase option the user selected. Available in Google Play Billing Library 8.0+
 	var purchase_option_id_android: Variant = null
 
 	static func from_dict(data: Dictionary) -> DiscountOffer:
@@ -1190,7 +1193,7 @@ class DiscountOffer:
 			dict["purchaseOptionIdAndroid"] = purchase_option_id_android
 		return dict
 
-## iOS DiscountOffer (output type). @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. @see https://openiap.dev/docs/types/subscription-offer
+## iOS DiscountOffer (output type). @see https://openiap.dev/docs/types/subscription-offer @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
 class DiscountOfferIOS:
 	## Discount identifier
 	var identifier: String = ""
@@ -1248,7 +1251,7 @@ class EntitlementIOS:
 		dict["jsonRepresentation"] = json_representation
 		return dict
 
-## External offer availability result (Android) @deprecated Use BillingProgramAvailabilityResultAndroid with isBillingProgramAvailableAsync instead Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
+## External offer availability result (Android) Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0 @deprecated Use BillingProgramAvailabilityResultAndroid with isBillingProgramAvailableAsync instead
 class ExternalOfferAvailabilityResultAndroid:
 	## Whether external offers are available for the user
 	var is_available: bool = false
@@ -1264,7 +1267,7 @@ class ExternalOfferAvailabilityResultAndroid:
 		dict["isAvailable"] = is_available
 		return dict
 
-## External offer reporting details (Android) @deprecated Use BillingProgramReportingDetailsAndroid with createBillingProgramReportingDetailsAsync instead Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
+## External offer reporting details (Android) Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0 @deprecated Use BillingProgramReportingDetailsAndroid with createBillingProgramReportingDetailsAsync instead
 class ExternalOfferReportingDetailsAndroid:
 	## External transaction token for reporting external offer transactions
 	var external_transaction_token: String = ""
@@ -1304,7 +1307,7 @@ class ExternalPurchaseCustomLinkNoticeResultIOS:
 
 ## Result of requesting an ExternalPurchaseCustomLink token (iOS 18.1+).
 class ExternalPurchaseCustomLinkTokenResultIOS:
-	## The external purchase token string.
+	## The external purchase token string. Report this token to Apple's External Purchase Server API.
 	var token: Variant = null
 	## Optional error message if token retrieval failed
 	var error: Variant = null
@@ -1353,7 +1356,7 @@ class ExternalPurchaseNoticeResultIOS:
 	var result: ExternalPurchaseNoticeAction
 	## Optional error message if the presentation failed
 	var error: Variant = null
-	## External purchase token returned when user continues (iOS 17.4+).
+	## External purchase token returned when user continues (iOS 17.4+). This token should be reported to Apple's External Purchase Server API. Only present when result is Continue.
 	var external_purchase_token: Variant = null
 
 	static func from_dict(data: Dictionary) -> ExternalPurchaseNoticeResultIOS:
@@ -1447,9 +1450,9 @@ class InAppMessageResultAndroid:
 
 ## Installment plan details for subscription offers (Android) Contains information about the installment plan commitment. Available in Google Play Billing Library 7.0+
 class InstallmentPlanDetailsAndroid:
-	## Committed payments count after a user signs up for this subscription plan.
+	## Committed payments count after a user signs up for this subscription plan. For example, for a monthly subscription with commitmentPaymentsCount of 12, users will be charged monthly for 12 months after signup.
 	var commitment_payments_count: int = 0
-	## Subsequent committed payments count after the subscription plan renews.
+	## Subsequent committed payments count after the subscription plan renews. For example, for a monthly subscription with subsequentCommitmentPaymentsCount of 12, users will be committed to another 12 monthly payments when the plan renews. Returns 0 if the installment plan has no subsequent commitment (reverts to normal plan).
 	var subsequent_commitment_payments_count: int = 0
 
 	static func from_dict(data: Dictionary) -> InstallmentPlanDetailsAndroid:
@@ -1489,9 +1492,9 @@ class LimitedQuantityInfoAndroid:
 
 ## Pending purchase update for subscription upgrades/downgrades (Android) When a user initiates a subscription change (upgrade/downgrade), the new purchase may be pending until the current billing period ends. This type contains the details of the pending change. Available in Google Play Billing Library 5.0+
 class PendingPurchaseUpdateAndroid:
-	## Product IDs for the pending purchase update.
+	## Product IDs for the pending purchase update. These are the new products the user is switching to.
 	var products: Array[String] = []
-	## Purchase token for the pending transaction.
+	## Purchase token for the pending transaction. Use this token to track or manage the pending purchase update.
 	var purchase_token: String = ""
 
 	static func from_dict(data: Dictionary) -> PendingPurchaseUpdateAndroid:
@@ -1515,9 +1518,9 @@ class PendingPurchaseUpdateAndroid:
 
 ## Pre-order details for one-time purchase products (Android) Available in Google Play Billing Library 8.1.0+
 class PreorderDetailsAndroid:
-	## Pre-order presale end time in milliseconds since epoch.
+	## Pre-order presale end time in milliseconds since epoch. This is when the presale period ends and the product will be released.
 	var preorder_presale_end_time_millis: String = ""
-	## Pre-order release time in milliseconds since epoch.
+	## Pre-order release time in milliseconds since epoch. This is when the product will be available to users who pre-ordered.
 	var preorder_release_time_millis: String = ""
 
 	static func from_dict(data: Dictionary) -> PreorderDetailsAndroid:
@@ -1602,21 +1605,21 @@ class ProductAndroid:
 	var id: String = ""
 	var title: String = ""
 	var description: String = ""
-	var type: ProductType
+	var type: ProductType = ProductType.IN_APP
 	var display_name: Variant = null
 	var display_price: String = ""
 	var currency: String = ""
 	var price: Variant = null
 	var debug_description: Variant = null
-	var platform: IapPlatform
+	var platform: IapPlatform = IapPlatform.ANDROID
 	var name_android: String = ""
-	## Product-level status code indicating fetch result (Android 8.0+)
+	## Product-level status code indicating fetch result (Android 8.0+) OK = product fetched successfully NOT_FOUND = SKU doesn't exist NO_OFFERS_AVAILABLE = user not eligible for any offers Available in Google Play Billing Library 8.0.0+
 	var product_status_android: Variant = null
-	## Standardized Android one-time product purchase options and offers.
+	## Standardized Android one-time product purchase options and offers. Native metadata uses Android-suffixed fields. @see https://openiap.dev/docs/types/discount-offer
 	var discount_offers: Array[DiscountOffer] = []
-	## Standardized subscription offers.
+	## Standardized subscription offers. Cross-platform type with Android-specific fields using suffix. @see https://openiap.dev/docs/types/subscription-offer
 	var subscription_offers: Array[SubscriptionOffer] = []
-	## One-time purchase offer details including discounts (Android)
+	## One-time purchase offer details including discounts (Android) Returns all eligible offers. Available in Google Play Billing Library 8.0+ @deprecated Use the standardized discountOffers field instead.
 	var one_time_purchase_offer_details_android: Array[ProductAndroidOneTimePurchaseOfferDetail] = []
 	## @deprecated Use subscriptionOffers instead for cross-platform compatibility.
 	var subscription_offer_details_android: Array[ProductSubscriptionAndroidOfferDetails] = []
@@ -1766,7 +1769,7 @@ class ProductAndroid:
 			dict["subscriptionOfferDetailsAndroid"] = null
 		return dict
 
-## One-time purchase offer details (Android). Available in Google Play Billing Library 8.0+ @deprecated Use the standardized DiscountOffer type for Android one-time offers. @see https://openiap.dev/docs/types/discount-offer
+## One-time purchase offer details (Android). Available in Google Play Billing Library 8.0+ @see https://openiap.dev/docs/types/discount-offer @deprecated Use the standardized DiscountOffer type for Android one-time offers.
 class ProductAndroidOneTimePurchaseOfferDetail:
 	## Offer ID
 	var offer_id: Variant = null
@@ -1777,19 +1780,19 @@ class ProductAndroidOneTimePurchaseOfferDetail:
 	var price_currency_code: String = ""
 	var formatted_price: String = ""
 	var price_amount_micros: String = ""
-	## Full (non-discounted) price in micro-units
+	## Full (non-discounted) price in micro-units Only available for discounted offers
 	var full_price_micros: Variant = null
-	## Discount display information
+	## Discount display information Only available for discounted offers
 	var discount_display_info: DiscountDisplayInfoAndroid
 	## Valid time window for the offer
 	var valid_time_window: ValidTimeWindowAndroid
 	## Limited quantity information
 	var limited_quantity_info: LimitedQuantityInfoAndroid
-	## Pre-order details for products available for pre-order
+	## Pre-order details for products available for pre-order Available in Google Play Billing Library 8.1.0+
 	var preorder_details_android: PreorderDetailsAndroid
 	## Rental details for rental offers
 	var rental_details_android: RentalDetailsAndroid
-	## Purchase option ID for this offer (Android)
+	## Purchase option ID for this offer (Android) Used to identify which purchase option the user selected. Available in Google Play Billing Library 8.0+
 	var purchase_option_id: Variant = null
 
 	static func from_dict(data: Dictionary) -> ProductAndroidOneTimePurchaseOfferDetail:
@@ -1881,20 +1884,20 @@ class ProductIOS:
 	var id: String = ""
 	var title: String = ""
 	var description: String = ""
-	var type: ProductType
+	var type: ProductType = ProductType.IN_APP
 	var display_name: Variant = null
 	var display_price: String = ""
 	var currency: String = ""
 	var price: Variant = null
 	var debug_description: Variant = null
-	var platform: IapPlatform
+	var platform: IapPlatform = IapPlatform.IOS
 	var display_name_ios: String = ""
 	var is_family_shareable_ios: bool = false
 	var json_representation_ios: String = ""
 	var type_ios: ProductTypeIOS
-	## Standardized subscription offers.
+	## Standardized subscription offers. Cross-platform type with iOS-specific fields using suffix. Note: iOS does not support one-time product discounts. @see https://openiap.dev/docs/types/subscription-offer
 	var subscription_offers: Array[SubscriptionOffer] = []
-	## iOS 26.4+ subscription pricing terms, including billing plan metadata for
+	## iOS 26.4+ subscription pricing terms, including billing plan metadata for monthly subscriptions with a 12-month commitment.
 	var pricing_terms_ios: Array[SubscriptionPricingTermsIOS] = []
 	## @deprecated Use subscriptionOffers instead for cross-platform compatibility.
 	var subscription_info_ios: SubscriptionInfoIOS
@@ -2024,21 +2027,21 @@ class ProductSubscriptionAndroid:
 	var id: String = ""
 	var title: String = ""
 	var description: String = ""
-	var type: ProductType
+	var type: ProductType = ProductType.SUBS
 	var display_name: Variant = null
 	var display_price: String = ""
 	var currency: String = ""
 	var price: Variant = null
 	var debug_description: Variant = null
-	var platform: IapPlatform
+	var platform: IapPlatform = IapPlatform.ANDROID
 	var name_android: String = ""
-	## Product-level status code indicating fetch result (Android 8.0+)
+	## Product-level status code indicating fetch result (Android 8.0+) OK = product fetched successfully NOT_FOUND = SKU doesn't exist NO_OFFERS_AVAILABLE = user not eligible for any offers Available in Google Play Billing Library 8.0.0+
 	var product_status_android: Variant = null
-	## Nullable compatibility field. Google Play does not return one-time purchase
+	## Nullable compatibility field. Google Play does not return one-time purchase offer details for subscription products; use subscriptionOffers below.
 	var discount_offers: Array[DiscountOffer] = []
-	## Standardized subscription offers.
+	## Standardized subscription offers. Cross-platform type with Android-specific fields using suffix. @see https://openiap.dev/docs/types/subscription-offer
 	var subscription_offers: Array[SubscriptionOffer] = []
-	## Legacy nullable compatibility field. Google Play does not populate one-time
+	## Legacy nullable compatibility field. Google Play does not populate one-time purchase offer details for subscription products. @deprecated One-time offers belong to ProductAndroid.discountOffers; subscriptions use subscriptionOffers.
 	var one_time_purchase_offer_details_android: Array[ProductAndroidOneTimePurchaseOfferDetail] = []
 	## @deprecated Use subscriptionOffers instead for cross-platform compatibility.
 	var subscription_offer_details_android: Array[ProductSubscriptionAndroidOfferDetails] = []
@@ -2188,14 +2191,14 @@ class ProductSubscriptionAndroid:
 			dict["subscriptionOfferDetailsAndroid"] = null
 		return dict
 
-## Subscription offer details (Android). @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. @see https://openiap.dev/docs/types/subscription-offer
+## Subscription offer details (Android). @see https://openiap.dev/docs/types/subscription-offer @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
 class ProductSubscriptionAndroidOfferDetails:
 	var base_plan_id: String = ""
 	var offer_id: Variant = null
 	var offer_token: String = ""
 	var offer_tags: Array[String] = []
 	var pricing_phases: PricingPhasesAndroid
-	## Installment plan details for this subscription offer.
+	## Installment plan details for this subscription offer. Only set for installment subscription plans; null for non-installment plans. Available in Google Play Billing Library 7.0+
 	var installment_plan_details: InstallmentPlanDetailsAndroid
 
 	static func from_dict(data: Dictionary) -> ProductSubscriptionAndroidOfferDetails:
@@ -2246,20 +2249,20 @@ class ProductSubscriptionIOS:
 	var id: String = ""
 	var title: String = ""
 	var description: String = ""
-	var type: ProductType
+	var type: ProductType = ProductType.SUBS
 	var display_name: Variant = null
 	var display_price: String = ""
 	var currency: String = ""
 	var price: Variant = null
 	var debug_description: Variant = null
-	var platform: IapPlatform
+	var platform: IapPlatform = IapPlatform.IOS
 	var display_name_ios: String = ""
 	var is_family_shareable_ios: bool = false
 	var json_representation_ios: String = ""
 	var type_ios: ProductTypeIOS
-	## Standardized subscription offers.
+	## Standardized subscription offers. Cross-platform type with iOS-specific fields using suffix. @see https://openiap.dev/docs/types/subscription-offer
 	var subscription_offers: Array[SubscriptionOffer] = []
-	## iOS 26.4+ subscription pricing terms, including billing plan metadata for
+	## iOS 26.4+ subscription pricing terms, including billing plan metadata for monthly subscriptions with a 12-month commitment.
 	var pricing_terms_ios: Array[SubscriptionPricingTermsIOS] = []
 	## App Store subscription group identifier for intro-offer eligibility checks.
 	var subscription_group_id_ios: Variant = null
@@ -2477,6 +2480,7 @@ class PurchaseAndroid:
 	var purchase_token: Variant = null
 	## Store where purchase was made
 	var store: IapStore
+	## @deprecated Use store instead
 	var platform: IapPlatform
 	var quantity: int = 0
 	var purchase_state: PurchaseState
@@ -2490,9 +2494,9 @@ class PurchaseAndroid:
 	var developer_payload_android: Variant = null
 	var obfuscated_account_id_android: Variant = null
 	var obfuscated_profile_id_android: Variant = null
-	## Whether the subscription is suspended (Android)
+	## Whether the subscription is suspended (Android) A suspended subscription means the user's payment method failed and they need to fix it. Users should be directed to the subscription center to resolve the issue. Do NOT grant entitlements for suspended subscriptions. Available in Google Play Billing Library 8.1.0+
 	var is_suspended_android: Variant = null
-	## Pending purchase update for uncommitted subscription upgrade/downgrade (Android)
+	## Pending purchase update for uncommitted subscription upgrade/downgrade (Android) Contains the new products and purchase token for the pending transaction. Returns null if no pending update exists. Available in Google Play Billing Library 5.0+
 	var pending_purchase_update_android: PendingPurchaseUpdateAndroid
 
 	static func from_dict(data: Dictionary) -> PurchaseAndroid:
@@ -2693,6 +2697,7 @@ class PurchaseIOS:
 	var purchase_token: Variant = null
 	## Store where purchase was made
 	var store: IapStore
+	## @deprecated Use store instead
 	var platform: IapPlatform
 	var quantity: int = 0
 	var purchase_state: PurchaseState
@@ -2725,7 +2730,7 @@ class PurchaseIOS:
 	var billing_plan_type_ios: Variant = null
 	## iOS 26.4+ progress information for monthly subscriptions with a 12-month commitment.
 	var commitment_info_ios: TransactionCommitmentInfoIOS
-	## Advanced Commerce API metadata (iOS 18.4+).
+	## Advanced Commerce API metadata (iOS 18.4+). Present only for transactions that use the Advanced Commerce API. Contains item details, tax information, and refund data for generic SKU purchases.
 	var advanced_commerce_info_ios: AdvancedCommerceInfoIOS
 
 	static func from_dict(data: Dictionary) -> PurchaseIOS:
@@ -3010,25 +3015,25 @@ class RenewalInfoIOS:
 	var json_representation: Variant = null
 	var will_auto_renew: bool = false
 	var auto_renew_preference: Variant = null
-	## When subscription expires due to cancellation/billing issue
+	## When subscription expires due to cancellation/billing issue Possible values: "VOLUNTARY", "BILLING_ERROR", "DID_NOT_AGREE_TO_PRICE_INCREASE", "PRODUCT_NOT_AVAILABLE", "UNKNOWN"
 	var expiration_reason: Variant = null
-	## Grace period expiration date (milliseconds since epoch)
+	## Grace period expiration date (milliseconds since epoch) When set, subscription is in grace period (billing issue but still has access)
 	var grace_period_expiration_date: Variant = null
-	## True if subscription failed to renew due to billing issue and is retrying
+	## True if subscription failed to renew due to billing issue and is retrying StoreKit exposes this directly as RenewalInfo.isInBillingRetry.
 	var is_in_billing_retry: Variant = null
-	## Product ID that will be used on next renewal (when user upgrades/downgrades)
+	## Product ID that will be used on next renewal (when user upgrades/downgrades) If set and different from current productId, subscription will change on expiration
 	var pending_upgrade_product_id: Variant = null
-	## User's response to subscription price increase
+	## User's response to subscription price increase Possible values: "AGREED", "PENDING", null (no price increase)
 	var price_increase_status: Variant = null
-	## Expected renewal date (milliseconds since epoch)
+	## Expected renewal date (milliseconds since epoch) For active subscriptions, when the next renewal/charge will occur
 	var renewal_date: Variant = null
 	## Offer ID applied to next renewal (promotional offer, subscription offer code, etc.)
 	var renewal_offer_id: Variant = null
-	## Type of offer applied to next renewal
+	## Type of offer applied to next renewal Possible values: "PROMOTIONAL", "SUBSCRIPTION_OFFER_CODE", "WIN_BACK", etc.
 	var renewal_offer_type: Variant = null
 	## iOS 26.4+ billing plan that will renew after the current period.
 	var renewal_billing_plan_type: Variant = null
-	## iOS 26.4+ renewal commitment metadata for monthly subscriptions with a
+	## iOS 26.4+ renewal commitment metadata for monthly subscriptions with a 12-month commitment.
 	var commitment_info: RenewalCommitmentInfoIOS
 
 	static func from_dict(data: Dictionary) -> RenewalInfoIOS:
@@ -3106,7 +3111,7 @@ class RenewalInfoIOS:
 class RentalDetailsAndroid:
 	## Rental period in ISO 8601 format (e.g., P7D for 7 days)
 	var rental_period: String = ""
-	## Rental expiration period in ISO 8601 format
+	## Rental expiration period in ISO 8601 format Time after rental period ends when user can still extend
 	var rental_expiration_period: Variant = null
 
 	static func from_dict(data: Dictionary) -> RentalDetailsAndroid:
@@ -3126,13 +3131,13 @@ class RentalDetailsAndroid:
 
 class RequestVerifyPurchaseWithIapkitResult:
 	var store: IapStore
-	## True when the purchase is valid and actionable.
+	## True when the purchase is valid and actionable. Only entitled, pending-acknowledgment, or ready-to-consume return true. Callers must still match productId and use the platform plus app-owned product type to choose the fulfillment path.
 	var is_valid: bool = false
 	## The current state of the purchase.
 	var state: IapkitPurchaseState
-	## Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+	## Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1. Store-verified product identifier when the provider returns one.
 	var product_id: Variant = null
-	## Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+	## Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1. Public product payload when includeClientPayload was requested, the Apple or Google receipt is valid, and a payload exists for that product.
 	var client_payload: IapkitProductClientPayload
 
 	static func from_dict(data: Dictionary) -> RequestVerifyPurchaseWithIapkitResult:
@@ -3283,7 +3288,7 @@ class SubscriptionInfoIOS:
 
 ## Standardized subscription discount/promotional offer. Provides a unified interface for subscription offers across iOS and Android.  Both platforms support subscription offers with different implementations: - iOS: Introductory offers, promotional offers with server-side signatures - Android: Offer tokens with pricing phases  @see https://openiap.dev/docs/types/subscription-offer
 class SubscriptionOffer:
-	## Unique identifier for the offer.
+	## Unique identifier for the offer. - iOS: Discount identifier from App Store Connect - Android: offerId from ProductSubscriptionAndroidOfferDetails
 	var id: String = ""
 	## Formatted display price string (e.g., "$9.99/month")
 	var display_price: String = ""
@@ -3299,27 +3304,27 @@ class SubscriptionOffer:
 	var period_count: Variant = null
 	## Payment mode during the offer period
 	var payment_mode: Variant = null
-	## [iOS] Key identifier for signature validation.
+	## [iOS] Key identifier for signature validation. Used with server-side signature generation for promotional offers.
 	var key_identifier_ios: Variant = null
-	## [iOS] Cryptographic nonce (UUID) for signature validation.
+	## [iOS] Cryptographic nonce (UUID) for signature validation. Must be generated server-side for each purchase attempt.
 	var nonce_ios: Variant = null
-	## [iOS] Server-generated signature for promotional offer validation.
+	## [iOS] Server-generated signature for promotional offer validation. Required when applying promotional offers on iOS.
 	var signature_ios: Variant = null
-	## [iOS] Timestamp when the signature was generated.
+	## [iOS] Timestamp when the signature was generated. Used for signature validation.
 	var timestamp_ios: Variant = null
 	## [iOS] Number of billing periods for this discount.
 	var number_of_periods_ios: Variant = null
 	## [iOS] Localized price string.
 	var localized_price_ios: Variant = null
-	## [Android] Base plan identifier.
+	## [Android] Base plan identifier. Identifies which base plan this offer belongs to.
 	var base_plan_id_android: Variant = null
-	## [Android] Offer token required for purchase.
+	## [Android] Offer token required for purchase. Must be passed to requestPurchase() when purchasing with this offer.
 	var offer_token_android: Variant = null
 	## [Android] List of tags associated with this offer.
 	var offer_tags_android: Array[String] = []
-	## [Android] Pricing phases for this subscription offer.
+	## [Android] Pricing phases for this subscription offer. Contains detailed pricing information for each phase (trial, intro, regular).
 	var pricing_phases_android: PricingPhasesAndroid
-	## [Android] Installment plan details for this subscription offer.
+	## [Android] Installment plan details for this subscription offer. Only set for installment subscription plans; null for non-installment plans. Available in Google Play Billing Library 7.0+
 	var installment_plan_details_android: InstallmentPlanDetailsAndroid
 
 	static func from_dict(data: Dictionary) -> SubscriptionOffer:
@@ -3435,7 +3440,7 @@ class SubscriptionOffer:
 			dict["installmentPlanDetailsAndroid"] = installment_plan_details_android
 		return dict
 
-## iOS subscription offer details. @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. @see https://openiap.dev/docs/types/subscription-offer
+## iOS subscription offer details. @see https://openiap.dev/docs/types/subscription-offer @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
 class SubscriptionOfferIOS:
 	var display_price: String = ""
 	var id: String = ""
@@ -3670,11 +3675,11 @@ class TransactionCommitmentInfoIOS:
 class UserChoiceBillingDetails:
 	## Token that must be reported to Google Play within 24 hours
 	var external_transaction_token: String = ""
-	## External transaction ID of the originating subscription when the user is
+	## External transaction ID of the originating subscription when the user is upgrading or downgrading a developer-billed subscription. Available in OpenIAP Spec 2.3.0 / openiap-google 2.3.1 (requires Play Billing 9.1+).
 	var original_external_transaction_id: Variant = null
 	## List of product IDs selected by the user
 	var products: Array[String] = []
-	## Structured product details selected in the user-choice flow, including the
+	## Structured product details selected in the user-choice flow, including the product type and offer token. Legacy payloads may omit this field; use products as the product-ID fallback. Available in OpenIAP Spec 2.3.0 / openiap-google 2.3.1 (requires Play Billing 9.1+).
 	var product_details_android: Array[DeveloperProvidedBillingProductAndroid] = []
 
 	static func from_dict(data: Dictionary) -> UserChoiceBillingDetails:
@@ -3965,7 +3970,7 @@ class VoidResult:
 		return dict
 
 class WebhookEvent:
-	## Stable identifier suitable for idempotency. Derived from the source notification
+	## Stable identifier suitable for idempotency. Derived from the source notification UUID where the store provides one (ASN v2 `notificationUUID`, RTDN message id); otherwise hashed from the canonicalized payload.
 	var id: String = ""
 	var type: WebhookEventType
 	var source: WebhookEventSource
@@ -3977,11 +3982,11 @@ class WebhookEvent:
 	## Time kit ingested and normalized this event. Epoch milliseconds.
 	var received_at: float = 0.0
 	var environment: WebhookEventEnvironment
-	## Cross-platform purchase identity used to correlate this event with an existing
+	## Cross-platform purchase identity used to correlate this event with an existing purchase record. iOS: `originalTransactionId`. Android: `purchaseToken`. Null for `TestNotification` events (Apple ASN v2 / Google RTDN test payloads carry no transaction); always present for every other event type.
 	var purchase_token: Variant = null
 	## Product the event pertains to. May be null for account-level events.
 	var product_id: Variant = null
-	## Normalized subscription state at the time of event, when the event refers to
+	## Normalized subscription state at the time of event, when the event refers to a subscription. Null for one-time purchase events.
 	var subscription_state: Variant = null
 	## When the current subscription period ends. Epoch milliseconds.
 	var expires_at: Variant = null
@@ -3991,9 +3996,9 @@ class WebhookEvent:
 	var cancellation_reason: Variant = null
 	## Localized currency code (ISO 4217) at event time, when available.
 	var currency: Variant = null
-	## Price in micros (1/1,000,000 of the currency unit) at event time, when available.
+	## Price in micros (1/1,000,000 of the currency unit) at event time, when available. Matches Google Play's `priceAmountMicros` convention; iOS values are converted.
 	var price_amount_micros: Variant = null
-	## Original signed payload from the store. ASN v2 events expose the JWS string;
+	## Original signed payload from the store. ASN v2 events expose the JWS string; RTDN events expose the base64-decoded Pub/Sub message JSON. Provided so that consumers can independently verify or extract platform-specific fields. kit always validates this payload before emitting the event.
 	var raw_signed_payload: Variant = null
 
 	static func from_dict(data: Dictionary) -> WebhookEvent:
@@ -4188,11 +4193,11 @@ class DeepLinkOptions:
 class DeveloperBillingOptionParamsAndroid:
 	## The billing program. Use EXTERNAL_PAYMENTS or BILLING_CHOICE.
 	var billing_program: BillingProgramAndroid
-	## The URI where the external payment will be processed.
+	## The URI where the external payment will be processed. Required only when the selected billing program links outside the app.
 	var link_uri: Variant = null
-	## The launch mode for the external payment link.
+	## The launch mode for the external payment link. Required only when the selected billing program links outside the app.
 	var launch_mode: Variant = null
-	## A pre-generated external transaction token for a Billing Choice external-link
+	## A pre-generated external transaction token for a Billing Choice external-link flow. Omit it when Google Play should provide the token in the callback.
 	var external_transaction_token: Variant = null
 
 	static func from_dict(data: Dictionary) -> DeveloperBillingOptionParamsAndroid:
@@ -4348,11 +4353,11 @@ class InAppMessageParamsAndroid:
 
 ## Connection initialization configuration
 class InitConnectionConfig:
-	## Alternative billing mode for Android
+	## Alternative billing mode for Android If not specified, defaults to NONE (standard Google Play billing) Use USER_CHOICE_BILLING for user choice billing, EXTERNAL_OFFER for alternative only. @deprecated Use enableBillingProgramAndroid instead.
 	var alternative_billing_mode_android: Variant = null
-	## Enable a specific billing program for Android (7.0+)
+	## Enable a specific billing program for Android (7.0+) When set, enables the specified billing program for external transactions. - USER_CHOICE_BILLING: User can select between Google Play or alternative (7.0+) - EXTERNAL_CONTENT_LINK: Link to external content (introduced in 8.2.0; use 8.2.1+) - EXTERNAL_OFFER: External offers for digital content (introduced in 8.2.0; use 8.2.1+) - EXTERNAL_PAYMENTS: Developer provided billing, Japan only (8.3.0+) - BILLING_CHOICE: Google-rendered or developer-rendered billing choice   (OpenIAP Spec 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+)
 	var enable_billing_program_android: Variant = null
-	## Billing Choice renderer configured in Play Console. Available in OpenIAP
+	## Billing Choice renderer configured in Play Console. Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). GOOGLE_RENDERED registers the developer-provided billing listener so OpenIAP can emit the selection event. DEVELOPER_RENDERED omits that listener so the app can render its own choice screen and use the reporting/dialog/link APIs. Must match choiceScreenType returned by isBillingProgramAvailableAndroid. Defaults to GOOGLE_RENDERED.
 	var billing_choice_screen_type_android: BillingChoiceScreenTypeAndroid = BillingChoiceScreenTypeAndroid.GOOGLE_RENDERED
 
 	static func from_dict(data: Dictionary) -> InitConnectionConfig:
@@ -4406,7 +4411,7 @@ class LaunchExternalLinkParamsAndroid:
 	var link_type: ExternalLinkTypeAndroid
 	## The URI where the content will be accessed from
 	var link_uri: String = ""
-	## External transaction token for a developer-rendered Billing Choice external-link
+	## External transaction token for a developer-rendered Billing Choice external-link flow. Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Generate it with createBillingProgramReportingDetailsAndroid.
 	var external_transaction_token: Variant = null
 
 	static func from_dict(data: Dictionary) -> LaunchExternalLinkParamsAndroid:
@@ -4494,7 +4499,7 @@ class ProductRequest:
 class PromotionalOfferJWSInputIOS:
 	## The promotional offer identifier from App Store Connect
 	var offer_id: String = ""
-	## Compact JWS string signed by your server.
+	## Compact JWS string signed by your server. The JWS should contain the promotional offer signature data. Format: header.payload.signature (base64url encoded)
 	var jws: String = ""
 
 	static func from_dict(data: Dictionary) -> PromotionalOfferJWSInputIOS:
@@ -4607,7 +4612,7 @@ class PurchaseOptions:
 	var also_publish_to_event_listener_ios: Variant = null
 	## Limit to currently active items on iOS
 	var only_include_active_items_ios: Variant = null
-	## Include suspended subscriptions in the result (Android 8.1+).
+	## Include suspended subscriptions in the result (Android 8.1+). Suspended subscriptions have isSuspendedAndroid=true and should NOT be granted entitlements. Users should be directed to the subscription center to resolve payment issues. Default: false (only active subscriptions are returned)
 	var include_suspended_android: Variant = null
 
 	static func from_dict(data: Dictionary) -> PurchaseOptions:
@@ -4631,7 +4636,7 @@ class PurchaseOptions:
 		return dict
 
 class PurchaseUpdatedListenerOptions:
-	## iOS only. Defaults to true. When false, listener callbacks also receive
+	## iOS only. Defaults to true. When false, listener callbacks also receive StoreKit replay events for a transaction ID that was already emitted during the current connection session. Android ignores this option.
 	var dedupe_transaction_ios: Variant = null
 
 	static func from_dict(data: Dictionary) -> PurchaseUpdatedListenerOptions:
@@ -4653,11 +4658,11 @@ class RequestPurchaseAndroidProps:
 	var obfuscated_account_id: Variant = null
 	## Obfuscated profile ID
 	var obfuscated_profile_id: Variant = null
-	## Personalized offer flag.
+	## Personalized offer flag. When true, indicates the price was customized for this user.
 	var is_offer_personalized: Variant = null
-	## Offer token for one-time purchase discounts (8.0+).
+	## Offer token for one-time purchase discounts (8.0+). Pass the offerToken from oneTimePurchaseOfferDetailsAndroid or discountOffers to apply a discount offer to the purchase.
 	var offer_token: Variant = null
-	## Developer billing option parameters for external payments and Billing Choice.
+	## Developer billing option parameters for external payments and Billing Choice. Billing Choice is available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 	var developer_billing_option: DeveloperBillingOptionParamsAndroid
 
 	static func from_dict(data: Dictionary) -> RequestPurchaseAndroidProps:
@@ -4712,9 +4717,9 @@ class RequestPurchaseIosProps:
 	var app_account_token: Variant = null
 	## Purchase quantity
 	var quantity: Variant = null
-	## Promotional offer to apply (subscriptions only, ignored for one-time purchases).
+	## Promotional offer to apply (subscriptions only, ignored for one-time purchases). iOS only supports promotional offers for auto-renewable subscriptions.
 	var with_offer: DiscountOfferInputIOS
-	## Advanced commerce data token (iOS 15+).
+	## Advanced commerce data token (iOS 15+). Used with StoreKit 2's Product.PurchaseOption.custom API for passing campaign tokens, affiliate IDs, or other attribution data. The data is formatted as JSON: {"signatureInfo": {"token": "<value>"}}
 	var advanced_commerce_data: Variant = null
 
 	static func from_dict(data: Dictionary) -> RequestPurchaseIosProps:
@@ -4762,7 +4767,7 @@ class RequestPurchaseProps:
 	var request_subscription: RequestSubscriptionPropsByPlatforms
 	## Explicit purchase type hint (defaults to in-app)
 	var type: ProductQueryType = ProductQueryType.IN_APP
-	## @deprecated Use enableBillingProgramAndroid in InitConnectionConfig instead.
+	## This flag only logs debug info and has no effect on the purchase flow. @deprecated Use enableBillingProgramAndroid in InitConnectionConfig instead.
 	var use_alternative_billing: Variant = null
 
 	static func in_app(platforms: RequestPurchasePropsByPlatforms, use_alternative_billing_value: Variant = null) -> RequestPurchaseProps:
@@ -4890,19 +4895,19 @@ class RequestSubscriptionAndroidProps:
 	var obfuscated_account_id: Variant = null
 	## Obfuscated profile ID
 	var obfuscated_profile_id: Variant = null
-	## Personalized offer flag.
+	## Personalized offer flag. When true, indicates the price was customized for this user.
 	var is_offer_personalized: Variant = null
 	## Purchase token for upgrades/downgrades
 	var purchase_token: Variant = null
-	## Original external transaction ID for replacing a subscription that was
+	## Original external transaction ID for replacing a subscription that was purchased through developer billing. Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 	var original_external_transaction_id: Variant = null
-	## Replacement mode for subscription changes
+	## Replacement mode for subscription changes @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+).
 	var replacement_mode: Variant = null
 	## Subscription offers
 	var subscription_offers: Array[AndroidSubscriptionOfferInput] = []
-	## Product-level replacement parameters (8.1.0+)
+	## Product-level replacement parameters (8.1.0+) Use this instead of replacementMode for item-level replacement This singular form requires skus to contain exactly one target product. Multi-item subscription changes need a per-target replacement mapping and are rejected rather than applying one oldProductId to multiple products.
 	var subscription_product_replacement_params: SubscriptionProductReplacementParamsAndroid
-	## Developer billing option parameters for external payments and Billing Choice.
+	## Developer billing option parameters for external payments and Billing Choice. Billing Choice is available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 	var developer_billing_option: DeveloperBillingOptionParamsAndroid
 
 	static func from_dict(data: Dictionary) -> RequestSubscriptionAndroidProps:
@@ -4988,17 +4993,17 @@ class RequestSubscriptionIosProps:
 	var and_dangerously_finish_transaction_automatically: Variant = null
 	var app_account_token: Variant = null
 	var quantity: Variant = null
-	## Promotional offer to apply for subscription purchases.
+	## Promotional offer to apply for subscription purchases. Requires server-signed offer with nonce, timestamp, keyId, and signature.
 	var with_offer: DiscountOfferInputIOS
-	## Win-back offer to apply (iOS 18+)
+	## Win-back offer to apply (iOS 18+) Used to re-engage churned subscribers with a discount or free trial. The offer is available when the customer is eligible and can be discovered via StoreKit Message (automatic) or subscription offer APIs.
 	var win_back_offer: WinBackOfferInputIOS
-	## JWS promotional offer (iOS 15+, WWDC 2025).
+	## JWS promotional offer (iOS 15+, WWDC 2025). New signature format using compact JWS string for promotional offers. Back-deployed to iOS 15.
 	var promotional_offer_jws: PromotionalOfferJWSInputIOS
-	## Billing plan to use when purchasing an annual subscription that offers
+	## Billing plan to use when purchasing an annual subscription that offers monthly billing with a 12-month commitment (iOS 26.4+).
 	var billing_plan_type: Variant = null
-	## Compact JWS string for overriding introductory offer eligibility
+	## Compact JWS string for overriding introductory offer eligibility (iOS 15+, WWDC 2025). When nil, the system determines eligibility. Generate the JWS on your server and pass it to StoreKit's introductoryOfferEligibility(compactJWS:) purchase option.
 	var compact_jws: Variant = null
-	## Advanced commerce data token (iOS 15+).
+	## Advanced commerce data token (iOS 15+). Used with StoreKit 2's Product.PurchaseOption.custom API for passing campaign tokens, affiliate IDs, or other attribution data. The data is formatted as JSON: {"signatureInfo": {"token": "<value>"}}
 	var advanced_commerce_data: Variant = null
 
 	static func from_dict(data: Dictionary) -> RequestSubscriptionIosProps:
@@ -5197,9 +5202,9 @@ class RequestVerifyPurchaseWithIapkitGoogleProps:
 class RequestVerifyPurchaseWithIapkitProps:
 	## API key used for the Authorization header (Bearer {apiKey}).
 	var api_key: Variant = null
-	## Available in OpenIAP Spec 2.3.1 / openiap-apple 2.4.0 / openiap-google 2.4.0.
+	## Available in OpenIAP Spec 2.3.1 / openiap-apple 2.4.0 / openiap-google 2.4.0. Base URL for the IAPKit server. Defaults to https://kit.openiap.dev. Set this to a reachable HTTP(S) origin when self-hosting or testing a local IAPKit server. The apiKey must be issued by the same IAPKit/Convex deployment as this server.
 	var base_url: Variant = null
-	## Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+	## Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1. Include the product's public IAPKit client payload in a valid Apple or Google verification response. Defaults to false so existing response shapes and bandwidth remain unchanged.
 	var include_client_payload: Variant = null
 	## Apple App Store verification parameters.
 	var apple: RequestVerifyPurchaseWithIapkitAppleProps
@@ -5311,9 +5316,9 @@ class VerifyPurchaseGoogleOptions:
 	var sku: String = ""
 	## Android package name (e.g., com.example.app)
 	var package_name: String = ""
-	## Purchase token from the purchase response.
+	## Purchase token from the purchase response. ⚠️ Sensitive: Do not log this value.
 	var purchase_token: String = ""
-	## Google OAuth2 access token for API authentication.
+	## Google OAuth2 access token for API authentication. ⚠️ Sensitive: Do not log this value.
 	var access_token: String = ""
 	## Whether this is a subscription purchase (affects API endpoint used)
 	var is_sub: Variant = null
@@ -5352,7 +5357,7 @@ class VerifyPurchaseHorizonOptions:
 	var sku: String = ""
 	## The user ID of the user whose purchase you want to verify
 	var user_id: String = ""
-	## Access token for Meta API authentication (OC|$APP_ID|$APP_SECRET or User Access Token).
+	## Access token for Meta API authentication (OC|$APP_ID|$APP_SECRET or User Access Token). ⚠️ Sensitive: Do not log this value.
 	var access_token: String = ""
 
 	static func from_dict(data: Dictionary) -> VerifyPurchaseHorizonOptions:
@@ -6107,7 +6112,7 @@ class Query:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Fetch products or subscriptions from the store.
+	## Fetch products or subscriptions from the store. See: https://openiap.dev/docs/apis/fetch-products
 	class fetchProductsField:
 		const name = "fetchProducts"
 		const snake_name = "fetch_products"
@@ -6127,7 +6132,7 @@ class Query:
 		const return_type = "FetchProductsResult"
 		const is_array = false
 
-	## List active purchases for the current user.
+	## List active purchases for the current user. See: https://openiap.dev/docs/apis/get-available-purchases
 	class getAvailablePurchasesField:
 		const name = "getAvailablePurchases"
 		const snake_name = "get_available_purchases"
@@ -6148,7 +6153,7 @@ class Query:
 		const return_type = "Purchase"
 		const is_array = true
 
-	## Get details of all currently active subscriptions (filters by subscriptionIds when provided).
+	## Get details of all currently active subscriptions (filters by subscriptionIds when provided). See: https://openiap.dev/docs/apis/get-active-subscriptions
 	class getActiveSubscriptionsField:
 		const name = "getActiveSubscriptions"
 		const snake_name = "get_active_subscriptions"
@@ -6174,7 +6179,7 @@ class Query:
 		const return_type = "ActiveSubscription"
 		const is_array = true
 
-	## Check whether the user has any active subscription.
+	## Check whether the user has any active subscription. See: https://openiap.dev/docs/apis/has-active-subscriptions
 	class hasActiveSubscriptionsField:
 		const name = "hasActiveSubscriptions"
 		const snake_name = "has_active_subscriptions"
@@ -6200,7 +6205,7 @@ class Query:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Return the store-authoritative country code: ISO 3166-1 alpha-3 on Apple
+	## Return the store-authoritative country code: ISO 3166-1 alpha-3 on Apple platforms and alpha-2 on Android. The operation fails when the store cannot provide a value; implementations must not synthesize a locale fallback. See: https://openiap.dev/docs/apis/get-storefront
 	class getStorefrontField:
 		const name = "getStorefront"
 		const snake_name = "get_storefront"
@@ -6209,7 +6214,7 @@ class Query:
 		const return_type = "String"
 		const is_array = false
 
-	## Deprecated. Get the current App Store storefront ISO 3166-1 alpha-3 country
+	## Deprecated. Get the current App Store storefront ISO 3166-1 alpha-3 country code — use cross-platform getStorefront instead. See: https://openiap.dev/docs/apis/ios/get-storefront-ios @deprecated Use getStorefront
 	class getStorefrontIOSField:
 		const name = "getStorefrontIOS"
 		const snake_name = "get_storefront_ios"
@@ -6218,7 +6223,7 @@ class Query:
 		const return_type = "String"
 		const is_array = false
 
-	## Read the App Store-promoted product, if any (iOS 11+).
+	## Read the App Store-promoted product, if any (iOS 11+). See: https://openiap.dev/docs/apis/ios/get-promoted-product-ios
 	class getPromotedProductIOSField:
 		const name = "getPromotedProductIOS"
 		const snake_name = "get_promoted_product_ios"
@@ -6227,7 +6232,7 @@ class Query:
 		const return_type = "ProductIOS"
 		const is_array = false
 
-	## Check eligibility for the external purchase notice sheet (iOS 17.4+).
+	## Check eligibility for the external purchase notice sheet (iOS 17.4+). Uses ExternalPurchase.canPresent. See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
 	class canPresentExternalPurchaseNoticeIOSField:
 		const name = "canPresentExternalPurchaseNoticeIOS"
 		const snake_name = "can_present_external_purchase_notice_ios"
@@ -6236,7 +6241,7 @@ class Query:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Check eligibility for the custom-link variant of external purchase (iOS 18.1+).
+	## Check eligibility for the custom-link variant of external purchase (iOS 18.1+). Returns true if the app can use custom external purchase links. Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
 	class isEligibleForExternalPurchaseCustomLinkIOSField:
 		const name = "isEligibleForExternalPurchaseCustomLinkIOS"
 		const snake_name = "is_eligible_for_external_purchase_custom_link_ios"
@@ -6245,7 +6250,7 @@ class Query:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Fetch a token for Apple's External Purchase Server reporting API (iOS 18.1+).
+	## Fetch a token for Apple's External Purchase Server reporting API (iOS 18.1+). Use this token to report transactions made through ExternalPurchaseCustomLink. Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:) See: https://openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios
 	class getExternalPurchaseCustomLinkTokenIOSField:
 		const name = "getExternalPurchaseCustomLinkTokenIOS"
 		const snake_name = "get_external_purchase_custom_link_token_ios"
@@ -6273,7 +6278,7 @@ class Query:
 		const return_type = "ExternalPurchaseCustomLinkTokenResultIOS"
 		const is_array = false
 
-	## List unfinished StoreKit transactions in the queue.
+	## List unfinished StoreKit transactions in the queue. See: https://openiap.dev/docs/apis/ios/get-pending-transactions-ios
 	class getPendingTransactionsIOSField:
 		const name = "getPendingTransactionsIOS"
 		const snake_name = "get_pending_transactions_ios"
@@ -6282,7 +6287,7 @@ class Query:
 		const return_type = "PurchaseIOS"
 		const is_array = true
 
-	## Check intro-offer eligibility for a subscription group.
+	## Check intro-offer eligibility for a subscription group. See: https://openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios
 	class isEligibleForIntroOfferIOSField:
 		const name = "isEligibleForIntroOfferIOS"
 		const snake_name = "is_eligible_for_intro_offer_ios"
@@ -6302,7 +6307,7 @@ class Query:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Get subscription status objects from StoreKit 2 (iOS 15+).
+	## Get subscription status objects from StoreKit 2 (iOS 15+). See: https://openiap.dev/docs/apis/ios/subscription-status-ios
 	class subscriptionStatusIOSField:
 		const name = "subscriptionStatusIOS"
 		const snake_name = "subscription_status_ios"
@@ -6322,7 +6327,7 @@ class Query:
 		const return_type = "SubscriptionStatusIOS"
 		const is_array = true
 
-	## Get the user's current entitlement for a product, using StoreKit 2 (iOS 15+).
+	## Get the user's current entitlement for a product, using StoreKit 2 (iOS 15+). See: https://openiap.dev/docs/apis/ios/current-entitlement-ios
 	class currentEntitlementIOSField:
 		const name = "currentEntitlementIOS"
 		const snake_name = "current_entitlement_ios"
@@ -6342,7 +6347,7 @@ class Query:
 		const return_type = "PurchaseIOS"
 		const is_array = false
 
-	## Get the latest verified transaction for a product, using StoreKit 2.
+	## Get the latest verified transaction for a product, using StoreKit 2. See: https://openiap.dev/docs/apis/ios/latest-transaction-ios
 	class latestTransactionIOSField:
 		const name = "latestTransactionIOS"
 		const snake_name = "latest_transaction_ios"
@@ -6362,7 +6367,7 @@ class Query:
 		const return_type = "PurchaseIOS"
 		const is_array = false
 
-	## Check whether a transaction's JWS verification passed (StoreKit 2).
+	## Check whether a transaction's JWS verification passed (StoreKit 2). See: https://openiap.dev/docs/apis/ios/is-transaction-verified-ios
 	class isTransactionVerifiedIOSField:
 		const name = "isTransactionVerifiedIOS"
 		const snake_name = "is_transaction_verified_ios"
@@ -6382,7 +6387,7 @@ class Query:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Return the JWS string for a transaction (StoreKit 2).
+	## Return the JWS string for a transaction (StoreKit 2). See: https://openiap.dev/docs/apis/ios/get-transaction-jws-ios
 	class getTransactionJwsIOSField:
 		const name = "getTransactionJwsIOS"
 		const snake_name = "get_transaction_jws_ios"
@@ -6402,7 +6407,7 @@ class Query:
 		const return_type = "String"
 		const is_array = false
 
-	## Get base64-encoded receipt data (legacy validation).
+	## Get base64-encoded receipt data (legacy validation). See: https://openiap.dev/docs/apis/ios/get-receipt-data-ios
 	class getReceiptDataIOSField:
 		const name = "getReceiptDataIOS"
 		const snake_name = "get_receipt_data_ios"
@@ -6411,7 +6416,7 @@ class Query:
 		const return_type = "String"
 		const is_array = false
 
-	## Fetch the app transaction (iOS 16+).
+	## Fetch the app transaction (iOS 16+). See: https://openiap.dev/docs/apis/ios/get-app-transaction-ios
 	class getAppTransactionIOSField:
 		const name = "getAppTransactionIOS"
 		const snake_name = "get_app_transaction_ios"
@@ -6420,7 +6425,7 @@ class Query:
 		const return_type = "AppTransaction"
 		const is_array = false
 
-	## List every StoreKit transaction (finished + unfinished) for the current user.
+	## List every StoreKit transaction (finished + unfinished) for the current user. Requires the SKIncludeConsumableInAppPurchaseHistory Info.plist key in the host app for finished consumables to be included (iOS 18+). Unlike getAvailablePurchases, always returns the iOS-specific PurchaseIOS shape. See: https://openiap.dev/docs/apis/ios/get-all-transactions-ios
 	class getAllTransactionsIOSField:
 		const name = "getAllTransactionsIOS"
 		const snake_name = "get_all_transactions_ios"
@@ -6429,7 +6434,7 @@ class Query:
 		const return_type = "PurchaseIOS"
 		const is_array = true
 
-	## Deprecated. Legacy App Store receipt validation — use verifyPurchase instead.
+	## Deprecated. Legacy App Store receipt validation — use verifyPurchase instead. See: https://openiap.dev/docs/apis/ios/validate-receipt-ios @deprecated Use verifyPurchase
 	class validateReceiptIOSField:
 		const name = "validateReceiptIOS"
 		const snake_name = "validate_receipt_ios"
@@ -6449,7 +6454,7 @@ class Query:
 		const return_type = "VerifyPurchaseResultIOS"
 		const is_array = false
 
-	## Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens.
+	## Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens. OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client is not ready. See: https://openiap.dev/docs/apis/android/get-billing-choice-info-android
 	class getBillingChoiceInfoAndroidField:
 		const name = "getBillingChoiceInfoAndroid"
 		const snake_name = "get_billing_choice_info_android"
@@ -6483,7 +6488,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Initialize the store connection. Call before any IAP API.
+	## Initialize the store connection. Call before any IAP API. See: https://openiap.dev/docs/apis/init-connection
 	class initConnectionField:
 		const name = "initConnection"
 		const snake_name = "init_connection"
@@ -6504,7 +6509,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Close the store connection and release resources.
+	## Close the store connection and release resources. See: https://openiap.dev/docs/apis/end-connection
 	class endConnectionField:
 		const name = "endConnection"
 		const snake_name = "end_connection"
@@ -6513,7 +6518,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Initiate a purchase or subscription flow; rely on events for final state.
+	## Initiate a purchase or subscription flow; rely on events for final state. See: https://openiap.dev/docs/apis/request-purchase
 	class requestPurchaseField:
 		const name = "requestPurchase"
 		const snake_name = "request_purchase"
@@ -6533,7 +6538,7 @@ class Mutation:
 		const return_type = "RequestPurchaseResult"
 		const is_array = false
 
-	## Complete a transaction after server-side verification. Required on Android within 3 days.
+	## Complete a transaction after server-side verification. Required on Android within 3 days. See: https://openiap.dev/docs/apis/finish-transaction
 	class finishTransactionField:
 		const name = "finishTransaction"
 		const snake_name = "finish_transaction"
@@ -6558,7 +6563,7 @@ class Mutation:
 		const return_type = "VoidResult"
 		const is_array = false
 
-	## Restore non-consumable and active subscription purchases.
+	## Restore non-consumable and active subscription purchases. See: https://openiap.dev/docs/apis/restore-purchases
 	class restorePurchasesField:
 		const name = "restorePurchases"
 		const snake_name = "restore_purchases"
@@ -6567,7 +6572,7 @@ class Mutation:
 		const return_type = "VoidResult"
 		const is_array = false
 
-	## Open the platform's subscription management UI.
+	## Open the platform's subscription management UI. See: https://openiap.dev/docs/apis/deep-link-to-subscriptions
 	class deepLinkToSubscriptionsField:
 		const name = "deepLinkToSubscriptions"
 		const snake_name = "deep_link_to_subscriptions"
@@ -6588,7 +6593,7 @@ class Mutation:
 		const return_type = "VoidResult"
 		const is_array = false
 
-	## Deprecated. Validate purchase receipts with the configured providers — use verifyPurchase instead.
+	## Deprecated. Validate purchase receipts with the configured providers — use verifyPurchase instead. See: https://openiap.dev/docs/features/validation#verify-purchase @deprecated Use verifyPurchase
 	class validateReceiptField:
 		const name = "validateReceipt"
 		const snake_name = "validate_receipt"
@@ -6608,7 +6613,7 @@ class Mutation:
 		const return_type = "VerifyPurchaseResult"
 		const is_array = false
 
-	## Verify a purchase against your own backend. Returns a platform-specific
+	## Verify a purchase against your own backend. Returns a platform-specific variant of VerifyPurchaseResult — VerifyPurchaseResultIOS exposes isValid + receipt/JWS metadata, VerifyPurchaseResultAndroid carries Play Store receipt fields (no isValid), and VerifyPurchaseResultHorizon uses success. Inspect the concrete variant before reading fields. See: https://openiap.dev/docs/features/validation#verify-purchase
 	class verifyPurchaseField:
 		const name = "verifyPurchase"
 		const snake_name = "verify_purchase"
@@ -6628,7 +6633,7 @@ class Mutation:
 		const return_type = "VerifyPurchaseResult"
 		const is_array = false
 
-	## Verify via a managed provider without standing up your own server. The
+	## Verify via a managed provider without standing up your own server. The PurchaseVerificationProvider enum currently exposes only IAPKit; platform availability may differ by implementation. See: https://openiap.dev/docs/features/validation#verify-purchase-with-provider
 	class verifyPurchaseWithProviderField:
 		const name = "verifyPurchaseWithProvider"
 		const snake_name = "verify_purchase_with_provider"
@@ -6648,7 +6653,7 @@ class Mutation:
 		const return_type = "VerifyPurchaseWithProviderResult"
 		const is_array = false
 
-	## Clear pending transactions in the queue (sandbox helper).
+	## Clear pending transactions in the queue (sandbox helper). See: https://openiap.dev/docs/apis/ios/clear-transaction-ios
 	class clearTransactionIOSField:
 		const name = "clearTransactionIOS"
 		const snake_name = "clear_transaction_ios"
@@ -6657,7 +6662,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Buy the currently promoted product.
+	## Buy the currently promoted product.  See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios @deprecated Use promotedProductListenerIOS to receive the productId, then call requestPurchase with that SKU instead. In StoreKit 2, promoted products can be purchased directly via the standard purchase flow.
 	class requestPurchaseOnPromotedProductIOSField:
 		const name = "requestPurchaseOnPromotedProductIOS"
 		const snake_name = "request_purchase_on_promoted_product_ios"
@@ -6666,7 +6671,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Present the manage-subscriptions sheet and return changed purchases (iOS 15+).
+	## Present the manage-subscriptions sheet and return changed purchases (iOS 15+). See: https://openiap.dev/docs/apis/ios/show-manage-subscriptions-ios
 	class showManageSubscriptionsIOSField:
 		const name = "showManageSubscriptionsIOS"
 		const snake_name = "show_manage_subscriptions_ios"
@@ -6675,7 +6680,7 @@ class Mutation:
 		const return_type = "PurchaseIOS"
 		const is_array = true
 
-	## Present the refund request sheet (iOS 15+). See also Features → Refund.
+	## Present the refund request sheet (iOS 15+). See also Features → Refund. See: https://openiap.dev/docs/apis/ios/begin-refund-request-ios
 	class beginRefundRequestIOSField:
 		const name = "beginRefundRequestIOS"
 		const snake_name = "begin_refund_request_ios"
@@ -6695,7 +6700,7 @@ class Mutation:
 		const return_type = "String"
 		const is_array = false
 
-	## Force sync transactions with the App Store (iOS 15+).
+	## Force sync transactions with the App Store (iOS 15+). See: https://openiap.dev/docs/apis/ios/sync-ios
 	class syncIOSField:
 		const name = "syncIOS"
 		const snake_name = "sync_ios"
@@ -6704,7 +6709,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Show the App Store offer code redemption sheet.
+	## Show the App Store offer code redemption sheet. See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
 	class presentCodeRedemptionSheetIOSField:
 		const name = "presentCodeRedemptionSheetIOS"
 		const snake_name = "present_code_redemption_sheet_ios"
@@ -6713,7 +6718,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Present the external purchase notice sheet (iOS 17.4+).
+	## Present the external purchase notice sheet (iOS 17.4+). Uses ExternalPurchase.presentNoticeSheet() which returns a token when the user continues. Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet() See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
 	class presentExternalPurchaseNoticeSheetIOSField:
 		const name = "presentExternalPurchaseNoticeSheetIOS"
 		const snake_name = "present_external_purchase_notice_sheet_ios"
@@ -6722,7 +6727,7 @@ class Mutation:
 		const return_type = "ExternalPurchaseNoticeResultIOS"
 		const is_array = false
 
-	## Present an external purchase link, StoreKit External (iOS 16+).
+	## Present an external purchase link, StoreKit External (iOS 16+). See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
 	class presentExternalPurchaseLinkIOSField:
 		const name = "presentExternalPurchaseLinkIOS"
 		const snake_name = "present_external_purchase_link_ios"
@@ -6742,7 +6747,7 @@ class Mutation:
 		const return_type = "ExternalPurchaseLinkResultIOS"
 		const is_array = false
 
-	## Present the disclosure sheet required before linking out via ExternalPurchaseCustomLink (iOS 18.1+).
+	## Present the disclosure sheet required before linking out via ExternalPurchaseCustomLink (iOS 18.1+). Call this after a deliberate customer interaction before linking out to external purchases. Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/shownotice(type:) See: https://openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios
 	class showExternalPurchaseCustomLinkNoticeIOSField:
 		const name = "showExternalPurchaseCustomLinkNoticeIOS"
 		const snake_name = "show_external_purchase_custom_link_notice_ios"
@@ -6770,7 +6775,7 @@ class Mutation:
 		const return_type = "ExternalPurchaseCustomLinkNoticeResultIOS"
 		const is_array = false
 
-	## Acknowledge a non-consumable purchase. Required within 3 days or Google auto-refunds.
+	## Acknowledge a non-consumable purchase. Required within 3 days or Google auto-refunds. See: https://openiap.dev/docs/apis/android/acknowledge-purchase-android
 	class acknowledgePurchaseAndroidField:
 		const name = "acknowledgePurchaseAndroid"
 		const snake_name = "acknowledge_purchase_android"
@@ -6790,7 +6795,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Consume a consumable purchase so it can be re-bought.
+	## Consume a consumable purchase so it can be re-bought. See: https://openiap.dev/docs/apis/android/consume-purchase-android
 	class consumePurchaseAndroidField:
 		const name = "consumePurchaseAndroid"
 		const snake_name = "consume_purchase_android"
@@ -6810,7 +6815,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Check whether alternative billing is available for the user. Step 1 of the alternative billing flow.
+	## Check whether alternative billing is available for the user. Step 1 of the alternative billing flow. Returns true if available, false otherwise. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android
 	class checkAlternativeBillingAvailabilityAndroidField:
 		const name = "checkAlternativeBillingAvailabilityAndroid"
 		const snake_name = "check_alternative_billing_availability_android"
@@ -6819,7 +6824,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Display Google's alternative billing information dialog. Step 2 of the alternative billing flow.
+	## Display Google's alternative billing information dialog. Step 2 of the alternative billing flow. Must be called BEFORE processing payment in your payment system. Returns true if user accepted, false if user canceled. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android
 	class showAlternativeBillingDialogAndroidField:
 		const name = "showAlternativeBillingDialogAndroid"
 		const snake_name = "show_alternative_billing_dialog_android"
@@ -6828,7 +6833,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Create a reporting token for an alternative billing flow. Step 3 of the alternative billing flow.
+	## Create a reporting token for an alternative billing flow. Step 3 of the alternative billing flow. Must be called AFTER successful payment in your payment system. Token must be reported to Google Play backend within 24 hours. Returns token string, or null if creation failed. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/create-alternative-billing-token-android
 	class createAlternativeBillingTokenAndroidField:
 		const name = "createAlternativeBillingTokenAndroid"
 		const snake_name = "create_alternative_billing_token_android"
@@ -6837,7 +6842,7 @@ class Mutation:
 		const return_type = "String"
 		const is_array = false
 
-	## Check whether a billing program (e.g., External Payments) is available for the current user.
+	## Check whether a billing program (e.g., External Payments) is available for the current user. Replaces the deprecated isExternalOfferAvailableAsync API. Introduced in Google Play Billing Library 8.2.0. External Offer and External Content Link integrations must use 8.2.1+ because 8.2.1 fixes this API. Returns availability result with isAvailable flag. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/is-billing-program-available-android
 	class isBillingProgramAvailableAndroidField:
 		const name = "isBillingProgramAvailableAndroid"
 		const snake_name = "is_billing_program_available_android"
@@ -6864,7 +6869,7 @@ class Mutation:
 		const return_type = "BillingProgramAvailabilityResultAndroid"
 		const is_array = false
 
-	## Create the reporting details and external transaction token required by a billing program.
+	## Create the reporting details and external transaction token required by a billing program. Introduced in Play Billing 8.2.0. External Offer and External Content Link integrations must use 8.2.1+ and create fresh details immediately before every redirect session; do not cache the token for a later redirect. The same token may report multiple purchases made during one External Offer session. Replaces the deprecated createExternalOfferReportingDetailsAsync API. Returns external transaction token needed for reporting external transactions. developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted, native Android defaults it to IN_APP. The Billing Choice extension is available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
 	class createBillingProgramReportingDetailsAndroidField:
 		const name = "createBillingProgramReportingDetailsAndroid"
 		const snake_name = "create_billing_program_reporting_details_android"
@@ -6903,7 +6908,7 @@ class Mutation:
 		const return_type = "BillingProgramReportingDetailsAndroid"
 		const is_array = false
 
-	## Launch an external content/offer link from inside the Billing Programs flow (introduced in
+	## Launch an external content/offer link from inside the Billing Programs flow (introduced in Play Billing 8.2.0; External Offer and External Content Link require 8.2.1+), including developer-rendered Billing Choice external-link flows. Billing Choice availability: OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Replaces the deprecated showExternalOfferInformationDialog API. Shows Play Store dialog and optionally launches external URL. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/launch-external-link-android
 	class launchExternalLinkAndroidField:
 		const name = "launchExternalLinkAndroid"
 		const snake_name = "launch_external_link_android"
@@ -6923,7 +6928,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Open the Google Play offer/promo code redemption flow so the user can enter a code.
+	## Open the Google Play offer/promo code redemption flow so the user can enter a code. On Google Play builds, launches the Play Store redeem page (https://play.google.com/redeem). A purchase listener can receive the redeemed purchase while the app is running with an active billing connection; always reconcile with getAvailablePurchases when the app resumes. Does not require the billing client to be initialized (no Play Billing version requirement). Planned OpenIAP availability: Spec 2.5.0 / openiap-google 2.5.0. Android counterpart of presentCodeRedemptionSheetIOS. Returns true when the redemption flow was launched, or false when the current store flavor does not provide an equivalent redemption flow. See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
 	class openRedeemOfferCodeAndroidField:
 		const name = "openRedeemOfferCodeAndroid"
 		const snake_name = "open_redeem_offer_code_android"
@@ -6932,7 +6937,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Show Google's mandatory information dialog before a developer-rendered,
+	## Show Google's mandatory information dialog before a developer-rendered, in-app Billing Choice screen. OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android
 	class showBillingProgramInformationDialogAndroidField:
 		const name = "showBillingProgramInformationDialogAndroid"
 		const snake_name = "show_billing_program_information_dialog_android"
@@ -6952,7 +6957,7 @@ class Mutation:
 		const return_type = "BillingResultAndroid"
 		const is_array = false
 
-	## Overlay Play billing in-app messages, such as payment issues or subscription price-change confirmations.
+	## Overlay Play billing in-app messages, such as payment issues or subscription price-change confirmations. OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (upstream API available since Play Billing 4.1.0). Returns a response code and, when the subscription status changes, the related purchase token. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/show-in-app-messages-android
 	class showInAppMessagesAndroidField:
 		const name = "showInAppMessagesAndroid"
 		const snake_name = "show_in_app_messages_android"
@@ -6981,7 +6986,7 @@ class Mutation:
 
 # Query API helpers
 
-## Fetch products or subscriptions from the store.
+## Fetch products or subscriptions from the store. See: https://openiap.dev/docs/apis/fetch-products
 static func fetch_products_args(params: ProductRequest) -> Dictionary:
 	var args = {}
 	if params != null:
@@ -6991,7 +6996,7 @@ static func fetch_products_args(params: ProductRequest) -> Dictionary:
 			args["params"] = params
 	return args
 
-## List active purchases for the current user.
+## List active purchases for the current user. See: https://openiap.dev/docs/apis/get-available-purchases
 static func get_available_purchases_args(options: Variant = null) -> Dictionary:
 	var args = {}
 	if options != null:
@@ -7001,41 +7006,41 @@ static func get_available_purchases_args(options: Variant = null) -> Dictionary:
 			args["options"] = options
 	return args
 
-## Get details of all currently active subscriptions (filters by subscriptionIds when provided).
+## Get details of all currently active subscriptions (filters by subscriptionIds when provided). See: https://openiap.dev/docs/apis/get-active-subscriptions
 static func get_active_subscriptions_args(subscription_ids: Variant = null) -> Dictionary:
 	var args = {}
 	if subscription_ids != null:
 		args["subscriptionIds"] = subscription_ids
 	return args
 
-## Check whether the user has any active subscription.
+## Check whether the user has any active subscription. See: https://openiap.dev/docs/apis/has-active-subscriptions
 static func has_active_subscriptions_args(subscription_ids: Variant = null) -> Dictionary:
 	var args = {}
 	if subscription_ids != null:
 		args["subscriptionIds"] = subscription_ids
 	return args
 
-## Return the store-authoritative country code: ISO 3166-1 alpha-3 on Apple
+## Return the store-authoritative country code: ISO 3166-1 alpha-3 on Apple platforms and alpha-2 on Android. The operation fails when the store cannot provide a value; implementations must not synthesize a locale fallback. See: https://openiap.dev/docs/apis/get-storefront
 static func get_storefront_args() -> Dictionary:
 	return {}
 
-## Deprecated. Get the current App Store storefront ISO 3166-1 alpha-3 country
+## Deprecated. Get the current App Store storefront ISO 3166-1 alpha-3 country code — use cross-platform getStorefront instead. See: https://openiap.dev/docs/apis/ios/get-storefront-ios @deprecated Use getStorefront
 static func get_storefront_ios_args() -> Dictionary:
 	return {}
 
-## Read the App Store-promoted product, if any (iOS 11+).
+## Read the App Store-promoted product, if any (iOS 11+). See: https://openiap.dev/docs/apis/ios/get-promoted-product-ios
 static func get_promoted_product_ios_args() -> Dictionary:
 	return {}
 
-## Check eligibility for the external purchase notice sheet (iOS 17.4+).
+## Check eligibility for the external purchase notice sheet (iOS 17.4+). Uses ExternalPurchase.canPresent. See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
 static func can_present_external_purchase_notice_ios_args() -> Dictionary:
 	return {}
 
-## Check eligibility for the custom-link variant of external purchase (iOS 18.1+).
+## Check eligibility for the custom-link variant of external purchase (iOS 18.1+). Returns true if the app can use custom external purchase links. Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
 static func is_eligible_for_external_purchase_custom_link_ios_args() -> Dictionary:
 	return {}
 
-## Fetch a token for Apple's External Purchase Server reporting API (iOS 18.1+).
+## Fetch a token for Apple's External Purchase Server reporting API (iOS 18.1+). Use this token to report transactions made through ExternalPurchaseCustomLink. Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:) See: https://openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios
 static func get_external_purchase_custom_link_token_ios_args(token_type: ExternalPurchaseCustomLinkTokenTypeIOS) -> Dictionary:
 	var args = {}
 	if EXTERNAL_PURCHASE_CUSTOM_LINK_TOKEN_TYPE_IOS_VALUES.has(token_type):
@@ -7044,59 +7049,59 @@ static func get_external_purchase_custom_link_token_ios_args(token_type: Externa
 		args["tokenType"] = token_type
 	return args
 
-## List unfinished StoreKit transactions in the queue.
+## List unfinished StoreKit transactions in the queue. See: https://openiap.dev/docs/apis/ios/get-pending-transactions-ios
 static func get_pending_transactions_ios_args() -> Dictionary:
 	return {}
 
-## Check intro-offer eligibility for a subscription group.
+## Check intro-offer eligibility for a subscription group. See: https://openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios
 static func is_eligible_for_intro_offer_ios_args(group_id: String) -> Dictionary:
 	var args = {}
 	args["groupID"] = group_id
 	return args
 
-## Get subscription status objects from StoreKit 2 (iOS 15+).
+## Get subscription status objects from StoreKit 2 (iOS 15+). See: https://openiap.dev/docs/apis/ios/subscription-status-ios
 static func subscription_status_ios_args(sku: String) -> Dictionary:
 	var args = {}
 	args["sku"] = sku
 	return args
 
-## Get the user's current entitlement for a product, using StoreKit 2 (iOS 15+).
+## Get the user's current entitlement for a product, using StoreKit 2 (iOS 15+). See: https://openiap.dev/docs/apis/ios/current-entitlement-ios
 static func current_entitlement_ios_args(sku: String) -> Dictionary:
 	var args = {}
 	args["sku"] = sku
 	return args
 
-## Get the latest verified transaction for a product, using StoreKit 2.
+## Get the latest verified transaction for a product, using StoreKit 2. See: https://openiap.dev/docs/apis/ios/latest-transaction-ios
 static func latest_transaction_ios_args(sku: String) -> Dictionary:
 	var args = {}
 	args["sku"] = sku
 	return args
 
-## Check whether a transaction's JWS verification passed (StoreKit 2).
+## Check whether a transaction's JWS verification passed (StoreKit 2). See: https://openiap.dev/docs/apis/ios/is-transaction-verified-ios
 static func is_transaction_verified_ios_args(sku: String) -> Dictionary:
 	var args = {}
 	args["sku"] = sku
 	return args
 
-## Return the JWS string for a transaction (StoreKit 2).
+## Return the JWS string for a transaction (StoreKit 2). See: https://openiap.dev/docs/apis/ios/get-transaction-jws-ios
 static func get_transaction_jws_ios_args(sku: String) -> Dictionary:
 	var args = {}
 	args["sku"] = sku
 	return args
 
-## Get base64-encoded receipt data (legacy validation).
+## Get base64-encoded receipt data (legacy validation). See: https://openiap.dev/docs/apis/ios/get-receipt-data-ios
 static func get_receipt_data_ios_args() -> Dictionary:
 	return {}
 
-## Fetch the app transaction (iOS 16+).
+## Fetch the app transaction (iOS 16+). See: https://openiap.dev/docs/apis/ios/get-app-transaction-ios
 static func get_app_transaction_ios_args() -> Dictionary:
 	return {}
 
-## List every StoreKit transaction (finished + unfinished) for the current user.
+## List every StoreKit transaction (finished + unfinished) for the current user. Requires the SKIncludeConsumableInAppPurchaseHistory Info.plist key in the host app for finished consumables to be included (iOS 18+). Unlike getAvailablePurchases, always returns the iOS-specific PurchaseIOS shape. See: https://openiap.dev/docs/apis/ios/get-all-transactions-ios
 static func get_all_transactions_ios_args() -> Dictionary:
 	return {}
 
-## Deprecated. Legacy App Store receipt validation — use verifyPurchase instead.
+## Deprecated. Legacy App Store receipt validation — use verifyPurchase instead. See: https://openiap.dev/docs/apis/ios/validate-receipt-ios @deprecated Use verifyPurchase
 static func validate_receipt_ios_args(options: VerifyPurchaseProps) -> Dictionary:
 	var args = {}
 	if options != null:
@@ -7106,7 +7111,7 @@ static func validate_receipt_ios_args(options: VerifyPurchaseProps) -> Dictionar
 			args["options"] = options
 	return args
 
-## Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens.
+## Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens. OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client is not ready. See: https://openiap.dev/docs/apis/android/get-billing-choice-info-android
 static func get_billing_choice_info_android_args(params: GetBillingChoiceInfoParamsAndroid) -> Dictionary:
 	var args = {}
 	if params != null:
@@ -7118,7 +7123,7 @@ static func get_billing_choice_info_android_args(params: GetBillingChoiceInfoPar
 
 # Mutation API helpers
 
-## Initialize the store connection. Call before any IAP API.
+## Initialize the store connection. Call before any IAP API. See: https://openiap.dev/docs/apis/init-connection
 static func init_connection_args(config: Variant = null) -> Dictionary:
 	var args = {}
 	if config != null:
@@ -7128,11 +7133,11 @@ static func init_connection_args(config: Variant = null) -> Dictionary:
 			args["config"] = config
 	return args
 
-## Close the store connection and release resources.
+## Close the store connection and release resources. See: https://openiap.dev/docs/apis/end-connection
 static func end_connection_args() -> Dictionary:
 	return {}
 
-## Initiate a purchase or subscription flow; rely on events for final state.
+## Initiate a purchase or subscription flow; rely on events for final state. See: https://openiap.dev/docs/apis/request-purchase
 static func request_purchase_args(params: RequestPurchaseProps) -> Dictionary:
 	var args = {}
 	if params != null:
@@ -7142,7 +7147,7 @@ static func request_purchase_args(params: RequestPurchaseProps) -> Dictionary:
 			args["params"] = params
 	return args
 
-## Complete a transaction after server-side verification. Required on Android within 3 days.
+## Complete a transaction after server-side verification. Required on Android within 3 days. See: https://openiap.dev/docs/apis/finish-transaction
 static func finish_transaction_args(purchase: PurchaseInput, is_consumable: Variant = null) -> Dictionary:
 	var args = {}
 	if purchase != null:
@@ -7154,11 +7159,11 @@ static func finish_transaction_args(purchase: PurchaseInput, is_consumable: Vari
 		args["isConsumable"] = is_consumable
 	return args
 
-## Restore non-consumable and active subscription purchases.
+## Restore non-consumable and active subscription purchases. See: https://openiap.dev/docs/apis/restore-purchases
 static func restore_purchases_args() -> Dictionary:
 	return {}
 
-## Open the platform's subscription management UI.
+## Open the platform's subscription management UI. See: https://openiap.dev/docs/apis/deep-link-to-subscriptions
 static func deep_link_to_subscriptions_args(options: Variant = null) -> Dictionary:
 	var args = {}
 	if options != null:
@@ -7168,7 +7173,7 @@ static func deep_link_to_subscriptions_args(options: Variant = null) -> Dictiona
 			args["options"] = options
 	return args
 
-## Deprecated. Validate purchase receipts with the configured providers — use verifyPurchase instead.
+## Deprecated. Validate purchase receipts with the configured providers — use verifyPurchase instead. See: https://openiap.dev/docs/features/validation#verify-purchase @deprecated Use verifyPurchase
 static func validate_receipt_args(options: VerifyPurchaseProps) -> Dictionary:
 	var args = {}
 	if options != null:
@@ -7178,7 +7183,7 @@ static func validate_receipt_args(options: VerifyPurchaseProps) -> Dictionary:
 			args["options"] = options
 	return args
 
-## Verify a purchase against your own backend. Returns a platform-specific
+## Verify a purchase against your own backend. Returns a platform-specific variant of VerifyPurchaseResult — VerifyPurchaseResultIOS exposes isValid + receipt/JWS metadata, VerifyPurchaseResultAndroid carries Play Store receipt fields (no isValid), and VerifyPurchaseResultHorizon uses success. Inspect the concrete variant before reading fields. See: https://openiap.dev/docs/features/validation#verify-purchase
 static func verify_purchase_args(options: VerifyPurchaseProps) -> Dictionary:
 	var args = {}
 	if options != null:
@@ -7188,7 +7193,7 @@ static func verify_purchase_args(options: VerifyPurchaseProps) -> Dictionary:
 			args["options"] = options
 	return args
 
-## Verify via a managed provider without standing up your own server. The
+## Verify via a managed provider without standing up your own server. The PurchaseVerificationProvider enum currently exposes only IAPKit; platform availability may differ by implementation. See: https://openiap.dev/docs/features/validation#verify-purchase-with-provider
 static func verify_purchase_with_provider_args(options: VerifyPurchaseWithProviderProps) -> Dictionary:
 	var args = {}
 	if options != null:
@@ -7198,43 +7203,43 @@ static func verify_purchase_with_provider_args(options: VerifyPurchaseWithProvid
 			args["options"] = options
 	return args
 
-## Clear pending transactions in the queue (sandbox helper).
+## Clear pending transactions in the queue (sandbox helper). See: https://openiap.dev/docs/apis/ios/clear-transaction-ios
 static func clear_transaction_ios_args() -> Dictionary:
 	return {}
 
-## Buy the currently promoted product.
+## Buy the currently promoted product.  See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios @deprecated Use promotedProductListenerIOS to receive the productId, then call requestPurchase with that SKU instead. In StoreKit 2, promoted products can be purchased directly via the standard purchase flow.
 static func request_purchase_on_promoted_product_ios_args() -> Dictionary:
 	return {}
 
-## Present the manage-subscriptions sheet and return changed purchases (iOS 15+).
+## Present the manage-subscriptions sheet and return changed purchases (iOS 15+). See: https://openiap.dev/docs/apis/ios/show-manage-subscriptions-ios
 static func show_manage_subscriptions_ios_args() -> Dictionary:
 	return {}
 
-## Present the refund request sheet (iOS 15+). See also Features → Refund.
+## Present the refund request sheet (iOS 15+). See also Features → Refund. See: https://openiap.dev/docs/apis/ios/begin-refund-request-ios
 static func begin_refund_request_ios_args(sku: String) -> Dictionary:
 	var args = {}
 	args["sku"] = sku
 	return args
 
-## Force sync transactions with the App Store (iOS 15+).
+## Force sync transactions with the App Store (iOS 15+). See: https://openiap.dev/docs/apis/ios/sync-ios
 static func sync_ios_args() -> Dictionary:
 	return {}
 
-## Show the App Store offer code redemption sheet.
+## Show the App Store offer code redemption sheet. See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
 static func present_code_redemption_sheet_ios_args() -> Dictionary:
 	return {}
 
-## Present the external purchase notice sheet (iOS 17.4+).
+## Present the external purchase notice sheet (iOS 17.4+). Uses ExternalPurchase.presentNoticeSheet() which returns a token when the user continues. Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet() See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
 static func present_external_purchase_notice_sheet_ios_args() -> Dictionary:
 	return {}
 
-## Present an external purchase link, StoreKit External (iOS 16+).
+## Present an external purchase link, StoreKit External (iOS 16+). See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
 static func present_external_purchase_link_ios_args(url: String) -> Dictionary:
 	var args = {}
 	args["url"] = url
 	return args
 
-## Present the disclosure sheet required before linking out via ExternalPurchaseCustomLink (iOS 18.1+).
+## Present the disclosure sheet required before linking out via ExternalPurchaseCustomLink (iOS 18.1+). Call this after a deliberate customer interaction before linking out to external purchases. Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/shownotice(type:) See: https://openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios
 static func show_external_purchase_custom_link_notice_ios_args(notice_type: ExternalPurchaseCustomLinkNoticeTypeIOS) -> Dictionary:
 	var args = {}
 	if EXTERNAL_PURCHASE_CUSTOM_LINK_NOTICE_TYPE_IOS_VALUES.has(notice_type):
@@ -7243,31 +7248,31 @@ static func show_external_purchase_custom_link_notice_ios_args(notice_type: Exte
 		args["noticeType"] = notice_type
 	return args
 
-## Acknowledge a non-consumable purchase. Required within 3 days or Google auto-refunds.
+## Acknowledge a non-consumable purchase. Required within 3 days or Google auto-refunds. See: https://openiap.dev/docs/apis/android/acknowledge-purchase-android
 static func acknowledge_purchase_android_args(purchase_token: String) -> Dictionary:
 	var args = {}
 	args["purchaseToken"] = purchase_token
 	return args
 
-## Consume a consumable purchase so it can be re-bought.
+## Consume a consumable purchase so it can be re-bought. See: https://openiap.dev/docs/apis/android/consume-purchase-android
 static func consume_purchase_android_args(purchase_token: String) -> Dictionary:
 	var args = {}
 	args["purchaseToken"] = purchase_token
 	return args
 
-## Check whether alternative billing is available for the user. Step 1 of the alternative billing flow.
+## Check whether alternative billing is available for the user. Step 1 of the alternative billing flow. Returns true if available, false otherwise. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android
 static func check_alternative_billing_availability_android_args() -> Dictionary:
 	return {}
 
-## Display Google's alternative billing information dialog. Step 2 of the alternative billing flow.
+## Display Google's alternative billing information dialog. Step 2 of the alternative billing flow. Must be called BEFORE processing payment in your payment system. Returns true if user accepted, false if user canceled. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android
 static func show_alternative_billing_dialog_android_args() -> Dictionary:
 	return {}
 
-## Create a reporting token for an alternative billing flow. Step 3 of the alternative billing flow.
+## Create a reporting token for an alternative billing flow. Step 3 of the alternative billing flow. Must be called AFTER successful payment in your payment system. Token must be reported to Google Play backend within 24 hours. Returns token string, or null if creation failed. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/create-alternative-billing-token-android
 static func create_alternative_billing_token_android_args() -> Dictionary:
 	return {}
 
-## Check whether a billing program (e.g., External Payments) is available for the current user.
+## Check whether a billing program (e.g., External Payments) is available for the current user. Replaces the deprecated isExternalOfferAvailableAsync API. Introduced in Google Play Billing Library 8.2.0. External Offer and External Content Link integrations must use 8.2.1+ because 8.2.1 fixes this API. Returns availability result with isAvailable flag. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/is-billing-program-available-android
 static func is_billing_program_available_android_args(program: BillingProgramAndroid) -> Dictionary:
 	var args = {}
 	if BILLING_PROGRAM_ANDROID_VALUES.has(program):
@@ -7276,7 +7281,7 @@ static func is_billing_program_available_android_args(program: BillingProgramAnd
 		args["program"] = program
 	return args
 
-## Create the reporting details and external transaction token required by a billing program.
+## Create the reporting details and external transaction token required by a billing program. Introduced in Play Billing 8.2.0. External Offer and External Content Link integrations must use 8.2.1+ and create fresh details immediately before every redirect session; do not cache the token for a later redirect. The same token may report multiple purchases made during one External Offer session. Replaces the deprecated createExternalOfferReportingDetailsAsync API. Returns external transaction token needed for reporting external transactions. developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted, native Android defaults it to IN_APP. The Billing Choice extension is available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
 static func create_billing_program_reporting_details_android_args(program: BillingProgramAndroid, developer_billing_type: Variant = null) -> Dictionary:
 	var args = {}
 	if BILLING_PROGRAM_ANDROID_VALUES.has(program):
@@ -7290,7 +7295,7 @@ static func create_billing_program_reporting_details_android_args(program: Billi
 			args["developerBillingType"] = developer_billing_type
 	return args
 
-## Launch an external content/offer link from inside the Billing Programs flow (introduced in
+## Launch an external content/offer link from inside the Billing Programs flow (introduced in Play Billing 8.2.0; External Offer and External Content Link require 8.2.1+), including developer-rendered Billing Choice external-link flows. Billing Choice availability: OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Replaces the deprecated showExternalOfferInformationDialog API. Shows Play Store dialog and optionally launches external URL. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/launch-external-link-android
 static func launch_external_link_android_args(params: LaunchExternalLinkParamsAndroid) -> Dictionary:
 	var args = {}
 	if params != null:
@@ -7300,11 +7305,11 @@ static func launch_external_link_android_args(params: LaunchExternalLinkParamsAn
 			args["params"] = params
 	return args
 
-## Open the Google Play offer/promo code redemption flow so the user can enter a code.
+## Open the Google Play offer/promo code redemption flow so the user can enter a code. On Google Play builds, launches the Play Store redeem page (https://play.google.com/redeem). A purchase listener can receive the redeemed purchase while the app is running with an active billing connection; always reconcile with getAvailablePurchases when the app resumes. Does not require the billing client to be initialized (no Play Billing version requirement). Planned OpenIAP availability: Spec 2.5.0 / openiap-google 2.5.0. Android counterpart of presentCodeRedemptionSheetIOS. Returns true when the redemption flow was launched, or false when the current store flavor does not provide an equivalent redemption flow. See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
 static func open_redeem_offer_code_android_args() -> Dictionary:
 	return {}
 
-## Show Google's mandatory information dialog before a developer-rendered,
+## Show Google's mandatory information dialog before a developer-rendered, in-app Billing Choice screen. OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android
 static func show_billing_program_information_dialog_android_args(params: BillingProgramInformationDialogParamsAndroid) -> Dictionary:
 	var args = {}
 	if params != null:
@@ -7314,7 +7319,7 @@ static func show_billing_program_information_dialog_android_args(params: Billing
 			args["params"] = params
 	return args
 
-## Overlay Play billing in-app messages, such as payment issues or subscription price-change confirmations.
+## Overlay Play billing in-app messages, such as payment issues or subscription price-change confirmations. OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (upstream API available since Play Billing 4.1.0). Returns a response code and, when the subscription status changes, the related purchase token. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/show-in-app-messages-android
 static func show_in_app_messages_android_args(params: Variant = null) -> Dictionary:
 	var args = {}
 	if params != null:

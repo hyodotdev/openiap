@@ -4,16 +4,18 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 TARGET_FILE="${REPO_ROOT}/lib/types.dart"
-TMP_DIR="$(mktemp -d)"
 VERSIONS_FILE="${REPO_ROOT}/openiap-versions.json"
+TARGET_REPOSITORY_PATH="libraries/flutter_inapp_purchase/lib/types.dart"
+HEADER_GUIDANCE="Refresh this file with the generated-types workflow documented for your checkout."
 
 if ! command -v python3 >/dev/null 2>&1; then
   echo "Error: python3 is required but not installed." >&2
   exit 1
 fi
 
-OPENIAP_GQL_VERSION=$(python3 - "${VERSIONS_FILE}" <<'PY'
+SPEC_VERSION=$(python3 - "${VERSIONS_FILE}" <<'PY'
 import json
+import re
 import sys
 from pathlib import Path
 versions_path = Path(sys.argv[1])
@@ -26,53 +28,89 @@ except json.JSONDecodeError as exc:
     print(f"Error parsing {versions_path}: {exc}", file=sys.stderr)
     sys.exit(1)
 
-value = data.get('spec')
-if not value:
+value = data.get("spec")
+if not isinstance(value, str) or not value.strip():
     print("Error: 'spec' version missing in openiap-versions.json", file=sys.stderr)
+    sys.exit(1)
+value = value.strip()
+if not re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z.+_-]*", value):
+    print(f"Error: invalid 'spec' version {value!r}", file=sys.stderr)
     sys.exit(1)
 
 print(value)
 PY
 )
 
-ZIP_URL="https://github.com/hyodotdev/openiap/releases/download/gql-${OPENIAP_GQL_VERSION}/openiap-dart.zip"
+TAG="docs-${SPEC_VERSION}"
+DOWNLOAD_URL="https://raw.githubusercontent.com/hyodotdev/openiap/${TAG}/${TARGET_REPOSITORY_PATH}"
 
 cleanup() {
-  rm -rf "${TMP_DIR}"
+  if [[ -n "${TEMP_FILE:-}" && -f "${TEMP_FILE}" ]]; then
+    rm -f "${TEMP_FILE}"
+  fi
 }
 trap cleanup EXIT
-
-ZIP_PATH="${TMP_DIR}/openiap-dart.zip"
 
 if ! command -v curl >/dev/null 2>&1; then
   echo "Error: curl is required but not installed." >&2
   exit 1
 fi
 
-if ! command -v unzip >/dev/null 2>&1; then
-  echo "Error: unzip is required but not installed." >&2
-  exit 1
-fi
-
-echo "Downloading openiap-dart.zip from ${ZIP_URL}..."
-curl -fL "${ZIP_URL}" -o "${ZIP_PATH}"
-
-echo "Extracting types.dart..."
-unzip -q -d "${TMP_DIR}" "${ZIP_PATH}" types.dart
-
-if [ ! -f "${TMP_DIR}/types.dart" ]; then
-  echo "Error: types.dart not found in archive." >&2
-  exit 1
-fi
-
 mkdir -p "$(dirname "${TARGET_FILE}")"
+TEMP_FILE=$(mktemp "${TARGET_FILE}.tmp.XXXXXX")
 
-echo "Replacing ${TARGET_FILE}"
-# Add ignore directives at the top of the file
-# Note: dart format doesn't respect these, but analyzer and coverage do
-echo "// ignore_for_file: type=lint" > "${TARGET_FILE}"
-echo "// coverage:ignore-file" >> "${TARGET_FILE}"
-echo "" >> "${TARGET_FILE}"
-cat "${TMP_DIR}/types.dart" >> "${TARGET_FILE}"
+echo "Downloading the platform-ready Dart types from ${DOWNLOAD_URL}..."
+curl -fL "${DOWNLOAD_URL}" -o "$TEMP_FILE"
 
-echo "Done."
+if ! grep -Fq 'AUTO-GENERATED TYPES — DO NOT EDIT DIRECTLY' "$TEMP_FILE" ||
+  ! grep -q '^class ProductRequest {' "$TEMP_FILE" ||
+  [[ -n "$(tail -c 1 "$TEMP_FILE")" ]]; then
+  echo "Error: downloaded file is not the expected generated Dart target." >&2
+  exit 1
+fi
+
+python3 - "$TEMP_FILE" "//" "$HEADER_GUIDANCE" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+prefix = sys.argv[2]
+guidance = sys.argv[3]
+lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+separator = f"{prefix} " + "=" * 76
+header = f"{prefix} AUTO-GENERATED TYPES — DO NOT EDIT DIRECTLY"
+expected = f"{prefix} {guidance}"
+plain_lines = [line.rstrip("\r\n") for line in lines]
+if len(lines) < 4 or plain_lines[0] != separator or plain_lines[1] != header:
+    print("Error: downloaded file has an unexpected generated header.", file=sys.stderr)
+    sys.exit(1)
+try:
+    closing_index = plain_lines.index(separator, 2)
+except ValueError:
+    print("Error: downloaded file has an unterminated generated header.", file=sys.stderr)
+    sys.exit(1)
+candidates = [
+    index
+    for index in range(2, closing_index)
+    if plain_lines[index] == expected
+    or re.fullmatch(
+        re.escape(prefix) + r" Run `[^`\r\n]+`[^\r\n]*\.",
+        plain_lines[index],
+    )
+]
+if len(candidates) != 1:
+    print("Error: downloaded file has unexpected generated guidance.", file=sys.stderr)
+    sys.exit(1)
+guidance_index = candidates[0]
+if plain_lines[guidance_index] != expected:
+    ending = "\r\n" if lines[guidance_index].endswith("\r\n") else "\n"
+    lines[guidance_index] = expected + ending
+    path.write_text("".join(lines), encoding="utf-8")
+PY
+
+chmod 0644 "$TEMP_FILE"
+mv -f "$TEMP_FILE" "$TARGET_FILE"
+TEMP_FILE=""
+
+echo "Updated ${TARGET_FILE} from tag ${TAG}."

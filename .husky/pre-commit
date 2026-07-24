@@ -113,10 +113,33 @@ if git diff --cached --name-only --diff-filter=ACMR \
   | grep -qE '^libraries/flutter_inapp_purchase/(lib|test)/'; then
   if command -v flutter >/dev/null 2>&1; then
     echo "🐦 flutter-touched commit — running flutter analyze…"
-    (cd libraries/flutter_inapp_purchase && flutter analyze)
+    (
+      # Git exports repository-local variables to hooks. Flutter shells out to
+      # Git to determine its own SDK version, so inheriting the OpenIAP index
+      # can make it misidentify the app repository as the Flutter checkout.
+      unset $(git rev-parse --local-env-vars)
+      cd libraries/flutter_inapp_purchase
+      flutter analyze
+    )
   else
     echo "⚠️  flutter not on PATH — skipping flutter analyze (CI will catch any issues)."
   fi
+fi
+
+# Paths-aware GQL generator gate. Core parser/plugin/script edits are as
+# contract-sensitive as SDL edits, so every packages/gql/** change must run
+# the complete schema suite and canonical generation/sync. The final manifest-
+# backed check rejects generated outputs that changed but were not staged.
+if node packages/gql/scripts/assert-generation-inputs-staged.mjs has-staged-inputs; then
+  echo "🧬 gql-touched commit — running tests + canonical generation…"
+  node packages/gql/scripts/assert-generation-inputs-staged.mjs assert-staged-clean
+  bun install --frozen-lockfile
+  (
+    cd packages/gql
+    bun run test
+    bun run generate
+    bun run verify:generated-staged
+  )
 fi
 
 # Paths-aware KMP compile check. Compiles each Android store flavor because
@@ -148,8 +171,8 @@ fi
 # @types/react hoisting to break docs's tsc only in CI. Both are now on
 # React 19, but if either drifts again we want to know on commit.
 if git diff --cached --name-only --diff-filter=ACMR \
-  | grep -qE '^(packages/docs/|scripts/audit-docs(\.test)?\.ts$)'; then
-  echo "📘 docs/audit-touched commit — running typecheck + audit + format…"
+  | grep -qE '^(packages/docs/|packages/gql/|scripts/audit-docs(\.test)?\.ts$)'; then
+  echo "📘 docs/contract/audit-touched commit — running typecheck + audit + format…"
   bun install --frozen-lockfile
   bun run --filter @hyodotdev/openiap-docs typecheck
   bun test scripts/audit-docs.test.ts
@@ -157,4 +180,18 @@ if git diff --cached --name-only --diff-filter=ACMR \
   (
     cd packages/docs && bunx prettier --check "src/**/*.{ts,tsx,css}"
   )
+fi
+
+# Generated agent/context files are compiled from the knowledge corpus and
+# pinned package metadata. Recompile on every relevant staged change and fail
+# if the resulting tracked outputs were not staged with their sources.
+if bun scripts/agent/context-files.ts has-staged-inputs; then
+  echo "🧠 knowledge/agent-touched commit — compiling generated context…"
+  bun scripts/agent/context-files.ts assert-inputs-staged-clean
+  (
+    cd scripts/agent
+    bun install --frozen-lockfile
+    bun run compile:ai
+  )
+  bun scripts/agent/context-files.ts assert-outputs-clean
 fi

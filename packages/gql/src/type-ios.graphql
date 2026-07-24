@@ -60,11 +60,12 @@ type SubscriptionPeriodValueIOS {
 
 """
 iOS subscription offer details.
-@deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
 @see https://openiap.dev/docs/types/subscription-offer
 """
 type SubscriptionOfferIOS
-  @deprecated(reason: "Use SubscriptionOffer type instead") {
+  @openiapDeprecated(
+    reason: "Use the standardized SubscriptionOffer type instead for cross-platform compatibility."
+  ) {
   displayPrice: String!
   id: ID!
   paymentMode: PaymentModeIOS!
@@ -133,11 +134,10 @@ type ProductIOS implements ProductCommon {
   pricingTermsIOS: [SubscriptionPricingTermsIOS!]
 
   # Deprecated platform-specific field
-  """
-  @deprecated Use subscriptionOffers instead for cross-platform compatibility.
-  """
   subscriptionInfoIOS: SubscriptionInfoIOS
-    @deprecated(reason: "Use subscriptionOffers instead")
+    @deprecated(
+      reason: "Use subscriptionOffers instead for cross-platform compatibility."
+    )
 }
 
 # iOS subscription product
@@ -180,18 +180,15 @@ type ProductSubscriptionIOS implements ProductCommon {
   subscriptionGroupIdIOS: String
 
   # Deprecated legacy iOS fields
-  """
-  @deprecated Use subscriptionOffers for offer metadata and subscriptionGroupIdIOS for the App Store subscription group identifier.
-  """
   subscriptionInfoIOS: SubscriptionInfoIOS
     @deprecated(
-      reason: "Use subscriptionOffers for offers and subscriptionGroupIdIOS for group ID"
+      reason: "Use subscriptionOffers for offer metadata and subscriptionGroupIdIOS for the App Store subscription group identifier."
     )
 
-  """
-  @deprecated Use subscriptionOffers instead for cross-platform compatibility.
-  """
-  discountsIOS: [DiscountIOS!] @deprecated(reason: "Use subscriptionOffers instead")
+  discountsIOS: [DiscountIOS!]
+    @deprecated(
+      reason: "Use subscriptionOffers instead for cross-platform compatibility."
+    )
 
   introductoryPriceIOS: String
   introductoryPriceAsAmountIOS: String
@@ -204,10 +201,12 @@ type ProductSubscriptionIOS implements ProductCommon {
 
 """
 Discount information returned from the store.
-@deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
 @see https://openiap.dev/docs/types/subscription-offer
 """
-type DiscountIOS @deprecated(reason: "Use SubscriptionOffer type instead") {
+type DiscountIOS
+  @openiapDeprecated(
+    reason: "Use the standardized SubscriptionOffer type instead for cross-platform compatibility."
+  ) {
   identifier: String!
   type: String!
   numberOfPeriods: Int!
@@ -224,7 +223,9 @@ type PurchaseIOS implements PurchaseCommon {
   id: ID!
   productId: String!
   ids: [String!]
-  """Unix timestamp in milliseconds since January 1, 1970 UTC."""
+  """
+  Unix timestamp in milliseconds since January 1, 1970 UTC.
+  """
   transactionDate: Float!
   purchaseToken: String
   """
@@ -535,11 +536,12 @@ type SubscriptionStatusIOS {
 
 """
 iOS DiscountOffer (output type).
-@deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
 @see https://openiap.dev/docs/types/subscription-offer
 """
 type DiscountOfferIOS
-  @deprecated(reason: "Use SubscriptionOffer type instead") {
+  @openiapDeprecated(
+    reason: "Use the standardized SubscriptionOffer type instead for cross-platform compatibility."
+  ) {
   """
   Discount identifier
   """

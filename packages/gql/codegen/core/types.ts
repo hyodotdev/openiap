@@ -5,18 +5,13 @@
  * of GraphQL schema types, which can be transformed into any target language.
  */
 
+import type { CustomInputKind } from '../../custom-input-contracts.js';
+
 // ============================================================================
 // Type System
 // ============================================================================
 
-export type IRTypeKind =
-  | 'scalar'
-  | 'enum'
-  | 'object'
-  | 'input'
-  | 'interface'
-  | 'union'
-  | 'list';
+export type IRTypeKind = 'scalar' | 'enum' | 'object' | 'input' | 'interface' | 'union' | 'list';
 
 export interface IRType {
   /** The kind of type */
@@ -104,15 +99,13 @@ export interface IRObject {
   isResultUnion: boolean;
   /** For result unions, the variant entries */
   resultUnionEntries?: IRResultUnionEntry[];
-  /** Whether this is a single-field Args type that can be inlined */
-  isSingleFieldArgs: boolean;
-  /** For single-field Args, the inlined field type */
-  singleFieldType?: IRType;
 }
 
 export interface IRResultUnionEntry {
   /** Field name */
   fieldName: string;
+  /** Variant documentation, including canonical deprecation guidance */
+  description?: string;
   /** Field type */
   type: IRType;
 }
@@ -133,7 +126,7 @@ export interface IRInput {
   /** Whether this is a special type that needs custom handling */
   isCustomType: boolean;
   /** Custom type kind for special handling */
-  customTypeKind?: 'RequestPurchaseProps' | 'DiscountOfferInputIOS' | 'PurchaseInput';
+  customTypeKind?: CustomInputKind;
 }
 
 // ============================================================================
@@ -180,8 +173,6 @@ export interface IROperationField {
   args: IRArg[];
   /** Return type */
   returnType: IRType;
-  /** Whether this is a future field (wrap in Promise) */
-  isFuture: boolean;
   /** Resolved return type (after VoidResult -> Void, Args inlining) */
   resolvedReturnType: IRType;
 }
@@ -214,28 +205,6 @@ export interface IRSchema {
   unions: IRUnion[];
   /** Root operation types (Query, Mutation, Subscription) */
   operations: IROperation[];
-  /** Schema metadata */
-  metadata: IRSchemaMetadata;
-}
-
-export interface IRSchemaMetadata {
-  /** Types marked with # => Union comment */
-  unionWrapperNames: Set<string>;
-  /** Types marked with # Future comment (for Promise wrapping) */
-  futureFieldNames: Set<string>;
-  /** Platform-specific type defaults for discriminated unions */
-  platformDefaults: Map<string, IRPlatformDefault>;
-  /** Single-field Args types that can be inlined */
-  singleFieldObjects: Map<string, IRType>;
-  /** Union membership map (object name -> set of union names) */
-  unionMembership: Map<string, Set<string>>;
-  /** Input types with required fields */
-  inputsWithRequiredFields: Set<string>;
-}
-
-export interface IRPlatformDefault {
-  platform: string;
-  type: string;
 }
 
 // ============================================================================
@@ -247,4 +216,49 @@ export interface SchemaMarkers {
   unionWrappers: Set<string>;
   /** Fields marked with # Future */
   futureFields: Set<string>;
+  /** Invalid or duplicate marker ownership detected by the shared parser */
+  issues: SchemaMarkerIssue[];
+}
+
+interface SchemaMarkerIssue {
+  kind: 'future' | 'union';
+  reason: 'duplicate-marker' | 'invalid-placement' | 'invalid-owner' | 'invalid-target' | 'no-effect';
+  sourceId: string;
+  markerLine: number;
+  targetLine: number | null;
+  target?: string;
+  previous?: {
+    sourceId: string;
+    markerLine: number;
+  };
+}
+
+interface SchemaDeprecationEntry {
+  kind: string;
+  name: string;
+  parentKind?: string;
+  parentName?: string;
+  ownerPath: string;
+  reason: string;
+  sourceId: string;
+  line?: number;
+}
+
+interface SchemaDeprecationIssue {
+  file: string;
+  line?: number;
+  message: string;
+  rule: string;
+}
+
+export interface SchemaDeprecations {
+  entries: SchemaDeprecationEntry[];
+  issues: SchemaDeprecationIssue[];
+  operationArguments: Array<{
+    rootName: string;
+    fieldName: string;
+    argumentName: string;
+    reason: string;
+  }>;
+  typeReasons: Map<string, string>;
 }

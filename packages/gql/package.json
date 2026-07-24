@@ -14,14 +14,15 @@
     "./csharp": "./src/generated/Types.cs"
   },
   "scripts": {
-    "generate": "bun run generate:ts && bun run generate:swift && bun run generate:kotlin && bun run generate:dart && bun run generate:gdscript && bun run generate:csharp && bun run sync",
+    "generate": "bun run generate:ts && bun codegen/index.ts && bun run sync",
     "generate:ts": "graphql-codegen --config codegen.ts && bun scripts/fix-generated-types.mjs",
     "generate:swift": "bun codegen/index.ts swift",
     "generate:kotlin": "bun codegen/index.ts kotlin",
     "generate:dart": "bun codegen/index.ts dart",
     "generate:gdscript": "bun codegen/index.ts gdscript",
     "generate:csharp": "bun codegen/index.ts csharp",
-    "sync": "bun scripts/sync-to-platforms.mjs",
+    "sync": "node scripts/sync-to-platforms.mjs",
+    "verify:generated-staged": "node scripts/assert-generated-staged.mjs",
     "test": "vitest run src"
   },
   "keywords": [
@@ -38,8 +39,6 @@
     "@graphql-codegen/cli": "^6.0.0",
     "@graphql-codegen/typescript": "^5.0.0",
     "graphql": "^16.11.0",
-    "handlebars": "^4.7.8",
-    "ts-node": "^10.9.2",
     "typescript": "^5.9.2",
     "vitest": "^4.1.5"
   },

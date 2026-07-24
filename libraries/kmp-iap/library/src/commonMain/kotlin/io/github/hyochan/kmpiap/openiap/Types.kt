@@ -1,6 +1,6 @@
 // ============================================================================
 // AUTO-GENERATED TYPES — DO NOT EDIT DIRECTLY
-// Run `bun run generate` after updating any *.graphql schema file.
+// Refresh this file with the generated-types workflow documented for your checkout.
 // ============================================================================
 
 // Suppress unchecked cast warnings for JSON Map parsing - unavoidable due to Kotlin type erasure
@@ -13,8 +13,8 @@ package io.github.hyochan.kmpiap.openiap
 /**
  * Alternative billing mode for Android
  * Controls which billing system is used
- * @deprecated Use enableBillingProgramAndroid with BillingProgramAndroid instead.
  * Use USER_CHOICE_BILLING for user choice billing, EXTERNAL_OFFER for alternative only.
+ * @deprecated Use enableBillingProgramAndroid with BillingProgramAndroid instead.
  */
 public enum class AlternativeBillingModeAndroid(val rawValue: String) {
     /**
@@ -24,13 +24,13 @@ public enum class AlternativeBillingModeAndroid(val rawValue: String) {
     /**
      * User choice billing - user can select between Google Play or alternative
      * Requires Google Play Billing Library 7.0+
-     * @deprecated Use BillingProgramAndroid.USER_CHOICE_BILLING instead
+     * @deprecated Use BillingProgramAndroid.USER_CHOICE_BILLING instead.
      */
     UserChoice("user-choice"),
     /**
      * Alternative billing only - no Google Play billing option
      * Requires Google Play Billing Library 6.2+
-     * @deprecated Use BillingProgramAndroid.EXTERNAL_OFFER instead
+     * @deprecated Use BillingProgramAndroid.EXTERNAL_OFFER instead.
      */
     AlternativeOnly("alternative-only");
 
@@ -293,8 +293,17 @@ public enum class ErrorCode(val rawValue: String) {
     RemoteError("remote-error"),
     NetworkError("network-error"),
     ServiceError("service-error"),
+    /**
+     * @deprecated Use PurchaseVerificationFailed instead
+     */
     ReceiptFailed("receipt-failed"),
+    /**
+     * @deprecated Use PurchaseVerificationFinished instead
+     */
     ReceiptFinished("receipt-finished"),
+    /**
+     * @deprecated Use PurchaseVerificationFinishFailed instead
+     */
     ReceiptFinishedFailed("receipt-finished-failed"),
     PurchaseVerificationFailed("purchase-verification-failed"),
     PurchaseVerificationFinished("purchase-verification-finished"),
@@ -1600,6 +1609,9 @@ public interface PurchaseCommon {
     val id: String
     val ids: List<String>?
     val isAutoRenewing: Boolean
+    /**
+     * @deprecated Use store instead
+     */
     val platform: IapPlatform
     val productId: String
     val purchaseState: PurchaseState
@@ -1651,9 +1663,9 @@ public data class ActiveSubscription(
     val transactionDate: Double,
     val transactionId: String,
     /**
-     * @deprecated iOS only - use daysUntilExpirationIOS instead.
      * Whether the subscription will expire soon (within 7 days).
      * Consider using daysUntilExpirationIOS for more precise control.
+     * @deprecated iOS only - use daysUntilExpirationIOS instead.
      */
     val willExpireSoon: Boolean? = null
 ) {
@@ -2204,8 +2216,8 @@ public data class DiscountDisplayInfoAndroid(
 
 /**
  * Discount information returned from the store.
- * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
  * @see https://openiap.dev/docs/types/subscription-offer
+ * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
  */
 public data class DiscountIOS(
     val identifier: String,
@@ -2325,7 +2337,9 @@ public data class DiscountOffer(
      */
     val rentalDetailsAndroid: RentalDetailsAndroid? = null,
     /**
-     * Type of discount offer
+     * Offer category. DiscountOffer currently represents Android one-time product
+     * offers and is populated as OneTime. Introductory and Promotional are used by
+     * SubscriptionOffer.
      */
     val type: DiscountOfferType,
     /**
@@ -2381,8 +2395,8 @@ public data class DiscountOffer(
 
 /**
  * iOS DiscountOffer (output type).
- * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
  * @see https://openiap.dev/docs/types/subscription-offer
+ * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
  */
 public data class DiscountOfferIOS(
     /**
@@ -2455,8 +2469,8 @@ public data class EntitlementIOS(
 
 /**
  * External offer availability result (Android)
- * @deprecated Use BillingProgramAvailabilityResultAndroid with isBillingProgramAvailableAsync instead
  * Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
+ * @deprecated Use BillingProgramAvailabilityResultAndroid with isBillingProgramAvailableAsync instead
  */
 public data class ExternalOfferAvailabilityResultAndroid(
     /**
@@ -2481,8 +2495,8 @@ public data class ExternalOfferAvailabilityResultAndroid(
 
 /**
  * External offer reporting details (Android)
- * @deprecated Use BillingProgramReportingDetailsAndroid with createBillingProgramReportingDetailsAsync instead
  * Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
+ * @deprecated Use BillingProgramReportingDetailsAndroid with createBillingProgramReportingDetailsAsync instead
  */
 public data class ExternalOfferReportingDetailsAndroid(
     /**
@@ -2985,8 +2999,8 @@ public data class ProductAndroid(
 /**
  * One-time purchase offer details (Android).
  * Available in Google Play Billing Library 8.0+
- * @deprecated Use the standardized DiscountOffer type for Android one-time offers.
  * @see https://openiap.dev/docs/types/discount-offer
+ * @deprecated Use the standardized DiscountOffer type for Android one-time offers.
  */
 public data class ProductAndroidOneTimePurchaseOfferDetail(
     /**
@@ -3172,8 +3186,7 @@ public data class ProductSubscriptionAndroid(
     /**
      * Legacy nullable compatibility field. Google Play does not populate one-time
      * purchase offer details for subscription products.
-     * @deprecated One-time offers belong to ProductAndroid.discountOffers;
-     * subscriptions use subscriptionOffers.
+     * @deprecated One-time offers belong to ProductAndroid.discountOffers; subscriptions use subscriptionOffers.
      */
     val oneTimePurchaseOfferDetailsAndroid: List<ProductAndroidOneTimePurchaseOfferDetail>? = null,
     override val platform: IapPlatform = IapPlatform.Android,
@@ -3246,8 +3259,8 @@ public data class ProductSubscriptionAndroid(
 
 /**
  * Subscription offer details (Android).
- * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
  * @see https://openiap.dev/docs/types/subscription-offer
+ * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
  */
 public data class ProductSubscriptionAndroidOfferDetails(
     val basePlanId: String,
@@ -3425,6 +3438,9 @@ public data class PurchaseAndroid(
      * Available in Google Play Billing Library 5.0+
      */
     val pendingPurchaseUpdateAndroid: PendingPurchaseUpdateAndroid? = null,
+    /**
+     * @deprecated Use store instead
+     */
     override val platform: IapPlatform,
     override val productId: String,
     override val purchaseState: PurchaseState,
@@ -3596,6 +3612,9 @@ public data class PurchaseIOS(
     val originalTransactionDateIOS: Double? = null,
     val originalTransactionIdentifierIOS: String? = null,
     val ownershipTypeIOS: String? = null,
+    /**
+     * @deprecated Use store instead
+     */
     override val platform: IapPlatform,
     override val productId: String,
     override val purchaseState: PurchaseState,
@@ -4190,8 +4209,8 @@ public data class SubscriptionOffer(
 
 /**
  * iOS subscription offer details.
- * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
  * @see https://openiap.dev/docs/types/subscription-offer
+ * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
  */
 public data class SubscriptionOfferIOS(
     val displayPrice: String,
@@ -5017,8 +5036,8 @@ public data class InitConnectionConfig(
     /**
      * Alternative billing mode for Android
      * If not specified, defaults to NONE (standard Google Play billing)
-     * @deprecated Use enableBillingProgramAndroid instead.
      * Use USER_CHOICE_BILLING for user choice billing, EXTERNAL_OFFER for alternative only.
+     * @deprecated Use enableBillingProgramAndroid instead.
      */
     val alternativeBillingModeAndroid: AlternativeBillingModeAndroid? = null,
     /**
@@ -5355,7 +5374,14 @@ public data class RequestPurchaseIosProps(
 
 public data class RequestPurchaseProps(
     val request: Request,
+    /**
+     * Explicit purchase type hint (defaults to in-app)
+     */
     val type: ProductQueryType,
+    /**
+     * This flag only logs debug info and has no effect on the purchase flow.
+     * @deprecated Use enableBillingProgramAndroid in InitConnectionConfig instead.
+     */
     val useAlternativeBilling: Boolean? = null
 ) {
     init {
@@ -5404,7 +5430,13 @@ public data class RequestPurchaseProps(
     }
 
     sealed class Request {
+        /**
+         * Per-platform purchase request props
+         */
         data class Purchase(val value: RequestPurchasePropsByPlatforms) : Request()
+        /**
+         * Per-platform subscription request props
+         */
         data class Subscription(val value: RequestSubscriptionPropsByPlatforms) : Request()
     }
 }
@@ -5487,7 +5519,7 @@ public data class RequestSubscriptionAndroidProps(
     val purchaseToken: String? = null,
     /**
      * Replacement mode for subscription changes
-     * @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+)
+     * @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+).
      */
     val replacementMode: Int? = null,
     /**
@@ -6305,10 +6337,8 @@ public interface MutationResolver {
     /**
      * Buy the currently promoted product.
      * 
-     * @deprecated Use promotedProductListenerIOS to receive the productId,
-     * then call requestPurchase with that SKU instead. In StoreKit 2,
-     * promoted products can be purchased directly via the standard purchase flow.
      * See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios
+     * @deprecated Use promotedProductListenerIOS to receive the productId, then call requestPurchase with that SKU instead. In StoreKit 2, promoted products can be purchased directly via the standard purchase flow.
      */
     suspend fun requestPurchaseOnPromotedProductIOS(): Boolean
     /**
@@ -6337,6 +6367,7 @@ public interface MutationResolver {
      * Call this after a deliberate customer interaction before linking out to external purchases.
      * Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/shownotice(type:)
      * See: https://openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios
+     * Parameter noticeType: Notice type determining the style of disclosure
      */
     suspend fun showExternalPurchaseCustomLinkNoticeIOS(noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS): ExternalPurchaseCustomLinkNoticeResultIOS
     /**
@@ -6361,6 +6392,7 @@ public interface MutationResolver {
     /**
      * Deprecated. Validate purchase receipts with the configured providers — use verifyPurchase instead.
      * See: https://openiap.dev/docs/features/validation#verify-purchase
+     * @deprecated Use verifyPurchase
      */
     suspend fun validateReceipt(options: VerifyPurchaseProps): VerifyPurchaseResult
     /**
@@ -6436,6 +6468,7 @@ public interface QueryResolver {
      * Use this token to report transactions made through ExternalPurchaseCustomLink.
      * Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)
      * See: https://openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios
+     * Parameter tokenType: Token type: acquisition (new customers) or services (existing customers)
      */
     suspend fun getExternalPurchaseCustomLinkTokenIOS(tokenType: ExternalPurchaseCustomLinkTokenTypeIOS): ExternalPurchaseCustomLinkTokenResultIOS
     /**
@@ -6464,6 +6497,7 @@ public interface QueryResolver {
      * Deprecated. Get the current App Store storefront ISO 3166-1 alpha-3 country
      * code — use cross-platform getStorefront instead.
      * See: https://openiap.dev/docs/apis/ios/get-storefront-ios
+     * @deprecated Use getStorefront
      */
     suspend fun getStorefrontIOS(): String
     /**
@@ -6506,6 +6540,7 @@ public interface QueryResolver {
     /**
      * Deprecated. Legacy App Store receipt validation — use verifyPurchase instead.
      * See: https://openiap.dev/docs/apis/ios/validate-receipt-ios
+     * @deprecated Use verifyPurchase
      */
     suspend fun validateReceiptIOS(options: VerifyPurchaseProps): VerifyPurchaseResultIOS
 }

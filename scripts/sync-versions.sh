@@ -338,35 +338,10 @@ echo ""
 echo "📦 Syncing Godot Android dependency versions..."
 ./libraries/godot-iap/scripts/sync-versions.sh
 
-# Sync generated types from packages/gql to libraries
+# Delegate generated source distribution to the GQL package. It owns every
+# source/target mapping and required per-platform post-processing.
 echo ""
-echo "📦 Syncing generated types..."
-GQL_GENERATED="packages/gql/src/generated"
+echo "📦 Syncing generated sources through packages/gql..."
+node packages/gql/scripts/sync-to-platforms.mjs
 
-# TypeScript types → react-native-iap, expo-iap
-if [ -f "$GQL_GENERATED/types.ts" ]; then
-    cp "$GQL_GENERATED/types.ts" "libraries/react-native-iap/src/types.ts"
-    echo "  ✓ libraries/react-native-iap/src/types.ts"
-    cp "$GQL_GENERATED/types.ts" "libraries/expo-iap/src/types.ts"
-    echo "  ✓ libraries/expo-iap/src/types.ts"
-fi
-
-# Dart types → flutter_inapp_purchase
-if [ -f "$GQL_GENERATED/types.dart" ]; then
-    cp "$GQL_GENERATED/types.dart" "libraries/flutter_inapp_purchase/lib/types.dart"
-    echo "  ✓ libraries/flutter_inapp_purchase/lib/types.dart"
-fi
-
-# GDScript types → godot-iap
-if [ -f "$GQL_GENERATED/types.gd" ]; then
-    cp "$GQL_GENERATED/types.gd" "libraries/godot-iap/addons/godot-iap/types.gd"
-    echo "  ✓ libraries/godot-iap/addons/godot-iap/types.gd"
-fi
-
-# C# types → maui-iap
-if [ -f "$GQL_GENERATED/Types.cs" ]; then
-    cp "$GQL_GENERATED/Types.cs" "libraries/maui-iap/src/OpenIap.Maui/Types.cs"
-    echo "  ✓ libraries/maui-iap/src/OpenIap.Maui/Types.cs"
-fi
-
-echo "✅ Version files and types synced successfully"
+echo "✅ Version files and generated sources synced successfully"

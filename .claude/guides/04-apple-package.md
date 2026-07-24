@@ -23,8 +23,6 @@ packages/apple/
 │       ├── ProductManager.swift # Thread-safe product caching
 │       └── IapStatus.swift      # UI status for SwiftUI
 ├── Tests/
-├── scripts/
-│   └── generate-types.sh        # Type generation script
 └── openiap-versions.json        # Version management
 ```
 
@@ -60,11 +58,8 @@ Types.swift is auto-generated from GraphQL schema.
 **Never edit Types.swift directly!**
 
 ```bash
-# Generate types
-./scripts/generate-types.sh
-
-# Or with specific version
-OPENIAP_GQL_VERSION=1.0.10 ./scripts/generate-types.sh
+# From the monorepo root: generate all languages and sync manifest targets
+cd packages/gql && bun run generate
 ```
 
 ## Version Management

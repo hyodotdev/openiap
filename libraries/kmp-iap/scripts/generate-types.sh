@@ -7,6 +7,7 @@ VERSIONS_FILE="$REPO_ROOT/openiap-versions.json"
 
 VERSION=$(python3 - "$VERSIONS_FILE" <<'PY'
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -21,106 +22,96 @@ except json.JSONDecodeError as exc:
     sys.exit(1)
 
 value = data.get("spec")
-if not value:
+if not isinstance(value, str) or not value.strip():
     print("Error: 'spec' version missing in openiap-versions.json", file=sys.stderr)
+    sys.exit(1)
+value = value.strip()
+if not re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z.+_-]*", value):
+    print(f"Error: invalid 'spec' version {value!r}", file=sys.stderr)
     sys.exit(1)
 
 print(value)
 PY
 )
-TAG="gql-${VERSION}"
+TAG="docs-${VERSION}"
 
-ASSET_NAME="openiap-kotlin.zip"
-DOWNLOAD_URL="https://github.com/hyodotdev/openiap/releases/download/${TAG}/${ASSET_NAME}"
+TARGET_REPOSITORY_PATH="libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt"
+DOWNLOAD_URL="https://raw.githubusercontent.com/hyodotdev/openiap/${TAG}/${TARGET_REPOSITORY_PATH}"
 TARGET_DIR="$REPO_ROOT/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap"
 TARGET_FILE="$TARGET_DIR/Types.kt"
-
-TEMP_DIR=$(mktemp -d)
-ZIP_PATH="$TEMP_DIR/$ASSET_NAME"
+HEADER_GUIDANCE="Refresh this file with the generated-types workflow documented for your checkout."
 
 cleanup() {
-  rm -rf "$TEMP_DIR"
+  if [[ -n "${TEMP_FILE:-}" && -f "$TEMP_FILE" ]]; then
+    rm -f "$TEMP_FILE"
+  fi
 }
 trap cleanup EXIT
 
-echo "⬇️  Downloading $ASSET_NAME from $DOWNLOAD_URL"
-curl -fL "$DOWNLOAD_URL" -o "$ZIP_PATH"
-
-echo "📦 Extracting Types.kt"
-unzip -qo "$ZIP_PATH" Types.kt -d "$TEMP_DIR"
-rm -f "$ZIP_PATH"
-
 mkdir -p "$TARGET_DIR"
-mv "$TEMP_DIR/Types.kt" "$TARGET_FILE"
+TEMP_FILE=$(mktemp "${TARGET_FILE}.tmp.XXXXXX")
 
-# Ensure generated file declares the correct package and fix enum syntax
-python3 - <<'PY' "$TARGET_FILE"
-import sys
+echo "⬇️  Downloading the platform-ready KMP types from $DOWNLOAD_URL"
+curl -fL "$DOWNLOAD_URL" -o "$TEMP_FILE"
+
+PACKAGE_COUNT=$(grep -c '^package ' "$TEMP_FILE" || true)
+if [[ "$PACKAGE_COUNT" -ne 1 ]] ||
+  ! grep -qx 'package io.github.hyochan.kmpiap.openiap' "$TEMP_FILE"; then
+  echo "Error: downloaded KMP types have an unexpected package declaration" >&2
+  exit 1
+fi
+if ! grep -q 'AUTO-GENERATED TYPES — DO NOT EDIT DIRECTLY' "$TEMP_FILE"; then
+  echo "Error: downloaded KMP types are missing the canonical generated header" >&2
+  exit 1
+fi
+if ! grep -q '^public data class ProductRequest(' "$TEMP_FILE" ||
+  [[ -n "$(tail -c 1 "$TEMP_FILE")" ]]; then
+  echo "Error: downloaded file is not the expected generated KMP target" >&2
+  exit 1
+fi
+
+python3 - "$TEMP_FILE" "//" "$HEADER_GUIDANCE" <<'PY'
 import re
+import sys
+from pathlib import Path
 
-path = sys.argv[1]
-package_line = "package io.github.hyochan.kmpiap.openiap\n"
-
-with open(path, "r", encoding="utf-8") as f:
-    content = f.read()
-
-# Fix package declaration
-lines = content.split('\n')
-pkg_idx = next((i for i, l in enumerate(lines) if l.strip().startswith("package ")), None)
-if pkg_idx is not None:
-    lines[pkg_idx] = package_line.strip()
-else:
-    insert_index = next((i + 1 for i, l in enumerate(lines) if l.startswith("@file:Suppress")), 0)
-    lines.insert(insert_index, "")
-    lines.insert(insert_index + 1, package_line.strip())
-    lines.insert(insert_index + 2, "")
-
-content = '\n'.join(lines)
-
-# Fix enum classes: add semicolon after last enum entry before companion object
-# Match enum entry ending with ) followed by newline and companion object
-content = re.sub(
-    r'("[^"]+"\))([,]?)\s*\n(\s+companion object)',
-    r'\1;\n\3',
-    content
-)
-
-# Step 1: Remove 'override' from interface properties
-content = re.sub(
-    r'(public interface (?:ProductCommon|PurchaseCommon)\s*\{[^}]*?)(\s+override )(val )',
-    r'\1\3',
-    content,
-    flags=re.DOTALL
-)
-
-# Step 2: Add 'override' to implementing class properties
-# Find all data classes that implement ProductCommon or PurchaseCommon and add override to matching properties
-
-# Properties that need override
-product_props = r'(currency|debugDescription|description|displayName|displayPrice|id|platform|price|title|type)'
-purchase_props = r'(currentPlanId|id|ids|isAutoRenewing|productId|purchaseState|purchaseToken|quantity|transactionDate)'
-
-# Pattern to match data class declarations with ProductCommon or PurchaseCommon
-# and add override to properties in the constructor
-def add_override_to_class(match):
-    class_content = match.group(0)
-
-    # Add override to product properties
-    class_content = re.sub(
-        rf'(\n\s+)(val|var) ({product_props}|{purchase_props}):',
-        r'\1override \2 \3:',
-        class_content
+path = Path(sys.argv[1])
+prefix = sys.argv[2]
+guidance = sys.argv[3]
+lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+separator = f"{prefix} " + "=" * 76
+header = f"{prefix} AUTO-GENERATED TYPES — DO NOT EDIT DIRECTLY"
+expected = f"{prefix} {guidance}"
+plain_lines = [line.rstrip("\r\n") for line in lines]
+if len(lines) < 4 or plain_lines[0] != separator or plain_lines[1] != header:
+    print("Error: downloaded file has an unexpected generated header.", file=sys.stderr)
+    sys.exit(1)
+try:
+    closing_index = plain_lines.index(separator, 2)
+except ValueError:
+    print("Error: downloaded file has an unterminated generated header.", file=sys.stderr)
+    sys.exit(1)
+candidates = [
+    index
+    for index in range(2, closing_index)
+    if plain_lines[index] == expected
+    or re.fullmatch(
+        re.escape(prefix) + r" Run `[^`\r\n]+`[^\r\n]*\.",
+        plain_lines[index],
     )
-
-    return class_content
-
-# Match data classes that implement ProductCommon or PurchaseCommon
-pattern = r'public data class \w+\([^)]*?\)\s*:\s*(?:[^{]*?(?:ProductCommon|PurchaseCommon)[^{]*?)\{'
-
-content = re.sub(pattern, add_override_to_class, content, flags=re.DOTALL)
-
-with open(path, "w", encoding="utf-8") as f:
-    f.write(content)
+]
+if len(candidates) != 1:
+    print("Error: downloaded file has unexpected generated guidance.", file=sys.stderr)
+    sys.exit(1)
+guidance_index = candidates[0]
+if plain_lines[guidance_index] != expected:
+    ending = "\r\n" if lines[guidance_index].endswith("\r\n") else "\n"
+    lines[guidance_index] = expected + ending
+    path.write_text("".join(lines), encoding="utf-8")
 PY
 
-echo "✅ Types.kt has been updated at $TARGET_FILE"
+chmod 0644 "$TEMP_FILE"
+mv -f "$TEMP_FILE" "$TARGET_FILE"
+TEMP_FILE=""
+
+echo "✅ Types.kt has been updated at $TARGET_FILE from tag $TAG"

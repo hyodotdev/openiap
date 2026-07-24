@@ -13,10 +13,10 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: Verify generated types are not changed
+    - name: Verify generated types are present
       run: |
-        ./scripts/generate-types.sh
-        git diff --exit-code Sources/Models/Types.swift
+        test -s Sources/Models/Types.swift
+        grep -Fq 'AUTO-GENERATED TYPES — DO NOT EDIT DIRECTLY' Sources/Models/Types.swift
 
     - name: Select Xcode
       run: |

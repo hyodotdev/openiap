@@ -1,22 +1,23 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "fs";
 import * as path from "path";
+import { CONTEXT_OUTPUTS, CONTEXT_SOURCES } from "../context-files.js";
 
 const projectRoot = path.resolve(import.meta.dir, "../../..");
 const quickReference = fs.readFileSync(
-  path.join(projectRoot, "packages/docs/public/llms.txt"),
+  path.join(projectRoot, CONTEXT_OUTPUTS.llmsQuick),
   "utf-8",
 );
 const fullReference = fs.readFileSync(
-  path.join(projectRoot, "packages/docs/public/llms-full.txt"),
+  path.join(projectRoot, CONTEXT_OUTPUTS.llmsFull),
   "utf-8",
 );
 const kitQuickReference = fs.readFileSync(
-  path.join(projectRoot, "packages/kit/public/llms.txt"),
+  path.join(projectRoot, CONTEXT_SOURCES.kitQuickReference),
   "utf-8",
 );
 const compiledContext = fs.readFileSync(
-  path.join(projectRoot, "knowledge/_claude-context/context.md"),
+  path.join(projectRoot, CONTEXT_OUTPUTS.context),
   "utf-8",
 );
 
@@ -43,6 +44,9 @@ describe("generated LLM references", () => {
       "type PurchaseState = 'pending' | 'purchased' | 'unknown';",
     );
     expect(quickReference).not.toContain("'restored'");
+    expect(quickReference).toContain(
+      "openRedeemOfferCodeAndroid() - Open Play offer-code redemption page",
+    );
   });
 
   test("uses canonical platform keys and excludes legacy API references", () => {

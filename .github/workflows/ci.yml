@@ -68,8 +68,6 @@ jobs:
       ios: ${{ steps.filter.outputs.ios }}
       docs: ${{ steps.filter.outputs.docs }}
       web: ${{ steps.filter.outputs.web }}
-      agent: ${{ steps.filter.outputs.agent }}
-      parity: ${{ steps.filter.outputs.parity }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -82,6 +80,8 @@ jobs:
             gql:
               - 'packages/gql/**'
               - 'scripts/**'
+              - 'package.json'
+              - 'bun.lock'
               - 'openiap-versions.json'
               - '.github/workflows/ci.yml'
               - 'libraries/maui-iap/src/OpenIap.Maui/Types.cs'
@@ -99,6 +99,8 @@ jobs:
               - '.github/workflows/ci.yml'
             docs:
               - 'packages/docs/**'
+              - 'packages/gql/src/generated/**'
+              - 'packages/gql/generated-sync-manifest.mjs'
               - 'scripts/audit-docs.ts'
               - 'scripts/audit-docs.test.ts'
               - '.github/workflows/ci.yml'
@@ -109,26 +111,9 @@ jobs:
               - 'package.json'
               - 'bun.lock'
               - '.github/workflows/ci.yml'
-            agent:
-              - 'scripts/agent/**'
-              - 'packages/kit/public/llms.txt'
-              - 'packages/docs/public/llms*.txt'
-              - '.github/workflows/ci.yml'
-            parity:
-              - 'libraries/**'
-              - 'packages/apple/**'
-              - 'packages/google/**'
-              - 'packages/gql/**'
-              - 'scripts/audit-non-godot-parity.mjs'
-              - 'package.json'
-              - 'knowledge/internal/04-platform-packages.md'
-              - '.github/workflows/ci.yml'
-
   audit-parity:
     name: Audit SDK Parity
     runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.parity == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -138,8 +123,14 @@ jobs:
         with:
           node-version: 20
 
+      - name: Test clean-worktree drift guard
+        run: node --test scripts/assert-clean-worktree.test.mjs
+
       - name: Sync generated version files
         run: ./scripts/sync-versions.sh
+
+      - name: Verify version and generated synchronization is committed
+        run: node scripts/assert-clean-worktree.mjs
 
       - name: Run non-Godot SDK parity audit
         run: node scripts/audit-non-godot-parity.mjs
@@ -172,43 +163,16 @@ jobs:
         working-directory: packages/gql
         run: bun run generate
 
-      - name: Verify generated files
-        working-directory: packages/gql
-        run: |
-          test -f src/generated/types.ts || exit 1
-          test -f src/generated/Types.kt || exit 1
-          test -f src/generated/Types.swift || exit 1
-          test -f src/generated/types.dart || exit 1
-          test -f src/generated/types.gd || exit 1
-          test -f src/generated/Types.cs || exit 1
-
       - name: Run tests
         working-directory: packages/gql
         run: bun run test
 
       - name: Verify generated types are committed (no drift)
-        run: |
-          # `bun run generate` is expected to be idempotent: running it
-          # against the checked-in schema must produce the same bytes
-          # as the files checked into the repo. If this step fails,
-          # somebody changed a codegen plugin or the schema without
-          # re-running `bun run generate` + committing the output.
-          #
-          # Use `git status --porcelain` (plus `git diff`) so newly-
-          # generated but untracked files also fail the check — a
-          # plain `git diff` would silently pass if the generator
-          # starts emitting a new target file.
-          status="$(git status --porcelain)"
-          if [ -n "$status" ] || ! git diff --exit-code; then
-            echo ""
-            echo "::error::Generated types differ from checked-in copies."
-            echo "Run 'cd packages/gql && bun run generate' locally and commit the result."
-            echo ""
-            echo "Untracked or modified paths:"
-            printf '%s\n' "$status"
-            exit 1
-          fi
+        run: node scripts/assert-clean-worktree.mjs
 
+  # test-gql owns regeneration, platform sync, and the clean-worktree drift
+  # check. Consumer jobs compile the committed copies instead of invoking a
+  # second generator path.
   test-android:
     name: Test Android
     runs-on: ubuntu-latest
@@ -223,25 +187,6 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.13
-
-      - name: Install dependencies
-        run: |
-          # Retry bun install up to 3 times to handle transient registry errors
-          for i in 1 2 3; do
-            bun install --frozen-lockfile && break
-            [ $i -eq 3 ] && exit 1
-            echo "Attempt $i failed. Retrying..."
-            sleep 5
-          done
-
-      - name: Generate types
-        working-directory: packages/google
-        run: bun run generate:types
 
       - name: Grant execute permission
         working-directory: packages/google
@@ -276,25 +221,6 @@ jobs:
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: ${{ env.XCODE_VERSION }}
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.13
-
-      - name: Install dependencies
-        run: |
-          # Retry bun install up to 3 times to handle transient registry errors
-          for i in 1 2 3; do
-            bun install --frozen-lockfile && break
-            [ $i -eq 3 ] && exit 1
-            echo "Attempt $i failed. Retrying..."
-            sleep 5
-          done
-
-      - name: Generate types
-        working-directory: packages/apple
-        run: bun run generate:types
 
       - name: Build
         working-directory: packages/apple
@@ -416,8 +342,6 @@ jobs:
   test-agent:
     name: Test Agent Scripts
     runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.agent == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -445,3 +369,10 @@ jobs:
       - name: Run tests
         working-directory: scripts/agent
         run: bun test
+
+      - name: Compile generated agent context
+        working-directory: scripts/agent
+        run: bun run compile:ai
+
+      - name: Verify compiled agent context is committed
+        run: node scripts/assert-clean-worktree.mjs

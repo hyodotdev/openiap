@@ -27,7 +27,6 @@ set -euo pipefail
 
 # Regenerate the schema SSOT, run codegen tests, and sync every wrapper first.
 (cd packages/gql && bun run generate && bun run test)
-bash scripts/sync-versions.sh
 
 # Docs formatting, typecheck, and production bundle
 (cd packages/docs && bun run format:check && bun run build)
@@ -193,33 +192,17 @@ git diff --check
 
 ### 2. Type Consistency
 
-Verify `DuplicatePurchase` (and any new ErrorCode) exists in ALL generated types:
+Verify the manifest-owned generated graph and cross-SDK contracts:
 
 ```bash
 set -euo pipefail
 
-missing=0
-for f in packages/gql/src/generated/types.ts \
-         libraries/react-native-iap/src/types.ts \
-         libraries/expo-iap/src/types.ts \
-         libraries/flutter_inapp_purchase/lib/types.dart \
-         libraries/godot-iap/addons/godot-iap/types.gd \
-         packages/apple/Sources/Models/Types.swift \
-         packages/google/openiap/src/main/java/dev/hyo/openiap/Types.kt \
-         libraries/maui-iap/src/OpenIap.Maui/Types.cs; do
-  expected='DuplicatePurchase'
-  if [[ "$f" = *.gd ]]; then
-    expected='DUPLICATE_PURCHASE'
-  fi
-  if grep -q "$expected" "$f"; then
-    echo "$f: OK"
-  else
-    echo "$f: MISSING" >&2
-    missing=1
-  fi
-done
-exit "$missing"
+(cd packages/gql && bun run test)
+bun run audit:parity
 ```
+
+The GQL suite derives source/target paths from
+`packages/gql/generated-sync-manifest.mjs`; do not add a hard-coded file loop.
 
 Also verify `COMMON_ERROR_CODE_MAP` in react-native-iap and expo-iap includes all ErrorCode entries:
 
@@ -334,7 +317,6 @@ the complete platform matrix in step 1.
 set -euo pipefail
 
 (cd packages/gql && bun run generate && bun run test)
-bash scripts/sync-versions.sh
 (cd packages/docs && bun run format:check && bun run build)
 (cd packages/apple && swift test)
 (cd packages/google && ./gradlew \

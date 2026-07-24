@@ -7,13 +7,11 @@
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  buildASTSchema,
-  parse,
-  type DocumentNode,
-  type GraphQLSchema,
-} from 'graphql';
-import type { SchemaMarkers } from './types.js';
+import { buildASTSchema, Kind, parse, type DocumentNode, type GraphQLSchema } from 'graphql';
+import type { SchemaDeprecations, SchemaMarkers } from './types.js';
+import { SCHEMA_FILE_NAMES } from '../../schema-files.mjs';
+import { extractSchemaMarkers } from '../../schema-markers.mjs';
+import { extractSchemaDeprecations } from '../../schema-deprecations.mjs';
 
 // ============================================================================
 // Configuration
@@ -23,18 +21,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 /** Default schema paths relative to the gql package */
-const DEFAULT_SCHEMA_PATHS = [
-  '../src/schema.graphql',
-  '../src/type.graphql',
-  '../src/type-ios.graphql',
-  '../src/type-android.graphql',
-  '../src/api.graphql',
-  '../src/api-ios.graphql',
-  '../src/api-android.graphql',
-  '../src/error.graphql',
-  '../src/event.graphql',
-  '../src/webhook.graphql',
-];
+const DEFAULT_SCHEMA_PATHS = SCHEMA_FILE_NAMES.map((fileName) => `../src/${fileName}`);
 
 // ============================================================================
 // Parser Interface
@@ -45,6 +32,8 @@ export interface ParsedSchema {
   schema: GraphQLSchema;
   /** Markers extracted from SDL comments */
   markers: SchemaMarkers;
+  /** Canonical deprecation metadata extracted from SDL directives */
+  deprecations: SchemaDeprecations;
   /** Raw SDL content for each file */
   sdlContents: Map<string, string>;
 }
@@ -68,9 +57,7 @@ export class SchemaParser {
     // Default base directory is the gql/scripts folder
     this.baseDir = config.baseDir ?? resolve(__dirname, '../../scripts');
 
-    this.schemaPaths = (config.schemaPaths ?? DEFAULT_SCHEMA_PATHS).map(
-      (relativePath) => resolve(this.baseDir, relativePath)
-    );
+    this.schemaPaths = (config.schemaPaths ?? DEFAULT_SCHEMA_PATHS).map((relativePath) => resolve(this.baseDir, relativePath));
   }
 
   /**
@@ -87,88 +74,25 @@ export class SchemaParser {
 
     // Build combined document
     const documentNode: DocumentNode = {
-      kind: 'Document',
+      kind: Kind.DOCUMENT,
       definitions: this.schemaPaths.flatMap((schemaPath) => {
         const sdl = sdlContents.get(schemaPath)!;
         return parse(sdl).definitions;
       }),
     };
 
-    // Build schema
-    const schema = buildASTSchema(documentNode, { assumeValidSDL: true });
+    // Validate directive locations and SDL ownership while building. OpenIAP's
+    // nested-union codegen extension is validated separately by exact tests.
+    const schema = buildASTSchema(documentNode);
 
-    // Extract markers from SDL comments
-    const markers = this.extractMarkers(sdlContents);
+    const sources = [...sdlContents].map(([sourceId, sdl]) => ({
+      sourceId,
+      sdl,
+    }));
+    const markers = extractSchemaMarkers(sources);
+    const deprecations = extractSchemaDeprecations(sources);
 
-    return { schema, markers, sdlContents };
-  }
-
-  /**
-   * Extract markers from SDL comments
-   *
-   * Supported markers:
-   * - `# => Union` - Marks the following type as a union wrapper
-   * - `# Future` - Marks the following field as async (wrap in Promise)
-   */
-  private extractMarkers(sdlContents: Map<string, string>): SchemaMarkers {
-    const unionWrappers = new Set<string>();
-    const futureFields = new Set<string>();
-
-    for (const sdl of sdlContents.values()) {
-      const lines = sdl.split(/\r?\n/);
-      let expectUnionType = false;
-      let expectFutureField = false;
-      let currentTypeName: string | null = null;
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-
-        // Track current type context
-        const typeMatch = trimmed.match(/^(?:extend\s+)?type\s+([A-Za-z0-9_]+)/);
-        if (typeMatch) {
-          currentTypeName = typeMatch[1];
-          if (expectUnionType) {
-            unionWrappers.add(currentTypeName);
-            expectUnionType = false;
-          }
-          continue;
-        }
-
-        // Check for # => Union marker
-        if (trimmed.startsWith('#') && trimmed.toLowerCase().includes('=> union')) {
-          expectUnionType = true;
-          continue;
-        }
-
-        // Check for # Future marker (strict matching to avoid false positives)
-        if (/^#\s*future\b/i.test(trimmed)) {
-          expectFutureField = true;
-          continue;
-        }
-
-        // Handle field after # Future marker
-        if (expectFutureField && currentTypeName) {
-          const fieldMatch = trimmed.match(/^([A-Za-z0-9_]+)\s*[:(]/);
-          if (fieldMatch) {
-            futureFields.add(`${currentTypeName}.${fieldMatch[1]}`);
-            expectFutureField = false;
-          }
-          // Skip empty lines and comments while waiting for field
-          if (trimmed.length === 0 || trimmed.startsWith('#')) {
-            continue;
-          }
-          // Reset if we hit something unexpected
-          expectFutureField = false;
-        }
-
-        // Reset union expectation if we hit non-empty, non-comment, non-type line
-        if (expectUnionType && trimmed.length > 0 && !trimmed.startsWith('#')) {
-          expectUnionType = false;
-        }
-      }
-    }
-
-    return { unionWrappers, futureFields };
+    return { deprecations, markers, schema, sdlContents };
   }
 
   /**

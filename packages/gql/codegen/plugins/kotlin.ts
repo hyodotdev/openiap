@@ -5,6 +5,7 @@
  */
 
 import { CodegenPlugin, type CodegenPluginConfig } from './base-plugin.js';
+import { generatedFileHeader } from '../core/generated-header.js';
 import type {
   IRSchema,
   IREnum,
@@ -20,11 +21,10 @@ import type {
 import {
   KOTLIN_KEYWORDS,
   GRAPHQL_TO_KOTLIN,
+  requireGraphQLScalarMapping,
   toPascalCase,
-  toKebabCase,
   toConstantCase,
   capitalize,
-  PLATFORM_TYPE_DEFAULTS,
 } from '../core/utils.js';
 
 interface CompatibleDataClassShape {
@@ -34,16 +34,7 @@ interface CompatibleDataClassShape {
 
 const COMPATIBLE_DATA_CLASS_SHAPES: Record<string, CompatibleDataClassShape> = {
   PurchaseError: {
-    primaryFields: [
-      'code',
-      'debugMessage',
-      'isEmptyProductList',
-      'message',
-      'productId',
-      'productIds',
-      'productType',
-      'responseCode',
-    ],
+    primaryFields: ['code', 'debugMessage', 'isEmptyProductList', 'message', 'productId', 'productIds', 'productType', 'responseCode'],
     extraFields: ['subResponseCodeAndroid'],
   },
   UserChoiceBillingDetails: {
@@ -79,7 +70,7 @@ export class KotlinPlugin extends CodegenPlugin {
   // ============================================================================
 
   mapScalar(name: string): string {
-    return GRAPHQL_TO_KOTLIN[name] ?? 'String';
+    return requireGraphQLScalarMapping(GRAPHQL_TO_KOTLIN, name, 'Kotlin');
   }
 
   mapType(type: IRType): string {
@@ -183,10 +174,7 @@ export class KotlinPlugin extends CodegenPlugin {
   }
 
   generateHeader(): void {
-    this.emit('// ============================================================================');
-    this.emit('// AUTO-GENERATED TYPES — DO NOT EDIT DIRECTLY');
-    this.emit('// Run `bun run generate` after updating any *.graphql schema file.');
-    this.emit('// ============================================================================');
+    for (const line of generatedFileHeader()) this.emit(line);
     this.emit('');
     this.emit('// Suppress unchecked cast warnings for JSON Map parsing - unavoidable due to Kotlin type erasure');
     this.emit('@file:Suppress("UNCHECKED_CAST")');
@@ -264,6 +252,7 @@ export class KotlinPlugin extends CodegenPlugin {
   generateObject(irObject: IRObject): void {
     // Handle VoidResult
     if (irObject.name === 'VoidResult') {
+      this.generateDocComment(irObject.description);
       this.emit('public typealias VoidResult = Unit');
       this.emit('');
       return;
@@ -302,7 +291,7 @@ export class KotlinPlugin extends CodegenPlugin {
       const suffix = index === sortedFields.length - 1 ? '' : ',';
       const overrideKeyword = field.isOverride ? 'override ' : '';
 
-      const defaultValue = this.getObjectFieldDefault(irObject.name, field);
+      const defaultValue = this.getObjectFieldDefault(field);
 
       this.emit(`    ${overrideKeyword}val ${propertyName}: ${propertyType}${defaultValue}${suffix}`);
     });
@@ -346,10 +335,7 @@ export class KotlinPlugin extends CodegenPlugin {
   }
 
   /** Preserve published data-class JVM descriptors for additive fields. */
-  private generateCompatibleDataClass(
-    irObject: IRObject,
-    shape: CompatibleDataClassShape
-  ): void {
+  private generateCompatibleDataClass(irObject: IRObject, shape: CompatibleDataClassShape): void {
     const field = (name: string): IRField => {
       const value = irObject.fields.find((candidate) => candidate.name === name);
       if (!value) throw new Error(`${irObject.name} is missing ${name}`);
@@ -369,7 +355,7 @@ export class KotlinPlugin extends CodegenPlugin {
     primaryFields.forEach((value, index) => {
       this.generateDocComment(value.description, '    ');
       const suffix = index === primaryFields.length - 1 ? '' : ',';
-      const defaultValue = this.getObjectFieldDefault(irObject.name, value);
+      const defaultValue = this.getObjectFieldDefault(value);
       this.emit(`    val ${value.name}: ${this.getPropertyType(value.type)}${defaultValue}${suffix}`);
     });
     this.emit(') {');
@@ -384,7 +370,7 @@ export class KotlinPlugin extends CodegenPlugin {
 
     this.emit('    constructor(');
     for (const value of primaryFields) {
-      const defaultValue = this.getObjectFieldDefault(irObject.name, value);
+      const defaultValue = this.getObjectFieldDefault(value);
       this.emit(`        ${value.name}: ${this.getPropertyType(value.type)}${defaultValue},`);
     }
     extraFields.forEach((value, index) => {
@@ -424,14 +410,9 @@ export class KotlinPlugin extends CodegenPlugin {
     this.emit('');
   }
 
-  private getObjectFieldDefault(objectName: string, field: IRField): string {
-    const defaults = PLATFORM_TYPE_DEFAULTS[objectName];
-    if (defaults && field.name === 'platform') {
-      return ` = IapPlatform.${toPascalCase(defaults.platform)}`;
-    }
-    if (defaults && field.name === 'type') {
-      return ` = ProductType.${toPascalCase(defaults.type)}`;
-    }
+  private getObjectFieldDefault(field: IRField): string {
+    const schemaDefault = this.buildDefaultValueExpression(field);
+    if (schemaDefault) return ` = ${schemaDefault}`;
     return field.type.nullable ? ' = null' : '';
   }
 
@@ -441,10 +422,9 @@ export class KotlinPlugin extends CodegenPlugin {
     this.emit('');
 
     // Sort entries alphabetically
-    const sortedEntries = [...irObject.resultUnionEntries!].sort((a, b) =>
-      a.fieldName.localeCompare(b.fieldName)
-    );
+    const sortedEntries = [...irObject.resultUnionEntries!].sort((a, b) => a.fieldName.localeCompare(b.fieldName));
     for (const entry of sortedEntries) {
+      this.generateDocComment(entry.description);
       const className = `${irObject.name}${capitalize(entry.fieldName)}`;
       const propertyType = this.getPropertyType(entry.type);
       this.emit(`public data class ${className}(val value: ${propertyType}) : ${irObject.name}`);
@@ -501,19 +481,15 @@ export class KotlinPlugin extends CodegenPlugin {
           `json["${field.name}"]`,
           false,
           true,
-          this.buildDefaultValueExpression(field)
+          this.buildDefaultValueExpression(field),
         );
         this.emit(`            val ${propertyName} = ${expression}`);
       }
 
       // Null check for required fields (excluding enums which have fallbacks)
-      const requiredFields = sortedFields.filter(
-        (f) => !f.type.nullable && !this.hasSchemaDefault(f) && f.type.kind !== 'enum'
-      );
+      const requiredFields = sortedFields.filter((f) => !f.type.nullable && !this.hasSchemaDefault(f) && f.type.kind !== 'enum');
       if (requiredFields.length > 0) {
-        const nullChecks = requiredFields
-          .map((f) => `${this.escapeKeyword(this.fieldNameCase(f.name))} == null`)
-          .join(' || ');
+        const nullChecks = requiredFields.map((f) => `${this.escapeKeyword(this.fieldNameCase(f.name))} == null`).join(' || ');
         this.emit(`            if (${nullChecks}) return null`);
       }
 
@@ -535,7 +511,7 @@ export class KotlinPlugin extends CodegenPlugin {
           `json["${field.name}"]`,
           false,
           false,
-          this.buildDefaultValueExpression(field)
+          this.buildDefaultValueExpression(field),
         );
         this.emit(`                ${propertyName} = ${expression},`);
       }
@@ -559,10 +535,7 @@ export class KotlinPlugin extends CodegenPlugin {
   }
 
   /** Preserve published input data-class JVM descriptors for additive fields. */
-  private generateCompatibleInputDataClass(
-    irInput: IRInput,
-    shape: CompatibleDataClassShape
-  ): void {
+  private generateCompatibleInputDataClass(irInput: IRInput, shape: CompatibleDataClassShape): void {
     const field = (name: string): IRField => {
       const value = irInput.fields.find((candidate) => candidate.name === name);
       if (!value) throw new Error(`${irInput.name} is missing ${name}`);
@@ -588,9 +561,7 @@ export class KotlinPlugin extends CodegenPlugin {
     primaryFields.forEach((value, index) => {
       this.generateDocComment(value.description, '    ');
       const suffix = index === primaryFields.length - 1 ? '' : ',';
-      this.emit(
-        `    val ${value.name}: ${this.getPropertyType(value.type)}${defaultValue(value)}${suffix}`
-      );
+      this.emit(`    val ${value.name}: ${this.getPropertyType(value.type)}${defaultValue(value)}${suffix}`);
     });
     this.emit(') {');
     this.emit('');
@@ -604,15 +575,11 @@ export class KotlinPlugin extends CodegenPlugin {
 
     this.emit('    constructor(');
     for (const value of primaryFields) {
-      this.emit(
-        `        ${value.name}: ${this.getPropertyType(value.type)}${defaultValue(value)},`
-      );
+      this.emit(`        ${value.name}: ${this.getPropertyType(value.type)}${defaultValue(value)},`);
     }
     extraFields.forEach((value, index) => {
       const extraDefault = index === 0 ? '' : ' = null';
-      this.emit(
-        `        ${value.name}: ${this.getPropertyType(value.type)}${extraDefault},`
-      );
+      this.emit(`        ${value.name}: ${this.getPropertyType(value.type)}${extraDefault},`);
     });
     this.emit('    ) : this(');
     for (const value of primaryFields) {
@@ -634,7 +601,7 @@ export class KotlinPlugin extends CodegenPlugin {
         `json["${value.name}"]`,
         false,
         false,
-        this.buildDefaultValueExpression(value)
+        this.buildDefaultValueExpression(value),
       );
       this.emit(`                ${value.name} = ${expression},`);
     }
@@ -667,7 +634,7 @@ export class KotlinPlugin extends CodegenPlugin {
         this.generateStandardInput(irInput);
         break;
       default:
-        this.generateStandardInput(irInput);
+        throw new Error(`${irInput.name} is marked as a custom input without a Kotlin generator strategy.`);
     }
   }
 
@@ -701,19 +668,15 @@ export class KotlinPlugin extends CodegenPlugin {
           `json["${field.name}"]`,
           false,
           true,
-          this.buildDefaultValueExpression(field)
+          this.buildDefaultValueExpression(field),
         );
         this.emit(`            val ${propertyName} = ${expression}`);
       }
 
       // Null check for required fields (excluding enums which have fallbacks)
-      const requiredFields = irInput.fields.filter(
-        (f) => !f.type.nullable && !this.hasSchemaDefault(f) && f.type.kind !== 'enum'
-      );
+      const requiredFields = irInput.fields.filter((f) => !f.type.nullable && !this.hasSchemaDefault(f) && f.type.kind !== 'enum');
       if (requiredFields.length > 0) {
-        const nullChecks = requiredFields
-          .map((f) => `${this.escapeKeyword(this.fieldNameCase(f.name))} == null`)
-          .join(' || ');
+        const nullChecks = requiredFields.map((f) => `${this.escapeKeyword(this.fieldNameCase(f.name))} == null`).join(' || ');
         this.emit(`            if (${nullChecks}) return null`);
       }
 
@@ -735,7 +698,7 @@ export class KotlinPlugin extends CodegenPlugin {
           `json["${field.name}"]`,
           false,
           false,
-          this.buildDefaultValueExpression(field)
+          this.buildDefaultValueExpression(field),
         );
         this.emit(`                ${propertyName} = ${expression},`);
       }
@@ -759,16 +722,23 @@ export class KotlinPlugin extends CodegenPlugin {
   }
 
   private generateRequestPurchaseProps(irInput: IRInput): void {
+    const [requestPurchase, requestSubscription, type, useAlternativeBilling] = this.requireCustomInputFields(irInput);
     this.generateDocComment(irInput.description);
     this.emit('public data class RequestPurchaseProps(');
     this.emit('    val request: Request,');
+    this.generateDocComment(type.description, '    ');
     this.emit('    val type: ProductQueryType,');
+    this.generateDocComment(useAlternativeBilling.description, '    ');
     this.emit('    val useAlternativeBilling: Boolean? = null');
     this.emit(') {');
     this.emit('    init {');
     this.emit('        when (request) {');
-    this.emit('            is Request.Purchase -> require(type == ProductQueryType.InApp) { "type must be IN_APP when request is purchase" }');
-    this.emit('            is Request.Subscription -> require(type == ProductQueryType.Subs) { "type must be SUBS when request is subscription" }');
+    this.emit(
+      '            is Request.Purchase -> require(type == ProductQueryType.InApp) { "type must be IN_APP when request is purchase" }',
+    );
+    this.emit(
+      '            is Request.Subscription -> require(type == ProductQueryType.Subs) { "type must be SUBS when request is subscription" }',
+    );
     this.emit('        }');
     this.emit('    }');
     this.emit('');
@@ -785,13 +755,17 @@ export class KotlinPlugin extends CodegenPlugin {
     this.emit('                val request = Request.Purchase(RequestPurchasePropsByPlatforms.fromJson(purchaseJson))');
     this.emit('                val finalType = rawType ?: ProductQueryType.InApp');
     this.emit('                require(finalType == ProductQueryType.InApp) { "type must be IN_APP when requestPurchase is provided" }');
-    this.emit('                return RequestPurchaseProps(request = request, type = finalType, useAlternativeBilling = useAlternativeBilling)');
+    this.emit(
+      '                return RequestPurchaseProps(request = request, type = finalType, useAlternativeBilling = useAlternativeBilling)',
+    );
     this.emit('            }');
     this.emit('            if (subscriptionJson != null) {');
     this.emit('                val request = Request.Subscription(RequestSubscriptionPropsByPlatforms.fromJson(subscriptionJson))');
     this.emit('                val finalType = rawType ?: ProductQueryType.Subs');
     this.emit('                require(finalType == ProductQueryType.Subs) { "type must be SUBS when requestSubscription is provided" }');
-    this.emit('                return RequestPurchaseProps(request = request, type = finalType, useAlternativeBilling = useAlternativeBilling)');
+    this.emit(
+      '                return RequestPurchaseProps(request = request, type = finalType, useAlternativeBilling = useAlternativeBilling)',
+    );
     this.emit('            }');
     this.emit('            error("RequestPurchaseProps branch validation failed")');
     this.emit('        }');
@@ -811,7 +785,9 @@ export class KotlinPlugin extends CodegenPlugin {
     this.emit('    }');
     this.emit('');
     this.emit('    sealed class Request {');
+    this.generateDocComment(requestPurchase.description, '        ');
     this.emit('        data class Purchase(val value: RequestPurchasePropsByPlatforms) : Request()');
+    this.generateDocComment(requestSubscription.description, '        ');
     this.emit('        data class Subscription(val value: RequestSubscriptionPropsByPlatforms) : Request()');
     this.emit('    }');
     this.emit('}');
@@ -825,9 +801,7 @@ export class KotlinPlugin extends CodegenPlugin {
   generateUnion(irUnion: IRUnion): void {
     this.generateDocComment(irUnion.description);
 
-    const implementations = irUnion.sharedInterfaces.length > 0
-      ? ` : ${irUnion.sharedInterfaces.join(', ')}`
-      : '';
+    const implementations = irUnion.sharedInterfaces.length > 0 ? ` : ${irUnion.sharedInterfaces.join(', ')}` : '';
     this.emit(`public sealed interface ${irUnion.name}${implementations} {`);
     this.emit('    fun toJson(): Map<String, Any?>');
     this.emit('');
@@ -837,7 +811,11 @@ export class KotlinPlugin extends CodegenPlugin {
 
     // Collect all concrete members and their delegate targets
     const nestedUnions = new Set<string>();
-    const concreteMembers: Array<{ name: string; delegateTo: string; isNested: boolean }> = [];
+    const concreteMembers: Array<{
+      name: string;
+      delegateTo: string;
+      isNested: boolean;
+    }> = [];
 
     for (const member of irUnion.members) {
       if (member.isNestedUnion) {
@@ -907,12 +885,10 @@ export class KotlinPlugin extends CodegenPlugin {
     this.emit(`public interface ${interfaceName} {`);
 
     // Sort fields alphabetically and filter _placeholder
-    const sortedFields = irOperation.fields
-      .filter((f) => f.name !== '_placeholder')
-      .sort((a, b) => a.name.localeCompare(b.name));
+    const sortedFields = irOperation.fields.filter((f) => f.name !== '_placeholder').sort((a, b) => a.name.localeCompare(b.name));
 
     for (const field of sortedFields) {
-      this.generateDocComment(field.description, '    ');
+      this.generateDocComment(this.operationFieldDescription(field), '    ');
       const returnType = this.getOperationReturnType(field);
 
       const args = field.args.map((arg) => {
@@ -932,9 +908,7 @@ export class KotlinPlugin extends CodegenPlugin {
 
   private generateOperationHelpers(irOperation: IROperation): void {
     // Sort fields alphabetically and filter _placeholder
-    const sortedFields = irOperation.fields
-      .filter((f) => f.name !== '_placeholder')
-      .sort((a, b) => a.name.localeCompare(b.name));
+    const sortedFields = irOperation.fields.filter((f) => f.name !== '_placeholder').sort((a, b) => a.name.localeCompare(b.name));
 
     if (sortedFields.length === 0) return;
 
@@ -984,7 +958,7 @@ export class KotlinPlugin extends CodegenPlugin {
     sourceExpr: string,
     isListElement: boolean = false,
     forNullableFromJson: boolean = false,
-    defaultExpression?: string | null
+    defaultExpression?: string | null,
   ): string {
     if (type.kind === 'list') {
       const element = this.buildFromJsonExpression(type.elementType!, 'it', true, forNullableFromJson);
@@ -1005,32 +979,24 @@ export class KotlinPlugin extends CodegenPlugin {
           if (defaultExpression) {
             return `(${sourceExpr} as? Number)?.toDouble() ?: ${defaultExpression}`;
           }
-          return useNullable
-            ? `(${sourceExpr} as? Number)?.toDouble()`
-            : `(${sourceExpr} as? Number)?.toDouble() ?: 0.0`;
+          return useNullable ? `(${sourceExpr} as? Number)?.toDouble()` : `(${sourceExpr} as? Number)?.toDouble() ?: 0.0`;
         case 'Int':
           if (defaultExpression) {
             return `(${sourceExpr} as? Number)?.toInt() ?: ${defaultExpression}`;
           }
-          return useNullable
-            ? `(${sourceExpr} as? Number)?.toInt()`
-            : `(${sourceExpr} as? Number)?.toInt() ?: 0`;
+          return useNullable ? `(${sourceExpr} as? Number)?.toInt()` : `(${sourceExpr} as? Number)?.toInt() ?: 0`;
         case 'Boolean':
           if (defaultExpression) {
             return `${sourceExpr} as? Boolean ?: ${defaultExpression}`;
           }
-          return useNullable
-            ? `${sourceExpr} as? Boolean`
-            : `${sourceExpr} as? Boolean ?: false`;
+          return useNullable ? `${sourceExpr} as? Boolean` : `${sourceExpr} as? Boolean ?: false`;
         case 'ID':
         case 'String':
         default:
           if (defaultExpression) {
             return `${sourceExpr} as? String ?: ${defaultExpression}`;
           }
-          return useNullable
-            ? `${sourceExpr} as? String`
-            : `${sourceExpr} as? String ?: ""`;
+          return useNullable ? `${sourceExpr} as? String` : `${sourceExpr} as? String ?: ""`;
       }
     }
 
@@ -1068,7 +1034,7 @@ export class KotlinPlugin extends CodegenPlugin {
         return `(${sourceExpr} as? Map<String, Any?>)?.let { ${callTarget}.fromJson(it) }`;
       }
       // Check if input has required fields (nullable fromJson)
-      const isInputWithRequired = this.schema.metadata.inputsWithRequiredFields.has(callTarget);
+      const isInputWithRequired = this.schema.inputs.find(({ name }) => name === callTarget)?.hasRequiredFields ?? false;
       if (isInputWithRequired) {
         return `(${sourceExpr} as? Map<String, Any?>)?.let { ${callTarget}.fromJson(it) } ?: throw IllegalArgumentException("Missing or invalid required object for ${callTarget}")`;
       }
@@ -1084,9 +1050,7 @@ export class KotlinPlugin extends CodegenPlugin {
       if (inner === 'it') {
         return accessorExpr;
       }
-      return type.nullable
-        ? `${accessorExpr}?.map { ${inner} }`
-        : `${accessorExpr}.map { ${inner} }`;
+      return type.nullable ? `${accessorExpr}?.map { ${inner} }` : `${accessorExpr}.map { ${inner} }`;
     }
 
     if (type.kind === 'enum') {
@@ -1137,9 +1101,7 @@ export class KotlinPlugin extends CodegenPlugin {
     if (type.kind !== 'enum' || !type.name) return null;
     const irEnum = this.schema.enums.find((e) => e.name === type.name);
     const unknownValue = irEnum?.values.find((value) => value.name.toLowerCase().startsWith('unknown'));
-    return unknownValue
-      ? `${type.name}.${this.escapeKeyword(this.enumValueCase(unknownValue.name))}`
-      : null;
+    return unknownValue ? `${type.name}.${this.escapeKeyword(this.enumValueCase(unknownValue.name))}` : null;
   }
 
   // ============================================================================

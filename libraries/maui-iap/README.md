@@ -200,7 +200,6 @@ Regenerate types with:
 
 ```bash
 cd packages/gql && bun run generate
-cd ../.. && bash scripts/sync-versions.sh
 ```
 
 ## Links

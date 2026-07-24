@@ -74,7 +74,7 @@ make test-ios      # Reset TestProject, copy binaries, open Xcode
 
 ### Testing Workflow
 
-1. **Development**: Make changes in `Example/addons/godot-iap/` and test with `make run-*`
+1. **Development**: Make changes in the canonical `addons/godot-iap/` tree (the tracked `Example/addons` symlink exposes the same files) and test with `make run-*`
 2. **Pre-release**: Test with `make test-*` to verify the release zip structure works correctly
 3. **TestProject** is automatically reset from `Example/` on each test run
 
@@ -101,7 +101,7 @@ Follow the conventions in [CLAUDE.md](CLAUDE.md):
 
 ### Modifying the Plugin
 
-1. Edit files in `Example/addons/godot-iap/`
+1. Edit files in `addons/godot-iap/`; do not maintain a second copy under `Example/`
 2. Test with `make run-android` or `make run-ios`
 3. Verify release structure with `make test-android` or `make test-ios`
 

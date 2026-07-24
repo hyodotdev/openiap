@@ -1,115 +1,146 @@
 #!/usr/bin/env node
-import {mkdtempSync, readFileSync, writeFileSync, rmSync} from 'node:fs';
-import {join} from 'node:path';
-import {tmpdir} from 'node:os';
+import {
+  chmodSync,
+  mkdtempSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import {dirname, join} from 'node:path';
 import {execFileSync} from 'node:child_process';
-import {fileURLToPath, URL} from 'node:url';
+import {fileURLToPath} from 'node:url';
 
-const __dirname = fileURLToPath(new URL('.', import.meta.url));
-let versions;
-try {
-  versions = JSON.parse(
-    readFileSync(join(__dirname, '..', 'openiap-versions.json'), 'utf8'),
-  );
-} catch {
-  throw new Error(
-    'expo-iap: Unable to load openiap-versions.json. Ensure the file exists and is valid JSON.',
-  );
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const PROJECT_ROOT = join(SCRIPT_DIR, '..');
+const TARGET_REPOSITORY_PATH = 'libraries/expo-iap/src/types.ts';
+const TARGET_FILE = join(PROJECT_ROOT, 'src', 'types.ts');
+const GENERATED_HEADER = 'AUTO-GENERATED TYPES — DO NOT EDIT DIRECTLY';
+const HEADER_GUIDANCE =
+  'Refresh this file with the generated-types workflow documented for your checkout.';
+const REPRESENTATIVE_DECLARATION = 'export interface ProductRequest';
+const HEADER_SEPARATOR =
+  '// ============================================================================';
+const HEADER_LINE = `// ${GENERATED_HEADER}`;
+
+function normalizeDocsTag(value) {
+  const normalizedVersion = value.trim().replace(/^(?:docs-|gql-v?|v)/, '');
+  if (
+    normalizedVersion.length === 0 ||
+    !/^[0-9A-Za-z][0-9A-Za-z.+_-]*$/.test(normalizedVersion)
+  ) {
+    throw new Error(
+      `expo-iap: Invalid OpenIAP spec version ${JSON.stringify(value)}.`,
+    );
+  }
+  return `docs-${normalizedVersion}`;
 }
-
-const DEFAULT_TAG = versions?.spec;
-if (typeof DEFAULT_TAG !== 'string' || DEFAULT_TAG.length === 0) {
-  throw new Error(
-    'expo-iap: "spec" version missing in openiap-versions.json. Specify --tag manually or update the file.',
-  );
-}
-
-const PROJECT_ROOT = process.cwd();
 
 function parseArgs() {
   const args = process.argv.slice(2);
-  let tag = DEFAULT_TAG;
+  let version = null;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    if (arg === '--tag' && typeof args[i + 1] === 'string') {
-      tag = args[i + 1];
+    if (arg === '--tag') {
+      const next = args[i + 1];
+      if (typeof next !== 'string' || next.startsWith('--')) {
+        throw new Error('expo-iap: --tag requires a version.');
+      }
+      version = next;
       i++;
+      continue;
     }
+    throw new Error(`expo-iap: Unknown argument ${arg}.`);
   }
 
-  return {tag};
+  return {version};
 }
 
-function getReleaseUrl(tag) {
-  return `https://github.com/hyodotdev/openiap/releases/download/${tag}/openiap-typescript.zip`;
+function readPinnedSpecVersion() {
+  let versions;
+  try {
+    versions = JSON.parse(
+      readFileSync(join(PROJECT_ROOT, 'openiap-versions.json'), 'utf8'),
+    );
+  } catch (error) {
+    throw new Error(
+      `expo-iap: Unable to load openiap-versions.json (${error instanceof Error ? error.message : error}). Provide --tag <version> to override it.`,
+    );
+  }
+
+  const version = versions?.spec;
+  if (typeof version !== 'string' || version.trim().length === 0) {
+    throw new Error(
+      'expo-iap: "spec" version missing in openiap-versions.json. Provide --tag <version> manually or update the file.',
+    );
+  }
+  return version;
 }
 
-function resolveCandidateTags(tag) {
-  if (tag.startsWith('gql-')) {
-    return [tag];
-  }
-
-  // Prefer the new gql-<version> scheme but fall back to legacy bare tags
-  return [`gql-${tag}`, tag];
+function getDownloadUrl(tag) {
+  return `https://raw.githubusercontent.com/hyodotdev/openiap/${tag}/${TARGET_REPOSITORY_PATH}`;
 }
 
-function downloadTypesArchive(zipPath, tags) {
-  let resolvedTag = null;
-  let lastError = null;
-
-  for (const [index, candidate] of tags.entries()) {
-    const releaseUrl = getReleaseUrl(candidate);
-    console.log(`Downloading OpenIAP types (tag: ${candidate}) from ${releaseUrl}`);
-
-    try {
-      execFileSync('curl', ['-L', '-o', zipPath, releaseUrl], {
-        stdio: 'inherit',
-      });
-      resolvedTag = candidate;
-      break;
-    } catch (error) {
-      lastError = error;
-      const hasFallback = index < tags.length - 1;
-      console.warn(
-        `Failed to download for tag ${candidate}; ${
-          hasFallback ? 'trying fallback' : 'no fallback available'
-        }.`,
-      );
-    }
+function validateDownloadedTypes(path) {
+  const contents = readFileSync(path, 'utf8');
+  const lines = contents.split(/\r?\n/);
+  if (
+    lines[0] !== HEADER_SEPARATOR ||
+    lines[1] !== HEADER_LINE ||
+    !contents.includes(REPRESENTATIVE_DECLARATION) ||
+    !contents.endsWith('\n')
+  ) {
+    throw new Error(
+      'expo-iap: Downloaded file is not the expected generated TypeScript target.',
+    );
   }
+}
 
-  if (!resolvedTag) {
-    throw lastError ?? new Error('Unable to download OpenIAP types archive.');
+function normalizeGeneratedHeader(path) {
+  const contents = readFileSync(path, 'utf8');
+  const lineEnding = contents.includes('\r\n') ? '\r\n' : '\n';
+  const lines = contents.split(/\r?\n/);
+  const expectedGuidance = `// ${HEADER_GUIDANCE}`;
+  const closingSeparator = lines.indexOf(HEADER_SEPARATOR, 2);
+  const guidanceLines = lines
+    .slice(2, closingSeparator)
+    .map((line, index) => ({index: index + 2, line}))
+    .filter(
+      ({line}) =>
+        line === expectedGuidance ||
+        /^\/\/ Run `[^`\r\n]+`[^\r\n]*\.$/.test(line),
+    );
+  if (closingSeparator < 0 || guidanceLines.length !== 1) {
+    throw new Error(
+      'expo-iap: Downloaded file has an unexpected generated header.',
+    );
   }
-
-  return resolvedTag;
+  if (guidanceLines[0].line !== expectedGuidance) {
+    lines[guidanceLines[0].index] = expectedGuidance;
+    writeFileSync(path, lines.join(lineEnding));
+  }
 }
 
 function main() {
-  const {tag} = parseArgs();
-  const candidateTags = resolveCandidateTags(tag);
-  const tempDir = mkdtempSync(join(tmpdir(), 'openiap-types-'));
-  const zipPath = join(tempDir, 'openiap-typescript.zip');
+  const {version: versionOverride} = parseArgs();
+  const tag = normalizeDocsTag(versionOverride ?? readPinnedSpecVersion());
+  const downloadUrl = getDownloadUrl(tag);
+  const tempDir = mkdtempSync(join(dirname(TARGET_FILE), '.openiap-types-'));
+  const tempFile = join(tempDir, 'types.ts');
 
   try {
-    const resolvedTag = downloadTypesArchive(zipPath, candidateTags);
-
-    console.log('Extracting types.ts from archive');
-    execFileSync('unzip', ['-o', zipPath, 'types.ts', '-d', tempDir], {
+    console.log(`Downloading OpenIAP types (tag: ${tag}) from ${downloadUrl}`);
+    execFileSync('curl', ['-fL', '-o', tempFile, downloadUrl], {
       stdio: 'inherit',
     });
 
-    const extractedPath = join(tempDir, 'types.ts');
-    let contents = readFileSync(extractedPath, 'utf8');
-    contents = contents.replace(
-      /Run `[^`]+` after updating any \*\.graphql schema file\./,
-      'Run `bun run generate:types` after updating any *.graphql schema file.',
-    );
-
-    const destination = join(PROJECT_ROOT, 'src', 'types.ts');
-    writeFileSync(destination, contents);
-    console.log(`Updated src/types.ts from tag ${resolvedTag}`);
+    validateDownloadedTypes(tempFile);
+    normalizeGeneratedHeader(tempFile);
+    validateDownloadedTypes(tempFile);
+    chmodSync(tempFile, 0o644);
+    renameSync(tempFile, TARGET_FILE);
+    console.log(`Updated src/types.ts from tag ${tag}`);
   } finally {
     rmSync(tempDir, {recursive: true, force: true});
   }

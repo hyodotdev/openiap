@@ -33,12 +33,8 @@ describe('generated GDScript list decoding', () => {
       'static func create_billing_program_reporting_details_android_args(program: BillingProgramAndroid, developer_billing_type: Variant = null)',
     );
     expect(generated).toContain('if developer_billing_type != null:');
-    expect(generated).toContain(
-      'args["program"] = BILLING_PROGRAM_ANDROID_VALUES[program]',
-    );
-    expect(generated).toContain(
-      'args["developerBillingType"] = DEVELOPER_BILLING_TYPE_ANDROID_VALUES[developer_billing_type]',
-    );
+    expect(generated).toContain('args["program"] = BILLING_PROGRAM_ANDROID_VALUES[program]');
+    expect(generated).toContain('args["developerBillingType"] = DEVELOPER_BILLING_TYPE_ANDROID_VALUES[developer_billing_type]');
   });
 
   it('builds typed scalar arrays from JSON arrays', () => {
@@ -89,6 +85,7 @@ describe('generated GDScript list decoding', () => {
           fields: [
             {
               name: 'statuses',
+              description: 'Status values from the schema.\nPreserves every documentation line.\n@see https://openiap.dev/docs/types',
               type: {
                 kind: 'list',
                 nullable: false,
@@ -117,23 +114,15 @@ describe('generated GDScript list decoding', () => {
           interfaces: [],
           unions: [],
           isResultUnion: false,
-          isSingleFieldArgs: false,
         },
       ],
       inputs: [],
       unions: [],
       operations: [],
-      metadata: {
-        unionWrapperNames: new Set(),
-        futureFieldNames: new Set(),
-        platformDefaults: new Map(),
-        singleFieldObjects: new Map(),
-        unionMembership: new Map(),
-        inputsWithRequiredFields: new Set(),
-      },
     };
     const source = new GDScriptPlugin({ outputPath: 'types.gd' }).generate(schema);
 
+    expect(source).toContain('## Status values from the schema. Preserves every documentation line. @see https://openiap.dev/docs/types');
     expect(source).toContain('if data["statuses"] is Array:');
     expect(source).toContain('arr.append(TEST_STATUS_FROM_STRING.get(item, TestStatus.UNKNOWN))');
     expect(source).toContain('if item is String and STRICT_STATUS_FROM_STRING.has(item):');

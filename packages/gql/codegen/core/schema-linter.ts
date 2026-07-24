@@ -11,6 +11,7 @@
 
 import { Kind, parse, type DefinitionNode, type TypeNode } from 'graphql';
 import type { ParsedSchema } from './parser.js';
+import { schemaMarkerIssueMessage, schemaMarkerIssueRule } from '../../schema-markers.mjs';
 
 export interface LintResult {
   level: 'error' | 'warning';
@@ -18,11 +19,6 @@ export interface LintResult {
   line?: number;
   message: string;
   rule: string;
-}
-
-export interface LintOptions {
-  /** Treat warnings as errors */
-  strict?: boolean;
 }
 
 const IOS_TYPE_SUFFIX_EXCEPTIONS = new Set([
@@ -53,24 +49,13 @@ const PLATFORM_SELECTOR_TYPE_TOKENS: Record<string, readonly string[]> = {
   amazon: ['Amazon'],
 };
 
-function isAllowedPlatformTypeName(
-  typeName: string,
-  platform: 'ios' | 'android',
-): boolean {
-  if (
-    typeName === 'Query' ||
-    typeName === 'Mutation' ||
-    typeName === 'Subscription'
-  ) {
+function isAllowedPlatformTypeName(typeName: string, platform: 'ios' | 'android'): boolean {
+  if (typeName === 'Query' || typeName === 'Mutation' || typeName === 'Subscription') {
     return true;
   }
 
   if (platform === 'ios') {
-    return (
-      typeName.endsWith('IOS') ||
-      (typeName.includes('Ios') && !typeName.endsWith('Ios')) ||
-      IOS_TYPE_SUFFIX_EXCEPTIONS.has(typeName)
-    );
+    return typeName.endsWith('IOS') || (typeName.includes('Ios') && !typeName.endsWith('Ios')) || IOS_TYPE_SUFFIX_EXCEPTIONS.has(typeName);
   }
 
   return (
@@ -83,19 +68,14 @@ function isAllowedPlatformTypeName(
 
 function namedTypeName(type: TypeNode): string {
   let current = type;
-  while (
-    current.kind === Kind.LIST_TYPE ||
-    current.kind === Kind.NON_NULL_TYPE
-  ) {
+  while (current.kind === Kind.LIST_TYPE || current.kind === Kind.NON_NULL_TYPE) {
     current = current.type;
   }
   return current.name.value;
 }
 
 function platformTypeName(definition: DefinitionNode): string | null {
-  return 'name' in definition && definition.kind.includes('Type')
-    ? definition.name.value
-    : null;
+  return 'name' in definition && definition.kind.includes('Type') ? definition.name.value : null;
 }
 
 function referencedPlatform(typeName: string): 'ios' | 'android' | null {
@@ -107,159 +87,80 @@ function referencedPlatform(typeName: string): 'ios' | 'android' | null {
   ) {
     return 'android';
   }
-  if (
-    typeName.includes('IOS') ||
-    typeName.includes('Ios') ||
-    IOS_TYPE_SUFFIX_EXCEPTIONS.has(typeName)
-  ) {
+  if (typeName.includes('IOS') || typeName.includes('Ios') || IOS_TYPE_SUFFIX_EXCEPTIONS.has(typeName)) {
     return 'ios';
   }
   return null;
 }
 
-function parentProvidesPlatformContext(
-  typeName: string,
-  platform: 'ios' | 'android',
-): boolean {
+function parentProvidesPlatformContext(typeName: string, platform: 'ios' | 'android'): boolean {
   return referencedPlatform(typeName) === platform;
 }
 
-function isPlatformSelectorField(
-  fieldName: string,
-  referencedType: string,
-): boolean {
-  return (
-    PLATFORM_SELECTOR_TYPE_TOKENS[fieldName]?.some((token) =>
-      referencedType.includes(token),
-    ) ?? false
-  );
+function isPlatformSelectorField(fieldName: string, referencedType: string): boolean {
+  return PLATFORM_SELECTOR_TYPE_TOKENS[fieldName]?.some((token) => referencedType.includes(token)) ?? false;
 }
 
 /**
  * Lint schema conventions and return findings.
  */
-export function lintSchema(
-  parsedSchema: ParsedSchema,
-  _options: LintOptions = {},
-): LintResult[] {
+export function lintSchema(parsedSchema: ParsedSchema): LintResult[] {
   const results: LintResult[] = [];
+
+  for (const issue of parsedSchema.markers.issues) {
+    const fileName = issue.sourceId.split('/').pop() ?? issue.sourceId;
+    const message = schemaMarkerIssueMessage(issue, (sourceId) => sourceId.split('/').pop() ?? sourceId);
+    results.push({
+      level: 'error',
+      file: fileName,
+      line: issue.markerLine,
+      message,
+      rule: schemaMarkerIssueRule(issue),
+    });
+  }
+
+  for (const issue of parsedSchema.deprecations.issues) {
+    results.push({
+      level: 'error',
+      file: issue.file.split('/').pop() ?? issue.file,
+      line: issue.line,
+      message: issue.message,
+      rule: issue.rule,
+    });
+  }
 
   for (const [filePath, sdl] of parsedSchema.sdlContents.entries()) {
     const fileName = filePath.split('/').pop() ?? filePath;
-    const lines = sdl.split(/\r?\n/);
     const isIOSFile = fileName.includes('-ios') || fileName.includes('_ios');
-    const isAndroidFile =
-      fileName.includes('-android') || fileName.includes('_android');
-
-    let pendingUnionMarker = false;
-    let pendingUnionLine = 0;
-    let pendingFutureMarker = false;
-    let pendingFutureLine = 0;
-
-    for (let i = 0; i < lines.length; i++) {
-      const trimmed = lines[i].trim();
-      const lineNum = i + 1;
-
-      // Track union marker
-      if (trimmed.startsWith('#') && trimmed.toLowerCase().includes('=> union')) {
-        pendingUnionMarker = true;
-        pendingUnionLine = lineNum;
-        continue;
-      }
-
-      // Track Future marker
-      if (/^#\s*future\b/i.test(trimmed)) {
-        pendingFutureMarker = true;
-        pendingFutureLine = lineNum;
-        continue;
-      }
-
-      // Check Future marker is followed by a valid field
-      if (pendingFutureMarker) {
-        const fieldMatch = trimmed.match(/^([A-Za-z0-9_]+)\s*[:(]/);
-        if (fieldMatch) {
-          pendingFutureMarker = false;
-        } else if (trimmed.length > 0 && !trimmed.startsWith('#') && trimmed !== '}') {
-          results.push({
-            level: 'warning',
-            file: fileName,
-            line: pendingFutureLine,
-            message: `"# Future" marker at line ${pendingFutureLine} is not followed by a valid field definition`,
-            rule: 'future-marker-target',
-          });
-          pendingFutureMarker = false;
-        }
-      }
-
-      if (pendingUnionMarker) {
-        if (/^(?:extend\s+)?type\s+/.test(trimmed)) {
-          pendingUnionMarker = false;
-        } else if (trimmed.length > 0 && !trimmed.startsWith('#')) {
-          results.push({
-            level: 'error',
-            file: fileName,
-            line: pendingUnionLine,
-            message: `"# => Union" marker at line ${pendingUnionLine} is not followed by a type definition`,
-            rule: 'union-marker-target',
-          });
-          pendingUnionMarker = false;
-        }
-      }
-    }
-
-    // End-of-file checks
-    if (pendingUnionMarker) {
-      results.push({
-        level: 'error',
-        file: fileName,
-        line: pendingUnionLine,
-        message: `"# => Union" marker at line ${pendingUnionLine} has no following type definition (end of file)`,
-        rule: 'union-marker-target',
-      });
-    }
-
-    if (pendingFutureMarker) {
-      results.push({
-        level: 'warning',
-        file: fileName,
-        line: pendingFutureLine,
-        message: `"# Future" marker at line ${pendingFutureLine} has no following field definition (end of file)`,
-        rule: 'future-marker-target',
-      });
-    }
+    const isAndroidFile = fileName.includes('-android') || fileName.includes('_android');
 
     const document = parse(sdl);
+
     for (const definition of document.definitions) {
       const typeName = platformTypeName(definition);
 
-      if (
-        typeName &&
-        isIOSFile &&
-        !isAllowedPlatformTypeName(typeName, 'ios')
-      ) {
+      if (typeName && isIOSFile && !isAllowedPlatformTypeName(typeName, 'ios')) {
         results.push({
           level: 'error',
           file: fileName,
-          line: definition.name.loc?.startToken.line,
+          line: 'name' in definition ? definition.name?.loc?.startToken.line : undefined,
           message: `Type "${typeName}" in iOS file should end with "IOS" suffix`,
           rule: 'ios-type-suffix',
         });
       }
-      if (
-        typeName &&
-        isAndroidFile &&
-        !isAllowedPlatformTypeName(typeName, 'android')
-      ) {
+      if (typeName && isAndroidFile && !isAllowedPlatformTypeName(typeName, 'android')) {
         results.push({
           level: 'error',
           file: fileName,
-          line: definition.name.loc?.startToken.line,
+          line: 'name' in definition ? definition.name?.loc?.startToken.line : undefined,
           message: `Type "${typeName}" in Android file should end with "Android" suffix`,
           rule: 'android-type-suffix',
         });
       }
 
-      if (!('fields' in definition) || !definition.fields) continue;
+      if (!('name' in definition) || !definition.name || !('fields' in definition) || !definition.fields) {
+        continue;
+      }
 
       const operationName = definition.name.value;
 
@@ -276,7 +177,7 @@ export function lintSchema(
         }
         const references = [
           { selector: fieldName, type: namedTypeName(field.type) },
-          ...(field.arguments ?? []).map((argument) => ({
+          ...('arguments' in field ? (field.arguments ?? []) : []).map((argument) => ({
             selector: argument.name.value,
             type: namedTypeName(argument.type),
           })),
@@ -309,9 +210,7 @@ export function lintSchema(
         if (
           (operationName === 'Query' || operationName === 'Mutation') &&
           fieldName !== '_placeholder' &&
-          !parsedSchema.markers.futureFields.has(
-            `${operationName}.${fieldName}`,
-          )
+          !parsedSchema.markers.futureFields.has(`${operationName}.${fieldName}`)
         ) {
           results.push({
             level: 'error',
@@ -346,9 +245,7 @@ export function formatLintResults(results: LintResult[]): string {
   const warnings = results.filter((r) => r.level === 'warning').length;
 
   lines.push('');
-  lines.push(
-    `[schema-lint] ${errors} error(s), ${warnings} warning(s)`,
-  );
+  lines.push(`[schema-lint] ${errors} error(s), ${warnings} warning(s)`);
 
   return lines.join('\n');
 }

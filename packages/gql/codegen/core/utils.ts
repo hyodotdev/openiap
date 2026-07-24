@@ -24,14 +24,6 @@ export function toPascalCase(value: string): string {
 }
 
 /**
- * Convert to camelCase (e.g., "my_value" -> "myValue")
- */
-export function toCamelCase(value: string): string {
-  const pascal = toPascalCase(value);
-  return pascal.charAt(0).toLowerCase() + pascal.slice(1);
-}
-
-/**
  * Convert to lowerCamelCase (same as camelCase but preserves more context)
  */
 export function toLowerCamelCase(value: string): string {
@@ -93,13 +85,6 @@ export function capitalize(value: string): string {
 }
 
 /**
- * Uncapitalize first letter
- */
-export function uncapitalize(value: string): string {
-  return value.length === 0 ? value : value.charAt(0).toLowerCase() + value.slice(1);
-}
-
-/**
  * Convert to camelCase preserving IOS suffix (for Dart/GDScript)
  * e.g., "daysUntilExpirationIOS" stays "daysUntilExpirationIOS"
  */
@@ -120,9 +105,7 @@ export function toCamelCasePreserveIOS(value: string): string {
     return first;
   };
   const firstToken = formatFirst();
-  const restTokens = rest.map((token) =>
-    token === 'IOS' ? 'IOS' : token.charAt(0).toUpperCase() + token.slice(1)
-  );
+  const restTokens = rest.map((token) => (token === 'IOS' ? 'IOS' : token.charAt(0).toUpperCase() + token.slice(1)));
   return [firstToken, ...restTokens].join('');
 }
 
@@ -139,9 +122,7 @@ export function toPascalCasePreserveIOS(value: string): string {
     .map((token) => token.toLowerCase());
   if (tokens.length === 0) return value;
   const normalized = tokens.map((token) => (token === 'ios' ? 'IOS' : token));
-  return normalized.map((token) =>
-    token === 'IOS' ? 'IOS' : token.charAt(0).toUpperCase() + token.slice(1)
-  ).join('');
+  return normalized.map((token) => (token === 'IOS' ? 'IOS' : token.charAt(0).toUpperCase() + token.slice(1))).join('');
 }
 
 // ============================================================================
@@ -344,151 +325,90 @@ export const GDSCRIPT_KEYWORDS = new Set([
   'NAN',
 ]);
 
-export const TYPESCRIPT_RESERVED = new Set([
-  'break',
-  'case',
-  'catch',
-  'class',
-  'const',
-  'continue',
-  'debugger',
-  'default',
-  'delete',
-  'do',
-  'else',
-  'enum',
-  'export',
-  'extends',
-  'false',
-  'finally',
-  'for',
-  'function',
-  'if',
-  'import',
-  'in',
-  'instanceof',
-  'new',
-  'null',
-  'return',
-  'super',
-  'switch',
-  'this',
-  'throw',
-  'true',
-  'try',
-  'typeof',
-  'var',
-  'void',
-  'while',
-  'with',
-  // Strict mode reserved
-  'implements',
-  'interface',
-  'let',
-  'package',
-  'private',
-  'protected',
-  'public',
-  'static',
-  'yield',
-]);
-
-// ============================================================================
-// Keyword Escaping
-// ============================================================================
-
-export function escapeSwiftKeyword(name: string): string {
-  return SWIFT_KEYWORDS.has(name) ? `\`${name}\`` : name;
-}
-
-export function escapeKotlinKeyword(name: string): string {
-  return KOTLIN_KEYWORDS.has(name) ? `\`${name}\`` : name;
-}
-
-export function escapeDartKeyword(name: string): string {
-  return DART_KEYWORDS.has(name) ? `${name}_` : name;
-}
-
-export function escapeGDScriptKeyword(name: string): string {
-  return GDSCRIPT_KEYWORDS.has(name) ? `${name}_` : name;
-}
-
-export function escapeTypeScriptKeyword(name: string): string {
-  // TypeScript generally doesn't need escaping for property names
-  return name;
-}
-
 // ============================================================================
 // Scalar Mappings
 // ============================================================================
 
-export const GRAPHQL_TO_SWIFT: Record<string, string> = {
-  ID: 'String',
-  String: 'String',
-  Boolean: 'Bool',
-  Int: 'Int',
-  Float: 'Double',
-};
+type GraphQLScalarContract = Readonly<{
+  typescript: Readonly<{ input: string; output: string }>;
+  swift: string;
+  kotlin: string;
+  dart: string;
+  gdscript: string;
+  csharp: string;
+}>;
 
-export const GRAPHQL_TO_KOTLIN: Record<string, string> = {
-  ID: 'String',
-  String: 'String',
-  Boolean: 'Boolean',
-  Int: 'Int',
-  Float: 'Double',
-};
+const GRAPHQL_SCALAR_CONTRACTS: Readonly<Record<string, GraphQLScalarContract>> = Object.freeze({
+  ID: Object.freeze({
+    typescript: Object.freeze({ input: 'string', output: 'string' }),
+    swift: 'String',
+    kotlin: 'String',
+    dart: 'String',
+    gdscript: 'String',
+    csharp: 'string',
+  }),
+  String: Object.freeze({
+    typescript: Object.freeze({ input: 'string', output: 'string' }),
+    swift: 'String',
+    kotlin: 'String',
+    dart: 'String',
+    gdscript: 'String',
+    csharp: 'string',
+  }),
+  Boolean: Object.freeze({
+    typescript: Object.freeze({ input: 'boolean', output: 'boolean' }),
+    swift: 'Bool',
+    kotlin: 'Boolean',
+    dart: 'bool',
+    gdscript: 'bool',
+    csharp: 'bool',
+  }),
+  Int: Object.freeze({
+    typescript: Object.freeze({ input: 'number', output: 'number' }),
+    swift: 'Int',
+    kotlin: 'Int',
+    dart: 'int',
+    gdscript: 'int',
+    csharp: 'int',
+  }),
+  Float: Object.freeze({
+    typescript: Object.freeze({ input: 'number', output: 'number' }),
+    swift: 'Double',
+    kotlin: 'Double',
+    dart: 'double',
+    gdscript: 'float',
+    csharp: 'double',
+  }),
+});
 
-export const GRAPHQL_TO_DART: Record<string, string> = {
-  ID: 'String',
-  String: 'String',
-  Boolean: 'bool',
-  Int: 'int',
-  Float: 'double',
-};
+const scalarMapping = <Key extends keyof GraphQLScalarContract>(key: Key): Record<string, GraphQLScalarContract[Key]> =>
+  Object.fromEntries(Object.entries(GRAPHQL_SCALAR_CONTRACTS).map(([name, contract]) => [name, contract[key]]));
 
-export const GRAPHQL_TO_GDSCRIPT: Record<string, string> = {
-  ID: 'String',
-  String: 'String',
-  Boolean: 'bool',
-  Int: 'int',
-  Float: 'float',
-};
+export const SUPPORTED_GRAPHQL_SCALARS = new Set(Object.keys(GRAPHQL_SCALAR_CONTRACTS));
+export const GRAPHQL_TO_TYPESCRIPT = scalarMapping('typescript');
+export const GRAPHQL_TO_SWIFT = scalarMapping('swift');
+export const GRAPHQL_TO_KOTLIN = scalarMapping('kotlin');
+export const GRAPHQL_TO_DART = scalarMapping('dart');
+export const GRAPHQL_TO_GDSCRIPT = scalarMapping('gdscript');
+export const GRAPHQL_TO_CSHARP = scalarMapping('csharp');
 
-export const GRAPHQL_TO_TYPESCRIPT: Record<string, string> = {
-  ID: 'string',
-  String: 'string',
-  Boolean: 'boolean',
-  Int: 'number',
-  Float: 'number',
+export const requireGraphQLScalarMapping = (mapping: Readonly<Record<string, string>>, name: string, language: string): string => {
+  const mapped = mapping[name];
+  if (!mapped) {
+    throw new Error(`Unsupported ${language} GraphQL scalar mapping: ${name}`);
+  }
+  return mapped;
 };
 
 // ============================================================================
 // Platform Defaults for Discriminated Unions
 // ============================================================================
 
-export const PLATFORM_TYPE_DEFAULTS: Record<
-  string,
-  { platform: string; type: string }
-> = {
+export const PLATFORM_TYPE_DEFAULTS: Record<string, { platform: string; type: string }> = {
   ProductIOS: { platform: 'ios', type: 'in-app' },
   ProductAndroid: { platform: 'android', type: 'in-app' },
   ProductSubscriptionIOS: { platform: 'ios', type: 'subs' },
   ProductSubscriptionAndroid: { platform: 'android', type: 'subs' },
-};
-
-// ============================================================================
-// Custom Types
-// ============================================================================
-
-export const CUSTOM_INPUT_TYPES = new Set([
-  'RequestPurchaseProps',
-  'DiscountOfferInputIOS',
-  'PurchaseInput',
-]);
-
-export const TYPE_ALIASES: Record<string, string> = {
-  PurchaseInput: 'Purchase',
-  VoidResult: 'Void',
 };
 
 // ============================================================================
@@ -499,69 +419,3 @@ export const ERROR_CODE_LEGACY_ALIASES: Record<string, string> = {
   'receipt-failed': 'purchaseVerificationFailed',
   ReceiptFailed: 'purchaseVerificationFailed',
 };
-
-// ============================================================================
-// File Header
-// ============================================================================
-
-export function generateFileHeader(language: string): string[] {
-  const header = [
-    '// ============================================================================',
-    '// AUTO-GENERATED TYPES — DO NOT EDIT DIRECTLY',
-    '// Run `npm run generate` after updating any *.graphql schema file.',
-    '// ============================================================================',
-    '',
-  ];
-
-  switch (language) {
-    case 'swift':
-      header.push('import Foundation', '');
-      break;
-    case 'kotlin':
-      header.push(
-        '// Suppress unchecked cast warnings for JSON Map parsing - unavoidable due to Kotlin type erasure',
-        '@file:Suppress("UNCHECKED_CAST")',
-        ''
-      );
-      break;
-    case 'dart':
-      header.push("import 'dart:convert';", '');
-      break;
-  }
-
-  return header;
-}
-
-// ============================================================================
-// Documentation Comments
-// ============================================================================
-
-export function formatDocComment(
-  description: string | undefined,
-  indent: string,
-  style: 'swift' | 'kotlin' | 'typescript' | 'dart' | 'gdscript'
-): string[] {
-  if (!description) return [];
-
-  const lines = description.split(/\r?\n/);
-
-  switch (style) {
-    case 'swift':
-      return lines.map((line) => `${indent}/// ${line}`);
-    case 'kotlin':
-    case 'typescript':
-    case 'dart':
-      if (lines.length === 1) {
-        return [`${indent}/** ${lines[0]} */`];
-      }
-      return [
-        `${indent}/**`,
-        ...lines.map((line) => `${indent} * ${line}`),
-        `${indent} */`,
-      ];
-    case 'gdscript':
-      return lines.map((line) => `${indent}## ${line}`);
-    default:
-      return lines.map((line) => `${indent}// ${line}`);
-  }
-}

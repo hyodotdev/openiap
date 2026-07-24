@@ -1,228 +1,30 @@
-#!/usr/bin/env bun
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  writeFileSync,
-} from 'node:fs';
+#!/usr/bin/env node
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { execSync } from 'node:child_process';
+import { GENERATED_SYNC_EDGES } from '../generated-sync-manifest.mjs';
+import { materializeGeneratedSyncEdge } from './generated-sync-materializer.mjs';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const gqlRoot = resolve(__dirname, '..');
-const monorepoRoot = resolve(gqlRoot, '../..');
+const scriptDirectory = dirname(fileURLToPath(import.meta.url));
+const monorepoRoot = resolve(scriptDirectory, '../../..');
+const fromRoot = (path) => resolve(monorepoRoot, path);
 
-// Kotlin → Google (Android)
-const kotlinSource = resolve(gqlRoot, 'src/generated/Types.kt');
-const kotlinTarget = resolve(monorepoRoot, 'packages/google/openiap/src/main/java/dev/hyo/openiap/Types.kt');
-
-// Swift → Apple (iOS)
-const swiftSource = resolve(gqlRoot, 'src/generated/Types.swift');
-const swiftTarget = resolve(monorepoRoot, 'packages/apple/Sources/Models/Types.swift');
-
-// Library targets — generated types are copied in with per-library
-// transformations (package names, file extensions, etc.) so that
-// `libraries/*/` stay in lockstep with the gql schema instead of needing
-// hand edits after every regeneration.
-const dartSource = resolve(gqlRoot, 'src/generated/types.dart');
-const dartTarget = resolve(
-  monorepoRoot,
-  'libraries/flutter_inapp_purchase/lib/types.dart',
-);
-
-const gdSource = resolve(gqlRoot, 'src/generated/types.gd');
-const gdTarget = resolve(
-  monorepoRoot,
-  'libraries/godot-iap/addons/godot-iap/types.gd',
-);
-
-const tsSource = resolve(gqlRoot, 'src/generated/types.ts');
-const rnTsTarget = resolve(monorepoRoot, 'libraries/react-native-iap/src/types.ts');
-const expoTsTarget = resolve(monorepoRoot, 'libraries/expo-iap/src/types.ts');
-
-// `webhook-client.ts` is a hand-maintained runtime helper rather than
-// generated output, but it lives in `packages/gql` so RN and Expo can
-// share a single canonical implementation. Sync alongside the types so
-// the two never drift.
-const webhookClientSource = resolve(gqlRoot, 'src/webhook-client.ts');
-const rnWebhookClientTarget = resolve(
-  monorepoRoot,
-  'libraries/react-native-iap/src/webhook-client.ts',
-);
-const expoWebhookClientTarget = resolve(
-  monorepoRoot,
-  'libraries/expo-iap/src/webhook-client.ts',
-);
-
-const kitApiSource = resolve(gqlRoot, 'src/kit-api.ts');
-const rnKitApiTarget = resolve(
-  monorepoRoot,
-  'libraries/react-native-iap/src/kit-api.ts',
-);
-const expoKitApiTarget = resolve(
-  monorepoRoot,
-  'libraries/expo-iap/src/kit-api.ts',
-);
-
-const kmpSource = resolve(gqlRoot, 'src/generated/Types.kt');
-const kmpTarget = resolve(
-  monorepoRoot,
-  'libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt',
-);
-
-const csharpSource = resolve(gqlRoot, 'src/generated/Types.cs');
-const mauiTarget = resolve(
-  monorepoRoot,
-  'libraries/maui-iap/src/OpenIap.Maui/Types.cs',
-);
-
-console.log('📦 Syncing generated types to platforms...\n');
-
-// Sync Kotlin to Google (Android)
-if (existsSync(kotlinSource)) {
-  mkdirSync(dirname(kotlinTarget), { recursive: true });
-  copyFileSync(kotlinSource, kotlinTarget);
-  console.log('✅ Kotlin → Google (Android)');
-  console.log(`   ${kotlinTarget}\n`);
-
-  // Run Google post-processing
-  try {
-    const googleRoot = resolve(monorepoRoot, 'packages/google');
-    const postProcessScript = resolve(googleRoot, 'scripts/post-process-types.sh');
-
-    if (existsSync(postProcessScript)) {
-      execSync(`bash "${postProcessScript}"`, { cwd: googleRoot, stdio: 'inherit' });
-    }
-  } catch (error) {
-    console.warn('⚠️  Google post-processing failed (optional)');
+for (const source of new Set(GENERATED_SYNC_EDGES.map((edge) => edge.source))) {
+  if (!existsSync(fromRoot(source))) {
+    throw new Error(`Canonical sync source not found: ${fromRoot(source)}`);
   }
-} else {
-  console.warn('⚠️  Kotlin types not found, skipping Google sync');
 }
 
-// Sync Swift to Apple (iOS)
-if (existsSync(swiftSource)) {
-  mkdirSync(dirname(swiftTarget), { recursive: true });
-  copyFileSync(swiftSource, swiftTarget);
-  console.log('✅ Swift → Apple (iOS)');
-  console.log(`   ${swiftTarget}\n`);
-} else {
-  console.warn('⚠️  Swift types not found, skipping Apple sync');
-}
+console.log('📦 Syncing generated sources to platforms...\n');
 
-// Sync Dart to flutter_inapp_purchase
-// Note: the flutter_inapp_purchase CLAUDE.md explicitly excludes
-// `lib/types.dart` from the Dart format check, so we intentionally copy
-// the raw generator output verbatim. `bun run generate` is reproducible
-// because no formatter mutates the file afterwards.
-if (existsSync(dartSource)) {
-  mkdirSync(dirname(dartTarget), { recursive: true });
-  copyFileSync(dartSource, dartTarget);
-  console.log('✅ Dart → flutter_inapp_purchase');
-  console.log(`   ${dartTarget}\n`);
-}
+for (const edge of GENERATED_SYNC_EDGES) {
+  const source = fromRoot(edge.source);
+  const destination = fromRoot(edge.path);
+  mkdirSync(dirname(destination), { recursive: true });
+  writeFileSync(destination, materializeGeneratedSyncEdge(edge, readFileSync(source, 'utf8')));
 
-// Sync GDScript to godot-iap
-if (existsSync(gdSource)) {
-  mkdirSync(dirname(gdTarget), { recursive: true });
-  copyFileSync(gdSource, gdTarget);
-  console.log('✅ GDScript → godot-iap');
-  console.log(`   ${gdTarget}\n`);
-}
-
-// Sync TypeScript to react-native-iap + expo-iap
-if (existsSync(tsSource)) {
-  for (const target of [rnTsTarget, expoTsTarget]) {
-    mkdirSync(dirname(target), { recursive: true });
-    copyFileSync(tsSource, target);
-  }
-  console.log('✅ TypeScript → react-native-iap + expo-iap');
-  console.log(`   ${rnTsTarget}`);
-  console.log(`   ${expoTsTarget}\n`);
-}
-
-// Sync the webhook client to react-native-iap + expo-iap. Doing this
-// during type-sync means the per-library copies can never silently
-// drift from the canonical implementation in `packages/gql`.
-if (existsSync(webhookClientSource)) {
-  for (const target of [rnWebhookClientTarget, expoWebhookClientTarget]) {
-    mkdirSync(dirname(target), { recursive: true });
-    copyFileSync(webhookClientSource, target);
-  }
-  console.log('✅ webhook-client → react-native-iap + expo-iap');
-  console.log(`   ${rnWebhookClientTarget}`);
-  console.log(`   ${expoWebhookClientTarget}\n`);
-}
-
-if (existsSync(kitApiSource)) {
-  for (const target of [rnKitApiTarget, expoKitApiTarget]) {
-    mkdirSync(dirname(target), { recursive: true });
-    copyFileSync(kitApiSource, target);
-  }
-  console.log('✅ kit-api → react-native-iap + expo-iap');
-  console.log(`   ${rnKitApiTarget}`);
-  console.log(`   ${expoKitApiTarget}\n`);
-}
-
-// Sync Kotlin to kmp-iap with the library-specific package declaration and
-// the enum-companion semicolon that Kotlin requires. This mirrors the
-// post-process that packages/google runs; without it the KMP module would
-// not compile against the upstream gql types.
-if (existsSync(kmpSource)) {
-  mkdirSync(dirname(kmpTarget), { recursive: true });
-  let text = readFileSync(kmpSource, 'utf8');
-
-  // Insert the package declaration AFTER every leading `@file:`
-  // annotation. Kotlin requires file annotations to precede the package
-  // directive, so we walk the file line-by-line, find the last `@file:`
-  // (the generator can legitimately emit comments/blank lines between
-  // annotations), and splice the package declaration immediately after
-  // it. Falling back to a plain prepend is wrong because it would place
-  // the package before any subsequent `@file:` lines.
-  if (!/\bpackage io\.github\.hyochan\.kmpiap\.openiap\b/.test(text)) {
-    const pkg = 'package io.github.hyochan.kmpiap.openiap';
-    const lines = text.split('\n');
-    let lastFileAnnotation = -1;
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i].startsWith('@file:')) {
-        lastFileAnnotation = i;
-      }
-    }
-    if (lastFileAnnotation >= 0) {
-      lines.splice(lastFileAnnotation + 1, 0, '', pkg);
-    } else {
-      lines.unshift(pkg, '');
-    }
-    text = lines.join('\n');
-  }
-
-  // Kotlin enums that declare a companion object require a trailing
-  // semicolon after the last enum entry. Match the same pattern used by
-  // packages/google/scripts/post-process-types.sh so the files stay in
-  // lockstep.
-  text = text.replace(
-    /(\n\s*\w+\([^)]*\))\n\n(\s+companion object)/g,
-    '$1;\n\n$2',
-  );
-
-  writeFileSync(kmpTarget, text);
-  console.log('✅ Kotlin → kmp-iap (with package + enum-semicolon post-process)');
-  console.log(`   ${kmpTarget}\n`);
-}
-
-// Sync C# to maui-iap. The generator already emits the
-// `OpenIap` namespace declaration that the MAUI library imports via
-// `using OpenIap;`, so the file is copied verbatim — no per-library
-// post-processing is needed (unlike the kmp-iap Kotlin path, which has to
-// inject a different package declaration).
-if (existsSync(csharpSource)) {
-  mkdirSync(dirname(mauiTarget), { recursive: true });
-  copyFileSync(csharpSource, mauiTarget);
-  console.log('✅ C# → maui-iap');
-  console.log(`   ${mauiTarget}\n`);
+  console.log(`✅ ${edge.label}`);
+  console.log(`   ${destination}\n`);
 }
 
 console.log('🎉 Platform sync complete!\n');

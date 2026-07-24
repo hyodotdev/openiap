@@ -16,11 +16,8 @@ Before writing or editing anything, **ALWAYS** review:
 The `Types.swift` file in `Sources/Models/` is **auto-generated** from the OpenIAP GraphQL schema.
 
 ```bash
-# Generate types using version from openiap-versions.json
-./scripts/generate-types.sh
-
-# Or override with environment variable
-OPENIAP_GQL_VERSION=1.0.9 ./scripts/generate-types.sh
+# From the monorepo root: regenerate all languages and sync manifest targets
+cd packages/gql && bun run generate
 ```
 
 ### Version Management
@@ -37,9 +34,12 @@ Version is managed in `openiap-versions.json`:
 
 **To update GQL types:**
 
-1. Edit `openiap-versions.json` - change the `"spec"` version
-2. Run `./scripts/generate-types.sh`
-3. Run `swift test` to verify compatibility
+1. Edit the canonical schema under `packages/gql/src/`.
+2. Run `cd packages/gql && bun run generate`.
+3. Run `cd packages/apple && swift test` to verify compatibility.
+
+Change the `"spec"` version only when the release train explicitly requests a
+version bump; type regeneration itself does not require one.
 
 **To bump Apple package version:**
 
@@ -279,7 +279,7 @@ The Google package supports **three build flavors**:
 
 1. **DO NOT edit generated files**: `openiap/src/main/java/dev/hyo/openiap/Types.kt` is auto-generated
 2. Put reusable Kotlin helpers in `openiap/src/main/java/dev/hyo/openiap/utils/`
-3. Run `./scripts/generate-types.sh` to regenerate types
+3. Run `cd packages/gql && bun run generate` from the monorepo root
 4. **Test ALL THREE flavors** when making changes to shared code
 5. **Never persist local receipt-to-SKU aliases as entitlement identity**:
    store-specific adapters may cache data for performance or correlate an
@@ -371,8 +371,9 @@ maps OpenIAP product queries, purchases, restore calls, and fulfillment to
 
 ### Updating openiap-gql Version
 
-1. Edit `openiap-versions.json` and update the `spec` field
-2. Run `./scripts/generate-types.sh` to download and regenerate Types.kt
+1. Update the canonical schema and change `openiap-versions.json` only when an
+   explicitly coordinated release requests a new `spec` version.
+2. Run `cd packages/gql && bun run generate` from the monorepo root.
 3. Compile ALL THREE flavors to verify:
    ```bash
    ./gradlew :openiap:compilePlayDebugKotlin
@@ -463,18 +464,16 @@ Before writing or editing anything, **ALWAYS** review:
 
 ### Code Generation Architecture
 
-The GQL package uses an **IR-based (Intermediate Representation) code generation system**:
+The GQL package uses two guarded generation lanes over one schema inventory:
 
 ```text
 GraphQL Schema (src/*.graphql)
-         ↓
-    [1] Parser (codegen/core/parser.ts)
-         ↓
-    [2] Transformer → IR (codegen/core/transformer.ts)
-         ↓
-    [3] Language Plugins (codegen/plugins/*.ts)
-         ↓
-    Generated Files (src/generated/*)
+         ├──► graphql-codegen + guarded TypeScript AST post-processing
+         │                         └──► src/generated/types.ts
+         └──► Parser → Transformer → IR → Language Plugins
+                                      └──► Swift/Kotlin/Dart/GDScript/C#
+                                                     ↓
+                                          generated-sync-manifest.mjs
 ```
 
 #### Directory Structure
@@ -494,7 +493,6 @@ packages/gql/codegen/
 │   ├── dart.ts           # Dart plugin (sealed class, factory constructors)
 │   ├── gdscript.ts       # GDScript plugin (Godot engine)
 │   └── csharp.ts         # C# plugin (.NET MAUI)
-└── templates/            # Handlebars templates (optional)
 ```
 
 #### IR (Intermediate Representation)
@@ -524,16 +522,16 @@ Each plugin handles language-specific requirements:
 
 ### Scripts
 
-| Script              | Description                                 |
-| ------------------- | ------------------------------------------- |
-| `generate:ts`       | Generate TypeScript types (graphql-codegen) |
-| `generate:swift`    | Generate Swift types (IR-based plugin)      |
-| `generate:kotlin`   | Generate Kotlin types (IR-based plugin)     |
-| `generate:dart`     | Generate Dart types (IR-based plugin)       |
-| `generate:gdscript` | Generate GDScript types (IR-based plugin)   |
-| `generate:csharp`   | Generate C# / MAUI types (IR-based plugin)  |
-| `generate`          | Generate all types + sync to platforms      |
-| `sync`              | Sync generated types to platform packages   |
+| Script              | Description                                   |
+| ------------------- | --------------------------------------------- |
+| `generate:ts`       | Generate TypeScript types (graphql-codegen)   |
+| `generate:swift`    | Generate Swift types (IR-based plugin)        |
+| `generate:kotlin`   | Generate Kotlin types (IR-based plugin)       |
+| `generate:dart`     | Generate Dart types (IR-based plugin)         |
+| `generate:gdscript` | Generate GDScript types (IR-based plugin)     |
+| `generate:csharp`   | Generate C# / MAUI types (IR-based plugin)    |
+| `generate`          | Generate every type and sync manifest targets |
+| `sync`              | Replay manifest-owned synchronized copies     |
 
 ### Generating Types
 
@@ -543,7 +541,8 @@ cd packages/gql
 # Generate all platform types
 bun run generate
 
-# Generate specific platform
+# Diagnostic single-plugin generation (always finish with `bun run generate`
+# before committing so every manifest target is synchronized)
 bun run generate:swift
 bun run generate:kotlin
 bun run generate:dart

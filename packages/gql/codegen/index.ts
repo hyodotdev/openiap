@@ -17,6 +17,7 @@ import { CSharpPlugin } from './plugins/csharp.js';
 import type { CodegenPlugin } from './plugins/base-plugin.js';
 import type { IRSchema } from './core/types.js';
 import { lintSchema, formatLintResults } from './core/schema-linter.js';
+import { GQL_GENERATED_SOURCE_DIRECTORY, generatedSourceFileName, gqlPackageRelativePath } from '../generated-sync-manifest.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -25,9 +26,44 @@ const __dirname = dirname(__filename);
 // Configuration
 // ============================================================================
 
+const LANGUAGE_PLUGIN_FACTORIES = {
+  swift: (outputPath: string) => new SwiftPlugin({ outputPath }),
+  kotlin: (outputPath: string) => new KotlinPlugin({ outputPath }),
+  dart: (outputPath: string) => new DartPlugin({ outputPath }),
+  gdscript: (outputPath: string) => new GDScriptPlugin({ outputPath }),
+  csharp: (outputPath: string) => new CSharpPlugin({ outputPath }),
+} as const satisfies Record<string, (outputPath: string) => CodegenPlugin>;
+
+export type SupportedLanguage = keyof typeof LANGUAGE_PLUGIN_FACTORIES;
+export const SUPPORTED_LANGUAGES = Object.freeze(Object.keys(LANGUAGE_PLUGIN_FACTORIES) as SupportedLanguage[]);
+export const LANGUAGE_OUTPUT_PATHS = Object.freeze(
+  Object.fromEntries(SUPPORTED_LANGUAGES.map((language) => [language, generatedSourceFileName(language)])) as Record<
+    SupportedLanguage,
+    string
+  >,
+);
+
+export function normalizeLanguages(languages: readonly string[] | undefined = undefined): SupportedLanguage[] {
+  const requested = languages ?? SUPPORTED_LANGUAGES;
+  if (requested.length === 0) {
+    throw new Error('At least one codegen language is required');
+  }
+
+  const normalized: SupportedLanguage[] = [];
+  for (const language of requested) {
+    if (!SUPPORTED_LANGUAGES.includes(language as SupportedLanguage)) {
+      throw new Error(`Unsupported codegen language: ${language}`);
+    }
+    if (!normalized.includes(language as SupportedLanguage)) {
+      normalized.push(language as SupportedLanguage);
+    }
+  }
+  return normalized;
+}
+
 export interface GenerateConfig {
   /** Languages to generate (default: all) */
-  languages?: Array<'swift' | 'kotlin' | 'dart' | 'gdscript' | 'csharp'>;
+  languages?: SupportedLanguage[];
   /** Output directory (default: packages/gql/src/generated) */
   outputDir?: string;
   /** Whether to log progress */
@@ -39,13 +75,13 @@ export interface GenerateConfig {
 // ============================================================================
 
 export class CodeGenerator {
-  private config: GenerateConfig;
+  private config: Required<GenerateConfig>;
   private schema: IRSchema | null = null;
 
   constructor(config: GenerateConfig = {}) {
     this.config = {
-      languages: config.languages ?? ['swift', 'kotlin'],
-      outputDir: config.outputDir ?? resolve(__dirname, '../src/generated'),
+      languages: normalizeLanguages(config.languages),
+      outputDir: config.outputDir ?? resolve(__dirname, '..', gqlPackageRelativePath(GQL_GENERATED_SOURCE_DIRECTORY)),
       verbose: config.verbose ?? true,
     };
   }
@@ -73,7 +109,7 @@ export class CodeGenerator {
     this.log(`Found ${this.schema.enums.length} enums, ${this.schema.objects.length} objects, ${this.schema.unions.length} unions`);
 
     // Generate for each language
-    for (const language of this.config.languages!) {
+    for (const language of this.config.languages) {
       await this.generateForLanguage(language);
     }
 
@@ -83,18 +119,14 @@ export class CodeGenerator {
   /**
    * Generate code for a specific language
    */
-  private async generateForLanguage(language: string): Promise<void> {
+  private async generateForLanguage(language: SupportedLanguage): Promise<void> {
     const plugin = this.createPlugin(language);
-    if (!plugin) {
-      this.log(`Skipping ${language} - plugin not implemented`);
-      return;
-    }
 
     this.log(`Generating ${language}...`);
     const output = plugin.generate(this.schema!);
 
     const outputPath = plugin.getOutputPath();
-    const fullPath = resolve(this.config.outputDir!, outputPath);
+    const fullPath = resolve(this.config.outputDir, outputPath);
 
     // Ensure directory exists
     mkdirSync(dirname(fullPath), { recursive: true });
@@ -107,31 +139,8 @@ export class CodeGenerator {
   /**
    * Create a plugin for the given language
    */
-  private createPlugin(language: string): CodegenPlugin | null {
-    switch (language) {
-      case 'swift':
-        return new SwiftPlugin({
-          outputPath: 'Types.swift',
-        });
-      case 'kotlin':
-        return new KotlinPlugin({
-          outputPath: 'Types.kt',
-        });
-      case 'dart':
-        return new DartPlugin({
-          outputPath: 'types.dart',
-        });
-      case 'gdscript':
-        return new GDScriptPlugin({
-          outputPath: 'types.gd',
-        });
-      case 'csharp':
-        return new CSharpPlugin({
-          outputPath: 'Types.cs',
-        });
-      default:
-        return null;
-    }
+  private createPlugin(language: SupportedLanguage): CodegenPlugin {
+    return LANGUAGE_PLUGIN_FACTORIES[language](LANGUAGE_OUTPUT_PATHS[language]);
   }
 
   /**
@@ -151,19 +160,14 @@ export class CodeGenerator {
 
 async function main() {
   const args = process.argv.slice(2);
-  const languages = args.length > 0
-    ? args as Array<'swift' | 'kotlin' | 'dart' | 'gdscript' | 'csharp'>
-    : ['swift', 'kotlin', 'dart', 'gdscript', 'csharp'];
-
-  const generator = new CodeGenerator({ languages });
+  const generator = new CodeGenerator({
+    languages: args.length > 0 ? normalizeLanguages(args) : undefined,
+  });
   await generator.generate();
 }
 
 // Run if executed directly (Bun-compatible check)
-const isMain =
-  typeof Bun !== 'undefined'
-    ? Bun.main === import.meta.path
-    : import.meta.url === `file://${process.argv[1]}`;
+const isMain = typeof Bun !== 'undefined' ? Bun.main === import.meta.path : import.meta.url === `file://${process.argv[1]}`;
 
 if (isMain) {
   main().catch((err) => {
@@ -194,4 +198,4 @@ export { GDScriptPlugin } from './plugins/gdscript.js';
 export { CSharpPlugin } from './plugins/csharp.js';
 export type { IRSchema, IREnum, IRObject, IRUnion, IRType } from './core/types.js';
 export { lintSchema, formatLintResults } from './core/schema-linter.js';
-export type { LintResult, LintOptions } from './core/schema-linter.js';
+export type { LintResult } from './core/schema-linter.js';

@@ -24,6 +24,7 @@ This document outlines the coding conventions and guidelines for the kmp-iap pro
    - **Important**: The platform identifier should always be a suffix, not a prefix
      - ✅ Correct: `TransactionStateIOS`, `DiscountPaymentModeIOS`
      - ❌ Incorrect: `IosTransactionState`, `IosDiscountPaymentMode`
+
 4. **Field names with platform suffix**:
    - When the platform acronym appears at the end of a field name, use uppercase
    - Examples: `quantityIOS`, `appBundleIdIOS`, `environmentIOS`
@@ -43,6 +44,12 @@ val kmpIapInstance: KmpIAP        // ✅ Correct - Global instance variable (not
 val quantityIOS: Int              // ✅ Correct - Field with iOS suffix
 val environmentIOS: String        // ✅ Correct - Field with iOS suffix
 ```
+
+## Generated Types
+
+- `library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt` is generated from `packages/gql`; never edit it manually.
+- In this monorepo, run `cd packages/gql && bun run generate` from the repository root so the manifest-backed sync updates every SDK together.
+- In a standalone KMP checkout, `./scripts/generate-types.sh` validates and atomically installs the platform-ready KMP target from the raw `docs-${spec}` tag pinned by `openiap-versions.json`. Do not use that download path for unshipped monorepo schema work.
 
 ## API Design Patterns
 
