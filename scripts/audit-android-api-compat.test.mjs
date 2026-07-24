@@ -16,6 +16,20 @@ test("detects the API 24 concurrent set factory", () => {
     ),
     true,
   );
+  assert.equal(
+    usesApi24ConcurrentKeySet(
+      "import java.util.concurrent.ConcurrentHashMap as CHM\n" +
+        "val listeners = CHM.newKeySet<Listener>()",
+    ),
+    true,
+  );
+  assert.equal(
+    usesApi24ConcurrentKeySet(
+      "import static java.util.concurrent.ConcurrentHashMap.newKeySet;\n" +
+        "Set<String> warnings = newKeySet();",
+    ),
+    true,
+  );
 });
 
 test("ignores API 24 factory decoys in comments and strings", () => {
