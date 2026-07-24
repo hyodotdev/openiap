@@ -1953,20 +1953,7 @@ internal class InAppPurchaseAndroid(
                             .filter { purchase ->
                                 purchase.purchaseState ==
                                     com.android.billingclient.api.Purchase.PurchaseState.PURCHASED
-                            }.map { purchase ->
-                                ActiveSubscription(
-                                    autoRenewingAndroid = purchase.isAutoRenewing,
-                                    isActive = true,
-                                    productId = purchase.products.firstOrNull().orEmpty(),
-                                    purchaseToken = purchase.purchaseToken,
-                                    transactionDate = purchase.purchaseTime.toOpenIapTransactionDate(),
-                                    transactionId = purchase.orderId ?: purchase.purchaseToken,
-                                    willExpireSoon = null,
-                                    daysUntilExpirationIOS = null,
-                                    environmentIOS = null,
-                                    expirationDateIOS = null
-                                )
-                            }
+                            }.map { purchase -> purchase.toActiveSubscription() }
                         complete(Result.success(active))
                     } else {
                         val error = result.toBillingOperationError(

@@ -3,9 +3,32 @@ package dev.hyo.openiap
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AmazonSubscriptionGroupMappingTest {
+
+    @Test
+    fun `available purchases reject both Amazon cancellation signals`() {
+        assertTrue(
+            shouldIncludeAmazonReceipt(
+                isCanceled = false,
+                hasCancelDate = false,
+            ),
+        )
+        assertFalse(
+            shouldIncludeAmazonReceipt(
+                isCanceled = true,
+                hasCancelDate = false,
+            ),
+        )
+        assertFalse(
+            shouldIncludeAmazonReceipt(
+                isCanceled = false,
+                hasCancelDate = true,
+            ),
+        )
+    }
 
     @Test
     fun `requested subscription skus stay isolated across multiple groups`() {
@@ -106,11 +129,15 @@ class AmazonSubscriptionGroupMappingTest {
             isCanceled = false,
             isDeferred = true,
             deferredSku = "premium.yearly",
+            termSku = "premium.monthly",
+            productIdOverride = "premium",
         )
 
         assertEquals(PurchaseState.Purchased, purchase.purchaseState)
         assertEquals(true, purchase.isAutoRenewing)
         assertFalse(purchase.isSuspendedAndroid ?: true)
+        assertEquals("premium", purchase.productId)
+        assertEquals("premium.monthly", purchase.currentPlanId)
         assertEquals(
             listOf("premium.yearly"),
             purchase.pendingPurchaseUpdateAndroid?.products,

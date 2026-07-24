@@ -3,6 +3,7 @@
 // JsonOptions.Default the library uses for every module payload.
 
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Xunit;
 
 namespace OpenIap.Maui.Tests;
@@ -131,16 +132,124 @@ public class RecordJsonTests
     private const string PurchaseAndroidJson = """
         {
           "__typename": "PurchaseAndroid",
-          "id": "GPA.1234-5678",
+          "autoRenewingAndroid": true,
+          "currentPlanId": "monthly-base-plan",
+          "dataAndroid": "{\"orderId\":\"GPA.1234-5678\"}",
+          "developerPayloadAndroid": "developer-payload",
+          "id": "token-abc",
+          "ids": ["premium.monthly", "premium.backup"],
+          "isAcknowledgedAndroid": false,
           "isAutoRenewing": true,
+          "isSuspendedAndroid": true,
+          "obfuscatedAccountIdAndroid": "account-hash",
+          "obfuscatedProfileIdAndroid": "profile-hash",
+          "packageNameAndroid": "dev.hyo.martie",
+          "pendingPurchaseUpdateAndroid": {
+            "products": ["premium.annual"],
+            "purchaseToken": "pending-token"
+          },
           "platform": "android",
           "productId": "premium.monthly",
           "purchaseState": "purchased",
           "purchaseToken": "token-abc",
           "quantity": 1,
+          "signatureAndroid": "signature-abc",
           "store": "google",
           "transactionDate": 1720000000000,
-          "isAcknowledgedAndroid": false
+          "transactionId": "GPA.1234-5678"
+        }
+        """;
+
+    private const string PurchaseIosJson = """
+        {
+          "__typename": "PurchaseIOS",
+          "advancedCommerceInfoIOS": {
+            "description": "Advanced commerce purchase",
+            "displayName": "Premium bundle",
+            "estimatedTax": "0.99",
+            "items": [
+              {
+                "details": {
+                  "jsonRepresentation": "{\"sku\":\"premium.bundle\"}"
+                },
+                "refunds": [
+                  {
+                    "jsonRepresentation": "{\"reason\":\"partial\"}"
+                  }
+                ],
+                "revocationDate": 1720000000111
+              }
+            ],
+            "requestReferenceId": "request-reference",
+            "taxCode": "digital-goods",
+            "taxExclusivePrice": "9.00",
+            "taxRate": "0.11"
+          },
+          "appAccountToken": "11111111-2222-3333-4444-555555555555",
+          "appBundleIdIOS": "dev.hyo.martie",
+          "billingPlanTypeIOS": "monthly",
+          "commitmentInfoIOS": {
+            "billingPeriodNumber": 3,
+            "commitmentExpiresDate": 1750000000000,
+            "commitmentPrice": 9.99,
+            "totalBillingPeriods": 12
+          },
+          "countryCodeIOS": "US",
+          "currencyCodeIOS": "USD",
+          "currencySymbolIOS": "$",
+          "currentPlanId": "premium.monthly",
+          "environmentIOS": "Sandbox",
+          "expirationDateIOS": 1722592000000,
+          "id": "2000000123",
+          "ids": ["premium.monthly"],
+          "isAutoRenewing": true,
+          "isUpgradedIOS": false,
+          "offerIOS": {
+            "id": "launch-offer",
+            "paymentMode": "payAsYouGo",
+            "type": "promotional"
+          },
+          "originalTransactionDateIOS": 1710000000000,
+          "originalTransactionIdentifierIOS": "2000000001",
+          "ownershipTypeIOS": "PURCHASED",
+          "platform": "ios",
+          "productId": "premium.monthly",
+          "purchaseState": "purchased",
+          "purchaseToken": "signed-jws",
+          "quantity": 1,
+          "quantityIOS": 1,
+          "reasonIOS": "PURCHASE",
+          "reasonStringRepresentationIOS": "purchase",
+          "renewalInfoIOS": {
+            "autoRenewPreference": "premium.annual",
+            "commitmentInfo": {
+              "commitmentAutoRenewProductId": "premium.annual",
+              "commitmentAutoRenewStatus": true,
+              "commitmentRenewalBillingPlanType": "up-front",
+              "commitmentRenewalDate": 1750000000000,
+              "commitmentRenewalPrice": 99.99
+            },
+            "expirationReason": "VOLUNTARY",
+            "gracePeriodExpirationDate": 1723000000000,
+            "isInBillingRetry": true,
+            "jsonRepresentation": "{\"renewal\":\"metadata\"}",
+            "pendingUpgradeProductId": "premium.annual",
+            "priceIncreaseStatus": "AGREED",
+            "renewalBillingPlanType": "up-front",
+            "renewalDate": 1722592000000,
+            "renewalOfferId": "renewal-offer",
+            "renewalOfferType": "PROMOTIONAL",
+            "willAutoRenew": true
+          },
+          "revocationDateIOS": 1724000000000,
+          "revocationReasonIOS": "REFUNDED",
+          "store": "apple",
+          "storefrontCountryCodeIOS": "USA",
+          "subscriptionGroupIdIOS": "group.premium",
+          "transactionDate": 1720000000000,
+          "transactionId": "2000000123",
+          "transactionReasonIOS": "PURCHASE",
+          "webOrderLineItemIdIOS": "1000000999"
         }
         """;
 
@@ -150,17 +259,18 @@ public class RecordJsonTests
         var purchase = JsonSerializer.Deserialize<Purchase>(PurchaseAndroidJson, Options);
 
         var android = Assert.IsType<PurchaseAndroid>(purchase);
-        Assert.Equal("GPA.1234-5678", android.Id);
+        Assert.Equal("token-abc", android.Id);
         Assert.Equal(IapPlatform.Android, android.Platform);
         Assert.Equal(PurchaseState.Purchased, android.PurchaseState);
         Assert.Equal(IapStore.Google, android.Store);
         Assert.Equal("token-abc", android.PurchaseToken);
+        Assert.Equal("GPA.1234-5678", android.TransactionId);
         Assert.Equal(1720000000000D, android.TransactionDate);
         Assert.True(android.IsAutoRenewing);
         Assert.NotNull(android.IsAcknowledgedAndroid);
         Assert.False(android.IsAcknowledgedAndroid!.Value);
-        Assert.Null(android.Ids);
-        Assert.Null(android.SignatureAndroid);
+        Assert.Equal(["premium.monthly", "premium.backup"], android.Ids);
+        Assert.Equal("signature-abc", android.SignatureAndroid);
     }
 
     [Fact]
@@ -169,7 +279,44 @@ public class RecordJsonTests
         var purchase = JsonSerializer.Deserialize<Purchase>(PurchaseAndroidJson, Options)!;
         var serialized = JsonSerializer.Serialize(purchase, Options);
         Assert.Contains("\"__typename\":\"PurchaseAndroid\"", serialized, StringComparison.Ordinal);
-        Assert.Equal(purchase, JsonSerializer.Deserialize<Purchase>(serialized, Options));
+        var reparsed = Assert.IsType<PurchaseAndroid>(
+            JsonSerializer.Deserialize<Purchase>(serialized, Options));
+        Assert.Equal("GPA.1234-5678", reparsed.TransactionId);
+        Assert.Equal(["premium.monthly", "premium.backup"], reparsed.Ids);
+        Assert.Equal(["premium.annual"], reparsed.PendingPurchaseUpdateAndroid?.Products);
+    }
+
+    [Fact]
+    public void PurchaseAndroid_FullCanonicalPayloadRoundTripsEveryGeneratedField()
+    {
+        var android = AssertFullPurchaseRoundTrip<PurchaseAndroid>(PurchaseAndroidJson);
+
+        Assert.Equal("monthly-base-plan", android.CurrentPlanId);
+        Assert.Equal("""{"orderId":"GPA.1234-5678"}""", android.DataAndroid);
+        Assert.True(android.IsSuspendedAndroid);
+        Assert.NotNull(android.PendingPurchaseUpdateAndroid);
+        Assert.Equal(["premium.annual"], android.PendingPurchaseUpdateAndroid!.Products);
+        Assert.Equal("pending-token", android.PendingPurchaseUpdateAndroid.PurchaseToken);
+        Assert.Equal("GPA.1234-5678", android.TransactionId);
+    }
+
+    [Fact]
+    public void PurchaseIOS_FullCanonicalPayloadRoundTripsEveryGeneratedField()
+    {
+        var ios = AssertFullPurchaseRoundTrip<PurchaseIOS>(PurchaseIosJson);
+
+        Assert.Equal("premium.monthly", ios.CurrentPlanId);
+        Assert.Equal("launch-offer", ios.OfferIOS?.Id);
+        Assert.Equal(SubscriptionBillingPlanTypeIOS.Monthly, ios.BillingPlanTypeIOS);
+        Assert.Equal(3, ios.CommitmentInfoIOS?.BillingPeriodNumber);
+        Assert.Equal("request-reference", ios.AdvancedCommerceInfoIOS?.RequestReferenceId);
+        Assert.Equal(
+            """{"sku":"premium.bundle"}""",
+            ios.AdvancedCommerceInfoIOS?.Items[0].Details?.JsonRepresentation);
+        Assert.Equal("premium.annual", ios.RenewalInfoIOS?.PendingUpgradeProductId);
+        Assert.Equal(
+            SubscriptionBillingPlanTypeIOS.UpFront,
+            ios.RenewalInfoIOS?.CommitmentInfo?.CommitmentRenewalBillingPlanType);
     }
 
     [Fact]
@@ -216,6 +363,40 @@ public class RecordJsonTests
             }
             """;
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Purchase>(json, Options));
+    }
+
+    private static TPurchase AssertFullPurchaseRoundTrip<TPurchase>(string json)
+        where TPurchase : Purchase
+    {
+        using var fixture = JsonDocument.Parse(json);
+        var expectedWireFields = typeof(TPurchase)
+            .GetProperties()
+            .Select(property => property.GetCustomAttributes(typeof(JsonPropertyNameAttribute), false)
+                .Cast<JsonPropertyNameAttribute>()
+                .Single()
+                .Name)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+
+        foreach (var wireField in expectedWireFields)
+        {
+            Assert.True(
+                fixture.RootElement.TryGetProperty(wireField, out _),
+                $"Full canonical {typeof(TPurchase).Name} fixture is missing {wireField}");
+        }
+
+        var purchase = Assert.IsType<TPurchase>(JsonSerializer.Deserialize<Purchase>(json, Options));
+        var serialized = JsonSerializer.Serialize<Purchase>(purchase, Options);
+        using var roundTrip = JsonDocument.Parse(serialized);
+
+        foreach (var wireField in expectedWireFields)
+        {
+            Assert.True(
+                roundTrip.RootElement.TryGetProperty(wireField, out _),
+                $"{typeof(TPurchase).Name} round trip dropped {wireField}");
+        }
+
+        return Assert.IsType<TPurchase>(JsonSerializer.Deserialize<Purchase>(serialized, Options));
     }
 
     // ------------------------------------------------------------------

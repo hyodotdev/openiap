@@ -58,6 +58,11 @@ private const val AMAZON_PRODUCT_DATA_BATCH_SIZE = 100
 private const val AMAZON_PURCHASE_UPDATES_MAX_PAGES = 100
 private const val AMAZON_EARLY_RESPONSE_CACHE_MAX = 128
 
+internal fun shouldIncludeAmazonReceipt(
+    isCanceled: Boolean,
+    hasCancelDate: Boolean,
+): Boolean = !isCanceled && !hasCancelDate
+
 internal fun configureAmazonPurchasingService(
     registerListener: () -> Unit,
     enablePendingPurchases: () -> Unit,
@@ -304,9 +309,11 @@ internal fun buildAmazonPurchase(
     isCanceled: Boolean,
     isDeferred: Boolean,
     deferredSku: String? = null,
+    termSku: String? = null,
     productIdOverride: String? = null
 ): PurchaseAndroid {
     val resolvedProductId = productIdOverride?.takeIf { it.isNotBlank() } ?: receiptSku
+    val resolvedCurrentPlanId = termSku?.takeIf { it.isNotBlank() } ?: resolvedProductId
     val state = if (isCanceled) PurchaseState.Unknown else PurchaseState.Purchased
     val pendingSubscriptionUpdate = deferredSku
         ?.takeIf { isDeferred && it.isNotBlank() }
@@ -321,24 +328,24 @@ internal fun buildAmazonPurchase(
         }
     return PurchaseAndroid(
         autoRenewingAndroid = isSubscription && !isCanceled,
-        currentPlanId = if (isSubscription) resolvedProductId else null,
+        currentPlanId = if (isSubscription) resolvedCurrentPlanId else null,
         dataAndroid = "",
         id = receiptId,
         ids = listOf(resolvedProductId),
         isAcknowledgedAndroid = null,
         isAutoRenewing = isSubscription && !isCanceled,
+        isSuspendedAndroid = false,
         packageNameAndroid = packageName,
+        pendingPurchaseUpdateAndroid = pendingSubscriptionUpdate,
         platform = IapPlatform.Android,
         productId = resolvedProductId,
-        pendingPurchaseUpdateAndroid = pendingSubscriptionUpdate,
         purchaseState = state,
         purchaseToken = receiptId,
         quantity = 1,
         signatureAndroid = null,
         store = IapStore.Amazon,
         transactionDate = purchaseDateMillis,
-        transactionId = receiptId,
-        isSuspendedAndroid = false
+        transactionId = receiptId
     )
 }
 
@@ -1302,7 +1309,12 @@ class OpenIapModule
                 when (response.requestStatus) {
                     PurchaseUpdatesResponse.RequestStatus.SUCCESSFUL -> {
                         receipts += response.receipts.orEmpty()
-                            .filter { it.cancelDate == null }
+                            .filter {
+                                shouldIncludeAmazonReceipt(
+                                    isCanceled = it.isCanceled,
+                                    hasCancelDate = it.cancelDate != null,
+                                )
+                            }
                     }
                     PurchaseUpdatesResponse.RequestStatus.NOT_SUPPORTED -> {
                         throw OpenIapError.FeatureNotSupported("Amazon Appstore IAP is not supported on this device")
@@ -1662,6 +1674,7 @@ class OpenIapModule
             isCanceled = receiptCanceled,
             isDeferred = receiptDeferred,
             deferredSku = deferredSku,
+            termSku = termSku,
             productIdOverride = productIdOverride
         ).copy(dataAndroid = toJSON().toString())
     }

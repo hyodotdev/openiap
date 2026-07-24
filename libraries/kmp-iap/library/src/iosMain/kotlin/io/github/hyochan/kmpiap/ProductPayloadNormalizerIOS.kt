@@ -1,5 +1,8 @@
 package io.github.hyochan.kmpiap
 
+import io.github.hyochan.kmpiap.openiap.PurchaseIOS
+import platform.Foundation.NSNull
+
 internal fun normalizeBridgeMap(data: Any?): Map<String, Any?>? {
     val source = data as? Map<*, *> ?: return null
     return source.entries.associate { (key, value) ->
@@ -31,7 +34,34 @@ internal fun normalizeProductPayloadIOS(data: Any?): Map<String, Any?>? {
     return normalized
 }
 
+internal fun normalizePurchasePayloadIOS(data: Any?): Map<String, Any?>? {
+    val normalized = normalizeBridgeMap(data)?.toMutableMap() ?: return null
+
+    // Preserve every canonical PurchaseIOS field from the native dictionary.
+    // These defaults only cover legacy bridge payloads that predate the
+    // generated platform/store/quantity fields.
+    if (normalized["platform"] == null) normalized["platform"] = "ios"
+    if (normalized["store"] == null) normalized["store"] = "apple"
+    if (normalized["quantity"] == null) normalized["quantity"] = 1
+    if ((normalized["platform"] as? String)?.equals("ios", ignoreCase = true) == true) {
+        normalized["platform"] = "ios"
+    }
+    if ((normalized["store"] as? String)?.equals("apple", ignoreCase = true) == true) {
+        normalized["store"] = "apple"
+    }
+    return normalized
+}
+
+internal fun decodePurchasePayloadIOS(data: Any?): PurchaseIOS? {
+    return runCatching {
+        val normalized = normalizePurchasePayloadIOS(data) ?: return@runCatching null
+        if (normalized["platform"] != "ios") return@runCatching null
+        PurchaseIOS.fromJson(normalized)
+    }.getOrNull()
+}
+
 private fun normalizeBridgeValue(value: Any?): Any? = when (value) {
+    is NSNull -> null
     is Map<*, *> -> value.entries.associate { (key, nested) ->
         key.toString() to normalizeBridgeValue(nested)
     }
