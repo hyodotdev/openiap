@@ -63,6 +63,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.lang.ref.WeakReference
+import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -76,7 +77,8 @@ private val LEGACY_HORIZON_APP_ID_META_DATA = listOf(
     "com.meta.horizon.platform.ovr.HORIZON_APP_ID",
     "com.oculus.vr.APP_ID"
 )
-private val emittedLegacyHorizonAppIdWarnings = ConcurrentHashMap.newKeySet<String>()
+private val emittedLegacyHorizonAppIdWarnings: MutableSet<String> =
+    Collections.newSetFromMap(ConcurrentHashMap())
 
 private fun warnLegacyHorizonAppIdKey(key: String) {
     if (!emittedLegacyHorizonAppIdWarnings.add(key)) return
